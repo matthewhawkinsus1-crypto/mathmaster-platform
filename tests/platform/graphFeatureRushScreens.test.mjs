@@ -126,12 +126,22 @@ test('the student screen plays a rush on its own surface, loaded only for a rush
 
 test('the class\'s taps do not wake every student\'s screen during a rush round', () => {
   const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
-  const listener = region(student, '  useEffect(() => {\n    if (!roomId) { setPlayers([]); return undefined; }', '}, [roomId, rushRoundOpen]);', 'standings listener');
-  // Paused while a rush round is open, resumed (fresh) when it closes.
-  assert.ok(listener.indexOf('if (rushRoundOpen) return undefined;') > 0 && listener.indexOf('if (rushRoundOpen) return undefined;') < listener.indexOf('watchLiveChallengePlayers('), 'the pause comes before the subscription');
-  assert.match(listener, /setPlayersFresh\(false\)[\s\S]*setPlayersFresh\(true\)/);
-  // The held rows stop counting as current the moment the pause begins.
-  assert.ok(listener.indexOf('setPlayersFresh(false)') < listener.indexOf('if (rushRoundOpen) return undefined;'), 'stale from the start of the pause');
+  // Both of a student's standings listeners — their own row (each of their
+  // own taps changes it) and the class's standings snapshot — are paused while
+  // a rush round is open, and resumed (fresh) when it closes.
+  const listeners = [
+    ['own row', region(student, '  useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, rushRoundOpen]);', 'own-row listener'), 'watchLiveChallengePlayer(', 'SelfFresh'],
+    ['snapshot', region(student, '  useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, rushRoundOpen]);', 'standings snapshot listener'), 'watchLiveChallengeStandings(', 'ProjectionFresh'],
+  ];
+  for (const [name, listener, subscribe, fresh] of listeners) {
+    const pause = listener.indexOf('if (rushRoundOpen) return undefined;');
+    assert.ok(pause > 0 && pause < listener.indexOf(subscribe), `${name}: the pause comes before the subscription`);
+    assert.match(listener, new RegExp(`set${fresh}\\(false\\)[\\s\\S]*set${fresh}\\(true\\)`));
+    // What is held stops counting as current the moment the pause begins.
+    assert.ok(listener.indexOf(`set${fresh}(false)`) < pause, `${name}: stale from the start of the pause`);
+  }
+  // No student listener on every player row, paused or not.
+  assert.doesNotMatch(executableSource(student), /watchLiveChallengePlayers\b/);
   // A closed round's results come from the round's own result document,
   // written when it closed — never from rows the paused listener held from
   // before the round — and the header shows no score it cannot keep current.
@@ -140,7 +150,8 @@ test('the class\'s taps do not wake every student\'s screen during a rush round'
   assert.match(results, /roundResultsView\(\{ summary, previousSummary, selfKey: playerKey \}\)/);
   assert.doesNotMatch(executableSource(results), /players|leaderboard/, 'never the standings listener');
   assert.match(student, /\{stage === CHALLENGE_STAGE\.ROUND_RESULTS && \(\s*<StudentRoundResults /);
-  assert.match(student, /const headerRow = selfRow && room\.status === 'running' && playersFresh \? selfRow : null;/);
+  assert.match(student, /const headerRow = selfEntry && room\.status === 'running' && selfFresh \? selfEntry : null;/);
+  assert.match(student, /const headerPlace = headerRow && projectionFresh && standings\?\.self \? shortPlaceText\(standings\.self\) : null;/);
   // With the listener paused, a successful join must not be asked again.
   const join = region(student, 'if (joinRefusedForRef.current === roomId', '.finally(', 'automatic join');
   assert.match(join, /joinedRoomRef\.current === roomId\) return;/);

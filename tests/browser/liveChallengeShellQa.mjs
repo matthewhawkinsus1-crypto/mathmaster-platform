@@ -201,11 +201,16 @@ if (!await waitForHttp(`${ORIGIN}/`)) {
 const TEACHER = 'shell-qa-teacher@example.com';
 const FIRST = ['Ana', 'Ben', 'Cara', 'Dev', 'Eli', 'Fay', 'Gus', 'Hana', 'Ivy', 'Jon', 'Kai', 'Lia', 'Max', 'Nia', 'Oli', 'Pia'];
 const LAST = ['Rivera', 'Tran', 'Lopez', 'Patel', 'Brooks', 'Kim', 'Ortiz', 'Sato', 'Chen', 'Reyes'];
+// The standings profile (`standings`, opt-in) plays one game per class size.
+const STANDINGS_SIZES = (process.env.SHELL_QA_STANDINGS_SIZES || '5,15,25,35,45,64').split(',').map(Number).filter((size) => size >= 5);
 const CLASSES = Object.freeze({
   p3: { classId: 'shell-qa-p3', name: 'Period 3 Algebra I', period: 'P3', course: 'algebra1', size: 6 },
   p4: { classId: 'shell-qa-p4', name: 'Period 4 Algebra I', period: 'P4', course: 'algebra1', size: 4 },
   big: { classId: 'shell-qa-big', name: 'Period 6 Algebra I', period: 'P6', course: 'algebra1', size: 32 },
   launch: { classId: 'shell-qa-launch', name: 'Period 7 Algebra I', period: 'P7', course: 'algebra1', size: 40 },
+  ...(ONLY.includes('standings') ? Object.fromEntries(STANDINGS_SIZES.map((size) => [`standings${size}`, {
+    classId: `shell-qa-st${size}`, name: `Standings ${size}`, period: `S${size}`, course: 'algebra1', size,
+  }])) : {}),
 });
 const studentsOf = (key) => Array.from({ length: CLASSES[key].size }, (_, index) => `${CLASSES[key].classId}-s${String(index + 1).padStart(2, '0')}`);
 const nameOf = (studentId) => {
@@ -1593,6 +1598,204 @@ await run('adversarial', async (S) => {
   await shot(s1, 'X02-student-cancelled');
   consoleErrors(S, [teacher, teacher2, s1]);
   await closeAll(teacher, teacher2, s1);
+});
+
+/*
+ * S — THE STANDINGS PROFILE (opt-in: SHELL_QA_SCENARIOS=standings).
+ *
+ * What standings delivery costs a real student screen, by class size. One
+ * Standard game per size (SHELL_QA_STANDINGS_SIZES), three rounds, with four
+ * real screens — a Chromebook, an iPad, a phone and a Chromebook at a quarter
+ * of the CPU — and bots for the rest of the class, every answer spread over a
+ * few seconds as a class answers. Per screen and round: standings callbacks
+ * and documents, React commits (and those within 50 ms of a standings
+ * callback), main-thread task and script time, long tasks, the bytes the
+ * screen actually received from Firestore, and how long after each answer's
+ * commit the screen showed it; per screen and game: the heap after a forced GC
+ * in the lobby and on the final screen. Writes standings-profile.json beside
+ * the screenshots. A profile, not a gate: it records, it does not judge.
+ */
+const standingsProbe = () => {
+  window.__mmCommitLog = [];
+  window.__mmLongTasks = [];
+  const hook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+  const base = hook.onCommitFiberRoot;
+  hook.onCommitFiberRoot = function onCommit(id, root, ...rest) {
+    const duration = Number(root?.current?.actualDuration);
+    window.__mmCommitLog.push([performance.now(), Number.isFinite(duration) ? duration : null]);
+    if (window.__mmCommitLog.length > 20000) window.__mmCommitLog.splice(0, 10000);
+    return base.call(this, id, root, ...rest);
+  };
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) window.__mmLongTasks.push([entry.startTime, entry.duration]);
+    }).observe({ type: 'longtask', buffered: true });
+  } catch { /* no long-task timing in this browser */ }
+};
+const STANDINGS_SPREAD_MS = Number(process.env.SHELL_QA_STANDINGS_SPREAD_MS || 6000);
+const quantiles = (values) => {
+  const sorted = values.filter((value) => Number.isFinite(value)).sort((left, right) => left - right);
+  const pick = (fraction) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(fraction * sorted.length))] : null);
+  return { n: sorted.length, p50: pick(0.5), p90: pick(0.9), p95: pick(0.95), max: sorted.at(-1) ?? null };
+};
+const standingsProfile = [];
+await run('standings', async (S) => {
+  if (!ONLY.includes('standings')) return;
+  for (const size of STANDINGS_SIZES) {
+    const key = `standings${size}`;
+    const ids = studentsOf(key);
+    const teacher = await openTeacher('chromebook');
+    // Five rounds (the console's smallest game); three are measured, then End Game.
+    const roomId = await createClassic(teacher, { classKey: key, rounds: 5, seconds: 90 });
+    const devices = [['chromebook', 'chromebook'], ['ipad', 'ipad'], ['phone', 'phone'], ['chromebook', 'throttled']];
+    const screens = [];
+    for (const [index, [device, role]] of devices.entries()) {
+      // eslint-disable-next-line no-await-in-loop
+      const handle = await openStudent(ids[index], device, { init: { fn: standingsProbe, arg: null } });
+      handle.role = role;
+      // eslint-disable-next-line no-await-in-loop
+      handle.cdp = await handle.context.newCDPSession(handle.page);
+      // eslint-disable-next-line no-await-in-loop
+      await handle.cdp.send('Performance.enable');
+      // eslint-disable-next-line no-await-in-loop
+      await handle.cdp.send('Network.enable');
+      handle.netBytes = 0;
+      handle.emulatorRequests = new Set();
+      handle.cdp.on('Network.requestWillBeSent', (event) => { if (String(event.request?.url || '').includes(EMULATOR.split(':').pop())) handle.emulatorRequests.add(event.requestId); });
+      handle.cdp.on('Network.dataReceived', (event) => { if (handle.emulatorRequests.has(event.requestId)) handle.netBytes += Number(event.dataLength) || 0; });
+      // eslint-disable-next-line no-await-in-loop
+      if (role === 'throttled') await handle.cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+      screens.push(handle);
+    }
+    const bots = ids.slice(screens.length);
+    await Promise.all(bots.map((id) => botJoin(roomId, id)));
+    for (const screen of screens) check(S, await waitForText(screen, 'You are in as', 30_000), `${size}: ${screen.studentId} (${screen.role}) never reached the lobby`);
+    // eslint-disable-next-line no-await-in-loop
+    for (const screen of screens) screen.playerKey = (await privatePlayer(roomId, screen.studentId)).playerKey;
+    await wait(1_500);
+    const heapOf = async (screen) => {
+      await screen.cdp.send('HeapProfiler.collectGarbage').catch(() => {});
+      const usage = await screen.cdp.send('Runtime.getHeapUsage').catch(() => null);
+      return usage ? Math.round(usage.usedSize / 1e5) / 10 : null;
+    };
+    const lobbyHeap = await Promise.all(screens.map(heapOf));
+    const probe = async (screen) => {
+      const { metrics: list } = await screen.cdp.send('Performance.getMetrics');
+      const byName = Object.fromEntries(list.map((entry) => [entry.name, entry.value]));
+      const page = await screen.page.evaluate(() => ({
+        standings: (window.__mmStandingsLog || []).length,
+        commits: (window.__mmCommitLog || []).length,
+        longTasks: (window.__mmLongTasks || []).length,
+        now: performance.now(),
+        epoch: Date.now(),
+      }));
+      return { taskMs: (byName.TaskDuration || 0) * 1000, scriptMs: (byName.ScriptDuration || 0) * 1000, layoutMs: ((byName.LayoutDuration || 0) + (byName.RecalcStyleDuration || 0)) * 1000, netBytes: screen.netBytes, ...page };
+    };
+    const rounds = [];
+    await primary(teacher, 'start').click();
+    for (let roundIndex = 0; roundIndex < 3; roundIndex += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const room = await waitForRoom(roomId, (current) => Number(current.currentRound) === roundIndex && current.roundState === 'open', 20_000);
+      if (!check(S, room, `${size}: round ${roundIndex + 1} never opened`)) break;
+      // eslint-disable-next-line no-await-in-loop
+      for (const screen of screens) check(S, await waitForStudentStage(screen, ['countdown', 'roundActive'], 20_000), `${size}: ${screen.studentId} not on round ${roundIndex + 1}`);
+      // eslint-disable-next-line no-await-in-loop
+      const before = await Promise.all(screens.map(probe));
+      const goAt = ms(room.startsAt);
+      // eslint-disable-next-line no-await-in-loop
+      await wait(Math.max(0, goAt - Date.now()) + 200);
+      const answerAt = (index, of) => goAt + 300 + Math.round(((index + 0.5) / of) * STANDINGS_SPREAD_MS);
+      const everyone = [...screens.map((screen) => ({ screen })), ...bots.map((id) => ({ id }))];
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.all(everyone.map((entry, index) => wait(answerAt(index, everyone.length) - Date.now()).then(async () => {
+        if (entry.screen) {
+          await answerInBrowser(entry.screen, roomId, { correct: index % 4 !== 3 });
+          await submissionSettled(entry.screen, { timeoutMs: 20_000 }).catch((error) => finding(S, `${size}: ${error.message}`));
+        } else {
+          await botAnswer(roomId, entry.id, { correct: index % 4 !== 3, humanElapsedMs: 1_000 + index * 25 });
+        }
+      }).catch((error) => finding(S, `${size}: an answer failed in round ${roundIndex + 1}: ${String(error?.message || error).split('\n')[0]}`))));
+      // eslint-disable-next-line no-await-in-loop
+      const commits = Object.fromEntries((await db.collection('liveChallengePrivate').doc(roomId).collection('players').get()).docs
+        .map((doc) => doc.data()).filter((player) => Number(player.answeredRound) === roundIndex)
+        .map((player) => [player.playerKey, ms(player.updatedAt)]));
+      // eslint-disable-next-line no-await-in-loop
+      check(S, await waitForRoom(roomId, (current) => current.roundState === 'closed', 30_000), `${size}: round ${roundIndex + 1} did not close once everyone answered`);
+      // eslint-disable-next-line no-await-in-loop
+      await wait(1_500);
+      // eslint-disable-next-line no-await-in-loop
+      const after = await Promise.all(screens.map(probe));
+      // eslint-disable-next-line no-await-in-loop
+      const logs = await Promise.all(screens.map((screen, index) => screen.page.evaluate(({ from }) => ({
+        standings: (window.__mmStandingsLog || []).slice(from.standings),
+        commits: (window.__mmCommitLog || []).slice(from.commits),
+        longTasks: (window.__mmLongTasks || []).slice(from.longTasks),
+      }), { from: before[index] })));
+      rounds.push({
+        roundIndex,
+        screens: screens.map((screen, index) => {
+          const log = logs[index];
+          const callbackTimes = log.standings.map(([t]) => t);
+          const attributed = log.commits.filter(([t]) => callbackTimes.some((c) => t >= c && t - c <= 50));
+          // Commit -> shown: the first commit after the first standings callback reflecting each answer.
+          const epochOffset = after[index].epoch - after[index].now;
+          const shown = Object.entries(commits).filter(([playerKey]) => playerKey !== screen.playerKey).map(([playerKey, commitMs]) => {
+            // A row delivery names the round it answered; a snapshot names the
+            // read it was ranked from, which includes every earlier commit.
+            const delivery = log.standings.find(([, , kind, , extra]) => (kind === 'players'
+              ? (extra || []).some(([keyOf, round]) => keyOf === playerKey && round === roundIndex)
+              : kind === 'standings' && Number(extra?.sourceReadMs) >= commitMs));
+            if (!delivery) return null;
+            const painted = log.commits.find(([t]) => t >= delivery[0]);
+            return (painted ? painted[0] + epochOffset : delivery[1]) - commitMs;
+          });
+          return {
+            studentId: screen.studentId,
+            role: screen.role,
+            standingsCallbacks: log.standings.length,
+            standingsDocs: log.standings.reduce((sum, [, , , docs]) => sum + docs, 0),
+            // By listener: the class's rows (before), or the snapshot and the
+            // student's own row (after).
+            docsByListener: log.standings.reduce((tally, [, , kind, docs]) => ({ ...tally, [kind]: (tally[kind] || 0) + docs }), {}),
+            reactCommits: log.commits.length,
+            reactCommitsAfterStandings: attributed.length,
+            reactCommitMsAfterStandings: Math.round(attributed.reduce((sum, [, duration]) => sum + (duration || 0), 0) * 10) / 10,
+            mainThreadTaskMs: Math.round(after[index].taskMs - before[index].taskMs),
+            scriptMs: Math.round(after[index].scriptMs - before[index].scriptMs),
+            layoutStyleMs: Math.round(after[index].layoutMs - before[index].layoutMs),
+            longTasks: log.longTasks.length,
+            longTaskMs: Math.round(log.longTasks.reduce((sum, [, duration]) => sum + duration, 0)),
+            firestoreKb: Math.round((after[index].netBytes - before[index].netBytes) / 102.4) / 10,
+            commitToShownMs: quantiles(shown.filter((value) => value !== null)),
+            notShown: shown.filter((value) => value === null).length,
+          };
+        }),
+      });
+      if (roundIndex < 2) {
+        // eslint-disable-next-line no-await-in-loop
+        await primary(teacher, 'advance').click();
+      }
+    }
+    await teacher.page.getByRole('button', { name: 'End Game' }).click();
+    await confirmDialog(teacher, 'End Game');
+    check(S, await waitForRoom(roomId, (room) => room.status === 'finished', 30_000), `${size}: the game did not finish`);
+    for (const screen of screens) check(S, await waitForStudentStage(screen, 'completed', 20_000), `${size}: ${screen.studentId} not on the final screen`);
+    await wait(1_000);
+    const finalHeap = await Promise.all(screens.map(heapOf));
+    const watchers = await Promise.all(screens.map(watchersOf));
+    standingsProfile.push({ size, screens: screens.map((screen, index) => ({ studentId: screen.studentId, role: screen.role, lobbyHeapMb: lobbyHeap[index], finalHeapMb: finalHeap[index], openWatchers: watchers[index] })), rounds });
+    const summary = rounds.flatMap((round) => round.screens).reduce((totals, row) => {
+      const entry = totals[row.role] || (totals[row.role] = { callbacks: 0, docs: 0, commits: 0, taskMs: 0, kb: 0, shownP95: [] });
+      entry.callbacks += row.standingsCallbacks; entry.docs += row.standingsDocs; entry.commits += row.reactCommitsAfterStandings; entry.taskMs += row.mainThreadTaskMs; entry.kb += row.firestoreKb;
+      entry.shownP95.push(row.commitToShownMs.p95);
+      return totals;
+    }, {});
+    note(S, `${size} students, per screen over 3 rounds`, Object.fromEntries(Object.entries(summary).map(([role, entry]) => [role, { ...entry, kb: Math.round(entry.kb), shownP95: entry.shownP95 }])));
+    consoleErrors(S, [teacher, ...screens]);
+    for (const screen of screens) await screen.cdp.detach().catch(() => {}); // eslint-disable-line no-await-in-loop
+    await closeAll(teacher, ...screens);
+  }
+  writeFileSync(path.join(SHOTS, 'standings-profile.json'), JSON.stringify({ spreadMs: STANDINGS_SPREAD_MS, sizes: standingsProfile }, null, 2));
 });
 
 /* --------------------------------- report --------------------------------- */

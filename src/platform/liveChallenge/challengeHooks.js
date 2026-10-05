@@ -12,6 +12,35 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { challengeClock, nextClockBoundaryMs } from './challengeShellModel.js';
 import { readLiveChallengeRound, watchLiveChallengeRound } from './liveChallengeService.js';
+import { createStandingsPublishPacer, hostStandingsSignature, roomPublishesLiveStandings } from './standingsPublishPacer.js';
+
+/**
+ * THE HOST'S SHARE OF THE CLASS'S LIVE STANDINGS. The console already ranks
+ * every player's row (`leaderboard`); whenever what it shows changes while the
+ * room has live standings, it asks the server for a fresh snapshot — at most
+ * once a second (standingsPublishPacer.js). The server ranks the rows itself
+ * and decides whether anything is written; this only says when. A console that
+ * is closed, asleep or offline leaves the students' live board stale and
+ * nothing else: round closes and the finish write exact standings without it.
+ */
+export const useStandingsPublisher = ({ roomId, room, leaderboard, questionSetRoom = false, publish }) => {
+  const publishRef = useRef(publish);
+  publishRef.current = publish;
+  const pacerRef = useRef(null);
+  useEffect(() => {
+    if (!roomId) return undefined;
+    const pacer = createStandingsPublishPacer({ publish: () => publishRef.current?.({ roomId }) });
+    pacerRef.current = pacer;
+    return () => { pacer.stop(); pacerRef.current = null; };
+  }, [roomId]);
+  const live = roomPublishesLiveStandings(room, { questionSetRoom });
+  const ended = room?.status === 'finished' || room?.status === 'cancelled';
+  const signature = useMemo(() => hostStandingsSignature(leaderboard), [leaderboard]);
+  useEffect(() => {
+    if (ended) { pacerRef.current?.stop(); return; }
+    if (live) pacerRef.current?.changed();
+  }, [signature, live, ended]);
+};
 
 /**
  * The room's clock (challengeShellModel.challengeClock) at the caller's

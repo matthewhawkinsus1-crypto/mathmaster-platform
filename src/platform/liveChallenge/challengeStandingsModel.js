@@ -183,18 +183,46 @@ export const shortPlaceText = (row) => {
  * own row is added below the top when they are outside it — on their own
  * device only.
  */
-export const standingsWindow = (rows = [], { limit = 8, selfKey = null } = {}) => {
+export const standingsWindow = (rows = [], { limit = 8, selfKey = null, total = null } = {}) => {
   const all = Array.isArray(rows) ? rows : [];
   const size = Math.max(1, Math.floor(Number(limit) || 8));
   const top = all.slice(0, size);
   const self = selfKey ? all.find((row) => row.playerKey === String(selfKey)) || null : null;
   const selfOutside = Boolean(self) && !top.some((row) => row.playerKey === self.playerKey);
+  // A student's board holds only the top of the class and their own row (the
+  // standings snapshot); `total` is how many are really playing.
+  const playing = Number.isInteger(total) && total >= all.length ? total : all.length;
   return Object.freeze({
     top,
     self: selfOutside ? self : null,
-    hiddenCount: Math.max(0, all.length - top.length),
-    total: all.length,
+    hiddenCount: Math.max(0, playing - top.length),
+    total: playing,
   });
+};
+
+/*
+ * A STUDENT'S BOARD FROM THE CLASS'S STANDINGS SNAPSHOT
+ * (functions/shared/liveChallengeStandingsProjection.mjs, decoded by
+ * standingsFromProjection): the top rows the snapshot carries and — when the
+ * student is not among them — their own row, with their rank and score from
+ * the same snapshot, so a place and the score beside it are always one moment.
+ * Engine-shaped rows, for standingsRows.
+ */
+export const projectionBoardRows = (standings = null, { selfKey = null, alias = null } = {}) => {
+  if (!standings || !Array.isArray(standings.top)) return [];
+  const rows = standings.top.map((row) => ({ ...row }));
+  if (standings.self && selfKey && !rows.some((row) => row.playerKey === String(selfKey))) {
+    rows.push({
+      playerKey: String(selfKey),
+      alias: String(alias || 'You'),
+      rank: standings.self.rank,
+      tied: standings.self.tied === true,
+      position: Number.MAX_SAFE_INTEGER,
+      score: standings.self.score,
+      liveScore: standings.self.score,
+    });
+  }
+  return rows;
 };
 
 /*

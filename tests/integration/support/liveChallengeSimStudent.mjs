@@ -2,15 +2,18 @@
  * ONE SIMULATED STUDENT DEVICE FOR THE LIVE CHALLENGE LAUNCH CERTIFICATION.
  *
  * What is REAL here:
- *   - the room / players / invite listeners: the production client service
- *     (src/platform/liveChallenge/liveChallengeService.js), loaded per device
- *     with its own Firebase app and Firestore connection (clientFirebase.mjs);
+ *   - the room, standings-snapshot, own-row and invite listeners: the
+ *     production client service (src/platform/liveChallenge/
+ *     liveChallengeService.js), loaded per device with its own Firebase app
+ *     and Firestore connection (clientFirebase.mjs);
  *   - every decision the student screen makes from what those listeners
  *     deliver, through the same pure modules LiveChallengeStudent.jsx uses:
  *     acceptChallengeSnapshot + challengePhaseAt (which snapshot to keep),
  *     challengeClock (the stage at calibrated server time),
- *     calibrateChallengeClock (the clock), publicLeaderboard (the board and
- *     "am I joined?"), studentConnectionState (the connection pill);
+ *     calibrateChallengeClock (the clock), standingsFromProjection and
+ *     projectionBoardRows (the board), the device's own row ("am I joined?",
+ *     "is this round's answer on the server?"), studentConnectionState (the
+ *     connection pill);
  *   - every server call: the real callables, under this student's identity,
  *     against the emulator (the caller supplies `call`).
  *
@@ -29,18 +32,45 @@
  * every snapshot (late, and therefore sometimes out of order), freezing,
  * going offline, refreshing, answering late or twice.
  */
+import { performance } from 'node:perf_hooks';
 import { calibrateChallengeClock, acceptChallengeSnapshot, challengePhaseAt } from '../../../functions/shared/liveChallengeParity.mjs';
 import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { CHALLENGE_STAGE, challengeClock } from '../../../src/platform/liveChallenge/challengeShellModel.js';
 import { studentConnectionState } from '../../../src/platform/liveChallenge/challengePresenceModel.js';
+import { projectionBoardRows, standingsRows, standingsWindow } from '../../../src/platform/liveChallenge/challengeStandingsModel.js';
+import { projectionRankTable, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
+import { documentWireBytes, SNAPSHOT_OVERHEAD_BYTES } from './firestoreWireBytes.mjs';
+import { importClientService } from './registerClientFirebase.mjs';
 
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, Math.max(0, ms)); });
 let deviceSeq = 0;
 
+/*
+ * WHAT A STANDINGS DELIVERY COST THIS DEVICE (the standings profile reads it).
+ *
+ * Firestore delivers — and bills — every document that changed since the
+ * listener's last snapshot. A row changes only through a server write, and
+ * every server write to a public row stamps one of these times, so a new
+ * signature is exactly a delivered document. Its size is estimated once per
+ * version per worker (every device in a worker receives the same versions).
+ */
+const millisOf = (value) => value?.toMillis?.() ?? (typeof value?.seconds === 'number' ? value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1e6) : 0);
+const rowSignature = (row) => `${millisOf(row.updatedAt)}:${millisOf(row.provisionalAt)}:${millisOf(row.rushActiveAt)}:${row.score}:${row.alias}:${row.joined}`;
+const deliveredBytes = new Map();
+const bytesOfVersion = (documentPath, signature, data) => {
+  const key = `${documentPath}#${signature}`;
+  if (!deliveredBytes.has(key)) {
+    if (deliveredBytes.size > 50_000) deliveredBytes.clear();
+    const { playerKey: _playerKey, ...fields } = data || {};
+    deliveredBytes.set(key, documentWireBytes(documentPath, fields));
+  }
+  return deliveredBytes.get(key);
+};
+
 /** Every device's open listeners, by kind: a leak shows up as a count that never comes back down. */
-export const openListeners = { room: 0, players: 0, invite: 0 };
+export const openListeners = { room: 0, standings: 0, self: 0, players: 0, invite: 0 };
 export const listenerTotal = () => Object.values(openListeners).reduce((sum, count) => sum + count, 0);
 
 const counted = (kind, stop) => {
@@ -65,6 +95,15 @@ export const DEFAULT_PROFILE = Object.freeze({
   answerJitterMs: 300, // a student takes up to this long to answer once the question shows
   lostReply: false, // the server takes the first answer but the reply never arrives; the device resends the same envelope
   secondAnswer: false, // after the first answer settles, try another one for the round
+  // How this device hears the class's standings:
+  //   'projection'  the screen: its own public row and the room's one standings
+  //                 snapshot (functions/shared/liveChallengeStandingsProjection.mjs)
+  //   'legacy'      every public player row, as the screen did before the snapshot
+  //                 (the standings profile's comparison; O(N) deliveries per answer)
+  //   'off'         not at all: a control that leaves only the server and Firestore
+  standingsClient: 'projection',
+  // Keep a per-delivery and per-answer log for the standings profile.
+  trace: false,
 });
 
 // A small seeded generator per device, so a run's jitter is repeatable.
@@ -86,6 +125,13 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
   const deliveryDelayMs = () => profile.deliveryFixedMs + Math.round(random() * profile.deliveryJitterMs);
   const answerDelayMs = () => Math.round(random() * profile.answerJitterMs);
   const tally = stats || { requests: {}, launchOnlyRequests: 0, heartbeatRequests: 0, diagnosticWrites: 0, snapshots: 0 };
+  // Standings deliveries: callbacks, documents delivered, estimated browser
+  // bytes, and the time spent on what the screen does with each delivery
+  // (rank the board, cut the window it shows) — separately from what it costs
+  // to count them.
+  tally.standings ||= { callbacks: 0, docs: 0, bytes: 0, rankMs: 0, renderMs: 0, instrumentationMs: 0 };
+  // With `trace`: one entry per standings callback, per changed row, and per answer.
+  tally.trace ||= { callbacks: [], rows: [], answers: [], roomSnapshots: [], projections: [] };
   const device = {
     studentId,
     profile,
@@ -111,7 +157,12 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     errors: [],
     // Per room: rounds this device had on screen as roundActive, with when.
     seen: {},
-    stops: { room: null, players: null, invite: null },
+    stops: { room: null, standings: null, self: null, players: null, invite: null },
+    // The screen's own row and the room's standings snapshot ('projection').
+    selfRow: null,
+    projection: null,
+    standingsView: null,
+    joinedPlayerKey: null,
     timers: new Set(),
     queued: [],
     launchInFlight: false,
@@ -135,7 +186,7 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
 
   /* ------------------------------ transport ------------------------------ */
 
-  const request = async (name, data) => {
+  const request = async (name, data, { onSent = null } = {}) => {
     tally.requests[name] = (tally.requests[name] || 0) + 1;
     if (!device.online) {
       const error = new Error('Simulated network outage.');
@@ -144,6 +195,7 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     }
     await sleep(profile.rttMs);
     try {
+      onSent?.(Date.now());
       return await call(name, studentId, data);
     } catch (error) {
       // The shape httpsCallable throws.
@@ -251,6 +303,7 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
 
   const onRoom = (next, { fromCache = false } = {}) => {
     tally.snapshots += 1;
+    if (profile.trace) tally.trace.roomSnapshots.push(Date.now());
     // How long after the server wrote the room this device heard it.
     const writtenAt = next?.updatedAt?.toMillis?.();
     if (writtenAt && !fromCache) tally.roomLagMaxMs = Math.max(tally.roomLagMaxMs || 0, Date.now() - writtenAt);
@@ -271,7 +324,7 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
           seenFor().countdownSeen.add(Number(next.currentRound));
         }
       }
-      syncPlayersListener();
+      syncStandingsListeners();
       render();
     };
     const delay = deliveryDelayMs();
@@ -279,35 +332,152 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     else deliver();
   };
 
+  // What the screen derives from each standings delivery: the board ranked as
+  // the room's strategy ranks a match (LiveChallengeStudent's useMemo), and
+  // the window it shows (the top five and this student's own row).
+  const activeRoundNow = () => (device.room && stage() === CHALLENGE_STAGE.ROUND_ACTIVE ? Number(device.room.currentRound) : null);
+  const deriveBoard = () => {
+    const board = publicLeaderboard(device.players, { activeRound: activeRoundNow(), ...leaderboardOptionsFor(device.room?.scoringStrategyId || null) });
+    device.boardWindow = standingsWindow(standingsRows(board, { selfKey: device.invite?.playerKey }), { limit: 5, selfKey: device.invite?.playerKey });
+    return board;
+  };
+
   // The standings listener pauses while a rush round is open (as the screen does).
   let playersListenerFor = null;
+  const rowSignatures = new Map();
   const syncPlayersListener = () => {
     const rushRoundOpen = device.room?.challengeMode === RUSH_MODE_ID && device.room?.status === 'running' && device.room?.roundState !== 'closed';
-    const wanted = device.roomId && !rushRoundOpen ? device.roomId : null;
+    const wanted = device.roomId && !rushRoundOpen && profile.standingsClient !== 'off' ? device.roomId : null;
     if (wanted === playersListenerFor) return;
     device.stops.players?.();
     device.stops.players = null;
     playersListenerFor = wanted;
+    // A listener that starts again is delivered every row again.
+    rowSignatures.clear();
     if (!wanted) return;
     device.stops.players = counted('players', device.service.watchLiveChallengePlayers(wanted, (rows) => {
       if (device.closed || wanted !== device.roomId) return;
+      const receivedAt = Date.now();
+      const started = performance.now();
+      let docs = 0;
+      let bytes = SNAPSHOT_OVERHEAD_BYTES;
+      rows.forEach((row) => {
+        const signature = rowSignature(row);
+        if (rowSignatures.get(row.playerKey) === signature) return;
+        rowSignatures.set(row.playerKey, signature);
+        docs += 1;
+        bytes += bytesOfVersion(`liveChallengeRooms/${wanted}/players/${row.playerKey}`, signature, row);
+        if (profile.trace) tally.trace.rows.push([receivedAt, row.playerKey, Number(row.answeredRound), millisOf(row.updatedAt), Number(row.score) || 0]);
+      });
+      const counting = performance.now() - started;
       device.players = rows;
+      const ranking = performance.now();
+      deriveBoard();
+      const rankMs = performance.now() - ranking;
+      const rendering = performance.now();
       render();
+      const renderMs = performance.now() - rendering;
+      tally.standings.callbacks += 1;
+      tally.standings.docs += docs;
+      tally.standings.bytes += bytes;
+      tally.standings.rankMs += rankMs;
+      tally.standings.renderMs += renderMs;
+      tally.standings.instrumentationMs += counting;
+      if (profile.trace) tally.trace.callbacks.push([receivedAt, docs, bytes, Math.round((rankMs + renderMs) * 1000) / 1000]);
     }, (error) => device.errors.push(`players: ${error?.message}`)));
   };
+
+  // THE SCREEN'S STANDINGS ('projection'): two single documents, both paused
+  // while a rush round is open — the device's own public row and the room's
+  // standings snapshot. Each delivery is one document, whatever the class size.
+  let standingsFor = null;
+  let selfFor = null;
+  const myKey = () => device.invite?.playerKey || device.joinedPlayerKey || null;
+  const deriveStandings = () => {
+    const slot = Number.isInteger(device.selfRow?.slot) ? device.selfRow.slot : (Number.isInteger(device.invite?.slot) ? device.invite.slot : null);
+    device.standingsView = standingsFromProjection(device.projection, { roomId: device.roomId, slot, playerKey: myKey() });
+    device.boardWindow = standingsWindow(
+      standingsRows(projectionBoardRows(device.standingsView, { selfKey: myKey(), alias: device.invite?.alias }), { selfKey: myKey() }),
+      { limit: 5, selfKey: myKey(), total: device.standingsView?.count ?? null },
+    );
+  };
+  const delivered = (kind, documentPath, data, extra = null) => {
+    const receivedAt = Date.now();
+    const bytes = SNAPSHOT_OVERHEAD_BYTES + (data ? documentWireBytes(documentPath, data) : 0);
+    const ranking = performance.now();
+    deriveStandings();
+    const rankMs = performance.now() - ranking;
+    const rendering = performance.now();
+    render();
+    const renderMs = performance.now() - rendering;
+    tally.standings.callbacks += 1;
+    tally.standings.docs += 1;
+    tally.standings.bytes += bytes;
+    tally.standings.rankMs += rankMs;
+    tally.standings.renderMs += renderMs;
+    tally.standings[`${kind}Callbacks`] = (tally.standings[`${kind}Callbacks`] || 0) + 1;
+    // Snapshots by the moment they are from: live (paced), roundClosed, final.
+    if (kind === 'standings' && data?.kind) {
+      tally.standings.byKind ||= {};
+      tally.standings.byKind[data.kind] = (tally.standings.byKind[data.kind] || 0) + 1;
+      if (data.kind === 'live' && data.phase === 'open') tally.standings.liveInRound = (tally.standings.liveInRound || 0) + 1;
+    }
+    if (profile.trace) {
+      tally.trace.callbacks.push([receivedAt, 1, bytes, Math.round((rankMs + renderMs) * 1000) / 1000, kind]);
+      if (extra) tally.trace[kind === 'standings' ? 'projections' : 'rows'].push([receivedAt, ...extra]);
+    }
+  };
+  const syncStandingsListeners = () => {
+    if (profile.standingsClient === 'legacy' || profile.standingsClient === 'off') { syncPlayersListener(); return; }
+    const rushRoundOpen = device.room?.challengeMode === RUSH_MODE_ID && device.room?.status === 'running' && device.room?.roundState !== 'closed';
+    const wantedRoom = device.roomId && !rushRoundOpen ? device.roomId : null;
+    const wantedSelf = wantedRoom && myKey() ? `${wantedRoom}/${myKey()}` : null;
+    if (wantedRoom !== standingsFor) {
+      device.stops.standings?.();
+      device.stops.standings = null;
+      standingsFor = wantedRoom;
+      if (wantedRoom) {
+        device.stops.standings = counted('standings', device.service.watchLiveChallengeStandings(wantedRoom, (snapshot) => {
+          if (device.closed || wantedRoom !== device.roomId) return;
+          device.projection = snapshot;
+          delivered('standings', `liveChallengeRooms/${wantedRoom}/standings/current`, snapshot, snapshot ? [Number(snapshot.sourceReadMs) || 0, snapshot.kind, snapshot.phase, Number(snapshot.roundVersion) || 0] : null);
+        }, (error) => device.errors.push(`standings: ${error?.message}`)));
+      }
+    }
+    if (wantedSelf !== selfFor) {
+      device.stops.self?.();
+      device.stops.self = null;
+      selfFor = wantedSelf;
+      if (wantedSelf) {
+        const key = myKey();
+        device.stops.self = counted('self', device.service.watchLiveChallengePlayer(wantedRoom, key, (row) => {
+          if (device.closed || wantedRoom !== device.roomId) return;
+          device.selfRow = row;
+          delivered('self', `liveChallengeRooms/${wantedRoom}/players/${key}`, row, row ? [key, Number(row.answeredRound), millisOf(row.updatedAt), Number(row.score) || 0] : null);
+        }, (error) => device.errors.push(`self: ${error?.message}`)));
+      }
+    }
+  };
+  // Whether this student is already in the room: the screen asks its own row
+  // (the legacy screen looked for itself on the class's board).
+  const alreadyJoined = () => (profile.standingsClient === 'projection'
+    ? device.selfRow?.joined === true
+    : leaderboard().some((entry) => entry.playerKey === device.invite?.playerKey));
 
   const maybeJoin = () => {
     const { room } = device;
     if (!device.roomId || device.joining || !room || room.roomId !== device.roomId || !['lobby', 'running'].includes(room.status)) return;
     if (device.joinRefusedFor === device.roomId || device.joinedRoomId === device.roomId) return;
-    if (leaderboard().some((entry) => entry.playerKey === device.invite?.playerKey)) return;
+    if (alreadyJoined()) return;
     device.joining = true;
     const roomId = device.roomId;
     request('joinLiveChallenge', { roomId })
       .then((reply) => {
         if (roomId !== device.roomId) return;
         device.joinedRoomId = roomId;
+        if (reply?.playerKey) device.joinedPlayerKey = String(reply.playerKey);
         seenFor().joinReply = reply;
+        syncStandingsListeners();
       })
       .catch((error) => {
         if (/permission-denied|failed-precondition|not-found|invalid-argument/.test(String(error?.code || ''))) device.joinRefusedFor = roomId;
@@ -328,8 +498,13 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     const record = (seen.answers[capture.roundIndex] ||= { attempts: 0, accepted: [], refused: [] });
     record.attempts += 1;
     const sentAt = Date.now();
+    // Lock In -> sent -> the reply, for the standings profile: what a student
+    // waits for, beside what the server and the network spent of it.
+    const timing = profile.trace ? { submissionId: capture.submissionId, roundIndex: capture.roundIndex, kind, lockedAt: capture.lockedAt || sentAt, sentAt: null, replyAt: null, ok: null } : null;
+    if (timing) tally.trace.answers.push(timing);
     try {
-      const grading = await request('submitLiveChallengeResponse', capture);
+      const grading = await request('submitLiveChallengeResponse', capture, { onSent: (at) => { if (timing) timing.sentAt = at; } });
+      if (timing) { timing.replyAt = Date.now(); timing.ok = true; timing.duplicate = grading?.duplicate === true; }
       if (profile.lostReply && !capture.replyLostOnce) {
         // The answer reached the server; its reply did not reach the device.
         capture.replyLostOnce = true;
@@ -342,6 +517,7 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
       storage.delete(pendingKey(capture.roomId, capture.roundIndex, capture.roundVersion));
       return grading;
     } catch (error) {
+      if (timing && timing.ok === null) { timing.replyAt = Date.now(); timing.ok = false; timing.code = error.code; }
       record.refused.push({ kind, ms: Date.now() - sentAt, submissionId: capture.submissionId, code: error.code, message: error.message });
       // A refusal settles the envelope (already-exists: the first answer is
       // recorded; a closed or missing round: the screen has caught up). A
@@ -373,8 +549,9 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     const roundVersion = Number(room.roundVersion) || 0;
     const pKey = pendingKey(room.roomId, roundIndex, roundVersion);
     if (profile.answer === 'none' || storage.has(pKey) || storage.has(resultKey(room.roomId, roundIndex, roundVersion))) return;
-    const self = device.players.find((row) => row.playerKey === device.invite?.playerKey);
-    if (Number(self?.answeredRound) === roundIndex) return; // answered on another device, or before a refresh
+    // Answered on another device, or before a refresh: the screen reads its own row.
+    const self = profile.standingsClient === 'projection' ? device.selfRow : device.players.find((row) => row.playerKey === device.invite?.playerKey);
+    if (Number(self?.answeredRound) === roundIndex) return;
     const capture = {
       roomId: room.roomId,
       roundIndex,
@@ -387,6 +564,8 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
       timingDegraded: device.clock.quality === 'degraded',
       autoFinalizedAtRoundEnd: false,
     };
+    // Lock In: the envelope exists from here, before any transport.
+    Object.defineProperty(capture, 'lockedAt', { value: Date.now(), enumerable: false });
     storage.set(pKey, capture);
     capture.inFlight = true;
     await sendAnswer(capture);
@@ -456,8 +635,9 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
   const loadDevice = async () => {
     deviceSeq += 1;
     device.deviceId = `${studentId}-${deviceSeq}`;
-    device.service = await import(`../../../src/platform/liveChallenge/liveChallengeService.js?mmClient=${device.deviceId}`);
-    device.firebase = await import(`./clientFirebase.mjs?mmClient=${device.deviceId}`);
+    const client = await importClientService(device.deviceId, `simulated device ${device.deviceId}`);
+    device.service = client.service;
+    device.firebase = client.firebase;
     if (!storage.has('mm-live-challenge-session')) storage.set('mm-live-challenge-session', globalThis.crypto.randomUUID());
     device.sessionId = storage.get('mm-live-challenge-session');
   };
@@ -468,6 +648,10 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     // A different room is a different game: nothing of the last one stays.
     device.room = null;
     device.players = [];
+    device.selfRow = null;
+    device.projection = null;
+    device.standingsView = null;
+    device.joinedPlayerKey = null;
     device.roomFromCache = false;
     device.everInSync = false;
     device.roomMissing = false;
@@ -477,6 +661,12 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     playersListenerFor = null;
     device.stops.players?.();
     device.stops.players = null;
+    standingsFor = null;
+    selfFor = null;
+    device.stops.standings?.();
+    device.stops.standings = null;
+    device.stops.self?.();
+    device.stops.self = null;
     if (!roomId) return;
     collectLaunchEvent('listener_attached', null);
     device.stops.room = counted('room', device.service.watchLiveChallengeRoom(roomId, onRoom, (error) => {
@@ -484,7 +674,7 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
       later(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
       device.errors.push(`room: ${error?.message}`);
     }, { includeMetadataChanges: true }));
-    syncPlayersListener();
+    syncStandingsListeners();
     startCalibration();
   };
 
@@ -527,13 +717,33 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
         online: device.online,
         frozen: device.frozen,
         answering: device.answering,
-        playerCount: device.players.length,
-        board: leaderboard().map((row) => [row.playerKey, row.rank]),
+        playerCount: profile.standingsClient === 'projection' ? (device.standingsView?.count ?? 0) : device.players.length,
+        board: profile.standingsClient === 'projection' ? null : leaderboard().map((row) => [row.playerKey, row.rank]),
+        // What the screen's standings say: the snapshot's moment, how many
+        // play, its top rows, this student's own place, and every seat's rank.
+        standings: device.standingsView ? {
+          kind: device.standingsView.kind,
+          exact: device.standingsView.exact,
+          roundVersion: device.standingsView.roundVersion,
+          phase: device.standingsView.phase,
+          count: device.standingsView.count,
+          top: device.standingsView.top.map((row) => [row.playerKey, row.rank, row.tied, row.score]),
+          self: device.standingsView.self ? { ...device.standingsView.self } : null,
+          table: projectionRankTable(device.projection).map((seat) => [seat.slot, seat.rank, seat.score]),
+          slotKeys: device.projection?.slotKeys || null,
+        } : null,
+        selfRow: device.selfRow ? { answeredRound: device.selfRow.answeredRound, score: device.selfRow.score, slot: device.selfRow.slot ?? null, joined: device.selfRow.joined === true } : null,
+        window: device.boardWindow ? { top: device.boardWindow.top.map((row) => [row.playerKey, row.rank]), self: device.boardWindow.self ? [device.boardWindow.self.playerKey, device.boardWindow.self.rank] : null, hiddenCount: device.boardWindow.hiddenCount } : null,
         seen: plainSeen(device.seen),
         seenBeforeRefresh: plainSeen(device.seenBeforeRefresh),
-        stats: tally,
+        // The trace is fetched once, at the end (traceData): a view is polled.
+        stats: { ...tally, trace: undefined },
         errors: device.errors.slice(-5),
       };
+    },
+    /** The standings profile's per-delivery and per-answer log (with `trace`). */
+    traceData() {
+      return { studentId, playerKey: device.invite?.playerKey || null, trace: tally.trace, standings: tally.standings };
     },
     seenIn: (roomId) => device.seen[roomId] || null,
     async goOffline() {
@@ -585,8 +795,10 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
       device.scheduledAnswers = 0;
       tickTimer = null;
       Object.values(device.stops).forEach((stop) => stop?.());
-      device.stops = { room: null, players: null, invite: null };
+      device.stops = { room: null, standings: null, self: null, players: null, invite: null };
       playersListenerFor = null;
+      standingsFor = null;
+      selfFor = null;
       await device.firebase?.shutdown?.();
     },
   });

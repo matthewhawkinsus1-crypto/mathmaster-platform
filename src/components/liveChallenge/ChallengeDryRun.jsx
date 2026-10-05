@@ -282,7 +282,9 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
       room={room}
       alias="You"
       playerKey="dry-run"
-      leaderboard={[]}
+      // A rehearsal has no class: no standings, and no row on any server.
+      standings={null}
+      selfEntry={null}
       studentProfile={{}}
       submitResponse={submitResponse}
       // No room, no players, nobody to tell. A rehearsal publishes nothing.

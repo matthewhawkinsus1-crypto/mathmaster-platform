@@ -1114,7 +1114,26 @@ service cloud.firestore {
       // Anonymous per-player standings are separate documents so a whole class
       // can answer at once without every response contending on one hot room
       // document. They contain only game aliases and score/progress counters.
+      //
+      // The student screen now listens to its OWN row only, and gets the
+      // class's standings from the one snapshot below. Reading a classmate's
+      // row stays allowed in this release so that a screen loaded before it
+      // (which still lists every row) keeps working until it reloads; the
+      // tightening to own-row-only is a later, separate rules deploy
+      // (docs/handoffs/LIVE_CHALLENGE_STANDINGS_SCALE_2026-10-05.md).
       match /players/{playerKey} {
+        allow read: if rootAdmin()
+          || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
+          || (signedIn()
+            && request.auth.token.role == 'student'
+            && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId);
+        allow create, update, delete: if false;
+      }
+
+      // The class's standings snapshot (standings/current): game aliases,
+      // ranks and scores only, written by the server. Read by exactly the
+      // audience of the room.
+      match /standings/{snapshotId} {
         allow read: if rootAdmin()
           || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
           || (signedIn()

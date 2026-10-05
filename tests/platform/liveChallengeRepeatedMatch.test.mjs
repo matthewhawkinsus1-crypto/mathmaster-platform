@@ -26,6 +26,7 @@ import { region } from './helpers/sourceContract.mjs';
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const student = read('src/components/liveChallenge/LiveChallengeStudent.jsx');
 const teacher = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');
+const projection = read('functions/shared/liveChallengeStandingsProjection.mjs');
 const consoleParts = read('src/components/liveChallenge/ChallengeHostConsole.jsx');
 const projector = read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx');
 const app = read('src/App.jsx');
@@ -91,7 +92,14 @@ test('a refresh after answering keeps the round locked', () => {
   // `result` lived only in memory, so a refresh reopened the question; a second
   // answer was then refused by the server and shown as an error.
   const round = region(student, 'export function ChallengeRound(', 'export default function LiveChallengeStudent', 'ChallengeRound');
-  assert.match(round, /const answeredOnServer = Number\(currentSelf\?\.answeredRound\) === roundIndex;/);
+  // The server's record of this student's answer — their own public row,
+  // delivered to them alone — locks the round after a refresh or on another
+  // device. Never the class's standings snapshot, which may be a second stale.
+  assert.match(round, /const answeredOnServer = Number\(selfEntry\?\.answeredRound\) === roundIndex;/);
+  const root = region(student, 'export default function LiveChallengeStudent', null, 'the student screen');
+  assert.match(root, /return watchLiveChallengePlayer\(roomId, playerKey, \(row\) => \{\s*setSelfRow\(row\);/);
+  assert.match(root, /const selfEntry = useMemo\(\s*\(\) => \(selfRow \? publicLeaderboard\(\[selfRow\]/);
+  assert.match(region(root, '<ChallengeRound\n            key=', '/>', 'live round'), /selfEntry=\{selfEntry\}/);
   assert.match(round, /const locked = answerRecorded \|\| Boolean\(pending\);/);
   assert.match(round, /const answerRecorded = Boolean\(result\) \|\| answeredOnServer \|\| alreadyRecorded;/);
   assert.match(round, /assignmentLocked=\{locked \|\| expired \|\| !roundStarted\}/);
@@ -139,14 +147,15 @@ test('a round the host closed locks the question without firing the buzzer', () 
 /* ---------- the board ranks the way the room scores ---------- */
 
 test('student and teacher boards rank by the room\'s scoring strategy', () => {
-  for (const [name, source] of [['student', student], ['teacher', teacher]]) {
-    assert.match(
-      source,
-      /publicLeaderboard\(players, \{ activeRound, \.\.\.leaderboardOptionsFor\(scoringStrategyId\) \}\)/,
-      `${name} board must use the room's ranking`,
-    );
-    assert.match(source, /const scoringStrategyId = room\?\.scoringStrategyId \|\| null;/);
-  }
+  // The teacher ranks every row it holds; the student's board is the standings
+  // snapshot, which the server ranks the same way from the same rows — live —
+  // and from the engine's own standings at each close and the finish.
+  assert.match(teacher, /publicLeaderboard\(players, \{ activeRound, \.\.\.leaderboardOptionsFor\(scoringStrategyId\) \}\)/, "teacher board must use the room's ranking");
+  for (const source of [student, teacher]) assert.match(source, /const scoringStrategyId = room\?\.scoringStrategyId \|\| null;/);
+  const live = region(projection, 'export const liveProjectionFromPublicRows', '\n};\n', 'live snapshot');
+  assert.match(live, /publicLeaderboard\(rows, \{ activeRound, \.\.\.leaderboardOptionsFor\(room\.scoringStrategyId \|\| null\) \}\)/, "the student's board is ranked by the room's ranking");
+  assert.match(student, /standingsFromProjection\(projection, /, 'the student shows the snapshot as ranked, never re-ranking a partial board');
+  assert.match(student, /publicLeaderboard\(\[selfRow\], \{ activeRound, \.\.\.leaderboardOptionsFor\(scoringStrategyId\) \}\)/, "the student's own live score follows the room's strategy");
   // A Grand Prix board ranks championship points, not raw round score.
   const players = [
     { playerKey: 'a', alias: 'A', score: 12, matchPoints: 12, roundWins: 0, rawScore: 3000 },

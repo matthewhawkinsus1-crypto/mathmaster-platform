@@ -97,7 +97,11 @@ test('a finished game: your place, then what reached your wallet, then the top o
   // words; it never tells a player who was there that they joined too late.
   assert.match(finalCard, /\{loading \? 'Loading your final place…' : 'You joined after the last round\.'\}/);
   const finished = region(studentMain, "{room.status === 'finished' && (", "{room.status === 'cancelled' && (", 'finished view');
-  assert.match(finished, /loading=\{!playersFresh\}/);
+  assert.match(finished, /loading=\{!finalStandings\}/);
+  // The final place and podium come from the FINAL snapshot only — the one
+  // written from the match result — never from a live one still on screen.
+  assert.match(studentMain, /const finalStandings = room\.status === 'finished' && standings\?\.kind === PROJECTION_KIND\.FINAL \? standings : null;/);
+  assert.match(finished, /totalPlayers=\{finalStandings\?\.count \|\| 0\}/);
 });
 
 /* ------------------------------ the boards themselves ------------------------------ */

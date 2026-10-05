@@ -10,6 +10,18 @@
 // calibrated server time. Missing the countdown, or any other transient moment,
 // cannot strand them: the countdown is animation, never the source of truth.
 //
+// THE STANDINGS. A screen listens to its own public row and to ONE standings
+// snapshot (functions/shared/liveChallengeStandingsProjection.mjs), never to
+// its classmates' rows. The snapshot is replaced at most once a second while
+// the board moves — paced by the host console (../support/liveChallengeSimHost
+// .mjs runs the console's own pacer) — and exactly at each round's close and at
+// the finish. Certified at every size: a screen's standings deliveries per
+// round are bounded whatever the class size, its listeners are a constant
+// four, and the final standings and podium on every screen ARE the match
+// result's, seat by seat. The endurance matches rotate the scoring strategies
+// (total points, Grand Prix round placements, correct answers), and one game
+// runs with its host console gone quiet mid-game.
+//
 // WHAT IS REAL. Every callable (functions/index.js, each student under their
 // own identity). Every listener: each simulated device loads the production
 // client service with its own Firebase app and Firestore connection to the
@@ -50,14 +62,17 @@ const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
 const challenge = await import(path.join(repo, 'functions/shared/liveChallenge.mjs'));
 const { LAUNCH_EVENTS, MAX_LAUNCH_EVENTS } = await import(path.join(repo, 'functions/shared/liveChallengeLaunchDiagnostics.mjs'));
-const { leaderboardOptionsFor } = await import(path.join(repo, 'functions/shared/liveChallengeScoring.mjs'));
+const { leaderboardOptionsFor, getScoringStrategy, SCORE_ACCUMULATION } = await import(path.join(repo, 'functions/shared/liveChallengeScoring.mjs'));
 const { CHALLENGE_STAGE } = await import(path.join(repo, 'src/platform/liveChallenge/challengeShellModel.js'));
 const { createDeviceFarm } = await import('../support/deviceFarm.mjs');
+const { createSimHost } = await import('../support/liveChallengeSimHost.mjs');
+const { projectionRankTable, STANDINGS_MIN_PUBLISH_INTERVAL_MS, STANDINGS_TOP_ROWS } = await import(path.join(repo, 'functions/shared/liveChallengeStandingsProjection.mjs'));
 const db = admin.firestore();
 
 const SIZES = (process.env.LAUNCH_CERT_SIZES || '5,15,25,35,45,64').split(',').map(Number).filter((size) => size >= 5);
 const ENDURANCE_MATCHES = Math.max(2, Number(process.env.LAUNCH_CERT_ENDURANCE_MATCHES) || 4);
 const ENDURANCE_CLASS = Math.max(5, Number(process.env.LAUNCH_CERT_ENDURANCE_CLASS) || 20);
+const ENDURANCE_STRATEGIES = ['accuracyFirst', 'grandPrix', 'correctCount'];
 const WORKERS = Number(process.env.LAUNCH_CERT_WORKERS) || undefined;
 const RUSH_CLASS = 30;
 const ROUNDS = 3;
@@ -132,6 +147,9 @@ const roomOf = async (roomId) => (await roomRef(roomId).get()).data() || {};
 const publicPlayers = async (roomId) => (await roomRef(roomId).collection('players').get()).docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 const privatePlayers = async (roomId) => (await privateRef(roomId).collection('players').get()).docs.map((doc) => ({ studentId: doc.id, ...doc.data() }));
 const diagnostics = async (roomId) => (await roomRef(roomId).collection('diagnostics').get()).docs.map((doc) => ({ playerKey: doc.id, ...doc.data() }));
+const standingsSnapshot = async (roomId) => (await roomRef(roomId).collection('standings').doc('current').get()).data() || null;
+// The host console for a room: listens to every row and paces live snapshots.
+const openHost = (entry, roomId, options = {}) => createSimHost({ roomId, call: (name, data) => teacherCall(entry, name, data), ...options });
 const inviteOf = async (studentId) => (await db.collection('liveChallengeInvites').doc(studentId).get()).data() || null;
 
 const createGame = async (entry, extra = {}) => (await teacherCall(entry, 'createLiveChallenge', {
@@ -153,11 +171,17 @@ const createGame = async (entry, extra = {}) => (await teacherCall(entry, 'creat
   ...extra,
 })).roomId;
 
-// What a few devices hold, for a timeout message.
-const viewDump = (views) => JSON.stringify([...views.values()].slice(0, 5).map((view) => ({
-  id: view.studentId, room: view.room, stage: view.stage, online: view.online, frozen: view.frozen, answering: view.answering,
-  rounds: Object.keys(view.seen[view.roomId]?.rounds || {}), errors: view.errors, roomLagMaxMs: view.stats.roomLagMaxMs,
-})));
+// What a few devices hold, for a timeout message: the ones being waited on
+// first (`first`, student ids), then others for comparison.
+const viewDump = (views, first = []) => {
+  const all = [...views.values()];
+  const waited = new Set(first);
+  return JSON.stringify([...all.filter((view) => waited.has(view.studentId)), ...all.filter((view) => !waited.has(view.studentId))].slice(0, 5).map((view) => ({
+    id: view.studentId, room: view.room, stage: view.stage, online: view.online, frozen: view.frozen, answering: view.answering,
+    rounds: Object.keys(view.seen[view.roomId]?.rounds || {}), answers: view.seen[view.roomId]?.answers || null,
+    errors: view.errors, roomLagMaxMs: view.stats.roomLagMaxMs,
+  })));
+};
 
 // The host closes a round once the whole class has joined and answered: NOT
 // forced, so the close itself proves that every student's answer reached the
@@ -171,7 +195,8 @@ const closeWhenAllAnswered = async (entry, farm, roomId, roundIndex, timeoutMs =
   await waitUntil(async () => {
     const rows = await privatePlayers(roomId);
     const room = await roomOf(roomId);
-    return `round ${roundIndex + 1}: still waiting on ${entry.students.filter((studentId) => !answeredRound(rows, studentId, roundIndex)).join(', ')}; server room ${JSON.stringify({ round: room.currentRound, state: room.roundState, version: room.roundVersion, startsAt: millis(room.startsAt), endsAt: millis(room.endsAt), now: Date.now() })}; devices ${viewDump(await farm.views())}`;
+    const waiting = entry.students.filter((studentId) => !answeredRound(rows, studentId, roundIndex));
+    return `round ${roundIndex + 1}: still waiting on ${waiting.join(', ')}; server room ${JSON.stringify({ round: room.currentRound, state: room.roundState, version: room.roundVersion, startsAt: millis(room.startsAt), endsAt: millis(room.endsAt), now: Date.now() })}; devices ${viewDump(await farm.views(), waiting)}`;
   }, async () => {
     const rows = await privatePlayers(roomId);
     return entry.students.every((studentId) => answeredRound(rows, studentId, roundIndex));
@@ -236,6 +261,10 @@ const assertMatchIntegrity = async (farm, roomId, entry, views, label, privateRo
   assert.equal(publicRows.length, views.size, `${label}: one public player per student who played, no duplicates (${publicRows.length})`);
   const publicByKey = new Map(publicRows.map((row) => [row.id, row]));
   const totals = { scored: 0, duplicateReplies: 0, secondAnswersRefused: 0, droppedThenRetried: 0, answerMs: [] };
+  // How the room's strategy turns answers into a score: per response (the
+  // points each answer earned, summed) or per round (a placement each round,
+  // the championship points summed).
+  const perRound = getScoringStrategy((await roomOf(roomId)).scoringStrategyId || null).accumulation === SCORE_ACCUMULATION.PER_ROUND;
   for (const view of views.values()) {
     const priv = privateRows.find((row) => row.studentId === view.studentId);
     assert.ok(priv?.joined, `${label}: ${view.studentId} joined`);
@@ -272,19 +301,80 @@ const assertMatchIntegrity = async (farm, roomId, entry, views, label, privateRo
     assert.equal(receipts.length, ROUNDS, `${label}: ${view.studentId}: one answer receipt per round (${receipts.length})`);
     assert.equal(Number(priv.roundsAnswered), ROUNDS, `${label}: ${view.studentId} rounds answered`);
     assert.equal(Number(priv.correctCount), correct, `${label}: ${view.studentId} correct count`);
-    assert.equal(Number(pub.score), points, `${label}: ${view.studentId}: the board's score is the sum of the points their answers earned`);
-    assert.equal(Number(priv.score), points, `${label}: ${view.studentId}: private and public scores agree`);
+    if (perRound) {
+      // A placement strategy: one placement per round, each counted once, and
+      // the score IS their sum (the championship total).
+      const placements = Object.values(priv.roundPlacements || {});
+      assert.equal(placements.length, ROUNDS, `${label}: ${view.studentId}: one placement per round (${JSON.stringify(priv.roundPlacements)})`);
+      const championship = placements.reduce((sum, entry) => sum + Math.max(0, Math.round(Number(entry?.matchPoints) || 0)), 0);
+      assert.equal(Number(pub.score), championship, `${label}: ${view.studentId}: the board's score is the championship points their placements earned`);
+      assert.equal(Number(priv.score), championship, `${label}: ${view.studentId}: private and public scores agree`);
+    } else {
+      assert.equal(Number(pub.score), points, `${label}: ${view.studentId}: the board's score is the sum of the points their answers earned`);
+      assert.equal(Number(priv.score), points, `${label}: ${view.studentId}: private and public scores agree`);
+    }
   }
-  // The leaderboard every screen builds is the match result's standings.
+  // The host's board (every public row) ranks exactly as the match result.
   const options = leaderboardOptionsFor((await roomOf(roomId)).scoringStrategyId || null);
   const board = challenge.publicLeaderboard(publicRows.map((row) => ({ playerKey: row.id, ...row })), { activeRound: null, ...options });
   const finalRank = new Map((result?.standings || []).filter((row) => row.rank !== null).map((row) => [row.playerKey, row.rank]));
   assert.equal(board.length, views.size, `${label}: everyone is on the board once`);
   board.forEach((row) => assert.equal(finalRank.get(row.playerKey), row.rank, `${label}: ${row.alias} is ranked the same on the board and in the match result`));
   for (let index = 1; index < board.length; index += 1) assert.ok(board[index - 1].rank <= board[index].rank, `${label}: the board is in rank order`);
-  const expected = board.map((row) => [row.playerKey, row.rank]);
-  for (const view of views.values()) assert.deepEqual(view.board, expected, `${label}: ${view.studentId}'s screen shows the final board`);
+  // THE FINAL STANDINGS AND PODIUM every screen shows ARE the match result's:
+  // one final snapshot, written from it in the finishing commit, and every
+  // screen holding exactly that snapshot — every seat, the top rows, its own place.
+  const ranked = (result?.standings || []).filter((row) => row.rank !== null);
+  const slotOf = new Map(privateRows.map((row) => [row.playerKey, row.slot]));
+  const bySlot = (left, right) => left[0] - right[0];
+  const expectedTable = ranked.map((row) => [slotOf.get(row.playerKey), row.rank, row.score]).sort(bySlot);
+  const expectedTop = ranked.slice(0, STANDINGS_TOP_ROWS).map((row) => [row.playerKey, row.rank, row.tied, row.score]);
+  const final = await standingsSnapshot(roomId);
+  assert.equal(final?.kind, 'final', `${label}: the room's standings snapshot is the final one`);
+  assert.equal(final.exact, true);
+  assert.deepEqual(projectionRankTable(final).map((seat) => [seat.slot, seat.rank, seat.score]).sort(bySlot), expectedTable, `${label}: the final snapshot is the match result, seat by seat`);
+  assert.deepEqual(final.top.map((row) => [row.playerKey, row.rank, row.tied, row.score]), expectedTop, `${label}: the podium is the match result's`);
+  for (const view of views.values()) {
+    assert.equal(view.standings?.kind, 'final', `${label}: ${view.studentId}'s screen holds the final standings (${JSON.stringify(view.standings && { kind: view.standings.kind, phase: view.standings.phase })})`);
+    assert.equal(view.standings.count, ranked.length, `${label}: ${view.studentId} counts everyone who played`);
+    assert.deepEqual([...view.standings.table].sort(bySlot), expectedTable, `${label}: ${view.studentId}'s screen holds every final place`);
+    assert.deepEqual(view.standings.top, expectedTop, `${label}: ${view.studentId}'s screen shows the podium`);
+    const own = ranked.find((row) => row.playerKey === view.invite.playerKey);
+    assert.deepEqual([view.standings.self?.rank, view.standings.self?.tied, view.standings.self?.score], [own.rank, own.tied, own.score], `${label}: ${view.studentId}'s own final place`);
+  }
   return totals;
+};
+
+/*
+ * BOUNDED STANDINGS PER SCREEN. A screen's standings deliveries depend on
+ * time and on the match's moments — at most one live snapshot a second, one
+ * per round close, the final — never on how many classmates answered. The
+ * bound is computed from the game's own length, so it holds at every size.
+ */
+// What the host's publish requests came back with, for a failure message.
+const hostReplies = (host) => JSON.stringify(host.replies.slice(-12).map((reply) => [reply.published === true ? 'published' : (reply.reason || reply.error || 'no'), reply.retryAfterMs || undefined]));
+const assertBoundedStandings = (views, { label, gameMs, host, size }) => {
+  const live = Math.ceil(gameMs / STANDINGS_MIN_PUBLISH_INTERVAL_MS) + 1;
+  // Live snapshots, the round closes and the finish, plus a listener's first
+  // delivery each time it (re)attaches (a refresh, a rush round's pause).
+  const budget = live + ROUNDS + 1 + 3;
+  const deliveries = [...views.values()].map((view) => view.stats.standings.standingsCallbacks || 0);
+  deliveries.forEach((count, index) => assert.ok(count <= budget, `${label}: ${[...views.values()][index].studentId} received ${count} standings snapshots over ${Math.round(gameMs / 1000)} s (bound ${budget}, whatever the class size)`));
+  const own = [...views.values()].map((view) => view.stats.standings.selfCallbacks || 0);
+  // Its own row: the join, one answer a round, and a re-attach or two.
+  own.forEach((count, index) => assert.ok(count <= 2 + ROUNDS * 2 + 4, `${label}: ${[...views.values()][index].studentId} received its own row ${count} times`));
+  const publishes = host.replies.filter((reply) => reply.published === true).length;
+  assert.ok(publishes <= live, `${label}: ${publishes} live snapshots in ${Math.round(gameMs / 1000)} s`);
+  // The pacer reached the screens: a live snapshot arrived on ordinary screens while a round was open.
+  const sawLive = [...views.values()].filter((view) => (view.stats.standings.liveInRound || 0) > 0).length;
+  assert.ok(sawLive >= Math.ceil(size / 2), `${label}: only ${sawLive} of ${size} screens saw a live snapshot during a round (the host's replies: ${hostReplies(host)})`);
+  return {
+    perScreen: { max: Math.max(...deliveries), mean: Math.round((deliveries.reduce((a, b) => a + b, 0) / deliveries.length) * 10) / 10, budget },
+    ownRow: { max: Math.max(...own) },
+    livePublishes: publishes,
+    hostRequests: host.requests.length,
+    screensThatSawLiveInRound: sawLive,
+  };
 };
 
 // Launch diagnostics: bounded, summary-only, never on a student-readable row.
@@ -341,6 +431,9 @@ for (const size of SIZES) {
       ...(studentId === doubleSender ? { lostReply: true, secondAnswer: true } : {}),
     });
     const farm = await createDeviceFarm({ workers: WORKERS });
+    // The teacher's console: every row, and the pacer for the students' live standings.
+    const host = await openHost(entry, roomId);
+    const gameStartedAt = Date.now();
     try {
       await Promise.all(entry.students.map((studentId, index) => farm.add(studentId, profileOf(studentId, index))));
       const device = (studentId) => farm.device(studentId);
@@ -376,11 +469,17 @@ for (const size of SIZES) {
       await teacherCall(entry, 'finishLiveChallenge', { roomId });
       const views = await waitUntil(`${label}: not every screen reached the finished game`, async () => {
         const all = await farm.views();
-        return [...all.values()].every((view) => view.room?.status === 'finished' && view.stage === CHALLENGE_STAGE.COMPLETED && view.playerCount === size) ? all : null;
+        return [...all.values()].every((view) => view.room?.status === 'finished' && view.stage === CHALLENGE_STAGE.COMPLETED && view.standings?.kind === 'final' && view.playerCount === size) ? all : null;
       }, 30_000, 250);
+      const gameMs = Date.now() - gameStartedAt;
 
       assertEveryDevicePlayed(views, roomId, label);
       const totals = await assertMatchIntegrity(farm, roomId, entry, views, label, privateAtLastClose);
+      const standings = assertBoundedStandings(views, { label, gameMs, host, size });
+      // A constant four listeners' worth per screen — room, standings snapshot,
+      // own row (no invite listener here) — and never a classmate's row.
+      const census = await farm.listeners();
+      assert.deepEqual({ room: census.room, standings: census.standings, self: census.self, players: census.players }, { room: size, standings: size, self: size, players: 0 }, `${label}: one room, one standings and one own-row listener per screen, and no player-row listener: ${JSON.stringify(census)}`);
       assert.ok(totals.secondAnswersRefused >= 1, `${label}: a second answer for a round is refused, never scored`);
       assert.ok(totals.duplicateReplies >= 1, `${label}: an answer resent after a lost reply is recognised as the same answer`);
 
@@ -438,6 +537,9 @@ for (const size of SIZES) {
         worstRoomSnapshotLagMs: Math.max(...[...views.values()].map((view) => view.stats.roomLagMaxMs || 0)),
         submitCalls: sum(views, (view) => view.stats.requests.submitLiveChallengeResponse),
         answersScored: totals.scored,
+        // Standings: snapshots per screen over the whole game (its bound), live
+        // snapshots the host's pacer got written, listeners per screen.
+        standings: { ...standings, gameMs, listenersPerScreen: Math.round((census.total / size) * 10) / 10 },
         duplicateRepliesAbsorbed: totals.duplicateReplies,
         secondAnswersRefused: totals.secondAnswersRefused,
         droppedAnswersRetried: totals.droppedThenRetried,
@@ -452,12 +554,56 @@ for (const size of SIZES) {
         },
       };
     } finally {
+      await host.close();
       await farm.shutdown();
       assert.equal((await farm.listeners()).total, 0, `${label}: every listener a device opened was closed`);
       await farm.close();
     }
   });
 }
+
+/* ===== THE HOST STOPS PUBLISHING: the live board goes stale, nothing else ===== */
+
+test('the host console stops publishing mid-game (asleep, offline, closed): every answer counts once and the standings at each close and the finish are exact', { timeout: 120_000 }, async () => {
+  const size = 15;
+  const entry = await seedClass(classFor('quiethost', size));
+  const label = 'a quiet host';
+  const roomId = await createGame(entry);
+  const farm = await createDeviceFarm({ workers: WORKERS });
+  const host = await openHost(entry, roomId);
+  try {
+    await Promise.all(entry.students.map((studentId, index) => farm.add(studentId, { deliveryJitterMs: 150, rttMs: Math.round(random() * 40), answer: index % 3 === 2 ? 'wrong' : 'correct', answerJitterMs: 1_200 })));
+    await Promise.all(entry.students.map(async (studentId) => farm.device(studentId).open(await inviteOf(studentId))));
+    await waitUntil(`${label}: lobby`, async () => (await publicPlayers(roomId)).filter((row) => row.joined).length === size
+      && [...(await farm.views()).values()].every((view) => view.clockReady), 30_000, 250);
+    await teacherCall(entry, 'startLiveChallenge', { roomId });
+    // Round 1 with a live board; rounds 2 and 3 with the console gone quiet.
+    let pausedAt = null;
+    await playRounds(entry, farm, roomId, {
+      beforeRound: async (roundIndex) => {
+        if (roundIndex === 1) { host.pause(); pausedAt = Date.now(); }
+      },
+    });
+    const privateAtLastClose = await privatePlayers(roomId);
+    await teacherCall(entry, 'finishLiveChallenge', { roomId });
+    const views = await waitUntil(`${label}: finished on every screen`, async () => {
+      const all = await farm.views();
+      return [...all.values()].every((view) => view.room?.status === 'finished' && view.standings?.kind === 'final') ? all : null;
+    }, 30_000, 250);
+    assertEveryDevicePlayed(views, roomId, label);
+    await assertMatchIntegrity(farm, roomId, entry, views, label, privateAtLastClose);
+    // The scenario did what it says: the console published in round 1 and
+    // asked for nothing once it went quiet; only the closes and the finish
+    // wrote standings after that, and every screen still ends exact (above).
+    assert.ok(host.replies.some((reply) => reply.published === true && reply.sentAt < pausedAt), `${label}: the console published while it was awake (its replies: ${hostReplies(host)})`);
+    assert.equal(host.requests.filter((at) => at > pausedAt).length, 0, `${label}: a quiet console still asked for live standings`);
+  } finally {
+    await host.close();
+    await farm.shutdown();
+    assert.equal((await farm.listeners()).total, 0, `${label}: every listener a device opened was closed`);
+    await farm.close();
+  }
+});
 
 /* ========== A GRAPH-RICH LAUNCH: Graph Feature Rush, graphs per player ========== */
 
@@ -467,6 +613,7 @@ test(`Graph Feature Rush, ${RUSH_CLASS} students: every device gets its own grap
   const lobby = entry.students.slice(0, -1);
   const lateListener = entry.students.at(-1);
   const farm = await createDeviceFarm({ workers: WORKERS });
+  const host = await openHost(entry, roomId);
   try {
     await Promise.all(entry.students.map((studentId) => farm.add(studentId, { deliveryJitterMs: 300, rttMs: Math.round(random() * 40) })));
     await Promise.all(lobby.map(async (studentId) => farm.device(studentId).open(await inviteOf(studentId))));
@@ -485,8 +632,12 @@ test(`Graph Feature Rush, ${RUSH_CLASS} students: every device gets its own grap
         const all = await farm.views();
         return [...all.values()].every((view) => seenOf(view, roomId)?.rounds?.[0]?.rushGraphs > 0) ? all : null;
       }, 25_000, 250);
-    // The standings listener is paused for the whole open rush round, on every device.
-    assert.equal((await farm.listeners()).players, 0, 'no standings listener is open during a rush round');
+    // Both standings listeners are paused for the whole open rush round, on
+    // every device, and the host publishes nothing while it is open.
+    const during = await farm.listeners();
+    assert.deepEqual({ standings: during.standings, self: during.self, players: during.players }, { standings: 0, self: 0, players: 0 }, `no standings listener is open during a rush round: ${JSON.stringify(during)}`);
+    const publishedDuringRound = host.replies.filter((reply) => reply.published === true && reply.at >= startsAtMs).length;
+    assert.equal(publishedDuringRound, 0, 'no live snapshot is written while a rush round is open');
     const payloads = [...views.values()].map((view) => seenOf(view, roomId).rounds[0].rushPayloadBytes);
     report.rush = {
       students: RUSH_CLASS,
@@ -496,10 +647,18 @@ test(`Graph Feature Rush, ${RUSH_CLASS} students: every device gets its own grap
       roundFetches: sum(views, (view) => view.stats.requests.getGraphFeatureRushRound),
     };
     await teacherCall(entry, 'finishLiveChallenge', { roomId });
-    await waitUntil('rush finished on every screen', async () => [...(await farm.views()).values()].every((view) => view.room?.status === 'finished'), 20_000);
+    const finished = await waitUntil('rush finished on every screen, with its final standings', async () => {
+      const all = await farm.views();
+      return [...all.values()].every((view) => view.room?.status === 'finished' && view.standings?.kind === 'final') ? all : null;
+    }, 20_000);
     assert.equal((await publicPlayers(roomId)).length, RUSH_CLASS, 'one player per student');
+    // The rush's final standings are its match result's, on every screen.
+    const result = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data();
+    const ranks = new Map(result.standings.filter((row) => row.rank !== null).map((row) => [row.playerKey, row.rank]));
+    for (const view of finished.values()) assert.equal(view.standings.self?.rank, ranks.get(view.invite.playerKey), `rush: ${view.studentId}'s final place is the match result's`);
     await assertDiagnosticsBounded(roomId, 'rush');
   } finally {
+    await host.close();
     await farm.shutdown();
     assert.equal((await farm.listeners()).total, 0, 'every rush listener was closed');
     await farm.close();
@@ -522,9 +681,15 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
     // never refreshed, as a class does when the teacher plays again.
     await Promise.all(entry.students.map((studentId) => farm.device(studentId).followInvites()));
     for (let match = 0; match < ENDURANCE_MATCHES; match += 1) {
-      const label = `endurance match ${match + 1}`;
+      // Each match ranks a different way — total points, round placements
+      // (Grand Prix, its comeback curve included), correct answers — so every
+      // strategy's live boards, closes and podium meet the same class.
+      const scoringStrategyId = ENDURANCE_STRATEGIES[match % ENDURANCE_STRATEGIES.length];
+      const label = `endurance match ${match + 1} (${scoringStrategyId})`;
       // eslint-disable-next-line no-await-in-loop
-      const roomId = await createGame(entry);
+      const roomId = await createGame(entry, { scoringStrategyId });
+      // eslint-disable-next-line no-await-in-loop
+      const host = await openHost(entry, roomId);
       // eslint-disable-next-line no-await-in-loop
       await waitUntil(`${label}: not every screen followed its invite into the new lobby`, async () => [...(await farm.views()).values()].every((view) => view.roomId === roomId), 20_000);
       // eslint-disable-next-line no-await-in-loop
@@ -550,8 +715,10 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
       // eslint-disable-next-line no-await-in-loop
       const views = await waitUntil(`${label}: finished on every screen`, async () => {
         const all = await farm.views();
-        return [...all.values()].every((view) => view.roomId === roomId && view.room?.status === 'finished' && view.playerCount === ENDURANCE_CLASS) ? all : null;
+        return [...all.values()].every((view) => view.roomId === roomId && view.room?.status === 'finished' && view.standings?.kind === 'final' && view.playerCount === ENDURANCE_CLASS) ? all : null;
       }, 20_000, 250);
+      // eslint-disable-next-line no-await-in-loop
+      await host.close();
       assertEveryDevicePlayed(views, roomId, label);
       // eslint-disable-next-line no-await-in-loop
       const totals = await assertMatchIntegrity(farm, roomId, entry, views, label, privateAtLastClose);
@@ -560,11 +727,12 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
       await assertDiagnosticsBounded(roomId, label);
       // Nothing of an earlier match is on any screen.
       for (const view of views.values()) assert.equal(view.room.roomId, roomId, `${label}: ${view.studentId} shows a stale game`);
-      // Per device: one room, one standings and one invite listener — never more.
+      // Per device: one room, one standings snapshot, one own-row and one
+      // invite listener — never more, never a classmate's row.
       // eslint-disable-next-line no-await-in-loop
       const listeners = await farm.listeners();
       listenerSamples.push(listeners);
-      assert.deepEqual(listeners, { room: ENDURANCE_CLASS, players: ENDURANCE_CLASS, invite: ENDURANCE_CLASS, total: 3 * ENDURANCE_CLASS }, `${label}: one listener of each kind per device`);
+      assert.deepEqual(listeners, { room: ENDURANCE_CLASS, standings: ENDURANCE_CLASS, self: ENDURANCE_CLASS, players: 0, invite: ENDURANCE_CLASS, total: 4 * ENDURANCE_CLASS }, `${label}: one listener of each kind per device`);
       // eslint-disable-next-line no-await-in-loop
       heap.push(await farm.heapMb());
     }
@@ -573,9 +741,9 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
     await farm.shutdown([reader]);
     await farm.add(reader, {});
     await farm.device(reader).open(await inviteOf(reader));
-    await waitUntil('a late listener on the finished match', async () => {
+    await waitUntil('a late listener on the finished match, with its final standings', async () => {
       const view = (await farm.views()).get(reader);
-      return view.room?.status === 'finished' && view.stage === CHALLENGE_STAGE.COMPLETED;
+      return view.room?.status === 'finished' && view.stage === CHALLENGE_STAGE.COMPLETED && view.standings?.kind === 'final' && view.standings.self?.rank >= 1;
     }, 10_000);
     // Memory: after a forced GC, the heap does not keep growing match after match.
     const growth = heap.at(-1) - heap[Math.min(1, heap.length - 1)];

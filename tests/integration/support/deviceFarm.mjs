@@ -76,11 +76,13 @@ export async function createDeviceFarm({ workers = Math.max(2, Math.min(4, os.av
       const lists = await everyWorker('views', {});
       return new Map(lists.flat().map((view) => [view.studentId, view]));
     },
+    /** Every device's open listeners by kind (room, standings, self, players, invite) and in total. */
     async listeners() {
       const counts = await everyWorker('listeners', {});
-      return counts.reduce((sum, count) => ({
-        room: sum.room + count.room, players: sum.players + count.players, invite: sum.invite + count.invite, total: sum.total + count.total,
-      }), { room: 0, players: 0, invite: 0, total: 0 });
+      return counts.reduce((sum, count) => {
+        Object.entries(count).forEach(([kind, value]) => { sum[kind] = (sum[kind] || 0) + value; });
+        return sum;
+      }, { room: 0, standings: 0, self: 0, players: 0, invite: 0, total: 0 });
     },
     /** Heap used across the farm's workers after a forced GC, in MB. */
     async heapMb() {
@@ -89,6 +91,22 @@ export async function createDeviceFarm({ workers = Math.max(2, Math.min(4, os.av
     },
     async invocations() {
       return Object.assign({}, ...(await everyWorker('invocations', {})));
+    },
+    /** Each worker's event loop since its last sample: how busy the harness itself was. */
+    async load() {
+      return everyWorker('load', {});
+    },
+    /** Every device's standings/answer trace (devices with `trace` in their profile). */
+    async traces(studentIds = null) {
+      return (await everyWorker('traces', { studentIds })).flat();
+    },
+    /** What each worker's copy of the server read and wrote since `sinceMs`. */
+    async accounting(sinceMs = 0) {
+      const parts = await everyWorker('accounting', { sinceMs });
+      return { events: parts.flatMap((part) => part.events), calls: parts.flatMap((part) => part.calls), commits: parts.flatMap((part) => part.commits) };
+    },
+    async resetAccounting() {
+      await everyWorker('resetAccounting', {});
     },
     /** Close devices (all of them by default): their listeners, timers and connections. */
     async shutdown(studentIds = null) {

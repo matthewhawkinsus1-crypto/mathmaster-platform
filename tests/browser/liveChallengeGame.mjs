@@ -89,6 +89,8 @@ if (!await waitForHttp(`${ORIGIN}/`)) {
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 if (!admin.apps.length) admin.initializeApp({ projectId: 'mathmaster-game-harness' });
 const db = admin.firestore();
+// The standings snapshot every screen reads, written where the server would.
+const { writeStandingsSnapshot, PROJECTION_KIND } = await import('./support/standingsSnapshot.mjs');
 
 // THE QUESTION IS BUILT BY THE REAL SERVER PIPELINE, not written here.
 //
@@ -162,6 +164,8 @@ await roomRef.collection('players').doc('other-player').set({
   playerKey: 'other-player', alias: 'Bright Heron', joined: true,
   score: 2000, correctCount: 2, roundsAnswered: 2, streak: 2, answeredRound: 1,
 });
+// Both are in: the host console's pacer asks for a live snapshot of the lobby.
+await writeStandingsSnapshot(db, ROOM_ID);
 
 // ---- the browser ------------------------------------------------------------
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -384,6 +388,8 @@ await step('calibration-failure-degraded-mode', {
 });
 
 await setRoom({ status: 'finished', currentQuestion: null, roundEndsAt: null });
+// The finish writes the final standings with the status (one transaction there).
+await writeStandingsSnapshot(db, ROOM_ID, { kind: PROJECTION_KIND.FINAL });
 await step('finished', {
   mustContain: ['Final Standings', 'Swift Otter'],
   mustNotContain: NO_MARKUP,

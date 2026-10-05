@@ -203,11 +203,14 @@ test('the question card follows the semantic surface so its tools keep contrast 
 
 test('a student can see where they stand without waiting for the round to end', () => {
   // The header shows the live score — banked points plus this round's working
-  // points — and the student's place on the same board everyone sees.
+  // points, from the student's own row — and the student's place on the
+  // class's board, the standings snapshot everyone's screen holds.
   const header = region(student, 'data-mm-student-score="1"', '</header>', 'score header');
   assert.match(header, /Your score/);
   assert.match(header, /\(headerRow\.liveScore \?\? headerRow\.score\)\.toLocaleString\(\)/);
-  assert.match(header, /shortPlaceText\(headerRow\)/);
+  assert.match(header, /\{headerPlace\} of \{standings\.count\}/);
+  assert.match(student, /const headerPlace = headerRow && projectionFresh && standings\?\.self \? shortPlaceText\(standings\.self\) : null;/);
+  assert.match(student, /publicLeaderboard\(\[selfRow\], \{ activeRound, \.\.\.leaderboardOptionsFor\(scoringStrategyId\) \}\)/, 'their live score is read as the engine reads a row');
   assert.equal(shortPlaceText({ rank: 2, tied: true }), 'T-2nd', 'a shared place says so');
   assert.equal(shortPlaceText({ rank: 11 }), '11th');
   assert.equal(shortPlaceText({ rank: null }), null, 'no place before there is one');

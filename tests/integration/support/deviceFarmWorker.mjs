@@ -9,15 +9,21 @@
  * a 64-player standings view, in one event loop.
  */
 import { parentPort } from 'node:worker_threads';
-import { createRequire, register } from 'node:module';
+import { createRequire } from 'node:module';
+import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import v8 from 'node:v8';
 import vm from 'node:vm';
 
-register('./clientFirebaseHooks.mjs', import.meta.url);
+// Emulator-only client Firebase for this worker's devices (registerClientFirebase.mjs).
+const { registerClientFirebaseHooks } = await import('./registerClientFirebase.mjs');
+registerClientFirebaseHooks();
 // The #422 retry, for this worker's copy of the server (idempotent if --import already loaded it).
 await import('./emulatorTransactions.mjs');
+// Server reads and writes, counted per callable (the standings profile reads them).
+const { installFirestoreAccounting, runAsCallable, accountingSince, resetAccounting } = await import('./firestoreAccounting.mjs');
+installFirestoreAccounting();
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const require = createRequire(import.meta.url);
@@ -27,15 +33,35 @@ const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
 const { createSimStudent, listenerTotal, openListeners } = await import('./liveChallengeSimStudent.mjs');
 const db = admin.firestore();
 
+// HOW BUSY THIS WORKER IS. Its devices and its copy of the server share one
+// event loop, so a saturated loop delays both: that is the harness, not the
+// classroom, and the profile reports it beside every latency.
+const loopDelay = monitorEventLoopDelay({ resolution: 10 });
+loopDelay.enable();
+let loopMark = performance.eventLoopUtilization();
+const loadSample = () => {
+  const now = performance.eventLoopUtilization();
+  const window = performance.eventLoopUtilization(now, loopMark);
+  loopMark = now;
+  const sample = {
+    utilization: Math.round(window.utilization * 1000) / 1000,
+    delayP50Ms: Math.round(loopDelay.percentile(50) / 1e5) / 10,
+    delayP99Ms: Math.round(loopDelay.percentile(99) / 1e5) / 10,
+    delayMaxMs: Math.round(loopDelay.max / 1e5) / 10,
+  };
+  loopDelay.reset();
+  return sample;
+};
+
 // Every submit this worker's server handled, by submission id.
 const submitInvocations = {};
 const call = (name, studentId, data) => {
   if (name === 'submitLiveChallengeResponse') (submitInvocations[data?.submissionId] ||= []).push({ studentId, at: Date.now() });
-  return functionsIndex[name].run({
+  return runAsCallable(name, () => functionsIndex[name].run({
     auth: { uid: `${studentId}-uid`, token: { role: 'student', studentId, email: `${studentId}@example.com`, email_verified: true } },
     data,
     rawRequest: { headers: {} },
-  });
+  }), { studentId, submissionId: name === 'submitLiveChallengeResponse' ? data?.submissionId || null : null });
 };
 
 // The server's own answer key for a round, regenerated exactly as submit does.
@@ -70,6 +96,10 @@ const operations = {
   listeners: () => ({ ...openListeners, total: listenerTotal() }),
   heap: () => heapAfterGc(),
   invocations: () => submitInvocations,
+  load: () => loadSample(),
+  traces: ({ studentIds = null }) => (studentIds || [...devices.keys()]).filter((id) => devices.has(id)).map((id) => devices.get(id).traceData()),
+  accounting: ({ sinceMs = 0 }) => accountingSince(sinceMs),
+  resetAccounting: () => { resetAccounting(); },
   shutdown: async ({ studentIds = null }) => {
     const ids = studentIds || [...devices.keys()];
     await Promise.all(ids.filter((id) => devices.has(id)).map((id) => devices.get(id).shutdown()));

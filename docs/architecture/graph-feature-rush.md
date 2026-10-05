@@ -316,8 +316,9 @@ place on every graph, the round, the student's count and the clock. Portrait
 stacks them; landscape puts the controls beside the graph. Feedback: a found
 point draws a mark with its coordinates; a miss draws a fading cross and
 names the feature it was not; the cooldown dims the graph and shows a draining
-bar. The standings listener pauses during an open rush round, so a class's
-taps do not wake every screen. The "Get ready" card counts 3 · 2 · 1 off the
+bar. Both standings listeners (the class's snapshot and the student's own
+row) pause during an open rush round, so a class's taps do not wake every
+screen. The "Get ready" card counts 3 · 2 · 1 off the
 round's start. Between rounds the student sees the shell's results card, read
 from the round's own result document (never from the paused listener's rows):
 graphs, accuracy, place, the championship points it earned, and their

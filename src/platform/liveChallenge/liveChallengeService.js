@@ -110,6 +110,10 @@ export const readLiveChallengeRound = async (roomId, roundIndex) => {
   return snapshot.exists() ? snapshot.data() : null;
 };
 
+// Every public player row: the HOST's board (who has answered, who is racing).
+// One device per room listens to this. A student's screen never does — every
+// answer would be delivered to every screen, N × N per round — it listens to
+// its own row and to the room's standings snapshot (below).
 export const watchLiveChallengePlayers = (roomId, onValue, onError = console.error) => {
   if (!roomId) {
     onValue?.([]);
@@ -119,6 +123,41 @@ export const watchLiveChallengePlayers = (roomId, onValue, onError = console.err
     onValue?.(snapshot.docs.map((playerDoc) => ({ playerKey: playerDoc.id, ...playerDoc.data() })));
   }, onError);
 };
+
+// A student's OWN public row: their score, and whether the server already
+// holds their answer for the round on screen (after a refresh, or from another
+// device). It changes only when this student's own record does. Null until
+// they join.
+export const watchLiveChallengePlayer = (roomId, playerKey, onValue, onError = console.error) => {
+  if (!roomId || !playerKey) {
+    onValue?.(null);
+    return () => {};
+  }
+  return onSnapshot(doc(db, 'liveChallengeRooms', String(roomId), 'players', String(playerKey)), (snapshot) => {
+    onValue?.(snapshot.exists() ? { playerKey: snapshot.id, ...snapshot.data() } : null);
+  }, onError);
+};
+
+// THE CLASS'S STANDINGS: one small snapshot document
+// (functions/shared/liveChallengeStandingsProjection.mjs), replaced at most
+// once a second while the board moves and exactly at each round's close and at
+// the finish. A missed snapshot loses nothing: the next one is whole. Null
+// until the first is written.
+export const watchLiveChallengeStandings = (roomId, onValue, onError = console.error) => {
+  if (!roomId) {
+    onValue?.(null);
+    return () => {};
+  }
+  return onSnapshot(doc(db, 'liveChallengeRooms', String(roomId), 'standings', 'current'), (snapshot) => {
+    onValue?.(snapshot.exists() ? snapshot.data() : null);
+  }, onError);
+};
+
+// The host console's pacer asks for a fresh live snapshot (the server decides
+// whether there is one to write); a student whose finished room has no final
+// snapshot asks for it to be rebuilt from the match result.
+export const publishLiveChallengeStandings = call('publishLiveChallengeStandings');
+export const ensureLiveChallengeFinalStandings = call('ensureLiveChallengeFinalStandings');
 
 export const watchLiveChallengeDiagnostics = (roomId, onValue, onError = console.error) => {
   if (!roomId) { onValue?.([]); return () => {}; }
