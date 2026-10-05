@@ -6,7 +6,7 @@ import {
   preflightTestCycleAssignment,
   teacherTestCycleAction,
 } from '../../services/testCycleService.js';
-import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName } from '../../platform/studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName, studentIdOf } from '../../platform/studentName.js';
 
 /*
  * THE TEACHER'S VIEW OF A TEST CYCLE.
@@ -44,7 +44,7 @@ const button = (tone) => ({
   color: tone === 'primary' ? '#fff' : 'var(--mm-text)',
 });
 
-const percent = (value) => (value === null || value === undefined ? '—' : `${value}%`);
+const percent = (value) => (value === null || value === undefined ? '—' : `${Number(Number(value).toFixed(2))}%`);
 
 export const TestCycleControls = ({ assignment, classId = null, students = [] }) => {
   const assignmentId = assignment?.id || null;
@@ -53,6 +53,9 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
   const [plans, setPlans] = useState(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [originalScores, setOriginalScores] = useState({});
+  const external = Boolean(assignment?.assessmentPolicy?.externalAssessment);
+  const scoreSource = assignment?.assessmentPolicy?.externalAssessment?.source || 'District';
 
   const load = useCallback(async () => {
     if (!assignmentId) return;
@@ -76,8 +79,8 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
     setBusy(true);
     setMessage('');
     try {
-      await work();
-      setMessage(successText);
+      const result = await work();
+      setMessage(typeof successText === 'function' ? successText(result) : successText);
       await load();
     } catch (error) {
       setMessage(error.message || 'That action did not complete.');
@@ -92,9 +95,30 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
     <section style={{ padding: 18, border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)' }}>
       <h2 style={{ marginTop: 0 }}>Test Cycle · {assignment.title}</h2>
       <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.5, marginTop: 0 }}>
-        Review → secure Test → Corrections → secure Retest, as one assignment and one Google Classroom
-        grade item. A retest can raise the recorded grade to at most the policy cap; it can never lower it.
+        {external ? `Original test in ${scoreSource} → review → secure Retest. Enter original scores below 70 to open retesting. ` : 'Review → secure Test → Corrections → secure Retest, as one assignment and one Google Classroom grade item. '}
+        A retest can raise the recorded grade to at most the policy cap; it can never lower it.
       </p>
+      {external && (
+        <fieldset style={{ margin: '12px 0', border: '1px solid var(--mm-border)', borderRadius: 8 }}>
+          <legend>Original {scoreSource} scores (%)</legend>
+          <p style={{ fontSize: 13 }}>Blank scores stay unassigned. Scores of 70 or higher are ineligible. Original scores are preserved once a session is opened.</p>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {students.map((student) => {
+              const id = studentIdOf(student);
+              const existing = rows.find((row) => row.studentId === id);
+              if (!id) return null;
+              return <label key={id} style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>{rosterStudentLabel(id, students)}</span>
+                <input type="number" min="0" max="100" step="any" disabled={busy || Boolean(existing)}
+                  aria-label={`Original score for ${rosterStudentLabel(id, students)}`}
+                  value={existing ? existing.originalTestGrade ?? '' : originalScores[id] ?? ''}
+                  onChange={(event) => setOriginalScores((current) => ({ ...current, [id]: event.target.value }))}
+                  style={{ minHeight: 40, width: 100, boxSizing: 'border-box' }} />
+              </label>;
+            })}
+          </div>
+        </fieldset>
+      )}
 
       {/* Preflight is shown before the assign button, because a Test Cycle that
           cannot issue equivalent secure coverage must not reach a classroom. */}
@@ -124,11 +148,11 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
         disabled={busy || blocked}
         style={{ ...button('primary'), minHeight: 44, opacity: busy || blocked ? 0.5 : 1 }}
         onClick={() => run(
-          () => assignTestCycleSessions({ assignmentId, classId }),
-          'Secure Test sessions were opened for every eligible student.',
+          () => assignTestCycleSessions({ assignmentId, classId, ...(external ? { originalScores: Object.fromEntries(Object.entries(originalScores).filter(([, value]) => String(value).trim() !== '')) } : {}) }),
+          (result) => `${result.createdSessions} secure ${external ? 'Retest' : 'Test'} sessions opened; ${result.reusedSessions} existing sessions kept.${external ? ` ${(result.skippedStudents || []).length} students skipped for missing or passing original scores.` : ''}`,
         )}
       >
-        {busy ? 'Working…' : 'Open secure Test sessions for this class'}
+        {busy ? 'Working…' : external ? 'Open secure Retest sessions for this class' : 'Open secure Test sessions for this class'}
       </button>
 
       {message && <p role="status" style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-primary-text)' }}>{message}</p>}
@@ -161,7 +185,13 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
                       Which session is being thrown away is not something a
                       button should decide on a teacher's behalf.
                     */}
-                    {[
+                    {(external ? [
+                      ['waiveReview', 'Waive Review', 'test'],
+                      ['requireReview', 'Require Review', 'test'],
+                      ['disableRetest', 'Close retest', 'test'],
+                      ['unlockRetest', 'Reopen retest', 'test'],
+                      ['resetSecureSession', 'Reset Retest session', 'test'],
+                    ] : [
                       ['waiveReview', 'Waive Review', 'test'],
                       ['requireReview', 'Require Review', 'test'],
                       ['waiveCorrections', 'Waive corrections', 'test'],
@@ -170,7 +200,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
                       ['requireCorrections', 'Require corrections', 'test'],
                       ['resetSecureSession', 'Reset Test session', 'test'],
                       ['resetSecureSession', 'Reset Retest session', 'retest'],
-                    ].map(([action, label, stage]) => (
+                    ]).map(([action, label, stage]) => (
                       <button
                         key={label}
                         type="button"

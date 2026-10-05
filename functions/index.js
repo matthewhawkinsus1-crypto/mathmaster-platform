@@ -15683,6 +15683,8 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
 });
 
 function sanitizeSecureExamDraft(responsePayload, supportUsage) {
+  const { sanitizeSecureExamToolDraft } = require("./lib/secureExamToolDraft");
+  const toolState = sanitizeSecureExamToolDraft(responsePayload?.toolState);
   const source = responsePayload?.responses && typeof responsePayload.responses === "object" && !Array.isArray(responsePayload.responses) ? responsePayload.responses : {};
   const responses = {};
   Object.entries(source).slice(0, 20).forEach(([key, value]) => {
@@ -15692,7 +15694,7 @@ function sanitizeSecureExamDraft(responsePayload, supportUsage) {
   if (JSON.stringify(responses).length > 10000) throw new HttpsError("invalid-argument", "Secure exam draft is too large.");
   const sourceSupport = supportUsage && typeof supportUsage === "object" ? supportUsage : {};
   return {
-    responsePayload: { responses },
+    responsePayload: { responses, ...(toolState ? { toolState } : {}) },
     supportUsage: {
       accommodations: Array.isArray(sourceSupport.accommodations) ? sourceSupport.accommodations.map(String).slice(0, 20) : [],
       modifications: Array.isArray(sourceSupport.modifications) ? sourceSupport.modifications.map(String).slice(0, 20) : [],
@@ -16112,7 +16114,9 @@ async function resolveBlueprintFamilies(db, familyIds) {
   const missing = ids.filter((id) => !found.has(id));
   if (missing.length) {
     const bundled = new Map();
-    [...loadBuiltInStarterPathSeed(), ...loadBuiltInCoursePathSeed()].forEach((item) => {
+    [...loadBuiltInStarterPathSeed(), ...loadBuiltInCoursePathSeed(),
+      ...require("./seeds/secureAssessments/algebra1_district_dol2.json").documents,
+    ].forEach((item) => {
       const id = String(item?.id || "").trim();
       if (id && !bundled.has(id)) bundled.set(id, item);
     });
@@ -16249,6 +16253,7 @@ async function createCourseTestSession(db, {
     responses: {},
     usedQuestionIds: [],
     currentQuestion: null,
+    watermarkEnabled: !assignment?.assessmentPolicy?.externalAssessment,
     courseTest: {
       assignmentId,
       cycleStage,
@@ -16465,11 +16470,33 @@ exports.assignTestCycleSessions = onCall(async (request) => {
 
   const created = [];
   const reused = [];
+  const skipped = [];
+  const originalScores = new Map();
+  if (policy.externalAssessment) {
+    // Validate the whole requested score batch before creating any sessions.
+    const supplied = request.data?.originalScores;
+    if (!supplied || typeof supplied !== "object" || Array.isArray(supplied)) {
+      throw new HttpsError("invalid-argument", "Enter the original district scores before opening retest sessions.");
+    }
+    for (const [studentId] of eligible) {
+      if (!Object.prototype.hasOwnProperty.call(supplied, studentId)) continue;
+      try {
+        originalScores.set(studentId, shared.external.validateExternalOriginalScore(supplied[studentId]));
+      } catch (error) {
+        throw new HttpsError("invalid-argument", `${studentId}: ${error.message}`);
+      }
+    }
+  }
   for (const [studentId, studentData] of eligible) {
     // eslint-disable-next-line no-await-in-loop
     const record = await readTestCycleRecord(db, assignmentId, studentId, shared);
     if (record.test.examSessionId) {
       reused.push(studentId);
+      continue;
+    }
+    const originalScore = originalScores.get(studentId);
+    if (policy.externalAssessment && (originalScore === undefined || originalScore >= policy.passingScore)) {
+      skipped.push({ studentId, reason: originalScore === undefined ? "missingOriginalScore" : "originalAlreadyPassing" });
       continue;
     }
     const plan = shared.issuance.buildSecureIssuancePlan({
@@ -16501,6 +16528,9 @@ exports.assignTestCycleSessions = onCall(async (request) => {
       assignmentId,
       studentId,
       classId: session.classId,
+      ...(policy.externalAssessment ? { externalAssessment: {
+        originalScore, source: policy.externalAssessment.source, recordedBy: teacherUid, recordedAt: Date.now(),
+      } } : {}),
       blueprintId: blueprint.blueprintId,
       blueprintVersion: blueprint.version,
       review: { ...record.review, required: policy.review.required },
@@ -16522,6 +16552,7 @@ exports.assignTestCycleSessions = onCall(async (request) => {
     assignmentId,
     createdSessions: created.length,
     reusedSessions: reused.length,
+    skippedStudents: skipped,
     students: created,
     preflight: { errors: preflight.errors, warnings: preflight.warnings, checks: preflight.checks },
   };
@@ -16841,6 +16872,7 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
  * plan with the original families and instances passed in as things to avoid.
  */
 async function ensureRetestSession(db, { assignmentId, assignment, policy, blueprint, shared, studentId, teacherUid }) {
+  if (policy.externalAssessment) return null;
   const record = await readTestCycleRecord(db, assignmentId, studentId, shared);
   if (record.retest.examSessionId) return null;
   if (record.test.state !== shared.record.SESSION_STATE.RELEASED) return null;
@@ -16920,6 +16952,10 @@ exports.teacherTestCycleAction = onCall(async (request) => {
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
   const studentId = String(request.data?.studentId || "").trim();
   const action = String(request.data?.action || "").trim();
+  if (policy.externalAssessment && (["requireCorrections", "waiveCorrections"].includes(action)
+    || (action === "resetSecureSession" && request.data?.stage === "retest"))) {
+    throw new HttpsError("invalid-argument", "This external-original assessment uses Review and one secure Retest session.");
+  }
   if (!studentId) throw new HttpsError("invalid-argument", "A studentId is required.");
   if (!shared.policy.TEACHER_CONTROL_ACTIONS.includes(action)) {
     throw new HttpsError("invalid-argument", "Choose a supported Test Cycle teacher action.");
@@ -17111,7 +17147,7 @@ async function applyTestCycleFeedbackRelease(db, session) {
   const blueprint = shared.blueprint.normalizeTestBlueprint(assignment.testBlueprint);
 
   const studentId = String(session.studentId || "");
-  const rawScore = testCycleLib.weightedSessionScorePercent(session);
+  const rawScore = testCycleLib.weightedSessionScorePercent(session, { preservePrecision: Boolean(policy.externalAssessment) });
   const record = await readTestCycleRecord(db, courseTest.assignmentId, studentId, shared);
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
   // Superseded by a teacher reset. The caller already refuses this, and so does
@@ -17138,7 +17174,7 @@ async function applyTestCycleFeedbackRelease(db, session) {
 
   // A failed Test builds this student's corrections automatically, from their
   // own evidence, at the moment the score becomes real to them.
-  if (!isRetest) {
+  if (!isRetest && !policy.externalAssessment) {
     const profile = shared.corrections.buildPerformanceProfile({
       blueprint,
       responses: testCycleLib.responsesForProfile(session),

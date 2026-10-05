@@ -124,7 +124,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         </p>
       )}
       {node.blockedBy === 'pacing' && !node.calendarDaysUntilStart && (
-        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-primary)', fontWeight: 700 }}>
+        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-primary-text)', fontWeight: 700 }}>
           Your class reaches this later in the course. Nothing is wrong — this one is simply not open yet.
         </p>
       )}

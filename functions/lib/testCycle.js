@@ -21,7 +21,7 @@ const { assignmentGradeProgress } = require("./classroomGradeRuntime");
 let sharedModules = null;
 async function shared() {
   if (!sharedModules) {
-    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight] = await Promise.all([
+    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, external] = await Promise.all([
       import("../shared/testCyclePolicy.mjs"),
       import("../shared/testCycleGrade.mjs"),
       import("../shared/testCycleRecord.mjs"),
@@ -31,8 +31,9 @@ async function shared() {
       import("../shared/testCycleCorrections.mjs"),
       import("../shared/testCycleRetest.mjs"),
       import("../shared/testCyclePreflight.mjs"),
+      import("../shared/externalAssessment.mjs"),
     ]);
-    sharedModules = { policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight };
+    sharedModules = { policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, external };
   }
   return sharedModules;
 }
@@ -96,7 +97,7 @@ function responsesForProfile(session = {}) {
  * MathMaster assessment semantics and matches how the Test Cycle blueprint
  * weights a test.
  */
-function secureSessionScorePercent(session = {}) {
+function secureSessionScorePercent(session = {}, { preservePrecision = false } = {}) {
   const responses = Object.values(session.responses && typeof session.responses === "object" ? session.responses : {});
   const planned = Math.max(
     Number(session.requiredQuestions || 0),
@@ -105,14 +106,15 @@ function secureSessionScorePercent(session = {}) {
   );
   if (!planned) return null;
   const earned = responses.reduce((sum, response) => sum + (Number(response?.grading?.score) || 0), 0);
-  return Math.round((earned / planned) * 100);
+  const score = (earned / planned) * 100;
+  return preservePrecision ? score : Math.round(score);
 }
 
 /** Weighted alternative used when a blueprint gives targets different weights. */
-function weightedSessionScorePercent(session = {}) {
+function weightedSessionScorePercent(session = {}, { preservePrecision = false } = {}) {
   const plan = session.issuancePlan || {};
   const entries = list(plan.entries);
-  if (!entries.length) return secureSessionScorePercent(session);
+  if (!entries.length) return secureSessionScorePercent(session, { preservePrecision });
   const byInstance = new Map();
   Object.values(session.responses && typeof session.responses === "object" ? session.responses : {})
     .forEach((response) => byInstance.set(clean(response?.questionInstanceId), response));
@@ -124,7 +126,8 @@ function weightedSessionScorePercent(session = {}) {
     const response = byInstance.get(clean(entry.questionInstanceId));
     earned += weight * (Number(response?.grading?.score) || 0);
   });
-  return possible > 0 ? Math.round((earned / possible) * 100) : null;
+  const score = possible > 0 ? (earned / possible) * 100 : null;
+  return score === null || preservePrecision ? score : Math.round(score);
 }
 
 /**
@@ -205,6 +208,26 @@ function reviewProgress(assignment = {}, tracker = {}) {
   const indices = roleQuestionIndices(assignment, "review");
   const questions = runtimeQuestionsFromAssignment(assignment);
   const progress = assignmentGradeProgress(tracker, indices, questions);
+  const threshold = assignment.assessmentPolicy?.review?.minimumMastery;
+  if (threshold !== undefined && threshold !== null) {
+    let possible = 0;
+    let earned = 0;
+    indices.forEach((index) => {
+      const weight = Number(questions[index]?.questionWeight) > 0 ? Number(questions[index].questionWeight) : 1;
+      possible += weight;
+      const record = tracker[index];
+      // Exact mastery is server-derived from the graded response. A rounded
+      // display score cannot substitute for missing exact evidence.
+      const credit = Math.max(0, Math.min(100, Number(record?.bestRawPartialCredit) || 0)) / 100;
+      earned += weight * credit;
+    });
+    const mastery = possible > 0 ? earned / possible * 100 : 0;
+    const minimumMastery = Number.isFinite(Number(threshold)) ? Math.max(0, Math.min(100, Number(threshold))) : 80;
+    const attempted = indices.filter((index) => Number(tracker[index]?.totalAttempts || tracker[index]?.attemptCount || 0) > 0
+      || ['correct', 'attempted', 'expired'].includes(tracker[index]?.status)).length;
+    return { total: progress.total, attempted, mastery, minimumMastery,
+      complete: progress.total > 0 && attempted === progress.total && mastery >= minimumMastery };
+  }
   return {
     total: progress.total,
     attempted: progress.attempted,

@@ -23,6 +23,7 @@ import {
   buildTestCycleGradeState,
 } from './testCycleGrade.mjs';
 import { normalizeTeacherControls, normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
+import { normalizeExternalOriginal } from './externalAssessment.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
@@ -73,6 +74,7 @@ export const normalizeTestCycleRecord = (record) => {
     studentId: clean(source.studentId),
     recordId: clean(source.recordId) || testCycleRecordId(source.assignmentId, source.studentId),
     classId: clean(source.classId) || null,
+    ...(source.externalAssessment ? { externalAssessment: normalizeExternalOriginal(source.externalAssessment) } : {}),
     blueprintId: clean(source.blueprintId) || null,
     blueprintVersion: Number(source.blueprintVersion) || 1,
     review: {
@@ -110,9 +112,12 @@ export const normalizeTestCycleRecord = (record) => {
  */
 export const recordGradeState = (record, policy) => {
   const normalized = normalizeTestCycleRecord(record);
+  const external = Boolean(normalizeTestCyclePolicy(policy)?.externalAssessment);
   return buildTestCycleGradeState({
-    originalTestGrade: normalized.test.state === SESSION_STATE.RELEASED ? normalized.test.rawScore : null,
-    rawRetestGrade: normalized.retest.state === SESSION_STATE.RELEASED ? normalized.retest.rawScore : null,
+    originalTestGrade: external ? normalized.externalAssessment?.originalScore ?? null
+      : normalized.test.state === SESSION_STATE.RELEASED ? normalized.test.rawScore : null,
+    rawRetestGrade: external ? (normalized.test.state === SESSION_STATE.RELEASED ? normalized.test.rawScore : null)
+      : normalized.retest.state === SESSION_STATE.RELEASED ? normalized.retest.rawScore : null,
     policy,
   });
 };
@@ -136,7 +141,7 @@ export const applyTestReleased = (record, {
   const resolved = normalizeTestCyclePolicy(policy);
   const at = Number(releasedAt) || Date.now();
   const score = optionalNumber(rawScore);
-  const failed = resolved && score !== null && score < resolved.passingScore;
+  const failed = resolved && !resolved.externalAssessment && score !== null && score < resolved.passingScore;
   const next = {
     ...normalized,
     test: {
@@ -160,7 +165,7 @@ export const applyTestReleased = (record, {
     recordedGrade: grade.recordedGrade,
     history: appendTestCycleGradeHistory(normalized.history, {
       at,
-      reason: GRADE_HISTORY_REASON.TEST_RELEASED,
+      reason: resolved?.externalAssessment ? GRADE_HISTORY_REASON.RETEST_RELEASED : GRADE_HISTORY_REASON.TEST_RELEASED,
       recordedGrade: grade.recordedGrade,
       originalTestGrade: grade.originalTestGrade,
       rawRetestGrade: grade.rawRetestGrade,

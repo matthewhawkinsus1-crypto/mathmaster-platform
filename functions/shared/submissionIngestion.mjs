@@ -393,7 +393,7 @@ export const sanitizeClientAttemptRecord = ({
   allowClaimedCorrect = true,
 }) => {
   const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
-  const claimed = stripNonCanonicalInspectionFields(normalizeQuestionRecord(envelope.record));
+  const { bestRawPartialCredit: _claimedRawCredit, ...claimed } = stripNonCanonicalInspectionFields(normalizeQuestionRecord(envelope.record));
   const resetting = replacementResetIsAuthorized({ envelope, canonical, claimed });
 
   if (resetting) {
@@ -676,6 +676,7 @@ export const buildIngestedAttempt = ({
       supportUsage: envelope.supportUsage,
       responseKey: text(envelope.response?.value),
       partialCreditPercent: attemptInputs.partialCreditPercent,
+      rawPartialCreditPercent: assignment?.assessmentPolicy?.review?.minimumMastery !== undefined && gradingQuestion?.activityRole === 'review' ? grading.score * 100 : null,
       maximumAttempts,
       occurredAt: academicAt,
     });
@@ -714,6 +715,7 @@ export const buildIngestedAttempt = ({
       // Derived from the server's own grading result, never from a number a
       // browser sent.
       partialCreditPercent: attemptInputs.partialCreditPercent,
+      rawPartialCreditPercent: assignment?.assessmentPolicy?.review?.minimumMastery !== undefined && gradingQuestion?.activityRole === 'review' ? grading.score * 100 : null,
       maximumAttempts,
       // `lastAttemptAt` is academic history, not a delivery timestamp.
       occurredAt: academicAt,
@@ -722,6 +724,10 @@ export const buildIngestedAttempt = ({
     result = outcome.result;
     gradedBy = 'server';
   } else {
+    if (assignment?.assessmentPolicy?.review?.minimumMastery !== undefined
+      && gradingQuestion?.activityRole === 'review' && envelope.kind !== 'questionReplacement') {
+      return { blocked: true, reason: 'mastery-review-requires-server-grading' };
+    }
     record = sanitizeClientAttemptRecord({
       envelope,
       canonicalRecord: canonical,

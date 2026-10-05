@@ -42,6 +42,8 @@ export const buildFieldGradingDefinition = (question = {}) => {
   const explicit = question.grading && typeof question.grading === 'object' ? question.grading : {};
   const fields = list(question.responseFields).map((field, index) => ({
     id: String(field?.id || `response-${index + 1}`),
+    weight: Number(field?.weight) > 0 ? Math.min(20, Number(field.weight)) : 1,
+    partialCredit: field?.partialCredit === 'matchedElements' ? 'matchedElements' : null,
     expected: field?.expected ?? field?.answer,
     accepted: [
       ...(Array.isArray(field?.accepted) ? field.accepted : []),

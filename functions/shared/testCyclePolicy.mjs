@@ -112,9 +112,14 @@ export const normalizeTestCyclePolicy = (policy) => {
   return Object.freeze({
     mode: TEST_CYCLE_MODE,
     passingScore: clampPercent(policy.passingScore, DEFAULT_PASSING_SCORE),
+    ...(isObject(policy.externalAssessment) ? {
+      externalAssessment: Object.freeze({ source: clean(policy.externalAssessment.source).slice(0, 80) || 'External assessment' }),
+    } : {}),
     review: Object.freeze({
       // Review is instructional. Hints and rich tools are the point of it.
       required: review.required !== false,
+      ...(review.minimumMastery !== undefined && review.minimumMastery !== null
+        ? { minimumMastery: clampPercent(review.minimumMastery, 80) } : {}),
       hintsAllowed: true,
       secure: false,
     }),

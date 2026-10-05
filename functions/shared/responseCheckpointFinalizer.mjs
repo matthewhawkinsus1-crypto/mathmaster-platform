@@ -393,6 +393,7 @@ export const buildCheckpointFinalization = ({
     // Partial credit is derived from the server's own grading result, never
     // from a number the browser sent.
     partialCreditPercent: attemptInputs.partialCreditPercent,
+    rawPartialCreditPercent: assignment?.assessmentPolicy?.review?.minimumMastery !== undefined && decision.activityRole === 'review' ? decision.grading.score * 100 : null,
     maximumAttempts: resolveQuestionMaximumAttempts({
       question: gradedQuestion,
       maximumAttempts: activityPolicy.attempts,

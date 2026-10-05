@@ -153,6 +153,10 @@ function StimulusGraph({ graph }) {
         verticalLines={verticalLines}
         regions={regions}
         ariaLabel={graph.ariaLabel || 'Question graph'}
+        xTickStep={graph.xTickStep}
+        yTickStep={graph.yTickStep}
+        revealCoordinates={!graph.readCoordinates}
+        pointHoverEnabled={!graph.readCoordinates}
       >
         {({ sx, sy, plotClip }) => curves.map((curve, index) => (
           <polyline
@@ -168,6 +172,9 @@ function StimulusGraph({ graph }) {
           />
         ))}
       </CoordinatePlane>
+      {(graph.xAxisLabel || graph.yAxisLabel) && <p style={{ textAlign: 'center', margin: '6px 0', fontSize: 13 }}>
+        Horizontal axis: {graph.xAxisLabel || 'x'} · Vertical axis: {graph.yAxisLabel || 'y'}
+      </p>}
       {sourceLines.length > 1 && (
         <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginTop:8, fontSize:12, color:'var(--mm-text-muted)' }}>
           {sourceLines.map((line, index) => (
@@ -239,11 +246,13 @@ export const PathQuestionStimulus = ({ stimulus }) => {
   if (!stimulus) return null;
   const hasContent = Boolean(
     stimulus.graph
+    || stimulus.note
     || stimulus.table?.rows?.length
     || stimulus.orderedPairs?.length
     || stimulus.steps?.length
     || stimulus.expressions?.length
-    || stimulus.items?.length,
+    || stimulus.items?.length
+    || stimulus.panels?.length,
   );
   if (!hasContent) return null;
 
@@ -254,6 +263,7 @@ export const PathQuestionStimulus = ({ stimulus }) => {
           Algebra II bank — so the heading gets the same rendering the rest of
           this component already gave its content. */}
       {stimulus.title && <h2 style={titleStyle}><MathText>{stimulus.title}</MathText></h2>}
+      {(stimulus.panels || []).map((panel, index) => <PathQuestionStimulus key={index} stimulus={panel} />)}
       <StimulusGraph graph={stimulus.graph} />
       <StimulusTable table={stimulus.table} />
       <OrderedPairList pairs={stimulus.orderedPairs} />

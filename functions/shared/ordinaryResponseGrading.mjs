@@ -34,6 +34,7 @@ import {
   isWrittenInLowestTerms,
   sameWrittenNumber,
 } from './fractionAnswer.mjs';
+import { numericSetCredit } from './numericSetCredit.mjs';
 
 const text = (value) => String(value ?? '');
 const filled = (value) => text(value).trim() !== '';
@@ -238,7 +239,8 @@ export const gradeMultiAnswerResponse = (question = {}, responsesById = {}) => {
       // That fixes MathLive serialization differences without making
       // form-sensitive tasks (factoring, vertex form, etc.) overly permissive.
       isCorrect,
-      credit: isCorrect ? 1 : 0,
+      credit: field.equivalence === 'numericSet' && field.partialCredit === 'matchedElements'
+        ? numericSetCredit(response, field.answer, field.numericTolerance) : isCorrect ? 1 : 0,
       weight: Number.isFinite(Number(field.scoreWeight)) && Number(field.scoreWeight) > 0
         ? Math.min(20, Number(field.scoreWeight))
         : 1,

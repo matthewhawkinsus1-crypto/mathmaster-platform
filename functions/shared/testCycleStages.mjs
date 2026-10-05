@@ -90,6 +90,20 @@ export const resolveTestCycleStage = ({
     correctionPlanId: normalized.corrections.planId,
   };
 
+  // The first MathMaster secure session is the retest of this external original.
+  // Missing evidence and passing originals are ineligible even after a waiver.
+  const external = Boolean(resolved.externalAssessment);
+  if (external && (grade.originalTestGrade === null || grade.originalTestGrade >= resolved.passingScore)) {
+    return { ...base, stage: TEST_CYCLE_STAGE.RETEST_CLOSED, secure: false, hintsAllowed: false, canEnter: false,
+      actionLabel: 'Retest unavailable', statusLabel: 'Retest unavailable',
+      detail: grade.originalTestGrade === null ? 'Your teacher must enter your original district score before retesting.'
+        : `Retesting is available only for original scores below ${resolved.passingScore}%.` };
+  }
+  if (external && controls.retestDisabled) {
+    return { ...base, stage: TEST_CYCLE_STAGE.RETEST_CLOSED, secure: false, hintsAllowed: false, canEnter: false,
+      actionLabel: 'Retest closed', statusLabel: 'Retest closed', detail: 'Your teacher has closed this retest.' };
+  }
+
   const reviewRequired = resolved.review.required && normalized.review.required !== false;
   /*
    * A STUDENT WHO HAS STARTED THE SECURE TEST IS PAST REVIEW BY CONSTRUCTION.
@@ -114,7 +128,7 @@ export const resolveTestCycleStage = ({
     || testMovedPastReview
     || (reviewProgress ? reviewProgress.complete === true : false)
     // A Test Cycle with no Review content cannot be gated on Review.
-    || (reviewProgress ? Number(reviewProgress.total || 0) === 0 : false);
+    || (resolved.review.minimumMastery === undefined && reviewProgress ? Number(reviewProgress.total || 0) === 0 : false);
 
   if (reviewRequired && !reviewComplete) {
     return {
@@ -125,7 +139,9 @@ export const resolveTestCycleStage = ({
       canEnter: true,
       actionLabel: reviewProgress && Number(reviewProgress.attempted || 0) > 0 ? 'Continue Review' : 'Start Review',
       statusLabel: 'Review',
-      detail: 'Finish the review to unlock your test. Hints and tools are available here.',
+      detail: resolved.review.minimumMastery !== undefined
+        ? `Attempt every review task and earn at least ${resolved.review.minimumMastery}% to unlock your ${external ? 'retest' : 'test'}. Current review mastery: ${Math.floor(Number(reviewProgress?.mastery) || 0)}%. Hints and tools are available here.`
+        : 'Finish the review to unlock your test. Hints and tools are available here.',
     };
   }
 
@@ -137,8 +153,8 @@ export const resolveTestCycleStage = ({
       secure: true,
       hintsAllowed: false,
       canEnter: assigned,
-      actionLabel: normalized.test.state === SESSION_STATE.IN_PROGRESS ? 'Resume Test' : 'Start Test',
-      statusLabel: 'Test',
+      actionLabel: normalized.test.state === SESSION_STATE.IN_PROGRESS ? `Resume ${external ? 'Retest' : 'Test'}` : `Start ${external ? 'Retest' : 'Test'}`,
+      statusLabel: external ? 'Retest' : 'Test',
       detail: assigned
         ? 'Secure test: one attempt per question, no hints or help, and your score is held until your teacher releases it.'
         : 'Your teacher has not opened the secure test session yet.',
@@ -153,11 +169,16 @@ export const resolveTestCycleStage = ({
       hintsAllowed: false,
       canEnter: false,
       actionLabel: 'Submitted',
-      statusLabel: 'Test submitted',
+      statusLabel: external ? 'Retest submitted' : 'Test submitted',
       // Deliberately says nothing about corrections or a retest. A student who
       // has not been given a score has not been told they failed.
       detail: 'Your test is submitted. Your score and your next step appear once your teacher releases results.',
     };
+  }
+
+  if (external) {
+    return { ...base, stage: TEST_CYCLE_STAGE.COMPLETE, secure: false, hintsAllowed: false, canEnter: true,
+      actionLabel: 'Review Retest', statusLabel: 'Retest complete', detail: grade.reason, complete: true };
   }
 
   const passed = grade.originalTestGrade !== null && grade.originalTestGrade >= resolved.passingScore;
@@ -293,6 +314,14 @@ export const stageLaunchesSecureRuntime = (state) => Boolean(
 export const buildTestCyclePhaseStatus = ({ state = null, record = null } = {}) => {
   const normalized = normalizeTestCycleRecord(record);
   const current = state?.stage || null;
+  if (state?.policy?.externalAssessment) {
+    const finished = [SESSION_STATE.SUBMITTED, SESSION_STATE.RELEASED].includes(normalized.test.state);
+    return [
+      { id: 'review', label: 'Review', status: normalized.review.complete || normalized.test.state === SESSION_STATE.IN_PROGRESS || finished ? 'completed' : current === TEST_CYCLE_STAGE.REVIEW ? 'available' : 'locked' },
+      { id: 'test', label: 'Retest', secure: true, status: finished ? 'completed' : current === TEST_CYCLE_STAGE.TEST && state.canEnter ? 'ready' : 'locked',
+        reason: current === TEST_CYCLE_STAGE.REVIEW ? state.detail : !state?.canEnter && !finished ? state.detail : null },
+    ];
+  }
   const reviewComplete = normalized.review.complete === true || current !== TEST_CYCLE_STAGE.REVIEW;
   const testComplete = [SESSION_STATE.SUBMITTED, SESSION_STATE.RELEASED].includes(normalized.test.state);
   const correctionsKnown = normalized.test.state === SESSION_STATE.RELEASED;
