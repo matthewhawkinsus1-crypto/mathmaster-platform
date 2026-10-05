@@ -154,9 +154,12 @@ export function StandingsBoard({
   namesByKey = null,
   emptyText = 'Players appear here as they join.',
   label = 'Standings',
+  // How many are playing, when `rows` is only the top of the class and the
+  // viewer's own row (a student's standings snapshot).
+  totalCount = null,
 }) {
   const style = lookOf(look);
-  const visible = standingsWindow(rows, { limit, selfKey });
+  const visible = standingsWindow(rows, { limit, selfKey, total: totalCount });
   if (!visible.total) return <p style={{ margin: 0, color: style.muted }}>{emptyText}</p>;
   const unit = presentation?.total?.short || 'pts';
   const renderRow = (row) => {

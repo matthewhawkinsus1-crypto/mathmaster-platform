@@ -348,6 +348,10 @@ export const standingFromPlayer = (player = {}, { mode = null } = {}) => {
   return {
     studentId: studentIdOf(player),
     playerKey: player.playerKey ? String(player.playerKey) : null,
+    // The player's seat in the room's standings snapshot, kept so the final
+    // standings can be rebuilt from this result alone (null in a room from
+    // before seats).
+    slot: Number.isInteger(player.slot) ? player.slot : null,
     alias: String(player.alias || 'Player'),
     joined: player.joined === true,
     joinedAtRound,

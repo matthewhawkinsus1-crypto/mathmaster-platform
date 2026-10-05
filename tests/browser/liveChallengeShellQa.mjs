@@ -1645,7 +1645,8 @@ await run('standings', async (S) => {
     const key = `standings${size}`;
     const ids = studentsOf(key);
     const teacher = await openTeacher('chromebook');
-    const roomId = await createClassic(teacher, { classKey: key, rounds: 3, seconds: 90 });
+    // Five rounds (the console's smallest game); three are measured, then End Game.
+    const roomId = await createClassic(teacher, { classKey: key, rounds: 5, seconds: 90 });
     const devices = [['chromebook', 'chromebook'], ['ipad', 'ipad'], ['phone', 'phone'], ['chromebook', 'throttled']];
     const screens = [];
     for (const [index, [device, role]] of devices.entries()) {
@@ -1743,7 +1744,7 @@ await run('standings', async (S) => {
             // read it was ranked from, which includes every earlier commit.
             const delivery = log.standings.find(([, , kind, , extra]) => (kind === 'players'
               ? (extra || []).some(([keyOf, round]) => keyOf === playerKey && round === roundIndex)
-              : kind === 'standings' && Number(extra) >= commitMs));
+              : kind === 'standings' && Number(extra?.sourceReadMs) >= commitMs));
             if (!delivery) return null;
             const painted = log.commits.find(([t]) => t >= delivery[0]);
             return (painted ? painted[0] + epochOffset : delivery[1]) - commitMs;
@@ -1753,6 +1754,9 @@ await run('standings', async (S) => {
             role: screen.role,
             standingsCallbacks: log.standings.length,
             standingsDocs: log.standings.reduce((sum, [, , , docs]) => sum + docs, 0),
+            // By listener: the class's rows (before), or the snapshot and the
+            // student's own row (after).
+            docsByListener: log.standings.reduce((tally, [, , kind, docs]) => ({ ...tally, [kind]: (tally[kind] || 0) + docs }), {}),
             reactCommits: log.commits.length,
             reactCommitsAfterStandings: attributed.length,
             reactCommitMsAfterStandings: Math.round(attributed.reduce((sum, [, duration]) => sum + (duration || 0), 0) * 10) / 10,
@@ -1772,7 +1776,8 @@ await run('standings', async (S) => {
         await primary(teacher, 'advance').click();
       }
     }
-    await primary(teacher, 'advance').click();
+    await teacher.page.getByRole('button', { name: 'End Game' }).click();
+    await confirmDialog(teacher, 'End Game');
     check(S, await waitForRoom(roomId, (room) => room.status === 'finished', 30_000), `${size}: the game did not finish`);
     for (const screen of screens) check(S, await waitForStudentStage(screen, 'completed', 20_000), `${size}: ${screen.studentId} not on the final screen`);
     await wait(1_000);

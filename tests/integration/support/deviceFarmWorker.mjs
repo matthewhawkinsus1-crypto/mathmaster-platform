@@ -9,14 +9,16 @@
  * a 64-player standings view, in one event loop.
  */
 import { parentPort } from 'node:worker_threads';
-import { createRequire, register } from 'node:module';
+import { createRequire } from 'node:module';
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import v8 from 'node:v8';
 import vm from 'node:vm';
 
-register('./clientFirebaseHooks.mjs', import.meta.url);
+// Emulator-only client Firebase for this worker's devices (registerClientFirebase.mjs).
+const { registerClientFirebaseHooks } = await import('./registerClientFirebase.mjs');
+registerClientFirebaseHooks();
 // The #422 retry, for this worker's copy of the server (idempotent if --import already loaded it).
 await import('./emulatorTransactions.mjs');
 // Server reads and writes, counted per callable (the standings profile reads them).

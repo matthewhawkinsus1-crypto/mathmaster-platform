@@ -547,8 +547,9 @@ late join and Play Again. The rules below are the engine-facing ones.
 - **Listener ownership.** The room listener depends on the room id only; clock
   calibration (every 30 s, live games only) is read through a ref and never
   re-subscribes it.
-- **Refresh after answering.** The public player row's `answeredRound` locks the
-  round even when no local result survived; the server's result is kept for the
+- **Refresh after answering.** The student's own public player row (its one
+  row listener) carries `answeredRound`, which locks the round even when no
+  local result survived; the server's result is kept for the
   current round (live rooms only) and restored on reload; a refused second
   answer (`already-exists`) is shown as "recorded", not as an error.
 - **One command at a time.** The teacher console sends lifecycle commands
@@ -561,11 +562,19 @@ late join and Play Again. The rules below are the engine-facing ones.
   working points only while the round takes answers; results read the round's
   result document; the podium fills steps in standing order and labels each
   step with its player's (possibly shared) rank.
+- **Standings reach a student as one snapshot** (§12a), never as the class's
+  rows: a screen listens to the room, the standings snapshot, its own public
+  row and its invite — four listeners whatever the class size.
+- **The host console paces live standings** (`useStandingsPublisher`): it
+  already ranks every row, and when its board changes it asks
+  `publishLiveChallengeStandings` for a fresh snapshot, at most once a second.
+  A console that is closed or asleep leaves the live board stale and nothing
+  else.
 - **Host audio** forgets the previous game's state when the room changes, and
   makes no sound it cannot play (unprimed or muted).
 - **Graph Feature Rush** (`graph-feature-rush.md`): the student plays on a
-  lazily loaded full-screen surface; the standings listener pauses while a
-  rush round is open.
+  lazily loaded full-screen surface; both standings listeners (the snapshot
+  and the student's own row) pause while a rush round is open.
 
 ---
 
@@ -574,7 +583,8 @@ late join and Play Again. The rules below are the engine-facing ones.
 | Path | Holds | Client access |
 | --- | --- | --- |
 | `liveChallengeRooms/{roomId}` | status, round identity and state, clock, current question, mode/strategy ids, speed setting, `rewardSummary` (what placements earn; no student) | room audience reads |
-| `…/players/{playerKey}` | alias, scores, answeredRound; for a rush also `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, `lastRound` — no student id | room audience reads |
+| `…/players/{playerKey}` | alias, seat (`slot`), scores, answeredRound; for a rush also `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, `lastRound` — no student id | room audience reads (a student's screen listens to its own row only; own-row-only rules are a later deploy) |
+| `…/standings/current` | the class's standings snapshot (§12a): top rows, every seat's rank and score, the moment it is from — no student id | room audience reads; no client writes |
 | `…/rounds/{round}` | anonymous round result, with `standingsAfterRound` | room audience reads |
 | `…/diagnostics/{playerKey}` | device health: connection quality, recent `sessions` (per-tab ids → last heard), `reconnectedAt` | room owner reads |
 | `liveChallengePrivate/{roomId}` (+ `players`, `rounds`) | question ids, roster, receipts, reward policy, scoring config | none |
@@ -592,6 +602,35 @@ reports (by the `studentIds` key both carry). Reports written before that key
 existed are not reachable by query — a known gap. The pre-production reset
 clears every collection above.
 
+### 12a. The standings snapshot
+
+Students used to listen to every classmate's public row; every answer (and
+every progress report, and every round close under a placement strategy) was
+delivered to every screen — N × N per round, 4,096 at 64 students, each one
+re-ranking the class on a Chromebook. Now one small document,
+`liveChallengeRooms/{roomId}/standings/current`
+(`functions/shared/liveChallengeStandingsProjection.mjs`), carries what a
+student's screen shows: the top five rows, and every joined player's rank and
+score as two compact lists indexed by seat (`slot`, fixed at room creation; a
+room from before seats is seated by player key, `slotKeys`). It is replaced
+whole, never patched, so a screen that missed one loses nothing.
+
+| Kind | Written by | From |
+| --- | --- | --- |
+| `live` | `publishLiveChallengeStandings`, when the host's pacer asks (≤ 1 request/s while the board changes; the server writes at most one per 750 ms, room for the publish's own duration) | one read-only transaction over the room and every public row, ranked by `publicLeaderboard` with the room's strategy |
+| `roundClosed` | the transaction that closes a round (Close Round, Next Round) | that round's `standingsAfterRound`, from the private records |
+| `final` | the transaction that finishes the match (or `ensureLiveChallengeFinalStandings`, once, for a finished room that has none) | the match result's standings: the podium IS the match result |
+
+Ordering (`projectionMayReplace`): a final is never replaced; an earlier
+moment of the match (round version, then lobby < open < closed < final) never
+replaces a later one; at the same moment an exact snapshot beats a live one;
+live against live, the later read wins. An answer never reads or writes the
+snapshot, and nothing reads it to score: points, placements, rewards and the
+match result come from the private records only. Its contents are what every
+student is already shown (game alias, rank, shared rank, score, how many are
+playing) — never a student id, email, answer, per-player time, diagnostic or
+support. Rules: the room's audience reads it; no client writes it.
+
 ---
 
 ## 13. Performance notes
@@ -605,8 +644,8 @@ clears every collection above.
   transaction each; they now take about 0.3 s.
 - **Per round close / advance**: one transaction reading the room, private state
   and the room's private players (the roster), writing the room, private state,
-  two round-result documents, and — for a per-round strategy only — each
-  player's private and public record. A 35-student Grand Prix round is about 76
+  two round-result documents, the standings snapshot (§12a), and — for a
+  per-round strategy only — each player's private and public record. A 35-student Grand Prix round is about 76
   writes, well inside the 500-write transaction limit. Readiness is decided from
   the same read, so it cannot disagree with what the close writes.
 - **Contention**: submissions arriving during a close wait on the close's
@@ -615,9 +654,18 @@ clears every collection above.
 - **Finalization**: one transaction (room, private state, match result,
   pointer), then the effects. Award delivery is one small transaction per award.
 - **Client listeners**: student — room (with metadata, for an honest
-  "Reconnecting…") + players, plus the current round's result while its
-  results are on screen; teacher — room, players, diagnostics, active pointer,
+  "Reconnecting…"), the standings snapshot and their own public row (§12a),
+  plus the current round's result while its results are on screen — constant
+  in the class size; teacher — room, players, diagnostics, active pointer,
   plus the round result during results; the roster callable once per room.
+- **Standings delivery** (§12a): a student's screen receives at most about one
+  snapshot a second while the board changes, plus the exact snapshot at each
+  close and at the finish, and its own row when it changes — about 14
+  standings documents per screen over a three-round game at any class size
+  (the launch certification bounds it). Before, each screen received every
+  classmate's row change: about N per round, N² across the class. The live
+  snapshot costs the server one read-only transaction over the room's public
+  rows and one write, at most once a second, only while the board changes.
   Each calibration is now one transaction on the student's diagnostics row
   (it was a merge write).
 - **Client rendering**: screens re-derive at clock boundaries instead of

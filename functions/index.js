@@ -10412,7 +10412,7 @@ async function graphFeatureRushRules() {
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10421,8 +10421,9 @@ async function liveChallengeEngine() {
       import("./shared/liveChallengeResults.mjs"),
       import("./shared/liveChallengeRewardRules.mjs"),
       import("./shared/liveChallengeExperience.mjs"),
+      import("./shared/liveChallengeStandingsProjection.mjs"),
     ]);
-    liveChallengeEngineModules = { lifecycle, timer, modes, scoring, responses, results, rewardRules, experience };
+    liveChallengeEngineModules = { lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings };
   }
   return liveChallengeEngineModules;
 }
@@ -11011,6 +11012,11 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   const playerRecords = aliasOrder.map((student, index) => ({
     studentId: student.studentId,
     playerKey: crypto.randomUUID(),
+    // The player's seat in the room's public standings snapshot
+    // (liveChallengeStandingsProjection.mjs): where their rank is in its
+    // compact lists. Their position in this shuffled order, so it says nothing
+    // about the roster either.
+    slot: index,
     alias: challenge.challengeAlias(index, aliasSeed),
     joined: false,
     score: 0,
@@ -11156,6 +11162,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
       playerRecords.slice(start, start + 200).forEach((player) => {
         batch.set(privateRef.collection("players").doc(player.studentId), {
           playerKey: player.playerKey,
+          slot: player.slot,
           alias: player.alias,
           joined: false,
           score: 0,
@@ -11180,6 +11187,9 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
           courseId,
           alias: player.alias,
           playerKey: player.playerKey,
+          // Which seat of the standings snapshot is this student's, known
+          // before they join (their own public row repeats it).
+          slot: player.slot,
           status: "invited",
           updatedAt: FieldValue.serverTimestamp(),
         });
@@ -11646,15 +11656,56 @@ function applyLiveChallengeRoundClose(transaction, {
   // ranked from the totals just written, so a results screen shows the round
   // and the standings it produced from one document — and movement since the
   // last round compares two ranks the engine wrote.
+  const standingsAfterRound = engine.results.matchStandingsAfterRound({
+    players: updatedPlayers, modeId: room.challengeMode, scoringStrategyId,
+  });
   transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
-    ...engine.results.publicRoundSummary(roundResult, {
-      standingsAfterRound: engine.results.matchStandingsAfterRound({
-        players: updatedPlayers, modeId: room.challengeMode, scoringStrategyId,
-      }),
-    }),
+    ...engine.results.publicRoundSummary(roundResult, { standingsAfterRound }),
     closedAt: FieldValue.serverTimestamp(),
   });
-  return { roundResult, players: updatedPlayers };
+  // The caller writes the class's standings snapshot from these same
+  // standings (writeExactStandingsProjection), or the final one when the
+  // match ends in the same transaction.
+  return { roundResult, players: updatedPlayers, standingsAfterRound };
+}
+
+/*
+ * THE CLASS'S STANDINGS SNAPSHOT AT A ROUND CLOSE OR THE FINISH.
+ *
+ * liveChallengeRooms/{room}/standings/current is what every student's screen
+ * listens to (functions/shared/liveChallengeStandingsProjection.mjs). It is
+ * written exactly here — in the transaction that closes a round or finishes
+ * the match, from the standings that transaction computed from the private
+ * records — and between those moments only as a paced live snapshot
+ * (publishLiveChallengeStandings). No answer reads or writes it.
+ *
+ * A snapshot is display. Building one can never fail the transaction that
+ * closes a round or ends a match: a builder error is logged and the snapshot
+ * left as it was, and the next milestone (or ensureLiveChallengeFinalStandings)
+ * writes it again from the authoritative records.
+ */
+const standingsProjectionRef = (roomRef, standings) => roomRef.collection(standings.STANDINGS_COLLECTION).doc(standings.STANDINGS_DOC_ID);
+
+function writeExactStandingsProjection(transaction, {
+  engine, roomRef, room, kind, standings, players, status = null, nowMs, source,
+}) {
+  try {
+    const projection = engine.standings.exactProjectionFromStandings({
+      roomId: roomRef.id, room, kind, standings, players, status,
+    });
+    transaction.set(standingsProjectionRef(roomRef, engine.standings), {
+      ...projection,
+      digest: engine.standings.projectionDigest(projection),
+      source,
+      sourceReadMs: nowMs,
+      publishedAt: FieldValue.serverTimestamp(),
+      publishedAtMs: nowMs,
+    });
+    return true;
+  } catch (error) {
+    logger.error("liveChallenge.standings.exact.failed", { roomId: roomRef.id, kind, message: error?.message || String(error) });
+    return false;
+  }
 }
 
 /**
@@ -11831,6 +11882,19 @@ function applyLiveChallengeMatchFinalization(transaction, {
   }, { merge: true });
   transaction.set(privateRef, terminal, { merge: true });
   if (pointsHere) transaction.delete(pointerRef);
+  // The final standings and podium every screen shows ARE the match result's:
+  // written in this commit, from its standings, and never replaced after.
+  writeExactStandingsProjection(transaction, {
+    engine,
+    roomRef,
+    room: { ...room, status },
+    kind: engine.standings.PROJECTION_KIND.FINAL,
+    standings: matchResult.standings,
+    players,
+    status,
+    nowMs,
+    source: "finish",
+  });
   return matchResult;
 }
 
@@ -12216,6 +12280,9 @@ exports.joinLiveChallenge = onCall(async (request) => {
     transaction.set(privatePlayerRef, joinedPlayer, { merge: true });
     transaction.set(publicPlayerRef, {
       playerKey: player.playerKey,
+      // The seat of this player's rank in the standings snapshot. A room
+      // created before seats has none; its snapshot seats players by key.
+      ...(Number.isInteger(player.slot) ? { slot: player.slot } : {}),
       alias: player.alias,
       joined: true,
       score: Math.max(0, Math.round(Number(player.score) || 0)),
@@ -12443,8 +12510,19 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
     // As in advance: a close that raced a Finish is answered from the room.
     if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
     const privateState = latestPrivate.data() || {};
-    const { roundResult } = applyLiveChallengeRoundClose(transaction, {
+    const { roundResult, players: roundPlayers, standingsAfterRound } = applyLiveChallengeRoundClose(transaction, {
       engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
+    });
+    // Every screen's standings, exact as of the close.
+    writeExactStandingsProjection(transaction, {
+      engine,
+      roomRef,
+      room: { ...currentRoom, roundState: lifecycle.ROUND_STATE.CLOSED },
+      kind: engine.standings.PROJECTION_KIND.ROUND_CLOSED,
+      standings: standingsAfterRound,
+      players: roundPlayers,
+      nowMs,
+      source: "roundClose",
     });
     transaction.set(roomRef, {
       roundState: lifecycle.ROUND_STATE.CLOSED,
@@ -12528,14 +12606,33 @@ exports.advanceLiveChallenge = onCall(async (request) => {
     const privateState = latestPrivate.data() || {};
 
     let roundPlayers = players;
+    let closedStandings = null;
     if (plan.closeCurrentRound) {
-      roundPlayers = applyLiveChallengeRoundClose(transaction, {
+      const closed = applyLiveChallengeRoundClose(transaction, {
         engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
-      }).players;
+      });
+      roundPlayers = closed.players;
+      closedStandings = closed.standingsAfterRound;
     }
     const next = planNextLiveChallengeRound({
       challenge, engine, room: currentRoom, privateState, players: roundPlayers, roundIndex: plan.roundIndex,
     });
+    // Next Round closes this round and opens the next in one commit: every
+    // screen's standings are the closed round's, exact, until the next round's
+    // live snapshot (a round closed earlier already wrote its own). When the
+    // match ends here instead, the finalization writes the final standings.
+    if (closedStandings && !next.finish) {
+      writeExactStandingsProjection(transaction, {
+        engine,
+        roomRef,
+        room: { ...currentRoom, roundState: lifecycle.ROUND_STATE.CLOSED },
+        kind: engine.standings.PROJECTION_KIND.ROUND_CLOSED,
+        standings: closedStandings,
+        players: roundPlayers,
+        nowMs,
+        source: "roundClose",
+      });
+    }
     if (next.finish) {
       applyLiveChallengeMatchFinalization(transaction, {
         engine,
@@ -12602,6 +12699,151 @@ exports.cancelLiveChallenge = onCall(async (request) => {
   const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
   return finalizeLiveChallengeMatch(db, {
     roomRef, room, command: lifecycle.LIFECYCLE_COMMAND.CANCEL, status: lifecycle.SESSION_STATUS.CANCELLED,
+  });
+});
+
+/*
+ * LIVE STANDINGS FOR THE CLASS: ONE SNAPSHOT, AT MOST ONCE A SECOND.
+ *
+ * Students no longer listen to each other's player rows — every answer used
+ * to be delivered to every screen, N × N per round. They listen to one
+ * snapshot (liveChallengeStandingsProjection.mjs). Between a round's open and
+ * its close, the host console — which listens to every row anyway — asks for
+ * a fresh one when its board changes (standingsPublishPacer.js). This is that
+ * request, and the server decides everything about it:
+ *
+ *   - only the room's teacher (or a root admin) may ask, and only while the
+ *     room has live standings to show (a lobby, a running round — never an
+ *     open Graph Feature Rush round, whose screens are on their own graphs);
+ *   - the host asks at most once a second, and the server writes at most one
+ *     snapshot every 750 ms (STANDINGS_MIN_PUBLISH_INTERVAL_MS: room for the
+ *     publish's own duration; `retryAfterMs` says when to ask again), and
+ *     none when nothing a screen shows changed — so no screen is woken for it;
+ *   - the room and every public row are read in ONE read-only transaction:
+ *     one consistent moment, and no lock that could make an answer wait;
+ *   - ranked by the same engine ranking the host's board uses;
+ *   - never over a later moment of the match (a round's exact close, the
+ *     final standings): checked again in the transaction that writes it.
+ *
+ * An answer never waits on this, and a snapshot never changes a score.
+ */
+const liveStandingsWanted = (engine, room = {}) => {
+  if (!["lobby", "running"].includes(room?.status)) return false;
+  const questionSet = engine.modes.roundStructureFor(engine.modes.getChallengeMode(room.challengeMode)).id === engine.modes.ROUND_STRUCTURE.QUESTION_SET;
+  return !(questionSet && room.status === "running" && room.roundState !== "closed");
+};
+const standingsPublishWaitMs = (standings, stored, nowMs) => (stored
+  ? Math.max(0, standings.STANDINGS_MIN_PUBLISH_INTERVAL_MS - (nowMs - (Number(stored.publishedAtMs) || 0)))
+  : 0);
+
+async function publishLiveStandingsSnapshot(db, { roomRef, room }) {
+  const engine = await liveChallengeEngine();
+  const { standings } = engine;
+  if (!liveStandingsWanted(engine, room)) return { published: false, reason: "not-live" };
+  const ref = standingsProjectionRef(roomRef, standings);
+  const storedSnapshot = await ref.get();
+  const stored = storedSnapshot.exists ? (storedSnapshot.data() || {}) : null;
+  if (stored?.kind === standings.PROJECTION_KIND.FINAL) return { published: false, reason: "final" };
+  const wait = standingsPublishWaitMs(standings, stored, Date.now());
+  if (wait > 0) return { published: false, reason: "too-soon", retryAfterMs: wait };
+
+  const read = await db.runTransaction(async (transaction) => {
+    const [roomSnapshot, playersSnapshot] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(roomRef.collection("players")),
+    ]);
+    return {
+      room: roomSnapshot.exists ? (roomSnapshot.data() || {}) : null,
+      rows: playersSnapshot.docs.map((playerDoc) => ({ playerKey: playerDoc.id, ...playerDoc.data() })),
+      readTime: playersSnapshot.readTime,
+    };
+  }, { readOnly: true });
+  if (!read.room || !liveStandingsWanted(engine, read.room)) return { published: false, reason: "not-live" };
+  const sourceReadMs = read.readTime.toMillis();
+  const projection = standings.liveProjectionFromPublicRows({ roomId: roomRef.id, room: read.room, rows: read.rows, nowMs: sourceReadMs });
+  const digest = standings.projectionDigest(projection);
+  if (stored?.digest === digest) return { published: false, reason: "unchanged" };
+
+  return db.runTransaction(async (transaction) => {
+    const latestSnapshot = await transaction.get(ref);
+    const latest = latestSnapshot.exists ? (latestSnapshot.data() || {}) : null;
+    if (latest?.digest === digest) return { published: false, reason: "unchanged" };
+    if (!standings.projectionMayReplace(latest, { ...projection, sourceReadMs })) return { published: false, reason: "superseded" };
+    const nowMs = Date.now();
+    const latestWait = standingsPublishWaitMs(standings, latest, nowMs);
+    if (latestWait > 0) return { published: false, reason: "too-soon", retryAfterMs: latestWait };
+    transaction.set(ref, {
+      ...projection,
+      digest,
+      source: "host",
+      sourceReadMs,
+      publishedAt: FieldValue.serverTimestamp(),
+      publishedAtMs: nowMs,
+    });
+    return { published: true, sourceReadMs, count: projection.count };
+  });
+}
+
+exports.publishLiveChallengeStandings = onCall(async (request) => {
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+  const db = getFirestore();
+  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  return publishLiveStandingsSnapshot(db, { roomRef, room });
+});
+
+/*
+ * A FINISHED ROOM'S FINAL STANDINGS, REBUILT FROM ITS MATCH RESULT IF MISSING.
+ *
+ * The finishing transaction writes the final snapshot. A room that finished
+ * before snapshots existed — or one whose final snapshot could not be built —
+ * has none, and a screen opened on it would wait for its final place forever.
+ * Its own students and teacher may ask for it: the server rebuilds it from the
+ * durable match result (the same standings the podium and rewards use) and
+ * writes it once. Asking again changes nothing.
+ */
+exports.ensureLiveChallengeFinalStandings = onCall(async (request) => {
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+  const db = getFirestore();
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  if (request.auth?.token?.role === "teacher") {
+    await requireOwnedChallenge(db, request, roomId);
+  } else {
+    const { studentId } = requireStudent(request);
+    const invite = await db.collection(LIVE_CHALLENGE_INVITES).doc(studentId).get();
+    if (!invite.exists || invite.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
+  }
+  const engine = await liveChallengeEngine();
+  const { standings } = engine;
+  const roomSnapshot = await roomRef.get();
+  if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
+  const room = roomSnapshot.data() || {};
+  if (!["finished", "cancelled"].includes(room.status)) return { ensured: false, reason: "not-finished" };
+  const ref = standingsProjectionRef(roomRef, standings);
+  const existing = await ref.get();
+  if (existing.exists && existing.data()?.kind === standings.PROJECTION_KIND.FINAL) return { ensured: true, existing: true };
+  const resultSnapshot = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomId).get();
+  if (!resultSnapshot.exists) return { ensured: false, reason: "no-result" };
+  const result = resultSnapshot.data() || {};
+  const resultStandings = Array.isArray(result.standings) ? result.standings : [];
+  return db.runTransaction(async (transaction) => {
+    const latest = await transaction.get(ref);
+    if (latest.exists && latest.data()?.kind === standings.PROJECTION_KIND.FINAL) return { ensured: true, existing: true };
+    const written = writeExactStandingsProjection(transaction, {
+      engine,
+      roomRef,
+      room,
+      kind: standings.PROJECTION_KIND.FINAL,
+      // The match result's standings carry each player's seat; a result from
+      // before seats is seated by player key instead.
+      standings: resultStandings,
+      players: resultStandings,
+      status: room.status,
+      nowMs: Date.now(),
+      source: "repair",
+    });
+    return written ? { ensured: true, repaired: true } : { ensured: false, reason: "unbuildable" };
   });
 });
 

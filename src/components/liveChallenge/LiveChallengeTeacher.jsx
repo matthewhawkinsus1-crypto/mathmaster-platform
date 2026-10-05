@@ -36,7 +36,7 @@ import {
 } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { hostRoster } from '../../platform/liveChallenge/challengePresenceModel.js';
 import { replayExperienceFromRoom, replayRequestFromRoom, replaySummary } from '../../platform/liveChallenge/challengeReplayModel.js';
-import { useChallengeClock, useLatest, usePreviousRoundSummary, useRoundSummary } from '../../platform/liveChallenge/challengeHooks.js';
+import { useChallengeClock, useLatest, usePreviousRoundSummary, useRoundSummary, useStandingsPublisher } from '../../platform/liveChallenge/challengeHooks.js';
 import ChallengeRewardSettings from './ChallengeRewardSettings.jsx';
 import { DEFAULT_CHALLENGE_REWARD_CHOICE, buildChallengeRewardPolicy, normalizeChallengeRewardChoice } from '../../platform/rewards/challengeRewardPolicy.js';
 import {
@@ -48,6 +48,7 @@ import {
   createLiveChallenge,
   finishLiveChallenge,
   getLiveChallengeHostRoster,
+  publishLiveChallengeStandings,
   readChallengeReport,
   setWarmupChallengeDelivery,
   startLiveChallenge,
@@ -504,6 +505,10 @@ export default function LiveChallengeTeacher({
   const previousSummary = usePreviousRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults);
   const roundView = useMemo(() => (showingResults ? roundResultsView({ summary: roundSummary, previousSummary }) : null), [showingResults, roundSummary, previousSummary]);
   const finalRewards = useMemo(() => (stage === CHALLENGE_STAGE.COMPLETED ? placementRewardsFor(standingsRows(leaderboard), room?.rewardSummary) : null), [stage, leaderboard, room?.rewardSummary]);
+  // THE STUDENTS' LIVE STANDINGS. Students no longer listen to every player's
+  // row; this console, which does, asks for a fresh standings snapshot when the
+  // board it ranks changes — at most once a second, and the server decides.
+  useStandingsPublisher({ roomId, room, leaderboard, questionSetRoom, publish: publishLiveChallengeStandings });
 
   // HOST AUDIO follows the room on its own timer: the countdown ticks and the
   // buzzer need the clock four times a second, the console does not.

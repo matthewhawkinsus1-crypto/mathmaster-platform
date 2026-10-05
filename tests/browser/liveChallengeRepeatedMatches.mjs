@@ -89,6 +89,8 @@ if (!await waitForHttp(`${ORIGIN}/`)) { console.error('Vite did not start.'); pr
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 if (!admin.apps.length) admin.initializeApp({ projectId: 'mathmaster-game-harness' });
 const db = admin.firestore();
+// The standings snapshot every screen reads, written where the server would.
+const { writeStandingsSnapshot, PROJECTION_KIND } = await import('./support/standingsSnapshot.mjs');
 const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
 
 // A real question from the seed bank, through the production issuability gate.
@@ -145,11 +147,15 @@ const openRound = async (match, round) => {
     startsAt, endsAt: startsAt + 30_000, roundStartedAt: startsAt, roundEndsAt: startsAt + 30_000,
   }, { merge: true });
 };
-const finish = (match, scores) => Promise.all([
-  roomRef(match.roomId).set({ status: 'finished', roundState: 'closed', currentQuestion: null, endsAt: null, roundEndsAt: null }, { merge: true }),
-  roomRef(match.roomId).collection('players').doc(match.playerKey).set({ score: scores.self, correctCount: 3, roundsAnswered: 3 }, { merge: true }),
-  roomRef(match.roomId).collection('players').doc(`${match.playerKey}-rival`).set({ score: scores.rival, correctCount: 1, roundsAnswered: 3 }, { merge: true }),
-]);
+const finish = async (match, scores) => {
+  await Promise.all([
+    roomRef(match.roomId).set({ status: 'finished', roundState: 'closed', currentQuestion: null, endsAt: null, roundEndsAt: null }, { merge: true }),
+    roomRef(match.roomId).collection('players').doc(match.playerKey).set({ score: scores.self, correctCount: 3, roundsAnswered: 3 }, { merge: true }),
+    roomRef(match.roomId).collection('players').doc(`${match.playerKey}-rival`).set({ score: scores.rival, correctCount: 1, roundsAnswered: 3 }, { merge: true }),
+  ]);
+  // The finish writes the final standings with the status (one transaction there).
+  await writeStandingsSnapshot(db, match.roomId, { kind: PROJECTION_KIND.FINAL });
+};
 
 // ---- the browser ------------------------------------------------------------
 const browser = await chromium.launch({ args: ['--no-sandbox'] });

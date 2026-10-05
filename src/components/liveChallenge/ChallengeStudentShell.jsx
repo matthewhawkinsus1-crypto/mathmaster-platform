@@ -171,7 +171,7 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
       </section>
       {rewardsSlot}
       <section style={quietPanel}>
-        <StandingsBoard rows={rows} presentation={presentation} look="student" limit={5} selfKey={selfKey} showMovement={false} label="Final standings" />
+        <StandingsBoard rows={rows} presentation={presentation} look="student" limit={5} selfKey={selfKey} showMovement={false} label="Final standings" totalCount={totalPlayers || null} />
       </section>
     </div>
   );

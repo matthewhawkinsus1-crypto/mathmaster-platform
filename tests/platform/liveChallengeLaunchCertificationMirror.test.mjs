@@ -19,7 +19,7 @@ const screenRoot = region(screen, 'export default function LiveChallengeStudent'
 
 test('both listen to the room with metadata changes, so cache and reconnect are visible', () => {
   assert.match(region(screenRoot, 'return watchLiveChallengeRoom(roomId', '}, [roomId]);'), /\{ includeMetadataChanges: true \}/);
-  assert.match(region(mirror, 'watchLiveChallengeRoom(roomId', 'syncPlayersListener();'), /\{ includeMetadataChanges: true \}/);
+  assert.match(region(mirror, 'watchLiveChallengeRoom(roomId', 'syncStandingsListeners();'), /\{ includeMetadataChanges: true \}/);
 });
 
 test('both keep a snapshot only through acceptChallengeSnapshot, with the phase at calibrated server time', () => {
@@ -57,9 +57,10 @@ test('both send launch milestones as one best-effort batch a second after the ga
   assert.match(region(mirror, 'const collectLaunchEvent', 'const calibrate'), firstOnly);
 });
 
-test('both join unless the board already has this student, and stop only on a refusal', () => {
-  assert.match(screenRoot, /leaderboard\.some\(\(entry\) => entry\.playerKey === invite\?\.playerKey\)/);
-  assert.match(mirror, /leaderboard\(\)\.some\(\(entry\) => entry\.playerKey === device\.invite\?\.playerKey\)/);
+test('both join unless their own row says they already have, and stop only on a refusal', () => {
+  assert.match(region(screenRoot, 'joinRefusedForRef.current === roomId || joinedRoomRef.current === roomId', 'setJoining(true)'), /const alreadyJoined = selfRow\?\.joined === true;/);
+  assert.match(region(mirror, 'const alreadyJoined = () =>', 'const maybeJoin'), /device\.selfRow\?\.joined === true/);
+  assert.match(region(mirror, 'const maybeJoin = () => {', "request('joinLiveChallenge'"), /if \(alreadyJoined\(\)\) return;/);
   const refusal = /permission-denied\|failed-precondition\|not-found\|invalid-argument/;
   assert.match(region(screenRoot, 'joinLiveChallenge({ roomId })', '.finally('), refusal);
   assert.match(region(mirror, "request('joinLiveChallenge'", '.finally('), refusal);
@@ -68,4 +69,42 @@ test('both join unless the board already has this student, and stop only on a re
 test('both resend a locked answer with its own submission id, never a new one', () => {
   assert.match(region(screen, 'const retryPending = async () => {', 'useEffect('), /await submitResponse\(pending\)/);
   assert.match(region(mirror, 'const retryPending = () => {', 'const answerRound'), /sendAnswer\(capture, 'resend'\)/);
+});
+
+// THE STANDINGS. A screen hears the class through two single documents — its
+// own public row and the room's standings snapshot — never every classmate's
+// row (each answer used to reach every screen: N x N per round). The
+// certification's device must listen exactly the same way, or it certifies a
+// cost the screen no longer has (or misses one it does).
+test('both listen to their own row and the standings snapshot, and never to the class\'s rows', () => {
+  assert.match(screenRoot, /watchLiveChallengePlayer\(roomId, playerKey,/);
+  assert.match(screenRoot, /watchLiveChallengeStandings\(roomId,/);
+  assert.doesNotMatch(screen, /watchLiveChallengePlayers\b/, 'the student screen listens to every player row');
+  const listeners = region(mirror, 'const syncStandingsListeners = () => {', 'const alreadyJoined');
+  assert.match(listeners, /device\.service\.watchLiveChallengeStandings\(wantedRoom,/);
+  assert.match(listeners, /device\.service\.watchLiveChallengePlayer\(wantedRoom, key,/);
+  assert.match(mirror, /standingsClient: 'projection'/, "the device's default is the screen's way");
+});
+
+test('both pause both standings listeners while a rush round is open', () => {
+  const pause = /rushRoundOpen = [\w?.]*(?:challengeMode|rushRoom)[^;]*roundState !== 'closed'/;
+  assert.match(screenRoot, /const rushRoundOpen = rushRoom && room\?\.status === 'running' && room\?\.roundState !== 'closed';/);
+  assert.match(region(screenRoot, 'useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, rushRoundOpen]);'), /if \(rushRoundOpen\) return undefined;/);
+  assert.match(region(screenRoot, 'useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, rushRoundOpen]);'), /if \(rushRoundOpen\) return undefined;/);
+  const listeners = region(mirror, 'const syncStandingsListeners = () => {', 'const alreadyJoined');
+  assert.match(listeners, pause);
+  assert.match(listeners, /const wantedRoom = device\.roomId && !rushRoundOpen \? device\.roomId : null;/);
+});
+
+test('both know their answer is on the server from their own row, never from the snapshot', () => {
+  assert.match(screen, /const answeredOnServer = Number\(selfEntry\?\.answeredRound\) === roundIndex;/);
+  assert.match(region(mirror, 'const answerRoundNow = async (room) => {', 'const capture = {'), /profile\.standingsClient === 'projection' \? device\.selfRow :/);
+});
+
+test('both decode the snapshot with the same functions and seat themselves the same way', () => {
+  assert.match(screenRoot, /standingsFromProjection\(projection, \{ roomId, slot: selfSlot, playerKey \}\)/);
+  assert.match(screenRoot, /const selfSlot = Number\.isInteger\(selfRow\?\.slot\) \? selfRow\.slot : \(Number\.isInteger\(invite\?\.slot\) \? invite\.slot : null\);/);
+  const derive = region(mirror, 'const deriveStandings = () => {', 'const delivered');
+  assert.match(derive, /const slot = Number\.isInteger\(device\.selfRow\?\.slot\) \? device\.selfRow\.slot : \(Number\.isInteger\(device\.invite\?\.slot\) \? device\.invite\.slot : null\);/);
+  assert.match(derive, /standingsFromProjection\(device\.projection, \{ roomId: device\.roomId, slot, playerKey: myKey\(\) \}\)/);
 });

@@ -1424,6 +1424,12 @@ const seedLiveChallengeEngine = async () => env.withSecurityRulesDisabled(async 
   });
   await setDoc(doc(db, 'liveChallengeInvites/STUDENT_A'), { roomId: 'lc-room-a', playerKey: 'pk-a' });
   await setDoc(doc(db, 'liveChallengeInvites/STUDENT_B'), { roomId: 'lc-room-elsewhere', playerKey: 'pk-b' });
+  // Two public player rows in the room, and its standings snapshot.
+  await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/players/pk-a'), { playerKey: 'pk-a', alias: 'Nova Fox', score: 1200, answeredRound: 0 });
+  await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/players/pk-classmate'), { playerKey: 'pk-classmate', alias: 'Lumen Owl', score: 900, answeredRound: 0 });
+  await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/standings/current'), {
+    schemaVersion: 1, roomId: 'lc-room-a', kind: 'live', count: 2, top: [{ playerKey: 'pk-a', slot: 0, alias: 'Nova Fox', rank: 1, tied: false, score: 1200 }], ranks: '1,2', scores: '1200,900',
+  });
   await setDoc(doc(db, 'liveChallengeMatchResults/lc-room-a'), {
     roomId: 'lc-room-a', teacherEmail: TEACHER_A, status: 'finished', standings: [{ studentId: 'STUDENT_A', rank: 1 }],
   });
@@ -1491,6 +1497,43 @@ test('a closed round\'s result is read by the room\'s audience only, and written
   for (const client of [studentA(), teacherA(), admin()]) {
     await assertFails(setDoc(doc(client, 'liveChallengeRooms/lc-room-a/rounds/1'), { standings: [] }));
     await assertFails(updateDoc(doc(client, round), { standings: [] }));
+  }
+});
+
+test('player rows are read by the room\'s audience (a student\'s own row included) and written by no client', async () => {
+  await seedLiveChallengeEngine();
+  const own = 'liveChallengeRooms/lc-room-a/players/pk-a';
+  const classmate = 'liveChallengeRooms/lc-room-a/players/pk-classmate';
+  await assertSucceeds(getDoc(doc(studentA(), own)), 'the row their invite names: the screen\'s own-row listener');
+  // Still readable in this release, for screens loaded before it (they list
+  // every row until they reload); the own-row-only tightening is a later deploy.
+  await assertSucceeds(getDoc(doc(studentA(), classmate)));
+  await assertSucceeds(getDocs(collection(studentA(), 'liveChallengeRooms/lc-room-a/players')));
+  await assertFails(getDoc(doc(studentB(), own)), 'a student of another room');
+  await assertFails(getDocs(collection(studentB(), 'liveChallengeRooms/lc-room-a/players')), 'a student of another room');
+  await assertSucceeds(getDocs(collection(teacherA(), 'liveChallengeRooms/lc-room-a/players')), "the console's board");
+  await assertFails(getDocs(collection(teacherB(), 'liveChallengeRooms/lc-room-a/players')));
+  await assertSucceeds(getDocs(collection(admin(), 'liveChallengeRooms/lc-room-a/players')));
+  await assertFails(getDoc(doc(stranger(), own)));
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(setDoc(doc(client, own), { score: 999999 }, { merge: true }));
+    await assertFails(setDoc(doc(client, 'liveChallengeRooms/lc-room-a/players/pk-new'), { score: 1 }));
+  }
+});
+
+test('the standings snapshot is read by the room\'s audience only, and written by no client', async () => {
+  await seedLiveChallengeEngine();
+  const snapshot = 'liveChallengeRooms/lc-room-a/standings/current';
+  await assertSucceeds(getDoc(doc(studentA(), snapshot)), 'a student invited to the room');
+  await assertFails(getDoc(doc(studentB(), snapshot)), 'a student invited to another room');
+  await assertSucceeds(getDoc(doc(teacherA(), snapshot)));
+  await assertFails(getDoc(doc(teacherB(), snapshot)));
+  await assertSucceeds(getDoc(doc(admin(), snapshot)));
+  await assertFails(getDoc(doc(stranger(), snapshot)));
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(setDoc(doc(client, snapshot), { kind: 'final', ranks: '1,1' }));
+    await assertFails(updateDoc(doc(client, snapshot), { scores: '999999,0' }));
+    await assertFails(deleteDoc(doc(client, snapshot)));
   }
 });
 

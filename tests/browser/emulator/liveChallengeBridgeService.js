@@ -65,9 +65,24 @@ const loggedPlayers = (roomId, onValue, ...rest) => {
   }, ...rest);
 };
 
+// A student's two standings listeners: the class's snapshot (one document,
+// replaced whole) and their own public row.
+const loggedStandings = (roomId, onValue, ...rest) => service.watchLiveChallengeStandings(roomId, (snapshot) => {
+  logStandings([performance.now(), Date.now(), 'standings', snapshot ? 1 : 0, snapshot
+    ? { kind: snapshot.kind, roundVersion: snapshot.roundVersion, phase: snapshot.phase, count: snapshot.count, sourceReadMs: Number(snapshot.sourceReadMs) || 0 }
+    : null]);
+  return onValue?.(snapshot);
+}, ...rest);
+const loggedSelf = (roomId, playerKey, onValue, ...rest) => service.watchLiveChallengePlayer(roomId, playerKey, (row) => {
+  logStandings([performance.now(), Date.now(), 'self', row ? 1 : 0, row ? [[row.playerKey, Number(row.answeredRound)]] : []]);
+  return onValue?.(row);
+}, ...rest);
+
 export const watchLiveChallengeInvite = counted('invite', service.watchLiveChallengeInvite);
 export const watchLiveChallengeRoom = counted('room', service.watchLiveChallengeRoom);
 export const watchLiveChallengePlayers = counted('players', loggedPlayers);
+export const watchLiveChallengeStandings = counted('standings', loggedStandings);
+export const watchLiveChallengePlayer = counted('self', loggedSelf);
 export const watchLiveChallengeDiagnostics = counted('diagnostics', service.watchLiveChallengeDiagnostics);
 export const watchTeacherActiveChallenge = counted('teacherActive', service.watchTeacherActiveChallenge);
 export const watchLiveChallengeRound = counted('round', service.watchLiveChallengeRound);
@@ -122,6 +137,8 @@ export const advanceLiveChallenge = call('advanceLiveChallenge');
 export const finishLiveChallenge = call('finishLiveChallenge');
 export const cancelLiveChallenge = call('cancelLiveChallenge');
 export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');
+export const publishLiveChallengeStandings = call('publishLiveChallengeStandings');
+export const ensureLiveChallengeFinalStandings = call('ensureLiveChallengeFinalStandings');
 export const calibrateLiveChallengeClock = call('calibrateLiveChallengeClock');
 export const reportLiveChallengeProgress = call('reportLiveChallengeProgress');
 export const updateLiveChallengePacing = call('updateLiveChallengePacing');

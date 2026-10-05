@@ -39,7 +39,7 @@
 // Output: PROFILE_OUT (default: a JSON file in the system temp dir) and a
 // markdown summary on stdout.
 
-import { createRequire, register } from 'node:module';
+import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -54,10 +54,12 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
   process.exit(2);
 }
 
-register('../tests/integration/support/clientFirebaseHooks.mjs', import.meta.url);
+const { registerClientFirebaseHooks } = await import('../tests/integration/support/registerClientFirebase.mjs');
+registerClientFirebaseHooks();
 const { installFirestoreAccounting, runAsCallable, accountingSince, summarizeAccounting } = await import('../tests/integration/support/firestoreAccounting.mjs');
 installFirestoreAccounting();
 const { createDeviceFarm } = await import('../tests/integration/support/deviceFarm.mjs');
+const { createSimHost } = await import('../tests/integration/support/liveChallengeSimHost.mjs');
 const functionsIndex = require(path.join(repo, 'functions/index.js'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
@@ -213,28 +215,14 @@ const createRoom = async (entry) => (await teacherCall(entry, 'createLiveChallen
 })).roomId;
 
 /*
- * THE HOST CONSOLE'S LISTENER. The teacher's console keeps every public row
- * (who has answered, who is racing): one listener, on one device, in both the
- * old and the new design. Counted, so the class's total is complete.
+ * THE HOST CONSOLE. The teacher's console keeps every public row (who has
+ * answered, who is racing): one listener, on one device, in every design —
+ * counted, so the class's total is complete. With the projection it is also
+ * what paces the students' live standings (liveChallengeSimHost.mjs, the
+ * console's own pacer and board); for the other clients it never publishes.
  */
-let hostSeq = 0;
-async function openHost(roomId) {
-  hostSeq += 1;
-  const service = await import(`../src/platform/liveChallenge/liveChallengeService.js?mmClient=profile-host-${hostSeq}`);
-  const firebase = await import(`../tests/integration/support/clientFirebase.mjs?mmClient=profile-host-${hostSeq}`);
-  const host = { log: [], signatures: new Map(), stop: null, service, firebase };
-  host.stop = service.watchLiveChallengePlayers(roomId, (rows) => {
-    let docs = 0;
-    rows.forEach((row) => {
-      const signature = `${millis(row.updatedAt)}:${millis(row.provisionalAt)}:${millis(row.rushActiveAt)}`;
-      if (host.signatures.get(row.playerKey) === signature) return;
-      host.signatures.set(row.playerKey, signature);
-      docs += 1;
-    });
-    host.log.push([Date.now(), docs]);
-  }, () => {});
-  host.close = async () => { host.stop?.(); await firebase.shutdown(); };
-  return host;
+async function openHost(entry, roomId, client) {
+  return createSimHost({ roomId, call: (name, data) => teacherCall(entry, name, data), paused: client !== 'projection' });
 }
 
 async function runOne({ size, client, label }) {
@@ -247,7 +235,7 @@ async function runOne({ size, client, label }) {
     const heapBefore = await farm.heapMb();
     const createdAt = Date.now();
     const roomId = await createRoom(entry);
-    host = await openHost(roomId);
+    host = await openHost(entry, roomId, client);
     const windows = { lobby: { from: createdAt, to: null }, rounds: [], finish: null };
     await Promise.all(entry.students.map(async (studentId) => farm.device(studentId).open(await inviteOf(studentId))));
     await waitUntil(`${label}: lobby`, async () => (await privatePlayers(roomId)).filter((row) => row.joined).length === size
@@ -314,11 +302,20 @@ async function runOne({ size, client, label }) {
       commits: [...workerAccounting.commits, ...mainAccounting.commits],
     };
     Object.assign(result, analyze({ size, traces, accounting, windows, views }));
-    // The host console's deliveries per round, beside the class's.
+    // The host console's deliveries per round, beside the class's, and what
+    // its pacer asked for (projection only).
     result.rounds.forEach((roundResult, index) => {
       const window = windows.rounds[index];
       const entries = host.log.filter(([t]) => t >= window.from && t <= window.to);
-      roundResult.host = { callbacks: entries.length, docs: entries.reduce((sum, [, docs]) => sum + docs, 0) };
+      const replies = host.replies.filter((reply) => reply.sentAt >= window.from && reply.sentAt <= window.to);
+      roundResult.host = {
+        callbacks: entries.length,
+        docs: entries.reduce((sum, [, docs]) => sum + docs, 0),
+        publishRequests: host.requests.filter((t) => t >= window.from && t <= window.to).length,
+        published: replies.filter((reply) => reply.published === true).length,
+        notPublished: replies.filter((reply) => reply.published === false).reduce((tally, reply) => ({ ...tally, [reply.reason]: (tally[reply.reason] || 0) + 1 }), {}),
+        failed: replies.filter((reply) => reply.error).length,
+      };
     });
     if (process.env.PROFILE_RAW) result.raw = { traces, calls: accounting.calls.filter((call) => call.name === 'submitLiveChallengeResponse'), commits: accounting.commits, windows };
     result.heapMb = { before: heapBefore, after: heapAfter, perDeviceBeforeKb: Math.round((heapBefore * 1024) / size), perDeviceAfterKb: Math.round((heapAfter * 1024) / size) };
@@ -373,13 +370,19 @@ function analyze({ size, traces, accounting, windows, views }) {
     // DELIVERIES during the round, per student.
     const perStudent = traces.map((entry) => {
       const callbacks = (entry.trace.callbacks || []).filter(([t]) => inWindow(t, window));
+      // Which listener delivered: the class's rows (legacy), or the snapshot
+      // and the student's own row (projection).
+      const byListener = {};
+      callbacks.forEach(([, docs, , , kind = 'players']) => { byListener[kind] = (byListener[kind] || 0) + docs; });
       return {
         callbacks: callbacks.length,
         docs: callbacks.reduce((sum, [, docs]) => sum + docs, 0),
         bytes: callbacks.reduce((sum, [, , bytes]) => sum + bytes, 0),
         cpuMs: callbacks.reduce((sum, [, , , ms]) => sum + ms, 0),
+        byListener,
       };
     });
+    const listenerKinds = [...new Set(perStudent.flatMap((row) => Object.keys(row.byListener)))];
     const roomSnapshots = traces.map((entry) => (entry.trace.roomSnapshots || []).filter((t) => inWindow(t, window)).length);
     const server = summarizeAccounting(accounting.events, { fromMs: window.from, toMs: window.to + 1_500 });
     const listeners = window.listeners || null;
@@ -397,6 +400,10 @@ function analyze({ size, traces, accounting, windows, views }) {
         callbacksTotal: perStudent.reduce((sum, row) => sum + row.callbacks, 0),
         docsTotal: perStudent.reduce((sum, row) => sum + row.docs, 0),
         bytesTotal: perStudent.reduce((sum, row) => sum + row.bytes, 0),
+        docsPerStudentByListener: Object.fromEntries(listenerKinds.map((kind) => [kind, {
+          mean: round1(mean(perStudent.map((row) => row.byListener[kind] || 0))),
+          max: Math.max(0, ...perStudent.map((row) => row.byListener[kind] || 0)),
+        }])),
       },
       // Room-listener deliveries: billed reads too, and the same in every design.
       roomSnapshotsPerStudent: round1(mean(roomSnapshots)),
@@ -415,7 +422,7 @@ function analyze({ size, traces, accounting, windows, views }) {
   const lobby = summarizeAccounting(accounting.events, { fromMs: windows.lobby.from, toMs: windows.lobby.to });
   const lobbyDeliveries = traces.map((entry) => (entry.trace.callbacks || []).filter(([t]) => t >= windows.lobby.from && t <= windows.lobby.to));
   const finishDeliveries = traces.map((entry) => (entry.trace.callbacks || []).filter(([t]) => t >= windows.finish.from && t <= windows.finish.to));
-  const finalBoards = [...views.values()].map((view) => view.board?.length || 0);
+  const finalBoards = [...views.values()].map((view) => view.board?.length || view.standings?.top?.length || 0);
   return {
     rounds,
     lobby: {
@@ -495,6 +502,10 @@ if (REPEAT > 1) {
         // eslint-disable-next-line no-await-in-loop
         const roomId = await createRoom(entry);
         // eslint-disable-next-line no-await-in-loop
+        // The console of this match (it paces live standings for the projection).
+        // eslint-disable-next-line no-await-in-loop
+        const host = await openHost(entry, roomId, client);
+        // eslint-disable-next-line no-await-in-loop
         await waitUntil('repeat lobby', async () => (await privatePlayers(roomId)).filter((row) => row.joined).length === REPEAT_CLASS
           && [...(await farm.views()).values()].every((view) => view.roomId === roomId && view.clockReady), 60_000);
         for (let roundIndex = 0; roundIndex < ROUNDS; roundIndex += 1) {
@@ -517,6 +528,8 @@ if (REPEAT > 1) {
         await teacherCall(entry, 'finishLiveChallenge', { roomId });
         // eslint-disable-next-line no-await-in-loop
         await waitUntil('repeat finished', async () => [...(await farm.views()).values()].every((view) => view.room?.status === 'finished'), 60_000);
+        // eslint-disable-next-line no-await-in-loop
+        await host.close();
         // eslint-disable-next-line no-await-in-loop
         listeners.push(await farm.listeners());
         // eslint-disable-next-line no-await-in-loop
@@ -545,6 +558,14 @@ for (const run of report.runs) {
   const avg = (pick) => round1(mean(run.rounds.map(pick)));
   const worst = (pick) => Math.max(...run.rounds.map(pick));
   lines.push(`| ${run.size} | ${run.client} | ${avg((r) => r.standings.docsPerStudent.mean)} | ${avg((r) => r.standings.callbacksPerStudent.mean)} | ${round1(avg((r) => r.standings.bytesPerStudent.mean) / 1024)} | ${avg((r) => r.standings.docsTotal)} | ${avg((r) => r.server.readsTotal)} | ${avg((r) => r.server.writesTotal)} | ${avg((r) => r.latency.sentToReply.p50)} / ${avg((r) => r.latency.sentToReply.p95)} | ${avg((r) => r.latency.commitToAccepted.p50)} / ${avg((r) => r.latency.commitToAccepted.p95)} | ${avg((r) => r.commitToStandingsDisplayed.p50 ?? NaN)} / ${avg((r) => r.commitToStandingsDisplayed.p95 ?? NaN)} / ${worst((r) => r.commitToStandingsDisplayed.max ?? 0)} | ${worst((r) => r.harness.workerUtilizationMax)} | ${avg((r) => r.harness.emulatorCpuPercent ?? NaN)} |`);
+}
+const projectionRuns = report.runs.filter((run) => run.client === 'projection' && run.rounds?.length);
+if (projectionRuns.length) {
+  lines.push('', '| students | snapshot docs / student / round | own-row docs / student / round | live snapshots written / round | host requests / round | host players docs / round |', '|---|---|---|---|---|---|');
+  for (const run of projectionRuns) {
+    const avg = (pick) => round1(mean(run.rounds.map(pick)));
+    lines.push(`| ${run.size} | ${avg((r) => r.standings.docsPerStudentByListener?.standings?.mean ?? 0)} | ${avg((r) => r.standings.docsPerStudentByListener?.self?.mean ?? 0)} | ${avg((r) => r.host?.published ?? 0)} | ${avg((r) => r.host?.publishRequests ?? 0)} | ${avg((r) => r.host?.docs ?? 0)} |`);
+  }
 }
 if (report.repeat) {
   lines.push('', '| repeated matches | heap MB after each match | growth after warm-up | listeners after cleanup |', '|---|---|---|---|');

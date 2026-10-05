@@ -397,9 +397,22 @@ the registry).
 
 | Screen | Listeners | Timers |
 | --- | --- | --- |
-| student | invite (app), room (with metadata), players (paused during a rush round), the current round's result (results stage only), one read of the round before | clock calibration (30 s, live games only); boundary timeouts; the classic round's quarter-second tick |
-| console | room, players, diagnostics, active-room pointer, the current round's result (results stage only), one read of the round before; the roster callable once per room | calibration (30 s, live games only); boundary timeouts; the close schedule; audio cues (250 ms, running only) |
+| student | invite (app), room (with metadata), the standings snapshot and their own public row (both paused during a rush round), the current round's result (results stage only), one read of the round before — never a classmate's row | clock calibration (30 s, live games only); boundary timeouts; the classic round's quarter-second tick; one final-standings repair request if a finished room has no final snapshot after 2.5 s |
+| console | room, players, diagnostics, active-room pointer, the current round's result (results stage only), one read of the round before; the roster callable once per room | calibration (30 s, live games only); boundary timeouts; the close schedule; audio cues (250 ms, running only); the standings pacer (≤ 1 request/s while its board changes) |
 | projector | none of its own (the console's data) | the clock digits' own ticker |
+
+**Standings on a student's screen** come from one document,
+`…/standings/current` (engine doc §12a), never from the class's rows: the top
+five, the class's size, and the student's own place and score found by their
+seat. The header's place and the in-round board are the latest live snapshot
+(at most about a second old while answers arrive); the results moment reads
+the round's result document as before; the final card waits for the FINAL
+snapshot, which the finishing transaction writes from the match result, so the
+podium a student sees is the match result's. The student's own score and
+"answered" state come from their own public row, which no classmate's answer
+touches. A student's standings work per round is therefore bounded — about
+one snapshot a second at most, whatever the class size — and the launch
+certification holds every screen to that bound at 5 to 64 students.
 
 Every listener is released by its effect (`listenerLifecycleGuard` holds it);
 a round's result is watched only while its results are on screen, and the

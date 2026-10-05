@@ -20,6 +20,8 @@ export {
   watchLiveChallengeInvite,
   watchLiveChallengeRoom,
   watchLiveChallengePlayers,
+  watchLiveChallengePlayer,
+  watchLiveChallengeStandings,
   watchLiveChallengeDiagnostics,
   watchTeacherActiveChallenge,
   watchLiveChallengeRound,
@@ -115,3 +117,9 @@ export const startLiveChallenge = async (payload) => { record('startLiveChalleng
 export const advanceLiveChallenge = async (payload) => { record('advanceLiveChallenge', payload); return {}; };
 export const finishLiveChallenge = async (payload) => { record('finishLiveChallenge', payload); return {}; };
 export const cancelLiveChallenge = async (payload) => { record('cancelLiveChallenge', payload); return {}; };
+
+// The standings snapshot is the server's: the harness driver writes it where
+// the server would (tests/browser/support/standingsSnapshot.mjs). The screen's
+// one-time "final standings missing" repair call is recorded and finds none.
+export const publishLiveChallengeStandings = async (payload) => { record('publishLiveChallengeStandings', payload); return { published: false, reason: 'stub' }; };
+export const ensureLiveChallengeFinalStandings = async (payload) => { record('ensureLiveChallengeFinalStandings', payload); return { ensured: false, reason: 'stub' }; };
