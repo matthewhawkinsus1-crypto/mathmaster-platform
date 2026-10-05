@@ -106,7 +106,7 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
     if (!focusAllowed) return undefined;
     return focusAuthority.request(() => {
       if (countAnswerControls(shellRef.current) === 1) focusFirstAnswerControl(shellRef.current);
-    });
+    }, { channel: 'tool' });
     // On open only: a tool that re-renders must not pull the cursor back.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

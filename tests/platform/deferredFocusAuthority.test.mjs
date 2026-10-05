@@ -165,6 +165,19 @@ test('a newer request supersedes an older one, even if the older frame still fir
   assert.deepEqual(ran, ['second restore']);
 });
 
+test('superseding is per purpose: a tool\'s own focus is not replaced by the question\'s, or the reverse', () => {
+  // A Step Algebra action sends the student to a field in the same frame the
+  // question's effect re-runs: both are honoured, in order.
+  const page = makePage({ escapeCancel: true });
+  const authority = started(page);
+  const ran = [];
+  authority.request(() => ran.push('field'), { channel: 'field', since: 'now' });
+  authority.request(() => ran.push('question'));
+  authority.request(() => ran.push('newer field'), { channel: 'field', since: 'now' });
+  page.runFrames();
+  assert.deepEqual(ran, ['question', 'newer field']);
+});
+
 test('the question going away — or a new mount generation — drops what it asked for', () => {
   // A frame that escaped cancellation still finds its generation over.
   const page = makePage({ escapeCancel: true });

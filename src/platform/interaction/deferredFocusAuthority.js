@@ -27,7 +27,9 @@
  * fires it may move the cursor only if that moment is still the present:
  *
  *   - this question (this mount, this generation) is still on screen;
- *   - no newer request from it has superseded this one;
+ *   - no newer request for the same purpose has superseded this one (a newer
+ *     restore replaces an older restore; a tool's own focus is not replaced
+ *     by the question re-running its opening, or the other way round);
  *   - the student has not pressed, tapped, clicked or used the keyboard since
  *     the request's generation began (or since the request, for a focus that
  *     is the direct consequence of a key the student just pressed);
@@ -92,7 +94,9 @@ let generations = 0;
  *   request(run, o)  run `run` on the next frame, only if still live; returns
  *                    a cancel function. o.since: 'generation' (default — any
  *                    interaction since the mount cancels it) or 'now' (only
- *                    one after this request does).
+ *                    one after this request does). o.channel: what the focus
+ *                    is for ('question', 'tool', 'field', 'enter'); a newer
+ *                    request supersedes an older one on the same channel.
  *   ticket(o)        the same check for a caller that schedules its own way
  *   isLive(ticket)   whether the moment a ticket recorded is still the present
  */
@@ -103,7 +107,8 @@ export function createDeferredFocusAuthority({
   let generation = 0;
   let active = false;
   let interactions = 0;
-  let latestSerial = 0;
+  let serials = 0;
+  const latestByChannel = new Map();
   const pending = new Set();
 
   const onInteraction = (event) => {
@@ -114,12 +119,17 @@ export function createDeferredFocusAuthority({
     documentObject?.[method]?.(type, onInteraction, { capture: true, passive: true });
   });
 
-  const ticket = ({ since = 'generation' } = {}) => ({
-    generation,
-    serial: (latestSerial += 1),
-    interactions: since === 'now' ? interactions : 0,
-    focus: deepActiveElement(documentObject),
-  });
+  const ticket = ({ since = 'generation', channel = 'question' } = {}) => {
+    serials += 1;
+    latestByChannel.set(channel, serials);
+    return {
+      generation,
+      channel,
+      serial: serials,
+      interactions: since === 'now' ? interactions : 0,
+      focus: deepActiveElement(documentObject),
+    };
+  };
 
   const focusUnmoved = (recorded) => {
     const now = deepActiveElement(documentObject);
@@ -132,7 +142,7 @@ export function createDeferredFocusAuthority({
     recorded
       && active
       && recorded.generation === generation
-      && recorded.serial === latestSerial
+      && recorded.serial === latestByChannel.get(recorded.channel)
       && recorded.interactions === interactions
       && focusUnmoved(recorded),
   );
@@ -161,6 +171,7 @@ export function createDeferredFocusAuthority({
       generations += 1;
       generation = generations;
       interactions = 0;
+      latestByChannel.clear();
       active = true;
       listen(true);
     },

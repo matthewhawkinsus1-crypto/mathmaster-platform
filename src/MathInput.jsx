@@ -467,7 +467,7 @@ export default function MathInput({
       // their own viewport stabilisation.
       if (!isMobile) mathField?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     };
-    if (deferredFocusHost) return deferredFocusHost.request(focusField, { since: 'now' });
+    if (deferredFocusHost) return deferredFocusHost.request(focusField, { since: 'now', channel: 'field' });
     const frame = window.requestAnimationFrame(focusField);
     return () => window.cancelAnimationFrame(frame);
   }, [focusSignal, isMobile, deferredFocusHost]);

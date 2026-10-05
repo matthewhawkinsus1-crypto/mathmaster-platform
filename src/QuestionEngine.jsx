@@ -1942,7 +1942,7 @@ function QuestionEngineBody({
           const deadline = performance.now() + 400;
           // Moving to Submit a few frames from now is a deferred focus like any
           // other: a press or key after this Enter means the student went on.
-          const enterTicket = focusAuthority.ticket({ since: 'now' });
+          const enterTicket = focusAuthority.ticket({ since: 'now', channel: 'enter' });
           const decideWhenCurrent = () => {
             const fresh = enterFreshRef.current;
             if (!fresh?.isComplete) {

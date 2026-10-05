@@ -190,7 +190,7 @@ test('QuestionEngine counts the boxes and treats a DOL or one-try item as delibe
   assert.match(capture, /if \(multipart \|\| deliberate\) \{\s*if \(focusAuthority\.isLive\(enterTicket\)\) focusForEnter\(submitButtonRef\.current\);\s*\} else fresh\.handleSubmit\(\);/);
   // Moving to Submit frames later is a deferred focus: a press or key after
   // this Enter (the student went on) cancels it. The ticket is taken at Enter.
-  assert.match(capture, /const enterTicket = focusAuthority\.ticket\(\{ since: 'now' \}\);/);
+  assert.match(capture, /const enterTicket = focusAuthority\.ticket\(\{ since: 'now', channel: 'enter' \}\);/);
   assert.match(engine, /enterFreshRef\.current = \{ isComplete: answerState\.isComplete, submitDisabled: !answerState\.isComplete \|\| submitting \|\| locked \|\| scaffoldRequired \|\| contextScaffoldRequired, handleSubmit \};/, 'the same gates as the Submit button');
   assert.match(engine, /<button ref=\{submitButtonRef\}/);
   const input = executableSource(read('src/MathInput.jsx'));
