@@ -646,6 +646,27 @@ const addCaseReviewEvidence = ({ fixture, now, Timestamp, student }) => {
     { assignmentId: 'a-lastweek', startMs: now - 8 * DAY + 2 * 60_000, plan: [[true], [true], [false, false, false], [false, true], [true], [true]] },
     { assignmentId: 'a-yesterday', startMs: previousSchoolDay(now) - 45 * 60_000, plan: [[true], [false, false, true], [false, false, false], [true], [true], [true]] },
   ];
+  // A Section Recovery item last week, graded wrong by the server, whose
+  // answer the substitution classifier named — stored the way the Recovery
+  // callable stores one (functions/shared/misconceptionEvidenceSites.mjs):
+  // server-only, codes and provenance, no score. With yesterday's question it
+  // makes the pattern RECURRING. Beside it, a record a client forged (no
+  // server provenance), which the case review must not count.
+  const recoveryFinding = (source) => ({
+    registryVersion: 1, source, classifier: 'family:systems.substitution@1', classifierVersion: 1,
+    findings: [{ code: 'system-point-on-one-line-only', codeVersion: 1, parts: ['system-x', 'system-y'] }],
+  });
+  [['case-recovery-r1', 'server-grading', 'r1'], ['case-recovery-forged', 'browser', 'r2']].forEach(([key, source, itemId]) => {
+    fixture[`${base}/misconceptionEvidence/${key}`] = {
+      schemaVersion: 1,
+      eventKey: key,
+      studentId: student.id,
+      occurredAt: at(now - 7 * DAY),
+      source: { kind: 'sectionRecovery', assignmentId: 'a-lastweek', section: 'dol', opportunity: 1, itemId, storageIndex: 5 },
+      questionSnapshot: { questionId: 'a-lastweek-d1', familyId: 'systems.substitution', familyVersion: 1, instanceFingerprint: `fixture:${key}` },
+      performance: { misconceptionCodes: ['system-point-on-one-line-only'], misconceptionEvidence: recoveryFinding(source) },
+    };
+  });
   lessons.forEach(({ assignmentId, startMs, plan }) => {
     let minute = 1;
     const tracker = { ...fixture[base].gradesByAssignment[assignmentId] };

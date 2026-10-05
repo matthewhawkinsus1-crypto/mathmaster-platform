@@ -610,7 +610,11 @@ const handlers = {
       if (draft) drafts[assignmentId] = { practice: draft.practice, practiceUpdatedAt: draft.practiceUpdatedAt, updatedAt: draft.updatedAt };
     });
     const audits = harnessStore.paths(`grades/${studentId}/gradeOverrideAudits/`).map((path) => harnessStore.get(path));
-    return buildCaseEvidenceResponse({ request: validation.request, events, receipts, drafts, audits, nowMs: Date.now() });
+    // Recovery / Recovery Practice misconception evidence (server-only).
+    const misconceptionRecords = harnessStore.paths(`grades/${studentId}/misconceptionEvidence/`)
+      .map((path) => ({ id: path.split('/').pop(), data: harnessStore.get(path) }))
+      .filter((entry) => wanted.has(entry.data?.source?.assignmentId));
+    return buildCaseEvidenceResponse({ request: validation.request, events, receipts, drafts, audits, misconceptionRecords, nowMs: Date.now() });
   },
   // The Response Inspector reads the live record server-side; the in-memory
   // harness has no grader to replay, so it says so instead of rendering {}.
