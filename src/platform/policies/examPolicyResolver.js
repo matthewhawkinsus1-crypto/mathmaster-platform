@@ -60,6 +60,40 @@ export const EXAM_POLICIES = Object.freeze({
   }),
 });
 
+/*
+ * A TEACHER'S COURSE TEST IS NOT A SIMULATION, AND IT IS NOT THE SAT.
+ *
+ * Course tests (Test Cycle Tests and Retests) run on the same secure runtime as
+ * the four simulations but have no published specification: their length,
+ * timing and calculator come from the teacher's blueprint, carried on the
+ * session. This browser used to have no entry for them at all, so
+ * `getExamPolicy('courseTest')` fell back to Digital SAT — the header read
+ * "Digital SAT Math · Reference sheet available", an untimed Test showed a
+ * 70-minute SAT countdown that restarted on every refresh and then tried to
+ * end the exam, and every item offered the SAT graphing calculator.
+ *
+ * So a course test has its own policy: no time limit of its own (only the
+ * server's deadline, from an explicit blueprint limit, can time it), no
+ * formula sheet claim, and a calculator decided by the session's blueprint
+ * setting or, for `questionSpecific`, by each item.
+ */
+export const COURSE_TEST_EXAM_TYPE = 'courseTest';
+
+const COURSE_TEST_POLICY = Object.freeze({
+  examType: COURSE_TEST_EXAM_TYPE,
+  title: 'Course Test',
+  calculatorMode: CALCULATOR_MODES.NONE,
+  calculatorAvailability: 'sessionOrItem',
+  allowExternalApprovedCalculator: false,
+  formulaSheet: 'none',
+  totalQuestions: null,
+  timeLimitSeconds: null,
+  sections: Object.freeze([]),
+  feedbackMode: 'teacherRelease',
+  attemptsAllowed: 1,
+  policyAsOf: '2026-10-05',
+});
+
 const concreteModes = new Set([
   CALCULATOR_MODES.NONE,
   CALCULATOR_MODES.BASIC,
@@ -88,13 +122,24 @@ const calculatorSupport = (profile) => {
   return { active: Boolean(entry), mode, overrideComputation: accommodations.includes('calculator-override-computation') || source.calculatorOverrideComputation === true };
 };
 
-export const getExamPolicy = (examType) => EXAM_POLICIES[examType] || EXAM_POLICIES[EXAM_TYPES.DIGITAL_SAT];
+export const getExamPolicy = (examType) => (
+  examType === COURSE_TEST_EXAM_TYPE
+    ? COURSE_TEST_POLICY
+    : EXAM_POLICIES[examType] || EXAM_POLICIES[EXAM_TYPES.DIGITAL_SAT]
+);
 
 export const resolveExamCalculatorPolicy = ({ examType, questionSpec = {}, studentSupportProfile = null, isComputationSkill = false, accommodationConfirmed = false } = {}) => {
   const policy = getExamPolicy(examType);
   const support = calculatorSupport(studentSupportProfile);
   if (support.active && (!isComputationSkill || support.overrideComputation)) {
-    const wouldDeviateFromExam = policy.calculatorMode === CALCULATOR_MODES.NONE;
+    /*
+     * A simulation's calculator rule is a published exam regulation, so a
+     * support-plan calculator that departs from it needs a proctor to confirm
+     * the deviation. A teacher's own course test has no outside regulation to
+     * deviate from: the student's documented accommodation IS the rule for
+     * their classroom test, exactly as it is on every other assignment.
+     */
+    const wouldDeviateFromExam = examType !== COURSE_TEST_EXAM_TYPE && policy.calculatorMode === CALCULATOR_MODES.NONE;
     if (wouldDeviateFromExam && !accommodationConfirmed) {
       return {
         available: false,
@@ -109,10 +154,26 @@ export const resolveExamCalculatorPolicy = ({ examType, questionSpec = {}, stude
       available: true,
       mode: policy.calculatorMode === CALCULATOR_MODES.GRAPHING ? CALCULATOR_MODES.GRAPHING : support.mode,
       source: 'accommodation',
-      reason: 'Calculator enabled by the documented MathMaster support plan for this simulation.',
+      reason: examType === COURSE_TEST_EXAM_TYPE
+        ? 'Calculator enabled by your documented support plan.'
+        : 'Calculator enabled by the documented MathMaster support plan for this simulation.',
       simulationDeviation: wouldDeviateFromExam,
       requiresHumanConfirmation: wouldDeviateFromExam,
     };
+  }
+
+  if (policy.calculatorAvailability === 'sessionOrItem') {
+    // The blueprint's session-wide setting wins when it names a concrete mode;
+    // `questionSpecific` (the default) defers to each item; anything else is
+    // no calculator. Never the SAT graphing calculator by accident.
+    const sessionMode = String(questionSpec.sessionCalculatorMode || '').trim();
+    const itemMode = String(questionSpec.examCalculatorMode || questionSpec.calculatorMode || '').trim();
+    const requested = concreteModes.has(sessionMode) ? sessionMode : itemMode;
+    const mode = concreteModes.has(requested) ? requested : CALCULATOR_MODES.NONE;
+    if (mode === CALCULATOR_MODES.NONE) {
+      return { available: false, mode: CALCULATOR_MODES.NONE, source: 'courseTestPolicy', reason: 'Your teacher has not provided a calculator for this question.' };
+    }
+    return { available: true, mode, source: 'courseTestPolicy', reason: 'Your teacher provides this calculator for this test.' };
   }
 
   if (policy.calculatorAvailability === 'itemLevelPopup') {

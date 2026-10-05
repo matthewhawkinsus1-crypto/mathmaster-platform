@@ -189,7 +189,26 @@ export const buildAssignmentRow = ({ entry, gradeEntry }) => {
     // The stage machine owns what a Test Cycle offers, so the ordinary
     // Continue/Practice affordances are suppressed rather than competing
     // with it. Results stay reachable: a recorded grade is a recorded grade.
-    ...(testCycle ? { canContinue: actions.canContinue, canPractice: false, continueLabel: 'Open assessment' } : {}),
+    //
+    // The row says WHERE the student is in the cycle — "Test ready",
+    // "Corrections · 1 of 3", "Test submitted" — from the server-written
+    // projection, instead of a grade status that read "Not Started" in the
+    // middle of a Test and "Graded" while corrections were still owed. The
+    // button names the step; past the final date it is still offered, because
+    // a secure Test is never practice.
+    ...(testCycle ? {
+      canContinue: entry.testCycle ? entry.testCycle.key !== 'opensLater' : actions.canContinue,
+      canPractice: false,
+      continueLabel: entry.testCycle?.actionLabel || 'Open assessment',
+      ...(entry.testCycle ? {
+        statusLabel: entry.testCycle.label,
+        status: {
+          complete: 'completed', pending: 'pendingGrade', inProgress: 'inProgress', locked: 'locked', notStarted: 'notStarted',
+        }[entry.testCycle.tone] || 'notStarted',
+        testCycleDetail: entry.testCycle.detail,
+        testCycleKey: entry.testCycle.key,
+      } : {}),
+    } : {}),
     entry,
     gradeEntry: gradeEntry || null,
   };

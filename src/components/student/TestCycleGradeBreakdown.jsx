@@ -56,10 +56,12 @@ export const TestCycleGradeBreakdown = ({ entry, hidden = false, compact = false
           </dd>
         </div>
       ))}
-      {!hidden && breakdown.retestCapApplied && (
+      {/* The reason comes from the same rule that recorded the grade, so it
+          names the configured policy (cap, averaging) rather than a sentence
+          that could describe a different one. */}
+      {!hidden && !breakdown.simple && (
         <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
-          Your raw retest score is kept exactly as you earned it. District policy is that the highest
-          grade a retest can record is {breakdown.maxRecordedGrade}%.
+          Your raw retest score is kept exactly as you earned it. {breakdown.reason}
         </p>
       )}
     </dl>

@@ -41,6 +41,9 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
   const [showHint, setShowHint] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Said once, when a whole skill is finished and the next one loads, so the
+  // student sees it happen instead of the screen silently changing topic.
+  const [announcement, setAnnouncement] = useState('');
 
   const loadQuestion = useCallback(async (correctionId) => {
     setBusy(true);
@@ -71,7 +74,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
           You have shown you can do every skill you missed. Your secure retest is being opened.
           Your recorded grade has not changed yet — the retest is what can raise it.
         </p>
-        <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '9px 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>
+        <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '9px 16px', border: 0, borderRadius: 8, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
           Back to my assignment
         </button>
       </section>
@@ -95,6 +98,8 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
         responsePayload: { responses },
       });
       setFeedback(result);
+      const before = targets.filter((target) => target.complete === true).length;
+      if (Number(result.progress?.complete || 0) > before) setAnnouncement(`${activeTarget.label} — corrected.`);
       onProgress?.(result);
       if (result.correctionsComplete) onComplete?.(result);
     } catch (submitError) {
@@ -105,6 +110,10 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
   };
 
   const doneCount = targets.filter((target) => target.complete === true).length;
+  // A wrong answer keeps the SAME question open until its tries are used; only
+  // a correct answer or the last try moves on to a fresh parallel question.
+  const questionClosed = feedback?.questionClosed === true;
+  const canCheck = complete && !busy && !questionClosed;
 
   return (
     <div style={{ display: 'grid', gap: 16, width: 'min(820px, 100%)', margin: '0 auto' }}>
@@ -125,6 +134,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
         </p>
       </section>
 
+      {announcement && <p role="status" style={{ margin: 0, color: 'var(--mm-success-text)', fontWeight: 800 }}>{announcement}</p>}
       {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
 
       <section style={card}>
@@ -145,7 +155,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
                       <MathText>{field.label || `Response ${fieldIndex + 1}`}</MathText>
                     </legend>
                     {choices.length && fields.length === 1 ? choices.map((choice) => (
-                      <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: responses[field.id] === choice.id ? '2px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer' }}>
+                      <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: responses[field.id] === choice.id ? '2px solid var(--mm-primary)' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer' }}>
                         <input type="radio" name={field.id} value={choice.id} checked={responses[field.id] === choice.id} onChange={(event) => setResponses((current) => ({ ...current, [field.id]: event.target.value }))} />
                         <MathText style={{ lineHeight: 1.5 }}>{choice.label}</MathText>
                       </label>
@@ -163,20 +173,20 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
-                <button type="submit" disabled={!complete || busy} style={{ flex: '1 1 220px', minHeight: 48, border: 0, borderRadius: 9, background: !complete || busy ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 900, cursor: !complete || busy ? 'not-allowed' : 'pointer' }}>
-                  {busy ? 'Checking…' : 'Check my answer'}
+                <button type="submit" disabled={!canCheck} style={{ flex: '1 1 220px', minHeight: 48, border: 0, borderRadius: 9, background: canCheck ? 'var(--mm-primary)' : 'var(--mm-surface-control-strong)', color: canCheck ? 'var(--mm-on-primary)' : 'var(--mm-disabled-text)', fontWeight: 900, cursor: canCheck ? 'pointer' : 'not-allowed' }}>
+                  {busy ? 'Checking…' : feedback && !feedback.isCorrect && !questionClosed ? 'Check my answer again' : 'Check my answer'}
                 </button>
                 {/* Hints belong here. This is the stage where help is the
                     instruction, not a loophole. */}
                 {question.hint && (
-                  <button type="button" onClick={() => setShowHint((value) => !value)} style={{ flex: '0 1 160px', minHeight: 48, borderRadius: 9, border: '1px solid #5f6368', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => setShowHint((value) => !value)} style={{ flex: '0 1 160px', minHeight: 48, borderRadius: 9, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>
                     {showHint ? 'Hide hint' : 'Show a hint'}
                   </button>
                 )}
               </div>
             </form>
             {showHint && question.hint && (
-              <div style={{ marginTop: 14, padding: 13, background: 'var(--mm-warning-bg)', borderRadius: 9, border: '1px solid #fdd663' }}>
+              <div style={{ marginTop: 14, padding: 13, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', borderRadius: 9, border: '1px solid var(--mm-warning-border)' }}>
                 <MathText style={{ lineHeight: 1.55 }}>{question.hint}</MathText>
               </div>
             )}
@@ -184,19 +194,23 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
               <div role="status" style={{ marginTop: 14, padding: 13, borderRadius: 9, background: feedback.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)', color: feedback.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-error-text)', lineHeight: 1.55 }}>
                 {feedback.isCorrect
                   ? 'Correct. That counts toward finishing this correction.'
-                  : 'Not yet. Try the next one — corrections are practice, and a wrong answer here costs you nothing.'}
-                <div style={{ marginTop: 10 }}>
-                  <button type="button" onClick={() => loadQuestion(activeTarget.correctionId)} style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>
-                    Next practice question
-                  </button>
-                </div>
+                  : questionClosed
+                    ? 'Not quite, and that was the last try on this one. A wrong answer here costs you nothing — try a fresh question.'
+                    : `Not yet. Look at your work and try again — ${feedback.attemptsRemaining} ${feedback.attemptsRemaining === 1 ? 'try' : 'tries'} left on this question.${question.hint ? ' The hint may help.' : ''}`}
+                {questionClosed && (
+                  <div style={{ marginTop: 10 }}>
+                    <button type="button" autoFocus onClick={() => loadQuestion(activeTarget.correctionId)} style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
+                      Next practice question
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>
         )}
       </section>
 
-      <button type="button" onClick={onExit} style={{ justifySelf: 'start', minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid #5f6368', background: 'var(--mm-surface)', color: 'var(--mm-text)', cursor: 'pointer' }}>
+      <button type="button" onClick={onExit} style={{ justifySelf: 'start', minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', cursor: 'pointer' }}>
         Back to my assignment
       </button>
     </div>

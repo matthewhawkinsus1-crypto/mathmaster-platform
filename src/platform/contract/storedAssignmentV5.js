@@ -21,6 +21,30 @@ const validRuntimeCompatibility = (value) => {
   return { repairVersion, repairedAt, repairKeys };
 };
 
+/*
+ * A TEST CYCLE'S CONTRACT TRAVELS WITH THE ASSIGNMENT.
+ *
+ * `assessmentPolicy` (who owes corrections, the retest cap), `testBlueprint`
+ * (what the secure Test asks) and `secureTestReference` (the server-only
+ * manifest that holds it instead) are not sections, so the section-rebuilding
+ * save paths below used to drop all three. A Test Cycle authored in the app was
+ * therefore saved as a Review with nothing behind it. Every path that turns a
+ * stored assignment into V5, or a reviewed V5 into a stored assignment, carries
+ * them through this one function.
+ *
+ * An empty blueprint is omitted rather than stored: a cycle whose blueprint
+ * lives in the secure manifest must not also carry an empty one.
+ */
+export const testCycleContractFields = (source = {}) => {
+  if (!isObject(source) || !isObject(source.assessmentPolicy)) return {};
+  const fields = { assessmentPolicy: source.assessmentPolicy };
+  if (isObject(source.testBlueprint) && Array.isArray(source.testBlueprint.targets) && source.testBlueprint.targets.length) {
+    fields.testBlueprint = source.testBlueprint;
+  }
+  if (isObject(source.secureTestReference)) fields.secureTestReference = { ...source.secureTestReference };
+  return fields;
+};
+
 /**
  * Canonical runtime readers.
  *
@@ -253,6 +277,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
     classroomIntegration: reusableClassroomIntegration(assignment),
     provenance: assignment.provenance,
     preflight: assignment.preflight,
+    ...testCycleContractFields(assignment),
     ...(runtimeCompatibility ? { runtimeCompatibility } : {}),
   });
 };

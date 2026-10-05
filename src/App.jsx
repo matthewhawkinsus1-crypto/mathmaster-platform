@@ -264,6 +264,7 @@ import {
   getStoredAssignmentVariantMode,
   getStoredSectionVariantModes,
   storedAssignmentToV5,
+  testCycleContractFields,
 } from './platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { canSalvageV5IntakeResult } from './platform/preflight/assignmentAuthoringState.js';
@@ -338,7 +339,9 @@ import StudentDashboardView from './components/student/StudentDashboardView.jsx'
 import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
 import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
-import { preflightTestCycleCandidate } from './services/testCycleService.js';
+import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePolicy } from './services/testCycleService.js';
+import { isSecureExamActive, useSecureExamActive } from './platform/assessment/secureExamPresence.js';
+import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from './platform/assessment/testCycleContractEdit.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
@@ -1072,6 +1075,9 @@ function App() {
    * grade is a device that can pass a test it did not take.
    */
   const [testCycleGrades, setTestCycleGrades] = useState({});
+  // A secure Test or Retest owns the screen while it runs; the Warm-Up and
+  // Pack-Up banners and the browser's Back button stand down until it ends.
+  const secureExamActive = useSecureExamActive();
   const [teacherGradeOverridesByAssignment, setTeacherGradeOverridesByAssignment] = useState({});
   // The student's own Practice-based Recovery records (server-written; see
   // functions/shared/sectionRecoveryRecord.mjs). The browser never builds one:
@@ -1115,6 +1121,50 @@ function App() {
   // Which Test Cycle the student has open. One id, because a student is in one
   // assessment at a time and the card asks the server for everything else.
   const [activeTestCycleAssignmentId, setActiveTestCycleAssignmentId] = useState(null);
+  // What, on the student's live grade document, means "ask the server about
+  // this Test Cycle again": its projection (stage, release, retest) and its
+  // Review answers. A string, so an unrelated grade change does not refetch.
+  /*
+   * ACTIONABLE CHANGES ARE SURFACED, NOT SENT.
+   *
+   * There is no inbox and there should not be one. But when the server moves a
+   * student's Test Cycle while they are signed in — results released,
+   * corrections opened, a retest unlocked — the live grade document already
+   * says so, and one quiet toast says it to the student. The first snapshot
+   * after sign-in announces nothing (that is history, and the list's "New"
+   * marker covers it), and nothing interrupts a secure exam in progress.
+   */
+  const previousTestCycleStagesRef = useRef(null);
+  useEffect(() => {
+    if (user?.role !== 'student') return;
+    const current = Object.fromEntries(Object.entries(testCycleGrades || {})
+      .map(([assignmentId, projection]) => [assignmentId, projection?.stage || null]));
+    const previous = previousTestCycleStagesRef.current;
+    previousTestCycleStagesRef.current = current;
+    if (!previous || isSecureExamActive()) return;
+    const NOTICE = {
+      passed: 'Your test results are ready.',
+      corrections: 'Your test results are ready. Your corrections are open.',
+      retest: 'Your retest is unlocked.',
+      complete: 'Your retest results are ready.',
+      retestClosed: 'Your teacher has closed retesting. Your recorded grade is final.',
+    };
+    Object.entries(current).forEach(([assignmentId, stage]) => {
+      if (!stage || previous[assignmentId] === stage || !NOTICE[stage]) return;
+      const title = assignments.find((assignment) => assignment.id === assignmentId)?.title || 'Your assessment';
+      toastInfo(title, NOTICE[stage]);
+    });
+  }, [testCycleGrades]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const testCycleCardRefreshKey = useMemo(() => {
+    if (!activeTestCycleAssignmentId) return null;
+    const projection = testCycleGrades?.[activeTestCycleAssignmentId] || {};
+    const reviewRecords = tracker?.[activeTestCycleAssignmentId] || {};
+    const reviewState = Object.keys(reviewRecords).sort()
+      .map((index) => `${index}:${reviewRecords[index]?.status || ''}:${Number(reviewRecords[index]?.attempts || 0)}`)
+      .join(',');
+    return [projection.stage || '', projection.stageChangedAt || '', projection.recordedGrade ?? '', projection.correctionsCompleted ?? '', reviewState].join('|');
+  }, [activeTestCycleAssignmentId, testCycleGrades, tracker]);
   // Marking-period metadata, shared by the student Grade Center and the teacher
   // control surface. Student-safe by construction: ids, labels, order, and
   // whether a period is closed. No teacher notes or policy live in it.
@@ -1134,6 +1184,7 @@ function App() {
   // entire student experience as one page. A Back press from a question can
   // therefore leave MathMaster altogether.
   const studentBrowserHistoryReadyRef = useRef(false);
+  const studentBrowserRouteRef = useRef(null);
   const studentBrowserRoute = useMemo(() => {
     if (user?.role !== 'student') return null;
     if (activeView === 'assignment') {
@@ -1186,11 +1237,25 @@ function App() {
       writeStudentRouteState(studentBrowserRoute);
     }
   }, [studentBrowserRoute]);
+  useEffect(() => { studentBrowserRouteRef.current = studentBrowserRoute; }, [studentBrowserRoute]);
 
   useEffect(() => {
     if (user?.role !== 'student') return undefined;
 
     const restoreFromBrowserHistory = (event) => {
+      /*
+       * BACK DOES NOT LEAVE A SECURE EXAM.
+       *
+       * The browser has already moved to the previous entry; put the exam's
+       * entry back and stay. Leaving would unmount the exam mid-question (the
+       * answers are saved, but the student rarely meant it). Submitting, or the
+       * exam's own exit after it is submitted, is the way out.
+       */
+      if (isSecureExamActive()) {
+        if (studentBrowserRouteRef.current) writeStudentRouteState(studentBrowserRouteRef.current);
+        toastInfo('Your test is still open', 'Use Submit test when you are finished. Your answers are saved as you type.');
+        return;
+      }
       const route = readStudentRouteState(event.state);
       if (!route) return;
 
@@ -7036,6 +7101,10 @@ function App() {
         classroomIntegration: reviewedV5.classroomIntegration || null,
         provenance: reviewedV5.provenance || null,
         preflight: reviewedV5.preflight || { required: true },
+        // A Test Cycle's policy, secure blueprint and secure reference are not
+        // sections, and this payload used to drop all three — so a Test Cycle
+        // authored here was saved as a Review with no secure Test behind it.
+        ...testCycleContractFields(reviewedV5),
         ...(assignmentPreflight?.sourceContentLineage ? {
           contentLineage: assignmentPreflight?.sourceContentLineage,
         } : {}),
@@ -7370,6 +7439,12 @@ function App() {
       releaseValue: draft.releaseAt || '',
     });
 
+    // The Test Cycle contract is server-owned after creation (firestore.rules
+    // pins it). Work out what this edit does to it BEFORE saving anything, so a
+    // save that would strip it is refused rather than half-applied.
+    const contractEdit = planTestCycleContractEdit({ stored: existing, reviewed: model.assignmentV5 });
+    if (contractEdit.kind === TEST_CYCLE_CONTRACT_EDIT.REFUSE) throw new Error(contractEdit.message);
+
     const persistence = canonicalV5PersistencePatch(model.assignmentV5);
     // Firestore stores sections[] only. Derive the temporary flat runtime view
     // from the validated V5 object instead of reading a removed persistence field.
@@ -7455,6 +7530,15 @@ function App() {
       ...patchWithoutDol,
       ...classDolFieldPatch(existing.dol, editedDol, { deleteValue: deleteField() }),
     });
+    // Then the contract, through the server, which checks the teacher of record
+    // and refuses a change that would contradict released results or open
+    // secure sessions. Its refusal is reported, not swallowed: the rest of the
+    // setup is saved, and the teacher is told exactly what was not.
+    if (contractEdit.kind === TEST_CYCLE_CONTRACT_EDIT.ATTACH) {
+      await attachTestCycleContract({ assignmentId: existing.id, ...contractEdit.contract });
+    } else if (contractEdit.kind === TEST_CYCLE_CONTRACT_EDIT.POLICY) {
+      await updateTestCyclePolicy({ assignmentId: existing.id, policy: contractEdit.policyChanges });
+    }
 
     if (!isLibraryAssignment(existing) && shouldAutoPublishClassroomPackage({ ...existing, ...patch })) {
       try {
@@ -8804,6 +8888,15 @@ function App() {
       const {
         id: _id,
         archived: _archived,
+        archivedAt: _archivedAt,
+        archivedBy: _archivedBy,
+        // A copy is a new assessment: it starts published (to whichever class
+        // it is later assigned) and carries none of the source's audit history.
+        unpublished: _unpublished,
+        unpublishedAt: _unpublishedAt,
+        unpublishedBy: _unpublishedBy,
+        lifecycleHistory: _lifecycleHistory,
+        assessmentPolicyHistory: _assessmentPolicyHistory,
         contentLineage: _contentLineage,
         contentUpgrade: _contentUpgrade,
         ...rest
@@ -9448,6 +9541,9 @@ function App() {
 
   const renderStudentPackUpBanner = () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
+    // Drawn above everything, including a secure exam's lock overlay; a
+    // student mid-Test is not interrupted by it.
+    if (secureExamActive) return null;
     const packUp = getClassPackUpState({
       schedule: classSchedule,
       classPeriod: user.classPeriod,
@@ -9487,6 +9583,8 @@ function App() {
 
   const renderStudentWarmupBanner = () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
+    // Its "Go to Warm-Up" button would take a student out of a secure exam.
+    if (secureExamActive) return null;
     const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
     const active = assignments
       .filter((assignment) => assignmentIsForStudent(assignment, classContext))
@@ -12316,6 +12414,9 @@ function App() {
       resumeAction,
       practicePassRedemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
       supportProfile: user.profile || null,
+      // Describes each Test Cycle by its server-written stage on Home and in
+      // the Assignments Center; the card still asks the server what is open.
+      testCycleGrades,
       providers: {
         assignmentIsForStudent,
         // Wrapped so the dashboard's own lifecycle bucketing (Do Now / In
@@ -12457,7 +12558,13 @@ function App() {
             <Suspense fallback={<p role="status" style={{ margin: 0 }}>Opening your test…</p>}>
               <TestCycleCard
                 assignmentId={activeTestCycleAssignmentId}
+                studentId={user.id}
                 studentProfile={user.profile}
+                // The grade document is already live (onSnapshot). Its Test
+                // Cycle projection changes when results are released or a
+                // retest opens, and its tracker when Review answers land; the
+                // card re-asks the server when either moves.
+                refreshKey={testCycleCardRefreshKey}
                 // Review is ordinary MathMaster instruction, so it opens the
                 // ordinary runtime — restricted to the review questions.
                 onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}

@@ -6,6 +6,8 @@ import { resolveQuestionActivityRole } from './platform/policies/activityPolicie
 import { studentDueDates } from './assignmentLifecycle.js';
 import { studentAssignmentAvailability } from './platform/assignments/assignmentAvailability.js';
 import { filterStudentRequiredIndices, studentOmittedIndices } from '../functions/shared/reducedWorkload.mjs';
+import { assignmentIsArchived, assignmentIsUnpublished } from '../functions/shared/assessmentAvailability.mjs';
+import { describeTestCycleForStudent } from './platform/student/testCycleDiscovery.js';
 
 // What a student's assignment dashboard actually contains, computed once.
 //
@@ -124,6 +126,12 @@ export const buildStudentDashboardModel = ({
    * targets and never keep an assignment out of Finished.
    */
   supportProfile = null,
+  /*
+   * The server-written Test Cycle projection (grades/{id}.testCycleGrades).
+   * Read only to DESCRIBE a cycle on the list — "Test ready", "Corrections 1
+   * of 3" — never to decide what a student may enter; the card asks the server.
+   */
+  testCycleGrades = {},
   providers = {},
 } = {}) => {
   const {
@@ -140,7 +148,13 @@ export const buildStudentDashboardModel = ({
     matchesSmartView,
   } = providers;
 
-  const visible = list(assignments).filter((assignment) => assignmentIsForStudent(assignment, { classId, classPeriod }));
+  // An assignment the teacher has ARCHIVED or PAUSED is closed to students, and
+  // the server refuses its secure parts; listing it as work to do would offer a
+  // student something they cannot open. Its recorded grade stays in the Grade
+  // Center, which does not read this list.
+  const visible = list(assignments).filter((assignment) => assignmentIsForStudent(assignment, { classId, classPeriod })
+    && !assignmentIsArchived(assignment)
+    && !assignmentIsUnpublished(assignment));
 
   const hasPracticePassFor = (assignmentId) => Boolean(practicePassRedemptionsByAssignment?.[assignmentId]);
 
@@ -360,30 +374,59 @@ export const buildStudentDashboardModel = ({
             || record.status !== 'unattempted';
         }).length
         : 0;
-      const started = questionsAttempted > 0 && questionsDone < questionsTotal;
+      /*
+       * A TEST CYCLE IS PLACED BY ITS STAGE, NOT BY ITS REVIEW.
+       *
+       * Its stored questions are only the Review, so the ordinary rules said
+       * "Finished" the moment Review was all correct — with the secure Test
+       * still waiting — and "Practice only" past the final date, although the
+       * secure Test and Retest are never practice. The stage description puts
+       * an unlocked Test, required corrections or an open retest in front of
+       * the student, and work waiting on the teacher out of the way.
+       */
+      const testCycle = describeTestCycleForStudent({
+        assignment,
+        projection: testCycleGrades?.[assignment.id] || null,
+        questions: getStoredAssignmentQuestions(assignment),
+        tracker: assignmentTracker,
+        nowValue,
+      });
+      const started = testCycle
+        ? testCycle.started
+        : questionsAttempted > 0 && questionsDone < questionsTotal;
 
       // Order matters and encodes the priority a student should read off the
       // screen. Finished first (nothing else applies to it), then practice-only
       // — which is past its deadline but no longer graded, and must not sit in
       // "past due" making a student anxious about a grade they cannot change.
-      const bucket = done
-        ? BUCKET.COMPLETED
-        : lifecycle.isPracticeOnly
-          ? BUCKET.PRACTICE
-          : disabled
-            ? BUCKET.COMING_UP
-            : started
+      const bucket = testCycle
+        ? (testCycle.done
+          ? BUCKET.COMPLETED
+          : ['testReady', 'testInProgress', 'corrections', 'retestReady', 'retestInProgress'].includes(testCycle.key)
+            ? BUCKET.DO_NOW
+            : testCycle.started
               ? BUCKET.IN_PROGRESS
-              : lifecycle.isLate
-                ? BUCKET.PAST_DUE
-                : dueSoon
-                  ? BUCKET.DO_NOW
-                  : BUCKET.COMING_UP;
+              : lifecycle.isLate ? BUCKET.PAST_DUE : dueSoon ? BUCKET.DO_NOW : BUCKET.COMING_UP)
+        : done
+          ? BUCKET.COMPLETED
+          : lifecycle.isPracticeOnly
+            ? BUCKET.PRACTICE
+            : disabled
+              ? BUCKET.COMING_UP
+              : started
+                ? BUCKET.IN_PROGRESS
+                : lifecycle.isLate
+                  ? BUCKET.PAST_DUE
+                  : dueSoon
+                    ? BUCKET.DO_NOW
+                    : BUCKET.COMING_UP;
 
       return {
         started,
         assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade,
-        activity, classwork, dol, disabled, feedbackHeld, bucket, questionsTotal, questionsDone, questionsAttempted,
+        activity, classwork, dol, disabled: testCycle ? testCycle.key === 'opensLater' : disabled,
+        feedbackHeld, bucket, questionsTotal, questionsDone, questionsAttempted,
+        testCycle,
       };
     });
 

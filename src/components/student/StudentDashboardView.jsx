@@ -10,6 +10,16 @@ import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studen
 import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
+import { testCycleHasUnseenChange } from '../../platform/student/testCycleDiscovery.js';
+
+// A Test Cycle's pill, by the tone its stage description gives it.
+const TEST_CYCLE_TONE = {
+  notStarted: { border: 'var(--mm-border)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  inProgress: { border: 'var(--mm-primary-border)', bg: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  pending: { border: 'var(--mm-border-strong)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  complete: { border: 'var(--mm-success-border)', bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  locked: { border: 'var(--mm-border-strong)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+};
 import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
 import RewardsSummaryCard from './rewards/RewardsSummaryCard.jsx';
 
@@ -87,7 +97,54 @@ export default function StudentDashboardView({
     practice: 'Past its due date, so it no longer changes your grade — but the practice still counts toward what you know.',
   };
 
-  const renderAssignmentCard = ({ assignment, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0 }) => {
+  /*
+   * A TEST CYCLE'S CARD SAYS WHERE THE STUDENT IS IN IT.
+   *
+   * Its stage label ("Test ready", "Corrections · 1 of 3", "Test submitted"),
+   * what happens next, and a recorded grade only once the teacher has released
+   * one — never a "current grade if stopped now" computed from the Review,
+   * which was a number that did not count. "New" marks a stage change the
+   * student has not opened yet: the unlock or release they should notice.
+   */
+  const renderTestCycleCard = ({ assignment, lifecycle, disabled, testCycle }) => {
+    const tone = TEST_CYCLE_TONE[testCycle.tone] || TEST_CYCLE_TONE.notStarted;
+    const isNew = testCycleHasUnseenChange(student?.id, assignment.id, testCycle.stageChangedAt);
+    const dates = studentDueDateLines(assignment, lifecycle);
+    return (
+      <article key={assignment.id} data-test-cycle-discovery={testCycle.key} style={{ background: 'var(--mm-surface)', padding: 'clamp(16px, 3vw, 21px) clamp(16px, 3vw, 26px)', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', border: `2px solid ${tone.border}` }}>
+        <div style={{ textAlign: 'left', flex: '1 1 320px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+            <h3 style={{ margin: 0, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{assignment.title}</h3>
+            <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: tone.bg, color: tone.color }}>{testCycle.label}</span>
+            <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>TEST CYCLE</span>
+            {isNew && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>NEW</span>}
+          </div>
+          <div style={{ color: 'var(--mm-text)', fontSize: '14px', lineHeight: 1.5 }}>{testCycle.detail}</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.55, marginTop: 4 }}>{dates.dueLabel}: {dates.dueText}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {testCycle.recordedGrade !== null && (
+            <div style={{ textAlign: 'right', marginRight: '6px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Recorded grade</div>
+              <div style={{ fontSize: '19px', fontWeight: 900, color: 'var(--mm-text-strong)' }}>{testCycle.recordedGrade}%</div>
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onStartAssignment(assignment.id)}
+            style={{ minHeight: 44, padding: '10px 20px', background: disabled ? 'var(--mm-surface-control-strong)' : testCycle.actionRequired ? 'var(--mm-primary)' : 'var(--mm-surface)', color: disabled ? 'var(--mm-disabled-text)' : testCycle.actionRequired ? 'var(--mm-on-primary)' : 'var(--mm-primary-text)', border: testCycle.actionRequired || disabled ? 'none' : '2px solid var(--mm-primary-border)', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 900 }}
+          >
+            {testCycle.actionLabel}
+          </button>
+        </div>
+      </article>
+    );
+  };
+
+  const renderAssignmentCard = (entry) => {
+    if (entry.testCycle) return renderTestCycleCard(entry);
+    const { assignment, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0 } = entry;
     const classroomReceipt = classroomSyncStatusByAssignment?.[assignment.id] || null;
     // Which checkpoint this receipt is, decided by the shared reader so the
     // Assignment Result screen cannot label the same receipt differently.

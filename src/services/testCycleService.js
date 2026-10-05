@@ -97,3 +97,37 @@ export const teacherTestCycleAction = async ({ assignmentId, studentId, action, 
   if (isSandbox()) return { success: true, action, studentId, teacherControls: {}, retestOpened: false };
   return call('teacherTestCycleAction', { assignmentId, studentId, action, stage });
 };
+
+/*
+ * TEACHER LIFECYCLE ACTIONS. Each is decided on the server, by the teacher of
+ * record: release results for a whole class, change the retest policy (locked
+ * once results it would contradict are released), preview real secure items
+ * (nothing is written), and attach a Test Cycle's contract before any session
+ * exists. The sandbox cannot do any of them, and says so instead of pretending.
+ */
+const sandboxRefusal = (what) => () => { throw new Error(`${what} runs on the server and is not available in sandbox mode.`); };
+
+export const releaseTestCycleResults = async ({ assignmentId, stage = 'test', studentIds = [] }) => {
+  if (isSandbox()) return sandboxRefusal('Releasing results')();
+  return call('releaseTestCycleResults', { assignmentId, stage, studentIds });
+};
+
+export const updateTestCyclePolicy = async ({ assignmentId, policy }) => {
+  if (isSandbox()) return sandboxRefusal('Changing the retest policy')();
+  return call('updateTestCyclePolicy', { assignmentId, policy });
+};
+
+export const previewTestCycleSecureItems = async ({ assignmentId, draw = 1 }) => {
+  if (isSandbox()) return sandboxRefusal('Previewing secure items')();
+  return call('previewTestCycleSecureItems', { assignmentId, draw });
+};
+
+export const gradeTestCyclePreviewItem = async ({ previewItemId, responsePayload }) => {
+  if (isSandbox()) return sandboxRefusal('Checking a preview answer')();
+  return call('gradeTestCyclePreviewItem', { previewItemId, responsePayload });
+};
+
+export const attachTestCycleContract = async ({ assignmentId, assessmentPolicy, testBlueprint = null, secureTestReference = null }) => {
+  if (isSandbox()) return sandboxRefusal('Saving a Test Cycle contract')();
+  return call('attachTestCycleContract', { assignmentId, assessmentPolicy, testBlueprint, secureTestReference });
+};

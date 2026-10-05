@@ -16253,6 +16253,10 @@ function testCycleGradeProjection(record, gradeState, stage, previous = null) {
     // callable: whether Review has been passed, and how many corrections are
     // done. Neither is a score, and neither exists before release reveals it.
     reviewComplete: record.review?.complete === true,
+    // Session states, not scores: "has my Test been opened / am I mid-Test /
+    // is it submitted" is what lets a list say "Test ready" or "Resume Test".
+    testState: record.test?.state || "none",
+    retestState: record.retest?.state || "none",
     correctionsTotal: Number(record.corrections?.total || 0),
     correctionsCompleted: Number(record.corrections?.completedTargets || 0),
     blueprintId: record.blueprintId || null,
@@ -21863,4 +21867,80 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
     removedTestCycleRecords: summary.recordIds.length,
   });
   return { success: true, assignmentId: ref.id, action, deleted: true };
+});
+
+/*
+ * ATTACH (OR REPLACE) A TEST CYCLE'S CONTRACT — BEFORE ANY STUDENT HAS A TEST.
+ *
+ * Until this change the browser's create and edit paths saved a Test Cycle's
+ * sections but silently dropped `assessmentPolicy`, `testBlueprint` and
+ * `secureTestReference`, so an assessment authored in the app arrived as a
+ * Review with nothing behind it ("This assessment is not available yet"). The
+ * create path now carries them; this is how an assignment saved by the older
+ * build gets them back, and how a teacher replaces a blueprint while that is
+ * still safe.
+ *
+ * Teacher of record only. Validated by the same Test Cycle preflight that
+ * gates session creation (a blocked preflight is refused), and refused once
+ * any secure Test session exists: those sessions' questions were planned from
+ * the blueprint in force, and swapping it underneath them would make two
+ * students' "equivalent" Tests different tests. Policy-only changes after that
+ * point go through `updateTestCyclePolicy`, which has its own locks.
+ */
+exports.attachTestCycleContract = onCall(async (request) => {
+  const db = getFirestore();
+  const ref = db.collection("assignments").doc(String(request.data?.assignmentId || "").trim());
+  const snapshot = await ref.get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignmentLifecycle(request, snapshot);
+  const shared = await testCycleLib.shared();
+  const assignment = snapshot.data() || {};
+  const isObjectValue = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+  const requestedPolicy = request.data?.assessmentPolicy;
+  const policy = shared.policy.normalizeTestCyclePolicy(requestedPolicy);
+  if (!policy) throw new HttpsError("invalid-argument", 'A Test Cycle contract needs assessmentPolicy.mode "testCycle".');
+  const requestedBlueprint = isObjectValue(request.data?.testBlueprint) ? request.data.testBlueprint : null;
+  const requestedReference = isObjectValue(request.data?.secureTestReference) ? request.data.secureTestReference : null;
+  const blueprint = shared.blueprint.normalizeTestBlueprint(requestedBlueprint);
+  if (!blueprint.targets.length && !requestedReference) {
+    throw new HttpsError("invalid-argument", "A Test Cycle contract needs a secure Test blueprint or a secure test reference.");
+  }
+
+  const sessions = await db.collection("examSessions").where("courseTest.assignmentId", "==", ref.id).limit(1).get();
+  if (!sessions.empty) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Secure Test sessions already exist for this assessment. Change its retest policy from Test Cycle results, or duplicate it to use a different blueprint.",
+    );
+  }
+
+  const candidate = {
+    ...assignment,
+    assessmentPolicy: requestedPolicy,
+    ...(blueprint.targets.length ? { testBlueprint: requestedBlueprint } : {}),
+    ...(requestedReference ? { secureTestReference: requestedReference } : {}),
+  };
+  if (!blueprint.targets.length) delete candidate.testBlueprint;
+  const resolution = await resolveSecureTestBlueprint(db, candidate, shared);
+  const { result } = await runTestCyclePreflight(db, {
+    assignment: candidate,
+    policy,
+    blueprint: resolution.blueprint,
+    shared,
+    secureReferenceResolved: resolution.secureReferenceResolved,
+  });
+  if (result.blocked) {
+    throw new HttpsError("failed-precondition", `This Test Cycle cannot be saved: ${result.errors[0]}`, { preflight: result });
+  }
+
+  const now = Date.now();
+  await ref.update({
+    assessmentPolicy: requestedPolicy,
+    testBlueprint: blueprint.targets.length ? requestedBlueprint : FieldValue.delete(),
+    secureTestReference: requestedReference || FieldValue.delete(),
+    assessmentPolicyHistory: FieldValue.arrayUnion({ at: now, by: teacherEmail || teacherUid, changes: { contract: "attached" } }),
+    updatedAt: new Date(now).toISOString(),
+  });
+  return { success: true, assignmentId: ref.id, attached: true, preflight: { warnings: result.warnings, checks: result.checks } };
 });
