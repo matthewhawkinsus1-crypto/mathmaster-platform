@@ -2,6 +2,7 @@
 // No Firestore or React imports so the same rules can be unit-tested.
 
 import { STUDENT_NAME_UNAVAILABLE, acceptStudentName, resolveStudentIdentity } from './platform/studentName.js';
+import { districtIdMatchKeys } from '../functions/shared/studentDistrictId.mjs';
 
 const clean = (value) => String(value || '').trim();
 const lower = (value) => clean(value).toLowerCase();
@@ -141,7 +142,10 @@ export const applyRosterIdentityRows = (students = [], identityRows = []) => {
   );
 
   return (Array.isArray(students) ? students : []).map((student) => {
-    const row = byId.get(clean(student?.id));
+    // A pasted ID is usually the district's number: try the student's district
+    // ID, then their MathMaster ID — never a MathMaster ID their district ID
+    // was corrected away from, which may be another child's district number.
+    const row = districtIdMatchKeys(student).map((key) => byId.get(key)).find(Boolean);
     if (!row) return student;
     return {
       ...student,

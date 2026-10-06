@@ -10,7 +10,7 @@ import {
 import { SECTION_GRADE_KEYS } from '../teacher/gradeEvidence.js';
 import { resolveStudentFinalDeadlineFromAssignment } from './studentDeadlineResolver.js';
 import { authorizedGradeTransferClasses, gradeTransferRoster } from './gradeTransferScope.js';
-import { buildTransferUnit, SECTION_TRANSFER_LABELS, TRANSFER_STATE } from './gradeTransferModel.js';
+import { buildTransferUnit, SECTION_TRANSFER_LABELS, sharedSisStudentIds, TRANSFER_STATE } from './gradeTransferModel.js';
 
 const snapshotTime = (value) => typeof value?.toMillis === 'function' ? value.toMillis() : new Date(value || 0).getTime();
 const newestFirst = (left, right) => snapshotTime(right.createdAt) - snapshotTime(left.createdAt);
@@ -89,6 +89,9 @@ export const projectGradeTransferUnits = ({
   snapshots = [], practicePasses = new Set(), resolveStudentFinalDeadline = resolveStudentFinalDeadlineFromAssignment,
 } = {}) => {
   const authorizedClasses = authorizedGradeTransferClasses({ classes, teacherEmail, isRootAdmin });
+  // Across every student this teacher holds, not one class: two children
+  // under one district ID collide in TEAMS whichever files they travel in.
+  const sharedDistrictIds = sharedSisStudentIds(students);
   const units = authorizedClasses.flatMap((classRecord) => assignments
     .filter((assignment) => assignmentIsForStudent(assignment, { classId: classRecord.classId, classPeriod: classRecord.period }))
     .map((assignment) => {
@@ -107,6 +110,7 @@ export const projectGradeTransferUnits = ({
           // A held Practice-based Recovery: the whole grade is not settled.
           recoveryHeldFor: ({ student }) => Boolean(recoveryHoldFor({ student, assignment })),
           resolveStudentFinalDeadline,
+          sharedDistrictIds,
           confirmedSnapshots: history.filter((item) => item.uploadConfirmedAt),
           latestExport: history[0],
         });
@@ -136,6 +140,7 @@ export const projectGradeTransferUnits = ({
           // A held Practice-based Recovery holds its own section's row only.
           recoveryHeldFor: ({ student }) => Boolean(recoveryHoldFor({ student, assignment, sectionKey })),
           resolveStudentFinalDeadline,
+          sharedDistrictIds,
           confirmedSnapshots: history.filter((item) => item.uploadConfirmedAt),
           latestExport: history[0],
         });

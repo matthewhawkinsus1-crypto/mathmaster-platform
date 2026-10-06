@@ -188,6 +188,27 @@ export const IDENTITY_EDGE_IDS = IDENTITY_EDGE_STUDENTS.map((entry) => entry.id)
 // The name studentNameJourneys.mjs adds for 910091 through Sign-in Access.
 export const IDENTITY_NAME_TO_ADD = Object.freeze({ firstName: 'Ellery', lastName: 'Mockingworth' });
 
+/*
+ * A DISTRICT ID TYPED WRONG AT ACCOUNT CREATION (districtIdJourneys.mjs) —
+ * opt-in, `&district=wrong`, invented. The production case: the account was
+ * created under the number the student typed, 111111 — valid-looking, so
+ * nothing ever flagged it, and createStudentAccount stored it as her
+ * "verified" district ID. Her real district ID is 222222. She is in Algebra I
+ * Period 1 with graded work, a PIN, a linked Google account and a teacher's
+ * Google Classroom match, and last week's lesson was already exported — and
+ * confirmed uploaded to TEAMS — under 111111.
+ */
+export const DISTRICT_ID_CORRECTION = Object.freeze({
+  accountId: '111111',
+  districtId: '222222',
+  firstName: 'Marisol',
+  lastName: 'Testerling',
+  email: 'marisol.testerling@students.example',
+  googleUserId: 'g-118800220011',
+  classId: 'c-alg1-p1',
+  courseId: 'course-alg1-p1',
+});
+
 export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null } = {}) => {
   const questionSet = params?.get?.('questions');
   const sectionsFor = questionSet === 'real' ? realLessonSections
@@ -311,6 +332,42 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
     'a-p1-ready': TRACKERS[['strong', 'solid', 'struggling', 'strong', 'partial', 'solid'][index]],
   }));
   addStudents(byId['c-alg1-p5'], 5, () => ({}));
+  // `&district=wrong` (districtIdJourneys.mjs): the student whose account was
+  // made under a mistyped district number. Pushed after every serial student,
+  // and only on request, so no other journey's school changes.
+  const districtCase = params?.get?.('district') === 'wrong' ? DISTRICT_ID_CORRECTION : null;
+  if (districtCase) {
+    students.push({
+      id: districtCase.accountId,
+      firstName: districtCase.firstName,
+      lastName: districtCase.lastName,
+      displayName: `${districtCase.firstName} ${districtCase.lastName}`,
+      sisStudentId: districtCase.accountId,
+      sisStudentIdVerifiedAt: Timestamp.fromMillis(now - 40 * DAY),
+      sisStudentIdVerifiedBy: 'root.admin@harness.example',
+      classId: districtCase.classId,
+      classPeriod: byId[districtCase.classId].period,
+      assignedTeacherEmail: TEACHER_EMAIL,
+      status: 'active',
+      profile: { inclusionStatus: true, accommodations: ['text-to-speech'], modifications: [], translationLanguage: null },
+      gradesByAssignment: { 'a-lastweek': TRACKERS.strong, 'a-p1-ready': TRACKERS.solid },
+      assignmentActivity: { 'a-lastweek': { totalTimeSeconds: 1500, onTimeSeconds: 1500, lateSeconds: 0 } },
+      googleUserId: districtCase.googleUserId,
+      googleName: `${districtCase.firstName} ${districtCase.lastName}`,
+      googleEmail: districtCase.email,
+      classroomCourseIds: [districtCase.courseId],
+      linkedEmail: districtCase.email,
+    });
+    fixture[`studentCredentials/${districtCase.accountId}`] = { studentIdKey: districtCase.accountId, algorithm: 'scrypt', salt: 'harness-salt', hash: 'harness-pin-hash', version: 1, resetRequired: false };
+    fixture[`studentAliases/${districtCase.accountId}`] = { key: districtCase.accountId, studentId: districtCase.accountId };
+    fixture[`studentDirectory/${districtCase.email}`] = { email: districtCase.email, studentId: districtCase.accountId, uid: 'google-uid-marisol' };
+    fixture[`classroomRosterLinks/${districtCase.courseId}__${districtCase.accountId}`] = {
+      rosterLinkId: `${districtCase.courseId}__${districtCase.accountId}`, teacherUid: 'harness-teacher-uid', classId: districtCase.classId,
+      courseId: districtCase.courseId, studentId: districtCase.accountId, googleUserId: districtCase.googleUserId,
+      name: `${districtCase.firstName} ${districtCase.lastName}`, email: districtCase.email,
+    };
+  }
+
   // Identity edge cases (studentNameJourneys.mjs), pushed AFTER every serial
   // student so no existing id or p3[] index moves. All invented.
   IDENTITY_EDGE_STUDENTS.forEach(({ id, names }) => {
@@ -372,6 +429,9 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   const unitOf = (classId, assignmentId) => projected.find((unit) => unit.classId === classId && unit.assignmentId === assignmentId);
   snapshotFor(unitOf('c-alg2-p3', 'a-lastweek'), now - 2 * DAY); // "Monday" — exported, never marked uploaded
   snapshotFor(unitOf('c-alg2-p3', 'a-mp1'), now - 27 * DAY, now - 27 * DAY + 3600_000); // exported and uploaded
+  // `&district=wrong`: Period 1's copy of last week's lesson went to TEAMS —
+  // exported and confirmed uploaded — under the mistyped 111111.
+  if (districtCase) snapshotFor(unitOf(districtCase.classId, 'a-lastweek'), now - 3 * DAY, now - 3 * DAY + 3600_000);
 
   // "Tuesday": one student finished a missed Classwork question after the export.
   const changed = fixture[`grades/${p3[2].id}`];

@@ -8,6 +8,7 @@ import StudentAssignmentsList from './StudentAssignmentsList.jsx';
 import StudentSupportEvidencePanel from './StudentSupportEvidencePanel.jsx';
 import StudentRewardsPanel, { useStudentRewards } from './rewards/StudentRewardsPanel.jsx';
 import { buildTeacherRewardsView } from '../../platform/rewards/teacherRewardsModel.js';
+import { DISTRICT_ID_STATUS, describeStudentDistrictId } from '../../platform/teacher/studentDistrictIdModel.js';
 
 /*
  * ONE STUDENT, ONE ANSWER, FROM ANYWHERE.
@@ -119,6 +120,8 @@ export default function StudentProfileDrawer({
 
   if (!open) return null;
 
+  // Which of the student's two numbers is which (studentDistrictIdModel.js).
+  const district = describeStudentDistrictId({ ...studentRecord, id: studentId || studentRecord?.id });
   const level = courseContext?.courseLevel || classRecord?.courseLevel || 'standard';
   const course = courseContext?.courseId || classRecord?.course || 'algebra1';
   const posture = resolveAdaptiveRigorFromProfile({ courseLevel: level, profile });
@@ -136,8 +139,13 @@ export default function StudentProfileDrawer({
               <h2 style={{ margin: 0, fontSize: 20 }}>{studentName}</h2>
               <div style={{ marginTop: 5, color: 'var(--mm-text-muted)', fontSize: 13 }}>
                 {classRecord?.name || courseContext?.classPeriod || 'No class'} · {courseLabel(course)} · {courseLevelLabel(level)}
-                {studentId ? ` · ID ${studentId}` : ''}
+                {studentId ? ` · MathMaster ID ${studentId}` : ''}
+                {district.status === DISTRICT_ID_STATUS.DIFFERS ? ` · District ID ${district.districtId}` : ''}
               </div>
+              {/* Read-only here: a district ID is managed in Student Access. */}
+              {district.status === DISTRICT_ID_STATUS.DIFFERS && (
+                <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 12 }}>{district.note}</div>
+              )}
             </div>
             <button
               type="button"

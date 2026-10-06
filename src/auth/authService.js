@@ -252,7 +252,20 @@ export const teacherAdmin = {
       firstName: String(firstName || '').trim(),
       lastName: String(lastName || '').trim(),
     }).then((result) => result.data || {}),
-  assignStudentToTeacher: ({ studentId, teacherEmail = '', classPeriod = 'Unassigned' }) =>
+  /**
+   * Set or correct a student's district (SIS) ID — the number grade exports
+   * use. The server validates it (digits only), checks the caller is the root
+   * admin or the student's teacher of record, refuses a number another
+   * student already answers to, and changes nothing else: the MathMaster
+   * account ID, the student's work and how they sign in stay as they are.
+   * Resolves to { studentId, sisStudentId, previousSisStudentId, changed }.
+   */
+  setStudentSisId: ({ studentId, sisStudentId = '' }) =>
+    callable('setStudentSisId')({
+      studentId: String(studentId || '').trim(),
+      sisStudentId: String(sisStudentId || '').trim(),
+    }).then((result) => result.data || {}),
+  assignStudentToTeacher:({ studentId, teacherEmail = '', classPeriod = 'Unassigned' }) =>
     callable('assignStudentToTeacher')({ studentId, teacherEmail, classPeriod }).then((result) => result.data || {}),
   setTeacherAccess: (email, active) =>
     callable('setTeacherAccess')({ email, active }).then((result) => result.data || {}),

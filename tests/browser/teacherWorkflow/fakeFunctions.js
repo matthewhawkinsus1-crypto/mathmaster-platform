@@ -48,6 +48,10 @@ import {
   STUDENT_IDENTITY_FIELDS, TEACHER_ROSTER_SELECT_FIELDS,
   buildTeacherRosterSummaryRow, compareStudentIdentities, validateStudentNameInput,
 } from '../../../functions/shared/studentIdentity.mjs';
+import {
+  districtIdChangeRecord, districtStudentIdVariants, findDistrictStudentIdConflict,
+  mayChangeStudentDistrictId, validateDistrictStudentIdInput,
+} from '../../../functions/shared/studentDistrictId.mjs';
 import { runSectionRecoveryAction } from '../../../functions/shared/sectionRecoveryActions.mjs';
 import {
   HELD_RECOVERY_ACTION, applyHeldRecoveryResolution, heldRecoveryActionsFor, heldRecoveryItemIds, isHeldRecoveryAction,
@@ -580,9 +584,46 @@ const handlers = {
     if (!existing.uploadConfirmedAt) harnessStore.update(path, { uploadConfirmedAt: Timestamp.now(), uploadConfirmedByEmail: TEACHER_EMAIL });
     return { transferId, confirmed: true };
   },
-  setStudentSisId: ({ studentId, sisStudentId }) => {
-    harnessStore.update(`grades/${studentId}`, { sisStudentId });
-    return { studentId, sisStudentId };
+  // Setting or correcting a district (SIS) ID, with the REAL rules the
+  // callable runs (functions/shared/studentDistrictId.mjs): digits only; the
+  // teacher of record or the root administrator; refused when another student
+  // already answers to the number — as a stored district ID or as an account
+  // ID, leading zeros ignored; and an audit entry keeping the previous value.
+  // Only the district ID fields change: never the account ID or the work.
+  setStudentSisId: ({ studentId: rawId, sisStudentId: rawDistrictId } = {}) => {
+    const studentId = String(rawId || '').trim();
+    if (!studentId || studentId.length > 180 || studentId.includes('/')) throw callableError('invalid-argument', 'studentId is required.');
+    const checked = validateDistrictStudentIdInput(rawDistrictId);
+    if (!checked.ok) throw callableError('invalid-argument', checked.error);
+    const path = `grades/${studentId}`;
+    const stored = harnessStore.get(path);
+    if (!stored) throw callableError('not-found', 'That student is not on the MathMaster roster.');
+    const student = selectFields(stored, ['assignedTeacherEmail', 'classId', 'sisStudentId']);
+    const classRecord = student.classId ? harnessStore.get(`classes/${student.classId}`) || null : null;
+    if (!mayChangeStudentDistrictId({ callerEmail: TEACHER_EMAIL, isRootAdmin: harness.rootAdmin === true, student, classRecord })) {
+      throw callableError('permission-denied', "Only this student's teacher of record can change the student's district ID.");
+    }
+    const variants = new Set(districtStudentIdVariants(checked.value));
+    const roster = rosterPaths().map((rosterPath) => ({ id: rosterPath.split('/')[1], data: harnessStore.get(rosterPath) || {} }));
+    const conflict = findDistrictStudentIdConflict({
+      studentId,
+      districtId: checked.value,
+      districtIdHolders: roster.filter(({ data }) => variants.has(String(data.sisStudentId ?? '').trim())).map(({ id }) => id),
+      accountIdHolders: roster.filter(({ id }) => variants.has(id)).map(({ id }) => id),
+    });
+    if (conflict) throw callableError('already-exists', conflict.message);
+    const change = districtIdChangeRecord({ studentId, student, districtId: checked.value, classId: student.classId || null });
+    harnessStore.update(path, {
+      sisStudentId: checked.value,
+      sisStudentIdVerifiedAt: Timestamp.now(),
+      sisStudentIdVerifiedBy: TEACHER_EMAIL,
+      updatedAt: Timestamp.now(),
+    });
+    harnessStore.set(`adminAuditLog/sis_${studentId}_${Date.now()}`, {
+      actorUid: 'harness-teacher-uid', actorEmail: TEACHER_EMAIL, action: 'sis_student_id_set', target: studentId,
+      details: change.details, createdAt: Timestamp.now(),
+    });
+    return change.response;
   },
   // The Student Case Review's read-only callable, with the real request
   // validation, teacher-of-record decision and response projection

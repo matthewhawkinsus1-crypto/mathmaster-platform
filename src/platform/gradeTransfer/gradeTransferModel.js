@@ -1,5 +1,10 @@
 import { studentNameForStorage } from '../../../functions/shared/studentIdentity.mjs';
 import {
+  canonicalDistrictStudentId,
+  effectiveDistrictStudentId,
+  isValidDistrictStudentId,
+} from '../../../functions/shared/studentDistrictId.mjs';
+import {
   STUDENT_NAME_UNAVAILABLE,
   formatStudentLabel,
   resolveRosterStudentName,
@@ -83,7 +88,7 @@ const confirmedHistory = ({ confirmedSnapshots, confirmedSnapshot }) => {
   });
 };
 
-export const validSisStudentId = (value) => /^\d{1,20}$/.test(text(value));
+export const validSisStudentId = (value) => isValidDistrictStudentId(value);
 
 // A held Practice-based Recovery (canonicalGradeProjection.js recoveryHoldFor):
 // the grade is not settled, so no TEAMS row leaves for this student. Named,
@@ -91,16 +96,41 @@ export const validSisStudentId = (value) => /^\d{1,20}$/.test(text(value));
 // details), and never confused with "no grade".
 export const RECOVERY_HELD_TRANSFER_REASON = 'Recovery held for teacher review';
 
+// A student whose district ID cannot address a TEAMS row: none on file, or not
+// a number — or one that another student on the roster also carries, where a
+// file would put one child's grade on the other's record. Either holds the
+// row back and makes the unit a roster-ID problem until a teacher fixes it.
+export const MISSING_SIS_TRANSFER_REASON = 'Missing or invalid SIS Student ID';
+export const SHARED_SIS_TRANSFER_REASON = 'SIS Student ID shared with another student';
+const ROSTER_ID_PROBLEM_REASONS = new Set([MISSING_SIS_TRANSFER_REASON, SHARED_SIS_TRANSFER_REASON]);
+
 // TEAMS requires the district/SIS number, not MathMaster's internal account key.
-// Existing all-digit roster document ids remain a safe compatibility fallback,
-// while legacy email/alphanumeric account keys must be repaired by storing a
-// verified sisStudentId on the student record.
-export const authoritativeSisStudentId = (student) => {
-  const explicit = text(student?.sisStudentId);
-  if (explicit) return explicit;
-  const legacy = text(student?.studentId || student?.id);
-  return validSisStudentId(legacy) ? legacy : '';
+// A stored district ID always wins — a teacher may have corrected it away from
+// a mistyped account ID (setStudentSisId). Existing all-digit roster document
+// ids without one remain a safe compatibility fallback, while legacy
+// email/alphanumeric account keys must be repaired by storing a verified
+// sisStudentId. The rule lives in functions/shared/studentDistrictId.mjs.
+export const authoritativeSisStudentId = (student) => effectiveDistrictStudentId(student);
+
+/**
+ * The district IDs (canonical: leading zeros ignored) that more than one
+ * student in `students` would export under. Grade Export holds those rows back
+ * rather than send two children's grades to one district record.
+ */
+export const sharedSisStudentIds = (students = []) => {
+  const seen = new Set();
+  const shared = new Set();
+  (students || []).forEach((student) => {
+    const canonical = canonicalDistrictStudentId(authoritativeSisStudentId(student));
+    if (!canonical) return;
+    if (seen.has(canonical)) shared.add(canonical);
+    seen.add(canonical);
+  });
+  return shared;
 };
+export const sisStudentIdIsShared = (sharedIds, sisStudentId) => (
+  sharedIds instanceof Set && sharedIds.has(canonicalDistrictStudentId(sisStudentId))
+);
 
 export const canonicalGradeVersion = ({ student, assignmentId, sectionKey = '', grade }) => {
   const base = text(
@@ -125,6 +155,9 @@ export const buildTransferUnit = ({
   // (canonicalGradeProjection.js recoveryHoldFor). Absent → never.
   recoveryHeldFor = () => false,
   resolveStudentFinalDeadline = () => null,
+  // Set of district IDs more than one roster student carries
+  // (sharedSisStudentIds). Absent → none.
+  sharedDistrictIds = null,
   confirmedSnapshots = null, confirmedSnapshot = null, latestExport = null,
   sectionKey = '', sectionLabel = '',
 }) => {
@@ -213,7 +246,11 @@ export const buildTransferUnit = ({
 
     const sisStudentId = authoritativeSisStudentId(student);
     if (!validSisStudentId(sisStudentId)) {
-      problems.push(transferPerson(student, { reason: 'Missing or invalid SIS Student ID' }));
+      problems.push(transferPerson(student, { reason: MISSING_SIS_TRANSFER_REASON }));
+      continue;
+    }
+    if (sisStudentIdIsShared(sharedDistrictIds, sisStudentId)) {
+      problems.push(transferPerson(student, { reason: SHARED_SIS_TRANSFER_REASON }));
       continue;
     }
     const row = {
@@ -245,7 +282,7 @@ export const buildTransferUnit = ({
     && !hasConfirmedBaseline
     && !latestExport
   ) state = TRANSFER_STATE.NO_TRANSFER_REQUIRED;
-  if (problems.some((item) => item.reason.includes('SIS Student ID'))) state = TRANSFER_STATE.ROSTER_ID_PROBLEM;
+  if (problems.some((item) => ROSTER_ID_PROBLEM_REASONS.has(item.reason))) state = TRANSFER_STATE.ROSTER_ID_PROBLEM;
   else if (problems.length && !rows.length) state = TRANSFER_STATE.REVIEW_REQUIRED;
 
   const resolvedSectionLabel = sectionLabel || SECTION_TRANSFER_LABELS[sectionKey] || '';
@@ -324,6 +361,13 @@ export const packageManifest = (units) => ['MathMaster Gradebook Package', '', .
   // A re-export may land on top of grades the SIS already holds, so it must
   // overwrite exactly like an update does.
   `TEAMS “Overwrite existing grades?”: ${unit.exportKind === 'delta' || unit.reexport ? 'YES' : 'NO'}`,
+  // A teacher corrected a district ID after this file was last exported
+  // (gradeTransferHistory.js buildExportPlan). This file sends the grade
+  // under the corrected number; nothing MathMaster sends can remove what an
+  // earlier file put under the old one.
+  ...(unit.reidentified?.length ? [
+    `District ID corrected since the last export: ${unit.reidentified.map((entry) => `${entry.previousSisStudentId} → ${entry.sisStudentId}`).join(', ')}. This file uses the corrected ID. A grade uploaded earlier under the old ID stays in TEAMS until it is removed there.`,
+  ] : []),
   '',
 ])].join('\n');
 
