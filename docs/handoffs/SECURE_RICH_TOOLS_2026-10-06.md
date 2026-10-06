@@ -52,18 +52,46 @@ were affected; no test fixture used a tool, so nothing noticed.
 | R18 | P3 | The Number Line titled the panel holding its final action "Check your graph" above "Record answer" (R5's wording, one level up). Found by the device QA. |
 | R19 | P1 | The Data Modeling Lab printed its teaching notes unconditionally: "A large \|r\| … does not, by itself, prove causation" directly under "What can this observational data justify?" — the answer to that part — plus how to read r, what a good residual plot looks like and how to choose a model. Every other certified tool keeps such notes in `HintPanel`. Found reading the device QA's screenshots. |
 
-### Outside this change, reported not fixed
+### Found by the pre-PR adversarial review
 
-- **My Math Path cannot store an issued Data Modeling Lab or Mapping Diagram
-  item.** It writes the same `currentQuestion` shape (public tool payload +
-  private definition) and the emulator rejects it exactly as in R1
-  (`dataModelingLab` and `relationMapping` rejected, `graphing2` stored —
-  verified 2026-10-06). 34 bank families. The same codec
-  (`functions/lib/secureItemStorage.js`) applied at Path's read/write sites
-  would fix it; Path is its own live subsystem, so it is left for a change of
-  its own.
+Before the pull request, a seven-dimension review of the whole branch ran —
+answer leakage, grading and storage, client lifecycle, assistance and
+non-secure regressions, preflight and certification, simulations and legacy,
+server authorization — and every finding went to two independent verifiers,
+one trying to refute it and one to reproduce it against the real modules.
+Fifteen were confirmed, two contested; all seventeen are fixed, each with a
+mutation-checked test. (R20–R36. The Path finding, previously reported here
+as out of scope, is fixed too: R37.)
+
+| # | Severity | Finding | Fix |
+| --- | --- | --- | --- |
+| R20 | P1 | R4 was incomplete: on "Solve 4x − 1 > 15 and graph the solution" items (four active Grade 7 families) the Number Line's `inequalityText` is the SOLVED form, `x > 4` — the graph and the interval both. | `inequalityText` never travels; the tool never rendered it. |
+| R21 | P1 | Function Investigation dropped the authored `equationLatex`, so the workspace displayed the spec's vertex form — `y = −(x − 1)² + 4` beside a standard-form "identify the vertex" item — and the payload carried the vertex as `functionSpec.h/k`. | The authored equation travels; on a secure item a vertex-form parabola is sent in standard form. The shared graph utils drew a standard-form quadratic as y = ax² (a latent defect; no stored content used that form) and now read it as written. |
+| R22 | P2 | Point cards stated the x of the feature the student must locate: "Plot the x-intercept: x = −5", "Plot the vertex: x = 3". | On a secure item a card that locates a feature (vertex, intercept, zero, maximum, a point placed by the axis) loses its x — the workspace's own rule for key points. |
+| R23 | P1 | A crafted autosave (objects with own `toString`, `null` intervals) made the grader throw inside every way of closing the session: Submit, the timer and the proctor's force-submit all failed; only a reset (a fresh attempt) was left. | Grading never throws: a grader failure is a refusal like any unreadable work; finalizing records 0. |
+| R24 | P2 | An untouched Data Modeling Lab or Step Algebra item autosaved on open ("Answer saved") and was recorded as answered at finalize. | Raw work is sent only after the student has touched the page. |
+| R25 | P2 | R19 missed one note: "Interpolation predicts inside the observed x-range…" above the graded "This prediction is…". | Gated with the others. |
+| R26 | P2 | Step Algebra judged each committed move in green/amber — "Balanced and correct — a longer way round. Look for a pair that cancels." — and showed "solved" in green. | Where verdicts are withheld a move is acknowledged neutrally; no strategy text, no correctness colour. |
+| R27 | P2 | This branch's registry-tool publishing reached EVERY server-graded host: Live Challenge's round-end buzzer started submitting half-built graphs (an error banner) and untouched labs (a 0). | Opt-in (`serverGrading.publishToolWork`), set by the secure runtime only. |
+| R28 | P3 | Graphing ("All 2 points plotted — check your construction", "Press Check construction…") and Systems ("…then check your graph") still invited a check beside the action that records the answer. | Worded from the host's label on a secure item. |
+| R29 | P3 | Recording an item cleared its storage, then QuestionEngine stamped the submitted construction back from the tool's in-memory cache. | `forgetToolDraftFamily` beside every clear. |
+| R30 | P3 | The same cache showed a teacher's earlier preview construction on a fresh Retest preview item. | Cleared with the preview. |
+| R31 | P3 | Certification sampled four random instances; issue time picks the variant ranked for the target's DOK and band — 53 of 419 variant cells were never sampled. | Every variant is generated and certified. |
+| R32 | P3 | A retired or unvalidated family a blueprint still named blocked publish with a tool mismatch, though it can never be issued. | The rendering check judges approved families only, like coverage and issuance. |
+| R33 | P3 | Oversized raw work surfaced as INTERNAL on submit and in Corrections. | A refusal with "too large to record". |
+| R34 | P3 | (contested) The matrix3 validator required x, y, z when the KEY said "one solution" — a refusal that told a student the classification. | Required when the student's own classification is "one". |
+| R35 | P2 | (contested) On a target that mixes tools and names none, the Retest moved three students in four from Graphing to a text field, and Corrections likewise — while the doc claimed the tool was kept. | The student's Test tool per target travels on the profile; the Retest and Corrections choose a family on that tool first. |
+| R36 | P2 | Encoding EVERY stored item (R1's codec) made a deploy window or rollback silently score secure items 0 on an older function instance. | Only fields that actually nest arrays are encoded; every field item is stored as before. |
+| R37 | P0 for the affected TEKS | My Math Path stored the same nested-array items and its issue transaction failed; selection being deterministic, A.4A, A.4C, A.8B, A.9E, A2.2B, A2.4E and A2.8B could not issue a first question, five more stalled at their affected family (40 items). | `issueNextQuestion` and `submitPathResponse` store and read the open question through the codec; emulator-certified. |
+
+### Outside this change
+
 - Known Path contract divergences recorded in `SERVER_GRADING_COVERAGE.md` §12
   still apply to the tools as Path grades them.
+- Live Challenge rooms store a public tool payload only; no shipped bank item
+  that nests arrays is Live Challenge-eligible today (tool records carry
+  `type`, which `liveChallengeEligible` does not read). If one ever is, the
+  room's `currentQuestion` needs the codec with a matching client decode.
 
 ## What changed
 
@@ -97,6 +125,19 @@ in theme tokens (R16); the container clears the session's drafts again once
 the finished view is up (R17); the Number Line's secure panel title via `useHostSubmitLabel` (R18);
 `secureShellRuntimeMode` (the shell's mode, including before the first item);
 the Data Modeling Lab's teaching notes follow the hint permission (R19).
+
+**From the review (R20–R37):** `pathToolContracts.mjs` (Number Line,
+Function Investigation allowlists; matrix3 validation);
+`secureToolCertification.mjs` (`secureTransform` for Function Investigation);
+`toolMath/graphWorkspace/functionGraphUtils.mjs` (standard-form quadratics);
+`secureItems.gradeItem` (never throws); `secureItemStorage` (conditional
+encoding); `testCycleIssuance.mjs`, `testCycleCorrections.mjs`,
+`lib/testCycle.js` (the student's tool through Retest and Corrections);
+`testCyclePreflight.mjs` (approved families); `testCycleFamilyIssuability`
+(every variant); My Math Path's `issueNextQuestion`/`submitPathResponse`
+(codec); `RichQuestionRuntime` (input-gated autosave, `publishToolWork`);
+`QuestionEngine` (opt-in); `usePersistentToolState.forgetToolDraftFamily`;
+`StepByStepAlgebraCore`, `Graphing2`, `SystemsWorkspace`, `DataModelingLab`.
 
 ## Certification
 
@@ -183,6 +224,12 @@ production — the engine's task card rendered unstyled without it.
   certified for Chromebook and iPad.
 - Released review summarises a tool answer in words and values; it does not
   redraw the construction.
+- The Step Algebra workspace refuses a rewrite that is not equivalent ("That
+  replacement is not equivalent to the selected term"). On a secure item that
+  is a check of the student's arithmetic before submission. It is how the
+  workspace stays a workspace of equivalent equations, and it is stated to the
+  teacher as the tool's caveat; a secure variant that accepts any rewrite and
+  leaves equivalence to the grader would be its own change.
 - Tools keep their folded **"How to do this"** steps on a secure item. By their
   own rule they name the process, not the decisions being assessed (those are
   in `HintPanel`), and a student needs them to operate a tool — but a few name
@@ -192,9 +239,14 @@ production — the engine's task card rendered unstyled without it.
 
 ## Deploy
 
-Functions and Hosting changed; rules did not. Functions first (in-progress
-sessions keep working: stored items written before this change read back
-unchanged), then Hosting through the resilient wrapper:
+Functions and Hosting changed; rules did not. Functions first, then Hosting.
+In-progress sessions keep working: stored items written before this change
+read back unchanged, and only items that nest arrays — which no earlier
+version could store at all — are encoded, so an older instance during the
+deploy window, or after a rollback, reads everything it ever could. My Math
+Path's `issueNextQuestion` and `submitPathResponse` changed (R37), and so did
+Live Challenge's shared contracts (R20, R21, R34). Through the resilient
+wrapper:
 
 ```
 npm run build && npm run build:firebase
@@ -202,5 +254,5 @@ node scripts/release-firebase.mjs            # the plan
 node scripts/release-firebase.mjs --execute
 ```
 
-`pathToolContracts.mjs` changed (R4, R14), so My Math Path and Live Challenge
-functions redeploy too; the release script's diff picks them up.
+`pathToolContracts.mjs` changed (R4, R14, R20, R21, R34), so My Math Path and
+Live Challenge functions redeploy too; the release script's diff picks them up.

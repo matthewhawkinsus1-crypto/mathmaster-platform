@@ -292,6 +292,11 @@ speak of a retest and of the mastery bar where they apply.
 - `tests/integration/testCycleRichToolCertification.test.mjs` — a seven-tool
   Rich Tool Test Cycle through the real handlers: preflight, Test, release,
   review, Corrections, Retest, preview.
+- `tests/integration/pathRichToolStorage.test.mjs` — every bank item that
+  nests arrays stored through the codec against the emulator, and a Data
+  Modeling item through My Math Path's real submit, write-back and finalize.
+- `tests/platform/secureToolDraftCleanup.test.mjs` — a recorded or previewed
+  construction cannot come back from the tools' in-memory cache.
 - `node tests/browser/testCycleRichToolQa.mjs` — QA tool: every bank Rich Tool
   in the real secure container at Chromebook, iPad and phone, light and dark,
   with an interaction, autosave, reload and submit.

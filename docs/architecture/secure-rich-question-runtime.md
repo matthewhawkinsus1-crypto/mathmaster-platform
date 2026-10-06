@@ -70,20 +70,31 @@ the teacher preview (`previewTestCycleSecureItems`, `gradeTestCyclePreviewItem`)
   `applySecureToolSettings` forces assessment settings (the Step Algebra
   workspace at support level 5, which never does arithmetic for the student),
   then the word-problem `context` is re-sanitized field by field and its
-  Problem Understanding scaffold switched off. `runtimeMode` travels on the
-  payload.
+  Problem Understanding scaffold switched off. A tool may also declare a
+  `secureTransform`: Function Investigation's removes the x from point cards
+  that locate a feature (vertex, intercept, zero, maximum, a point placed by
+  the axis) and sends a vertex-form parabola in standard form, so neither the
+  cards nor the payload state where the feature is. `runtimeMode` travels on
+  the payload.
 - **`gradeItem(privateGrading, payload)`** — a tool item is graded by its Path
   Tool Contract grader (the one My Math Path and Live Challenge use) on the
   student's raw construction, bounded and stripped of any verdict the browser
   attached (`toolResponseContract.boundToolWork`). A field item is graded by
   the field grader exactly as before. Work that is not shaped like an answer
   (`rejected`) is refused before anything is recorded — an interface problem,
-  not a wrong answer.
+  not a wrong answer — and whether work is refused depends on the work alone,
+  never on the key (a refusal that read the key would tell the student the
+  answer). Grading never throws: a grader that fails on work it was never
+  meant to see refuses it, so every way of closing a session (submit, the
+  timer, the proctor's force-submit) always completes.
 - **Storage.** Firestore cannot hold an array inside an array; a Rich Tool
   item's private definition and public tool config often do (data points,
-  mapping arrows). `secureItemStorage.js` stores those two fields as canonical
-  JSON strings on the session/plan and decodes them where they are read; raw
-  work and workspace drafts are stored as JSON strings too.
+  mapping arrows). `secureItemStorage.js` stores such a field as a canonical
+  JSON string and decodes it where it is read — ONLY a field that nests
+  arrays, so every other item is stored exactly as before and an older
+  function instance (a deploy window, a rollback) reads what it always could.
+  Raw work and workspace drafts are stored as JSON strings too. My Math Path
+  stores its open question through the same codec.
 
 ## Certification: which tools may run securely
 
@@ -107,14 +118,17 @@ Cycle code.**
 
 `certifySecureItem(question, { mode })` answers for one item;
 `certifySecureFamily(family, { instances })` for a family from the instances it
-actually generates (a generator can change the tool between variants).
+actually generates — four random draws and one instance of every variant,
+because issue time picks the variant ranked for the target and a generator
+can change the tool between variants.
 Issuance fails closed on an uncertified item; Corrections skips to the next
 parallel family; preview shows the teacher the error a student would meet.
 
 ## Preflight and the blueprint
 
 `testCyclePreflight` check 6, fed by the server's issuability gate (which now
-certifies sampled instances):
+certifies generated instances), judging the approved families coverage and
+issuance draw from — a retired family a blueprint still names never blocks:
 
 - `✓ All 18 secure questions can render using their required MathMaster tools`
 - `TEST_CYCLE_TOOL_NOT_CERTIFIED: Target A.5C contains a Transformations Lab family (…) that has not been certified for Secure Test, Secure Retest or Corrections mode: …`
@@ -127,9 +141,16 @@ certifies sampled instances):
 difficulty, representation, required tool, the tools families render with,
 certified modes, devices), shown in the teacher's results panel.
 
-A target's `toolId` is part of `blueprintEquivalenceSignature`, and
-`retestRigorIsPreserved` reports `tool_changed`: a missed graphing skill is
-retested on the graphing tool, never collapsed into a text box.
+A target's `toolId` is part of `blueprintEquivalenceSignature`, and preflight
+holds every family of a target that names a tool to that tool
+(`TOOL_REQUIREMENT_MISMATCH`); `retestRigorIsPreserved` reports `tool_changed`
+for a retest blueprint that drops it. A target that names no tool may mix
+families on different tools (preflight warns), so the tool is kept one level
+down as well: the student's Test responses record the tool they answered with
+(`pathToolId`, or response fields), the performance profile carries it per
+target, and the Retest's family choice and Corrections' practice families take
+a family on that tool first — a missed graphing skill is retested and
+corrected on the graphing tool wherever the target has one.
 `describeFamily` reads a family's tool the way the server does (`pathToolId`,
 `toolId` or `type` — the bank uses `type`).
 
@@ -171,12 +192,20 @@ legs).
   verdict-free, and only on the open item. A reload on another device restores
   them before the engine mounts (newest per key wins).
 - `QuestionEngine` publishes a registry tool's live work under server grading
-  (`handleToolWork` → `onResponseStateChange`), so a half-built graph autosaves.
+  (`handleToolWork` → `onResponseStateChange`) to a host that asks for it
+  (`serverGrading.publishToolWork`, the secure runtime), so a half-built graph
+  autosaves; Live Challenge, which submits what it is given at the buzzer, is
+  never sent it.
+- Raw work is sent only once the student has touched the page since the item
+  opened: a tool reports its starting state on mount, and that is not an
+  answer.
 - Finalizing (student submit or time) records an autosaved construction and
   grades it — when it is an answer (`payloadHasWork`); a half-built one (a
   single endpoint, no direction) records nothing, like a blank. Recording an
   item removes its device drafts; finishing the Test removes the session's,
   and again once the finished view is up, after the tool's own unmount writes.
+  Each clear also drops the tools' in-memory copy (`forgetToolDraftFamily`),
+  which would otherwise write the cleared work straight back.
 
 ## Integrity
 
