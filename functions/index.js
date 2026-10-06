@@ -69,6 +69,9 @@ const mathPath = require("./lib/mathPath");
 const { compilePathRecordForStorage } = require("./lib/pathFirestoreShape");
 const labEvaluation = require("./lib/labEvaluation");
 const secureExam = require("./lib/secureExam");
+// Rich Tool items on every secure surface: the mode-aware public payload and
+// the one grading authority (see the file header).
+const secureItems = require("./lib/secureItems");
 // The Test Cycle rules are shared ESM; this is the CommonJS bridge to them.
 const testCycleLib = require("./lib/testCycle");
 const adminPolicy = require("./lib/admin");
@@ -14777,7 +14780,9 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   const session = sessionSnapshot.data();
   if (session.status !== "active") throw new HttpsError("failed-precondition", "This My Math Path session is already complete.");
   if (session.currentQuestion) {
-    return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(session.currentQuestion) }) };
+    // Stored with its tool fields encoded when they nest arrays (secureItemStorage).
+    const openQuestion = secureItems.readStoredItem(session.currentQuestion);
+    return { questionInstance: mathPath.buildSanitizedQuestion(openQuestion, { questionInstanceId: openQuestion.questionInstanceId, attemptsAllowed: openQuestion.attemptsAllowed, attemptsUsed: openQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(openQuestion) }) };
   }
 
   if (session.assessmentFramework) {
@@ -14807,12 +14812,13 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
         }
         const freshData = fresh.data();
         if (freshData.currentQuestion) {
+          const openQuestion = secureItems.readStoredItem(freshData.currentQuestion);
           return {
-            questionInstance: mathPath.buildSanitizedQuestion(freshData.currentQuestion, {
-              questionInstanceId: freshData.currentQuestion.questionInstanceId,
-              attemptsAllowed: freshData.currentQuestion.attemptsAllowed,
-              attemptsUsed: freshData.currentQuestion.attemptsUsed,
-              toolPayload: mathPath.storedToolPayload(freshData.currentQuestion),
+            questionInstance: mathPath.buildSanitizedQuestion(openQuestion, {
+              questionInstanceId: openQuestion.questionInstanceId,
+              attemptsAllowed: openQuestion.attemptsAllowed,
+              attemptsUsed: openQuestion.attemptsUsed,
+              toolPayload: mathPath.storedToolPayload(openQuestion),
             }),
           };
         }
@@ -15207,11 +15213,16 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     const fresh = await transaction.get(sessionRef);
     const freshData = fresh.data();
     if (!fresh.exists || freshData?.studentId !== studentId || freshData?.status !== "active") throw new HttpsError("failed-precondition", "This session changed before the question could be issued.");
-    if (freshData.currentQuestion) return freshData.currentQuestion;
+    if (freshData.currentQuestion) return secureItems.readStoredItem(freshData.currentQuestion);
     // Remember which family was issued, so the next question in this session
     // reaches for one the student has not seen.
     transaction.update(sessionRef, {
-      currentQuestion,
+      // A Data Modeling, Mapping Diagram, reflection or 3×3 RREF item nests
+      // arrays in its tool fields, which Firestore refuses: those fields are
+      // stored encoded (secureItemStorage), every other item exactly as before.
+      // Without this the transaction failed and, selection being
+      // deterministic, the session could never issue its next question.
+      currentQuestion: secureItems.storableItem(currentQuestion),
       familyUsage: selection.recordFamilyUse(freshData.familyUsage || {}, authored.id),
       usedRepresentations: [...new Set([...(freshData.usedRepresentations || []), choice.representation].filter(Boolean))],
       usedTaskTypes: [...new Set([...(freshData.usedTaskTypes || []), choice.taskType].filter(Boolean))],
@@ -15282,7 +15293,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     if (!sessionSnapshot.exists || sessionSnapshot.data()?.studentId !== studentId) throw new HttpsError("not-found", "That My Math Path session is not available.");
     const session = sessionSnapshot.data();
     if (session.status !== "active" || !session.currentQuestion) throw new HttpsError("failed-precondition", "There is no open question to submit.");
-    const currentQuestion = session.currentQuestion;
+    const currentQuestion = secureItems.readStoredItem(session.currentQuestion);
     if (currentQuestion.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer the active question.");
 
     // The grader is chosen from the question the SERVER stored, never from a
@@ -15455,7 +15466,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
       status: nextStatus,
       summary: nextSummary,
       pathState: { ...(session.pathState || {}), counters: { ...(session.pathState?.counters || {}), questionsThisSession: nextSummary.completedQuestions || 0 } },
-      currentQuestion: nextCurrentQuestion,
+      currentQuestion: secureItems.storableItem(nextCurrentQuestion),
       ...(routed ? {
         currentSkillCode: routed.currentSkillCode,
         excursion: routed.excursion,
@@ -15729,9 +15740,18 @@ function secureExamAlignmentKeys(question = {}) {
   return [...new Set(source.map(mathPath.canonicalAlignmentKey).filter(Boolean))];
 }
 
-function secureExamPublicQuestion(question = {}) {
+/*
+ * ONE SECURE ITEM AS A STUDENT'S BROWSER RECEIVES IT.
+ *
+ * Built by `secureItems.publicItem`, which carries a Rich Tool item's
+ * allowlisted tool payload (it used to be dropped here, so a graphing item
+ * arrived as a bare "Answer" box) with every assistance key stripped for the
+ * secure mode, then by `publicQuestion`, which removes the metadata that cues
+ * a student about what is being assessed.
+ */
+async function secureExamPublicQuestion(question = {}, { mode = null } = {}) {
   return secureExam.publicQuestion(
-    mathPath.buildSanitizedQuestion(question, question),
+    await secureItems.publicItem(question, { mode: mode || "secureTest" }),
     { examCalculatorMode: question.examCalculatorMode || question.calculatorMode || null },
   );
 }
@@ -15866,8 +15886,11 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
    * an answer half-typed; it stops the NEXT question.
    */
   if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId);
+  // The mode every item of this session renders under: Secure Test, or Secure
+  // Retest for a Test Cycle's retest. Never a practice mode.
+  const runtimeMode = await secureItems.runtimeModeForSession(session);
   if (session.currentQuestion) {
-    return { questionInstance: secureExamPublicQuestion(session.currentQuestion), draftResponse: session.currentQuestion.draftResponse || null, session: secureExam.publicSession(session) };
+    return { questionInstance: await secureExamPublicQuestion(session.currentQuestion, { mode: runtimeMode }), draftResponse: secureItems.publicDraft(session.currentQuestion.draftResponse), session: secureExam.publicSession(session) };
   }
   if (Number(session.summary?.completedQuestions || 0) >= Number(session.requiredQuestions || 1)) {
     throw new HttpsError("failed-precondition", "All required exam questions have been completed.");
@@ -15876,10 +15899,10 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
   // plan written before the student could start. The simulation path below is
   // untouched, which is what keeps SAT/ACT/TSIA2/ASVAB delivery identical.
   if (secureExam.isCourseTestSession(session)) {
-    const issuedCourseTest = await issueCourseTestQuestion(db, { sessionRef, session, studentId });
+    const issuedCourseTest = await issueCourseTestQuestion(db, { sessionRef, session, studentId, runtimeMode });
     return {
-      questionInstance: secureExamPublicQuestion(issuedCourseTest.currentQuestion),
-      draftResponse: issuedCourseTest.currentQuestion?.draftResponse || null,
+      questionInstance: await secureExamPublicQuestion(issuedCourseTest.currentQuestion, { mode: runtimeMode }),
+      draftResponse: secureItems.publicDraft(issuedCourseTest.currentQuestion?.draftResponse),
       session: secureExam.publicSession(issuedCourseTest),
     };
   }
@@ -15911,8 +15934,13 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
   const issuedQuestion = instantiated.question;
   const issuePlan = await mathPath.buildIssuePlan(issuedQuestion);
   if (!issuePlan.issuable) throw new HttpsError("failed-precondition", "This secure exam item could not be graded securely.");
+  // A simulation item that names a tool must be a tool certified for secure
+  // delivery, exactly as a course Test item must. No simulation bank item uses
+  // one today; this is what keeps it that way unless one is certified.
+  const simulationCertification = await secureItems.certifyItem(issuedQuestion, { mode: runtimeMode });
+  if (!simulationCertification.compatible) throw new HttpsError("failed-precondition", simulationCertification.reason || "This secure exam item cannot be delivered securely.");
   const assessmentDomainId = domainFor(authored);
-  const currentQuestion = {
+  const currentQuestion = secureItems.storableItem({
     ...issuedQuestion,
     bankQuestionId: authored.id,
     alignmentKeys: secureExamAlignmentKeys(issuedQuestion),
@@ -15923,7 +15951,7 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
     generatorParameters: instantiated.parameters,
     privateGrading: issuePlan.privateGrading,
     ...(issuePlan.toolPayload || {}),
-  };
+  });
   const issued = await db.runTransaction(async (transaction) => {
     const freshSnapshot = await transaction.get(sessionRef);
     const fresh = assertStudentExamSession(freshSnapshot, studentId);
@@ -15933,10 +15961,22 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
     transaction.set(sessionRef, next);
     return next;
   });
-  return { questionInstance: secureExamPublicQuestion(issued.currentQuestion), draftResponse: issued.currentQuestion?.draftResponse || null, session: secureExam.publicSession(issued) };
+  return { questionInstance: await secureExamPublicQuestion(issued.currentQuestion, { mode: runtimeMode }), draftResponse: secureItems.publicDraft(issued.currentQuestion?.draftResponse), session: secureExam.publicSession(issued) };
 });
 
-function sanitizeSecureExamDraft(responsePayload, supportUsage) {
+/*
+ * A secure response or draft, as the server will store it.
+ *
+ * `responses` are typed field answers; `toolState` is the regression panel's
+ * calculator work; `rawJson` is a Rich Tool's serialized construction — the
+ * student's graph, intervals, final relation, placement state — bounded and
+ * stripped of any verdict the browser attached. `workspaceDraftsJson` is the
+ * tool's own internal draft, kept ONLY on an open item's draft so a reload on
+ * another device reopens the same construction; it is never part of a
+ * recorded response. Both JSON fields are strings because Firestore cannot
+ * hold an array inside an array, and tool work is full of coordinate pairs.
+ */
+async function sanitizeSecureExamDraft(responsePayload, supportUsage, { draftKey = null, includeWorkspaceDrafts = false } = {}) {
   const { sanitizeSecureExamToolDraft } = require("./lib/secureExamToolDraft");
   const toolState = sanitizeSecureExamToolDraft(responsePayload?.toolState);
   const source = responsePayload?.responses && typeof responsePayload.responses === "object" && !Array.isArray(responsePayload.responses) ? responsePayload.responses : {};
@@ -15946,9 +15986,16 @@ function sanitizeSecureExamDraft(responsePayload, supportUsage) {
     if (id) responses[id] = String(value ?? "").slice(0, 2000);
   });
   if (JSON.stringify(responses).length > 10000) throw new HttpsError("invalid-argument", "Secure exam draft is too large.");
+  let toolFields = {};
+  try {
+    toolFields = await secureItems.storedToolFields(responsePayload, { draftKey, includeWorkspaceDrafts });
+  } catch (error) {
+    if (error?.code === "raw_too_large") throw new HttpsError("invalid-argument", "This answer is too large to record. Remove some work and try again.");
+    throw error;
+  }
   const sourceSupport = supportUsage && typeof supportUsage === "object" ? supportUsage : {};
   return {
-    responsePayload: { responses, ...(toolState ? { toolState } : {}) },
+    responsePayload: { responses, ...(toolState ? { toolState } : {}), ...toolFields },
     supportUsage: {
       accommodations: Array.isArray(sourceSupport.accommodations) ? sourceSupport.accommodations.map(String).slice(0, 20) : [],
       modifications: Array.isArray(sourceSupport.modifications) ? sourceSupport.modifications.map(String).slice(0, 20) : [],
@@ -15964,7 +16011,11 @@ exports.saveSecureExamDraft = onCall(async (request) => {
   const examSessionId = secureExamSessionId(request);
   const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
   if (!questionInstanceId) throw new HttpsError("invalid-argument", "questionInstanceId is required.");
-  const draft = sanitizeSecureExamDraft(request.data?.responsePayload, request.data?.supportUsage);
+  // Only the open item's own workspace drafts are accepted (secureItemDraftKey).
+  const draft = await sanitizeSecureExamDraft(request.data?.responsePayload, request.data?.supportUsage, {
+    draftKey: await secureItems.examItemDraftKey(examSessionId, questionInstanceId),
+    includeWorkspaceDrafts: true,
+  });
   const db = getFirestore();
   const ref = db.collection("examSessions").doc(examSessionId);
   await db.runTransaction(async (transaction) => {
@@ -16000,10 +16051,18 @@ exports.submitSecureExamResponse = onCall(async (request) => {
     assertExamInProgress(session);
     const current = session.currentQuestion;
     if (!current || current.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer active.");
-    // Awaited: `gradeResponse` became async when scalar equivalence moved into
-    // the shared ESM module. Reading `.isCorrect` off the un-awaited promise
-    // marked every secure-exam answer wrong and wrote an undefined score.
-    const grading = await mathPath.gradeResponse(current.privateGrading, request.data?.responsePayload || {});
+    // ONE GRADING AUTHORITY for field and Rich Tool items alike: a tool item is
+    // graded by its Path Tool Contract grader on the student's bounded raw work
+    // (it used to reach the FIELD grader, which has no fields for it and scored
+    // every answer 0). Nothing the browser claims about correctness is read.
+    const grading = await secureItems.gradeIssuedItem(current, request.data?.responsePayload || {});
+    // Work that is not shaped like an answer to this item is an interface
+    // problem ("complete the construction"), not a wrong answer: it is refused
+    // before anything is recorded, so the student's one attempt is not spent
+    // on a half-built graph. It says nothing about correctness.
+    if (grading.rejected) {
+      throw new HttpsError("invalid-argument", grading.detail || "This answer is not complete yet. Finish your work in the tool, then record it.");
+    }
     const now = Date.now();
     const completedQuestions = Number(session.summary?.completedQuestions || 0) + 1;
     const correctQuestions = Number(session.summary?.correctQuestions || 0) + (grading.isCorrect ? 1 : 0);
@@ -16013,10 +16072,12 @@ exports.submitSecureExamResponse = onCall(async (request) => {
       calculatorUsed: Boolean(request.data.supportUsage.calculatorUsed),
       teacherAssisted: Boolean(request.data.supportUsage.teacherAssisted),
     } : {};
-    const safeResponsePayload = sanitizeSecureExamDraft(request.data?.responsePayload, safeSupport).responsePayload;
+    const safeResponsePayload = (await sanitizeSecureExamDraft(request.data?.responsePayload, safeSupport)).responsePayload;
     const responseRecord = {
       questionInstanceId,
       bankQuestionId: current.bankQuestionId,
+      // Which Rich Tool produced the work, so released review can say so.
+      pathToolId: current.pathToolId || null,
       alignmentKeys: current.alignmentKeys || [],
       questionType: current.questionType,
       familyId: current.familyId,
@@ -16032,7 +16093,9 @@ exports.submitSecureExamResponse = onCall(async (request) => {
       // Stored server-side while feedback is held. `publicSession` strips the
       // whole responses map, and `publicReview` releases only this sanitized
       // question/response after an authenticated teacher releases feedback.
-      questionSnapshot: mathPath.buildSanitizedQuestion(current, current),
+      // The snapshot keeps the item's allowlisted tool payload, so released
+      // review can show which tool the work was built in.
+      questionSnapshot: secureItems.storableItem(await reviewSnapshotOf(current, session)),
       responsePayload: safeResponsePayload,
       submittedAt: now,
     };
@@ -16089,15 +16152,32 @@ exports.recordSecureExamIntegrityEvent = onCall(async (request) => {
   });
 });
 
+/** The released-review snapshot of an issued item: public material only. */
+async function reviewSnapshotOf(storedCurrent, session) {
+  const current = secureItems.readStoredItem(storedCurrent);
+  const mode = await secureItems.runtimeModeForSession(session);
+  return mathPath.buildSanitizedQuestion(current, {
+    questionInstanceId: current.questionInstanceId,
+    attemptsAllowed: current.attemptsAllowed,
+    attemptsUsed: current.attemptsUsed,
+    toolPayload: await secureItems.toolPayloadForMode(current, mode),
+  });
+}
+
 async function applyOpenSecureExamDraft(session, now) {
   const current = session.currentQuestion;
   const draft = current?.draftResponse;
-  const responses = draft?.responsePayload?.responses && typeof draft.responsePayload.responses === "object" ? draft.responsePayload.responses : {};
-  if (!current || !Object.values(responses).some((value) => String(value ?? "").trim())) return session;
-  const grading = await mathPath.gradeResponse(current.privateGrading, draft.responsePayload);
+  // A typed field answer OR a Rich Tool construction is work worth finalizing.
+  if (!current || !(await secureItems.payloadHasWork(draft?.responsePayload))) return session;
+  // The open item's workspace drafts were only ever a way back to the screen.
+  const { workspaceDraftsJson: _workspaceDrafts, ...recordedPayload } = draft.responsePayload || {};
+  // Finalizing records whatever was saved, complete or not: an unfinished
+  // construction is graded as it stands (a rejected shape scores 0).
+  const grading = await secureItems.gradeIssuedItem(current, recordedPayload);
   const responseRecord = {
     questionInstanceId: current.questionInstanceId,
     bankQuestionId: current.bankQuestionId,
+    pathToolId: current.pathToolId || null,
     alignmentKeys: current.alignmentKeys || [],
     questionType: current.questionType,
     familyId: current.familyId,
@@ -16107,8 +16187,8 @@ async function applyOpenSecureExamDraft(session, now) {
     planWeight: current.planWeight ?? null,
     grading: { score: grading.score, isCorrect: grading.isCorrect },
     supportUsage: draft.supportUsage || {},
-    questionSnapshot: mathPath.buildSanitizedQuestion(current, current),
-    responsePayload: draft.responsePayload || { responses: {} },
+    questionSnapshot: secureItems.storableItem(await reviewSnapshotOf(current, session)),
+    responsePayload: Object.keys(recordedPayload).length ? recordedPayload : { responses: {} },
     submittedAt: now,
     finalizedFromAutosave: true,
   };
@@ -16484,12 +16564,31 @@ function blueprintFamilyIds(blueprint) {
  */
 async function testCycleFamilyIssuability(families) {
   const verdicts = {};
+  const generation = await mathPath.pathGeneration();
+  const { secureTools } = await secureItems.sharedModules();
   for (const family of families) {
     const id = String(family?.id || family?.familyId || "").trim();
     if (!id) continue;
     // eslint-disable-next-line no-await-in-loop
     const plan = await mathPath.buildTemplateIssuePlan(family, { samples: 4 });
-    verdicts[id] = { issuable: plan.issuable === true, reason: plan.reason || null };
+    // "Can it be graded?" and "can it be TAKEN securely?" are two questions.
+    // The second is answered from generated instances, because a generator
+    // can change the tool between variants and the student gets an instance.
+    const generative = generation.hasPathGenerator(family) || generation.hasPathVariants(family);
+    // Every variant, not only the ones four random draws reach: issue time
+    // picks the variant ranked best for the target's DOK and band, which the
+    // random samples can miss (35 of 213 Algebra I variant cells did).
+    const perVariant = generation.hasPathVariants(family)
+      ? generation.effectivePathVariants(family).map((variant, index) => generation.generatePathInstance(variant.template, `certify-variant-${index}`).question)
+      : [];
+    const instances = generative
+      ? [...generation.samplePathInstances(family, 4).map((entry) => entry.question), ...perVariant].filter(Boolean)
+      : [family];
+    verdicts[id] = {
+      issuable: plan.issuable === true,
+      reason: plan.reason || null,
+      secure: secureTools.certifySecureFamily(family, { instances }),
+    };
   }
   return verdicts;
 }
@@ -17255,7 +17354,9 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
   if (open) {
     return {
       success: true,
-      questionInstance: mathPath.buildSanitizedQuestion(open, open),
+      // The same Rich Tool the Test used, under the Corrections policy: hints
+      // and immediate feedback on, the answer still on the server.
+      questionInstance: await secureItems.publicItem(open, { mode: "corrections" }),
       attemptsAllowed: open.attemptsAllowed,
       attemptsUsed: Number(open.attemptsUsed || 0),
       hintsAllowed: true,
@@ -17274,11 +17375,20 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
    * minted fresh here and could never collide with the exam's, which is why
    * checking them would be a test that can only pass.
    */
-  const families = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);
+  const declaredFamilies = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);
+  const { secureTools: correctionTools } = await secureItems.sharedModules();
   const attemptIndex = Number(target.correctResponses || 0) + Number(stored.issuedCounts?.[correctionId] || 0);
+  // Approved families only, the student's Test tool first, rotating per item
+  // (orderCorrectionFamilies says why).
+  const families = shared.corrections.orderCorrectionFamilies({
+    families: declaredFamilies,
+    testToolIds: target.testToolIds || [],
+    toolOf: (family) => correctionTools.resolveSecureToolId(family) || "fields",
+    attemptIndex,
+  });
   let issued = null;
   for (let offset = 0; offset < Math.max(1, families.length); offset += 1) {
-    const family = families[(attemptIndex + offset) % Math.max(1, families.length)];
+    const family = families[offset];
     if (!family) break;
     const questionInstanceId = mathPath.runtimeId("correction");
     // eslint-disable-next-line no-await-in-loop
@@ -17291,7 +17401,14 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
     // eslint-disable-next-line no-await-in-loop
     const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
     if (!issuePlan.issuable) continue;
-    issued = {
+    // A family whose tool is not certified for Corrections is skipped for the
+    // next parallel family, never delivered as a downgraded text box.
+    // eslint-disable-next-line no-await-in-loop
+    const certification = await secureItems.certifyItem(instantiated.question, { mode: "corrections" });
+    if (!certification.compatible) continue;
+    // Stored on the correction plan with its tool fields encoded (see
+    // secureItemStorage): arrays of arrays cannot be stored.
+    issued = secureItems.storableItem({
       ...instantiated.question,
       bankQuestionId: family.id,
       familyId: family.id,
@@ -17302,7 +17419,7 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
       attemptsUsed: 0,
       privateGrading: issuePlan.privateGrading,
       ...issuePlan.toolPayload,
-    };
+    });
     break;
   }
   if (!issued) throw new HttpsError("failed-precondition", "No parallel practice item could be generated for this correction.");
@@ -17323,7 +17440,7 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
 
   return {
     success: true,
-    questionInstance: mathPath.buildSanitizedQuestion(active, active),
+    questionInstance: await secureItems.publicItem(active, { mode: "corrections" }),
     attemptsAllowed: CORRECTION_ATTEMPTS_PER_QUESTION,
     attemptsUsed: Number(active.attemptsUsed || 0),
     hintsAllowed: true,
@@ -17365,7 +17482,12 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
   // Graded once, outside the transaction; the transaction below re-checks that
   // this exact question is still open before it records anything, so a double
   // click or a second tab cannot credit the same answer twice.
-  const grading = await mathPath.gradeResponse(openForGrading.privateGrading, request.data?.responsePayload || {});
+  const grading = await secureItems.gradeIssuedItem(openForGrading, request.data?.responsePayload || {});
+  // An unfinished construction is told so, and does not spend one of the
+  // three tries — exactly as a secure item refuses it.
+  if (grading.rejected) {
+    throw new HttpsError("invalid-argument", grading.detail || "Finish your work in the tool, then check it.");
+  }
   const now = Date.now();
 
   const applied = await db.runTransaction(async (transaction) => {
@@ -17428,10 +17550,34 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     });
   }
 
+  /*
+   * THE INSTRUCTION, RELEASED THE WAY MY MATH PATH RELEASES IT.
+   *
+   * Corrections is where help is the point, so a miss gets the item's own
+   * authored feedback (a specific misconception message where the answer
+   * matches one), a hint from the SECOND miss on, and — only once this
+   * parallel item is closed and a fresh one will replace it — its worked
+   * review. Never the secure Test item: this is a parallel instance.
+   */
+  const support = await mathPath.attemptSupport({
+    support: await mathPath.buildPrivateSupport(openForGrading),
+    attemptNumber: applied.attemptsUsed,
+    attemptsAllowed: Number(openForGrading.attemptsAllowed || CORRECTION_ATTEMPTS_PER_QUESTION),
+    isCorrect: grading.isCorrect === true,
+    questionFinalized: applied.questionClosed,
+    responsePayload: request.data?.responsePayload || null,
+  });
+
   return {
     success: true,
     isCorrect: grading.isCorrect === true,
     score: grading.score,
+    // Per-part verdicts: Corrections is instructional, so a multi-part tool
+    // item may colour the parts the student still has to fix.
+    parts: grading.parts,
+    feedbackMessage: support?.feedback?.message || null,
+    hint: support?.support?.hint || null,
+    solutionReview: applied.questionClosed ? (support?.solutionReview || null) : null,
     attemptsUsed: applied.attemptsUsed,
     attemptsRemaining: applied.attemptsRemaining,
     questionClosed: applied.questionClosed,
@@ -17484,6 +17630,8 @@ async function ensureRetestSession(db, { assignmentId, assignment, policy, bluep
     attempt: Number(record.retest.attempt || 1),
     avoidFamilyIds: generated.audit.avoidFamilyIds,
     avoidInstanceIds: generated.audit.avoidInstanceIds,
+    // A missed graphing skill is retested on the graphing tool.
+    preferredToolsByTarget: shared.retest.retestToolPreferences({ profile, retestBlueprint: generated.blueprint }),
   });
   if (shared.issuance.planRequiresLiveGeneration(plan)) return null;
 
@@ -18219,7 +18367,7 @@ async function syncTestCycleSessionState(db, session) {
  * later lets the corrections algorithm join evidence to blueprint slots and
  * lets the retest audit prove it reused nothing.
  */
-async function issueCourseTestQuestion(db, { sessionRef, session, studentId }) {
+async function issueCourseTestQuestion(db, { sessionRef, session, studentId, runtimeMode = "secureTest" }) {
   const shared = await testCycleLib.shared();
   const plan = session.issuancePlan || {};
   const completedSlotIds = Object.values(session.responses || {})
@@ -18240,8 +18388,17 @@ async function issueCourseTestQuestion(db, { sessionRef, session, studentId }) {
   if (!instantiated.question) throw new HttpsError("failed-precondition", "This secure exam item could not be generated.");
   const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
   if (!issuePlan.issuable) throw new HttpsError("failed-precondition", "This secure exam item could not be graded securely.");
+  // Fail closed on an uncertified tool. Preflight refuses to publish one, so
+  // reaching here means the bank changed under a published Test — the student
+  // is told the item cannot be delivered, never handed a degraded text box.
+  const certification = await secureItems.certifyItem(instantiated.question, { mode: runtimeMode });
+  if (!certification.compatible) {
+    console.error("secure_item_not_certified", { familyId: entry.familyId, toolId: certification.toolId, mode: runtimeMode });
+    throw new HttpsError("failed-precondition", "This secure item uses a tool that is not certified for secure delivery. Ask your teacher.");
+  }
 
-  const currentQuestion = {
+  // Stored with its tool fields encoded: arrays of arrays cannot be stored.
+  const currentQuestion = secureItems.storableItem({
     ...instantiated.question,
     bankQuestionId: family.id,
     familyId: entry.familyId,
@@ -18259,7 +18416,7 @@ async function issueCourseTestQuestion(db, { sessionRef, session, studentId }) {
     generatorParameters: instantiated.parameters,
     privateGrading: issuePlan.privateGrading,
     ...issuePlan.toolPayload,
-  };
+  });
 
   const issued = await db.runTransaction(async (transaction) => {
     const freshSnapshot = await transaction.get(sessionRef);
@@ -21978,6 +22135,12 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
     attempt: draw,
   });
   const familiesById = new Map(families.map((family) => [String(family.id), family]));
+  // Preview runs under the SAME capability policy a student's Test (or Retest)
+  // does — the point is to see what they will see, Rich Tools included.
+  // ...or, for the Corrections preview, the Corrections policy a correcting
+  // student works under (hints and an immediate verdict on).
+  const requestedStage = String(request.data?.stage || "");
+  const runtimeMode = requestedStage === "retest" ? "secureRetest" : requestedStage === "corrections" ? "corrections" : "secureTest";
   const items = [];
   for (const entry of plan.entries.slice(0, TEST_CYCLE_PREVIEW_MAX_ITEMS)) {
     const family = familiesById.get(String(entry.familyId));
@@ -21996,6 +22159,8 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
     }
     // eslint-disable-next-line no-await-in-loop
     const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
+    // eslint-disable-next-line no-await-in-loop
+    const certification = await secureItems.certifyItem(instantiated.question, { mode: runtimeMode });
     const questionInstanceId = `preview-${entry.ordinal}`;
     const issued = {
       ...instantiated.question,
@@ -22007,9 +22172,14 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
     items.push({
       ordinal: entry.ordinal,
       // What a STUDENT receives: the same sanitizer as `issueSecureExamQuestion`.
-      questionInstance: secureExamPublicQuestion(issued),
-      gradable: issuePlan.issuable === true,
-      // What only the TEACHER sees: which blueprint slot this fills.
+      // An item the secure runtime could not deliver is shown to the teacher
+      // as the error a student would meet, not rendered some other way.
+      // eslint-disable-next-line no-await-in-loop
+      questionInstance: certification.compatible ? await secureExamPublicQuestion(issued, { mode: runtimeMode }) : null,
+      ...(certification.compatible ? {} : { error: certification.reason }),
+      gradable: issuePlan.issuable === true && certification.compatible,
+      // What only the TEACHER sees: which blueprint slot this fills, and the
+      // secure rendering contract of the item that filled it.
       slot: {
         targetId: entry.targetId,
         alignmentKey: entry.alignmentKey,
@@ -22019,6 +22189,10 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
         anchor: entry.anchor === true,
         weight: entry.weight,
         familyId: entry.familyId,
+        toolId: certification.toolId || null,
+        toolLabel: certification.label,
+        secureCompatible: certification.compatible,
+        devices: certification.devices || null,
       },
       previewItemId: encodePreviewItem({ a: assignmentId, f: entry.familyId, s: entry.seedKey, d: entry.dok, b: entry.difficultyBand }),
     });
@@ -22067,8 +22241,18 @@ exports.gradeTestCyclePreviewItem = onCall(async (request) => {
   if (!instantiated.question) throw new HttpsError("failed-precondition", "That preview item could not be regenerated.");
   const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
   if (!issuePlan.issuable) throw new HttpsError("failed-precondition", "That item cannot be graded securely.");
-  const grading = await mathPath.gradeResponse(issuePlan.privateGrading, request.data?.responsePayload || {});
-  return { success: true, isCorrect: grading.isCorrect === true, score: Number(grading.score) || 0, writes: "none" };
+  // The same authority a student's secure answer meets, Rich Tools included.
+  const grading = await secureItems.gradeItem(issuePlan.privateGrading, request.data?.responsePayload || {});
+  return {
+    success: true,
+    isCorrect: grading.isCorrect === true,
+    score: Number(grading.score) || 0,
+    // An unfinished construction would be refused for a student before it was
+    // recorded; the teacher is told the same thing.
+    incomplete: grading.rejected === true,
+    detail: grading.rejected ? grading.detail : null,
+    writes: "none",
+  };
 });
 
 /*

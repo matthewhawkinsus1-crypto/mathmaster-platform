@@ -12,6 +12,12 @@
  *   4. Stage leakage: secure Test content authored as ordinary V5 questions,
  *      which ships it to the client and puts it in Review's own assignment.
  *   5. An answer key serialized into the student-visible assignment document.
+ *   6. A secure item the student cannot actually TAKE: a family whose Rich
+ *      Tool has not been certified for Secure Test, Retest or Corrections
+ *      mode, or one that renders with a different tool from the one its
+ *      blueprint target requires. "Gradable" was never the same question as
+ *      "can be answered securely" — a graphing family passed check 3 and then
+ *      reached the student as a bare text box.
  *
  * Errors block publication. Warnings do not — they are the things a teacher
  * should look at, not the things that break a test.
@@ -21,7 +27,14 @@
  * uses), so this module never has to import a generator or reach Firestore.
  */
 
-import { normalizeTestBlueprint, targetFamilyCoverage } from './testCycleBlueprint.mjs';
+import { indexApprovedFamilies, normalizeTestBlueprint, targetFamilyCoverage } from './testCycleBlueprint.mjs';
+import {
+  SECURE_CYCLE_MODES,
+  certifySecureFamily,
+  resolveSecureToolId,
+  secureItemCaveats,
+  secureToolLabel,
+} from './secureToolCertification.mjs';
 import { declaresTestCycle, defaultTestCyclePolicy, normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
 import { resolveRetestQuestionCount } from './testCycleRetest.mjs';
 
@@ -33,7 +46,69 @@ export const TEST_CYCLE_DIAGNOSTIC = Object.freeze({
   TEST_PHASE_MISSING: 'TEST_CYCLE_TEST_PHASE_MISSING',
   POLICY_MISSING: 'TEST_CYCLE_POLICY_MISSING',
   SECURE_MANIFEST_NOT_FOUND: 'TEST_CYCLE_SECURE_MANIFEST_NOT_FOUND',
+  TOOL_NOT_CERTIFIED: 'TEST_CYCLE_TOOL_NOT_CERTIFIED',
+  TOOL_REQUIREMENT_MISMATCH: 'TEST_CYCLE_TOOL_REQUIREMENT_MISMATCH',
 });
+
+const MODE_WORDS = Object.freeze({
+  secureTest: 'Secure Test',
+  secureRetest: 'Secure Retest',
+  corrections: 'Corrections',
+});
+
+/*
+ * THE SECURE RENDERING CONTRACT OF EVERY BLUEPRINT TARGET.
+ *
+ * For each target: the tool it requires (if it names one), the tool every
+ * approved family actually renders with, and whether each is certified for
+ * every mode the cycle will deliver it in. `familySecure` is what the server
+ * learned by certifying sampled INSTANCES (a generator can change the tool
+ * between variants); without it the family document is certified as it
+ * stands, which is what a pure caller and the tests do.
+ */
+const targetSecureRendering = ({ target, families, approved, familyIssuability, modes, calculatorMode }) => {
+  const byId = new Map(list(families).map((family) => [clean(family?.id || family?.questionId || family?.familyId), family]));
+  const requiredToolId = target.toolId ? resolveSecureToolId({ type: target.toolId }) : null;
+  // Only a family the planner can draw is judged — the same approved set
+  // coverage and issuance use. A retired or unvalidated family named by the
+  // blueprint is never issued, so it must not block the Test either.
+  const familyRows = target.familyIds
+    .filter((familyId) => byId.has(familyId) && approved.has(familyId))
+    .map((familyId) => {
+      const family = byId.get(familyId);
+      const secure = familyIssuability?.[familyId]?.secure || certifySecureFamily(family);
+      return {
+        familyId,
+        toolIds: list(secure.toolIds),
+        labels: list(secure.labels),
+        modes: secure.modes || {},
+        devices: secure.devices || {},
+        caveats: secureItemCaveats(family, { blueprintCalculatorMode: calculatorMode }),
+      };
+    });
+  const toolIds = [...new Set(familyRows.flatMap((row) => row.toolIds))];
+  return {
+    targetId: target.targetId,
+    alignmentKey: target.alignmentKey,
+    label: target.label,
+    dok: target.dok,
+    difficultyBand: target.difficultyBand,
+    representation: target.representation,
+    questionCount: target.questionCount,
+    requiredToolId,
+    requiredToolLabel: requiredToolId ? secureToolLabel(requiredToolId) : null,
+    toolIds,
+    toolLabels: toolIds.map((toolId) => (toolId === 'fields' ? 'Response fields' : secureToolLabel(toolId))),
+    // Every mode this cycle delivers the target in, and whether every family
+    // filling it can be delivered there.
+    modes: Object.fromEntries(modes.map((mode) => [mode, familyRows.length > 0 && familyRows.every((row) => row.modes?.[mode]?.compatible === true)])),
+    devices: ['chromebook', 'ipad', 'phone'].reduce((all, device) => ({
+      ...all,
+      [device]: familyRows.length > 0 && familyRows.every((row) => row.devices?.[device] === true),
+    }), {}),
+    families: familyRows,
+  };
+};
 
 const diagnostic = (code, message) => `${code}: ${message}`;
 
@@ -154,6 +229,21 @@ export const preflightTestCycle = ({
   // 1 + 2. Family coverage for the secure Test, and parallel coverage for the
   // Retest generated from it.
   const coverage = targetFamilyCoverage(normalizedBlueprint, families);
+  // 6. The secure rendering contract, per target, for every mode delivered.
+  const deliveredModes = resolved.externalAssessment
+    // An external-original cycle's one secure session is the retest, and it
+    // has no Corrections.
+    ? SECURE_CYCLE_MODES.filter((mode) => mode !== 'corrections')
+    : [...SECURE_CYCLE_MODES];
+  const approvedFamilies = indexApprovedFamilies(families);
+  const secureRendering = normalizedBlueprint.targets.map((target) => targetSecureRendering({
+    target,
+    families,
+    approved: approvedFamilies,
+    familyIssuability,
+    modes: deliveredModes,
+    calculatorMode: normalizedBlueprint.calculatorMode,
+  }));
   coverage.forEach((entry) => {
     if (!entry.availableFamilies) {
       errors.push(`Target ${entry.targetId} (${entry.alignmentKey || 'unaligned'}) names no approved, validated generator family.`);
@@ -184,6 +274,42 @@ export const preflightTestCycle = ({
       errors.push(`Family ${familyId} cannot be privately graded on the server (${verdict?.reason || 'no_gradable_definition'}) and must not be issued in a secure Test.`);
     }
   });
+
+  // 6. Can every secure question be TAKEN with the tool it needs?
+  secureRendering.forEach((entry) => {
+    entry.families.forEach((row) => {
+      // One sentence per family, naming every mode it cannot be delivered in.
+      const failing = deliveredModes.filter((mode) => row.modes?.[mode]?.compatible !== true);
+      if (failing.length) {
+        const reasons = [...new Set(failing.flatMap((mode) => list(row.modes?.[mode]?.reasons)))];
+        const modeWords = failing.map((mode) => MODE_WORDS[mode] || mode);
+        const modeList = modeWords.length > 1 ? `${modeWords.slice(0, -1).join(', ')} or ${modeWords.at(-1)}` : modeWords[0];
+        errors.push(diagnostic(
+          TEST_CYCLE_DIAGNOSTIC.TOOL_NOT_CERTIFIED,
+          `Target ${entry.alignmentKey || entry.targetId} contains a ${row.labels.join(' / ') || 'Rich Tool'} family (${row.familyId}) that has not been certified for ${modeList} mode${reasons.length ? `: ${reasons.join(' ')}` : '.'}`,
+        ));
+      }
+      if (entry.requiredToolId) {
+        const mismatched = row.toolIds.filter((toolId) => toolId !== entry.requiredToolId);
+        if (mismatched.length) {
+          errors.push(diagnostic(
+            TEST_CYCLE_DIAGNOSTIC.TOOL_REQUIREMENT_MISMATCH,
+            `Target ${entry.alignmentKey || entry.targetId} requires ${entry.requiredToolLabel}, but family ${row.familyId} renders with ${mismatched.map((toolId) => (toolId === 'fields' ? 'response fields' : secureToolLabel(toolId))).join(' / ')}. Students would not be assessed with the same tool.`,
+          ));
+        }
+      }
+      row.caveats.forEach((caveat) => warnings.push(`Target ${entry.alignmentKey || entry.targetId}: ${caveat}`));
+    });
+    if (!entry.requiredToolId && entry.toolIds.length > 1) {
+      warnings.push(
+        `Target ${entry.alignmentKey || entry.targetId} draws on families that render with different tools (${entry.toolLabels.join(', ')}), so two students may answer it with different tools. Set the target's tool to make it part of equivalence.`,
+      );
+    }
+  });
+  const secureQuestionCount = normalizedBlueprint.totalQuestions;
+  const secureRenderingPassed = secureRendering.every((entry) => entry.families.length > 0
+    && deliveredModes.every((mode) => entry.modes[mode] === true)
+    && (!entry.requiredToolId || entry.families.every((row) => row.toolIds.every((toolId) => toolId === entry.requiredToolId))));
 
   // 4. Stage leakage.
   const sections = list(assignment?.sections);
@@ -233,8 +359,16 @@ export const preflightTestCycle = ({
       { id: 'privateGrading', label: 'Every declared family can be privately graded on the server', passed: declaredFamilyIds.every((familyId) => issuability[familyId]?.issuable === true) },
       { id: 'stageIsolation', label: 'No secure stage is authored as client-visible content', passed: !sections.some((section) => TEST_CYCLE_FORBIDDEN_ROLES.includes(clean(section?.role).toLowerCase())) },
       { id: 'noSerializedAnswerKeys', label: 'No secure answer key is serialized to student clients', passed: leaks.length === 0 },
+      {
+        id: 'secureRendering',
+        label: secureRenderingPassed
+          ? `All ${secureQuestionCount} secure question${secureQuestionCount === 1 ? '' : 's'} can render using their required MathMaster tools`
+          : 'Every secure question can render using its required MathMaster tool',
+        passed: secureRenderingPassed,
+      },
     ],
     coverage,
+    secureRendering,
     retestQuestionCount,
     contract,
   };

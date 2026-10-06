@@ -315,6 +315,36 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
               {(preflight.warnings || []).map((warning) => (
                 <p key={warning} style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--mm-warning-text)' }}>{warning}</p>
               ))}
+              {/* THE BLUEPRINT'S SECURE RENDERING CONTRACT. Not only standards and
+                  counts: which MathMaster tool each target is answered with, and
+                  whether that tool is certified for every mode it will meet —
+                  so a problem is found here, not on Question 7. Stacked rows,
+                  never a wide table: no sideways scrolling on a phone. */}
+              {Array.isArray(preflight.secureRendering) && preflight.secureRendering.length > 0 && (
+                <details style={{ marginTop: 9 }}>
+                  <summary style={{ cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: 'var(--mm-text)' }}>
+                    Blueprint targets and their tools ({preflight.secureRendering.length})
+                  </summary>
+                  <ul style={{ margin: '7px 0 0', padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
+                    {preflight.secureRendering.map((target) => {
+                      const certified = Object.values(target.modes || {}).every(Boolean);
+                      return (
+                        <li key={target.targetId} data-blueprint-target={target.targetId} style={{ padding: '7px 9px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>
+                          <strong>{target.alignmentKey || target.targetId}</strong> · {target.questionCount} question{target.questionCount === 1 ? '' : 's'} · DOK {target.dok} · difficulty {target.difficultyBand} · {target.representation}
+                          <div>
+                            Tool: {(target.toolLabels || []).join(', ') || '—'}
+                            {target.requiredToolLabel ? ` (required: ${target.requiredToolLabel})` : ''}
+                          </div>
+                          <div style={{ color: certified ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>
+                            {certified ? '✓' : '✗'} {Object.entries(target.modes || {}).map(([mode, ok]) => `${{ secureTest: 'Test', secureRetest: 'Retest', corrections: 'Corrections' }[mode] || mode} ${ok ? '✓' : '✗'}`).join(' · ')}
+                            {' · '}{['chromebook', 'ipad', 'phone'].map((device) => `${{ chromebook: 'Chromebook', ipad: 'iPad', phone: 'Phone' }[device]} ${target.devices?.[device] ? '✓' : '—'}`).join(' · ')}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
+              )}
             </div>
           )}
 

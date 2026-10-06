@@ -6,7 +6,12 @@ const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta
 const engine = read('src/QuestionEngine.jsx');
 const app = read('src/App.jsx');
 const pathPlayer = read('src/components/student/PathSessionPlayer.jsx');
-const securePlayer = read('src/components/assessment/SecureExamQuestionPlayer.jsx');
+const securePlayerAdapter = read('src/components/assessment/SecureExamQuestionPlayer.jsx');
+// The secure player renders through the shared Rich Question Runtime: its
+// field items in FieldItem, its Rich Tool items in ToolItem (QuestionEngine).
+const secureRuntime = read('src/components/question/RichQuestionRuntime.jsx');
+const securePlayer = secureRuntime.slice(secureRuntime.indexOf('const FieldItem = ('), secureRuntime.indexOf('const ToolItem = ('));
+const secureToolItem = secureRuntime.slice(secureRuntime.indexOf('const ToolItem = ('), secureRuntime.indexOf('export default function RichQuestionRuntime'));
 const secureDashboard = read('src/components/assessment/StudentSecureExamDashboard.jsx');
 const secureReview = read('src/components/assessment/SecureExamReview.jsx');
 const functionSource = read('functions/index.js');
@@ -39,7 +44,11 @@ test('journeys 3 and 4: My Path distinguishes direct exam practice from a course
 // and fractions remain typeable. The student cannot leave the monitored shell through a dashboard
 // back button while the exam is live.
 test('journey 5: secure testing hides standards while preserving usable math and response controls', () => {
+  assert.match(securePlayerAdapter, /<RichQuestionRuntime\b/);
+  assert.ok(securePlayer.length > 200 && secureToolItem.length > 200, 'both secure renderers were found');
   assert.doesNotMatch(securePlayer, /StandardBadge/);
+  // A Rich Tool item hides the standard too: the engine is told not to show it.
+  assert.match(secureToolItem, /showStandardBadge=\{false\}/);
   assert.match(securePlayer, /<MathText as="h1"/);
   assert.match(securePlayer, /<PathQuestionStimulus stimulus=\{question\.stimulus\}/);
   assert.match(securePlayer, /type="text"/);

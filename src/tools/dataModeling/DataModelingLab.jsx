@@ -26,6 +26,7 @@ import {
   numberVisiblePanels,
 } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
+import { useHintsAllowed, useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
 
 const Field = ({ label, children }) => (
   <label style={{ display:'block', fontSize:13, color:'var(--mm-text-muted)', fontWeight:700 }}>
@@ -67,6 +68,19 @@ const FitStepper = ({ label, value, control, onChange }) => {
 
 const MODE_TASKS = {'full': 'Fit a line to the data, describe the association, choose the best model family, and make a prediction you can defend.', 'lineFit': 'Find the slope and intercept of a line that fits this data well.', 'linearFit': 'Use linear regression technology to write the line of best fit for the complete data set.', 'quadraticFit': 'Use quadratic regression technology to write a quadratic function that fits the complete data set.', 'exponentialFit': 'Use exponential regression technology to write an exponential function that fits the complete data set.', 'linearFitPrediction': 'Use regression technology to write a linear function that fits the data, then use your model to make the requested prediction.', 'quadraticFitPrediction': 'Use quadratic regression technology to write a quadratic function that fits the data, then use your model to make the requested prediction.', 'exponentialFitPrediction': 'Use exponential regression technology to write an exponential function that fits the data, then use your model to make the requested prediction.', 'squareRootFitPrediction': 'Use square-root regression technology to write y = a√(x-h)+k from the table, then use your model to make the requested prediction.', 'association': 'Describe the direction and strength of the association, and say what this data can justify.', 'correlation': 'Use statistical technology to calculate the correlation coefficient r, then interpret its direction and strength.', 'prediction': 'Use the model to predict a value, and say whether that prediction is interpolation or extrapolation.', 'modelCompare': 'Decide which model family fits this data best.'};
 const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals are small and evenly scattered.', 'Read the correlation to describe direction and strength.', 'Compare the model families, then predict and classify.'], 'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Watch the residual plot — you want it scattered around zero with no pattern.'], 'linearFit': ['Run linear regression on all observations.', 'Enter the regression slope m and intercept b.', 'Use the residual display to confirm the entered regression line matches the data.'], 'quadraticFit': ['Run quadratic regression on all observations.', 'Enter a, b, and c in y = ax² + bx + c.', 'Use the residual display to confirm the entered regression model matches the data.'], 'exponentialFit': ['Run exponential regression on all observations.', 'Enter a and base b in y = a(b)^x.', 'Use the residual display to confirm the entered regression model matches the data.'], 'linearFitPrediction': ['Run a linear regression on the data.', 'Enter the regression coefficients to write y = mx + b.', 'Use that model at the requested x-value and classify the prediction as interpolation or extrapolation.'], 'quadraticFitPrediction': ['Run a quadratic regression on the data.', 'Enter the regression coefficients to write y = ax² + bx + c.', 'Use that model at the requested x-value and classify the prediction.'], 'exponentialFitPrediction': ['Run an exponential regression on the data.', 'Enter the regression coefficients to write y = a(b)^x.', 'Use that model at the requested x-value and classify the prediction.'], 'squareRootFitPrediction': ['Run the square-root fit on the full table.', 'Enter a, h, and k in y = a√(x-h)+k.', 'Use the fitted model at the requested x-value and classify the prediction.'], 'association': ['Look at whether the points rise or fall from left to right.', 'Look at how tightly they cluster around a line.', 'Decide whether this data could show cause and effect, or only a relationship.'], 'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Use the sign and magnitude of r to interpret direction and strength.'], 'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Decide whether that x is inside or outside the observed data.'], 'modelCompare': ['Compare the residual error of each candidate.', 'Check that the shape is reasonable for what the data describes.', 'Select the best model and check.']};
+// Where hints are withheld (a secure Test or Retest), the steps say what to
+// do, never how to judge it: the judging is what those parts grade. Each of
+// these replaces a step that repeated a withheld teaching note — the residual
+// plot's ideal, how to read r, what interpolation means, how to choose a model.
+const SECURE_MODE_STEPS = {
+  'full': ['Adjust the slope and intercept to fit a line to the data.', 'Read the correlation and describe the association.', 'Compare the model families, then predict and classify.'],
+  'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Use the residual plot to judge your line.'],
+  'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Classify the direction and strength of the association.'],
+  'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Classify the prediction.'],
+  'modelCompare': ['Look at each candidate model against the data.', 'Select the best model.'],
+};
+// A host that names the final action ("Record answer") is the only check.
+const withoutCheckInvitation = (steps) => steps.map((step) => step.replace(/ and check\.$/, '.'));
 const HINTS = {'full': ['Work through the panels in order — each one builds on the last.', 'A good fit has residuals scattered above and below zero with no curve or pattern in them.', 'Correlation describes how tightly the points follow a line. It never proves that one variable causes the other.'], 'lineFit': ['Get the slope roughly right first, then slide the intercept to centre the line.', 'Slope is rise over run: pick two points far apart on the trend and compare how much y changes to how much x changes.', 'If the residual plot curves, a straight line is the wrong shape for this data — that is information, not failure.'], 'linearFit': ['Use the linear-regression command on the full data list.', 'Record both m and b from technology.', 'Do not replace regression with a line through two hand-picked points.'], 'quadraticFit': ['Use the quadratic-regression command on the full data list.', 'Record all three coefficients a, b, and c from technology.', 'Do not replace regression with a hand-fit through only three selected points.'], 'exponentialFit': ['Use exponential regression on the full data list.', 'Record both a and the multiplicative base b.', 'For decay the base should be between 0 and 1; for growth it should exceed 1.'], 'linearFitPrediction': ['Use the linear-regression feature of your approved technology; the model coefficients should come from the full data set, not two hand-picked points.', 'Write the complete function before predicting.', 'Use the x-value named in the task; changing the prediction target changes the question.'], 'quadraticFitPrediction': ['Use quadratic regression and record all three coefficients a, b and c.', 'A quadratic model needs the x² term, x term and constant even when a coefficient is near zero.', 'Substitute the requested x into the fitted quadratic, then decide whether that x lies inside or outside the observed range.'], 'exponentialFitPrediction': ['Use exponential regression and record both the initial factor a and multiplicative base b.', 'For decay, the fitted base should be between 0 and 1; for growth it should be greater than 1.', 'Use the requested x-value rather than choosing one of the observed data points.'], 'squareRootFitPrediction': ['Use the square-root regression feature on the complete table rather than selecting two convenient points.', 'Record all three fitted parameters a, h, and k in y = a√(x-h)+k.', 'The endpoint-anchored fit uses the smallest x-value as h and the endpoint output as k, then fits a from all remaining observations.'], 'association': ['Direction is about which way the cloud of points tilts.', 'Strength is about how close the points sit to a single line, not how steep that line is.', 'Observational data can only establish an association. Only a controlled experiment can establish cause and effect.'], 'correlation': ['Use the statistical correlation or linear-regression feature of your approved technology; do not estimate r from the picture.', 'The sign of r gives direction. The size of |r| describes how tightly the points follow a line.', 'Correlation can support an association claim, but correlation alone cannot establish cause and effect.'], 'prediction': ['Substitute your x into the model and compute the y it gives.', 'Interpolation means predicting inside the range of x-values you actually observed.', 'Extrapolation goes beyond the data, where the pattern may not hold — treat those predictions cautiously.'], 'modelCompare': ['Smaller residual error means the model is closer to the points on average.', 'RMSE punishes large misses more than MAE does, so a model with one big error will look worse under RMSE.', 'Also ask whether the shape makes sense: a model that fits well but predicts a negative quantity is still wrong.']};
 
 function ResidualPlot({ rows, xMin, xMax }) {
@@ -158,6 +172,17 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [squareRootH, setSquareRootH] = usePersistentToolState('squareRootH', startingModel.h ?? '');
   const [squareRootK, setSquareRootK] = usePersistentToolState('squareRootK', startingModel.k ?? '');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const submitActionLabel = useSubmitLabel('Check data model');
+  // The lab's teaching notes (how to read r, what a residual plot should look
+  // like, how to choose a model) answer parts it asks. They are hints: shown
+  // where hints are, withheld on a secure item.
+  const teachingNotes = useHintsAllowed();
+  const hostSubmitLabel = useHostSubmitLabel();
+  const guideSteps = teachingNotes
+    ? (MODE_STEPS[mode] || MODE_STEPS.full)
+    : (SECURE_MODE_STEPS[mode] || MODE_STEPS[mode] || SECURE_MODE_STEPS.full);
+  const taskSteps = hostSubmitLabel ? withoutCheckInvitation(guideSteps) : guideSteps;
 
   const studentPredict = useMemo(() => {
     if ((mode === 'quadraticFitPrediction' || mode === 'quadraticFit')) {
@@ -287,7 +312,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       badge="Algebra I / II · Data Modeling"
       widthProfile={visiblePanelCount >= 3 ? 'wide' : 'standard'}
     >
-      <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
+      <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={taskSteps} />
       <ToolGrid min={350}>
         <Panel title={`${panelNumbers.model} · Scatter plot and your model`}>
           <CoordinatePlane
@@ -437,11 +462,13 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               </select>
             </Field>
           ) : null}
-          <div style={{ marginTop:14, padding:12, borderRadius:10, background:'var(--mm-warning-bg)', color:'var(--mm-warning-text)', fontSize:13 }}>
-            {mode === 'correlation'
-              ? 'Interpret r by its sign (direction) and magnitude (strength).'
-              : 'A large |r| describes strength of linear association. It does not, by itself, prove causation.'}
-          </div>
+          {teachingNotes ? (
+            <div style={{ marginTop:14, padding:12, borderRadius:10, background:'var(--mm-warning-bg)', color:'var(--mm-warning-text)', fontSize:13 }}>
+              {mode === 'correlation'
+                ? 'Interpret r by its sign (direction) and magnitude (strength).'
+                : 'A large |r| describes strength of linear association. It does not, by itself, prove causation.'}
+            </div>
+          ) : null}
         </Panel> : null}
 
         {showResidualPanel ? <Panel title={`${panelNumbers.residual} · Residual evidence`}>
@@ -454,7 +481,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   <tbody>{studentResiduals.map((row, index)=><tr key={`${row.x}-${index}`}><td style={{padding:6,textAlign:'center'}}>{row.x}</td><td style={{textAlign:'center'}}>{row.y}</td><td style={{textAlign:'center'}}>{round(row.predicted,2)}</td><td style={{textAlign:'center'}}>{round(row.residual,2)}</td></tr>)}</tbody>
                 </table>
               </div>
-              <p style={{ color:'var(--mm-text-muted)', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
+              {teachingNotes ? <p style={{ color:'var(--mm-text-muted)', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p> : null}
             </div>
           ) : (
             <p style={{margin:0,color:'var(--mm-text-muted)'}}>Enter the complete fitted function first. Residual evidence will appear after your model can be evaluated.</p>
@@ -470,7 +497,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               </label>
             ))}
           </div>
-          <p style={{ color:'var(--mm-text-muted)', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p>
+          {teachingNotes ? <p style={{ color:'var(--mm-text-muted)', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p> : null}
         </Panel> : null}
 
         {showPredictionPanel ? <Panel title={`${panelNumbers.prediction} · ${asksPredictionType ? 'Prediction and reasonableness' : 'Prediction'}`}>
@@ -479,14 +506,14 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             <Field label="Predicted y"><input type="number" step="0.1" value={predictionY} onChange={(e)=>setPredictionY(e.target.value)} style={inputStyle}/></Field>
           </div>
           {asksPredictionType ? <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field> : null}
-          {asksPredictionType ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'var(--mm-surface-tint)', color:'var(--mm-text-muted)', fontSize:13 }}>
+          {asksPredictionType && teachingNotes ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'var(--mm-surface-tint)', color:'var(--mm-text-muted)', fontSize:13 }}>
             Interpolation predicts inside the observed x-range. Extrapolation goes beyond the data and should be treated more cautiously.
           </div> : null}
         </Panel> : null}
 
         <Panel title="Submit model reasoning">
           <p style={{ marginTop:0, color:'var(--mm-text-muted)' }}>Each part of your reasoning is graded separately, so getting some of it right still earns credit.</p>
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' }}>Check data model</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' }}>{submitActionLabel}</button>
           <HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} />
           {feedback ? (
             <div style={{ marginTop:14 }}>

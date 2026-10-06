@@ -72,6 +72,19 @@ export class ExamIntegrityLogger {
     this.emit(INTEGRITY_EVENT_TYPES.COPY_PASTE_ATTEMPT, { action: event.type });
   }
   handleContextMenu(event) {
+    /*
+     * A MENU THAT NEVER OPENED IS NOT AN ATTEMPT TO LEAVE THE TEST.
+     *
+     * The math editor and the calculator already cancel the context menu on
+     * their own fields — on an iPad or a touch Chromebook a long press there is
+     * how a student places the caret, and it fires `contextmenu`. Those events
+     * reach this document listener already `defaultPrevented`: no native menu
+     * was shown, nothing could be copied or searched, and counting them locked
+     * students out of Rich Tool items (three long presses in an algebra
+     * workspace reached the integrity threshold). A context menu the page did
+     * NOT already consume is still cancelled and still recorded.
+     */
+    if (event.defaultPrevented) return;
     event.preventDefault();
     this.emit(INTEGRITY_EVENT_TYPES.CONTEXT_MENU, {});
   }

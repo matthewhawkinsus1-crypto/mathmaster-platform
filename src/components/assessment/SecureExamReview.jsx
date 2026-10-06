@@ -3,10 +3,19 @@ import MathText from '../common/MathText.jsx';
 import StandardBadge from '../common/StandardBadge.jsx';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { getStudentSecureExamReview } from '../../services/secureExamService.js';
+import { describeToolWork, rawToolWorkOf, toolWorkLabel } from '../../platform/assessment/secureToolWorkSummary.js';
 
 const firstTeks = (item) => (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys.find((key) => String(key || '').toLowerCase().startsWith('texas:')) : null) || item?.questionSnapshot?.alignmentKey || '';
 
 const responseRows = (item) => {
+  // A Rich Tool answer is a construction, read back in the student's values.
+  const toolId = item?.pathToolId || item?.questionSnapshot?.pathToolId || null;
+  if (toolId) {
+    const rows = describeToolWork(toolId, rawToolWorkOf(item?.responsePayload));
+    return rows.length
+      ? rows.map((row) => ({ id: row.id, label: row.label, value: row.value }))
+      : [{ id: 'tool', label: 'Your response', value: `Your work in the ${toolWorkLabel(toolId)} was recorded.` }];
+  }
   const responses = item?.responsePayload?.responses && typeof item.responsePayload.responses === 'object'
     ? item.responsePayload.responses
     : {};

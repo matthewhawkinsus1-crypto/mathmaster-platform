@@ -35,11 +35,29 @@ const DEFAULT_RUNTIME = {
   // useReportToolWork.js). QuestionEngine turns it into the response a
   // deadline checkpoint carries; outside an assignment it is a no-op.
   reportWork: null,
+  // WHAT THE TOOL'S FINAL ACTION IS CALLED, WHEN THE HOST SAYS SO.
+  //
+  // On a secure Test the tool's "Check construction" does not check anything:
+  // it records the student's one answer and moves on, and the verdict is
+  // withheld until the teacher releases it. A button that says "Check" there
+  // invites a student to press it to see whether they are right — and lose
+  // the item. A secure host names the action ("Record answer"); null keeps
+  // each tool's own wording everywhere else.
+  submitLabel: null,
+  // WHETHER THE ACTIVITY WITHHOLDS VERDICTS, as the activity says it.
+  //
+  // `showImmediateFeedback` above is false for two different reasons: the
+  // activity withholds verdicts (a secure Test, a DOL before release), OR the
+  // tool is server-graded and has no answer key to judge with. A tool that
+  // judges from the student's own work (Step Algebra checks a move against the
+  // equation it was applied to) needs only the first: on Corrections and My
+  // Math Path practice it keeps its move coaching. Defaults to not withheld.
+  verdictsWithheld: false,
 };
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, verdictsWithheld = false, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
@@ -51,6 +69,8 @@ export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswer
     attemptOutcome: attemptOutcome && typeof attemptOutcome === 'object' ? attemptOutcome : null,
     attemptOutcomeSlots: attemptOutcomeSlots || null,
     reportWork: typeof reportWork === 'function' ? reportWork : null,
+    submitLabel: typeof submitLabel === 'string' && submitLabel.trim() ? submitLabel.trim() : null,
+    verdictsWithheld: verdictsWithheld === true,
   }}>
     {children}
   </ToolRuntimeContext.Provider>
@@ -64,6 +84,14 @@ export const useRevealAnswers = () => useContext(ToolRuntimeContext).revealAnswe
 
 // Convenience for every hint affordance. Defaults to allowed outside a provider.
 export const useHintsAllowed = () => useContext(ToolRuntimeContext).hintsAllowed !== false;
+
+// The label of a tool's final Check action: the host's (a secure "Record
+// answer") where one is set, the tool's own everywhere else.
+export const useSubmitLabel = (ownLabel) => useContext(ToolRuntimeContext).submitLabel || ownLabel;
+
+// The host's label alone (null when the tool keeps its own), for a tool whose
+// wording around that action — a panel title — must not say "Check" either.
+export const useHostSubmitLabel = () => useContext(ToolRuntimeContext).submitLabel || null;
 
 // The activity's hint recorder, or null. Defaults to null outside a provider.
 export const useHintUseReporter = () => useContext(ToolRuntimeContext).onHintUsed || null;

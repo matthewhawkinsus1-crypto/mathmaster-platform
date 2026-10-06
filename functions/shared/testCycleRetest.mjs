@@ -103,6 +103,22 @@ const allocate = (entries, count, weightOf) => {
  * before unlocking it, and "why are three of these about A.5A?" has to have an
  * answer that is not "the algorithm decided".
  */
+/**
+ * The tools a retest should keep, keyed the way the retest PLAN reads them.
+ *
+ * The performance profile knows, per Test target, which tools the student
+ * answered with; the retest blueprint renames its targets ("targeted-A.2G",
+ * "anchor-A.5A") and keeps the Test target as `sourceTargetId`. Keyed by the
+ * Test's ids the preference matched no retest slot and silently did nothing.
+ */
+export const retestToolPreferences = ({ profile = null, retestBlueprint = null } = {}) => {
+  const seenTools = new Map(list(profile?.targets).map((target) => [clean(target.targetId), list(target.seenToolIds)]));
+  return Object.fromEntries(list(retestBlueprint?.targets).map((target) => [
+    clean(target.targetId),
+    seenTools.get(clean(target.sourceTargetId || target.targetId)) || [],
+  ]));
+};
+
 export const buildRetestBlueprint = ({
   blueprint = null,
   profile = null,
@@ -258,6 +274,11 @@ export const retestRigorIsPreserved = (originalBlueprint, retestBlueprint) => {
     }
     if (clean(normalizedTarget.representation) !== clean(source.representation)) {
       violations.push({ targetId: normalizedTarget.targetId, reason: 'representation_changed' });
+    }
+    // A missed graphing skill is retested with the graphing tool, not
+    // collapsed into a text box: the tool is part of what was assessed.
+    if (clean(normalizedTarget.toolId) !== clean(source.toolId)) {
+      violations.push({ targetId: normalizedTarget.targetId, reason: 'tool_changed' });
     }
   });
   return { preserved: violations.length === 0, violations };

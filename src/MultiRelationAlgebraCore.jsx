@@ -667,7 +667,7 @@ export default function MultiRelationAlgebra({
   // in (defaults — outcomes shown, no hint recorder — anywhere else). False on
   // a DOL, quiz or test: there the number-line stage below is recorded when
   // the student checks it, not passed only once it is right.
-  const { showImmediateFeedback, onHintUsed: reportHintUse } = useToolRuntimeContext();
+  const { showImmediateFeedback, onHintUsed: reportHintUse, hintsAllowed: contextHintsAllowed } = useToolRuntimeContext();
   const representationsWithheld = showImmediateFeedback === false;
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
@@ -1881,32 +1881,37 @@ export default function MultiRelationAlgebra({
             Other operations {otherOpen ? '▴' : '▾'}
           </button>
 
-          <label
-            style={{
-              display: 'inline-flex',
-              gap: 6,
-              alignItems: 'center',
-              minHeight: 36,
-              padding: '5px 8px',
-              color: 'var(--mm-text-muted)',
-              background: 'var(--mm-surface)',
-              borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 700,
-                        }}
-          >
-            <input
-              type="checkbox"
-              style={{ accentColor: '#174ea6' }}
-              checked={cancellationHintsEnabled}
-              onChange={(event) => setCancellationHintsEnabled(event.target.checked)}
-            />
-            Cancellation hints
-          </label>
+          {/* Cues are help: absent where the activity withholds hints. */}
+          {contextHintsAllowed !== false ? (
+            <label
+              style={{
+                display: 'inline-flex',
+                gap: 6,
+                alignItems: 'center',
+                minHeight: 36,
+                padding: '5px 8px',
+                color: 'var(--mm-text-muted)',
+                background: 'var(--mm-surface)',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 700,
+                          }}
+            >
+              <input
+                type="checkbox"
+                style={{ accentColor: '#174ea6' }}
+                checked={cancellationHintsEnabled}
+                onChange={(event) => setCancellationHintsEnabled(event.target.checked)}
+              />
+              Cancellation hints
+            </label>
+          ) : null}
         </div>
 
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-          {stepCreditPercent > 0 && (
+          {/* Step credit is a running score. Where the verdict is withheld (a
+              DOL, quiz or secure Test) a score is withheld with it. */}
+          {stepCreditPercent > 0 && showImmediateFeedback && (
             <span
               title="Credit earned from valid algebra steps so far. Finishing the problem correctly earns full credit."
               style={{ minHeight: 36, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 900 }}
@@ -2710,9 +2715,11 @@ export default function MultiRelationAlgebra({
         </div>
       )}
 
+      {/* The student's own finished relation, restated. In green it reads as a
+          verdict, so where verdicts are withheld it is stated neutrally. */}
       {!pendingRelationFlip && summary.solved && summary.kind === 'values' && !requireCandidateVerification && (
-        <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800 }}>
-          Solution{summary.values.length > 1 ? 's' : ''}: {summary.values.join(', ')}
+        <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 12, background: showImmediateFeedback ? 'var(--mm-success-bg)' : 'var(--mm-surface-sunken)', color: showImmediateFeedback ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontWeight: 800 }}>
+          {showImmediateFeedback ? '' : 'Your '}{showImmediateFeedback ? 'S' : 's'}olution{summary.values.length > 1 ? 's' : ''}: {summary.values.join(', ')}
         </div>
       )}
 

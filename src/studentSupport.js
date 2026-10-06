@@ -44,6 +44,32 @@ export const normalizeStudentProfile = (profile = {}, { nowValue = Date.now() } 
   };
 };
 
+/*
+ * A STUDENT'S SUPPORTS ON A SECURE ASSESSMENT ITEM.
+ *
+ * Access accommodations stay: large text, contrast, read aloud, language
+ * tools, graph paper, a documented calculator (the course-test calculator
+ * rule already honours it). They change how a student reaches the
+ * mathematics, not what is being assessed.
+ *
+ * Construct changes do not: every MODIFICATION (a reduced item, a prefilled
+ * first algebra step) and the algebra auto-apply shortcut, which carries out a
+ * step the student chose but did not perform. On a secure Test those make it a
+ * different test — the same reason reduced-item accommodations are not applied
+ * to secure course tests (see ASSESSMENT_LIFECYCLE_AUDIT, "Accommodations").
+ */
+const CONSTRUCT_ALTERING_ACCOMMODATIONS = Object.freeze(['algebra-auto-apply']);
+
+export const assessmentSupportProfile = (profile = {}) => {
+  const normalized = normalizeStudentProfile(profile);
+  return {
+    inclusionStatus: normalized.inclusionStatus,
+    accommodations: normalized.accommodations.filter((entry) => !CONSTRUCT_ALTERING_ACCOMMODATIONS.includes(entry)),
+    modifications: [],
+    translationLanguage: normalized.translationLanguage,
+  };
+};
+
 /**
  * Do two normalized profiles say the same thing? Compares the whole (small,
  * bounded) plan — windows, parameters and history — so a re-saved revision

@@ -367,6 +367,26 @@ export const forgetToolDrafts = (draftKey) => {
  * and leaving this cache alive resurrects the supposedly deleted answers on
  * the next mount.
  */
+/**
+ * Forget every cached tool workspace under a whole draft FAMILY — a secure
+ * session, one secure item, a teacher's preview. forgetToolDrafts matches one
+ * item's `:work:` keys only; a family sits a level above them. A family whose
+ * storage was cleared must lose this cache too, or the next write (a submit's
+ * stamp, a remount reading the cache) puts the cleared work straight back.
+ */
+export const forgetToolDraftFamily = (prefix) => {
+  if (!prefix) return 0;
+  let forgotten = 0;
+  [...stores.keys()].forEach((key) => {
+    if (key !== prefix && !key.startsWith(`${prefix}:`)) return;
+    const store = stores.get(key);
+    if (store?.timer !== null && store?.timer !== undefined) clearTimeout(store.timer);
+    stores.delete(key);
+    forgotten += 1;
+  });
+  return forgotten;
+};
+
 export const forgetAssignmentToolDrafts = ({ studentId, assignmentId } = {}) => {
   const wantedStudent = String(studentId ?? '');
   const wantedAssignment = String(assignmentId ?? '');

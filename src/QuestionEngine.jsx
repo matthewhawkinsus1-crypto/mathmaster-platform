@@ -207,6 +207,12 @@ function QuestionEngineBody({
   //   { pathToolId, submit(rawWork, supportUsage, meta) -> feedback }
   serverGrading = null,
   onResponseStateChange = null,
+  // What this question's final action is called, when the host decides. A
+  // secure Test passes "Record answer": the action records the student's one
+  // answer and withholds the verdict, so a button that says "Check" (a tool's)
+  // or "Checking…" would mislead. Reaches every registry tool through
+  // ToolRuntimeContext (useSubmitLabel). Null keeps every existing label.
+  submitLabel: hostSubmitLabel = null,
   onResponseCheckpoint = null,
   // Set when this mount only shows work a server copy restored after the
   // question had opened (App.jsx): { position } — where the student's cursor
@@ -988,7 +994,29 @@ function QuestionEngineBody({
   const registryToolId = missingToolDefinition?.toolId || null;
   const registryToolLabel = missingToolDefinition?.label || 'Math tool';
   const handleToolWork = useCallback((work) => {
-    if (!registryToolId || serverGrading) return;
+    if (!registryToolId) return;
+    /*
+     * A SERVER-GRADED REGISTRY TOOL'S LIVE WORK IS ITS RAW RESPONSE.
+     *
+     * A registry tool reports the SAME work object its Check submits
+     * (useReportToolWork), which is exactly the raw shape its Path Tool
+     * Contract grades — so under server grading it is published as is, with
+     * no local grading and no verdict. Before this, nothing was published for
+     * a registry tool: a secure Test could not autosave a half-built graph, and
+     * a reload lost it. Deduplicated by canonical value like every other
+     * published response.
+     */
+    if (serverGrading) {
+      // Only a host that keeps live tool work asks for it. Live Challenge also
+      // grades on the server, and its round-end buzzer submits whatever it was
+      // last given: half-built graphs reached the server as answers.
+      if (serverGrading.publishToolWork !== true || !onResponseStateChangeRef.current) return;
+      const signature = stableStringify(work ?? null);
+      if (signature === lastPublishedResponseRef.current) return;
+      lastPublishedResponseRef.current = signature;
+      onResponseStateChangeRef.current?.(work ?? null);
+      return;
+    }
     const question = toolWorkQuestionRef.current;
     toolWorkSequenceRef.current += 1;
     const sequence = toolWorkSequenceRef.current;
@@ -1322,6 +1350,8 @@ function QuestionEngineBody({
       hintsAllowed={toolHintsAllowed}
       onHintUsed={recordHintUse}
       questionTerminal={locked}
+      submitLabel={hostSubmitLabel}
+      verdictsWithheld={!showOutcomeFeedback}
     >
       {node}
     </ToolRuntimeProvider>
@@ -1402,6 +1432,8 @@ function QuestionEngineBody({
           hintsAllowed={toolHintsAllowed}
           onHintUsed={recordHintUse}
           questionTerminal={locked}
+          submitLabel={hostSubmitLabel}
+          verdictsWithheld={!showOutcomeFeedback}
         >
           <WorkflowRunner
             question={presentationQuestion}
@@ -1436,6 +1468,8 @@ function QuestionEngineBody({
           attemptOutcome={toolAttemptOutcome}
           attemptOutcomeSlots={toolOutcomeSlots}
           reportWork={locked ? null : handleToolWork}
+          submitLabel={hostSubmitLabel}
+          verdictsWithheld={!showOutcomeFeedback}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
               Every other module is handed `onUndoStateChange` as a prop, but a
@@ -1503,7 +1537,9 @@ function QuestionEngineBody({
         // "stepAlgebra"` (see assignmentRuntimeRepair.js), so they reach this
         // branch too.
         if (algebraWorkspaceRoute.route === ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS) {
-          return (
+          // Under the solver runtime like every other algebra route: the
+          // Step Algebra it embeds reads the activity's verdict policy there.
+          return withSolverRuntime(
             <LinearInterceptsOrchestrator
               key={draftKey || processedQuestion?.questionId || processedQuestion?.id || generationKey}
               {...commonModuleProps}
@@ -1516,7 +1552,7 @@ function QuestionEngineBody({
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
               maximumAttempts={resolvedMaximumAttempts}
               attemptsDoNotExpire={attemptsDoNotExpire}
-            />
+            />,
           );
         }
         // StepByStepAlgebra hands a prompt-only inequality to the relation
@@ -1692,7 +1728,9 @@ function QuestionEngineBody({
   // An intercept question ends with two ordered pairs, not a solved equation,
   // so the Step Algebra label would name work the student never did.
   const submitLabel = submitting
-    ? 'Checking…'
+    ? (hostSubmitLabel ? 'Recording…' : 'Checking…')
+    : hostSubmitLabel
+      ? hostSubmitLabel
     : algebraWorkspaceRoute.route === ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS
       ? 'Submit Intercepts'
       : processedQuestion?.type === 'stepAlgebra'
@@ -2109,7 +2147,7 @@ function QuestionEngineBody({
       </WorkViewCapabilityProvider>
         )}
         actionButtons={!locked && shouldShowSubmit ? (
-        <button ref={submitButtonRef} type="button" className="mathmaster-bar-submit" onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
+        <button ref={submitButtonRef} type="button" className="mathmaster-bar-submit" onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: submitDisabled ? 'var(--mm-disabled-text)' : 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
           {submitLabel}
         </button>
         ) : barContinueAction ? (
@@ -2254,7 +2292,7 @@ function QuestionEngineBody({
           {resolvedActivityPolicy?.allowReplacement && (
             <>
               <p style={{ margin: '8px 0 14px' }}>Review the solution, then request a new problem at the same difficulty.</p>
-              <button type="button" onClick={handleRequestNewQuestion} disabled={requesting || assignmentLocked} style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', background: requesting || assignmentLocked ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: requesting || assignmentLocked ? 'not-allowed' : 'pointer' }}>
+              <button type="button" onClick={handleRequestNewQuestion} disabled={requesting || assignmentLocked} style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', background: requesting || assignmentLocked ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: requesting || assignmentLocked ? 'var(--mm-disabled-text)' : '#fff', fontWeight: 'bold', cursor: requesting || assignmentLocked ? 'not-allowed' : 'pointer' }}>
                 {requesting ? 'Creating New Question…' : 'Request New Question'}
               </button>
             </>

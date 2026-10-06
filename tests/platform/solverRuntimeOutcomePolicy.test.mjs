@@ -88,7 +88,9 @@ const engine = executableSource(componentSource('src/QuestionEngine.jsx'));
 
 test('the relation solver decides completion and correctness of the stage through the status, fed by the runtime policy', () => {
   assert.match(relation, /import \{ useToolRuntimeContext \} from '\.\/tools\/shared\/ToolRuntimeContext';/);
-  assert.match(relation, /\n\s*const \{ showImmediateFeedback, onHintUsed: reportHintUse \} = useToolRuntimeContext\(\);/);
+  // The solver reads the activity's outcome permission (and, since secure
+  // Rich Tool delivery, its hint permission) from the runtime context.
+  assert.match(relation, /\n\s*const \{ showImmediateFeedback, onHintUsed: reportHintUse(?:, [^}]*)? \} = useToolRuntimeContext\(\);/);
   // The stage status reads the shared grader's own representation part.
   const status = region(relation, 'const representationPart = ', 'useEffect(', 'stage status');
   assert.match(status, /sharedResult\.parts\.find\(\(part\) => part\.id === 'solution-representations'\)/);
@@ -128,9 +130,9 @@ test('QuestionEngine mounts every algebra solver inside the activity\'s runtime,
   assert.match(helper, />\s*\{node\}\s*<\/ToolRuntimeProvider>/);
   const render = region(engine, 'const renderModule = () => {', null, 'renderModule');
   const wrapped = [...render.matchAll(/return withSolverRuntime\(\s*<(\w+)/g)].map((match) => match[1]);
-  assert.deepEqual(wrapped, ['MultiRelationAlgebra', 'StepByStepAlgebra', 'StepByStepAlgebra', 'StepByStepAlgebra'],
-    'the relation route, the default and legacy `algebra` solvers, and the literal workspace (each can reach the relation solver)');
-  assert.doesNotMatch(render, /return \(\s*<(MultiRelationAlgebra|StepByStepAlgebra)\b/, 'no solver mount outside the runtime');
+  assert.deepEqual(wrapped, ['MultiRelationAlgebra', 'LinearInterceptsOrchestrator', 'StepByStepAlgebra', 'StepByStepAlgebra', 'StepByStepAlgebra'],
+    'the relation route, the intercept route (it embeds Step Algebra), the default and legacy `algebra` solvers, and the literal workspace (each can reach the relation solver)');
+  assert.doesNotMatch(render, /return \(\s*<(MultiRelationAlgebra|LinearInterceptsOrchestrator|StepByStepAlgebra)\b/, 'no solver mount outside the runtime');
 });
 
 test('the relation solver\'s withheld-outcome branch appears only under the runtime\'s policy', () => {

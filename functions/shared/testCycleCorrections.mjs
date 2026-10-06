@@ -29,7 +29,7 @@
  * Pure by construction: no Firestore, no network, no clock of its own.
  */
 
-import { normalizeTestBlueprint } from './testCycleBlueprint.mjs';
+import { describeFamily, indexApprovedFamilies, normalizeTestBlueprint } from './testCycleBlueprint.mjs';
 import { clampPercent, normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
 import { getMisconceptionCode, trustedMisconceptionFindings } from './misconceptionCodes.mjs';
 
@@ -100,6 +100,7 @@ export const buildPerformanceProfile = ({ blueprint = null, responses = [] } = {
       missedEvidence: [],
       seenFamilyIds: [],
       seenInstanceIds: [],
+      seenToolIds: [],
       misconceptions: [],
     });
   });
@@ -117,6 +118,7 @@ export const buildPerformanceProfile = ({ blueprint = null, responses = [] } = {
     const instanceId = clean(response.questionInstanceId);
     if (familyId) entry.seenFamilyIds.push(familyId);
     if (instanceId) entry.seenInstanceIds.push(instanceId);
+    if (clean(response.toolId)) entry.seenToolIds.push(clean(response.toolId));
     if (!isCorrect) {
       entry.missedEvidence.push({
         questionInstanceId: instanceId || null,
@@ -140,6 +142,7 @@ export const buildPerformanceProfile = ({ blueprint = null, responses = [] } = {
       ...entry,
       seenFamilyIds: [...new Set(entry.seenFamilyIds)],
       seenInstanceIds: [...new Set(entry.seenInstanceIds)],
+      seenToolIds: [...new Set(entry.seenToolIds)],
       misconceptions: [...new Set(entry.misconceptions)],
       missed: entry.attempted - entry.correct,
       mastery,
@@ -234,6 +237,9 @@ export const buildCorrectionPlan = ({
       difficultyBand: target.difficultyBand,
       representation: target.representation,
       toolId: target.toolId,
+      // The tools this student met the standard with on the Test: a missed
+      // graphing item is practised on the Graphing tool, where one exists.
+      testToolIds: [...list(target.seenToolIds)],
       weight: target.weight,
       // A named misconception only when the evidence carried one.
       diagnosis: misconception ? CORRECTION_DIAGNOSIS.MISCONCEPTION : CORRECTION_DIAGNOSIS.STANDARD,
@@ -324,4 +330,32 @@ export const correctionPlanProgress = (plan) => {
     // An empty plan is complete: there was nothing to correct.
     allComplete: targets.length === 0 || complete === targets.length,
   };
+};
+
+/**
+ * The order a correction target tries its practice families in.
+ *
+ *  - Only families the bank still approves — the set the Test, the Retest and
+ *    preflight draw from. A retired family is not practice material. (A target
+ *    whose every family is unapproved keeps them: it has nothing else.)
+ *  - The tool the student missed this standard with on the Test comes first: a
+ *    missed graphing item is corrected on the Graphing tool where a parallel
+ *    family exists, never quietly moved to a text box. First, not only: a
+ *    same-tool family that cannot issue falls through to the others.
+ *  - Each new correction item rotates within the same-tool families, then
+ *    within the rest, so a family that could not issue is not retried first.
+ *
+ * `toolOf(family)` names a family's secure tool ("fields" for a plain item).
+ */
+export const orderCorrectionFamilies = ({ families = [], testToolIds = [], toolOf = () => 'fields', attemptIndex = 0 } = {}) => {
+  const declared = list(families).filter(Boolean);
+  const approvedIds = indexApprovedFamilies(declared);
+  const isApproved = (family) => approvedIds.has(describeFamily(family).familyId);
+  const practice = declared.some(isApproved) ? declared.filter(isApproved) : declared;
+  const testTools = new Set(list(testToolIds).map(clean).filter(Boolean));
+  const sameTool = testTools.size ? practice.filter((family) => testTools.has(clean(toolOf(family)) || 'fields')) : [];
+  const others = practice.filter((family) => !sameTool.includes(family));
+  const start = Math.max(0, Math.floor(Number(attemptIndex) || 0));
+  const rotated = (entries) => entries.map((unused, index) => entries[(start + index) % entries.length]);
+  return [...rotated(sameTool), ...rotated(others)];
 };

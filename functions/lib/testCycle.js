@@ -71,6 +71,14 @@ function responsesForProfile(session = {}) {
       difficultyBand: slot.difficultyBand,
       representation: slot.representation,
       familyId: slot.familyId,
+      // The tool the student answered with ("fields" for response fields), so
+      // a Retest and Corrections keep it. Unknown for a slot never reached —
+      // and for a response recorded before responses carried the tool (every
+      // response written since has the key, null for fields): such a record
+      // says nothing about the tool, so it must not steer one.
+      toolId: !response ? null
+        : Object.prototype.hasOwnProperty.call(response, "pathToolId") ? (clean(response.pathToolId) || "fields")
+          : null,
       questionInstanceId: clean(response?.questionInstanceId) || clean(entry.questionInstanceId) || null,
       // A slot the student never reached is not a slot they answered wrongly,
       // but it IS missing evidence, so it counts as unmastered with score 0.

@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS, flushToolDrafts } from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
@@ -186,7 +187,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     : asksInequality
       ? 'Inequality representation'
       : 'Open and closed endpoints';
-  const responsePanelTitle = asksNotation ? 'Write it in notation' : 'Check your graph';
+  // On a secure item the panel's action records the one answer: it is not a check.
+  const hostSubmitLabel = useHostSubmitLabel();
+  const responsePanelTitle = asksNotation ? 'Write it in notation' : hostSubmitLabel ? 'Your graph' : 'Check your graph';
   const hints = [
     'A closed circle (●) means the endpoint is part of the solution. An open circle (○) means it is not.',
     'For awkward endpoints, type the exact value instead of trying to hit a tiny tick mark.',
@@ -231,6 +234,8 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const suppressEndpointClickRef = useRef(false);
 
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const submitActionLabel = useSubmitLabel('Check');
 
   /*
    * THE STUDENT'S WORK — what Check submits and what a deadline can carry.
@@ -509,7 +514,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           equationInput: asksNotation || asksInequality ? { label: 'Interval response', studentState: true } : false,
           instruction: { text: questionData.prompt || '' },
           task: { text: questionData.prompt || questionData.task || '' },
-          primaryActions: [{ id: 'check-number-line', label: 'Check', onAction: check }],
+          primaryActions: [{ id: 'check-number-line', label: submitActionLabel, onAction: check }],
           secondaryActions: [{ id: 'reset-number-line', label: 'Start over', onAction: reset }],
         }}
       >
@@ -877,7 +882,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           )}
 
           <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>
-            Check
+            {submitActionLabel}
           </button>
 
           {feedback ? (

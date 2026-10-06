@@ -78,7 +78,13 @@ test('graph-only number-line mode does not advertise interval notation', () => {
   assert.match(src, /const asksInterval = ask\.includes\('interval'\)/);
   assert.match(src, /const asksNotation = asksInterval \|\| asksInequality/);
   assert.match(src, /: 'Graph an Inequality'/);
-  assert.match(src, /const responsePanelTitle = asksNotation \? 'Write it in notation' : 'Check your graph'/);
+  // Notation only when notation is asked; graph-only work is titled for the
+  // graph ("Check your graph", or "Your graph" where the action records the
+  // answer — secureRichToolRuntimeWiring pins that branch).
+  const title = src.match(/const responsePanelTitle = asksNotation \? 'Write it in notation' : ([^;\n]+);/);
+  assert.ok(title, 'the response panel title depends on whether notation is asked');
+  assert.doesNotMatch(title[1], /notation|interval/i);
+  assert.match(title[1], /'Check your graph'/);
   assert.match(src, /\.\.\.\(asksInterval \? \[/);
   assert.match(src, /hints=\{hints\}/);
 });

@@ -12,6 +12,9 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../src/firebase.js';
 import '../../src/theme/tokens.css';
 import '../../src/index.css';
+// App.jsx loads this stylesheet for every student surface, the secure exam's
+// Rich Tools included (the engine's task card, workspace and toolbar).
+import '../../src/App.css';
 import TestCycleCard from '../../src/components/student/TestCycleCard.jsx';
 import TestCycleControls from '../../src/components/teacher/TestCycleControls.jsx';
 import TestCyclePreview from '../../src/components/teacher/TestCyclePreview.jsx';

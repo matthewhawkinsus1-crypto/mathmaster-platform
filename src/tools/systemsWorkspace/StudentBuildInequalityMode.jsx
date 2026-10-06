@@ -5,7 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import { ResultPill, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { parseNumericAnswer } from '../shared/toolMath';
-import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useToolRuntimeContext, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import {
   INEQUALITY_STEP_COMPLETION_TEXT,
   REASONING_COMPLETION_TEXT,
@@ -164,6 +164,8 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   // Why a tap on the graph did nothing, shown where the student is working.
   const [tapNotice, setTapNotice] = useState(null);
   const { feedback, submit } = useToolSubmission(onAction);
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const submitActionLabel = useSubmitLabel('Check my work');
   // False on a DOL, quiz or test: there every check below says only whether
   // the work is finished (resolveInequalityBuildGate).
   const { showImmediateFeedback } = useToolRuntimeContext();
@@ -801,7 +803,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       // The step being worked on, so the enlarged view's header says what the
       // graph is waiting for.
       instruction: { text: currentInstruction },
-      primaryActions: [{ id: 'check-student-build', label: 'Check my work', onAction: finalCheck }],
+      primaryActions: [{ id: 'check-student-build', label: submitActionLabel, onAction: finalCheck }],
     }}>
       <InequalityLayout
         sideRef={sideRef}
@@ -958,7 +960,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
             </>
           ), vertices.length ? `${vertices.length} marked` : '') : null}
 
-          <button type="button" className="mm-ineq-submit" data-ready={flow.complete ? 'true' : 'false'} onClick={finalCheck} data-primary-answer-action="true">Check my work</button>
+          <button type="button" className="mm-ineq-submit" data-ready={flow.complete ? 'true' : 'false'} onClick={finalCheck} data-primary-answer-action="true">{submitActionLabel}</button>
           {feedback ? <div><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
 
           <HintPanel

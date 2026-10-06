@@ -194,7 +194,11 @@ test('the step-algebra solver\'s strategic hint follows the same permission, and
   // context's too. Outside any provider the context allows hints and has no
   // recorder — the old default exactly.
   const body = region(core, '}) {', 'const normalizedRecord', 'the solver body');
-  assert.match(core, /import \{ useHintsAllowed, useHintUseReporter \} from '\.\/tools\/shared\/ToolRuntimeContext';/);
+  // Both hooks, from the runtime context (other context hooks may sit beside them).
+  const runtimeImport = core.match(/import \{([^}]*)\} from '\.\/tools\/shared\/ToolRuntimeContext';/);
+  assert.ok(runtimeImport, 'the solver reads the runtime context');
+  assert.match(runtimeImport[1], /\buseHintsAllowed\b/);
+  assert.match(runtimeImport[1], /\buseHintUseReporter\b/);
   assert.match(body, /\n\s*const contextHintsAllowed = useHintsAllowed\(\);/);
   assert.match(body, /\n\s*const contextHintReporter = useHintUseReporter\(\);/);
   assert.match(body, /\n\s*const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;/);
