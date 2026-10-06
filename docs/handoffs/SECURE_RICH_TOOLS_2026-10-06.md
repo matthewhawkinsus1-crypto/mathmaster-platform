@@ -48,7 +48,7 @@ were affected; no test fixture used a tool, so nothing noticed.
 | R14 | P3 | `functionInvestigation`'s allowlist dropped `feature`, so an x-intercepts point part fell back to "vertex" and could not be answered (no bank family uses one today). |
 | R15 | P3 | Corrections' hint button referenced `question.hint`, which the sanitized item never carries: no correction ever showed a hint. |
 | R16 | P2 | QuestionEngine's disabled final action was white on `#dadce0` — 1.37:1, unreadable in both themes, everywhere (Practice too); on a secure item it is the "Record answer" a student sees until the construction is complete. Found by the device QA. |
-| R17 | P3 | A Guided Notes coach the policy switched off still stored its collapsed state under the item's draft key — after the session's work had been cleared, so a secure Test left a key behind on a shared iPad. Found by the device QA. |
+| R17 | P3 | Finishing a Test cleared the session's device drafts while the item was still mounted; the item's Guided Notes panel then wrote its collapsed state on the way out, so a secure Test left a key behind on a shared iPad. Found by the device QA. (The panel's own writes stay: draft-timing gates observe them.) |
 | R18 | P3 | The Number Line titled the panel holding its final action "Check your graph" above "Record answer" (R5's wording, one level up). Found by the device QA. |
 | R19 | P1 | The Data Modeling Lab printed its teaching notes unconditionally: "A large \|r\| … does not, by itself, prove causation" directly under "What can this observational data justify?" — the answer to that part — plus how to read r, what a good residual plot looks like and how to choose a model. Every other certified tool keeps such notes in `HintPanel`. Found reading the device QA's screenshots. |
 
@@ -93,9 +93,8 @@ live work under server grading); `ToolRuntimeContext.useSubmitLabel` in every
 certified tool (R5); Graphing readout (R6); Step Algebra and the relation solver
 (R7); integrity logger (R11); `assessmentSupportProfile` (R12); course-test
 calculator (R13); `readQuestionDraftFamily`; the engine's disabled final action
-in theme tokens (R16); `GuidedClassworkCoach` persists nothing while disabled
-and the container clears the session's drafts again once the finished view is
-up (R17); the Number Line's secure panel title via `useHostSubmitLabel` (R18);
+in theme tokens (R16); the container clears the session's drafts again once
+the finished view is up (R17); the Number Line's secure panel title via `useHostSubmitLabel` (R18);
 `secureShellRuntimeMode` (the shell's mode, including before the first item);
 the Data Modeling Lab's teaching notes follow the hint permission (R19).
 

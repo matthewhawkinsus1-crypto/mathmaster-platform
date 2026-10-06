@@ -177,7 +177,6 @@ legs).
   single endpoint, no direction) records nothing, like a blank. Recording an
   item removes its device drafts; finishing the Test removes the session's,
   and again once the finished view is up, after the tool's own unmount writes.
-  A help panel the policy switched off stores nothing at all.
 
 ## Integrity
 

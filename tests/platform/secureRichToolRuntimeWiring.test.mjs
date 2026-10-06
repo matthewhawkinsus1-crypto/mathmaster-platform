@@ -104,13 +104,9 @@ test('finishing a Test leaves no Rich Tool work on the device, even what a tool 
   // again after the unmounting tool's own cleanups have run.
   const afterFinish = region(container, 'Once the finished view is committed', 'const finish = useCallback(', 'post-finish clear');
   assert.match(afterFinish, /if \(session\?\.examSessionId && terminal\.has\(session\.status\)\) clearLocalDrafts\(session\.examSessionId\);/);
-  // A help panel the policy switched off stores nothing under the item's key
-  // (the device QA found its collapsed state left behind after a Test on iPad).
-  const coach = read('src/GuidedClassworkCoach.jsx');
-  assert.match(coach, /const persistKey = enabled && draftKey \? draftKey : null;/);
-  const hooks = executableSource(coach).match(/useLocalDraftState\(([^,]+),/g) || [];
-  assert.equal(hooks.length, 2);
-  hooks.forEach((hook) => assert.match(hook, /useLocalDraftState\(persistKey \?/, hook));
+  // (The device QA found a Guided Notes panel's collapsed state left behind
+  // under the item's key after a Test on iPad: it is written while the item
+  // unmounts, after the first clear.)
 });
 
 test('the engine\'s disabled final action is readable in both themes ("Record answer" before work is complete)', () => {

@@ -12,12 +12,8 @@ export default function GuidedClassworkCoach({
   disabled = false,
 }) {
   const steps = useMemo(() => resolveGuidedNotes(question, { mode }), [question, mode]);
-  // A coach the policy switched off (a secure Test, a DOL) keeps nothing on the
-  // device: the hooks still run, and keyed to the item they wrote its
-  // preferences under the item's draft family after the Test had cleared it.
-  const persistKey = enabled && draftKey ? draftKey : null;
-  const [manualStepIndex, setManualStepIndex] = useLocalDraftState(persistKey ? `${persistKey}:guided-step` : null, 0);
-  const [collapsed, setCollapsed] = useLocalDraftState(persistKey ? `${persistKey}:guided-collapsed` : null, true);
+  const [manualStepIndex, setManualStepIndex] = useLocalDraftState(draftKey ? `${draftKey}:guided-step` : null, 0);
+  const [collapsed, setCollapsed] = useLocalDraftState(draftKey ? `${draftKey}:guided-collapsed` : null, true);
 
   const synchronizedIndex = activeStageId
     ? steps.findIndex((step) => step.stageId === activeStageId)
