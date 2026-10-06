@@ -83,9 +83,18 @@ const pick = (pool, seedKey) => {
  * that can only produce one fixed question would hand a student the identical
  * item back, which is the thing a retest must never do.
  */
-const chooseFamily = ({ slot, approved, avoidFamilyIds, usedInPlan, seedKey }) => {
-  const candidates = slot.familyIds.filter((familyId) => approved.has(familyId));
-  if (!candidates.length) return null;
+const chooseFamily = ({ slot, approved, avoidFamilyIds, usedInPlan, seedKey, preferredTools = null }) => {
+  const approvedIds = slot.familyIds.filter((familyId) => approved.has(familyId));
+  if (!approvedIds.length) return null;
+  // THE TOOL IS PART OF THE SKILL. Where the student met this target with a
+  // tool on the Test (graphing, a number line, response fields), a family on
+  // the same tool is chosen before any other — through every step below, a
+  // fresh parallel variant included — and another tool only when the target
+  // has none. A target that names its tool is held to it by preflight.
+  const sameTool = preferredTools?.size
+    ? approvedIds.filter((familyId) => preferredTools.has(approved.get(familyId)?.toolId || 'fields'))
+    : [];
+  const candidates = sameTool.length ? sameTool : approvedIds;
 
   const unseenAndUnused = candidates.filter(
     (familyId) => !avoidFamilyIds.has(familyId) && !usedInPlan.has(familyId),
@@ -125,6 +134,9 @@ export const buildSecureIssuancePlan = ({
   attempt = 1,
   avoidFamilyIds = [],
   avoidInstanceIds = [],
+  // { [targetId]: ['graphing2' | 'fields' | …] } — the tools the student
+  // answered each target with on the Test. Retest only.
+  preferredToolsByTarget = null,
 } = {}) => {
   const normalized = normalizeTestBlueprint(blueprint);
   const approved = indexApprovedFamilies(families);
@@ -146,7 +158,11 @@ export const buildSecureIssuancePlan = ({
 
   slots.forEach((slot) => {
     const slotSeed = `${planId}|${slot.slotId}`;
-    const chosen = chooseFamily({ slot, approved, avoidFamilyIds: avoidSet, usedInPlan, seedKey: slotSeed });
+    const preferred = list(preferredToolsByTarget?.[slot.targetId]).map(clean).filter(Boolean);
+    const chosen = chooseFamily({
+      slot, approved, avoidFamilyIds: avoidSet, usedInPlan, seedKey: slotSeed,
+      preferredTools: preferred.length ? new Set(preferred) : null,
+    });
     if (!chosen?.familyId) {
       unfilledSlots.push({ slotId: slot.slotId, targetId: slot.targetId, reason: 'no_approved_family' });
       return;

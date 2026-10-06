@@ -670,7 +670,10 @@ const CONTRACTS = {
         if (definition.requireTechnology && raw.technologyUsed !== true) {
           return invalid('Use the matrix RREF technology before submitting this matrix-method problem.');
         }
-        if (definition.solution?.type === 'one' && ![raw.x, raw.y, raw.z].every((value) => Number.isFinite(Number(value)))) {
+        // What the STUDENT claimed decides what their response must contain,
+        // never the key: a refusal that depended on the system's true
+        // classification would tell a student it before they answer.
+        if (raw.classification.trim().toLowerCase() === 'one' && ![raw.x, raw.y, raw.z].every((value) => Number.isFinite(Number(value)))) {
           return invalid('A one-solution 3x3 matrix response needs x, y, and z.');
         }
         return valid();
@@ -818,17 +821,14 @@ const CONTRACTS = {
   intervalNumberLine: {
     serverGradingVersion: 2,
     responseShape: 'intervals',
-    // `inequalityText` is the question when the student graphs it, and the
-    // ANSWER when the item asks them to write the inequality (the `inequality`
-    // stage grades `expectedInequality` against what they type). The tool
-    // never renders it, so it travels only where it is not the answer.
-    sanitizePublicQuestion: (question) => {
-      const asksInequality = list(question.ask).map(String).includes('inequality');
-      return pick(question, [
-        'prompt', 'min', 'max', 'step', 'ask', 'variable', 'context',
-        ...(asksInequality ? [] : ['inequalityText']),
-      ]);
-    },
+    // `inequalityText` never travels. It is the ANSWER when the item asks the
+    // student to write the inequality, and when the item asks them to SOLVE one
+    // ("Solve 4x − 1 > 15 and graph the solution") it is the solved form —
+    // `x > 4`, the graph and the interval both. The tool never renders it; a
+    // relation the student must read is in the prompt.
+    sanitizePublicQuestion: (question) => pick(question, [
+      'prompt', 'min', 'max', 'step', 'ask', 'variable', 'context',
+    ]),
     buildPrivateGradingDefinition: (question) => ({
       intervals: normalizePathIntervals(question.expectedIntervals ?? question.intervals),
       notation: question.expectedNotation ?? question.answer ?? null,
@@ -970,6 +970,10 @@ const CONTRACTS = {
         [
           'prompt', 'functionSpec', 'graph', 'studentChoosesX', 'chooseXValues',
           'includeUndefinedChecks', 'undefinedCount', 'showCoordinates', 'context',
+          // The equation exactly as the author wrote it. Without it the
+          // workspace displayed the spec's own form — a standard-form
+          // "find the vertex" item showed y = −(x − 1)² + 4.
+          'equationLatex', 'showEquation',
         ],
       );
 

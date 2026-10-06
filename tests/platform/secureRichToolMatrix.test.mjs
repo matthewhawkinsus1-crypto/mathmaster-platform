@@ -213,7 +213,7 @@ test('a word-problem context is re-sanitized and its scaffold switched off on a 
   assert.equal(corrections.context.scaffold.enabled, true);
 });
 
-test('an intervalNumberLine item that asks for the inequality does not ship it', async () => {
+test('the Number Line never ships inequalityText — on a "solve and graph" item it is the solved answer', async () => {
   const issued = await issue({
     id: 'matrix-interval-inequality',
     type: 'intervalNumberLine',
@@ -224,11 +224,119 @@ test('an intervalNumberLine item that asks for the inequality does not ship it',
     expectedIntervals: [{ min: 3, max: null, minClosed: false, maxClosed: false }],
     expectedInequality: 'x > 3',
   });
-  const secure = await securePublic(issued, 'secureTest');
-  assert.equal('inequalityText' in secure.tool, false);
-  // Where it is the question (graph it), it still travels.
-  const graphOnly = await issue({ id: 'matrix-interval-graph', type: 'intervalNumberLine', prompt: 'Graph x > 3.', ask: ['graph'], min: -10, max: 10, step: 1, inequalityText: 'x > 3', expectedIntervals: [{ min: 3, max: null, minClosed: false, maxClosed: false }] });
-  assert.equal((await securePublic(graphOnly, 'secureTest')).tool.inequalityText, 'x > 3');
+  assert.equal('inequalityText' in (await securePublic(issued, 'secureTest')).tool, false);
+  // "Solve 4x − 1 > 15 and graph the solution": the bank's inequalityText is
+  // x > 4 — the graph and the interval both. Every mode, every bank family.
+  const numberLineFamilies = bank.filter((family) => family.type === 'intervalNumberLine' && family.active !== false);
+  assert.ok(numberLineFamilies.some((family) => family.id === 'mm_gen_7_7_10B_greater-ray'), 'the solve-and-graph family is in the bank');
+  for (const family of numberLineFamilies) {
+    // eslint-disable-next-line no-await-in-loop
+    const item = await issue(family);
+    for (const mode of ['secureTest', 'secureRetest', 'corrections']) {
+      // eslint-disable-next-line no-await-in-loop
+      const tool = (await securePublic(item, mode)).tool;
+      assert.equal('inequalityText' in tool, false, `${family.id} (${mode})`);
+    }
+  }
+});
+
+test('Function Investigation on a secure item: the authored equation shows, and nothing states where a feature is', async () => {
+  const { evaluateGraphFunction } = await import('../../functions/shared/toolMath/graphWorkspace/functionGraphUtils.mjs');
+  const same = (left, right) => [-5, -2, -1, 0, 0.5, 1, 2, 3, 4, 7].every((x) => {
+    const [u, v] = [evaluateGraphFunction(left, x), evaluateGraphFunction(right, x)];
+    return (Number.isNaN(u) && Number.isNaN(v)) || Math.abs(u - v) < 1e-9;
+  });
+
+  // Standard form given, vertex asked. The payload displayed y = −(x − 1)² + 4
+  // and carried {h, k}: now the authored equation, and the same parabola in
+  // standard form.
+  const vertexItem = await issue(bankFamily('mm_A_7A_v2_standard-form-to-graph'));
+  const secure = (await securePublic(vertexItem, 'secureTest')).tool;
+  assert.equal(secure.equationLatex, vertexItem.equationLatex, 'the authored (standard-form) equation travels');
+  assert.equal('h' in secure.functionSpec || 'k' in secure.functionSpec, false, 'the spec carries no vertex');
+  assert.ok(same(secure.functionSpec, vertexItem.functionSpec), 'and it is the same parabola');
+  const vertexTask = secure.pointTasks.find((task) => /vertex/i.test(task.label));
+  assert.ok(vertexTask && !('x' in vertexTask), 'the vertex card does not state its x');
+  assert.ok(secure.pointTasks.some((task) => !/vertex/i.test(task.label) && 'x' in task), 'an ordinary card still states its x');
+
+  // A linear "plot both intercepts": the x-intercept card said x = −5.
+  const intercepts = (await securePublic(await issue(bankFamily('mm_A_3C_v2_multi-feature-intercepts')), 'secureRetest')).tool;
+  assert.equal('x' in intercepts.pointTasks.find((task) => /x-intercept/i.test(task.label)), false);
+  assert.equal(intercepts.pointTasks.find((task) => /y-intercept/i.test(task.label)).x, 0, 'the y-intercept is found at x = 0 by definition');
+
+  // Corrections are instruction: the cards keep their x there.
+  const corrections = (await securePublic(vertexItem, 'corrections')).tool;
+  assert.ok('x' in corrections.pointTasks.find((task) => /vertex/i.test(task.label)));
+});
+
+test('a matrix3 response is refused for its own shape, never for the system\'s classification', async () => {
+  const { getPathToolContract } = await import('../../functions/shared/pathToolContracts.mjs');
+  const contract = getPathToolContract('systemsWorkspace');
+  const definitionFor = (type) => ({ mode: 'matrix3', requireTechnology: true, solution: { type, x: 1, y: 2, z: 3 } });
+  const responses = [
+    { classification: 'none', technologyUsed: true },
+    { classification: 'infinite', technologyUsed: true },
+    { classification: 'one', technologyUsed: true },
+    { classification: 'one', technologyUsed: true, x: 1, y: 2, z: 3 },
+  ];
+  responses.forEach((raw) => {
+    const verdicts = ['one', 'none', 'infinite'].map((type) => contract.validateStudentResponse(definitionFor(type), raw).valid);
+    assert.equal(new Set(verdicts).size, 1, `${JSON.stringify(raw)} is refused or accepted alike whatever the key: ${verdicts}`);
+  });
+  // A "none" claim on a one-solution system is an answer — and a wrong one.
+  const item = await issue(bankFamily('mm_A2_3B_v2_matrix-technology-rref'));
+  const graded = await secureItems.gradeIssuedItem(item, { responses: {}, raw: { classification: 'none', technologyUsed: true } });
+  assert.equal(graded.rejected, false);
+  assert.equal(graded.isCorrect, false);
+});
+
+test('grading never throws: crafted or oversized work is refused, so a session can always be finished', async () => {
+  const graphing = await issue(bankFamily(BANK_FAMILY_BY_TOOL.graphing2));
+  const poison = { toString: 1, valueOf: 1 };
+  const crafted = await secureItems.gradeIssuedItem(graphing, { responses: {}, raw: { points: [[poison, poison], [poison, poison]] } });
+  assert.equal(crafted.rejected, true);
+  assert.equal(crafted.score, 0);
+  const numberLine = await issue(bankFamily(BANK_FAMILY_BY_TOOL.intervalNumberLine));
+  assert.equal((await secureItems.gradeIssuedItem(numberLine, { responses: {}, raw: { intervals: [null], notation: 'x' } })).rejected, true);
+  // Too large to record is a refusal with its own message, not an internal error.
+  // Every string within the contract's own bounds (1,000 characters), the whole
+  // over what a secure item records (MAX_RAW_JSON).
+  const notes = Object.fromEntries(Array.from({ length: 20 }, (_, index) => [`note${index}`, 'x'.repeat(900)]));
+  const huge = await secureItems.gradeIssuedItem(graphing, { responses: {}, raw: { points: [[1, 2]], ...notes } });
+  assert.equal(huge.rejected, true);
+  assert.equal(huge.reason, 'raw_too_large');
+  assert.match(huge.detail, /too large/);
+});
+
+test('storage encodes only what Firestore refuses: field items stay exactly as before', async () => {
+  const storage = require('../../functions/lib/secureItemStorage.js');
+  const fieldItem = await issue(bank.find((family) => !family.type && family.active !== false && /fields|choice/i.test(JSON.stringify(family.responseFields || family.choices || []))) || bank.find((family) => !family.type));
+  const storedField = storage.storableItem(fieldItem);
+  assert.equal('privateGradingJson' in storedField, false, 'a field item is stored plain — an older function instance still reads it');
+  assert.deepEqual(storedField.privateGrading, fieldItem.privateGrading);
+  const lab = await issue(bankFamily(BANK_FAMILY_BY_TOOL.dataModelingLab));
+  const storedLab = storage.storableItem(lab);
+  assert.equal(typeof storedLab.privateGradingJson, 'string');
+  assert.equal(storage.holdsNestedArray(storedLab), false);
+  assert.deepEqual(storage.readStoredItem(storedLab), lab);
+});
+
+test('every bank item stores on a My Math Path session without an array inside an array', async () => {
+  const storage = require('../../functions/lib/secureItemStorage.js');
+  const tooled = bank.filter((family) => family.type && family.active !== false);
+  const failures = [];
+  for (const family of tooled) {
+    let item;
+    // eslint-disable-next-line no-await-in-loop
+    try { item = await issue(family); } catch { continue; }
+    // The shape issueNextQuestion writes: the sanitized question, the public
+    // tool payload and the private grading definition.
+    const currentQuestion = { ...mathPath.buildSanitizedQuestion(item, { toolPayload: { pathToolId: item.pathToolId, tool: item.tool } }), privateGrading: item.privateGrading };
+    const stored = storage.storableItem(currentQuestion);
+    if (storage.holdsNestedArray(stored)) failures.push(family.id);
+    else assert.deepEqual(storage.readStoredItem(stored), storage.readStoredItem(currentQuestion), family.id);
+  }
+  assert.deepEqual(failures, []);
 });
 
 test('an uncertified tool is never issued securely — and never downgraded to a text box', async () => {

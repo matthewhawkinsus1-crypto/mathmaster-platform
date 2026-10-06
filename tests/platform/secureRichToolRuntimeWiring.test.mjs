@@ -208,14 +208,82 @@ test('the Data Modeling Lab\'s teaching notes are hints: withheld where help is'
     'It does not, by itself, prove causation',
     'A good residual plot should look randomly scattered',
     'Pick the model with the smaller residual error',
+    // Directly above "This prediction is…", which the server grades.
+    'Interpolation predicts inside the observed x-range',
   ].forEach((sentence) => {
     const at = lab.indexOf(sentence);
     assert.notEqual(at, -1, sentence);
     // The nearest guard before the sentence, within its own element.
     const before = lab.slice(Math.max(0, at - 420), at);
-    assert.match(before, /\{teachingNotes \? [\s\S]*$/, `${sentence} is rendered only with teachingNotes`);
-    assert.doesNotMatch(before.slice(before.lastIndexOf('{teachingNotes ?')), /\) : null\}|: null\}/, `${sentence} sits inside the guarded element`);
+    assert.match(before, /\{(?:[\w.]+ && )?teachingNotes \? [\s\S]*$/, `${sentence} is rendered only with teachingNotes`);
+    assert.doesNotMatch(before.slice(before.lastIndexOf('teachingNotes ?')), /\) : null\}|: null\}/, `${sentence} sits inside the guarded element`);
   });
+});
+
+test('only the student\'s own work is autosaved, and only a host that keeps live tool work is sent it', () => {
+  const toolItem = region(runtime, 'const ToolItem = (', 'export default function RichQuestionRuntime(', 'tool item');
+  // A tool's starting state (the Data Modeling Lab's default prediction x,
+  // Step Algebra's own equation) reported on mount is not an answer.
+  assert.match(toolItem, /const inputMarkRef = useRef\(studentInputMark\(\)\);/);
+  assert.match(toolItem, /if \(hasMeaningfulRawPathResponse\(latestRawRef\.current\) && studentInputSince\(inputMarkRef\.current\)\) emitDraft\(\);/);
+  assert.match(toolItem, /publishToolWork: true,/);
+  // The engine sends registry tool work to a server-graded host only on that
+  // opt-in: Live Challenge's buzzer submitted half-built graphs.
+  const handleToolWork = region(engine, 'const handleToolWork = useCallback((work) => {', '}, [registryToolId, registryToolLabel, serverGrading]);', 'handleToolWork');
+  assert.match(handleToolWork, /if \(serverGrading\.publishToolWork !== true \|\| !onResponseStateChangeRef\.current\) return;/);
+  const live = read('src/components/liveChallenge/LiveChallengeStudent.jsx');
+  assert.doesNotMatch(executableSource(live), /publishToolWork/);
+});
+
+test('Step Algebra judges no committed move where verdicts are withheld', () => {
+  const core = read('src/StepByStepAlgebraCore.jsx');
+  assert.match(core, /const verdictsShown = useToolRuntimeContext\(\)\.showImmediateFeedback !== false;/);
+  const commit = region(core, 'if (!verdictsShown) {', 'setMessage({\n        tone: nextSolved', 'withheld commit message');
+  assert.match(commit, /tone: 'neutral'/);
+  // What the student reads: the message strings, not the variable names.
+  const shown = (commit.match(/'[^']*'/g) || []).join(' ');
+  assert.match(shown, /Move applied/);
+  assert.doesNotMatch(shown, /solved|longer way|Look for|correct/i);
+  // The status box drops correctness colour; a genuine error stays red.
+  assert.match(core, /const tone = !verdictsShown && message\.tone !== 'error' \? 'neutral' : message\.tone;/);
+  assert.match(core, /if \(verdictsShown\) setMessage\(\{ tone: 'growth', text: attemptsDoNotExpire/);
+});
+
+test('no tool invites a "check" beside the action that records a secure item\'s only answer', () => {
+  const graphing = read('src/tools/graphing2/Graphing2.jsx');
+  assert.match(graphing, /const hostSubmitLabel = useHostSubmitLabel\(\);/);
+  assert.match(graphing, /nextInstruction\(points\.length, requiredPointCount, hostSubmitLabel\)[\s\S]*nextInstruction\(points\.length, requiredPointCount, hostSubmitLabel\)/);
+  assert.match(graphing, /`Press \$\{checkLabel\} when all/);
+  assert.doesNotMatch(executableSource(graphing), /'Press Check construction|`Press Check construction/);
+  const systems = read('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
+  assert.match(systems, /steps=\{hostSubmitLabel \? withoutCheckInvitation\(/);
+});
+
+test('My Math Path stores an issued item through the storage codec and reads it back decoded', () => {
+  // Data Modeling, Mapping, reflection and 3×3 RREF items nest arrays; the
+  // issue transaction failed and the session could never issue its next
+  // question (seven TEKS could not issue a first one).
+  const issue = region(functionsIndex, 'if (freshData.currentQuestion) return secureItems.readStoredItem(freshData.currentQuestion);', 'return currentQuestion;\n  });', 'path issue write');
+  assert.match(issue, /currentQuestion: secureItems\.storableItem\(currentQuestion\),/);
+  assert.match(functionsIndex, /const openQuestion = secureItems\.readStoredItem\(session\.currentQuestion\);/);
+  assert.match(functionsIndex, /const openQuestion = secureItems\.readStoredItem\(freshData\.currentQuestion\);/);
+  const submit = region(functionsIndex, 'const currentQuestion = secureItems.readStoredItem(session.currentQuestion);', 'currentQuestion: secureItems.storableItem(nextCurrentQuestion),', 'path submit');
+  assert.match(submit, /mathPath\.gradePathToolResponse\(currentQuestion\.privateGrading/);
+});
+
+test('certification samples every variant a target can be issued, not four random draws', () => {
+  const issuability = region(functionsIndex, 'async function testCycleFamilyIssuability(families) {', 'return verdicts;', 'issuability');
+  assert.match(issuability, /generation\.effectivePathVariants\(family\)\.map\(\(variant, index\) => generation\.generatePathInstance\(variant\.template, `certify-variant-\$\{index\}`\)\.question\)/);
+  assert.match(issuability, /\[\.\.\.generation\.samplePathInstances\(family, 4\)\.map\(\(entry\) => entry\.question\), \.\.\.perVariant\]/);
+});
+
+test('the Retest and Corrections are given the tool the student met each standard with', () => {
+  const retest = region(functionsIndex, 'async function ensureRetestSession(', 'if (shared.issuance.planRequiresLiveGeneration(plan)) return null;', 'retest plan');
+  assert.match(retest, /preferredToolsByTarget: Object\.fromEntries\(profile\.targets\.map\(\(target\) => \[target\.targetId, target\.seenToolIds \|\| \[\]\]\)\)/);
+  const correction = region(functionsIndex, 'const practiceFamilies = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);', 'const attemptIndex =', 'correction families');
+  assert.match(correction, /const families = sameToolFamilies\.length \? sameToolFamilies : practiceFamilies;/);
+  const profileSource = read('functions/lib/testCycle.js');
+  assert.match(profileSource, /toolId: response \? \(clean\(response\.pathToolId\) \|\| "fields"\) : null,/);
 });
 
 test('Step Algebra: cue toggle and a draft-borne support level both follow the hint permission', () => {

@@ -31,6 +31,29 @@ export const FUNCTION_GRAPH_LABELS = {
   expression: 'Your Model',
 };
 
+/*
+ * A QUADRATIC IN STANDARD FORM IS THE SAME PARABOLA.
+ *
+ * Authoring accepts a quadratic as {a, b, c} as well as {a, h, k}
+ * (graphSpecUtils), but every helper here was written for the vertex form and
+ * read a standard-form spec as y = ax² — the wrong curve. Each entry point
+ * reads the spec through this, so b and c mean what they say. (A secure Test
+ * sends a "find the vertex" item's parabola in standard form, so the payload
+ * does not carry the vertex.) Any other spec passes through unchanged.
+ */
+const standardQuadratic = (spec) => Boolean(spec) && spec.type === 'quadratic'
+  && spec.h === undefined && spec.k === undefined && (spec.b !== undefined || spec.c !== undefined);
+
+const asVertexForm = (spec) => {
+  if (!standardQuadratic(spec)) return spec;
+  const a = Number(spec.a ?? 1);
+  const b = Number(spec.b ?? 0);
+  const c = Number(spec.c ?? 0);
+  if (!Number.isFinite(a) || a === 0 || !Number.isFinite(b) || !Number.isFinite(c)) return spec;
+  const { b: _b, c: _c, ...rest } = spec;
+  return { ...rest, a, h: -b / (2 * a), k: c - (b * b) / (4 * a) };
+};
+
 const normalizeDomain = (spec = {}) => {
   const domain = spec.domain || spec.restrictedDomain || {};
   const minimum = Number(domain.min);
@@ -51,7 +74,8 @@ const normalizeDomain = (spec = {}) => {
   };
 };
 
-export const getEffectiveDomain = (spec = {}) => {
+export const getEffectiveDomain = (input = {}) => {
+  const spec = asVertexForm(input);
   const restricted = normalizeDomain(spec);
   const h = Number(spec.h ?? 0);
   let naturalMin = Number.NEGATIVE_INFINITY;
@@ -77,7 +101,8 @@ export const getEffectiveDomain = (spec = {}) => {
   };
 };
 
-export const xIsInFunctionDomain = (spec, x, tolerance = 1e-9) => {
+export const xIsInFunctionDomain = (input, x, tolerance = 1e-9) => {
+  const spec = asVertexForm(input);
   const value = Number(x);
   if (!Number.isFinite(value)) return false;
   const domain = getEffectiveDomain(spec);
@@ -88,7 +113,8 @@ export const xIsInFunctionDomain = (spec, x, tolerance = 1e-9) => {
   return true;
 };
 
-export const evaluateGraphFunction = (spec, x) => {
+export const evaluateGraphFunction = (input, x) => {
+  const spec = asVertexForm(input);
   if (!xIsInFunctionDomain(spec, x)) return Number.NaN;
   const type = spec.type;
   const a = Number(spec.a ?? 1);
@@ -128,7 +154,8 @@ export const evaluateGraphFunction = (spec, x) => {
   return Number.NaN;
 };
 
-export const getGraphKeyPoint = (spec) => {
+export const getGraphKeyPoint = (input) => {
+  const spec = asVertexForm(input);
   const h = Number(spec.h ?? 0);
   const k = Number(spec.k ?? 0);
   const a = Number(spec.a ?? 1);
@@ -172,7 +199,8 @@ const fillToFive = (values, spec) => {
   return output.slice(0, spec.type === 'rational' ? 4 : 5);
 };
 
-export const getSuggestedGraphPoints = (spec) => {
+export const getSuggestedGraphPoints = (input) => {
+  const spec = asVertexForm(input);
   const h = Number(spec.h ?? 0);
   if (spec.type === 'expression') {
     const reference = Array.isArray(spec.referencePoints)
@@ -243,7 +271,11 @@ export const formatGraphEquationLatex = (spec) => {
     expression = `y=${appendK(`${linearPrefix}${shiftedX}`, intercept)}`;
   }
   if (spec.type === 'absolute') expression = `y=${appendK(`${prefix}\\left|${shiftedX}\\right|`, k)}`;
-  if (spec.type === 'quadratic') expression = `y=${appendK(`${prefix}\\left(${shiftedX}\\right)^2`, k)}`;
+  if (spec.type === 'quadratic') {
+    expression = standardQuadratic(spec)
+      ? `y=${appendK(appendK(`${prefix}x^2`, 0) + (Number(spec.b ?? 0) === 0 ? '' : `${Number(spec.b) > 0 ? '+' : '-'}${coefficientPrefix(Math.abs(Number(spec.b)))}x`), Number(spec.c ?? 0))}`
+      : `y=${appendK(`${prefix}\\left(${shiftedX}\\right)^2`, k)}`;
+  }
   if (spec.type === 'squareRoot') expression = `y=${appendK(`${prefix}\\sqrt{${shiftedX}}`, k)}`;
   if (spec.type === 'cubic') expression = `y=${appendK(`${prefix}\\left(${shiftedX}\\right)^3`, k)}`;
   if (spec.type === 'cubeRoot') expression = `y=${appendK(`${prefix}\\sqrt[3]{${shiftedX}}`, k)}`;
@@ -253,7 +285,8 @@ export const formatGraphEquationLatex = (spec) => {
   return `${expression}${domainConditionLatex(spec)}`;
 };
 
-export const buildGraphWindow = (spec, points = getSuggestedGraphPoints(spec)) => {
+export const buildGraphWindow = (input, points = getSuggestedGraphPoints(input)) => {
+  const spec = asVertexForm(input);
   const center = getGraphKeyPoint(spec);
   const domain = getEffectiveDomain(spec);
   const allPoints = [...points, center].filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
@@ -298,7 +331,8 @@ export const buildGraphWindow = (spec, points = getSuggestedGraphPoints(spec)) =
   };
 };
 
-export const pointIsOnFunction = (spec, point, tolerance = 0.18) => {
+export const pointIsOnFunction = (input, point, tolerance = 0.18) => {
+  const spec = asVertexForm(input);
   if (!Array.isArray(point) || point.length !== 2) return false;
   const [x, y] = point.map(Number);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
@@ -308,7 +342,8 @@ export const pointIsOnFunction = (spec, point, tolerance = 0.18) => {
 
 export const pointsAreDistinct = (points, tolerance = 0.08) => points.every((point, index) => points.every((other, otherIndex) => index === otherIndex || Math.abs(point[0] - other[0]) > tolerance || Math.abs(point[1] - other[1]) > tolerance));
 
-export const graphSelectionsAreCorrect = ({ spec, center, points, tolerance = 0.18 }) => {
+export const graphSelectionsAreCorrect = ({ spec: input, center, points, tolerance = 0.18 }) => {
+  const spec = asVertexForm(input);
   const expectedCenter = getGraphKeyPoint(spec);
   const centerCorrect = Array.isArray(center) && Math.abs(Number(center[0]) - expectedCenter[0]) <= tolerance && Math.abs(Number(center[1]) - expectedCenter[1]) <= tolerance;
   if (!centerCorrect || !Array.isArray(points) || points.length < 4 || !pointsAreDistinct(points)) return false;

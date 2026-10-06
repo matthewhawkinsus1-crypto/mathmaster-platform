@@ -7,7 +7,7 @@ import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed, useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
@@ -56,12 +56,17 @@ const formatPoint = (point) => `(${point[0]}, ${point[1]})`;
 // What to do next, in one sentence. Used by the progress pill inside the tool
 // and registered as the Work View current instruction, so the enlarged view
 // says the same thing the embedded one does instead of inventing its own.
-const nextInstruction = (plottedCount, requiredCount = 2) => (
+// `finalLabel` is the host's name for the final action where it has one (a
+// secure item's "Record answer"): there, pressing it spends the only attempt,
+// so the pill must not invite a "check".
+const nextInstruction = (plottedCount, requiredCount = 2, finalLabel = null) => (
   plottedCount === 0
     ? 'Click the grid to plot your first point.'
     : plottedCount < requiredCount
       ? `Now plot point ${plottedCount + 1} of ${requiredCount} on the same line.`
-      : `All ${requiredCount} points plotted — check your construction.`
+      : finalLabel
+        ? `All ${requiredCount} points plotted — move any point, or press ${finalLabel} when you are done.`
+        : `All ${requiredCount} points plotted — check your construction.`
 );
 
 // What the form-aware policy needs to see, before any point is checked, so
@@ -179,6 +184,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const hintsAllowed = useHintsAllowed();
   const checkLabel = useSubmitLabel('Check construction');
+  const hostSubmitLabel = useHostSubmitLabel();
   const studentLine = useMemo(() => points.length >= 2 ? lineFromPoints(points[0], points[1]) : null, [points]);
   // "Your line: y = 2x − 1" beside a task that says "Graph y = 2x − 1" is a
   // free check of the answer before it is submitted — MathMaster converting
@@ -318,7 +324,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const workspaceCapabilities = {
     undo: undoHistory.capability,
     equationInput: { label: studentLine && showLineReadout ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },
-    instruction: { text: nextInstruction(points.length, requiredPointCount) },
+    instruction: { text: nextInstruction(points.length, requiredPointCount, hostSubmitLabel) },
     task: { text: targetPrompt(normalizedQuestion, target) },
     // The hints ARE this Help. Where the activity withholds them the panel
     // renders nothing, so publishing it would leave a Help button over an
@@ -342,7 +348,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
           requiredPointCount > 2
             ? `Plot ${requiredPointCount - 1} more points on the same line — the line is drawn for you automatically.`
             : 'Plot a second point on the same line — the line is drawn for you automatically.',
-          `Press Check construction when all ${requiredPointCount} points are where you want them.`,
+          `Press ${checkLabel} when all ${requiredPointCount} points are where you want them.`,
         ]}
         note={[
           snapStep === 1
@@ -370,7 +376,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
             color: points.length >= requiredPointCount ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13,
           }}>
             <span>{points.length >= requiredPointCount ? '✓' : `${points.length}/${requiredPointCount}`}</span>
-            <span>{nextInstruction(points.length, requiredPointCount)}</span>
+            <span>{nextInstruction(points.length, requiredPointCount, hostSubmitLabel)}</span>
           </div>
           <CoordinatePlane
             {...bounds}

@@ -166,3 +166,56 @@ test('a Retest keeps the tool: it is part of the equivalence signature and of th
   assert.equal(verdict.preserved, false);
   assert.ok(verdict.violations.some((violation) => violation.reason === 'tool_changed'));
 });
+
+test('a retired or unvalidated family the blueprint still names never blocks the Test', () => {
+  // Coverage and issuance draw only approved families; the rendering check
+  // judges the same set. A withdrawn field family under a Graphing target
+  // used to block publish, assign and save with a tool mismatch.
+  const result = run({
+    targets: [target('A.2G', ['g1', 'g2', 'f-withdrawn', 'f-unvalidated'], { toolId: 'graphing2' })],
+    families: [graphing('g1'), graphing('g2'), { ...fields('f-withdrawn'), active: false }, { ...fields('f-unvalidated'), validated: false }],
+  });
+  assert.equal(result.errors.filter((error) => error.startsWith(TEST_CYCLE_DIAGNOSTIC.TOOL_REQUIREMENT_MISMATCH)).length, 0, result.errors.join('\n'));
+  assert.equal(result.blocked, false, result.errors.join('\n'));
+  const row = result.secureRendering.find((entry) => entry.targetId === 'A.2G');
+  assert.deepEqual(row.families.map((family) => family.familyId), ['g1', 'g2']);
+  // The same family, approved, still blocks.
+  const live = run({
+    targets: [target('A.2G', ['g1', 'f1'], { toolId: 'graphing2' })],
+    families: [graphing('g1'), fields('f1')],
+  });
+  assert.equal(live.blocked, true);
+});
+
+test('a Retest and Corrections keep the tool the student met the standard with — even on a target that mixes tools', async () => {
+  const { buildSecureIssuancePlan } = await import('../../functions/shared/testCycleIssuance.mjs');
+  const { buildPerformanceProfile, buildCorrectionPlan } = await import('../../functions/shared/testCycleCorrections.mjs');
+  // texas:A.2G as the bank has it: two Graphing families, three response-field
+  // families, no toolId on the target. A student who missed the Graphing item
+  // used to be retested on a text field three times in four.
+  const families = [graphing('g1'), graphing('g2'), fields('f1'), fields('f2'), fields('f3')];
+  const blueprint = { blueprintId: 'bp', title: 'Unit Test', targets: [target('A.2G', ['g1', 'g2', 'f1', 'f2', 'f3'])] };
+  let checked = 0;
+  for (let student = 0; student < 40; student += 1) {
+    const studentId = `s${student}`;
+    const testPlan = buildSecureIssuancePlan({ blueprint, families, studentId, assignmentId: 'a1' });
+    const testEntry = testPlan.entries[0];
+    const testTool = testEntry.familyId.startsWith('g') ? 'graphing2' : 'fields';
+    const profile = buildPerformanceProfile({ blueprint, responses: [{ targetId: 'A.2G', familyId: testEntry.familyId, questionInstanceId: `${studentId}-q1`, score: 0, isCorrect: false, toolId: testTool }] });
+    const retest = buildSecureIssuancePlan({
+      blueprint, families, studentId, assignmentId: 'a1', stage: 'retest',
+      avoidFamilyIds: [testEntry.familyId],
+      preferredToolsByTarget: Object.fromEntries(profile.targets.map((entry) => [entry.targetId, entry.seenToolIds])),
+    });
+    const retestTool = retest.entries[0].familyId.startsWith('g') ? 'graphing2' : 'fields';
+    assert.equal(retestTool, testTool, `${studentId}: Test on ${testTool}, Retest on ${retestTool}`);
+    assert.notEqual(retest.entries[0].familyId, testEntry.familyId, 'and still a family the student has not seen');
+    const corrections = buildCorrectionPlan({ blueprint, profile, policy: { mode: 'testCycle' }, releasedTestGrade: 0, assignmentId: 'a1', studentId });
+    assert.deepEqual(corrections.targets[0].testToolIds, [testTool]);
+    checked += 1;
+  }
+  assert.equal(checked, 40);
+  // Without the student's tool the planner is free to move between tools.
+  const free = new Set(Array.from({ length: 40 }, (_, student) => buildSecureIssuancePlan({ blueprint, families, studentId: `s${student}`, assignmentId: 'a1', stage: 'retest', avoidFamilyIds: ['g1'] }).entries[0].familyId[0]));
+  assert.equal(free.size, 2, 'the preference, not luck, keeps the tool');
+});

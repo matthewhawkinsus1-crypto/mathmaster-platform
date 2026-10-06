@@ -85,7 +85,7 @@ import {
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
-import { useHintsAllowed, useHintUseReporter } from './tools/shared/ToolRuntimeContext';
+import { useHintsAllowed, useHintUseReporter, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 
 const STRUCTURE_TOOL_TITLES = {
   factor: 'Choose terms, write them as primes, and pull out a factor they share',
@@ -354,6 +354,11 @@ export default function StepByStepAlgebra({
   // them and has no recorder, which is exactly the old default.
   const contextHintsAllowed = useHintsAllowed();
   const contextHintReporter = useHintUseReporter();
+  // Where the activity withholds verdicts (a DOL, quiz or test — a secure item
+  // above all) a committed move is not judged on screen: "longer way round"
+  // and "look for a pair that cancels" are a right-track/wrong-track verdict
+  // and a strategy hint, and "solved" in green is the answer's verdict.
+  const verdictsShown = useToolRuntimeContext().showImmediateFeedback !== false;
   const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;
   const onHintUsed = onHintUsedProp || contextHintReporter;
   // Content identity, not object identity: a host that rebuilds an equal
@@ -954,6 +959,15 @@ export default function StepByStepAlgebra({
             equals.scrollIntoView?.({ block: 'center', inline: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
           }
         });
+      }
+      if (!verdictsShown) {
+        setMessage({
+          tone: 'neutral',
+          text: nextSolved
+            ? 'The variable is isolated. Record your answer when you are ready.'
+            : 'Move applied. Continue from the equation shown.',
+        });
+        return;
       }
       setMessage({
         tone: nextSolved ? 'success' : move.productive ? 'success' : 'growth',
@@ -1617,7 +1631,9 @@ export default function StepByStepAlgebra({
         setMessage({ tone: 'error', text: 'That used the final attempt on this version.' });
         return;
       }
-      setMessage({ tone: 'growth', text: attemptsDoNotExpire || embedded ? verdict.message : `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
+      // The pacing is real either way; the judgement of the move is shown only
+      // where verdicts are.
+      if (verdictsShown) setMessage({ tone: 'growth', text: attemptsDoNotExpire || embedded ? verdict.message : `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
     }
 
     if (move.requiredCancellationSides.length === 0) {
@@ -3393,7 +3409,14 @@ export default function StepByStepAlgebra({
         </div>
       )}
       {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
-      {message && <div role="status" style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background: message.tone === 'success' ? 'var(--mm-success-bg)' : message.tone === 'growth' ? 'var(--mm-warning-bg)' : 'var(--mm-error-bg)', color: message.tone === 'success' ? 'var(--mm-success-text)' : message.tone === 'growth' ? 'var(--mm-warning-text)' : 'var(--mm-danger)', fontWeight: 'bold' }}>{message.text}</div>}
+      {message && (() => {
+        // Where verdicts are withheld, a message keeps its words but loses its
+        // correctness colour; only a genuine error stays red.
+        const tone = !verdictsShown && message.tone !== 'error' ? 'neutral' : message.tone;
+        const background = tone === 'success' ? 'var(--mm-success-bg)' : tone === 'growth' ? 'var(--mm-warning-bg)' : tone === 'neutral' ? 'var(--mm-surface-tint)' : 'var(--mm-error-bg)';
+        const color = tone === 'success' ? 'var(--mm-success-text)' : tone === 'growth' ? 'var(--mm-warning-text)' : tone === 'neutral' ? 'var(--mm-text-strong)' : 'var(--mm-danger)';
+        return <div role="status" data-message-tone={tone} style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background, color, fontWeight: 'bold' }}>{message.text}</div>;
+      })()}
       {!embedded && <p style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginTop: '12px' }}>
         {/* The level's own sentence promises "Hints are available on request";
             where the activity withholds hints that is no longer true. */}

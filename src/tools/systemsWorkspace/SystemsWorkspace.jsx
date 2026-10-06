@@ -5,7 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { parseNumericAnswer, solveTwoLines, round } from '../shared/toolMath';
-import { useRevealAnswers, useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { useHostSubmitLabel, useRevealAnswers, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import {
   SYSTEMS_WORKSPACE_DEFAULTS,
   feasibleRegionPolygon,
@@ -709,7 +709,13 @@ const MODE_STEPS = {
   spatial: ['Rotate the model and show or hide each plane to see how they meet.', 'Decide whether the three planes share one point, no point, or infinitely many.', 'Answer the question using what the model shows.'],
 };
 
+// Where the host names the final action (a secure item's "Record answer"),
+// pressing it spends the only attempt: a step that ends "then check your
+// graph" would invite exactly that.
+const withoutCheckInvitation = (steps) => steps.map((step) => step.replace(/,? then check(?: your graph)?\.$/, '.'));
+
 export default function SystemsWorkspace({ questionData = {}, onAction, draftKey = null }) {
+  const hostSubmitLabel = useHostSubmitLabel();
   const mode = resolveSystemsWorkspaceMode(questionData);
   // Dimension is inferred from the authored equations and variables (#341):
   // three of each is a 3×3 system, everything else keeps 2×2.
@@ -737,7 +743,7 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
     badge={modeLabel}
     workspaceWidth={(mode === 'algebraic' || mode === 'spatial') ? 'min(100%, 1360px)' : 'min(100%, 1180px)'}
   >
-    {inequalityBuild ? null : <TaskCard question={questionData} task={MODE_TASKS[taskKey] || MODE_TASKS.linear} steps={MODE_STEPS[taskKey] || MODE_STEPS.linear} />}
+    {inequalityBuild ? null : <TaskCard question={questionData} task={MODE_TASKS[taskKey] || MODE_TASKS.linear} steps={hostSubmitLabel ? withoutCheckInvitation(MODE_STEPS[taskKey] || MODE_STEPS.linear) : (MODE_STEPS[taskKey] || MODE_STEPS.linear)} />}
     {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
         : (mode === 'matrix' || mode === 'matrix3') ? <MatrixMode questionData={questionData} onAction={onAction}/>

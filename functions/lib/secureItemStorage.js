@@ -18,6 +18,13 @@
  * Every other field of the item is untouched, and a document written before
  * this encoding (plain `privateGrading`/`tool`) reads back exactly as it was.
  *
+ * ONLY A FIELD THAT NEEDS IT IS ENCODED: one holding an array inside an array.
+ * Everything else — every field-graded item, every SAT/ACT/TSIA2/ASVAB item,
+ * most tool items — is stored exactly as before. That keeps a deploy window
+ * and a rollback safe: a function instance that predates the codec reads a
+ * plain `privateGrading` the way it always did, and the only documents it
+ * cannot read are the ones it could never have written.
+ *
  * Plain CommonJS with no dependencies, so `secureExam.js` (synchronous) and
  * `secureItems.js` share it.
  */
@@ -26,12 +33,22 @@ const ENCODED_FIELDS = Object.freeze(["privateGrading", "tool"]);
 
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
+/** Whether Firestore would refuse this value: an array directly inside an array, at any depth. */
+function holdsNestedArray(value, insideArray = false, depth = 0) {
+  if (depth > 64 || value === null || typeof value !== "object") return false;
+  if (Array.isArray(value)) {
+    if (insideArray) return true;
+    return value.some((entry) => holdsNestedArray(entry, true, depth + 1));
+  }
+  return Object.values(value).some((entry) => holdsNestedArray(entry, false, depth + 1));
+}
+
 /** The item as a secure document may store it. */
 function storableItem(item) {
   if (!isObject(item)) return item;
   const stored = { ...item };
   ENCODED_FIELDS.forEach((field) => {
-    if (stored[field] !== undefined && stored[field] !== null && typeof stored[field] === "object") {
+    if (holdsNestedArray(stored[field])) {
       stored[`${field}Json`] = JSON.stringify(stored[field]);
       delete stored[field];
     }
@@ -57,4 +74,4 @@ function readStoredItem(item) {
   return read;
 }
 
-module.exports = { ENCODED_FIELDS, readStoredItem, storableItem };
+module.exports = { ENCODED_FIELDS, holdsNestedArray, readStoredItem, storableItem };

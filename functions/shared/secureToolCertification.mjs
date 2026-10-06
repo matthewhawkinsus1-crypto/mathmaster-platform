@@ -76,6 +76,51 @@ const BOTH_TOUCH = Object.freeze({ chromebook: true, ipad: true });
  */
 const OPEN_ALGEBRA_WORKSPACE = Object.freeze({ workspaceDifficulty: 5, supportLevel: 5 });
 
+/*
+ * WHAT A FUNCTION INVESTIGATION ITEM MUST NOT CARRY ON A SECURE TEST.
+ *
+ * A point card states its x ("Plot the point where x = 2") so the student only
+ * finds the height. Where the card names a feature the student has to LOCATE —
+ * the vertex, an x-intercept, a zero, a maximum, a point placed by its distance
+ * from the vertex or across the axis — that x is the answer: "Plot the
+ * x-intercept: x = −5" leaves y = 0 to find. On a secure item those cards lose
+ * their x, exactly as the workspace's own key points do (taskStatesX): the
+ * card names the feature, the student places it, the server grades both
+ * coordinates against its private definition.
+ *
+ * And a quadratic authored in vertex form {a, h, k} for an item whose
+ * equation is shown in another form (a standard-form "find the vertex" item)
+ * would hand over the vertex to anyone reading the payload. With the authored
+ * equation travelling (equationLatex pins what is displayed), the spec is sent
+ * as the same parabola in standard form, without h or k.
+ */
+const LOCATED_FEATURE = /\b(vertex|x-intercepts?|zeros?|roots?|maximum|minimum|turning point|axis|symmetric)\b/i;
+
+const secureFunctionInvestigation = (tool = {}) => {
+  const next = { ...tool };
+  if (Array.isArray(tool.pointTasks)) {
+    next.pointTasks = tool.pointTasks.map((task) => {
+      if (!task || typeof task !== 'object' || !LOCATED_FEATURE.test(`${task.label || ''} ${task.prompt || ''}`)) return task;
+      const { x: _statedX, ...located } = task;
+      return located;
+    });
+  }
+  const spec = tool.functionSpec;
+  const vertexForm = spec && spec.type === 'quadratic' && spec.h !== undefined && spec.k !== undefined
+    && spec.b === undefined && spec.c === undefined;
+  if (vertexForm && String(tool.equationLatex || '').trim()) {
+    const a = Number(spec.a ?? 1);
+    const h = Number(spec.h);
+    const k = Number(spec.k);
+    if ([a, h, k].every(Number.isFinite)) {
+      const { h: _h, k: _k, ...rest } = spec;
+      const round = (value) => Math.round(value * 1e9) / 1e9;
+      next.functionSpec = { ...rest, a, b: round(-2 * a * h), c: round(a * h * h + k) };
+    }
+  }
+  return next;
+};
+
 /**
  * One entry per Path-contract tool that is certified for secure delivery.
  * `label` is what a teacher reads; `category` places it in the addendum's
@@ -105,6 +150,7 @@ export const SECURE_TOOL_CERTIFICATIONS = Object.freeze({
     // The workspace's own "check my point" affordance follows the activity's
     // hint permission (QuestionEngine selfCheckAllowed); nothing to force.
     secureSettings: Object.freeze({}),
+    secureTransform: secureFunctionInvestigation,
   }),
   systemsWorkspace: Object.freeze({
     label: 'Systems Workspace',
@@ -338,9 +384,12 @@ export const certifySecureItem = (question, { mode = QUESTION_RUNTIME_MODES.SECU
  */
 export const applySecureToolSettings = (toolPayload, { secure = true } = {}) => {
   if (!secure || !toolPayload?.pathToolId) return toolPayload ?? null;
-  const settings = secureToolCertification(toolPayload.pathToolId)?.secureSettings || {};
-  if (!Object.keys(settings).length) return toolPayload;
-  return { ...toolPayload, tool: { ...toolPayload.tool, ...settings } };
+  const certification = secureToolCertification(toolPayload.pathToolId);
+  const settings = certification?.secureSettings || {};
+  const transform = typeof certification?.secureTransform === 'function' ? certification.secureTransform : null;
+  if (!Object.keys(settings).length && !transform) return toolPayload;
+  const tool = { ...toolPayload.tool, ...settings };
+  return { ...toolPayload, tool: transform ? transform(tool) : tool };
 };
 
 /**

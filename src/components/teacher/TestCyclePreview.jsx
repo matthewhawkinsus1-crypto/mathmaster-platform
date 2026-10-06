@@ -7,6 +7,7 @@ import { buildTestCyclePreviewCard, previewScenariosFor } from '../../platform/t
 import { gradeTestCyclePreviewItem, previewTestCycleSecureItems } from '../../services/testCycleService.js';
 import { SECURE_ITEM_DRAFT_PREFIX, secureItemDraftKey } from '../../platform/assessment/questionRuntimePolicy.js';
 import { removeQuestionDraftFamily } from '../../questionDraftStorage.js';
+import { forgetToolDraftFamily } from '../../tools/shared/usePersistentToolState.js';
 
 /*
  * PREVIEW A TEST CYCLE EXACTLY AS A STUDENT SEES IT — AND CHANGE NOTHING.
@@ -62,9 +63,14 @@ const quietButton = {
 // cleared on every new draw and when the preview closes: preview keeps no
 // state anywhere, the device included.
 const previewDraftSession = (assignmentId) => `preview-${assignmentId}`;
-const clearPreviewDrafts = (assignmentId) => removeQuestionDraftFamily(
-  `${SECURE_ITEM_DRAFT_PREFIX}:preview:${encodeURIComponent(previewDraftSession(assignmentId))}`,
-);
+const clearPreviewDrafts = (assignmentId) => {
+  const family = `${SECURE_ITEM_DRAFT_PREFIX}:preview:${encodeURIComponent(previewDraftSession(assignmentId))}`;
+  removeQuestionDraftFamily(family);
+  // The tools' parsed cache too: the same draft keys come back on the next
+  // preview (draw 1, item 1), and a cached record would show the teacher's
+  // earlier construction already placed on a fresh Retest item.
+  forgetToolDraftFamily(family);
+};
 
 const DEVICE_WORDS = Object.freeze({ chromebook: 'Chromebook', ipad: 'iPad', phone: 'phone' });
 

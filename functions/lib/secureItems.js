@@ -284,11 +284,36 @@ async function payloadHasWork(responsePayload) {
  * `rejected` means the work is not shaped like an answer to this item (an
  * interface problem — "complete both fields"), never that it is wrong.
  */
+const refusal = (reason, detail) => ({ isCorrect: false, score: 0, parts: [], rejected: true, reason, detail });
+
+/*
+ * GRADING NEVER THROWS.
+ *
+ * Every secure way of closing a session — the student's submit, the verified
+ * timer, the proctor's force-submit — grades the open item's saved draft
+ * inside its transaction. A grader that throws on work it was never meant to
+ * see (a crafted autosave: objects where numbers belong, own `toString` keys)
+ * would make that session impossible to finish. So a grader failure is a
+ * refusal like any other unreadable work: submit says so and spends nothing,
+ * and finalizing records the item as 0.
+ */
 async function gradeItem(privateGrading, responsePayload = {}) {
+  try {
+    return await gradeItemUnguarded(privateGrading, responsePayload);
+  } catch (error) {
+    if (error?.code === "raw_too_large") {
+      return refusal("raw_too_large", "This answer is too large to record. Remove some work and try again.");
+    }
+    console.error("secure grading failed", error?.message || error);
+    return refusal("malformed_response", "This answer could not be read. Rebuild it in the tool and try again.");
+  }
+}
+
+async function gradeItemUnguarded(privateGrading, responsePayload = {}) {
   if (privateGrading?.pathToolId) {
     const raw = await rawWorkOf(responsePayload);
     if (!raw) {
-      return { isCorrect: false, score: 0, parts: [], rejected: true, reason: "missing_tool_work", detail: "This item needs the work you built in its tool." };
+      return refusal("missing_tool_work", "This item needs the work you built in its tool.");
     }
     const result = await mathPath.gradePathToolResponse(privateGrading, { raw });
     const score = Math.max(0, Math.min(1, Number(result?.score) || 0));

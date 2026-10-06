@@ -14780,7 +14780,9 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   const session = sessionSnapshot.data();
   if (session.status !== "active") throw new HttpsError("failed-precondition", "This My Math Path session is already complete.");
   if (session.currentQuestion) {
-    return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(session.currentQuestion) }) };
+    // Stored with its tool fields encoded when they nest arrays (secureItemStorage).
+    const openQuestion = secureItems.readStoredItem(session.currentQuestion);
+    return { questionInstance: mathPath.buildSanitizedQuestion(openQuestion, { questionInstanceId: openQuestion.questionInstanceId, attemptsAllowed: openQuestion.attemptsAllowed, attemptsUsed: openQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(openQuestion) }) };
   }
 
   if (session.assessmentFramework) {
@@ -14810,12 +14812,13 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
         }
         const freshData = fresh.data();
         if (freshData.currentQuestion) {
+          const openQuestion = secureItems.readStoredItem(freshData.currentQuestion);
           return {
-            questionInstance: mathPath.buildSanitizedQuestion(freshData.currentQuestion, {
-              questionInstanceId: freshData.currentQuestion.questionInstanceId,
-              attemptsAllowed: freshData.currentQuestion.attemptsAllowed,
-              attemptsUsed: freshData.currentQuestion.attemptsUsed,
-              toolPayload: mathPath.storedToolPayload(freshData.currentQuestion),
+            questionInstance: mathPath.buildSanitizedQuestion(openQuestion, {
+              questionInstanceId: openQuestion.questionInstanceId,
+              attemptsAllowed: openQuestion.attemptsAllowed,
+              attemptsUsed: openQuestion.attemptsUsed,
+              toolPayload: mathPath.storedToolPayload(openQuestion),
             }),
           };
         }
@@ -15210,11 +15213,16 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     const fresh = await transaction.get(sessionRef);
     const freshData = fresh.data();
     if (!fresh.exists || freshData?.studentId !== studentId || freshData?.status !== "active") throw new HttpsError("failed-precondition", "This session changed before the question could be issued.");
-    if (freshData.currentQuestion) return freshData.currentQuestion;
+    if (freshData.currentQuestion) return secureItems.readStoredItem(freshData.currentQuestion);
     // Remember which family was issued, so the next question in this session
     // reaches for one the student has not seen.
     transaction.update(sessionRef, {
-      currentQuestion,
+      // A Data Modeling, Mapping Diagram, reflection or 3×3 RREF item nests
+      // arrays in its tool fields, which Firestore refuses: those fields are
+      // stored encoded (secureItemStorage), every other item exactly as before.
+      // Without this the transaction failed and, selection being
+      // deterministic, the session could never issue its next question.
+      currentQuestion: secureItems.storableItem(currentQuestion),
       familyUsage: selection.recordFamilyUse(freshData.familyUsage || {}, authored.id),
       usedRepresentations: [...new Set([...(freshData.usedRepresentations || []), choice.representation].filter(Boolean))],
       usedTaskTypes: [...new Set([...(freshData.usedTaskTypes || []), choice.taskType].filter(Boolean))],
@@ -15285,7 +15293,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     if (!sessionSnapshot.exists || sessionSnapshot.data()?.studentId !== studentId) throw new HttpsError("not-found", "That My Math Path session is not available.");
     const session = sessionSnapshot.data();
     if (session.status !== "active" || !session.currentQuestion) throw new HttpsError("failed-precondition", "There is no open question to submit.");
-    const currentQuestion = session.currentQuestion;
+    const currentQuestion = secureItems.readStoredItem(session.currentQuestion);
     if (currentQuestion.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer the active question.");
 
     // The grader is chosen from the question the SERVER stored, never from a
@@ -15458,7 +15466,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
       status: nextStatus,
       summary: nextSummary,
       pathState: { ...(session.pathState || {}), counters: { ...(session.pathState?.counters || {}), questionsThisSession: nextSummary.completedQuestions || 0 } },
-      currentQuestion: nextCurrentQuestion,
+      currentQuestion: secureItems.storableItem(nextCurrentQuestion),
       ...(routed ? {
         currentSkillCode: routed.currentSkillCode,
         excursion: routed.excursion,
@@ -16567,8 +16575,14 @@ async function testCycleFamilyIssuability(families) {
     // The second is answered from generated instances, because a generator
     // can change the tool between variants and the student gets an instance.
     const generative = generation.hasPathGenerator(family) || generation.hasPathVariants(family);
+    // Every variant, not only the ones four random draws reach: issue time
+    // picks the variant ranked best for the target's DOK and band, which the
+    // random samples can miss (35 of 213 Algebra I variant cells did).
+    const perVariant = generation.hasPathVariants(family)
+      ? generation.effectivePathVariants(family).map((variant, index) => generation.generatePathInstance(variant.template, `certify-variant-${index}`).question)
+      : [];
     const instances = generative
-      ? generation.samplePathInstances(family, 4).map((entry) => entry.question).filter(Boolean)
+      ? [...generation.samplePathInstances(family, 4).map((entry) => entry.question), ...perVariant].filter(Boolean)
       : [family];
     verdicts[id] = {
       issuable: plan.issuable === true,
@@ -17361,7 +17375,16 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
    * minted fresh here and could never collide with the exam's, which is why
    * checking them would be a test that can only pass.
    */
-  const families = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);
+  const practiceFamilies = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);
+  // The tool the student missed this standard with on the Test comes first: a
+  // missed graphing item is corrected on the Graphing tool where a parallel
+  // family exists, never quietly moved to a text box.
+  const { secureTools: correctionTools } = await secureItems.sharedModules();
+  const testTools = new Set((target.testToolIds || []).map(String));
+  const sameToolFamilies = testTools.size
+    ? practiceFamilies.filter((family) => testTools.has(correctionTools.resolveSecureToolId(family) || "fields"))
+    : [];
+  const families = sameToolFamilies.length ? sameToolFamilies : practiceFamilies;
   const attemptIndex = Number(target.correctResponses || 0) + Number(stored.issuedCounts?.[correctionId] || 0);
   let issued = null;
   for (let offset = 0; offset < Math.max(1, families.length); offset += 1) {
@@ -17607,6 +17630,8 @@ async function ensureRetestSession(db, { assignmentId, assignment, policy, bluep
     attempt: Number(record.retest.attempt || 1),
     avoidFamilyIds: generated.audit.avoidFamilyIds,
     avoidInstanceIds: generated.audit.avoidInstanceIds,
+    // A missed graphing skill is retested on the graphing tool.
+    preferredToolsByTarget: Object.fromEntries(profile.targets.map((target) => [target.targetId, target.seenToolIds || []])),
   });
   if (shared.issuance.planRequiresLiveGeneration(plan)) return null;
 

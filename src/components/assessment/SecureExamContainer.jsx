@@ -7,6 +7,7 @@ import { clearSecureExamActive, setSecureExamActive } from '../../platform/asses
 import { COURSE_TEST_EXAM_TYPE } from '../../platform/policies/examPolicyResolver.js';
 import { SECURE_ITEM_DRAFT_PREFIX, secureItemDraftKey } from '../../platform/assessment/questionRuntimePolicy.js';
 import { removeQuestionDraftFamily } from '../../questionDraftStorage.js';
+import { forgetToolDraftFamily } from '../../tools/shared/usePersistentToolState.js';
 import { finalizeSecureExam, issueSecureExamQuestion, recordSecureExamIntegrityEvent, saveSecureExamDraft, startSecureExamSession, submitSecureExamResponse } from '../../services/secureExamService.js';
 
 const terminal = new Set([EXAM_RUNTIME_STATES.SUBMITTED, EXAM_RUNTIME_STATES.TIME_EXPIRED, EXAM_RUNTIME_STATES.FORCE_SUBMITTED]);
@@ -62,8 +63,9 @@ const clearLocalDrafts = (examSessionId) => {
       .filter((key) => key.startsWith(`${LOCAL_DRAFT_PREFIX}${examSessionId}:`))
       .forEach((key) => window.localStorage.removeItem(key));
   } catch { /* nothing to clear */ }
-  // Every Rich Tool construction of this session, too.
+  // Every Rich Tool construction of this session, too — stored and cached.
   removeQuestionDraftFamily(sessionDraftFamily(examSessionId));
+  forgetToolDraftFamily(sessionDraftFamily(examSessionId));
 };
 
 const SAVE_LABEL = {
@@ -233,6 +235,9 @@ export const SecureExamContainer = ({
       try { window.localStorage.removeItem(localDraftKey(session.examSessionId, question.questionInstanceId)); } catch { /* nothing to remove */ }
       // The answer is recorded: the item's tool drafts have nothing left to do.
       removeQuestionDraftFamily(itemDraftKey(session.examSessionId, question.questionInstanceId));
+      // And the tool's cached copy: the engine stamps the submitted work back
+      // to storage from that cache once this returns.
+      forgetToolDraftFamily(itemDraftKey(session.examSessionId, question.questionInstanceId));
       setQuestion(null);
       setSaveState('idle');
       setSession(result.session);

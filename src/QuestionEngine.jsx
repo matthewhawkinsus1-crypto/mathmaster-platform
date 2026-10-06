@@ -1007,7 +1007,10 @@ function QuestionEngineBody({
      * published response.
      */
     if (serverGrading) {
-      if (!onResponseStateChangeRef.current) return;
+      // Only a host that keeps live tool work asks for it. Live Challenge also
+      // grades on the server, and its round-end buzzer submits whatever it was
+      // last given: half-built graphs reached the server as answers.
+      if (serverGrading.publishToolWork !== true || !onResponseStateChangeRef.current) return;
       const signature = stableStringify(work ?? null);
       if (signature === lastPublishedResponseRef.current) return;
       lastPublishedResponseRef.current = signature;

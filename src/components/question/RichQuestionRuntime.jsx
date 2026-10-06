@@ -9,7 +9,7 @@ import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyR
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { engineActivityPolicyForMode, resolveQuestionRuntimePolicy } from '../../platform/assessment/questionRuntimePolicy.js';
-import { readQuestionDraftFamily, restoreQuestionDrafts, subscribeToQuestionDrafts } from '../../questionDraftStorage.js';
+import { readQuestionDraftFamily, restoreQuestionDrafts, studentInputMark, studentInputSince, subscribeToQuestionDrafts } from '../../questionDraftStorage.js';
 import { assessmentSupportProfile } from '../../studentSupport.js';
 
 /*
@@ -228,9 +228,17 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, draftKey
   }, [draftKey]);
 
   // The tool's raw construction, as its Path Tool Contract grades it.
+  //
+  // Sent only once the STUDENT has touched the page since the item opened. A
+  // tool reports its starting state on mount — the Data Modeling Lab its
+  // default prediction x, Step Algebra the prompt's own equation — and that is
+  // not an answer: saved, it read "Answer saved" before the student did
+  // anything, and finalizing recorded the untouched item as answered. Work
+  // restored after a reload is the server's own copy and needs no resend.
+  const inputMarkRef = useRef(studentInputMark());
   const handleRawWork = useCallback((raw) => {
     latestRawRef.current = raw && typeof raw === 'object' ? raw : null;
-    if (hasMeaningfulRawPathResponse(latestRawRef.current)) emitDraft();
+    if (hasMeaningfulRawPathResponse(latestRawRef.current) && studentInputSince(inputMarkRef.current)) emitDraft();
   }, [emitDraft]);
 
   // A tool's own draft writes that are the STUDENT's edits (not a workspace
@@ -249,6 +257,9 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, draftKey
 
   const serverGrading = useMemo(() => ({
     pathToolId: question.pathToolId,
+    // This host keeps a registry tool's live work (the secure autosave); a host
+    // that does not ask for it (Live Challenge) is never sent it.
+    publishToolWork: true,
     submit: async (rawWork, engineSupportUsage) => {
       supportUsageRef.current = engineSupportUsage || {};
       const raw = rawWork && typeof rawWork === 'object' ? rawWork : latestRawRef.current;

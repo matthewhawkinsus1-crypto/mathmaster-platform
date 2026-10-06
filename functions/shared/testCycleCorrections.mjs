@@ -100,6 +100,7 @@ export const buildPerformanceProfile = ({ blueprint = null, responses = [] } = {
       missedEvidence: [],
       seenFamilyIds: [],
       seenInstanceIds: [],
+      seenToolIds: [],
       misconceptions: [],
     });
   });
@@ -117,6 +118,7 @@ export const buildPerformanceProfile = ({ blueprint = null, responses = [] } = {
     const instanceId = clean(response.questionInstanceId);
     if (familyId) entry.seenFamilyIds.push(familyId);
     if (instanceId) entry.seenInstanceIds.push(instanceId);
+    if (clean(response.toolId)) entry.seenToolIds.push(clean(response.toolId));
     if (!isCorrect) {
       entry.missedEvidence.push({
         questionInstanceId: instanceId || null,
@@ -140,6 +142,7 @@ export const buildPerformanceProfile = ({ blueprint = null, responses = [] } = {
       ...entry,
       seenFamilyIds: [...new Set(entry.seenFamilyIds)],
       seenInstanceIds: [...new Set(entry.seenInstanceIds)],
+      seenToolIds: [...new Set(entry.seenToolIds)],
       misconceptions: [...new Set(entry.misconceptions)],
       missed: entry.attempted - entry.correct,
       mastery,
@@ -234,6 +237,9 @@ export const buildCorrectionPlan = ({
       difficultyBand: target.difficultyBand,
       representation: target.representation,
       toolId: target.toolId,
+      // The tools this student met the standard with on the Test: a missed
+      // graphing item is practised on the Graphing tool, where one exists.
+      testToolIds: [...list(target.seenToolIds)],
       weight: target.weight,
       // A named misconception only when the evidence carried one.
       diagnosis: misconception ? CORRECTION_DIAGNOSIS.MISCONCEPTION : CORRECTION_DIAGNOSIS.STANDARD,

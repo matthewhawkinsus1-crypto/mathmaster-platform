@@ -488,7 +488,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             <Field label="Predicted y"><input type="number" step="0.1" value={predictionY} onChange={(e)=>setPredictionY(e.target.value)} style={inputStyle}/></Field>
           </div>
           {asksPredictionType ? <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field> : null}
-          {asksPredictionType ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'var(--mm-surface-tint)', color:'var(--mm-text-muted)', fontSize:13 }}>
+          {asksPredictionType && teachingNotes ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'var(--mm-surface-tint)', color:'var(--mm-text-muted)', fontSize:13 }}>
             Interpolation predicts inside the observed x-range. Extrapolation goes beyond the data and should be treated more cautiously.
           </div> : null}
         </Panel> : null}

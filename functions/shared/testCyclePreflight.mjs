@@ -27,7 +27,7 @@
  * uses), so this module never has to import a generator or reach Firestore.
  */
 
-import { normalizeTestBlueprint, targetFamilyCoverage } from './testCycleBlueprint.mjs';
+import { indexApprovedFamilies, normalizeTestBlueprint, targetFamilyCoverage } from './testCycleBlueprint.mjs';
 import {
   SECURE_CYCLE_MODES,
   certifySecureFamily,
@@ -66,11 +66,14 @@ const MODE_WORDS = Object.freeze({
  * between variants); without it the family document is certified as it
  * stands, which is what a pure caller and the tests do.
  */
-const targetSecureRendering = ({ target, families, familyIssuability, modes, calculatorMode }) => {
+const targetSecureRendering = ({ target, families, approved, familyIssuability, modes, calculatorMode }) => {
   const byId = new Map(list(families).map((family) => [clean(family?.id || family?.questionId || family?.familyId), family]));
   const requiredToolId = target.toolId ? resolveSecureToolId({ type: target.toolId }) : null;
+  // Only a family the planner can draw is judged — the same approved set
+  // coverage and issuance use. A retired or unvalidated family named by the
+  // blueprint is never issued, so it must not block the Test either.
   const familyRows = target.familyIds
-    .filter((familyId) => byId.has(familyId))
+    .filter((familyId) => byId.has(familyId) && approved.has(familyId))
     .map((familyId) => {
       const family = byId.get(familyId);
       const secure = familyIssuability?.[familyId]?.secure || certifySecureFamily(family);
@@ -232,9 +235,11 @@ export const preflightTestCycle = ({
     // has no Corrections.
     ? SECURE_CYCLE_MODES.filter((mode) => mode !== 'corrections')
     : [...SECURE_CYCLE_MODES];
+  const approvedFamilies = indexApprovedFamilies(families);
   const secureRendering = normalizedBlueprint.targets.map((target) => targetSecureRendering({
     target,
     families,
+    approved: approvedFamilies,
     familyIssuability,
     modes: deliveredModes,
     calculatorMode: normalizedBlueprint.calculatorMode,
