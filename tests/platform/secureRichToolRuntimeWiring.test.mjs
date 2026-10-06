@@ -30,6 +30,7 @@ import { assessmentSupportProfile } from '../../src/studentSupport.js';
 import { resolveExamCalculatorPolicy } from '../../src/platform/policies/examPolicyResolver.js';
 import { describeToolWork, rawToolWorkOf, toolWorkLabel } from '../../src/platform/assessment/secureToolWorkSummary.js';
 import { secureItemDraftKey } from '../../src/platform/assessment/questionRuntimePolicy.js';
+import { createToolWorkGate } from '../../src/components/question/toolWorkGate.js';
 
 const require = createRequire(import.meta.url);
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -220,12 +221,36 @@ test('the Data Modeling Lab\'s teaching notes are hints: withheld where help is'
   });
 });
 
+test('Data Modeling: the guide steps on a secure item repeat no withheld teaching note, and invite no "check"', () => {
+  // The "How to do this" steps render for every policy. In correlation mode
+  // they said "Use the sign and magnitude of r to interpret direction and
+  // strength" — the withheld r-note, aimed at the two graded parts — and
+  // modelCompare repeated the model-choice note and ended "…and check".
+  const source = read('src/tools/dataModeling/DataModelingLab.jsx');
+  const constant = (name) => {
+    const start = `const ${name} = `;
+    const body = region(source, start, '};\n', name).slice(start.length);
+    return Function(`return (${body}});`)();
+  };
+  const practice = constant('MODE_STEPS');
+  const secure = constant('SECURE_MODE_STEPS');
+  const withheld = /sign and magnitude|scattered|no pattern|inside or outside|residual error of each|shape is reasonable|\bcheck\b/i;
+  const practiceRepeats = Object.keys(practice).filter((mode) => practice[mode].some((step) => withheld.test(step)));
+  assert.deepEqual(practiceRepeats.sort(), ['correlation', 'full', 'lineFit', 'modelCompare', 'prediction'], 'the practice steps that teach what a secure item grades');
+  practiceRepeats.forEach((mode) => {
+    assert.ok(Array.isArray(secure[mode]) && secure[mode].length, `${mode} has secure steps`);
+    secure[mode].forEach((step) => assert.doesNotMatch(step, withheld, `${mode}: ${step}`));
+  });
+  // Chosen by the hint permission; an unknown mode falls back to secure steps.
+  assert.match(source, /const guideSteps = teachingNotes\s*\? \(MODE_STEPS\[mode\] \|\| MODE_STEPS\.full\)\s*: \(SECURE_MODE_STEPS\[mode\] \|\| MODE_STEPS\[mode\] \|\| SECURE_MODE_STEPS\.full\);/);
+  assert.match(source, /const taskSteps = hostSubmitLabel \? withoutCheckInvitation\(guideSteps\) : guideSteps;/);
+  assert.match(source, /<TaskCard question=\{questionData\} task=\{MODE_TASKS\[mode\] \|\| MODE_TASKS\.full\} steps=\{taskSteps\} \/>/);
+});
+
 test('only the student\'s own work is autosaved, and only a host that keeps live tool work is sent it', () => {
   const toolItem = region(runtime, 'const ToolItem = (', 'export default function RichQuestionRuntime(', 'tool item');
-  // A tool's starting state (the Data Modeling Lab's default prediction x,
-  // Step Algebra's own equation) reported on mount is not an answer.
-  assert.match(toolItem, /const inputMarkRef = useRef\(studentInputMark\(\)\);/);
-  assert.match(toolItem, /if \(hasMeaningfulRawPathResponse\(latestRawRef\.current\) && studentInputSince\(inputMarkRef\.current\)\) emitDraft\(\);/);
+  assert.match(toolItem, /const \[toolWorkGate\] = useState\(\(\) => createToolWorkGate\(\{ serverRaw: initialResponsePayload\?\.raw \|\| null \}\)\);/);
+  assert.match(toolItem, /if \(toolWorkGate\(latestRawRef\.current\)\) emitDraft\(\);/);
   assert.match(toolItem, /publishToolWork: true,/);
   // The engine sends registry tool work to a server-graded host only on that
   // opt-in: Live Challenge's buzzer submitted half-built graphs.
@@ -235,9 +260,56 @@ test('only the student\'s own work is autosaved, and only a host that keeps live
   assert.doesNotMatch(executableSource(live), /publishToolWork/);
 });
 
+test('the tool-work gate: a starting state is not work, the student\'s input is, and so is work the server lacks', () => {
+  let input = 0;
+  const gate = (serverRaw) => createToolWorkGate({ serverRaw, inputMark: () => input, inputSince: (mark) => input > mark });
+  const defaults = { prediction: { x: 4 } };
+  const built = { prediction: { x: 7 } };
+
+  // A fresh item: the tool's mounted default is not sent, even after input
+  // that came BEFORE the tool reported (a tap while the workspace loaded).
+  input = 3;
+  let fresh = gate(null);
+  assert.equal(fresh(defaults), false, 'the mounted starting state');
+  assert.equal(fresh(defaults), false, 'a re-render with no input');
+  input += 1;
+  assert.equal(fresh(built), true, 'the student changed it');
+  assert.equal(fresh({}), false, 'an empty construction is never sent');
+
+  // The first report counts as the baseline even when the input mark moves
+  // between mount and that report.
+  input = 0;
+  fresh = gate(null);
+  input = 5;
+  assert.equal(fresh(defaults), false, 'input before the first report is not work');
+
+  // A reload: the device restored a newer construction than the server holds.
+  const stale = gate({ prediction: { x: 2 } });
+  assert.equal(stale(built), true, 'the server copy is stale: send the screen\'s work');
+  assert.equal(stale(built), false, 'once sent, the same work is not resent');
+
+  // A reload of work the server already holds sends nothing.
+  const current = gate({ prediction: { x: 7 } });
+  assert.equal(current({ prediction: { x: 7 } }), false);
+});
+
+test('a reload sends the server the device\'s answer WITH the Rich Tool drafts it restored', () => {
+  // A save replaces the server's draft whole: the bare device mirror has no
+  // workspace drafts, so sending it deleted another device's construction.
+  const refresh = region(container, 'const refreshQuestion = useCallback(async (activeSessionId) => {', 'const start = async () => {', 'refresh');
+  assert.match(refresh, /setQuestion\(\{ \.\.\.instance, _draftResponse: restored \}\);/);
+  assert.match(refresh, /saveSecureExamDraft\(\{ examSessionId: activeSessionId, questionInstanceId: instance\.questionInstanceId, responsePayload: restored, supportUsage: \{\} \}\)/);
+  assert.doesNotMatch(refresh, /responsePayload: local\b/);
+});
+
+test('the intercept route renders under the solver runtime like every other algebra route', () => {
+  const intercepts = region(engine, 'if (algebraWorkspaceRoute.route === ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS) {', '// StepByStepAlgebra hands a prompt-only inequality', 'intercept route');
+  assert.match(intercepts, /return withSolverRuntime\(\s*<LinearInterceptsOrchestrator/);
+});
+
 test('Step Algebra judges no committed move where verdicts are withheld', () => {
   const core = read('src/StepByStepAlgebraCore.jsx');
-  assert.match(core, /const verdictsShown = useToolRuntimeContext\(\)\.showImmediateFeedback !== false;/);
+  assert.match(core, /const verdictsShown = useToolRuntimeContext\(\)\.verdictsWithheld !== true;/);
   const commit = region(core, 'if (!verdictsShown) {', 'setMessage({\n        tone: nextSolved', 'withheld commit message');
   assert.match(commit, /tone: 'neutral'/);
   // What the student reads: the message strings, not the variable names.
@@ -278,12 +350,14 @@ test('certification samples every variant a target can be issued, not four rando
 });
 
 test('the Retest and Corrections are given the tool the student met each standard with', () => {
+  // The behaviour is tested in secureRichToolPreflight; this binds the
+  // callables to it.
   const retest = region(functionsIndex, 'async function ensureRetestSession(', 'if (shared.issuance.planRequiresLiveGeneration(plan)) return null;', 'retest plan');
-  assert.match(retest, /preferredToolsByTarget: Object\.fromEntries\(profile\.targets\.map\(\(target\) => \[target\.targetId, target\.seenToolIds \|\| \[\]\]\)\)/);
-  const correction = region(functionsIndex, 'const practiceFamilies = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);', 'const attemptIndex =', 'correction families');
-  assert.match(correction, /const families = sameToolFamilies\.length \? sameToolFamilies : practiceFamilies;/);
-  const profileSource = read('functions/lib/testCycle.js');
-  assert.match(profileSource, /toolId: response \? \(clean\(response\.pathToolId\) \|\| "fields"\) : null,/);
+  assert.match(retest, /preferredToolsByTarget: shared\.retest\.retestToolPreferences\(\{ profile, retestBlueprint: generated\.blueprint \}\),/);
+  const correction = region(functionsIndex, 'const declaredFamilies = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);', 'let issued = null;', 'correction families');
+  assert.match(correction, /const families = shared\.corrections\.orderCorrectionFamilies\(\{\s*families: declaredFamilies,\s*testToolIds: target\.testToolIds \|\| \[\],\s*toolOf: \(family\) => correctionTools\.resolveSecureToolId\(family\) \|\| "fields",\s*attemptIndex,\s*\}\);/);
+  const issueLoop = region(functionsIndex, 'let issued = null;', 'issued = secureItems.storableItem({', 'correction issue loop');
+  assert.match(issueLoop, /const family = families\[offset\];/);
 });
 
 test('Step Algebra: cue toggle and a draft-borne support level both follow the hint permission', () => {
@@ -311,7 +385,8 @@ test('an issued Rich Tool item is stored with its tool fields encoded (Firestore
   const stored = storage.storableItem(item);
   assert.equal(typeof stored.privateGradingJson, 'string');
   assert.equal(typeof stored.toolJson, 'string');
-  assert.equal('privateGrading' in stored, false);
+  // In its place, a stand-in no grader accepts (an older function instance refuses, never scores 0).
+  assert.deepEqual(stored.privateGrading, { pathToolId: '__stored_as_json__', fields: [null] });
   assert.equal(stored.prompt, 'p');
   assert.deepEqual(storage.readStoredItem(stored), item);
   assert.deepEqual(storage.readStoredItem(item), item, 'a document written before the encoding reads back unchanged');

@@ -117,3 +117,15 @@ test('caveats a teacher should read: technology on a no-calculator Test, and a m
   assert.equal(secureItemCaveats({ type: 'relationMapping', ask: ['mapping', 'isFunction'] }).length, 0);
   assert.equal(secureItemCaveats({ type: 'graphing2' }).length, 0);
 });
+
+test('a Step Algebra item tells the teacher its workspace checks each rewrite before the answer is recorded', () => {
+  // The workspace refuses a non-equivalent rewrite or simplification — how it
+  // keeps an equation an equation, not feedback the policy can switch off —
+  // so the item does not measure error-free intermediate arithmetic.
+  ['stepAlgebra', 'algebra'].forEach((type) => {
+    const caveats = secureItemCaveats({ type, prompt: 'Solve 2x + 3 = 11.' });
+    assert.equal(caveats.length, 1, type);
+    assert.match(caveats[0], /refuses a rewrite or simplification that is not equivalent/);
+    assert.match(caveats[0], /not error-free arithmetic/);
+  });
+});

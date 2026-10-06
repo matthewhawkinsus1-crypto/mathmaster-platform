@@ -207,6 +207,10 @@ export const describeFamily = (question) => {
     // guess at what a generator looks like. A second opinion here would let
     // preflight approve a retest the issuing server then could not vary.
     generative: hasPathGenerator(source) || hasPathVariants(source),
+    // Draws fresh PARAMETERS, not only a different variant: a seen family of
+    // this kind can be reused on a retest without repeating the item (a
+    // variants-only family can land on the same variant, the same question).
+    parameterGenerator: hasPathGenerator(source),
     parallelGroup: clean(source.parallelGroup) || null,
     validated: source.validated !== false && source.active !== false,
     active: source.active !== false,

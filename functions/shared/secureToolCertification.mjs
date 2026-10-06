@@ -45,7 +45,7 @@
 
 import { declaredToolId } from './legacyFieldGrading.mjs';
 import { resolvePathToolId } from './pathToolContracts.mjs';
-import { QUESTION_RUNTIME_MODES } from './questionRuntimePolicy.mjs';
+import { QUESTION_RUNTIME_MODES, isSecureRuntimeMode } from './questionRuntimePolicy.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -77,6 +77,18 @@ const BOTH_TOUCH = Object.freeze({ chromebook: true, ipad: true });
 const OPEN_ALGEBRA_WORKSPACE = Object.freeze({ workspaceDifficulty: 5, supportLevel: 5 });
 
 /*
+ * WHAT A STEP-BY-STEP ALGEBRA ITEM MEASURES ON A SECURE TEST.
+ *
+ * The workspace keeps an equation an equation: it refuses a rewrite or a
+ * simplification that is not equivalent, and an invalid move, before applying
+ * it. That is how the tool works, not feedback the secure policy can switch
+ * off — but it means a student cannot record a wrong intermediate step. No
+ * verdict is given on a committed move and the final answer is the student's;
+ * the teacher is told what the item does and does not measure.
+ */
+const ALGEBRA_WORKSPACE_CAVEAT = 'The step-by-step workspace refuses a rewrite or simplification that is not equivalent, so the student\'s intermediate arithmetic is checked before the answer is recorded: the item measures choosing and completing the moves, not error-free arithmetic.';
+
+/*
  * WHAT A FUNCTION INVESTIGATION ITEM MUST NOT CARRY ON A SECURE TEST.
  *
  * A point card states its x ("Plot the point where x = 2") so the student only
@@ -88,37 +100,58 @@ const OPEN_ALGEBRA_WORKSPACE = Object.freeze({ workspaceDifficulty: 5, supportLe
  * card names the feature, the student places it, the server grades both
  * coordinates against its private definition.
  *
- * And a quadratic authored in vertex form {a, h, k} for an item whose
- * equation is shown in another form (a standard-form "find the vertex" item)
- * would hand over the vertex to anyone reading the payload. With the authored
- * equation travelling (equationLatex pins what is displayed), the spec is sent
- * as the same parabola in standard form, without h or k.
+ * EXCEPT a card an inverse reflection reflects. The workspace locates each
+ * reflected point from its source card's x; without it a reflected point can
+ * never count as placed, and the item could never be recorded. On those items
+ * the source's x is read from the equation shown, so it gives nothing away.
  */
 const LOCATED_FEATURE = /\b(vertex|x-intercepts?|zeros?|roots?|maximum|minimum|turning point|axis|symmetric)\b/i;
 
+const inverseSourceIds = (tool = {}) => new Set([
+  ...(Array.isArray(tool.inverseReflection?.sourceTaskIds) ? tool.inverseReflection.sourceTaskIds : []),
+  ...(Array.isArray(tool.analysisRequests) ? tool.analysisRequests.map((part) => part?.sourceTaskId) : []),
+].filter(Boolean).map(String));
+
 const secureFunctionInvestigation = (tool = {}) => {
-  const next = { ...tool };
-  if (Array.isArray(tool.pointTasks)) {
-    next.pointTasks = tool.pointTasks.map((task) => {
-      if (!task || typeof task !== 'object' || !LOCATED_FEATURE.test(`${task.label || ''} ${task.prompt || ''}`)) return task;
+  if (!Array.isArray(tool.pointTasks)) return tool;
+  const sources = inverseSourceIds(tool);
+  return {
+    ...tool,
+    pointTasks: tool.pointTasks.map((task) => {
+      if (!task || typeof task !== 'object' || sources.has(String(task.id))) return task;
+      if (!LOCATED_FEATURE.test(`${task.label || ''} ${task.prompt || ''}`)) return task;
       const { x: _statedX, ...located } = task;
       return located;
-    });
-  }
-  const spec = tool.functionSpec;
-  const vertexForm = spec && spec.type === 'quadratic' && spec.h !== undefined && spec.k !== undefined
-    && spec.b === undefined && spec.c === undefined;
-  if (vertexForm && String(tool.equationLatex || '').trim()) {
-    const a = Number(spec.a ?? 1);
-    const h = Number(spec.h);
-    const k = Number(spec.k);
-    if ([a, h, k].every(Number.isFinite)) {
-      const { h: _h, k: _k, ...rest } = spec;
-      const round = (value) => Math.round(value * 1e9) / 1e9;
-      next.functionSpec = { ...rest, a, b: round(-2 * a * h), c: round(a * h * h + k) };
-    }
-  }
-  return next;
+    }),
+  };
+};
+
+/*
+ * AN ITEM WHOSE OWN DEFINITION STATES THE ANSWER IS NOT A SECURE ITEM.
+ *
+ * The workspace needs the function it graphs, and a quadratic is authored in
+ * vertex form {a, h, k}. Where the item SHOWS the equation in vertex form the
+ * vertex is given, by design. Where it shows another form ("Graph
+ * y = 2x² − 8x + 6 … identify the vertex and axis of symmetry") and asks for
+ * the vertex or the axis, the payload's h and k are the answer — and that
+ * family's flanking cards state x-values symmetric about it too. No secure
+ * setting can remove what the workspace needs to draw, so such an item is
+ * refused on a secure Test or Retest (preflight names it); Corrections, which
+ * teach, still use it.
+ */
+const SHOWN_VERTEX_FORM = /\(\s*[a-z]\s*[-+][^()]*(?:\([^()]*\))?[^()]*\)\s*\^\s*\{?2/i;
+const ASKS_VERTEX = /\b(vertex|axis|maximum|minimum|turning point)\b/i;
+
+const functionInvestigationExposure = (question = {}) => {
+  const spec = question.functionSpec || question.tool?.functionSpec;
+  if (!spec || spec.type !== 'quadratic' || spec.h === undefined || spec.k === undefined) return null;
+  const analysis = Array.isArray(question.analysisRequests) ? question.analysisRequests : (question.tool?.analysisRequests || []);
+  const asksVertex = analysis.some((part) => ASKS_VERTEX.test(`${part?.label || ''} ${part?.prompt || ''}`)
+    || ['vertex', 'localMaximum', 'localMinimum'].includes(String(part?.feature || '')));
+  if (!asksVertex) return null;
+  const shown = `${question.equationLatex || question.tool?.equationLatex || ''} ${question.prompt || question.tool?.prompt || ''}`;
+  if (SHOWN_VERTEX_FORM.test(shown)) return null;
+  return 'it asks for the vertex or axis of a parabola it does not show in vertex form, and the graph definition the workspace draws from carries that vertex';
 };
 
 /**
@@ -151,6 +184,7 @@ export const SECURE_TOOL_CERTIFICATIONS = Object.freeze({
     // hint permission (QuestionEngine selfCheckAllowed); nothing to force.
     secureSettings: Object.freeze({}),
     secureTransform: secureFunctionInvestigation,
+    secureExposure: functionInvestigationExposure,
   }),
   systemsWorkspace: Object.freeze({
     label: 'Systems Workspace',
@@ -173,6 +207,7 @@ export const SECURE_TOOL_CERTIFICATIONS = Object.freeze({
     modes: ALL_MODES,
     devices: Object.freeze({ ...BOTH_TOUCH, phone: true }),
     secureSettings: OPEN_ALGEBRA_WORKSPACE,
+    caveat: () => ALGEBRA_WORKSPACE_CAVEAT,
   }),
   algebra: Object.freeze({
     label: 'Algebra balance workspace',
@@ -184,6 +219,7 @@ export const SECURE_TOOL_CERTIFICATIONS = Object.freeze({
     modes: ALL_MODES,
     devices: Object.freeze({ ...BOTH_TOUCH, phone: true }),
     secureSettings: OPEN_ALGEBRA_WORKSPACE,
+    caveat: () => ALGEBRA_WORKSPACE_CAVEAT,
   }),
   intervalNumberLine: Object.freeze({
     label: 'Number line and intervals',
@@ -358,7 +394,12 @@ export const certifySecureItem = (question, { mode = QUESTION_RUNTIME_MODES.SECU
       reason: `${secureToolLabel(toolId)} ${UNCERTIFIED_TOOL_REASON}`,
     });
   }
-  const certified = certification.modes[clean(mode)] === true;
+  // An item can be refused on a secure Test where the tool is not: its own
+  // definition would hand over the answer (secureExposure).
+  const exposure = isSecureRuntimeMode(mode) && typeof certification.secureExposure === 'function'
+    ? certification.secureExposure(question || {})
+    : null;
+  const certified = certification.modes[clean(mode)] === true && !exposure;
   return Object.freeze({
     compatible: certified,
     kind: 'richTool',
@@ -372,7 +413,9 @@ export const certifySecureItem = (question, { mode = QUESTION_RUNTIME_MODES.SECU
     serializableResponse: true,
     serverGradeable: true,
     devices: certification.devices,
-    reason: certified ? null : `${certification.label} has not been certified for ${mode} mode.`,
+    reason: certified ? null : exposure
+      ? `This ${certification.label} item is not secure: ${exposure}.`
+      : `${certification.label} has not been certified for ${mode} mode.`,
   });
 };
 

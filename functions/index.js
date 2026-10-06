@@ -17375,20 +17375,20 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
    * minted fresh here and could never collide with the exam's, which is why
    * checking them would be a test that can only pass.
    */
-  const practiceFamilies = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);
-  // The tool the student missed this standard with on the Test comes first: a
-  // missed graphing item is corrected on the Graphing tool where a parallel
-  // family exists, never quietly moved to a text box.
+  const declaredFamilies = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);
   const { secureTools: correctionTools } = await secureItems.sharedModules();
-  const testTools = new Set((target.testToolIds || []).map(String));
-  const sameToolFamilies = testTools.size
-    ? practiceFamilies.filter((family) => testTools.has(correctionTools.resolveSecureToolId(family) || "fields"))
-    : [];
-  const families = sameToolFamilies.length ? sameToolFamilies : practiceFamilies;
   const attemptIndex = Number(target.correctResponses || 0) + Number(stored.issuedCounts?.[correctionId] || 0);
+  // Approved families only, the student's Test tool first, rotating per item
+  // (orderCorrectionFamilies says why).
+  const families = shared.corrections.orderCorrectionFamilies({
+    families: declaredFamilies,
+    testToolIds: target.testToolIds || [],
+    toolOf: (family) => correctionTools.resolveSecureToolId(family) || "fields",
+    attemptIndex,
+  });
   let issued = null;
   for (let offset = 0; offset < Math.max(1, families.length); offset += 1) {
-    const family = families[(attemptIndex + offset) % Math.max(1, families.length)];
+    const family = families[offset];
     if (!family) break;
     const questionInstanceId = mathPath.runtimeId("correction");
     // eslint-disable-next-line no-await-in-loop
@@ -17631,7 +17631,7 @@ async function ensureRetestSession(db, { assignmentId, assignment, policy, bluep
     avoidFamilyIds: generated.audit.avoidFamilyIds,
     avoidInstanceIds: generated.audit.avoidInstanceIds,
     // A missed graphing skill is retested on the graphing tool.
-    preferredToolsByTarget: Object.fromEntries(profile.targets.map((target) => [target.targetId, target.seenToolIds || []])),
+    preferredToolsByTarget: shared.retest.retestToolPreferences({ profile, retestBlueprint: generated.blueprint }),
   });
   if (shared.issuance.planRequiresLiveGeneration(plan)) return null;
 

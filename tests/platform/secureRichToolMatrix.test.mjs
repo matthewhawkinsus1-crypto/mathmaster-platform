@@ -240,33 +240,65 @@ test('the Number Line never ships inequalityText — on a "solve and graph" item
   }
 });
 
-test('Function Investigation on a secure item: the authored equation shows, and nothing states where a feature is', async () => {
-  const { evaluateGraphFunction } = await import('../../functions/shared/toolMath/graphWorkspace/functionGraphUtils.mjs');
-  const same = (left, right) => [-5, -2, -1, 0, 0.5, 1, 2, 3, 4, 7].every((x) => {
-    const [u, v] = [evaluateGraphFunction(left, x), evaluateGraphFunction(right, x)];
-    return (Number.isNaN(u) && Number.isNaN(v)) || Math.abs(u - v) < 1e-9;
-  });
+test('Function Investigation on a secure item: nothing states where a feature is — and every item stays completable', async () => {
+  const { buildGraphWorkspaceModel } = await import('../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs');
 
-  // Standard form given, vertex asked. The payload displayed y = −(x − 1)² + 4
-  // and carried {h, k}: now the authored equation, and the same parabola in
-  // standard form.
-  const vertexItem = await issue(bankFamily('mm_A_7A_v2_standard-form-to-graph'));
-  const secure = (await securePublic(vertexItem, 'secureTest')).tool;
-  assert.equal(secure.equationLatex, vertexItem.equationLatex, 'the authored (standard-form) equation travels');
-  assert.equal('h' in secure.functionSpec || 'k' in secure.functionSpec, false, 'the spec carries no vertex');
-  assert.ok(same(secure.functionSpec, vertexItem.functionSpec), 'and it is the same parabola');
-  const vertexTask = secure.pointTasks.find((task) => /vertex/i.test(task.label));
-  assert.ok(vertexTask && !('x' in vertexTask), 'the vertex card does not state its x');
-  assert.ok(secure.pointTasks.some((task) => !/vertex/i.test(task.label) && 'x' in task), 'an ordinary card still states its x');
-
-  // A linear "plot both intercepts": the x-intercept card said x = −5.
+  // A card that LOCATES a feature loses its stated x on a secure item.
   const intercepts = (await securePublic(await issue(bankFamily('mm_A_3C_v2_multi-feature-intercepts')), 'secureRetest')).tool;
-  assert.equal('x' in intercepts.pointTasks.find((task) => /x-intercept/i.test(task.label)), false);
+  assert.equal('x' in intercepts.pointTasks.find((task) => /x-intercept/i.test(task.label)), false, '"Plot the x-intercept: x = −5" no more');
   assert.equal(intercepts.pointTasks.find((task) => /y-intercept/i.test(task.label)).x, 0, 'the y-intercept is found at x = 0 by definition');
-
+  const vertexForm = await issue(bankFamily('mm_A_7A_v2_vertex-form-construct-and-analyze'));
+  const secureVertex = (await securePublic(vertexForm, 'secureTest')).tool;
+  assert.equal('x' in secureVertex.pointTasks.find((task) => /^Plot the vertex/i.test(task.label)), false);
+  assert.equal(secureVertex.equationLatex, vertexForm.equationLatex, 'the authored equation travels');
   // Corrections are instruction: the cards keep their x there.
-  const corrections = (await securePublic(vertexItem, 'corrections')).tool;
-  assert.ok('x' in corrections.pointTasks.find((task) => /vertex/i.test(task.label)));
+  assert.ok('x' in (await securePublic(vertexForm, 'corrections')).tool.pointTasks.find((task) => /^Plot the vertex/i.test(task.label)));
+
+  // An inverse reflection's source cards keep their x: the workspace locates
+  // each reflected point from it, and without it the item could never be
+  // recorded (the fix review found two A2.2B items stuck).
+  const inverse = (await securePublic(await issue(bankFamily('mm_A2_2B_v2_restricted-quadratic-inverse')), 'secureTest')).tool;
+  const sources = new Set(inverse.inverseReflection.sourceTaskIds);
+  inverse.pointTasks.filter((task) => sources.has(task.id)).forEach((task) => assert.ok('x' in task, `${task.id} keeps its x`));
+
+  // An item whose own graph definition carries the vertex it asks for (shown
+  // in standard form) is refused on a secure Test and Retest, with the reason;
+  // Corrections still use it.
+  const standardForm = (await mathPath.instantiateQuestion(bankFamily('mm_A_7A_v2_standard-form-to-graph'), 'matrix|seed-1')).question;
+  for (const mode of ['secureTest', 'secureRetest']) {
+    // eslint-disable-next-line no-await-in-loop
+    const verdict = await secureItems.certifyItem(standardForm, { mode });
+    assert.equal(verdict.compatible, false, mode);
+    assert.match(verdict.reason, /asks for the vertex or axis of a parabola it does not show in vertex form/);
+  }
+  assert.equal((await secureItems.certifyItem(standardForm, { mode: 'corrections' })).compatible, true);
+  // Vertex-form items are certified: the vertex is given by the equation shown.
+  assert.equal((await secureItems.certifyItem(vertexForm, { mode: 'secureTest' })).compatible, true);
+
+  // Every certified Function Investigation family: the secure workspace asks
+  // for exactly what the practice one does — the same tasks, the same parts,
+  // the same number of placements each part needs — so the transform can make
+  // a card silent but never make an item impossible to complete.
+  const families = bank.filter((family) => ['functionInvestigation', 'functionGraph'].includes(family.type) && family.active !== false);
+  const shape = (model) => JSON.stringify({ tasks: model.tasks.map((task) => task.id), parts: model.analysisParts.map((part) => [part.id, part.kind, Array.isArray(part.expected) ? part.expected.length : part.expected ?? null]) });
+  let compared = 0;
+  for (const family of families) {
+    // eslint-disable-next-line no-await-in-loop
+    const item = await issue(family);
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await secureItems.certifyItem(item, { mode: 'secureTest' })).compatible) continue;
+    // eslint-disable-next-line no-await-in-loop
+    const [secureTool, practiceTool] = [(await securePublic(item, 'secureTest')).tool, (await securePublic(item, 'corrections')).tool];
+    [false, true].forEach((analysisMode) => {
+      assert.equal(
+        shape(buildGraphWorkspaceModel({ type: 'functionInvestigation', ...secureTool }, { analysisMode })),
+        shape(buildGraphWorkspaceModel({ type: 'functionInvestigation', ...practiceTool }, { analysisMode })),
+        `${family.id} (analysis ${analysisMode})`,
+      );
+    });
+    compared += 1;
+  }
+  assert.ok(compared >= 30, `${compared} families compared`);
 });
 
 test('a matrix3 response is refused for its own shape, never for the system\'s classification', async () => {
@@ -319,6 +351,24 @@ test('storage encodes only what Firestore refuses: field items stay exactly as b
   assert.equal(typeof storedLab.privateGradingJson, 'string');
   assert.equal(storage.holdsNestedArray(storedLab), false);
   assert.deepEqual(storage.readStoredItem(storedLab), lab);
+});
+
+test('an encoded item read by code that predates the codec is refused, never silently scored 0', async () => {
+  // A deploy window or a rollback runs older graders against new documents.
+  const storage = require('../../functions/lib/secureItemStorage.js');
+  const lab = await issue(bankFamily(BANK_FAMILY_BY_TOOL.dataModelingLab));
+  const stored = storage.storableItem(lab);
+  assert.equal(storage.holdsNestedArray(stored), false, 'the stand-in is storable');
+  // What an older submitPathResponse does: grade `privateGrading` as stored.
+  const asOld = await mathPath.gradePathToolResponse(stored.privateGrading, { raw: RICH_TOOL_ANSWERS.dataModelingLab.answer({ tool: lab.tool }) });
+  assert.equal(asOld.rejected, true, 'refused — no attempt spent, no evidence written');
+  // What an older secure submit does: the field grader cannot read it at all.
+  await assert.rejects(async () => mathPath.gradeResponse(stored.privateGrading, { responses: { answer: '1' } }));
+  // The codec reads the real definition back.
+  assert.deepEqual(storage.readStoredItem(stored).privateGrading, lab.privateGrading);
+  // An unreadable copy leaves the stand-in, which grading refuses.
+  const damaged = storage.readStoredItem({ ...stored, privateGradingJson: '{not json' });
+  assert.equal((await secureItems.gradeIssuedItem(damaged, { responses: {}, raw: { r: 0.5 } })).rejected, true);
 });
 
 test('every bank item stores on a My Math Path session without an array inside an array', async () => {

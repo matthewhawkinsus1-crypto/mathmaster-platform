@@ -358,7 +358,10 @@ export default function StepByStepAlgebra({
   // above all) a committed move is not judged on screen: "longer way round"
   // and "look for a pair that cancels" are a right-track/wrong-track verdict
   // and a strategy hint, and "solved" in green is the answer's verdict.
-  const verdictsShown = useToolRuntimeContext().showImmediateFeedback !== false;
+  // The ACTIVITY's policy, not "this tool has no answer key": Step Algebra
+  // judges a move from the equation it was applied to, so Corrections and
+  // practice keep their coaching under server grading.
+  const verdictsShown = useToolRuntimeContext().verdictsWithheld !== true;
   const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;
   const onHintUsed = onHintUsedProp || contextHintReporter;
   // Content identity, not object identity: a host that rebuilds an equal

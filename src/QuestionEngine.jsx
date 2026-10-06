@@ -1351,6 +1351,7 @@ function QuestionEngineBody({
       onHintUsed={recordHintUse}
       questionTerminal={locked}
       submitLabel={hostSubmitLabel}
+      verdictsWithheld={!showOutcomeFeedback}
     >
       {node}
     </ToolRuntimeProvider>
@@ -1432,6 +1433,7 @@ function QuestionEngineBody({
           onHintUsed={recordHintUse}
           questionTerminal={locked}
           submitLabel={hostSubmitLabel}
+          verdictsWithheld={!showOutcomeFeedback}
         >
           <WorkflowRunner
             question={presentationQuestion}
@@ -1467,6 +1469,7 @@ function QuestionEngineBody({
           attemptOutcomeSlots={toolOutcomeSlots}
           reportWork={locked ? null : handleToolWork}
           submitLabel={hostSubmitLabel}
+          verdictsWithheld={!showOutcomeFeedback}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
               Every other module is handed `onUndoStateChange` as a prop, but a
@@ -1534,7 +1537,9 @@ function QuestionEngineBody({
         // "stepAlgebra"` (see assignmentRuntimeRepair.js), so they reach this
         // branch too.
         if (algebraWorkspaceRoute.route === ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS) {
-          return (
+          // Under the solver runtime like every other algebra route: the
+          // Step Algebra it embeds reads the activity's verdict policy there.
+          return withSolverRuntime(
             <LinearInterceptsOrchestrator
               key={draftKey || processedQuestion?.questionId || processedQuestion?.id || generationKey}
               {...commonModuleProps}
@@ -1547,7 +1552,7 @@ function QuestionEngineBody({
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
               maximumAttempts={resolvedMaximumAttempts}
               attemptsDoNotExpire={attemptsDoNotExpire}
-            />
+            />,
           );
         }
         // StepByStepAlgebra hands a prompt-only inequality to the relation

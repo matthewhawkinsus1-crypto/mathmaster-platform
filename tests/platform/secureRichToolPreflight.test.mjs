@@ -15,6 +15,9 @@ import { TEST_CYCLE_DIAGNOSTIC, preflightTestCycle } from '../../functions/share
 import { blueprintEquivalenceSignature, describeFamily } from '../../functions/shared/testCycleBlueprint.mjs';
 import { buildRetestBlueprint, retestRigorIsPreserved } from '../../functions/shared/testCycleRetest.mjs';
 import { normalizeTestCyclePolicy } from '../../functions/shared/testCyclePolicy.mjs';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const generator = { parameters: { a: { type: 'int', min: 1, max: 9 } } };
 const family = (id, extra = {}) => ({ id, active: true, validated: true, generator, ...extra });
@@ -190,32 +193,95 @@ test('a retired or unvalidated family the blueprint still names never blocks the
 test('a Retest and Corrections keep the tool the student met the standard with — even on a target that mixes tools', async () => {
   const { buildSecureIssuancePlan } = await import('../../functions/shared/testCycleIssuance.mjs');
   const { buildPerformanceProfile, buildCorrectionPlan } = await import('../../functions/shared/testCycleCorrections.mjs');
+  const { retestToolPreferences } = await import('../../functions/shared/testCycleRetest.mjs');
+  const policy = normalizeTestCyclePolicy({ mode: 'testCycle' });
   // texas:A.2G as the bank has it: two Graphing families, three response-field
-  // families, no toolId on the target. A student who missed the Graphing item
-  // used to be retested on a text field three times in four.
-  const families = [graphing('g1'), graphing('g2'), fields('f1'), fields('f2'), fields('f3')];
-  const blueprint = { blueprintId: 'bp', title: 'Unit Test', targets: [target('A.2G', ['g1', 'g2', 'f1', 'f2', 'f3'])] };
-  let checked = 0;
+  // families, no toolId on the target — plus an anchor target.
+  const families = [graphing('g1'), graphing('g2'), fields('f1'), fields('f2'), fields('f3'), fields('a1'), fields('a2')];
+  const blueprint = { blueprintId: 'bp', title: 'Unit Test', targets: [target('A.2G', ['g1', 'g2', 'f1', 'f2', 'f3']), target('A.5A', ['a1', 'a2'])] };
+  let kept = 0;
   for (let student = 0; student < 40; student += 1) {
     const studentId = `s${student}`;
     const testPlan = buildSecureIssuancePlan({ blueprint, families, studentId, assignmentId: 'a1' });
-    const testEntry = testPlan.entries[0];
-    const testTool = testEntry.familyId.startsWith('g') ? 'graphing2' : 'fields';
-    const profile = buildPerformanceProfile({ blueprint, responses: [{ targetId: 'A.2G', familyId: testEntry.familyId, questionInstanceId: `${studentId}-q1`, score: 0, isCorrect: false, toolId: testTool }] });
+    const responses = testPlan.entries.map((entry) => ({
+      targetId: entry.targetId, familyId: entry.familyId, questionInstanceId: `${studentId}-${entry.slotId}`,
+      score: entry.targetId === 'A.2G' ? 0 : 1, isCorrect: entry.targetId !== 'A.2G',
+      toolId: entry.familyId.startsWith('g') ? 'graphing2' : 'fields',
+    }));
+    const testTool = responses.find((response) => response.targetId === 'A.2G').toolId;
+    // Exactly what ensureRetestSession does.
+    const profile = buildPerformanceProfile({ blueprint, responses });
+    const generated = buildRetestBlueprint({ blueprint, profile, policy });
     const retest = buildSecureIssuancePlan({
-      blueprint, families, studentId, assignmentId: 'a1', stage: 'retest',
-      avoidFamilyIds: [testEntry.familyId],
-      preferredToolsByTarget: Object.fromEntries(profile.targets.map((entry) => [entry.targetId, entry.seenToolIds])),
+      blueprint: generated.blueprint, families, studentId, assignmentId: 'a1', stage: 'retest',
+      avoidFamilyIds: generated.audit.avoidFamilyIds, avoidInstanceIds: generated.audit.avoidInstanceIds,
+      preferredToolsByTarget: retestToolPreferences({ profile, retestBlueprint: generated.blueprint }),
     });
-    const retestTool = retest.entries[0].familyId.startsWith('g') ? 'graphing2' : 'fields';
-    assert.equal(retestTool, testTool, `${studentId}: Test on ${testTool}, Retest on ${retestTool}`);
-    assert.notEqual(retest.entries[0].familyId, testEntry.familyId, 'and still a family the student has not seen');
-    const corrections = buildCorrectionPlan({ blueprint, profile, policy: { mode: 'testCycle' }, releasedTestGrade: 0, assignmentId: 'a1', studentId });
-    assert.deepEqual(corrections.targets[0].testToolIds, [testTool]);
-    checked += 1;
+    const retested = retest.entries.filter((entry) => /A\.2G$/.test(entry.targetId));
+    assert.ok(retested.length >= 1, `${studentId}: A.2G is retested`);
+    retested.forEach((entry) => {
+      assert.equal(entry.familyId.startsWith('g') ? 'graphing2' : 'fields', testTool, `${studentId}: Test on ${testTool}, Retest drew ${entry.familyId}`);
+      assert.ok(!generated.audit.avoidFamilyIds.includes(entry.familyId) || entry.freshParallelVariant, 'never the same item');
+    });
+    const corrections = buildCorrectionPlan({ blueprint, profile, policy, releasedTestGrade: 0, assignmentId: 'a1', studentId });
+    assert.deepEqual(corrections.targets.find((entry) => entry.targetId === 'A.2G').testToolIds, [testTool]);
+    kept += 1;
   }
-  assert.equal(checked, 40);
-  // Without the student's tool the planner is free to move between tools.
-  const free = new Set(Array.from({ length: 40 }, (_, student) => buildSecureIssuancePlan({ blueprint, families, studentId: `s${student}`, assignmentId: 'a1', stage: 'retest', avoidFamilyIds: ['g1'] }).entries[0].familyId[0]));
-  assert.equal(free.size, 2, 'the preference, not luck, keeps the tool');
+  assert.equal(kept, 40);
+});
+
+test('a correction item is drawn from approved families, on the student\'s Test tool first, rotating per item', async () => {
+  const { orderCorrectionFamilies } = await import('../../functions/shared/testCycleCorrections.mjs');
+  const toolOf = (entry) => (entry.type === 'graphing2' ? 'graphing2' : 'fields');
+  const retired = { ...graphing('g-retired'), active: false };
+  const unvalidated = { ...fields('f-draft'), validated: false };
+  const declared = [fields('f1'), graphing('g1'), retired, fields('f2'), graphing('g2'), unvalidated];
+  const order = (attemptIndex, testToolIds = ['graphing2']) => orderCorrectionFamilies({ families: declared, testToolIds, toolOf, attemptIndex }).map((entry) => entry.id);
+
+  // A retired or unvalidated family is never practice material.
+  assert.deepEqual(order(0), ['g1', 'g2', 'f1', 'f2']);
+  // The next correction item starts from the next family on each tool: the
+  // same-tool families stay ahead of the rest whatever the rotation.
+  assert.deepEqual(order(1), ['g2', 'g1', 'f2', 'f1']);
+  assert.deepEqual(order(2), ['g1', 'g2', 'f1', 'f2']);
+  // Missed on response fields: fields first.
+  assert.deepEqual(order(0, ['fields']), ['f1', 'f2', 'g1', 'g2']);
+  // No tool recorded (a Test from before responses carried it): bank order.
+  assert.deepEqual(order(0, []), ['f1', 'g1', 'f2', 'g2']);
+  // A target whose every family is unapproved still has something to practise.
+  assert.deepEqual(orderCorrectionFamilies({ families: [retired, unvalidated], toolOf }).map((entry) => entry.id), ['g-retired', 'f-draft']);
+});
+
+test('the tool preference never reissues the item the student saw', async () => {
+  const { buildSecureIssuancePlan } = await import('../../functions/shared/testCycleIssuance.mjs');
+  const slotBlueprint = (ids) => ({ blueprintId: 'bp', title: 'Retest', targets: [target('T', ids)] });
+  const variantsOnly = (id) => ({ id, active: true, validated: true, type: 'graphing2', prompt: 'Graph it.', variants: [{ prompt: 'Graph it.' }] });
+  // The student saw the only Graphing family. A variants-only family can land
+  // on the same variant — the same question — so an unseen field family wins.
+  const unchanged = buildSecureIssuancePlan({
+    blueprint: slotBlueprint(['g-seen', 'f1']), families: [variantsOnly('g-seen'), fields('f1')],
+    studentId: 's', assignmentId: 'a', stage: 'retest', avoidFamilyIds: ['g-seen'], preferredToolsByTarget: { T: ['graphing2'] },
+  });
+  assert.equal(unchanged.entries[0].familyId, 'f1');
+  // A family that draws fresh parameters is a new item on the same tool.
+  const fresh = buildSecureIssuancePlan({
+    blueprint: slotBlueprint(['g-seen', 'f1']), families: [graphing('g-seen'), fields('f1')],
+    studentId: 's', assignmentId: 'a', stage: 'retest', avoidFamilyIds: ['g-seen'], preferredToolsByTarget: { T: ['graphing2'] },
+  });
+  assert.equal(fresh.entries[0].familyId, 'g-seen');
+  assert.equal(fresh.entries[0].freshParallelVariant, true);
+});
+
+test('a response recorded before responses carried the tool steers nothing', async () => {
+  const { responsesForProfile } = require('../../functions/lib/testCycle.js');
+  const session = {
+    issuancePlan: { entries: [{ slotId: 'x', targetId: 'A.2G', familyId: 'g1', questionInstanceId: 'q-old' }, { slotId: 'y', targetId: 'A.2G', familyId: 'f1', questionInstanceId: 'q-new' }] },
+    responses: {
+      'q-old': { questionInstanceId: 'q-old', grading: { score: 0 } },
+      'q-new': { questionInstanceId: 'q-new', pathToolId: null, grading: { score: 0 } },
+    },
+  };
+  const [legacy, current] = responsesForProfile(session);
+  assert.equal(legacy.toolId, null, 'no key: the tool is unknown');
+  assert.equal(current.toolId, 'fields', 'null: answered with response fields');
 });

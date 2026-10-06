@@ -150,7 +150,10 @@ export const SecureExamContainer = ({
         : serverDraft;
       setQuestion({ ...instance, _draftResponse: restored });
       if (local) {
-        saveSecureExamDraft({ examSessionId: activeSessionId, questionInstanceId: instance.questionInstanceId, responsePayload: local, supportUsage: {} })
+        // `restored`, not the bare mirror: the mirror carries no workspace
+        // drafts, and a save replaces the server's draft whole — sending it
+        // alone deleted the construction the server held for another device.
+        saveSecureExamDraft({ examSessionId: activeSessionId, questionInstanceId: instance.questionInstanceId, responsePayload: restored, supportUsage: {} })
           .then(() => setSaveState('saved'))
           .catch(() => setSaveState(navigator.onLine === false ? 'offline' : 'error'));
       } else {

@@ -73,9 +73,14 @@ the teacher preview (`previewTestCycleSecureItems`, `gradeTestCyclePreviewItem`)
   Problem Understanding scaffold switched off. A tool may also declare a
   `secureTransform`: Function Investigation's removes the x from point cards
   that locate a feature (vertex, intercept, zero, maximum, a point placed by
-  the axis) and sends a vertex-form parabola in standard form, so neither the
-  cards nor the payload state where the feature is. `runtimeMode` travels on
-  the payload.
+  the axis), so a card does not state where the feature is — except a card an
+  inverse reflection or analysis request names, whose x the reflected point is
+  derived from. Nothing else changes: across the bank a secure Function
+  Investigation item differs from practice only in those x values. Where the
+  payload itself would locate the answer — a spec carrying the vertex an item
+  asks for, beside an equation not shown in vertex form — the tool's
+  `secureExposure` refuses the item for a secure Test and Retest instead
+  (certification, below). `runtimeMode` travels on the payload.
 - **`gradeItem(privateGrading, payload)`** — a tool item is graded by its Path
   Tool Contract grader (the one My Math Path and Live Challenge use) on the
   student's raw construction, bounded and stripped of any verdict the browser
@@ -93,6 +98,10 @@ the teacher preview (`previewTestCycleSecureItems`, `gradeTestCyclePreviewItem`)
   JSON string and decodes it where it is read — ONLY a field that nests
   arrays, so every other item is stored exactly as before and an older
   function instance (a deploy window, a rollback) reads what it always could.
+  An encoded `privateGrading` leaves a stand-in in its place
+  (`{ pathToolId: '__stored_as_json__', fields: [null] }`) that a grader
+  without the codec refuses — the Path grader has no tool by that id and the
+  field grader throws on it — so an older instance never scores the item 0.
   Raw work and workspace drafts are stored as JSON strings too. My Math Path
   stores its open question through the same codec.
 
@@ -121,6 +130,9 @@ Cycle code.**
 actually generates — four random draws and one instance of every variant,
 because issue time picks the variant ranked for the target and a generator
 can change the tool between variants.
+A tool may also declare `secureExposure(question)`: a reason this one item
+would state its answer in a secure mode, which refuses it there with that
+reason (Function Investigation: one standard-form "find the vertex" family).
 Issuance fails closed on an uncertified item; Corrections skips to the next
 parallel family; preview shows the teacher the error a student would meet.
 
@@ -135,7 +147,9 @@ issuance draw from — a retired family a blueprint still names never blocks:
 - `TEST_CYCLE_TOOL_REQUIREMENT_MISMATCH: Target A.3C requires Graphing, but family F renders with response fields.`
 - warnings: a target whose families mix tools (set the target's tool to make it
   part of equivalence); technology on a no-calculator Test; a mapping diagram
-  that asks for the domain/range it shows as nodes.
+  that asks for the domain/range it shows as nodes; a Step Algebra item, whose
+  workspace refuses a non-equivalent rewrite (so it measures choosing and
+  completing the moves, not error-free arithmetic).
 
 `preflight.secureRendering[]` is the per-target contract (standard, DOK,
 difficulty, representation, required tool, the tools families render with,
@@ -147,10 +161,17 @@ holds every family of a target that names a tool to that tool
 for a retest blueprint that drops it. A target that names no tool may mix
 families on different tools (preflight warns), so the tool is kept one level
 down as well: the student's Test responses record the tool they answered with
-(`pathToolId`, or response fields), the performance profile carries it per
-target, and the Retest's family choice and Corrections' practice families take
-a family on that tool first — a missed graphing skill is retested and
-corrected on the graphing tool wherever the target has one.
+(`pathToolId`, or response fields; a response recorded before responses
+carried it says nothing), the performance profile carries it per target, and
+the Retest's family choice and Corrections' practice families take a family
+on that tool first — a missed graphing skill is retested and corrected on the
+graphing tool wherever the target has one. The Retest renames its targets
+(`targeted-A.2G`), so `retestToolPreferences` keys the preference by each
+Retest target's `sourceTargetId`. Never at the cost of the item itself: the
+Retest takes an unseen family on the tool, then a seen one only if it draws
+fresh parameters (`parameterGenerator`), then its ordinary tiers.
+Corrections order their families with `orderCorrectionFamilies`: approved
+families only, the Test tool's first, each list rotating per item.
 `describeFamily` reads a family's tool the way the server does (`pathToolId`,
 `toolId` or `type` — the bank uses `type`).
 
@@ -169,6 +190,13 @@ corrected on the graphing tool wherever the target has one.
   answer a text input so `3/4` is legal), unchanged.
 - Corrections' hints, verdicts and worked review render under the corrections
   policy.
+- `ToolRuntimeContext` carries two different "no verdict" facts apart:
+  `showImmediateFeedback` is false where the tool cannot judge (server
+  grading: no key in its payload) or the activity withholds verdicts;
+  `verdictsWithheld` is the activity's policy alone. A tool that judges from
+  the student's own work — Step Algebra checking a move against the equation
+  it was applied to — reads `verdictsWithheld`, so Corrections and practice
+  keep its move coaching and a secure Test does not show it.
 - On a secure item the student keeps every access accommodation and loses
   construct changes (`assessmentSupportProfile`: no modifications, no algebra
   auto-apply).
@@ -196,9 +224,14 @@ legs).
   (`serverGrading.publishToolWork`, the secure runtime), so a half-built graph
   autosaves; Live Challenge, which submits what it is given at the buzzer, is
   never sent it.
-- Raw work is sent only once the student has touched the page since the item
-  opened: a tool reports its starting state on mount, and that is not an
-  answer.
+- Raw work is sent when it is the student's (`toolWorkGate.js`): a tool's
+  first report is its mounted state — a default, the prompt's own equation,
+  or work restored on this device — and the input mark is taken there, after
+  the lazy engine and tool have loaded; a later report that follows the
+  student's input is their work. Work that differs from the server's copy (a
+  reload that restored newer work from this device) is sent without waiting,
+  and a reload resends the answer together with the tool drafts it restored —
+  a save replaces the server's draft whole.
 - Finalizing (student submit or time) records an autosaved construction and
   grades it — when it is an answer (`payloadHasWork`); a half-built one (a
   single endpoint, no direction) records nothing, like a blank. Recording an

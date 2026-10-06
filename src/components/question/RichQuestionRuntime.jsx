@@ -7,9 +7,10 @@ import PathSolutionReview from '../student/PathSolutionReview.jsx';
 import LinearRegressionPanel from '../assessment/LinearRegressionPanel.jsx';
 import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyResolver.js';
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
-import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
+import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { engineActivityPolicyForMode, resolveQuestionRuntimePolicy } from '../../platform/assessment/questionRuntimePolicy.js';
-import { readQuestionDraftFamily, restoreQuestionDrafts, studentInputMark, studentInputSince, subscribeToQuestionDrafts } from '../../questionDraftStorage.js';
+import { readQuestionDraftFamily, restoreQuestionDrafts, subscribeToQuestionDrafts } from '../../questionDraftStorage.js';
+import { createToolWorkGate } from './toolWorkGate.js';
 import { assessmentSupportProfile } from '../../studentSupport.js';
 
 /*
@@ -227,19 +228,13 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, draftKey
     }, supportUsageRef.current);
   }, [draftKey]);
 
-  // The tool's raw construction, as its Path Tool Contract grades it.
-  //
-  // Sent only once the STUDENT has touched the page since the item opened. A
-  // tool reports its starting state on mount — the Data Modeling Lab its
-  // default prediction x, Step Algebra the prompt's own equation — and that is
-  // not an answer: saved, it read "Answer saved" before the student did
-  // anything, and finalizing recorded the untouched item as answered. Work
-  // restored after a reload is the server's own copy and needs no resend.
-  const inputMarkRef = useRef(studentInputMark());
+  // The tool's raw construction, as its Path Tool Contract grades it: only
+  // the student's work, or work the server does not hold (toolWorkGate).
+  const [toolWorkGate] = useState(() => createToolWorkGate({ serverRaw: initialResponsePayload?.raw || null }));
   const handleRawWork = useCallback((raw) => {
     latestRawRef.current = raw && typeof raw === 'object' ? raw : null;
-    if (hasMeaningfulRawPathResponse(latestRawRef.current) && studentInputSince(inputMarkRef.current)) emitDraft();
-  }, [emitDraft]);
+    if (toolWorkGate(latestRawRef.current)) emitDraft();
+  }, [emitDraft, toolWorkGate]);
 
   // A tool's own draft writes that are the STUDENT's edits (not a workspace
   // writing back what it read on mount) also go up, coalesced: subscribers are

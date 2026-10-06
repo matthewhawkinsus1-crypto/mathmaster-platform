@@ -66,10 +66,10 @@ as out of scope, is fixed too: R37.)
 | # | Severity | Finding | Fix |
 | --- | --- | --- | --- |
 | R20 | P1 | R4 was incomplete: on "Solve 4x − 1 > 15 and graph the solution" items (four active Grade 7 families) the Number Line's `inequalityText` is the SOLVED form, `x > 4` — the graph and the interval both. | `inequalityText` never travels; the tool never rendered it. |
-| R21 | P1 | Function Investigation dropped the authored `equationLatex`, so the workspace displayed the spec's vertex form — `y = −(x − 1)² + 4` beside a standard-form "identify the vertex" item — and the payload carried the vertex as `functionSpec.h/k`. | The authored equation travels; on a secure item a vertex-form parabola is sent in standard form. The shared graph utils drew a standard-form quadratic as y = ax² (a latent defect; no stored content used that form) and now read it as written. |
+| R21 | P1 | Function Investigation dropped the authored `equationLatex`, so the workspace displayed the spec's vertex form — `y = −(x − 1)² + 4` beside a standard-form "identify the vertex" item — and the payload carried the vertex as `functionSpec.h/k`. | The authored equation travels. (Revised in the second round: the standard-form conversion was incomplete and is gone — R39; the one family whose spec and cards locate the vertex is refused for a secure Test — R40.) |
 | R22 | P2 | Point cards stated the x of the feature the student must locate: "Plot the x-intercept: x = −5", "Plot the vertex: x = 3". | On a secure item a card that locates a feature (vertex, intercept, zero, maximum, a point placed by the axis) loses its x — the workspace's own rule for key points. |
 | R23 | P1 | A crafted autosave (objects with own `toString`, `null` intervals) made the grader throw inside every way of closing the session: Submit, the timer and the proctor's force-submit all failed; only a reset (a fresh attempt) was left. | Grading never throws: a grader failure is a refusal like any unreadable work; finalizing records 0. |
-| R24 | P2 | An untouched Data Modeling Lab or Step Algebra item autosaved on open ("Answer saved") and was recorded as answered at finalize. | Raw work is sent only after the student has touched the page. |
+| R24 | P2 | An untouched Data Modeling Lab or Step Algebra item autosaved on open ("Answer saved") and was recorded as answered at finalize. | Raw work is sent only when it is the student's (refined in R42, R43). |
 | R25 | P2 | R19 missed one note: "Interpolation predicts inside the observed x-range…" above the graded "This prediction is…". | Gated with the others. |
 | R26 | P2 | Step Algebra judged each committed move in green/amber — "Balanced and correct — a longer way round. Look for a pair that cancels." — and showed "solved" in green. | Where verdicts are withheld a move is acknowledged neutrally; no strategy text, no correctness colour. |
 | R27 | P2 | This branch's registry-tool publishing reached EVERY server-graded host: Live Challenge's round-end buzzer started submitting half-built graphs (an error banner) and untouched labs (a 0). | Opt-in (`serverGrading.publishToolWork`), set by the secure runtime only. |
@@ -81,8 +81,33 @@ as out of scope, is fixed too: R37.)
 | R33 | P3 | Oversized raw work surfaced as INTERNAL on submit and in Corrections. | A refusal with "too large to record". |
 | R34 | P3 | (contested) The matrix3 validator required x, y, z when the KEY said "one solution" — a refusal that told a student the classification. | Required when the student's own classification is "one". |
 | R35 | P2 | (contested) On a target that mixes tools and names none, the Retest moved three students in four from Graphing to a text field, and Corrections likewise — while the doc claimed the tool was kept. | The student's Test tool per target travels on the profile; the Retest and Corrections choose a family on that tool first. |
-| R36 | P2 | Encoding EVERY stored item (R1's codec) made a deploy window or rollback silently score secure items 0 on an older function instance. | Only fields that actually nest arrays are encoded; every field item is stored as before. |
+| R36 | P2 | Encoding EVERY stored item (R1's codec) made a deploy window or rollback silently score secure items 0 on an older function instance. | Only fields that actually nest arrays are encoded; every field item is stored as before. (An encoded item now also carries a stand-in an older instance refuses — R41.) |
 | R37 | P0 for the affected TEKS | My Math Path stored the same nested-array items and its issue transaction failed; selection being deterministic, A.4A, A.4C, A.8B, A.9E, A2.2B, A2.4E and A2.8B could not issue a first question, five more stalled at their affected family (40 items). | `issueNextQuestion` and `submitPathResponse` store and read the open question through the codec; emulator-certified. |
+
+### Found by the second review (on the fixes)
+
+The fixes above were reviewed again the same way — every commit since the
+first review, by finders per dimension, each finding through a refuting and a
+reproducing verifier. Twelve were confirmed and two more were raised as
+cross-cutting; all fourteen are addressed here, each with a mutation-checked
+test (30 mutations, all red).
+
+| # | Severity | Finding | Fix |
+| --- | --- | --- | --- |
+| R38 | P1 | R22 removed the x from every card that names a feature — including the cards an inverse item reflects. The reflected point's location is derived from its source card's x, so that part could never be complete and the item could never be recorded. | A card an inverse reflection or analysis request names keeps its x. Every Function Investigation family is checked: its secure item differs from practice only in the stated x. |
+| R39 | P3 | R21's standard-form reading reached only some graph helpers; derived vertex, range and monotonic answers still read y = ax². | Reverted, with the spec conversion. Nothing is converted. |
+| R40 | P3 | The standard-form "find the vertex" family (`mm_A_7A_v2_standard-form-to-graph`) still locates the axis: its spec carries the vertex and its symmetric cards straddle it. | `secureExposure` in the certification: an item whose spec carries the vertex it asks for, beside an equation not shown in vertex form, is refused for a secure Test and Retest, with the reason. Corrections and practice keep it. It is the only bank family refused. |
+| R41 | P2 | An encoded item had no `privateGrading`; a pre-codec `submitPathResponse` (deploy window, rollback) fell through to the field grader with no fields and recorded 0 with mastery evidence. | The encoded item carries a stand-in, `{ pathToolId: '__stored_as_json__', fields: [null] }`: an older Path grader refuses it ("no server grader for this tool") and the field grader throws, so nothing is scored. Proven against main's own code. |
+| R42 | P2 | A reload resent the device mirror alone — a save replaces the server draft whole, so the tool drafts the server held for another device were deleted — and, since R24, the restored work was not re-emitted, leaving the server a stale answer. | The container resends what it restored (answer and tool drafts); work that differs from the server's copy is sent without waiting for input. |
+| R43 | P3 | R24's input mark was taken before the lazy engine and tool loaded: a tap during "Opening the math workspace…" made the untouched starting state count as work. | The mark is taken at the tool's first report (`toolWorkGate`, a pure module with its own behaviour test). |
+| R44 | P3 | The linear-intercepts route mounted Step Algebra outside the solver runtime, so R26 never applied there. | Under `withSolverRuntime`, like every other algebra route. |
+| R45 | P3 | The Data Modeling Lab's "How to do this" steps repeated withheld notes: "Use the sign and magnitude of r to interpret direction and strength" on every correlation item, the residual-plot ideal, what interpolation means, how to pick a model — and "Select the best model and check." | Where hints are withheld the steps say what to do, never how to judge it; "and check" goes where the host names the action. |
+| R46 | P1 | R35's Retest preference never applied: it was keyed by the Test's target ids, and the Retest renames its targets (`targeted-A.2G`, `anchor-A.5A`). | `retestToolPreferences` keys by the Retest's own targets through `sourceTargetId`; the test now runs the production sequence for 40 students. |
+| R47 | P2 | Once keyed, the preference ran before seen-family avoidance: a seen variants-only family was reissued as the identical Test item, and the audit reported clean. | An unseen family on the student's tool first, then a seen one only if it draws fresh parameters, then the original tiers; `describeFamily` reports `parameterGenerator`. |
+| R48 | P3 | A response recorded before responses carried the tool read as "fields", steering a missed Graphing item away from Graphing. | No `pathToolId` key: the tool is unknown and steers nothing. |
+| R49 | P3 | Corrections drew retired families — and R35 could make one the only source — with no fallback if it failed to issue. | `orderCorrectionFamilies`: approved families only (all, if none is), the Test tool's first, each list rotating per item. |
+| X1 | P2 | Step Algebra's workspace refuses a rewrite or simplification that is not equivalent, so on a secure item the student's intermediate arithmetic is checked before the answer is recorded; R26 only neutralised the committed-move verdicts. | Stated, not changed: the certification carries a teacher-visible caveat (preflight shows it per target), and this document and the commits claim no more than "no verdict on a committed move". A secure workspace that accepts any rewrite would be its own change. |
+| X2 | P3 | R26 read "the tool has no answer key" (`showImmediateFeedback` under server grading) as "verdicts withheld": Step Algebra embedded in a registry tool lost its move coaching on Corrections and My Math Path practice. | `verdictsWithheld` in the tool context, set from the activity's own policy by every QuestionEngine provider; Step Algebra reads that. |
 
 ### Outside this change
 
@@ -129,7 +154,6 @@ the Data Modeling Lab's teaching notes follow the hint permission (R19).
 **From the review (R20–R37):** `pathToolContracts.mjs` (Number Line,
 Function Investigation allowlists; matrix3 validation);
 `secureToolCertification.mjs` (`secureTransform` for Function Investigation);
-`toolMath/graphWorkspace/functionGraphUtils.mjs` (standard-form quadratics);
 `secureItems.gradeItem` (never throws); `secureItemStorage` (conditional
 encoding); `testCycleIssuance.mjs`, `testCycleCorrections.mjs`,
 `lib/testCycle.js` (the student's tool through Retest and Corrections);
@@ -139,17 +163,29 @@ encoding); `testCycleIssuance.mjs`, `testCycleCorrections.mjs`,
 `QuestionEngine` (opt-in); `usePersistentToolState.forgetToolDraftFamily`;
 `StepByStepAlgebraCore`, `Graphing2`, `SystemsWorkspace`, `DataModelingLab`.
 
+**From the second review (R38–R49, X1, X2):** `secureToolCertification.mjs`
+(inverse sources keep their x, `secureExposure`, the Step Algebra caveat);
+`secureItemStorage` (the stand-in); `toolWorkGate.js` and
+`RichQuestionRuntime` (when tool work is sent); `SecureExamContainer` (a reload
+resends what it restored); `testCycleRetest.retestToolPreferences`,
+`testCycleIssuance` (tiers), `testCycleBlueprint` (`parameterGenerator`),
+`testCycleCorrections.orderCorrectionFamilies`, `lib/testCycle.js` (legacy
+responses); `QuestionEngine` (intercept route, `verdictsWithheld`);
+`ToolRuntimeContext`; `StepByStepAlgebraCore`; `DataModelingLab` (steps). The
+graph utils are back to main.
+
 ## Certification
 
 | Layer | What runs | Result |
 | --- | --- | --- |
-| `tests/platform/secureRichToolMatrix.test.mjs` | all 11 certified tools: issued, public in Test/Retest/Corrections, no private or assistance key, answered from public data only, graded right/wrong/unfinished, forged verdict ignored, stored and regraded | 19/19 |
-| `tests/platform/secureRichToolPreflight.test.mjs` | rendering check and its sentence, uncertified tool, required-tool mismatch, alias, mixed-tool warning, sampled-instance verdicts, external cycles, caveats, family tool from `type`, Retest keeps the tool | 11/11 |
-| `tests/platform/questionRuntimePolicy.test.mjs`, `secureToolCertification.test.mjs`, `secureRichToolRuntimeWiring.test.mjs` | policy (and the shell's mode before the first item), certification rules, client and server wiring (bound to regions), integrity logger, support profile, calculator, review summary, storage codec, the device-QA fixes (R16–R19) | 9/9, 9/9, 21/21 |
+| `tests/platform/secureRichToolMatrix.test.mjs` | all 11 certified tools: issued, public in Test/Retest/Corrections, no private or assistance key, answered from public data only, graded right/wrong/unfinished, forged verdict ignored, stored and regraded; Function Investigation's secure transform over every bank family; storage of every bank item; grading never throws | 25/25 |
+| `tests/platform/secureRichToolPreflight.test.mjs` | rendering check and its sentence, uncertified tool, required-tool mismatch, alias, mixed-tool warning, sampled-instance verdicts, external cycles, caveats, family tool from `type`, the Retest and Corrections keep the student's tool (the production sequence, 40 students), never the item seen, Corrections' family order | 16/16 |
+| `tests/platform/questionRuntimePolicy.test.mjs`, `secureToolCertification.test.mjs`, `secureRichToolRuntimeWiring.test.mjs`, `secureToolDraftCleanup.test.mjs`, `toolVerdictPolicy.test.mjs` | policy (and the shell's mode before the first item), certification rules and caveats, client and server wiring (bound to regions), the tool-work gate, integrity logger, support profile, calculator, review summary, storage codec, the device-QA fixes (R16–R19), the tool cache, the verdict policy | 9/9, 10/10, 31/31, 4/4, 3/3 |
 | `tests/integration/testCycleRichToolCertification.test.mjs` (emulator, real handlers) | a seven-tool Rich Tool Test Cycle: preflight passes and refuses an uncertified family; Test with draft/reload/unfinished-refusal/no verdict/finalize-from-autosave; release scores 57 from the server's grading; review returns the work; Corrections on the same tools with verdict, feedback and tries; Retest fresh items on the same tools, 100 raw → 70 recorded; preview grades and writes nothing | 7/7 |
-| existing emulator suites (`testCycleCertification`, `testCycleLifecycleSecurity`) | unchanged behaviour of field-graded cycles | 56/56 |
+| `tests/integration/pathRichToolStorage.test.mjs` (emulator) | every bank item that nests arrays stored and read back exactly; the plain item refused by Firestore; a Data Modeling Lab Path item: a wrong try written back, then the right one finalizes | 2/2 |
+| existing emulator suites (`testCycleCertification`, `testCycleLifecycleSecurity`, and the rest of `tests/integration`) | unchanged behaviour of field-graded cycles and every other finish path | 56/56 (336/336 in all) |
 | `node tests/browser/testCycleRichToolQa.mjs` (Chromium, real components and handlers) | see "Devices" below | 462/462 |
-| whole platform suite, `test:authoring-v5`, `test:rules`, lint, `build`, `build:firebase` | the verify gate | 8923/8923, 686/686, 236/236 + 150/150, clean (no new warnings), built, built |
+| whole platform suite, `test:authoring-v5`, `test:rules`, lint, `build`, `build:firebase` | the verify gate | 8952/8952, 686/686, 236/236 + 150/150, clean (no new warnings), built, built |
 
 Every new or rewritten assertion was mutation-checked: breaking the behaviour
 it protects (dropping the tool payload, grading tool items with the field
@@ -235,7 +271,9 @@ production — the engine's task card rendered unstyled without it.
   in `HintPanel`), and a student needs them to operate a tool — but a few name
   a method ("Compare the two slopes to decide how many solutions…",
   "Work out the determinant…"). A teacher who considers that assistance has no
-  switch for it yet; the policy has the capability to hang one on.
+  switch for it yet; the policy has the capability to hang one on. (The Data
+  Modeling Lab's steps repeated withheld notes outright, so they follow the
+  hint permission — R45.)
 
 ## Deploy
 
@@ -243,7 +281,9 @@ Functions and Hosting changed; rules did not. Functions first, then Hosting.
 In-progress sessions keep working: stored items written before this change
 read back unchanged, and only items that nest arrays — which no earlier
 version could store at all — are encoded, so an older instance during the
-deploy window, or after a rollback, reads everything it ever could. My Math
+deploy window, or after a rollback, reads everything it ever could. An item
+it could not have stored carries a stand-in in place of its private grading,
+which an older instance refuses rather than scoring (R41). My Math
 Path's `issueNextQuestion` and `submitPathResponse` changed (R37), and so did
 Live Challenge's shared contracts (R20, R21, R34). Through the resilient
 wrapper:

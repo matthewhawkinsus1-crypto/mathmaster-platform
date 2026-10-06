@@ -44,11 +44,20 @@ const DEFAULT_RUNTIME = {
   // the item. A secure host names the action ("Record answer"); null keeps
   // each tool's own wording everywhere else.
   submitLabel: null,
+  // WHETHER THE ACTIVITY WITHHOLDS VERDICTS, as the activity says it.
+  //
+  // `showImmediateFeedback` above is false for two different reasons: the
+  // activity withholds verdicts (a secure Test, a DOL before release), OR the
+  // tool is server-graded and has no answer key to judge with. A tool that
+  // judges from the student's own work (Step Algebra checks a move against the
+  // equation it was applied to) needs only the first: on Corrections and My
+  // Math Path practice it keeps its move coaching. Defaults to not withheld.
+  verdictsWithheld: false,
 };
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, verdictsWithheld = false, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
@@ -61,6 +70,7 @@ export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswer
     attemptOutcomeSlots: attemptOutcomeSlots || null,
     reportWork: typeof reportWork === 'function' ? reportWork : null,
     submitLabel: typeof submitLabel === 'string' && submitLabel.trim() ? submitLabel.trim() : null,
+    verdictsWithheld: verdictsWithheld === true,
   }}>
     {children}
   </ToolRuntimeContext.Provider>

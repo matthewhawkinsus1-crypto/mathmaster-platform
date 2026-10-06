@@ -130,9 +130,9 @@ test('QuestionEngine mounts every algebra solver inside the activity\'s runtime,
   assert.match(helper, />\s*\{node\}\s*<\/ToolRuntimeProvider>/);
   const render = region(engine, 'const renderModule = () => {', null, 'renderModule');
   const wrapped = [...render.matchAll(/return withSolverRuntime\(\s*<(\w+)/g)].map((match) => match[1]);
-  assert.deepEqual(wrapped, ['MultiRelationAlgebra', 'StepByStepAlgebra', 'StepByStepAlgebra', 'StepByStepAlgebra'],
-    'the relation route, the default and legacy `algebra` solvers, and the literal workspace (each can reach the relation solver)');
-  assert.doesNotMatch(render, /return \(\s*<(MultiRelationAlgebra|StepByStepAlgebra)\b/, 'no solver mount outside the runtime');
+  assert.deepEqual(wrapped, ['MultiRelationAlgebra', 'LinearInterceptsOrchestrator', 'StepByStepAlgebra', 'StepByStepAlgebra', 'StepByStepAlgebra'],
+    'the relation route, the intercept route (it embeds Step Algebra), the default and legacy `algebra` solvers, and the literal workspace (each can reach the relation solver)');
+  assert.doesNotMatch(render, /return \(\s*<(MultiRelationAlgebra|LinearInterceptsOrchestrator|StepByStepAlgebra)\b/, 'no solver mount outside the runtime');
 });
 
 test('the relation solver\'s withheld-outcome branch appears only under the runtime\'s policy', () => {

@@ -20,16 +20,26 @@
  *
  * ONLY A FIELD THAT NEEDS IT IS ENCODED: one holding an array inside an array.
  * Everything else — every field-graded item, every SAT/ACT/TSIA2/ASVAB item,
- * most tool items — is stored exactly as before. That keeps a deploy window
- * and a rollback safe: a function instance that predates the codec reads a
- * plain `privateGrading` the way it always did, and the only documents it
- * cannot read are the ones it could never have written.
+ * most tool items — is stored exactly as before, so a function instance that
+ * predates the codec (a deploy window, a rollback) reads it the way it always
+ * did.
+ *
+ * AND AN ENCODED ITEM FAILS CLOSED ON SUCH AN INSTANCE. Left without a
+ * `privateGrading`, an older grader would have scored the student's answer 0
+ * without a word — spending an attempt and writing evidence. So the encoded
+ * form keeps a stand-in that no grader accepts: the Path grader finds no
+ * contract for its tool and refuses the response (nothing recorded), the field
+ * grader cannot read its field and errors. `readStoredItem` replaces it with
+ * the real definition.
  *
  * Plain CommonJS with no dependencies, so `secureExam.js` (synchronous) and
  * `secureItems.js` share it.
  */
 
 const ENCODED_FIELDS = Object.freeze(["privateGrading", "tool"]);
+
+/** What an encoded item's `privateGrading` reads as to code that predates the codec. */
+const ENCODED_GRADING_STAND_IN = Object.freeze({ pathToolId: "__stored_as_json__", fields: Object.freeze([null]) });
 
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -50,7 +60,8 @@ function storableItem(item) {
   ENCODED_FIELDS.forEach((field) => {
     if (holdsNestedArray(stored[field])) {
       stored[`${field}Json`] = JSON.stringify(stored[field]);
-      delete stored[field];
+      if (field === "privateGrading") stored[field] = { ...ENCODED_GRADING_STAND_IN, fields: [null] };
+      else delete stored[field];
     }
   });
   return stored;
@@ -67,11 +78,12 @@ function readStoredItem(item) {
       const parsed = JSON.parse(read[key]);
       if (parsed !== null && typeof parsed === "object") read[field] = parsed;
     } catch {
-      // An unreadable copy is left absent rather than half-parsed.
+      // An unreadable copy is never half-parsed: the stand-in stays, and every
+      // grader refuses it.
     }
     delete read[key];
   });
   return read;
 }
 
-module.exports = { ENCODED_FIELDS, holdsNestedArray, readStoredItem, storableItem };
+module.exports = { ENCODED_FIELDS, ENCODED_GRADING_STAND_IN, holdsNestedArray, readStoredItem, storableItem };
