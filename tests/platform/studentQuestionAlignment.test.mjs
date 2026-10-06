@@ -11,7 +11,9 @@ const engineSource = readFileSync(new URL('../../src/QuestionEngine.jsx', import
 const pathSource = readFileSync(new URL('../../src/components/student/PathSessionPlayer.jsx', import.meta.url), 'utf8');
 const badgeSource = readFileSync(new URL('../../src/components/common/StandardBadge.jsx', import.meta.url), 'utf8');
 const toolShellSource = readFileSync(new URL('../../src/tools/shared/ToolShell.jsx', import.meta.url), 'utf8');
-const secureExamSource = readFileSync(new URL('../../src/components/assessment/SecureExamQuestionPlayer.jsx', import.meta.url), 'utf8');
+const secureExamAdapter = readFileSync(new URL('../../src/components/assessment/SecureExamQuestionPlayer.jsx', import.meta.url), 'utf8');
+// The secure exam renders through the shared Rich Question Runtime.
+const secureExamSource = readFileSync(new URL('../../src/components/question/RichQuestionRuntime.jsx', import.meta.url), 'utf8');
 
 test('Assignment V5 singular standard fields survive runtime metadata normalization', () => {
   const direct = normalizeQuestionStandards({
@@ -133,9 +135,13 @@ test('student UI has one alignment owner per question and the details are clicka
 });
 
 test('secure exam mode withholds instructional metadata that could cue the assessed domain', () => {
-  assert.match(secureExamSource, /Secure exam question/);
+  assert.match(secureExamAdapter, /<RichQuestionRuntime\b/);
+  assert.match(secureExamSource, /policy\.secure && <div style=\{[^}]*\}>Secure exam question<\/div>/);
+  assert.match(secureExamSource, /showStandardBadge=\{false\}/);
   assert.doesNotMatch(secureExamSource, /DOK \{question\.dok/);
-  assert.doesNotMatch(secureExamSource, /StandardBadge/);
+  // It never renders or imports the badge (`showStandardBadge={false}`, which
+  // turns the engine's off, is the opposite of rendering one).
+  assert.doesNotMatch(secureExamSource, /<StandardBadge\b|import StandardBadge/);
   assert.doesNotMatch(secureExamSource, /CCMR connection/);
 });
 

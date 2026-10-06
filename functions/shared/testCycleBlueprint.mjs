@@ -26,6 +26,7 @@
  */
 
 import { hasPathGenerator, hasPathVariants } from './pathQuestionGeneration.mjs';
+import { resolveSecureToolId } from './secureToolCertification.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
@@ -193,7 +194,11 @@ export const describeFamily = (question) => {
     dok: clampInt(source.dok, 1, 4, 2),
     difficultyBand: clampInt(source.difficultyBand, 1, 5, 3),
     representation: REPRESENTATIONS.includes(clean(source.representation)) ? clean(source.representation) : 'symbolic',
-    toolId: clean(source.toolId) || clean(source.pathToolId) || null,
+    // The tool the family renders with, read the way the issuing server reads
+    // it (`pathToolId`, `toolId` or `type`, canonicalised). Reading only the
+    // first two missed every bank family — the bank declares its tool in
+    // `type` — so a graphing family described itself as having no tool.
+    toolId: resolveSecureToolId(source),
     // A family is only "parallel-capable" when it can produce genuinely
     // different instances. A fixed question can fill a slot once; it cannot
     // supply a fresh variant for a retest.

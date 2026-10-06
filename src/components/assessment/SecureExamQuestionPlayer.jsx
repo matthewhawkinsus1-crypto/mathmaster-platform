@@ -1,110 +1,51 @@
-import React, { useMemo, useState } from 'react';
-import CalculatorPanel from '../CalculatorPanel.jsx';
-import MathText from '../common/MathText.jsx';
-import MathDisplay from '../../MathDisplay.jsx';
-import PathQuestionStimulus from '../student/PathQuestionStimulus.jsx';
-import LinearRegressionPanel from './LinearRegressionPanel.jsx';
-import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyResolver.js';
+import React from 'react';
+import RichQuestionRuntime from '../question/RichQuestionRuntime.jsx';
+import { secureShellRuntimeMode } from '../../platform/assessment/questionRuntimePolicy.js';
 
-const isNumericProfile = (profile) => ['number', 'numeric', 'decimal'].includes(String(profile || '').toLowerCase());
-
-export const SecureExamQuestionPlayer = ({ examType, sessionCalculatorMode = null, question, initialResponsePayload = null, studentSupportProfile, accommodationConfirmed = false, busy = false, onSubmit, onDraftChange }) => {
-  const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
-  const [calculatorUsed, setCalculatorUsed] = useState(false);
-  const [regressionState, setRegressionState] = useState(() => {
-    const saved = initialResponsePayload?.toolState?.linearRegression;
-    return saved ? { ...saved, rows: saved.rows.map(row => Array.isArray(row) ? row : row.cells) } : null;
-  });
-  const fields = question?.responseFields?.length ? question.responseFields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }];
-  const choices = Array.isArray(question?.choices) ? question.choices : [];
-  const calculatorPolicy = useMemo(() => resolveExamCalculatorPolicy({
-    examType,
-    // A course test's blueprint names a session-wide calculator setting; it
-    // travels on the session, not on each item.
-    questionSpec: { ...(question || {}), sessionCalculatorMode },
-    studentSupportProfile,
-    accommodationConfirmed,
-    isComputationSkill: question?.assessedConstruct === 'computation',
-  }), [examType, question, sessionCalculatorMode, studentSupportProfile, accommodationConfirmed]);
-  const complete = fields.every((field) => String(responses[field.id] ?? '').trim());
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!complete || busy) return;
-    await onSubmit?.({ responses, toolState: { linearRegression: regressionState } }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
-  };
-  const updateResponse = (id, value) => {
-    // While an answer is being recorded the item is already gone: a keystroke
-    // here would autosave a draft onto the submitted item and show "Answer
-    // saved" over the next question, which then appears empty.
-    if (busy) return;
-    setResponses((current) => {
-      const next = { ...current, [id]: value };
-      onDraftChange?.({ responses: next, toolState: { linearRegression: regressionState } }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
-      return next;
-    });
-  };
-
-  if (!question) return <div style={{ padding: 36, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Preparing the next secure item…</div>;
-  return (
-    <main style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>
-      <section style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 'clamp(18px, 4vw, 30px)', boxShadow: '0 5px 22px rgba(0,0,0,.07)' }}>
-        <div style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Secure exam question</div>
-        {/* Secure mode deliberately hides TEKS/domain labels while answering,
-            but the mathematics itself must still render exactly as authored. */}
-        <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(20px, 4vw, 27px)', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
-        {question.formulaLatex && <div style={{ background: 'var(--mm-surface-sunken)', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
-        <PathQuestionStimulus stimulus={question.stimulus} />
-        {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel value={regressionState} onUsed={() => setCalculatorUsed(true)} onChange={(next) => {
-          setRegressionState(next);
-          if (busy) return; // the item is being recorded; see updateResponse
-          onDraftChange?.({ responses, toolState: { linearRegression: next } }, { calculatorUsed: true, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
-        }} />}
-        <form onSubmit={submit}>
-          <div style={{ display: 'grid', gap: 15 }}>
-            {fields.map((field, fieldIndex) => {
-              const fieldChoices = field.choices?.length ? field.choices : fields.length === 1 ? choices : [];
-              return (
-              <fieldset key={field.id} style={{ border: 0, padding: 0, margin: 0 }}>
-                <legend style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-text)', marginBottom: 7 }}>
-                  <MathText>{field.label || `Response ${fieldIndex + 1}`}{field.unit ? ` (${field.unit})` : ''}</MathText>
-                </legend>
-                {fieldChoices.length ? fieldChoices.map((choice) => {
-                  const selected = responses[field.id] === choice.id;
-                  return (
-                    <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: selected ? '2px solid var(--mm-primary)' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer', background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', boxShadow: selected ? '0 0 0 1px rgba(26,115,232,.08)' : 'none' }}>
-                      <input type="radio" name={field.id} value={choice.id} checked={selected} disabled={busy} onChange={(event) => updateResponse(field.id, event.target.value)} style={{ marginTop: 3 }} />
-                      <MathText style={{ lineHeight: 1.5 }}>{choice.label}</MathText>
-                    </label>
-                  );
-                }) : (
-                  <input
-                    autoComplete="off"
-                    autoFocus={fieldIndex === 0}
-                    // Keep this a text input even for numeric SPR items. HTML
-                    // number inputs reject valid assessment responses such as
-                    // 3/4; inputMode still gives a numeric-friendly keyboard.
-                    type="text"
-                    inputMode={isNumericProfile(field.inputProfile) ? 'decimal' : undefined}
-                    value={responses[field.id] ?? ''}
-                    readOnly={busy}
-                    onChange={(event) => updateResponse(field.id, event.target.value)}
-                    aria-label={field.label || `Response ${fieldIndex + 1}`}
-                    style={{ width: '100%', minHeight: 48, padding: '10px 12px', border: '2px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box', fontSize: 17 }}
-                  />
-                )}
-              </fieldset>
-            ); })}
-          </div>
-          {/* Disabled is a token pair, not white on light grey: that read at
-              about 1.4:1 in both themes, so "why can't I continue?" had no
-              visible answer. */}
-          <button type="submit" disabled={!complete || busy} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !complete || busy ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !complete || busy ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !complete || busy ? 'not-allowed' : 'pointer' }}>{busy ? 'Recording securely…' : complete ? 'Record answer & continue' : 'Answer to continue'}</button>
-        </form>
-      </section>
-      <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />
-    </main>
-  );
-};
+/*
+ * THE SECURE EXAM'S QUESTION, THROUGH THE SHARED RICH QUESTION RUNTIME.
+ *
+ * This used to be a renderer of its own — radio choices and text boxes, and
+ * nothing else — so a graphing, systems or algebra-workspace item placed on a
+ * secure Test could not be answered with the tool it was written for. It is
+ * now an adapter: the secure container decides which item is issued, saves
+ * and submits, and holds the integrity shell; RichQuestionRuntime renders the
+ * item — the authentic Rich Tool for a tool item, the secure response fields
+ * otherwise — under the mode the SERVER put on the payload (Secure Test or
+ * Secure Retest: every response tool, no assistance, no verdict).
+ *
+ * The SAT, ACT, TSIA2 and ASVAB simulations come through here too. Their items
+ * are field items, so what they render is what they always rendered.
+ */
+export const SecureExamQuestionPlayer = ({
+  examType,
+  sessionCalculatorMode = null,
+  question,
+  initialResponsePayload = null,
+  studentSupportProfile,
+  accommodationConfirmed = false,
+  busy = false,
+  draftKey = null,
+  executionScope = 'student',
+  onSubmit,
+  onDraftChange,
+}) => (
+  <RichQuestionRuntime
+    question={question}
+    // The secure shell renders secure modes only. A payload naming anything
+    // else (or nothing) is shown as a Secure Test, never with practice help.
+    mode={secureShellRuntimeMode(question)}
+    draftKey={draftKey}
+    initialResponsePayload={initialResponsePayload}
+    busy={busy}
+    examType={examType}
+    sessionCalculatorMode={sessionCalculatorMode}
+    accommodationConfirmed={accommodationConfirmed}
+    studentSupportProfile={studentSupportProfile}
+    executionScope={executionScope}
+    onSubmit={onSubmit}
+    onDraftChange={onDraftChange}
+  />
+);
 
 export default SecureExamQuestionPlayer;

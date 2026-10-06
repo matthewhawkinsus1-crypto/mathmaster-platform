@@ -26,6 +26,7 @@ import {
   numberVisiblePanels,
 } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
+import { useHintsAllowed, useSubmitLabel } from '../shared/ToolRuntimeContext';
 
 const Field = ({ label, children }) => (
   <label style={{ display:'block', fontSize:13, color:'var(--mm-text-muted)', fontWeight:700 }}>
@@ -158,6 +159,12 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [squareRootH, setSquareRootH] = usePersistentToolState('squareRootH', startingModel.h ?? '');
   const [squareRootK, setSquareRootK] = usePersistentToolState('squareRootK', startingModel.k ?? '');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const submitActionLabel = useSubmitLabel('Check data model');
+  // The lab's teaching notes (how to read r, what a residual plot should look
+  // like, how to choose a model) answer parts it asks. They are hints: shown
+  // where hints are, withheld on a secure item.
+  const teachingNotes = useHintsAllowed();
 
   const studentPredict = useMemo(() => {
     if ((mode === 'quadraticFitPrediction' || mode === 'quadraticFit')) {
@@ -437,11 +444,13 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               </select>
             </Field>
           ) : null}
-          <div style={{ marginTop:14, padding:12, borderRadius:10, background:'var(--mm-warning-bg)', color:'var(--mm-warning-text)', fontSize:13 }}>
-            {mode === 'correlation'
-              ? 'Interpret r by its sign (direction) and magnitude (strength).'
-              : 'A large |r| describes strength of linear association. It does not, by itself, prove causation.'}
-          </div>
+          {teachingNotes ? (
+            <div style={{ marginTop:14, padding:12, borderRadius:10, background:'var(--mm-warning-bg)', color:'var(--mm-warning-text)', fontSize:13 }}>
+              {mode === 'correlation'
+                ? 'Interpret r by its sign (direction) and magnitude (strength).'
+                : 'A large |r| describes strength of linear association. It does not, by itself, prove causation.'}
+            </div>
+          ) : null}
         </Panel> : null}
 
         {showResidualPanel ? <Panel title={`${panelNumbers.residual} · Residual evidence`}>
@@ -454,7 +463,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   <tbody>{studentResiduals.map((row, index)=><tr key={`${row.x}-${index}`}><td style={{padding:6,textAlign:'center'}}>{row.x}</td><td style={{textAlign:'center'}}>{row.y}</td><td style={{textAlign:'center'}}>{round(row.predicted,2)}</td><td style={{textAlign:'center'}}>{round(row.residual,2)}</td></tr>)}</tbody>
                 </table>
               </div>
-              <p style={{ color:'var(--mm-text-muted)', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
+              {teachingNotes ? <p style={{ color:'var(--mm-text-muted)', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p> : null}
             </div>
           ) : (
             <p style={{margin:0,color:'var(--mm-text-muted)'}}>Enter the complete fitted function first. Residual evidence will appear after your model can be evaluated.</p>
@@ -470,7 +479,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               </label>
             ))}
           </div>
-          <p style={{ color:'var(--mm-text-muted)', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p>
+          {teachingNotes ? <p style={{ color:'var(--mm-text-muted)', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p> : null}
         </Panel> : null}
 
         {showPredictionPanel ? <Panel title={`${panelNumbers.prediction} · ${asksPredictionType ? 'Prediction and reasonableness' : 'Prediction'}`}>
@@ -486,7 +495,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
 
         <Panel title="Submit model reasoning">
           <p style={{ marginTop:0, color:'var(--mm-text-muted)' }}>Each part of your reasoning is graded separately, so getting some of it right still earns credit.</p>
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' }}>Check data model</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' }}>{submitActionLabel}</button>
           <HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} />
           {feedback ? (
             <div style={{ marginTop:14 }}>

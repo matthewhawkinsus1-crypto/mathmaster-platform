@@ -335,6 +335,34 @@ export const removeQuestionDraft = (key) => {
 };
 
 
+/**
+ * Every stored draft in one question's family (`prefix` and `prefix:*`), as
+ * the entries `restoreQuestionDrafts` accepts. A secure item uses it to send
+ * its tool's own drafts with the server copy, so the construction reopens on
+ * another device exactly as it was left. Read-only: nothing is touched.
+ */
+export const readQuestionDraftFamily = (prefix) => {
+  if (!prefix || !storageAvailable()) return [];
+  const entries = [];
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key !== prefix && !key?.startsWith(`${prefix}:`)) continue;
+      const parsed = storedEnvelope(key);
+      if (!parsed || parsed.value === undefined) continue;
+      entries.push({
+        key,
+        value: parsed.value,
+        savedAt: Number(parsed.savedAt) || 0,
+        ...(parsed.savedAtIsEdit === true ? { savedAtIsEdit: true } : {}),
+      });
+    }
+  } catch {
+    // Storage that cannot be enumerated has nothing to send.
+  }
+  return entries;
+};
+
 export const removeQuestionDraftFamily = (prefix) => {
   if (!prefix) return;
   forgetPageView((key) => key === prefix || key.startsWith(`${prefix}:`));

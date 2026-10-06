@@ -5,7 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { parseNumericAnswer, solveTwoLines, round } from '../shared/toolMath';
-import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { useRevealAnswers, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import {
   SYSTEMS_WORKSPACE_DEFAULTS,
   feasibleRegionPolygon,
@@ -64,6 +64,8 @@ const Legend = ({ items }) => (
 );
 
 function LinearMode({ questionData, onAction }) {
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const checkSystemLabel = useSubmitLabel('Check system');
   const system = questionData.system || DEFAULT_SYSTEM;
   const solution = useMemo(() => solveTwoLines(system), [system]);
   const revealAnswers = useRevealAnswers();
@@ -105,7 +107,7 @@ function LinearMode({ questionData, onAction }) {
     equationInput: { label: 'Both equations', studentState: true },
     numericControls: { label: 'Solution and classification', studentState: true },
     instruction: { text: 'Classify the system, then solve where the equations meet.' },
-    primaryActions: [{ id: 'check-system', label: 'Check system', onAction: check, disabled: !classified }],
+    primaryActions: [{ id: 'check-system', label: checkSystemLabel, onAction: check, disabled: !classified }],
   }}><ToolSplit>
     <Panel title="Both equations on one grid">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 8} yMin={questionData.graph?.yMin ?? -6} yMax={questionData.graph?.yMax ?? 12}
@@ -122,7 +124,7 @@ function LinearMode({ questionData, onAction }) {
     <Panel title="Classify and solve">
       <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
       {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
-      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!classified} style={{...actionStyle,opacity:classified?1:0.5}}>Check system</button>
+      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!classified} style={{...actionStyle,opacity:classified?1:0.5}}>{checkSystemLabel}</button>
       {!classified ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
@@ -323,7 +325,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
   };
 
   const shownPolygon = requiresConstruction ? studentPolygon : correctPolygon;
-  const checkLabel = requiresConstruction ? 'Check inequality graph' : 'Check feasible region';
+  const checkLabel = useSubmitLabel(requiresConstruction ? 'Check inequality graph' : 'Check feasible region');
 
   return <EnlargeableFigure label="Inequality system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
     undo: undoHistory.capability,
@@ -451,6 +453,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
 }
 
 function LinearQuadraticMode({ questionData, onAction }) {
+  const checkIntersectionsLabel = useSubmitLabel('Check intersections');
   const config = questionData.linearQuadratic || DEFAULT_LINEAR_QUADRATIC;
   const intersections = useMemo(() => solveLinearQuadratic(config), [config]);
   const revealAnswers = useRevealAnswers();
@@ -482,7 +485,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
     return 'The count is right but at least one coordinate is off. Substitute each point into both the line and the parabola: a real intersection satisfies both.';
   };
 
-  return <EnlargeableFigure label="Linear-quadratic system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: 'Line and quadratic equations' }, numericControls: { label: 'Intersection controls', studentState: true }, instruction: { text: 'Find every point satisfying both equations.' }, primaryActions: [{ id: 'check-intersections', label: 'Check intersections', onAction: check, disabled: count === '' }] }}><ToolSplit>
+  return <EnlargeableFigure label="Linear-quadratic system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: 'Line and quadratic equations' }, numericControls: { label: 'Intersection controls', studentState: true }, instruction: { text: 'Find every point satisfying both equations.' }, primaryActions: [{ id: 'check-intersections', label: checkIntersectionsLabel, onAction: check, disabled: count === '' }] }}><ToolSplit>
     <Panel title="Line and parabola">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 6} yMin={questionData.graph?.yMin ?? -8} yMax={questionData.graph?.yMax ?? 12}
         lines={[{ ...config.line, stroke:'#d93025', dash:'10 6' }]}
@@ -498,7 +501,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
       <Field label="How many real intersections are there?"><select value={count} onChange={(e)=>setCount(e.target.value)} style={inputStyle}><option value="">Choose…</option><option value="0">0</option><option value="1">1</option><option value="2">2</option></select></Field>
       {Number(count) >= 1 ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x₁"><input type="number" inputMode="decimal" step="0.1" value={values.x1} onChange={update('x1')} style={inputStyle}/></Field><Field label="y₁"><input type="number" inputMode="decimal" step="0.1" value={values.y1} onChange={update('y1')} style={inputStyle}/></Field></div> : null}
       {Number(count) >= 2 ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:10}}><Field label="x₂"><input type="number" inputMode="decimal" step="0.1" value={values.x2} onChange={update('x2')} style={inputStyle}/></Field><Field label="y₂"><input type="number" inputMode="decimal" step="0.1" value={values.y2} onChange={update('y2')} style={inputStyle}/></Field></div> : null}
-      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={count === ''} style={{ ...actionStyle, opacity: count === '' ? 0.5 : 1 }}>Check intersections</button>
+      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={count === ''} style={{ ...actionStyle, opacity: count === '' ? 0.5 : 1 }}>{checkIntersectionsLabel}</button>
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
         hints={[
@@ -513,6 +516,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
 }
 
 function MatrixMode({ questionData, onAction }) {
+  const checkMatrixLabel = useSubmitLabel('Check matrix solution');
   const matrix = questionData.matrix || DEFAULT_MATRIX;
   const isMatrix3 = questionData.mode === 'matrix3' || Boolean(matrix3x4Rows(matrix));
   const solution = useMemo(
@@ -569,7 +573,7 @@ function MatrixMode({ questionData, onAction }) {
 
   const showRref = isMatrix3 && (technologyUsed || revealAnswers);
 
-  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: 'Check matrix solution', onAction: check, disabled: !classified || (isMatrix3 && !technologyUsed) }] }}><ToolSplit>
+  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: checkMatrixLabel, onAction: check, disabled: !classified || (isMatrix3 && !technologyUsed) }] }}><ToolSplit>
     <Panel title={isMatrix3 ? "3×3 augmented matrix" : "Augmented matrix"}>
       <div style={{
         display:'grid',
@@ -649,7 +653,7 @@ function MatrixMode({ questionData, onAction }) {
         disabled={!classified || (isMatrix3 && !technologyUsed)}
         style={{...actionStyle,opacity:!classified || (isMatrix3&&!technologyUsed)?0.5:1}}
       >
-        {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : 'Check matrix solution'}
+        {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : checkMatrixLabel}
       </button>
       {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
       {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div>:null}

@@ -104,6 +104,10 @@ audit row per release.
 | Teacher row states and the actions that apply now | `src/platform/teacher/testCycleTeacherRows.js` |
 | Teacher preview of every student stage | `src/platform/teacher/testCyclePreviewModel.js` |
 | What an edit does to a saved cycle's contract | `src/platform/assessment/testCycleContractEdit.js` |
+| What each mode may do for the student (Test, Retest, Corrections, …) | `functions/shared/questionRuntimePolicy.mjs` |
+| Which Rich Tools may run securely, and on which devices | `functions/shared/secureToolCertification.mjs` |
+| One secure item: public payload, grading, stored form | `functions/lib/secureItems.js`, `functions/lib/secureItemStorage.js` |
+| The shared question runtime every secure surface renders | `src/components/question/RichQuestionRuntime.jsx` |
 
 Everything under `functions/shared/` is pure: no Firestore, no network, no
 clock. That is what lets the browser and Cloud Functions share it and what makes
@@ -151,6 +155,21 @@ down.
 The plan is stripped from every client payload by `publicSession` — teacher
 payloads included — because a family plus a seed reproduces the question.
 
+## Rich Tools are first-class on the secure Test
+
+A Test, Retest, Correction or preview item is rendered by the shared Rich
+Question Runtime — the real Graphing, Systems, Step Algebra, Number Line,
+Mapping, Data Modeling, Regression and Function Investigation tools in
+QuestionEngine for a tool item, the secure response fields otherwise — under
+the capability policy of its mode, which the server stamps on the payload
+(`runtimeMode`). The secure modes keep every response tool and remove every
+assistance capability; the server strips assistance keys from the payload,
+forces assessment settings, grades the raw construction with the tool's Path
+Tool Contract grader, and withholds the verdict until release. Preflight
+refuses a family whose tool is not certified, or whose tool differs from the
+one its target requires; a Retest keeps each target's tool. Full design:
+`docs/architecture/secure-rich-question-runtime.md`.
+
 ## Corrections
 
 Built automatically when a released Test scores below the passing threshold,
@@ -161,10 +180,13 @@ evidence. A misconception is named only when the evidence carried one;
 otherwise the correction targets the missed standard rather than inventing a
 diagnosis.
 
-Corrections are instructional and non-secure — hints, three attempts per
-question (enforced by the server: `CORRECTION_ATTEMPTS_PER_QUESTION`), immediate
-feedback — and cannot move a recorded grade. `TestCycleCorrections.jsx` imports
-nothing from the secure runtime, and the grade rule has no correction input.
+Corrections are instructional and non-secure — hints from the second miss,
+the item's own feedback, three attempts per question (enforced by the server:
+`CORRECTION_ATTEMPTS_PER_QUESTION`), immediate feedback, the worked review once
+an item closes — and cannot move a recorded grade. A missed graphing item is
+corrected on the Graphing tool: the item renders in the shared runtime in
+`corrections` mode. `TestCycleCorrections.jsx` imports nothing from the secure
+runtime, and the grade rule has no correction input.
 
 ## Retest
 
@@ -226,9 +248,12 @@ only a root admin may delete an assignment document directly.
   attention", with Unlock on the row.
 - **Preview** (`TestCyclePreview`): every student stage built from the
   assignment's real policy and blueprint through the same shared modules, at
-  phone, iPad and Chromebook widths, plus real secure items drawn and graded by
+  phone, iPad and Chromebook widths, plus real secure items — Rich Tools
+  included, in the same runtime and under the same Secure Test, Retest or
+  Corrections policy a student gets — drawn and graded by
   `previewTestCycleSecureItems` / `gradeTestCyclePreviewItem`. Preview writes
-  nothing: no session, record, grade or draft (the emulator suite asserts it).
+  nothing: no session, record, grade or draft (the emulator suites assert it),
+  and its device drafts are cleared on every draw and on close.
 
 ## External originals and mastery-gated Review
 
@@ -262,6 +287,14 @@ speak of a retest and of the mastery bar where they apply.
   against the emulator, adversarially: skipping Review, finalizing an unopened
   Test, replaying markers, students calling teacher callables, archived and
   scheduled cycles, policy locks, preview writing nothing, delete vs archive.
+- `tests/platform/secureRichToolMatrix.test.mjs` — every certified Rich Tool,
+  issued, public in every mode, answered from public data, graded, stored.
+- `tests/integration/testCycleRichToolCertification.test.mjs` — a seven-tool
+  Rich Tool Test Cycle through the real handlers: preflight, Test, release,
+  review, Corrections, Retest, preview.
+- `node tests/browser/testCycleRichToolQa.mjs` — QA tool: every bank Rich Tool
+  in the real secure container at Chromebook, iPad and phone, light and dark,
+  with an interaction, autosave, reload and submit.
 - `node tests/browser/testCycleLifecycleQa.mjs` — a QA tool, not a CI gate:
   real components in Chromium against the real handlers, as a teacher and as
   students, through Review → Test → release → Corrections → Retest → capped

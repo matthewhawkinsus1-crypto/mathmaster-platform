@@ -822,5 +822,6 @@ module.exports = {
   opaqueId,
   privateGradingDefinition,
   runtimeId,
+  sanitizeContext,
   supportTelemetry,
 };

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import MathText from '../common/MathText.jsx';
-import MathDisplay from '../../MathDisplay.jsx';
-import PathQuestionStimulus from './PathQuestionStimulus.jsx';
+import RichQuestionRuntime from '../question/RichQuestionRuntime.jsx';
+import { secureItemDraftKey } from '../../platform/assessment/questionRuntimePolicy.js';
 import {
   issueTestCycleCorrectionQuestion,
   submitTestCycleCorrectionResponse,
@@ -14,8 +13,15 @@ import { describeCorrectionTargetForStudent } from '../../platform/student/testC
  * Nothing here imports SecureExamContainer, ExamIntegrityLogger or any of the
  * secure callables, and that absence is the point rather than an oversight: a
  * student doing corrections is meant to get help. They get the standard they
- * are working on, the reason they were sent here, immediate right/wrong,
- * whatever hint the item carries, and three attempts.
+ * are working on, the reason they were sent here, immediate right/wrong, the
+ * item's own feedback, a hint from the second miss, the worked review once an
+ * item closes, and three attempts.
+ *
+ * THE SAME QUESTION AS THE TEST. The item renders through the shared Rich
+ * Question Runtime in `corrections` mode: a student who missed a graphing
+ * item corrects it on the Graphing tool, an algebra-workspace item on the
+ * workspace — not on a text box. The mode is what differs (hints, feedback
+ * and three tries on), not the renderer.
  *
  * WHAT IT STILL WILL NOT DO. It never shows the secure Test item the student
  * missed, and it never asks the browser to decide whether an answer is right.
@@ -37,9 +43,8 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
   const targets = corrections?.targets || [];
   const activeTarget = targets.find((target) => target.complete !== true) || null;
   const [question, setQuestion] = useState(null);
-  const [responses, setResponses] = useState({});
   const [feedback, setFeedback] = useState(null);
-  const [showHint, setShowHint] = useState(false);
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Said once, when a whole skill is finished and the next one loads, so the
@@ -52,9 +57,8 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
     try {
       const result = await issueTestCycleCorrectionQuestion({ assignmentId, correctionId });
       setQuestion(result.questionInstance || null);
-      setResponses({});
+      setAttemptsUsed(Number(result.attemptsUsed || 0));
       setFeedback(null);
-      setShowHint(false);
     } catch (loadError) {
       setError(loadError.message || 'That correction could not be opened.');
     } finally {
@@ -82,13 +86,14 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
     );
   }
 
-  const fields = question?.responseFields?.length ? question.responseFields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }];
-  const choices = Array.isArray(question?.choices) ? question.choices : [];
-  const complete = fields.every((field) => String(responses[field.id] ?? '').trim());
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!complete || busy || !question) return;
+  /*
+   * One correction attempt. Returns, for a Rich Tool item, the feedback
+   * QuestionEngine renders (Corrections shows verdicts at once); a field item's
+   * feedback is rendered by the runtime from `feedback`. Unfinished tool work
+   * is refused by the server without spending a try, and said so.
+   */
+  const submit = async (responsePayload) => {
+    if (busy || !question) return null;
     setBusy(true);
     setError('');
     try {
@@ -96,15 +101,28 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
         assignmentId,
         correctionId: activeTarget.correctionId,
         questionInstanceId: question.questionInstanceId,
-        responsePayload: { responses },
+        responsePayload,
       });
-      setFeedback(result);
+      setFeedback({
+        ...result,
+        message: result.feedbackMessage || (result.isCorrect ? 'Correct.' : 'Not yet.'),
+      });
+      setAttemptsUsed(Number(result.attemptsUsed || 0));
       const before = targets.filter((target) => target.complete === true).length;
       if (Number(result.progress?.complete || 0) > before) setAnnouncement(`${activeTarget.label} — corrected.`);
       onProgress?.(result);
       if (result.correctionsComplete) onComplete?.(result);
+      return {
+        isCorrect: result.isCorrect === true,
+        status: result.isCorrect ? 'correct' : 'attempted',
+        attemptCount: Number(result.attemptsUsed || 0),
+        message: result.feedbackMessage || null,
+        partGrades: Array.isArray(result.parts) ? result.parts : [],
+      };
     } catch (submitError) {
-      setError(submitError.message || 'That correction response was not recorded.');
+      const text = submitError.message || 'That correction response was not recorded.';
+      setError(text);
+      return { blocked: true, message: text };
     } finally {
       setBusy(false);
     }
@@ -114,10 +132,11 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
   // A wrong answer keeps the SAME question open until its tries are used; only
   // a correct answer or the last try moves on to a fresh parallel question.
   const questionClosed = feedback?.questionClosed === true;
-  const canCheck = complete && !busy && !questionClosed;
 
   return (
-    <div style={{ display: 'grid', gap: 16, width: 'min(820px, 100%)', margin: '0 auto' }}>
+    // A Rich Tool needs the room a coordinate plane needs; a field item keeps
+    // the reading measure.
+    <div style={{ display: 'grid', gap: 16, width: question?.pathToolId ? 'min(1180px, 100%)' : 'min(820px, 100%)', margin: '0 auto', minWidth: 0 }}>
       <section style={{ ...card, background: 'var(--mm-primary-soft)', border: '1px solid var(--mm-primary-border)' }}>
         <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
           Corrections · {doneCount} of {targets.length} complete
@@ -138,66 +157,30 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
       {announcement && <p role="status" style={{ margin: 0, color: 'var(--mm-success-text)', fontWeight: 800 }}>{announcement}</p>}
       {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
 
-      <section style={card}>
-        {!question ? <p style={{ color: 'var(--mm-text-muted)' }}>Preparing a practice question…</p> : (
+      {/* The runtime draws its own card (a field item) or the tool's own
+          workspace (a Rich Tool item); a second card around it would nest. */}
+      <section aria-label="Practice question" style={{ minWidth: 0 }}>
+        {!question ? <p style={{ ...card, color: 'var(--mm-text-muted)' }}>Preparing a practice question…</p> : (
           <>
-            <MathText as="h2" style={{ fontSize: 'clamp(17px, 3.6vw, 22px)', lineHeight: 1.45, marginTop: 0 }}>{question.prompt}</MathText>
-            {question.formulaLatex && (
-              <div style={{ background: 'var(--mm-surface-sunken)', padding: 12, borderRadius: 8, margin: '10px 0 16px', overflowX: 'auto' }}>
-                <MathDisplay value={question.formulaLatex} />
-              </div>
-            )}
-            <PathQuestionStimulus stimulus={question.stimulus} />
-            <form onSubmit={submit}>
-              <div style={{ display: 'grid', gap: 14 }}>
-                {fields.map((field, fieldIndex) => (
-                  <fieldset key={field.id} style={{ border: 0, padding: 0, margin: 0 }}>
-                    <legend style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-text)', marginBottom: 7 }}>
-                      <MathText>{field.label || `Response ${fieldIndex + 1}`}</MathText>
-                    </legend>
-                    {choices.length && fields.length === 1 ? choices.map((choice) => (
-                      <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: responses[field.id] === choice.id ? '2px solid var(--mm-primary)' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer' }}>
-                        <input type="radio" name={field.id} value={choice.id} checked={responses[field.id] === choice.id} onChange={(event) => setResponses((current) => ({ ...current, [field.id]: event.target.value }))} />
-                        <MathText style={{ lineHeight: 1.5 }}>{choice.label}</MathText>
-                      </label>
-                    )) : (
-                      <input
-                        type="text"
-                        autoComplete="off"
-                        value={responses[field.id] ?? ''}
-                        onChange={(event) => setResponses((current) => ({ ...current, [field.id]: event.target.value }))}
-                        aria-label={field.label || `Response ${fieldIndex + 1}`}
-                        style={{ width: '100%', minHeight: 48, padding: '10px 12px', border: '2px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box', fontSize: 17 }}
-                      />
-                    )}
-                  </fieldset>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
-                <button type="submit" disabled={!canCheck} style={{ flex: '1 1 220px', minHeight: 48, border: 0, borderRadius: 9, background: canCheck ? 'var(--mm-primary)' : 'var(--mm-surface-control-strong)', color: canCheck ? 'var(--mm-on-primary)' : 'var(--mm-disabled-text)', fontWeight: 900, cursor: canCheck ? 'pointer' : 'not-allowed' }}>
-                  {busy ? 'Checking…' : feedback && !feedback.isCorrect && !questionClosed ? 'Check my answer again' : 'Check my answer'}
-                </button>
-                {/* Hints belong here. This is the stage where help is the
-                    instruction, not a loophole. */}
-                {question.hint && (
-                  <button type="button" onClick={() => setShowHint((value) => !value)} style={{ flex: '0 1 160px', minHeight: 48, borderRadius: 9, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>
-                    {showHint ? 'Hide hint' : 'Show a hint'}
-                  </button>
-                )}
-              </div>
-            </form>
-            {showHint && question.hint && (
-              <div style={{ marginTop: 14, padding: 13, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', borderRadius: 9, border: '1px solid var(--mm-warning-border)' }}>
-                <MathText style={{ lineHeight: 1.55 }}>{question.hint}</MathText>
-              </div>
-            )}
+            <RichQuestionRuntime
+              key={question.questionInstanceId}
+              question={question}
+              mode="corrections"
+              draftKey={secureItemDraftKey({ surface: 'corrections', sessionId: assignmentId, questionInstanceId: question.questionInstanceId })}
+              busy={busy}
+              closed={questionClosed}
+              closedMessage="This practice question is closed. Try a fresh one below."
+              feedback={feedback}
+              attempt={{ used: attemptsUsed, allowed: Number(question.attemptsAllowed) || 3 }}
+              onSubmit={submit}
+            />
             {feedback && (
-              <div role="status" style={{ marginTop: 14, padding: 13, borderRadius: 9, background: feedback.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)', color: feedback.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-error-text)', lineHeight: 1.55 }}>
+              <div role="status" style={{ ...card, marginTop: -40, padding: 13, color: 'var(--mm-text)', lineHeight: 1.55 }}>
                 {feedback.isCorrect
-                  ? 'Correct. That counts toward finishing this correction.'
+                  ? 'That counts toward finishing this correction.'
                   : questionClosed
-                    ? 'Not quite, and that was the last try on this one. A wrong answer here costs you nothing — try a fresh question.'
-                    : `Not yet. Look at your work and try again — ${feedback.attemptsRemaining} ${feedback.attemptsRemaining === 1 ? 'try' : 'tries'} left on this question.${question.hint ? ' The hint may help.' : ''}`}
+                    ? 'That was the last try on this one. A wrong answer here costs you nothing — try a fresh question.'
+                    : `${feedback.attemptsRemaining} ${feedback.attemptsRemaining === 1 ? 'try' : 'tries'} left on this question.`}
                 {questionClosed && (
                   <div style={{ marginTop: 10 }}>
                     <button type="button" autoFocus onClick={() => loadQuestion(activeTarget.correctionId)} style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>

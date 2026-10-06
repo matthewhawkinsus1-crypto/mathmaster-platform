@@ -19,6 +19,7 @@ import relationMappingGrader, {
 } from '../../../functions/shared/serverGrading/tools/relationMapping.mjs';
 import { givenRelationInstruction } from './relationMappingCopy.js';
 import { FUNCTION_CHOICES } from '../../../functions/shared/relationFunctionChoice.mjs';
+import { useSubmitLabel } from '../shared/ToolRuntimeContext';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
@@ -144,6 +145,8 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     resetKey: questionUndoResetKey(questionData),
   });
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const submitActionLabel = useSubmitLabel('Check');
 
   const plotBounds = useMemo(() => {
     const xs = pairs.map(([x]) => x);
@@ -330,7 +333,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
         tableData: { label: 'Domain and range data' },
         instruction: { text: questionData.prompt || '' },
         task: { text: questionData.prompt || questionData.task || '' },
-        primaryActions: [{ id: 'check-mapping', label: 'Check', onAction: check }],
+        primaryActions: [{ id: 'check-mapping', label: submitActionLabel, onAction: check }],
       }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
@@ -495,7 +498,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             );
           })}
 
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>Check</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>{submitActionLabel}</button>
 
           {feedback ? (
             <div style={{ marginTop: 14 }}>

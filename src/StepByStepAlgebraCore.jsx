@@ -401,8 +401,14 @@ export default function StepByStepAlgebra({
   // One 1-5 support scale. `resolveSupportLevel` also reads the old
   // rigorous/exploratory values, so saved drafts and old assignment JSON keep
   // working without a migration pass.
+  //
+  // Where help is withheld (a DOL, quiz or secure Test) the QUESTION's level
+  // is the only one read. A saved draft is device storage; on an assessment it
+  // must not be able to bring back level 1, which does the opposite-side
+  // arithmetic for the student. (A secure item arrives at level 5 — see
+  // secureToolCertification — so this only ever closes a tampered draft.)
   const [supportLevel, setSupportLevel] = useState(
-    () => resolveSupportLevel({ workspaceDifficulty: savedDraft?.supportLevel ?? savedDraft?.mode ?? question.workspaceDifficulty ?? question.mode }),
+    () => resolveSupportLevel({ workspaceDifficulty: (hintsAllowed ? (savedDraft?.supportLevel ?? savedDraft?.mode) : null) ?? question.workspaceDifficulty ?? question.mode }),
   );
   const supportPolicy = getSupportPolicy(supportLevel);
   const allowAutoApply = Boolean(question?.supportPresentation?.algebraAutoApply);
@@ -489,8 +495,10 @@ export default function StepByStepAlgebra({
   const [heldToken, setHeldToken] = useState(null); // { x, y, label }
   // Cues default to what the level says, and the student may still turn them
   // off. A level 4/5 workspace starts quiet rather than starting loud.
+  // Cancellation cues are help: where the activity withholds hints they are
+  // off, and the toggle that would turn them on is not offered.
   const [cancellationHintsEnabled, setCancellationHintsEnabled] = useState(
-    () => getSupportPolicy(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode })).showCancellationHints,
+    () => hintsAllowed && getSupportPolicy(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode })).showCancellationHints,
   );
   const [factorZoneHint, setFactorZoneHint] = useState(null); // { side, position } | null
   const [selectedCancellationIndices, setSelectedCancellationIndices] = useState(savedDraft?.selectedCancellationIndices || {}); // { left: number[], right: number[] }
@@ -2677,10 +2685,12 @@ export default function StepByStepAlgebra({
                 {STRUCTURE_TOOL_LABELS[kind]}
               </button>
             ))}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>
-            <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
-            Cancellation hints
-          </label>
+          {hintsAllowed ? (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>
+              <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
+              Cancellation hints
+            </label>
+          ) : null}
           <button type="button" className="algebra-reset-work" onClick={resetQuestionWork} disabled={disabled || savingStep}>Reset work</button>
         </div>
       </div>

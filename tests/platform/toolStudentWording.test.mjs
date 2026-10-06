@@ -54,7 +54,10 @@ test('Regression Calculator submits "my regression" and says so when it is compl
   // The button that calls check() is the one with the student's wording.
   const button = region(source, 'className="regression-submit"', '</button>', 'the regression submit button');
   assert.match(button, /onClick=\{check\}/);
-  assert.match(button, />\s*Submit my regression\s*$/);
+  // The label is the student's wording unless a secure host renames the final
+  // action ("Record answer", ToolRuntimeContext useSubmitLabel).
+  assert.match(button, />\s*\{submitActionLabel\}\s*$/);
+  assert.match(source, /const submitActionLabel = useSubmitLabel\('Submit my regression'\);/);
   const verdict = region(source, 'const feedbackText', ');', 'the regression verdict text');
   assert.match(verdict, /'Regression complete\.'/);
 });

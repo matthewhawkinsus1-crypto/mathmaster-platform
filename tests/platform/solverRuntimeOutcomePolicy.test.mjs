@@ -88,7 +88,9 @@ const engine = executableSource(componentSource('src/QuestionEngine.jsx'));
 
 test('the relation solver decides completion and correctness of the stage through the status, fed by the runtime policy', () => {
   assert.match(relation, /import \{ useToolRuntimeContext \} from '\.\/tools\/shared\/ToolRuntimeContext';/);
-  assert.match(relation, /\n\s*const \{ showImmediateFeedback, onHintUsed: reportHintUse \} = useToolRuntimeContext\(\);/);
+  // The solver reads the activity's outcome permission (and, since secure
+  // Rich Tool delivery, its hint permission) from the runtime context.
+  assert.match(relation, /\n\s*const \{ showImmediateFeedback, onHintUsed: reportHintUse(?:, [^}]*)? \} = useToolRuntimeContext\(\);/);
   // The stage status reads the shared grader's own representation part.
   const status = region(relation, 'const representationPart = ', 'useEffect(', 'stage status');
   assert.match(status, /sharedResult\.parts\.find\(\(part\) => part\.id === 'solution-representations'\)/);

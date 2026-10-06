@@ -47,7 +47,16 @@ test('corrections never reach the secure runtime', () => {
   }
   // What it does use is the instructional correction callables.
   assertCapability(corrections, [/issueTestCycleCorrectionQuestion/], 'corrections issue instructional items.');
-  assertCapability(corrections, [/Show a hint|showHint/], 'hints are allowed during corrections.');
+  // Hints are allowed during corrections: the item renders in the shared Rich
+  // Question Runtime under the CORRECTIONS policy, whose hint capability the
+  // runtime honours (a released hint, a tool's own hint panel via the engine's
+  // activity policy). The runtime itself carries no secure machinery either.
+  assert.match(corrections, /<RichQuestionRuntime[\s\S]{0,200}mode="corrections"/);
+  const runtimeSource = readFileSync(new URL('../../src/components/question/RichQuestionRuntime.jsx', import.meta.url), 'utf8');
+  assert.match(region(runtimeSource, 'const InstructionalSupport = (', 'const FieldItem = (', 'instructional panels'), /caps\.hints && feedback\.hint/);
+  for (const forbidden of ['SecureExamContainer', 'ExamIntegrityLogger', 'secureExamService', 'submitSecureExamResponse']) {
+    assert.doesNotMatch(executableSource(runtimeSource), new RegExp(forbidden), `the shared runtime must not use ${forbidden}`);
+  }
 });
 
 test('integrity monitoring, timers, autosave and proctor lock are not duplicated', () => {

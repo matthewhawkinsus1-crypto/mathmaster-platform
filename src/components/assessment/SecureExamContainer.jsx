@@ -5,6 +5,8 @@ import ExamIntegrityLogger from '../../platform/assessment/examIntegrityLogger.j
 import { EXAM_RUNTIME_STATES } from '../../platform/assessment/examRuntimeController.js';
 import { clearSecureExamActive, setSecureExamActive } from '../../platform/assessment/secureExamPresence.js';
 import { COURSE_TEST_EXAM_TYPE } from '../../platform/policies/examPolicyResolver.js';
+import { SECURE_ITEM_DRAFT_PREFIX, secureItemDraftKey } from '../../platform/assessment/questionRuntimePolicy.js';
+import { removeQuestionDraftFamily } from '../../questionDraftStorage.js';
 import { finalizeSecureExam, issueSecureExamQuestion, recordSecureExamIntegrityEvent, saveSecureExamDraft, startSecureExamSession, submitSecureExamResponse } from '../../services/secureExamService.js';
 
 const terminal = new Set([EXAM_RUNTIME_STATES.SUBMITTED, EXAM_RUNTIME_STATES.TIME_EXPIRED, EXAM_RUNTIME_STATES.FORCE_SUBMITTED]);
@@ -24,6 +26,26 @@ const LOCAL_DRAFT_PREFIX = 'mm-secure-draft:';
 const LOCAL_DRAFT_TTL_MS = 12 * 60 * 60 * 1000;
 const localDraftKey = (examSessionId, questionInstanceId) => `${LOCAL_DRAFT_PREFIX}${examSessionId}:${questionInstanceId}`;
 
+/*
+ * A RICH TOOL ITEM'S OWN WORK lives under its secure item draft key
+ * (secureItemDraftKey): the graph's points, the workspace's lines. That is
+ * ordinary question draft storage, so it survives a reload, a Chromebook
+ * sleep or a proctor lock on this device, and it travels with every server
+ * autosave as `workspaceDrafts` so another device reopens the same
+ * construction. It is removed with the item once the answer is recorded.
+ */
+const itemDraftKey = (examSessionId, questionInstanceId) => (
+  examSessionId && questionInstanceId ? secureItemDraftKey({ surface: 'exam', sessionId: examSessionId, questionInstanceId }) : null
+);
+const sessionDraftFamily = (examSessionId) => `${SECURE_ITEM_DRAFT_PREFIX}:exam:${encodeURIComponent(String(examSessionId || '').trim())}`;
+// The device mirror keeps the answer and the raw construction. The tool's own
+// drafts are already on this device under the item draft key.
+const deviceMirrorOf = (responsePayload) => {
+  if (!responsePayload || typeof responsePayload !== 'object') return responsePayload;
+  const { workspaceDrafts: _workspaceDrafts, ...rest } = responsePayload;
+  return rest;
+};
+
 const readLocalDraft = (examSessionId, questionInstanceId) => {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(localDraftKey(examSessionId, questionInstanceId)) || 'null');
@@ -32,7 +54,7 @@ const readLocalDraft = (examSessionId, questionInstanceId) => {
   } catch { return null; }
 };
 const writeLocalDraft = (examSessionId, questionInstanceId, responsePayload) => {
-  try { window.localStorage.setItem(localDraftKey(examSessionId, questionInstanceId), JSON.stringify({ at: Date.now(), responsePayload })); } catch { /* storage full or blocked: the server copy still applies */ }
+  try { window.localStorage.setItem(localDraftKey(examSessionId, questionInstanceId), JSON.stringify({ at: Date.now(), responsePayload: deviceMirrorOf(responsePayload) })); } catch { /* storage full or blocked: the server copy still applies */ }
 };
 const clearLocalDrafts = (examSessionId) => {
   try {
@@ -40,6 +62,8 @@ const clearLocalDrafts = (examSessionId) => {
       .filter((key) => key.startsWith(`${LOCAL_DRAFT_PREFIX}${examSessionId}:`))
       .forEach((key) => window.localStorage.removeItem(key));
   } catch { /* nothing to clear */ }
+  // Every Rich Tool construction of this session, too.
+  removeQuestionDraftFamily(sessionDraftFamily(examSessionId));
 };
 
 const SAVE_LABEL = {
@@ -116,7 +140,13 @@ export const SecureExamContainer = ({
       // send it straight back to the server so both agree again.
       const local = readLocalDraft(activeSessionId, instance.questionInstanceId);
       const serverDraft = issued.draftResponse?.responsePayload || null;
-      setQuestion({ ...instance, _draftResponse: local || serverDraft });
+      // The device copy wins for the answer; a Rich Tool's own drafts come from
+      // the server copy too, and restoring them keeps whichever is newer per
+      // key (restoreQuestionDrafts), so neither device's work is lost.
+      const restored = local
+        ? { ...local, ...(Array.isArray(serverDraft?.workspaceDrafts) ? { workspaceDrafts: serverDraft.workspaceDrafts } : {}) }
+        : serverDraft;
+      setQuestion({ ...instance, _draftResponse: restored });
       if (local) {
         saveSecureExamDraft({ examSessionId: activeSessionId, questionInstanceId: instance.questionInstanceId, responsePayload: local, supportUsage: {} })
           .then(() => setSaveState('saved'))
@@ -201,6 +231,8 @@ export const SecureExamContainer = ({
       pendingDraftRef.current = null;
       const result = await submitSecureExamResponse({ examSessionId: session.examSessionId, questionInstanceId: question.questionInstanceId, responsePayload, supportUsage });
       try { window.localStorage.removeItem(localDraftKey(session.examSessionId, question.questionInstanceId)); } catch { /* nothing to remove */ }
+      // The answer is recorded: the item's tool drafts have nothing left to do.
+      removeQuestionDraftFamily(itemDraftKey(session.examSessionId, question.questionInstanceId));
       setQuestion(null);
       setSaveState('idle');
       setSession(result.session);
@@ -224,6 +256,14 @@ export const SecureExamContainer = ({
   }, [session?.examSessionId, question?.questionInstanceId, saveDraftNow]);
 
   useEffect(() => () => { if (draftTimerRef.current) window.clearTimeout(draftTimerRef.current); }, []);
+
+  // Once the finished view is committed, clear again: finishing clears the
+  // session's drafts while the item is still mounted, and anything the tool
+  // wrote on its way out would otherwise stay on a shared device. A parent's
+  // effect runs after its unmounting children's cleanups.
+  useEffect(() => {
+    if (session?.examSessionId && terminal.has(session.status)) clearLocalDrafts(session.examSessionId);
+  }, [session?.examSessionId, session?.status]);
 
   const finish = useCallback(async (reason = 'studentSubmit') => {
     if (!session?.examSessionId || terminal.has(session.status)) return;
@@ -295,7 +335,7 @@ export const SecureExamContainer = ({
     />
     {session.watermarkEnabled !== false && <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', display: 'grid', placeItems: 'center', opacity: .025, fontSize: 'clamp(36px,10vw,100px)', fontWeight: 900, transform: 'rotate(-20deg)' }}>MATHMASTER SECURE</div>}
     {error && <div role="alert" style={{ maxWidth: 820, margin: '14px auto 0', padding: '10px 14px', color: 'var(--mm-error-text)', background: 'var(--mm-error-bg)', borderRadius: 8 }}>{error}</div>}
-    <SecureExamQuestionPlayer key={question?.questionInstanceId || 'waiting'} examType={session.examType || examType} sessionCalculatorMode={session.calculatorMode || null} question={question} initialResponsePayload={question?._draftResponse} studentSupportProfile={courseTest || session.accommodationsConfirmed ? studentSupportProfile : null} accommodationConfirmed={courseTest || session.accommodationsConfirmed === true} busy={busy} onSubmit={submitResponse} onDraftChange={autosaveDraft} />
+    <SecureExamQuestionPlayer key={question?.questionInstanceId || 'waiting'} examType={session.examType || examType} sessionCalculatorMode={session.calculatorMode || null} question={question} draftKey={itemDraftKey(session.examSessionId, question?.questionInstanceId)} initialResponsePayload={question?._draftResponse} studentSupportProfile={courseTest || session.accommodationsConfirmed ? studentSupportProfile : null} accommodationConfirmed={courseTest || session.accommodationsConfirmed === true} busy={busy} onSubmit={submitResponse} onDraftChange={autosaveDraft} />
     {question && saveState !== 'idle' && (
       <p role="status" aria-live="polite" data-secure-save-state={saveState} style={{ maxWidth: 820, margin: '-48px auto 40px', padding: '0 18px', boxSizing: 'border-box', fontSize: 13, fontWeight: 700, color: saveState === 'saved' ? 'var(--mm-success-text)' : saveState === 'saving' ? 'var(--mm-text-muted)' : 'var(--mm-warning-text)' }}>
         {SAVE_LABEL[saveState]}

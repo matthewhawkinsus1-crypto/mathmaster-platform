@@ -259,6 +259,11 @@ export const retestRigorIsPreserved = (originalBlueprint, retestBlueprint) => {
     if (clean(normalizedTarget.representation) !== clean(source.representation)) {
       violations.push({ targetId: normalizedTarget.targetId, reason: 'representation_changed' });
     }
+    // A missed graphing skill is retested with the graphing tool, not
+    // collapsed into a text box: the tool is part of what was assessed.
+    if (clean(normalizedTarget.toolId) !== clean(source.toolId)) {
+      violations.push({ targetId: normalizedTarget.targetId, reason: 'tool_changed' });
+    }
   });
   return { preserved: violations.length === 0, violations };
 };

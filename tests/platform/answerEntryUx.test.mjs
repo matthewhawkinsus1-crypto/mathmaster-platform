@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
+import { region } from './helpers/sourceContract.mjs';
 import {
   answerFocusPosition,
   countAnswerControls,
@@ -130,6 +131,9 @@ test('shared student runtimes use the answer-entry behavior', () => {
   const engine = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
   const pathFields = readFileSync(new URL('../../src/components/student/PathResponseFields.jsx', import.meta.url), 'utf8');
   const secureExam = readFileSync(new URL('../../src/components/assessment/SecureExamQuestionPlayer.jsx', import.meta.url), 'utf8');
+  // The secure exam's field renderer moved into the shared Rich Question
+  // Runtime (the player is now its adapter); the autofocus lives there.
+  const secureRuntime = readFileSync(new URL('../../src/components/question/RichQuestionRuntime.jsx', import.meta.url), 'utf8');
   // The whole live-challenge surface, not one file: the field rendering moved
   // into LiveChallengeFieldQuestion.jsx and this assertion failed while the
   // autofocus it protects was intact one file over.
@@ -145,7 +149,8 @@ test('shared student runtimes use the answer-entry behavior', () => {
   // (tests/platform/enterContract.test.mjs pins its rules).
   assert.match(engine, /resolveQuestionEnterIntent\(\{/);
   assert.match(pathFields, /onSubmit=\{disabled \? null : onSubmit\}/);
-  assert.match(secureExam, /autoFocus=\{fieldIndex === 0\}/);
+  assert.match(secureExam, /<RichQuestionRuntime\b/);
+  assert.match(region(secureRuntime, 'const FieldItem = (', 'const ToolItem = (', 'the secure field renderer'), /autoFocus=\{fieldIndex === 0\}/);
   assert.match(live, /autoFocus=\{fieldIndex === 0\}/);
   assert.match(shell, /resolveToolEnterAction\(\{ field: event\.target, shell: shellRef\.current \}\)/);
   assert.match(engine, /shouldAdvanceOnEnter/);

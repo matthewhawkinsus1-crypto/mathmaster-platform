@@ -818,9 +818,17 @@ const CONTRACTS = {
   intervalNumberLine: {
     serverGradingVersion: 2,
     responseShape: 'intervals',
-    sanitizePublicQuestion: (question) => pick(question, [
-      'prompt', 'min', 'max', 'step', 'ask', 'variable', 'context', 'inequalityText',
-    ]),
+    // `inequalityText` is the question when the student graphs it, and the
+    // ANSWER when the item asks them to write the inequality (the `inequality`
+    // stage grades `expectedInequality` against what they type). The tool
+    // never renders it, so it travels only where it is not the answer.
+    sanitizePublicQuestion: (question) => {
+      const asksInequality = list(question.ask).map(String).includes('inequality');
+      return pick(question, [
+        'prompt', 'min', 'max', 'step', 'ask', 'variable', 'context',
+        ...(asksInequality ? [] : ['inequalityText']),
+      ]);
+    },
     buildPrivateGradingDefinition: (question) => ({
       intervals: normalizePathIntervals(question.expectedIntervals ?? question.intervals),
       notation: question.expectedNotation ?? question.answer ?? null,
@@ -988,7 +996,10 @@ const CONTRACTS = {
       if (publicAnalysis.length) {
         publicQuestion.analysisRequests = publicAnalysis.map((part, index) => pick(
           { id: 'analysis-' + (index + 1), ...part },
-          ['id', 'label', 'prompt', 'kind', 'responseMode', 'unit', 'choices', 'notation', 'allowNone', 'sourceTaskId'],
+          // `feature` names WHICH feature to locate (x-intercepts, vertex) —
+          // the question, not where it is. Without it every point part fell
+          // back to "vertex" and an x-intercepts part could not be answered.
+          ['id', 'label', 'prompt', 'kind', 'feature', 'responseMode', 'unit', 'choices', 'notation', 'allowNone', 'sourceTaskId'],
         ));
       }
 

@@ -7,6 +7,8 @@ const EXAM_POLICIES = Object.freeze({
   asvab: Object.freeze({ examType: 'asvab', title: 'CAT-ASVAB Math Simulation', totalQuestions: 30, timeLimitSeconds: 86 * 60, calculatorMode: 'none', domainWeights: Object.freeze({ arithmeticReasoning: 0.5, mathematicsKnowledge: 0.5 }) }),
 });
 
+const { readStoredItem } = require('./secureItemStorage');
+
 const TERMINAL_STATES = new Set(['submitted', 'time_expired', 'force_submitted']);
 const LOCKED_STATES = new Set(['locked_integrity', 'locked_proctor']);
 
@@ -224,11 +226,14 @@ function publicReview(session = {}) {
   if (!TERMINAL_STATES.has(session.status) || session.feedbackReleased !== true) return null;
   const items = Object.values(session.responses && typeof session.responses === 'object' ? session.responses : {})
     .sort((a, b) => Number(a?.submittedAt || 0) - Number(b?.submittedAt || 0))
+    .map((response) => ({ ...response, questionSnapshot: readStoredItem(response?.questionSnapshot || null) }))
     .map((response) => ({
       questionInstanceId: response?.questionInstanceId || null,
       bankQuestionId: response?.bankQuestionId || null,
       alignmentKeys: Array.isArray(response?.alignmentKeys) ? response.alignmentKeys.slice(0, 12) : [],
       questionType: response?.questionType || null,
+      // The Rich Tool the work was built in, so review can describe it.
+      pathToolId: response?.pathToolId || response?.questionSnapshot?.pathToolId || null,
       familyId: response?.familyId || null,
       assessmentDomainId: response?.assessmentDomainId || null,
       grading: {

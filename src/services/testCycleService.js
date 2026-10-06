@@ -117,9 +117,11 @@ export const updateTestCyclePolicy = async ({ assignmentId, policy }) => {
   return call('updateTestCyclePolicy', { assignmentId, policy });
 };
 
-export const previewTestCycleSecureItems = async ({ assignmentId, draw = 1 }) => {
+// `stage` picks the capability policy the server stamps on each previewed
+// item: 'test' (default) and 'retest' are secure, 'corrections' instructional.
+export const previewTestCycleSecureItems = async ({ assignmentId, draw = 1, stage = 'test' }) => {
   if (isSandbox()) return sandboxRefusal('Previewing secure items')();
-  return call('previewTestCycleSecureItems', { assignmentId, draw });
+  return call('previewTestCycleSecureItems', { assignmentId, draw, stage });
 };
 
 export const gradeTestCyclePreviewItem = async ({ previewItemId, responsePayload }) => {

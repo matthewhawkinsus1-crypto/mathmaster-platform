@@ -7,7 +7,7 @@ import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
@@ -178,7 +178,15 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const [points, setPoints] = usePersistentToolState('points', []);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const hintsAllowed = useHintsAllowed();
+  const checkLabel = useSubmitLabel('Check construction');
   const studentLine = useMemo(() => points.length >= 2 ? lineFromPoints(points[0], points[1]) : null, [points]);
+  // "Your line: y = 2x − 1" beside a task that says "Graph y = 2x − 1" is a
+  // free check of the answer before it is submitted — MathMaster converting
+  // the construction back into the target's own form. It follows the same
+  // permission as every other self-check (QuestionEngine selfCheckAllowed):
+  // on in practice, absent on a DOL, quiz or secure Test. The plotted points
+  // themselves are always listed; they are the student's own construction.
+  const showLineReadout = hintsAllowed;
   // The student's work, exactly as Check submits it and as a deadline would
   // carry it: the plotted points, plus the "Your line" readout they see. The
   // shared grader marks the points; nothing here is a verdict or a key.
@@ -309,14 +317,14 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const constructionIncomplete = !constructionReadyToCheck(points, questionData);
   const workspaceCapabilities = {
     undo: undoHistory.capability,
-    equationInput: { label: studentLine ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },
+    equationInput: { label: studentLine && showLineReadout ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },
     instruction: { text: nextInstruction(points.length, requiredPointCount) },
     task: { text: targetPrompt(normalizedQuestion, target) },
     // The hints ARE this Help. Where the activity withholds them the panel
     // renders nothing, so publishing it would leave a Help button over an
     // empty drawer; the platform's own directions stand in instead.
     help: hintsAllowed ? { content: <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} /> } : null,
-    primaryActions: [{ id: 'check-construction', label: 'Check construction', onAction: check, disabled: constructionIncomplete }],
+    primaryActions: [{ id: 'check-construction', label: checkLabel, onAction: check, disabled: constructionIncomplete }],
     secondaryActions: [{ id: 'start-over', label: 'Start over', onAction: clear, disabled: !points.length }],
   };
 
@@ -394,13 +402,17 @@ export default function Graphing2({ questionData = {}, onAction }) {
           <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
             <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Points plotted</dt>
             <dd style={{ margin: 0, fontWeight: 700 }}>{points.length ? points.map(formatPoint).join(' and ') : 'None yet'}</dd>
-            <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Your line</dt>
-            <dd style={{ margin: 0, fontWeight: 700 }}>{studentLine ? formatLine(studentLine) : 'Plot two different points'}</dd>
+            {showLineReadout ? (
+              <>
+                <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Your line</dt>
+                <dd style={{ margin: 0, fontWeight: 700 }}>{studentLine ? formatLine(studentLine) : 'Plot two different points'}</dd>
+              </>
+            ) : null}
           </dl>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
             <button type="button" onClick={check} disabled={constructionIncomplete} style={{ ...primaryButton, opacity: constructionIncomplete ? 0.5 : 1, cursor: constructionIncomplete ? 'not-allowed' : 'pointer' }}>
-              Check construction
+              {checkLabel}
             </button>
             {/* "Undo last point" used to sit here. Universal Undo covers it
                 now: the platform control beside Submit takes the last plotted

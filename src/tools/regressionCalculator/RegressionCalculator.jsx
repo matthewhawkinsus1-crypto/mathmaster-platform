@@ -12,6 +12,7 @@ import regressionCalculatorGrader, {
 import { resolveRegressionCalculatorMode } from '../../../functions/shared/serverGrading/declarations/regressionCalculator.mjs';
 import { cleanRegressionPoints, regressionCalculatorStats } from './regressionCalculatorMath.js';
 import './RegressionCalculator.css';
+import { useSubmitLabel } from '../shared/ToolRuntimeContext';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
 const orderedPair = (value) => {
@@ -55,6 +56,8 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   const redoStackRef = useRef([]);
   const inputRefs = useRef([]);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const submitActionLabel = useSubmitLabel('Submit my regression');
 
   const record = (type, detail = {}) => setProcessEvidence((events) => [...events, { type, ...detail }]);
   const commitRows = (next) => setRows(next);
@@ -692,7 +695,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
         {/* The student's words, not the platform's: "workflow" is our
             vocabulary for a sequence of steps, not theirs (PQ-029). */}
         <button className="regression-submit" data-primary-answer-action="true" type="button" onClick={check}>
-          Submit my regression
+          {submitActionLabel}
         </button>
         {/* Its verdict is already a live region, so the attempt outcome
             (PQ-022) is read as part of it rather than as a second one. */}
