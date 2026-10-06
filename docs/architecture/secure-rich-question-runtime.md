@@ -227,7 +227,8 @@ legs).
 - Raw work is sent when it is the student's (`toolWorkGate.js`): a tool's
   first report is its mounted state — a default, the prompt's own equation,
   or work restored on this device — and the input mark is taken there, after
-  the lazy engine and tool have loaded; a later report that follows the
+  the lazy engine and tool have loaded (the engine's `null` report before the
+  tool mounts is not that state); a later report that follows the
   student's input is their work. Work that differs from the server's copy (a
   reload that restored newer work from this device) is sent without waiting,
   and a reload resends the answer together with the tool drafts it restored —

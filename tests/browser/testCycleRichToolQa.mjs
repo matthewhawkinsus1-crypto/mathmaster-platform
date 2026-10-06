@@ -29,8 +29,9 @@
 // (secureToolCertification devices.phone); for the others they are reported.
 //
 // AND ON CHROMEBOOK AND iPAD (light), A STUDENT'S SESSION:
+//   - an untouched item saves nothing (a tool's starting state is not work);
 //   - work in the tool the way a student does (RECIPES: place by coordinate,
-//     type an endpoint, describe the relation, make a balance move) → the
+//     type an endpoint, describe the relation, make a balance move, enter r) → the
 //     construction autosaves to the server and is kept on the device, with no
 //     integrity event raised by the tool;
 //   - reload → the same item reopens with the work kept;
@@ -363,6 +364,16 @@ const RECIPES = {
     await root.getByText(/every input has exactly one output/).first().click();
     return 'described the domain, range and function verdict';
   },
+  // The bank's correlation item: the student runs the technology and types r.
+  // (Tapping the scatterplot changes nothing — the lab's starting state, its
+  // default prediction x, is not work and is never saved.)
+  dataModelingLab: async (root, page) => {
+    const r = root.getByPlaceholder(/then enter r/).first();
+    await r.scrollIntoViewIfNeeded();
+    await r.click();
+    await page.keyboard.type('0.81');
+    return 'entered r from statistical technology';
+  },
   // One balance move: subtract x from both sides.
   stepAlgebra: async (root, page) => {
     await root.getByRole('button', { name: 'Choose Subtract operation' }).first().click();
@@ -458,6 +469,15 @@ try {
           await shot(page, `${toolId}-${device}-${theme}`);
 
           if (SESSION_RUNS.has(`${device}:${theme}`)) {
+            // UNTOUCHED → NOTHING SAVED. A tool reports its starting state on
+            // mount (a default prediction x, the prompt's own equation); that
+            // is not the student's answer and must never reach the server.
+            // eslint-disable-next-line no-await-in-loop
+            await wait(1500);
+            // eslint-disable-next-line no-await-in-loop
+            const untouchedSaves = await page.evaluate(() => (window.__mmBridgeCalls || []).filter((entry) => entry.name === 'saveSecureExamDraft').length);
+            check(untouchedSaves === 0, `${label}: an untouched item saves nothing`, `${untouchedSaves} saves`);
+
             // INTERACT → AUTOSAVE (server and device), with no integrity event.
             // eslint-disable-next-line no-await-in-loop
             const how = await touchTool(page, toolId).catch((error) => { log('NOTE', `${label}: recipe stopped: ${error.message.split('\n').filter((line) => /intercepts|waiting for|locator\./.test(line)).slice(-4).join(' | ')}`); return null; });

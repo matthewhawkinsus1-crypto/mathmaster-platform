@@ -90,7 +90,8 @@ The fixes above were reviewed again the same way — every commit since the
 first review, by finders per dimension, each finding through a refuting and a
 reproducing verifier. Twelve were confirmed and two more were raised as
 cross-cutting; all fourteen are addressed here, each with a mutation-checked
-test (30 mutations, all red).
+test (30 mutations, all red). Re-running the device QA on the result found one
+more (R50).
 
 | # | Severity | Finding | Fix |
 | --- | --- | --- | --- |
@@ -106,6 +107,7 @@ test (30 mutations, all red).
 | R47 | P2 | Once keyed, the preference ran before seen-family avoidance: a seen variants-only family was reissued as the identical Test item, and the audit reported clean. | An unseen family on the student's tool first, then a seen one only if it draws fresh parameters, then the original tiers; `describeFamily` reports `parameterGenerator`. |
 | R48 | P3 | A response recorded before responses carried the tool read as "fields", steering a missed Graphing item away from Graphing. | No `pathToolId` key: the tool is unknown and steers nothing. |
 | R49 | P3 | Corrections drew retired families — and R35 could make one the only source — with no fallback if it failed to issue. | `orderCorrectionFamilies`: approved families only (all, if none is), the Test tool's first, each list rotating per item. |
+| R50 | P3 | Found by re-running the device QA on these fixes: the engine reports `null` before a lazy tool mounts, and R43's mark was taken there — the same race one step earlier. The QA's own Data Modeling session had only ever "autosaved" the lab's untouched default (its recipe tapped the scatterplot, which changes nothing): R24 passing as a success. | The mark waits for the tool's first report of a construction. The QA types r as a student would, and every session now checks that an untouched item saves nothing — red for the lab and Step Algebra when the gate sends a starting state. |
 | X1 | P2 | Step Algebra's workspace refuses a rewrite or simplification that is not equivalent, so on a secure item the student's intermediate arithmetic is checked before the answer is recorded; R26 only neutralised the committed-move verdicts. | Stated, not changed: the certification carries a teacher-visible caveat (preflight shows it per target), and this document and the commits claim no more than "no verdict on a committed move". A secure workspace that accepts any rewrite would be its own change. |
 | X2 | P3 | R26 read "the tool has no answer key" (`showImmediateFeedback` under server grading) as "verdicts withheld": Step Algebra embedded in a registry tool lost its move coaching on Corrections and My Math Path practice. | `verdictsWithheld` in the tool context, set from the activity's own policy by every QuestionEngine provider; Step Algebra reads that. |
 
@@ -171,8 +173,8 @@ resends what it restored); `testCycleRetest.retestToolPreferences`,
 `testCycleIssuance` (tiers), `testCycleBlueprint` (`parameterGenerator`),
 `testCycleCorrections.orderCorrectionFamilies`, `lib/testCycle.js` (legacy
 responses); `QuestionEngine` (intercept route, `verdictsWithheld`);
-`ToolRuntimeContext`; `StepByStepAlgebraCore`; `DataModelingLab` (steps). The
-graph utils are back to main.
+`ToolRuntimeContext`; `StepByStepAlgebraCore`; `DataModelingLab` (steps);
+the device QA (R50). The graph utils are back to main.
 
 ## Certification
 
@@ -184,7 +186,7 @@ graph utils are back to main.
 | `tests/integration/testCycleRichToolCertification.test.mjs` (emulator, real handlers) | a seven-tool Rich Tool Test Cycle: preflight passes and refuses an uncertified family; Test with draft/reload/unfinished-refusal/no verdict/finalize-from-autosave; release scores 57 from the server's grading; review returns the work; Corrections on the same tools with verdict, feedback and tries; Retest fresh items on the same tools, 100 raw → 70 recorded; preview grades and writes nothing | 7/7 |
 | `tests/integration/pathRichToolStorage.test.mjs` (emulator) | every bank item that nests arrays stored and read back exactly; the plain item refused by Firestore; a Data Modeling Lab Path item: a wrong try written back, then the right one finalizes | 2/2 |
 | existing emulator suites (`testCycleCertification`, `testCycleLifecycleSecurity`, and the rest of `tests/integration`) | unchanged behaviour of field-graded cycles and every other finish path | 56/56 (336/336 in all) |
-| `node tests/browser/testCycleRichToolQa.mjs` (Chromium, real components and handlers) | see "Devices" below | 462/462 |
+| `node tests/browser/testCycleRichToolQa.mjs` (Chromium, real components and handlers) | see "Devices" below | 476/476 |
 | whole platform suite, `test:authoring-v5`, `test:rules`, lint, `build`, `build:firebase` | the verify gate | 8952/8952, 686/686, 236/236 + 150/150, clean (no new warnings), built, built |
 
 Every new or rewritten assertion was mutation-checked: breaking the behaviour
@@ -198,19 +200,20 @@ Chromium against the production components (the student's Test Cycle card,
 the secure container, the shared runtime, the authentic tools) with every
 callable answered by the real handler against the Firestore emulator. Seven
 single-item secure Tests, one per Rich Tool the bank uses, each built from a
-real bank family. **462 / 462 checks, 0 findings.**
+real bank family. **476 / 476 checks, 0 findings** (on the final code).
 
 | Tool | Chromebook 1366×768 | iPad 820×1180 (touch) | Phone 390×844 (touch) | Student session (Chromebook and iPad) |
 | --- | --- | --- | --- | --- |
 | Graphing | ✓ light, dark | ✓ light, dark | ✓ light, dark (not claimed) | tap the plane twice → autosave → reload → submit → recorded and graded |
 | Function Investigation | ✓ | ✓ | ✓ (not claimed) | choose each point, place it by coordinate → … → recorded and graded |
 | Systems Workspace | ✓ | ✓ | ✓ (not claimed) | tap the plane → … → recorded and graded |
-| Data Modeling Lab | ✓ | ✓ | ✓ (not claimed) | tap the plot → … → recorded and graded |
+| Data Modeling Lab | ✓ | ✓ | ✓ (not claimed) | type r from technology → … → recorded and graded |
 | Step Algebra | ✓ | ✓ | ✓ claimed | subtract x from both sides (operation, operand, place) → … → recorded and graded |
 | Number Line | ✓ | ✓ | ✓ claimed | type the endpoint, shade a ray → … → recorded and graded |
 | Mapping Diagram | ✓ | ✓ | ✓ claimed | type the domain and range, choose the function verdict → … → recorded and graded |
 
-Every combination: the tool runs under the Secure Test policy; the authentic
+Every session first checks that the untouched item saves nothing. Every
+combination: the tool runs under the Secure Test policy; the authentic
 tool renders with the task on screen; no sideways scroll and no control outside
 the viewport; every visible button readable (4.5:1, 3:1 disabled); no hint,
 verdict, self-check, "Your line" readout or teaching note on screen; no "Check"

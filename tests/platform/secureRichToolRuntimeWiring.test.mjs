@@ -283,6 +283,17 @@ test('the tool-work gate: a starting state is not work, the student\'s input is,
   input = 5;
   assert.equal(fresh(defaults), false, 'input before the first report is not work');
 
+  // The engine reports `null` before a lazy tool mounts (seen in the device
+  // QA): that is not the tool's state, so a tap between it and the tool's
+  // mount does not turn the mounted default into work.
+  input = 0;
+  fresh = gate(null);
+  assert.equal(fresh(null), false);
+  input = 2;
+  assert.equal(fresh(defaults), false, 'the mounted default after a pre-mount null report');
+  input = 3;
+  assert.equal(fresh(built), true);
+
   // A reload: the device restored a newer construction than the server holds.
   const stale = gate({ prediction: { x: 2 } });
   assert.equal(stale(built), true, 'the server copy is stale: send the screen\'s work');

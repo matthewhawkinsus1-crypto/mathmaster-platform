@@ -10,10 +10,12 @@ import { studentInputMark, studentInputSince } from '../../questionDraftStorage.
  * the screen shows work the server does not hold — never a tool's untouched
  * starting state:
  *
- *  - The tool's FIRST report is its mounted state: the Data Modeling Lab's
- *    default prediction x, Step Algebra the prompt's own equation, or the work
- *    restored on this device. The input mark is taken there, once the tool
- *    exists — a tap while the workspace is still loading is not work.
+ *  - The tool's FIRST report of a construction is its mounted state: the Data
+ *    Modeling Lab's default prediction x, Step Algebra the prompt's own
+ *    equation, or the work restored on this device. The input mark is taken
+ *    there, once the tool exists — a tap while the workspace is still loading
+ *    is not work. (The engine reports `null` before a lazy tool has mounted;
+ *    that is not the tool's state, and the mark waits for the real one.)
  *  - After it, a report that follows the student's input is their work.
  *  - At any point, work that differs from the server's copy of this item (a
  *    reload that restored a newer construction from this device's drafts) is
@@ -29,6 +31,7 @@ export const createToolWorkGate = ({
   let mark = null;
   let serverSignature = serverRaw && typeof serverRaw === 'object' ? stableStringify(serverRaw) : null;
   return (raw) => {
+    if (!raw || typeof raw !== 'object') return false;
     const firstReport = mark === null;
     if (firstReport) mark = inputMark();
     if (!hasMeaningfulRawPathResponse(raw)) return false;
