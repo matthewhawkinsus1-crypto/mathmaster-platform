@@ -728,7 +728,24 @@ export const getTypeEntry = (type) => QUESTION_TYPE_CATALOG[type] || null;
 
 // The representation a question actually puts in front of a student. Used by
 // the Preflight audit to notice that a graph-heavy source produced no graphs.
+const nativeStimulusRepresentation = (stimulus, depth = 0) => {
+  if (!isObject(stimulus) || depth > 2) return null;
+  const supplied = [
+    isObject(stimulus.graph) ? REPRESENTATIONS.GRAPH : null,
+    nonEmptyArray(stimulus.table?.rows) ? REPRESENTATIONS.TABLE : null,
+    nonEmptyArray(stimulus.orderedPairs) ? REPRESENTATIONS.ORDERED_PAIRS : null,
+    ...(Array.isArray(stimulus.panels) ? stimulus.panels : [])
+      .map((panel) => nativeStimulusRepresentation(panel, depth + 1)),
+  ];
+  // A multipart task may ask students to read both a table and a graph. Count
+  // it once, with graph taking priority, including nested relation panels.
+  return [REPRESENTATIONS.GRAPH, REPRESENTATIONS.TABLE, REPRESENTATIONS.ORDERED_PAIRS]
+    .find((representation) => supplied.includes(representation)) || null;
+};
+
 export const getQuestionRepresentation = (question = {}) => {
+  const stimulusRepresentation = nativeStimulusRepresentation(question?.stimulus);
+  if (stimulusRepresentation) return stimulusRepresentation;
   const type = question?.toolId || question?.type;
   const entry = getTypeEntry(type);
   if (entry) {
