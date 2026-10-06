@@ -43,6 +43,7 @@
     "test:identity-repair:emulator": "firebase emulators:exec --only firestore --project mathmaster-identity-repair --config tests/browser/emulator/firebase.json \"node --import ./tests/integration/support/emulatorTransactions.mjs --test tests/integration/studentIdentity/*.test.mjs\"",
     "test:durable-outbox": "node scripts/run-durable-outbox-certification.mjs",
     "test:canonical-persistence": "firebase emulators:exec --only firestore --project mathmaster-persist-harness --config tests/browser/emulator/firebase.json \"node --import ./tests/integration/support/emulatorTransactions.mjs --test tests/integration/canonicalPersistenceCertification.test.mjs\"",
+    "test:warmup-reopen:emulator": "firebase emulators:exec --only firestore --project mathmaster-warmup-reopen --config tests/browser/emulator/firebase.json \"node --import ./tests/integration/support/emulatorTransactions.mjs --test tests/integration/warmupReopen/*.test.mjs\"",
     "test:grade-authority": "firebase emulators:exec --only firestore --project mathmaster-grade-authority --config tests/browser/emulator/firebase.json \"node --import ./tests/integration/support/emulatorTransactions.mjs --test tests/integration/gradeAuthorityEndToEnd.test.mjs\"",
     "test:persistence-v3": "node --test tests/platform/persistenceV3.test.mjs",
     "test:draft-persistence": "node scripts/run-draft-persistence-certification.mjs",

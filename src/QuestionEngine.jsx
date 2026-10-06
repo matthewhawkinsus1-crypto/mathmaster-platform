@@ -51,7 +51,9 @@ import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } fr
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
-import QuestionResolutionBoundary, { QuestionResolutionFailure, recordQuestionResolutionDiagnostic } from './QuestionResolutionBoundary';
+import QuestionResolutionBoundary, { QuestionResolutionFailure, questionFailureContext, recordQuestionResolutionDiagnostic } from './QuestionResolutionBoundary';
+import QuestionSupplementBoundary from './QuestionSupplementBoundary';
+import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
 import StandardBadge from './components/common/StandardBadge.jsx';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { normalizeQuestionStandards } from './questionMetadata';
@@ -371,9 +373,12 @@ function QuestionEngineBody({
    * outranks it. Read from the question record the platform already keeps —
    * never from anything a tool or a browser reports about its own freshness —
    * and 0 while the question has never been submitted, which is the common case
-   * and leaves the draft entirely in charge.
+   * and leaves the draft entirely in charge. A deadline auto-submit is dated by
+   * when its work was captured, not by the close it was recorded at, so the
+   * workspace that produced it is not mistaken for an older one
+   * (canonicalResponseTime.js).
    */
-  const canonicalAnswerSavedAt = Date.parse(record.lastAttemptAt || '') || 0;
+  const canonicalAnswerSavedAt = canonicalResponseSavedAt(record);
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
   // WHAT EVERY RESPONSE MODULE REPORTS INTO.
   //
@@ -595,6 +600,19 @@ function QuestionEngineBody({
   // same preserved record becomes editable again without deleting its history.
   const isExpired = remainingAttempts <= 0 && (record.status === 'expired' || feedback?.expired);
   const locked = Boolean(isCorrect || isExpired || assignmentLocked);
+  // Where this question stands, for any failure report from its panels and
+  // its module — scrubbed: no student, no draft key, no answer
+  // (QuestionResolutionBoundary.jsx questionFailureContext).
+  const failureContext = questionFailureContext({
+    assignmentId,
+    question,
+    questionRecord: record,
+    familyContext,
+    activityRole,
+    executionScope,
+    assignmentLocked,
+  });
+  const supplementResetKey = `${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`;
   const sameIncorrectResponse =
     record.status === 'attempted' &&
     Boolean(answerState.responseKey) &&
@@ -1668,11 +1686,11 @@ function QuestionEngineBody({
     <QuestionResolutionFailure
       failure={processedQuestion.platformError}
       context={{
-        assignmentId,
-        questionId: processedQuestion.questionId ?? question?.questionId ?? question?.id ?? null,
+        ...failureContext,
+        questionId: processedQuestion.questionId ?? failureContext.questionId,
         familyId: processedQuestion.platformError?.diagnostics?.familyId ?? null,
         familyVersion: processedQuestion.platformError?.diagnostics?.familyVersion ?? null,
-        activityRole,
+        stage: 'resolution',
       }}
       executionScope={executionScope}
       onRetry={onResolutionRetry}
@@ -1680,6 +1698,7 @@ function QuestionEngineBody({
       nextQuestionLabel={nextQuestionLabel}
       hasRecordedWork={(Number(record.totalAttempts) || 0) > 0 || ['correct', 'expired'].includes(record.status)}
       technicalDetails={resolutionTechnicalDetails !== false}
+      draftKey={draftKey}
     />
   ) : null;
 
@@ -1714,16 +1733,20 @@ function QuestionEngineBody({
   const guidedCoachEnabled = resolvedActivityPolicy?.hintsAllowed !== false
     && guidedNotesMode !== 'off'
     && (guidedMode || supportPresentation.visualChunking);
+  // Guided Notes reads the question and its own saved step outside the
+  // module's boundary: if it cannot render, the question goes on without it.
   const guidedCoach = (
-    <GuidedClassworkCoach
-      question={processedQuestion}
-      draftKey={draftKey}
-      enabled={guidedCoachEnabled}
-      mode={guidedNotesMode}
-      activeStageId={workflowGuidanceState?.currentStageId || null}
-      workflowProgress={workflowGuidanceState}
-      disabled={locked}
-    />
+    <QuestionSupplementBoundary stage="guided-notes" context={failureContext} draftKey={draftKey} resetKey={supplementResetKey}>
+      <GuidedClassworkCoach
+        question={processedQuestion}
+        draftKey={draftKey}
+        enabled={guidedCoachEnabled}
+        mode={guidedNotesMode}
+        activeStageId={workflowGuidanceState?.currentStageId || null}
+        workflowProgress={workflowGuidanceState}
+        disabled={locked}
+      />
+    </QuestionSupplementBoundary>
   );
   // An intercept question ends with two ordered pairs, not a solved equation,
   // so the Step Algebra label would name work the student never did.
@@ -2087,6 +2110,11 @@ function QuestionEngineBody({
                 activityRole,
                 lifecycle: assignmentLocked ? 'section-locked' : isCorrect ? 'correct' : isExpired ? 'expired' : 'open',
                 draftKey,
+                variant: failureContext.variant,
+                attempts: failureContext.attempts,
+                origin: failureContext.origin,
+                pinKind: failureContext.pinKind,
+                pinRef: failureContext.pinRef,
               }}
               onRecover={draftKey && moduleRecoveries < 1 ? handleRecoverQuestionModule : null}
             >
@@ -2286,9 +2314,21 @@ function QuestionEngineBody({
       {isExpired && showOutcomeFeedback && (
         <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`, background: expiredAlmost ? 'var(--mm-warning-bg)' : 'var(--mm-error-bg)', color: expiredAlmost ? 'var(--mm-warning-text)' : 'var(--mm-error-text)', position: 'relative', zIndex: 45 }}>
           <strong>This response is closed after {resolvedMaximumAttempts} {resolvedMaximumAttempts === 1 ? 'attempt' : 'attempts'}.</strong>
-          {missingToolDefinition
-            ? <ToolSolutionReview question={processedQuestion} />
-            : <SolutionReview question={processedQuestion} incorrectParts={feedback?.incorrectParts || []} />}
+          {/* A CLOSED QUESTION STAYS A QUESTION. The review renders only once
+              the question is closed, from the question's data, outside the
+              module's boundary; lmr-wu-1's review threw there and took the
+              whole question with it (QuestionSupplementBoundary.jsx). */}
+          <QuestionSupplementBoundary
+            stage="solution-review"
+            context={failureContext}
+            draftKey={draftKey}
+            resetKey={supplementResetKey}
+            fallback={<p role="status" style={{ margin: '10px 0 0' }}>The worked solution for this question could not be shown here. Your answers, attempts and grade are kept exactly as they are.</p>}
+          >
+            {missingToolDefinition
+              ? <ToolSolutionReview question={processedQuestion} />
+              : <SolutionReview question={processedQuestion} incorrectParts={feedback?.incorrectParts || []} />}
+          </QuestionSupplementBoundary>
           {resolvedActivityPolicy?.allowReplacement && (
             <>
               <p style={{ margin: '8px 0 14px' }}>Review the solution, then request a new problem at the same difficulty.</p>
@@ -2338,32 +2378,29 @@ export default function QuestionEngine(props) {
   const retry = useCallback(() => setResolutionAttempt((value) => value + 1), []);
   const { question, generationKey, assignmentId, activityRole, executionScope, onNextQuestion, nextQuestionLabel, questionRecord } = props;
   const record = questionRecord && typeof questionRecord === 'object' ? questionRecord : {};
-  let family = null;
-  try {
-    family = question?.questionFamily && typeof question.questionFamily === 'object' ? question.questionFamily : null;
-  } catch {
-    family = null;
-  }
-  const questionId = (() => {
-    try { return question?.questionId ?? question?.id ?? null; } catch { return null; }
-  })();
+  // Read defensively: this runs above the boundary, on a question that may be
+  // the very thing that cannot be prepared.
+  const context = questionFailureContext({
+    assignmentId,
+    question,
+    questionRecord: record,
+    familyContext: props.familyContext,
+    activityRole,
+    executionScope,
+    assignmentLocked: props.assignmentLocked,
+  });
   return (
     <QuestionResolutionBoundary
-      resetKey={`${generationKey ?? ''}|${questionId ?? ''}|${resolutionAttempt}`}
-      context={{
-        assignmentId: assignmentId ?? null,
-        questionId,
-        familyId: (() => { try { return family?.id || family?.familyId || (family ? 'assignment-template' : null); } catch { return null; } })(),
-        familyVersion: (() => { try { return Number.isInteger(Number(family?.version)) ? Number(family.version) : null; } catch { return null; } })(),
-        activityRole: activityRole ?? 'practice',
-      }}
+      resetKey={`${generationKey ?? ''}|${context.questionId ?? ''}|${resolutionAttempt}`}
+      context={context}
       executionScope={executionScope ?? 'student'}
       onRetry={retry}
       onNextQuestion={onNextQuestion}
       nextQuestionLabel={nextQuestionLabel}
-      hasRecordedWork={(Number(record.totalAttempts) || 0) > 0}
+      hasRecordedWork={(Number(record.totalAttempts) || 0) > 0 || ['correct', 'expired'].includes(record.status)}
       onResolutionFailure={props.onResolutionFailure}
       technicalDetails={props.resolutionTechnicalDetails !== false}
+      draftKey={props.draftKey || null}
     >
       <QuestionEngineBody key={resolutionAttempt} {...props} onResolutionRetry={retry} />
     </QuestionResolutionBoundary>

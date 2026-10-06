@@ -30,7 +30,10 @@ name: Student and Teacher Journeys
 #   Warm-Up reopen         tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
 #                          (lmr-wu-1: partial work, timer close, teacher reopen,
 #                          resume, submit; malformed drafts; a second board;
-#                          throttled nightly) and, on QuestionEngine alone,
+#                          and with the harness server — Checks ingested, the
+#                          deadline auto-submit closing Q1, the reopen, a
+#                          refresh, another Chromebook; throttled nightly) and,
+#                          on QuestionEngine alone,
 #                          tests/browser/warmupReopenDraft.mjs
 #   held Recovery         tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
 #                          (a Recovery question MathMaster could not grade:

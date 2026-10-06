@@ -29,6 +29,8 @@ import {
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
+import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
+import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerReconciliation.js';
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
@@ -3765,10 +3767,10 @@ function App() {
           const restorable = selectRestorableDraftEntries({
             entries,
             localSavedAt: (key) => questionDraftSavedAt(key),
-            canonicalSavedAt: (entry) => {
-              const record = normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]);
-              return Date.parse(record.lastAttemptAt || '') || 0;
-            },
+            // A deadline auto-submit is dated by when its work was captured,
+            // so the backup of that very work is not refused as older than
+            // its own submission (canonicalResponseTime.js).
+            canonicalSavedAt: (entry) => canonicalResponseSavedAt(normalizeQuestionRecord(assignmentGrades[entry?.questionIndex])),
           });
           if (restoreQuestionDrafts(restorable)) {
             setDraftRestoreFocus({
@@ -4752,8 +4754,12 @@ function App() {
   // The server writes one compact receipt only after Google Classroom accepts
   // a grade patch. Listening to that receipt gives students confirmation from
   // the authoritative passback result rather than assuming a network request
-  // worked. We deliberately do NOT replace the local assignment tracker from
-  // this snapshot; student answers remain controlled by the normal save path.
+  // worked. The local assignment tracker is NOT replaced from this snapshot:
+  // the student's own answers move it through the normal save path, and a
+  // snapshot from before an ingestion lands must never roll them back. A
+  // record the server holds AHEAD of this session is the exception, adopted
+  // below (canonicalTrackerReconciliation.js): an attempt this device never
+  // made — the Warm-Up or DOL deadline's auto-submit, or another Chromebook's.
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
       setClassroomSyncStatusByAssignment({});
@@ -4771,6 +4777,22 @@ function App() {
       doc(db, 'grades', user.id),
       (snapshot) => {
         if (!snapshot.exists()) return;
+        // An attempt the server recorded without this device — the deadline
+        // finalizer's auto-submit above all — reaches the open question now,
+        // not at the next sign-in: a closed question shows as closed, and the
+        // next checkpoint carries the attempt count the server really has.
+        const serverGrades = snapshot.data()?.gradesByAssignment || {};
+        setTracker((current) => {
+          const { grades, adopted } = adoptCanonicalAdvances(current, serverGrades);
+          // Attempts the server made are not this session's attempts.
+          adopted.forEach(({ assignmentId, questionIndex, totalAttempts }) => {
+            const baseline = liveSessionAttemptBaselineRef.current;
+            if (baseline.assignmentId === assignmentId) {
+              baseline.totalAttemptsByIndex = { ...baseline.totalAttemptsByIndex, [questionIndex]: totalAttempts };
+            }
+          });
+          return grades;
+        });
         const next = snapshot.data()?.classroomSyncStatusByAssignment || {};
         setClassroomSyncStatusByAssignment(next);
         // A teacher releasing a secure Test or Retest changes this map, and the

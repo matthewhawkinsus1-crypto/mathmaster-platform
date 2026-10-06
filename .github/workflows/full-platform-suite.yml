@@ -78,6 +78,15 @@ jobs:
         timeout-minutes: 12
         run: npm run test:live-challenge-launch:emulator
 
+      # A Warm-Up question through the real ingestion, the real deadline
+      # finalizer and a teacher reopen, then the real QuestionEngine rendering
+      # the record those functions wrote (the lmr-wu-1 incident). It runs in
+      # real time around a class period it schedules for today, and it writes
+      # the school's bell schedule, so it has its own emulator run.
+      - name: Certify the Warm-Up reopen lifecycle against the real functions
+        timeout-minutes: 10
+        run: npm run test:warmup-reopen:emulator
+
       # Runs the real finishLiveChallenge against the emulator and reads back
       # the report, the Warm-Up credit and the mastery evidence. Source
       # assertions cannot tell a correct write from a wrong field path.

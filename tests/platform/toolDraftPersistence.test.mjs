@@ -23,6 +23,7 @@ import {
   selectRestorableDraftEntries,
 } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { stripComments } from './helpers/stripComments.mjs';
+import { canonicalResponseSavedAt } from '../../src/platform/persistence/canonicalResponseTime.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -289,7 +290,12 @@ test('the coalescing window survives the page going away', async () => {
 test('QuestionEngine opens the draft scope registry tools read', async () => {
   const engine = stripComments(read('src/QuestionEngine.jsx'));
   assert.match(engine, /<ToolDraftScopeProvider draftKey=\{draftKey\} canonicalSavedAt=\{canonicalAnswerSavedAt\}>/);
-  assert.match(engine, /const canonicalAnswerSavedAt = Date\.parse\(record\.lastAttemptAt \|\| ''\) \|\| 0;/);
+  // The question's last canonical response: `lastAttemptAt`, or for a deadline
+  // auto-submit, when its work was captured (canonicalResponseTime.js).
+  assert.match(engine, /const canonicalAnswerSavedAt = canonicalResponseSavedAt\(record\);/);
+  assert.match(engine, /import \{ canonicalResponseSavedAt \} from '\.\/platform\/persistence\/canonicalResponseTime\.js'/);
+  assert.equal(canonicalResponseSavedAt({ lastAttemptAt: '2026-09-14T15:00:00.000Z' }), Date.parse('2026-09-14T15:00:00.000Z'));
+  assert.equal(canonicalResponseSavedAt({}), 0);
   // Imported next to the call — App.jsx-style free identifiers are a runtime
   // ReferenceError that every other check passes.
   assert.match(engine, /import \{ ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission \} from '\.\/tools\/shared\/usePersistentToolState\.js'/);

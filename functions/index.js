@@ -1006,6 +1006,28 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
         reason: built.reason,
       };
     }
+    if (built.final) {
+      // The question is finished (buildIngestedAttempt): no attempt can count,
+      // so its record, response evidence, evidence events and checkpoint stay
+      // exactly as they are. Only the receipt is written, so the device can
+      // retire the delivery.
+      transaction.set(receiptRef, {
+        studentId,
+        actionId: envelope.actionId,
+        assignmentId,
+        questionIndex: envelope.questionIndex,
+        disposition: dispositions.SUBMISSION_DISPOSITION.SUPERSEDED,
+        reason: built.reason,
+        capturedAt: envelope.capturedAt ? new Date(envelope.capturedAt) : null,
+        issuedAt: FieldValue.serverTimestamp(),
+      });
+      return {
+        actionId: envelope.actionId,
+        disposition: dispositions.SUBMISSION_DISPOSITION.SUPERSEDED,
+        reason: built.reason,
+        receiptId: receiptRef.id,
+      };
+    }
 
     if (activityRole === "dol" && dolIndices.length) {
       const { dolSectionProjection } = ingestion;
