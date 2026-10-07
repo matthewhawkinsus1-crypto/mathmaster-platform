@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { buildPathMap } from '../../platform/path/pathMap.js';
 import PracticeAsMenu from './PracticeAsMenu.jsx';
-import { masteredSectionView } from '../../platform/path/masteredSection.js';
 import {
   describeCoursePathPass,
   summarizeCoursePathPasses,
 } from '../../platform/path/pathPassPresentation.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
+import { masteredSectionView } from '../../platform/path/masteredSection.js';
 
 // The student's actual learning path.
 //
