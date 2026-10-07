@@ -312,6 +312,7 @@ import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projecte
 import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRecoveryGrades.js';
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
+import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import {
   readStudentRouteState,
@@ -1375,6 +1376,23 @@ function App() {
   const recoveryAssignmentId = user?.role === 'student' && activeView === 'assignmentResult'
     ? assignmentResultRoute?.assignmentId || null
     : null;
+  // Recovery for every open assignment, so Home's "Today" rule and Grades'
+  // "Ways to raise your grade" see the Recoveries the result page would offer
+  // (platform/student/recoveryStates.js). Refreshed once a minute at most.
+  const studentRecoveryMinute = Math.floor(now / 60000);
+  const studentRecoverySummariesByAssignment = useMemo(() => (user?.role === 'student' && user?.id
+    ? buildRecoverySummariesByAssignment({
+      assignments,
+      trackerByAssignment: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment) || {},
+      sectionRecoveryByAssignment,
+      studentId: user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      schedule: classSchedule,
+      studentProfile: user.profile || null,
+      nowValue: studentRecoveryMinute * 60000,
+    })
+    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.profile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
   const studentRecoverySummary = useMemo(() => {
     if (!recoveryAssignmentId || !user?.id) return [];
     const assignment = assignments.find((item) => item.id === recoveryAssignmentId);
@@ -5621,7 +5639,18 @@ function App() {
         requestedQuestionIndex: safeQuestionIndex,
         roleIsActionable,
         restrictToRole: scopedSectionKey,
+        // Start/Continue lands on the first unfinished question open now;
+        // Review My Work (returnToResult) keeps the question it asked for.
+        isFinished: options?.returnToResult
+          ? null
+          : (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(tracker?.[assignmentId]?.[index]).status),
       });
+      if (actionableIndex === null && user?.role === 'student' && !scopedSectionKey) {
+        // No dead end: with nothing open this minute, show the assignment's
+        // result page — its sections, what opens when, and what to do next.
+        openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
+        return;
+      }
       if (actionableIndex === null) {
         toastInfo(
           scopedSectionKey ? 'This section is not open right now' : 'Nothing open right now',
@@ -12764,8 +12793,14 @@ function App() {
       // Describes each Test Cycle by its server-written stage on Home and in
       // the Assignments Center; the card still asks the server what is open.
       testCycleGrades,
+      // The one "Today" rule needs who the student is (their excusal) and
+      // which closed sections have a Recovery they can take now.
+      studentId: user.id,
+      recoveryStateByAssignment: recoveryStatesFromSummaries(studentRecoverySummariesByAssignment),
       providers: {
         assignmentIsForStudent,
+        // The teacher's per-class Classwork/Practice lock, for this student.
+        getSectionAccessState,
         // Wrapped so the dashboard's own lifecycle bucketing (Do Now / In
         // Progress / Practice Only) sees this signed-in student's extension,
         // without changing the generic module's signature — the Path

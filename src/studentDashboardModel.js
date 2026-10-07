@@ -3,11 +3,13 @@ import {
   getStoredAssignmentTypeProjection,
 } from './platform/contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
-import { studentDueDates } from './assignmentLifecycle.js';
+import { localDateKey, studentDueDates } from './assignmentLifecycle.js';
 import { studentAssignmentAvailability } from './platform/assignments/assignmentAvailability.js';
 import { filterStudentRequiredIndices, studentOmittedIndices } from '../functions/shared/reducedWorkload.mjs';
 import { assignmentIsArchived, assignmentIsUnpublished } from '../functions/shared/assessmentAvailability.mjs';
 import { describeTestCycleForStudent } from './platform/student/testCycleDiscovery.js';
+import { SECTION_STATE, describeLessonSections, describeSectionWait } from './platform/student/lessonSections.js';
+import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 
 // What a student's assignment dashboard actually contains, computed once.
 //
@@ -64,7 +66,7 @@ export const BUCKET_LABEL = Object.freeze({
   [BUCKET.PAST_DUE]: 'Past due',
   [BUCKET.DO_NOW]: 'Due today',
   [BUCKET.COMING_UP]: 'Assigned — due later',
-  [BUCKET.PRACTICE]: 'Practice available',
+  [BUCKET.PRACTICE]: 'Closed — practice anytime',
   [BUCKET.COMPLETED]: 'Finished',
 });
 
@@ -132,6 +134,19 @@ export const buildStudentDashboardModel = ({
    * of 3" — never to decide what a student may enter; the card asks the server.
    */
   testCycleGrades = {},
+  /*
+   * WHO THE STUDENT IS, so a whole-assignment excusal recorded for them (the
+   * one override resolver, studentAssignmentOverrides.mjs) is honoured: Grades
+   * says "Excused", and Home must never call the same work past due.
+   */
+  studentId = null,
+  /*
+   * PRACTICE-BASED RECOVERY STATE PER SECTION, { [assignmentId]: { warmup:
+   * 'unlocked', dol: 'locked', … } }, from buildStudentRecoverySummary. A
+   * Recovery the student can start or continue now keeps its closed section
+   * open (decision 4); nothing here decides eligibility — the server does.
+   */
+  recoveryStateByAssignment = {},
   providers = {},
 } = {}) => {
   const {
@@ -146,7 +161,15 @@ export const buildStudentDashboardModel = ({
     questionIsIncluded,
     assignmentHasHeldTeacherFeedback,
     matchesSmartView,
+    // The teacher's per-class Classwork/Practice lock (getSectionAccessState).
+    // Optional so synthetic callers (the Path Simulator) keep working; without
+    // it every Classwork/Practice section reads as open, which is what they
+    // showed before.
+    getSectionAccessState = null,
   } = providers;
+  const todayKey = localDateKey(nowValue);
+  const isExcused = (assignment) => Boolean(studentId)
+    && resolveStudentOverride({ assignment, studentId })?.excused === true;
 
   // An assignment the teacher has ARCHIVED or PAUSED is closed to students, and
   // the server refuses its secure parts; listing it as work to do would offer a
@@ -225,28 +248,53 @@ export const buildStudentDashboardModel = ({
     lifecycleOf: getAssignmentLifecycle,
     prerequisiteOf: prerequisiteAccess,
   });
-  const canResume = (assignment) => availabilityOf(assignment).workable;
+  /*
+   * THE ONE "TODAY" RULE, PER ASSIGNMENT (platform/student/lessonSections.js).
+   *
+   * Every section's state — done, excused, open, opens later, locked by the
+   * teacher, closed, or in Recovery — from the same facts the entry point
+   * uses: Warm-Up/DOL windows, the teacher's Classwork/Practice lock, release
+   * and prerequisite, the student's excusal and Recovery. Card, groups, next
+   * action and Resume all read this; none re-decides it.
+   */
+  const lessonCache = new Map();
+  const lessonOf = (assignment) => {
+    if (lessonCache.has(assignment.id)) return lessonCache.get(assignment.id);
+    const availability = availabilityOf(assignment);
+    const questions = getStoredAssignmentQuestions(assignment);
+    const lessonEntries = getIncludedQuestionIndices(assignment).map((storageIndex) => ({
+      storageIndex,
+      role: resolveQuestionActivityRole({ question: questions[storageIndex], assignment }),
+    }));
+    const assignmentTracker = tracker?.[assignment.id] || null;
+    const context = { assignment, schedule: classSchedule, classId, classPeriod, nowValue };
+    const lesson = describeLessonSections({
+      entries: lessonEntries,
+      requiredIndices: requiredIndicesFor(assignment),
+      statusOf: (index) => normalizeQuestionRecord(assignmentTracker?.[index]).status,
+      lifecycle: availability.lifecycle,
+      access: availability.access,
+      excused: isExcused(assignment),
+      warmupState: typeof getWarmupState === 'function' ? getWarmupState(context) : null,
+      dolState: typeof getDOLState === 'function' ? getDOLState(context) : null,
+      sectionAccessOf: typeof getSectionAccessState === 'function'
+        ? (role) => getSectionAccessState({ assignment, activityRole: role, classId, classPeriod, studentId, nowValue })
+        : null,
+      recoveryBySection: recoveryStateByAssignment?.[assignment.id] || {},
+      todayKey,
+    });
+    lessonCache.set(assignment.id, lesson);
+    return lesson;
+  };
+  // Resume offers only a question the student can work on this minute.
+  const canResume = (assignment) => availabilityOf(assignment).workable && lessonOf(assignment).workableNow;
 
   const savedResume = visible.find((assignment) => assignment.id === resumeAction?.assignmentId && canResume(assignment));
-  const fallbackResume = visible.find((assignment) => {
-    if (!canResume(assignment)) return false;
-    const assignmentTracker = tracker[assignment.id];
-    if (!assignmentTracker) return false;
-    // A student is never "resumed" into an assignment purely because its
-    // waived Practice sits unfinished -- that is excused, not outstanding.
-    const required = new Set(resumeEligibleIndicesFor(assignment));
-    return getStoredAssignmentQuestions(assignment).some((question, index) => questionIsIncluded(question)
-      && required.has(index)
-      && !['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
-  });
+  // Started work (a tracker exists) with something workable now.
+  const fallbackResume = visible.find((assignment) => canResume(assignment) && Boolean(tracker[assignment.id])
+    && resumeEligibleIndicesFor(assignment).some((index) => lessonOf(assignment).workableQuestionIndices.includes(index)));
   const resumeAssignment = savedResume || fallbackResume || null;
 
-  const resumeRequired = resumeAssignment ? new Set(resumeEligibleIndicesFor(resumeAssignment)) : new Set();
-  const fallbackQuestionIndex = getStoredAssignmentQuestions(resumeAssignment)
-    .findIndex((question, index) => questionIsIncluded(question)
-      && resumeRequired.has(index)
-      && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment?.id]?.[index]).status));
-  const savedResumeIncluded = savedResume ? resumeEligibleIndicesFor(savedResume) : [];
   const resumeIncluded = resumeAssignment ? requiredIndicesFor(resumeAssignment) : [];
   const resumeTracker = resumeAssignment ? tracker?.[resumeAssignment.id] || {} : {};
   const resumeQuestionsAttempted = resumeIncluded.filter((index) => {
@@ -256,10 +304,20 @@ export const buildStudentDashboardModel = ({
   }).length;
   const resumeRecordedGrade = resumeAssignment ? calculateGrade(resumeTracker, resumeAssignment, gradeOptionsFor(resumeAssignment)) : 0;
   const resumeFeedbackHeld = resumeAssignment ? assignmentHasHeldTeacherFeedback(resumeAssignment) : false;
-  const requestedResumeIndex = Number(resumeAction?.questionIndex) || 0;
-  const resumeQuestionIndex = savedResume
-    ? (savedResumeIncluded.includes(requestedResumeIndex) ? requestedResumeIndex : (savedResumeIncluded[0] ?? 0))
-    : Math.max(0, fallbackQuestionIndex);
+  /*
+   * RESUME LANDS ON THE FIRST UNFINISHED QUESTION THE STUDENT CAN DO NOW.
+   *
+   * The saved position wins only while it is still such a question; a
+   * finished question, a closed Warm-Up or a locked section is never a
+   * resume target (the "landed on the closed Warm-Up" QA finding).
+   */
+  const requestedResumeIndex = Number(resumeAction?.questionIndex);
+  const resumeWorkable = resumeAssignment
+    ? lessonOf(resumeAssignment).workableQuestionIndices.filter((index) => resumeEligibleIndicesFor(resumeAssignment).includes(index))
+    : [];
+  const resumeQuestionIndex = savedResume && resumeWorkable.includes(requestedResumeIndex)
+    ? requestedResumeIndex
+    : (resumeWorkable[0] ?? 0);
 
   const activeDols = visible
     .map((assignment) => {
@@ -276,7 +334,7 @@ export const buildStudentDashboardModel = ({
         records,
       };
     })
-    .filter(({ state, lifecycle, records }) => lifecycle.isOpen && state.status === 'active' && records.some((record) => record.totalAttempts === 0));
+    .filter(({ assignment, state, lifecycle, records }) => lifecycle.isOpen && state.status === 'active' && !isExcused(assignment) && records.some((record) => record.totalAttempts === 0));
   const activeDolIds = new Set(activeDols.map(({ assignment }) => assignment.id));
 
   const activeWarmups = typeof getWarmupState === 'function'
@@ -300,35 +358,34 @@ export const buildStudentDashboardModel = ({
           records,
         };
       })
-      .filter(({ state, lifecycle, records }) => (
+      .filter(({ assignment, state, lifecycle, records }) => (
         lifecycle.isOpen
+        && !isExcused(assignment)
         && state.status === 'active'
         && records.some((record) => !['correct', 'expired'].includes(record.status))
       ))
     : [];
   const activeWarmupIds = new Set(activeWarmups.map(({ assignment }) => assignment.id));
 
-  const isDone = (assignment, assignmentTracker, lifecycle) => {
-    if (getStoredAssignmentTypeProjection(assignment) === 'notesClasswork') {
-      return classworkGradesByAssignment[assignment.id]?.score === 100 || lifecycle.isClosed;
-    }
-    const included = requiredIndicesFor(assignment);
-    if (!included.length) {
-      // A Practice Pass that waived every remaining requirement (an
-      // assignment whose only content was Practice) leaves nothing else
-      // required -- that is complete, not "never started". An assignment
-      // with genuinely no content falls back to the lifecycle exactly as
-      // before.
-      return hasPracticePassFor(assignment?.id)
-        ? getIncludedQuestionIndices(assignment).length > 0
-        : lifecycle.isClosed;
-    }
-    const fullyTerminal = Boolean(assignmentTracker)
-      && included.every((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
-    // A deadline ending changes whether work is graded; it does not mean the
-    // student completed it. Incomplete closed work belongs under Practice,
-    // while only genuinely terminal work belongs under Finished.
-    return fullyTerminal;
+  /*
+   * FINISHED MEANS EVERY SECTION IS DONE, AT ANY ACCURACY (decision 4).
+   *
+   * This replaced two rules that disagreed with it. A lesson bundle with a
+   * Classwork section was "finished" the moment Classwork reached 100 —
+   * Practice 1/10 and DOL 0/3 still waiting (QA round 2, "lesson bundles filed
+   * as Finished") — and a closed lesson with unfinished questions was never
+   * finished at all. Now a section is done when it is complete, or when it can
+   * no longer be worked (closed with no Recovery to take now, or excused).
+   *
+   * An assignment with no required questions at all (a notes-only lesson)
+   * keeps its old signals: the server's classwork completion, or its close.
+   */
+  const isDone = (assignment, lifecycle) => {
+    const lesson = lessonOf(assignment);
+    if (lesson.sections.length) return lesson.finished;
+    if (isExcused(assignment)) return true;
+    if (hasPracticePassFor(assignment?.id) && getIncludedQuestionIndices(assignment).length > 0) return true;
+    return classworkGradesByAssignment[assignment.id]?.score === 100 || lifecycle.isClosed;
   };
 
   /*
@@ -354,8 +411,6 @@ export const buildStudentDashboardModel = ({
       const activity = assignmentActivity[assignment.id] || {};
       const classwork = classworkGradesByAssignment[assignment.id];
       const dol = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
-      const disabled = availability.locked;
-      const done = isDone(assignment, assignmentTracker, lifecycle);
       const feedbackHeld = assignmentHasHeldTeacherFeedback(assignment);
       const dueSoon = matchesSmartView(assignment, 'today', { nowValue });
 
@@ -391,42 +446,72 @@ export const buildStudentDashboardModel = ({
         tracker: assignmentTracker,
         nowValue,
       });
+      const done = testCycle ? testCycle.done === true : isDone(assignment, lifecycle);
+      const excused = isExcused(assignment);
+      const lesson = testCycle ? null : lessonOf(assignment);
+      // A Recovery the student can take now is the lesson's remaining work,
+      // taken from the result page where the Recovery panel lives.
+      const recoveryReady = Boolean(lesson?.recoverySection) && !lesson?.workableNow;
+      /*
+       * ACTIONABLE: pressing the card's button lands on work the student can
+       * do this minute. Nothing else is ever offered as Start/Continue — that
+       * is what removes the "Nothing open right now" dead end.
+       */
+      const actionable = testCycle
+        ? testCycle.actionRequired === true && !['opensLater', 'paused'].includes(testCycle.key)
+        : !done && !excused && (lesson?.sections.length
+          ? (Boolean(lesson.workableNow) || recoveryReady)
+          // No required question to place (a notes-only lesson): the
+          // assignment-level release/prerequisite rule is all there is.
+          : !availability.locked);
       const started = testCycle
-        ? testCycle.started
-        : questionsAttempted > 0 && questionsDone < questionsTotal;
+        ? testCycle.started && testCycle.actionRequired === true && !['testReady', 'retestReady'].includes(testCycle.key)
+        : questionsAttempted > 0 && !done;
+      const byDueDate = lifecycle.isLate ? BUCKET.PAST_DUE : dueSoon ? BUCKET.DO_NOW : BUCKET.COMING_UP;
 
-      // Order matters and encodes the priority a student should read off the
-      // screen. Finished first (nothing else applies to it), then practice-only
-      // — which is past its deadline but no longer graded, and must not sit in
-      // "past due" making a student anxious about a grade they cannot change.
-      const bucket = testCycle
-        ? (testCycle.done
-          ? BUCKET.COMPLETED
-          : ['testReady', 'testInProgress', 'corrections', 'retestReady', 'retestInProgress'].includes(testCycle.key)
-            ? BUCKET.DO_NOW
-            : testCycle.started
-              ? BUCKET.IN_PROGRESS
-              : lifecycle.isLate ? BUCKET.PAST_DUE : dueSoon ? BUCKET.DO_NOW : BUCKET.COMING_UP)
+      /*
+       * WHICH GROUP. Finished first. Then only work the student can act on
+       * now goes in "Keep going"; a Test Cycle stage is placed like any other
+       * work — by whether it is underway and by its due date — never forced
+       * into "Due today". Work that is waiting (a section opens later, the
+       * teacher opens it, the teacher holds the next Test Cycle step) stays
+       * under its due-date group and its card says what it is waiting for.
+       */
+      // Finished by the deadline rather than by the student: the lesson asks
+      // nothing more (decision 4), but it is filed apart from work the student
+      // completed, under the closed group they can still practise from.
+      const closedUnfinished = done && !testCycle && lifecycle.isPracticeOnly && !excused
+        && (lesson?.sections || []).some((section) => section.state === SECTION_STATE.CLOSED);
+      const bucket = closedUnfinished
+        ? BUCKET.PRACTICE
         : done
-          ? BUCKET.COMPLETED
-          : lifecycle.isPracticeOnly
-            ? BUCKET.PRACTICE
-            : disabled
-              ? BUCKET.COMING_UP
-              : started
-                ? BUCKET.IN_PROGRESS
-                : lifecycle.isLate
-                  ? BUCKET.PAST_DUE
-                  : dueSoon
-                    ? BUCKET.DO_NOW
-                    : BUCKET.COMING_UP;
+        ? BUCKET.COMPLETED
+        : testCycle && (['opensLater', 'paused'].includes(testCycle.key) || !testCycle.actionRequired)
+          ? BUCKET.COMING_UP
+          : actionable && started
+            ? BUCKET.IN_PROGRESS
+            : byDueDate;
+
+      const waitText = !done && !actionable && lesson ? describeSectionWait(lesson.nextOpening, { nowValue }) : null;
 
       return {
         started,
         assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade,
-        activity, classwork, dol, disabled: testCycle ? testCycle.key === 'opensLater' : disabled,
+        activity, classwork, dol,
+        disabled: testCycle ? testCycle.key === 'opensLater' : (!done && !actionable),
         feedbackHeld, bucket, questionsTotal, questionsDone, questionsAttempted,
         testCycle,
+        // The "Today" rule's answer for this assignment.
+        lesson,
+        finished: done,
+        excused,
+        actionable,
+        // Where Start/Continue lands: the first unfinished question the
+        // student can do now (null when the action is a Recovery or nothing).
+        nextQuestionIndex: lesson?.nextQuestionIndex ?? null,
+        // 'recovery' when the remaining work is a Recovery on the result page.
+        action: recoveryReady ? 'recovery' : null,
+        waitText,
       };
     });
 
@@ -537,61 +622,78 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     };
   }
 
-  const inProgress = first(BUCKET.IN_PROGRESS);
+  /*
+   * ONLY WORK THE STUDENT CAN DO THIS MINUTE IS EVER RECOMMENDED.
+   *
+   * Every candidate below must be `actionable` under the one "Today" rule:
+   * excused work, finished lessons, sections the teacher has locked and
+   * Warm-Ups/DOLs outside their window are never the next action. A card that
+   * recommended them sent the student into "Nothing open right now".
+   * (An entry built by an older caller without the flag stays eligible.)
+   */
+  const firstActionable = (bucket) => (dashboard?.groups?.[bucket] || [])
+    .find((entry) => entry.actionable !== false && !entry.excused && !entry.disabled) || null;
+  const entryAction = (entry, fields) => ({
+    assignment: entry.assignment,
+    dueAt: dueFor(entry.assignment, entry.lifecycle),
+    // Where Start/Continue lands: the first unfinished question open now.
+    questionIndex: entry.nextQuestionIndex ?? undefined,
+    // A Recovery is taken from the assignment's result page.
+    opensResult: entry.action === 'recovery',
+    ...fields,
+    ...(entry.action === 'recovery' ? {
+      headline: 'A Recovery is ready',
+      detail: `${entry.assignment.title} — ${entry.lesson?.recoverySection?.label || 'a closed section'} can be raised with a Recovery.`,
+      actionLabel: 'Open Recovery',
+    } : {}),
+  });
+
+  const inProgress = firstActionable(BUCKET.IN_PROGRESS);
   if (inProgress) {
-    return {
+    return entryAction(inProgress, {
       kind: 'inProgress',
-      assignment: inProgress.assignment,
-      dueAt: dueFor(inProgress.assignment, inProgress.lifecycle),
       headline: 'Finish what you started',
       detail: `${inProgress.assignment.title} — ${inProgress.questionsDone} of ${inProgress.questionsTotal} done`,
       actionLabel: 'Continue',
       urgency: 'now',
-    };
+    });
   }
 
-  const pastDue = first(BUCKET.PAST_DUE);
+  const pastDue = firstActionable(BUCKET.PAST_DUE);
   if (pastDue) {
-    return {
+    return entryAction(pastDue, {
       kind: 'pastDue',
-      assignment: pastDue.assignment,
-      dueAt: dueFor(pastDue.assignment, pastDue.lifecycle),
       headline: 'This one is past due',
       // Late, not lost. A student who believes it no longer counts stops.
       detail: `${pastDue.assignment.title} — late work is still open and still counts.`,
-      actionLabel: 'Start it',
+      actionLabel: pastDue.questionsAttempted > 0 ? 'Continue' : 'Start it',
       urgency: 'late',
-    };
+    });
   }
 
-  const dueToday = first(BUCKET.DO_NOW);
+  const dueToday = firstActionable(BUCKET.DO_NOW);
   if (dueToday) {
-    return {
+    return entryAction(dueToday, {
       kind: 'dueToday',
-      assignment: dueToday.assignment,
-      dueAt: dueFor(dueToday.assignment, dueToday.lifecycle),
       headline: 'Due today',
       detail: dueToday.assignment.title,
-      actionLabel: 'Start it',
+      actionLabel: dueToday.questionsAttempted > 0 ? 'Continue' : 'Start it',
       urgency: 'today',
-    };
+    });
   }
 
   // Work that is assigned now does not become invisible just because its due
   // date is tomorrow (or next week). If it is open, it is a legitimate next
   // action and belongs ahead of independent Path work.
-  const assignedLater = (dashboard?.groups?.[BUCKET.COMING_UP] || [])
-    .find((entry) => !entry.disabled) || null;
+  const assignedLater = firstActionable(BUCKET.COMING_UP);
   if (assignedLater) {
-    return {
+    return entryAction(assignedLater, {
       kind: 'assignedLater',
-      assignment: assignedLater.assignment,
-      dueAt: dueFor(assignedLater.assignment, assignedLater.lifecycle),
       headline: 'Assigned work is ready',
       detail: assignedLater.assignment.title,
-      actionLabel: assignedLater.isAttempted ? 'Continue' : 'Start assignment',
+      actionLabel: assignedLater.questionsAttempted > 0 ? 'Continue' : 'Start assignment',
       urgency: 'thisWeek',
-    };
+    });
   }
 
   if (weeklyProgress && weeklyProgress.remaining > 0) {
@@ -604,15 +706,27 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     };
   }
 
-  // A scheduled/locked assignment is still pending work even though the
-  // student cannot start it yet. Never put a "caught up" celebration above it.
-  const scheduledAssignment = first(BUCKET.COMING_UP);
-  if (scheduledAssignment) {
+  /*
+   * WAITING IS AN ANSWER, NOT A DEAD END.
+   *
+   * Unfinished work exists but none of it can be done this minute — a DOL
+   * opens at 2:15, the teacher opens Classwork in class, a release date is
+   * tomorrow. Say exactly that, with the real time, and offer the one thing
+   * that is open: My Math Path. Never a "caught up" celebration above it.
+   */
+  const waiting = BUCKET_ORDER
+    .filter((bucket) => bucket !== BUCKET.COMPLETED && bucket !== BUCKET.PRACTICE)
+    .flatMap((bucket) => dashboard?.groups?.[bucket] || [])
+    .find((entry) => !entry.excused && entry.finished !== true) || null;
+  if (waiting) {
     return {
       kind: 'assignedSoon',
-      headline: 'You have assigned work coming up',
-      detail: `${scheduledAssignment.assignment.title} is already assigned. Its due date and availability are shown below.`,
-      actionLabel: null,
+      assignmentId: waiting.assignment.id,
+      headline: 'Nothing to start this minute',
+      detail: waiting.waitText
+        ? `${waiting.assignment.title} — ${waiting.waitText}. My Math Path is open until then.`
+        : `${waiting.assignment.title} is assigned but not open yet. My Math Path is open until then.`,
+      actionLabel: 'Open My Math Path',
       urgency: 'thisWeek',
     };
   }
@@ -637,4 +751,36 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     actionLabel: 'Open My Math Path',
     urgency: 'none',
   };
+};
+
+/**
+ * UP NEXT — the next action once the student is done with `assignmentId`.
+ *
+ * The continuation bar at the end of an assignment and the result page hand
+ * off here, so finishing one piece of work leads to the next one the same
+ * "Today" rule would put on Home, never back to the assignment just closed.
+ * Null when nothing assigned is actionable (Path and waiting cards are Home's
+ * job, not a hand-off).
+ */
+export const resolveUpNext = ({ dashboard, assignmentId = null } = {}) => {
+  if (!dashboard) return null;
+  const id = String(assignmentId || '');
+  const keep = (entry) => String(entry?.assignment?.id || '') !== id;
+  const resumeKept = dashboard.resumeAssignment && String(dashboard.resumeAssignment.id) !== id;
+  // The resume assignment is not in Home's groups; put it back as an ordinary
+  // entry when it is the one being left, so nothing else is lost.
+  const groups = Object.fromEntries(Object.entries(dashboard.groups || {})
+    .map(([bucket, entries]) => [bucket, (entries || []).filter(keep)]));
+  const next = resolveNextAction({
+    dashboard: {
+      ...dashboard,
+      resumeAssignment: resumeKept ? dashboard.resumeAssignment : null,
+      activeDols: (dashboard.activeDols || []).filter(keep),
+      activeWarmups: (dashboard.activeWarmups || []).filter(keep),
+      groups,
+    },
+    // Up Next only hands off to assigned work.
+    weeklyProgress: { completed: 1, required: 1, remaining: 0 },
+  });
+  return next?.assignment ? next : null;
 };
