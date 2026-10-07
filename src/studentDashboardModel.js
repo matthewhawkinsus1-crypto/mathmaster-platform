@@ -822,9 +822,14 @@ export const resolveNextAction = (args = {}) => {
     || (dashboard.resumeAssignment?.id === id ? dashboard.resumeLifecycle : null)
     || [...(dashboard.activeDols || []), ...(dashboard.activeWarmups || [])].find((live) => live.assignment?.id === id)?.lifecycle
     || null;
-  if (!lifecycle?.isLate) return action;
+  if (!lifecycle) return action;
   const lines = studentDueDateLines(action.assignment, lifecycle);
-  return { ...action, lateLine: `${lines.finalLabel}: ${lines.finalText}` };
+  return {
+    ...action,
+    // An individualized (extra-time) due date is named as the student's own.
+    individualizedDue: lines.individualizedDue,
+    ...(lifecycle.isLate ? { lateLine: `${lines.finalLabel}: ${lines.finalText}` } : {}),
+  };
 };
 
 /**

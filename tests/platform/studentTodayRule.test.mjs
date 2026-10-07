@@ -480,3 +480,20 @@ test('late work on the primary card names the student\'s own last day — their 
   const onTime = resolveNextAction({ dashboard: model({ assignments: [bundle('fresh')] }), weeklyProgress: { completed: 1, required: 1, remaining: 0 } });
   assert.equal(onTime.lateLine, undefined);
 });
+
+test('an individualized due date is named as the student\'s own on the primary card', async () => {
+  const lesson = bundle('extra', { studentOverrides: { s1: { supportDueAt: inHours(30) } } });
+  const dashboard = model({
+    assignments: [lesson],
+    studentId: 's1',
+    providers: { ...PROVIDERS, getAssignmentLifecycle: (assignment, nowValue) => getAssignmentLifecycle(assignment, nowValue, { studentId: 's1' }) },
+  });
+  const next = resolveNextAction({ dashboard, weeklyProgress: { completed: 1, required: 1, remaining: 0 } });
+  assert.equal(next.assignment.id, 'extra');
+  assert.equal(next.individualizedDue, true);
+  const plain = resolveNextAction({ dashboard: model({ assignments: [bundle('plain')] }), weeklyProgress: { completed: 1, required: 1, remaining: 0 } });
+  assert.equal(plain.individualizedDue, false);
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL('../../src/components/student/WhatShouldIDoNow.jsx', import.meta.url), 'utf8');
+  assert.match(card, /\{nextAction\.individualizedDue \? 'Your due date: ' : 'Due '\}\{formatDateTime\(nextAction\.dueAt\)\}/);
+});

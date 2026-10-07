@@ -124,7 +124,7 @@ export default function WhatShouldIDoNow({
         </div>
       ) : nextAction.assignment && nextAction.dueAt && (
         <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 800 }}>
-          Due {formatDateTime(nextAction.dueAt)}
+          {nextAction.individualizedDue ? 'Your due date: ' : 'Due '}{formatDateTime(nextAction.dueAt)}
         </div>
       )}
 
