@@ -119,6 +119,27 @@ const FIXTURES = {
       { id: 'explain', kind: 'shortResponse', prompt: 'What does your value of x make true?' },
     ],
   }),
+  // A graph-READING item like District DOL #2 q03 (PR #454 review B1/B2): the
+  // answer is the intercepts, read off a given line. `read=0` is the same graph
+  // without readCoordinates.
+  'graph-reading': () => ({
+    questionId: 'leak-gates-graph-reading',
+    type: 'multiAnswer',
+    prompt: 'Identify the x-intercept and y-intercept. Enter each coordinate as (x, y).',
+    answerFields: [
+      { id: 'xIntercept', label: 'x-intercept (x, y)', correctAnswer: '(3,0)' },
+      { id: 'yIntercept', label: 'y-intercept (x, y)', correctAnswer: '(0,2)' },
+    ],
+    stimulus: {
+      kind: 'graph',
+      graph: {
+        xMin: -10, xMax: 10, yMin: -10, yMax: 10, xTickStep: 1, yTickStep: 1,
+        readCoordinates: params.get('read') !== '0',
+        ariaLabel: 'Graph with horizontal axis x and vertical axis y',
+        lines: [{ points: [{ x: 0, y: 2 }, { x: 3, y: 0 }] }],
+      },
+    },
+  }),
   // The three-plane model with an author-allowed reveal.
   'three-plane-reveal': () => ({
     questionId: 'leak-gates-three-plane',

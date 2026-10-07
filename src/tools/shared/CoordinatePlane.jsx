@@ -7,6 +7,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { useHasParentWorkView, usePublishWorkViewCapabilities } from '../../platform/workView/workViewCapabilities.js';
 import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js';
 import { describeCoordinatePlane } from '../../platform/language/graphDescription.js';
+import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
@@ -170,9 +171,19 @@ export default function CoordinatePlane({
   // guide, shape and point, read at the grid's resolution and never as an
   // equation. Authored alt text, when a caller has it, wins.
   description = null,
-  // The "Show data table" disclosure under a read-only plane. It is also left
-  // out automatically when the plane sits inside another control (a graph
-  // card that is itself a button), where a nested button is invalid.
+  // WHETHER THE DESCRIPTION MAY STATE FEATURE VALUES (axis crossings, high and
+  // low points, positions) and offer the data table. While a question can be
+  // answered it may not: "crosses the y-axis at −4" answers "What is the
+  // y-intercept?" for anyone with a screen reader on. Null decides, failing
+  // closed: values only once the question is closed (QuestionLifecycle
+  // terminal). A screen that asks nothing (a report, a solution review) passes
+  // true; an authored `description` always wins.
+  describeFeatures = null,
+  // The "Show data table" disclosure under a read-only plane. Only where
+  // feature values may be stated, never where the plane withholds coordinates
+  // (revealCoordinates or pointHoverEnabled false), and left out automatically
+  // inside another control (a graph card that is itself a button), where a
+  // nested button is invalid.
   dataTable = true,
   children,
 }) {
@@ -470,8 +481,13 @@ export default function CoordinatePlane({
   const describedRegions = orNone(regions);
   const describedVerticals = orNone(verticalLines);
   const describedHorizontals = orNone(horizontalLines);
+  const { terminal: questionClosed } = useQuestionLifecycle();
+  const descriptionDetail = (describeFeatures == null ? questionClosed : describeFeatures === true) ? 'features' : 'kinds';
   const generatedDescription = useMemo(() => describeCoordinatePlane({
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
+    detail: descriptionDetail,
+    minorGridDrawn: showMinorGrid,
+    listPlottedPoints: interactive,
     points: describedPoints,
     lines: describedLines,
     functions: describedFunctions,
@@ -485,7 +501,7 @@ export default function CoordinatePlane({
   }), [
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     describedPoints, describedLines, describedFunctions, describedPolylines, describedRegions, describedVerticals, describedHorizontals,
-    ariaLabel, hasToolMarks, interactive,
+    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid,
   ]);
   const authoredDescription = typeof description === 'string' ? description.trim() : '';
   const spokenDescription = authoredDescription || generatedDescription.description;
@@ -502,7 +518,9 @@ export default function CoordinatePlane({
     const host = planeRef.current?.parentElement;
     setInsideControl(Boolean(host?.closest?.('button, a[href], label, [role="button"], [role="link"], [role="option"]')));
   }, []);
-  const showDataTable = !interactive && dataTable !== false && insideControl === false && generatedDescription.tables.length > 0;
+  const showDataTable = !interactive && dataTable !== false && insideControl === false
+    && descriptionDetail === 'features' && revealCoordinates !== false && pointHoverEnabled !== false
+    && generatedDescription.tables.length > 0;
 
   const preview = keyboardActive ? keyboardCursor : pointerPreview;
   const heldPoint = keyboardHeldIndex != null ? points[keyboardHeldIndex] : null;

@@ -14,17 +14,35 @@
  *     line rising through two gridline crossings; they do not see a formula.
  *     Lines are described visually: rises or falls, where it crosses each axis,
  *     two grid points it passes through.
- *   - Values are read at the grid's resolution. A value that lands on the
- *     resolution (the snap step, default 1) is stated exactly; anything else is
- *     "about" the nearest half step, which is what reading between gridlines
- *     gives a sighted student. Nothing is computed to more precision than the
- *     grid offers.
+ *   - Values are read at the grid the plane actually DRAWS: the snap-step
+ *     minor grid where one is drawn (interactive or readableGrid planes),
+ *     otherwise the major gridlines. A value on a drawn gridline is stated
+ *     exactly; anything else is "between" the two gridlines around it —
+ *     never more precisely than the eye can read it.
  *   - Text labels only where the plane draws text. CoordinatePlane draws
  *     `point.label` beside a plain dot and nowhere else — not for open/closed
  *     markers, arrows, lines, curves, polylines or regions — so those labels are
  *     never spoken, even when the data carries one.
  *
- * WHY THIS IS NOT HIDDEN WHEN revealCoordinates IS FALSE.
+ * WHILE THE QUESTION CAN STILL BE ANSWERED, NO FEATURE VALUES (`detail`).
+ *
+ * A description that says "crosses the y-axis at −4" answers "What is the
+ * y-intercept?" for anyone who turns on a screen reader — ChromeVox is one
+ * keystroke on every Chromebook. So the default, `detail: 'kinds'`, says
+ * only what KINDS of objects are drawn: the window, "2 lines", "1 curve",
+ * "3 points" (with any text labels the plane draws), "a shaded region". No
+ * axis crossings, high or low points, touching, intersections, positions or
+ * table. `detail: 'features'` — the full, grid-readable reading below — is
+ * for a question that is closed (solution review, released results) or a
+ * screen that asks nothing; CoordinatePlane decides, failing closed. Points
+ * the student plotted themselves on an interactive plane are always read
+ * back (`listPlottedPoints`): they are the student's own work.
+ *
+ * Blind students on graph-READING assessment items therefore need an
+ * authored description, a human reader or a tactile graphic; that is an
+ * accommodation decision, not something this module can make safely.
+ *
+ * WHY THE FULL READING IS NOT HIDDEN WHEN revealCoordinates IS FALSE.
  *
  * CoordinatePlane documents the policy: hiding the numeric readout chip makes a
  * coordinate-reading question harder for a sighted student, but the
@@ -63,32 +81,33 @@ const isMultiple = (value, step) => {
   return Math.abs(ratio - Math.round(ratio)) < 1e-6;
 };
 
-// A value as a sighted student reads it: exact on the grid, "about" between.
+// A value as a sighted student reads it: exact on a drawn gridline, otherwise
+// between the two gridlines around it. `value` (half a step, for de-duplicating
+// features) is never spoken.
 export const readValue = (value, resolution) => {
   if (isMultiple(value, resolution)) return { text: formatNumber(value), exact: true, value: tidy(value) };
+  const lower = tidy(Math.floor(value / resolution) * resolution);
+  const upper = tidy(lower + resolution);
   const half = resolution / 2;
-  const rounded = tidy(Math.round(value / half) * half);
-  return { text: formatNumber(rounded), exact: false, value: rounded };
+  return { text: `between ${formatNumber(lower)} and ${formatNumber(upper)}`, exact: false, value: tidy(Math.round(value / half) * half) };
 };
 
-const readText = (value, resolution) => {
-  const read = readValue(value, resolution);
-  return read.exact ? read.text : `about ${read.text}`;
-};
+const readText = (value, resolution) => readValue(value, resolution).text;
 
 const readPair = (x, y, res) => {
   const rx = readValue(x, res.x);
   const ry = readValue(y, res.y);
-  const pair = `(${rx.text}, ${ry.text})`;
-  return rx.exact && ry.exact ? pair : `about ${pair}`;
+  return rx.exact && ry.exact ? `(${rx.text}, ${ry.text})` : `(x ${rx.text}, y ${ry.text})`;
 };
 
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
-const resolutionFor = (span, snapStep, majorStep) => {
+// The finest grid the plane draws: its minor grid where it draws one,
+// otherwise its major gridlines.
+const resolutionFor = (span, snapStep, majorStep, minorGridDrawn) => {
   const step = Number(snapStep) > 0 ? Number(snapStep) : 1;
-  if (span / step <= MAX_READABLE_STEPS) return step;
-  return majorStep / 2;
+  if (minorGridDrawn && span / step <= MAX_READABLE_STEPS && step < majorStep) return step;
+  return majorStep;
 };
 
 const rawPointList = (entry) => {
@@ -304,6 +323,60 @@ const vertexList = (vertices, res) => {
   return joinClauses(shown);
 };
 
+/* ------------------------------------------- kinds only (still answerable) */
+
+// What is drawn, never where: no crossings, extremes, positions or table.
+const describeKinds = ({
+  sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints,
+  points, lines, functions, polylines, regions, verticalLines, horizontalLines,
+}) => {
+  const lineCount = lines.filter((line) => Number.isFinite(Number(line?.m)) && Number.isFinite(Number(line?.b))).length;
+  const curveCount = functions.filter((fn) => typeof fn === 'function').length;
+  const verticals = verticalLines.map(Number).filter(Number.isFinite).length;
+  const horizontals = horizontalLines.map(Number).filter(Number.isFinite).length;
+  const paths = polylines.map(rawPointList).filter((v) => v.length).length;
+  const shaded = regions.map(rawPointList).filter((v) => v.length).length;
+  const drawn = points.filter((point) => readGraphPointCoordinates(point));
+  const isPlotted = (point) => listPlottedPoints && !point?.marker && point?.movable !== false;
+  const given = drawn.filter((point) => !isPlotted(point));
+  const plotted = drawn.filter(isPlotted);
+
+  if (lineCount) sentences.push(`${plural(lineCount, 'line')}.`);
+  if (curveCount) sentences.push(curveCount > 1 ? `${plural(curveCount, 'curve')}, the first solid and the others dashed.` : '1 curve.');
+  if (verticals) sentences.push(`${plural(verticals, 'dashed vertical line')}.`);
+  if (horizontals) sentences.push(`${plural(horizontals, 'dashed horizontal line')}.`);
+  if (paths) sentences.push(`${plural(paths, 'connected path')}.`);
+  if (shaded) sentences.push(`${plural(shaded, 'shaded region')}.`);
+  if (given.length) {
+    const arrows = given.filter((point) => point?.marker === 'arrow').length;
+    const open = given.filter((point) => point?.marker === 'open').length;
+    const closed = given.filter((point) => point?.marker === 'closed').length;
+    const dots = given.length - arrows - open - closed;
+    // Text the plane draws beside a plain dot is on the screen; a position is not said.
+    const labels = given.filter((point) => !point?.marker && point?.label != null && String(point.label).trim()).map((point) => String(point.label).trim());
+    const parts = [
+      dots ? `${plural(dots, 'point')}${labels.length ? ` labelled ${joinClauses(labels)}` : ''}` : '',
+      open ? plural(open, 'open dot') : '',
+      closed ? plural(closed, 'closed dot') : '',
+      arrows ? plural(arrows, 'arrowhead') : '',
+    ].filter(Boolean);
+    sentences.push(`${joinClauses(parts).replace(/^./, (c) => c.toUpperCase())}.`);
+  }
+  if (plotted.length) {
+    const at = plotted.map((point) => { const [x, y] = readGraphPointCoordinates(point); return readPair(x, y, res); });
+    sentences.push(`${plotted.length === 1 ? 'You plotted 1 point' : `You plotted ${plotted.length} points`}: ${at.join('; ')}.`);
+  }
+  const described = lineCount + curveCount + verticals + horizontals + paths + shaded + drawn.length;
+  if (!described && !hasUndescribedMarks) sentences.push(emptyText);
+  if (hasUndescribedMarks) sentences.push('It also shows marks drawn by the activity that are not listed here.');
+  if (lineCount + curveCount + verticals + horizontals + paths + shaded + given.length) {
+    sentences.push('Positions are not read out while this question can be answered.');
+  }
+  void w;
+  const description = sentences.join(' ');
+  return { summary: label ? `${label}, ${description}` : description, description, sentences, tables: [], detail: 'kinds' };
+};
+
 /* ----------------------------------------------------------------- entry */
 
 /**
@@ -326,18 +399,34 @@ export function describeCoordinatePlane({
   label = '',
   hasUndescribedMarks = false,
   emptyText = 'Nothing is plotted.',
+  // 'kinds' (default — fails closed) or 'features'. See the module header.
+  detail = 'kinds',
+  // Whether the plane draws its snap-step minor grid (CoordinatePlane's
+  // showMinorGrid). Values are never read more finely than what is drawn.
+  minorGridDrawn = false,
+  // An interactive plane: read back the points the student placed (no marker,
+  // not fixed) even in 'kinds'.
+  listPlottedPoints = false,
 } = {}) {
   const w = { xMin: Number(xMin), xMax: Number(xMax), yMin: Number(yMin), yMax: Number(yMax) };
   const xStep = Number(xTickStep) > 0 ? Number(xTickStep) : niceStep(w.xMax - w.xMin);
   const yStep = Number(yTickStep) > 0 ? Number(yTickStep) : niceStep(w.yMax - w.yMin);
   const res = {
-    x: resolutionFor(w.xMax - w.xMin, snapStep, xStep),
-    y: resolutionFor(w.yMax - w.yMin, snapStep, yStep),
+    x: resolutionFor(w.xMax - w.xMin, snapStep, xStep, minorGridDrawn),
+    y: resolutionFor(w.yMax - w.yMin, snapStep, yStep, minorGridDrawn),
   };
   const list = (value) => (Array.isArray(value) ? value : []);
 
   const sentences = [];
   sentences.push(`x from ${formatNumber(w.xMin)} to ${formatNumber(w.xMax)}, y from ${formatNumber(w.yMin)} to ${formatNumber(w.yMax)}.`);
+
+  if (detail !== 'features') {
+    return describeKinds({
+      sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints,
+      points: list(points), lines: list(lines), functions: list(functions), polylines: list(polylines),
+      regions: list(regions), verticalLines: list(verticalLines), horizontalLines: list(horizontalLines),
+    });
+  }
 
   const lineEntries = list(lines).map((line, i) => describeLine(line, i, res, w)).filter(Boolean);
   if (lineEntries.length) {
@@ -423,12 +512,16 @@ export function describeCoordinatePlane({
     });
   }
 
+  // "crosses the x-axis at between 2 and 4" reads as "… between 2 and 4".
+  const spoken = sentences.map((sentence) => sentence.replace(/\b(?:at|through) between\b/g, 'between'));
+  sentences.splice(0, sentences.length, ...spoken);
   const description = sentences.join(' ');
   return {
     summary: label ? `${label}, ${description}` : description,
     description,
     sentences,
     tables,
+    detail: 'features',
   };
 }
 

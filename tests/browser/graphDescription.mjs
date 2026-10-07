@@ -59,10 +59,12 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
   console.log(`  [${tag}] Graph B: role=${b?.role} name="${b?.name}"\n    description: ${b?.description}`);
   check(a?.role === 'image' && a.name === 'Graph A', `${tag} graph A keeps its short name`, `${a?.role} "${a?.name}"`);
   check(b?.role === 'image' && b.name === 'Graph B', `${tag} graph B keeps its short name`, `${b?.role} "${b?.name}"`);
-  check(/Line 1 rises from left to right, crosses the y-axis at 2/.test(a?.description) && /A at \(3, −2\)/.test(a?.description),
-    `${tag} graph A is described from its line and point`);
-  check(/has a low point at \(0, −4\)/.test(b?.description) && /Dashed vertical line through 3 on the x-axis/.test(b?.description),
-    `${tag} graph B is described from its curve and guide`);
+  // Read at the grid these planes DRAW (major gridlines every 2): A's point at
+  // x = 3 sits between two gridlines and is said to (never "at 3").
+  check(/Line 1 rises from left to right, crosses the y-axis at 2/.test(a?.description) && /A at \(x between 2 and 4, y −2\)/.test(a?.description),
+    `${tag} graph A is described from its line and point, no finer than its grid`, a?.description);
+  check(/has a low point at \(0, −4\)/.test(b?.description) && /Dashed vertical line between 2 and 4 on the x-axis/.test(b?.description),
+    `${tag} graph B is described from its curve and guide`, b?.description);
   check(Boolean(a?.description) && a.description !== b?.description, `${tag} the two graphs announce differently`);
   check(!/slope|y\s*=/i.test(`${a?.description} ${b?.description}`), `${tag} no equation or slope is spoken`);
 
@@ -121,8 +123,15 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
   await page.keyboard.press('Enter');
   const after = await axOf(cdp, '[data-graph="d"] svg[role="application"]');
   console.log(`  [${tag}] Plot here after two keyboard plots: ${after?.description}`);
-  check(/2 points: \(0, 0\); \(2, 1\)\./.test(after?.description || ''), `${tag} the interactive plane describes what was plotted`, after?.description);
+  check(/You plotted 2 points: \(0, 0\); \(2, 1\)\./.test(after?.description || ''), `${tag} the interactive plane describes what was plotted`, after?.description);
   check(await page.locator('[data-graph="d"] button', { hasText: 'Show data table' }).count() === 0, `${tag} the interactive plane has no data-table toggle`);
+
+  // PR #454 review B1/B2: by default (a question that can still be answered)
+  // the same data says what is drawn, never where, and has no table.
+  const answerable = await axOf(cdp, '[data-graph="f"] svg[role="img"]');
+  check(/1 line\./.test(answerable?.description || '') && !/cross|through|\(|between|−1|\b2\b/.test(answerable?.description || ''),
+    `${tag} an answerable plane names no crossing or position`, answerable?.description);
+  check(await page.locator('[data-graph="f"] button', { hasText: 'Show data table' }).count() === 0, `${tag} an answerable plane offers no data table`);
 
   // Keyboard sweep S6: Enter on a movable point picks it up, arrows carry it,
   // Enter drops it; Escape puts it back where it was.
@@ -138,13 +147,13 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
   check(/Moving the point from \(1, 1\) to \(3, 1\)/.test(await live.textContent()), `${tag} the live region says the point is being moved`, await live.textContent());
   await page.keyboard.press('Enter');
   const moved = await axOf(cdp, '[data-graph="e"] svg[role="application"]');
-  check(/1 point: \(3, 1\)\./.test(moved?.description || ''), `${tag} Enter dropped the point where the crosshair was (no second point)`, moved?.description);
+  check(/You plotted 1 point: \(3, 1\)\./.test(moved?.description || ''), `${tag} Enter dropped the point where the crosshair was (no second point)`, moved?.description);
   await page.keyboard.press('Enter'); // pick it up again
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Escape');
   await page.keyboard.press('ArrowRight'); // cursor moves; the point must not follow
   const kept = await axOf(cdp, '[data-graph="e"] svg[role="application"]');
-  check(/1 point: \(3, 1\)\./.test(kept?.description || ''), `${tag} Escape put the point back`, kept?.description);
+  check(/You plotted 1 point: \(3, 1\)\./.test(kept?.description || ''), `${tag} Escape put the point back`, kept?.description);
 
   await context.close();
 }

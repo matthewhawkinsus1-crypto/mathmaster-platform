@@ -157,6 +157,11 @@ function StimulusGraph({ graph }) {
         yTickStep={graph.yTickStep}
         revealCoordinates={!graph.readCoordinates}
         pointHoverEnabled={!graph.readCoordinates}
+        // Reading the graph is the task: never a table of its values.
+        dataTable={!graph.readCoordinates}
+        // An author's description that does not give the answer away
+        // (src/platform/preflight/graphAccessibilityPreflight.js warns without one).
+        description={graph.accessibleDescription || null}
       >
         {({ sx, sy, plotClip }) => curves.map((curve, index) => (
           <polyline
