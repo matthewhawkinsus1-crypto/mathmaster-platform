@@ -11,6 +11,9 @@
  *     their screens follow their invite into the new lobby;
  *   - the same game settings, read from the room's public fields, so a replay
  *     works after a refresh or from another device too;
+ *   - the same projector standings choice (top few, or full standings): a
+ *     teacher who opted one class into full standings keeps it, and a class
+ *     on the default is never moved onto a full board by a replay;
  *   - NOT the assignment Warm-Up link. A Warm-Up records one result per
  *     assignment; a second game would overwrite the first. A replay of a
  *     Warm-Up game is a standalone game.
@@ -22,6 +25,7 @@
  */
 
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { normalizeStandingsDisplay } from '../../../functions/shared/liveChallengePrivacy.mjs';
 
 const integerOr = (value, fallback) => {
   const numeric = Number(value);
@@ -43,6 +47,9 @@ export const replayRequestFromRoom = (room = {}, { rewardPolicy = null } = {}) =
     roundSeconds: integerOr(room.roundSeconds, null),
     scoringStrategyId: text(room.scoringStrategyId),
     rewardPolicy: rewardPolicy || null,
+    // A room created before the choice existed has no field: the server's
+    // default (top few) applies.
+    standingsDisplay: room.standingsDisplay === undefined || room.standingsDisplay === null ? undefined : normalizeStandingsDisplay(room.standingsDisplay),
   };
   if (room.challengeMode === RUSH_MODE_ID) {
     const config = room.graphFeatureRush?.config;

@@ -92,12 +92,16 @@ test('a finished game: your place, then what reached your wallet, then the top o
   assert.ok(order.every((at) => at > -1), 'all three are shown');
   assert.deepEqual([...order].sort((left, right) => left - right), order, 'in that order');
   assert.match(finalCard, /selfRow\.tied \? `tied for \$\{ordinal\(selfRow\.rank\)\} ` : ''/, 'a shared place says so');
-  assert.match(finalCard, /It does not change your assignment grade\./);
+  // What the game counts for, said truthfully: a Warm-Up game's accuracy is
+  // the Warm-Up grade; a standalone game changes no grade (challengeRecapModel).
+  assert.match(finalCard, /\{gameGradeSentence\(\{ warmup \}\)\}/);
+  assert.doesNotMatch(executableSource(finalCard), /does not change your assignment grade/i, 'never the old, false sentence');
   // Until the standings arrive (a refresh on the podium) the card waits in
   // words; it never tells a player who was there that they joined too late.
   assert.match(finalCard, /\{loading \? 'Loading your final place…' : 'You joined after the last round\.'\}/);
   const finished = region(studentMain, "{room.status === 'finished' && (", "{room.status === 'cancelled' && (", 'finished view');
   assert.match(finished, /loading=\{!finalStandings\}/);
+  assert.match(finished, /warmup=\{Boolean\(room\.assignmentId\)\}/, 'a Warm-Up game is one with an assignment');
   // The final place and podium come from the FINAL snapshot only — the one
   // written from the match result — never from a live one still on screen.
   assert.match(studentMain, /const finalStandings = room\.status === 'finished' && standings\?\.kind === PROJECTION_KIND\.FINAL \? standings : null;/);
@@ -227,7 +231,10 @@ test('the final standings under the podium show only rows that fit whole, and th
   // The viewport's row budget asked for five rows at 1366×768 where three
   // fit; the rest, and "Everyone sees their own final place", were cut off.
   const finale = region(projector, 'function FinalPodium(', '\nfunction LobbyView(', 'final podium');
-  assert.match(finale, /const fit = useRowsThatFit\(boardRef, Math\.min\(remaining\.length, Math\.max\(0, rows - 1\)\)\);/);
+  // `remaining` is already bounded by the screen's row budget (and the room's
+  // standings choice) in finalBoardRows; the fit measures what is left.
+  assert.match(finale, /const board = finalBoardRows\(room, leaderboard, rows\);/);
+  assert.match(finale, /const fit = useRowsThatFit\(boardRef, remaining\.length\);/);
   assert.match(finale, /const shownBelow = fit\.room \? remaining\.slice\(0, fit\.rows\) : \[\];/);
   assert.match(finale, /<div ref=\{boardRef\} style=\{\{ minHeight: 0, overflow: 'hidden'/);
   // With no room under the podium at all (150% zoom), the note moves into

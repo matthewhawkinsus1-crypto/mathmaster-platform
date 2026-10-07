@@ -157,9 +157,14 @@ export function StandingsBoard({
   // How many are playing, when `rows` is only the top of the class and the
   // viewer's own row (a student's standings snapshot).
   totalCount = null,
+  // (hidden) -> the line under a board that leaves players off. A class-wide
+  // board (the projector) says everyone sees their own place on their device
+  // (liveChallengeProjectorModel.projectorMoreText); default "and N more players".
+  describeMore = null,
 }) {
   const style = lookOf(look);
   const visible = standingsWindow(rows, { limit, selfKey, total: totalCount });
+  const unseen = visible.hiddenCount - (visible.self ? 1 : 0);
   if (!visible.total) return <p style={{ margin: 0, color: style.muted }}>{emptyText}</p>;
   const unit = presentation?.total?.short || 'pts';
   const renderRow = (row) => {
@@ -218,9 +223,9 @@ export function StandingsBoard({
           {renderRow(visible.self)}
         </ol>
       )}
-      {visible.hiddenCount > (visible.self ? 1 : 0) && (
-        <div style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
-          and {visible.hiddenCount - (visible.self ? 1 : 0)} more {visible.hiddenCount - (visible.self ? 1 : 0) === 1 ? 'player' : 'players'}
+      {unseen > 0 && (
+        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
+          {typeof describeMore === 'function' ? describeMore(unseen) : `and ${unseen} more ${unseen === 1 ? 'player' : 'players'}`}
         </div>
       )}
     </div>
@@ -242,7 +247,7 @@ export const roundPerformanceText = (row, presentation) => {
  * One round's results: place in the round, what each player did, and — when
  * a round's place earns the match points (Grand Prix) — the points it earned.
  */
-export function RoundResultsTable({ view, presentation, look = 'console', limit = 6, selfKey = null }) {
+export function RoundResultsTable({ view, presentation, look = 'console', limit = 6, selfKey = null, describeMore = null }) {
   const style = lookOf(look);
   if (!view) return <p style={{ margin: 0, color: style.muted }}>Tallying the round…</p>;
   const rows = view.rows || [];
@@ -269,8 +274,8 @@ export function RoundResultsTable({ view, presentation, look = 'console', limit 
       <ol aria-label="Round results" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>{shown.map(renderRow)}</ol>
       {self && <ol aria-label="Your round result" style={{ listStyle: 'none', margin: 0, padding: 0 }}>{renderRow(self)}</ol>}
       {rows.length > shown.length + (self ? 1 : 0) && (
-        <div style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
-          and {rows.length - shown.length - (self ? 1 : 0)} more
+        <div data-mm-board-more={rows.length - shown.length - (self ? 1 : 0)} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
+          {typeof describeMore === 'function' ? describeMore(rows.length - shown.length - (self ? 1 : 0)) : `and ${rows.length - shown.length - (self ? 1 : 0)} more`}
         </div>
       )}
     </div>

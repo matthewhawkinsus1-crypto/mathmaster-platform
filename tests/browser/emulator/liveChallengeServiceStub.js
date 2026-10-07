@@ -26,6 +26,7 @@ export {
   watchTeacherActiveChallenge,
   watchLiveChallengeRound,
   readLiveChallengeRound,
+  readLiveChallengeSolution,
   readChallengeReport,
   timestampMillis,
 } from '../../../src/platform/liveChallenge/liveChallengeService.js';
@@ -122,4 +123,6 @@ export const cancelLiveChallenge = async (payload) => { record('cancelLiveChalle
 // the server would (tests/browser/support/standingsSnapshot.mjs). The screen's
 // one-time "final standings missing" repair call is recorded and finds none.
 export const publishLiveChallengeStandings = async (payload) => { record('publishLiveChallengeStandings', payload); return { published: false, reason: 'stub' }; };
+// The recap is server-only data; the stub has none to give.
+export const getLiveChallengeMatchRecap = async (payload) => { record('getLiveChallengeMatchRecap', payload); throw Object.assign(new Error('stub'), { code: 'unavailable' }); };
 export const ensureLiveChallengeFinalStandings = async (payload) => { record('ensureLiveChallengeFinalStandings', payload); return { ensured: false, reason: 'stub' }; };

@@ -7,17 +7,28 @@ import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mj
 import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
-import { CHALLENGE_STAGE, GO_FLASH_MS, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
-import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, shortPlaceText, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
-import { useChallengeClock, usePreviousRoundSummary, useRoundSummary } from '../../platform/liveChallenge/challengeHooks.js';
+import { CHALLENGE_STAGE, GO_FLASH_MS, personalRoundClock, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
+import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/language/speechText.js';
+import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
+import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, unansweredRounds, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
+import { normalizeMatchRecap, recapHighlights } from '../../platform/liveChallenge/challengeRecapModel.js';
+import { PUBLIC_TOP_COUNT, finalPlaceIsHeadline, roomShowsFullStandings } from '../../../functions/shared/liveChallengePrivacy.mjs';
+import { projectorBoardLimit } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
+import { roomFullRoundMs, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
+import { resolveSupportEntitlements } from '../../../functions/shared/supportEntitlements.mjs';
+import { useChallengeClock, usePreviousRoundSummary, useRoundSolution, useRoundSummary } from '../../platform/liveChallenge/challengeHooks.js';
+import { SOLUTION_STATE, roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import { studentConnectionState } from '../../platform/liveChallenge/challengePresenceModel.js';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
-import { ChallengeCountdown, ChallengeShellStyles, Confetti, ConnectionPill, StandingsBoard } from './ChallengeShellParts.jsx';
-import { StudentFinalCard, StudentGuidance, StudentLobbyCard, StudentRoundResultsCard } from './ChallengeStudentShell.jsx';
+import { ChallengeCountdown, ChallengeShellStyles, Confetti, ConnectionPill } from './ChallengeShellParts.jsx';
+import { StudentFinalCard, StudentGuidance, StudentLobbyCard, StudentMatchRecap, StudentRoundResultsCard } from './ChallengeStudentShell.jsx';
+import { RoundSolutionPanel } from './ChallengeSolutionParts.jsx';
 import {
   joinLiveChallenge,
   calibrateLiveChallengeClock,
   ensureLiveChallengeFinalStandings,
+  getLiveChallengeMatchRecap,
+  readLiveChallengeRound,
   reportLiveChallengeProgress,
   submitLiveChallengeResponse,
   timestampMillis,
@@ -106,28 +117,6 @@ function QuestionEngine(props) {
 }
 
 /*
- * The top of the class on a student's device — and their own row, when they
- * are not in it — from the class's standings snapshot. Every number is the
- * board's real value: it never counts up through values nobody had (a
- * count-up that stalled in a throttled tab once showed a whole board of zeros
- * under a correct "Your score").
- */
-function MiniLeaderboard({ standings = null, playerKey, alias = null, presentation = null }) {
-  return (
-    <StandingsBoard
-      rows={standingsRows(projectionBoardRows(standings, { selfKey: playerKey, alias }), { selfKey: playerKey })}
-      presentation={presentation || scorePresentation({})}
-      look="student"
-      limit={5}
-      selfKey={playerKey}
-      showMovement={false}
-      label="Top 5"
-      totalCount={standings?.count ?? null}
-    />
-  );
-}
-
-/*
  * Exported so a teacher's dry run plays the same round a student plays.
  * `submitResponse` is injectable so rehearsal can grade without writing game
  * score while preserving the exact student renderer and countdown behavior.
@@ -135,25 +124,31 @@ function MiniLeaderboard({ standings = null, playerKey, alias = null, presentati
 export function ChallengeRound({
   room,
   alias,
-  playerKey,
-  // The class's standings snapshot, decoded (standingsFromProjection), and
-  // this student's own public row as the engine ranks a row (publicLeaderboard):
-  // the board shows the first, and the second says whether the server already
-  // holds this round's answer. A rehearsal has neither.
-  standings = null,
+  // This student's own public row as the engine ranks a row (publicLeaderboard):
+  // it says whether the server already holds this round's answer. A rehearsal
+  // has none.
+  //
+  // NO BOARD UNDER THE QUESTION. A round shows no standings and no rank while
+  // it can be answered: a student thinking about a question should not be
+  // watching their name slide down a list (liveChallengePrivacy.mjs). Their
+  // place comes with the round's results, on their own screen.
   selfEntry = null,
   studentProfile,
   onResult,
   submitResponse = submitLiveChallengeResponse,
   reportProgress = reportLiveChallengeProgress,
-  showLeaderboard = true,
   beforeQuestion = null,
+  // EXTENDED TIME: this student's own multiplier (their invite; 1 for everyone
+  // without it). Their clock, their buzzer and their lock all follow their own
+  // deadline, which is the one the server judges their answer against.
+  timeMultiplier = 1,
+  // READ ALOUD, for a student whose support plan grants text-to-speech.
+  readAloud = false,
   // A live room keeps the server's answer across a refresh. A rehearsal does
   // not: a teacher revisiting a dry-run round should be able to answer again.
   persistResult = false,
   // What a live round says comes next (its results); a rehearsal keeps its own words.
   liveShell = false,
-  presentation = null,
 }) {
   const question = room.currentQuestion;
   const roundIndex = Number(room.currentRound) || 0;
@@ -164,8 +159,14 @@ export function ChallengeRound({
   useMonotonicNow(true);
   const [, setBoundaryRender] = useState(0);
   const monotonicNow = performance.now();
-  const endsAtMs = timestampMillis(room.roundEndsAt);
+  const classEndsAtMs = timestampMillis(room.roundEndsAt);
   const startsAtMs = timestampMillis(room.startsAt || room.roundStartedAt);
+  // The deadline THIS student answers against: the class's, or later when
+  // their plan gives them extended time (challengeShellModel.personalRoundClock).
+  const personalClock = personalRoundClock({
+    startsAtMs, endsAtMs: classEndsAtMs, timeMultiplier, fullDurationMs: roomFullRoundMs(room),
+  });
+  const endsAtMs = personalClock.endsAtMs;
   const roundOriginMonoRef = useRef(monotonicRoundOrigin({
     monotonicNow: performance.now(),
     serverNowMs: Number(room.serverNowAtRender) || Date.now(),
@@ -174,7 +175,7 @@ export function ChallengeRound({
   const startsInMs = Math.max(0, roundOriginMonoRef.current - monotonicNow);
   const roundStarted = startsInMs <= 0;
   const elapsedMs = Math.max(0, monotonicNow - roundOriginMonoRef.current);
-  const remainingMs = Math.max(0, (endsAtMs - startsAtMs) - elapsedMs);
+  const remainingMs = Math.max(0, personalClock.durationMs - elapsedMs);
   const paceMode = room.timingMode === 'pace';
   // A round the host has closed is over whatever its clock says; the server
   // accepts nothing more for it.
@@ -217,6 +218,11 @@ export function ChallengeRound({
 
   pendingRef.current = pending;
   resultRef.current = result;
+
+  // Read aloud speaks this round's prompt only; a new round, or leaving the
+  // game, silences whatever is still being read.
+  const promptText = typeof question?.prompt === 'string' ? question.prompt : '';
+  useEffect(() => () => stopSpeaking(), [roundIndex, question?.questionInstanceId]);
 
   useEffect(() => {
     const stored = readStoredJson(resultKey);
@@ -422,6 +428,18 @@ export function ChallengeRound({
             <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.18)', fontWeight: 900, fontSize: 13 }}>{alias}</span>
             <span style={{ fontWeight: 900, fontSize: 15 }}>{room.secondChanceOf != null ? `FINAL ROUND ${roundIndex - Number(room.scheduledRoundCount || room.roundCount) + 1}` : `Round ${roundIndex + 1} of ${room.roundCount}`}</span>
             <span style={{ opacity: .82, fontSize: 13 }}>{question?.teksCode || 'Mixed review'}</span>
+            {/* Only once the question is on screen: reading it during the
+                countdown would hand this student a head start. */}
+            {readAloud && roundStarted && promptText && (
+              <button
+                type="button"
+                data-mm-read-aloud="1"
+                onClick={() => speakAloud(promptText)}
+                style={{ minHeight: 44, padding: '6px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.45)', background: 'rgba(255,255,255,.14)', color: '#fff', fontWeight: 900, cursor: 'pointer' }}
+              >
+                <span aria-hidden="true">🔊 </span>Read aloud
+              </button>
+            )}
           </div>
           <div
             aria-label={roundStarted ? `${Math.ceil(remainingMs / 1000)} seconds left` : `Round starts in ${Math.ceil(startsInMs / 1000)} seconds`}
@@ -437,6 +455,9 @@ export function ChallengeRound({
           </div>
         </div>
         {paceMode && endsAtMs > 0 && <div style={{ fontWeight: 900 }}>Round closes in {formatClock(remainingMs)}</div>}
+        {/* Their clock runs longer than the projector's; say why, on their own
+            screen only (nobody else's shows who has extra time). */}
+        {personalClock.extended && roundStarted && <div data-mm-extended-time="1" style={{ fontSize: 13, fontWeight: 800, opacity: .9 }}>Your extra time is on — this clock is yours.</div>}
 
         <div style={{ display: 'flex', gap: 5 }} aria-hidden="true">
           {Array.from({ length: Math.max(1, Number(room.roundCount) || 1) }).map((_, pip) => (
@@ -546,18 +567,14 @@ export function ChallengeRound({
               // A championship strategy ranks the round first; the points above
               // are round performance, and placement points arrive at round close.
               ? `+${Number(result.pointsAwarded) || 0} round points · ${(Number(result.totalScore) || 0).toLocaleString()} championship points so far`
-              : `+${Number(result.pointsAwarded) || 0} points · Total ${(Number(result.totalScore) || 0).toLocaleString()}${result.rank ? ` · Rank #${result.rank}` : ''}`}
+              // Their own points only: no rank while the class is still
+              // answering (their place comes with the round's results).
+              : `+${Number(result.pointsAwarded) || 0} points · Total ${(Number(result.totalScore) || 0).toLocaleString()}`}
           </div>
           {!result.secondChance && (result.speedBonus > 0 || result.streakBonus > 0) && <div style={{ marginTop: 4, fontSize: 13 }}>Accuracy base {Number(result.basePoints) || 0} · Speed +{Number(result.speedBonus) || 0} · Streak +{Number(result.streakBonus) || 0}</div>}
         </section>
       )}
 
-      {showLeaderboard && (
-        <section style={{ padding: 16, borderRadius: 14, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', textAlign: 'left', color: '#eef1f6' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}><strong>Top 5</strong>{standings?.self && <span style={{ color: '#9fb0cc', fontSize: 13 }}>You: {standings.self.tied ? 'T-' : '#'}{standings.self.rank} · {standings.self.score.toLocaleString()}</span>}</div>
-          <MiniLeaderboard standings={standings} playerKey={playerKey} alias={alias} presentation={presentation} />
-        </section>
-      )}
     </div>
   );
 }
@@ -570,7 +587,7 @@ export function ChallengeRound({
  * the projector shows, and a refresh or a reconnect reads it back unchanged.
  * (It never waits on the standings listener, which a rush pauses during play.)
  */
-function StudentRoundResults({ room, playerKey, guidance, presentation, rushRound = false }) {
+function StudentRoundResults({ room, stage, playerKey, guidance, presentation, rushRound = false }) {
   const roundIndex = Number(room.currentRound) || 0;
   const summary = useRoundSummary(room.roomId, roundIndex, true);
   const previousSummary = usePreviousRoundSummary(room.roomId, roundIndex, true);
@@ -578,7 +595,25 @@ function StudentRoundResults({ room, playerKey, guidance, presentation, rushRoun
     () => roundResultsView({ summary, previousSummary, selfKey: playerKey }),
     [summary, previousSummary, playerKey],
   );
-  return <StudentRoundResultsCard view={view} presentation={presentation} guidance={guidance} rushRound={rushRound} />;
+  // THE WORKED SOLUTION, once nobody can answer this round. The server
+  // publishes it after the round closes — and holds it while a Second Chance
+  // replay of the question may still come — and the room lists it as revealed;
+  // only then is it read. This screen adds its own gate on top: it asks only
+  // at the results stage of a closed round, never while a round is open.
+  const roundClosed = stage === CHALLENGE_STAGE.ROUND_RESULTS && room.roundState === 'closed';
+  const solution = useRoundSolution(room.roomId, roundIndex, roundClosed && solutionRevealed(room, roundIndex));
+  const solutionState = roundClosed ? roundSolutionState({ room, roundIndex, solution, roundClosed }) : SOLUTION_STATE.NONE;
+  return (
+    <StudentRoundResultsCard
+      view={view}
+      presentation={presentation}
+      guidance={guidance}
+      rushRound={rushRound}
+      solutionSlot={<RoundSolutionPanel state={solutionState} solution={solution} />}
+      // The projector's top few, never a small class's last place.
+      boardLimit={projectorBoardLimit(room, PUBLIC_TOP_COUNT, view?.standings?.length ?? view?.fieldSize ?? null)}
+    />
+  );
 }
 
 // One id per browser tab, kept across a refresh of that tab: the teacher's
@@ -610,6 +645,11 @@ const challengeSessionId = () => {
   } catch {
     return fresh();
   }
+};
+
+// This tab's sessionStorage, or null where the browser refuses it.
+const tabStorage = () => {
+  try { return window.sessionStorage; } catch { return null; }
 };
 
 const exitButton = { minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
@@ -658,6 +698,14 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const [joining, setJoining] = useState(false);
   // The round a student walked in on, when they joined a game already running.
   const [joinedAtRound, setJoinedAtRound] = useState(null);
+  // EXTENDED TIME. The student's own multiplier: the join's answer for this
+  // room, else their own invite (readable only by them). Never the room's
+  // `maxTimeMultiplier`, which says that someone has more time, not who.
+  const [joinedTimeMultiplier, setJoinedTimeMultiplier] = useState(null);
+  // Rounds that closed while this device was away (challengeMissedRounds.js).
+  const [missedNotice, setMissedNotice] = useState('');
+  // The student's own end-of-game recap (challengeRecapModel.js); null shows nothing.
+  const [recap, setRecap] = useState(null);
   const [error, setError] = useState('');
   const roomId = invite?.roomId || null;
   const playerKey = invite?.playerKey || joinedPlayerKey || null;
@@ -722,6 +770,9 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     setEverInSync(false);
     setRoomMissing(false);
     setJoinedAtRound(null);
+    setJoinedTimeMultiplier(null);
+    setMissedNotice('');
+    setRecap(null);
     if (!roomId) return undefined;
     launchDiagnosticsRef.current = { roomId, ...readLaunchDiagnostics(roomId) };
     collectLaunchEvent('listener_attached', null);
@@ -914,6 +965,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     joinLiveChallenge({ roomId })
       .then((reply) => {
         if (reply?.playerKey) setJoinedPlayerKey(String(reply.playerKey));
+        if (reply?.timeMultiplier !== undefined) setJoinedTimeMultiplier(storedTimeMultiplier(reply.timeMultiplier));
         // LATE JOIN. A rostered student who arrives after the start plays from
         // the round that is open now (the server records it, and a round that
         // already closed is not counted against them); the screen says so once.
@@ -933,6 +985,56 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       })
       .finally(() => setJoining(false));
   }, [roomId, room, joining, selfRow?.joined]);
+
+  // MISSED ROUNDS. Each server copy of the room is compared with the last round
+  // this tab saw (sessionStorage keeps it across a reload). A device that comes
+  // back — a reload, a reconnect, a wake from sleep — to a later round reads the
+  // results of the rounds in between once, and says which closed without this
+  // student's answer. A copy from the device's cache is not the server's word.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    if (!roomId || !playerKey || !room || room.roomId !== roomId || roomFromCache || !everInSync) return;
+    const now = seenRoundOf(room);
+    if (!now) return;
+    const storage = tabStorage();
+    const lastSeen = readLastSeenRound(storage, roomId);
+    writeLastSeenRound(storage, roomId, now);
+    const rounds = roundsClosedWhileAway({ lastSeen, now, joinedAtRound, finished: room.status === 'finished' });
+    if (!rounds.length) return;
+    const scheduledRoundCount = Number(room.scheduledRoundCount || room.roundCount) || 0;
+    // Not cancelled by the next snapshot: the memory above has already moved
+    // on, so this read is the only chance to say it.
+    Promise.all(rounds.map((roundIndex) => readLiveChallengeRound(roomId, roundIndex)
+      .then((summary) => ({ roundIndex, summary }))
+      .catch(() => ({ roundIndex, summary: null }))))
+      .then((results) => {
+        const missed = unansweredRounds(results, playerKey);
+        if (missed.length && mountedRef.current) setMissedNotice(missedRoundsNotice(missed, { scheduledRoundCount }));
+      });
+  }, [roomId, playerKey, room?.roomId, room?.status, room?.currentRound, room?.roundState, roomFromCache, everInSync]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // THE RECAP of a finished game, asked for once. Until the server can answer
+  // (or if it refuses), the screen simply shows no recap: the final card has
+  // already said how the game went.
+  const recapAskedRef = useRef(null);
+  useEffect(() => {
+    if (!roomId || room?.status !== 'finished' || recapAskedRef.current === roomId) return undefined;
+    recapAskedRef.current = roomId;
+    let cancelled = false;
+    const scheduledRoundCount = Number(room.scheduledRoundCount || room.roundCount) || 0;
+    getLiveChallengeMatchRecap({ roomId })
+      .then((reply) => { if (!cancelled) setRecap(normalizeMatchRecap(reply, { roomId, scheduledRoundCount })); })
+      .catch(() => { if (!cancelled) setRecap(null); });
+    return () => { cancelled = true; };
+  }, [roomId, room?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // READ ALOUD, for a student whose support plan grants text-to-speech, on a
+  // browser that can speak.
+  const readAloud = useMemo(
+    () => resolveSupportEntitlements(studentProfile).granted?.textToSpeech === true && speechAvailable(),
+    [studentProfile],
+  );
 
   if (!invite || !roomId) {
     return <div style={{ padding: 40, textAlign: 'center' }}><h2>No Live Challenge is waiting.</h2><button type="button" onClick={onExit}>{exitLabel}</button></div>;
@@ -961,11 +1063,13 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const guidance = studentGuidance({ room, stage, joinedAtRound });
   const connection = studentConnectionState({ online, fromCache: roomFromCache, everInSync });
   // The header: the student's own score from their own row (it moves the
-  // moment their answer lands) and their place from the class's snapshot (at
-  // most about a second behind). A paused listener (a rush round) holds values
-  // from before the round: the header shows nothing it cannot keep current.
+  // moment their answer lands). Never their place: a rank in the corner of
+  // every round is a rank under the question (liveChallengePrivacy.mjs) — it
+  // comes with each round's results instead. A paused listener (a rush round)
+  // holds values from before the round: the header shows nothing it cannot
+  // keep current.
   const headerRow = selfEntry && room.status === 'running' && selfFresh ? selfEntry : null;
-  const headerPlace = headerRow && projectionFresh && standings?.self ? shortPlaceText(standings.self) : null;
+  const timeMultiplier = joinedTimeMultiplier ?? (invite?.roomId === roomId ? storedTimeMultiplier(invite?.timeMultiplier) : 1);
   const lateJoinNote = joinedAtRound !== null && joinedAtRound === roundIndex && stage === CHALLENGE_STAGE.ROUND_ACTIVE
     ? <StudentGuidance compact guidance={guidance} />
     : null;
@@ -996,7 +1100,6 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
                   {(headerRow.liveScore ?? headerRow.score).toLocaleString()}
                   <span style={{ marginLeft: 6, fontSize: 12, color: '#c3d2ea' }}>{presentation.total.short}</span>
                 </div>
-                {headerPlace && <div style={{ fontSize: 12, fontWeight: 900, color: '#c3d2ea' }}>{headerPlace} of {standings.count}</div>}
               </div>
             )}
             <button
@@ -1009,6 +1112,12 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </div>
         </header>
         {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{error}</div>}
+        {missedNotice && (
+          <div role="status" data-mm-missed-rounds="1" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14, padding: '11px 14px', borderRadius: 10, background: 'rgba(23,54,95,.9)', border: '1px solid rgba(138,180,248,.4)', color: '#dbeafe', fontWeight: 800 }}>
+            <span>{missedNotice}</span>
+            <button type="button" onClick={() => setMissedNotice('')} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Got it</button>
+          </div>
+        )}
 
         {room.status === 'lobby' && (
           <StudentLobbyCard room={room} alias={invite.alias} joining={joining} playerCount={Math.max(standings?.count || 0, selfRow?.joined ? 1 : 0)} />
@@ -1038,13 +1147,12 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
             key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
             room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}
             alias={invite.alias}
-            playerKey={playerKey}
-            standings={standings}
             selfEntry={selfEntry}
             studentProfile={studentProfile}
             persistResult
             liveShell
-            presentation={presentation}
+            timeMultiplier={timeMultiplier}
+            readAloud={readAloud}
             beforeQuestion={(
               <>
                 {lateJoinNote}
@@ -1055,12 +1163,12 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         )}
 
         {stage === CHALLENGE_STAGE.ROUND_RESULTS && (
-          <StudentRoundResults room={room} playerKey={playerKey} guidance={guidance} presentation={presentation} rushRound={rushRoom} />
+          <StudentRoundResults room={room} stage={stage} playerKey={playerKey} guidance={guidance} presentation={presentation} rushRound={rushRoom} />
         )}
 
         {room.status === 'finished' && (
           <div style={{ display: 'grid', gap: 16 }}>
-            {finalSelf && finalSelf.rank !== null && finalSelf.rank <= 3 && <Confetti pieces={28} />}
+            {finalSelf && finalPlaceIsHeadline(finalSelf.rank) && <Confetti pieces={28} />}
             <StudentFinalCard
               selfRow={finalSelf}
               presentation={presentation}
@@ -1070,7 +1178,14 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               rush={rushRoom}
               rewardsSlot={renderMatchRewards && invite?.roomId ? renderMatchRewards(invite.roomId, { offered: rewardSummaryLines(room.rewardSummary) }) : null}
               loading={!finalStandings}
+              // A Warm-Up game's accuracy is the student's Warm-Up grade.
+              warmup={Boolean(room.assignmentId)}
+              highlights={recapHighlights(recap)}
+              // A teacher's full standings put every place on the projector.
+              fullStandings={roomShowsFullStandings(room)}
+              boardLimit={projectorBoardLimit(room, PUBLIC_TOP_COUNT, finalStandings?.count ?? null)}
             />
+            <StudentMatchRecap recap={recap} />
             <button type="button" onClick={onExit} style={{ ...exitButton, justifySelf: 'center' }}>{exitLabel}</button>
           </div>
         )}
