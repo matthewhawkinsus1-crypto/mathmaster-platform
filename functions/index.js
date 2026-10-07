@@ -13967,73 +13967,30 @@ exports.getMyMathPathSkillProgress = onCall((request) => withPathCallableDiagnos
 
 const WEEKLY_PATH_GOAL_SNAPSHOTS = "weeklyPathGoalSnapshots";
 
-function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord }) {
-  const weekKey = String(goal?.weekKey || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey) || !Number.isFinite(Date.parse(`${weekKey}T00:00:00Z`))) {
-    throw new HttpsError("invalid-argument", "A valid weekly Path weekKey is required.");
-  }
-  const classId = String(classRecord?.classId || "").trim();
-  const courseId = String(classRecord?.course || "").trim();
-  if (!classId || !courseId) throw new HttpsError("failed-precondition", "Your MathMaster class is not fully configured yet.");
-  if (goal?.courseId && String(goal.courseId) !== courseId) {
-    throw new HttpsError("failed-precondition", "This weekly Path proposal belongs to a different course.");
-  }
-  const requested = Math.max(3, Math.min(6, Number(goal?.goalSessions) || 4));
-  const proposed = Array.isArray(goal?.sessions) ? goal.sessions.slice(0, requested) : [];
-  if (!proposed.length) throw new HttpsError("failed-precondition", "MathMaster could not build any weekly Path sessions for this week.");
+// The canonicalizers every weekly-slot decision uses on this side of the wire.
+const WEEKLY_SLOT_TEKS_TOOLS = Object.freeze({
+  canonicalTeks: mathPath.canonicalAlignmentKey,
+  displayTeks: mathPath.displayAlignmentKey,
+  normalizeFramework: normalizePathAssessmentFramework,
+});
 
-  const sessions = proposed.map((session, index) => {
-    const slot = index + 1;
-    const displayCode = mathPath.displayAlignmentKey(mathPath.canonicalAlignmentKey(session?.teksCode || session?.skillId));
-    if (!displayCode) throw new HttpsError("invalid-argument", `Weekly Path slot ${slot} has no valid standard.`);
-    const context = normalizePathAssessmentFramework(session?.context) || "course";
-    const dok = Math.max(1, Math.min(4, Math.round(Number(session?.dok) || 2)));
-    const difficultyBand = Math.max(1, Math.min(5, Math.round(Number(session?.difficultyBand) || 3)));
-    const suppliedKey = String(session?.weeklySlotKey || "").trim();
-    const weeklySlotKey = suppliedKey || [
-      slot,
-      String(session?.skillId || ""),
-      displayCode,
-      String(session?.purpose || "practice"),
-      context,
-      dok,
-      difficultyBand,
-    ].join("|");
-    if (weeklySlotKey.length > 300) throw new HttpsError("invalid-argument", `Weekly Path slot ${slot} key is too long.`);
-    return {
-      slot,
-      weeklySlotKey,
-      skillId: String(session?.skillId || "").slice(0, 180) || null,
-      teksCode: displayCode,
-      purpose: String(session?.purpose || "practice").slice(0, 60),
-      context,
-      dok,
-      difficultyBand,
-      studentLabel: session?.studentLabel ? String(session.studentLabel).slice(0, 180) : null,
-      purposeLabel: session?.purposeLabel ? String(session.purposeLabel).slice(0, 120) : null,
-      studentExplanation: session?.studentExplanation ? String(session.studentExplanation).slice(0, 400) : null,
-      targetReason: session?.targetReason ? String(session.targetReason).slice(0, 180) : null,
-      status: "notStarted",
-    };
-  });
-
-  return {
-    schemaVersion: 1,
-    studentId,
-    classId,
-    courseId,
-    weekKey,
-    dueAt: Number(goal?.dueAt) || null,
-    goalSessions: requested,
-    sessions,
-    ccmr: goal?.ccmr && typeof goal.ccmr === "object" ? {
-      expectation: String(goal.ccmr.expectation || "none").slice(0, 40),
-      framework: String(goal.ccmr.framework || "auto").slice(0, 40),
-      transferCount: Math.max(0, Number(goal.ccmr.transferCount) || 0),
-      satisfied: goal.ccmr.satisfied !== false,
-      shortfallReason: goal.ccmr.shortfallReason ? String(goal.ccmr.shortfallReason).slice(0, 160) : null,
-    } : null,
-  };
+// The freeze — every slot field, and each slot's sanitized "Swap a skill"
+// alternatives — lives in shared/weeklyPathSlotAuthority.mjs, so the Teacher
+// Path Simulator freezes a week by the same rule. Its errors already carry the
+// HttpsError code to answer with.
+async function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord }) {
+  const slotAuthority = await import("./shared/weeklyPathSlotAuthority.mjs");
+  try {
+    return slotAuthority.freezeWeeklyPathGoalProposal(goal, {
+      studentId,
+      classId: classRecord?.classId,
+      courseId: classRecord?.course,
+      ...WEEKLY_SLOT_TEKS_TOOLS,
+    });
+  } catch (error) {
+    if (error?.name === "WeeklyPathGoalError") throw new HttpsError(error.code, error.message);
+    throw error;
+  }
 }
 
 /** Freeze the student's proposed autonomous week exactly once. */
@@ -14044,7 +14001,7 @@ exports.resolveWeeklyPathGoalSnapshot = onCall(async (request) => {
   if (!studentSnapshot.exists) throw new HttpsError("not-found", "Your MathMaster student record is unavailable.");
   const classRecord = await loadStudentClass(db, studentSnapshot.data());
   if (!classRecord) throw new HttpsError("failed-precondition", "Your MathMaster class has not been assigned yet.");
-  const proposed = sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord });
+  const proposed = await sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord });
   const ref = db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${proposed.weekKey}`);
   const assigned = await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(ref);
@@ -14635,33 +14592,38 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   }
 
   // Weekly launches are resolved against the frozen server commitment. The
-  // browser may choose which assigned row the student clicks, but it cannot
-  // turn that row into another TEKS, framework, DOK or difficulty.
+  // browser may choose which assigned row the student clicks — and, on a row
+  // frozen with "Swap a skill" alternatives, which of those standards to
+  // practise — but it cannot turn that row into any other TEKS, framework, DOK
+  // or difficulty. The rule is shared with the Teacher Path Simulator
+  // (shared/weeklyPathSlotAuthority.mjs).
   const requestedWeekKey = String(request.data?.weekKey || "").trim() || null;
   const requestedWeeklySlotKey = String(request.data?.weeklySlotKey || "").trim() || null;
   let weeklySlot = null;
+  let weeklySwap = null;
   if (requestedWeeklySlotKey || requestedWeekKey) {
     if (!requestedWeeklySlotKey || !requestedWeekKey || !/^\d{4}-\d{2}-\d{2}$/.test(requestedWeekKey)) {
       throw new HttpsError("invalid-argument", "weekKey and weeklySlotKey are both required for an assigned weekly session.");
     }
     const snapshot = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${requestedWeekKey}`).get();
-    if (!snapshot.exists) throw new HttpsError("failed-precondition", "This weekly commitment has not been assigned yet. Return to My Math Path and reload the week.");
-    const weeklyGoal = snapshot.data() || {};
-    if (studentClass?.classId && weeklyGoal.classId !== studentClass.classId) {
-      throw new HttpsError("failed-precondition", "This weekly commitment belongs to a different class.");
-    }
-    weeklySlot = (Array.isArray(weeklyGoal.sessions) ? weeklyGoal.sessions : [])
-      .find((slot) => String(slot?.weeklySlotKey || "") === requestedWeeklySlotKey) || null;
-    if (!weeklySlot) throw new HttpsError("failed-precondition", "That weekly Path slot is no longer part of the assigned week.");
-    const assignedTarget = mathPath.canonicalAlignmentKey(weeklySlot.teksCode);
-    if (!assignedTarget || assignedTarget !== targetAlignmentKey) {
-      throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly standard.");
-    }
-    const assignedFramework = normalizePathAssessmentFramework(weeklySlot.context);
-    if (assessmentFramework && assessmentFramework !== assignedFramework) {
-      throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly assessment context.");
-    }
-    assessmentFramework = assignedFramework;
+    const slotAuthority = await import("./shared/weeklyPathSlotAuthority.mjs");
+    const authorization = slotAuthority.authorizeWeeklySlotLaunch({
+      goal: snapshot.exists ? (snapshot.data() || {}) : null,
+      weeklySlotKey: requestedWeeklySlotKey,
+      targetAlignmentKey,
+      requestedFramework: assessmentFramework,
+      // Which option the browser says it picked. A label, never a permission:
+      // the target must still be one of the slot's frozen standards.
+      chosenSkillId: String(request.data?.chosenSkillId || "").trim().slice(0, 180) || null,
+      classId: studentClass?.classId || null,
+      ...WEEKLY_SLOT_TEKS_TOOLS,
+    });
+    if (!authorization.ok) throw new HttpsError(authorization.code, authorization.message, { reason: authorization.reason });
+    weeklySlot = authorization.slot;
+    weeklySwap = authorization.swapped
+      ? { swappedFromTeks: authorization.swappedFromTeks, chosenAlternative: authorization.chosenAlternative }
+      : null;
+    assessmentFramework = authorization.assessmentFramework;
   }
 
   // A weekly slot can supply the assessment framework after the initial request
@@ -14828,6 +14790,11 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       intendedDok: weeklySlot?.dok || null,
       intendedDifficultyBand: weeklySlot?.difficultyBand || null,
       weeklyPurpose: weeklySlot?.purpose || null,
+      // A swap is recorded, not hidden: the frozen standard the slot named and
+      // the alternative the student practised instead. The slot key above is
+      // unchanged, so the completion still fills the slot it was launched for.
+      swappedFromTeks: weeklySwap?.swappedFromTeks || null,
+      chosenAlternative: weeklySwap?.chosenAlternative || null,
       requiredQuestions,
       target: { alignmentKey: targetAlignmentKey },
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
