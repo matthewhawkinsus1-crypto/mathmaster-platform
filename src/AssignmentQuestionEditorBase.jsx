@@ -29,7 +29,8 @@ import {
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
-import { normalizeQuestionWeight, suggestedQuestionWeight } from './platform/grading/questionWeights.js';
+import { normalizeQuestionWeight, questionWeightShares, suggestedQuestionWeight } from './platform/grading/questionWeights.js';
+import { V5_SECTION_TITLES } from './platform/contract/assignmentSchemaV5.js';
 import {
   carryQuestionValue,
   describeQuestionValue,
@@ -110,6 +111,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       .reduce((total, question) => total + normalizeQuestionWeight(question), 0),
     [questions],
   );
+  // Each section is graded and exported on its own, so a weight is shown as
+  // its share of its section's grade as well as of the whole assignment's.
+  const weightShares = useMemo(() => questionWeightShares(questions), [questions]);
 
   const copyAiWeightReview = async () => {
     setWeightReviewBusy(true);
@@ -595,7 +599,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     if (hasLiveProtection && changedWeights.length > 0) {
       const proceed = await confirmAction({
         title: `Recalculate live grades using ${changedWeights.length} new question weight${changedWeights.length === 1 ? '' : 's'}?`,
-        message: 'Student answers, attempts, and partial-credit history will stay exactly as recorded. Their current assignment percentages will be recalculated from those same records using the new weights, and MathMaster will queue Google Classroom to reconcile its grade.',
+        message: 'Student answers, attempts, and partial-credit history will stay exactly as recorded. Their assignment grade, and the grade of each section a re-weighted question is in, will be recalculated from those same records using the new weights. MathMaster will queue Google Classroom to reconcile those grades, and Grade Transfer will mark anything already exported whose grades change as Changed since export.',
         confirmLabel: 'Recalculate Grades',
       });
       if (!proceed) return;
@@ -705,7 +709,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                         <span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: '10px', fontWeight: 900 }}>{metadataSummary.difficultyLabel}</span>
                         <span title={describeQuestionValue(question).sentence} data-question-value-source={describeQuestionValue(question).source || 'legacy'} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '10px', fontWeight: 900 }}>
                           GRADE ×{normalizeQuestionWeight(question)}
-                          {excluded || totalGradeWeight <= 0 ? '' : ` · ${((normalizeQuestionWeight(question) / totalGradeWeight) * 100).toFixed(1)}%`}
+                          {!weightShares[index] ? '' : weightShares[index].sectionCount > 1
+                            ? ` · ${weightShares[index].sectionShare.toFixed(1)}% of ${V5_SECTION_TITLES[weightShares[index].role] || 'its section'} · ${weightShares[index].assignmentShare.toFixed(1)}% of assignment`
+                            : ` · ${weightShares[index].assignmentShare.toFixed(1)}%`}
                         </span>
                         {weightReviewReasons[String(question.questionId)] && (
                           <span
