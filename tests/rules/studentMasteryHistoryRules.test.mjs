@@ -82,6 +82,13 @@ test('an authorized teacher and the root admin read it; any other teacher does n
   await assertFails(getDocs(collection(teacherA(), 'studentMasteryHistory')));
 });
 
+test('before a first snapshot, the student reads "none yet"; a teacher\'s read is refused (the rule reads the document\'s list)', async () => {
+  // The teacher's read-only My Progress treats exactly this refusal as "no
+  // history yet" (src/components/student/MyMathPathApp.jsx loadMasteryHistory).
+  await assertSucceeds(getDoc(doc(env.authenticatedContext('uid-new', { role: 'student', studentId: 'S_NEW' }).firestore(), 'studentMasteryHistory/S_NEW')));
+  await assertFails(getDoc(doc(teacherA(), 'studentMasteryHistory/S_NEW')));
+});
+
 test('signed-out and role-less visitors read nothing', async () => {
   await assertFails(getDoc(doc(anonymous(), PATH)));
   await assertFails(getDoc(doc(roleless(), PATH)));

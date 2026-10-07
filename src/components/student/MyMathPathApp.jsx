@@ -361,10 +361,18 @@ export const MyMathPathExperience = ({
   // by the rules) but not call a student-only callable; the simulator has no
   // mastery trigger, and grades its synthetic week with the callable's own
   // builder over its production-shaped sessions.
-  const loadMasteryHistory = useMemo(
-    () => (sessionProvider ? null : () => fetchStudentMasteryHistory(studentId)),
-    [sessionProvider, studentId],
-  );
+  const loadMasteryHistory = useMemo(() => {
+    if (sessionProvider) return null;
+    if (!readOnly) return () => fetchStudentMasteryHistory(studentId);
+    // A teacher's read of a history that does not exist yet is refused by the
+    // rules (they test the document's own authorized list), which would look
+    // exactly like an outage for every student until their first new answer.
+    // Before a first snapshot there is nothing to show either way.
+    return () => fetchStudentMasteryHistory(studentId).catch((caught) => {
+      if (caught?.code === 'permission-denied') return null;
+      throw caught;
+    });
+  }, [sessionProvider, readOnly, studentId]);
   const loadWeeklyHistory = useMemo(() => {
     if (sessionProvider) {
       return () => buildWeeklyPathHistory({

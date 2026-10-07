@@ -129,8 +129,12 @@ test('My Progress is its own tab in My Math Path, and App imports what it render
 });
 
 test('each surface gets only what it can read: student, read-only teacher, simulator', () => {
-  const mastery = region(app, 'const loadMasteryHistory = useMemo(', ');', 'mastery loader');
-  assert.match(mastery, /sessionProvider \? null : \(\) => fetchStudentMasteryHistory\(studentId\)/);
+  const mastery = region(app, 'const loadMasteryHistory = useMemo(() => {', '}, [sessionProvider, readOnly, studentId]);', 'mastery loader');
+  assert.match(mastery, /if \(sessionProvider\) return null;/, 'the simulator never reads a real student\'s history');
+  assert.match(mastery, /if \(!readOnly\) return \(\) => fetchStudentMasteryHistory\(studentId\);/);
+  // Read-only: a refused read of a not-yet-written history is "none yet", and
+  // only that — any other failure still surfaces.
+  assert.match(mastery, /if \(caught\?\.code === 'permission-denied'\) return null;\s*throw caught;/);
   assert.match(app, /import \{ fetchStudentMasteryHistory \} from '\.\.\/\.\.\/platform\/mastery\/masteryHistoryStore\.js';/);
 
   const weekly = region(app, 'const loadWeeklyHistory = useMemo(() => {', '}, [sessionProvider, readOnly, assignedWeeklyGoal]);', 'weekly loader');
