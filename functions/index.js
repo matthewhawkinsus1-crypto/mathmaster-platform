@@ -3598,7 +3598,9 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
   }
 
   // The derived per-student documents are single records, not collections.
-  for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules"]) {
+  // The mastery history follows its profile: a new teacher reads it, and an
+  // earlier non-origin teacher stops reading it, on the same move.
+  for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules", "studentMasteryHistory"]) {
     const ref = db.collection(collectionName).doc(studentId);
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await ref.get();
@@ -18589,11 +18591,16 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     const dok = Number(evidence.questionSnapshot?.dok) || null;
     const familyId = evidence.questionSnapshot?.familyId || null;
     const masteryRule = await import("./shared/masteryRule.mjs");
+    // Growth over time: one compact snapshot per week, written in this same
+    // transaction from the same profiles (functions/shared/masteryHistory.mjs).
+    const masteryHistory = await import("./shared/masteryHistory.mjs");
+    const historyRef = db.collection(masteryHistory.MASTERY_HISTORY_COLLECTION).doc(studentId);
 
     await db.runTransaction(async (transaction) => {
-      const [application, profileSnapshot] = await Promise.all([
+      const [application, profileSnapshot, historySnapshot] = await Promise.all([
         transaction.get(applicationRef),
         transaction.get(profileRef),
+        transaction.get(historyRef),
       ]);
       if (application.exists) return;
       const profiles = profileSnapshot.exists ? { ...(profileSnapshot.data()?.profiles || {}) } : {};
@@ -18639,16 +18646,32 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
       });
 
       // The mastery profile inherits the evidence's authorization context, so
-      // a derived record is never readable by anyone the source was not.
+      // a derived record is never readable by anyone the source was not. The
+      // history below inherits the very same context object.
+      const authorization = masteryHistory.derivedMasteryAuthorization(evidence);
       transaction.set(profileRef, {
         profiles,
         studentId,
-        classId: evidence.classId ?? null,
-        originClassId: evidence.originClassId ?? evidence.classId ?? null,
-        originTeacherEmail: evidence.originTeacherEmail ?? null,
-        authorizedTeacherEmails: Array.isArray(evidence.authorizedTeacherEmails) ? evidence.authorizedTeacherEmails : [],
+        ...authorization,
         updatedAt: Date.now(),
       }, { merge: true });
+      // An addition, never a gate: if a snapshot cannot be built, the profile
+      // update above still lands and the history simply skips this answer.
+      let historyDocument = null;
+      try {
+        historyDocument = masteryHistory.buildMasteryHistoryDocument({
+          existing: historySnapshot.exists ? historySnapshot.data() : null,
+          profiles,
+          studentId,
+          authorization,
+          occurredAt: evidence.occurredAt,
+          now: Date.now(),
+        });
+      } catch (error) {
+        logger.warn("Mastery history snapshot skipped", { studentId, eventKey, message: error?.message || String(error) });
+      }
+      // Whole, not merged: the pruned weeks map replaces the old one.
+      if (historyDocument) transaction.set(historyRef, historyDocument);
       transaction.set(applicationRef, { studentId, eventKey, appliedAt: Date.now() });
     });
   },
