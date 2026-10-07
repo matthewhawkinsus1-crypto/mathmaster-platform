@@ -240,14 +240,20 @@ function choiceRuntimeNamespace(question = {}, sourceKey = 'question', choices =
 // them) and sanitizes the stored item again for every response to the
 // browser. Hashing a runtime id a second time handed the browser options that
 // matched nothing in the answer key, so every option — the right one included
-// — was graded wrong. An issued id therefore passes through unchanged, which
-// makes sanitizing an issued item idempotent. Author ids ("opt-1") never have
-// this shape and are still replaced.
+// — was graded wrong.
+//
+// So when the SERVER re-sends an item it issued and stored, it says so
+// (`buildSanitizedQuestion(stored, { issued: true })`) and the runtime ids
+// pass through unchanged: sanitizing an issued item is idempotent. The
+// decision comes from the caller, never from the id's shape. A raw bank option
+// that merely looks like `choice_<28 hex>` is still replaced, so an author id
+// can never reach the browser as-is (public/private id equality is the leak
+// the semantic-fidelity audit checks for).
 const RUNTIME_CHOICE_ID = /^choice_[0-9a-f]{28}$/;
 
-function choiceRuntimeId(question, sourceKey, choices, choice, index) {
+function choiceRuntimeId(question, sourceKey, choices, choice, index, { keepIssued = false } = {}) {
   const authored = authoredChoiceId(choice, index);
-  if (RUNTIME_CHOICE_ID.test(authored)) return authored;
+  if (keepIssued && RUNTIME_CHOICE_ID.test(authored)) return authored;
   return opaqueId(
     'choice',
     choiceRuntimeNamespace(question, sourceKey, choices),
@@ -267,14 +273,14 @@ function choiceIdMap(question, sourceKey, choices) {
   return map;
 }
 
-function normalizeChoices(choices, question = {}, sourceKey = 'question') {
+function normalizeChoices(choices, question = {}, sourceKey = 'question', { keepIssued = false } = {}) {
   return (Array.isArray(choices) ? choices : []).slice(0, 12).map((choice, index) => ({
-    id: choiceRuntimeId(question, sourceKey, choices, choice, index),
+    id: choiceRuntimeId(question, sourceKey, choices, choice, index, { keepIssued }),
     label: authoredChoiceLabel(choice),
   })).filter((choice) => choice.label !== '');
 }
 
-function normalizeResponseFields(fields = [], question = {}) {
+function normalizeResponseFields(fields = [], question = {}, { keepIssued = false } = {}) {
   const safeSymbols = (value) => (Array.isArray(value) ? value : [])
     .map((symbol) => String(symbol || '').trim())
     .filter(Boolean)
@@ -300,7 +306,7 @@ function normalizeResponseFields(fields = [], question = {}) {
       // notation"). Presentation only.
       responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
       placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
-      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices, question, `field:${String(field?.id || `response-${index + 1}`)}`) } : {}),
+      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices, question, `field:${String(field?.id || `response-${index + 1}`)}`, { keepIssued }) } : {}),
     };
   });
 }
@@ -439,7 +445,9 @@ function sanitizeContext(context) {
 // `toolPayload` comes from buildPublicToolPayload, which the caller awaits.
 // Passing it in rather than fetching it here keeps this function synchronous
 // for the many call sites that do not need a tool.
-function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed, attemptsUsed = 0, toolPayload = null } = {}) {
+// `issued`: true only when the caller is re-sending an item it already issued
+// and stored (its options already carry runtime ids). See choiceRuntimeId.
+function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed, attemptsUsed = 0, toolPayload = null, issued = false } = {}) {
   return {
     // The authentic tool, by allowlist, or nothing at all. A question whose
     // tool has no contract is not issued — it is never downgraded into the
@@ -505,9 +513,9 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
         : [],
     } : null,
     prompt: String(question.prompt || ''),
-    choices: normalizeChoices(question.choices, question, 'question'),
+    choices: normalizeChoices(question.choices, question, 'question', { keepIssued: issued }),
     formulaLatex: question.formulaLatex ? String(question.formulaLatex) : null,
-    responseFields: normalizeResponseFields(question.responseFields, question),
+    responseFields: normalizeResponseFields(question.responseFields, question, { keepIssued: issued }),
     // What the student has to look at to answer. Never anything they have to
     // work out.
     stimulus: sanitizeStimulus(question.stimulus),
