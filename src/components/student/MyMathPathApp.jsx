@@ -24,6 +24,7 @@ import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
 import { CCMR_EXPECTATION, buildWeeklyGoal, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
 import { fetchMyWeeklyPathCompletions, fetchTeacherWeeklyPathCompletions, resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
 import { collectWeeklyPathSessions } from '../../../functions/shared/weeklyPathCompletion.mjs';
+import { describeWeeklySessionEnd, sessionLaunchKey } from '../../platform/path/pathSessionEnd.js';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { applyWeeklySlotChoices, mergeWeeklyGoalSnapshot, resolveWeeklySlotChoices } from '../../platform/path/weeklyPathChoice.js';
@@ -109,6 +110,9 @@ export const MyMathPathExperience = ({
   // point — a simulator that renders a copy of the student experience is
   // simulating the copy.
   masteryData = { masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} },
+  // The live server mastery document (App.jsx's subscription). The session end
+  // screen reads it to show the skills a session moved once the trigger lands.
+  serverMasteryProfiles = null,
   evidenceEvents = [],
   skillProgressByTEKS = {},
   // The Teacher Path Simulator forces assessment evidence directly — "what
@@ -399,6 +403,13 @@ export const MyMathPathExperience = ({
     });
   }, [weeklyGoal, weeklyChoices, weeklyInProgress, weeklyCompletions, coverageLoaded, weeklyAlternativeLaunchable]);
 
+  // The session that just finished, so its end screen can offer the next
+  // weekly session (or say the week is done) from the week WITH it counted.
+  const [finishedSession, setFinishedSession] = useState(null);
+  const weeklySessionEnd = useMemo(() => describeWeeklySessionEnd({
+    goal: weeklyGoalWithChoices, completions: weeklyCompletions, inProgress: weeklyInProgress, finishedSession,
+  }), [weeklyGoalWithChoices, weeklyCompletions, weeklyInProgress, finishedSession]);
+
   // CCMR. The components have existed since Batch 9; what was missing was any
   // route a student could take to reach them, and the evidence to fill them.
   const [goals, setGoals] = useState(() => readCcmrGoals(studentId));
@@ -463,6 +474,7 @@ export const MyMathPathExperience = ({
     }
 
     setCoverageNotice(null);
+    setFinishedSession(null);
     setSessionConfig({
       targetAlignmentKey: toCanonicalKey(teksCode),
       sessionKind: options.sessionKind || 'practice',
@@ -536,6 +548,7 @@ export const MyMathPathExperience = ({
     : null;
 
   const returnToDashboard = () => {
+    setFinishedSession(null);
     setSessionConfig(null);
     setActiveTab('path');
     setWeeklyRefreshKey((value) => value + 1);
@@ -642,7 +655,17 @@ export const MyMathPathExperience = ({
       )}
       {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} retentionReport={retentionReport} skillProgressByTEKS={skillProgressByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoalWithChoices} weeklyProgress={weeklyProgress} weeklyCompletions={weeklyCompletions} completedSlots={completedSlots} weeklyInProgress={weeklyInProgress} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
-      {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => { setWeeklyRefreshKey((value) => value + 1); onReload?.(); }} />}
+      {/* Keyed per launch: "Start session N of M" from the end screen opens a
+          fresh container instead of carrying the last review into it. */}
+      {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer
+        key={sessionLaunchKey(sessionConfig)}
+        {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard}
+        masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS}
+        liveServerMasteryProfiles={sessionProvider ? null : serverMasteryProfiles}
+        weeklySessionEnd={weeklySessionEnd}
+        onStartNextWeeklySession={readOnly ? null : startWeeklySession}
+        onSessionComplete={(finished) => { setFinishedSession(finished || null); setWeeklyRefreshKey((value) => value + 1); onReload?.(); }}
+      />}
     </div>
   );
 };

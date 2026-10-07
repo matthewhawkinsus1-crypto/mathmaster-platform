@@ -251,7 +251,8 @@ test('one retention report feeds the map, the banner and the focus card, and a f
   assert.match(learningPath, /retentionDue=\{retentionReport\.pendingProbes\}/);
   assert.match(app, /<MyMathPathDashboard [^\n]*retentionReport=\{retentionReport\}/);
   // A finished check reloads the schedules the report is computed from.
-  assert.match(app, /onSessionComplete=\{\(\) => \{ setWeeklyRefreshKey\(\(value\) => value \+ 1\); onReload\?\.\(\); \}\}/);
+  // (The handler may also capture the finished session for the end screen.)
+  assert.match(app, /onSessionComplete=\{\([^)]*\) => \{[^}]*setWeeklyRefreshKey\(\(value\) => value \+ 1\);[^}]*onReload\?\.\(\);[^}]*\}\}/);
   assert.match(region(app, 'const loadState = useCallback(async () => {', '}, [studentId, assignments]);', 'loadState'), /fetchStudentMasteryState\(studentId, \{ assignments \}\)/);
 
   const path = executableSource(read('src/components/student/StudentLearningPath.jsx'));

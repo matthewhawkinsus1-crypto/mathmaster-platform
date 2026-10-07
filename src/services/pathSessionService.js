@@ -9,6 +9,7 @@ import {
 } from '../config/executionMode.js';
 import { generateRuntimeUUID } from '../utils/idUtils.js';
 import { toCanonicalKey } from '../utils/teksUtils.js';
+import { buildPathSessionRecap } from '../../functions/shared/pathSessionRecap.mjs';
 
 // The live My Math Path runtime.
 //
@@ -65,6 +66,7 @@ const pathOperationLabel = Object.freeze({
   issueNextQuestion: 'prepare the next secure question',
   submitPathResponse: 'check this response',
   getMyMathPathSkillProgress: 'load your completed Path passes',
+  getMyPathSessionRecap: 'load the review of this session',
 });
 
 const normalizePathCallableError = (caught, operation) => {
@@ -181,6 +183,20 @@ export const fetchMyMathPathSkillProgress = async () => {
     return { success: true, byTeksCode: {}, skillsWithCompletedPasses: 0, totalCompletedPasses: 0 };
   }
   return invokePathCallable('getMyMathPathSkillProgress', {});
+};
+
+/**
+ * The finished session's recap: the questions missed or partly credited, each
+ * with the student's answer, the correct answer and the worked solution. The
+ * server refuses it for a session that is not completed, and so does the
+ * sandbox (which records no entries).
+ */
+export const fetchPathSessionRecap = async ({ sessionId }) => {
+  assertRuntimeAvailable();
+  if (usingMockRuntime()) {
+    return buildPathSessionRecap({ session: mockSessions.get(sessionId) || null, entries: [] });
+  }
+  return invokePathCallable('getMyPathSessionRecap', { sessionId });
 };
 
 export const fetchNextSanitizedQuestion = async ({ sessionId }) => {

@@ -10,6 +10,42 @@ import { responseClosesQuestion } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
 import { describeRetentionCheckOutcome } from '../../platform/retention/retentionCheckPresentation.js';
+import { SESSION_END_STEP, chooseSessionEndNextStep } from '../../platform/path/pathSessionEnd.js';
+import {
+  SKILLS_UPDATE_PATIENCE_MS, describeSessionSkillsMoved, snapshotMasteryAtSessionStart,
+} from '../../platform/mastery/sessionSkillMovement.js';
+import { weeklyStartLabel } from './WeeklyPathGoalPanel.jsx';
+import MyMathPathSessionRecap from './MyMathPathSessionRecap.jsx';
+import MyMathPathSkillsMoved from './MyMathPathSkillsMoved.jsx';
+
+const END_PRIMARY = { minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
+const END_SECONDARY = { minHeight: 44, padding: '11px 18px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer' };
+
+// What the end screen leads with: the next weekly session when the week has
+// one left (chooseSessionEndNextStep), and always the way back to the Path.
+function SessionEndActions({ nextStep, onStartNext, onReturnToDashboard, showProgress = true }) {
+  const startNext = nextStep?.kind === SESSION_END_STEP.START_NEXT_WEEKLY && typeof onStartNext === 'function';
+  const next = startNext ? nextStep.nextSession : null;
+  const done = startNext ? Math.max(0, Number(nextStep.required || 0) - Number(nextStep.remaining || 0)) : 0;
+  return (
+    <div style={{ display: 'grid', gap: 10, justifyItems: 'center' }}>
+      {startNext && showProgress && nextStep.required > 0 && (
+        <p style={{ margin: 0, color: 'var(--mm-text)', fontSize: 14, fontWeight: 750, lineHeight: 1.5 }}>
+          {done} of {nextStep.required} weekly sessions done — {nextStep.remaining} to go.
+          {next?.studentLabel || next?.teksCode ? <> Next up: <strong>{next.studentLabel || next.teksCode}</strong>.</> : null}
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {startNext && (
+          <button type="button" onClick={() => onStartNext(next)} style={END_PRIMARY}>
+            {weeklyStartLabel(next, nextStep.nextInProgress, nextStep.required)}
+          </button>
+        )}
+        <button type="button" onClick={onReturnToDashboard} style={startNext ? END_SECONDARY : END_PRIMARY}>Back to My Math Path</button>
+      </div>
+    </div>
+  );
+}
 
 // The session runtime is injected.
 //
@@ -42,6 +78,15 @@ export const MyMathPathProductionContainer = ({
   completesWeeklyGoal = false,
   studentProfile,
   sessionProvider = null,
+  // The unified mastery profiles the Path renders from, and the live server
+  // profile (the live app only; null in the simulator). "Skills that moved"
+  // compares the two across this session.
+  masteryProfilesByTEKS = null,
+  liveServerMasteryProfiles = null,
+  // The week once this session is counted (describeWeeklySessionEnd), and the
+  // launcher for the next weekly session — null wherever launching is refused.
+  weeklySessionEnd = null,
+  onStartNextWeeklySession = null,
   onReturnToDashboard,
   onSessionComplete,
   onSimulationController = null,
@@ -53,6 +98,7 @@ export const MyMathPathProductionContainer = ({
     fetchNextSanitizedQuestion,
     submitStudentResponse,
     forceCurrentQuestionOutcome = null,
+    fetchPathSessionRecap = null,
   } = provider;
   const [session, setSession] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -82,6 +128,16 @@ export const MyMathPathProductionContainer = ({
   // leading with Retry and leads with the way out instead.
   const [retryCount, setRetryCount] = useState(0);
   const [slowLoad, setSlowLoad] = useState(false);
+  // Where the student's mastery stood when this session opened. Frozen at
+  // mount — the container is keyed per launch — so "Skills that moved" is
+  // measured from before the session, not from the last reload.
+  const [masteryAtStart] = useState(() => snapshotMasteryAtSessionStart({
+    masteryProfilesByTEKS,
+    serverProfiles: liveServerMasteryProfiles,
+  }));
+  const [recap, setRecap] = useState({ status: 'idle' });
+  const [recapRequest, setRecapRequest] = useState(0);
+  const [skillsPatienceExpired, setSkillsPatienceExpired] = useState(false);
 
   // One canonical launch description is reused for start and release rollover.
   // This is what keeps a frozen weekly slot, its assessment framework, and its
@@ -431,6 +487,37 @@ export const MyMathPathProductionContainer = ({
     return () => onSimulationController(null);
   }, [onSimulationController, session, currentQuestion, submitting, forceCurrentQuestionOutcome, forceOutcomeFromSimulator]);
 
+  // THE RECAP IS ASKED FOR ONLY ONCE THE SESSION IS COMPLETED. Every item in it
+  // is closed by then; the server refuses an active session regardless.
+  const sessionCompleted = session?.status === 'completed';
+  const completedSessionId = sessionCompleted ? session?.sessionId || null : null;
+  useEffect(() => {
+    if (!completedSessionId || typeof fetchPathSessionRecap !== 'function') return undefined;
+    let cancelled = false;
+    setRecap({ status: 'loading' });
+    fetchPathSessionRecap({ sessionId: completedSessionId })
+      .then((data) => { if (!cancelled) setRecap({ status: 'ready', data: data || {} }); })
+      .catch((caught) => { if (!cancelled) setRecap({ status: 'error', message: caught?.message || null }); });
+    return () => { cancelled = true; };
+  }, [completedSessionId, fetchPathSessionRecap, recapRequest]);
+
+  // The mastery trigger lands a moment after the last answer. Wait for it, but
+  // not forever: after a while the screen says where the update will appear.
+  useEffect(() => {
+    if (!sessionCompleted) return undefined;
+    const timer = setTimeout(() => setSkillsPatienceExpired(true), SKILLS_UPDATE_PATIENCE_MS);
+    return () => clearTimeout(timer);
+  }, [sessionCompleted]);
+
+  const skillsMoved = useMemo(() => describeSessionSkillsMoved({
+    session,
+    start: masteryAtStart,
+    liveServerProfiles: liveServerMasteryProfiles,
+    currentProfiles: masteryProfilesByTEKS,
+    simulated: Boolean(sessionProvider),
+    patienceExpired: skillsPatienceExpired,
+  }), [session, masteryAtStart, liveServerMasteryProfiles, masteryProfilesByTEKS, sessionProvider, skillsPatienceExpired]);
+
   if (loading) {
     return (
       <div style={{ padding: 60, textAlign: 'center', color: 'var(--mm-primary-text)' }}>
@@ -572,7 +659,17 @@ export const MyMathPathProductionContainer = ({
     const sessionAccuracy = Number(session?.summary?.correctQuestions || 0) / completedCount;
     const independentRate = Number(session?.summary?.independentSuccesses || 0) / completedCount;
     const challengePassed = sessionAccuracy >= 0.8 && independentRate >= 0.6;
-    const weeklyTargetReached = Boolean(completesWeeklyGoal && !paused);
+    // The week as it stands once THIS session is counted — by the server's
+    // completion rule, so a paused session never reads as the goal met.
+    const nextStep = chooseSessionEndNextStep({
+      session,
+      weeklyEnd: weeklySessionEnd,
+      completesWeeklyGoal,
+      canStartNext: typeof onStartNextWeeklySession === 'function',
+    });
+    const weeklyTargetReached = nextStep.kind === SESSION_END_STEP.WEEKLY_GOAL_COMPLETE;
+    const goalSessions = nextStep.required || weeklyGoalRequired;
+    const recapHasItems = recap.status === 'ready' && Array.isArray(recap.data?.items) && recap.data.items.length > 0;
     const weeklyPurposeLabel = session?.weeklySlotKey
       ? (PURPOSE_LABEL[session?.weeklyPurpose] || 'Weekly Path')
       : null;
@@ -589,6 +686,7 @@ export const MyMathPathProductionContainer = ({
     // what it showed before the Path reloads with the moved schedule.
     const retentionVerdict = paused ? null : describeRetentionCheckOutcome(session);
     return (
+      <div style={{ padding: '0 16px', boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
       <section style={{
         maxWidth: 650, margin: '36px auto', padding: weeklyTargetReached ? 38 : 30,
         border: weeklyTargetReached ? '4px solid #58a96b' : '1px solid var(--mm-border)',
@@ -598,10 +696,10 @@ export const MyMathPathProductionContainer = ({
         boxShadow: weeklyTargetReached ? '0 16px 46px rgba(19,115,51,.20)' : 'none',
       }}>
         {weeklyTargetReached && <div aria-hidden="true" style={{ fontSize: 54, lineHeight: 1, marginBottom: 8 }}>🎉</div>}
-        {/* Its own line height: the global h1 inherits body-text spacing, so a
-            title long enough to wrap ("Retention check complete") drew its two
-            lines on top of each other. */}
-        <h1 style={{ color: weeklyTargetReached ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontSize: weeklyTargetReached ? 30 : undefined, lineHeight: 1.15, marginBottom: weeklyTargetReached ? 8 : undefined }}>
+        {/* Sized here: the global h1 is 56px with no line height, so a
+            two-line title ("Current learning complete", "Retention check
+            complete") drew its lines on top of each other. */}
+        <h1 style={{ color: weeklyTargetReached ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontSize: weeklyTargetReached ? 'clamp(26px, 7vw, 32px)' : 'clamp(24px, 6vw, 30px)', lineHeight: 1.2, letterSpacing: '-0.3px', margin: '0 0 12px' }}>
           {weeklyTargetReached
             ? 'Weekly target reached!'
             : paused
@@ -626,10 +724,10 @@ export const MyMathPathProductionContainer = ({
         )}
         {weeklyTargetReached && (
           <div style={{ margin: '0 auto 16px', maxWidth: 520, color: 'var(--mm-success-text)', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
-            {weeklyGoalRequired
-              ? `You completed all ${weeklyGoalRequired} of ${weeklyGoalRequired} weekly Path sessions.`
+            {goalSessions
+              ? `You completed all ${goalSessions} of ${goalSessions} weekly Path sessions.`
               : 'You completed every assigned weekly Path session.'}
-            {' '}Free-choice paths are unlocked for the rest of the week.
+            {' '}Anything else you practise this week is extra.
           </div>
         )}
         {courseChallengeIntent && !paused && (
@@ -645,8 +743,8 @@ export const MyMathPathProductionContainer = ({
             </div>
             <p style={{ margin: '10px 0 0', color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.6 }}>
               {nextCourseLevel
-                ? `This pass is recorded on your Path card. Your next visit is Level ${nextCourseLevel} · ${coursePathLevelName(nextCourseLevel)}, with more demanding work.`
-                : 'This advanced pass is recorded on your Path card. If the mastery evidence is not complete yet, you can continue advanced practice without losing any completed passes.'}
+                ? `This round is recorded on your Path card. Your next visit is Level ${nextCourseLevel} · ${coursePathLevelName(nextCourseLevel)}, with more demanding work.`
+                : 'This Level 3 round is recorded on your Path card. If the mastery evidence is not complete yet, you can keep practising at this level without losing any completed rounds.'}
             </p>
           </div>
         )}
@@ -688,8 +786,17 @@ export const MyMathPathProductionContainer = ({
               : 'This set stays at the current level on your next visit so you can strengthen the assessment format before the difficulty rises.'}
           </div>
         )}
-        <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Back to My Math Path</button>
+        <MyMathPathSkillsMoved skillsMoved={skillsMoved} />
+        <SessionEndActions nextStep={nextStep} onStartNext={onStartNextWeeklySession} onReturnToDashboard={onReturnToDashboard} />
       </section>
+      <MyMathPathSessionRecap recap={recap} onRetry={() => setRecapRequest((value) => value + 1)} />
+      {/* A long review ends where it was read, with the same way on. */}
+      {recapHasItems && (
+        <div style={{ maxWidth: 650, margin: '-16px auto 40px' }}>
+          <SessionEndActions nextStep={nextStep} onStartNext={onStartNextWeeklySession} onReturnToDashboard={onReturnToDashboard} showProgress={false} />
+        </div>
+      )}
+      </div>
     );
   }
 

@@ -121,7 +121,8 @@ test('the Path screen offers only frozen swaps and launches what was chosen', ()
   assert.match(app, /goal=\{weeklyGoalWithChoices\}/);
   assert.match(app, /onChooseAlternative=\{chooseWeeklySlotAlternative\}/);
   assert.match(app, /<MyMathPathDashboard[^>]*weeklyGoal=\{weeklyGoalWithChoices\}/s);
-  assert.match(app, /<MyMathPathProductionContainer \{\.\.\.sessionConfig\}/);
+  // The whole session config (chosenSkillId included) reaches the container.
+  assert.match(app, /<MyMathPathProductionContainer\b[^>]*?\{\.\.\.sessionConfig\}/);
 });
 
 test('the teacher weekly table shows which slots a student swapped', () => {
