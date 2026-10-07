@@ -14,7 +14,25 @@ AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs --host=b
 Output: `tests/browser/artifacts/keyboard/report.json` (gitignored, like every
 browser artifact) plus one `tool-<scene>.json` per scene.
 
-## Bottom line
+## Status after job F (same day)
+
+The shared gaps below were fixed on `claude/student-push-f-accessibility` and
+re-measured with this script; tool-specific gaps (T1–T8) are for the wave-2
+per-tool sweep (job A's files).
+
+| Gap | Status | Where | Re-measured |
+| --- | --- | --- | --- |
+| S1 focus to `<body>` after Check | **fixed** | `src/components/common/useFocusReturnAfterLock.js`, one call in `QuestionEngine.jsx` | graphing2: lostAfterCheck 2 → 0 (and 2 again with the call removed) |
+| S2 nested figure blurs focus | **fixed** | `EnlargeableFigure.jsx` (no blur when nested) | graphing2: late drop 200 ms → none |
+| S3 Scratchpad not a real modal | **fixed** | `ScratchpadOverlay.jsx` on `<Dialog>`; Dialog recovers an opener disabled while loading | opens inside, Tab stays in, Escape asks about unsaved work, focus returns to Scratchpad |
+| S4 Tab walks out of Work View | **fixed** | `EnlargeableFigure.jsx` on `useModalDialog`; the floating calculator is an allowed layer | graphing2: dialog tabbing leaked=false, Escape closes |
+| S5 controls under the action bar off the assignment screen | **fixed** | `src/index.css` scroll-padding for every host | `--host=bare`, 31 scenes: 0 hidden stops (was 17) |
+| S6 points movable by pointer only | **fixed** | `CoordinatePlane.jsx`: Enter picks up / arrows / Enter drops / Escape | `tests/browser/graphDescription.mjs` |
+| S7 calculator ignores Escape | open — job A (the calculator) | `src/components/CalculatorPanel.jsx` | — |
+| S8 ring for custom tab stops | **fixed** | `src/index.css` global `:focus-visible` for ARIA widgets, beats inline `outline:none` | `tests/browser/accessiblePrimitives.mjs` |
+| S9 "values have not changed" dialog | open — job A (`QuestionEngine.jsx`) | `QuestionEngine.jsx` (two dialogs) | — |
+
+## Bottom line (the original measurement)
 
 * **No keyboard traps** in any of the 31 scenes (24 tools + 7 extra modes):
   Tab and Shift+Tab always got from one sentinel to the other.
