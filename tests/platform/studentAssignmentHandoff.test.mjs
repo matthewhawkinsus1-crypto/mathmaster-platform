@@ -1,0 +1,34 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolveAssignmentHandoff } from '../../src/platform/student/assignmentHandoff.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+
+test('a later unfinished section comes first', () => {
+  assert.deepEqual(resolveAssignmentHandoff({ nextIncompleteSection: { role: 'dol' }, nextIncompleteSectionLabel: 'DOL', upNext: { assignment: { id: 'b', title: 'B' } } }), { kind: 'section', label: 'DOL' });
+});
+
+test('with nothing left in this assignment, hand off to Up next', () => {
+  const upNext = { assignment: { id: 'b', title: 'Lesson 5' } };
+  assert.deepEqual(resolveAssignmentHandoff({ upNext }), { kind: 'upNext', label: 'Lesson 5', upNext });
+});
+
+test('with no Up next, go to the results page — never a finished section', () => {
+  assert.deepEqual(resolveAssignmentHandoff({}), { kind: 'results', label: 'your results' });
+  assert.equal(resolveAssignmentHandoff({ student: false }), null);
+});
+
+const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+
+test('App offers only an INCOMPLETE later section, then Up next / results (with its imports)', () => {
+  const workspace = region(app, 'const nextAvailableIncompleteSection =', 'const returnsToAssignmentResult', 'section hand-off');
+  // The fallback to an already-complete later section ("Continue to Practice"
+  // with Practice done) is gone.
+  assert.doesNotMatch(workspace, /laterNavigationSections\.find\(\(section\) => sectionNavigationTarget\(section\)\)/);
+  assert.match(workspace, /resolveAssignmentHandoff\(\{/);
+  assert.match(workspace, /resolveUpNext\(\{\s*dashboard:\s*studentUpNextDashboard\(\)/);
+  assert.match(app, /import \{[^}]*\bresolveAssignmentHandoff\b[^}]*\} from '\.\/platform\/student\/assignmentHandoff\.js'/);
+  assert.match(app, /import \{[^}]*\bresolveUpNext\b[^}]*\} from '\.\/studentDashboardModel\.js'/);
+  const engine = region(app, 'onContinueSection={', 'continueSectionLabel=', 'QuestionEngine hand-off prop');
+  assert.match(engine, /assignmentHandoff/);
+});

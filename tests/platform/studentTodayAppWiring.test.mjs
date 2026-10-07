@@ -35,3 +35,12 @@ test('Start/Continue lands on the first unfinished open question, and never on a
   // the result page (what opens when), not left on a toast.
   assert.match(entry, /if \(actionableIndex === null && user\?\.role === 'student' && !scopedSectionKey\) \{\s*openStudentAssignmentResult\(assignmentId/);
 });
+
+test('Tests & Exams carries the shared student navigation, and Back names Home', () => {
+  const exams = region(app, "studentDashboardMode === 'secureExams'", '<StudentSecureExamDashboard', 'Tests & Exams branch');
+  assert.match(exams, /<StudentGlobalNav current=\{STUDENT_DESTINATION\.SECURE_EXAMS\} onNavigate=\{navigateStudent\}/);
+  assert.match(app, /import StudentGlobalNav, \{ STUDENT_DESTINATION \} from '\.\/components\/student\/StudentGlobalNav\.jsx'/);
+  const backLabel = region(app, 'const studentAssignmentBackLabel =', 'const isLiveTeachingThisAssignment', 'assignment Back label');
+  assert.match(backLabel, /'Back to Home'/);
+  assert.doesNotMatch(backLabel, /'Back to Dashboard'/);
+});

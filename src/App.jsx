@@ -311,7 +311,8 @@ import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability
 import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor, projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
 import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRecoveryGrades.js';
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
-import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
+import { buildStudentDashboardModel, resolveNextAction, resolveUpNext } from './studentDashboardModel.js';
+import { resolveAssignmentHandoff } from './platform/student/assignmentHandoff.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import {
@@ -356,7 +357,7 @@ import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePo
 import { isSecureExamActive, useSecureExamActive } from './platform/assessment/secureExamPresence.js';
 import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from './services/assessmentLifecycleService.js';
 import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from './platform/assessment/testCycleContractEdit.js';
-import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
+import StudentGlobalNav, { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
 import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAuditTrail.jsx';
@@ -3884,6 +3885,9 @@ function App() {
   }, [practiceTracker, activeAssignmentId]);
 
   const assignmentOpenSpanRef = useRef(null);
+  // Up Next at the end of an assignment, cached per assignment/tracker/minute
+  // so a finished section does not rebuild the whole dashboard every render.
+  const studentUpNextCacheRef = useRef({ key: null, tracker: null, dashboard: null });
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
@@ -10823,12 +10827,36 @@ function App() {
     // the next AVAILABLE unfinished section. A locked DOL is intentionally
     // skipped rather than becoming a dead-end button.
     const nextAvailableIncompleteSection = laterNavigationSections.find((section) => !section.complete && sectionNavigationTarget(section));
+    // Only a section with work left: "Continue to Practice" with Practice
+    // already complete was a dead loop. With none left, hand off to Up next
+    // (what Home would recommend) or to this assignment's results.
     const nextAvailableSection = nextAvailableIncompleteSection
-      || laterNavigationSections.find((section) => sectionNavigationTarget(section));
+      // An EARLIER section still open with work left beats leaving the assignment.
+      || navigationSections.find((section) => section.role !== currentNavigationSection?.role && !section.complete && sectionNavigationTarget(section))
+      || null;
     const nextAvailableSectionTarget = nextAvailableSection ? sectionNavigationTarget(nextAvailableSection) : null;
     const nextAvailableSectionMeta = nextAvailableSection
       ? (activitySectionMeta[nextAvailableSection.role] || { label: nextAvailableSection.role })
       : null;
+    const assignmentHandoff = currentNavigationSection?.allCorrect
+      ? resolveAssignmentHandoff({
+        nextIncompleteSection: nextAvailableSectionTarget ? nextAvailableSection : null,
+        nextIncompleteSectionLabel: nextAvailableSectionMeta?.label || '',
+        upNext: !preview && user?.role === 'student' && !lifecycle.isPracticeOnly && !nextAvailableSectionTarget
+          ? resolveUpNext({ dashboard: studentUpNextDashboard(), assignmentId: activeAssignmentId })
+          : null,
+        student: !preview && user?.role === 'student',
+      })
+      : null;
+    const continueAfterSection = !assignmentHandoff
+      ? null
+      : assignmentHandoff.kind === 'section'
+        ? () => changeQuestion(nextAvailableSectionTarget.index)
+        : assignmentHandoff.kind === 'upNext'
+          ? () => (assignmentHandoff.upNext.opensResult
+            ? openStudentAssignmentResult(assignmentHandoff.upNext.assignment.id, { origin: 'assignments' })
+            : startAssignment(assignmentHandoff.upNext.assignment.id, assignmentHandoff.upNext.questionIndex ?? 0))
+          : () => openStudentAssignmentResult(activeAssignmentId, { origin: 'assignments' });
     const returnsToAssignmentResult = !preview
       && assignmentResultRoute?.assignmentId === activeAssignmentId;
     // Name the destination, not the direction. A student who opened this from
@@ -10839,7 +10867,7 @@ function App() {
         ? 'Back to Assignments'
         : studentDashboardMode === 'grades'
           ? 'Back to Grades'
-          : 'Back to Dashboard';
+          : 'Back to Home';
     const isLiveTeachingThisAssignment = preview
       && liveTeachingSession?.active
       && String(liveTeachingSession.assignmentId) === String(assignment.id);
@@ -11375,8 +11403,8 @@ function App() {
               sectionComplete={Boolean(currentNavigationSection?.allCorrect)}
               sectionLabel={currentSectionMeta.label}
               sectionQuestionCount={currentSectionQuestionCount}
-              onContinueSection={nextAvailableSectionTarget ? () => changeQuestion(nextAvailableSectionTarget.index) : null}
-              continueSectionLabel={nextAvailableSectionMeta?.label || ''}
+              onContinueSection={assignmentHandoff ? continueAfterSection : null}
+              continueSectionLabel={assignmentHandoff?.label || ''}
               onSupportEvidence={preview || lifecycle.isPracticeOnly
                 ? null
                 : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole })}
@@ -12777,8 +12805,12 @@ function App() {
    * Built in render flow rather than a useMemo because several of its providers
    * are component-scope helpers declared further down this file.
    */
-  const studentDashboard = user.role === 'student' && activeView === 'dashboard'
-    ? buildStudentDashboardModel({
+  // A hoisted declaration (not a const) so the assignment workspace, defined
+  // above, can ask for Up Next when a student finishes a section; it is only
+  // called from render paths that run after everything it reads is set up.
+  // eslint-disable-next-line no-inner-declarations
+  function buildStudentDashboardNow() {
+    return buildStudentDashboardModel({
       assignments,
       classId: user.classId || null,
       classPeriod: user.classPeriod,
@@ -12818,7 +12850,21 @@ function App() {
         // Same wrap as getAssignmentLifecycle above, and for the same reason.
         matchesSmartView: (assignment, viewId, options) => matchesSmartView(assignment, viewId, { ...options, studentId: user.id }),
       },
-    })
+    });
+  }
+  // The workspace's Up Next reads the same model, cached per assignment,
+  // tracker and minute so a finished section does not rebuild it every render.
+  // eslint-disable-next-line no-inner-declarations
+  function studentUpNextDashboard() {
+    const key = `${activeAssignmentId}|${Math.floor(now / 60000)}`;
+    const cache = studentUpNextCacheRef.current;
+    if (cache.dashboard && cache.key === key && cache.tracker === gradeDisplayTracker) return cache.dashboard;
+    const dashboard = buildStudentDashboardNow();
+    studentUpNextCacheRef.current = { key, tracker: gradeDisplayTracker, dashboard };
+    return dashboard;
+  }
+  const studentDashboard = user.role === 'student' && activeView === 'dashboard'
+    ? buildStudentDashboardNow()
     : null;
 
   if (user.role === 'student' && activeView === 'dashboard') {
@@ -12962,6 +13008,11 @@ function App() {
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {/* Tests & Exams teaches the same navigation as every other
+              student destination (it had none of its own). */}
+          <div style={{ maxWidth: 920, margin: '0 auto', padding: '16px 14px 0', boxSizing: 'border-box' }}>
+            <StudentGlobalNav current={STUDENT_DESTINATION.SECURE_EXAMS} onNavigate={navigateStudent} />
+          </div>
           <StudentSecureExamDashboard
           studentProfile={user.profile}
           onExit={() => setStudentDashboardMode('assignments')}

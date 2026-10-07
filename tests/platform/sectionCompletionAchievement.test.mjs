@@ -26,7 +26,11 @@ test('finishing a section shows a milestone card and next available section acti
   assert.match(engine, /SECTION.*COMPLETE/i);
   assert.match(engine, /Continue to \{continueSectionLabel \|\| 'next section'\}/);
   assert.match(app, /nextAvailableIncompleteSection/);
-  assert.match(app, /onContinueSection=\{nextAvailableSectionTarget/);
+  // The action continues to the next section with work left, or — with none
+  // left — hands off to Up next / results (assignmentHandoff.js); it is wired
+  // whenever a hand-off exists, which includes the next-section case.
+  assert.match(app, /onContinueSection=\{assignmentHandoff \? continueAfterSection : null\}/);
+  assert.match(app, /assignmentHandoff\.kind === 'section'\s*\?\s*\(\) => changeQuestion\(nextAvailableSectionTarget\.index\)/);
 });
 
 test('section celebration is transition based and respects reduced motion', () => {

@@ -58,7 +58,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
       <main style={{ maxWidth: 820, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div><h1 style={{ marginBottom: 4 }}>Tests &amp; Exams</h1><p style={{ color: 'var(--mm-text-muted)', marginTop: 0 }}>Your secure course tests and your college &amp; career simulations</p></div>
-          <button type="button" onClick={onExit}>Back to dashboard</button>
+          <button type="button" onClick={onExit}>← Home</button>
         </header>
         {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
         {loading ? <p>Loading…</p> : (
