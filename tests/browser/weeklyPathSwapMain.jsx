@@ -98,16 +98,24 @@ function WeekScene({
   const [choices, setChoices] = useState({});
   const [launch, setLaunch] = useState(null);
   const [factsStatus, setFactsStatus] = useState(initialFactsStatus);
+  // Until the facts load (or when the load failed) MyMathPathApp has no
+  // completions (null: no grade card, no progress) and no open sessions.
+  const settled = factsStatus === 'ready';
+  const knownCompletions = settled ? completions : null;
+  const knownInProgress = settled ? inProgress : [];
   const week = useMemo(() => mergeWeeklyGoalSnapshot({ proposed, snapshot: frozen }), [frozen]);
-  const progress = useMemo(() => evaluateWeeklyGoalProgress({ goal: week, completions, now: NOW }), [week, completions]);
+  const progress = useMemo(
+    () => (knownCompletions ? evaluateWeeklyGoalProgress({ goal: week, completions: knownCompletions, now: NOW }) : null),
+    [week, knownCompletions],
+  );
   const completedSlots = useMemo(
-    () => matchWeeklyGoalCompletions({ goal: week, completions }).matched.map((entry) => entry.matchedSlot),
-    [week, completions],
+    () => (knownCompletions ? matchWeeklyGoalCompletions({ goal: week, completions: knownCompletions }).matched.map((entry) => entry.matchedSlot) : []),
+    [week, knownCompletions],
   );
   const goal = useMemo(() => applyWeeklySlotChoices({
     goal: week,
-    choices: resolveWeeklySlotChoices({ goal: week, choices, inProgress, completions }),
-  }), [week, choices, inProgress, completions]);
+    choices: resolveWeeklySlotChoices({ goal: week, choices, inProgress: knownInProgress, completions: knownCompletions || [] }),
+  }), [week, choices, knownInProgress, knownCompletions]);
 
   const onStart = (card) => {
     // The launch MyMathPathApp.startWeeklySession would send.
@@ -115,7 +123,7 @@ function WeekScene({
       setLaunch('Launch held: the week’s sessions are not loaded yet');
       return;
     }
-    const session = weeklyLaunchSession({ session: card, inProgress });
+    const session = weeklyLaunchSession({ session: card, inProgress: knownInProgress });
     const verdict = authorizeWeeklySlotLaunch({
       goal: serverWeek,
       weeklySlotKey: session.weeklySlotKey,
@@ -144,9 +152,9 @@ function WeekScene({
       <WeeklyPathGoalPanel
         goal={goal}
         progress={progress}
-        completions={completions}
+        completions={knownCompletions}
         completedSlots={completedSlots}
-        inProgress={inProgress}
+        inProgress={knownInProgress}
         factsStatus={factsStatus}
         onRetryFacts={onRetryFacts}
         onStartSession={onStart}

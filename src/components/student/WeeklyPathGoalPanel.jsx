@@ -444,7 +444,7 @@ export default function WeeklyPathGoalPanel({
         <div role="alert" style={{
           ...CARD,
           padding: 14,
-          display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+          display: 'flex', justifyContent: 'center', gap: 12, alignItems: 'center', flexWrap: 'wrap',
           border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)',
         }}>
           <span style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.5, flex: '1 1 240px' }}>

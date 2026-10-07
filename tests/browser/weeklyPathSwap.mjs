@@ -68,14 +68,15 @@ const SCENES = [
   {
     name: 'checking',
     mustContain: ['Your Weekly Math Path', 'Checking your week…', 'Do them in any order.'],
-    mustNotContain: ['swap', 'Start session', 'Start is paused'],
+    // No completions yet: no grade card rather than a wrong one.
+    mustNotContain: ['swap', 'Start session', 'Start is paused', 'Grade so far'],
     toggles: 0,
     launchButtons: { count: 5, allDisabled: true },
   },
   {
     name: 'factsFailed',
     mustContain: ["MathMaster couldn't check which weekly sessions you've already started, so Start is paused.", 'Try again', 'Start session 1 of 4'],
-    mustNotContain: ['swap', 'Checking your week'],
+    mustNotContain: ['swap', 'Checking your week', 'Grade so far'],
     toggles: 0,
     launchButtons: { count: 5, allDisabled: true },
   },
