@@ -517,7 +517,12 @@ export const buildWeeklyRecommendations = ({
     const transferGapFramework = publishedTransferFrameworkFor({
       coverage,
       teksCode: code,
-      framework: transferGaps[0]?.framework || null,
+      // No transfer work in a week whose teacher expects none, so the gap must
+      // not relabel these skills as transfer work either. optimizeWeeklySet
+      // drops every transfer candidate when transfer is off; a student with a
+      // diagnosed gap used to lose those skills from the week entirely — down
+      // to an empty week — instead of getting them back as course work.
+      framework: allowTransfer ? (transferGaps[0]?.framework || null) : null,
     });
     const masteryEntry = masteryProfilesByTeks[code] || null;
     const retentionEntry = retentionSchedules[code] || null;
