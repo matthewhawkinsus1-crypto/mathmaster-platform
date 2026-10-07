@@ -197,6 +197,9 @@ import GradebookAssignmentBar, { GradebookClassChooser } from './components/teac
 import { classGradeProgress } from './platform/teacher/assignmentProgress.js';
 import { groupAssignmentList } from './platform/teacher/assignmentListGroups.js';
 import StudentNameLink from './components/common/StudentNameLink.jsx';
+import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';
+import Dialog from './ui/Dialog.jsx';
+import { subscribeToReadingActivity } from './components/common/readingActivity.js';
 import StudentResponseInspector from './components/teacher/StudentResponseInspector.jsx';
 import AssignmentGradeOverrideControls from './components/teacher/AssignmentGradeOverrideControls.jsx';
 
@@ -5142,6 +5145,8 @@ function App() {
     window.addEventListener('pointerdown', resetActivity, passive);
     window.addEventListener('touchstart', resetActivity, passive);
     window.addEventListener('wheel', resetActivity, passive);
+    // A screen-reader student reading the page (./components/common/readingActivity.js).
+    const stopReadingActivity = subscribeToReadingActivity(window, resetActivity);
 
     const interval = window.setInterval(() => {
       if (document.hidden) return;
@@ -5165,6 +5170,7 @@ function App() {
       window.removeEventListener('pointerdown', resetActivity, passive);
       window.removeEventListener('touchstart', resetActivity, passive);
       window.removeEventListener('wheel', resetActivity, passive);
+      stopReadingActivity();
       window.clearInterval(interval);
     };
   }, [user, activeView, activeAssignmentId, isIdle, activeSupportPresentation.disableIdleTimer]);
@@ -9982,12 +9988,13 @@ function App() {
   const renderIdleOverlay = () => {
     if (!isIdle) return null;
     return (
-      <div
+      <Dialog
         role="alertdialog"
-        aria-modal="true"
+        onClose={() => { lastActivityRef.current = Date.now(); setIsIdle(false); }}
         aria-labelledby="mathmaster-idle-title"
         aria-describedby="mathmaster-idle-detail"
         className="mathmaster-idle-overlay"
+        data-idle-prompt=""
         style={{
           position: 'fixed',
           inset: 0,
@@ -10039,7 +10046,7 @@ function App() {
             Yes, I&apos;m Back!
           </button>
         </div>
-      </div>
+      </Dialog>
     );
   };
 
@@ -10071,9 +10078,9 @@ function App() {
           padding: '20px',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          onClose={closeDeleteDialog}
+          closeOnEscape={!isDeleting}
           aria-labelledby="delete-assignment-title"
           style={{
             width: '100%',
@@ -10310,7 +10317,7 @@ function App() {
               </button>
             )}
           </div>
-        </div>
+        </Dialog>
       </div>
     );
   };
@@ -10352,9 +10359,8 @@ function App() {
           padding: '20px',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          onClose={closeExportJsonDialog}
           aria-labelledby="export-json-title"
           style={{
             width: '100%',
@@ -10398,7 +10404,7 @@ function App() {
               {exportJsonCopied ? 'Copied!' : 'Copy to Clipboard'}
             </button>
           </div>
-        </div>
+        </Dialog>
       </div>
     );
   };
@@ -10424,9 +10430,8 @@ function App() {
           padding: '24px',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          onClose={() => setTeacherScratchpadDialog(null)}
           aria-labelledby="student-work-title"
           style={{
             width: 'min(1080px, 96vw)',
@@ -10519,7 +10524,7 @@ function App() {
               </div>
             )}
           </div>
-        </div>
+        </Dialog>
       </div>
     );
   };
@@ -11038,7 +11043,7 @@ function App() {
             <div className="mathmaster-assignment-unified-top">
               <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : returnsToAssignmentResult ? 'Back to results' : 'Back to dashboard'}>←</button>
               {!assignmentNavigationCollapsed ? (
-                <div className="mathmaster-section-tabs" role="list" aria-label="Assignment sections">
+                <div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">
                   {navigationSections.map((section) => {
                     const meta = activitySectionMeta[section.role] || { label: section.role, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)' };
                     const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
@@ -11048,7 +11053,6 @@ function App() {
                     return (
                       <button
                         type="button"
-                        role="listitem"
                         key={`section-tab-${section.role}-${section.entries[0]?.index}`}
                         className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
                         style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
@@ -11284,6 +11288,11 @@ function App() {
             })}
           </div>
           )}
+          <QuestionAnnouncer
+            announceKey={`${activeAssignmentId}-${currentQuestionIndex}`}
+            position={`${currentSectionMeta.label}, question ${currentSectionQuestionNumber} of ${currentSectionQuestionCount}`}
+            containerRef={assignmentQuestionStageRef}
+          />
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             {questions[currentQuestionIndex]?.instructionalPhase
               && (preview || assignment.showInstructionalPhaseLabelsToStudents === true)
