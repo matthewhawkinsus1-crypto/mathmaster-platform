@@ -11235,9 +11235,9 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     standingsDisplay: engine.privacy.normalizeStandingsDisplay(request.data?.standingsDisplay),
     // Rounds whose worked solutions are public (liveChallengeSolutionReveal.mjs).
     revealedSolutionRounds: [],
-    // The largest extended-time multiplier among joined players, never whose
-    // (liveChallengeAccommodations.mjs). 1: nobody's clock is extended.
-    maxTimeMultiplier: 1,
+    // Whether anyone joined has extended time, set when a round opens — never
+    // who (liveChallengeAccommodations.mjs).
+    extendedTimeInPlay: false,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -11628,7 +11628,8 @@ function lifecycleHttpsError(plan) {
   return new HttpsError(
     "failed-precondition",
     plan?.message || "That Live Challenge action is not available right now.",
-    { lifecycle: plan?.code || null },
+    // Why a round is not ready (e.g. 'extended_time'), for the console's words.
+    { lifecycle: plan?.code || null, ...(plan?.readiness ? { readiness: plan.readiness } : {}) },
   );
 }
 
@@ -11728,9 +11729,17 @@ async function prepareLiveChallengeRoundOpening(db, { roomId, room, privateState
   return { roundIndex, questionId, currentQuestion, roundSeconds, solution: solutionSink.record || null };
 }
 
+/** Whether any joined player has extended time in a mode that allows it. */
+function liveChallengeExtendedTimeInPlay(engine, room, players = []) {
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  if (engine.modes.roundStructureFor(mode).id !== engine.modes.ROUND_STRUCTURE.SYNCHRONIZED_QUESTION) return false;
+  return (Array.isArray(players) ? players : [])
+    .some((player) => player?.joined === true && engine.accommodations.storedTimeMultiplier(player.timeMultiplier) > 1);
+}
+
 /** Open a round inside a transaction. Room and private state move together. */
 function applyLiveChallengeRoundOpening(transaction, {
-  engine, challenge, roomRef, privateRef, room, privateState, privatePatch = null, opening, nowMs,
+  engine, challenge, roomRef, privateRef, room, privateState, privatePatch = null, opening, nowMs, players = [],
 }) {
   const { lifecycle } = engine;
   const timingMode = challenge.normalizeChallengeTimingMode(room.timingMode);
@@ -11778,6 +11787,9 @@ function applyLiveChallengeRoundOpening(transaction, {
     roundStartedAt: startsAt,
     roundEndsAt: endsAt,
     activeRoundSeconds: opening.roundSeconds,
+    // Set at the opening, from everyone joined so far — no join or answer
+    // commits with it, so it says that someone has more time, never who.
+    extendedTimeInPlay: liveChallengeExtendedTimeInPlay(engine, room, players),
     closingStartedAt: null,
     roundClosedAt: null,
     pausedAt: null,
@@ -11805,6 +11817,13 @@ function applyLiveChallengeRoundOpening(transaction, {
 function applyLiveChallengeRoundClose(transaction, {
   engine, roomRef, privateRef, room, privateState, players, roundIndex, nowMs,
 }) {
+  // Answers given in extended time after the class's deadline reach the
+  // public rows now, with everyone else's — never while the class waits.
+  players.forEach((player) => {
+    if (player.joined !== true || !player.playerKey || Number(player.publicRowPendingRound) !== Number(roundIndex)) return;
+    transaction.set(roomRef.collection("players").doc(String(player.playerKey)), liveChallengePublicAnswerRow(player, player, roundIndex), { merge: true });
+    transaction.set(privateRef.collection("players").doc(player.studentId), { publicRowPendingRound: null }, { merge: true });
+  });
   const scoringStrategyId = engine.scoring.roomScoringStrategyId(room);
   const strategy = engine.scoring.getScoringStrategy(scoringStrategyId);
   const roundResult = engine.results.buildRoundResult({
@@ -11849,6 +11868,22 @@ function applyLiveChallengeRoundClose(transaction, {
   // standings (writeExactStandingsProjection), or the final one when the
   // match ends in the same transaction.
   return { roundResult, players: updatedPlayers, standingsAfterRound };
+}
+
+/** The public row an answer updates: anonymous counters only (alias, never a student id). */
+function liveChallengePublicAnswerRow(player, finalPlayer, roundIndex) {
+  return {
+    playerKey: player.playerKey,
+    alias: player.alias,
+    joined: true,
+    score: finalPlayer.score,
+    rawScore: finalPlayer.rawScore,
+    correctCount: finalPlayer.correctCount,
+    roundsAnswered: finalPlayer.roundsAnswered,
+    streak: finalPlayer.streak,
+    answeredRound: roundIndex,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
 }
 
 /*
@@ -11950,6 +11985,11 @@ function applyLiveChallengeRoundPlayerTotals(transaction, {
   });
 }
 
+/** Whether a room may still append Second Chance replays (the one predicate both callers use). */
+function liveChallengeSecondChancePossible(room = {}, mode = {}) {
+  return Boolean(mode?.capabilities?.secondChance) && room.secondChanceMode !== "off";
+}
+
 /*
  * SOLUTION REVEAL (liveChallengeSolutionReveal.mjs). Which rounds' worked
  * solutions may be public once `closedThrough` has closed: every closed round,
@@ -11965,7 +12005,9 @@ function liveChallengeRevealableRounds({ challenge, engine, room, privateState, 
   if (mode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) return [];
   const questionIds = Array.isArray(privateState.questionIds) ? privateState.questionIds : [];
   const scheduledRoundCount = Number(privateState.scheduledRoundCount) || questionIds.length;
-  const secondChancePossible = Boolean(mode.capabilities.secondChance) && room.secondChanceMode === "automatic";
+  // The same condition planNextLiveChallengeRound replays under, so a room
+  // that may replay never reveals early.
+  const secondChancePossible = liveChallengeSecondChancePossible(room, mode);
   let replayOf = null;
   if (finished || privateState.secondChancePlanned) replayOf = privateState.secondChanceOf || {};
   else if (!secondChancePossible) replayOf = {};
@@ -12023,7 +12065,7 @@ function planNextLiveChallengeRound({ challenge, engine, room, privateState, pla
   // Appended only once — `secondChancePlanned` stops a replay of a replay,
   // which would otherwise let a game run on as long as students kept missing.
   const mode = engine.modes.getChallengeMode(room.challengeMode);
-  if (privateState.secondChancePlanned || room.secondChanceMode === "off" || !mode.capabilities.secondChance) {
+  if (privateState.secondChancePlanned || !liveChallengeSecondChancePossible(room, mode)) {
     return { finish: true };
   }
   const scheduled = Number(privateState.scheduledRoundCount) || questionIds.length;
@@ -12126,7 +12168,9 @@ function applyLiveChallengeMatchFinalization(transaction, {
     roundEndsAt: null,
     pausedAt: null,
     finishedAt: FieldValue.serverTimestamp(),
-    ...(finished ? { recognitions } : {}),
+    // The room shows only the recognitions that name no struggle (the full
+    // list stays on the server-only result, for rewards and each recap).
+    ...(finished ? { recognitions: engine.recognitions.classVisibleRecognitions(recognitions, { warmup: Boolean(room.assignmentId) }) } : {}),
   }, { merge: true });
   transaction.set(privateRef, terminal, { merge: true });
   if (pointsHere) transaction.delete(pointerRef);
@@ -12552,9 +12596,10 @@ exports.joinLiveChallenge = onCall(async (request) => {
       ? accommodations.gameTimeMultiplierFor(gradeSnapshot.exists ? (gradeSnapshot.data()?.profile || null) : null)
       : 1;
     const joinedPlayer = { ...player, joined: true, joinedAtRound, timeMultiplier, updatedAt: FieldValue.serverTimestamp() };
-    if (timeMultiplier > accommodations.storedTimeMultiplier(room.maxTimeMultiplier)) {
-      transaction.set(roomRef, { maxTimeMultiplier: timeMultiplier, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    }
+    // Nothing about it reaches the room here: a room field that changed in
+    // the same commit as this student's public row would name them. The room
+    // learns only, when a round opens, whether anyone in it has extended time
+    // (extendedTimeInPlay).
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
     // The same identity every time: the player key and alias were fixed when
     // the room was created, so a reconnect can never mint a second player.
@@ -12717,10 +12762,11 @@ exports.startLiveChallenge = onCall(async (request) => {
   });
 
   const outcome = await db.runTransaction(async (transaction) => {
-    const [roomSnapshot, latestPrivate, latestJoined] = await Promise.all([
+    const [roomSnapshot, latestPrivate, latestJoined, privatePlayers] = await Promise.all([
       transaction.get(roomRef),
       transaction.get(privateRef),
       transaction.get(roomRef.collection("players").limit(1)),
+      transaction.get(privateRef.collection("players")),
     ]);
     if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
     if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
@@ -12733,6 +12779,7 @@ exports.startLiveChallenge = onCall(async (request) => {
     return {
       opened: applyLiveChallengeRoundOpening(transaction, {
         engine, challenge, roomRef, privateRef, room: currentRoom, privateState: latestPrivate.data() || {}, opening, nowMs: Date.now(),
+        players: playersFromSnapshot(privatePlayers),
       }),
     };
   });
@@ -12974,6 +13021,7 @@ exports.advanceLiveChallenge = onCall(async (request) => {
         privatePatch: next.privatePatch,
         opening,
         nowMs,
+        players: roundPlayers,
       }),
     };
   });
@@ -13723,19 +13771,20 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     // where they are read instead. See deriveRoundTallies.
 
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
-    transaction.set(privatePlayerRef, finalPlayer, { merge: true });
-    transaction.set(publicPlayerRef, {
-      playerKey: player.playerKey,
-      alias: player.alias,
-      joined: true,
-      score: finalPlayer.score,
-      rawScore,
-      correctCount: finalPlayer.correctCount,
-      roundsAnswered: finalPlayer.roundsAnswered,
-      streak: finalPlayer.streak,
-      answeredRound: submittedRound,
-      updatedAt: FieldValue.serverTimestamp(),
+    // AN ANSWER AFTER THE CLASS'S DEADLINE comes only from a student with
+    // extended time. Writing it to their public row now would show the class
+    // who that is (the row whose answer lands after "Time!", and its score
+    // moving on the projector). It stays private until the round closes, when
+    // the close copies it (liveChallengePublicRowAfterClose).
+    const answeredAfterClassDeadline = Boolean(latestEndsAtMs)
+      && requestArrivedAt > latestEndsAtMs + parity.SUBMISSION_ARRIVAL_GRACE_MS;
+    transaction.set(privatePlayerRef, {
+      ...finalPlayer,
+      publicRowPendingRound: answeredAfterClassDeadline ? submittedRound : null,
     }, { merge: true });
+    if (!answeredAfterClassDeadline) {
+      transaction.set(publicPlayerRef, liveChallengePublicAnswerRow(player, finalPlayer, submittedRound), { merge: true });
+    }
   });
 
   if (duplicateReceipt) return { ...duplicateReceipt, duplicate: true };

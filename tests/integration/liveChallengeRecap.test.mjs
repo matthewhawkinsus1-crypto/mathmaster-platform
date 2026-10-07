@@ -228,7 +228,12 @@ test('(d) the room\'s recognitions name aliases and player keys, never a student
     assert.deepEqual(Object.keys(entry).sort(), ['aliases', 'classWide', 'detail', 'id', 'label', 'playerKeys']);
   });
   const result = await resultOf(GA);
-  assert.deepEqual(result.recognitions, room.recognitions, 'the rewards read the same list the podium shows');
+  // The room shows only what names no struggle (most improved and best
+  // comeback stay in each recap); the server-only result keeps them all, so
+  // the rewards and recaps read the full list.
+  const { classVisibleRecognitions } = await import(path.join(repo, 'functions/shared/liveChallengeRecognitions.mjs'));
+  assert.deepEqual(room.recognitions, classVisibleRecognitions(result.recognitions, { warmup: false }));
+  assert.ok(room.recognitions.every((entry) => !['mostImproved', 'bestComeback'].includes(entry.id)));
 });
 
 /* ============ GAME B: personal bests and exactly-once rewards ============ */
@@ -310,9 +315,13 @@ test('(b) a replayed question\'s solution is held until its replay has closed', 
   assert.equal((await solutionDoc(GC, 1)).exists, false, 'held: the replay plan is still not known');
   await roundCommand('advanceLiveChallenge', GC);
   await playRound(GC, [[R1, true], [R2, true]]);
-  assert.equal((await solutionDoc(GC, 1)).exists, true, 'the last scheduled round closed: round 1 is not replayed, so it is published');
-  assert.equal((await solutionDoc(GC, 2)).exists, true);
+  // The last scheduled round closed with a replay planned: EVERY scheduled
+  // round stays held, so which ones are left out never says which question
+  // comes back.
+  assert.equal((await solutionDoc(GC, 1)).exists, false, 'round 1 is not replayed, but is held with the rest');
+  assert.equal((await solutionDoc(GC, 2)).exists, false);
   assert.equal((await solutionDoc(GC, 0)).exists, false, 'round 0 is replayed next: still held');
+  assert.deepEqual((await roomOf(GC)).revealedSolutionRounds || [], []);
 
   await roundCommand('advanceLiveChallenge', GC);
   const state = (await privateRef(GC).get()).data();
@@ -323,7 +332,9 @@ test('(b) a replayed question\'s solution is held until its replay has closed', 
   assert.equal((await solutionDoc(GC, 3)).exists, false);
   await answer(GC, R2, { correct: true });
   await roundCommand('closeLiveChallengeRound', GC);
-  assert.equal((await solutionDoc(GC, 0)).exists, true, 'the replay closed: published');
+  assert.equal((await solutionDoc(GC, 0)).exists, true, 'the last replay closed: published');
+  assert.equal((await solutionDoc(GC, 1)).exists, true, 'and the rest with it');
+  assert.equal((await solutionDoc(GC, 2)).exists, true);
   const replay = await solutionDoc(GC, 3);
   assert.equal(replay.exists, true);
   assert.equal(replay.data().originalRoundIndex, 0);

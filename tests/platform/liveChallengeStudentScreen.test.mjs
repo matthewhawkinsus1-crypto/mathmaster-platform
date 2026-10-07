@@ -107,7 +107,7 @@ test('extended time: the round counts down to, and buzzes at, the student\'s own
   // The live game passes the student's own multiplier — never the room's largest.
   assert.match(liveRound, /timeMultiplier=\{timeMultiplier\}/);
   assert.match(main, /const timeMultiplier = joinedTimeMultiplier \?\? \(invite\?\.roomId === roomId \? storedTimeMultiplier\(invite\?\.timeMultiplier\) : 1\);/);
-  assert.doesNotMatch(executableSource(student), /maxTimeMultiplier/, 'the room\'s largest multiplier says nothing about this student');
+  assert.doesNotMatch(executableSource(student), /maxTimeMultiplier|extendedTimeInPlay/, 'the room\'s flag says nothing about this student');
   // The round stays mounted after the class's deadline until the room closes it.
   assert.match(main, /\{!rushRoom && room\.status === 'running' && room\.currentQuestion && roundOpen && clockReady && \(\s*<ChallengeRound/);
 });

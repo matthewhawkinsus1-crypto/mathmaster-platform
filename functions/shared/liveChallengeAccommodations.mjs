@@ -11,9 +11,11 @@
  *
  * Who has extended time is never public. The student's own multiplier lives
  * on their private player record and their own invite (readable by them
- * only). The room carries only the LARGEST multiplier among joined players
- * (`maxTimeMultiplier`), so the host can time the close and the projector can
- * say "a few students are still finishing" — never who.
+ * only). The room carries only whether anyone joined has extended time,
+ * set when a round opens (`extendedTimeInPlay`) — never in a commit that also
+ * changes one student's public row — so the projector can say "a few students
+ * are still finishing", never who. An answer given after the class's
+ * deadline reaches the student's public row only when the round closes.
  *
  * Where a mode allows it: a synchronized question round (Standard, Solver
  * Race). A question-set race (Graph Feature Rush) ranks how much each player

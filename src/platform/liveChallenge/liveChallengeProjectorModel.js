@@ -220,7 +220,7 @@ export const podiumRecognitionRows = (room = {}) => {
  * EXTENDED TIME (functions/shared/liveChallengeAccommodations.mjs). The class's
  * deadline has passed but the round is still open because a student with
  * extended time has not finished. The room says only that someone has more
- * time (`maxTimeMultiplier`), never who — and so do the screens: "A few
+ * time (`extendedTimeInPlay`, set when the round opened — never who) — and so do the screens: "A few
  * students are still finishing", not a frozen "Time!". Only a synchronized
  * question round is extended (never a Graph Feature Rush), and once everyone
  * has answered there is nobody left to wait for.
@@ -230,7 +230,7 @@ export const EXTENDED_TIME_HOST_HINT = 'Time is up for the class. The round wait
 export const roundWaitingOnExtendedTime = ({ room = {}, locked = false, joinedCount = 0, answeredCount = 0 } = {}) => (
   locked === true
   && room?.challengeMode !== 'graphFeatureRush'
-  && Number(room?.maxTimeMultiplier) > 1
+  && room?.extendedTimeInPlay === true
   && Number(joinedCount) > Number(answeredCount)
 );
 

@@ -122,6 +122,9 @@ export const normalizeMatchRecap = (reply = null, { roomId = null, scheduledRoun
     recognitions: Object.freeze((Array.isArray(reply.recognitions) ? reply.recognitions : []).map(normalizeLine).filter(Boolean).slice(0, 6)),
     firstGame: reply.firstGame === true,
     countsAsWarmUp: reply.warmup?.countsAsWarmUp === true,
+    // The server withholds worked solutions while another game the student
+    // is in can still be answered (it may ask the same questions).
+    solutionsWithheld: reply.solutionsWithheld === true,
   });
 };
 

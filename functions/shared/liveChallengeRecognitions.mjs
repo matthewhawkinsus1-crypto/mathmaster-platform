@@ -258,6 +258,22 @@ export const publicRecognitions = (recognitions = []) => list(recognitions).map(
   classWide: entry.classWide === true,
 }));
 
+/*
+ * WHICH RECOGNITIONS THE WHOLE CLASS SEES. Most improved and best comeback
+ * are earned by missing questions first: named on the projector, they tell
+ * the class who struggled — and in a Warm-Up game that accuracy is a grade.
+ * So those two are private (the student's own recap, and their rewards), and
+ * a Warm-Up game shows only the class-wide team effort. Steadiest and first to
+ * answer say nothing about a miss and stay public in a standalone game.
+ */
+export const PUBLIC_RECOGNITION_IDS = Object.freeze([
+  RECOGNITION_ID.STEADIEST,
+  RECOGNITION_ID.FIRST_TO_ANSWER,
+  RECOGNITION_ID.TEAM_EFFORT,
+]);
+export const classVisibleRecognitions = (recognitions = [], { warmup = false } = {}) => list(recognitions)
+  .filter((entry) => (warmup ? entry?.id === RECOGNITION_ID.TEAM_EFFORT : PUBLIC_RECOGNITION_IDS.includes(entry?.id)));
+
 /** The recognitions one player key earned, in the words they read themselves. */
 export const recognitionsForPlayer = (recognitions = [], playerKey = null) => {
   if (!playerKey) return [];

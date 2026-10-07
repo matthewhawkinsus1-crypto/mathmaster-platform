@@ -170,13 +170,13 @@ test('no recognitions field (an older room, or recognitions off) shows nothing',
 /* --------------------------------- extended time --------------------------------- */
 
 test('past the class deadline with extended time in play: "still finishing", never a frozen Time!', () => {
-  const room = { challengeMode: 'standard', maxTimeMultiplier: 1.5 };
+  const room = { challengeMode: 'standard', extendedTimeInPlay: true };
   assert.equal(roundWaitingOnExtendedTime({ room, locked: true, joinedCount: 8, answeredCount: 7 }), true);
   assert.match(EXTENDED_TIME_MESSAGE, /A few students are still finishing — results in a moment/);
   // Not before the deadline, not without anyone with extended time, not when
   // everyone has answered, and never in a Graph Feature Rush.
   assert.equal(roundWaitingOnExtendedTime({ room, locked: false, joinedCount: 8, answeredCount: 7 }), false);
-  assert.equal(roundWaitingOnExtendedTime({ room: { maxTimeMultiplier: 1 }, locked: true, joinedCount: 8, answeredCount: 7 }), false);
+  assert.equal(roundWaitingOnExtendedTime({ room: { extendedTimeInPlay: false }, locked: true, joinedCount: 8, answeredCount: 7 }), false);
   assert.equal(roundWaitingOnExtendedTime({ room: {}, locked: true, joinedCount: 8, answeredCount: 7 }), false);
   assert.equal(roundWaitingOnExtendedTime({ room, locked: true, joinedCount: 8, answeredCount: 8 }), false);
   assert.equal(roundWaitingOnExtendedTime({ room: { ...room, challengeMode: 'graphFeatureRush' }, locked: true, joinedCount: 8, answeredCount: 7 }), false);

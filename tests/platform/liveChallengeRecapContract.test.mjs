@@ -145,7 +145,10 @@ const baseDocuments = () => ({
 test('the recap gives a student their own rounds, solutions, bests and recognitions — exactly the contract', async () => {
   const db = fakeDb(baseDocuments());
   const response = await recap.buildLiveChallengeMatchRecap(db, { roomId: ROOM, studentId: ME, fail });
-  assert.deepEqual(Object.keys(response).sort(), ['finalizedAtMs', 'firstGame', 'personalBests', 'recognitions', 'roomId', 'rounds', 'self', 'status', 'title', 'warmup']);
+  // solutionsWithheld: added so a recap never serves answers while another
+  // game the student is in can still be answered (the audit follow-up).
+  assert.deepEqual(Object.keys(response).sort(), ['finalizedAtMs', 'firstGame', 'personalBests', 'recognitions', 'roomId', 'rounds', 'self', 'solutionsWithheld', 'status', 'title', 'warmup']);
+  assert.equal(response.solutionsWithheld, false);
   assert.equal(response.status, 'finished');
   assert.deepEqual(response.self, {
     joined: true, rank: 2, tied: false, playerCount: 2, score: 400, correctCount: 1, roundsAnswered: 2, roundsAvailable: 2,

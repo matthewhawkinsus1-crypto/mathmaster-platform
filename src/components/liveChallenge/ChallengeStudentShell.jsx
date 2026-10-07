@@ -271,6 +271,11 @@ export function StudentMatchRecap({ recap = null }) {
           </ul>
         </div>
       )}
+      {recap.solutionsWithheld && (
+        <p data-mm-recap-solutions-withheld="1" style={{ margin: 0, color: '#c3d2ea' }}>
+          The worked solutions come back when the game you are in now ends.
+        </p>
+      )}
       {recap.rounds.length > 0 && (
         <ol data-mm-recap-rounds="1" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 10 }}>
           {recap.rounds.map((round) => (

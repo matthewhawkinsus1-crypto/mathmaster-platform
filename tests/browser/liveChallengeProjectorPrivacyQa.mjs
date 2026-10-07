@@ -416,8 +416,10 @@ try {
   const created = await roomOf(roomId);
   check(created.standingsDisplay === 'topFew', `the room's standingsDisplay is ${created.standingsDisplay}`, 'the room is created with standingsDisplay topFew');
   for (const id of IDS) await botCall('joinLiveChallenge', id, { roomId });
-  const joined = await waitForRoom(roomId, (room) => Number(room.maxTimeMultiplier) > 1, 10_000);
-  check(joined, 'joining with extended time did not raise room.maxTimeMultiplier', `room.maxTimeMultiplier is ${joined?.maxTimeMultiplier}`);
+  // Joining changes nothing public about extended time (a room field changing
+  // with one student's join would name them); the round's opening says it.
+  const afterJoin = await roomOf(roomId);
+  check(afterJoin.extendedTimeInPlay === false && afterJoin.maxTimeMultiplier === undefined, 'joining with extended time changed the public room', 'joining with extended time leaves the public room unchanged');
   await toProjector(teacher);
   check(await waitForAttr(teacher, '[data-mm-lobby-count]', 'data-mm-lobby-count', '8', 15_000), 'the projector lobby does not count 8', 'the projector lobby counts 8 players');
 
@@ -443,7 +445,8 @@ try {
 
   // THE CLASS'S DEADLINE PASSES with student 8 still inside their own.
   const open1 = await roomOf(roomId);
-  const extendedEndsMs = ms(open1.startsAt) + (ms(open1.endsAt) - ms(open1.startsAt)) * Number(open1.maxTimeMultiplier || 1);
+  const extendedEndsMs = ms(open1.startsAt) + (ms(open1.endsAt) - ms(open1.startsAt)) * 1.5;
+  check(open1.extendedTimeInPlay === true, 'the round opened without extendedTimeInPlay', 'the round opened with extendedTimeInPlay (never who)');
   log(`  · round 1 lasts ${Math.round((ms(open1.endsAt) - ms(open1.startsAt)) / 1000)} s for the class, ${Math.round((extendedEndsMs - ms(open1.startsAt)) / 1000)} s with extended time`);
   await waitForDeadline(roomId, 1_800);
   check(await waitForAttr(teacher, '[data-mm-arena-clock]', 'data-mm-arena-clock', 'extendedTime', 5_000), 'the projector shows a frozen clock while students with extended time finish', 'the projector says students are still finishing');

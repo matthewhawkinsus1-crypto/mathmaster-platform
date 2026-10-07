@@ -46,11 +46,13 @@ test('with Second Chance possible, scheduled rounds are held until the replay pl
   assert.deepEqual(revealableRounds({ closedThrough: 2, scheduledRoundCount: 5, secondChancePossible: true, replayOf: null }), []);
 });
 
-test('a replayed question is held until its replay closes; the rest are released with the plan', () => {
+test('while replays are planned every scheduled round is held until the last replay closes', () => {
   // Rounds 0..4 scheduled; replays: round 5 replays 1, round 6 replays 3.
+  // Releasing 0, 2 and 4 at the last scheduled close would tell the class, by
+  // the rounds left out, which questions are coming back.
   const replayOf = { 5: 1, 6: 3 };
-  assert.deepEqual(revealableRounds({ closedThrough: 4, scheduledRoundCount: 5, secondChancePossible: true, replayOf }), [0, 2, 4]);
-  assert.deepEqual(revealableRounds({ closedThrough: 5, scheduledRoundCount: 5, secondChancePossible: true, replayOf }), [0, 1, 2, 4, 5]);
+  assert.deepEqual(revealableRounds({ closedThrough: 4, scheduledRoundCount: 5, secondChancePossible: true, replayOf }), []);
+  assert.deepEqual(revealableRounds({ closedThrough: 5, scheduledRoundCount: 5, secondChancePossible: true, replayOf }), [5]);
   assert.deepEqual(revealableRounds({ closedThrough: 6, scheduledRoundCount: 5, secondChancePossible: true, replayOf }), [0, 1, 2, 3, 4, 5, 6]);
 });
 
@@ -216,4 +218,47 @@ test('a student\'s board lists the same top few as the projector: never a small 
   // …and every student board uses it instead of a fixed five.
   assert.doesNotMatch(shell, /look="student" limit=\{5\}/);
   assert.equal((shell.match(/look="student" limit=\{boardLimit\}/g) || []).length, 3);
+});
+
+/* ---------- audit follow-ups: nothing public names an accommodated student ---------- */
+
+test('joining with extended time writes nothing to the room; the round\'s opening says only that someone has it', () => {
+  const join = regionOf(server, 'exports.joinLiveChallenge = onCall', '\nexports.');
+  // A room field changing in the same commit as one student's public row would name them.
+  assert.doesNotMatch(join, /transaction\.set\(roomRef/);
+  const opening = regionOf(server, 'function applyLiveChallengeRoundOpening(', '\n}\n');
+  assert.match(opening, /extendedTimeInPlay: liveChallengeExtendedTimeInPlay\(engine, room, players\)/);
+  const start = regionOf(server, 'exports.startLiveChallenge = onCall', '\nexports.');
+  assert.match(start, /players: playersFromSnapshot\(privatePlayers\)/);
+});
+
+test('an answer after the class\'s deadline reaches the public row only when the round closes', () => {
+  const submit = regionOf(server, 'exports.submitLiveChallengeResponse = onCall', '\nexports.');
+  assert.match(submit, /if \(!answeredAfterClassDeadline\) \{\s*transaction\.set\(publicPlayerRef, liveChallengePublicAnswerRow\(/);
+  assert.match(submit, /publicRowPendingRound: answeredAfterClassDeadline \? submittedRound : null/);
+  const close = regionOf(server, 'function applyLiveChallengeRoundClose(', '\n}\n');
+  assert.match(close, /Number\(player\.publicRowPendingRound\) !== Number\(roundIndex\)/);
+  assert.match(close, /transaction\.set\(roomRef\.collection\("players"\)\.doc\(String\(player\.playerKey\)\), liveChallengePublicAnswerRow\(player, player, roundIndex\)/);
+});
+
+test('the recap withholds worked solutions while another game the student is in can still be answered', () => {
+  const recap = readFileSync(new URL('../../functions/lib/liveChallengeRecap.js', import.meta.url), 'utf8');
+  assert.match(recap, /solutionsWithheld = liveRoom\.exists && \["lobby", "running"\]\.includes\(liveRoom\.data\(\)\?\.status\)/);
+  assert.match(recap, /const available = !solutionsWithheld && Boolean\(/);
+});
+
+test('the class sees only recognitions that name no struggle; a Warm-Up game only team effort', async () => {
+  const { classVisibleRecognitions } = await import('../../functions/shared/liveChallengeRecognitions.mjs');
+  const all = ['mostImproved', 'steadiest', 'bestComeback', 'firstToAnswer', 'teamEffort'].map((id) => ({ id }));
+  assert.deepEqual(classVisibleRecognitions(all).map((entry) => entry.id), ['steadiest', 'firstToAnswer', 'teamEffort']);
+  assert.deepEqual(classVisibleRecognitions(all, { warmup: true }).map((entry) => entry.id), ['teamEffort']);
+  const finalization = regionOf(server, 'function applyLiveChallengeMatchFinalization(', '\n}\n');
+  assert.match(finalization, /recognitions: engine\.recognitions\.classVisibleRecognitions\(recognitions, \{ warmup: Boolean\(room\.assignmentId\) \}\)/);
+});
+
+test('the reveal and the replay plan read Second Chance through one predicate', () => {
+  const reveal = regionOf(server, 'function liveChallengeRevealableRounds(', '\n}\n');
+  const plan = regionOf(server, 'function planNextLiveChallengeRound(', '\n}\n');
+  assert.match(reveal, /liveChallengeSecondChancePossible\(room, mode\)/);
+  assert.match(plan, /!liveChallengeSecondChancePossible\(room, mode\)/);
 });

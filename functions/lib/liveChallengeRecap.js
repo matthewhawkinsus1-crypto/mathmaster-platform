@@ -24,6 +24,7 @@
 const MATCH_RESULTS = "liveChallengeMatchResults";
 const ROOMS = "liveChallengeRooms";
 const PRIVATE = "liveChallengePrivate";
+const INVITES = "liveChallengeInvites";
 // A match has at most a few dozen rounds; this bounds the solution reads.
 const MAX_RECAP_ROUNDS = 60;
 // Personal-best history reads run a few students at a time.
@@ -114,6 +115,19 @@ async function buildLiveChallengeMatchRecap(db, { roomId, studentId, fail }) {
   if (!standing) throw fail("permission-denied", "This Live Challenge was not assigned to you.");
   if (result.status !== "finished") throw fail("failed-precondition", "This game was cancelled, so it has no recap.");
 
+  // A LIVE GAME ELSEWHERE. Play Again (or the next Warm-Up) can draw the same
+  // bank questions, and a question with no randomised numbers has the same
+  // answer. While the student's invite points to a game that can still be
+  // answered, this recap shows how they did but withholds the worked
+  // solutions; they come back once that game ends.
+  const inviteSnapshot = await db.collection(INVITES).doc(studentId).get();
+  const liveRoomId = String(inviteSnapshot.exists ? (inviteSnapshot.data()?.roomId || "") : "").trim();
+  let solutionsWithheld = false;
+  if (liveRoomId && liveRoomId !== roomId) {
+    const liveRoom = await db.collection(ROOMS).doc(liveRoomId).get();
+    solutionsWithheld = liveRoom.exists && ["lobby", "running"].includes(liveRoom.data()?.status);
+  }
+
   const secondChanceOf = result.secondChanceOf && typeof result.secondChanceOf === "object" ? result.secondChanceOf : {};
   const played = Math.min(MAX_RECAP_ROUNDS, Math.max(0, Number(result.playedRoundCount) || 0));
   const roundIndexes = Array.from({ length: played }, (_, index) => index);
@@ -134,7 +148,7 @@ async function buildLiveChallengeMatchRecap(db, { roomId, studentId, fail }) {
     const original = Object.prototype.hasOwnProperty.call(secondChanceOf, String(round))
       ? integerOrNull(secondChanceOf[String(round)])
       : null;
-    const available = Boolean(solution?.available && solution.solutionReview);
+    const available = !solutionsWithheld && Boolean(solution?.available && solution.solutionReview);
     return {
       roundIndex: round,
       originalRoundIndex: original,
@@ -168,6 +182,8 @@ async function buildLiveChallengeMatchRecap(db, { roomId, studentId, fail }) {
       roundsAvailable: joined ? facts.available : 0,
     },
     rounds,
+    // True while another game the student is in can still be answered.
+    solutionsWithheld,
     personalBests: bests.personalBests.map((best) => ({ ...best })),
     firstGame: bests.firstGame === true,
     recognitions: joined ? recognitions.recognitionsForPlayer(result.recognitions, standing.playerKey).map((entry) => ({ ...entry })) : [],

@@ -700,7 +700,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const [joinedAtRound, setJoinedAtRound] = useState(null);
   // EXTENDED TIME. The student's own multiplier: the join's answer for this
   // room, else their own invite (readable only by them). Never the room's
-  // `maxTimeMultiplier`, which says that someone has more time, not who.
+  // `extendedTimeInPlay`, which says that someone has more time, not who.
   const [joinedTimeMultiplier, setJoinedTimeMultiplier] = useState(null);
   // Rounds that closed while this device was away (challengeMissedRounds.js).
   const [missedNotice, setMissedNotice] = useState('');

@@ -16,9 +16,11 @@
  *   - SECOND CHANCE replays the questions the class missed most, after the
  *     last scheduled round. A solution published at round 2's close would be
  *     the answer to the replay of round 2. So while a match can still replay
- *     its questions, a scheduled round's solution is HELD: until the replay
- *     plan is known (the last scheduled round has closed), and then, for a
- *     round that is replayed, until its replay has closed too.
+ *     its questions, a scheduled round's solution is HELD until the replay
+ *     plan is known (the last scheduled round has closed) and, when any
+ *     replay is planned, until the LAST replay has closed. Releasing the
+ *     rounds that are not replayed earlier would tell the class, by the ones
+ *     left out, which questions are coming back.
  *   - A finished match publishes everything it held (the end-of-game recap).
  *     A cancelled match publishes nothing.
  *
@@ -97,8 +99,10 @@ export const revealableRounds = ({
     if (!secondChancePossible) { rounds.push(round); continue; }
     // A scheduled round while Second Chance may still replay it.
     if (replayOf === null) continue; // the replay plan is not known yet
-    const replayRound = [...replays.entries()].find(([, original]) => original === round)?.[0];
-    if (replayRound === undefined || replayRound <= closed) rounds.push(round);
+    // Every scheduled round waits for the last replay, not just the replayed
+    // ones: which rounds are held must not say which questions return.
+    const lastReplay = replays.size ? Math.max(...replays.keys()) : -1;
+    if (lastReplay <= closed) rounds.push(round);
   }
   return rounds;
 };
