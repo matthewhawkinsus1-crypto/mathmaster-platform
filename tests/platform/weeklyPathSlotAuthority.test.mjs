@@ -28,6 +28,7 @@ import {
 import { collectWeeklyPathSessions } from '../../functions/shared/weeklyPathCompletion.mjs';
 import { evaluateWeeklyGoalProgress, gradeWeeklyGoal, matchWeeklyGoalCompletions } from '../../functions/shared/weeklyPathGrade.mjs';
 import { teksSkillId } from '../../functions/shared/pathSkillGraph.mjs';
+import { dueAtFor, weekKeyFor } from '../../src/platform/path/weeklyPathGoal.js';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -296,4 +297,41 @@ test('a swapped session fills the slot it was launched for — student, teacher 
   const grade = gradeWeeklyGoal({ goal, completions, now });
   assert.equal(grade.progress.completedOnTime, 1);
   assert.equal(grade.components.qualityRatio, 0.8, 'quality is read from the swapped session alone');
+});
+
+test('a frozen week\'s due date must belong to that week', () => {
+  // dueAt decides when the grade freezes and whether Classroom is sent it, and
+  // it arrives from the browser. Missing or far-future, the week would never
+  // close: never graded, never published, late work counted as on time.
+  const sessions = [slotProposal('A.5A'), slotProposal('A.2C'), slotProposal('A.3B')];
+  const weekStart = Date.parse(`${WEEK}T00:00:00Z`);
+  const freezeWith = (dueAt) => freezeWeeklyPathGoalProposal({ ...proposal(sessions), dueAt }, CONTEXT);
+  for (const bad of [undefined, null, 0, 'soon', weekStart - 1, weekStart + 8 * 86400000, weekStart + 365 * 86400000]) {
+    assert.throws(() => freezeWith(bad), (error) => error.code === 'invalid-argument' && /due date/.test(error.message), `dueAt ${bad}`);
+  }
+  // Inside the week, including the Sunday evening that is already Monday in UTC.
+  for (const good of [weekStart + 4 * 86400000, weekStart + 7 * 86400000 + 5 * 3600000]) {
+    assert.equal(freezeWith(good).dueAt, good);
+  }
+});
+
+test('every due date a real client computes is accepted, for every due day and across daylight-saving changes', () => {
+  const sessions = [slotProposal('A.5A'), slotProposal('A.2C'), slotProposal('A.3B')];
+  // The weeks Chicago leaves (Nov 1) and enters (Mar 14) daylight saving, and an ordinary week, every three hours.
+  const starts = ['2026-10-26T00:00:00Z', '2027-03-08T00:00:00Z', '2026-10-05T00:00:00Z'].map(Date.parse);
+  let checked = 0;
+  for (const start of starts) {
+    for (let now = start; now < start + 9 * 86400000; now += 3 * 3600000) {
+      for (let weekStartsOn = 0; weekStartsOn < 7; weekStartsOn += 1) {
+        for (let dueDayOfWeek = 0; dueDayOfWeek < 7; dueDayOfWeek += 1) {
+          const weekKey = weekKeyFor(now, weekStartsOn);
+          const dueAt = dueAtFor(now, { weekStartsOn, dueDayOfWeek });
+          const frozen = freezeWeeklyPathGoalProposal({ ...proposal(sessions), weekKey, dueAt }, CONTEXT);
+          assert.equal(frozen.dueAt, dueAt);
+          checked += 1;
+        }
+      }
+    }
+  }
+  assert.equal(checked, 3 * 72 * 49);
 });

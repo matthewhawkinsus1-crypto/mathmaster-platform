@@ -161,6 +161,10 @@ export const sanitizeWeeklySlotAlternatives = (alternatives, {
   return kept;
 };
 
+// A frozen week's due date must fall inside the week: its seven days plus the
+// Sunday evening that is already Monday in UTC (the completion window's day).
+export const WEEKLY_DUE_WINDOW_MS = 8 * 24 * 60 * 60 * 1000;
+
 /**
  * The server's frozen copy of a proposed week.
  *
@@ -179,6 +183,17 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
   const weekKey = text(goal?.weekKey);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey) || !Number.isFinite(Date.parse(`${weekKey}T00:00:00Z`))) {
     throw new WeeklyPathGoalError('invalid-argument', 'A valid weekly Path weekKey is required.');
+  }
+  // The due date decides when the week's grade freezes and whether the
+  // Classroom publisher may send it, and it arrives from the student's browser.
+  // So it must belong to the week being frozen (its days, plus the Sunday
+  // evening that is already Monday in UTC). A missing or far-future dueAt
+  // would keep the week open for good — never graded, never published — and
+  // count late work as on time. Every real client computes it with dueAtFor.
+  const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
+  const dueAt = Number(goal?.dueAt);
+  if (!Number.isFinite(dueAt) || dueAt < weekStart || dueAt >= weekStart + WEEKLY_DUE_WINDOW_MS) {
+    throw new WeeklyPathGoalError('invalid-argument', 'This weekly Path proposal has no valid due date for its week.');
   }
   const cleanClassId = text(classId);
   const cleanCourseId = text(courseId);
@@ -243,7 +258,7 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
     classId: cleanClassId,
     courseId: cleanCourseId,
     weekKey,
-    dueAt: Number(goal?.dueAt) || null,
+    dueAt,
     // A week asks for the sessions it actually holds: a planner that could
     // fill only three of four slots freezes a three-session goal, so the
     // panel, the teacher table and the Classroom grade agree it is complete

@@ -110,12 +110,15 @@ test('the frozen week asks for exactly the sessions it holds', () => {
   assert.equal(fromOlderClient.requestedSessions, 4);
 });
 
+// The week of 31 August 2026 closes at 23:59 Sunday 6 September, Central time.
+const SUNDAY_NIGHT_AUG_31 = Date.parse('2026-09-06T23:59:59.999-05:00');
+
 test('goalSessions equals sessions.length on every frozen week', () => {
   const codes = ['A.5A', 'A.3A', 'A.9A', 'A.2A', 'A.6A', 'A.7A', 'A.8A'];
   for (const requested of [undefined, 1, 3, 4, 5, 6, 9]) {
     for (let count = 1; count <= codes.length; count += 1) {
       const frozen = freeze({
-        weekKey: '2026-08-31', courseId: 'algebra1', goalSessions: requested,
+        weekKey: '2026-08-31', courseId: 'algebra1', goalSessions: requested, dueAt: SUNDAY_NIGHT_AUG_31,
         sessions: codes.slice(0, count).map((code) => session(code)),
       });
       assert.equal(
@@ -129,7 +132,7 @@ test('goalSessions equals sessions.length on every frozen week', () => {
     }
   }
   // An empty week is still refused rather than frozen as a zero-session goal.
-  assert.throws(() => freeze({ weekKey: '2026-08-31', goalSessions: 4, sessions: [] }), /could not build any weekly Path sessions/);
+  assert.throws(() => freeze({ weekKey: '2026-08-31', goalSessions: 4, dueAt: SUNDAY_NIGHT_AUG_31, sessions: [] }), /could not build any weekly Path sessions/);
 });
 
 test('a student who finishes every card they were given has finished the week', () => {
