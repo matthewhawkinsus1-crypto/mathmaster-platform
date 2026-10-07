@@ -41,6 +41,12 @@ import {
 } from '../path/pathSessionRouting.js';
 import { recordQuestionAttempt, resolveQuestionMaximumAttempts } from '../../attemptPolicy.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
+import {
+  authorizeWeeklySlotLaunch, freezeWeeklyPathGoalProposal,
+} from '../../../functions/shared/weeklyPathSlotAuthority.mjs';
+
+// The simulated learner has no real class; the frozen week still needs one.
+const SIMULATED_CLASS_ID = 'teacher-path-simulator';
 
 const uid = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 
@@ -226,6 +232,10 @@ export const createTeacherPathRuntime = ({
     : buildSimulationQuestionBank(assignments);
   let learner = initialLearner || { id: 'simulated', gradesByAssignment: {} };
   const sessions = new Map();
+  // The simulated student's frozen weeks, by weekKey. Production freezes a
+  // week once on the server; the simulator re-freezes whenever the teacher's
+  // forced evidence rebuilds the proposal, but always by the server's rule.
+  const weeklyGoals = new Map();
 
   const masteryNow = (session) => buildMasteryBySkillForStudent({
     student: learner,
@@ -252,6 +262,8 @@ export const createTeacherPathRuntime = ({
     weeklyPurpose: session.weeklyPurpose || null,
     intendedDok: session.preferredDok || null,
     intendedDifficultyBand: session.preferredBand || null,
+    swappedFromTeks: session.swappedFromTeks || null,
+    chosenAlternative: session.chosenAlternative || null,
     requiredQuestions: session.requiredQuestions,
     target: { alignmentKey: session.targetAlignmentKey },
     summary: { ...session.summary },
@@ -422,6 +434,28 @@ export const createTeacherPathRuntime = ({
     return outcome;
   };
 
+  // --- The weekly commitment -------------------------------------------------
+
+  /**
+   * Freeze the simulated student's week by the server's rule
+   * (resolveWeeklyPathGoalSnapshot runs the same freezeWeeklyPathGoalProposal),
+   * so the swaps the simulated panel offers are exactly the ones a real
+   * student's frozen week would carry, and weekly launches can be checked the
+   * way the server checks them. Synchronous: the runtime is local.
+   */
+  const freezeWeeklyPathGoal = (goal) => {
+    const frozen = freezeWeeklyPathGoalProposal(goal, {
+      studentId: learner?.id || 'simulated',
+      classId: SIMULATED_CLASS_ID,
+      courseId,
+      canonicalTeks: toCanonicalKey,
+      displayTeks: toDisplayCode,
+    });
+    const assigned = { ...frozen, assignmentState: 'simulation' };
+    weeklyGoals.set(frozen.weekKey, assigned);
+    return assigned;
+  };
+
   // --- The three calls the container makes -----------------------------------
 
   const startOrResumePathSession = async ({
@@ -433,12 +467,49 @@ export const createTeacherPathRuntime = ({
     weekKey = null,
     weeklySlotKey = null,
     weeklySlot = null,
+    chosenSkillId = null,
     intendedDok = null,
     intendedDifficultyBand = null,
     weeklyPurpose = null,
   }) => {
     const code = toDisplayCode(targetAlignmentKey);
     const skillId = teksSkillId(code);
+
+    // A weekly launch is checked against the frozen week exactly as
+    // startMyMathPathSession checks it: the slot's own TEKS or one of its
+    // frozen alternatives, in the slot's framework, at the slot's DOK and band.
+    // A direct caller that never froze a week (tests, tools) still supplies the
+    // slot's rigor itself, as before.
+    let launchFramework = assessmentFramework || null;
+    let launchDok = intendedDok;
+    let launchBand = intendedDifficultyBand;
+    let launchPurpose = weeklyPurpose;
+    let weeklySwap = null;
+    if (weekKey || weeklySlotKey) {
+      if (!weekKey || !weeklySlotKey) {
+        throw new Error('weekKey and weeklySlotKey are both required for an assigned weekly session.');
+      }
+      const frozenWeek = weeklyGoals.get(weekKey) || null;
+      if (frozenWeek) {
+        const authorization = authorizeWeeklySlotLaunch({
+          goal: frozenWeek,
+          weeklySlotKey,
+          targetAlignmentKey: code,
+          requestedFramework: assessmentFramework,
+          chosenSkillId,
+          canonicalTeks: toCanonicalKey,
+          displayTeks: toDisplayCode,
+        });
+        if (!authorization.ok) throw new Error(authorization.message);
+        launchFramework = authorization.assessmentFramework;
+        launchDok = authorization.intendedDok;
+        launchBand = authorization.intendedDifficultyBand;
+        launchPurpose = authorization.weeklyPurpose;
+        weeklySwap = authorization.swapped
+          ? { swappedFromTeks: authorization.swappedFromTeks, chosenAlternative: authorization.chosenAlternative }
+          : null;
+      }
+    }
 
     // RESUME, as production does. The server keeps an `activePathLocks` entry
     // per student and target and hands back the open session rather than
@@ -451,7 +522,7 @@ export const createTeacherPathRuntime = ({
       candidate.status === 'active'
       && candidate.targetAlignmentKey === toCanonicalKey(code)
       && candidate.sessionKind === sessionKind
-      && (candidate.assessmentFramework || null) === (assessmentFramework || null)
+      && (candidate.assessmentFramework || null) === (launchFramework || null)
       && (candidate.coursePracticeIntent || null) === (coursePracticeIntent === 'challenge' ? 'challenge' : null)
       && (candidate.weeklySlotKey || null) === (weeklySlotKey || null)
     ));
@@ -464,12 +535,16 @@ export const createTeacherPathRuntime = ({
       sessionId: uid('sim_path'),
       status: 'active',
       sessionKind,
-      assessmentFramework: assessmentFramework || null,
+      assessmentFramework: launchFramework || null,
       coursePracticeIntent: coursePracticeIntent === 'challenge' ? 'challenge' : null,
       weekKey: weekKey || null,
       weeklySlotKey: weeklySlotKey || null,
       weeklySlot: weeklySlot || null,
-      weeklyPurpose: weeklyPurpose || null,
+      weeklyPurpose: launchPurpose || null,
+      // Recorded as the server records it: what the slot named, and what the
+      // student practised instead. The slot key is unchanged.
+      swappedFromTeks: weeklySwap?.swappedFromTeks || null,
+      chosenAlternative: weeklySwap?.chosenAlternative || null,
       requiredQuestions: Math.max(1, Math.min(10, Number(required) || 5)),
       targetAlignmentKey: toCanonicalKey(code),
       originSkillId: skillId,
@@ -486,13 +561,13 @@ export const createTeacherPathRuntime = ({
       // audit supplies a stronger target.
       preferredBand: coursePracticeIntent === 'challenge' && !weeklySlotKey
         ? 4
-        : (intendedDifficultyBand != null && Number.isFinite(Number(intendedDifficultyBand))
-          ? Number(intendedDifficultyBand)
+        : (launchBand != null && Number.isFinite(Number(launchBand))
+          ? Number(launchBand)
           : 3),
       preferredDok: coursePracticeIntent === 'challenge' && !weeklySlotKey
         ? 3
-        : (intendedDok != null && Number.isFinite(Number(intendedDok))
-          ? Number(intendedDok)
+        : (launchDok != null && Number.isFinite(Number(launchDok))
+          ? Number(launchDok)
           : 2),
       familyUsage: {},
       usedRepresentations: [],
@@ -839,6 +914,7 @@ export const createTeacherPathRuntime = ({
     fetchNextSanitizedQuestion,
     submitStudentResponse,
     forceCurrentQuestionOutcome,
+    freezeWeeklyPathGoal,
     getLearner: () => learner,
     /**
      * Take an updated synthetic learner WITHOUT tearing the runtime down.
