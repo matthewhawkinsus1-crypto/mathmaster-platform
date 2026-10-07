@@ -225,6 +225,124 @@ test('submitting re-stamps this question workspace so the student keeps their ow
   });
 });
 
+/* ------------------------------------------- a workspace started from nothing */
+
+// The question opens before the server's copy is read (PQ-044), so on a
+// Chromebook that never held this work the record starts empty and every write
+// saves the whole record. Such a record says so (`__fresh`, the fields its
+// student edited), and is settled against the server's copy when the read lands
+// (workspaceDraftSchema.mjs, "a workspace a device started from nothing").
+
+const storedValue = (store, key) => JSON.parse(store.getItem(key) || 'null')?.value;
+
+test('a workspace this device starts from nothing is marked fresh; one begun on any stored copy is not', async () => {
+  const store = memoryLocalStorage();
+  await withLocalStorage(store, async () => {
+    const { TOOL_WORKSPACE_FRESH_FIELD } = await import('../../functions/shared/workspaceDraftSchema.mjs');
+    const { readToolDraftRecord, stampToolDraftSubmission, toolDraftKey } = await toolModule();
+    const { writeQuestionDraft } = await draftModule();
+
+    const fresh = await uniqueKey();
+    assert.deepEqual(readToolDraftRecord(fresh), {}, 'the fields the tool reads never include the marker');
+    stampToolDraftSubmission(fresh);
+    assert.deepEqual(storedValue(store, toolDraftKey(fresh)), { [TOOL_WORKSPACE_FRESH_FIELD]: [] }, 'nothing stored: fresh');
+
+    const reset = await uniqueKey();
+    writeQuestionDraft(toolDraftKey(reset), null, { edit: true }); // "Start over" tombstones the record
+    readToolDraftRecord(reset);
+    stampToolDraftSubmission(reset);
+    assert.deepEqual(storedValue(store, toolDraftKey(reset)), {}, 'begun on a reset: not fresh, so the reset sticks');
+
+    const kept = await uniqueKey();
+    writeQuestionDraft(toolDraftKey(kept), { slope: '2' }, { edit: true });
+    readToolDraftRecord(kept);
+    stampToolDraftSubmission(kept);
+    assert.deepEqual(storedValue(store, toolDraftKey(kept)), { slope: '2' }, 'begun on this device\'s own copy: not fresh');
+
+    const preview = await uniqueKey({ sessionMode: 'preview' });
+    readToolDraftRecord(preview);
+    stampToolDraftSubmission(preview);
+    assert.deepEqual(storedValue(store, toolDraftKey(preview)), {}, 'a preview is never synced, so never marked');
+  });
+});
+
+test('a fresh workspace is settled against the server\'s copy when the read lands', async () => {
+  const store = memoryLocalStorage();
+  await withLocalStorage(store, async () => {
+    const { TOOL_WORKSPACE_FRESH_FIELD } = await import('../../functions/shared/workspaceDraftSchema.mjs');
+    const { readToolDraftRecord, toolDraftKey } = await toolModule();
+    const { questionDraftRestoreGeneration, questionDraftSavedAt, reconcileToolWorkspaceDrafts, restoreQuestionDrafts } = await draftModule();
+    // Real times: a draft older than 45 days expires when it is read.
+    const T = Date.now() - 60_000;
+    const envelope = (value, savedAt) => JSON.stringify({ version: 2, savedAt, value, touchedAt: savedAt, savedAtIsEdit: true });
+    const full = { slopeInterceptEquation: 'y=-2x+6', tableRows: [{ x: '0', y: '6' }], graph1Points: [[3, 0], [0, 6]], expandedCards: { table: true } };
+
+    // 1. The student collapsed a panel before the read landed; the server
+    //    holds Chromebook A's whole board, saved earlier.
+    const early = await uniqueKey();
+    const earlyKey = toolDraftKey(early);
+    store.setItem(earlyKey, envelope({ expandedCards: { table: false }, [TOOL_WORKSPACE_FRESH_FIELD]: ['expandedCards'] }, T + 2_000));
+    assert.deepEqual(readToolDraftRecord(early), { expandedCards: { table: false } }, 'the open board shows only the touch');
+    // 2. The server copy is NEWER than a fresh edit made on another question.
+    const behind = await uniqueKey();
+    const behindKey = toolDraftKey(behind);
+    store.setItem(behindKey, envelope({ slopeInterceptEquation: 'y=x', [TOOL_WORKSPACE_FRESH_FIELD]: ['slopeInterceptEquation'] }, T + 1_000));
+    // 3. Fresh, and the server holds nothing for it.
+    const alone = await uniqueKey();
+    const aloneKey = toolDraftKey(alone);
+    store.setItem(aloneKey, envelope({ featureSlope: '3', [TOOL_WORKSPACE_FRESH_FIELD]: ['featureSlope'] }, T + 1_500));
+    // 4. Not fresh: left exactly as it is.
+    const own = await uniqueKey();
+    const ownKey = toolDraftKey(own);
+    store.setItem(ownKey, envelope({ featureSlope: '5' }, T + 3_000));
+
+    const entries = [
+      { key: earlyKey, value: full, savedAt: T + 1_000, savedAtIsEdit: true },
+      { key: behindKey, value: { slopeInterceptEquation: 'y=2x', tableRows: [{ x: '1', y: '2' }] }, savedAt: T + 2_000, savedAtIsEdit: true },
+      { key: ownKey, value: { featureSlope: '9', standardFormEquation: '9x-y=0' }, savedAt: T + 1_000, savedAtIsEdit: true },
+    ];
+    // All four keys belong to the same student and assignment (uniqueKey varies the student).
+    const keysOwner = (key) => {
+      const parts = key.split(':');
+      return { studentId: decodeURIComponent(parts[4]), assignmentId: decodeURIComponent(parts[5]) };
+    };
+    const generation = questionDraftRestoreGeneration();
+    const settled = [earlyKey, behindKey, aloneKey, ownKey]
+      .reduce((count, key) => count + reconcileToolWorkspaceDrafts(entries, keysOwner(key)), 0);
+    assert.equal(settled, 3, 'every fresh record is settled, once');
+    assert.notEqual(questionDraftRestoreGeneration(), generation, 'what is cached is read again');
+
+    assert.deepEqual(storedValue(store, earlyKey), { ...full, expandedCards: { table: false } }, 'the server\'s board, with the student\'s own touch on top');
+    assert.equal(questionDraftSavedAt(earlyKey), T + 2_000, 'and this device keeps the time of its own edit');
+    assert.deepEqual(readToolDraftRecord(early), { ...full, expandedCards: { table: false } }, 'the cached copy is read again: the open board gets the whole of it');
+
+    assert.deepEqual(storedValue(store, behindKey), { slopeInterceptEquation: 'y=2x', tableRows: [{ x: '1', y: '2' }] }, 'a newer edit on the server wins the field both hold');
+    assert.equal(questionDraftSavedAt(behindKey), T + 2_000);
+    assert.equal(restoreQuestionDrafts(entries.filter((entry) => entry.key === behindKey)), 0, 'and the restore that follows does not swap it in again');
+
+    assert.deepEqual(storedValue(store, aloneKey), { featureSlope: '3' }, 'nothing on the server: the record is kept, no longer fresh');
+    assert.deepEqual(storedValue(store, ownKey), { featureSlope: '5' }, 'a record that is not fresh is never merged here');
+  });
+});
+
+test('a tool workspace restored from the server is never fresh on this device', async () => {
+  const store = memoryLocalStorage();
+  await withLocalStorage(store, async () => {
+    const { TOOL_WORKSPACE_FRESH_FIELD } = await import('../../functions/shared/workspaceDraftSchema.mjs');
+    const { toolDraftKey } = await toolModule();
+    const { restoreQuestionDrafts } = await draftModule();
+    const draftKey = await uniqueKey();
+    const key = toolDraftKey(draftKey);
+    // A fresh record the server stored as it came (nothing else was there).
+    assert.equal(restoreQuestionDrafts([{ key, value: { featureSlope: '3', [TOOL_WORKSPACE_FRESH_FIELD]: ['featureSlope'] }, savedAt: 1_000, savedAtIsEdit: true }]), 1);
+    assert.deepEqual(storedValue(store, key), { featureSlope: '3' });
+    // Any other draft is restored exactly as it was stored.
+    const literal = `${draftKey}:literal`;
+    restoreQuestionDrafts([{ key: literal, value: { answer: '12', [TOOL_WORKSPACE_FRESH_FIELD]: ['answer'] }, savedAt: 1_000, savedAtIsEdit: true }]);
+    assert.deepEqual(storedValue(store, literal), { answer: '12', [TOOL_WORKSPACE_FRESH_FIELD]: ['answer'] });
+  });
+});
+
 test('restoring a draft is not a submission', async () => {
   // Nothing in the module can create an attempt, assign correctness or reach
   // Classroom. Asserted against the executable source because a draft layer

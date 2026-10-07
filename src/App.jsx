@@ -128,6 +128,7 @@ import {
   clearResumeAction,
   questionDraftSavedAt,
   readResumeAction,
+  reconcileToolWorkspaceDrafts,
   removeAssignmentDrafts,
   restoreQuestionDrafts,
   saveResumeAction,
@@ -3790,7 +3791,14 @@ function App() {
             // its own submission (canonicalResponseTime.js).
             canonicalSavedAt: (entry) => canonicalResponseSavedAt(normalizeQuestionRecord(assignmentGrades[entry?.questionIndex])),
           });
-          if (restoreQuestionDrafts(restorable)) {
+          // A tool workspace this device started from nothing — the student
+          // touched it before this read landed — is settled against the
+          // server's copy first: merged, so a newer copy is not then swapped
+          // in over the student's edits, nor their partial copy kept over the
+          // server's whole one (reconcileToolWorkspaceDrafts).
+          const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId });
+          const restored = restoreQuestionDrafts(restorable);
+          if (restored || settled) {
             setDraftRestoreFocus({
               questionIndex: currentQuestionIndexRef.current,
               position: answerFocusPosition(assignmentQuestionStageRef.current),
