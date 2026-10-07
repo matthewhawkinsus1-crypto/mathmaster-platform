@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { buildQuestionAlignmentInfo } from '../../platform/student/questionAlignmentInfo.js';
 import { getAssessmentProfile } from '../../platform/ccmr/assessmentProfiles.js';
 import CcmrReferenceList from './CcmrReferenceList.jsx';
+import Dialog from '../../ui/Dialog.jsx';
 
 const CHIP = {
   display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px',
@@ -144,17 +145,9 @@ function AlignmentDetailsDialog({ info, onClose, titleId, initialView = 'skill' 
     setView(initialView === 'ccmr' ? 'ccmr' : 'skill');
   }, [initialView]);
 
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') onClose?.();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
-
   return (
     <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }} style={{ position: 'fixed', inset: 0, zIndex: 10050, display: 'grid', placeItems: 'center', padding: 16, background: 'rgba(20,28,42,.48)' }}>
-      <section role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ width: 'min(660px,100%)', maxHeight: 'min(84vh,760px)', overflowY: 'auto', padding: 22, borderRadius: 16, background: 'var(--mm-surface)', textAlign: 'left', boxShadow: '0 24px 70px rgba(0,0,0,.28)' }}>
+      <Dialog as="section" aria-labelledby={titleId} onClose={onClose} style={{ width: 'min(660px,100%)', maxHeight: 'min(84vh,760px)', overflowY: 'auto', padding: 22, borderRadius: 16, background: 'var(--mm-surface)', textAlign: 'left', boxShadow: '0 24px 70px rgba(0,0,0,.28)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: view === 'ccmr' ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)' }}>{view === 'ccmr' ? 'Where this math shows up' : 'What you are learning'}</div>
@@ -173,7 +166,7 @@ function AlignmentDetailsDialog({ info, onClose, titleId, initialView = 'skill' 
           : <CcmrDetails info={info} />}
 
         <button type="button" onClick={onClose} style={buttonReset({ marginTop: 18, width: '100%', minHeight: 44, borderRadius: 9, border: 0, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' })}>Back to the question</button>
-      </section>
+      </Dialog>
     </div>
   );
 }

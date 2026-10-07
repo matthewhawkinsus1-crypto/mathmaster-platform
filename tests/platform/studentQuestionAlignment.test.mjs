@@ -121,7 +121,8 @@ test('student UI has one alignment owner per question and the details are clicka
   assert.match(pathSource, /<StandardBadge[^>]*framework=\{directFramework\}/s);
   assert.doesNotMatch(toolShellSource, /StandardBadge/);
   assert.doesNotMatch(toolShellSource, /Skill focus/);
-  assert.match(badgeSource, /role="dialog"/);
+  // The details open in the shared modal Dialog (role="dialog" by default).
+  assert.match(badgeSource, /<Dialog as="section"[^>]*aria-labelledby=\{titleId\}/);
   assert.match(badgeSource, /What you are learning/);
   assert.match(badgeSource, /Where this math shows up/);
   assert.match(badgeSource, /The skill to remember/);
@@ -130,7 +131,8 @@ test('student UI has one alignment owner per question and the details are clicka
   assert.match(badgeSource, /You are practicing this in \{info\.activeFrameworkLabel\} format right now/);
   assert.match(badgeSource, /CCMR connection/);
   assert.match(badgeSource, /Calculator available throughout math/);
-  assert.match(badgeSource, /event\.key === 'Escape'/);
+  // Escape closes the details: the Dialog calls the same onClose as its ✕.
+  assert.match(badgeSource, /<Dialog as="section"[^>]*onClose=\{onClose\}/);
   assert.match(badgeSource, /autoFocus aria-label="Close standards details"/);
 });
 

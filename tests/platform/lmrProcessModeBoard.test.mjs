@@ -83,7 +83,9 @@ test('"Find …" opens one workspace on the board — not a modal, not a menu �
   // Enlarged, it is a dialog that Escape closes; the same elements stay mounted.
   assert.match(workspace, /role=\{enlarged \? 'dialog' : 'region'\}/);
   assert.match(workspace, /aria-modal=\{enlarged \? 'true' : undefined\}/);
-  assert.match(workspace, /if \(event\.key !== 'Escape'\) return;/);
+  // The shared modal behaviour (Tab trap, Escape -> back to the board's flow)
+  // runs only while enlarged.
+  assert.match(workspace, /useModalDialog\(sectionRef, \{[^}]*onClose: \(\) => setEnlarged\(false\)[^}]*active: enlarged \}\)/);
   // Only the methods that make sense now, plus a line naming the ones that need more.
   assert.match(workspace, /lmrMethodsFor\(question, process, target\)/);
   assert.match(workspace, /lmrLaterMethods\(question, process, target\)/);
