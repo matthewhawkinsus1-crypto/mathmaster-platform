@@ -9,6 +9,9 @@
 // Pressing Start does not launch anything: the harness checks the launch the
 // screen would send with the server's authorizeWeeklySlotLaunch and prints the
 // verdict, so a swap the screen offers can be proved to be one the server runs.
+// It sends what MyMathPathApp.startWeeklySession sends: nothing until the
+// week's sessions are known, and an opened slot on the standard it was opened
+// with (weeklyLaunchSession).
 //
 // HOW TO RUN: see tests/browser/weeklyPathSwap.mjs. No network is used.
 import React, { useEffect, useMemo, useState } from 'react';
@@ -18,7 +21,7 @@ import WeeklyPathGoalPanel from '../../src/components/student/WeeklyPathGoalPane
 import { buildWeeklyGoal, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions } from '../../src/platform/path/weeklyPathGoal.js';
 import { PURPOSE, PURPOSE_LABEL, STUDENT_EXPLANATION } from '../../src/platform/path/recommendationV2.js';
 import {
-  applyWeeklySlotChoices, mergeWeeklyGoalSnapshot, resolveWeeklySlotChoices,
+  applyWeeklySlotChoices, mergeWeeklyGoalSnapshot, resolveWeeklySlotChoices, weeklyLaunchSession,
 } from '../../src/platform/path/weeklyPathChoice.js';
 import {
   authorizeWeeklySlotLaunch, freezeWeeklyPathGoalProposal,
@@ -81,9 +84,20 @@ const legacySnapshot = {
 };
 const slotKey = (index) => snapshot.sessions[index].weeklySlotKey;
 
-function WeekScene({ frozen, inProgress = [], completions = [], compact = false }) {
+function WeekScene({
+  // The week as the SCREEN has it: null while the frozen copy has not loaded.
+  frozen,
+  // The week as the SERVER has it, which authorizes the launch either way.
+  serverWeek = frozen || snapshot,
+  inProgress = [],
+  completions = [],
+  compact = false,
+  // Whether the student's sessions for the week have loaded.
+  initialFactsStatus = 'ready',
+}) {
   const [choices, setChoices] = useState({});
   const [launch, setLaunch] = useState(null);
+  const [factsStatus, setFactsStatus] = useState(initialFactsStatus);
   const week = useMemo(() => mergeWeeklyGoalSnapshot({ proposed, snapshot: frozen }), [frozen]);
   const progress = useMemo(() => evaluateWeeklyGoalProgress({ goal: week, completions, now: NOW }), [week, completions]);
   const completedSlots = useMemo(
@@ -95,10 +109,15 @@ function WeekScene({ frozen, inProgress = [], completions = [], compact = false 
     choices: resolveWeeklySlotChoices({ goal: week, choices, inProgress, completions }),
   }), [week, choices, inProgress, completions]);
 
-  const onStart = (session) => {
+  const onStart = (card) => {
     // The launch MyMathPathApp.startWeeklySession would send.
+    if (factsStatus !== 'ready') {
+      setLaunch('Launch held: the week’s sessions are not loaded yet');
+      return;
+    }
+    const session = weeklyLaunchSession({ session: card, inProgress });
     const verdict = authorizeWeeklySlotLaunch({
-      goal: frozen,
+      goal: serverWeek,
       weeklySlotKey: session.weeklySlotKey,
       targetAlignmentKey: toCanonicalKey(session.teksCode),
       requestedFramework: session.context && session.context !== 'course' ? session.context : null,
@@ -107,6 +126,11 @@ function WeekScene({ frozen, inProgress = [], completions = [], compact = false 
     setLaunch(verdict.ok
       ? `Launch authorized: ${session.teksCode}${verdict.swapped ? ` instead of ${verdict.swappedFromTeks}` : ''} · ${verdict.assessmentFramework || 'course'} · DOK ${verdict.intendedDok}, band ${verdict.intendedDifficultyBand}`
       : `Launch refused: ${verdict.message}`);
+  };
+  // "Try again" reloads the facts; here the reload succeeds after a beat.
+  const onRetryFacts = () => {
+    setFactsStatus('loading');
+    setTimeout(() => setFactsStatus('ready'), 300);
   };
   const onChoose = (session, skillId) => setChoices((current) => {
     const next = { ...current };
@@ -123,6 +147,8 @@ function WeekScene({ frozen, inProgress = [], completions = [], compact = false 
         completions={completions}
         completedSlots={completedSlots}
         inProgress={inProgress}
+        factsStatus={factsStatus}
+        onRetryFacts={onRetryFacts}
         onStartSession={onStart}
         onChooseAlternative={onChoose}
         compact={compact}
@@ -149,6 +175,18 @@ const SCENES = {
   ),
   compactSwappable: () => <WeekScene frozen={snapshot} compact />,
   compactLegacy: () => <WeekScene frozen={legacySnapshot} compact />,
+  // Fix pass, finding 1: the panel before the student's sessions arrive, when
+  // that load failed, and a Resume on a week whose frozen copy (and so the
+  // swap) is not on screen yet.
+  checking: () => <WeekScene frozen={snapshot} initialFactsStatus="loading" />,
+  factsFailed: () => <WeekScene frozen={snapshot} initialFactsStatus="failed" />,
+  resumeUnfrozen: () => (
+    <WeekScene
+      frozen={null}
+      serverWeek={snapshot}
+      inProgress={[{ status: 'active', weekKey: snapshot.weekKey, weeklySlotKey: slotKey(0), weeklySlot: 1, teksCode: 'A.5B', answeredQuestions: 2, requiredQuestions: 5 }]}
+    />
+  ),
 };
 
 const listeners = new Set();

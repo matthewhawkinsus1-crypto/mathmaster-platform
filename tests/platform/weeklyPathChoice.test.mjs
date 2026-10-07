@@ -17,6 +17,7 @@ import {
   mergeWeeklyGoalSnapshot,
   resolveWeeklySlotChoices,
   weeklyGoalOffersSwap,
+  weeklyLaunchSession,
 } from '../../src/platform/path/weeklyPathChoice.js';
 import {
   authorizeWeeklySlotLaunch,
@@ -424,6 +425,61 @@ test('the teacher sees "chose X instead of Y" for a slot a swap filled', () => {
   const [row] = buildTeacherWeeklyView([{ studentId: 'S1', studentName: 'Student', goal: week, completions }], { now: at + 4000 });
   assert.equal(row.complete, 2, 'the swapped session counts for its slot in the teacher table');
   assert.deepEqual(row.swaps.map((swap) => swap.chosenTeks), ['A.7C']);
+});
+
+test('a slot a finished session filled names that session\'s standard, not one still open beside it', () => {
+  const proposed = goalFor();
+  const week = mergeWeeklyGoalSnapshot({ proposed, snapshot: frozenFrom(proposed) });
+  const [first] = week.sessions;
+  // The swap A.7C finished and filled slot 1; a second session on the
+  // recommendation is still open on the same key (an older browser, or a
+  // launch made before the server held one open session per slot).
+  const finished = { status: 'completed', weekKey: week.weekKey, weeklySlotKey: first.weeklySlotKey, teksCode: 'A.7C', completedAt: 1 };
+  const lingering = { status: 'active', weekKey: week.weekKey, weeklySlotKey: first.weeklySlotKey, teksCode: 'A.5A' };
+  assert.deepEqual(resolveWeeklySlotChoices({ goal: week, completions: [finished], inProgress: [lingering] }), { [first.weeklySlotKey]: 's9' });
+  // ...which is the session the grade, the teacher's row and Classroom credit.
+  assert.equal(matchWeeklyGoalCompletions({ goal: week, completions: [finished] }).matched[0].teksCode, 'A.7C');
+  assert.deepEqual(describeWeeklySlotSwaps({ goal: week, completions: [finished] }).map((swap) => swap.chosenTeks), ['A.7C']);
+  // The other way round, the finished recommendation names no swap however
+  // an open swap beside it reads.
+  assert.deepEqual(resolveWeeklySlotChoices({
+    goal: week,
+    completions: [{ ...finished, teksCode: 'A.5A' }],
+    inProgress: [{ ...lingering, teksCode: 'A.7C' }],
+  }), {});
+});
+
+test('Start on a slot already opened resumes the standard it was opened with', () => {
+  const proposed = goalFor();
+  const snapshot = frozenFrom(proposed);
+  // Not frozen yet on screen: the card can only show the recommendation.
+  const [card] = mergeWeeklyGoalSnapshot({ proposed }).sessions;
+  const open = [{ status: 'active', weekKey: snapshot.weekKey, weeklySlotKey: card.weeklySlotKey, teksCode: 'A.7C', answeredQuestions: 2 }];
+
+  const launch = weeklyLaunchSession({ session: card, inProgress: open });
+  assert.equal(launch.teksCode, 'A.7C', 'the open session\'s standard, not the recommendation');
+  // Only the standard moves; the slot is the card's.
+  assert.equal(launch.weeklySlotKey, card.weeklySlotKey);
+  assert.equal(launch.slot, card.slot);
+  assert.equal(launch.purpose, card.purpose);
+  assert.equal(launch.context, card.context);
+  assert.equal(launch.dok, card.dok);
+  assert.equal(launch.difficultyBand, card.difficultyBand);
+  // The claim of which option was picked is dropped; the server works it out.
+  assert.equal(launch.chosenSkillId, null);
+  assert.equal(launch.studentChose, false);
+  // ...and the server authorizes that launch as the slot's frozen swap.
+  const verdict = authorizeWeeklySlotLaunch({ goal: snapshot, weeklySlotKey: launch.weeklySlotKey, targetAlignmentKey: toCanonicalKey(launch.teksCode) });
+  assert.equal(verdict.ok, true);
+  assert.equal(verdict.swappedFromTeks, 'A.5A');
+
+  // Nothing open on this slot, or open on what the card already shows: the
+  // card is launched as it is.
+  assert.equal(weeklyLaunchSession({ session: card, inProgress: [] }), card);
+  assert.equal(weeklyLaunchSession({ session: card, inProgress: [{ ...open[0], weeklySlotKey: 'another-slot' }] }), card);
+  const swappedCard = chooseWeeklyAlternative(mergeWeeklyGoalSnapshot({ proposed, snapshot }).sessions[0], 's9');
+  assert.equal(weeklyLaunchSession({ session: swappedCard, inProgress: open }), swappedCard);
+  assert.equal(weeklyLaunchSession({ session: null, inProgress: open }), null);
 });
 
 test('the panel promises a swap only where an open card offers one', () => {

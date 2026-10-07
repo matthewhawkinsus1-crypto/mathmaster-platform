@@ -26,7 +26,7 @@ import { fetchMyWeeklyPathCompletions, fetchTeacherWeeklyPathCompletions, resolv
 import { collectWeeklyPathSessions } from '../../../functions/shared/weeklyPathCompletion.mjs';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
-import { applyWeeklySlotChoices, mergeWeeklyGoalSnapshot, resolveWeeklySlotChoices } from '../../platform/path/weeklyPathChoice.js';
+import { applyWeeklySlotChoices, mergeWeeklyGoalSnapshot, resolveWeeklySlotChoices, weeklyLaunchSession } from '../../platform/path/weeklyPathChoice.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
 import {
   buildStudentAssessmentContext, readCcmrGoals, writeCcmrGoals,
@@ -316,12 +316,22 @@ export const MyMathPathExperience = ({
   // Classroom would never receive. A half-finished session is `inProgress` and
   // keeps its Resume button. Null while loading: no grade card rather than a
   // wrong one.
-  const [weeklySessionFacts, setWeeklySessionFacts] = useState({ weekKey: null, completions: null, inProgress: [] });
+  //
+  // `status` says whether these facts are SETTLED: 'loading' from the moment a
+  // (re)load starts, 'ready' once it answers, 'failed' if it cannot. Until they
+  // are settled the panel cannot know which slots already have an open session
+  // — after a reload it shows each slot's recommendation, not the swap the
+  // student opened — so weekly launches wait for 'ready' (startWeeklySession,
+  // and WeeklyPathGoalPanel's `factsStatus`). The server resumes a slot's open
+  // session whatever the launch names; this keeps the card from offering a
+  // Start it cannot honestly describe.
+  const [weeklySessionFacts, setWeeklySessionFacts] = useState({ weekKey: null, completions: null, inProgress: [], status: 'loading' });
   const [weeklyRefreshKey, setWeeklyRefreshKey] = useState(0);
   const weeklyGoalWeekKey = weeklyGoal?.weekKey || null;
   useEffect(() => {
     if (!weeklyGoalWeekKey) return undefined;
     let cancelled = false;
+    setWeeklySessionFacts((current) => (current.status === 'loading' ? current : { ...current, status: 'loading' }));
     const load = sessionProvider
       // The simulator's runtime holds session documents of the production
       // shape; the same collector counts them.
@@ -334,16 +344,18 @@ export const MyMathPathExperience = ({
         : fetchMyWeeklyPathCompletions({ weekKey: weeklyGoalWeekKey });
     load
       .then((facts) => {
-        if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: facts.completions || [], inProgress: facts.inProgress || [] });
+        if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: facts.completions || [], inProgress: facts.inProgress || [], status: 'ready' });
       })
       .catch((caught) => {
         console.error('Could not load weekly Path completions:', caught);
-        if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: null, inProgress: [] });
+        if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: null, inProgress: [], status: 'failed' });
       });
     return () => { cancelled = true; };
   }, [weeklyGoalWeekKey, sessionProvider, readOnly, studentId, studentRecord?.classId, studentProfile?.classId, weeklyRefreshKey, evidenceEvents]);
   const weeklyCompletions = weeklySessionFacts.weekKey === weeklyGoalWeekKey ? weeklySessionFacts.completions : null;
   const weeklyInProgress = weeklySessionFacts.weekKey === weeklyGoalWeekKey ? weeklySessionFacts.inProgress : [];
+  const weeklyFactsStatus = weeklySessionFacts.weekKey === weeklyGoalWeekKey ? weeklySessionFacts.status : 'loading';
+  const retryWeeklyFacts = useCallback(() => setWeeklyRefreshKey((value) => value + 1), []);
   const weeklyProgress = useMemo(
     () => (weeklyGoal && weeklyCompletions ? evaluateWeeklyGoalProgress({ goal: weeklyGoal, completions: weeklyCompletions }) : null),
     [weeklyGoal, weeklyCompletions],
@@ -493,10 +505,19 @@ export const MyMathPathExperience = ({
   }, [launchTeksCode, coverageLoaded, coverage]);
 
   const startWeeklySession = (session) => {
+    // Not until this week's sessions are known: before then a card may show
+    // the recommendation for a slot whose swap is already open.
+    if (weeklyFactsStatus !== 'ready') {
+      setCoverageNotice(weeklyFactsStatus === 'failed'
+        ? 'MathMaster could not check which weekly sessions you have already started. Use Try again on your weekly Path, then start it.'
+        : 'MathMaster is still checking this week’s sessions. Try again in a moment.');
+      return;
+    }
     // The session arrives with the student's swap already applied, and a swap
     // keeps the slot's frozen key, so the completion still fills its own slot.
-    // Its context, DOK and band are the slot's (chooseWeeklyAlternative).
-    const chosen = session;
+    // Its context, DOK and band are the slot's (chooseWeeklyAlternative). A
+    // slot already opened is resumed on the standard it was opened with.
+    const chosen = weeklyLaunchSession({ session, inProgress: weeklyInProgress });
     const code = chosen?.teksCode || teksCodeFromSkillId(chosen?.skillId);
     if (!code) return;
     startSession(code, {
@@ -593,6 +614,8 @@ export const MyMathPathExperience = ({
                 completions={weeklyCompletions}
                 completedSlots={completedSlots}
                 inProgress={weeklyInProgress}
+                factsStatus={weeklyFactsStatus}
+                onRetryFacts={retryWeeklyFacts}
                 onStartSession={startWeeklySession}
                 onChooseAlternative={chooseWeeklySlotAlternative}
               />
