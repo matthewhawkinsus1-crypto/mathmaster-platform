@@ -9,6 +9,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 
 import { createTeacherPathRuntime } from '../../src/platform/simulation/teacherPathRuntime.js';
 import { chooseWeeklyAlternative, mergeWeeklyGoalSnapshot } from '../../src/platform/path/weeklyPathChoice.js';
@@ -16,6 +18,21 @@ import { teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { freezeWeeklyPathGoalProposal } from '../../functions/shared/weeklyPathSlotAuthority.mjs';
 import { collectWeeklyPathSessions } from '../../functions/shared/weeklyPathCompletion.mjs';
 import { gradeWeeklyGoal, matchWeeklyGoalCompletions } from '../../functions/shared/weeklyPathGrade.mjs';
+import { topLevelFunction } from './helpers/serverCallableHarness.mjs';
+
+const require = createRequire(import.meta.url);
+const mathPath = require('../../functions/lib/mathPath.js');
+
+// What resolveWeeklyPathGoalSnapshot injects into the freeze
+// (WEEKLY_SLOT_TEKS_TOOLS): mathPath's canonicalizers and the callable's own
+// framework rule, cut out of functions/index.js as written.
+const SERVER_TOOLS = (() => {
+  const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const declaration = source.match(/^const PATH_ASSESSMENT_FRAMEWORKS = [^\n]+;$/m);
+  assert.ok(declaration, 'functions/index.js no longer declares PATH_ASSESSMENT_FRAMEWORKS on one line; update this test');
+  const normalizeFramework = new Function(`"use strict";\n${declaration[0]}\n${topLevelFunction('normalizePathAssessmentFramework')}\nreturn normalizePathAssessmentFramework;`)();
+  return { canonicalTeks: mathPath.canonicalAlignmentKey, displayTeks: mathPath.displayAlignmentKey, normalizeFramework };
+})();
 
 const SLOT_TEKS = 'A.5A';
 const SWAP_TEKS = 'A.5C';
@@ -86,7 +103,7 @@ test('the simulator freezes a week exactly as the server would', () => {
 
   assert.equal(frozen.assignmentState, 'simulation');
   const server = freezeWeeklyPathGoalProposal(crowded, {
-    studentId: 'sim-1', classId: frozen.classId, courseId: 'algebra1',
+    studentId: 'sim-1', classId: frozen.classId, courseId: 'algebra1', ...SERVER_TOOLS,
   });
   // Same slots, same alternatives, same bound — the simulator does not have a
   // more generous idea of what a student may swap.
@@ -122,10 +139,45 @@ test('a swapped simulated launch runs at the slot\'s rigor and records the swap'
   assert.equal(questionInstance.preferredDok, 2);
   assert.equal(questionInstance.preferredBand, 3);
 
-  // The slot's own standard is not a swap.
-  const own = await runtime.startOrResumePathSession({ targetAlignmentKey: `texas:${SLOT_TEKS}`, weekKey: WEEK, weeklySlotKey: slot.weeklySlotKey });
+  // The slot's own standard is not a swap. (Launched on a fresh week: on this
+  // one slot 1 already holds the open swap, which a launch would resume.)
+  const fresh = runtimeFor();
+  const freshWeek = fresh.freezeWeeklyPathGoal(proposal());
+  const own = await fresh.startOrResumePathSession({ targetAlignmentKey: `texas:${SLOT_TEKS}`, weekKey: WEEK, weeklySlotKey: freshWeek.sessions[0].weeklySlotKey });
+  assert.equal(own.session.target.alignmentKey, `texas:${SLOT_TEKS}`);
   assert.equal(own.session.swappedFromTeks, null);
   assert.equal(own.session.chosenAlternative, null);
+});
+
+test('a slot whose swap is open resumes it whatever standard the launch names, as the server does', async () => {
+  const runtime = runtimeFor();
+  const frozen = runtime.freezeWeeklyPathGoal(proposal());
+  const [slot] = frozen.sessions;
+  const openOnSlot = () => runtime.listPathSessions()
+    .filter(({ data }) => data.status === 'active' && data.weeklySlotKey === slot.weeklySlotKey);
+
+  const swapped = await runtime.startOrResumePathSession({
+    targetAlignmentKey: `texas:${SWAP_TEKS}`, requiredQuestions: 2, weekKey: WEEK, weeklySlotKey: slot.weeklySlotKey,
+  });
+  // A reload showed the recommendation before the sessions arrived, and its
+  // Start was pressed: the swap is resumed, never doubled.
+  const recommendation = await runtime.startOrResumePathSession({
+    targetAlignmentKey: `texas:${SLOT_TEKS}`, requiredQuestions: 2, weekKey: WEEK, weeklySlotKey: slot.weeklySlotKey,
+  });
+  assert.equal(recommendation.resumed, true);
+  assert.equal(recommendation.session.sessionId, swapped.session.sessionId);
+  assert.equal(recommendation.session.target.alignmentKey, `texas:${SWAP_TEKS}`);
+  assert.equal(openOnSlot().length, 1, 'one slot, one open session');
+
+  // Once it is finished the slot holds no open session, so a launch starts one.
+  await answerCorrectly(runtime, swapped.session.sessionId);
+  await answerCorrectly(runtime, swapped.session.sessionId);
+  assert.equal(openOnSlot().length, 0);
+  const next = await runtime.startOrResumePathSession({
+    targetAlignmentKey: `texas:${SLOT_TEKS}`, weekKey: WEEK, weeklySlotKey: slot.weeklySlotKey,
+  });
+  assert.notEqual(next.session.sessionId, swapped.session.sessionId);
+  assert.equal(next.session.target.alignmentKey, `texas:${SLOT_TEKS}`);
 });
 
 test('the simulator refuses every weekly launch the server refuses', async () => {

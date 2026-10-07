@@ -13788,6 +13788,8 @@ function pathSessionRequiredQuestions(sessionKind, requested) {
   return Math.max(2, Math.min(10, Number(requested) || 5));
 }
 
+// Pinned equal to WEEKLY_PATH_FRAMEWORKS (shared/weeklyPathSlotAuthority.mjs),
+// which the simulator and the browser use, by weeklyPathSlotAuthority.test.mjs.
 const PATH_ASSESSMENT_FRAMEWORKS = new Set(["digitalSAT", "act", "tsia2", "asvab"]);
 
 function normalizePathAssessmentFramework(value) {
@@ -14601,12 +14603,13 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const requestedWeeklySlotKey = String(request.data?.weeklySlotKey || "").trim() || null;
   let weeklySlot = null;
   let weeklySwap = null;
+  let slotAuthority = null;
   if (requestedWeeklySlotKey || requestedWeekKey) {
     if (!requestedWeeklySlotKey || !requestedWeekKey || !/^\d{4}-\d{2}-\d{2}$/.test(requestedWeekKey)) {
       throw new HttpsError("invalid-argument", "weekKey and weeklySlotKey are both required for an assigned weekly session.");
     }
     const snapshot = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${requestedWeekKey}`).get();
-    const slotAuthority = await import("./shared/weeklyPathSlotAuthority.mjs");
+    slotAuthority = await import("./shared/weeklyPathSlotAuthority.mjs");
     const authorization = slotAuthority.authorizeWeeklySlotLaunch({
       goal: snapshot.exists ? (snapshot.data() || {}) : null,
       weeklySlotKey: requestedWeeklySlotKey,
@@ -14731,8 +14734,27 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const session = await db.runTransaction(async (transaction) => {
     const now = Date.now();
     const lock = await transaction.get(lockRef);
-    if (lock.exists && lock.data()?.sessionId) {
-      const existingRef = db.collection("pathSessions").doc(lock.data().sessionId);
+    let existingSessionId = lock.exists ? (lock.data()?.sessionId || null) : null;
+    // One open session per weekly slot. The lock is keyed by target, and a slot
+    // frozen with "Swap a skill" alternatives can be launched on more than one
+    // standard, so a launch for a slot that already has an open session on
+    // another of them resumes that session instead of opening a second
+    // (shared/weeklyPathSlotAuthority.mjs, which the simulator also runs).
+    if (requestedWeeklySlotKey && slotAuthority) {
+      const weekSessions = await transaction.get(db.collection("pathSessions")
+        .where("studentId", "==", studentId)
+        .where("weekKey", "==", requestedWeekKey));
+      const openSlotSession = slotAuthority.openWeeklySlotSession({
+        sessions: weekSessions.docs.map((doc) => ({ id: doc.id, data: doc.data() || {} })),
+        studentId,
+        weekKey: requestedWeekKey,
+        weeklySlotKey: requestedWeeklySlotKey,
+        preferSessionId: existingSessionId,
+      });
+      if (openSlotSession) existingSessionId = openSlotSession.id;
+    }
+    if (existingSessionId) {
+      const existingRef = db.collection("pathSessions").doc(existingSessionId);
       const existing = await transaction.get(existingRef);
       if (existing.exists && existing.data()?.status === "active" && existing.data()?.studentId === studentId) {
         if (existing.data()?.sessionKind !== sessionKind) {

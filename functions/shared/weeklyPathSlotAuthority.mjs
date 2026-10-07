@@ -38,7 +38,11 @@ export const MAX_WEEKLY_SLOT_ALTERNATIVES = 3;
 export const WEEKLY_PATH_GOAL_SCHEMA_VERSION = 2;
 
 // The same four the session runtime accepts (normalizePathAssessmentFramework
-// in functions/index.js). Anything else is ordinary course practice.
+// in functions/index.js). Anything else is ordinary course practice. The
+// callable injects its own normalizer, but the simulator and the browser use
+// this list, so the two are pinned equal by tests/platform/
+// weeklyPathSlotAuthority.test.mjs: adding a framework on one side alone would
+// let the simulator and the server classify a slot's context differently.
 export const WEEKLY_PATH_FRAMEWORKS = Object.freeze(['digitalSAT', 'act', 'tsia2', 'asvab']);
 
 // Mirrors TEKS_SKILL_PREFIX in pathSkillGraph.mjs (pinned by a test) without
@@ -99,6 +103,23 @@ export const seatedWeeklyTeks = (sessions = [], options = {}) => {
   return new Set(list(sessions)
     .map((slot) => text(tools.canonicalTeks(slot?.teksCode)))
     .filter(Boolean));
+};
+
+/**
+ * Every slot's alternatives, sanitized in slot order.
+ *
+ * A standard is offered by ONE slot at most: each slot's kept alternatives are
+ * seated before the next slot is sanitized, so two slots can never both offer
+ * (and both be filled by) the same standard. `alternativesOf(slot, index)`
+ * supplies what each slot proposes.
+ */
+const sanitizeWeekAlternatives = (slots, alternativesOf, tools) => {
+  const seated = seatedWeeklyTeks(slots, tools);
+  return list(slots).map((slot, index) => {
+    const kept = sanitizeWeeklySlotAlternatives(alternativesOf(slot, index), { slot, seated, ...tools });
+    kept.forEach((entry) => seated.add(text(tools.canonicalTeks(entry.teksCode))));
+    return kept;
+  });
 };
 
 /**
@@ -229,11 +250,8 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
     };
   });
 
-  const seated = seatedWeeklyTeks(slots, tools);
-  const sessions = slots.map((slot, index) => ({
-    ...slot,
-    alternatives: sanitizeWeeklySlotAlternatives(proposed[index]?.alternatives, { slot, seated, ...tools }),
-  }));
+  const alternatives = sanitizeWeekAlternatives(slots, (slot, index) => proposed[index]?.alternatives, tools);
+  const sessions = slots.map((slot, index) => ({ ...slot, alternatives: alternatives[index] }));
 
   return {
     schemaVersion: WEEKLY_PATH_GOAL_SCHEMA_VERSION,
@@ -262,18 +280,66 @@ export const findWeeklySlot = (goal = null, weeklySlotKey = null) => {
 };
 
 /**
- * The alternatives a frozen slot permits right now: the stored list, read back
- * through the same sanitizer, so a launch can never be authorized by anything
- * a fresh freeze would not keep.
+ * The alternatives a frozen slot permits right now: the stored lists, read back
+ * through the same sanitizer in the same slot order, so a launch can never be
+ * authorized by anything a fresh freeze would not keep — including a standard
+ * an earlier slot already offers.
  */
 export const permittedWeeklySlotAlternatives = (goal = null, slot = null, options = {}) => {
   if (!slot) return [];
   const tools = toolsFrom(options);
-  return sanitizeWeeklySlotAlternatives(slot.alternatives, {
-    slot,
-    seated: seatedWeeklyTeks(goal?.sessions, tools),
-    ...tools,
-  });
+  const slots = list(goal?.sessions);
+  const key = text(slot.weeklySlotKey);
+  let index = slots.indexOf(slot);
+  if (index === -1 && key) index = slots.findIndex((entry) => text(entry?.weeklySlotKey) === key);
+  if (index === -1) {
+    return sanitizeWeeklySlotAlternatives(slot.alternatives, {
+      slot,
+      seated: seatedWeeklyTeks(slots, tools),
+      ...tools,
+    });
+  }
+  const replay = slots.map((entry, position) => (position === index ? slot : entry));
+  return sanitizeWeekAlternatives(replay, (entry) => entry?.alternatives, tools)[index];
+};
+
+/**
+ * The open session a weekly slot already holds, or null.
+ *
+ * ONE SLOT, ONE OPEN SESSION. The session lock is keyed by target, and a slot
+ * frozen with alternatives can be launched on more than one standard — so the
+ * lock alone would let a second launch for the same slot (a reload that shows
+ * the recommendation before the student's sessions have loaded, or an older
+ * browser) open a second session beside the first, and the student's card and
+ * the teacher's row would then disagree about what filled the slot. A launch
+ * for a slot that already has an open session resumes that session instead,
+ * on whichever of the slot's standards it was opened.
+ *
+ * `sessions` is [{ id, data }] in the pathSessions document shape. The session
+ * named by `preferSessionId` (the target's own lock) wins when it is open;
+ * otherwise the most recently updated open one.
+ */
+export const openWeeklySlotSession = ({
+  sessions = [],
+  studentId = null,
+  weekKey = null,
+  weeklySlotKey = null,
+  preferSessionId = null,
+} = {}) => {
+  const key = text(weeklySlotKey);
+  const week = text(weekKey);
+  if (!key || !week) return null;
+  const open = list(sessions)
+    .filter((entry) => {
+      const data = entry?.data;
+      return text(entry?.id)
+        && data?.status === 'active'
+        && (!studentId || data.studentId === studentId)
+        && text(data.weekKey) === week
+        && text(data.weeklySlotKey) === key;
+    })
+    .sort((a, b) => (Number(b.data.updatedAt || b.data.createdAt) || 0) - (Number(a.data.updatedAt || a.data.createdAt) || 0));
+  return open.find((entry) => preferSessionId && entry.id === preferSessionId) || open[0] || null;
 };
 
 const refuse = (code, message, reason) => ({ ok: false, code, message, reason });

@@ -42,7 +42,7 @@ import {
 import { recordQuestionAttempt, resolveQuestionMaximumAttempts } from '../../attemptPolicy.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 import {
-  authorizeWeeklySlotLaunch, freezeWeeklyPathGoalProposal,
+  authorizeWeeklySlotLaunch, freezeWeeklyPathGoalProposal, openWeeklySlotSession,
 } from '../../../functions/shared/weeklyPathSlotAuthority.mjs';
 
 // The simulated learner has no real class; the frozen week still needs one.
@@ -529,6 +529,31 @@ export const createTeacherPathRuntime = ({
     if (existing) {
       publish(existing);
       return { success: true, session: publicSession(existing), resumed: true };
+    }
+
+    // ONE OPEN SESSION PER WEEKLY SLOT, as startMyMathPathSession enforces it
+    // (openWeeklySlotSession). A swapped slot can be launched on more than one
+    // standard, so a launch for a slot that already has an open session on
+    // another of them resumes that session — on the standard it was opened
+    // with — and is refused, with the server's words, if it is a different
+    // kind of session.
+    const openOnSlot = weeklySlotKey
+      ? openWeeklySlotSession({
+        sessions: [...sessions.values()].map((candidate) => ({ id: candidate.sessionId, data: candidate })),
+        weekKey,
+        weeklySlotKey,
+      })
+      : null;
+    const slotSession = openOnSlot ? sessions.get(openOnSlot.id) : null;
+    if (slotSession) {
+      if (slotSession.sessionKind !== sessionKind) {
+        throw new Error('Finish the active session for this TEKS before starting a different check.');
+      }
+      if ((slotSession.assessmentFramework || null) !== (launchFramework || null)) {
+        throw new Error('Finish the active session before changing assessment format.');
+      }
+      publish(slotSession);
+      return { success: true, session: publicSession(slotSession), resumed: true };
     }
 
     const session = {

@@ -14,28 +14,41 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import {
   MAX_WEEKLY_SLOT_ALTERNATIVES,
+  WEEKLY_PATH_FRAMEWORKS,
   WEEKLY_PATH_GOAL_SCHEMA_VERSION,
   WeeklyPathGoalError,
   authorizeWeeklySlotLaunch,
   freezeWeeklyPathGoalProposal,
+  normalizeWeeklyPathFramework,
   permittedWeeklySlotAlternatives,
   sanitizeWeeklySlotAlternatives,
 } from '../../functions/shared/weeklyPathSlotAuthority.mjs';
 import { collectWeeklyPathSessions } from '../../functions/shared/weeklyPathCompletion.mjs';
 import { evaluateWeeklyGoalProgress, gradeWeeklyGoal, matchWeeklyGoalCompletions } from '../../functions/shared/weeklyPathGrade.mjs';
 import { teksSkillId } from '../../functions/shared/pathSkillGraph.mjs';
+import { topLevelFunction } from './helpers/serverCallableHarness.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
 
-// Exactly what the callable injects.
+// The callable's own framework rule, cut out of functions/index.js as written.
+const serverFrameworkRule = (() => {
+  const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const declaration = source.match(/^const PATH_ASSESSMENT_FRAMEWORKS = [^\n]+;$/m);
+  assert.ok(declaration, 'functions/index.js no longer declares PATH_ASSESSMENT_FRAMEWORKS on one line; update this test');
+  return new Function(`"use strict";\n${declaration[0]}\n${topLevelFunction('normalizePathAssessmentFramework')}\nreturn { frameworks: PATH_ASSESSMENT_FRAMEWORKS, normalize: normalizePathAssessmentFramework };`)();
+})();
+
+// Exactly what the callable injects (WEEKLY_SLOT_TEKS_TOOLS).
 const SERVER = {
   canonicalTeks: mathPath.canonicalAlignmentKey,
   displayTeks: mathPath.displayAlignmentKey,
+  normalizeFramework: serverFrameworkRule.normalize,
 };
 const CONTEXT = { studentId: 'S1', classId: 'class-1', courseId: 'algebra1', ...SERVER };
 const WEEK = '2026-10-05';
@@ -296,4 +309,45 @@ test('a swapped session fills the slot it was launched for — student, teacher 
   const grade = gradeWeeklyGoal({ goal, completions, now });
   assert.equal(grade.progress.completedOnTime, 1);
   assert.equal(grade.components.qualityRatio, 0.8, 'quality is read from the swapped session alone');
+});
+
+test('the frameworks the server accepts are the ones the simulator and the browser accept', () => {
+  // The callable injects normalizePathAssessmentFramework; the Teacher Path
+  // Simulator and the browser fall back to this module's list. A framework
+  // added on one side alone would make the simulator freeze a slot as course
+  // practice that the server freezes as exam practice.
+  assert.deepEqual(new Set(WEEKLY_PATH_FRAMEWORKS), serverFrameworkRule.frameworks);
+  ['digitalSAT', 'act', 'tsia2', 'asvab', ' act ', 'course', 'SAT', 'accuplacer', '', null, undefined, 7].forEach((value) => {
+    assert.equal(normalizeWeeklyPathFramework(value), serverFrameworkRule.normalize(value), `framework ${JSON.stringify(value)}`);
+  });
+});
+
+test('a standard is offered by one slot at most, at freeze and at launch', () => {
+  // Two slots propose the same alternative. The comment on seatedWeeklyTeks
+  // promises a student never practises one standard for two slots, so only
+  // the first slot may keep it.
+  const goal = freezeWeeklyPathGoalProposal(proposal([
+    slotProposal('A.5A', { alternatives: [alt('A.7C'), alt('A.2A')] }),
+    slotProposal('A.3B', { alternatives: [alt('a.7c'), alt('A.9D')] }),
+    slotProposal('A.2C', { alternatives: [alt('A.2A'), alt('A.9D'), alt('A.10B')] }),
+  ]), CONTEXT);
+  assert.deepEqual(goal.sessions.map((slot) => slot.alternatives.map((entry) => entry.teksCode)), [
+    ['A.7C', 'A.2A'],
+    ['A.9D'],
+    ['A.10B'],
+  ]);
+  goal.sessions.forEach((slot) => {
+    assert.deepEqual(permittedWeeklySlotAlternatives(goal, slot, SERVER), slot.alternatives, 'a fresh freeze re-reads unchanged');
+  });
+
+  // A snapshot edited to give slot 2 slot 1's alternative authorizes it for
+  // slot 1 only — re-read in slot order, it is already taken.
+  const [first, second] = goal.sessions;
+  second.alternatives = [{ skillId: 'teks:A.7C', teksCode: 'A.7C' }, ...second.alternatives];
+  assert.deepEqual(permittedWeeklySlotAlternatives(goal, second, SERVER).map((entry) => entry.teksCode), ['A.9D']);
+  // A copy of the slot (not the array element itself) is found by its key.
+  assert.deepEqual(permittedWeeklySlotAlternatives(goal, { ...second }, SERVER).map((entry) => entry.teksCode), ['A.9D']);
+  const launch = (slot) => authorizeWeeklySlotLaunch({ goal, weeklySlotKey: slot.weeklySlotKey, targetAlignmentKey: 'texas:A.7C', ...SERVER });
+  assert.equal(launch(second).reason, 'target-mismatch');
+  assert.equal(launch(first).ok, true);
 });
