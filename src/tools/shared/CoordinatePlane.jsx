@@ -78,6 +78,28 @@ const pointXY = (point) => {
 };
 const formatCoordinate = (point) => { const [x, y] = pointXY(point); return `(${tidy(x)}, ${tidy(y)})`; };
 
+// Tools pass curves inline (`functions={[(x) => …]}`), a new array every
+// render, which re-ran the description memo — sampling every curve — on every
+// render (PR #454 review M2). The same curves, judged by what they draw at a
+// few points across the window, keep the same array.
+const SIGNATURE_SAMPLES = 13;
+const curveSignature = (fns, lo, hi) => fns.map((fn) => {
+  let out = '';
+  for (let i = 0; i < SIGNATURE_SAMPLES; i += 1) {
+    const x = lo + ((hi - lo) * (i + 0.37)) / SIGNATURE_SAMPLES;
+    let y;
+    try { y = fn(x); } catch { y = NaN; }
+    out += `${Number.isFinite(y) ? Number(y).toPrecision(8) : 'x'},`;
+  }
+  return out;
+}).join('|');
+const useStableFunctions = (fns, lo, hi) => {
+  const signature = curveSignature(fns, lo, hi);
+  const kept = useRef({ signature: null, fns });
+  if (kept.current.signature !== signature) kept.current = { signature, fns };
+  return kept.current.fns;
+};
+
 export default function CoordinatePlane({
   xMin: domainXMin = -10, xMax: domainXMax = 10, yMin: domainYMin = -10, yMax: domainYMax = 10,
   width = 560, height = 380,
@@ -477,7 +499,7 @@ export default function CoordinatePlane({
   const hasToolMarks = typeof children === 'function' || React.Children.toArray(children).length > 0;
   const describedPoints = orNone(points);
   const describedLines = orNone(lines);
-  const describedFunctions = orNone(functions);
+  const describedFunctions = useStableFunctions(orNone(functions), xMin, xMax);
   const describedPolylines = orNone(polylines);
   const describedRegions = orNone(regions);
   const describedVerticals = orNone(verticalLines);

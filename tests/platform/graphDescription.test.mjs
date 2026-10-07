@@ -196,7 +196,7 @@ test('CoordinatePlane imports the describer it calls, and memoises it on the dat
     const passed = call.match(new RegExp(`\\b${prop}(?::\\s*(\\w+))?\\s*,`));
     assert.ok(passed, `the describer must be given ${prop}`);
     const name = passed[1] || prop;
-    if (name !== prop) assert.match(planeCode, new RegExp(`const ${name} = orNone\\(${prop}\\);`), `${name} must be ${prop}`);
+    if (name !== prop) assert.match(planeCode, new RegExp(`const ${name} = (?:useStableFunctions\\()?orNone\\(${prop}\\)`), `${name} must be ${prop}`);
     assert.match(deps, new RegExp(`\\b${name}\\b`), `memo deps must include ${name}`);
   }
   for (const bound of ['xMin', 'xMax', 'yMin', 'yMax', 'snapStep']) {

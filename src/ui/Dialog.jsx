@@ -61,15 +61,22 @@ const tabbableWithin = (root) => {
 const ALLOWED_FOCUS_LAYERS = `${MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR}, [data-work-view-floating-tool], [data-dialog-allow-focus]`;
 const inAllowedLayer = (element) => Boolean(element?.closest?.(ALLOWED_FOCUS_LAYERS));
 
-// The last element that had focus anywhere. A dialog whose opener was
-// disabled while it loaded (the Scratchpad button) opens with focus already
-// on <body>; this is where focus goes back to on close.
-let lastFocusedElement = null;
+// An opener that lost focus BECAUSE it was disabled — the Scratchpad button
+// greys out while the overlay loads, so the dialog opens with focus already on
+// <body>. Only that case borrows it as the opener. A button press that never
+// took focus at all (Safari, iPadOS) leaves nothing here, so closing never
+// jumps to whatever was focused long before — an answer field whose focus
+// would open the phone keypad (PR #454 review M1).
+let disabledOpener = null;
+const DISABLED_OPENER_WINDOW_MS = 4000;
 if (typeof document !== 'undefined') {
-  document.addEventListener('focusin', (event) => {
-    if (event.target && event.target !== document.body) lastFocusedElement = event.target;
+  document.addEventListener('focusout', (event) => {
+    if (event.target?.disabled === true) disabledOpener = { element: event.target, at: Date.now() };
   }, true);
 }
+const recentDisabledOpener = () => (
+  disabledOpener && Date.now() - disabledOpener.at <= DISABLED_OPENER_WINDOW_MS ? disabledOpener.element : null
+);
 
 // Elements of the Dialogs currently open (they order themselves by the stack).
 const openDialogElements = new Set();
@@ -104,9 +111,10 @@ export function useModalDialog(ref, {
     openDialogElements.add(dialog);
     const pop = pushDialog(token, { contains: (other) => other !== dialog && dialog.contains(other) });
     const onTop = () => isTopDialog(token) && !coveredByForeignModal(dialog);
+    const borrowed = recentDisabledOpener();
     const opener = doc.activeElement && doc.activeElement !== doc.body
       ? doc.activeElement
-      : (lastFocusedElement && !dialog.contains(lastFocusedElement) ? lastFocusedElement : null);
+      : (borrowed && !dialog.contains(borrowed) ? borrowed : null);
 
     // Focusable so it can hold focus when it has no controls; removed again on
     // close, for an element that stays mounted (Work View's host).

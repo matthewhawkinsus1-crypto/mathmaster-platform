@@ -65,7 +65,7 @@ test('MathDisplay hides the typeset element and renders one spoken copy from its
   const render = region(source, '<Element', '</Element>', 'the typeset element');
   assert.match(render, /aria-hidden="true"/, 'MathLive markup and MathML are hidden from assistive technology');
   assert.doesNotMatch(render, /aria-label=/, 'no label on the hidden element');
-  assert.match(source, /const spoken = mathSpeechLabel\(\{ value: cleanValue, ariaLabel \}\);/);
+  assert.match(source, /const spoken = useMemo\(\(\) => mathSpeechLabel\(\{ value: cleanValue, ariaLabel \}\), \[cleanValue, ariaLabel\]\);/);
   assert.match(region(source, '</Element>', '</>', 'after the element'), /\{spoken \? <span[^>]*style=\{SR_ONLY_STYLE\}>\{spoken\}<\/span> : null\}/);
 });
 

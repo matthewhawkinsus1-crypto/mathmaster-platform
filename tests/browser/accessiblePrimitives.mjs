@@ -99,11 +99,22 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.equal(await page.locator('[data-test="dialog"]').count(), 0);
   assert.equal(await focused(page), 'slow-opener', `${at}: focus returns to an opener that was disabled while loading`);
 
+  // A press that never took focus (Safari and iPadOS buttons): closing must not
+  // jump to whatever was focused long before — an answer field, whose focus
+  // would open a phone keypad (PR #454 review M1).
+  await page.locator('[data-test="answer"]').focus();
+  await page.evaluate(() => document.activeElement.blur());
+  await page.evaluate(() => document.querySelector('[data-test="opener"]').click());
+  await page.locator('[data-test="dialog"]').waitFor();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('[data-test="dialog"]').count(), 0);
+  assert.notEqual(await focused(page), 'answer', `${at}: closing does not focus an unrelated earlier field`);
+
   // ---- Focus ring on an interactive span with inline outline:none
   const outline = () => page.locator('[data-test="term"]').evaluate((el) => getComputedStyle(el).outlineStyle);
   await page.locator('[data-test="term"]').click();
   assert.equal(await outline(), 'none', `${at}: no ring for a mouse press`);
-  await page.locator('[data-test="slow-opener"]').focus();
+  await page.locator('[data-test="answer"]').focus();
   await page.keyboard.press('Tab');
   assert.equal(await focused(page), 'term');
   assert.equal(await outline(), 'solid', `${at}: keyboard focus shows the ring despite inline outline:none`);

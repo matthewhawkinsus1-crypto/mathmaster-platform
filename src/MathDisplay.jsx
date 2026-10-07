@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import './platform/math/mathliveRuntime.js';
 import { ensureMathElementRenders } from './platform/math/ensureMathElementRenders.js';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
@@ -80,6 +80,8 @@ export default function MathDisplay({
   );
   const elementRef = useRef(null);
   useEffect(() => ensureMathElementRenders(elementRef.current), [cleanValue, format]);
+  // ONE SPOKEN COPY (below). Memoised: a screen of math re-renders often.
+  const spoken = useMemo(() => mathSpeechLabel({ value: cleanValue, ariaLabel }), [cleanValue, ariaLabel]);
   if (!cleanValue) return null;
 
   // Important: stackDivisions may have introduced a LaTeX \frac into a value
@@ -93,8 +95,7 @@ export default function MathDisplay({
   // under whatever label it is given, so a screen reader announced every
   // expression three times — and with the old default label, never as math.
   // The typeset element is hidden from assistive technology; the words beside
-  // it are what is read.
-  const spoken = mathSpeechLabel({ value: cleanValue, ariaLabel });
+  // it (`spoken`, above) are what is read.
 
   return (
     <>
