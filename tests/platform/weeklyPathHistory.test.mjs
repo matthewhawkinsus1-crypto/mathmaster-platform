@@ -199,6 +199,26 @@ test('streak: every week in view hit means "at least" that many', () => {
   assert.deepEqual(weeklyPathStreak([]), { weeks: 0, includesOpenWeek: false, atLeast: false, endedBy: null });
 });
 
+test('a past week stored with a due date far in its future still closes, and its miss ends the streak', () => {
+  // The freeze now refuses such a date; a week stored before that must not
+  // stay open for good and skip the streak instead of ending it.
+  const forged = { ...frozenGoal(TWO_AGO), dueAt: NOW + 365 * DAY };
+  const week = summarizeWeeklyPathWeek({ weekKey: TWO_AGO, goal: forged, completions: [], now: NOW });
+  assert.equal(week.closed, true);
+  assert.equal(week.hit, false);
+  const history = buildWeeklyPathHistory({
+    weekKeys: [LAST_WEEK, TWO_AGO, THREE_AGO],
+    goalsByWeekKey: { [LAST_WEEK]: frozenGoal(LAST_WEEK, ['A.5A']), [TWO_AGO]: forged, [THREE_AGO]: frozenGoal(THREE_AGO, ['A.5A']) },
+    sessions: [completed(frozenGoal(LAST_WEEK, ['A.5A']), 1, monday(LAST_WEEK)), completed(frozenGoal(THREE_AGO, ['A.5A']), 1, monday(THREE_AGO))],
+    now: NOW,
+    displayTeks: display,
+  });
+  assert.deepEqual(history.streak, { weeks: 1, includesOpenWeek: false, atLeast: false, endedBy: TWO_AGO });
+  // Inside its own window the week keeps following its due date.
+  const open = summarizeWeeklyPathWeek({ weekKey: THIS_WEEK, goal: { ...frozenGoal(THIS_WEEK), dueAt: NOW + 365 * DAY }, completions: [], now: NOW });
+  assert.equal(open.closed, false);
+});
+
 test('end to end: a week with no goal is a closed week not hit, and ends the streak', () => {
   const last = frozenGoal(LAST_WEEK, ['A.5A']);
   const three = frozenGoal(THREE_AGO, ['A.5A']);

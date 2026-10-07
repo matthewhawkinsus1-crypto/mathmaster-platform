@@ -13999,6 +13999,7 @@ async function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecor
       studentId,
       classId: classRecord?.classId,
       courseId: classRecord?.course,
+      now: Date.now(),
       ...WEEKLY_SLOT_TEKS_TOOLS,
     });
   } catch (error) {

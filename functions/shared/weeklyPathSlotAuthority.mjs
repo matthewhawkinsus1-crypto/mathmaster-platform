@@ -165,6 +165,11 @@ export const sanitizeWeeklySlotAlternatives = (alternatives, {
 // Sunday evening that is already Monday in UTC (the completion window's day).
 export const WEEKLY_DUE_WINDOW_MS = 8 * 24 * 60 * 60 * 1000;
 
+// The server freezes only the week that is current by its own clock: from a
+// day before the week starts (a device clock a little ahead) until that same
+// eight-day window closes.
+export const WEEKLY_FREEZE_LEAD_MS = 24 * 60 * 60 * 1000;
+
 /**
  * The server's frozen copy of a proposed week.
  *
@@ -177,6 +182,9 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
   studentId = null,
   classId = '',
   courseId = '',
+  // The server's clock. The callable always passes it; the Teacher Path
+  // Simulator, which runs its own synthetic weeks, does not.
+  now = null,
   ...toolOptions
 } = {}) => {
   const tools = toolsFrom(toolOptions);
@@ -194,6 +202,15 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
   const dueAt = Number(goal?.dueAt);
   if (!Number.isFinite(dueAt) || dueAt < weekStart || dueAt >= weekStart + WEEKLY_DUE_WINDOW_MS) {
     throw new WeeklyPathGoalError('invalid-argument', 'This weekly Path proposal has no valid due date for its week.');
+  }
+  // Only the current week can be frozen. Otherwise a student could freeze a
+  // past week they never opened, from practice they happened to do that week,
+  // and count it toward the weeks-hit streak.
+  if (now !== null && now !== undefined) {
+    const clock = Number(now);
+    if (!Number.isFinite(clock) || clock < weekStart - WEEKLY_FREEZE_LEAD_MS || clock >= weekStart + WEEKLY_DUE_WINDOW_MS) {
+      throw new WeeklyPathGoalError('failed-precondition', 'This weekly Path is not for the current week. Check the date on this device, then reload.');
+    }
   }
   const cleanClassId = text(classId);
   const cleanCourseId = text(courseId);

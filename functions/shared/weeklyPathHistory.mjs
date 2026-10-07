@@ -113,8 +113,11 @@ export const summarizeWeeklyPathWeek = ({
   const dueAt = Number(goal.dueAt) || null;
   const publishedScore = published && Number.isFinite(Number(published.score)) ? Number(published.score) : null;
   // Closed exactly when the grade is final. A goal frozen without a due date
-  // never freezes its grade, so it closes with its calendar week instead.
-  const closed = graded.frozen || (!dueAt && key < currentWeekKey);
+  // never freezes its grade, so it closes with its calendar week instead. And
+  // no week stays open past its completion window, whatever due date it was
+  // stored with: an open week never ends a streak.
+  const windowEnd = weeklyCompletionWindow(key)?.end ?? Number.POSITIVE_INFINITY;
+  const closed = graded.frozen || now >= windowEnd || (!dueAt && key < currentWeekKey);
   return {
     weekKey: key,
     current,

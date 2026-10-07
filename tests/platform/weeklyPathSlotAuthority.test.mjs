@@ -15,6 +15,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 import {
   MAX_WEEKLY_SLOT_ALTERNATIVES,
@@ -29,6 +30,7 @@ import { collectWeeklyPathSessions } from '../../functions/shared/weeklyPathComp
 import { evaluateWeeklyGoalProgress, gradeWeeklyGoal, matchWeeklyGoalCompletions } from '../../functions/shared/weeklyPathGrade.mjs';
 import { teksSkillId } from '../../functions/shared/pathSkillGraph.mjs';
 import { dueAtFor, weekKeyFor } from '../../src/platform/path/weeklyPathGoal.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -334,4 +336,37 @@ test('every due date a real client computes is accepted, for every due day and a
     }
   }
   assert.equal(checked, 3 * 72 * 49);
+});
+
+test('the server freezes only the week that is current by its own clock', () => {
+  // A past week the student never opened, frozen after the fact from practice
+  // they happened to do, would count toward the weeks-hit streak.
+  const sessions = [slotProposal('A.5A'), slotProposal('A.2C'), slotProposal('A.3B')];
+  const weekStart = Date.parse(`${WEEK}T00:00:00Z`);
+  const freezeAt = (now) => freezeWeeklyPathGoalProposal(proposal(sessions), { ...CONTEXT, now });
+  for (const now of [weekStart - 2 * 86400000, weekStart + 8 * 86400000, weekStart + 30 * 86400000, Number.NaN, 'later']) {
+    assert.throws(() => freezeAt(now), (error) => error.code === 'failed-precondition' && /not for the current week/.test(error.message), `now ${now}`);
+  }
+  // From a day early (a device clock a little ahead) to the window's last hour.
+  for (const now of [weekStart - 3600000, weekStart, MON, weekStart + 8 * 86400000 - 3600000]) {
+    assert.equal(freezeAt(now).weekKey, WEEK, `now ${now}`);
+  }
+  // The simulator runs its own synthetic weeks and passes no clock.
+  assert.equal(freezeWeeklyPathGoalProposal(proposal(sessions), CONTEXT).weekKey, WEEK);
+
+  // Every proposal a real client makes is current by the clock it was made with.
+  for (let now = weekStart; now < weekStart + 7 * 86400000; now += 5 * 3600000) {
+    for (let weekStartsOn = 0; weekStartsOn < 7; weekStartsOn += 1) {
+      const live = { ...proposal(sessions), weekKey: weekKeyFor(now, weekStartsOn), dueAt: dueAtFor(now, { weekStartsOn }) };
+      assert.equal(freezeWeeklyPathGoalProposal(live, { ...CONTEXT, now }).weekKey, live.weekKey);
+    }
+  }
+});
+
+test('resolveWeeklyPathGoalSnapshot freezes with the server clock', () => {
+  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const wrapper = region(index, 'async function sanitizeWeeklyPathGoalProposal(', '\n}\n', 'the server freeze');
+  assert.match(wrapper, /slotAuthority\.freezeWeeklyPathGoalProposal\(goal, \{[^}]*\bnow: Date\.now\(\),/);
+  const callable = region(index, 'exports.resolveWeeklyPathGoalSnapshot = onCall(', '\n});', 'the freeze callable');
+  assert.ok(callable.indexOf('await sanitizeWeeklyPathGoalProposal(') < callable.indexOf('db.runTransaction('), 'the week is checked before any snapshot is read or written');
 });
