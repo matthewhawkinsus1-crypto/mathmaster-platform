@@ -3,6 +3,7 @@
 // span that sets outline:none inline, and QuestionAnnouncer across a question
 // change whose prompt contains typeset math.
 import React, { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import Dialog from '../../src/ui/Dialog.jsx';
 import QuestionAnnouncer from '../../src/components/common/QuestionAnnouncer.jsx';
@@ -15,6 +16,7 @@ function Harness() {
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [foreign, setForeign] = useState(false);
   const [question, setQuestion] = useState(0);
   const stageRef = useRef(null);
   return (
@@ -33,6 +35,7 @@ function Harness() {
             <input aria-label="Name" data-test="name" />
             <label><input type="checkbox" data-test="busy" checked={busy} onChange={(event) => setBusy(event.target.checked)} /> Saving</label>
             <button type="button" data-test="delete" onClick={() => setConfirm(true)}>Delete</button>
+            <button type="button" data-test="open-foreign" onClick={() => setForeign(true)}>Ask</button>
             {confirm && (
               <Dialog role="alertdialog" aria-label="Confirm delete" onClose={() => setConfirm(false)} data-test="confirm" style={{ background: 'var(--mm-surface)', padding: 12 }}>
                 <button type="button" data-test="confirm-yes" onClick={() => setConfirm(false)}>Yes, delete</button>
@@ -41,6 +44,15 @@ function Harness() {
             )}
           </Dialog>
         </div>
+      )}
+      {/* A modal that is not a Dialog (like the Toast confirm), portalled to the end of <body>. */}
+      {foreign && createPortal(
+        <div role="alertdialog" aria-modal="true" aria-label="Foreign confirm" data-test="foreign"
+          onKeyDown={(event) => { if (event.key === 'Escape') setForeign(false); }}>
+          <button type="button" data-test="foreign-a" onClick={() => setForeign(false)}>OK</button>
+          <button type="button" data-test="foreign-b" onClick={() => setForeign(false)}>Cancel</button>
+        </div>,
+        document.body,
       )}
     </main>
   );

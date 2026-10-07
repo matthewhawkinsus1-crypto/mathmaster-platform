@@ -51,6 +51,21 @@ const tabbableWithin = (root) => {
   }));
 };
 
+// Elements of the Dialogs currently open (they order themselves by the stack).
+const openDialogElements = new Set();
+
+// A modal that is not (yet) a Dialog — a Toast confirm, QuestionEngine's —
+// knows nothing of the stack. If one is open LATER in the document than this
+// dialog and outside it, it is the layer on top and this dialog stands down.
+const coveredByForeignModal = (dialog) => {
+  const doc = dialog.ownerDocument || document;
+  return [...doc.querySelectorAll('[aria-modal="true"]')].some((element) => (
+    !openDialogElements.has(element)
+    && !dialog.contains(element)
+    && (dialog.compareDocumentPosition(element) & 4) // DOCUMENT_POSITION_FOLLOWING
+  ));
+};
+
 export function useModalDialog(ref, {
   onClose = null, initialFocusRef = null, closeOnEscape = true, returnFocus = true, active = true,
 } = {}) {
@@ -64,8 +79,11 @@ export function useModalDialog(ref, {
     const dialog = ref.current;
     if (!dialog) return undefined;
     const doc = dialog.ownerDocument || document;
-    const token = {};
-    const pop = pushDialog(token);
+    // The token is the element itself, so "contains" can be asked of the DOM.
+    const token = dialog;
+    openDialogElements.add(dialog);
+    const pop = pushDialog(token, { contains: (other) => other !== dialog && dialog.contains(other) });
+    const onTop = () => isTopDialog(token) && !coveredByForeignModal(dialog);
     const opener = doc.activeElement && doc.activeElement !== doc.body ? doc.activeElement : null;
 
     if (!dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
@@ -94,8 +112,11 @@ export function useModalDialog(ref, {
     const onKeyDown = (event) => {
       // Bubble phase: a control inside that owns Escape or Tab (a listbox, the
       // math keyboard) handles it first and marks it handled.
-      if (event.defaultPrevented || !isTopDialog(token)) return;
+      if (event.defaultPrevented || !onTop()) return;
       if (event.key === 'Escape') {
+        // A layer above that closed itself on this very Escape (a Toast
+        // confirm) is already gone from the DOM by the time it bubbles here.
+        if (event.target && event.target.isConnected === false) return;
         if (escapeRef.current && typeof onCloseRef.current === 'function') {
           event.stopPropagation();
           event.preventDefault();
@@ -112,7 +133,7 @@ export function useModalDialog(ref, {
       items[index].focus({ preventScroll: true });
     };
     const onFocusIn = (event) => {
-      if (!isTopDialog(token)) return;
+      if (!onTop()) return;
       if (dialog.contains(event.target)) return;
       // Focus belonging to a later layer (a toast, a MathLive keyboard, a
       // popover appended to <body>) is not an escape from this dialog.
@@ -127,6 +148,7 @@ export function useModalDialog(ref, {
       doc.removeEventListener('keydown', onKeyDown);
       doc.removeEventListener('focusin', onFocusIn);
       pop();
+      openDialogElements.delete(dialog);
       if (returnFocus && opener && opener.isConnected && typeof opener.focus === 'function') {
         opener.focus({ preventScroll: true });
       }

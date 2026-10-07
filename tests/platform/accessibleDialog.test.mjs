@@ -52,13 +52,31 @@ test('only the topmost dialog answers Escape and traps focus', () => {
   assert.equal(openDialogCount(), 0);
 });
 
+// React runs a nested child's effects before its parent's: a parent and child
+// opening together register child-first, and the parent must still sit below.
+test('a dialog that contains another is below it, whatever order they register in', () => {
+  const child = { name: 'child' };
+  const parent = { name: 'parent' };
+  const popChild = pushDialog(child);
+  const popParent = pushDialog(parent, { contains: (other) => other === child });
+  assert.equal(isTopDialog(child), true);
+  assert.equal(isTopDialog(parent), false);
+  popChild();
+  assert.equal(isTopDialog(parent), true);
+  popParent();
+});
+
 test('Dialog wires the rules to the element and restores focus', () => {
   const source = executableSource(read('src/ui/Dialog.jsx'));
   const effect = region(source, 'export function useModalDialog', 'const Dialog = forwardRef', 'useModalDialog');
   assert.match(effect, /const opener = doc\.activeElement/, 'remembers the opener');
   assert.match(effect, /opener\.focus\(/, 'returns focus to it on close');
-  assert.match(effect, /if \(event\.key === 'Escape'\) \{\s*if \(escapeRef\.current && typeof onCloseRef\.current === 'function'\)/, 'Escape honours closeOnEscape');
-  assert.match(effect, /if \(event\.defaultPrevented \|\| !isTopDialog\(token\)\) return;/, 'only the topmost dialog');
+  const escape = region(effect, "if (event.key === 'Escape') {", "if (event.key !== 'Tab') return;", 'Escape');
+  assert.match(escape, /if \(escapeRef\.current && typeof onCloseRef\.current === 'function'\)/, 'Escape honours closeOnEscape');
+  assert.match(escape, /if \(event\.target && event\.target\.isConnected === false\) return;/, 'not an Escape a closing layer above already used');
+  assert.match(effect, /const onTop = \(\) => isTopDialog\(token\) && !coveredByForeignModal\(dialog\);/, 'topmost of the stack and not under a non-Dialog modal');
+  assert.match(effect, /if \(event\.defaultPrevented \|\| !onTop\(\)\) return;/, 'only the topmost dialog answers keys');
+  assert.match(region(effect, 'const onFocusIn', 'doc.addEventListener', 'focusin'), /if \(!onTop\(\)\) return;/, 'only the topmost dialog pulls focus');
   assert.match(effect, /nextFocusIndex\(\{ count: items\.length, activeIndex: items\.indexOf\(doc\.activeElement\), shift: event\.shiftKey \}\)/);
   assert.match(effect, /doc\.addEventListener\('focusin', onFocusIn\)/, 'focus that escapes is pulled back');
   assert.match(region(source, 'const Dialog = forwardRef', 'export default', 'Dialog'), /<Tag ref=\{setRef\} role=\{role\} aria-modal="true" \{\.\.\.rest\}>/);

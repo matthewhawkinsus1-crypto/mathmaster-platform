@@ -76,21 +76,30 @@ export const initialFocusChoice = ({ hasExplicit = false, autofocusIndex = -1, i
 };
 
 // ---------------------------------------------------------------- the stack
+// Entries are { token, contains(entry) }. A dialog opened later is on top —
+// except that a dialog containing another one is always below it: React mounts
+// a child's effects before its parent's, so a parent and a nested child that
+// open together would otherwise register in the wrong order.
 const stack = [];
 
-export const pushDialog = (token) => {
-  if (!stack.includes(token)) stack.push(token);
+export const pushDialog = (token, { contains = () => false } = {}) => {
+  if (!stack.some((entry) => entry.token === token)) {
+    const entry = { token, contains };
+    const firstNested = stack.findIndex((other) => contains(other.token));
+    if (firstNested >= 0) stack.splice(firstNested, 0, entry);
+    else stack.push(entry);
+  }
   return () => {
-    const index = stack.indexOf(token);
+    const index = stack.findIndex((entry) => entry.token === token);
     if (index >= 0) stack.splice(index, 1);
   };
 };
 
-export const isTopDialog = (token) => stack.length > 0 && stack[stack.length - 1] === token;
+export const isTopDialog = (token) => stack.length > 0 && stack[stack.length - 1].token === token;
 
 export const openDialogCount = () => stack.length;
 
-/** Close-button heuristic: aria-label/text "Close", "Cancel", "×", "✕". */
+/** Close-button heuristic: aria-label/text "Close…", "Dismiss…", "×", "✕", "x". */
 export const looksLikeCloseControl = ({ label = '', text = '' } = {}) => {
   const value = `${label || ''} ${text || ''}`.trim().toLowerCase();
   if (!value) return false;

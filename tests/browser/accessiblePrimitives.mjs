@@ -36,10 +36,22 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.keyboard.press('Tab'); // busy checkbox
   await page.keyboard.press('Tab'); // delete
   assert.equal(await focused(page), 'delete');
+  await page.keyboard.press('Tab'); // ask
   await page.keyboard.press('Tab');
   assert.equal(await focused(page), 'close', `${at}: Tab on the last wraps to the first`);
   await page.keyboard.press('Shift+Tab');
-  assert.equal(await focused(page), 'delete', `${at}: Shift+Tab on the first wraps to the last`);
+  assert.equal(await focused(page), 'open-foreign', `${at}: Shift+Tab on the first wraps to the last`);
+
+  // A modal that is not a Dialog opened on top (the Toast confirm): the Dialog
+  // stands down — it neither pulls focus back nor answers Escape.
+  await page.keyboard.press('Enter');
+  await page.locator('[data-test="foreign"]').waitFor();
+  await page.locator('[data-test="foreign-a"]').focus();
+  await page.keyboard.press('Tab');
+  assert.equal(await focused(page), 'foreign-b', `${at}: Tab inside a later non-Dialog modal is left alone`);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('[data-test="foreign"]').count(), 0, `${at}: the foreign modal closed itself`);
+  assert.equal(await page.locator('[data-test="dialog"]').count(), 1, `${at}: …and the Dialog under it stayed open`);
   // Focus that escapes (a click on the page behind) is pulled back.
   await page.evaluate(() => document.querySelector('[data-test="opener"]').focus());
   assert.notEqual(await focused(page), 'opener', `${at}: focus cannot leave the dialog`);
