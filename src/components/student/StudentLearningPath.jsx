@@ -7,6 +7,7 @@ import {
   summarizeCoursePathPasses,
 } from '../../platform/path/pathPassPresentation.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
+import { masteredSectionView } from '../../platform/path/masteredSection.js';
 
 // The student's actual learning path.
 //
@@ -223,7 +224,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
   );
 }
 
-function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = false, skillProgressByTEKS = {} }) {
+function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = false, skillProgressByTEKS = {}, footer = null }) {
   if (!nodes.length) return null;
   return (
     <section style={section}>
@@ -241,7 +242,28 @@ function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = fals
           />
         ))}
       </div>
+      {footer}
     </section>
+  );
+}
+
+// "Show all N mastered skills" / "Show fewer". Drawn only when the section has
+// more mastered skills than its preview (masteredSection.js).
+function MasteredToggle({ view, onToggle }) {
+  if (!view.collapsible) return null;
+  return (
+    <button
+      type="button"
+      aria-expanded={view.expanded}
+      onClick={onToggle}
+      style={{
+        marginTop: 12, minHeight: 44, padding: '10px 15px', borderRadius: 10,
+        border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)',
+        color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer', font: 'inherit',
+      }}
+    >
+      {view.toggleLabel}
+    </button>
   );
 }
 
@@ -312,6 +334,10 @@ export const StudentLearningPath = ({
     teacherPriorities: assessmentContext.teacherPriorities || [],
     onChoose: onPracticeAs,
   } : null), [assessmentContext, onPracticeAs, pathOptions]);
+
+  // The map returns every mastered skill; the section previews some of them.
+  const [showAllMastered, setShowAllMastered] = useState(false);
+  const masteredView = masteredSectionView(map?.mastered, { expanded: showAllMastered });
 
   if (!pathOptions) {
     return (
@@ -460,11 +486,12 @@ export const StudentLearningPath = ({
       <PathSection
         title="Mastered"
         note={'Yours already. You can practise any of them again whenever you want to.'}
-        nodes={map.mastered}
+        nodes={masteredView.visible}
         onChoose={choose}
         practiceAs={practiceAs}
         disabled={freeChoiceLocked}
         skillProgressByTEKS={skillProgressByTEKS}
+        footer={<MasteredToggle view={masteredView} onToggle={() => setShowAllMastered((current) => !current)} />}
       />
     </div>
   );

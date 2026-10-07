@@ -17,6 +17,16 @@
 
 const DAY = 24 * 60 * 60 * 1000;
 
+/*
+ * The week closes at midnight where the students are, not at midnight UTC
+ * (dueAtFor in src/platform/path/weeklyPathGoal.js builds the deadline in this
+ * zone). It lives here, beside the grade, so the sentence that names the due
+ * day reads the same zone the deadline was built in.
+ */
+export const WEEK_TIME_ZONE = 'America/Chicago';
+
+const DUE_DAY_NAMES = Object.freeze(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']);
+
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const list = (value) => (Array.isArray(value) ? value : []);
 
@@ -68,6 +78,28 @@ export const weeklySlotKey = (session = {}, slot = session?.slot) => [
   Number(session?.difficultyBand) || 0,
 ].join('|');
 
+/**
+ * How many sessions a weekly goal can require: its count, but never more than
+ * the slots the week was actually given.
+ *
+ * The planner can come back short — a student early in the course may have
+ * three open skills, not four — and the week is then frozen with three cards.
+ * Requiring four of them made a finished week impossible: the panel read
+ * "3 of 4", the grade stopped near 75, and that is what Classroom received.
+ * Weeks frozen before the count was capped at the server still carry the
+ * larger number, so the cap is applied here, where every reader of the goal
+ * (student panel, teacher table, Classroom publisher) gets it.
+ *
+ * A goal with no slots at all keeps its count: that is an older count-only
+ * week, graded by count.
+ */
+export const requiredWeeklySessions = (goal = null) => {
+  const requested = Math.max(0, Math.round(Number(goal?.goalSessions) || 0));
+  const slots = list(goal?.sessions).length;
+  if (!slots) return requested;
+  return requested ? Math.min(requested, slots) : slots;
+};
+
 const completionMatchesLegacySlot = (slot, completion, weekKey) => {
   if (completion?.weekKey && weekKey && completion.weekKey !== weekKey) return false;
   const slotTeks = String(slot?.teksCode || '').trim();
@@ -104,7 +136,7 @@ export const matchWeeklyGoalCompletions = ({ goal, completions = [] } = {}) => {
   // count-based semantics so old weeks do not retroactively become zeroes.
   // Current assigned weeks are strict: only the frozen slot can earn that slot.
   if (!strictAssignedMatching) {
-    const required = Math.max(0, Number(goal?.goalSessions) || slots.length);
+    const required = requiredWeeklySessions({ goalSessions: goal?.goalSessions, sessions: slots });
     available.slice(0, required).forEach((entry, index) => {
       const { __index, ...completion } = entry;
       used.add(__index);
@@ -181,7 +213,7 @@ export const normalizeGradingPolicy = (policy = {}) => {
  * completion, and is also not a failure — it is simply not yet done.
  */
 export const evaluateWeeklyGoalProgress = ({ goal, completions = [], now = Date.now() } = {}) => {
-  const required = Number(goal?.goalSessions) || 0;
+  const required = requiredWeeklySessions(goal);
   const { matched: done, unmatched } = matchWeeklyGoalCompletions({ goal, completions });
   const onTime = done.filter((entry) => !goal?.dueAt || Number(entry.completedAt) <= Number(goal.dueAt));
 
@@ -273,6 +305,32 @@ export const gradeWeeklyGoal = ({
   };
 };
 
+/**
+ * The day this week's goal is due, named in the school's time zone ("Friday").
+ *
+ * Teachers choose the due day, so a fixed "Sunday night" told a class due on
+ * Friday the wrong deadline. The name is read from goal.dueAt — the instant
+ * the week actually closes, 11:59pm local — in WEEK_TIME_ZONE: that instant is
+ * already the next morning in UTC, so a UTC weekday would name the day after.
+ * A goal without a usable deadline falls back to its configured
+ * dueDayOfWeek, and to null when neither is known, so the caller can say
+ * "when the week closes" without naming a day it does not know.
+ */
+export const weeklyDueDayName = (goal = null, { timeZone = WEEK_TIME_ZONE } = {}) => {
+  const dueAt = Number(goal?.dueAt);
+  if (Number.isFinite(dueAt) && dueAt > 0) {
+    try {
+      const name = new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'long' }).format(new Date(dueAt));
+      if (DUE_DAY_NAMES.includes(name)) return name;
+    } catch {
+      // No time-zone data in this runtime. Naming the UTC weekday instead
+      // would be a day late, so fall through to the configured day.
+    }
+  }
+  const configured = goal?.settings?.dueDayOfWeek;
+  return Number.isInteger(configured) && configured >= 0 && configured <= 6 ? DUE_DAY_NAMES[configured] : null;
+};
+
 /*
  * THE WEEK'S GRADE, IN WORDS A STUDENT CAN ACT ON.
  *
@@ -321,7 +379,10 @@ export const describeWeeklyGradeForStudent = ({
   // Once the week is closed the number stops moving, so it stops being "so far"
   // and becomes the grade.
   const final = Boolean(graded.frozen);
-  const score = Math.round(graded.grade);
+  // The number Classroom receives (two decimals at the default 100 points),
+  // not a rounding of it: a student who read 97 while the gradebook showed
+  // 96.67 would rightly ask which one is real.
+  const score = graded.grade;
 
   const status = final ? 'final' : complete ? 'complete' : started ? 'in_progress' : 'not_started';
 
@@ -332,6 +393,8 @@ export const describeWeeklyGradeForStudent = ({
     : complete
       ? 'Every session is done. Anything else you practise this week is extra.'
       : `Finish ${remaining} more session${remaining === 1 ? '' : 's'} to earn at least ${floor}.`;
+
+  const dueDay = weeklyDueDayName(goal);
 
   return {
     // The same number the gradebook will carry, out of 100.
@@ -347,7 +410,9 @@ export const describeWeeklyGradeForStudent = ({
     // Stated once, plainly, so a student is never surprised by where it went.
     teacherNote: final
       ? 'Your teacher has this grade for the week.'
-      : 'This goes to your teacher when the week closes on Sunday night.',
+      : dueDay
+        ? `This goes to your teacher when the week closes on ${dueDay} night.`
+        : 'This goes to your teacher when the week closes.',
     completed: done,
     required,
     remaining,

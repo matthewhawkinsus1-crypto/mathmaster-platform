@@ -115,7 +115,8 @@ export const summarizeWeeklyPathWeek = ({
     completedOnTime: graded.progress.completedOnTime,
     lateCompletions: graded.progress.lateCompletions,
     grade: closed ? graded.grade : null,
-    score: closed ? Math.round(graded.grade) : null,
+    // The published grade itself, as the gradebook shows it.
+    score: closed ? graded.grade : null,
     passing: closed ? graded.passing : null,
     dueAt,
   };

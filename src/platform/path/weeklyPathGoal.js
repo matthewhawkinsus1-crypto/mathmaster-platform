@@ -23,6 +23,7 @@ import { attachWeeklyAlternatives, describeWeeklySlotSwaps } from './weeklyPathC
 // Re-exported here so nothing that already imported these names had to change.
 import {
   GRADING_POLICY,
+  WEEK_TIME_ZONE,
   evaluateWeeklyGoalProgress,
   describeWeeklyGradeForStudent,
   gradeWeeklyGoal,
@@ -30,11 +31,14 @@ import {
   normalizeGradingPolicy,
   publishedWeeklyGoal,
   weekKeyFor,
+  weeklyDueDayName,
   weeklySlotKey,
+  requiredWeeklySessions,
 } from '../../../functions/shared/weeklyPathGrade.mjs';
 
 export {
   GRADING_POLICY,
+  WEEK_TIME_ZONE,
   evaluateWeeklyGoalProgress,
   describeWeeklyGradeForStudent,
   gradeWeeklyGoal,
@@ -42,7 +46,9 @@ export {
   normalizeGradingPolicy,
   publishedWeeklyGoal,
   weekKeyFor,
+  weeklyDueDayName,
   weeklySlotKey,
+  requiredWeeklySessions,
 };
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -156,7 +162,10 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
 // working Sunday evening would have been marked late for finishing before
 // midnight. A deadline that decides whether work counts has to be the deadline
 // the student was told about.
-export const WEEK_TIME_ZONE = 'America/Chicago';
+//
+// WEEK_TIME_ZONE ('America/Chicago') is defined in weeklyPathGrade.mjs and
+// re-exported above, so the student's "the week closes on Friday night" is
+// named in the same zone this deadline is built in.
 
 // How far the named zone sits from UTC at a given instant. Read from Intl rather
 // than hardcoded, because a fixed offset is wrong for half the year: Central is
@@ -257,6 +266,24 @@ export const buildWeeklyGoal = ({
     ? sessions.filter((session) => session.purpose !== PURPOSE.TRANSFER)
     : sessions;
 
+  // Each slot keeps its frozen key and gains the equally-useful options the
+  // student may put in it instead. Swapping never changes the key, so a week
+  // already in progress keeps counting exactly as it did. No more slots than
+  // the teacher asked for: the server freezes the same first N.
+  const slots = attachWeeklyAlternatives({
+    sessions: filtered.slice(0, settings.sessions).map((session, index) => {
+      const slot = index + 1;
+      return {
+        ...session,
+        slot,
+        weeklySlotKey: weeklySlotKey(session, slot),
+        purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
+        status: 'notStarted',
+      };
+    }),
+    considered: list(plan?.considered),
+  });
+
   return {
     studentId,
     courseId,
@@ -265,24 +292,13 @@ export const buildWeeklyGoal = ({
     createdAt: now,
     settings,
     // The goal is a number of SESSIONS. It is never a number of TEKS, and the
-    // distinction is the whole design.
-    goalSessions: settings.sessions,
-    // Each slot keeps its frozen key and gains the equally-useful options the
-    // student may put in it instead. Swapping never changes the key, so a week
-    // already in progress keeps counting exactly as it did.
-    sessions: attachWeeklyAlternatives({
-      sessions: filtered.map((session, index) => {
-        const slot = index + 1;
-        return {
-          ...session,
-          slot,
-          weeklySlotKey: weeklySlotKey(session, slot),
-          purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
-          status: 'notStarted',
-        };
-      }),
-      considered: list(plan?.considered),
-    }),
+    // distinction is the whole design. It is the sessions this week actually
+    // HAS: when the planner cannot fill every slot the teacher asked for, a
+    // student given three cards is asked for three, not "0 of 4" forever.
+    goalSessions: requiredWeeklySessions({ goalSessions: settings.sessions, sessions: slots }),
+    // What the teacher asked for, kept so a short week is visible as short.
+    requestedSessions: settings.sessions,
+    sessions: slots,
     ccmr: {
       expectation: settings.ccmrExpectation,
       framework: settings.framework,
@@ -384,7 +400,9 @@ export const buildTeacherWeeklyView = (entries = [], { now = Date.now() } = {}) 
     return {
       studentId,
       studentName,
-      goal: Number(goal?.goalSessions) || 0,
+      // The count the grade was computed against — never more than the slots
+      // the student was given — so the table and the grade beside it agree.
+      goal: grade.progress.required,
       complete: grade.progress.completed,
       academicProfile: profile
         ? `${profile.instructionalBandLabel} · ${profile.performanceProjectionLabel}`

@@ -83,7 +83,7 @@ test('the case is real: the teacher\'s live policy would change the grade', () =
 test('mid-week: "Grade so far" and the teacher table equal the publisher\'s grade function on the stored snapshot', () => {
   const publisher = gradeWeeklyGoal({ goal: snapshot, completions, now: WEDNESDAY });
   const student = describeWeeklyGradeForStudent({ goal: publishedWeeklyGoal(clientGoal), completions, now: WEDNESDAY });
-  assert.equal(student.score, Math.round(publisher.grade));
+  assert.equal(student.score, publisher.grade, 'the number itself, not a rounding of it');
   assert.equal(student.label, 'Grade so far');
   const [row] = buildTeacherWeeklyView([{ studentId: 'S1', goal: clientGoal, completions }], { now: WEDNESDAY });
   assert.equal(row.grade, publisher.grade);
@@ -114,8 +114,8 @@ test('after the week closes: the student\'s grade is the number the real publish
   assert.equal(report.results[0].published, true);
   const student = describeWeeklyGradeForStudent({ goal: publishedWeeklyGoal(clientGoal), completions, now: NEXT_MONDAY_NOON });
   assert.equal(student.final, true);
-  assert.equal(student.score, Math.round(report.results[0].score));
-  assert.equal(student.score, Math.round(written[0]));
+  assert.equal(student.score, report.results[0].score);
+  assert.equal(student.score, written[0], 'out of 100, the points written are the grade the student reads');
   const [row] = buildTeacherWeeklyView([{ studentId: 'S1', goal: clientGoal, completions }], { now: NEXT_MONDAY_NOON });
   assert.equal(row.grade, report.results[0].score);
 });

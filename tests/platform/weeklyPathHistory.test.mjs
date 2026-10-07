@@ -119,7 +119,7 @@ test('a past week reads the very grade the Classroom publisher sends', async () 
   assert.equal(week.grade, report.results[0].score, 'the student reads the published grade');
   assert.equal(week.grade, published[0], 'out of 100, the points are the grade');
   assert.equal(week.grade, 96.67);
-  assert.equal(week.score, 97, 'the whole number the weekly panel would show');
+  assert.equal(week.score, 96.67, 'the published grade itself, exactly as the gradebook shows it');
   assert.equal(week.passing, true);
 });
 

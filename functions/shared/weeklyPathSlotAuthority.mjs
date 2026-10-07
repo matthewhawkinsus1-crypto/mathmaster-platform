@@ -188,7 +188,9 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
   if (goal?.courseId && String(goal.courseId) !== cleanCourseId) {
     throw new WeeklyPathGoalError('failed-precondition', 'This weekly Path proposal belongs to a different course.');
   }
-  const requested = Math.max(3, Math.min(6, Number(goal?.goalSessions) || 4));
+  // The teacher's count: a current client sends it as requestedSessions (its
+  // goalSessions is already the number of sessions it could fill).
+  const requested = Math.max(3, Math.min(6, Number(goal?.requestedSessions) || Number(goal?.goalSessions) || 4));
   const proposed = Array.isArray(goal?.sessions) ? goal.sessions.slice(0, requested) : [];
   if (!proposed.length) {
     throw new WeeklyPathGoalError('failed-precondition', 'MathMaster could not build any weekly Path sessions for this week.');
@@ -242,7 +244,12 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
     courseId: cleanCourseId,
     weekKey,
     dueAt: Number(goal?.dueAt) || null,
-    goalSessions: requested,
+    // A week asks for the sessions it actually holds: a planner that could
+    // fill only three of four slots freezes a three-session goal, so the
+    // panel, the teacher table and the Classroom grade agree it is complete
+    // when all three are done. The teacher's count is kept beside it.
+    goalSessions: sessions.length,
+    requestedSessions: requested,
     sessions,
     ccmr: goal?.ccmr && typeof goal.ccmr === 'object' ? {
       expectation: String(goal.ccmr.expectation || 'none').slice(0, 40),
