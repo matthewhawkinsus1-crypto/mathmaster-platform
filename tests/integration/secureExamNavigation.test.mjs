@@ -1,0 +1,353 @@
+/*
+ * SECURE TEST NAVIGATION — skip, flag, go back, change an answer, then submit.
+ *
+ * HOW TO RUN:  npm run test:secure-exam-navigation   (Firestore emulator)
+ *
+ * The real Cloud Functions, against a real Firestore, driven the way the new
+ * student screen drives them: issue a question by number, save drafts to any
+ * open question, flag one, and finalize. What it proves:
+ *
+ *   - nothing is graded until finalize, and finalize grades EVERY issued item
+ *     on the server (a blank one is recorded as unanswered, worth zero);
+ *   - no navigation, save or flag response carries a verdict, an answer or a
+ *     worked solution, and the answer key never sits on the session document;
+ *   - the released review carries the answer and the worked solution, and only
+ *     after release (a practice test releases itself; a course Test waits for
+ *     the teacher);
+ *   - a course Test still scores over its planned items and still plans
+ *     Corrections from per-question results, skipped questions included;
+ *   - a shortened practice test gets proportional time, and a student's
+ *     extended-time accommodation multiplies it at start;
+ *   - a Digital SAT practice test moves within a module;
+ *   - a session written by the old linear runtime is upgraded in place without
+ *     reopening anything it already recorded.
+ */
+
+import test, { after, before } from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+  CERT_ASSIGNMENT_ID, CERT_CLASS_ID, CERT_TOTAL_QUESTIONS, CERT_WRONG_ANSWER,
+  certAnswerFromPrompt, certAssignment, certFamilies,
+} from '../fixtures/testCycleCertificationFixture.mjs';
+import {
+  db, fns, readRecord, readCorrectionPlan, readSession, refusal, studentRequest, teacherRequest, TEACHER_EMAIL,
+} from './testCycleCertificationHarness.mjs';
+
+const SIM_STUDENT = 'NAV_STUDENT_SIM';
+const EXTRA_TIME_STUDENT = 'NAV_STUDENT_EXTRA_TIME';
+const SAT_STUDENT = 'NAV_STUDENT_SAT';
+const COURSE_STUDENT = 'NAV_STUDENT_COURSE';
+const LEGACY_STUDENT = 'NAV_STUDENT_LEGACY';
+const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT];
+const created = [];
+
+const student = (studentId, data) => studentRequest(studentId, data);
+const issue = (studentId, examSessionId, extra = {}) => fns.issueSecureExamQuestion.run(student(studentId, { examSessionId, ...extra }));
+const save = (studentId, data) => fns.saveSecureExamDraft.run(student(studentId, data));
+
+/** The server-only item document — read here to check grading, never by a browser. */
+const readItem = async (examSessionId, questionInstanceId) => (
+  (await db.collection('examSessions').doc(examSessionId).collection('items').doc(questionInstanceId).get()).data()
+);
+
+/** A correct answer for a field item, from its server-only key (choice ids are runtime ids). */
+const keyFor = async (examSessionId, questionInstanceId) => {
+  const item = await readItem(examSessionId, questionInstanceId);
+  const field = item.item.privateGrading.fields[0];
+  return { fieldId: field.id, value: String(Array.isArray(field.expected) ? field.expected[0] : field.expected) };
+};
+
+const VERDICT_KEYS = /"(isCorrect|correctAnswer|expected|accepted|privateGrading|solutionReview|releasedSolution|answerKey|generatorParameters|grading)"/;
+const assertNoVerdict = (payload, where) => {
+  assert.doesNotMatch(JSON.stringify(payload), VERDICT_KEYS, `${where} must carry no verdict, key or solution`);
+};
+
+const createSimulation = async (studentId, examType, questionCount, extra = {}) => {
+  const result = await fns.createSecureExamSession.run(teacherRequest({ studentId, examType, questionCount, ...extra }));
+  created.push(result.session.examSessionId);
+  return result.session;
+};
+
+before(async () => {
+  await Promise.all(certFamilies().map((family) => {
+    const { id, ...fields } = family;
+    return db.collection('pathQuestionBank').doc(id).set(fields);
+  }));
+  await db.collection('classes').doc(CERT_CLASS_ID).set({
+    name: 'Navigation Algebra I', course: 'algebra1', courseLevel: 'standard',
+    period: 'Period 1', teacherOfRecord: TEACHER_EMAIL, status: 'active',
+  });
+  await Promise.all(ALL.map((studentId) => db.collection('grades').doc(studentId).set({
+    displayName: studentId, classId: CERT_CLASS_ID, classPeriod: 'Period 1',
+    assignedTeacherEmail: TEACHER_EMAIL, status: 'active', gradesByAssignment: {},
+    ...(studentId === EXTRA_TIME_STUDENT
+      ? { profile: { programEligibility: { section504: true }, accommodations: { extendedTimeMultiplier: 1.5 } } }
+      : {}),
+  })));
+  await db.collection('assignments').doc(CERT_ASSIGNMENT_ID).set(certAssignment());
+});
+
+after(async () => {
+  const deletions = [
+    ...certFamilies().map((family) => db.collection('pathQuestionBank').doc(family.id).delete()),
+    db.collection('assignments').doc(CERT_ASSIGNMENT_ID).delete(),
+    db.collection('classes').doc(CERT_CLASS_ID).delete(),
+    ...ALL.map((studentId) => db.collection('grades').doc(studentId).delete()),
+    ...ALL.map((studentId) => db.collection('testCycleRecords').doc(`${CERT_ASSIGNMENT_ID}__${studentId}`).delete()),
+    ...ALL.map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${CERT_ASSIGNMENT_ID}__${studentId}`).delete()),
+    ...created.map((id) => db.collection('examSessions').doc(id).delete()),
+  ];
+  await Promise.allSettled(deletions);
+});
+
+/* ======================================================================== */
+
+test('a shortened practice test gets proportional time and releases automatically by default', async () => {
+  const session = await createSimulation(SIM_STUDENT, 'digitalSAT', 4);
+  // 4 of 44 questions at 70 minutes is 6.36 minutes, rounded up to 7.
+  assert.equal(session.timeLimitSeconds, 7 * 60);
+  assert.equal(session.releasePolicy, 'automatic');
+  const held = await createSimulation(SIM_STUDENT, 'act', 3, { releasePolicy: 'teacher' });
+  assert.equal(held.releasePolicy, 'teacher');
+  // 3 of 45 at 50 minutes = 3.33 → 4 minutes.
+  assert.equal(held.timeLimitSeconds, 4 * 60);
+});
+
+test('extended time from the support profile multiplies the limit at start', async () => {
+  const session = await createSimulation(EXTRA_TIME_STUDENT, 'digitalSAT', 4);
+  const started = await fns.startSecureExamSession.run(student(EXTRA_TIME_STUDENT, { examSessionId: session.examSessionId }));
+  assert.equal(started.session.baseTimeLimitSeconds, 7 * 60);
+  assert.equal(started.session.extendedTimeMultiplier, 1.5);
+  // 7 × 1.5 = 10.5 minutes, rounded up to 11.
+  assert.equal(started.session.timeLimitSeconds, 11 * 60);
+  const restarted = await fns.startSecureExamSession.run(student(EXTRA_TIME_STUDENT, { examSessionId: session.examSessionId }));
+  assert.equal(restarted.session.timeLimitSeconds, 11 * 60, 'resuming does not multiply again');
+});
+
+test('skip, flag, go back and change an answer — graded once, on the server, at submit', async () => {
+  const session = await createSimulation(SIM_STUDENT, 'tsia2', 3);
+  const examSessionId = session.examSessionId;
+  await fns.startSecureExamSession.run(student(SIM_STUDENT, { examSessionId }));
+
+  const first = await issue(SIM_STUDENT, examSessionId, { position: 0 });
+  assert.equal(first.position, 0);
+  assertNoVerdict(first.questionInstance, 'an issued question');
+  const firstId = first.questionInstance.questionInstanceId;
+  const firstKey = await keyFor(examSessionId, firstId);
+
+  // A WRONG first draft, then skip ahead to question 2 without answering it.
+  await save(SIM_STUDENT, { examSessionId, questionInstanceId: firstId, responsePayload: { responses: { [firstKey.fieldId]: CERT_WRONG_ANSWER } } });
+  const second = await issue(SIM_STUDENT, examSessionId, { position: 1 });
+  const secondId = second.questionInstance.questionInstanceId;
+  assert.notEqual(secondId, firstId);
+  const flagged = await save(SIM_STUDENT, { examSessionId, questionInstanceId: secondId, flagged: true });
+  assertNoVerdict(flagged, 'a flag response');
+  assert.deepEqual(
+    flagged.navigation.items.map((item) => [item.position, item.status, item.flagged]),
+    [[0, 'answered', false], [1, 'unanswered', true]],
+  );
+
+  // Jumping past the next unopened question is refused: items are issued as reached.
+  const offTest = await refusal(issue(SIM_STUDENT, examSessionId, { position: 3 }));
+  assert.equal(offTest?.code, 'invalid-argument', 'position 3 is not on a 3-question test');
+  // Skip question 2 as well: opening question 3 is the next unopened one.
+  const third = await issue(SIM_STUDENT, examSessionId, { position: 2 });
+  assert.equal(third.position, 2);
+
+  // Back to question 1: the saved draft comes back, and is changed to the right answer.
+  const back = await issue(SIM_STUDENT, examSessionId, { position: 0 });
+  assert.equal(back.questionInstance.questionInstanceId, firstId);
+  assert.equal(back.draftResponse.responsePayload.responses[firstKey.fieldId], CERT_WRONG_ANSWER);
+  const changed = await save(SIM_STUDENT, { examSessionId, questionInstanceId: firstId, responsePayload: { responses: { [firstKey.fieldId]: firstKey.value } } });
+  assertNoVerdict(changed, 'a save response');
+  assert.equal(changed.answeredQuestions, 1);
+
+  // A flag sent alone keeps the saved answer.
+  await save(SIM_STUDENT, { examSessionId, questionInstanceId: firstId, flagged: true });
+  assert.equal((await readItem(examSessionId, firstId)).draftResponse.responsePayload.responses[firstKey.fieldId], firstKey.value);
+
+  // Nothing graded yet; the session document holds no key.
+  const before = await readSession(examSessionId);
+  assert.deepEqual(before.responses, {});
+  assert.doesNotMatch(JSON.stringify(before), /privateGrading/, 'the answer key lives only in the item documents');
+  assert.equal(before.summary.completedQuestions, 1);
+
+  const finalized = await fns.finalizeSecureExam.run(student(SIM_STUDENT, { examSessionId, reason: 'studentSubmit' }));
+  assert.equal(finalized.session.status, 'submitted');
+  const stored = await readSession(examSessionId);
+  assert.equal(Object.keys(stored.responses).length, 3, 'every issued question is recorded');
+  assert.equal(stored.responses[firstId].grading.isCorrect, true, 'the CHANGED answer is the one graded');
+  assert.equal(stored.responses[secondId].unanswered, true);
+  assert.equal(stored.responses[secondId].grading.score, 0);
+  // Practice tests are scored over every planned question: 1 of 3.
+  assert.equal(finalized.session.feedbackReleased, true, 'a practice test releases itself');
+
+  // Editing after submit is refused.
+  const late = await refusal(save(SIM_STUDENT, { examSessionId, questionInstanceId: firstId, responsePayload: { responses: { [firstKey.fieldId]: '0' } } }));
+  assert.equal(late?.code, 'failed-precondition');
+
+  const { review } = await fns.getStudentSecureExamReview.run(student(SIM_STUDENT, { examSessionId }));
+  assert.equal(review.scorePercent, 33);
+  assert.equal(review.scoreBasis, 'planned');
+  assert.equal(review.correctQuestions, 1);
+  assert.equal(review.answeredQuestions, 1);
+  assert.deepEqual(review.items.map((item) => item.position), [0, 1, 2]);
+  const reviewed = review.items[0];
+  assert.ok(reviewed.solution?.answers?.length, 'the released review carries the correct answer');
+  assert.ok(reviewed.solution.answers[0].display, 'as display text');
+  assert.equal(review.items[1].unanswered, true);
+});
+
+test('a held practice test reveals nothing until the teacher releases it', async () => {
+  const session = await createSimulation(SIM_STUDENT, 'act', 2, { releasePolicy: 'teacher' });
+  const examSessionId = session.examSessionId;
+  await fns.startSecureExamSession.run(student(SIM_STUDENT, { examSessionId }));
+  const first = await issue(SIM_STUDENT, examSessionId, { position: 0 });
+  const key = await keyFor(examSessionId, first.questionInstance.questionInstanceId);
+  await save(SIM_STUDENT, { examSessionId, questionInstanceId: first.questionInstance.questionInstanceId, responsePayload: { responses: { [key.fieldId]: key.value } } });
+  const finalized = await fns.finalizeSecureExam.run(student(SIM_STUDENT, { examSessionId }));
+  assert.equal(finalized.session.feedbackReleased, false);
+  assertNoVerdict(finalized, 'a finalize response');
+  const held = await refusal(fns.getStudentSecureExamReview.run(student(SIM_STUDENT, { examSessionId })));
+  assert.equal(held?.code, 'failed-precondition');
+  await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'releaseFeedback' }));
+  const { review } = await fns.getStudentSecureExamReview.run(student(SIM_STUDENT, { examSessionId }));
+  assert.equal(review.correctQuestions, 1);
+  assert.equal(review.scorePercent, 50, 'one of two PLANNED questions — the unopened one counts zero');
+});
+
+test('the integrity response warns one event before the lock', async () => {
+  const session = await createSimulation(SIM_STUDENT, 'act', 2);
+  const examSessionId = session.examSessionId;
+  await fns.startSecureExamSession.run(student(SIM_STUDENT, { examSessionId }));
+  const record = (eventId) => fns.recordSecureExamIntegrityEvent.run(student(SIM_STUDENT, { examSessionId, eventId, type: 'tab_switch' }));
+  const one = await record('nav-e1');
+  assert.equal(one.warning, false);
+  const two = await record('nav-e2');
+  assert.equal(two.warning, true, 'the second event warns that the next one pauses the test');
+  assert.equal(two.lockThreshold, 3);
+  const three = await record('nav-e3');
+  assert.equal(three.status, 'locked_integrity');
+  const blocked = await refusal(issue(SIM_STUDENT, examSessionId, { position: 0 }));
+  assert.equal(blocked?.code, 'failed-precondition');
+});
+
+test('a Digital SAT practice test moves within a module, and closing module 1 is explicit', async () => {
+  const session = await createSimulation(SAT_STUDENT, 'digitalSAT', 4);
+  const examSessionId = session.examSessionId;
+  const started = await fns.startSecureExamSession.run(student(SAT_STUDENT, { examSessionId }));
+  assert.deepEqual(started.session.navigation.modules.map((module) => [module.start, module.end]), [[0, 2], [2, 4]]);
+  await issue(SAT_STUDENT, examSessionId, { position: 0 });
+  await issue(SAT_STUDENT, examSessionId, { position: 1 });
+  const unconfirmed = await refusal(issue(SAT_STUDENT, examSessionId, { position: 2 }));
+  assert.equal(unconfirmed?.code, 'failed-precondition');
+  assert.match(unconfirmed.message, /end of module 1/i);
+  const third = await issue(SAT_STUDENT, examSessionId, { position: 2, closeModule: true });
+  assert.equal(third.position, 2);
+  assert.equal(third.session.navigation.modules[0].closed, true);
+  const back = await refusal(issue(SAT_STUDENT, examSessionId, { position: 0 }));
+  assert.equal(back?.code, 'failed-precondition');
+  assert.match(back.message, /module is finished/i);
+  // A closed module's drafts cannot be edited either.
+  const closedId = third.session.navigation.items[0].questionInstanceId;
+  const edit = await refusal(save(SAT_STUDENT, { examSessionId, questionInstanceId: closedId, responsePayload: { responses: { answer: '1' } } }));
+  assert.equal(edit?.code, 'failed-precondition');
+  await fns.finalizeSecureExam.run(student(SAT_STUDENT, { examSessionId }));
+  const stored = await readSession(examSessionId);
+  assert.equal(Object.keys(stored.responses).length, 3, 'module 1 items are graded at finalize like any other');
+});
+
+test('a course Test: skipped questions are zero over the PLAN, held until release, and feed Corrections', async () => {
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
+  await db.collection('grades').doc(COURSE_STUDENT).set({
+    gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  }, { merge: true });
+  const record = await readRecord(CERT_ASSIGNMENT_ID, COURSE_STUDENT);
+  const examSessionId = record.test.examSessionId;
+  created.push(examSessionId);
+  await fns.startSecureExamSession.run(student(COURSE_STUDENT, { examSessionId }));
+
+  // Open the first four questions, answering 1 and 3 correctly and skipping 2 and 4,
+  // then go back and answer question 2.
+  const opened = [];
+  for (let position = 0; position < 4; position += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await issue(COURSE_STUDENT, examSessionId, { position });
+    assertNoVerdict(result.questionInstance, 'a course-test question');
+    opened.push(result.questionInstance);
+    if (position % 2 === 0) {
+      // eslint-disable-next-line no-await-in-loop
+      await save(COURSE_STUDENT, { examSessionId, questionInstanceId: result.questionInstance.questionInstanceId, responsePayload: { responses: { answer: certAnswerFromPrompt(result.questionInstance.prompt) } } });
+    }
+  }
+  const revisit = await issue(COURSE_STUDENT, examSessionId, { position: 1 });
+  assert.equal(revisit.questionInstance.questionInstanceId, opened[1].questionInstanceId);
+  await save(COURSE_STUDENT, { examSessionId, questionInstanceId: opened[1].questionInstanceId, responsePayload: { responses: { answer: certAnswerFromPrompt(opened[1].prompt) } } });
+
+  // The teacher's table reads the answered count while the test is open.
+  assert.equal((await readRecord(CERT_ASSIGNMENT_ID, COURSE_STUDENT)).test.answeredQuestions, 3);
+  const midSession = await readSession(examSessionId);
+  const issuedSlots = midSession.issuancePlan.entries.filter((entry) => entry.questionInstanceId).length;
+  assert.equal(issuedSlots, 4, 'each issued question is joined to its blueprint slot');
+
+  const finalized = await fns.finalizeSecureExam.run(student(COURSE_STUDENT, { examSessionId }));
+  assert.equal(finalized.session.feedbackReleased, false, 'a course Test waits for the teacher');
+  const stored = await readSession(examSessionId);
+  assert.equal(Object.keys(stored.responses).length, 4);
+  assert.equal(stored.responses[opened[3].questionInstanceId].unanswered, true);
+  assert.equal(Object.values(stored.responses).filter((response) => response.grading.isCorrect).length, 3);
+
+  await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'releaseFeedback' }));
+  const released = await readRecord(CERT_ASSIGNMENT_ID, COURSE_STUDENT);
+  assert.equal(released.test.state, 'released');
+  // 3 correct of 25 planned, equally weighted.
+  assert.equal(released.test.rawScore, Math.round((3 / CERT_TOTAL_QUESTIONS) * 100));
+  const { review } = await fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId }));
+  assert.equal(review.scoreBasis, 'plannedWeighted');
+  assert.equal(review.possiblePoints, CERT_TOTAL_QUESTIONS);
+  assert.equal(review.earnedPoints, 3);
+  assert.ok(review.items[0].solution?.answers?.[0]?.display, 'the worked answer is released with the results');
+  const plan = await readCorrectionPlan(CERT_ASSIGNMENT_ID, COURSE_STUDENT);
+  assert.ok(plan?.plan?.targets?.length > 0, 'Corrections are planned from the per-question results');
+});
+
+test('a session written by the old linear runtime is upgraded without reopening recorded answers', async () => {
+  const session = await createSimulation(LEGACY_STUDENT, 'act', 3);
+  const examSessionId = session.examSessionId;
+  await fns.startSecureExamSession.run(student(LEGACY_STUDENT, { examSessionId }));
+  // Drive the old client's calls: issue without a position, record & lock one.
+  const first = await issue(LEGACY_STUDENT, examSessionId);
+  const firstKey = await keyFor(examSessionId, first.questionInstance.questionInstanceId);
+  const submitted = await fns.submitSecureExamResponse.run(student(LEGACY_STUDENT, {
+    examSessionId, questionInstanceId: first.questionInstance.questionInstanceId,
+    responsePayload: { responses: { [firstKey.fieldId]: firstKey.value } }, submissionId: 'nav-legacy-1',
+  }));
+  assert.equal(submitted.needsNextQuestion, true);
+  assertNoVerdict({ ...submitted, session: { ...submitted.session } }, 'a legacy submit response');
+
+  // Now rewrite the stored session into the pre-navigation shape: the open
+  // item on `currentQuestion`, no navigation block.
+  const second = await issue(LEGACY_STUDENT, examSessionId);
+  const secondId = second.questionInstance.questionInstanceId;
+  const stored = await readSession(examSessionId);
+  const item = await readItem(examSessionId, secondId);
+  const { navigation: _navigation, ...legacy } = stored;
+  await db.collection('examSessions').doc(examSessionId).set({
+    ...legacy,
+    currentQuestion: { ...item.item, draftResponse: { responsePayload: { responses: { answer: 'draft' } }, supportUsage: {} } },
+  });
+  await db.collection('examSessions').doc(examSessionId).collection('items').doc(secondId).delete();
+
+  const reopened = await issue(LEGACY_STUDENT, examSessionId, { position: 1 });
+  assert.equal(reopened.questionInstance.questionInstanceId, secondId);
+  assert.equal(reopened.draftResponse.responsePayload.responses.answer, 'draft', 'the legacy draft survives the upgrade');
+  assert.equal(reopened.session.navigation.upgradedFromLinear, true);
+  assert.equal(reopened.session.navigation.items[0].status, 'recorded');
+  const locked = await issue(LEGACY_STUDENT, examSessionId, { position: 0 });
+  assert.equal(locked.recorded, true, 'a recorded answer is not reopened');
+  assert.equal(locked.questionInstance, null);
+  const upgraded = await readSession(examSessionId);
+  assert.equal(upgraded.currentQuestion, null);
+  assert.ok((await readItem(examSessionId, secondId))?.item, 'the open item moved into the items subcollection');
+});

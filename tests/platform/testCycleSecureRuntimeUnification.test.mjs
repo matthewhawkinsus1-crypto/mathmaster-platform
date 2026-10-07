@@ -75,7 +75,7 @@ test('a course test is a plain exam session, so integrity and proctor actions ap
   const integrity = region(
     functionsIndex,
     'exports.recordSecureExamIntegrityEvent = onCall(',
-    'async function applyOpenSecureExamDraft',
+    'async function finalizeSecureSessionInTransaction',
     'integrity event',
   );
   // No exam-type check anywhere in the integrity path: every secure session,
@@ -139,11 +139,17 @@ test('the simulation item-selection path still runs for simulations', () => {
     'function sanitizeSecureExamDraft',
     'issueSecureExamQuestion',
   );
-  // The course-test branch returns early; everything after it is the original
-  // exam-style bank selection, unchanged.
-  assert.match(issue, /if \(secureExam\.isCourseTestSession\(session\)\)/);
-  assert.match(issue, /context\.examStyle === true/);
-  assert.match(issue, /secureExam\.nextDomainId\(session\)/);
+  // A new item comes from the stored plan for a course test and from the
+  // exam-style bank for a simulation; the issue call picks by session type.
+  assert.match(issue, /secureExam\.isCourseTestSession\(session\)\s*\?\s*await buildCourseTestExamItem\(db, \{ session, runtimeMode \}\)\s*:\s*await buildSimulationExamItem\(/);
+  const simulation = region(
+    functionsIndex,
+    'async function buildSimulationExamItem(',
+    'exports.issueSecureExamQuestion = onCall(',
+    'buildSimulationExamItem',
+  );
+  assert.match(simulation, /context\.examStyle === true/);
+  assert.match(simulation, /secureExam\.nextDomainId\(session\)/);
 });
 
 test('a session issuance plan is never returned to any client', () => {

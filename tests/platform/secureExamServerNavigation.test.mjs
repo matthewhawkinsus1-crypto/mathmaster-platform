@@ -1,0 +1,227 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+import { executableSource, region } from './helpers/sourceContract.mjs';
+
+const require_ = createRequire(import.meta.url);
+const navigation = require_('../../functions/lib/secureExamNavigation.js');
+const secureExam = require_('../../functions/lib/secureExam.js');
+const secureExamItems = require_('../../functions/lib/secureExamItems.js');
+const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+
+/*
+ * THE SERVER RULES OF SECURE TEST NAVIGATION (functions/lib/secureExamNavigation.js).
+ *
+ * Skip, flag, go back and change an answer until submit — with every item
+ * still issued only when it is first reached, nothing graded before finalize,
+ * and nothing about any item's content or correctness in what the browser
+ * receives. The emulator suite (npm run test:secure-exam-navigation) runs the
+ * same rules through the real callables.
+ */
+
+const session = (overrides = {}) => ({
+  examSessionId: 's1',
+  examType: 'act',
+  status: 'in_progress',
+  requiredQuestions: 5,
+  responses: {},
+  navigation: navigation.initialNavigation({ examType: 'act', requiredQuestions: 5 }),
+  ...overrides,
+});
+
+const withItems = (base, entries) => {
+  const nav = navigation.navigationOf(base);
+  const items = {};
+  entries.forEach((entry, position) => { items[entry.id] = { position, state: 'open', hasWork: false, flagged: false, slotId: null, assessmentDomainId: null, bankQuestionId: null, ...entry.fields }; });
+  return { ...base, navigation: { ...nav, itemOrder: entries.map((entry) => entry.id), items } };
+};
+
+test('a student may reopen any issued question and open the NEXT one, but not jump ahead', () => {
+  const s = withItems(session(), [{ id: 'a' }, { id: 'b' }]);
+  assert.deepEqual(navigation.resolveTarget(s, { position: 0 }), { position: 0, issuing: false, closesThrough: null });
+  assert.deepEqual(navigation.resolveTarget(s, { position: 2 }), { position: 2, issuing: true, closesThrough: null });
+  assert.equal(navigation.resolveTarget(s, { position: 3 }).error, 'not_reached');
+  assert.equal(navigation.resolveTarget(s, { position: 5 }).error, 'invalid');
+  assert.equal(navigation.resolveTarget(s, { position: -1 }).error, 'invalid');
+  assert.equal(navigation.resolveTarget(s, { position: 1.5 }).error, 'invalid');
+});
+
+test('the older linear call gets the first open question, else the next new one', () => {
+  const s = withItems(session(), [{ id: 'a', fields: { state: 'recorded' } }, { id: 'b' }]);
+  assert.equal(navigation.resolveTarget(s, {}).position, 1);
+  const allRecorded = withItems(session({ requiredQuestions: 2 }), [{ id: 'a', fields: { state: 'recorded' } }, { id: 'b', fields: { state: 'recorded' } }]);
+  assert.equal(navigation.resolveTarget(allRecorded, {}).error, 'complete');
+});
+
+test('a Digital SAT practice test closes module 1 only when the student says so', () => {
+  const sat = session({ examType: 'digitalSAT', requiredQuestions: 4, navigation: navigation.initialNavigation({ examType: 'digitalSAT', requiredQuestions: 4 }) });
+  const s = withItems(sat, [{ id: 'a' }, { id: 'b' }]);
+  assert.equal(navigation.resolveTarget(s, { position: 2 }).error, 'module_end');
+  assert.deepEqual(navigation.resolveTarget(s, { position: 2, closeModule: true }), { position: 2, issuing: true, closesThrough: 2 });
+  const closed = { ...s, navigation: { ...s.navigation, closedThrough: 2 } };
+  assert.equal(navigation.resolveTarget(closed, { position: 0 }).error, 'module_closed');
+  assert.equal(navigation.positionClosed(closed.navigation, 1), true);
+  assert.equal(navigation.positionClosed(closed.navigation, 2), false);
+  // Only the Digital SAT has modules; other tests are one stretch.
+  assert.equal(navigation.moduleLayoutFor('act', 45), null);
+  assert.deepEqual(navigation.moduleLayoutFor('digitalSAT', 44).map((m) => [m.start, m.end]), [[0, 22], [22, 44]]);
+  assert.deepEqual(navigation.moduleLayoutFor('digitalSAT', 5).map((m) => [m.start, m.end]), [[0, 3], [3, 5]]);
+});
+
+test('the navigator a browser receives holds states only — no slot, family, bank or domain', () => {
+  const s = withItems(session(), [
+    { id: 'a', fields: { hasWork: true, slotId: 'slot-1', bankQuestionId: 'bank-1', assessmentDomainId: 'algebra' } },
+    { id: 'b', fields: { flagged: true } },
+  ]);
+  const published = secureExam.publicSession(s);
+  assert.deepEqual(published.navigation.items, [
+    { position: 0, questionInstanceId: 'a', status: 'answered', flagged: false, closed: false },
+    { position: 1, questionInstanceId: 'b', status: 'unanswered', flagged: true, closed: false },
+  ]);
+  assert.doesNotMatch(JSON.stringify(published), /slot-1|bank-1|algebra|bankQuestionId|slotId|assessmentDomainId/);
+  assert.equal(published.answeredQuestions, 1);
+  assert.equal(published.integrityLockThreshold, 3);
+  assert.equal(published.hasOpenQuestion, true);
+});
+
+test('answered counts drafts with work and recorded answers that were not blank', () => {
+  const s = withItems(session(), [
+    { id: 'a', fields: { hasWork: true } },
+    { id: 'b', fields: { hasWork: false } },
+    { id: 'c', fields: { state: 'recorded', hasWork: true } },
+    { id: 'd', fields: { state: 'recorded' } },
+  ]);
+  s.responses = { c: { questionInstanceId: 'c', grading: { score: 1 } }, d: { questionInstanceId: 'd', unanswered: true, grading: { score: 0 } } };
+  assert.equal(navigation.answeredCount(s), 2);
+});
+
+test('a session written by the linear runtime upgrades: recorded answers stay locked, the open item stays open', () => {
+  const legacy = {
+    examType: 'digitalSAT',
+    requiredQuestions: 4,
+    responses: {
+      q2: { questionInstanceId: 'q2', submittedAt: 20, slotId: 's2', grading: { score: 1 } },
+      q1: { questionInstanceId: 'q1', submittedAt: 10, slotId: 's1', grading: { score: 0 } },
+    },
+    currentQuestion: { questionInstanceId: 'q3', slotId: 's3', bankQuestionId: 'b3' },
+  };
+  const upgraded = navigation.navigationOf(legacy);
+  assert.deepEqual(upgraded.itemOrder, ['q1', 'q2', 'q3']);
+  assert.equal(upgraded.items.q1.state, 'recorded');
+  assert.equal(upgraded.items.q3.state, 'open');
+  // A session already under way gets no module wall behind answered questions.
+  assert.equal(upgraded.modules, null);
+  assert.equal(upgraded.upgradedFromLinear, true);
+  assert.deepEqual(navigation.issuedSlotIds(legacy), ['s1', 's2', 's3']);
+  // A never-started legacy session does get the Digital SAT modules.
+  assert.ok(navigation.navigationOf({ examType: 'digitalSAT', requiredQuestions: 4 }).modules);
+});
+
+test('a skipped course-test slot is never issued twice: the plan reads every ISSUED slot', () => {
+  const s = withItems(session({ examType: 'courseTest' }), [{ id: 'a', fields: { slotId: 'slot-1' } }, { id: 'b', fields: { slotId: 'slot-2' } }]);
+  assert.deepEqual(navigation.issuedSlotIds(s), ['slot-1', 'slot-2']);
+  // And a simulation's domain balance counts skipped questions too.
+  const sim = withItems(session({ examType: 'asvab' }), [{ id: 'a', fields: { assessmentDomainId: 'arithmeticReasoning' } }]);
+  assert.equal(secureExam.nextDomainId(sim), 'mathematicsKnowledge');
+});
+
+test('the simulation draw is random across sessions and reproducible within one', () => {
+  const bank = Array.from({ length: 30 }, (_, index) => ({ id: `item-${String(index).padStart(2, '0')}` }));
+  const first = navigation.seededOrder('session-a|0', bank).map((item) => item.id);
+  assert.deepEqual(navigation.seededOrder('session-a|0', bank).map((item) => item.id), first, 'a retry draws the same item');
+  const leads = new Set(['session-a|0', 'session-b|0', 'session-c|0', 'session-d|0', 'session-e|0'].map((seed) => navigation.seededOrder(seed, bank)[0].id));
+  assert.ok(leads.size >= 3, `five sessions should not all open on the same item (${[...leads]})`);
+  assert.notDeepEqual(first, bank.map((item) => item.id), 'not the bank order');
+  // Wired: the simulation path draws through it, seeded by session and position.
+  const simulation = region(functionsIndex, 'async function buildSimulationExamItem(', 'exports.issueSecureExamQuestion = onCall(', 'simulation draw');
+  assert.match(simulation, /secureExamNavigation\.seededOrder\(`\$\{examSessionId\}\|\$\{position\}`, candidates,/);
+  assert.doesNotMatch(executableSource(simulation), /localeCompare|completedQuestions \|\| 0\) % candidates\.length/);
+});
+
+test('a shortened practice test keeps the real pace; extended time multiplies it', () => {
+  const sat = secureExam.policyFor('digitalSAT');
+  assert.equal(navigation.proportionalTimeLimitSeconds(sat, 44), 70 * 60);
+  assert.equal(navigation.proportionalTimeLimitSeconds(sat, 10), 16 * 60);
+  assert.equal(navigation.proportionalTimeLimitSeconds(sat, 1), 2 * 60);
+  assert.equal(navigation.proportionalTimeLimitSeconds(secureExam.policyFor('tsia2'), 5), null, 'untimed stays untimed');
+  assert.equal(navigation.accommodatedTimeLimitSeconds(16 * 60, 1.5), 24 * 60);
+  assert.equal(navigation.accommodatedTimeLimitSeconds(16 * 60, 9), 64 * 60, 'capped at 4x');
+  assert.equal(navigation.accommodatedTimeLimitSeconds(null, 2), null);
+  const create = region(functionsIndex, 'exports.createSecureExamSession = onCall(', 'exports.startSecureExamSession', 'create');
+  assert.match(create, /timeLimitSeconds: secureExamNavigation\.proportionalTimeLimitSeconds\(policy, requiredQuestions\)/);
+  const start = region(functionsIndex, 'exports.startSecureExamSession = onCall(', 'exports.listStudentSecureExamSessions', 'start');
+  assert.match(start, /secureExamTimeMultiplier\(db, studentId\)/);
+  assert.match(start, /accommodatedTimeLimitSeconds\(baseLimit, timeMultiplier\)/);
+});
+
+test('a practice test is scored over every PLANNED question, like a course Test', () => {
+  const answered5of44 = {
+    examType: 'digitalSAT',
+    requiredQuestions: 44,
+    responses: Object.fromEntries(Array.from({ length: 5 }, (_, index) => [`q${index}`, { questionInstanceId: `q${index}`, grading: { score: 1, isCorrect: true } }])),
+  };
+  assert.equal(secureExam.sessionScorePercent(answered5of44), 11, 'five right of 44 planned is 11%, not 100%');
+});
+
+test('the released review — answers and worked solutions — exists only after release', () => {
+  const base = {
+    examType: 'act',
+    requiredQuestions: 2,
+    status: 'submitted',
+    responses: {
+      q1: {
+        questionInstanceId: 'q1', grading: { score: 1, isCorrect: true }, responsePayload: { responses: { answer: '4' } },
+        questionSnapshot: { prompt: 'p', privateGrading: { fields: [{ expected: '4' }] } },
+        releasedSolution: { answers: [{ fieldId: 'answer', label: 'x', display: '4' }], review: { headline: 'Divide', reasoning: ['2x=8', 'x=4'], answerSummary: 'x = 4' } },
+      },
+      q2: { questionInstanceId: 'q2', unanswered: true, grading: { score: 0, isCorrect: false }, responsePayload: { responses: {} }, questionSnapshot: { prompt: 'p2' } },
+    },
+  };
+  assert.equal(secureExam.publicReview({ ...base, feedbackReleased: false }), null);
+  assert.equal(secureExam.publicReview({ ...base, status: 'in_progress', feedbackReleased: true }), null);
+  assert.doesNotMatch(JSON.stringify(secureExam.publicSession({ ...base, feedbackReleased: true })), /releasedSolution|x = 4|Divide/);
+  const review = secureExam.publicReview({ ...base, feedbackReleased: true });
+  assert.deepEqual(review.items[0].solution.answers, [{ fieldId: 'answer', label: 'x', display: '4' }]);
+  assert.deepEqual(review.items[0].solution.review.reasoning, ['2x=8', 'x=4']);
+  assert.equal(review.items[1].unanswered, true);
+  assert.equal(review.items[1].solution, null);
+  assert.doesNotMatch(JSON.stringify(review), /privateGrading|"expected"/, 'the stored key itself never travels');
+  assert.equal(review.answeredQuestions, 1);
+  assert.equal(review.scorePercent, 50);
+  assert.equal(review.earnedPoints, 1);
+  assert.equal(review.possiblePoints, 2);
+  assert.equal(review.scoreBasis, 'planned');
+});
+
+test('the correct answer is shown as the choice the student would recognise, never a replayable choice id', () => {
+  const item = { privateGrading: { fields: [{ id: 'answer', expected: 'c_x9' }] } };
+  const snapshot = { choices: [{ id: 'c_a1', label: '$2$' }, { id: 'c_x9', label: '$4$' }], responseFields: [{ id: 'answer', label: 'Answer' }] };
+  assert.deepEqual(secureExamItems.correctAnswerDisplay(item, snapshot), [{ fieldId: 'answer', label: 'Answer', display: '$4$' }]);
+  assert.deepEqual(secureExamItems.correctAnswerDisplay({ privateGrading: { fields: [{ id: 'answer', expected: '3/4' }] } }, {}), [{ fieldId: 'answer', label: null, display: '3/4' }]);
+  // A Rich Tool item has no typed key; its worked solution says what the answer is.
+  assert.deepEqual(secureExamItems.correctAnswerDisplay({ privateGrading: { pathToolId: 'graphing' } }, {}), []);
+});
+
+test('finalize, the timer and a proctor force-submit end a session the same way', () => {
+  const finalize = region(functionsIndex, 'exports.finalizeSecureExam = onCall(', '/** Teacher-only live monitor summaries.', 'finalize');
+  assert.match(finalize, /await finalizeSecureSessionInTransaction\(transaction, ref, session, \{/);
+  const proctor = region(functionsIndex, 'exports.proctorExamAction = onCall(', '// --- Test Cycle', 'proctor');
+  assert.match(proctor, /if \(action === "forceSubmit"\) updated = \{ \.\.\.\(await finalizeSecureSessionInTransaction\(transaction, ref, updated, \{ status: "force_submitted", now \}\)\)/);
+  // The new client never records-and-locks; only the legacy call grades early.
+  assert.doesNotMatch(executableSource(region(functionsIndex, 'exports.saveSecureExamDraft = onCall(', 'async function autoReleaseSecureSession(', 'save')), /gradeIssuedItem|buildResponseRecord/);
+});
+
+test('only a practice test releases itself, never a course Test', () => {
+  const release = region(functionsIndex, 'async function autoReleaseSecureSession(', 'exports.submitSecureExamResponse = onCall(', 'auto release');
+  assert.match(release, /session\.releasePolicy !== "automatic" \|\| secureExam\.isCourseTestSession\(session\)\) return session;/);
+  const evidence = region(functionsIndex, 'function releaseSessionFeedbackInTransaction(', '/** Authenticated proctor controls', 'release');
+  // A blank question is zero in the score but not evidence about the skill.
+  assert.match(evidence, /if \(response\?\.unanswered === true\) return;/);
+});
+
+test('the open items subcollection is closed to every client', () => {
+  assert.match(rules, /match \/examSessions\/\{docId\}\/items\/\{itemId\} \{ allow read, write: if false; \}/);
+});

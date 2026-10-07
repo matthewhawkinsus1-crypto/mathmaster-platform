@@ -164,7 +164,7 @@ test('a superseded session cannot be released over the replacement attempt', () 
   const sync = region(
     functionsIndex,
     'async function syncTestCycleSessionState(',
-    'async function issueCourseTestQuestion(',
+    'async function buildCourseTestExamItem(',
     'sync',
   );
   assert.match(sync, /String\(current\.examSessionId \|\| ""\) !== String\(session\.examSessionId \|\| ""\)\) return null;/);
