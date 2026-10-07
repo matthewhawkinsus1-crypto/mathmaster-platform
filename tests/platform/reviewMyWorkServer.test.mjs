@@ -44,6 +44,7 @@ const fakeDb = (docs = {}) => {
       doc: (id) => docRef(`${path}/${id}`),
       where: (field, op, value) => { filters.push([field, value]); return query; },
       limit: () => query,
+      select: () => query,
       get: async () => {
         reads.push(`${path}?${filters.map(([f, v]) => `${f}=${v}`).join('&')}`);
         const prefix = `${path}/`;
@@ -403,4 +404,24 @@ test('an assignment id that is a path is refused before anything is read', async
   const db = world({ extraDocs: { [`assignments/${ASSIGNMENT}/private/answers`]: baseAssignment() } });
   await rejects(load(db, { assignmentId: `${ASSIGNMENT}/private/answers` }), 'invalid-argument');
   assert.deepEqual(db.reads, []);
+});
+
+test('solutions wait until the assignment has closed for the WHOLE class — a classmate\'s extension holds them back', async () => {
+  // Closed for this student (class close Oct 3), but a classmate's private
+  // extension runs to Oct 10: a solution shown now could reach them.
+  const classmateExtended = {
+    [`studentAssignmentOverrides/${studentAssignmentOverrideId(OTHER, ASSIGNMENT)}`]: { studentId: OTHER, assignmentId: ASSIGNMENT, lateDueAt: '2026-10-10T22:00:00Z' },
+  };
+  await rejects(load(world({ extraDocs: classmateExtended })), 'failed-precondition');
+  // The same through a legacy per-student copy on the shared assignment.
+  await rejects(load(world({ assignment: baseAssignment({ studentOverrides: { [OTHER]: { lateDueAt: '2026-10-10T22:00:00Z' } } }) })), 'failed-precondition');
+  // Once the classmate's deadline has passed too, the review opens.
+  const later = await load(world({ extraDocs: classmateExtended }), undefined, { now: Date.parse('2026-10-11T12:00:00Z') });
+  assert.equal(later.questions.length, 5);
+  // The refusal names no one and no reason.
+  await assert.rejects(load(world({ extraDocs: classmateExtended })), (error) => {
+    assert.doesNotMatch(error.message, new RegExp(OTHER));
+    assert.match(error.message, /whole class/);
+    return true;
+  });
 });

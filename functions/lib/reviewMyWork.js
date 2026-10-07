@@ -378,6 +378,44 @@ function projectReviewMyWork({
  * `auth` is the result of index.js requireStudent(request): { uid, studentId }
  * from the caller's verified token. `data.studentId`, if sent, is ignored.
  */
+/**
+ * The latest final close anyone in `classId` holds for `assignment`: the class
+ * deadline, every private override for this assignment, the legacy shared
+ * per-student copies, and each classmate's support-plan deadline. Null when
+ * the assignment has no final close at all (it never closes, so never shows).
+ */
+const latestClassFinalCloseAt = async ({ db, assignment, assignmentId, classId, deps }) => {
+  const closes = [];
+  const push = (value) => {
+    if (value === null || value === undefined) return false;
+    closes.push(Number(value));
+    return true;
+  };
+  if (!push(deps.deadlines.assignmentFinalCloseAt(assignment, null, null, null))) return null;
+  const [overrideSnap, classSnap] = await Promise.all([
+    db.collection(deps.overrides.STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION).where("assignmentId", "==", assignmentId).get(),
+    classId ? db.collection("grades").where("classId", "==", classId).select("profile").get() : Promise.resolve({ docs: [] }),
+  ]);
+  const privateByStudent = new Map();
+  (overrideSnap?.docs || []).forEach((doc) => {
+    const data = doc.data() || {};
+    const sid = clean(data.studentId, 200);
+    if (sid) privateByStudent.set(sid, data);
+  });
+  const profileByStudent = new Map((classSnap?.docs || []).map((doc) => [doc.id, (doc.data() || {}).profile || null]));
+  const legacyIds = assignment?.studentOverrides && typeof assignment.studentOverrides === "object"
+    ? Object.keys(assignment.studentOverrides)
+    : [];
+  const studentIds = new Set([...privateByStudent.keys(), ...profileByStudent.keys(), ...legacyIds]);
+  studentIds.forEach((sid) => {
+    push(deps.deadlines.assignmentFinalCloseAt(
+      assignment, null, sid, profileByStudent.get(sid) || null,
+      { privateOverride: privateByStudent.has(sid) ? privateByStudent.get(sid) : undefined },
+    ));
+  });
+  return Math.max(...closes);
+};
+
 async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}) {
   const studentId = clean(auth?.studentId, 200);
   if (!studentId) throw new HttpsError("permission-denied", "Review My Work is available to signed-in students.");
@@ -418,6 +456,19 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
   );
   if (finalCloseAtMs === null || !(Number(now) > Number(finalCloseAtMs))) {
     throw new HttpsError("failed-precondition", "Your answers and solutions appear here after this assignment closes.");
+  }
+  /*
+   * NOT WHILE ANY CLASSMATE CAN STILL ANSWER.
+   *
+   * Closed for this student is not closed for the class: a classmate's
+   * extension, private deadline or extended-time accommodation can keep the
+   * same fixed questions answerable. A worked solution shown now could be
+   * passed to them, so the panel waits until the latest deadline anyone in
+   * the class holds has passed. The message names no one and no reason.
+   */
+  const classCloseAtMs = await latestClassFinalCloseAt({ db, assignment, assignmentId, classId, deps });
+  if (classCloseAtMs === null || !(Number(now) > Number(classCloseAtMs))) {
+    throw new HttpsError("failed-precondition", "Your answers and solutions appear here once this assignment has closed for your whole class.");
   }
   const questions = runtimeQuestionsFromAssignment(assignment);
   if (feedbackHeld(assignment, questions, deps.policies)) {
