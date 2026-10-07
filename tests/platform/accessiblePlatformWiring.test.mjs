@@ -101,7 +101,7 @@ test('focus returns to where it was when the Check lock lifts', () => {
   assert.match(engine, /import \{ useFocusReturnAfterLock \} from '\.\/components\/common\/useFocusReturnAfterLock\.js';/);
   assert.match(engine, /const \[submitting, setSubmitting\] = useState\(false\);[\s\S]{0,200}useFocusReturnAfterLock\(submitting\);/);
   const hook = executableSource(read('src/components/common/useFocusReturnAfterLock.js'));
-  const restore = region(hook, 'const frame = requestAnimationFrame(() => {', '});', 'the restore');
+  const restore = region(hook, 'const frame = requestAnimationFrame(() => {', 'return () => cancelAnimationFrame(frame);', 'the restore');
   assert.match(restore, /if \(active && active !== document\.body\) return;/, 'a student who moved on is left alone');
   assert.match(restore, /if \(canTakeFocusAgain\(lastFocused\.current\)\) lastFocused\.current\.focus\(\{ preventScroll: true \}\);/);
   assert.match(region(hook, 'const canTakeFocusAgain', ');', 'focusable again'), /!element\.closest\?\.\('\[inert\], fieldset\[disabled\]'\)/);
