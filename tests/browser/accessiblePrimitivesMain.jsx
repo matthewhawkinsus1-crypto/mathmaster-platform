@@ -17,12 +17,15 @@ function Harness() {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [foreign, setForeign] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [question, setQuestion] = useState(0);
   const stageRef = useRef(null);
   return (
     <main>
       <h1>Accessible primitives</h1>
       <button type="button" data-test="opener" onClick={() => setOpen(true)}>Open settings</button>
+      {/* Disabled while the dialog loads (like the Scratchpad): focus falls to <body> before the Dialog mounts. */}
+      <button type="button" data-test="slow-opener" disabled={loading} onClick={() => { setLoading(true); setTimeout(() => { setOpen(true); setLoading(false); }, 150); }}>Open slowly</button>
       <span role="button" tabIndex={0} data-test="term" style={{ outline: 'none', padding: 6 }}>2 times x</span>
       <button type="button" data-test="next" onClick={() => setQuestion((q) => (q + 1) % PROMPTS.length)}>Next question</button>
       <QuestionAnnouncer announceKey={`q-${question}`} position={`Practice, question ${question + 1} of ${PROMPTS.length}`} containerRef={stageRef} />

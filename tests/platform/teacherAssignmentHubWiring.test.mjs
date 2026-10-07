@@ -84,7 +84,9 @@ test('a student opened from the hub stacks on top of it, and Escape closes one l
   // above handled the key and it is the topmost Dialog (a student drawer, also
   // a Dialog, closes first)…
   const dialog = read('src/ui/Dialog.jsx');
-  assert.match(dialog, /if \(event\.defaultPrevented \|\| !isTopDialog\(token\)\) return;/);
+  // Topmost Dialog, not covered by a later non-Dialog modal, key not handled.
+  assert.match(dialog, /const onTop = \(\) => isTopDialog\(token\) && !coveredByForeignModal\(dialog\);/);
+  assert.match(dialog, /if \(event\.defaultPrevented \|\| !onTop\(\)\) return;/);
   const shell = region(hub, '<Dialog as="aside"', '\n', 'hub dialog');
   assert.match(shell, /ref=\{panelRef\}/);
   assert.match(shell, /onClose=\{closeIfTopLayer\}/);

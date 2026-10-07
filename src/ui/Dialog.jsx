@@ -51,6 +51,22 @@ const tabbableWithin = (root) => {
   }));
 };
 
+// Layers that may hold focus while a Dialog is open without counting as an
+// escape from it: another dialog, the on-screen math keyboard, a floating tool
+// lifted above Work View (the calculator), anything marked to allow it.
+const ALLOWED_FOCUS_LAYERS = `[role="dialog"], [role="alertdialog"], ${MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR}, [data-work-view-floating-tool], [data-dialog-allow-focus]`;
+const inAllowedLayer = (element) => Boolean(element?.closest?.(ALLOWED_FOCUS_LAYERS));
+
+// The last element that had focus anywhere. A dialog whose opener was
+// disabled while it loaded (the Scratchpad button) opens with focus already
+// on <body>; this is where focus goes back to on close.
+let lastFocusedElement = null;
+if (typeof document !== 'undefined') {
+  document.addEventListener('focusin', (event) => {
+    if (event.target && event.target !== document.body) lastFocusedElement = event.target;
+  }, true);
+}
+
 // Elements of the Dialogs currently open (they order themselves by the stack).
 const openDialogElements = new Set();
 
@@ -84,16 +100,26 @@ export function useModalDialog(ref, {
     openDialogElements.add(dialog);
     const pop = pushDialog(token, { contains: (other) => other !== dialog && dialog.contains(other) });
     const onTop = () => isTopDialog(token) && !coveredByForeignModal(dialog);
-    const opener = doc.activeElement && doc.activeElement !== doc.body ? doc.activeElement : null;
+    const opener = doc.activeElement && doc.activeElement !== doc.body
+      ? doc.activeElement
+      : (lastFocusedElement && !dialog.contains(lastFocusedElement) ? lastFocusedElement : null);
 
-    if (!dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
+    // Focusable so it can hold focus when it has no controls; removed again on
+    // close, for an element that stays mounted (Work View's host).
+    const addedTabIndex = !dialog.hasAttribute('tabindex');
+    if (addedTabIndex) dialog.setAttribute('tabindex', '-1');
     if (import.meta.env?.DEV && !dialog.getAttribute('aria-label') && !dialog.getAttribute('aria-labelledby')) {
       console.warn('[Dialog] a modal dialog needs aria-label or aria-labelledby', dialog);
     }
 
-    const focusInitial = () => {
-      if (dialog.contains(doc.activeElement) && doc.activeElement !== dialog) return;
+    const focusInitial = (opening) => {
       const explicit = initialFocusRef?.current;
+      // Something inside already took focus (an autoFocus control, a
+      // component's own choice) — unless the caller named the target, which
+      // wins on opening (Work View's Enlarge button sits inside its host).
+      const settled = dialog.contains(doc.activeElement) && doc.activeElement !== dialog;
+      if (settled && !(opening && explicit)) return;
+      if (settled && explicit === doc.activeElement) return;
       const items = tabbableWithin(dialog);
       const autofocusIndex = items.findIndex((item) => item.hasAttribute('data-autofocus'));
       const choice = initialFocusChoice({
@@ -106,8 +132,8 @@ export function useModalDialog(ref, {
     };
     // A dialog whose content mounts a frame later (lazy panels) still opens
     // focused: try now, and once more after paint if nothing inside took it.
-    focusInitial();
-    const frame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(focusInitial) : null;
+    focusInitial(true);
+    const frame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(() => focusInitial(false)) : null;
 
     const onKeyDown = (event) => {
       // Bubble phase: a control inside that owns Escape or Tab (a listbox, the
@@ -125,6 +151,9 @@ export function useModalDialog(ref, {
         return;
       }
       if (event.key !== 'Tab') return;
+      // Tabbing inside a floating tool (the calculator over Work View) is that
+      // tool's own business.
+      if (!dialog.contains(doc.activeElement) && inAllowedLayer(doc.activeElement)) return;
       const items = tabbableWithin(dialog);
       if (!items.length) { event.preventDefault(); dialog.focus({ preventScroll: true }); return; }
       const index = nextFocusIndex({ count: items.length, activeIndex: items.indexOf(doc.activeElement), shift: event.shiftKey });
@@ -137,7 +166,7 @@ export function useModalDialog(ref, {
       if (dialog.contains(event.target)) return;
       // Focus belonging to a later layer (a toast, a MathLive keyboard, a
       // popover appended to <body>) is not an escape from this dialog.
-      if (event.target?.closest?.(`[role="dialog"], [role="alertdialog"], ${MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR}, [data-dialog-allow-focus]`)) return;
+      if (inAllowedLayer(event.target)) return;
       const items = tabbableWithin(dialog);
       (items[0] || dialog).focus({ preventScroll: true });
     };
@@ -149,6 +178,7 @@ export function useModalDialog(ref, {
       doc.removeEventListener('focusin', onFocusIn);
       pop();
       openDialogElements.delete(dialog);
+      if (addedTabIndex) dialog.removeAttribute('tabindex');
       if (returnFocus && opener && opener.isConnected && typeof opener.focus === 'function') {
         opener.focus({ preventScroll: true });
       }

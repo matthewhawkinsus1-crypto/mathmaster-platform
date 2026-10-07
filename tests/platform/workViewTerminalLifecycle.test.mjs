@@ -22,8 +22,11 @@ test('QuestionEngine publishes its authoritative terminal state above every tool
 });
 
 test('terminal Work View close is automatic cleanup, not a saved phone dismissal', () => {
-  const terminalClose = region(figure, 'useEffect(() => {\n    if (!shouldForceClose)', '}, [shouldForceClose]);', 'terminal close effect');
-  assert.match(terminalClose, /activeElement\?\.blur/);
+  const terminalClose = region(figure, 'useEffect(() => {\n    if (!shouldForceClose)', '}, [shouldForceClose, nestedWorkView]);', 'terminal close effect');
+  // The grading close blurs (dismissing the on-screen keyboard); a NESTED
+  // figure, closed by design from its first render, must not blur what the
+  // student just focused elsewhere (keyboard sweep S2).
+  assert.match(terminalClose, /if \(!nestedWorkView && typeof document !== 'undefined'\) document\.activeElement\?\.blur\?\.\(\);/);
   assert.match(terminalClose, /setDrawer\(null\)/);
   assert.match(terminalClose, /setEnlarged\(false\)/);
   assert.doesNotMatch(terminalClose, /writeDismissed/);

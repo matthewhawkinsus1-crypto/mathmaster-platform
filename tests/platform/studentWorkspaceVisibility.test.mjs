@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, STICKY_TASK_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
+import { region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -109,7 +110,11 @@ test('Work View holds the tool’s place and restores the scroll position on clo
   const restore = source.slice(source.indexOf('useLayoutEffect(() => {'), source.indexOf('const openWorkView'));
   assert.match(restore, /restoreWorkViewScrollHold\(hold\);\s*const frame = window\.requestAnimationFrame\(\(\) => restoreWorkViewScrollHold\(hold\)\);/, 'restored before paint and again after scroll anchoring');
   assert.match(source, /\{enlarged && placeholderHeight \? \(\s*<div className="mathmaster-work-view-placeholder" aria-hidden="true" style=\{\{ height: placeholderHeight \}\} \/>/);
-  assert.match(source, /closeRef\.current\?\.focus\?\.\(\{ preventScroll: true \}\);/, 'focusing the panel must not scroll the page behind it');
+  // The panel opens on Close through the shared modal dialog, which focuses
+  // its initial target with preventScroll.
+  assert.match(source, /useModalDialog\(hostRef, \{[^}]*initialFocusRef: closeRef[^}]*\}\)/);
+  const dialog = read('src/ui/Dialog.jsx');
+  assert.match(region(dialog, 'const focusInitial = (opening) => {', 'focusInitial(true);', 'initial focus'), /target\?\.focus\?\.\(\{ preventScroll: true \}\);/, 'focusing the panel must not scroll the page behind it');
 });
 
 // Live QA round 2, Connect the Line in Work View: the header showed "Your task:
@@ -234,7 +239,8 @@ test('the inactivity overlay sits above Work View and is a focused, labelled dia
   const workView = read('src/components/common/WorkViewShell.css');
   const workViewZ = Number(workView.match(/\.mathmaster-work-view-host\[data-open="true"\] \{[\s\S]*?z-index: (\d+);/)?.[1]);
   assert.ok(workViewZ > 0 && zIndex > workViewZ, `${zIndex} must exceed Work View ${workViewZ}`);
-  assert.match(overlay, /role="alertdialog"\s*aria-modal="true"\s*aria-labelledby="mathmaster-idle-title"/);
+  // The shared Dialog renders aria-modal="true" (src/ui/Dialog.jsx).
+  assert.match(overlay, /<Dialog\s*role="alertdialog"\s*onClose=\{[^\n]*\}\s*aria-labelledby="mathmaster-idle-title"/);
   assert.match(overlay, /ref=\{\(element\) => element\?\.focus\?\.\(\{ preventScroll: true \}\)\}/);
 });
 
