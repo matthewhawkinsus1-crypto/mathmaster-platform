@@ -11402,6 +11402,9 @@ function App() {
             reviewMode={assignmentPreflight.mode || 'create'}
             allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
             rosterSizesByClassId={preflightRosterSizesByClassId}
+            // Offers the in-place import of a Test Cycle's missing secure
+            // families; seedPathQuestionBank re-checks the root identity.
+            canManageSecureBank={rootAdminUiEligible}
           />
         )}
         {contentUpgradeRequest && (

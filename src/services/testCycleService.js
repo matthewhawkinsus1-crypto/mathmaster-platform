@@ -119,14 +119,17 @@ export const updateTestCyclePolicy = async ({ assignmentId, policy }) => {
 
 // `stage` picks the capability policy the server stamps on each previewed
 // item: 'test' (default) and 'retest' are secure, 'corrections' instructional.
-export const previewTestCycleSecureItems = async ({ assignmentId, draw = 1, stage = 'test' }) => {
+// `candidate` previews a Test Cycle that is not saved yet (the review screen):
+// the server is sent its contract (testCycleCandidateContract), never an id.
+export const previewTestCycleSecureItems = async ({ assignmentId = null, candidate = null, draw = 1, stage = 'test' }) => {
   if (isSandbox()) return sandboxRefusal('Previewing secure items')();
-  return call('previewTestCycleSecureItems', { assignmentId, draw, stage });
+  return call('previewTestCycleSecureItems', candidate ? { assignment: candidate, draw, stage } : { assignmentId, draw, stage });
 };
 
-export const gradeTestCyclePreviewItem = async ({ previewItemId, responsePayload }) => {
+// A candidate's item is checked against the same candidate it was issued from.
+export const gradeTestCyclePreviewItem = async ({ previewItemId, responsePayload, candidate = null }) => {
   if (isSandbox()) return sandboxRefusal('Checking a preview answer')();
-  return call('gradeTestCyclePreviewItem', { previewItemId, responsePayload });
+  return call('gradeTestCyclePreviewItem', { previewItemId, responsePayload, ...(candidate ? { assignment: candidate } : {}) });
 };
 
 export const attachTestCycleContract = async ({ assignmentId, assessmentPolicy, testBlueprint = null, secureTestReference = null }) => {

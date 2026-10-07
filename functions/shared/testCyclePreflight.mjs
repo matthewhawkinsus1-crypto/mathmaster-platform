@@ -27,7 +27,7 @@
  * uses), so this module never has to import a generator or reach Firestore.
  */
 
-import { indexApprovedFamilies, normalizeTestBlueprint, targetFamilyCoverage } from './testCycleBlueprint.mjs';
+import { describeFamily, indexApprovedFamilies, normalizeTestBlueprint, targetFamilyCoverage } from './testCycleBlueprint.mjs';
 import {
   SECURE_CYCLE_MODES,
   certifySecureFamily,
@@ -111,6 +111,54 @@ const targetSecureRendering = ({ target, families, approved, familyIssuability, 
 };
 
 const diagnostic = (code, message) => `${code}: ${message}`;
+
+/*
+ * WHY A FAMILY THE BLUEPRINT NAMES CANNOT BE DRAWN, IN WORDS A TEACHER CAN ACT ON.
+ *
+ * The server passes every family the bank (or a bundled seed) actually holds
+ * for the blueprint's ids, whatever its status, so a named family is either
+ *
+ *   unregistered  absent altogether. Nothing on the assignment fixes this: the
+ *                 family has to be imported into the secure question bank.
+ *   retired       held, but inactive or not validated, so it is never issued.
+ *
+ * "names no approved, validated generator family" was true of both and told a
+ * teacher neither. The Algebra II Systems Test sat blocked on it because its
+ * new Question 8 family had never been imported while the nine beside it had
+ * been — a one-file fix the message never mentioned.
+ */
+export const unavailableBlueprintFamilies = (blueprint, families) => {
+  const held = new Map();
+  list(families).forEach((entry) => {
+    const described = describeFamily(entry);
+    if (described.familyId && !held.has(described.familyId)) held.set(described.familyId, described);
+  });
+  return normalizeTestBlueprint(blueprint).targets.flatMap((target) => target.familyIds.flatMap((familyId) => {
+    const family = held.get(familyId);
+    if (family?.validated && family?.active) return [];
+    return [{
+      familyId,
+      targetId: target.targetId,
+      alignmentKey: target.alignmentKey || null,
+      label: target.label,
+      status: family ? 'retired' : 'unregistered',
+    }];
+  }));
+};
+
+/** Where the fix for an unregistered family lives, for every sentence that needs it. */
+export const SECURE_FAMILY_IMPORT_ROUTE = 'Administration → Path content coverage → Import a different seed package';
+
+const unavailableSentence = (rows) => {
+  const unregistered = rows.filter((row) => row.status === 'unregistered').map((row) => row.familyId);
+  const retired = rows.filter((row) => row.status === 'retired').map((row) => row.familyId);
+  return [
+    unregistered.length
+      ? `Not in the secure question bank: ${unregistered.join(', ')} — a root administrator imports this Test's secure-families file (${SECURE_FAMILY_IMPORT_ROUTE}), then preflight runs again.`
+      : '',
+    retired.length ? `Retired or not validated in the bank: ${retired.join(', ')}.` : '',
+  ].filter(Boolean).join(' ');
+};
 
 /** Safe, question-free description of whether the secure Test can resolve. */
 export const inspectTestCycleContract = (assignment = {}, { secureReferenceResolved = false } = {}) => {
@@ -244,10 +292,20 @@ export const preflightTestCycle = ({
     modes: deliveredModes,
     calculatorMode: normalizedBlueprint.calculatorMode,
   }));
+  const unavailableFamilies = unavailableBlueprintFamilies(normalizedBlueprint, families);
   coverage.forEach((entry) => {
+    const unavailable = unavailableFamilies.filter((row) => row.targetId === entry.targetId);
     if (!entry.availableFamilies) {
-      errors.push(`Target ${entry.targetId} (${entry.alignmentKey || 'unaligned'}) names no approved, validated generator family.`);
+      errors.push([
+        `Target ${entry.targetId} (${entry.alignmentKey || 'unaligned'}) names no approved, validated generator family.`,
+        unavailableSentence(unavailable),
+      ].filter(Boolean).join(' '));
       return;
+    }
+    // Enough is left to fill the target, so this does not block — but the
+    // teacher named a family that will never be drawn, and should know which.
+    if (unavailable.length) {
+      warnings.push(`Target ${entry.targetId} (${entry.alignmentKey || 'unaligned'}) draws only on its other families. ${unavailableSentence(unavailable)}`);
     }
     if (!entry.sufficientForTest) {
       errors.push(
@@ -264,10 +322,16 @@ export const preflightTestCycle = ({
   // 3. Private grading, answered by the server's own issue gate.
   const issuability = isObject(familyIssuability) ? familyIssuability : {};
   const declaredFamilyIds = [...new Set(normalizedBlueprint.targets.flatMap((target) => target.familyIds))];
+  const unregisteredFamilyIds = new Set(unavailableFamilies.filter((row) => row.status === 'unregistered').map((row) => row.familyId));
   declaredFamilyIds.forEach((familyId) => {
     const verdict = issuability[familyId];
     if (verdict === undefined) {
-      warnings.push(`Family ${familyId} was not checked against the secure grading gate before publication.`);
+      // A family the bank does not hold was never checked because there was
+      // nothing to check; the coverage sentence above already says so, and
+      // says how to fix it. Repeating it as "not checked" buried the cause.
+      if (!unregisteredFamilyIds.has(familyId)) {
+        warnings.push(`Family ${familyId} was not checked against the secure grading gate before publication.`);
+      }
       return;
     }
     if (verdict?.issuable !== true) {
@@ -368,6 +432,9 @@ export const preflightTestCycle = ({
       },
     ],
     coverage,
+    // Every named family that cannot be drawn and why ('unregistered' |
+    // 'retired'), so a screen can offer the import instead of re-wording it.
+    unavailableFamilies,
     secureRendering,
     retestQuestionCount,
     contract,

@@ -59,8 +59,16 @@ export const getTeacherTestCyclePlans = call('getTeacherTestCyclePlans');
 export const teacherTestCycleAction = call('teacherTestCycleAction');
 export const releaseTestCycleResults = call('releaseTestCycleResults');
 export const updateTestCyclePolicy = call('updateTestCyclePolicy');
-export const previewTestCycleSecureItems = call('previewTestCycleSecureItems');
-export const gradeTestCyclePreviewItem = call('gradeTestCyclePreviewItem');
+// The same argument mapping as src/services/testCycleService.js: an unsaved
+// Test Cycle (the review screen) is sent as `assignment`, never as an id.
+const previewTestCycleSecureItemsCall = call('previewTestCycleSecureItems');
+const gradeTestCyclePreviewItemCall = call('gradeTestCyclePreviewItem');
+export const previewTestCycleSecureItems = ({ assignmentId = null, candidate = null, draw = 1, stage = 'test' } = {}) => (
+  previewTestCycleSecureItemsCall(candidate ? { assignment: candidate, draw, stage } : { assignmentId, draw, stage })
+);
+export const gradeTestCyclePreviewItem = ({ previewItemId, responsePayload, candidate = null } = {}) => (
+  gradeTestCyclePreviewItemCall({ previewItemId, responsePayload, ...(candidate ? { assignment: candidate } : {}) })
+);
 export const attachTestCycleContract = call('attachTestCycleContract');
 
 /* --- secureExamService ----------------------------------------------------- */

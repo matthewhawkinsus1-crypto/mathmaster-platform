@@ -175,3 +175,31 @@ export const buildTestCyclePreviewCard = ({ assignment = {}, scenario = 'review'
     delivery: testCycleDeliveryFacts(blueprint),
   };
 };
+
+/*
+ * WHAT THE SERVER NEEDS TO PREVIEW AN UNSAVED TEST CYCLE, AND NOTHING ELSE.
+ *
+ * The review screen's assignment carries every Review question with its
+ * answers. Previewing the secure stages needs none of that: only what makes it
+ * a Test Cycle (its policy, or the purpose, gating and Review role that declare
+ * one), its blueprint or secure reference, and a title. The whole document
+ * would be uploaded again on every draw and every checked answer.
+ */
+export const testCycleCandidateContract = (assignment = {}) => {
+  const source = assignment && typeof assignment === 'object' ? assignment : {};
+  const meta = source.assignment && typeof source.assignment === 'object' ? source.assignment : {};
+  return {
+    schemaVersion: 5,
+    title: meta.title || source.title || '',
+    assignment: {
+      title: meta.title || source.title || '',
+      courseId: meta.courseId || source.courseId || null,
+      gradingPurpose: meta.gradingPurpose || null,
+    },
+    assessmentPolicy: source.assessmentPolicy || null,
+    testBlueprint: source.testBlueprint || null,
+    secureTestReference: source.secureTestReference || null,
+    deliveryPolicy: { sectionGating: source.deliveryPolicy?.sectionGating || null },
+    sections: (Array.isArray(source.sections) ? source.sections : []).map((section) => ({ role: section?.role || null })),
+  };
+};

@@ -34,6 +34,11 @@ import { forgetToolDraftFamily } from '../../tools/shared/usePersistentToolState
  *
  *   3. At phone, tablet and Chromebook widths.
  *
+ * And before the Test Cycle is saved: the review screen passes `candidate`
+ * (testCycleCandidateContract), so a teacher sees all of this while deciding
+ * whether to publish — including while preflight still blocks it, when the
+ * slots it can fill are shown and the ones it cannot are named.
+ *
  * NOTHING IS WRITTEN. The preview callables create no session, attempt, record
  * or grade (the server says `writes: "none"` and the adversarial suite proves
  * it), the card makes no request, and Review opens the existing in-memory
@@ -63,6 +68,8 @@ const quietButton = {
 // cleared on every new draw and when the preview closes: preview keeps no
 // state anywhere, the device included.
 const previewDraftSession = (assignmentId) => `preview-${assignmentId}`;
+// An unsaved candidate has no id yet; its drafts live under this one.
+const UNSAVED_PREVIEW_KEY = 'unsaved-review';
 const clearPreviewDrafts = (assignmentId) => {
   const family = `${SECURE_ITEM_DRAFT_PREFIX}:preview:${encodeURIComponent(previewDraftSession(assignmentId))}`;
   removeQuestionDraftFamily(family);
@@ -74,7 +81,8 @@ const clearPreviewDrafts = (assignmentId) => {
 
 const DEVICE_WORDS = Object.freeze({ chromebook: 'Chromebook', ipad: 'iPad', phone: 'phone' });
 
-const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
+const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation, onBack }) => {
+  const previewKey = assignment.id || UNSAVED_PREVIEW_KEY;
   const [draw, setDraw] = useState(1);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -91,10 +99,12 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
     setError('');
     setData(null);
     try {
-      clearPreviewDrafts(assignment.id);
+      clearPreviewDrafts(previewKey);
       // The stage decides the capability policy the server stamps on each
       // item (Secure Test or Secure Retest) — the one a student would get.
-      const response = await previewTestCycleSecureItems({ assignmentId: assignment.id, draw: nextDraw, stage });
+      const response = candidate
+        ? await previewTestCycleSecureItems({ candidate, draw: nextDraw, stage })
+        : await previewTestCycleSecureItems({ assignmentId: assignment.id, draw: nextDraw, stage });
       setData(response);
       setIndex(0);
       setResults({});
@@ -102,10 +112,10 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
     } catch (loadError) {
       setError(loadError.message || 'The secure Test could not be previewed.');
     }
-  }, [assignment.id, stage]);
+  }, [assignment.id, candidate, previewKey, stage]);
 
   useEffect(() => { load(draw); }, [load, draw]);
-  useEffect(() => () => clearPreviewDrafts(assignment.id), [assignment.id]);
+  useEffect(() => () => clearPreviewDrafts(previewKey), [previewKey]);
 
   const items = data?.items || [];
   const item = items[index] || null;
@@ -120,7 +130,7 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
     if (!item?.previewItemId) return null;
     setChecking(true);
     try {
-      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload });
+      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload, candidate });
       setResults((current) => ({
         ...current,
         [item.ordinal]: graded.incomplete ? `incomplete:${graded.detail || 'The work is not complete yet.'}` : graded.isCorrect ? 'correct' : 'incorrect',
@@ -139,7 +149,7 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
     if (!item?.previewItemId) return null;
     setChecking(true);
     try {
-      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload });
+      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload, candidate });
       if (graded.incomplete) return { blocked: true, message: graded.detail || 'Finish your work in the tool, then check it.' };
       const previous = correctionFeedback[item.ordinal] || { attemptsUsed: 0 };
       const attemptsUsed = previous.attemptsUsed + 1;
@@ -185,6 +195,13 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
             {stage === 'retest' ? ' A real retest targets each student\'s weak skills from their own Test; these are Test items from the same blueprint.' : ''}
             {correctionsStage ? ' In Corrections the same tools open with hints, an immediate verdict and three tries. A real correction is a parallel item for a skill the student missed; these are items from the same blueprint.' : ''}
           </p>
+          {data.unfilledSlots > 0 && (
+            <p role="alert" style={{ margin: '10px 16px 0', fontSize: 13, fontWeight: 700, color: 'var(--mm-error-text)' }}>
+              {data.unfilledSlots} of this Test's question{data.unfilledSlots === 1 ? '' : 's'} cannot be previewed or issued yet
+              {(data.unfilledTargetIds || []).length ? ` (${data.unfilledTargetIds.join(', ')})` : ''}: the secure question bank has
+              no approved family for {data.unfilledSlots === 1 ? 'it' : 'them'}. The preflight names the family to import.
+            </p>
+          )}
           {showSlot && item?.slot && (
             <p style={{ margin: '8px 16px 0', fontSize: 12.5, color: 'var(--mm-text)', background: 'var(--mm-surface)', padding: '8px 10px', borderRadius: 8, border: '1px dashed var(--mm-border-strong)' }}>
               Teacher only — {item.slot.alignmentKey || 'standard'} · DOK {item.slot.dok} · difficulty {item.slot.difficultyBand} · {item.slot.representation}{item.slot.anchor ? ' · anchor' : ''} · family {item.slot.familyId}
@@ -198,7 +215,7 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
               key={`${draw}-${item.ordinal}-corrections`}
               question={item.questionInstance}
               mode="corrections"
-              draftKey={secureItemDraftKey({ surface: 'preview', sessionId: previewDraftSession(assignment.id), questionInstanceId: `${draw}-${item.ordinal}-corrections` })}
+              draftKey={secureItemDraftKey({ surface: 'preview', sessionId: previewDraftSession(previewKey), questionInstanceId: `${draw}-${item.ordinal}-corrections` })}
               busy={checking}
               closed={Boolean(itemCorrection && (itemCorrection.isCorrect || itemCorrection.attemptsUsed >= 3))}
               closedMessage="This practice question is closed. A student would get a fresh parallel question."
@@ -214,7 +231,7 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
               examType="courseTest"
               sessionCalculatorMode={data.delivery?.calculatorMode || null}
               question={item.questionInstance}
-              draftKey={secureItemDraftKey({ surface: 'preview', sessionId: previewDraftSession(assignment.id), questionInstanceId: `${draw}-${item.ordinal}` })}
+              draftKey={secureItemDraftKey({ surface: 'preview', sessionId: previewDraftSession(previewKey), questionInstanceId: `${draw}-${item.ordinal}` })}
               studentSupportProfile={profile}
               accommodationConfirmed
               busy={checking}
@@ -246,12 +263,13 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
   );
 };
 
-export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }) => {
+export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, candidate = null }) => {
   const [scenario, setScenario] = useState('review');
   const [device, setDevice] = useState('chromebook');
   const [view, setView] = useState('card');
   const [accommodation, setAccommodation] = useState(false);
   const previewCard = useMemo(() => buildTestCyclePreviewCard({ assignment, scenario }), [assignment, scenario]);
+  const title = assignment.title || assignment.assignment?.title || 'Test Cycle';
   const width = DEVICES.find((entry) => entry.id === device)?.px || 1366;
 
   useEffect(() => {
@@ -270,9 +288,9 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`Student preview of ${assignment.title}`} style={{ position: 'fixed', inset: 0, zIndex: 11000, background: 'var(--mm-page-bg)', color: 'var(--mm-text)', overflow: 'auto' }}>
+    <div role="dialog" aria-modal="true" aria-label={`Student preview of ${title}`} style={{ position: 'fixed', inset: 0, zIndex: 11000, background: 'var(--mm-page-bg)', color: 'var(--mm-text)', overflow: 'auto' }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', borderBottom: '1px solid var(--mm-warning-border)', padding: '10px 16px', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <strong>Student preview · {assignment.title} — nothing here is saved. No attempt, grade or student record is created.</strong>
+        <strong>Student preview · {title}{candidate ? ' (not saved yet)' : ''} — nothing here is saved. No attempt, grade or student record is created.</strong>
         <button type="button" onClick={onClose} style={quietButton}>Close preview</button>
       </div>
       <div style={{ padding: 16, display: 'grid', gap: 12, maxWidth: 1400, margin: '0 auto' }}>
@@ -295,14 +313,14 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }
           <div data-preview-device={device} style={{ width, maxWidth: device === 'chromebook' ? '100%' : width, margin: '0 auto', border: '2px solid var(--mm-border-strong)', borderRadius: 18, padding: 12, boxSizing: 'border-box', background: 'var(--mm-surface-control)' }}>
             {view === 'card' && (
               <TestCycleCard
-                assignmentId={assignment.id}
+                assignmentId={assignment.id || UNSAVED_PREVIEW_KEY}
                 previewCard={previewCard}
                 onPreviewEnter={onPreviewEnter}
                 onExit={onClose}
               />
             )}
             {(view === 'test' || view === 'retest') && (
-              <SecureItemsPreview assignment={assignment} stage={view} accommodation={accommodation} onBack={() => setView('card')} />
+              <SecureItemsPreview assignment={assignment} candidate={candidate} stage={view} accommodation={accommodation} onBack={() => setView('card')} />
             )}
             {view === 'corrections' && (
               <section style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 18, display: 'grid', gap: 10 }}>
@@ -327,7 +345,7 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }
               </section>
             )}
             {view === 'correctionItems' && (
-              <SecureItemsPreview assignment={assignment} stage="corrections" accommodation={accommodation} onBack={() => setView('corrections')} />
+              <SecureItemsPreview assignment={assignment} candidate={candidate} stage="corrections" accommodation={accommodation} onBack={() => setView('corrections')} />
             )}
           </div>
         </div>
