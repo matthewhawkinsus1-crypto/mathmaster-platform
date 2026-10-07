@@ -928,6 +928,10 @@ function QuestionEngineBody({
       } finally {
         submissionInFlightRef.current = false;
         setSubmitting(false);
+        // As for a registry tool (handleMissingToolAction): a composed
+        // question's stage tools keep their own workspaces under this draft
+        // key, and the work just submitted must not read as older than it.
+        stampToolDraftSubmission(draftKey);
       }
       return;
     }
@@ -981,6 +985,13 @@ function QuestionEngineBody({
     } finally {
       submissionInFlightRef.current = false;
       setSubmitting(false);
+      // A composed question's stage tools (interval number line, relation
+      // mapping, …) keep their workspaces under `${draftKey}:work:stage-*`
+      // and are handed this question's canonical time (WorkflowRunner). The
+      // attempt just recorded is newer than their last edit, so without the
+      // stamp toolDraftIsSuperseded deleted them on the next visit and the
+      // stages came back empty.
+      stampToolDraftSubmission(draftKey);
     }
   };
 

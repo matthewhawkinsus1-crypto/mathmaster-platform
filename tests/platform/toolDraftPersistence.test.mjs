@@ -23,6 +23,7 @@ import {
   selectRestorableDraftEntries,
 } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { stripComments } from './helpers/stripComments.mjs';
+import { region } from './helpers/sourceContract.mjs';
 import { canonicalResponseSavedAt } from '../../src/platform/persistence/canonicalResponseTime.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -311,6 +312,45 @@ test('a workflow stage gives its tool a namespace of its own', async () => {
   const runner = stripComments(read('src/platform/workflow/WorkflowRunner.jsx'));
   assert.match(runner, /import \{ ToolDraftScopeProvider \} from '\.\.\/\.\.\/tools\/shared\/usePersistentToolState\.js'/);
   assert.match(runner, /<ToolDraftScopeProvider[\s\S]*draftKey=\{draftKey\}[\s\S]*scope=\{`stage-\$\{stage\.id \|\| stage\.kind\}`\}[\s\S]*canonicalSavedAt=\{canonicalSavedAt\}/);
+});
+
+test('a composed question\'s Submit re-stamps its stage tools, so they are not deleted as stale on the next visit', async () => {
+  // A stage tool's workspace hangs off the question's draft key under
+  // `stage-*` and is handed the question's canonical time (above). The
+  // registry path stamped after recording an attempt; performSubmit, which
+  // records a composed question's attempt, did not. A student who pressed
+  // Submit more than a few seconds after their last stage edit came back to
+  // empty stages: toolDraftIsSuperseded read the workspace as older than the
+  // attempt and deleted it.
+  const engine = stripComments(read('src/QuestionEngine.jsx'));
+  const submit = region(engine, 'const performSubmit = async () => {', '\n  };', 'performSubmit');
+  const branches = submit.split('} finally {').slice(1).map((block) => block.slice(0, block.indexOf('}')));
+  assert.equal(branches.length, 2, 'performSubmit records an attempt in a server-graded branch and an ordinary one');
+  branches.forEach((block, index) => assert.match(block, /stampToolDraftSubmission\(draftKey\);/, `performSubmit branch ${index + 1} stamps the workspaces it just submitted`));
+
+  const store = memoryLocalStorage();
+  await withLocalStorage(store, async () => {
+    const { readToolDraftRecord, stampToolDraftSubmission, toolDraftIsSuperseded, toolDraftKey } = await toolModule();
+    const { writeQuestionDraft } = await draftModule();
+    const realNow = Date.now;
+    let clock = Date.parse('2026-10-07T15:00:00.000Z');
+    Date.now = () => clock;
+    try {
+      const draftKey = await uniqueKey();
+      const stage = toolDraftKey(draftKey, 'stage-interval');
+      writeQuestionDraft(stage, { built: [[-2, 3]] }, { edit: true });
+      readToolDraftRecord(draftKey, 'stage-interval'); // the stage is open at Submit
+      clock += 30_000;
+      const submittedAt = clock;
+      assert.equal(toolDraftIsSuperseded(stage, submittedAt), true, 'unstamped, the stage reads as older than its own attempt');
+      clock += 40;
+      assert.equal(stampToolDraftSubmission(draftKey), 1, 'the stamp reaches a stage-* workspace');
+      assert.equal(toolDraftIsSuperseded(stage, submittedAt), false);
+      assert.deepEqual(readToolDraftRecord(draftKey, 'stage-interval'), { built: [[-2, 3]] }, 'the values are unchanged');
+    } finally {
+      Date.now = realNow;
+    }
+  });
 });
 
 test('the same question rendered twice in one workflow keeps two workspaces apart', async () => {
