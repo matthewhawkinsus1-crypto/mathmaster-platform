@@ -15,8 +15,9 @@
 // Recommended for You is built from — that is what makes it impossible for the
 // panel and the map to disagree about the same skill.
 
-import { STATUS, explainForStudent } from './recommendationEngine.js';
-import { describeSkill } from './skillGraph.js';
+import { STATUS, explainForStudent, explainRecommendationEvidence } from './recommendationEngine.js';
+import { describeSkill, teksCodeFromSkillId } from './skillGraph.js';
+import { districtUnitForSkill } from './districtUnits.js';
 
 export const PATH_MARK = Object.freeze({
   [STATUS.REQUIRED]: { symbol: '★', label: 'Assigned', tone: '#a50e0e' },
@@ -86,7 +87,19 @@ export const lockKind = (row) => (
   row?.remediationTarget || list(row?.unmetPrerequisites)[0] ? 'prerequisite' : 'teacher'
 );
 
-const toPathNode = (row, extra = {}) => {
+/**
+ * The calendar sentence for a skill the class has not reached. A pacing
+ * restriction is a date, so it says the date; and it says nothing is wrong,
+ * because "not open yet" with no number reads as a verdict on the student.
+ */
+export const explainPacing = (node) => {
+  const days = Math.max(0, Number(node?.calendarDaysUntilStart) || 0);
+  return days > 0
+    ? `Your class reaches this in about ${days} ${days === 1 ? 'day' : 'days'}. Nothing is wrong — this one is simply later in the course.`
+    : 'Your class reaches this later in the course. Nothing is wrong — this one is simply not open yet.';
+};
+
+const toPathNode = (row, extra = {}, { profile = null } = {}) => {
   if (!row) return null;
   const described = describeSkill(row.skillId);
   return {
@@ -104,6 +117,14 @@ const toPathNode = (row, extra = {}) => {
     // Straight from the engine: the countdown, the "your class is working on
     // this now", the review wording. No screen writes its own.
     reason: explainForStudent(row),
+    // The same decision with its evidence named — the score and the questions
+    // behind it, the class unit, what it builds on. A card shows this list in
+    // place of `reason` when it has one.
+    evidence: explainRecommendationEvidence(row, profile),
+    // The district unit the class calls it by ("Module 2: Exploring Constant
+    // Rate of Change"). The calendar window's own title is "Topic 1", which is
+    // why that one was carried but never shown.
+    unitTitle: districtUnitForSkill(row.skillId)?.title || null,
     mastery: row.mastery,
     calendarTiming: row.calendarTiming || null,
     instructionalDaysUntilStart: row.instructionalDaysUntilStart ?? 0,
@@ -143,6 +164,9 @@ const withCoverage = (node, isCovered) => {
     statusLabel: CONTENT_PENDING_MARK.label,
     tone: CONTENT_PENDING_MARK.tone,
     reason: 'Practice for this skill is being prepared. Your teacher can see when it is ready.',
+    // Nothing to practise means nothing is being recommended, so no evidence
+    // for a recommendation either.
+    evidence: [],
   };
 };
 
@@ -150,6 +174,29 @@ const withCoverage = (node, isCovered) => {
 // "coming up" rather than as a headline recommendation — being ahead is not the
 // same as being told this is the best use of the next twenty minutes.
 const isEarly = (row) => row.calendarTiming === 'upcoming';
+
+// A blocked skill is shown WITH the repair that opens it, because the skill
+// itself is not something the student can act on.
+const supportFields = (row) => {
+  const targetId = row.remediationTarget || list(row.unmetPrerequisites)[0] || null;
+  const described = targetId ? describeSkill(targetId) : null;
+  return {
+    lockedExplanation: explainLock(row),
+    // REMEDIATION is startable; LOCKED is not. Labelling both "Why is this
+    // locked?" told a student that the skill with a Start button in front
+    // of it was locked.
+    blockedBy: row.status === STATUS.LOCKED ? lockKind(row) : null,
+    strengthen: described ? {
+      skillId: targetId,
+      code: described.code || null,
+      title: described.studentLabel || described.shortLabel || targetId,
+      symbol: PATH_MARK[STATUS.REMEDIATION].symbol,
+      statusLabel: PATH_MARK[STATUS.REMEDIATION].label,
+      tone: PATH_MARK[STATUS.REMEDIATION].tone,
+      selectable: true,
+    } : null,
+  };
+};
 
 export const DEFAULT_LIMITS = Object.freeze({
   current: 3, branches: 4, comingUp: 3, needsSupport: 3, challenge: 2,
@@ -163,11 +210,14 @@ export const DEFAULT_LIMITS = Object.freeze({
  * there is nothing to draw, so the caller can say why rather than render an
  * empty diagram.
  */
-export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) => {
+export const buildPathMap = (options, { limits = {}, isCovered = null, masteryProfilesByTEKS = null } = {}) => {
   if (!options || typeof options !== 'object') return null;
   const cap = { ...DEFAULT_LIMITS, ...limits };
   const rows = (key) => list(options[key]);
-  const toNode = (row, extra) => withCoverage(toPathNode(row, extra), isCovered);
+  // The unified mastery profiles the wheel and the skill card read, so a
+  // card's "58% from 6 questions" is the number on the card the student opens.
+  const profileFor = (row) => masteryProfilesByTEKS?.[teksCodeFromSkillId(row?.skillId)] || null;
+  const toNode = (row, extra) => withCoverage(toPathNode(row, extra, { profile: profileFor(row) }), isCovered);
 
   // Required work outranks everything and suspends free choice, so it leads.
   const focus = [...rows('required'), ...rows('priority'), ...rows('recommended')]
@@ -190,31 +240,10 @@ export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) =>
     .slice(0, cap.comingUp)
     .map((row) => toNode(row));
 
-  // A blocked skill is shown WITH the repair that opens it, because the skill
-  // itself is not something the student can act on.
+  // A blocked skill is shown WITH the repair that opens it.
   const needsSupport = [...rows('remediation'), ...rows('locked')]
     .slice(0, cap.needsSupport)
-    .map((row) => {
-      const targetId = row.remediationTarget || list(row.unmetPrerequisites)[0] || null;
-      const described = targetId ? describeSkill(targetId) : null;
-      return {
-        ...toNode(row),
-        lockedExplanation: explainLock(row),
-        // REMEDIATION is startable; LOCKED is not. Labelling both "Why is this
-        // locked?" told a student that the skill with a Start button in front
-        // of it was locked.
-        blockedBy: row.status === STATUS.LOCKED ? lockKind(row) : null,
-        strengthen: described ? {
-          skillId: targetId,
-          code: described.code || null,
-          title: described.studentLabel || described.shortLabel || targetId,
-          symbol: PATH_MARK[STATUS.REMEDIATION].symbol,
-          statusLabel: PATH_MARK[STATUS.REMEDIATION].label,
-          tone: PATH_MARK[STATUS.REMEDIATION].tone,
-          selectable: true,
-        } : null,
-      };
-    });
+    .map((row) => ({ ...toNode(row), ...supportFields(row) }));
 
   const challenge = rows('extension')
     .filter((row) => !isEarly(row))
@@ -271,4 +300,16 @@ export const statusForSkill = (options, skillId) => {
     if (found) return found.status;
   }
   return null;
+};
+
+/**
+ * One skill drawn exactly as the map would draw it, wherever it sits in the
+ * course. The topic browser lists every skill; building each one through the
+ * map's own node builder is what keeps a skill's door — selectable or not, the
+ * coverage overlay, the lock sentence, the repair — identical on both screens.
+ */
+export const pathNodeForRow = (row, { isCovered = null, profile = null } = {}) => {
+  if (!row || typeof row !== 'object' || !row.skillId) return null;
+  const node = withCoverage(toPathNode(row, {}, { profile }), isCovered);
+  return [STATUS.LOCKED, STATUS.REMEDIATION].includes(row.status) ? { ...node, ...supportFields(row) } : node;
 };
