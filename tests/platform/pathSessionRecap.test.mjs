@@ -289,6 +289,11 @@ test('the server loader returns the owner\'s missed questions from the finalizin
   assert.equal(recap.available, true);
   assert.deepEqual(recap.items.map((item) => item.questionInstanceId), ['q1']);
   assert.equal(recap.reviewedQuestions, 2);
+  // Each attempt's document holds its whole graded result; the recap reads only
+  // the owner and the entry.
+  const read = db.reads.find((entry) => entry.collection === 'pathSubmissions');
+  assert.deepEqual(read.fields, ['studentId', 'recapJson']);
+  assert.deepEqual(read.filters, [{ field: 'sessionId', op: '==', value: 'session-1' }]);
 });
 
 // The callable, cut out of functions/index.js and run with its real

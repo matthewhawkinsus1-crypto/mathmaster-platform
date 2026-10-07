@@ -81,7 +81,12 @@ async function loadMyPathSessionRecap(db, { studentId, sessionId }) {
   const access = rules.pathRecapAccess({ session, studentId });
   if (!access.allowed) return { refused: { code: access.code, message: access.message } };
 
-  const submissions = await db.collection("pathSubmissions").where("sessionId", "==", sessionId).get();
+  // Every attempt has a submission document carrying its whole result; only
+  // the owner and the recap entry are needed here.
+  const submissions = await db.collection("pathSubmissions")
+    .where("sessionId", "==", sessionId)
+    .select("studentId", "recapJson")
+    .get();
   const entries = submissions.docs
     .map((doc) => doc.data() || {})
     .filter((data) => String(data.studentId || "") === String(studentId))
