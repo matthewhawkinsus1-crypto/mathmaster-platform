@@ -30,7 +30,9 @@ test('student dashboard hydrates identity from roster name, then session name, t
   assert.match(resolverCall, /^\s*studentId(: studentId)?,?\s*$/m);
   assert.match(hydration, /displayName: studentDisplayName/);
   const dashboardCall = region(appSource, '<StudentDashboardView', '/>', 'student dashboard call');
-  assert.match(dashboardCall, /student=\{\{ \.\.\.studentRecord, \.\.\.user,/);
+  // The roster record then the session user (nothing else is required; the
+  // support flag was deliberately removed from Home's student prop).
+  assert.match(dashboardCall, /student=\{\{ \.\.\.studentRecord, \.\.\.user(,| \}\})/);
   // No name on file greets the student with the neutral "Student", never the
   // teacher-facing "Name unavailable" and never the id.
   assert.match(dashboardSource, /Welcome, \{formatStudentName\(student, \{ lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL \}\)\}/);
