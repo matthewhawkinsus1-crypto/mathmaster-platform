@@ -306,6 +306,7 @@ import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 import RecommendedSkills from './components/student/RecommendedSkills.jsx';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
+import { resolveAssignmentPathLaunch } from './platform/path/assignmentPathLaunch.js';
 import { subscribeStudentServerMasteryProfiles } from './platform/mastery/serverMasteryProfiles.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
@@ -13043,13 +13044,29 @@ function App() {
           sectionLabel={resultSectionLabel}
           supportPresentation={getStudentSupportPresentation(user.profile)}
           onReviewWork={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, { returnToResult: true })}
-          onPractice={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
-            // A split Classroom post practises its own section; a whole-assignment
-            // post practises the whole assignment. Keep the result route so the
-            // visible Back control returns here after practice.
-            sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
-            returnToResult: true,
-          })}
+          onPractice={(assignmentId) => {
+            // "Practice This Skill" practises the skill: My Math Path opens on
+            // the TEKS this assignment teaches (assignmentPathLaunch.js). A
+            // split Classroom post's section practice, a Test Cycle and an
+            // assignment with no Path skill reopen the assignment as before.
+            const pathLaunch = resolveAssignmentPathLaunch({
+              assignment: assignments.find((item) => item.id === assignmentId),
+              questionIndex: assignmentResultRoute.questionIndex,
+              sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+            });
+            if (pathLaunch) {
+              setPathLaunchTeks(pathLaunch.teksCode);
+              openStudentDashboardMode('mathPath');
+              return;
+            }
+            startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
+              // A split Classroom post practises its own section; a whole-assignment
+              // post practises the whole assignment. Keep the result route so the
+              // visible Back control returns here after practice.
+              sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+              returnToResult: true,
+            });
+          }}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
           origin={assignmentResultRoute.origin || 'assignments'}
