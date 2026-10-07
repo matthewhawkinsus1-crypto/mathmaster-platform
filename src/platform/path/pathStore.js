@@ -331,6 +331,26 @@ export const fetchMyWeeklyPathCompletions = async ({ weekKey } = {}) => {
   };
 };
 
+/**
+ * The signed-in student's recent weeks of Path — each frozen weekly goal with
+ * the grade the Classroom publisher computes for it — and the "weeks hit"
+ * streak (functions/shared/weeklyPathHistory.mjs). The server reads only the
+ * caller's own records, so this takes no student or week.
+ */
+export const fetchMyWeeklyPathHistory = async () => {
+  const call = httpsCallable(functions, 'getMyWeeklyPathHistory');
+  const result = await call({});
+  const data = result?.data || {};
+  return {
+    currentWeekKey: data.currentWeekKey || null,
+    weeks: Array.isArray(data.weeks) ? data.weeks : [],
+    streak: data.streak || { weeks: 0, includesOpenWeek: false, atLeast: false, endedBy: null },
+    weeksHit: Number(data.weeksHit) || 0,
+    weeksWithGoal: Number(data.weeksWithGoal) || 0,
+    truncated: data.truncated === true,
+  };
+};
+
 /** Freeze or retrieve this student's server-owned weekly commitment. */
 export const resolveWeeklyPathGoalSnapshot = async (goal) => {
   if (!goal?.weekKey) return null;

@@ -5,6 +5,7 @@ import CCMRHub from './CCMRHub.jsx';
 import MyMathPathProductionContainer from './MyMathPathProductionContainer.jsx';
 import StudentPracticeHistory from './StudentPracticeHistory.jsx';
 import WeeklyPathGoalPanel from './WeeklyPathGoalPanel.jsx';
+import MyMathPathProgress from './MyMathPathProgress.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
 import { fetchMyMathPathSkillProgress } from '../../services/pathSessionService.js';
@@ -22,9 +23,12 @@ import { statusForSkill } from '../../platform/path/pathMap.js';
 import { buildStudentLearningProfile } from '../../platform/profile/studentLearningProfile.js';
 import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
 import { CCMR_EXPECTATION, buildWeeklyGoal, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
-import { fetchMyWeeklyPathCompletions, fetchTeacherWeeklyPathCompletions, resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
+import { fetchMyWeeklyPathCompletions, fetchMyWeeklyPathHistory, fetchTeacherWeeklyPathCompletions, resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
 import { collectWeeklyPathSessions } from '../../../functions/shared/weeklyPathCompletion.mjs';
 import { describeWeeklySessionEnd, sessionLaunchKey } from '../../platform/path/pathSessionEnd.js';
+import { buildWeeklyPathHistory } from '../../../functions/shared/weeklyPathHistory.mjs';
+import { fetchStudentMasteryHistory } from '../../platform/mastery/masteryHistoryStore.js';
+import { PRACTICE_HISTORY_EVENT_LIMIT } from '../../platform/mastery/practiceHistoryPresentation.js';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { applyWeeklySlotChoices, mergeWeeklyGoalSnapshot, resolveWeeklySlotChoices } from '../../platform/path/weeklyPathChoice.js';
@@ -76,6 +80,7 @@ const chooseFallbackTeks = (profiles = {}, courseId = DEFAULT_MASTERY_COURSE_ID,
 const TABS = [
   ['path', 'Path'],
   ['dashboard', 'Mastery Overview'],
+  ['progress', 'My Progress'],
   ['ccmr', 'CCMR'],
   ['history', 'Practice History'],
 ];
@@ -410,6 +415,36 @@ export const MyMathPathExperience = ({
     goal: weeklyGoalWithChoices, completions: weeklyCompletions, inProgress: weeklyInProgress, finishedSession,
   }), [weeklyGoalWithChoices, weeklyCompletions, weeklyInProgress, finishedSession]);
 
+  // MY PROGRESS. Each surface hands over what it can actually read. The live
+  // student reads their own snapshots and the weekly-history callable; a
+  // teacher inspecting read-only can read the snapshots (an authorized teacher,
+  // by the rules) but not call a student-only callable; the simulator has no
+  // mastery trigger, and grades its synthetic week with the callable's own
+  // builder over its production-shaped sessions.
+  const loadMasteryHistory = useMemo(() => {
+    if (sessionProvider) return null;
+    if (!readOnly) return () => fetchStudentMasteryHistory(studentId);
+    // A teacher's read of a history that does not exist yet is refused by the
+    // rules (they test the document's own authorized list), which would look
+    // exactly like an outage for every student until their first new answer.
+    // Before a first snapshot there is nothing to show either way.
+    return () => fetchStudentMasteryHistory(studentId).catch((caught) => {
+      if (caught?.code === 'permission-denied') return null;
+      throw caught;
+    });
+  }, [sessionProvider, readOnly, studentId]);
+  const loadWeeklyHistory = useMemo(() => {
+    if (sessionProvider) {
+      return () => buildWeeklyPathHistory({
+        goalsByWeekKey: assignedWeeklyGoal?.weekKey ? { [assignedWeeklyGoal.weekKey]: assignedWeeklyGoal } : {},
+        sessions: sessionProvider.listPathSessions?.() || [],
+        now: Date.now(),
+      });
+    }
+    return readOnly ? null : fetchMyWeeklyPathHistory;
+  }, [sessionProvider, readOnly, assignedWeeklyGoal]);
+
+
   // CCMR. The components have existed since Batch 9; what was missing was any
   // route a student could take to reach them, and the evidence to fill them.
   const [goals, setGoals] = useState(() => readCcmrGoals(studentId));
@@ -654,7 +689,20 @@ export const MyMathPathExperience = ({
         </div>
       )}
       {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} retentionReport={retentionReport} skillProgressByTEKS={skillProgressByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoalWithChoices} weeklyProgress={weeklyProgress} weeklyCompletions={weeklyCompletions} completedSlots={completedSlots} weeklyInProgress={weeklyInProgress} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
-      {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
+      {activeTab === 'progress' && (
+        <MyMathPathProgress
+          loadMasteryHistory={loadMasteryHistory}
+          loadWeeklyHistory={loadWeeklyHistory}
+          masteryUnavailableMessage={sessionProvider
+            ? 'The simulator keeps no weekly mastery snapshots. A real student sees their growth here.'
+            : undefined}
+          weeklyUnavailableMessage={readOnly
+            ? 'The student sees their past weekly goals and grades here. Your Weekly Path table has each class week.'
+            : undefined}
+          onOpenPath={readOnly ? null : () => setActiveTab('path')}
+        />
+      )}
+      {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} eventLimit={PRACTICE_HISTORY_EVENT_LIMIT} />}
       {/* Keyed per launch: "Start session N of M" from the end screen opens a
           fresh container instead of carrying the last review into it. */}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer
@@ -690,7 +738,8 @@ export const MyMathPathApp = (props) => {
     setError(null);
     const [masteryResult, historyResult, passProgressResult] = await Promise.allSettled([
       fetchStudentMasteryState(studentId, { assignments }),
-      fetchStudentEvidenceEvents(studentId),
+      // The same limit Practice History states ("your 300 most recent answers").
+      fetchStudentEvidenceEvents(studentId, { maxEvents: PRACTICE_HISTORY_EVENT_LIMIT }),
       fetchMyMathPathSkillProgress(),
     ]);
     if (masteryResult.status === 'fulfilled') setMasteryData(masteryResult.value);

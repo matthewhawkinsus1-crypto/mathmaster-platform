@@ -1746,6 +1746,14 @@ service cloud.firestore {
       allow write: if rootAdmin() || authorizedTeacher();
     }
 
+    // Weekly growth snapshots of the profile above, written only by the mastery
+    // trigger in the same transaction (functions/shared/masteryHistory.mjs).
+    // Read exactly as the profile is read; no browser writes it, root included.
+    match /studentMasteryHistory/{studentId} {
+      allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
+      allow create, update, delete: if false;
+    }
+
     match /studentRetentionSchedules/{studentId} {
       allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
       allow write: if rootAdmin() || authorizedTeacher();
