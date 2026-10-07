@@ -2,6 +2,7 @@ import React, { forwardRef, useCallback, useEffect, useRef } from 'react';
 import {
   TABBABLE_SELECTOR, initialFocusChoice, isTabbableFacts, isTopDialog, looksLikeCloseControl, nextFocusIndex, pushDialog,
 } from './dialogFocus.js';
+import { MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR } from '../platform/math/mathLiveCompat.js';
 
 /*
  * THE ONE ACCESSIBLE MODAL DIALOG.
@@ -115,7 +116,7 @@ export function useModalDialog(ref, {
       if (dialog.contains(event.target)) return;
       // Focus belonging to a later layer (a toast, a MathLive keyboard, a
       // popover appended to <body>) is not an escape from this dialog.
-      if (event.target?.closest?.('[role="dialog"], [role="alertdialog"], .ML__keyboard, [data-dialog-allow-focus]')) return;
+      if (event.target?.closest?.(`[role="dialog"], [role="alertdialog"], ${MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR}, [data-dialog-allow-focus]`)) return;
       const items = tabbableWithin(dialog);
       (items[0] || dialog).focus({ preventScroll: true });
     };
