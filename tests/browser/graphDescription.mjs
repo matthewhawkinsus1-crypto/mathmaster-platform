@@ -124,6 +124,28 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
   check(/2 points: \(0, 0\); \(2, 1\)\./.test(after?.description || ''), `${tag} the interactive plane describes what was plotted`, after?.description);
   check(await page.locator('[data-graph="d"] button', { hasText: 'Show data table' }).count() === 0, `${tag} the interactive plane has no data-table toggle`);
 
+  // Keyboard sweep S6: Enter on a movable point picks it up, arrows carry it,
+  // Enter drops it; Escape puts it back where it was.
+  const mover = page.locator('[data-graph="e"] svg[role="application"]');
+  const live = page.locator('[data-graph="e"] p[aria-live="polite"]');
+  check(/Enter on a plotted point picks it up/.test((await axOf(cdp, '[data-graph="e"] svg[role="application"]'))?.name || ''), `${tag} a movable plane says how to move a point`);
+  await mover.focus();
+  await page.keyboard.press('ArrowRight'); // (1, 0)
+  await page.keyboard.press('ArrowUp'); // (1, 1): on the point
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  check(/Moving the point from \(1, 1\) to \(3, 1\)/.test(await live.textContent()), `${tag} the live region says the point is being moved`, await live.textContent());
+  await page.keyboard.press('Enter');
+  const moved = await axOf(cdp, '[data-graph="e"] svg[role="application"]');
+  check(/1 point: \(3, 1\)\./.test(moved?.description || ''), `${tag} Enter dropped the point where the crosshair was (no second point)`, moved?.description);
+  await page.keyboard.press('Enter'); // pick it up again
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('ArrowRight'); // cursor moves; the point must not follow
+  const kept = await axOf(cdp, '[data-graph="e"] svg[role="application"]');
+  check(/1 point: \(3, 1\)\./.test(kept?.description || ''), `${tag} Escape put the point back`, kept?.description);
+
   await context.close();
 }
 

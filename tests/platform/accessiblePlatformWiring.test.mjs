@@ -113,3 +113,16 @@ test('every question host keeps focused controls clear of the action bar', () =>
   const css = read('src/index.css');
   assert.match(css, /html:has\(\.mathmaster-desktop-action-bar\):not\(:has\(\.mathmaster-assignment-screen\)\) \{\s*scroll-padding-bottom: calc\(var\(--mm-action-bar-height, 72px\) \+ 18px\);/);
 });
+
+// Keyboard sweep S6: a plotted point could be moved only by pointer.
+// Browser proof: tests/browser/graphDescription.mjs ("Move a point").
+test('a movable point is picked up, carried and dropped by keyboard', () => {
+  const plane = executableSource(read('src/tools/shared/CoordinatePlane.jsx'));
+  const keys = region(plane, 'const handleKeyDown = (event) => {', '\n  };', 'plane keys');
+  const enter = region(keys, "case 'Enter':", "case 'Escape':", 'Enter');
+  assert.match(enter, /if \(keyboardHeldIndex != null\) \{[\s\S]*?onMovePoint\(moved, /, 'Enter while holding drops the point');
+  assert.match(enter, /const onPoint = canMovePoints \? pointIndexNear\(target\) : null;\s*if \(onPoint != null\) \{ setKeyboardHeldIndex\(onPoint\); break; \}\s*onPlot\(target\);/, 'Enter on a movable point picks it up; elsewhere it plots');
+  const escape = region(keys, "case 'Escape':", 'default:', 'Escape');
+  assert.match(escape, /if \(keyboardHeldIndex != null\) \{\s*event\.preventDefault\(\);\s*event\.stopPropagation\(\);\s*setKeyboardHeldIndex\(null\);/, 'Escape puts it back without closing Work View');
+  assert.match(plane, /else if \(keyboardHeldIndex === index && keyboardCursor\) \[pointX, pointY\] = keyboardCursor;/, 'the held point is drawn at the crosshair');
+});

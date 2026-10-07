@@ -233,6 +233,7 @@ const main = async () => {
   const baselineCounts = readBaselineCounts(baseline);
   const results = [];
   const unreachable = [];
+  const titleFailures = [];
   let blocked = 0;
 
   for (const viewport of VIEWPORTS) {
@@ -279,6 +280,12 @@ const main = async () => {
         if (!WRITE && ratchetFailed(verdict)) await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
         else await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${viewport.id}.png`) }).catch(() => {});
         results.push({ screen: screen.id, scene: scene.id, label, viewport: viewport.id, counts: audit.counts, details: audit.details, needsReview: audit.needsReview });
+        // WCAG 2.4.2 beyond axe's "a <title> exists": every app screen used to
+        // be titled "Vite + React". The real app must name itself and the screen.
+        if (screen.harness === 'app') {
+          const title = await page.title();
+          if (!/ – MathMaster$/.test(title) || /vite|react/i.test(title)) titleFailures.push(`${label}|${viewport.id}: page title "${title}" does not name the screen`);
+        }
         const total = Object.values(audit.counts).reduce((sum, count) => sum + count, 0);
         console.log(`${ratchetFailed(verdict) && !WRITE ? 'FAIL' : 'ok  '} ${label.padEnd(32)} ${viewport.id.padEnd(8)} ${Object.keys(audit.counts).length} rule(s), ${total} node(s)`);
       }
@@ -339,7 +346,11 @@ const main = async () => {
     console.log(`\n${comparison.reduced.length} count(s) below the baseline — baseline can be lowered: run with --write-baseline`);
     comparison.reduced.forEach((row) => console.log(`  ${row.key}: ${row.count} (baseline ${row.baseline})`));
   }
-  if (failed || unreachable.length) {
+  if (titleFailures.length) {
+    console.error(`\n${titleFailures.length} screen(s) without a page title naming them (WCAG 2.4.2):`);
+    titleFailures.forEach((line) => console.error(`  - ${line}`));
+  }
+  if (failed || unreachable.length || titleFailures.length) {
     console.error(`\nAccessibility certification FAILED. Report: ${path.relative(repo, path.join(artifacts, 'report.json'))}`);
     process.exitCode = 1;
   } else {

@@ -205,6 +205,13 @@ export default function CoordinatePlane({
   const [keyboardCursor, setKeyboardCursor] = useState(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
   const [keyboardActive, setKeyboardActive] = useState(false);
+  // KEYBOARD MOVE (keyboard sweep S6). Which placed point the keyboard has
+  // picked up — the keyboard twin of `dragIndex` — so a misplaced point is
+  // moved, not only fixable with Undo. Null while the keyboard is plotting.
+  const [keyboardHeldIndex, setKeyboardHeldIndex] = useState(null);
+  // A held point is an index into `points`: a new question or a changed set
+  // of points puts it down rather than move the wrong one.
+  useEffect(() => { setKeyboardHeldIndex(null); }, [viewResetKey, points.length]);
   // Keyboard focus on the plane (Tab, not a click): shows the keyboard help.
   const [keyboardHelpVisible, setKeyboardHelpVisible] = useState(false);
   // Which existing point the finger or mouse currently has hold of, and where it
@@ -420,9 +427,29 @@ export default function CoordinatePlane({
         const target = keyboardCursor || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
         setKeyboardCursor(target);
         setKeyboardActive(true);
+        // Holding a point: Enter drops it where the crosshair is.
+        if (keyboardHeldIndex != null) {
+          const moved = keyboardHeldIndex;
+          setKeyboardHeldIndex(null);
+          onMovePoint(moved, [clamp(target[0], domainXMin, domainXMax), clamp(target[1], domainYMin, domainYMax)]);
+          break;
+        }
+        // On a point the tool lets the student move: pick it up, exactly as a
+        // press on it does with a finger or mouse.
+        const onPoint = canMovePoints ? pointIndexNear(target) : null;
+        if (onPoint != null) { setKeyboardHeldIndex(onPoint); break; }
         onPlot(target);
         break;
       }
+      case 'Escape':
+        // Put a held point back without moving it — and keep the Escape from
+        // also closing Work View around the plane.
+        if (keyboardHeldIndex != null) {
+          event.preventDefault();
+          event.stopPropagation();
+          setKeyboardHeldIndex(null);
+        }
+        break;
       default: break;
     }
   };
@@ -478,7 +505,10 @@ export default function CoordinatePlane({
   const showDataTable = !interactive && dataTable !== false && insideControl === false && generatedDescription.tables.length > 0;
 
   const preview = keyboardActive ? keyboardCursor : pointerPreview;
-  const previewText = preview ? `${cursorLabel} ${formatCoordinate(preview)}` : '';
+  const heldPoint = keyboardHeldIndex != null ? points[keyboardHeldIndex] : null;
+  const previewText = heldPoint && keyboardCursor
+    ? `Moving the point from ${formatCoordinate(heldPoint)} to ${formatCoordinate(keyboardCursor)}. Enter to drop it here, Escape to put it back.`
+    : preview ? `${cursorLabel} ${formatCoordinate(preview)}` : '';
 
   // The readout chip flips to the other side of the cursor near the edges so it
   // never gets clipped by the plot border.
@@ -529,7 +559,7 @@ export default function CoordinatePlane({
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         role={interactive ? 'application' : 'img'}
-        aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.` : ariaLabel}
+        aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.${canMovePoints ? ' Enter on a plotted point picks it up to move it.' : ''}` : ariaLabel}
         aria-describedby={descriptionId}
         tabIndex={interactive ? 0 : undefined}
         onPointerDown={handlePointerDown}
@@ -543,7 +573,7 @@ export default function CoordinatePlane({
           try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }
           if (keyboard) setKeyboardHelpVisible(true);
         }}
-        onBlur={() => setKeyboardHelpVisible(false)}
+        onBlur={() => { setKeyboardHelpVisible(false); setKeyboardHeldIndex(null); }}
         style={{
           // `maxHeight` is NOT set here. It used to be an inline '100%', which
           // beats every stylesheet rule and so silently defeated the
@@ -682,6 +712,7 @@ export default function CoordinatePlane({
           // While a point is held, draw it where the finger is. Leaving it at
           // its old coordinates makes the drag look broken until release.
           if (dragIndex === index && pointerPreview) [pointX, pointY] = pointerPreview;
+          else if (keyboardHeldIndex === index && keyboardCursor) [pointX, pointY] = keyboardCursor;
           if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
 
           if (point?.marker === 'arrow') {
@@ -721,7 +752,7 @@ export default function CoordinatePlane({
             );
           }
 
-          const held = dragIndex === index;
+          const held = dragIndex === index || keyboardHeldIndex === index;
           return (
             <g
               key={`p${index}`}

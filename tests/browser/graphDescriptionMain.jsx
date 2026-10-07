@@ -20,6 +20,7 @@ const POINTS_A = [{ x: 3, y: -2, label: 'A' }];
 const LINE_C = [{ m: -1, b: 1 }];
 
 function Harness() {
+  const [movable, setMovable] = useState([[1, 1]]);
   const [plotted, setPlotted] = useState([]);
   return (
     <main style={{ padding: 16, display: 'grid', gap: 24, maxWidth: 640, fontFamily: 'system-ui' }}>
@@ -40,6 +41,15 @@ function Harness() {
       <section data-graph="d">
         <h2>Plot here</h2>
         <CoordinatePlane ariaLabel="Plot here" xMin={-6} xMax={6} yMin={-6} yMax={6} points={plotted} onPlot={(point) => setPlotted((list) => [...list, point])} />
+      </section>
+      {/* Keyboard sweep S6: a plane whose points can be moved, by keyboard too. */}
+      <section data-graph="e">
+        <h2>Move a point</h2>
+        <CoordinatePlane
+          ariaLabel="Move a point" xMin={-6} xMax={6} yMin={-6} yMax={6} points={movable}
+          onPlot={(point) => setMovable((list) => [...list, point])}
+          onMovePoint={(index, point) => setMovable((list) => list.map((existing, i) => (i === index ? point : existing)))}
+        />
       </section>
     </main>
   );
