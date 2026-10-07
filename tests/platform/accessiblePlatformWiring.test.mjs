@@ -93,3 +93,23 @@ test('a student screen starts with a skip link past the navigation', () => {
   const chrome = executableSource(read('src/components/common/pageChrome.jsx'));
   assert.match(region(chrome, 'export const skipTarget', '\n};', 'skipTarget'), /!nav\.contains\(element\)\s*&& \(nav\.compareDocumentPosition\(element\) & 4\)/, 'lands after the nav');
 });
+
+// Keyboard sweep S1: Check locked the question (disabled fieldset + inert),
+// which dropped a keyboard student's focus to <body> after every Check.
+test('focus returns to where it was when the Check lock lifts', () => {
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(engine, /import \{ useFocusReturnAfterLock \} from '\.\/components\/common\/useFocusReturnAfterLock\.js';/);
+  assert.match(engine, /const \[submitting, setSubmitting\] = useState\(false\);[\s\S]{0,200}useFocusReturnAfterLock\(submitting\);/);
+  const hook = executableSource(read('src/components/common/useFocusReturnAfterLock.js'));
+  const restore = region(hook, 'const frame = requestAnimationFrame(() => {', '});', 'the restore');
+  assert.match(restore, /if \(active && active !== document\.body\) return;/, 'a student who moved on is left alone');
+  assert.match(restore, /if \(canTakeFocusAgain\(lastFocused\.current\)\) lastFocused\.current\.focus\(\{ preventScroll: true \}\);/);
+  assert.match(region(hook, 'const canTakeFocusAgain', ');', 'focusable again'), /!element\.closest\?\.\('\[inert\], fieldset\[disabled\]'\)/);
+});
+
+// Keyboard sweep S5: hosts other than the assignment screen had no room
+// reserved under the sticky action bar.
+test('every question host keeps focused controls clear of the action bar', () => {
+  const css = read('src/index.css');
+  assert.match(css, /html:has\(\.mathmaster-desktop-action-bar\):not\(:has\(\.mathmaster-assignment-screen\)\) \{\s*scroll-padding-bottom: calc\(var\(--mm-action-bar-height, 72px\) \+ 18px\);/);
+});

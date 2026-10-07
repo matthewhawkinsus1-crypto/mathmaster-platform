@@ -467,3 +467,12 @@ body :is(
 }
 .mm-skip-link:focus { top: 8px; }
 #mm-main-content:focus { outline: none; }
+
+/* KEYBOARD FOCUS NEVER PARKS UNDER THE ACTION BAR (WCAG 2.4.7; keyboard
+ * sweep S5). The assignment screen reserves the sticky action bar's height
+ * when the browser scrolls a focused control into view (App.css); My Math
+ * Path, Live Challenge, Recovery and the other hosts of a question had no such
+ * room, and Tab could stop on a control entirely covered by the bar. */
+html:has(.mathmaster-desktop-action-bar):not(:has(.mathmaster-assignment-screen)) {
+  scroll-padding-bottom: calc(var(--mm-action-bar-height, 72px) + 18px);
+}

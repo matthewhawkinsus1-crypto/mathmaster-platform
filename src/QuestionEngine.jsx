@@ -81,6 +81,7 @@ import { useRenderPerformance } from './platform/performance/useRenderPerformanc
 import { useActiveWorkTab } from './platform/persistence/activeWorkTab.js';
 import { StudentSupportTray } from './components/student/StudentSupportTools.jsx';
 import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
+import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
 
 const WorkViewReadySignal = ({ span }) => {
@@ -406,6 +407,8 @@ function QuestionEngineBody({
   const toolOutcomeSequenceRef = useRef(0);
   const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState(() => record.lastResponseKey || '');
   const [submitting, setSubmitting] = useState(false);
+  // Keyboard focus survives the Check lock (src/components/common/useFocusReturnAfterLock.js).
+  useFocusReturnAfterLock(submitting);
   const submissionInFlightRef = useRef(false);
   const [requesting, setRequesting] = useState(false);
   const [baseUndoController, setBaseUndoController] = useState(null);
