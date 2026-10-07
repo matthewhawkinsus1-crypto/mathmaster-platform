@@ -11,7 +11,7 @@
 //   1. SIDEWAYS SCROLL. A grade screen that shoves horizontally on a phone
 //      hides the column the grade is in. Measured on the document, not on a
 //      component, because one over-wide child is enough to do it.
-//   2. TAP TARGETS. Every control at least 44px. "Practice" and "View All
+//   2. TAP TARGETS. Every control at least 44px. "Try it again" and "View All
 //      Grades" are the only ways off a closed-assignment screen; a 30px button
 //      under a thumb is a dead end with a visible exit.
 //   3. THE EXITS EXIST AND ARE ON SCREEN. A closed Google Classroom deep link
@@ -40,21 +40,23 @@ const SCENES = [
   // The Assignments Center is the densest of these screens — tabs, a search
   // box, a period select and a card list — so it is the most likely to push
   // the page sideways at 390px.
-  { name: 'assignmentsCenter', mustContain: ['My Assignments', 'Active · ', 'Upcoming · ', 'Completed · 2', 'Practice · 1'], mustReach: ['Assignments', 'Grades', 'My Math Path', 'Tests & Exams', 'Home'] },
+  { name: 'assignmentsCenter', mustContain: ['My Assignments', 'Active · ', 'Upcoming · ', 'Completed · 2', 'Closed — try again · 1'], mustReach: ['Assignments', 'Grades', 'My Math Path', 'Tests & Exams', 'Home'] },
   // Everything has closed, so the default Active tab is empty. An empty tab on
   // a screen whose job is finding things has to say where the work went.
   { name: 'assignmentsCenterClosed', mustContain: ['My Assignments', 'All marking periods'], mustReach: ['Grades'] },
-  // The list a student actually came for: press Practice and measure it.
+  // The list a student actually came for: press the closed tab and measure
+  // it. Closed work is "Try it again — no credit", never "Practice".
   {
     name: 'assignmentsCenterClosed',
     as: 'assignmentsCenterPracticeTab',
-    clickText: 'Practice ·',
-    mustContain: ['Practice', 'View Results'],
-    mustReach: ['Practice'],
+    clickText: 'Closed — try again ·',
+    mustContain: ['Try it again — no credit', 'View Results'],
+    mustReach: ['Try it again — no credit'],
   },
   { name: 'gradeCenter', mustContain: ['My Grades', 'Current MathMaster grade', 'View Results'], mustReach: ['← Home', 'Assignments'] },
-  { name: 'gradeCenterClosed', mustContain: ['Past Marking Periods', 'Practice'], mustReach: ['← Home'] },
-  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL'], mustReach: ['View All Grades', 'Practice DOL', 'All Assignments', 'Back to'] },
+  // A closed row offers its no-credit re-try, never a bare "Practice".
+  { name: 'gradeCenterClosed', mustContain: ['Past Marking Periods'], mustReach: ['← Home', 'Try it again — no credit'] },
+  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL'], mustReach: ['View All Grades', 'Try DOL again — no credit', '← Assignments'] },
   { name: 'assignmentResultOpen', mustContain: ['Your grade'], mustReach: ['View All Grades'] },
 ];
 
