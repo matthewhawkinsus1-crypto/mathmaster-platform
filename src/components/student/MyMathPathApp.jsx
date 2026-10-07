@@ -27,6 +27,7 @@ import { fetchMyWeeklyPathCompletions, fetchMyWeeklyPathHistory, fetchTeacherWee
 import { collectWeeklyPathSessions } from '../../../functions/shared/weeklyPathCompletion.mjs';
 import { buildWeeklyPathHistory } from '../../../functions/shared/weeklyPathHistory.mjs';
 import { fetchStudentMasteryHistory } from '../../platform/mastery/masteryHistoryStore.js';
+import { PRACTICE_HISTORY_EVENT_LIMIT } from '../../platform/mastery/practiceHistoryPresentation.js';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { chooseWeeklyAlternative } from '../../platform/path/weeklyPathChoice.js';
@@ -635,7 +636,7 @@ export const MyMathPathExperience = ({
           onOpenPath={readOnly ? null : () => setActiveTab('path')}
         />
       )}
-      {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
+      {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} eventLimit={PRACTICE_HISTORY_EVENT_LIMIT} />}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => { setWeeklyRefreshKey((value) => value + 1); onReload?.(); }} />}
     </div>
   );
@@ -661,7 +662,8 @@ export const MyMathPathApp = (props) => {
     setError(null);
     const [masteryResult, historyResult, passProgressResult] = await Promise.allSettled([
       fetchStudentMasteryState(studentId, { assignments }),
-      fetchStudentEvidenceEvents(studentId),
+      // The same limit Practice History states ("your 300 most recent answers").
+      fetchStudentEvidenceEvents(studentId, { maxEvents: PRACTICE_HISTORY_EVENT_LIMIT }),
       fetchMyMathPathSkillProgress(),
     ]);
     if (masteryResult.status === 'fulfilled') setMasteryData(masteryResult.value);
