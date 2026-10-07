@@ -41,6 +41,13 @@ import {
 } from '../path/pathSessionRouting.js';
 import { recordQuestionAttempt, resolveQuestionMaximumAttempts } from '../../attemptPolicy.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
+import {
+  RETENTION_PROBE,
+  RETENTION_PROBE_QUESTIONS,
+  canResumeOpenSession,
+  resolveWeeklySlotSessionKind,
+  retentionCheckOutcome,
+} from '../../../functions/shared/pathRetentionCheck.mjs';
 
 const uid = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 
@@ -219,12 +226,19 @@ export const createTeacherPathRuntime = ({
   // so a teacher can check that an accommodation actually reaches the screen —
   // which is the only way to discover a tool that cannot honour one.
   supportEntitlements = null,
+  // The simulated student's retention schedules (display TEKS -> schedule).
+  // A finished retention check moves them exactly as submitPathResponse moves
+  // a real student's, and the new schedules are published through `onChange`.
+  retentionSchedulesByTEKS = {},
 } = {}) => {
   const usingSecureBank = Array.isArray(pathBankQuestions);
   const bank = usingSecureBank
     ? buildSimulationQuestionBankFromPathBank(pathBankQuestions)
     : buildSimulationQuestionBank(assignments);
   let learner = initialLearner || { id: 'simulated', gradesByAssignment: {} };
+  let retentionSchedules = retentionSchedulesByTEKS && typeof retentionSchedulesByTEKS === 'object'
+    ? retentionSchedulesByTEKS
+    : {};
   const sessions = new Map();
 
   const masteryNow = (session) => buildMasteryBySkillForStudent({
@@ -232,11 +246,14 @@ export const createTeacherPathRuntime = ({
     assignments: [...assignments, sessionAssignment(session.sessionId, session.issued)],
   });
 
-  const publish = (session) => {
+  // `retentionChanged` only when a finished check moved the schedules, so a
+  // routine publish can never overwrite a schedule the teacher just forced.
+  const publish = (session, { retentionChanged = false } = {}) => {
     onChange?.({
       learner,
       sessionAssignment: sessionAssignment(session.sessionId, session.issued),
       session: publicSession(session),
+      ...(retentionChanged ? { retentionSchedulesByTEKS: retentionSchedules } : {}),
     });
   };
 
@@ -261,6 +278,8 @@ export const createTeacherPathRuntime = ({
     lastDecision: session.lastDecision,
     currentSkillCode: teksCodeFromSkillId(session.currentSkillId) || null,
     teacherMessage: session.teacherMessage || null,
+    // The verdict of a finished retention check, as production records it.
+    retentionOutcome: session.retentionOutcome || null,
     // The whole route so far, in the order it happened. This is what makes
     // "why am I on A.5A?" answerable rather than assertable.
     route: session.route.map((entry) => ({ ...entry })),
@@ -323,6 +342,9 @@ export const createTeacherPathRuntime = ({
       return null;
     }
     const issuedQuestion = generated.question;
+    // One attempt for a diagnostic and for a retention check, as on the server
+    // (issueNextQuestion): both measure what the student can do now.
+    const singleAttempt = role === PATH_ACTION.DIAGNOSE || session.sessionKind === RETENTION_PROBE;
     // The secure payload if this tool has a contract, and nothing at all if it
     // does not — the same allowlist the server applies.
     const toolPayload = buildPublicToolPayload(issuedQuestion);
@@ -353,8 +375,8 @@ export const createTeacherPathRuntime = ({
       pathRole: role,
       attemptsAllowed: resolveQuestionMaximumAttempts({
         question: issuedQuestion,
-        maximumAttempts: role === PATH_ACTION.DIAGNOSE ? 1 : 3,
-        activityPolicy: { attempts: role === PATH_ACTION.DIAGNOSE ? 1 : 3 },
+        maximumAttempts: singleAttempt ? 1 : 3,
+        activityPolicy: { attempts: singleAttempt ? 1 : 3 },
       }),
       attemptsUsed: 0,
       sourceAssignmentId: chosen.sourceAssignmentId,
@@ -426,7 +448,7 @@ export const createTeacherPathRuntime = ({
 
   const startOrResumePathSession = async ({
     targetAlignmentKey,
-    sessionKind = 'practice',
+    sessionKind: requestedSessionKind = 'practice',
     requiredQuestions: required = requiredQuestions,
     assessmentFramework = null,
     coursePracticeIntent = null,
@@ -440,17 +462,29 @@ export const createTeacherPathRuntime = ({
     const code = toDisplayCode(targetAlignmentKey);
     const skillId = teksSkillId(code);
 
+    // The weekly slot decides the session kind, by the server's own rule
+    // (startMyMathPathSession): a Retention slot is a retention check, and a
+    // retention check on any other slot is refused. Here the slot's purpose
+    // arrives with the launch, because a simulated week has no server snapshot.
+    let sessionKind = requestedSessionKind === RETENTION_PROBE ? RETENTION_PROBE : 'practice';
+    if (weeklySlotKey) {
+      const weeklyKind = resolveWeeklySlotSessionKind({ slotPurpose: weeklyPurpose, requestedSessionKind: sessionKind });
+      if (!weeklyKind.ok) throw new Error(weeklyKind.message);
+      sessionKind = weeklyKind.sessionKind;
+    }
+
     // RESUME, as production does. The server keeps an `activePathLocks` entry
     // per student and target and hands back the open session rather than
     // starting a second one — that is what makes a refresh mid-question return
     // the student to the question they were on. This runtime always minted a
     // new session, so a teacher testing "what happens if a student refreshes"
     // watched behaviour no student would get, and the current question silently
-    // became unreachable.
+    // became unreachable. A weekly slot's open session is resumed whatever kind
+    // it was opened as, by the same rule the server applies.
     const existing = [...sessions.values()].find((candidate) => (
       candidate.status === 'active'
       && candidate.targetAlignmentKey === toCanonicalKey(code)
-      && candidate.sessionKind === sessionKind
+      && canResumeOpenSession({ existingSessionKind: candidate.sessionKind, sessionKind, weeklySlotKey })
       && (candidate.assessmentFramework || null) === (assessmentFramework || null)
       && (candidate.coursePracticeIntent || null) === (coursePracticeIntent === 'challenge' ? 'challenge' : null)
       && (candidate.weeklySlotKey || null) === (weeklySlotKey || null)
@@ -470,7 +504,11 @@ export const createTeacherPathRuntime = ({
       weeklySlotKey: weeklySlotKey || null,
       weeklySlot: weeklySlot || null,
       weeklyPurpose: weeklyPurpose || null,
-      requiredQuestions: Math.max(1, Math.min(10, Number(required) || 5)),
+      // A retention check is always two questions, whatever was asked for
+      // (pathSessionRequiredQuestions on the server).
+      requiredQuestions: sessionKind === RETENTION_PROBE
+        ? RETENTION_PROBE_QUESTIONS
+        : Math.max(1, Math.min(10, Number(required) || 5)),
       targetAlignmentKey: toCanonicalKey(code),
       originSkillId: skillId,
       currentSkillId: skillId,
@@ -644,6 +682,43 @@ export const createTeacherPathRuntime = ({
     session.summary.correctQuestions += isCorrect ? 1 : 0;
     if (isCorrect && supportUsage.isMathematicallyIndependent !== false && !supportUsage.hintUsed && !supportUsage.scaffoldUsed) {
       session.summary.independentSuccesses += 1;
+    }
+
+    // A RETENTION CHECK IS NEVER ROUTED, as on the server (submitPathResponse):
+    // it counts its two questions and finishes. A miss is a verdict about
+    // retention, not the start of a repair excursion, and the verdict moves the
+    // simulated student's retention schedule by the shared rule.
+    if (session.sessionKind === RETENTION_PROBE) {
+      let retentionChanged = false;
+      if (session.summary.completedQuestions >= session.requiredQuestions) {
+        session.status = 'completed';
+        session.completedAt = Date.now();
+        const teksCode = toDisplayCode(session.targetAlignmentKey);
+        const verdict = retentionCheckOutcome({
+          teksCode,
+          summary: session.summary,
+          currentSchedule: retentionSchedules[teksCode] || {},
+          now: session.completedAt,
+        });
+        retentionSchedules = { ...retentionSchedules, [teksCode]: verdict.schedule };
+        session.retentionOutcome = verdict.outcome;
+        retentionChanged = true;
+      }
+      session.currentQuestion = null;
+      session.privateGrading = null;
+      session.privateGradingMode = null;
+      session.privateSupport = null;
+      publish(session, { retentionChanged });
+      return remember({
+        success: true,
+        grading: { isCorrect: isCorrect === true, score: graded?.score ?? (isCorrect ? 1 : 0), parts: graded?.parts || [], attemptNumber: instance.attemptsUsed, attemptsRemaining: 0, questionFinalized: true },
+        feedback: attemptSupport.feedback,
+        support: attemptSupport.support,
+        solutionReview: attemptSupport.solutionReview,
+        session: publicSession(session),
+        decision: null,
+        needsNextQuestion: session.status === 'active',
+      });
     }
 
     const masteryBySkill = masteryNow(session);
@@ -860,6 +935,16 @@ export const createTeacherPathRuntime = ({
       learner = nextLearner;
       return true;
     },
+    /**
+     * Take retention schedules the teacher forced (Make Retention Due) without
+     * tearing the runtime down. An echo of the runtime's own object is ignored.
+     */
+    syncRetentionSchedules: (next) => {
+      if (!next || typeof next !== 'object' || next === retentionSchedules) return false;
+      retentionSchedules = next;
+      return true;
+    },
+    getRetentionSchedules: () => retentionSchedules,
     // The session documents, in the shape the production `pathSessions`
     // collection has, so the student's weekly panel counts simulated sessions
     // with the same rule (weeklyPathCompletion.mjs) it uses for a real student.
