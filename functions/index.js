@@ -14077,6 +14077,25 @@ exports.getStudentWeeklyPathGoalSnapshot = onCall(async (request) => {
 });
 
 /**
+ * The student's own recent weeks of Path: each frozen weekly goal graded by the
+ * functions the Classroom publisher uses (weeklyPathCompletion.mjs and
+ * gradeWeeklyGoal), and the "weeks hit" streak (weeklyPathHistory.mjs). Every
+ * read is addressed by the caller's own studentId — goal ids are computed, not
+ * scanned — and nothing in request.data can widen it. Aggregate facts only.
+ */
+exports.getMyWeeklyPathHistory = onCall((request) => withPathCallableDiagnostics("getMyWeeklyPathHistory", async () => {
+  const { studentId } = requireStudent(request);
+  const { loadWeeklyPathHistory } = require("./lib/weeklyPathHistory");
+  const history = await loadWeeklyPathHistory(getFirestore(), {
+    studentId,
+    now: Date.now(),
+    displayTeks: mathPath.displayAlignmentKey,
+    goalCollection: WEEKLY_PATH_GOAL_SNAPSHOTS,
+  });
+  return { success: true, ...history };
+}));
+
+/**
  * The student's own weekly Path completions, counted by the SAME rule the
  * teacher table and the Classroom publisher use (weeklyPathCompletion.mjs):
  * only a session the server marked "completed" counts. Also returns the
