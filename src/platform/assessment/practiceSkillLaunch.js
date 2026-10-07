@@ -14,11 +14,14 @@ import { toDisplayCode } from '../../utils/teksUtils.js';
  * leave them where they are rather than open an empty Path.
  */
 export const practiceSkillLaunch = ({ alignmentKey = null, framework = null } = {}) => {
+  // A practice test's skill is practised in that exam's own format, which
+  // lives on the CCMR tab — not as ordinary course practice on one standard,
+  // even when the domain also names one.
+  if (framework) return { teksCode: null, tab: 'ccmr' };
   // A course standard (`texas:A.5A`) becomes its TEKS code; anything still
-  // namespaced after that (an exam domain key) is not a TEKS standard.
+  // namespaced after that is not a TEKS standard.
   const teksCode = alignmentKey ? String(toDisplayCode(alignmentKey) || '').trim() : '';
   if (teksCode && !teksCode.includes(':')) return { teksCode, tab: null };
-  if (framework) return { teksCode: null, tab: 'ccmr' };
   return null;
 };
 

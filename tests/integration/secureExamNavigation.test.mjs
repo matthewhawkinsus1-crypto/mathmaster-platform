@@ -204,6 +204,18 @@ test('skip, flag, go back and change an answer — graded once, on the server, a
   assert.ok(reviewed.solution?.answers?.length, 'the released review carries the correct answer');
   assert.ok(reviewed.solution.answers[0].display, 'as display text');
   assert.equal(review.items[1].unanswered, true);
+
+  // A second TSIA2 practice test under way closes these answers until it is submitted.
+  const second2 = await createSimulation(SIM_STUDENT, 'tsia2', 2);
+  const notStarted = await fns.getStudentSecureExamReview.run(student(SIM_STUDENT, { examSessionId }));
+  assert.ok(notStarted.review, 'an unstarted practice test does not close the review');
+  await fns.startSecureExamSession.run(student(SIM_STUDENT, { examSessionId: second2.examSessionId }));
+  const closed = await refusal(fns.getStudentSecureExamReview.run(student(SIM_STUDENT, { examSessionId })));
+  assert.equal(closed?.code, 'failed-precondition');
+  assert.match(closed.message, /practice test you have started/i);
+  await fns.finalizeSecureExam.run(student(SIM_STUDENT, { examSessionId: second2.examSessionId }));
+  const reopened = await fns.getStudentSecureExamReview.run(student(SIM_STUDENT, { examSessionId }));
+  assert.ok(reopened.review.items.length === 3, 'and opens again once that test is submitted');
 });
 
 test('a held practice test reveals nothing until the teacher releases it', async () => {

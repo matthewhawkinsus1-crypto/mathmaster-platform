@@ -19,13 +19,14 @@ const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 
 test('a course standard opens Path practice on its TEKS code', () => {
   assert.deepEqual(practiceSkillLaunch({ alignmentKey: 'texas:A.5A' }), { teksCode: 'A.5A', tab: null });
-  assert.deepEqual(practiceSkillLaunch({ alignmentKey: 'A.5A', framework: 'digitalSAT' }), { teksCode: 'A.5A', tab: null });
+  assert.deepEqual(practiceSkillLaunch({ alignmentKey: 'A.5A', framework: null }), { teksCode: 'A.5A', tab: null });
 });
 
-test('a practice test domain with no course standard opens the CCMR tab', () => {
+test("a practice test's skill opens that exam's practice on the CCMR tab, never course practice", () => {
   assert.deepEqual(practiceSkillLaunch({ alignmentKey: null, framework: 'digitalSAT', domainId: 'algebra' }), { teksCode: null, tab: 'ccmr' });
-  // A namespaced non-TEKS key is not a standard to practise.
-  assert.deepEqual(practiceSkillLaunch({ alignmentKey: 'sat:algebra', framework: 'digitalSAT' }), { teksCode: null, tab: 'ccmr' });
+  // Even when the domain also names a standard.
+  assert.deepEqual(practiceSkillLaunch({ alignmentKey: 'texas:A.5A', framework: 'digitalSAT', domainId: 'algebra' }), { teksCode: null, tab: 'ccmr' });
+  assert.deepEqual(practiceSkillLaunch({ alignmentKey: 'sat:algebra', framework: 'act' }), { teksCode: null, tab: 'ccmr' });
 });
 
 test('nowhere to go means no launch', () => {

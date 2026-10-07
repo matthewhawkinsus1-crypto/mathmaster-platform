@@ -16021,6 +16021,25 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "Your Test review opens again when you finish your Retest.", { reason: "retest_open" });
     }
   }
+  /*
+   * The same line for practice tests. Two practice tests of one exam draw from
+   * the same exam-style item families, so a released practice test's answers
+   * and solutions stay closed while the student has another practice test of
+   * that exam under way (started, or paused), and open again once it is
+   * submitted. A practice test that has not been started does not close it.
+   */
+  if (!secureExam.isCourseTestSession(session)) {
+    const others = await getFirestore().collection("examSessions").where("studentId", "==", studentId).limit(50).get();
+    const openSameExam = others.docs.some((docSnapshot) => {
+      const other = docSnapshot.data() || {};
+      return docSnapshot.id !== examSessionId
+        && String(other.examType || "") === String(session.examType || "")
+        && (other.status === "in_progress" || secureExam.LOCKED_STATES.has(other.status));
+    });
+    if (openSameExam) {
+      throw new HttpsError("failed-precondition", "These results open again when you finish the practice test you have started.", { reason: "practice_test_open" });
+    }
+  }
   const review = secureExam.publicReview(session);
   return { success: true, review };
 });
