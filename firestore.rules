@@ -48,6 +48,17 @@ service cloud.firestore {
     // because they are still accountable for it, and the student's current
     // teacher, who needs the history to teach them. See the policy note in
     // functions/shared/authorizationContext.mjs.
+    // The student a Class Points account id names, for an account that does
+    // not exist yet. A student id containing ':' never matches: fail closed.
+    function missingClassPointAccountIsOwn(accountId) {
+      return signedIn()
+        && request.auth.token.get('role', '') == 'student'
+        && request.auth.token.get('studentId', '') != ''
+        && accountId.split(':').size() >= 3
+        && accountId.split(':')[0] == string(request.auth.token.get('studentId', '').size())
+        && accountId.split(':')[1] == request.auth.token.get('studentId', '');
+    }
+
     function authorizedTeacher() {
       // hasAny works for both a stored list on a single-document get and the
       // LIST_CONTAINS constraint Firestore exposes while proving an
@@ -890,7 +901,16 @@ service cloud.firestore {
     // same roster reassignment logic instead of a second, parallel notion of
     // "this teacher's student."
     match /classPointAccounts/{accountId} {
-      allow read: if rootAdmin() || ownsStudent(resource.data.studentId) || authorizedTeacher();
+      // A student who was never awarded anything has no account document, and
+      // the wallet listens to it anyway. With no document there is no
+      // resource.data to check, so the id names the owner instead:
+      // `${studentId.length}:${studentId}:${classId}` (classPoints.mjs
+      // accountId) — the same pattern studentWorkspaceDrafts uses. A missing
+      // account read is an empty wallet, never "Temporarily unavailable".
+      allow read: if rootAdmin()
+        || (resource == null
+          ? missingClassPointAccountIsOwn(accountId)
+          : (ownsStudent(resource.data.studentId) || authorizedTeacher()));
       allow create, update, delete: if false;
     }
 
@@ -1146,6 +1166,19 @@ service cloud.firestore {
       // written once when a round closes. Readable by exactly the audience of
       // the standings above; they carry no student id.
       match /rounds/{roundIndex} {
+        allow read: if rootAdmin()
+          || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
+          || (signedIn()
+            && request.auth.token.role == 'student'
+            && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId);
+        allow create, update, delete: if false;
+      }
+
+      // A closed round's worked solution (liveChallengeSolutionReveal.mjs):
+      // the prompt, its standard and the authored review — no student. Written
+      // by the server only after nobody can answer the round (and any Second
+      // Chance replay of it has closed); read by exactly the room's audience.
+      match /solutions/{roundIndex} {
         allow read: if rootAdmin()
           || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
           || (signedIn()

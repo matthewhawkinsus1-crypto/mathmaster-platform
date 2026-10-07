@@ -1279,6 +1279,27 @@ test('a student reads their own Class Points wallet and history, never another s
   await assertFails(getDoc(doc(studentB(), 'classPointTransactions/cp-tx-1')));
 });
 
+// A student who was never awarded anything has no account yet, and their
+// wallet listens to it anyway. That read must succeed (an empty wallet), not be
+// denied (which the screen showed as "Temporarily unavailable"); it must still
+// be denied to anyone the id does not name.
+test('a student reads their own MISSING Class Points account as empty; nobody else can', async () => {
+  const missing = classPointsAccountId('STUDENT_A', 'class-never-awarded');
+  const snapshot = await assertSucceeds(getDoc(doc(studentA(), `classPointAccounts/${missing}`)));
+  assert.equal(snapshot.exists(), false);
+  await assertFails(getDoc(doc(studentB(), `classPointAccounts/${missing}`)));
+  await assertFails(getDoc(doc(teacherB(), `classPointAccounts/${missing}`)));
+  // The length prefix is part of the name: a forged prefix names nobody.
+  await assertFails(getDoc(doc(studentA(), 'classPointAccounts/99:STUDENT_A:class-a-x')));
+  await assertFails(getDoc(doc(studentA(), 'classPointAccounts/STUDENT_A')));
+  // And the history query on an empty ledger is allowed for its owner.
+  await assertSucceeds(getDocs(query(
+    collection(studentA(), 'classPointTransactions'),
+    where('studentId', '==', 'STUDENT_A'),
+    where('classId', '==', 'class-never-awarded'),
+  )));
+});
+
 test('no client can write a Class Points account, forged or otherwise — not even the root administrator', async () => {
   await assertFails(setDoc(doc(studentA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
   await assertFails(setDoc(doc(teacherA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
@@ -1422,6 +1443,9 @@ const seedLiveChallengeEngine = async () => env.withSecurityRulesDisabled(async 
   await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/rounds/0'), {
     roundIndex: 0, standings: [{ playerKey: 'pk-a', alias: 'Nova Fox', rank: 1, matchPointsAwarded: 15 }],
   });
+  await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/solutions/0'), {
+    roundIndex: 0, available: true, prompt: 'Solve 2x = 8.', solutionReview: { headline: 'Divide by 2.', reasoning: ['x = 4'] },
+  });
   await setDoc(doc(db, 'liveChallengeInvites/STUDENT_A'), { roomId: 'lc-room-a', playerKey: 'pk-a' });
   await setDoc(doc(db, 'liveChallengeInvites/STUDENT_B'), { roomId: 'lc-room-elsewhere', playerKey: 'pk-b' });
   // Two public player rows in the room, and its standings snapshot.
@@ -1497,6 +1521,22 @@ test('a closed round\'s result is read by the room\'s audience only, and written
   for (const client of [studentA(), teacherA(), admin()]) {
     await assertFails(setDoc(doc(client, 'liveChallengeRooms/lc-room-a/rounds/1'), { standings: [] }));
     await assertFails(updateDoc(doc(client, round), { standings: [] }));
+  }
+});
+
+test('a revealed round solution is read by the room\'s audience only, and written by no client', async () => {
+  await seedLiveChallengeEngine();
+  const solution = 'liveChallengeRooms/lc-room-a/solutions/0';
+  await assertSucceeds(getDoc(doc(teacherA(), solution)));
+  await assertFails(getDoc(doc(teacherB(), solution)));
+  await assertSucceeds(getDoc(doc(studentA(), solution)), 'a student invited to the room');
+  await assertFails(getDoc(doc(studentB(), solution)), 'a student invited to another room');
+  await assertSucceeds(getDoc(doc(admin(), solution)));
+  await assertFails(getDoc(doc(stranger(), solution)));
+  for (const client of [studentA(), teacherA(), admin()]) {
+    // Nobody can publish (or pre-publish) a solution from a browser.
+    await assertFails(setDoc(doc(client, 'liveChallengeRooms/lc-room-a/solutions/1'), { available: true }));
+    await assertFails(updateDoc(doc(client, solution), { available: false }));
   }
 });
 

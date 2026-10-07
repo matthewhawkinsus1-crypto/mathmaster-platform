@@ -59,7 +59,9 @@ test('each style keeps exactly the questions it names', () => {
 /* ---------- it has to reach every draw, not just the first ---------- */
 
 test('the style filters candidates on the server, not in the browser', () => {
-  assert.match(functionsIndex, /async function loadChallengeCandidates\(db, \{ courseId, standardCode, questionStyle = "any" \}\)/);
+  // The style defaults to "any"; the signature also carries the round's timing
+  // for difficulty targeting (liveChallengeDifficulty.mjs).
+  assert.match(functionsIndex, /async function loadChallengeCandidates\(db, \{ courseId, standardCode, questionStyle = "any"[^}]*\}\)/);
   assert.match(functionsIndex, /\.filter\(\(question\) => challenge\.matchesQuestionStyle\(question, style\)\)/);
 });
 
@@ -94,7 +96,7 @@ test('every callable that draws questions honours the style', () => {
 
   // The planner that draws from the bank applies it to every draw.
   const planners = region(functionsIndex, 'const LIVE_CHALLENGE_QUESTION_PLANNERS', 'function liveChallengeQuestionPlanner(', 'question planners');
-  assert.match(planners, /loadChallengeCandidates\(db, \{ courseId, standardCode, questionStyle: modeConfig\.questionStyle \}\)/);
+  assert.match(planners, /loadChallengeCandidates\(db, \{\s*courseId, standardCode, questionStyle: modeConfig\.questionStyle,[^}]*\}\)/);
   // Inside the swap's own argument object, not merely somewhere after it.
   assert.match(planners, /loadChallengeCandidates\(db, \{[^}]*questionStyle: dryRun\.questionStyle,[^}]*\}\)/);
 

@@ -336,6 +336,9 @@ export const describeClassPointTransaction = (transaction = {}) => {
   };
 };
 
+/** A refusal to read the student's own account, which only a missing document causes. */
+export const accountReadRefusedAsMissing = (error) => /permission-denied/.test(String(error?.code || ''));
+
 /**
  * Subscribe only to one authenticated student's wallet in one real class.
  * Missing canonical identity is a no-op: never fall back to a broad query.
@@ -365,7 +368,16 @@ export const subscribeToStudentClassPoints = ({
     (snapshot) => onAccount(
       snapshot.exists() ? normalizeClassPointAccount(snapshot.data()) : emptyClassPointAccount(),
     ),
-    onError,
+    (error) => {
+      // A student never awarded anything has no account document. The rules
+      // that let them read their own missing account (firestore.rules
+      // classPointAccounts) refused it before they were deployed, and the
+      // wallet said "Temporarily unavailable" to every such student. The id is
+      // this student's own, so a refusal here means "no account yet": an
+      // empty wallet. Any other failure is still an error.
+      if (accountReadRefusedAsMissing(error)) onAccount(emptyClassPointAccount());
+      else onError?.(error);
+    },
   );
   const unsubHistory = onSnapshot(
     historyQuery,
