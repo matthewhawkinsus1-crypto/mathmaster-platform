@@ -153,7 +153,10 @@ const isEarly = (row) => row.calendarTiming === 'upcoming';
 
 export const DEFAULT_LIMITS = Object.freeze({
   current: 3, branches: 4, comingUp: 3, needsSupport: 3, challenge: 2,
-  mastered: 6, retention: 2,
+  // Every mastered skill. The section previews six and offers the rest behind
+  // "Show all N" (masteredSection.js) — a count of eight above six cards was
+  // two finished skills the student could not reach.
+  mastered: Infinity, retention: 2,
 });
 
 /**
