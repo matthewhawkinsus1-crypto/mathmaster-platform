@@ -29,6 +29,7 @@ import { studentOmittedIndices } from '../../../functions/shared/reducedWorkload
 export const SECTION_RECOVERY_LABEL = Object.freeze({ dol: 'DOL Recovery', warmup: 'Warm-Up Recovery' });
 
 const STATE_COPY = Object.freeze({
+  // The message is replaced by lockedRecoveryMessage, which names the bar.
   [RECOVERY_STATE.LOCKED]: {
     badge: 'Locked',
     message: 'Continue Practice to show what you know. Recovery unlocks when your recent Practice shows mastery.',
@@ -63,6 +64,18 @@ const STATE_COPY = Object.freeze({
 export const excludedRecoveryNote = (count) => (count > 0
   ? `MathMaster could not grade ${count} Recovery question${count === 1 ? '' : 's'}. ${count === 1 ? 'It' : 'They'} did not count against your score.`
   : null);
+
+/*
+ * A LOCKED RECOVERY SAYS EXACTLY WHAT UNLOCKS IT, AND WHERE.
+ *
+ * "Recovery unlocks when your recent Practice shows mastery" sent students to
+ * the assignment's own Practice section, which never counts: only the
+ * questions behind "Practice for …" do. So the sentence names the bar from the
+ * policy (7 of the last 8 by default) and says which practice counts.
+ */
+export const lockedRecoveryMessage = ({ requiredCorrect, windowSize } = {}) => (
+  `Use “Practice for …” to answer new practice questions. Get ${requiredCorrect} of your last ${windowSize} right to unlock a second try. Practice inside the assignment does not count toward it.`
+);
 
 export const KEPT_ORIGINAL_NOTE = 'Your teacher reviewed your Recovery and kept your original score.';
 export const REPLACEMENT_ISSUED_NOTE = 'Your teacher added a new question to your Recovery. Your other answers are saved — just answer the new question and submit again.';
@@ -156,7 +169,9 @@ export const buildStudentRecoverySummary = ({
       label: SECTION_RECOVERY_LABEL[section],
       state: eligibility.state,
       badge: copy.badge,
-      message: copy.message,
+      message: eligibility.state === RECOVERY_STATE.LOCKED
+        ? lockedRecoveryMessage({ requiredCorrect: mastery.requiredCorrect, windowSize: mastery.windowSize })
+        : copy.message,
       masteryPercent: mastery.percent,
       masteryCorrect: mastery.correct,
       masteryWindow: mastery.windowSize,

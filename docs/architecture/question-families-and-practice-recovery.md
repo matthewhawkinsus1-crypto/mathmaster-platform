@@ -245,7 +245,10 @@ Policy defaults:
 
 1. Nothing appears while the original is still available.
 2. After it closes, the student's Assignment Result screen shows the Recovery
-   panel: Locked or Unlocked, with Practice Mastery as a percentage.
+   panel: Locked or Unlocked, with Practice Mastery as a percentage. The same
+   Recovery is also put where students actually look (see "Finding a
+   Recovery" below): Home, the Assignments Center and the assignment's own
+   header, with a one-time announcement.
 3. Each Practice answer goes to the `advanceSectionRecovery` callable. The
    server rebuilds the instance from its pin and marks it. Mastery unlocks
    Recovery in the same write. The pin must be the student's own: its seat
@@ -265,6 +268,47 @@ a Recovery is never more forgiving, or more revealing, than the original. An
 item whose tries run out counts as incorrect in the assessment. In Practice it
 is recorded as an incorrect item (a forfeit): it never blocks the next
 question, and it is never a free skip.
+
+**Finding a Recovery, and being told about it.**
+
+The Results panel was at first the only way in, and students did not find it:
+nothing elsewhere said a Recovery had opened, a student arriving from a Google
+Classroom link never passed the Results screen, and students who did find it
+practised in the assignment's own Practice section, which never counts.
+`src/platform/recovery/studentRecoveryDiscovery.js` lists every Recovery a
+student can act on now — Locked (practise), Unlocked (start) or In progress
+(continue) — and three surfaces render it with one button for the next step:
+
+* **Home** — a "Second chance" card below the live Warm-Up/DOL cards and
+  above the Resume card: what closed, the exact bar ("Get 7 of your last 8
+  Recovery practice questions right"), that the assignment's own Practice
+  does not count, the meter and the end date.
+* **The Assignments Center** — a line on the assignment's row, and the row
+  joins the Active tab even when every question is finished.
+* **The assignment's own header**, for a student who came from Classroom.
+
+Each entry is built by `buildStudentRecoverySummary`, the function the
+Results panel renders, so no surface can offer what the panel — and so the
+server — would refuse. A section is only summarised when it could be
+actionable (its original closed before the final submission date, or a
+Recovery is in progress), and App builds the list for every assignment only on
+the dashboard screens; inside an assignment it builds that one assignment.
+`tests/platform/studentRecoveryDiscovery.test.mjs` sweeps the whole Recovery
+window and every record state and requires the list to equal the panel.
+
+**The announcement.** One toast per Recovery and phase (available, then
+unlocked — and a teacher's replacement question, which the student did not
+cause), per device, at the first visit to Home, Assignments or Grades that
+finds it, including the moment a Warm-Up or DOL window closes while the
+student is signed in. A "NEW" mark stays on the card until the student opens
+that Recovery. Both are per-device conveniences in localStorage, like Test
+Cycle's; losing them only re-shows a badge or a toast. Nothing is announced
+inside a question, a Live Challenge or a secure exam. There is no email or
+push channel: a student who never signs in is not told.
+
+`tests/browser/recoveryDiscovery.mjs` renders Home and the Assignments Center
+on a phone and a Chromebook, light and dark, from the family-backed Multiple
+Representations lesson.
 
 **Grades.**
 
