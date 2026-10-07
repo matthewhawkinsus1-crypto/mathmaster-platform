@@ -95,9 +95,11 @@ test('Grades gets Start, ways to raise and What changed; Home gets the count —
 });
 
 test('Review My Work shows only for closed, released, non-Test-Cycle work — with imports', () => {
-  assert.match(app, /import ReviewMyWork from '\.\/components\/student\/ReviewMyWork\.jsx'/);
+  // Lazy, so MathLive (pulled by the solution renderers) stays out of the first load.
+  assert.match(app, /const ReviewMyWork = lazy\(\(\) => import\('\.\/components\/student\/ReviewMyWork\.jsx'\)\)/);
   assert.match(app, /import \{ loadMyReviewWork \} from '\.\/services\/reviewMyWorkService\.js'/);
-  const panel = region(app, 'reviewPanel={', ': null}', 'review panel');
+  const panel = region(app, 'const resultReviewPanel =', ': null;', 'review panel');
+  assert.match(app, /reviewPanel=\{resultReviewPanel\}/);
   assert.match(panel, /resultEntry\.frozen/);
   assert.match(panel, /!resultEntry\.isTestCycle/);
   assert.match(panel, /!assignmentHasHeldTeacherFeedback\(recoveryAssignment\)/);

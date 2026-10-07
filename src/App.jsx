@@ -320,7 +320,6 @@ import {
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { describeSaveStatus } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
-import ReviewMyWork from './components/student/ReviewMyWork.jsx';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
@@ -525,6 +524,9 @@ const MathToolsLab = lazy(() => import('./dev/MathToolsLab.jsx'));
 const LessonPreflightModal = lazy(() => import('./components/teacher/LessonPreflightModal.jsx'));
 const MyMathPathApp = lazy(() => import('./components/student/MyMathPathApp.jsx'));
 const StudentSecureExamDashboard = lazy(() => import('./components/assessment/StudentSecureExamDashboard.jsx'));
+// Lazy: the worked-solution renderers pull MathLive, which stays out of the
+// first load (initialBundleBoundary.test.mjs).
+const ReviewMyWork = lazy(() => import('./components/student/ReviewMyWork.jsx'));
 const TeacherSecureExamDashboard = lazy(() => import('./components/assessment/TeacherSecureExamDashboard.jsx'));
 const TeacherAnalyticsDashboard = lazy(() => import('./components/analytics/TeacherAnalyticsDashboard.jsx'));
 // Student Case Review / Academic Evidence Deep Dive: its code loads only when a
@@ -13176,6 +13178,18 @@ function App() {
     const resultDashboard = buildStudentDashboardNow();
     const resultTodayEntry = resultDashboard?.allEntries.find((entry) => entry.assignment.id === assignmentResultRoute.assignmentId) || null;
     const resultUpNext = resolveUpNext({ dashboard: resultDashboard, assignmentId: assignmentResultRoute.assignmentId });
+    // Decision 3: once the work is closed for this student and feedback is
+    // released, their own answers beside the worked solutions. The callable
+    // re-checks every gate; this only decides whether to show the panel.
+    const resultReviewPanel = resultEntry && recoveryAssignment && resultEntry.frozen
+      && !resultEntry.isTestCycle
+      && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
+      ? (
+        <Suspense fallback={<p role="status" style={{ margin: '14px 0 0' }}>Loading your work…</p>}>
+          <ReviewMyWork assignment={recoveryAssignment} load={loadMyReviewWork} />
+        </Suspense>
+      )
+      : null;
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
       ? assignmentResultRoute.sectionLabel || assignmentResultRoute.sectionKey
       : null;
@@ -13220,11 +13234,7 @@ function App() {
           // Decision 3: once the work is closed for this student and feedback
           // is released, their own answers beside the worked solutions. The
           // callable re-checks every gate; this only decides whether to show it.
-          reviewPanel={resultEntry && recoveryAssignment && resultEntry.frozen
-            && !resultEntry.isTestCycle
-            && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
-            ? <ReviewMyWork assignment={recoveryAssignment} load={loadMyReviewWork} />
-            : null}
+          reviewPanel={resultReviewPanel}
           todayEntry={resultTodayEntry}
           upNext={resultUpNext}
           // New work, not a return trip: no returnToResult.
