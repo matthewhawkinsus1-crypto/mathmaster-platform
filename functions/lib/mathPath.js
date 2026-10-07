@@ -235,11 +235,23 @@ function choiceRuntimeNamespace(question = {}, sourceKey = 'question', choices =
   ].join('|');
 }
 
+// An id this boundary already issued. My Math Path stores an issued item
+// SANITIZED (its options carry runtime ids, and its private grading names
+// them) and sanitizes the stored item again for every response to the
+// browser. Hashing a runtime id a second time handed the browser options that
+// matched nothing in the answer key, so every option — the right one included
+// — was graded wrong. An issued id therefore passes through unchanged, which
+// makes sanitizing an issued item idempotent. Author ids ("opt-1") never have
+// this shape and are still replaced.
+const RUNTIME_CHOICE_ID = /^choice_[0-9a-f]{28}$/;
+
 function choiceRuntimeId(question, sourceKey, choices, choice, index) {
+  const authored = authoredChoiceId(choice, index);
+  if (RUNTIME_CHOICE_ID.test(authored)) return authored;
   return opaqueId(
     'choice',
     choiceRuntimeNamespace(question, sourceKey, choices),
-    authoredChoiceId(choice, index),
+    authored,
     String(index),
   );
 }
