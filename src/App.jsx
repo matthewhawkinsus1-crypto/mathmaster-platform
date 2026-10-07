@@ -12844,6 +12844,7 @@ function App() {
           weeklyGoalConfig={studentWeeklyGoalConfig}
           courseId={studentCourseId}
           studentRecord={studentRecord}
+          serverMasteryProfiles={studentServerMasteryProfiles}
           onNavigate={navigateStudent}
           onExit={() => { setPathLaunchTeks(null); setStudentDashboardMode('assignments'); }}
           />
