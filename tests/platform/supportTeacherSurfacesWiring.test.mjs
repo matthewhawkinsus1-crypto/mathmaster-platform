@@ -37,7 +37,7 @@ test('Escape closes only the top layer of the drawer (a service or profile dialo
   const dialog = read('src/ui/Dialog.jsx');
   // Topmost Dialog, not covered by a later non-Dialog modal, key not handled.
   assert.match(dialog, /const onTop = \(\) => isTopDialog\(token\) && !coveredByForeignModal\(dialog\);/);
-  assert.match(dialog, /if \(event\.defaultPrevented \|\| !onTop\(\)\) return;/);
+  assert.match(dialog, /if \(handledInside \|\| !onTop\(\)\) return;/);
   const shell = region(drawer, '<Dialog as="aside"', '\n', 'drawer dialog');
   assert.match(shell, /ref=\{panelRef\}/);
   assert.match(shell, /onClose=\{closeIfTopLayer\}/);

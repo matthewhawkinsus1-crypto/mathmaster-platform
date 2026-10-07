@@ -30,7 +30,7 @@ export default function StudentResponseInspector({ studentId, assignmentId, ques
     studentId: inspectedStudentId, index: studentIdentityIndex instanceof Map ? studentIdentityIndex : null,
     historicalName: model?.student?.name, lastFirst: false,
   });
-  return <Dialog onClose={onClose} aria-label="Student Response Inspector" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(32,33,36,.62)', overflowY: 'auto', padding: 24 }}>
+  return <Dialog closeOnEscape={false} onClose={onClose} aria-label="Student Response Inspector" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(32,33,36,.62)', overflowY: 'auto', padding: 24 }}>
     <main style={{ maxWidth: 1180, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 14, padding: 24, color: 'var(--mm-text-strong)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><h2 style={{ margin: 0 }}>Student Response Inspector &amp; Grade Override</h2><button onClick={onClose}>Close</button></div>
       {error && <p role="alert" style={{ color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</p>}

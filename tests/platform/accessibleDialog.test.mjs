@@ -75,7 +75,7 @@ test('Dialog wires the rules to the element and restores focus', () => {
   assert.match(escape, /if \(escapeRef\.current && typeof onCloseRef\.current === 'function'\)/, 'Escape honours closeOnEscape');
   assert.match(escape, /if \(event\.target && event\.target\.isConnected === false\) return;/, 'not an Escape a closing layer above already used');
   assert.match(effect, /const onTop = \(\) => isTopDialog\(token\) && !coveredByForeignModal\(dialog\);/, 'topmost of the stack and not under a non-Dialog modal');
-  assert.match(effect, /if \(event\.defaultPrevented \|\| !onTop\(\)\) return;/, 'only the topmost dialog answers keys');
+  assert.match(effect, /if \(handledInside \|\| !onTop\(\)\) return;/, 'only the topmost dialog answers keys');
   assert.match(region(effect, 'const onFocusIn', 'doc.addEventListener', 'focusin'), /if \(!onTop\(\)\) return;/, 'only the topmost dialog pulls focus');
   assert.match(effect, /nextFocusIndex\(\{ count: items\.length, activeIndex: items\.indexOf\(doc\.activeElement\), shift: event\.shiftKey \}\)/);
   assert.match(effect, /doc\.addEventListener\('focusin', onFocusIn\)/, 'focus that escapes is pulled back');
@@ -115,4 +115,71 @@ test('focus in a dialog beneath the top one is an escape, not an allowed layer',
   const layers = source.match(/const ALLOWED_FOCUS_LAYERS = `([^`]*)`;/)?.[1] || '';
   assert.ok(layers.includes('${MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR}') && layers.includes('[data-work-view-floating-tool]') && layers.includes('[data-dialog-allow-focus]'));
   assert.doesNotMatch(layers, /role=/, 'no dialog role is exempt');
+});
+
+// PR #454 functional review (S2/B2): Escape threw away a teacher's typed draft
+// in dialogs that never closed on Escape before (the question editor, a grade
+// override in the Response Inspector, …). Those keep their draft.
+// Each <Dialog …> opening tag, braces balanced (an onClose arrow has a '>').
+const dialogTags = (code) => {
+  const tags = [];
+  for (let start = code.indexOf('<Dialog'); start >= 0; start = code.indexOf('<Dialog', start + 1)) {
+    let depth = 0;
+    let end = start;
+    for (; end < code.length; end += 1) {
+      if (code[end] === '{') depth += 1;
+      else if (code[end] === '}') depth -= 1;
+      else if (code[end] === '>' && depth === 0) break;
+    }
+    tags.push(code.slice(start, end + 1));
+  }
+  return tags;
+};
+
+test('a dialog holding a typed draft does not close on Escape', () => {
+  const DRAFTS = [
+    ['src/AssignmentQuestionEditorBase.jsx', 'aria-label="Edit assignment questions"'],
+    ['src/AssignmentLibraryBase.jsx', 'aria-labelledby={folderDialogTitleId}'],
+    ['src/components/teacher/ClassPointsAwardDialog.jsx', 'aria-labelledby="class-points-award-title"'],
+    ['src/components/teacher/LessonPreflightModal.jsx', null],
+    ['src/components/teacher/StudentPersistenceRecoveryPanel.jsx', 'aria-labelledby="resolve-hold-title"'],
+    ['src/components/teacher/StudentResponseInspector.jsx', 'aria-label="Student Response Inspector"'],
+  ];
+  for (const [file, marker] of DRAFTS) {
+    const code = executableSource(read(file));
+    const tags = dialogTags(code).filter((tag) => !marker || tag.includes(marker));
+    assert.ok(tags.length, `${file}: the draft dialog is a Dialog`);
+    for (const tag of tags) assert.match(tag, /closeOnEscape=\{false\}/, `${file}: Escape must not discard the draft`);
+  }
+});
+
+// PR #454 review S1: Escape with focus in a math field stopped closing Work
+// View, because MathInput prevents Escape's default (LaTeX mode) and the
+// Dialog took that as handled. Browser proof: accessiblePrimitives.mjs.
+test('Escape from a math field still reaches the dialog', () => {
+  const source = executableSource(read('src/ui/Dialog.jsx'));
+  assert.match(source, /const handledInside = event\.defaultPrevented\s*&& !\(event\.key === 'Escape' && event\.target\?\.closest\?\.\('math-field'\)\);\s*if \(handledInside \|\| !onTop\(\)\) return;/);
+});
+
+// PR #454 functional review (S3): the rewritten Work View / LMR / badge /
+// Scratchpad assertions accepted `onClose=` anywhere and stayed green with
+// Escape switched off. Each of these closes on Escape — no closeOnEscape
+// override at all, or only a busy guard — and the Scratchpad's Escape goes
+// through requestClose (it asks before unsaved strokes are lost).
+test('Work View, the LMR graph, the badge and the Scratchpad still close on Escape', () => {
+  const hook = (file, ref) => executableSource(read(file)).match(new RegExp(`useModalDialog\\(${ref}, \\{([^}]*)\\}\\)`))?.[1] || '';
+  for (const [file, ref] of [['src/components/common/EnlargeableFigure.jsx', 'hostRef'], ['src/tools/representationBridge/process/ProcessWorkspace.jsx', 'sectionRef']]) {
+    const options = hook(file, ref);
+    assert.match(options, /\bonClose: /, `${file}: Escape has something to close`);
+    assert.doesNotMatch(options, /closeOnEscape/, `${file}: Escape is not switched off`);
+  }
+  const tagOf = (file, marker) => dialogTags(executableSource(read(file))).find((tag) => tag.includes(marker)) || '';
+  for (const [file, marker] of [['src/components/common/StandardBadge.jsx', 'aria-labelledby={titleId}'], ['src/tools/representationBridge/LinearMultipleRepresentationsBoard.jsx', 'data-lmr-dialog={graph.key}']]) {
+    const tag = tagOf(file, marker);
+    assert.match(tag, /\bonClose=\{onClose\}/, `${file}: Escape closes it`);
+    assert.doesNotMatch(tag, /closeOnEscape/, `${file}: Escape is not switched off`);
+  }
+  const pad = tagOf('src/ScratchpadOverlay.jsx', 'aria-label="Full-screen scratchpad"');
+  assert.match(pad, /\bonClose=\{requestClose\}/, 'the Scratchpad asks before Escape discards strokes');
+  assert.match(pad, /closeOnEscape=\{!saving\}/, 'and only a save in flight holds Escape');
 });

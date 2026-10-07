@@ -453,7 +453,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
       )}
 
       {resolutionTarget && (
-        <Dialog onClose={() => { setResolutionTarget(null); setResolutionReason(''); }} aria-labelledby="resolve-hold-title" style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.55)' }}>
+        <Dialog closeOnEscape={false} onClose={() => { setResolutionTarget(null); setResolutionReason(''); }} aria-labelledby="resolve-hold-title" style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.55)' }}>
           <div style={{ ...CARD, width: 'min(560px, 100%)', boxShadow: '0 12px 40px rgba(0,0,0,.28)' }}>
             <h3 id="resolve-hold-title" style={{ marginTop: 0 }}>Resolve technical persistence hold?</h3>
             {/* THE EXACT MEANING OF THE ACTION, IN THE DIALOG THAT TAKES IT. */}

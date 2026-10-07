@@ -110,7 +110,7 @@ test('Escape closes the case review only when it is the top layer and nothing ab
   assert.match(shell, /closeOnEscape=\{!printing\}/);
   // Topmost Dialog, not covered by a later non-Dialog modal, key not handled.
   assert.match(dialog, /const onTop = \(\) => isTopDialog\(token\) && !coveredByForeignModal\(dialog\);/);
-  assert.match(dialog, /if \(event\.defaultPrevented \|\| !onTop\(\)\) return;/);
+  assert.match(dialog, /if \(handledInside \|\| !onTop\(\)\) return;/);
   assert.match(dialog, /if \(escapeRef\.current && typeof onCloseRef\.current === 'function'\) \{\s*event\.stopPropagation\(\);\s*event\.preventDefault\(\);/);
   assert.match(dialog, /<Tag ref=\{setRef\} role=\{role\} aria-modal="true"/);
   // A modal above it that is not a Dialog (a Toast confirmation) is found by

@@ -141,8 +141,13 @@ export function useModalDialog(ref, {
 
     const onKeyDown = (event) => {
       // Bubble phase: a control inside that owns Escape or Tab (a listbox, the
-      // math keyboard) handles it first and marks it handled.
-      if (event.defaultPrevented || !onTop()) return;
+      // math keyboard) handles it first and marks it handled. One exception: a
+      // math field prevents Escape's default only to keep MathLive out of its
+      // LaTeX mode (MathInput.jsx), not because it used the key — Escape there
+      // still closes the dialog (Work View with focus in "Slope", PR #454).
+      const handledInside = event.defaultPrevented
+        && !(event.key === 'Escape' && event.target?.closest?.('math-field'));
+      if (handledInside || !onTop()) return;
       if (event.key === 'Escape') {
         // A layer above that closed itself on this very Escape (a Toast
         // confirm) is already gone from the DOM by the time it bubbles here.

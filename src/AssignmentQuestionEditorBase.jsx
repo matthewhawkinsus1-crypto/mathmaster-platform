@@ -615,7 +615,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
 
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 15000, background: 'rgba(32,33,36,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px' }}>
-      <Dialog as="section" aria-label="Edit assignment questions" onClose={onClose} closeOnEscape={!saving} style={{ width: 'min(1080px, 97vw)', maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--mm-surface)', borderRadius: '16px', boxShadow: '0 28px 80px rgba(0,0,0,.4)' }}>
+      <Dialog as="section" aria-label="Edit assignment questions" onClose={onClose} closeOnEscape={false} style={{ width: 'min(1080px, 97vw)', maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--mm-surface)', borderRadius: '16px', boxShadow: '0 28px 80px rgba(0,0,0,.4)' }}>
         <header style={{ padding: '20px 24px', borderBottom: '1px solid var(--mm-border-soft)', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center' }}>
           <div><h2 style={{ margin: 0 }}>Assignment Question Editor</h2><p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)' }}>{hasLiveProtection ? 'This assignment is live or has student history. Existing question IDs and indexes are protected. Safe live response-entry repairs are allowed; real rewrites are still blocked.' : 'No student records exist. Questions may be removed and reordered permanently.'}</p></div>
           <button type="button" onClick={onClose} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 800 }}>Close</button>

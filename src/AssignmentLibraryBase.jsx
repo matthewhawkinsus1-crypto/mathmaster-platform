@@ -426,7 +426,7 @@ export default function AssignmentLibrary({
 
       {folderDialog && (
         <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDialog(); }} style={dialogOverlayStyle}>
-          <Dialog aria-labelledby={folderDialogTitleId} onClose={closeDialog} style={dialogCardStyle}>
+          <Dialog closeOnEscape={false} aria-labelledby={folderDialogTitleId} onClose={closeDialog} style={dialogCardStyle}>
             {folderDialog.mode === 'delete' ? (
               <>
                 <h3 id={folderDialogTitleId} style={{ marginTop: 0 }}>Delete &ldquo;{getFolderLabel(folderDialog.path)}&rdquo;?</h3>

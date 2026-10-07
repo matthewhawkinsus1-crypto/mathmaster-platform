@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import Dialog from '../../src/ui/Dialog.jsx';
 import QuestionAnnouncer from '../../src/components/common/QuestionAnnouncer.jsx';
 import QuestionPrompt from '../../src/QuestionPrompt.jsx';
+import MathInput from '../../src/MathInput.jsx';
 import '../../src/index.css';
 
 const PROMPTS = ['Solve $2x+3=7$.', 'Graph $y = -\\frac{2}{3}x + 4$.', 'What is $\\frac{3}{4}$ of 12?'];
@@ -36,6 +37,7 @@ function Harness() {
             <button type="button" aria-label="Close" data-test="close" onClick={() => setOpen(false)}>×</button>
             <h2 id="settings-title">Settings</h2>
             <input aria-label="Name" data-test="name" />
+            <div data-test="math"><MathInput value="" onChange={() => {}} ariaLabel="Slope" /></div>
             <label><input type="checkbox" data-test="busy" checked={busy} onChange={(event) => setBusy(event.target.checked)} /> Saving</label>
             <button type="button" data-test="delete" onClick={() => setConfirm(true)}>Delete</button>
             <button type="button" data-test="open-foreign" onClick={() => setForeign(true)}>Ask</button>

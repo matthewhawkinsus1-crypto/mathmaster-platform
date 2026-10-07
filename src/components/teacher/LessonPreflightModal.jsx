@@ -1823,7 +1823,7 @@ export const LessonPreflightModal = ({
       <Dialog
         as="section"
         onClose={onClose}
-        closeOnEscape={!busy}
+        closeOnEscape={false}
         aria-label="Lesson pre-flight review"
         style={{
           background: 'var(--mm-surface)',

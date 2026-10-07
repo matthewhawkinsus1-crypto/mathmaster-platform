@@ -121,7 +121,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
       onMouseDown={(event) => { if (event.target === event.currentTarget && !submitting) onClose?.(); }}
       style={overlayStyle}
     >
-      <Dialog as="section" onClose={onClose} closeOnEscape={!submitting} aria-labelledby="class-points-award-title" style={dialogStyle}>
+      <Dialog as="section" onClose={onClose} closeOnEscape={false} aria-labelledby="class-points-award-title" style={dialogStyle}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--mm-border-soft)' }}>
           <div style={{ color: 'var(--mm-warning-text)', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Class Points</div>
           <h2 id="class-points-award-title" style={{ margin: '4px 0 0', fontSize: 18, color: 'var(--mm-text-strong)' }}>Award {studentName || 'this student'}</h2>

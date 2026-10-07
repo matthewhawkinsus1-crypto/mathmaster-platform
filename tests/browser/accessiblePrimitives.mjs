@@ -33,8 +33,7 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.keyboard.press('Enter');
   await page.locator('[data-test="dialog"]').waitFor();
   assert.equal(await focused(page), 'name', `${at}: opens on the first control that is not Close`);
-  await page.keyboard.press('Tab'); // busy checkbox
-  await page.keyboard.press('Tab'); // delete
+  await page.locator('[data-test="delete"]').focus();
   assert.equal(await focused(page), 'delete');
   await page.keyboard.press('Tab'); // ask
   await page.keyboard.press('Tab');
@@ -71,6 +70,17 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.equal(await page.locator('[data-test="confirm"]').count(), 0, `${at}: Escape closed the confirm`);
   assert.equal(await page.locator('[data-test="dialog"]').count(), 1, `${at}: …and only the confirm`);
   assert.equal(await focused(page), 'delete', `${at}: focus back on the button that opened the confirm`);
+
+  // Escape in a math field still closes the dialog: MathInput prevents its
+  // default only to keep MathLive out of LaTeX mode (PR #454 review S1).
+  await page.locator('[data-test="math"] math-field').first().click();
+  await page.waitForTimeout(150);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('[data-test="dialog"]').count(), 0, `${at}: Escape in a math field closes the dialog`);
+  await page.locator('[data-test="opener"]').focus();
+  await page.keyboard.press('Enter');
+  await page.locator('[data-test="dialog"]').waitFor();
 
   // closeOnEscape={false} while busy.
   await page.locator('[data-test="busy"]').check();
