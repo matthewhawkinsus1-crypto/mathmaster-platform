@@ -17,14 +17,14 @@
  *   A lesson is Finished when every section is done, at any accuracy.
  *   A section is done when the student has completed/submitted it (every
  *   required question is terminal — correct, or out of tries), or it can no
- *   longer be worked: closed with no Recovery the student can take now, or
- *   excused (whole-assignment excusal, a Practice Pass, or a reduced-item
+ *   longer be worked: closed with no Recovery available, or excused
+ *   (whole-assignment excusal, a Practice Pass, or a reduced-item
  *   accommodation that leaves the section with nothing required).
  *
- * A Recovery the student can START or CONTINUE now keeps its section open. A
- * Recovery that is still locked behind more Practice does not: the lesson's
- * own work is over, and the locked Recovery is offered as a way to raise the
- * grade (Grades), not as unfinished lesson work.
+ * Any available Recovery keeps its section open — including one still locked
+ * behind more Practice (coordinator policy, 2026-10-07): the lesson is not
+ * Finished, and its next action is the unlock path. The section is not
+ * "workable" in the workspace; the Recovery lives on the result page.
  */
 
 export const SECTION_ORDER = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
@@ -60,7 +60,14 @@ export const SECTION_STATE = Object.freeze({
 // States that mean the section asks nothing more of the student.
 const FINISHED_STATES = new Set([SECTION_STATE.DONE, SECTION_STATE.EXCUSED, SECTION_STATE.CLOSED]);
 const TERMINAL_STATUSES = new Set(['correct', 'expired']);
-const RECOVERY_WORKABLE = new Set(['unlocked', 'inProgress']);
+/*
+ * A Recovery keeps its closed section open while it is available at all —
+ * locked behind more Practice, unlocked, or in progress (coordinator policy
+ * call under the owner's delegation, 2026-10-07: a missed DOL with a locked
+ * Recovery is not done; the next action is the unlock path). Completed, held,
+ * closed or not-needed Recoveries leave the section closed.
+ */
+const RECOVERY_AVAILABLE = new Set(['locked', 'unlocked', 'inProgress']);
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const toDate = (value) => {
@@ -122,6 +129,10 @@ export const describeLessonSections = ({
   entries = [],
   requiredIndices = [],
   statusOf = () => 'unattempted',
+  // Optional: is this question finished (studentWorkState.questionIsTerminal,
+  // which knows a teacher-granted extra DOL try reopens an expired question).
+  // Without it, terminal means correct or expired.
+  isTerminal = null,
   lifecycle = null,
   access = null,
   excused = false,
@@ -160,9 +171,12 @@ export const describeLessonSections = ({
     const { included, required: requiredInRole } = byRole.get(role);
     const total = requiredInRole.length;
     const statuses = requiredInRole.map((index) => statusOf(index));
-    const doneCount = statuses.filter((status) => TERMINAL_STATUSES.has(status)).length;
+    const terminal = requiredInRole.map((index, position) => (typeof isTerminal === 'function'
+      ? isTerminal(index) === true
+      : TERMINAL_STATUSES.has(statuses[position])));
+    const doneCount = terminal.filter(Boolean).length;
     const attemptedCount = statuses.filter((status) => status && status !== 'unattempted').length;
-    const unfinishedIndices = requiredInRole.filter((index, position) => !TERMINAL_STATUSES.has(statuses[position]));
+    const unfinishedIndices = requiredInRole.filter((index, position) => !terminal[position]);
     const firstUnfinishedIndex = unfinishedIndices[0] ?? null;
     const base = {
       role,
@@ -205,7 +219,7 @@ export const describeLessonSections = ({
     if (role === 'warmup') timed = timedSectionState({ windowState: warmupState, todayKey });
     else if (role === 'dol') timed = timedSectionState({ windowState: dolState, todayKey });
     if (timed) {
-      if (timed.state === SECTION_STATE.CLOSED && RECOVERY_WORKABLE.has(base.recoveryState)) {
+      if (timed.state === SECTION_STATE.CLOSED && RECOVERY_AVAILABLE.has(base.recoveryState)) {
         return finish(SECTION_STATE.RECOVERY);
       }
       return finish(timed.state, timed);

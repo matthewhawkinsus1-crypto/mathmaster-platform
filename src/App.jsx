@@ -313,6 +313,7 @@ import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRe
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction, resolveUpNext } from './studentDashboardModel.js';
 import { resolveAssignmentHandoff } from './platform/student/assignmentHandoff.js';
+import { questionIsTerminal, timedSectionWorkableNow } from './platform/student/studentWorkState.js';
 import WhatChangedList from './components/student/WhatChangedList.jsx';
 import {
   buildWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
@@ -396,6 +397,7 @@ import StudentRewardsCenter from './components/student/rewards/StudentRewardsCen
 import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
 
 import {
+  assignmentIsExcusedForStudent,
   buildStudentGradeCenter,
   findGradeCenterEntry,
 } from './platform/student/studentGradeCenterModel.js';
@@ -5669,11 +5671,14 @@ function App() {
       const entryNow = Date.now();
       const studentContext = { classId: user.classId || null, classPeriod: user.classPeriod };
       const roleIsActionable = (role) => {
+        // The same predicate as Home's Today rule (studentWorkState.js): a
+        // Warm-Up/DOL with its class window switched off is open like
+        // Classwork; otherwise only an active window is.
         if (role === 'warmup') {
-          return getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }).status === 'active';
+          return timedSectionWorkableNow(getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }));
         }
         if (role === 'dol') {
-          return getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }).status === 'active';
+          return timedSectionWorkableNow(getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }));
         }
         if (role === 'classwork' || role === 'practice') {
           return getSectionAccessState({
@@ -5694,10 +5699,25 @@ function App() {
         restrictToRole: scopedSectionKey,
         // Start/Continue lands on the first unfinished question open now;
         // Review My Work (returnToResult) keeps the question it asked for.
+        // Finished means what Home means: correct, or out of tries (a
+        // teacher-granted extra DOL try reopens an expired DOL question).
         isFinished: options?.returnToResult
           ? null
-          : (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(tracker?.[assignmentId]?.[index]).status),
+          : (index) => questionIsTerminal({
+            record: tracker?.[assignmentId]?.[index],
+            role: stageEntries.find((entry) => entry.storageIndex === index)?.logicalRole || null,
+            question: assignmentQuestions[index],
+            assignment: assignmentData,
+            classId: user.classId || null,
+            studentId: user.id,
+          }),
       });
+      if (actionableIndex === null && options?.returnToResult) {
+        // Asked from the result page: going "back" to the same page would do
+        // nothing visible, so say why instead.
+        toastInfo('Nothing to open right now', 'None of this assignment is open to you at the moment. The result page shows what opens when.');
+        return;
+      }
       if (actionableIndex === null && user?.role === 'student' && !scopedSectionKey) {
         // No dead end: with nothing open this minute, show the assignment's
         // result page — its sections, what opens when, and what to do next.
@@ -9980,6 +10000,10 @@ function App() {
           nowValue: now,
         });
         if (state.status !== 'active') return null;
+        // Never recommend work the student cannot do for credit: excused
+        // for them, or not open to them (not released yet / closed).
+        if (assignmentIsExcusedForStudent(assignment, user.id)) return null;
+        if (!getAssignmentLifecycle(assignment, now, { studentId: user.id }).isOpen) return null;
         const questions = getStoredAssignmentQuestions(assignment);
         const bannerOmitted = new Set(studentRequiredFor(assignment).omitted);
         const questionIndices = questions.reduce((indices, question, index) => {

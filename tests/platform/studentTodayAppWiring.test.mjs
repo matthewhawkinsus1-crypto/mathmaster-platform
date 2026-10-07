@@ -30,7 +30,8 @@ test('Start/Continue lands on the first unfinished open question, and never on a
   const start = region(app, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
   const entry = region(start, 'resolveStudentAssignmentEntry({', 'safeQuestionIndex = actionableIndex', 'entry resolution');
   assert.match(entry, /isFinished:\s*options\?\.returnToResult\s*\?\s*null/);
-  assert.match(entry, /\['correct', 'expired'\]\.includes\(normalizeQuestionRecord\(tracker\?\.\[assignmentId\]\?\.\[index\]\)\.status\)/);
+  // The same "finished" as Home: questionIsTerminal (extra DOL tries reopen).
+  assert.match(entry, /: \(index\) => questionIsTerminal\(\{\s*record: tracker\?\.\[assignmentId\]\?\.\[index\]/);
   // With nothing open for a whole-assignment start, the student is taken to
   // the result page (what opens when), not left on a toast.
   assert.match(entry, /if \(actionableIndex === null && user\?\.role === 'student' && !scopedSectionKey\) \{\s*openStudentAssignmentResult\(assignmentId/);
@@ -112,4 +113,23 @@ test('"Use a Practice Pass" is offered only to a student who holds one', () => {
   assert.match(memo, /practicePassEligibleAssignmentIds: studentRewardWallet\?\.practicePasses\?\.count > 0 \? studentPracticePassEligibleAssignments : \[\]/);
   // The wallet is declared before the memo reads it.
   assert.ok(app.indexOf('const studentRewardWallet = useMemo') < app.indexOf('const studentWaysToRaise = useMemo'));
+});
+
+test('entry shares the Today rule\'s predicates, with their imports (review findings 1, 2, 5)', () => {
+  assert.match(app, /import \{ questionIsTerminal, timedSectionWorkableNow \} from '\.\/platform\/student\/studentWorkState\.js'/);
+  const start = region(app, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
+  const gate = region(start, 'const roleIsActionable = (role) => {', 'const actionableIndex', 'role gate');
+  // A switched-off Warm-Up/DOL window is open, exactly as Home says.
+  assert.match(gate, /return timedSectionWorkableNow\(getWarmupState\(/);
+  assert.match(gate, /return timedSectionWorkableNow\(getDOLState\(/);
+  assert.doesNotMatch(gate, /\.status === 'active'/);
+  // Review My Work from the result page never bounces back to the same page.
+  assert.match(executableSource(start), /if \(actionableIndex === null && options\?\.returnToResult\) \{\s*toastInfo\(/);
+});
+
+test('the Warm-Up banner never recommends excused or unopened work (review finding 6)', () => {
+  const banner = region(app, 'const renderStudentWarmupBanner = () => {', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  assert.match(banner, /if \(assignmentIsExcusedForStudent\(assignment, user\.id\)\) return null;/);
+  assert.match(banner, /if \(!getAssignmentLifecycle\(assignment, now, \{ studentId: user\.id \}\)\.isOpen\) return null;/);
+  assert.match(app, /import \{[^}]*\bassignmentIsExcusedForStudent\b[^}]*\} from '\.\/platform\/student\/studentGradeCenterModel\.js'/);
 });

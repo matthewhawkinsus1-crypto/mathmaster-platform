@@ -160,9 +160,11 @@ Classroom grade released to the student, in plain words.
 
 ## Conservative calls made (product questions not covered by the decisions)
 
-1. **Recovery and "Finished"**: only a Recovery the student can start or
-   continue *now* keeps a lesson open; a Recovery still locked behind Practice is
-   listed under Ways to raise your grade instead.
+1. **Recovery and "Finished"** — *superseded by the coordinator's policy call
+   (owner's delegation, 2026-10-07)*: any available Recovery, including one
+   still locked behind more Practice, keeps its section open. The lesson is not
+   Finished, Home never says "caught up" while one exists, and the next action
+   is the unlock path ("Practice to unlock your DOL Recovery").
 2. **Closed-by-deadline lessons** are Finished (decision 4) but filed in their
    own collapsed Home group "Closed — try again (no credit)", apart from work the
    student completed.
@@ -186,9 +188,6 @@ Classroom grade released to the student, in plain words.
   `scheduled` while `lifecycle.isScheduled` even when the prerequisite was met,
   so such a lesson shows "opens later" and entry cannot open it. Fix belongs in
   `assignmentLifecycle.js` (shared with the server finalizer; not changed here).
-- **`warmup.enabled === false` with authored Warm-Up questions**: lessonSections
-  treats the section as open; entry treats it as closed. Nothing writes that flag
-  today (low risk).
 - **Copy**: Resume says "Continue at Question N" using storage order (the
   workspace numbers per section); a partly-done lesson waiting only on its DOL
   can show a "NOT OPEN YET" badge; the identity bar's Log Out is under 44px tall

@@ -9,6 +9,7 @@ import { assignmentIsArchived, assignmentIsUnpublished } from '../functions/shar
 import { describeTestCycleForStudent } from './platform/student/testCycleDiscovery.js';
 import { SECTION_STATE, describeLessonSections, describeSectionWait } from './platform/student/lessonSections.js';
 import { firstOpenLiveQuestionIndex } from './platform/student/liveSectionEntry.js';
+import { questionIsTerminal } from './platform/student/studentWorkState.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 
 // What a student's assignment dashboard actually contains, computed once.
@@ -186,6 +187,19 @@ export const buildStudentDashboardModel = ({
   };
   const dolStateOf = (assignment) => windowOf('dol', getDOLState, assignment);
   const warmupStateOf = (assignment) => windowOf('warmup', getWarmupState, assignment);
+  // Finished = correct, or out of tries under the maximum the workspace
+  // enforces (a teacher-granted extra DOL try reopens an expired DOL item).
+  const terminalFor = (assignment, index) => {
+    const questions = getStoredAssignmentQuestions(assignment);
+    return questionIsTerminal({
+      record: tracker?.[assignment?.id]?.[index],
+      role: resolveQuestionActivityRole({ question: questions[index], assignment }),
+      question: questions[index],
+      assignment,
+      classId,
+      studentId,
+    });
+  };
   const isExcused = (assignment) => Boolean(studentId)
     && resolveStudentOverride({ assignment, studentId })?.excused === true;
 
@@ -285,6 +299,7 @@ export const buildStudentDashboardModel = ({
       entries: lessonEntries,
       requiredIndices: requiredIndicesFor(assignment),
       statusOf: (index) => normalizeQuestionRecord(assignmentTracker?.[index]).status,
+      isTerminal: (index) => terminalFor(assignment, index),
       lifecycle: availability.lifecycle,
       access: availability.access,
       excused: isExcused(assignment),
@@ -340,6 +355,12 @@ export const buildStudentDashboardModel = ({
       const questionIndices = withoutOmitted(assignment, (state.questionIndices || [state.questionIndex])
         .filter((index) => Number.isInteger(index) && index >= 0));
       const records = questionIndices.map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
+      // Still to do: never tried, or out of tries until the teacher granted
+      // another one (the attempt policy reopens it with "1 try left").
+      const openQuestionIndices = questionIndices.filter((index, position) => (
+        records[position].totalAttempts === 0
+        || (records[position].status === 'expired' && !terminalFor(assignment, index))
+      ));
       return {
         assignment,
         lifecycle: getAssignmentLifecycle(assignment, nowValue),
@@ -347,9 +368,10 @@ export const buildStudentDashboardModel = ({
         // This student's own DOL items, aligned with `records`.
         questionIndices,
         records,
+        openQuestionIndices,
       };
     })
-    .filter(({ assignment, state, lifecycle, records }) => lifecycle.isOpen && state.status === 'active' && !isExcused(assignment) && records.some((record) => record.totalAttempts === 0));
+    .filter(({ assignment, state, lifecycle, openQuestionIndices }) => lifecycle.isOpen && state.status === 'active' && !isExcused(assignment) && openQuestionIndices.length > 0);
   const activeDolIds = new Set(activeDols.map(({ assignment }) => assignment.id));
 
   const activeWarmups = typeof getWarmupState === 'function'
@@ -435,7 +457,7 @@ export const buildStudentDashboardModel = ({
       const includedIndices = requiredIndicesFor(assignment);
       const questionsTotal = includedIndices.length;
       const questionsDone = assignmentTracker
-        ? includedIndices.filter((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status)).length
+        ? includedIndices.filter((index) => terminalFor(assignment, index)).length
         : 0;
       const questionsAttempted = assignmentTracker
         ? includedIndices.filter((index) => {
@@ -600,7 +622,7 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     // Algebra I DOL #2). `records` is built from these same indices, in order.
     // `records` line up with the student's own DOL items (an accommodation
     // can omit some), so the first not-yet-tried one is read from those.
-    const firstUnattempted = firstOpenLiveQuestionIndex({
+    const firstUnattempted = activeDol.openQuestionIndices?.[0] ?? firstOpenLiveQuestionIndex({
       indices: activeDol.questionIndices || activeDol.state?.questionIndices || [activeDol.state?.questionIndex],
       records: activeDol.records,
       section: 'dol',
@@ -664,11 +686,17 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     // A Recovery is taken from the assignment's result page.
     opensResult: entry.action === 'recovery',
     ...fields,
-    ...(entry.action === 'recovery' ? {
+    ...(entry.action === 'recovery' ? (entry.lesson?.recoverySection?.recoveryState === 'locked' ? {
+      // A locked Recovery is still available (it keeps the lesson open); the
+      // next action is the unlock path, on the result page's Recovery panel.
+      headline: `Practice to unlock your ${entry.lesson.recoverySection.label} Recovery`,
+      detail: `${entry.assignment.title} — a little more Practice unlocks a second try.`,
+      actionLabel: 'Open Recovery',
+    } : {
       headline: 'A Recovery is ready',
       detail: `${entry.assignment.title} — ${entry.lesson?.recoverySection?.label || 'a closed section'} can be raised with a Recovery.`,
       actionLabel: 'Open Recovery',
-    } : {}),
+    }) : {}),
   });
 
   const inProgress = firstActionable(BUCKET.IN_PROGRESS);

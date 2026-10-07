@@ -109,15 +109,19 @@ test('a Warm-Up/DOL with no class window is LOCKED, not open and not finished', 
   assert.equal(sectionOf(result, 'dol').finished, false);
 });
 
-test('RECOVERY: a closed section with a Recovery to start or continue now stays open; a locked one does not', () => {
-  for (const recovery of ['unlocked', 'inProgress']) {
+test('RECOVERY: any available Recovery — locked, unlocked or in progress — keeps its closed section open', () => {
+  // Coordinator policy (2026-10-07): a missed DOL whose Recovery is locked
+  // behind more Practice is NOT done; the lesson is not Finished.
+  for (const recovery of ['locked', 'unlocked', 'inProgress']) {
     const result = describe({ dolState: { enabled: true, status: 'ended' }, recoveryBySection: { dol: recovery } });
     assert.equal(sectionOf(result, 'dol').state, SECTION_STATE.RECOVERY, recovery);
     assert.equal(sectionOf(result, 'dol').finished, false, recovery);
     assert.equal(result.recoverySection.role, 'dol');
   }
-  const locked = describe({ dolState: { enabled: true, status: 'ended' }, recoveryBySection: { dol: 'locked' } });
-  assert.equal(sectionOf(locked, 'dol').state, SECTION_STATE.CLOSED);
+  for (const recovery of ['completed', 'held', 'closed', 'notNeeded']) {
+    const result = describe({ dolState: { enabled: true, status: 'ended' }, recoveryBySection: { dol: recovery } });
+    assert.equal(sectionOf(result, 'dol').state, SECTION_STATE.CLOSED, recovery);
+  }
 });
 
 test('release date and prerequisite lock every unfinished section', () => {
@@ -357,4 +361,98 @@ test('the live DOL next action reads the student\'s own items, aligned with thei
     groups: {},
   };
   assert.equal(resolveNextAction({ dashboard }).questionIndex, 6);
+});
+
+// --- Review findings, 2026-10-07 ---------------------------------------------
+
+const dolOnly = (id, overrides = {}) => ({
+  schemaVersion: 5,
+  id,
+  title: id,
+  assignedClassIds: ['class-1'],
+  dueAt: inHours(4),
+  lateDueAt: inHours(24 * 7),
+  sections: [{ id: 'dol', role: 'dol', questions: [{ type: 'algebra', prompt: 'D', equationLatex: 'x=1', activityRole: 'dol' }] }],
+  ...overrides,
+});
+
+test('a DOL whose class window is switched off is open — Home and entry agree (no Start loop)', async () => {
+  const { timedSectionWorkableNow } = await import('../../src/platform/student/studentWorkState.js');
+  // The one predicate entry and the rule share.
+  assert.equal(timedSectionWorkableNow({ enabled: false, status: 'unavailable' }), true);
+  assert.equal(timedSectionWorkableNow({ enabled: true, status: 'active' }), true);
+  assert.equal(timedSectionWorkableNow({ enabled: true, status: 'unavailable' }), false);
+  assert.equal(timedSectionWorkableNow({ enabled: true, status: 'waiting' }), false);
+  const dashboard = model({ assignments: [dolOnly('ticket', { dol: { enabled: false } })] });
+  const entry = entryOf(dashboard, 'ticket');
+  assert.equal(entry.actionable, true);
+  assert.equal(entry.nextQuestionIndex, 0);
+});
+
+test('a teacher-granted extra DOL try reopens an expired DOL: not finished, still Home\'s live DOL', () => {
+  const grantedFor = (extra) => dolOnly('dol1', {
+    dol: { enabled: true, attemptGrantsByClassId: { 'class-1': { extraAttempts: extra } } },
+  });
+  const expired = { dol1: { 0: { status: 'expired', attemptCount: 1, totalAttempts: 1 } } };
+  // Without a grant the one-try DOL is done.
+  const noGrant = model({ assignments: [dolOnly('dol1')], tracker: expired, studentId: 's1' });
+  assert.equal(entryOf(noGrant, 'dol1').finished, true);
+  // The resolver must actually see a grant in this fixture shape; if the
+  // shape differs the assertion below would pass vacuously.
+  return import('../../src/attemptPolicy.js').then(({ resolveTeacherGrantedExtraAttempts }) => {
+    const assignment = grantedFor(1);
+    const granted = resolveTeacherGrantedExtraAttempts({ assignment, activityRole: 'dol', classId: 'class-1', studentId: 's1' });
+    if (!(granted > 0)) {
+      assert.fail(`fixture does not express a DOL grant (resolver returned ${granted}); update the grant shape`);
+    }
+    const withGrant = model({ assignments: [assignment], tracker: expired, studentId: 's1' });
+    assert.equal(entryOf(withGrant, 'dol1').finished, false);
+    assert.equal(entryOf(withGrant, 'dol1').questionsDone, 0);
+  });
+});
+
+test('a locked Recovery keeps the lesson unfinished and points the next action at the unlock path', () => {
+  const lesson = bundle('rec', { dueAt: inHours(-2) });
+  const tracker = { rec: { 0: { status: 'correct', totalAttempts: 1 }, 1: { status: 'correct', totalAttempts: 1 }, 2: { status: 'correct', totalAttempts: 1 } } };
+  const finishedWithoutRecovery = model({ assignments: [lesson], tracker });
+  assert.equal(entryOf(finishedWithoutRecovery, 'rec').finished, true);
+  // Add a closed DOL with a locked Recovery.
+  const withDol = bundle('rec', {
+    dueAt: inHours(-2),
+    sections: [
+      ...bundle('rec').sections,
+      { id: 'dol', role: 'dol', questions: [{ type: 'algebra', prompt: 'D', equationLatex: 'x=1', activityRole: 'dol' }] },
+    ],
+    dol: { enabled: true, instructionDate: '2026-10-20' },
+  });
+  const dashboard = model({ assignments: [withDol], tracker, recoveryStateByAssignment: { rec: { dol: 'locked' } } });
+  const entry = entryOf(dashboard, 'rec');
+  assert.equal(entry.finished, false);
+  assert.equal(entry.action, 'recovery');
+  const next = resolveNextAction({ dashboard, weeklyProgress: { completed: 1, required: 1, remaining: 0 } });
+  assert.notEqual(next.kind, 'clear');
+  assert.equal(next.opensResult, true);
+  assert.match(next.headline, /Practice to unlock your DOL Recovery/);
+});
+
+test('the Path Simulator reads timed sections as untimed (it has no bell schedule) — review finding 7', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../../src/components/teacher/SimulatedStudentExperience.jsx', import.meta.url), 'utf8');
+  assert.match(source, /getDOLState: \(args\) => \(\{ \.\.\.getDOLState\(args\), enabled: false, status: 'unavailable' \}\)/);
+  assert.match(source, /getWarmupState: \(args\) => \(\{ \.\.\.getWarmupState\(args\), enabled: false, status: 'unavailable' \}\)/);
+  assert.match(source, /\bgetSectionAccessState,\n/);
+  assert.match(source, /import \{[^}]*\bgetSectionAccessState\b[^}]*\bgetWarmupState\b[^}]*\} from '\.\.\/\.\.\/assignmentLifecycle'/);
+  // What that does to a DOL lesson: open, not locked or "Finished".
+  const simulated = buildStudentDashboardModel({
+    assignments: [dolOnly('sim', { dol: { enabled: true, instructionDate: '2026-10-20' } })],
+    classId: 'class-1', classPeriod: 'Period 1', nowValue: NOW, classSchedule: null,
+    providers: {
+      ...PROVIDERS,
+      getDOLState: (args) => ({ ...getDOLState(args), enabled: false, status: 'unavailable' }),
+      getWarmupState: (args) => ({ ...getWarmupState(args), enabled: false, status: 'unavailable' }),
+    },
+  });
+  const entry = simulated.allEntries.find((item) => item.assignment.id === 'sim');
+  assert.equal(entry.finished, false);
+  assert.equal(entry.actionable, true);
 });
