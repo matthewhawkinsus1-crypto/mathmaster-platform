@@ -199,6 +199,7 @@ import { groupAssignmentList } from './platform/teacher/assignmentListGroups.js'
 import StudentNameLink from './components/common/StudentNameLink.jsx';
 import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';
 import Dialog from './ui/Dialog.jsx';
+import { MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle } from './components/common/pageChrome.jsx';
 import { subscribeToReadingActivity } from './components/common/readingActivity.js';
 import StudentResponseInspector from './components/teacher/StudentResponseInspector.jsx';
 import AssignmentGradeOverrideControls from './components/teacher/AssignmentGradeOverrideControls.jsx';
@@ -5174,6 +5175,16 @@ function App() {
       window.clearInterval(interval);
     };
   }, [user, activeView, activeAssignmentId, isIdle, activeSupportPresentation.disableIdleTimer]);
+
+  // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
+  useDocumentTitle(pageTitleFor({
+    signedIn: Boolean(user),
+    role: user?.role || null,
+    view: activeView,
+    studentMode: studentDashboardMode,
+    teacherTab,
+    assignmentTitle: assignments.find((item) => item.id === activeAssignmentId)?.title || '',
+  }));
 
   useEffect(() => {
     if (typeof window === 'undefined' || activeView !== 'assignment' || !activeAssignmentId) return undefined;
@@ -11419,6 +11430,7 @@ function App() {
   // assignment controls, Live Challenge, and screens that omit global nav.
   const renderStudentIdentityShell = (content, { preview = false } = {}) => (
     <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>
+      <SkipToContent />
       <StudentIdentityBar
         preview={preview}
         student={preview ? null : { ...studentRecord, ...user }}
@@ -11436,6 +11448,8 @@ function App() {
         <section role="status" style={{ margin: '10px auto', maxWidth: 760, padding: '10px 14px', borderRadius: 10, background: '#681da8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><strong>Presenting to class</strong><button type="button" onClick={stopStudentSpotlight} style={{ padding: '7px 11px', border: '1px solid var(--mm-border-soft)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Stop Presenting</button></section>
       )}
       {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: 'var(--mm-text-muted)', fontSize: 12 }}>{studentSpotlightMessage}</div>}
+      {/* Where the skip link lands: focus here, the next Tab enters the screen. */}
+      <div id={MAIN_CONTENT_ID} tabIndex={-1} />
       {content}
     </div>
   );

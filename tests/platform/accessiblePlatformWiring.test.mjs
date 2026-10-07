@@ -71,3 +71,25 @@ test('reading signals count, but the idle prompt focusing itself does not', () =
   stop();
   assert.deepEqual(Object.keys(listeners), []);
 });
+
+// WCAG 2.4.2: every tab said "Vite + React".
+test('the document title names the screen', () => {
+  // .jsx cannot be imported by node; the title rule is checked from source and
+  // in the real app by tests/browser/accessibilityCertification.mjs.
+  const chrome = executableSource(read('src/components/common/pageChrome.jsx'));
+  for (const [mode, title] of [['assignments', 'Home'], ['assignmentsCenter', 'Assignments'], ['grades', 'Grades'], ['mathPath', 'My Math Path'], ['testCycle', 'Tests & Exams']]) {
+    assert.match(chrome, new RegExp(`${mode}: '${title}'`), mode);
+  }
+  assert.match(chrome, /if \(view === 'assignment'\) return `\$\{String\(assignmentTitle \|\| ''\)\.trim\(\) \|\| 'Assignment'\} – \$\{suffix\}`;/);
+  assert.match(app, /import \{ MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle \} from '\.\/components\/common\/pageChrome\.jsx';/);
+  assert.match(app, /useDocumentTitle\(pageTitleFor\(\{\s*signedIn: Boolean\(user\),\s*role: user\?\.role \|\| null,\s*view: activeView,\s*studentMode: studentDashboardMode,/);
+});
+
+// WCAG 2.4.1: the first Tab stop on a student screen skips the navigation.
+test('a student screen starts with a skip link past the navigation', () => {
+  const shell = region(app, 'const renderStudentIdentityShell', '{content}', 'the student shell');
+  assert.match(shell, /<div data-authenticated-student-shell=[^>]*>\s*<SkipToContent \/>/, 'first in the shell');
+  assert.match(shell, /<div id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\} \/>/);
+  const chrome = executableSource(read('src/components/common/pageChrome.jsx'));
+  assert.match(region(chrome, 'export const skipTarget', '\n};', 'skipTarget'), /!nav\.contains\(element\)\s*&& \(nav\.compareDocumentPosition\(element\) & 4\)/, 'lands after the nav');
+});

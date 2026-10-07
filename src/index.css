@@ -449,3 +449,21 @@ body :is(
     line-height: 1.48;
   }
 }
+
+/* Skip link (src/components/common/pageChrome.jsx): off screen until a
+ * keyboard student Tabs to it, then pinned top-left above everything. */
+.mm-skip-link {
+  position: fixed;
+  left: 8px;
+  top: -200px;
+  z-index: 2147483200;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--mm-surface);
+  color: var(--mm-primary-text);
+  border: 2px solid var(--mm-focus);
+  font-weight: 800;
+  text-decoration: underline;
+}
+.mm-skip-link:focus { top: 8px; }
+#mm-main-content:focus { outline: none; }
