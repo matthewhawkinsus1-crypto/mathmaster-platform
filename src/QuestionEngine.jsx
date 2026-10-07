@@ -1226,6 +1226,8 @@ function QuestionEngineBody({
       return result;
     } finally {
       setSubmitting(false);
+      // The lab's workspace is now its submitted work, not older than it.
+      stampToolDraftSubmission(draftKey);
     }
   };
 
@@ -1536,7 +1538,13 @@ function QuestionEngineBody({
       case 'modelingLab':
         // The lab is graded on submit and shows its own result; on a DOL,
         // quiz or test that waits for release like every other outcome.
-        return <InteractiveModelingLabPlayer rawLabSpec={processedQuestion.labDefinition} assignmentId={assignmentId} executionScope={executionScope} supportUsage={supportUsage} disabled={commonModuleProps.disabled} onServerGraded={handleModelingLabGrade} revealEvaluation={showOutcomeFeedback} />;
+        // Its hypothesis, parameters, trials and justification are drafts in
+        // this question's family, like a registry tool's workspace.
+        return (
+          <ToolDraftScopeProvider draftKey={draftKey} scope="modeling-lab" canonicalSavedAt={canonicalAnswerSavedAt}>
+            <InteractiveModelingLabPlayer rawLabSpec={processedQuestion.labDefinition} assignmentId={assignmentId} executionScope={executionScope} supportUsage={supportUsage} disabled={commonModuleProps.disabled} onServerGraded={handleModelingLabGrade} revealEvaluation={showOutcomeFeedback} />
+          </ToolDraftScopeProvider>
+        );
       case 'graphing':
         return <GraphLine {...commonModuleProps} />;
       case 'functionGraph':

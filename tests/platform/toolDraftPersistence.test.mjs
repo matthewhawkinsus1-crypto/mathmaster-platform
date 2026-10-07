@@ -511,3 +511,22 @@ test('the shared hook refreshes question-specific initializers before a draft-ke
   // else it is handed after the canonical time (a field's normaliser).
   assert.match(source.slice(effect, effect + 1400), /restoreField\(key, field, initialRef\.current, canonicalSavedAt(?:, [^)]*)?\)/);
 });
+
+test('a modeling lab keeps the student\'s hypothesis, parameters, trials and justification in drafts', () => {
+  // The lab is not a registry tool, so the registry's persistence gate never
+  // read it, and all of its work was component state: the first Next, a
+  // reload or another Chromebook emptied it.
+  const player = stripComments(read('src/components/labs/InteractiveModelingLabPlayer.jsx'));
+  for (const field of ['paramValues', 'hypothesis', 'justification', 'trialHistory']) {
+    assert.match(player, new RegExp(`= usePersistentToolState\\('${field}', `), `${field} is draft-backed`);
+  }
+  // What stays component state is the server's evaluation and the request's
+  // own bookkeeping — never the student's work.
+  const transient = [...player.matchAll(/const \[(\w+), \w+\] = useState\(/g)].map((match) => match[1]).sort();
+  assert.deepEqual(transient, ['busy', 'error', 'evaluation']);
+  const engine = stripComments(read('src/QuestionEngine.jsx'));
+  const lab = region(engine, "case 'modelingLab':", "case 'graphing':", 'the lab');
+  assert.match(lab, /<ToolDraftScopeProvider draftKey=\{draftKey\} scope="modeling-lab" canonicalSavedAt=\{canonicalAnswerSavedAt\}>\s*<InteractiveModelingLabPlayer /, 'QuestionEngine opens the lab\'s draft scope');
+  const grade = region(engine, 'const handleModelingLabGrade = async', '\n  };', 'the lab\'s grade');
+  assert.match(grade.slice(grade.indexOf('} finally {')), /stampToolDraftSubmission\(draftKey\);/, 'and stamps it once graded, so the work is not read as older than its attempt');
+});
