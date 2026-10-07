@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   MATHLIVE_HIDDEN_CSS_PARTS,
+  MATHLIVE_REPOSITIONED_CSS_PARTS,
   MATHLIVE_KEYBOARD_SINK_SELECTOR,
   MATHLIVE_RENDER_PART_SELECTOR,
   MATHLIVE_VERIFIED_VERSION,
@@ -45,8 +46,9 @@ test('the installed MathLive still builds the shadow DOM the focus hand-off depe
   // The lazy-typesetting container ensureMathElementRenders inspects.
   assert.match(bundle, /setAttribute\("part", "render"\)/, `${UPGRADE} (render part is gone)`);
   assert.equal(MATHLIVE_RENDER_PART_SELECTOR, '[part="render"]');
-  // The controls src/index.css hides so MathMaster's own keypad is the only one.
-  MATHLIVE_HIDDEN_CSS_PARTS.forEach((part) => {
+  // The controls src/index.css hides so MathMaster's own keypad is the only one,
+  // and the keyboard sink it repositions onto its field.
+  [...MATHLIVE_HIDDEN_CSS_PARTS, ...MATHLIVE_REPOSITIONED_CSS_PARTS].forEach((part) => {
     assert.match(bundle, new RegExp(`part=${part}\\b`), `${UPGRADE} (::part(${part}) is gone)`);
   });
 });
@@ -74,10 +76,15 @@ test('a field whose model still thinks it is focused is told otherwise, with no 
   assert.equal(settleMathFieldBlur(null), false);
 });
 
-test('src/index.css hides exactly the MathLive parts the adapter lists', () => {
-  const css = read('src/index.css');
-  const hidden = [...css.matchAll(/math-field::part\(([\w-]+)\)/g)].map((match) => match[1]);
-  assert.deepEqual([...new Set(hidden)].sort(), [...MATHLIVE_HIDDEN_CSS_PARTS].sort());
+test('src/index.css styles exactly the MathLive parts the adapter lists', () => {
+  // Comments stripped: index.css explains the sink override in prose.
+  const css = executableSource(read('src/index.css'));
+  const styled = [...css.matchAll(/math-field::part\(([\w-]+)\)/g)].map((match) => match[1]);
+  assert.deepEqual(
+    [...new Set(styled)].sort(),
+    [...MATHLIVE_HIDDEN_CSS_PARTS, ...MATHLIVE_REPOSITIONED_CSS_PARTS].sort(),
+    'every MathLive part index.css styles is named in src/platform/math/mathLiveCompat.js, so an upgrade re-verifies it',
+  );
 });
 
 test('no module outside the adapter reaches into MathLive internals', () => {
