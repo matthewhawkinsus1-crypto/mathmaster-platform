@@ -119,6 +119,36 @@ const FIXTURES = {
       { id: 'explain', kind: 'shortResponse', prompt: 'What does your value of x make true?' },
     ],
   }),
+  // Feedback that teaches (Student push, Job A): a plain multi-answer key
+  // carrying every authored support the classroom ladder shows — hints, a
+  // wrong-answer message, attempt feedback and a worked solution.
+  'feedback-ladder': () => ({
+    questionId: 'leak-gates-feedback-ladder',
+    type: 'multiAnswer',
+    prompt: 'A line passes through (1, 2) and (5, 5). Find its slope.',
+    answerFields: [{ id: 'slope', label: 'Slope', answer: '3/4', inputProfile: 'text' }],
+    supportHints: ['LEAKCHECK-HINT: the change in y over the change in x.'],
+    hints: ['LEAKCHECK-HINT-2: subtract in the same order.'],
+    attemptFeedback: ['LEAKCHECK-FEEDBACK: check the order of subtraction.'],
+    misconceptions: [{ match: ['-3/4', '-\\frac{3}{4}'], message: 'LEAKCHECK-MISCONCEPTION: a sign was dropped.' }],
+    solutionReview: { headline: 'LEAKCHECK-REVIEW headline', reasoning: ['LEAKCHECK-REVIEW: change in y is 3.'], answerSummary: 'LEAKCHECK-REVIEW: the slope is 3/4.' },
+  }),
+  // A Question Family instance: the server's classifier would name the miss.
+  'feedback-family': () => ({
+    questionId: 'leak-gates-feedback-family',
+    type: 'multiAnswer',
+    activityRole: 'classwork',
+    questionFamily: { id: 'linear.twoStepEquation', version: 1, tool: 'multiAnswer' },
+  }),
+  // A registry tool with a review builder and a classifier.
+  'feedback-tool': () => ({
+    questionId: 'leak-gates-feedback-tool',
+    type: 'relationMapping',
+    toolId: 'relationMapping',
+    prompt: 'Draw the mapping for the relation, then give its domain and range.',
+    pairs: [[1, 4], [2, 5], [3, 6]],
+    supportHints: ['LEAKCHECK-HINT: inputs are on the left.'],
+  }),
   // The three-plane model with an author-allowed reveal.
   'three-plane-reveal': () => ({
     questionId: 'leak-gates-three-plane',

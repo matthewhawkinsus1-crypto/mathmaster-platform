@@ -34,6 +34,11 @@
 //   constraint-builder the Constraint-Based Function Builder's live checklist
 //   composed-algebra   "Need a strategic hint?" in a composed question's algebra step
 //   three-plane-reveal the three-plane model's author-allowed "Reveal" button
+//   feedback-ladder    the classroom feedback ladder (Hint control, miss message,
+//                      hint offer, worked solution, similar problem, back-up step)
+//                      on a plain key, a Question Family instance and a registry
+//                      tool: none of its text anywhere in the document on a DOL
+//                      or test, before or after Submit
 //
 // (The modeling lab's result after submission comes from a Cloud Function, so
 // it is held in node by tests/platform/solverRuntimeOutcomePolicy.test.mjs.)
@@ -45,6 +50,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
+import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
+import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -700,6 +707,74 @@ const threePlaneReveal = async () => {
   }
 };
 
+/* ------------------------------------------------------- feedback ladder */
+
+// Every text the classroom feedback ladder can produce (Student push, Job A):
+// authored supports (marked LEAKCHECK in the fixtures), every misconception
+// and generic miss message, and the ladder's own words. On a DOL or test none
+// may be anywhere in the document — visible text, aria-labels, live regions
+// or hidden nodes — while the item can still be answered, nor after a
+// submission whose outcome is held.
+const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up'];
+const ladderLeaks = async (page) => {
+  const html = await page.evaluate(() => document.documentElement.outerHTML);
+  const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)];
+  return [...LADDER_WORDS, ...messages].filter((text) => html.includes(text.replace(/&/g, '&amp;')));
+};
+const typeAnswer = async (page, value) => {
+  await setMathField(page, page.locator('.mathmaster-question-tool-workspace math-field').first(), value);
+};
+const submitAnswer = async (page) => {
+  await page.locator('button.mathmaster-bar-submit').first().click();
+  await settle(page, 700);
+};
+const feedbackLadder = async () => {
+  for (const role of ['practice', 'dol', 'test']) {
+    await scenario(`${role} feedback-ladder`, async () => {
+      const page = await open(role, 'feedback-ladder');
+      const hintControl = await page.locator('[data-hint-control]').count();
+      if (role === 'practice') check(hintControl === 1, 'practice feedback-ladder: the Hint control is offered');
+      else check(hintControl === 0, `${role} feedback-ladder: no Hint control`);
+      if (role !== 'practice') check((await ladderLeaks(page)).length === 0, `${role} feedback-ladder: nothing from the ladder in the document before Submit`, (await ladderLeaks(page)).join(' | '));
+      await typeAnswer(page, '-\\frac{3}{4}');
+      await submitAnswer(page);
+      const grade = await lastGrade(page);
+      check(grade?.isCorrect === false, `${role} feedback-ladder: a wrong answer is graded wrong`, brief(grade));
+      const miss = page.locator('[data-miss-feedback]');
+      if (role === 'practice') {
+        check(await miss.count() === 1 && /LEAKCHECK-MISCONCEPTION/.test(await miss.textContent()), 'practice feedback-ladder: the authored wrong-answer message is shown');
+      } else {
+        check(await miss.count() === 0, `${role} feedback-ladder: no miss message after Submit`);
+        check((await ladderLeaks(page)).length === 0, `${role} feedback-ladder: nothing from the ladder in the document after Submit`, (await ladderLeaks(page)).join(' | '));
+      }
+    });
+  }
+  for (const which of ['feedback-family', 'feedback-tool']) {
+    for (const role of ['dol', 'test']) {
+      await scenario(`${role} ${which}`, async () => {
+        const page = await open(role, which);
+        check(await page.locator('[data-hint-control]').count() === 0, `${role} ${which}: no Hint control`);
+        check((await ladderLeaks(page)).length === 0, `${role} ${which}: nothing from the ladder in the document`, (await ladderLeaks(page)).join(' | '));
+        if (which === 'feedback-family') {
+          const prompt = await page.locator('.mathmaster-question-engine').first().textContent();
+          const match = prompt.match(/(−|-)?\s*(\d+)x\s*([+−-])\s*(\d+)\s*=\s*(−|-)?\s*(\d+)/);
+          check(Boolean(match), `${role} ${which}: the instance renders`, prompt.slice(0, 120));
+          if (match) {
+            const a = Number(match[2]) * (match[1] ? -1 : 1);
+            const b = Number(match[4]) * (match[3] === '+' ? 1 : -1);
+            const c = Number(match[6]) * (match[5] ? -1 : 1);
+            // The kept-sign value: in practice the classifier would name it.
+            await typeAnswer(page, String((c + b) / a));
+            await submitAnswer(page);
+            check((await lastGrade(page))?.isCorrect === false, `${role} ${which}: graded wrong`);
+            check((await ladderLeaks(page)).length === 0, `${role} ${which}: no diagnosis, hint or review after Submit`, (await ladderLeaks(page)).join(' | '));
+          }
+        }
+      });
+    }
+  }
+};
+
 /* ----------------------------------------------------------------- runner */
 
 const SURFACES = {
@@ -711,6 +786,7 @@ const SURFACES = {
   'constraint-builder': constraintBuilder,
   'composed-algebra': composedAlgebra,
   'three-plane-reveal': threePlaneReveal,
+  'feedback-ladder': feedbackLadder,
 };
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SURFACES);
 for (const name of selected) {
