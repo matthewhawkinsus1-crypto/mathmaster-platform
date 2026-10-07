@@ -51,7 +51,7 @@ test('four weeks of history: the tiles, the like-for-like note and the movers, i
   assert.equal(growth.baselineLabel, '4 weeks ago');
   const [mastered, average, practised] = growth.tiles;
   assert.deepEqual([mastered.now, mastered.previous, mastered.changeLabel, mastered.direction], ['1', '0', '+1', 'up']);
-  assert.deepEqual([average.now, average.previous, average.changeLabel], ['81%', '69%', '+12%']);
+  assert.deepEqual([average.now, average.previous, average.changeLabel], ['81%', '69%', '+12']);
   assert.equal(average.note, 'On the 2 skills you had started by then');
   assert.deepEqual([practised.now, practised.previous, practised.changeLabel], ['3', '2', '+1']);
   assert.deepEqual(growth.movers.map((entry) => [entry.label, entry.changeLabel, entry.direction]), [

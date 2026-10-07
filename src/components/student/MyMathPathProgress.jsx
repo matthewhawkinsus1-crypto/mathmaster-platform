@@ -192,12 +192,14 @@ function WeeklyCard({ state, onRetry, unavailable, onOpenPath }) {
               Some of your sessions could not be counted here, so a past grade may read low. Your teacher&apos;s gradebook has the official number.
             </p>
           )}
-          <p style={{ ...MUTED, marginTop: 10, fontSize: 12 }}>
-            Each grade is the weekly Path grade your teacher receives when that week closes on Sunday night.
-          </p>
+          {weekly.rows.some((row) => row.grade !== null) && (
+            <p style={{ ...MUTED, marginTop: 10, fontSize: 12 }}>
+              Each grade is the weekly Path grade your teacher receives when that week closes on Sunday night.
+            </p>
+          )}
           {openWeek && onOpenPath && (
             <button type="button" onClick={onOpenPath} style={{ ...BUTTON, marginTop: 12 }}>
-              Continue this week&apos;s Path
+              Go to this week&apos;s Path
             </button>
           )}
         </>

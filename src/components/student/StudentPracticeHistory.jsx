@@ -45,7 +45,7 @@ export const StudentPracticeHistory = ({
         </div>
         <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--mm-text)' }}>
           Skill
-          <select value={teksFilter} onChange={(event) => setTeksFilter(event.target.value)} style={{ display: 'block', minWidth: '180px', marginTop: '5px', padding: '9px 10px', border: '1px solid var(--mm-border)', borderRadius: '7px', background: 'var(--mm-surface)' }}>
+          <select value={teksFilter} onChange={(event) => setTeksFilter(event.target.value)} style={{ display: 'block', minWidth: '180px', maxWidth: '100%', minHeight: '44px', marginTop: '5px', padding: '9px 10px', border: '1px solid var(--mm-border)', borderRadius: '7px', background: 'var(--mm-surface)' }}>
             <option value="all">All skills</option>
             {/* The filter lists the mathematics, not the identifiers. The code
                 stays as the option VALUE, which is what the filter matches on. */}

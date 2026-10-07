@@ -33,7 +33,8 @@ const changeTile = ({ key, label, now, previous, change, unit = '', note = null 
   change: change === null || change === undefined ? null : change,
   changeLabel: change === null || change === undefined
     ? null
-    : change > 0 ? `+${change}${unit}` : change < 0 ? `−${Math.abs(change)}${unit}` : 'No change',
+    // Points, like the movers' "+30": a change in a percentage is not a percent.
+    : change > 0 ? `+${change}` : change < 0 ? `−${Math.abs(change)}` : 'No change',
   direction: !change ? 'flat' : change > 0 ? 'up' : 'down',
   note,
 });
