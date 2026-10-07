@@ -160,6 +160,7 @@ import {
   studentRequiredQuestions,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
+import { helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
 import { describeWorkloadSummary } from '../functions/shared/reducedWorkload.mjs';
 import {
   SPOTLIGHT_FRAME_COLLECTION,
@@ -1821,6 +1822,10 @@ function App() {
   // tearing down the presence document (and therefore without creating an
   // archive-trigger invocation on every answer/question change).
   const livePresencePayloadRef = useRef(null);
+  // "Ask my teacher" (platform/supports/helpRequest.js): rides in the
+  // presence payload; publishPresenceNowRef sends it without waiting a beat.
+  const [helpRequest, setHelpRequest] = useState(null);
+  const publishPresenceNowRef = useRef(null);
   const spotlightPublisherRef = useRef(null);
   const [studentSpotlightRequest, setStudentSpotlightRequest] = useState(null);
   const [studentSpotlightMessage, setStudentSpotlightMessage] = useState('');
@@ -4176,6 +4181,7 @@ function App() {
         startedAt: liveStartedAtRef.current.at,
         pageVisible: document.visibilityState === 'visible',
       }),
+      ...helpRequestFields(helpRequest, { assignmentId: activeAssignmentId }),
     };
 
     // The heartbeat lifecycle below owns Firestore writes. Keeping question
@@ -4185,8 +4191,11 @@ function App() {
   }, [
     user, isStudentAssignment, activeAssignmentId, activeAssignmentData,
     currentQuestionIndex, activeWorkingTracker, activeQuestionRole,
-    studentClassPoints.redemptionsByAssignment,
+    studentClassPoints.redemptionsByAssignment, helpRequest,
   ]);
+
+  // A help request belongs to the assignment it was made in.
+  useEffect(() => { setHelpRequest(null); }, [activeAssignmentId]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) return undefined;
@@ -4239,11 +4248,15 @@ function App() {
       if (cancelled) return;
       publishLatest();
       interval = window.setInterval(publishLatest, HEARTBEAT_INTERVAL_MS);
+      // Only once the stale document is gone: an early write would be
+      // deleted (and archived) by the cleanup above.
+      publishPresenceNowRef.current = publishLatest;
     };
 
     startPresence();
     return () => {
       cancelled = true;
+      if (publishPresenceNowRef.current === publishLatest) publishPresenceNowRef.current = null;
       if (interval) window.clearInterval(interval);
       clearLiveStatus();
     };
@@ -4254,6 +4267,9 @@ function App() {
     activeAssignmentId,
     activeAssignmentData?.id,
   ]);
+
+  // Raised or cleared: the teacher sees it now, not on the next 20 s beat.
+  useEffect(() => { publishPresenceNowRef.current?.(); }, [helpRequest]);
 
   // Spotlight consent is its own short-lived channel. Merely opening an
   // assignment or publishing presence never creates a frame.
@@ -11351,6 +11367,10 @@ function App() {
               onSupportEvidence={preview || lifecycle.isPracticeOnly
                 ? null
                 : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole })}
+              onAskTeacher={preview || lifecycle.isPracticeOnly || user?.role !== 'student'
+                ? null
+                : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }))}
+              helpRequested={helpRequest?.assignmentId === activeAssignmentId}
             />
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.

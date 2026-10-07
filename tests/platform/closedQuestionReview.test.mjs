@@ -238,13 +238,17 @@ test('an error message is reported without what it quotes', () => {
 const engine = executableSource(read('src/QuestionEngine.jsx'));
 
 test('QuestionEngine renders a closed question\'s solution review inside its own boundary', () => {
-  const closed = region(engine, '{isExpired && showOutcomeFeedback && (\n        <div style={{ margin: \'25px auto 0\'', 'Request New Question', 'the closed question\'s panel');
-  const contained = region(closed, '<QuestionSupplementBoundary', '</QuestionSupplementBoundary>', 'the contained review');
+  // One review for every closed question (SolutionReviewPanel), built once
+  // and placed in the closed panel — contained in its own boundary.
+  const review = region(engine, 'const closedReview = (isCorrect || isExpired) && feedbackOpen ? (', ') : null;', 'the closed question\'s review');
+  const contained = region(review, '<QuestionSupplementBoundary', '</QuestionSupplementBoundary>', 'the contained review');
   assert.match(contained, /stage="solution-review"/);
-  assert.match(contained, /<ToolSolutionReview question=\{processedQuestion\} \/>/);
-  assert.match(contained, /<SolutionReview question=\{processedQuestion\}/);
+  assert.match(contained, /<SolutionReviewPanel\s+question=\{processedQuestion\}\s+isToolQuestion=\{isToolQuestion\}/);
   assert.match(contained, /fallback=\{<p[^>]*>The worked solution for this question could not be shown here\./);
-  // The way on stays outside it.
+  assert.match(engine, /const isToolQuestion = Boolean\(missingToolDefinition\);/);
+  // The out-of-attempts panel shows it; the way on stays outside it.
+  const closed = region(engine, '{isExpired && showOutcomeFeedback && (\n        <div style={{ margin: \'25px auto 0\'', 'Request New Question', 'the closed question\'s panel');
+  assert.match(closed, /\{closedReview\}/);
   assert.doesNotMatch(contained, /handleRequestNewQuestion/);
   assert.match(engine, /import QuestionSupplementBoundary from '\.\/QuestionSupplementBoundary';/);
 });

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { region } from './helpers/sourceContract.mjs';
 import { readFile } from 'node:fs/promises';
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -64,8 +65,11 @@ test('Universal Work View reuses assignment Undo, Scratchpad, Help, and final Su
   assert.match(question, /onClick:\s*\(\) => undoController\?\.onUndo\?\.\(\)/);
   assert.match(question, /scratchpad:\s*\{/);
   assert.match(question, /onClick:\s*openScratchpad/);
-  assert.match(question, /help:\s*guidedCoachEnabled/);
-  assert.match(question, /content:\s*guidedCoach/);
+  // Work View's Help drawer carries Guided Notes where they are on — now
+  // under the platform Hint panel, which every question type has.
+  const help = region(question, '    help: guidedCoachEnabled', '} : null,', 'the Work View help action');
+  assert.match(help, /^ {4}help: guidedCoachEnabled \|\| helpControlAvailable \? \{/);
+  assert.match(help, /content: <>\{hintPanel\}\{guidedCoachEnabled \? guidedCoach : null\}<\/>/);
   assert.match(question, /submit:\s*!locked && shouldShowSubmit/);
   assert.match(question, /onClick:\s*handleSubmit/);
   assert.match(question, /disabled:\s*submitDisabled/);

@@ -1,5 +1,7 @@
 import React from 'react';
 import ToolShell, { Panel, ToolGrid } from '../shared/ToolShell';
+import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
+import { buildClosedQuestionReview } from '../../platform/supports/review/closedQuestionReview.js';
 
 // A student review screen is the wrong place for a JSON dump. Render the
 // response as readable statements, and fall back to hiding it rather than
@@ -54,6 +56,7 @@ export default function SolutionReview2({ questionData = {}, attemptRecord = {},
     'Choose a representation or operation that keeps the relationship true.',
     'Check the result against the original problem.',
   ];
+  const authoredReview = Boolean(buildClosedQuestionReview({ question: questionData })?.authored);
   const misconceptions = reviewData.misconceptions || record.misconceptions || [];
   const responseEntries = describeResponse(record.response);
   const scoreText = typeof record.score === 'number' ? `${Math.round(record.score * 100)}%` : null;
@@ -97,9 +100,13 @@ export default function SolutionReview2({ questionData = {}, attemptRecord = {},
         </Panel>
 
         <Panel title="A strong solution path">
-          <ol style={{ lineHeight: 1.7, paddingLeft: 20, margin: 0 }}>
+          {/* An authored worked solution is shown by the one review panel
+              every closed question uses (SolutionReviewPanel.jsx); the
+              listed steps remain for a review that only carries steps. */}
+          {authoredReview ? <SolutionReviewPanel question={questionData} wasCorrect={Boolean(record.isCorrect)} /> : null}
+          {authoredReview ? null : <ol style={{ lineHeight: 1.7, paddingLeft: 20, margin: 0 }}>
             {steps.map((step, index) => <li key={index}>{step}</li>)}
-          </ol>
+          </ol>}
           {misconceptions.length ? (
             <>
               <h4 style={{ margin: '16px 0 6px', fontSize: 14, color: 'var(--mm-warning-text)' }}>Common traps on this one</h4>

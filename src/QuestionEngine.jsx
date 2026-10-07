@@ -19,8 +19,18 @@ import {
   resolveAlgebraWorkspaceRoute,
 } from './platform/algebra/algebraWorkspaceRoute.js';
 import ScratchpadOverlay from './ScratchpadOverlay';
-import SolutionReview from './SolutionReview';
-import ToolSolutionReview from './tools/shared/ToolSolutionReview';
+import { legacySolutionReviewContent } from './SolutionReview';
+import SolutionReviewPanel from './SolutionReviewPanel';
+import HintPanel from './platform/supports/hints/HintPanel.jsx';
+import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
+import { buildQuestionHints, hintRelease } from './platform/supports/hints/questionHints.js';
+import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
+import { closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
+import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
+import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
+import { backUpStepFor } from './platform/supports/feedback/backUpStep.js';
+import { partialCreditBreakdown } from './platform/supports/feedback/partialCreditBreakdown.js';
+import { parseFamilyGenerationKey } from './problemGenerator';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
@@ -239,6 +249,11 @@ function QuestionEngineBody({
   // false: the failure panel shows no classification code and no copyable
   // report (Recovery says what happened in its own words).
   resolutionTechnicalDetails = true,
+  // "Ask my teacher": (requested: boolean) → the host raises or clears the
+  // help signal the teacher's live monitor reads (App.jsx → presence).
+  // Null where there is no live teacher (previews, Path, post-due practice).
+  onAskTeacher = null,
+  helpRequested = false,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -463,6 +478,15 @@ function QuestionEngineBody({
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
+  // The platform Hint control: how many of this question's hints the student
+  // has revealed, whether the panel is open, and the worked sibling problem.
+  const [hintsRevealed, setHintsRevealed] = useState(0);
+  const [hintPanelOpen, setHintPanelOpen] = useState(false);
+  const [workedExampleUsed, setWorkedExampleUsed] = useState(false);
+  const [similarOpen, setSimilarOpen] = useState(false);
+  // The graded work behind the feedback on screen, kept beside it for the
+  // display-only miss message (missDiagnosis.js). Never sent anywhere.
+  const [gradedForDisplay, setGradedForDisplay] = useState(null);
   const [workflowGuidanceState, setWorkflowGuidanceState] = useState(null);
   const [workflowSubmissionReview, setWorkflowSubmissionReview] = useState(null);
   const workflowGuidanceQuestionKey = processedQuestion?.questionId
@@ -570,6 +594,11 @@ function QuestionEngineBody({
     setCalculatorUsed(false);
     setCalculatorOpen(false);
     setHintUsed(false);
+    setHintsRevealed(0);
+    setHintPanelOpen(false);
+    setWorkedExampleUsed(false);
+    setSimilarOpen(false);
+    setGradedForDisplay(null);
     setWorkflowSubmissionReview(null);
   }, [processedQuestion]);
 
@@ -837,19 +866,24 @@ function QuestionEngineBody({
     markCalculatorOpened();
     setCalculatorOpen(true);
   };
-  const scaffold = processedQuestion?.scaffold || (processedQuestion?.type === 'stepAlgebra'
-    ? { prompt: 'Let’s back up. What operation undoes multiplication?', options: ['Add', 'Divide'], correct: 'Divide' }
-    : processedQuestion?.type === 'functionGraph' || processedQuestion?.type === 'functionInvestigation'
-      ? { prompt: 'Before continuing, must a plotted point match both its x-coordinate and y-coordinate?', options: ['Yes', 'No'], correct: 'Yes' }
-      : { prompt: 'Before continuing, should you revise the specific parts identified in the feedback?', options: ['Yes', 'No'], correct: 'Yes' });
+  // The inclusion "Let's back up" step: authored, else one quick question
+  // about THIS problem's first move from its question family, else the
+  // platform's generic re-orientation question (backUpStep.js).
+  const scaffold = useMemo(() => backUpStepFor(processedQuestion), [processedQuestion]);
 
+  // THE BACK-UP STEP IS A RE-ORIENTATION CHECK, NOT HELP WITH THE ANSWER.
+  // It is recorded (backUpStepUsed) but no longer marks the next attempt as
+  // not independent: an inclusion student was penalised for a step the
+  // platform imposed. A hint or a worked example still is mathematical help.
   const attemptSupportUsage = () => ({
     ...supportUsage,
     hintUsed: Boolean(hintUsed),
-    scaffoldUsed: Boolean(scaffoldComplete),
+    scaffoldUsed: false,
+    backUpStepUsed: Boolean(scaffoldComplete),
     contextScaffoldUsed: Boolean(contextScaffoldUsed),
+    workedExampleUsed: Boolean(workedExampleUsed),
     calculatorUsed: Boolean(calculatorUsed),
-    isMathematicallyIndependent: !hintUsed && !scaffoldComplete,
+    isMathematicallyIndependent: !hintUsed && !workedExampleUsed,
   });
 
   // Secure callers sometimes need to finalize the work already on screen
@@ -965,6 +999,11 @@ function QuestionEngineBody({
           .map((part) => part.label),
       };
       setFeedback(nextFeedback);
+      setGradedForDisplay({
+        feedback: nextFeedback,
+        grading: { graded: true, isCorrect: Boolean(answerState.isCorrect), parts: (answerState.parts || []).map((part) => ({ ...part })) },
+        response: answerState.toolResponse || null,
+      });
       if (isComposed) {
         // Freeze the exact submitted responses and per-step verdicts. The live
         // answerState keeps changing as the student repairs work; without this
@@ -1138,6 +1177,7 @@ function QuestionEngineBody({
           partialCredit: attemptInputs.partialCreditPercent || 0,
         };
         setFeedback(gradedFeedback);
+        setGradedForDisplay({ feedback: gradedFeedback, grading: sharedVerdict, response: payload?.response ?? null });
         // The tool's verdict for this Check mounted when Check was pressed,
         // before the attempt was graded, so it is the latest slot (PQ-022).
         toolOutcomeSequenceRef.current += 1;
@@ -1348,6 +1388,65 @@ function QuestionEngineBody({
   // A hint revealed anywhere — a tool's panel, the Work View Help drawer, the
   // solver's "Need a strategic hint?" — is recorded the same way.
   const recordHintUse = () => setHintUsed(true);
+
+  /*
+   * THE PLATFORM HINT CONTROL (questionHints.js, HintPanel.jsx). Every
+   * question type, multi-answer included: authored hints, then the question
+   * family's hints with this problem's numbers, then a generic one. Withheld
+   * wherever the activity withholds help (DOL, quiz, test) and on a
+   * server-graded host, which owns its own support; gone once the question
+   * closes. Each reveal is recorded as hint use, so the next attempt is not
+   * counted as independent.
+   */
+  const hintControlAllowed = toolHintsAllowed && !serverGrading;
+  const questionHints = useMemo(() => (hintControlAllowed ? buildQuestionHints(processedQuestion) : []), [hintControlAllowed, processedQuestion]);
+  const hintState = hintRelease({ hints: questionHints, revealed: hintsRevealed, attemptCount: record.attemptCount, hintsAllowed: hintControlAllowed, closed: locked });
+  const similarExample = useMemo(
+    () => (hintControlAllowed ? buildSimilarWorkedExample(processedQuestion, { seed: Number(record.variantIndex) || 0 }) : null),
+    [hintControlAllowed, processedQuestion, record.variantIndex],
+  );
+  const askTeacher = typeof onAskTeacher === 'function' && !locked && !serverGrading
+    ? { requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
+    : null;
+  const helpControlAvailable = Boolean((hintState.allowed || askTeacher) && !locked);
+  const hintPanelRef = useRef(null);
+  const revealNextHint = () => {
+    if (!hintState.canRevealNext) return;
+    setHintsRevealed((count) => count + 1);
+    recordHintUse();
+    setHintPanelOpen(true);
+  };
+  const openSimilarExample = () => {
+    if (!similarExample) return;
+    setSimilarOpen(true);
+    setWorkedExampleUsed(true);
+  };
+  useEffect(() => {
+    if (!hintPanelOpen) return;
+    hintPanelRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  }, [hintPanelOpen, hintsRevealed, similarOpen]);
+  const supportedTextReadAloud = readAloudOffered || (languageTools.tools.includes('read-aloud') && readAloudReady)
+    ? { language: 'en' }
+    : null;
+  const supportedTextTranslation = languageTools.tools.includes('translate') && languageTools.language
+    ? { language: languageTools.language }
+    : null;
+  const reportSupportedTextUse = (supportId, eventType) => reportSupportEvidence(supportId, eventType);
+  const hintPanel = helpControlAvailable ? (
+    <HintPanel
+      hints={questionHints}
+      revealed={hintsRevealed}
+      release={hintState}
+      onReveal={revealNextHint}
+      similar={similarExample}
+      similarOpen={similarOpen}
+      onOpenSimilar={openSimilarExample}
+      askTeacher={askTeacher}
+      readAloud={supportedTextReadAloud}
+      translation={supportedTextTranslation}
+      onSupportEvidence={reportSupportedTextUse}
+    />
+  ) : null;
   // The step-algebra solvers carry their own strategic hint: the same
   // permission, and opening it is reported like any other hint.
   const stepAlgebraHintProps = {
@@ -1396,18 +1495,54 @@ function QuestionEngineBody({
     disabled: locked || scaffoldRequired || contextScaffoldRequired || submitting,
   };
 
+  /*
+   * FEEDBACK THAT TEACHES (attemptFeedbackPlan.js). One gate decides whether
+   * anything beyond right/wrong may be shown for this item: outcome feedback
+   * open, not a server-graded host, and — on a DOL, quiz or test — the item
+   * closed. Inside it: a specific message for the miss (authored, else the
+   * display-only diagnosis), a hint offered from the second miss, and the
+   * worked solution once the question closes.
+   */
+  const isToolQuestion = Boolean(missingToolDefinition);
+  const feedbackOpen = feedbackOpenForItem({
+    showOutcomeFeedback,
+    immediateFeedback: resolvedActivityPolicy?.feedback === 'immediate',
+    closed: locked,
+    serverGraded,
+  });
+  const reviewAvailable = useMemo(
+    () => closedQuestionHasReview({ question: processedQuestion, isToolQuestion, legacyContent: legacySolutionReviewContent }),
+    [processedQuestion, isToolQuestion],
+  );
+  const familyAssignmentId = stableFamilyContext?.assignmentId ?? parseFamilyGenerationKey(generationKey).assignmentId;
+  const familyStorageIndex = Number.isInteger(stableFamilyContext?.storageIndex) ? stableFamilyContext.storageIndex : parseFamilyGenerationKey(generationKey).storageIndex;
+  const missDetail = useMemo(() => {
+    if (!feedback || feedback.isCorrect || feedback.blocked || !feedbackOpen) return null;
+    if (!gradedForDisplay || gradedForDisplay.feedback !== feedback) return null;
+    const familyValues = displayFamilyValues({
+      template: runtimeQuestion,
+      delivered: processedQuestion,
+      assignmentId: familyAssignmentId,
+      storageIndex: familyStorageIndex,
+    });
+    const diagnosis = diagnoseMiss({ question: processedQuestion, grading: gradedForDisplay.grading, response: gradedForDisplay.response, familyValues });
+    return missFeedback({ question: processedQuestion, attemptNumber: Number(feedback.attemptCount) || record.attemptCount, diagnosis, parts: gradedForDisplay.grading?.parts });
+  }, [feedback, feedbackOpen, gradedForDisplay, runtimeQuestion, processedQuestion, familyAssignmentId, familyStorageIndex, record.attemptCount]);
+
   // THE ATTEMPT OUTCOME, WORDED ONCE. The box below the question and a
-  // registry tool's result area show exactly the same words.
+  // registry tool's result area show exactly the same words. A closed
+  // question points at a worked solution only when there is one.
   const attemptOutcomeText = feedback
     ? (feedback.message || (feedback.isCorrect
       ? 'Correct! This question is complete.'
       : isExpired
-        ? `That was the final allowed attempt (${resolvedMaximumAttempts} total). This response is locked.${resolvedActivityPolicy?.allowReplacement ? ' Review the solution, then request a new question to continue.' : ''}`
+        ? closedAttemptText({ maximumAttempts: resolvedMaximumAttempts, reviewAvailable: reviewAvailable && feedbackOpen, allowReplacement: Boolean(resolvedActivityPolicy?.allowReplacement) })
         : `Not quite. You have ${remainingAttempts} ${remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`))
     : '';
   const attemptOutcomeFocus = feedback && !feedback.isCorrect && !isComposed && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0
     ? `Focus on: ${feedback.incorrectParts.join(', ')}.`
     : '';
+  const attemptOutcomeSpecific = missDetail?.message || '';
   // WHERE A TOOL'S ATTEMPT OUTCOME IS SHOWN (PQ-022). In the tool's result
   // area, beside its own verdict, when the tool showed one for this attempt and
   // the box below would have shown the outcome at all: outcome feedback
@@ -1424,7 +1559,7 @@ function QuestionEngineBody({
     id: toolOutcomeOwner.id,
     slot: toolOutcomeSlot,
     text: attemptOutcomeText,
-    detail: attemptOutcomeFocus,
+    detail: [attemptOutcomeSpecific, attemptOutcomeFocus].filter(Boolean).join(' '),
     tone: feedback.isCorrect ? 'correct' : 'incorrect',
   } : null;
 
@@ -1705,6 +1840,9 @@ function QuestionEngineBody({
   const submitDisabled = !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab;
   const shouldShowSubmit = !missingToolDefinition && processedQuestion?.type !== 'modelingLab' && processedQuestion?.type !== 'platformQuestionError' && (processedQuestion?.type !== 'stepAlgebra' || answerState.isComplete);
   const scratchpadQuestionDetails = answerState.questionDetails || processedQuestion?.prompt || 'Show your work for this question.';
+  // "40% partial credit so far" says how much, never what for. Where outcome
+  // feedback is open, the latest graded attempt's parts say which.
+  const partialBreakdown = partialCreditBreakdown(record);
   const partialPercent = Math.max(Number(record.bestPartialCredit) || 0, Number(feedback?.partialCredit) || 0);
   const expiredAlmost = isExpired && partialPercent >= 50;
   const formulaAnchor = processedQuestion?.formulaAnchor || processedQuestion?.formulaLatex || null;
@@ -1792,9 +1930,11 @@ function QuestionEngineBody({
       title: calculatorPolicy?.available ? 'Open the calculator' : calculatorUnavailableReason,
       unavailable: !calculatorPolicy?.available,
     },
-    help: guidedCoachEnabled ? {
-      label: 'Help',
-      content: guidedCoach,
+    // Work View's Help drawer carries the same Hint panel as the work bar,
+    // with Guided Notes under it where they are on.
+    help: guidedCoachEnabled || helpControlAvailable ? {
+      label: hintState.allowed ? 'Hints' : 'Help',
+      content: <>{hintPanel}{guidedCoachEnabled ? guidedCoach : null}</>,
     } : null,
     submit: !locked && shouldShowSubmit ? {
       label: submitLabel,
@@ -1865,11 +2005,53 @@ function QuestionEngineBody({
           ? <><CalculatorIcon /><span className="mathmaster-action-label"> Calculator</span></>
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
       </button>
+      {helpControlAvailable && (
+        <button
+          type="button"
+          className="mathmaster-work-bar-tool"
+          data-hint-control=""
+          aria-expanded={hintPanelOpen}
+          aria-label={hintState.allowed ? 'Hint' : 'Ask my teacher'}
+          onClick={() => setHintPanelOpen((open) => !open)}
+          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: hintPanelOpen ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          <span aria-hidden="true">{hintState.allowed ? '💡' : '✋'}</span><span className="mathmaster-action-label">{hintState.allowed ? ' Hint' : ' Ask'}</span>
+        </button>
+      )}
       {readAloudOffered && (
         <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => { if (speakText(referenceSpeechText, readAloudLanguage)) reportSupportEvidence('text-to-speech', 'used'); }} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
       )}
     </>
   );
+
+  /*
+   * THE WORKED SOLUTION OF A CLOSED QUESTION (SolutionReviewPanel.jsx) — one
+   * panel for every question type and tool, shown once the question is closed
+   * (correct or out of attempts) and outcome feedback is open; never while it
+   * can still be answered. A closed question stays a question: the review
+   * renders outside the module's boundary, inside its own
+   * (QuestionSupplementBoundary.jsx — lmr-wu-1's review once took the whole
+   * question with it).
+   */
+  const closedReview = (isCorrect || isExpired) && feedbackOpen ? (
+    <QuestionSupplementBoundary
+      stage="solution-review"
+      context={failureContext}
+      draftKey={draftKey}
+      resetKey={supplementResetKey}
+      fallback={<p role="status" style={{ margin: '10px 0 0' }}>The worked solution for this question could not be shown here. Your answers, attempts and grade are kept exactly as they are.</p>}
+    >
+      <SolutionReviewPanel
+        question={processedQuestion}
+        isToolQuestion={isToolQuestion}
+        wasCorrect={isCorrect}
+        incorrectParts={feedback?.incorrectParts || []}
+        readAloud={supportedTextReadAloud}
+        translation={supportedTextTranslation}
+        onSupportEvidence={reportSupportedTextUse}
+      />
+    </QuestionSupplementBoundary>
+  ) : null;
 
   const questionContextPanel = (
     <div className="mathmaster-question-context-panel">
@@ -1908,7 +2090,10 @@ function QuestionEngineBody({
           </strong>
           {terminalFeedbackHidden && <span className="mathmaster-attempt-detail">Feedback opens later</span>}
           {!terminalFeedbackHidden && record.bestPartialCredit > 0 && record.status !== 'correct' && (
-            <span className="mathmaster-attempt-detail">{record.bestPartialCredit}% partial credit so far</span>
+            <span className="mathmaster-attempt-detail" data-partial-credit="">
+              {record.bestPartialCredit}% partial credit so far
+              {showOutcomeFeedback && partialBreakdown ? <span className="mathmaster-attempt-detail-breakdown"> · {partialBreakdown}</span> : null}
+            </span>
           )}
         </div>
       )}
@@ -2041,7 +2226,9 @@ function QuestionEngineBody({
         task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.', authoritative:true },
         help: workspaceActions.help || {
           label: 'Help',
-          text: 'Use the task directions and the controls in this workspace. Your mathematical work stays in place when you open or close Work View.',
+          text: locked
+            ? 'This question is closed. Your work stays in place when you open or close Work View.'
+            : 'Hints are not part of this activity. Use the task directions and the controls in this workspace; your work stays in place when you open or close Work View.',
         },
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
         // The same Support tools inside Work View, so an enlarged tool never
@@ -2068,6 +2255,14 @@ function QuestionEngineBody({
         style={{ position: 'relative' }}
       >
         {!solverWorkspaceActive && guidedCoach}
+        {/* Inside the work area, not after the question container: on a
+            phone that container is a fixed full-height box and anything after
+            it is clipped (see the Next-question note in the action bar). */}
+        {hintPanelOpen && hintPanel ? (
+          <div ref={hintPanelRef} className="mathmaster-hint-panel" style={{ margin: '0 auto 12px', maxWidth: 860, padding: '14px 16px', borderRadius: 12, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', boxShadow: '0 4px 14px rgba(26,115,232,0.10)' }}>
+            {hintPanel}
+          </div>
+        ) : null}
         {pausedByAnotherTab ? (
           <div
             role="status"
@@ -2167,7 +2362,7 @@ function QuestionEngineBody({
               boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
             }}
           >
-            {expiredAlmost ? 'Almost — review below' : 'Incorrect — review below'}
+            {expiredAlmost ? 'Almost' : 'Incorrect'}{reviewAvailable ? ' — review below' : ''}
           </div>
         )}
       </div>
@@ -2230,10 +2425,29 @@ function QuestionEngineBody({
               The red steps above are the specific responses that need revision. MathMaster moved you to the first one.
             </div>
           )}
+          {attemptOutcomeSpecific && (
+            <div data-miss-feedback={missDetail?.source || ''} style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
+              {attemptOutcomeSpecific}
+              <SupportedTextActions text={attemptOutcomeSpecific} readAloud={supportedTextReadAloud} translation={supportedTextTranslation} label="the feedback" onEvidence={reportSupportedTextUse} />
+            </div>
+          )}
           {attemptOutcomeFocus && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>{attemptOutcomeFocus}</div>
           )}
+          {!feedback.isCorrect && hintOfferedAfterMiss({ attemptNumber: Number(feedback.attemptCount) || record.attemptCount, hintsAvailable: hintState.canRevealNext, open: !locked }) && (
+            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
+              A hint is ready if you want one.{' '}
+              <button type="button" onClick={revealNextHint} style={{ marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
+            </div>
+          )}
         </div>
+      )}
+
+      {isCorrect && feedbackOpen && reviewAvailable && (
+        <details data-correct-review="" style={{ margin: '14px auto 0', maxWidth: '860px', textAlign: 'left' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 }}>See why it works</summary>
+          {closedReview}
+        </details>
       )}
 
       {isCorrect && showOutcomeFeedback && sectionComplete && (
@@ -2318,20 +2532,10 @@ function QuestionEngineBody({
               the question is closed, from the question's data, outside the
               module's boundary; lmr-wu-1's review threw there and took the
               whole question with it (QuestionSupplementBoundary.jsx). */}
-          <QuestionSupplementBoundary
-            stage="solution-review"
-            context={failureContext}
-            draftKey={draftKey}
-            resetKey={supplementResetKey}
-            fallback={<p role="status" style={{ margin: '10px 0 0' }}>The worked solution for this question could not be shown here. Your answers, attempts and grade are kept exactly as they are.</p>}
-          >
-            {missingToolDefinition
-              ? <ToolSolutionReview question={processedQuestion} />
-              : <SolutionReview question={processedQuestion} incorrectParts={feedback?.incorrectParts || []} />}
-          </QuestionSupplementBoundary>
+          {closedReview}
           {resolvedActivityPolicy?.allowReplacement && (
             <>
-              <p style={{ margin: '8px 0 14px' }}>Review the solution, then request a new problem at the same difficulty.</p>
+              <p style={{ margin: '8px 0 14px' }}>{reviewAvailable ? 'Review the solution, then request' : 'Request'} a new problem at the same difficulty.</p>
               <button type="button" onClick={handleRequestNewQuestion} disabled={requesting || assignmentLocked} style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', background: requesting || assignmentLocked ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: requesting || assignmentLocked ? 'var(--mm-disabled-text)' : '#fff', fontWeight: 'bold', cursor: requesting || assignmentLocked ? 'not-allowed' : 'pointer' }}>
                 {requesting ? 'Creating New Question…' : 'Request New Question'}
               </button>

@@ -66,6 +66,15 @@ service cloud.firestore {
           == request.auth.token.email;
     }
 
+    // "Ask my teacher" (src/platform/supports/helpRequest.js): a time and a
+    // question position, nothing else — no text a student could use to
+    // message through the teacher's monitor.
+    function presenceHelpRequestValid(data) {
+      return (!data.keys().hasAny(['helpRequestedAt']) || (data.helpRequestedAt is int && data.helpRequestedAt > 0))
+        && (!data.keys().hasAny(['helpQuestionIndex']) || (data.helpQuestionIndex is int && data.helpQuestionIndex >= 0 && data.helpQuestionIndex < 1000))
+        && !data.keys().hasAny(['helpMessage', 'helpNote', 'helpText']);
+    }
+
     function presenceCarriesNoResponse(data) {
       return !data.keys().hasAny([
         'response', 'responses', 'rawResponse', 'answer', 'answerState',
@@ -945,7 +954,8 @@ service cloud.firestore {
       // prevents one teacher client from fabricating or clearing another
       // student's live telemetry.
       allow create, update: if ownsStudent(studentId)
-        && presenceCarriesNoResponse(request.resource.data);
+        && presenceCarriesNoResponse(request.resource.data)
+        && presenceHelpRequestValid(request.resource.data);
       allow delete: if ownsStudent(studentId);
     }
 

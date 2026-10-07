@@ -378,6 +378,24 @@ test('live presence is scoped to the teacher roster and owned by the student hea
   }, { merge: true }));
 });
 
+test('"Ask my teacher" rides the student\'s own presence heartbeat: a time and a question position only', async () => {
+  const heartbeat = { studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'A1', updatedAt: Date.now() };
+  // The heartbeat rewrites the whole document (no merge), carrying the request.
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpQuestionIndex: 2 }));
+  // The teacher's monitor reads it.
+  const seen = await getDoc(doc(teacherA(), 'presence/STUDENT_A'));
+  assert.ok(seen.data().helpRequestedAt > 0);
+  // Cancelling is the next heartbeat without it.
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), heartbeat));
+  // Never a message, never a malformed value, never on another student.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpMessage: 'come here' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: 'now' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpQuestionIndex: -1 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_B'), { studentId: 'STUDENT_B', helpRequestedAt: Date.now() }));
+  // A teacher cannot raise or clear it for a student.
+  await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now() }));
+});
+
 test('Spotlight requires fresh affirmative consent and isolates the active frame', async () => {
   const requestId = `spotlight-consent-${Date.now()}`;
   const requestPath = `liveSpotlightRequests/${requestId}`;
