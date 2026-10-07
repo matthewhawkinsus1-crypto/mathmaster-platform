@@ -527,7 +527,8 @@ function QuestionEngineBody({
       surface={surface}
       itemKey={supportItemKey}
       // The work bar already carries Read aloud on the question; Work View does not.
-      includeReadAloud={surface === 'enlarged' && readAloudOffered}
+      // Without the plan support the bar has none: the tray offers it (universal design).
+      includeReadAloud={supportPresentation.textToSpeech ? surface === 'enlarged' && readAloudOffered : true}
       onEvidence={reportToolEvidence}
     />
   ) : null);

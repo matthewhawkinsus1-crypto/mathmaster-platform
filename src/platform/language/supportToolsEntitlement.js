@@ -43,37 +43,67 @@ export const TOOL_STATE = Object.freeze({
   PENDING: 'pending',
 });
 
-const NO_TOOLS = Object.freeze({ tools: Object.freeze([]), language: null });
+const NO_TOOLS = Object.freeze({ tools: Object.freeze([]), language: null, universal: Object.freeze([]) });
+
+/*
+ * UNIVERSAL DESIGN — Vocabulary and Read aloud for every student, outside
+ * assessments.
+ *
+ * A word's meaning and hearing a prompt read are not accommodations a student
+ * should need a plan to reach while learning; under WCAG and UDL they are part
+ * of an accessible lesson. So in warm-ups, classwork and practice every
+ * student is offered them. Quizzes, tests and DOLs are unchanged: there they
+ * remain what the student's plan says (a read-aloud accommodation on a test is
+ * a decision about what the test measures, and not ours to widen).
+ * Translation stays profile-based.
+ *
+ * `universal` lists the tools a student has ONLY because of this rule. They
+ * are never reported as support evidence (supportToolsModel.js): a student
+ * without a plan opening Vocabulary is not an IEP support delivered, and
+ * counting it would make the plan reports say something false.
+ */
+export const UNIVERSAL_TOOLS = Object.freeze([SUPPORT_TOOL.VOCABULARY, SUPPORT_TOOL.READ_ALOUD]);
+export const UNIVERSAL_ACTIVITY_ROLES = Object.freeze(['warmup', 'classwork', 'practice']);
+
+export const universalDesignApplies = (activityRole) => UNIVERSAL_ACTIVITY_ROLES.includes(String(activityRole || ''));
+
+const withUniversalTools = (entitled, language, activityRole) => {
+  const universal = universalDesignApplies(activityRole) ? UNIVERSAL_TOOLS.filter((tool) => !entitled.includes(tool)) : [];
+  const tools = TOOL_ORDER.filter((tool) => entitled.includes(tool) || universal.includes(tool));
+  return tools.length ? { tools, language, universal } : NO_TOOLS;
+};
 
 /**
  * Which tools the student is entitled to, from their own profile (assignment,
  * rich tool, Work View). Inclusion status implies none of them. A support the
  * profile limits to some activities ("quizzes and tests only") is offered only
  * in those (`activityRole`, as studentSupportTelemetry.js decides its launch
- * records with supportAppliesToRole).
+ * records with supportAppliesToRole). Outside assessments the universal tools
+ * are added (above); with no activity role nothing universal is assumed.
  */
 export const toolsEntitlementFromProfile = (profile, { nowValue = Date.now(), activityRole = null } = {}) => {
-  if (!profile || typeof profile !== 'object') return NO_TOOLS;
+  if (!profile || typeof profile !== 'object') return withUniversalTools([], null, activityRole);
   const flat = effectiveFlatSupportProfile(profile, { nowValue });
   const plan = activityRole ? resolveEffectiveSupportPlan(profile, { nowValue }) : null;
   const ids = new Set(flat.accommodations.filter((id) => !plan || supportAppliesToRole(plan, id, activityRole)));
   const language = translationLanguageOf(flat.translationLanguage);
-  const tools = TOOL_ORDER.filter((tool) => (tool === SUPPORT_TOOL.TRANSLATE ? Boolean(language) : ids.has(TOOL_SUPPORT_ID[tool])));
-  return tools.length ? { tools, language } : NO_TOOLS;
+  const entitled = TOOL_ORDER.filter((tool) => (tool === SUPPORT_TOOL.TRANSLATE ? Boolean(language) : ids.has(TOOL_SUPPORT_ID[tool])));
+  return withUniversalTools(entitled, language, activityRole);
 };
 
 /**
  * Which tools the student is entitled to on My Math Path, from the server's
  * applicable list (canonical support ids) — the Path client never reads a
- * profile itself.
+ * profile itself. `activityRole` (the Path item's) adds the universal tools
+ * outside assessments, exactly as on assignments.
  */
-export const toolsEntitlementFromPath = ({ applicableSupports = [], translationLanguage = null } = {}) => {
+export const toolsEntitlementFromPath = ({ applicableSupports = [], translationLanguage = null, activityRole = null } = {}) => {
   const catalogIds = new Set((Array.isArray(applicableSupports) ? applicableSupports : []).map((id) => CATALOG_ID_FOR_SUPPORT[id]).filter(Boolean));
   const language = translationLanguageOf(translationLanguage);
-  const tools = TOOL_ORDER.filter((tool) => (tool === SUPPORT_TOOL.TRANSLATE
+  const entitled = TOOL_ORDER.filter((tool) => (tool === SUPPORT_TOOL.TRANSLATE
     ? Boolean(language) && catalogIds.has('translation')
     : catalogIds.has(TOOL_SUPPORT_ID[tool])));
-  return tools.length ? { tools, language } : NO_TOOLS;
+  return withUniversalTools(entitled, language, activityRole);
 };
 
 /**
