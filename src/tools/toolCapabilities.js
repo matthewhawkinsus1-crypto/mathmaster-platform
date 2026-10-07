@@ -14,10 +14,10 @@
 // `src/platform/supports/toolSupportMatrix.js` does, over asserting it.
 
 export const TOOL_CAPABILITIES = {
-  dataModelingLab: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
-  regressionCalculator: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
-  inverseCompositionLab: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
-  functionOperationsLab: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  dataModelingLab: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  regressionCalculator: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  inverseCompositionLab: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  functionOperationsLab: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
   systemsWorkspace: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
   parabolaGeometryLab: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
   polynomialWorkshop: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
