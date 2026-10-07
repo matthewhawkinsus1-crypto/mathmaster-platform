@@ -26,7 +26,7 @@ per-tool sweep (job A's files).
 | S2 nested figure blurs focus | **fixed** | `EnlargeableFigure.jsx` (no blur when nested) | graphing2: late drop 200 ms → none |
 | S3 Scratchpad not a real modal | **fixed** | `ScratchpadOverlay.jsx` on `<Dialog>`; Dialog recovers an opener disabled while loading | opens inside, Tab stays in, Escape asks about unsaved work, focus returns to Scratchpad |
 | S4 Tab walks out of Work View | **fixed** | `EnlargeableFigure.jsx` on `useModalDialog`; the floating calculator is an allowed layer | graphing2: dialog tabbing leaked=false, Escape closes |
-| S5 controls under the action bar off the assignment screen | **fixed** | `src/index.css` scroll-padding for every host | `--host=bare`, 31 scenes: 0 hidden stops (was 17) |
+| S5 controls under the action bar off the assignment screen | open — wave 2, per host | a global `scroll-padding-bottom` fixed the bare harness (17 → 0 hidden stops) but moved the page on a Multiple Representations Undo that was already in view (`linearMultipleRepresentations.mjs` undo, PR #454), so it was reverted; each real host (Path, Live Challenge, Recovery, Rich runtime) needs its own measured fix | — |
 | S6 points movable by pointer only | **fixed** | `CoordinatePlane.jsx`: Enter picks up / arrows / Enter drops / Escape | `tests/browser/graphDescription.mjs` |
 | S7 calculator ignores Escape | open — job A (the calculator) | `src/components/CalculatorPanel.jsx` | — |
 | S8 ring for custom tab stops | **fixed** | `src/index.css` global `:focus-visible` for ARIA widgets, beats inline `outline:none` | `tests/browser/accessiblePrimitives.mjs` |

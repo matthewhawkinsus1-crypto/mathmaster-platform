@@ -107,13 +107,6 @@ test('focus returns to where it was when the Check lock lifts', () => {
   assert.match(region(hook, 'const canTakeFocusAgain', ');', 'focusable again'), /!element\.closest\?\.\('\[inert\], fieldset\[disabled\]'\)/);
 });
 
-// Keyboard sweep S5: hosts other than the assignment screen had no room
-// reserved under the sticky action bar.
-test('every question host keeps focused controls clear of the action bar', () => {
-  const css = read('src/index.css');
-  assert.match(css, /html:has\(\.mathmaster-desktop-action-bar\):not\(:has\(\.mathmaster-assignment-screen\)\) \{\s*scroll-padding-bottom: calc\(var\(--mm-action-bar-height, 72px\) \+ 18px\);/);
-});
-
 // Keyboard sweep S6: a plotted point could be moved only by pointer.
 // Browser proof: tests/browser/graphDescription.mjs ("Move a point").
 test('a movable point is picked up, carried and dropped by keyboard', () => {
