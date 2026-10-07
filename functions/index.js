@@ -94,8 +94,16 @@ const { deployProvenance, deployProvenanceLabels } = require("./lib/deployProven
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
 // requireStudent/requireTeacher/requireRootAdmin. Source-controlling this
-// prevents a redeploy from silently returning a Cloud Run service to
-// "Require authentication" before Firebase Auth can be inspected.
+// prevents a redeploy from silently returning an onRequest function's Cloud
+// Run service to "Require authentication": the CLI re-applies it every deploy.
+//
+// It does NOT reach callables. firebase-functions leaves `invoker` out of an
+// onCall endpoint, and the Firebase CLI grants a callable allUsers ->
+// roles/run.invoker once, when it creates it, never on a later deploy. A
+// callable whose grant failed at create is deployed and healthy, and every
+// browser call gets a 403 the Firebase client reports as "internal". So every
+// functions release checks and repairs callable access before Hosting ships
+// (scripts/verify-callable-access.mjs, run by scripts/release-firebase.mjs).
 //
 // Every function this codebase deploys also carries the commit it was built
 // from, as the Cloud labels mm-git-sha and mm-tree (`gcloud functions list`;
