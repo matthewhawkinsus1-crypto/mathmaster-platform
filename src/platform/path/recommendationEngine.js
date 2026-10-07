@@ -19,6 +19,13 @@
 import { getSkillGraph, describeSkill, resolveSkillAnywhere } from './skillGraph.js';
 import { TIMING, classifySkillTiming, normalizeClassPacing, resolveCoursePolicy } from './curriculumPacing.js';
 import { SEVERE_GAP_MASTERY, STRENGTH, STRENGTH_WEIGHT, canLock } from './prerequisiteStrength.js';
+import { districtUnitForSkill } from './districtUnits.js';
+import {
+  MASTERY_RULE,
+  MASTERY_STATUS,
+  classifyMasteryStatus,
+  masteryFactsFromProfile,
+} from '../../../functions/shared/masteryRule.mjs';
 
 export const STATUS = Object.freeze({
   REQUIRED: 'required',
@@ -103,6 +110,7 @@ const masteryFor = (masteryBySkill, skillId) => {
     // The shared mastery rule's verdict, when the record came through the
     // unified profiles. Absent only for hand-built records (tests, legacy).
     mastered: typeof entry.mastered === 'boolean' ? entry.mastered : null,
+    status: typeof entry.status === 'string' ? entry.status : null,
   };
 };
 
@@ -150,6 +158,13 @@ export const evaluatePrerequisites = (skill, masteryBySkill) => {
 
   const relatedSkills = reinforcement.map((entry) => entry.skillId);
 
+  // What this skill builds on that the student has already MASTERED, by the
+  // shared rule. Evidence for "why this is a good next step", never a gate:
+  // the gate is the two lists above.
+  const masteredPrerequisites = [...gating, ...supportive]
+    .filter((entry) => isMasteredState(masteryFor(masteryBySkill, entry.skillId)))
+    .map((entry) => entry.skillId);
+
   // Readiness is a weighted mean, not a plain average: a soft edge counts
   // towards how prepared the student is without being able to outvote the hard
   // ones. Edges with no evidence are omitted rather than scored as zero.
@@ -173,6 +188,7 @@ export const evaluatePrerequisites = (skill, masteryBySkill) => {
     severeGaps: severe,
     supportiveShortfall,
     relatedSkills,
+    masteredPrerequisites,
     // Scaffolding is the soft edge's job: the skill stays open, and the student
     // is offered the support that would make it go better.
     scaffoldingSuggested: supportiveShortfall.length > 0,
@@ -344,6 +360,12 @@ export const getStudentPathOptions = ({
       status,
       score,
       mastery,
+      // The evidence the decision rests on, so a screen can NAME it ("58% from
+      // 6 questions") instead of asserting a verdict. Same record as `mastery`:
+      // the unified profile's counted questions and the shared rule's status.
+      evidenceCount: state?.attempts ?? 0,
+      masteryStatus: state?.status ?? null,
+      masteredPrerequisites: prereq.masteredPrerequisites,
       prerequisiteReadiness: prereq.readiness,
       curriculumTiming: timing,
       curriculumWindow: timingInfo.window,
@@ -444,6 +466,164 @@ export const explainForStudent = (row) => {
   if (row.unscheduled) return 'Your class has not scheduled this yet, but you can work on it.';
   if (row.reasons.includes(REASON.REVIEW_WINDOW)) return 'Your class has already covered this. Strengthening it is worthwhile.';
   return 'This is a good option right now.';
+};
+
+// --- Why this one: the evidence, named -----------------------------------------
+
+export const EVIDENCE_KIND = Object.freeze({
+  TEACHER: 'teacher',
+  PREREQUISITE: 'prerequisite',
+  SCORE: 'score',
+  CLASS: 'class',
+  SUPPORT: 'support',
+  ASSIGNMENT: 'assignment',
+  BALANCE: 'balance',
+});
+
+const OPEN_STATUSES = new Set([
+  STATUS.REQUIRED, STATUS.REMEDIATION, STATUS.PRIORITY, STATUS.RECOMMENDED,
+  STATUS.AVAILABLE, STATUS.EXTENSION, STATUS.MASTERED,
+]);
+
+const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+const skillName = (skillId) => describeSkill(skillId).studentLabel || 'an earlier skill';
+const nameList = (skillIds = [], max = 2) => {
+  const names = [...new Set((Array.isArray(skillIds) ? skillIds : []).filter(Boolean))].slice(0, max).map(skillName);
+  return names.length > 1 ? `${names[0]} and ${names[1]}` : (names[0] || '');
+};
+
+// The score and the questions it rests on. From the unified mastery profile when
+// the screen holds it — the wheel and the skill card read that same object, so
+// the numbers match what the student sees there — and otherwise from the row,
+// which the engine built from that profile.
+const scoreFacts = (row, profile) => {
+  if (profile && typeof profile === 'object') {
+    const facts = masteryFactsFromProfile(profile);
+    if (facts.eligibleEvents > 0 && facts.estimate != null && Number.isFinite(Number(facts.estimate))) {
+      return { percent: Math.round(Number(facts.estimate)), count: facts.eligibleEvents, status: classifyMasteryStatus(facts) };
+    }
+  }
+  if (row?.mastery == null || !Number.isFinite(Number(row.mastery))) return null;
+  const count = Math.max(0, Number(row.evidenceCount) || 0);
+  return { percent: Math.round(clamp01(row.mastery) * 100), count: count || null, status: row.masteryStatus || null };
+};
+
+const scoreSentence = (row, facts) => {
+  if (facts.count != null && facts.count < MASTERY_RULE.minimumEvents) {
+    return `You've answered ${plural(facts.count, 'question')} on this so far.`;
+  }
+  const basis = facts.count ? ` from ${plural(facts.count, 'question')}` : '';
+  const mastered = facts.status ? facts.status === MASTERY_STATUS.MASTERED : row?.status === STATUS.MASTERED;
+  return mastered
+    ? `You've mastered this: ${facts.percent}%${basis}.`
+    : `Your score on this is ${facts.percent}%${basis}.`;
+};
+
+const classSentence = (row, unitTitle) => {
+  const reasons = Array.isArray(row?.reasons) ? row.reasons : [];
+  // The unit is named only beside a real calendar's timing. Under the
+  // provisional spread, "your class is on Module 2 now" would be a guess.
+  const unit = unitTitle && row?.calendarTiming ? ` (${unitTitle})` : '';
+  const days = (value) => Math.max(0, Number(value) || 0);
+  if (row?.status === STATUS.FUTURE) {
+    const until = days(row.calendarDaysUntilStart);
+    return until > 0
+      ? `Your class reaches this in about ${plural(until, 'day')}${unit}.`
+      : `Your class reaches this later in the course${unit}.`;
+  }
+  if (row?.calendarTiming === 'upcoming') {
+    const until = days(row.calendarDaysUntilStart);
+    return until > 0
+      ? `You're ready early — your class reaches this in ${plural(until, 'day')}${unit}.`
+      : `You're ready early — your class reaches this shortly${unit}.`;
+  }
+  if (reasons.includes(REASON.ALIGNED_CURRENT)) return `Your class is working on this now${unit}.`;
+  if (row?.reinforcementStatus) {
+    const until = days(row.calendarDaysUntilReinforcement);
+    return until > 0
+      ? `Your class covered this earlier${unit} and comes back to it in ${plural(until, 'day')}.`
+      : `Your class covered this earlier${unit} and comes back to it shortly.`;
+  }
+  if (row?.unscheduled) return 'Your class has not scheduled this yet, but you can work on it.';
+  if (reasons.includes(REASON.REVIEW_WINDOW)) return `Your class covered this earlier${unit}.`;
+  return null;
+};
+
+/**
+ * WHY THIS ONE — the evidence behind a recommendation, named.
+ *
+ * explainForStudent gives the verdict ("Your class is working on this now").
+ * This names what drove it, as facts a student can check: their score and how
+ * many questions it rests on, the class unit, what the skill builds on that
+ * they have already mastered, whether their teacher asked for it. Every item is
+ * read from the engine row — or from the unified mastery profile the row was
+ * built from — so it cannot cite evidence the decision did not use.
+ *
+ * Never a question, an answer, a TEKS code or a reason code.
+ *
+ * Returns [{ kind, text }], most important first. It restates the verdict's
+ * meaning with the evidence attached, so a screen shows it INSTEAD of the
+ * verdict sentence, never beside it.
+ */
+export const explainRecommendationEvidence = (row, masteryProfile = null, { limit = 3, unitTitle } = {}) => {
+  if (!row || typeof row !== 'object') return [];
+  const reasons = Array.isArray(row.reasons) ? row.reasons : [];
+  const mastered = Array.isArray(row.masteredPrerequisites) ? row.masteredPrerequisites : [];
+  const open = OPEN_STATUSES.has(row.status);
+  const unit = unitTitle === undefined ? (districtUnitForSkill(row.skillId)?.title || null) : unitTitle;
+  const items = [];
+  const add = (kind, text) => { if (text) items.push({ kind, text }); };
+
+  if (row.status === STATUS.REQUIRED) add(EVIDENCE_KIND.TEACHER, 'Your teacher assigned this.');
+  else if (row.teacherPriority || reasons.includes(REASON.TEACHER_PRIORITY)) add(EVIDENCE_KIND.TEACHER, 'Your teacher marked this as a priority.');
+  else if (reasons.includes(REASON.TEACHER_UNLOCK)) add(EVIDENCE_KIND.TEACHER, 'Your teacher opened this early for you.');
+
+  // What the status itself rests on, when that is a prerequisite fact.
+  if (row.status === STATUS.REMEDIATION && row.remediationTarget) {
+    add(EVIDENCE_KIND.PREREQUISITE, `It builds on ${skillName(row.remediationTarget)} — strengthening that first will make this easier.`);
+  }
+  if (row.status === STATUS.EXTENSION) {
+    add(EVIDENCE_KIND.PREREQUISITE, mastered.length
+      ? `A challenge: it builds on ${nameList(mastered)}, which you've mastered.`
+      : 'A challenge: your work on what comes before it is strong.');
+  }
+  if (row.status === STATUS.LOCKED) {
+    const target = row.remediationTarget || (Array.isArray(row.unmetPrerequisites) ? row.unmetPrerequisites[0] : null);
+    if (target) add(EVIDENCE_KIND.PREREQUISITE, `It builds on ${skillName(target)}, which needs more work first.`);
+  }
+
+  const facts = scoreFacts(row, masteryProfile);
+  const score = facts
+    ? scoreSentence(row, facts)
+    : (open && row.status !== STATUS.EXTENSION ? "You haven't practised this yet." : null);
+  const timing = classSentence(row, unit);
+  // Whichever moved the ranking leads. A low recent score is its own ranking
+  // term (learningGap); a Mastered verdict is the headline of a mastered row.
+  // Otherwise the class's position is what put the skill in front of them.
+  const scoreLeads = Number(row.scoreTerms?.learningGap) > 0
+    || (facts && (facts.status ? facts.status === MASTERY_STATUS.MASTERED : row.status === STATUS.MASTERED));
+  if (scoreLeads) {
+    add(EVIDENCE_KIND.SCORE, score);
+    add(EVIDENCE_KIND.CLASS, timing);
+  } else {
+    add(EVIDENCE_KIND.CLASS, timing);
+    add(EVIDENCE_KIND.SCORE, score);
+  }
+
+  if (open && mastered.length && ![STATUS.EXTENSION, STATUS.REMEDIATION, STATUS.MASTERED].includes(row.status)) {
+    add(EVIDENCE_KIND.PREREQUISITE, `Builds on ${nameList(mastered)}, which you've mastered.`);
+  }
+  const supportGaps = Array.isArray(row.supportingSkillGaps) ? row.supportingSkillGaps : [];
+  if (open && supportGaps.length && row.status !== STATUS.MASTERED) {
+    add(EVIDENCE_KIND.SUPPORT, `Practising ${skillName(supportGaps[0])} first would make this easier.`);
+  }
+  if (reasons.includes(REASON.ASSIGNMENT_RELEVANCE)) add(EVIDENCE_KIND.ASSIGNMENT, 'It comes up in your class assignments.');
+  if (row.status === STATUS.PRIORITY && !row.teacherPriority && reasons.includes(REASON.AVOIDED)) {
+    add(EVIDENCE_KIND.BALANCE, "You've passed over this a few times, so it has moved up your list.");
+  }
+
+  const max = Math.max(1, Number(limit) || 3);
+  return items.slice(0, max);
 };
 
 export const resolveRemediationSkill = (skillId) => resolveSkillAnywhere(skillId);

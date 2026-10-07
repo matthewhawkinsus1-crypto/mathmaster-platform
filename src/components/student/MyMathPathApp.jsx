@@ -652,6 +652,7 @@ export const MyMathPathExperience = ({
           <StudentLearningPath
             pathOptions={pathOptions}
             skillProgressByTEKS={skillProgressByTEKS}
+            masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS}
             // Availability is checked BEFORE the card is drawn, not after the
             // student clicks it. `startSession` still fails closed on top of
             // this; a student should simply never reach that path.

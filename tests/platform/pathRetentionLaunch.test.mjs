@@ -256,7 +256,10 @@ test('one retention report feeds the map, the banner and the focus card, and a f
   assert.match(region(app, 'const loadState = useCallback(async () => {', '}, [studentId, assignments]);', 'loadState'), /fetchStudentMasteryState\(studentId, \{ assignments \}\)/);
 
   const path = executableSource(read('src/components/student/StudentLearningPath.jsx'));
-  assert.match(region(path, 'const map = useMemo(', '[pathOptions, limits, isCovered, retentionDue]', 'the map memo'), /\{ retentionDue \}/);
+  const mapMemo = region(path, 'const map = useMemo(', '\n  );', 'the map memo');
+  assert.match(mapMemo, /\{ retentionDue \}/);
+  // Recomputed when the due checks change (other inputs may share the list).
+  assert.match(mapMemo, /\}\),\s*\[[^\]]*\bretentionDue\b[^\]]*\],/);
   assert.match(region(path, 'const choose = onChooseSkill ?', ') : null;', 'the card choice'), /isRetentionCheck: Boolean\(node\.isRetentionCheck\)/);
   assert.match(path, /buttonLabel: node\.actionLabel/, 'a retention card says what it starts, not a practice Level');
 

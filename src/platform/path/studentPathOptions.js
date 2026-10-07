@@ -6,24 +6,18 @@
 // adaptive brief forbids (§42), so the assembly lives here and both callers
 // pass the same result around.
 
-import { getSkillGraph, teksSkillId } from './skillGraph.js';
+import { getSkillGraph } from './skillGraph.js';
 import { DEFAULT_CLASS_PACING, normalizeClassPacing, sequenceProvider } from './curriculumPacing.js';
 import { calendarPacingProvider, toEngineTiming } from './curriculumCalendar.js';
-import { buildSkillCurriculumLinks } from '../curriculum/algebra1CurriculumCrosswalk.js';
-import ALGEBRA1_2026_2027 from '../../curriculum/calendars/algebra1-2026-2027.js';
-import { buildAlgebraIISkillCurriculumLinks } from '../curriculum/algebra2CurriculumCrosswalk.js';
-import ALGEBRA2_HONORS_2026_2027 from '../../curriculum/calendars/algebra2Honors-2026-2027.js';
+import { DISTRICT_CALENDAR_COURSES } from './districtUnits.js';
 import { getStudentPathOptions } from './recommendationEngine.js';
 import { buildMasteryBySkillForStudent, collectAssignmentSkillIds } from './masteryAdapter.js';
 
 // Courses with a real district calendar and a skill crosswalk. Anything not
-// listed falls back to the provisional even spread, and says so.
-const CALENDAR_COURSES = {
-  algebra1: { calendar: ALGEBRA1_2026_2027, links: () => buildSkillCurriculumLinks(teksSkillId) },
-  'algebra1-honors': { calendar: ALGEBRA1_2026_2027, links: () => buildSkillCurriculumLinks(teksSkillId) },
-  algebra2: { calendar: ALGEBRA2_HONORS_2026_2027, links: () => buildAlgebraIISkillCurriculumLinks(teksSkillId) },
-  'algebra2-honors': { calendar: ALGEBRA2_HONORS_2026_2027, links: () => buildAlgebraIISkillCurriculumLinks(teksSkillId) },
-};
+// listed falls back to the provisional even spread, and says so. The table
+// lives with the district units (districtUnits.js) so the unit a skill is
+// browsed under and the window that times it come from the same calendar.
+const CALENDAR_COURSES = DISTRICT_CALENDAR_COURSES;
 
 /**
  * The pacing provider for a course: the real calendar where one exists, the
