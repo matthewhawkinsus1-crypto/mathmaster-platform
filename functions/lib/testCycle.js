@@ -16,7 +16,7 @@
  */
 
 const { runtimeQuestionsFromAssignment } = require("./assignmentRuntime");
-const { assignmentGradeProgress } = require("./classroomGradeRuntime");
+const { assignmentGradeProgress, normalizeStoredQuestionRecord, questionWasAttempted } = require("./classroomGradeRuntime");
 
 let sharedModules = null;
 async function shared() {
@@ -211,10 +211,73 @@ function reviewProgress(assignment = {}, tracker = {}) {
   };
 }
 
+let skillModules = null;
+async function reviewSkillModules() {
+  if (!skillModules) {
+    const [metadata, teks] = await Promise.all([
+      import("../shared/questionMetadata.mjs"),
+      import("../shared/teksUtils.mjs"),
+    ]);
+    skillModules = { metadata, teks };
+  }
+  return skillModules;
+}
+
+/**
+ * Review progress, skill by skill — what the student's card SHOWS, never what
+ * the gate reads.
+ *
+ * `reviewProgress` above stays the one thing that unlocks the Test (the
+ * teacher's rule: answer everything, or reach the mastery bar), and its shape
+ * is unchanged. This is the view a student can use while working: for each
+ * standard the Review covers, how many questions they have answered and how
+ * many they have right — the same "attempted" the gate counts, and "correct"
+ * as the Review runtime itself showed it.
+ *
+ * A question's standard is read the way its evidence is
+ * (attemptEvidenceEvent.mjs): declared `masteryEvidenceKeys` first, then its
+ * primary standard. The blueprint target on the same standard lends its
+ * teacher-written label; otherwise the label is left null and the card names
+ * the standard in a student's words. Review questions with no standard are
+ * kept, as one unlabelled row, so the counts still add up.
+ *
+ * Nothing here comes from the secure Test, so it says nothing about a Test
+ * result the teacher has not released.
+ */
+async function reviewProgressBySkill(assignment = {}, tracker = {}, { targets = [] } = {}) {
+  const { metadata, teks } = await reviewSkillModules();
+  const canonical = (value) => {
+    const key = clean(value) ? teks.toCanonicalKey(value) : "";
+    return /^texas:./i.test(key) ? key : "";
+  };
+  const labels = new Map();
+  list(targets).forEach((target) => {
+    const key = canonical(target?.alignmentKey);
+    const label = clean(target?.label).slice(0, 160);
+    if (key && label && !labels.has(key)) labels.set(key, label);
+  });
+  const questions = runtimeQuestionsFromAssignment(assignment);
+  const bySkill = new Map();
+  roleQuestionIndices(assignment, "review").forEach((index) => {
+    const question = questions[index] || {};
+    const declared = list(question.masteryEvidenceKeys).map(canonical).find(Boolean);
+    const primary = metadata.normalizeQuestionStandards(question).primary.map((entry) => canonical(entry?.code)).find(Boolean);
+    const key = declared || primary || "";
+    const entry = bySkill.get(key) || { alignmentKey: key || null, label: labels.get(key) || null, attempted: 0, correct: 0, total: 0 };
+    const record = tracker?.[index];
+    entry.total += 1;
+    if (questionWasAttempted(record)) entry.attempted += 1;
+    if (normalizeStoredQuestionRecord(record).status === "correct") entry.correct += 1;
+    bySkill.set(key, entry);
+  });
+  return [...bySkill.values()].slice(0, 40);
+}
+
 module.exports = {
   shared,
   roleQuestionIndices,
   reviewProgress,
+  reviewProgressBySkill,
   responsesForProfile,
   secureSessionScorePercent,
   weightedSessionScorePercent,

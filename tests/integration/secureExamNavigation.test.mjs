@@ -116,6 +116,13 @@ test('a shortened practice test gets proportional time and releases automaticall
 
 test('extended time from the support profile multiplies the limit at start', async () => {
   const session = await createSimulation(EXTRA_TIME_STUDENT, 'digitalSAT', 4);
+  // Before Start, the list already says how long the student will get.
+  const listed = await fns.listStudentSecureExamSessions.run(student(EXTRA_TIME_STUDENT, {}));
+  const preview = listed.sessions.find((entry) => entry.examSessionId === session.examSessionId);
+  assert.equal(preview.timeLimitSeconds, 11 * 60);
+  assert.equal(preview.extendedTimeMultiplier, 1.5);
+  assert.equal(preview.baseTimeLimitSeconds, 7 * 60);
+  assert.equal((await readSession(session.examSessionId)).timeLimitSeconds, 7 * 60, 'listing describes the time; it changes nothing');
   const started = await fns.startSecureExamSession.run(student(EXTRA_TIME_STUDENT, { examSessionId: session.examSessionId }));
   assert.equal(started.session.baseTimeLimitSeconds, 7 * 60);
   assert.equal(started.session.extendedTimeMultiplier, 1.5);
@@ -285,6 +292,17 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   assert.equal(revisit.questionInstance.questionInstanceId, opened[1].questionInstanceId);
   await save(COURSE_STUDENT, { examSessionId, questionInstanceId: opened[1].questionInstanceId, responsePayload: { responses: { answer: certAnswerFromPrompt(opened[1].prompt) } } });
 
+  // The card tells a student with extended time what they will get; the
+  // blueprint's 45 minutes for everyone else.
+  const extraCard = await fns.getStudentTestCycle.run(student(EXTRA_TIME_STUDENT, { assignmentId: CERT_ASSIGNMENT_ID }));
+  assert.equal(extraCard.delivery.timeLimitMinutes, 68, '45 × 1.5 = 67.5, rounded up to the minute');
+  assert.equal(extraCard.delivery.baseTimeLimitMinutes, 45);
+  const plainCard = await fns.getStudentTestCycle.run(student(COURSE_STUDENT, { assignmentId: CERT_ASSIGNMENT_ID }));
+  assert.equal(plainCard.delivery.timeLimitMinutes, 45);
+  assert.equal('extendedTimeMultiplier' in plainCard.delivery, false);
+  assert.ok(plainCard.testSkills.length > 0 && plainCard.testSkills.every((skill) => skill.questionCount > 0), "the card lists what's on the test");
+  assert.doesNotMatch(JSON.stringify(plainCard.testSkills), /familyIds|seedKey|cert_family/, 'skills only — no families or seeds');
+
   // The teacher's table reads the answered count while the test is open.
   assert.equal((await readRecord(CERT_ASSIGNMENT_ID, COURSE_STUDENT)).test.answeredQuestions, 3);
   const midSession = await readSession(examSessionId);
@@ -310,6 +328,22 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   assert.ok(review.items[0].solution?.answers?.[0]?.display, 'the worked answer is released with the results');
   const plan = await readCorrectionPlan(CERT_ASSIGNMENT_ID, COURSE_STUDENT);
   assert.ok(plan?.plan?.targets?.length > 0, 'Corrections are planned from the per-question results');
+
+  // While a Retest is open the Test's worked solutions are not an open book.
+  const recordRef = db.collection('testCycleRecords').doc(`${CERT_ASSIGNMENT_ID}__${COURSE_STUDENT}`);
+  const stored2 = (await recordRef.get()).data();
+  for (const state of ['assigned', 'inProgress']) {
+    // eslint-disable-next-line no-await-in-loop
+    await recordRef.set({ ...stored2, retest: { ...(stored2.retest || {}), state, examSessionId: 'nav-retest-session' } });
+    // eslint-disable-next-line no-await-in-loop
+    const closed = await refusal(fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId })));
+    assert.equal(closed?.code, 'failed-precondition', `the Test review is closed while the Retest is ${state}`);
+    assert.match(closed.message, /finish your Retest/i);
+  }
+  await recordRef.set({ ...stored2, retest: { ...(stored2.retest || {}), state: 'submitted', examSessionId: 'nav-retest-session' } });
+  const reopened = await fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId }));
+  assert.ok(reopened.review.items.length > 0, 'and opens again once the Retest is submitted');
+  await recordRef.set(stored2);
 });
 
 test('a session written by the old linear runtime is upgraded without reopening recorded answers', async () => {

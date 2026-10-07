@@ -15846,16 +15846,37 @@ function assertExamInProgress(session) {
  * Retest — through one path. A profile that cannot be read grants nothing
  * extra rather than blocking the start.
  */
-async function secureExamTimeMultiplier(db, studentId) {
+async function secureExamTimeMultiplierFromProfile(profile, studentId = null) {
   try {
-    const snapshot = await db.collection("grades").doc(studentId).get();
-    const entitlements = await mathPath.resolveEntitlements(snapshot.exists ? snapshot.data()?.profile || null : null);
+    const entitlements = await mathPath.resolveEntitlements(profile || null);
     const multiplier = Number(entitlements?.extendedTimeMultiplier);
     return Number.isFinite(multiplier) && multiplier > 1 ? multiplier : 1;
   } catch (error) {
     console.error("secure_exam_time_accommodation_unreadable", { studentId, message: error?.message || String(error) });
     return 1;
   }
+}
+
+async function secureExamTimeMultiplier(db, studentId) {
+  const snapshot = await db.collection("grades").doc(studentId).get();
+  return secureExamTimeMultiplierFromProfile(snapshot.exists ? snapshot.data()?.profile || null : null, studentId);
+}
+
+/*
+ * The time a not-yet-started session WILL have, so the start screen and the
+ * Test Cycle card can say "includes your extended time" before the student
+ * presses Start. The server applies the same multiplier at start; this only
+ * describes it.
+ */
+function projectedSecureExamTime(session, multiplier) {
+  if (session?.status !== "not_started" || !(multiplier > 1)) return {};
+  const base = secureExam.timeLimitSecondsOf(session);
+  if (base === null) return {};
+  return {
+    baseTimeLimitSeconds: base,
+    timeLimitSeconds: secureExamNavigation.accommodatedTimeLimitSeconds(base, multiplier),
+    extendedTimeMultiplier: multiplier,
+  };
 }
 
 /** Teacher action: create a server-owned session for a rostered student. */
@@ -15957,9 +15978,16 @@ exports.startSecureExamSession = onCall(async (request) => {
 /** Student dashboard: discover only the caller's assigned secure sessions. */
 exports.listStudentSecureExamSessions = onCall(async (request) => {
   const { studentId } = requireStudent(request);
-  const snapshot = await getFirestore().collection("examSessions").where("studentId", "==", studentId).limit(50).get();
+  const db = getFirestore();
+  const [snapshot, timeMultiplier] = await Promise.all([
+    db.collection("examSessions").where("studentId", "==", studentId).limit(50).get(),
+    secureExamTimeMultiplier(db, studentId),
+  ]);
   const sessions = snapshot.docs
-    .map((docSnapshot) => secureExam.publicSession(docSnapshot.data()))
+    .map((docSnapshot) => {
+      const session = docSnapshot.data();
+      return secureExam.publicSession({ ...session, ...projectedSecureExamTime(session, timeMultiplier) });
+    })
     .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
   return { sessions };
 });
@@ -15975,6 +16003,23 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
   }
   if (session.feedbackReleased !== true) {
     throw new HttpsError("failed-precondition", "Your teacher has not released feedback for this exam yet.");
+  }
+  /*
+   * NOT AN OPEN BOOK FOR THE RETEST.
+   *
+   * A released course Test's review carries every answer and worked solution.
+   * While that student's Retest is open (assigned or under way) the review
+   * stays closed — the Retest assesses the same standards — and it opens again
+   * once the Retest is submitted. The Test Cycle card hides "Review my Test"
+   * at the same stages; this is the server holding the same line for any
+   * screen that asks.
+   */
+  if (secureExam.isCourseTestSession(session) && session.courseTest?.assignmentId && String(session.courseTest.cycleStage || "") !== "retest") {
+    const shared = await testCycleLib.shared();
+    const record = await readTestCycleRecord(getFirestore(), session.courseTest.assignmentId, studentId, shared);
+    if ([shared.record.SESSION_STATE.ASSIGNED, shared.record.SESSION_STATE.IN_PROGRESS].includes(record.retest.state) && record.retest.examSessionId) {
+      throw new HttpsError("failed-precondition", "Your Test review opens again when you finish your Retest.", { reason: "retest_open" });
+    }
   }
   const review = secureExam.publicReview(session);
   return { success: true, review };
@@ -17421,12 +17466,16 @@ exports.preflightTestCycleCandidate = onCall(async (request) => {
  * UNTIMED, and the card says so in as many words, so a student is never left
  * guessing whether a clock is running.
  */
-function testCycleDeliveryFacts(blueprint) {
-  const seconds = secureExam.timeLimitSecondsOf({ timeLimitSeconds: blueprint?.timeLimitSeconds });
+function testCycleDeliveryFacts(blueprint, { timeMultiplier = 1 } = {}) {
+  const baseSeconds = secureExam.timeLimitSecondsOf({ timeLimitSeconds: blueprint?.timeLimitSeconds });
+  // The student's own extended time, as the server will apply it at start.
+  const extended = baseSeconds !== null && timeMultiplier > 1;
+  const seconds = extended ? secureExamNavigation.accommodatedTimeLimitSeconds(baseSeconds, timeMultiplier) : baseSeconds;
   const calculatorMode = String(blueprint?.calculatorMode || "questionSpecific");
   return {
     timed: seconds !== null,
     timeLimitMinutes: seconds === null ? null : Math.round(seconds / 60),
+    ...(extended ? { baseTimeLimitMinutes: Math.round(baseSeconds / 60), extendedTimeMultiplier: timeMultiplier } : {}),
     calculatorMode,
     questionCount: Array.isArray(blueprint?.targets)
       ? blueprint.targets.reduce((sum, target) => sum + Math.max(0, Number(target?.questionCount) || 0), 0)
@@ -17500,6 +17549,12 @@ exports.getStudentTestCycle = onCall(async (request) => {
       : record.test.state === shared.record.SESSION_STATE.RELEASED
         ? record.test.examSessionId
         : null,
+    // The original Test's released session on its own, so "Review my Test"
+    // still reaches it once a released Retest has taken over the field above.
+    // The card offers it only at stages where no secure item can be answered.
+    testReviewExamSessionId: record.test.state === shared.record.SESSION_STATE.RELEASED
+      ? record.test.examSessionId
+      : null,
     grade: shared.record.testCycleGradeBreakdown(record, policy),
     corrections,
     // Everything below is question-free and score-free: what a student needs
@@ -17521,11 +17576,17 @@ exports.getStudentTestCycle = onCall(async (request) => {
       summary: state.policySummary,
       external: Boolean(policy.externalAssessment),
     },
-    delivery: testCycleDeliveryFacts(blueprint),
+    delivery: testCycleDeliveryFacts(blueprint, {
+      timeMultiplier: await secureExamTimeMultiplierFromProfile(gradeSnapshot.data()?.profile || null, studentId),
+    }),
     // "What's on this test": the skills the blueprint covers and how many
     // questions each gets — what a real test's study guide says. Never which
     // question is which, and nothing about families, seeds or answers.
     testSkills: testCycleSkillList(blueprint),
+    // The Review, skill by skill: answered and correct so far, from the same
+    // tracker the gate reads. Instruction only — nothing from the secure Test,
+    // and it does not change what unlocks it (reviewProgress does that).
+    reviewBySkill: await testCycleLib.reviewProgressBySkill(assignment, tracker, { targets: blueprint?.targets }),
   };
 });
 
