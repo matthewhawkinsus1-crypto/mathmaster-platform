@@ -44,16 +44,32 @@ export const gameTimeMultiplierFor = (supportProfile = null, { nowValue = Date.n
 export const storedTimeMultiplier = (value) => roundMultiplier(value);
 
 /**
+ * The round's full length as it was opened (`activeRoundSeconds`), before any
+ * closing threshold shortened it. 0 when the room does not say.
+ */
+export const roomFullRoundMs = (room = {}) => {
+  const seconds = Number(room?.activeRoundSeconds);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : 0;
+};
+
+/**
  * One player's own round clock: the same start, a deadline stretched by their
  * multiplier. An open-ended round, a paused round or a multiplier of 1 is the
  * room's clock unchanged.
+ *
+ * `fullDurationMs` is the round's length as opened. The closing threshold
+ * pulls the CLASS's deadline in once most of the class has answered; that
+ * must not take an accommodated student's extra time away because their
+ * classmates were quick, so their deadline is stretched from the longer of
+ * the two.
  */
-export const personalRoundTimer = (timer = {}, multiplier = 1) => {
+export const personalRoundTimer = (timer = {}, multiplier = 1, { fullDurationMs = 0 } = {}) => {
   const factor = roundMultiplier(multiplier);
   if (factor <= 1 || !timer?.startsAtMs || !timer?.endsAtMs || timer.endsAtMs <= timer.startsAtMs) return timer;
+  const baseMs = Math.max(timer.endsAtMs - timer.startsAtMs, Math.max(0, Number(fullDurationMs) || 0));
   return Object.freeze({
     ...timer,
-    endsAtMs: Math.round(timer.startsAtMs + (timer.endsAtMs - timer.startsAtMs) * factor),
+    endsAtMs: Math.round(timer.startsAtMs + baseMs * factor),
   });
 };
 
@@ -75,11 +91,13 @@ export const extendedRoundEndsAtMs = (timer = {}, maxTimeMultiplier = 1) => {
  * @param {number} input.nowMs      server time
  * @param {number} [input.graceMs]  the arrival grace a late answer still gets
  */
-export const extendedTimePendingCount = ({ timer = {}, players = [], nowMs = Date.now(), graceMs = SUBMISSION_ARRIVAL_GRACE_MS } = {}) => {
+export const extendedTimePendingCount = ({
+  timer = {}, players = [], nowMs = Date.now(), graceMs = SUBMISSION_ARRIVAL_GRACE_MS, fullDurationMs = 0,
+} = {}) => {
   if (!timer?.endsAtMs || timer?.pausedAtMs) return 0;
   return (Array.isArray(players) ? players : []).filter((player) => {
     if (player?.joined !== true || player?.finished === true) return false;
-    const personal = personalRoundTimer(timer, player.timeMultiplier);
+    const personal = personalRoundTimer(timer, player.timeMultiplier, { fullDurationMs });
     return personal.endsAtMs > timer.endsAtMs && Number(nowMs) < personal.endsAtMs + Math.max(0, Number(graceMs) || 0);
   }).length;
 };

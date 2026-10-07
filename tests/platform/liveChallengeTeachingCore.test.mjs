@@ -183,3 +183,37 @@ test('the projector shows the top few unless the teacher opted into full standin
   const create = regionOf(server, 'exports.createLiveChallenge = onCall', '\nexports.');
   assert.match(create, /standingsDisplay: engine\.privacy\.normalizeStandingsDisplay\(request\.data\?\.standingsDisplay\)/);
 });
+
+test('a closing threshold shortens the class\'s deadline, never an accommodated student\'s extra time', async () => {
+  const { roomFullRoundMs } = await import('../../functions/shared/liveChallengeAccommodations.mjs');
+  const { personalRoundClock } = await import('../../src/platform/liveChallenge/challengeShellModel.js');
+  // Opened as a 30 s round; most of the class answered, so the deadline was
+  // pulled in to 12 s. A 1.5× student keeps 45 s, not 18 s.
+  const compressed = { startsAtMs: 10_000, endsAtMs: 22_000 };
+  const room = { activeRoundSeconds: 30 };
+  assert.equal(roomFullRoundMs(room), 30_000);
+  assert.equal(personalRoundTimer(compressed, 1.5, { fullDurationMs: roomFullRoundMs(room) }).endsAtMs, 55_000);
+  assert.equal(personalRoundTimer(compressed, 1, { fullDurationMs: 30_000 }), compressed, 'everyone else keeps the shortened clock');
+  assert.equal(extendedTimePendingCount({ timer: compressed, players: [{ joined: true, finished: false, timeMultiplier: 1.5 }], nowMs: 50_000, fullDurationMs: 30_000 }), 1);
+  // The student's screen counts down to the same deadline the server judges.
+  assert.equal(personalRoundClock({ startsAtMs: 10_000, endsAtMs: 22_000, timeMultiplier: 1.5, fullDurationMs: 30_000 }).endsAtMs, 55_000);
+  // And the server passes the full length on every judgement.
+  const submit = regionOf(server, 'exports.submitLiveChallengeResponse = onCall', '\nexports.');
+  assert.equal((submit.match(/fullDurationMs: engine\.accommodations\.roomFullRoundMs\(/g) || []).length, 2);
+  const completion = regionOf(server, 'function liveChallengeRoundCompletion(', '\n}\n');
+  assert.match(completion, /fullDurationMs: engine\.accommodations\.roomFullRoundMs\(room\)/);
+});
+
+test('a student\'s board lists the same top few as the projector: never a small class\'s last place', async () => {
+  const { projectorBoardLimit } = await import('../../src/platform/liveChallenge/liveChallengeProjectorModel.js');
+  // Five players: classmates' screens list four; the fifth sees only their own row.
+  assert.equal(projectorBoardLimit({}, PUBLIC_TOP_COUNT, 5), 4);
+  assert.equal(projectorBoardLimit({ standingsDisplay: 'full' }, PUBLIC_TOP_COUNT, 5), 5);
+  const student = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8');
+  const shell = readFileSync(new URL('../../src/components/liveChallenge/ChallengeStudentShell.jsx', import.meta.url), 'utf8');
+  // Both of the student's boards take their limit from that rule…
+  assert.equal((student.match(/boardLimit=\{projectorBoardLimit\(room, PUBLIC_TOP_COUNT,/g) || []).length, 2);
+  // …and every student board uses it instead of a fixed five.
+  assert.doesNotMatch(shell, /look="student" limit=\{5\}/);
+  assert.equal((shell.match(/look="student" limit=\{boardLimit\}/g) || []).length, 3);
+});

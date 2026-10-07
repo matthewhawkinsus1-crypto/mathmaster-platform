@@ -2975,6 +2975,17 @@ exports.undoPracticePassRedemption = onCall(async (request) => {
  * Challenges — why each reward rule did or did not pay out and whether the
  * reward arrived. No listener: Refresh re-reads.
  */
+// GROWTH, EFFORT AND MASTERY REWARDS: the signed-in student's own records are
+// re-derived server-side and each award is delivered exactly once
+// (functions/lib/growthRewards.js, functions/shared/growthRewardRules.mjs).
+exports.syncStudentGrowthRewards = onCall((request) => require("./lib/growthRewards").syncStudentGrowthRewardsHandler(request));
+
+// CLASS REWARDS: a teacher's non-academic redeemables, bought with Class Points
+// (functions/lib/classRewardStore.js, functions/shared/classRewardCatalog.mjs).
+exports.saveClassRewardCatalog = onCall((request) => require("./lib/classRewardStore").saveClassRewardCatalogHandler(request));
+exports.redeemClassReward = onCall((request) => require("./lib/classRewardStore").redeemClassRewardHandler(request));
+exports.resolveClassRewardRequest = onCall((request) => require("./lib/classRewardStore").resolveClassRewardRequestHandler(request));
+
 exports.getStudentRewards = onCall(async (request) => {
   const teacher = await rewardTeacher(request);
   const store = await rewardActionStore();
@@ -10507,7 +10518,7 @@ async function graphFeatureRushRules() {
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10521,12 +10532,20 @@ async function liveChallengeEngine() {
       import("./shared/liveChallengeAccommodations.mjs"),
       import("./shared/liveChallengeDifficulty.mjs"),
       import("./shared/liveChallengePrivacy.mjs"),
+      import("./shared/liveChallengeRecognitions.mjs"),
     ]);
     liveChallengeEngineModules = {
-      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy,
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions,
     };
   }
   return liveChallengeEngineModules;
+}
+
+// The end-of-game recap and the personal-best history read (lib/liveChallengeRecap.js).
+let liveChallengeRecapModule = null;
+function liveChallengeRecap() {
+  if (!liveChallengeRecapModule) liveChallengeRecapModule = require("./lib/liveChallengeRecap");
+  return liveChallengeRecapModule;
 }
 
 // How many questions are pulled before the issuability gate runs. Every one of
@@ -11683,6 +11702,7 @@ function liveChallengeRoundCompletion(engine, room, players, nowMs = Date.now())
     timer: engine.timer.timerFromRoom(room),
     players: progress,
     nowMs,
+    fullDurationMs: engine.accommodations.roomFullRoundMs(room),
   });
   return { joinedCount, completedCount, extendedPendingCount };
 }
@@ -12069,8 +12089,19 @@ function applyLiveChallengeMatchFinalization(transaction, {
   const matchResult = engine.results.buildMatchResult({
     roomId: roomRef.id, room, privateState, players, status, finalizedAtMs: nowMs, finalizationId,
   });
+  // RECOGNITION BEYOND THE PODIUM (liveChallengeRecognitions.mjs), decided
+  // from this result in this commit, so the podium screen and the rewards
+  // effect read the same list. Aliases and player keys only. A finished match
+  // always carries the field (empty when the policy turned recognitions off):
+  // it also tells the rewards effect this match may earn recognition and
+  // personal-best rewards, which a match finished before them never does.
+  const finished = status === lifecycle.SESSION_STATUS.FINISHED;
+  const recognitions = finished && engine.rewardRules.recognitionsEnabled(engine.rewardRules.storedRewardPolicy(privateState.rewardPolicy || null))
+    ? engine.recognitions.publicRecognitions(engine.recognitions.matchRecognitions(matchResult))
+    : [];
   transaction.set(db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomRef.id), {
     ...matchResult,
+    ...(finished ? { recognitions } : {}),
     // Lets permanent student deletion find this document.
     studentIds: matchResult.standings.map((standing) => standing.studentId),
     rewardPolicy: privateState.rewardPolicy || null,
@@ -12095,6 +12126,7 @@ function applyLiveChallengeMatchFinalization(transaction, {
     roundEndsAt: null,
     pausedAt: null,
     finishedAt: FieldValue.serverTimestamp(),
+    ...(finished ? { recognitions } : {}),
   }, { merge: true });
   transaction.set(privateRef, terminal, { merge: true });
   if (pointsHere) transaction.delete(pointerRef);
@@ -12276,7 +12308,12 @@ async function writeChallengeEvidenceFromResult(db, result) {
 async function deliverLiveChallengeRewardsFromResult(db, result) {
   if (result.status !== "finished") return;
   const rewards = await liveChallengeClassPoints();
-  const delivery = await rewards.processLiveChallengeMatchRewards(db, { matchResult: result, policy: result.rewardPolicy || null });
+  // Who set a personal best, from results finalized BEFORE this one — the
+  // same answer on every retry. Empty for a result from before personal bests.
+  const personalBestStudentIds = await liveChallengeRecap().personalBestStudentIds(db, result);
+  const delivery = await rewards.processLiveChallengeMatchRewards(db, {
+    matchResult: result, policy: result.rewardPolicy || null, personalBestStudentIds,
+  });
   // A match whose rewards were skipped as a whole (an archived class, a class
   // with no teacher of record) writes no award job, so without this the
   // teacher's reward diagnostics could not say why nobody was rewarded.
@@ -13065,6 +13102,23 @@ exports.publishLiveChallengeStandings = onCall(async (request) => {
 });
 
 /*
+ * THE END-OF-GAME RECAP (lib/liveChallengeRecap.js): a student's own rounds
+ * with their worked solutions, their private personal bests and the
+ * recognitions they earned — for a FINISHED match they were in, and nothing
+ * about anyone else.
+ */
+exports.getLiveChallengeMatchRecap = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId || roomId.length > 200 || roomId.includes("/")) throw new HttpsError("invalid-argument", "roomId is required.");
+  return liveChallengeRecap().buildLiveChallengeMatchRecap(getFirestore(), {
+    roomId,
+    studentId,
+    fail: (code, message) => new HttpsError(code, message),
+  });
+});
+
+/*
  * A FINISHED ROOM'S FINAL STANDINGS, REBUILT FROM ITS MATCH RESULT IF MISSING.
  *
  * The finishing transaction writes the final snapshot. A room that finished
@@ -13461,7 +13515,9 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   // A student with extended time answers against their own deadline
   // (liveChallengeAccommodations.mjs); everyone else against the room's.
   const initialArrival = roundTimer.timerAcceptsArrival(
-    engine.accommodations.personalRoundTimer(roundTimer.timerFromRoom(room), currentPlayer.timeMultiplier),
+    engine.accommodations.personalRoundTimer(roundTimer.timerFromRoom(room), currentPlayer.timeMultiplier, {
+      fullDurationMs: engine.accommodations.roomFullRoundMs(room),
+    }),
     requestArrivedAt,
   );
   if (!initialArrival.accepted) throw liveChallengeArrivalRefusal(initialArrival);
@@ -13517,7 +13573,9 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const latestStartsAtMs = latestTimer.startsAtMs || 0;
     const nowMs = Date.now();
     const arrival = roundTimer.timerAcceptsArrival(
-      engine.accommodations.personalRoundTimer(latestTimer, player.timeMultiplier),
+      engine.accommodations.personalRoundTimer(latestTimer, player.timeMultiplier, {
+        fullDurationMs: engine.accommodations.roomFullRoundMs(latestRoom),
+      }),
       requestArrivedAt,
     );
     if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
