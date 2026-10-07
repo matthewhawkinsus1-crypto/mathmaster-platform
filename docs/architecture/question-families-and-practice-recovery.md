@@ -137,6 +137,22 @@ tries both walks), and every pin replays from its `resolvedIndex` exactly.
 Shared sections deliberately give everyone seat 0 and say so
 (`basis: 'shared'`).
 
+Recovery is the exception to that reconstruction. Its Practice items, its
+assessment and a teacher's replacement questions pass the student's whole
+history — every version shown, every Practice and Recovery item — as
+`excludeFingerprints` with `historyIsComplete: true`, and the walk then skips
+exactly what was seen. Reconstructing earlier variants on top of that history
+replayed each one against the longer list, so it landed on versions the
+student had NOT seen, and excluding those hid the rest of the family: the
+Multiple Representations DOL (35 versions) ran out of Recovery Practice after
+about 15 questions, and a small Warm-Up family often could not build its
+three Recovery questions. Pins keep their shape (`index` is still
+`seat + variant × stride`, which the server's ownership check reads) and
+replay exactly, so pins dealt before the change still verify.
+`tests/platform/recoveryPracticeSupply.test.mjs` practises a student through
+the server action until Practice runs out and requires that every unseen
+version was dealt.
+
 **Delivery pins.** Every family delivery carries a pin: family id and version,
 slot, variant, index, seat, stride, basis and fingerprint. It is resolved in
 this order:
