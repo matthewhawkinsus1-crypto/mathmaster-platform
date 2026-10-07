@@ -74,3 +74,16 @@ test('without the plan support the assignment tray carries Read aloud itself', (
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   assert.match(engine, /includeReadAloud=\{supportPresentation\.textToSpeech \? surface === 'enlarged' && readAloudOffered : true\}/);
 });
+
+// PR #454 (stagedQuestion, graphPointCheck): a universal-only tray above the
+// work pushed a Chromebook's first step off screen and, loading late, moved the
+// plane under the student's first tap. On a laptop it now follows the work; on
+// a phone it stays in the task panel (beside the work in landscape).
+test('a universal-only tray follows the work on a laptop and never moves it', () => {
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(engine, /supportTrayAfterWork=\{languageTools\.tools\.length > 0 && \(languageTools\.universal\?\.length \|\| 0\) === languageTools\.tools\.length\}/);
+  const container = executableSource(read('src/components/student/MobileViewportContainer.jsx'));
+  assert.match(container, /\{!workspaceActive && supportTray && !supportTrayAfterWork && <div className="mathmaster-question-support-tray">/, 'not above the work on a laptop');
+  assert.match(region(container, '<main className="math-tool-workspace">', '</main>\n', 'the workspace') + container.slice(container.indexOf('</main>\n'), container.indexOf('</main>\n') + 200),
+    /<\/main>\s*\{supportTray && supportTrayAfterWork && !isMobile && <div className="mathmaster-question-support-tray mathmaster-question-support-tray--after">/, 'after it instead');
+});

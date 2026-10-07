@@ -2040,6 +2040,7 @@ function QuestionEngineBody({
         taskContextPanel={questionReferencePanel}
         contextPanel={solverWorkspaceActive ? null : questionContextPanel}
         supportTray={supportTrayFor('assignment')}
+        supportTrayAfterWork={languageTools.tools.length > 0 && (languageTools.universal?.length || 0) === languageTools.tools.length}
         workspaceMode={solverWorkspaceMode}
         workBar={questionWorkBar}
         toolWorkspace={(

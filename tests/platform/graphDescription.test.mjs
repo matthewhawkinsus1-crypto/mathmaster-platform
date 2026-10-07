@@ -210,6 +210,7 @@ test('the plane svg is described by the generated (or authored) summary paragrap
   assert.match(openTag, /role=\{interactive \? 'application' : 'img'\}/);
   assert.match(openTag, /aria-describedby=\{descriptionId\}/, 'both the img and the application plane carry the description');
   const paragraph = planeCode.match(/<p id=\{descriptionId\}[^>]*>\{spokenDescription\}<\/p>/);
+  assert.match(paragraph?.[0] || '', /style=\{SR_ONLY_STYLE\}/, 'hidden even where no UI kit CSS is loaded');
   assert.ok(paragraph, 'the described-by target holds the spoken description');
   assert.match(paragraph[0], /className="mm-sr-only"/, 'visually hidden, not removed');
   // Kept out of browse mode (no second reading), except inside a card control

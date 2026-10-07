@@ -8,6 +8,7 @@ import { useHasParentWorkView, usePublishWorkViewCapabilities } from '../../plat
 import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js';
 import { describeCoordinatePlane } from '../../platform/language/graphDescription.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
@@ -795,7 +796,10 @@ export default function CoordinatePlane({
           time as a loose paragraph after the image. Inside a card that is
           itself a control, it stays exposed: there it is part of the card's
           name, which is how the student tells the cards apart. */}
-      <p id={descriptionId} className="mm-sr-only" aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
+      {/* Inline as well as the class: a host that loads no UI kit CSS must not
+          show the description as a visible paragraph (it pushed a staged
+          question's first step off a phone screen, PR #454). */}
+      <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
 
       {showDataTable ? (
         <div className="mathmaster-plane-data" style={{ margin: '6px 0 0', textAlign: 'left' }}>
