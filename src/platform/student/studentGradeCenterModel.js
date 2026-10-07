@@ -144,6 +144,66 @@ export const EXCLUSION_REASON_TEXT = Object.freeze({
 });
 
 /*
+ * AN ASSIGNMENT-LEVEL TEACHER GRADE: THE ONE STUDENT-VISIBLE REASON.
+ *
+ * grades/{sid}.teacherGradeOverridesByAssignment[aid].__assignment is written
+ * by the server's integrity action (functions/index.js, scope "assignment")
+ * with a fixed reasonCode. A student sees only the fixed label for that code
+ * (the same map as ASSIGNMENT_ZERO_REASONS, asserted equal by
+ * tests/platform/studentGradeCenterTeacherGrade.test.mjs) — never the note,
+ * never who set it. An unknown code shows no reason at all.
+ */
+export const ASSIGNMENT_ZERO_REASON_LABELS = Object.freeze({
+  cellPhoneUse: 'Prohibited cellphone use',
+  academicDishonesty: 'Unauthorized assistance / cheating',
+  accountSwitching: 'Account or laptop switching',
+});
+
+export const teacherGradeReasonLabel = (override) => {
+  const code = clean(override?.reasonCode);
+  return Object.prototype.hasOwnProperty.call(ASSIGNMENT_ZERO_REASON_LABELS, code)
+    ? ASSIGNMENT_ZERO_REASON_LABELS[code]
+    : null;
+};
+
+const teacherGradeText = (reasonLabel) => (
+  `${reasonLabel ? `Grade set by your teacher: ${reasonLabel}.` : 'Grade set by your teacher.'} More work on this assignment won't change it.`
+);
+
+/*
+ * The teacher's score replaces the whole grade, exactly as
+ * canonicalPresentedAssignmentGrade (gradebook, Classroom) and
+ * canonicalPresentedSectionGrade (Grade Transfer) read it: every real section
+ * carries the same score, and the assignment's points are earned at that
+ * percent of what it is worth, so the period average reconciles with it.
+ */
+const overriddenOverall = (overall, score) => {
+  const total = Number(overall?.total) || 0;
+  return {
+    ...overall,
+    score,
+    attempted: total,
+    unanswered: 0,
+    creditOnAttempted: score,
+    shape: total > 0 ? 'complete' : overall?.shape,
+  };
+};
+
+const overriddenWeights = (weights, score, possibleFallback = 0) => {
+  const possible = Number(weights?.possibleWeight) > 0 ? Number(weights.possibleWeight) : possibleFallback;
+  return { ...weights, possibleWeight: possible, earnedWeight: (possible * score) / 100, score };
+};
+
+const overriddenSections = (sections, score) => Object.fromEntries(
+  Object.entries(sections || {}).map(([key, split]) => [
+    key,
+    Number(split?.total) > 0 && split?.excused !== true
+      ? { ...split, score, attempted: split.total, unanswered: 0, creditOnAttempted: score }
+      : split,
+  ]),
+);
+
+/*
  * EXCUSED AND REOPENED ARE READ, NEVER INFERRED.
  *
  * "Excused" changes what a grade means and "reopened" changes what a student is
@@ -247,6 +307,9 @@ export const summarizeGradeEntries = (entries = []) => {
   let missing = 0;
   let pending = 0;
   let excused = 0;
+  // Closed with nothing recorded (Practice Only). Named apart from "not
+  // started", because closed work is not waiting to be started.
+  let closed = 0;
   // Counted work that is still open and unfinished: it is in the average at
   // the score it holds right now, and "How this grade is figured" names it so
   // a student knows that number can still move.
@@ -256,6 +319,7 @@ export const summarizeGradeEntries = (entries = []) => {
     if (entry.status === GRADE_STATUS.MISSING) missing += 1;
     if (entry.status === GRADE_STATUS.PENDING_GRADE) pending += 1;
     if (entry.status === GRADE_STATUS.EXCUSED) excused += 1;
+    if (entry.status === GRADE_STATUS.PRACTICE_ONLY) closed += 1;
     if (!entry.countsTowardPeriodGrade) return;
     graded += 1;
     earnedWeight += Number(entry.weights?.earnedWeight) || 0;
@@ -274,10 +338,12 @@ export const summarizeGradeEntries = (entries = []) => {
     missing,
     pending,
     excused,
+    closed,
     inProgress,
     // Everything else that is not in the average: not started, not open yet,
-    // closed with nothing recorded, or nothing gradeable. Never a zero.
-    notCountedOther: Math.max(0, total - graded - missing - pending - excused),
+    // or nothing gradeable. Not a zero in THIS average — Google Classroom is a
+    // different record (see describeGradeMath).
+    notCountedOther: Math.max(0, total - graded - missing - pending - excused - closed),
     total,
   };
 };
@@ -312,11 +378,18 @@ export const describeGradeMath = (summary = {}) => {
     [summary?.missing, 'missing'],
     [summary?.pending, 'waiting on your teacher'],
     [summary?.excused, 'excused'],
+    [summary?.closed, 'closed with no work recorded'],
     [summary?.notCountedOther, 'not started or not open yet'],
   ].filter(([count]) => Number(count) > 0)
     .map(([count, label]) => `${count} ${label}`);
   if (notCounted.length) {
-    lines.push(`Not counted in this grade: ${notCounted.join(', ')}. None of these count as a zero.`);
+    /*
+     * True for THIS average only. After the due date the server's Classroom
+     * passback (functions/lib/classroomGradeRuntime.js due-checkpoint /
+     * final-deadline) posts unfinished work, so Classroom can show missing
+     * work as 0 even though MathMaster leaves it out of this number.
+     */
+    lines.push(`Not counted in this grade: ${notCounted.join(', ')}. These aren't in this MathMaster average, but after the due date Google Classroom may record missing work as 0.`);
   }
   return {
     headline,
@@ -536,8 +609,11 @@ export const buildStudentGradeCenter = ({
     const excused = assignmentIsExcusedForStudent(assignment, studentId);
     const reopened = assignmentIsReopenedForStudent(assignment, studentId);
     const feedbackHeld = !lifecycle.isPracticeOnly && assignmentHasHeldTeacherFeedback(assignment) === true;
+    // An active assignment-level teacher grade (an integrity zero) decides the
+    // whole grade, as it does for the gradebook, Classroom and Grade Transfer.
+    const gradeOverride = assignmentGradeOverrideFor({ teacherGradeOverridesByAssignment }, assignment.id);
     const recoveryHeld = Object.keys(heldSectionRecoveries(sectionRecoveryByAssignment?.[assignment.id])).length > 0
-      && !assignmentGradeOverrideFor({ teacherGradeOverridesByAssignment }, assignment.id);
+      && !gradeOverride;
     const access = prerequisiteAccess
       ? prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue })
       : { open: true, reason: null };
@@ -574,7 +650,7 @@ export const buildStudentGradeCenter = ({
       'retest', 'retestSubmitted', 'complete', 'retestClosed',
     ];
     const cycleAttempted = cycleRecorded !== null || cycleEvidenceStages.includes(cycleStage);
-    const effectiveOverall = testCycle
+    const cycleOverall = testCycle
       ? {
         score: cycleRecorded,
         attempted: cycleAttempted ? 1 : 0,
@@ -584,16 +660,24 @@ export const buildStudentGradeCenter = ({
         shape: cycleRecorded === null ? (cycleAttempted ? 'incomplete' : 'notStarted') : 'complete',
       }
       : overall;
+    const effectiveOverall = gradeOverride ? overriddenOverall(cycleOverall, gradeOverride.score) : cycleOverall;
     // One assessment's worth of weight, so a Test Cycle carries the same
     // influence on a period average as any other single assessment grade.
-    const effectiveWeights = testCycle
+    const cycleWeights = testCycle
       ? {
         possibleWeight: cycleRecorded === null ? 0 : 100,
         earnedWeight: cycleRecorded === null ? 0 : cycleRecorded,
         score: cycleRecorded,
       }
       : weights;
-    const cycleFeedbackHeld = Boolean(testCycle) && cycleRecorded === null;
+    const effectiveWeights = gradeOverride
+      ? overriddenWeights(cycleWeights, gradeOverride.score, testCycle ? 100 : 0)
+      : cycleWeights;
+    // The teacher's grade is recorded, so an unreleased Test is not a hold.
+    const cycleFeedbackHeld = Boolean(testCycle) && cycleRecorded === null && !gradeOverride;
+    const teacherGrade = gradeOverride
+      ? { score: gradeOverride.score, reasonLabel: teacherGradeReasonLabel(gradeOverride) }
+      : null;
 
     const status = resolveGradeStatus({
       overall: effectiveOverall,
@@ -601,7 +685,9 @@ export const buildStudentGradeCenter = ({
       // A held Recovery is a grade waiting on the teacher, like held feedback.
       feedbackHeld: feedbackHeld || cycleFeedbackHeld || recoveryHeld,
       excused,
-      reopened,
+      // Reopening lets a student work again; it cannot move a grade the
+      // teacher has set for the whole assignment.
+      reopened: reopened && !gradeOverride,
       locked,
     });
     const counted = gradeCountsTowardPeriod({ status, overall: effectiveOverall, weights: effectiveWeights });
@@ -620,7 +706,7 @@ export const buildStudentGradeCenter = ({
       ...studentDueDates(assignment, lifecycle),
       lifecycle,
       overall: effectiveOverall,
-      sections,
+      sections: gradeOverride ? overriddenSections(sections, gradeOverride.score) : sections,
       weights: effectiveWeights,
       // The Test Cycle breakdown a student and a teacher both read: original
       // Test, corrections state, raw retest, the cap, and the recorded grade.
@@ -633,6 +719,10 @@ export const buildStudentGradeCenter = ({
       countsTowardPeriodGrade: counts,
       exclusionReason: reason,
       exclusionText: reason ? EXCLUSION_REASON_TEXT[reason] : null,
+      // { score, reasonLabel } when an assignment-level teacher grade decides
+      // this row, with the one line the row prints (fixed label only).
+      teacherGrade,
+      teacherGradeText: teacherGrade ? teacherGradeText(teacherGrade.reasonLabel) : null,
       feedbackHeld: feedbackHeld || cycleFeedbackHeld,
       recoveryHeld,
       excused,
@@ -654,10 +744,13 @@ export const buildStudentGradeCenter = ({
       reviewAvailable: Number(effectiveOverall.attempted) > 0,
       // The row's buttons (Start/Continue, View Results, Try it again — no
       // credit), decided once here.
-      actions: resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }),
+      // A teacher-set grade offers results only: no work can change it.
+      actions: gradeOverride
+        ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null }
+        : resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }),
       // Each section's share of this assignment's grade, or null when the
       // shares would not add up to the grade shown.
-      sectionShares: testCycle ? null : sectionWeightShares({
+      sectionShares: testCycle || gradeOverride ? null : sectionWeightShares({
         assignment, tracker: assignmentTracker, practicePassRedeemed, supportProfile, weights,
       }),
       // The server-written Test Cycle stage, so "Ways to raise your grade" can

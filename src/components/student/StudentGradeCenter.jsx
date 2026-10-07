@@ -171,27 +171,40 @@ function WaysToRaise({ ways, onWayAction }) {
         </p>
       ) : (
         <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 8 }}>
-          {ways.map((way) => (
-            <li key={way.id || `${way.kind}:${way.assignmentId}`} style={{ minWidth: 0 }}>
-              <button
-                type="button"
-                data-way-kind={way.kind}
-                onClick={() => onWayAction?.(way)}
-                style={{
-                  appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap',
-                  width: '100%', minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 12px', borderRadius: 10,
-                  border: '1px solid var(--mm-border)',
-                  borderLeft: `4px solid ${way.urgency === 'high' ? 'var(--mm-warning-text)' : 'var(--mm-primary-text)'}`,
-                  background: way.urgency === 'high' ? 'var(--mm-warning-soft)' : 'var(--mm-surface-sunken)',
-                  color: 'var(--mm-text)', cursor: 'pointer', textAlign: 'left',
-                }}
-              >
-                <span style={{ flex: '1 1 200px', minWidth: 0, fontSize: 14, fontWeight: 700, overflowWrap: 'anywhere' }}>{way.text}</span>
-                <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-primary-text)', whiteSpace: 'nowrap' }}>{way.actionLabel} →</span>
-              </button>
-            </li>
-          ))}
+          {ways.map((way) => {
+            const rowStyle = {
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap',
+              width: '100%', minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 12px', borderRadius: 10,
+              border: '1px solid var(--mm-border)',
+              borderLeft: `4px solid ${way.urgency === 'high' ? 'var(--mm-warning-text)' : 'var(--mm-primary-text)'}`,
+              background: way.urgency === 'high' ? 'var(--mm-warning-soft)' : 'var(--mm-surface-sunken)',
+              color: 'var(--mm-text)', textAlign: 'left', boxSizing: 'border-box',
+            };
+            const text = <span style={{ flex: '1 1 200px', minWidth: 0, fontSize: 14, fontWeight: 700, overflowWrap: 'anywhere' }}>{way.text}</span>;
+            return (
+              <li key={way.id || `${way.kind}:${way.assignmentId}`} style={{ minWidth: 0 }}>
+                {/*
+                  Open overall, nothing workable this minute (a locked section,
+                  a Warm-Up/DOL outside its window): no button to press, so a
+                  tap can never land on a screen with nothing to do. The text
+                  already carries the wait line.
+                */}
+                {way.action === 'none' ? (
+                  <div data-way-kind={way.kind} data-way-waiting style={rowStyle}>{text}</div>
+                ) : (
+                  <button
+                    type="button"
+                    data-way-kind={way.kind}
+                    onClick={() => onWayAction?.(way)}
+                    style={{ appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit', cursor: 'pointer', ...rowStyle }}
+                  >
+                    {text}
+                    <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-primary-text)', whiteSpace: 'nowrap' }}>{way.actionLabel} →</span>
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
@@ -242,6 +255,14 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
 
       {actions.waitText && (
         <p data-wait-line style={{ margin: '10px 0 0', fontSize: 13, fontWeight: 800, color: 'var(--mm-text)' }}>{actions.waitText}</p>
+      )}
+
+      {/*
+        An assignment-level teacher grade (an integrity zero): the fixed reason
+        label only, from the model — never the teacher's note or name.
+      */}
+      {entry.teacherGradeText && (
+        <p data-teacher-grade style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5, fontWeight: 800, color: 'var(--mm-text)' }}>{entry.teacherGradeText}</p>
       )}
 
       {entry.exclusionText && (
@@ -398,7 +419,7 @@ export default function StudentGradeCenter({
         <PeriodSummary
           courseLabel={courseLabel}
           periodLabel={currentPeriod?.label || ''}
-          summary={currentSummary || { score: null, graded: 0, missing: 0, pending: 0, excused: 0, inProgress: [], notCountedOther: 0 }}
+          summary={currentSummary || { score: null, graded: 0, missing: 0, pending: 0, excused: 0, closed: 0, inProgress: [], notCountedOther: 0 }}
           hidden={hidden}
           onToggleHidden={() => setHidden((current) => !current)}
         />

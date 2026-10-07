@@ -1524,18 +1524,6 @@ function App() {
     nowMs: now,
   }), [studentClassPoints.grants, studentClassPoints.redemptions, studentClassPoints.account, studentClassPoints.unavailable, now]);
 
-  // "Ways to raise your grade" (platform/student/waysToRaiseModel.js): missing
-  // work, late windows, Test Cycle corrections/retests, Recoveries and Practice
-  // Passes, from the models already built above. Grades lists them; Home
-  // shows their count.
-  const studentWaysToRaise = useMemo(() => (studentGradeCenter ? buildWaysToRaise({
-    gradeCenter: studentGradeCenter,
-    recoverySummariesByAssignment: studentRecoverySummariesByAssignment,
-    // Only offered to a student who holds a Practice Pass to use.
-    practicePassEligibleAssignmentIds: studentRewardWallet?.practicePasses?.count > 0 ? studentPracticePassEligibleAssignments : [],
-    nowValue: now,
-  }) : []), [studentGradeCenter, studentRecoverySummariesByAssignment, studentPracticePassEligibleAssignments, studentRewardWallet, now]);
-
   // "New" lasts for one visit to My Rewards: leaving it clears the marks.
   const previousStudentModeRef = useRef(null);
   useEffect(() => {
@@ -12977,6 +12965,26 @@ function App() {
     studentUpNextCacheRef.current = { inputs, dashboard };
     return dashboard;
   }
+  // The one "Today" map Grades rows and "Ways to raise" both read.
+  // eslint-disable-next-line no-inner-declarations
+  function studentTodayByAssignment() {
+    return Object.fromEntries((studentUpNextDashboard()?.allEntries || []).map((entry) => [entry.assignment.id, entry]));
+  }
+  // "Ways to raise your grade" (platform/student/waysToRaiseModel.js): missing
+  // work, late windows, Test Cycle corrections/retests, Recoveries and Practice
+  // Passes — filtered by the Today rule so it never promises a Start the
+  // student cannot take. Grades lists them; Home shows their count.
+  // eslint-disable-next-line no-inner-declarations
+  function studentWaysToRaiseNow() {
+    return studentGradeCenter ? buildWaysToRaise({
+      gradeCenter: studentGradeCenter,
+      recoverySummariesByAssignment: studentRecoverySummariesByAssignment,
+      // Only offered to a student who holds a Practice Pass to use.
+      practicePassEligibleAssignmentIds: studentRewardWallet?.practicePasses?.count > 0 ? studentPracticePassEligibleAssignments : [],
+      todayByAssignment: studentTodayByAssignment(),
+      nowValue: now,
+    }) : [];
+  }
   const studentDashboard = user.role === 'student' && activeView === 'dashboard'
     ? buildStudentDashboardNow()
     : null;
@@ -13091,13 +13099,16 @@ function App() {
             onStart={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0)}
             // The Today rule per row: no Start on work that cannot be done
             // now, Open Recovery, and Start lands on the next question.
-            todayByAssignment={Object.fromEntries((studentUpNextDashboard()?.allEntries || []).map((entry) => [entry.assignment.id, entry]))}
-            waysToRaise={studentWaysToRaise}
+            // The Today rule per row: no Start on work that cannot be done
+            // now, Open Recovery, and Start lands on the next question.
+            todayByAssignment={studentTodayByAssignment()}
+            waysToRaise={studentWaysToRaiseNow()}
             onWayAction={(way) => {
+              if (way.action === 'none') return undefined; // waiting: nothing to open
               if (way.action === 'openResult') return openStudentAssignmentResult(way.assignmentId, { origin: 'grades' });
               if (way.action === 'openRewards') return openStudentDashboardMode('rewards');
-              // 'start' and 'openTestCycle' (startAssignment opens the cycle card).
-              return startAssignment(way.assignmentId);
+              if (way.action === 'start') return startAssignment(way.assignmentId, way.questionIndex ?? 0);
+              return startAssignment(way.assignmentId); // 'openTestCycle' (startAssignment opens the cycle card)
             }}
             whatChangedPanel={renderWhatChangedPanel(false)}
           />
@@ -13180,7 +13191,7 @@ function App() {
           online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
         })}
         whatChangedPanel={renderWhatChangedPanel(true)}
-        waysToRaise={{ count: countWaysToRaise(studentWaysToRaise) }}
+        waysToRaise={{ count: countWaysToRaise(studentWaysToRaiseNow()) }}
         supportPresentation={supportPresentation}
         classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
         onStartAssignment={startAssignment}

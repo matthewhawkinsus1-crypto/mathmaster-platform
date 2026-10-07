@@ -123,9 +123,13 @@ test('missing, pending and excused work are named as not counted, with counts', 
   assert.equal(summary.excused, 1);
   // locked + not started; nothing else is left out.
   assert.equal(summary.notCountedOther, 2);
-  assert.equal(summary.graded + summary.missing + summary.pending + summary.excused + summary.notCountedOther, summary.total);
+  // Nothing in this fixture closed with no work recorded.
+  assert.equal(summary.closed, 0);
+  assert.equal(summary.graded + summary.missing + summary.pending + summary.excused + summary.closed + summary.notCountedOther, summary.total);
   const line = describeGradeMath(summary).lines.find((text) => text.startsWith('Not counted'));
-  assert.equal(line, 'Not counted in this grade: 1 missing, 1 waiting on your teacher, 1 excused, 2 not started or not open yet. None of these count as a zero.');
+  // Left out of the MathMaster average — but not "never a zero": after the due
+  // date Classroom can record missing work as 0 (studentGradeCenterTeacherGrade).
+  assert.equal(line, 'Not counted in this grade: 1 missing, 1 waiting on your teacher, 1 excused, 2 not started or not open yet. These aren\'t in this MathMaster average, but after the due date Google Classroom may record missing work as 0.');
 });
 
 test('with nothing counted the explanation says so instead of inventing 0 of 0', () => {

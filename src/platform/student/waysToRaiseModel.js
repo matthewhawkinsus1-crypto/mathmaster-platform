@@ -41,6 +41,9 @@ export const WAY_ACTION = Object.freeze({
   OPEN_RESULT: 'openResult',
   OPEN_REWARDS: 'openRewards',
   OPEN_TEST_CYCLE: 'openTestCycle',
+  // Nothing to press yet: the work is open overall but nothing in it can be
+  // done this minute. The row carries the wait line instead of a button.
+  NONE: 'none',
 });
 
 export const WAY_URGENCY = Object.freeze({ HIGH: 'high', MEDIUM: 'medium', LOW: 'low' });
@@ -57,8 +60,14 @@ const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
 const possessive = (title) => (/s$/i.test(title) ? `${title}'` : `${title}'s`);
 
-/** Can anything the student does still change this assignment's grade? */
+/**
+ * Can anything the student does still change this assignment's grade?
+ *
+ * Not when an assignment-level teacher grade (an integrity zero) decides it:
+ * the gradebook and Classroom read that score whatever else is finished.
+ */
 export const entryCanStillRise = (entry) => Boolean(entry)
+  && !entry.teacherGrade
   && entry.excused !== true
   && entry.frozen !== true
   && entry.lifecycle?.isPracticeOnly !== true
@@ -123,6 +132,22 @@ export const buildWaysToRaise = ({
   recoverySummariesByAssignment = {},
   practicePassEligibleAssignmentIds = [],
   testCycleStages = {},
+  /*
+   * OPTIONAL { [assignmentId]: dashboard entry } — the same map the Grade
+   * Center rows get (applyTodayToGradeActions): actionable, action, waitText,
+   * nextQuestionIndex, finished, excused. A lesson open overall can still
+   * have nothing workable now (a teacher-locked section, a Warm-Up or DOL
+   * outside its window), or nothing left at all. With an entry:
+   *
+   *   finished / excused       no missing or late way at all
+   *   open Recovery            no Start way (the Recovery way opens it)
+   *   not actionable now       the way stays, with NO action: its text
+   *                            carries the entry's wait line
+   *   actionable               Start/Continue, landing on nextQuestionIndex
+   *
+   * Without one, the dates alone decide, as before.
+   */
+  todayByAssignment = null,
   nowValue = Date.now(),
   formatDate = formatDateTime,
 } = {}) => {
@@ -137,20 +162,41 @@ export const buildWaysToRaise = ({
     ways.push({ id, ...way });
   };
   const dateOf = (entry) => formatDate(entry.lateDueAt || entry.dueAt);
+  // A Test Cycle's card owns its stages, as in applyTodayToGradeActions.
+  const todayOf = (entry) => {
+    const today = todayByAssignment?.[entry.assignmentId] || null;
+    return today && !today.testCycle ? today : null;
+  };
+  const nothingLeft = (today) => Boolean(today) && (today.finished === true || today.excused === true
+    || (today.actionable === true && today.action === 'recovery'));
+  // What pressing the way does: Start/Continue landing where Home would, or —
+  // when nothing is workable this minute — nothing, with the wait line.
+  const startOrWait = (today, label, text) => {
+    if (today && today.actionable !== true) {
+      const wait = clean(today.waitText) || 'Nothing in it can be worked right now.';
+      return { text: `${text} ${wait}`, actionLabel: null, action: WAY_ACTION.NONE, waitText: wait };
+    }
+    return {
+      text,
+      actionLabel: label,
+      action: WAY_ACTION.START,
+      ...(today && Number.isInteger(today.nextQuestionIndex) ? { questionIndex: today.nextQuestionIndex } : {}),
+    };
+  };
 
   // 1. Missing and late work, straight from the Grade Center's own status.
   entries.forEach((entry) => {
     if (!entryCanStillRise(entry)) return;
+    const today = todayOf(entry);
+    if (nothingLeft(today)) return;
     if (entry.status === GRADE_STATUS.MISSING && entry.lifecycle?.isOpen === true && lateWindowOpen(entry, nowValue)) {
       add({
         kind: WAY_KIND.MISSING,
         assignmentId: entry.assignmentId,
         title: entry.title,
-        text: `${entry.title} is missing. Late work is open until ${dateOf(entry)}.`,
-        actionLabel: 'Start',
-        action: WAY_ACTION.START,
         urgency: WAY_URGENCY.HIGH,
         closesAt: entry.lateDueAt || null,
+        ...startOrWait(today, 'Start', `${entry.title} is missing. Late work is open until ${dateOf(entry)}.`),
       });
       return;
     }
@@ -162,11 +208,13 @@ export const buildWaysToRaise = ({
         kind: WAY_KIND.LATE_WINDOW,
         assignmentId: entry.assignmentId,
         title: entry.title,
-        text: `Late work is open until ${dateOf(entry)} — finish ${entry.title} for credit.`,
-        actionLabel: Number(entry.overall?.attempted) > 0 ? 'Continue' : 'Start',
-        action: WAY_ACTION.START,
         urgency: WAY_URGENCY.HIGH,
         closesAt: entry.lateDueAt || null,
+        ...startOrWait(
+          today,
+          Number(entry.overall?.attempted) > 0 ? 'Continue' : 'Start',
+          `Late work is open until ${dateOf(entry)} — finish ${entry.title} for credit.`,
+        ),
       });
     }
   });

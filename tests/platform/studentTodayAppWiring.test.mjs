@@ -87,15 +87,18 @@ test('the result page receives the Today entry, Up next and Continue; the Assign
 
 test('Grades gets Start, ways to raise and What changed; Home gets the count — with imports', () => {
   assert.match(app, /import \{ buildWaysToRaise, countWaysToRaise \} from '\.\/platform\/student\/waysToRaiseModel\.js'/);
-  const memo = region(app, 'const studentWaysToRaise = useMemo(', '}) : []), [', 'ways memo');
-  assert.match(memo, /recoverySummariesByAssignment: studentRecoverySummariesByAssignment/);
+  const ways = region(app, 'function studentWaysToRaiseNow() {', '}) : [];', 'ways builder');
+  assert.match(ways, /recoverySummariesByAssignment: studentRecoverySummariesByAssignment/);
+  // Filtered by the Today rule (review finding C / item 3).
+  assert.match(ways, /todayByAssignment: studentTodayByAssignment\(\)/);
   const grades = region(app, '<StudentGradeCenter', '/>\n', 'Grades');
   assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0\)\}/);
-  assert.match(grades, /todayByAssignment=\{Object\.fromEntries\(\(studentUpNextDashboard\(\)\?\.allEntries/);
-  assert.match(grades, /waysToRaise=\{studentWaysToRaise\}/);
+  assert.match(grades, /waysToRaise=\{studentWaysToRaiseNow\(\)\}/);
+  assert.match(grades, /if \(way\.action === 'none'\) return undefined;/);
+  assert.match(grades, /if \(way\.action === 'start'\) return startAssignment\(way\.assignmentId, way\.questionIndex \?\? 0\);/);
   assert.match(grades, /whatChangedPanel=\{renderWhatChangedPanel\(false\)\}/);
   const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
-  assert.match(home, /waysToRaise=\{\{ count: countWaysToRaise\(studentWaysToRaise\) \}\}/);
+  assert.match(home, /waysToRaise=\{\{ count: countWaysToRaise\(studentWaysToRaiseNow\(\)\) \}\}/);
 });
 
 test('Review My Work shows only for closed, released, non-Test-Cycle work — with imports', () => {
@@ -111,10 +114,8 @@ test('Review My Work shows only for closed, released, non-Test-Cycle work — wi
 });
 
 test('"Use a Practice Pass" is offered only to a student who holds one', () => {
-  const memo = region(app, 'const studentWaysToRaise = useMemo(', '}) : []), [', 'ways memo');
-  assert.match(memo, /practicePassEligibleAssignmentIds: studentRewardWallet\?\.practicePasses\?\.count > 0 \? studentPracticePassEligibleAssignments : \[\]/);
-  // The wallet is declared before the memo reads it.
-  assert.ok(app.indexOf('const studentRewardWallet = useMemo') < app.indexOf('const studentWaysToRaise = useMemo'));
+  const ways = region(app, 'function studentWaysToRaiseNow() {', '}) : [];', 'ways builder');
+  assert.match(ways, /practicePassEligibleAssignmentIds: studentRewardWallet\?\.practicePasses\?\.count > 0 \? studentPracticePassEligibleAssignments : \[\]/);
 });
 
 test('entry shares the Today rule\'s predicates, with their imports (review findings 1, 2, 5)', () => {
