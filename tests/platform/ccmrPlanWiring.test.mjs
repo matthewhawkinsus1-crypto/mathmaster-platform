@@ -152,7 +152,11 @@ test('the Teacher Path Simulator keeps its own plan and never touches the studen
   assert.match(override, /goals: ccmrPlanFrameworks\(simulatedCcmrPlan\),/);
   const save = region(simulator, 'const saveSimulatedCcmrPlan = (request) => {', '\n  };', 'simulator save');
   assert.match(save, /validateCcmrPlanInput\(request, \{ now: Date\.now\(\) \}\)/, 'it refuses what production refuses');
-  assert.match(save, /setSimulatedCcmrPlan\(plan\)/);
+  // Kept per simulated learner, so one slot's test date never follows the
+  // teacher into another slot.
+  assert.match(save, /setSimulatedCcmrPlans\(\(current\) => \(\{ \.\.\.current, \[learnerKey\]: plan \}\)\)/);
+  assert.match(simulator, /const learnerKey = learner\?\.id \|\| 'simulated';/);
+  assert.match(simulator, /const simulatedCcmrPlan = simulatedCcmrPlans\[learnerKey\] \|\| null;/);
   const mount = region(simulator, '<MyMathPathExperience', '/>', 'simulated experience');
   assert.match(mount, /assessmentContextOverride=\{assessmentContext\}/);
   assert.match(mount, /ccmrPlan=\{simulatedCcmrPlan\}/);

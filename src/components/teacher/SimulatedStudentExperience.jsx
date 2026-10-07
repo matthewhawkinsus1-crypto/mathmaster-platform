@@ -236,7 +236,13 @@ export default function SimulatedStudentExperience({
   // student's document. The same plan feeds the CCMR screens (through the
   // context override) and the weekly Path (through `ccmrPlan`), so the
   // simulated week follows a goal or a test date the way a real one does.
-  const [simulatedCcmrPlan, setSimulatedCcmrPlan] = useState(null);
+  //
+  // One plan per simulated learner: each slot is a different synthetic
+  // student (its id names the slot), and one student's test date must not
+  // follow the teacher into another slot.
+  const learnerKey = learner?.id || 'simulated';
+  const [simulatedCcmrPlans, setSimulatedCcmrPlans] = useState({});
+  const simulatedCcmrPlan = simulatedCcmrPlans[learnerKey] || null;
   const saveSimulatedCcmrPlan = (request) => {
     // The callable's own rule, so the simulator refuses what production refuses.
     const validated = validateCcmrPlanInput(request, { now: Date.now() });
@@ -244,7 +250,7 @@ export default function SimulatedStudentExperience({
       return Promise.reject(Object.assign(new Error(validated.message), { code: 'functions/invalid-argument' }));
     }
     const plan = normalizeStoredCcmrPlan({ ...validated.plan, updatedAt: Date.now() });
-    setSimulatedCcmrPlan(plan);
+    setSimulatedCcmrPlans((current) => ({ ...current, [learnerKey]: plan }));
     return Promise.resolve(plan);
   };
 
