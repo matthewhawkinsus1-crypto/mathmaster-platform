@@ -27,6 +27,8 @@ import { collectWeeklyPathSessions } from '../../../functions/shared/weeklyPathC
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { chooseWeeklyAlternative } from '../../platform/path/weeklyPathChoice.js';
+import { pathCardLaunchOptions, weeklySessionLaunchOptions } from '../../platform/path/pathSessionLaunch.js';
+import { evaluateStudentRetentionSchedule } from '../../platform/retention/retentionScheduler.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
 import {
   buildStudentAssessmentContext, readCcmrGoals, writeCcmrGoals,
@@ -222,6 +224,15 @@ export const MyMathPathExperience = ({
     evidenceEvents,
     retentionSchedules: masteryData.retentionSchedulesByTEKS,
   }), [courseId, masteryData.masteryProfilesByTEKS, masteryData.retentionSchedulesByTEKS, evidenceEvents]);
+
+  // ONE RETENTION REPORT. The Overview banner, its focus card and the Path
+  // map's "Quick retention check" section all list the scheduler's pending
+  // checks from this one evaluation, so they cannot disagree about what is due.
+  // It is recomputed when a finished check reloads the schedules.
+  const retentionReport = useMemo(
+    () => evaluateStudentRetentionSchedule(masteryData.masteryProfilesByTEKS, masteryData.retentionSchedulesByTEKS),
+    [masteryData.masteryProfilesByTEKS, masteryData.retentionSchedulesByTEKS],
+  );
 
   const honors = String(studentProfile?.courseLevel || '').toLowerCase() === 'honors';
 
@@ -458,19 +469,11 @@ export const MyMathPathExperience = ({
   const startWeeklySession = (session) => {
     // The session arrives with the student's swap already applied, and a swap
     // keeps the slot's frozen key, so the completion still fills its own slot.
-    const chosen = session;
-    const code = chosen?.teksCode || teksCodeFromSkillId(chosen?.skillId);
+    // A Retention slot launches a retention check: only that moves the
+    // retention schedule, so practice there could never clear the slot.
+    const code = session?.teksCode || teksCodeFromSkillId(session?.skillId);
     if (!code) return;
-    startSession(code, {
-      weekKey: weeklyGoal?.weekKey || null,
-      weeklySlotKey: chosen?.weeklySlotKey || null,
-      weeklySlot: chosen?.slot || null,
-      chosenSkillId: chosen?.chosenSkillId || null,
-      intendedDok: chosen?.dok ?? null,
-      intendedDifficultyBand: chosen?.difficultyBand ?? null,
-      weeklyPurpose: chosen?.purpose || null,
-      framework: chosen?.context && chosen.context !== 'course' ? chosen.context : null,
-    });
+    startSession(code, weeklySessionLaunchOptions(session, { weekKey: weeklyGoal?.weekKey || null }));
   };
 
   const chooseWeeklySlotAlternative = (session, alternativeSkillId) => {
@@ -571,7 +574,10 @@ export const MyMathPathExperience = ({
               : null}
             freeChoiceLocked={weeklyFreeChoiceLocked}
             freeChoiceMessage={weeklyFreeChoiceMessage}
-            onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code, { coursePracticeIntent: card.status === 'extension' ? 'challenge' : null }); }}
+            // The scheduler's pending checks fill "Quick retention check"; a
+            // card there launches the check itself (pathCardLaunchOptions).
+            retentionDue={retentionReport.pendingProbes}
+            onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code, pathCardLaunchOptions(card)); }}
             assessmentContext={assessmentContextWithCoverage}
             onPracticeAs={({ skillId, framework }) => {
               const code = teksCodeFromSkillId(skillId);
@@ -596,7 +602,7 @@ export const MyMathPathExperience = ({
           />
         </div>
       )}
-      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} skillProgressByTEKS={skillProgressByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} weeklyCompletions={weeklyCompletions} completedSlots={completedSlots} weeklyInProgress={weeklyInProgress} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
+      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} retentionReport={retentionReport} skillProgressByTEKS={skillProgressByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} weeklyCompletions={weeklyCompletions} completedSlots={completedSlots} weeklyInProgress={weeklyInProgress} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => { setWeeklyRefreshKey((value) => value + 1); onReload?.(); }} />}
     </div>

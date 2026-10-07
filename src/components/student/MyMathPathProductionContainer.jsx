@@ -9,6 +9,7 @@ import { describeChallengeTier } from '../../platform/ccmr/assessmentFidelity.js
 import { responseClosesQuestion } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
+import { describeRetentionCheckOutcome } from '../../platform/retention/retentionCheckPresentation.js';
 
 // The session runtime is injected.
 //
@@ -578,6 +579,9 @@ export const MyMathPathProductionContainer = ({
       : null;
     const coursePassName = coursePassLevel ? coursePathLevelName(coursePassLevel) : null;
     const nextCourseLevel = coursePassLevel && coursePassLevel < 3 ? coursePassLevel + 1 : null;
+    // The server's verdict on a finished retention check, so the student learns
+    // what it showed before the Path reloads with the moved schedule.
+    const retentionVerdict = paused ? null : describeRetentionCheckOutcome(session);
     return (
       <section style={{
         maxWidth: 650, margin: '36px auto', padding: weeklyTargetReached ? 38 : 30,
@@ -588,7 +592,10 @@ export const MyMathPathProductionContainer = ({
         boxShadow: weeklyTargetReached ? '0 16px 46px rgba(19,115,51,.20)' : 'none',
       }}>
         {weeklyTargetReached && <div aria-hidden="true" style={{ fontSize: 54, lineHeight: 1, marginBottom: 8 }}>🎉</div>}
-        <h1 style={{ color: weeklyTargetReached ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontSize: weeklyTargetReached ? 30 : undefined, marginBottom: weeklyTargetReached ? 8 : undefined }}>
+        {/* Its own line height: the global h1 inherits body-text spacing, so a
+            title long enough to wrap ("Retention check complete") drew its two
+            lines on top of each other. */}
+        <h1 style={{ color: weeklyTargetReached ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontSize: weeklyTargetReached ? 30 : undefined, lineHeight: 1.15, marginBottom: weeklyTargetReached ? 8 : undefined }}>
           {weeklyTargetReached
             ? 'Weekly target reached!'
             : paused
@@ -601,8 +608,16 @@ export const MyMathPathProductionContainer = ({
                     ? 'Challenge complete'
                     : coursePassLevel
                     ? `Level ${coursePassLevel} complete`
-                    : 'Session complete'}
+                    : session?.sessionKind === 'retentionProbe'
+                      ? `${PURPOSE_LABEL.retention} complete`
+                      : 'Session complete'}
         </h1>
+        {retentionVerdict && (
+          <div role="status" style={{ margin: '0 auto 16px', maxWidth: 540, padding: '12px 14px', borderRadius: 10, background: retentionVerdict.passed ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', color: retentionVerdict.passed ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', lineHeight: 1.55, textAlign: 'left' }}>
+            <strong style={{ display: 'block', marginBottom: 3 }}>{retentionVerdict.headline}</strong>
+            {retentionVerdict.message}
+          </div>
+        )}
         {weeklyTargetReached && (
           <div style={{ margin: '0 auto 16px', maxWidth: 520, color: 'var(--mm-success-text)', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
             {weeklyGoalRequired

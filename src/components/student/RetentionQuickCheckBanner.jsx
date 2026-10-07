@@ -1,5 +1,9 @@
 import React from 'react';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
+import {
+  RETENTION_CHECK_ACTION_LABEL,
+  retentionCheckLaunchOptions,
+} from '../../platform/path/pathSessionLaunch.js';
 
 export const RetentionQuickCheckBanner = ({ pendingProbes = [], onLaunchQuickCheck }) => {
   if (!pendingProbes.length) return null;
@@ -11,7 +15,9 @@ export const RetentionQuickCheckBanner = ({ pendingProbes = [], onLaunchQuickChe
         <div style={{ fontWeight: 900, color: concern ? 'var(--mm-error-text)' : 'var(--mm-warning-text)' }}>{concern ? 'Retention concern' : 'Quick retention check due'}{pendingProbes.length > 1 ? ` · +${pendingProbes.length - 1} more` : ''}</div>
         <div style={{ marginTop: '4px', color: 'var(--mm-text)', fontSize: '13px' }}><strong>{studentLabelForTeks(primary.teksCode)}:</strong> {primary.reason}</div>
       </div>
-      <button type="button" onClick={() => onLaunchQuickCheck?.(primary.teksCode, { sessionKind: 'retentionProbe', requiredQuestions: 2 })} style={{ padding: '10px 16px', border: 0, borderRadius: '7px', background: concern ? '#d93025' : '#b06000', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Verify now · 2 questions</button>
+      {/* The same launch as every other retention entry point: a two-question
+          retentionProbe, the only session that moves the retention schedule. */}
+      <button type="button" onClick={() => onLaunchQuickCheck?.(primary.teksCode, retentionCheckLaunchOptions())} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: '7px', background: concern ? '#d93025' : '#b06000', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>{RETENTION_CHECK_ACTION_LABEL}</button>
     </section>
   );
 };

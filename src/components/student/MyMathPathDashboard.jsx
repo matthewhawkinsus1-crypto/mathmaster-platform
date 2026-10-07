@@ -7,12 +7,17 @@ import { DEFAULT_MASTERY_COURSE_ID, masteryCourseLabel } from '../../platform/ma
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
 import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
+import { overviewFocus } from '../../platform/path/pathSessionLaunch.js';
+import { RETENTION_REASON } from '../../platform/path/pathMap.js';
 import WeeklyPathGoalPanel from './WeeklyPathGoalPanel.jsx';
 
 export const MyMathPathDashboard = ({
   studentName = 'Student',
   masteryProfilesByTEKS = {},
   retentionSchedulesByTEKS = {},
+  // The one retention evaluation My Math Path made for every screen. Computed
+  // here from the same inputs when a caller does not supply it.
+  retentionReport = null,
   skillProgressByTEKS = {},
   // No default recommendation. A hardcoded 'A.5A' told every Algebra II
   // student to practise an Algebra I standard whenever the engine had nothing
@@ -35,11 +40,18 @@ export const MyMathPathDashboard = ({
   onOpenPath = null,
 }) => {
   const [selectedTeks, setSelectedTeks] = useState(null);
-  const retentionReport = useMemo(
-    () => evaluateStudentRetentionSchedule(masteryProfilesByTEKS, retentionSchedulesByTEKS),
-    [masteryProfilesByTEKS, retentionSchedulesByTEKS],
+  const report = useMemo(
+    () => retentionReport || evaluateStudentRetentionSchedule(masteryProfilesByTEKS, retentionSchedulesByTEKS),
+    [retentionReport, masteryProfilesByTEKS, retentionSchedulesByTEKS],
   );
-  const activeFocusTeks = retentionReport.pendingProbes[0]?.teksCode || recommendedTeks;
+  // What the focus card names and what its button starts. A due retention
+  // check takes the focus, and then the button starts THAT check — it used to
+  // start five questions of practice, which could never clear it.
+  const focus = useMemo(
+    () => overviewFocus({ pendingProbes: report.pendingProbes, recommendedTeks }),
+    [report.pendingProbes, recommendedTeks],
+  );
+  const activeFocusTeks = focus?.teksCode || null;
   const activeProfile = activeFocusTeks ? masteryProfilesByTEKS[activeFocusTeks] : null;
   // One engine, one explanation: if the panel picked this skill, show the
   // panel's own sentence rather than inventing a second one here.
@@ -56,11 +68,11 @@ export const MyMathPathDashboard = ({
   return (
     <section style={{ maxWidth: '980px', margin: '0 auto', padding: '24px 18px 42px' }}>
       <header style={{ marginBottom: '20px', textAlign: 'left' }}>
-        <h1 style={{ margin: 0, fontSize: '28px', color: 'var(--mm-text-strong)' }}>Welcome back, {studentName}!</h1>
+        <h1 style={{ margin: 0, fontSize: '28px', lineHeight: 1.2, color: 'var(--mm-text-strong)' }}>Welcome back, {studentName}!</h1>
         <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)' }}>Your {courseLabel} skills, and what to work on next.</p>
       </header>
 
-      <RetentionQuickCheckBanner pendingProbes={retentionReport.pendingProbes} onLaunchQuickCheck={onStartSession} />
+      <RetentionQuickCheckBanner pendingProbes={report.pendingProbes} onLaunchQuickCheck={onStartSession} />
 
       {/* THE WEEK COMES FIRST. A student opening MathMaster asks one question —
           what should I do now — and the skills map, useful as it is, answers a
@@ -81,7 +93,7 @@ export const MyMathPathDashboard = ({
             <button
               type="button"
               onClick={onOpenPath}
-              style={{ marginTop: 9, minHeight: 42, padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: 9, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer' }}
+              style={{ marginTop: 9, minHeight: 44, padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: 9, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer' }}
             >
               View and continue this week&apos;s Path
             </button>
@@ -97,22 +109,23 @@ export const MyMathPathDashboard = ({
 
         <div style={{ display: 'grid', gap: '13px' }}>
           <div style={{ padding: '22px', border: '1px solid var(--mm-tint-border)', borderRadius: '12px', background: 'var(--mm-surface-tint)', textAlign: 'left' }}>
-            <div style={{ color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{retentionReport.hasPendingProbes ? 'Priority verification focus' : 'Recommended next focus'}</div>
-            {activeFocusTeks ? (
+            <div style={{ color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{focus?.isRetentionCheck ? 'Priority verification focus' : 'Recommended next focus'}</div>
+            {focus ? (
               <>
                 <h2 style={{ margin: '7px 0 5px', color: 'var(--mm-text-strong)' }}>{studentLabelForTeks(activeFocusTeks)}</h2>
                 {/* The sentence comes from the engine that chose the skill, or
-                    from the retention scheduler that overrode it. A hand-written
+                    from the retention scheduler that overrode it — the same
+                    sentence the Path map's retention card uses. A hand-written
                     fallback here would be a second voice explaining a decision
                     it did not make. */}
                 <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: '14px' }}>
-                  {retentionReport.hasPendingProbes
-                    ? 'You learned this a while ago. A couple of questions is enough to check it has stayed with you.'
+                  {focus.isRetentionCheck
+                    ? (focus.concern ? RETENTION_REASON.concern : RETENTION_REASON.due)
                     : activeProfile?.recommendation?.reason
                       || focusReason
                       || 'Practice here builds the evidence your path is waiting on.'}
                 </p>
-                <button type="button" onClick={() => onStartSession?.(activeFocusTeks, { sessionKind: 'practice', requiredQuestions: 5 })} style={{ width: '100%', padding: '11px 15px', border: 0, borderRadius: '7px', background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Start quick practice · 5 questions</button>
+                <button type="button" onClick={() => onStartSession?.(focus.teksCode, focus.launch)} style={{ width: '100%', minHeight: 44, padding: '11px 15px', border: 0, borderRadius: '7px', background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>{focus.buttonLabel}</button>
               </>
             ) : (
               <p style={{ margin: '7px 0 0', color: 'var(--mm-text-muted)', fontSize: '14px' }}>

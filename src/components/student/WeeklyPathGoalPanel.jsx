@@ -3,6 +3,7 @@ import { PURPOSE } from '../../platform/path/recommendationV2.js';
 import { describeSlotChoice } from '../../platform/path/weeklyPathChoice.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { describeWeeklyGradeForStudent } from '../../platform/path/weeklyPathGoal.js';
+import { RETENTION_PROBE_QUESTIONS, isRetentionPurpose } from '../../../functions/shared/pathRetentionCheck.mjs';
 
 // The student's week is a commitment the platform can count, not a vague list
 // of topics. This panel is intentionally shared by Path and Mastery Overview so
@@ -210,14 +211,19 @@ export const inProgressForSlot = (inProgress = [], session = {}) => (
   )) || null
 );
 
-/** The start button's words: a half-done session is resumed, never restarted. */
+/**
+ * The start button's words: a half-done session is resumed, never restarted.
+ * A Retention slot starts a two-question check rather than a practice round,
+ * and its button says so before the student commits to it.
+ */
 export const weeklyStartLabel = (session, active, required) => {
   if (active) {
     const answered = Number(active.answeredQuestions) || 0;
     const of = Number(active.requiredQuestions) || null;
     return of ? `Resume session ${session.slot} · ${answered} of ${of} answered` : `Resume session ${session.slot}`;
   }
-  return required ? `Start session ${session.slot} of ${required}` : 'Start weekly session';
+  const start = required ? `Start session ${session.slot} of ${required}` : 'Start weekly session';
+  return isRetentionPurpose(session?.purpose) ? `${start} · ${RETENTION_PROBE_QUESTIONS} questions` : start;
 };
 
 function SessionCard({ session, done, active = null, onStart, onChoose, disabled, total }) {
