@@ -1,0 +1,85 @@
+name: Accessibility Certification (WCAG 2.1 AA)
+
+# axe-core over the student screens (Home, Assignments, Grades, an assignment
+# with rich tools open, My Math Path, a secure exam, Live Challenge) at
+# Chromebook and phone sizes, ratcheted against scripts/accessibility-baseline.json:
+# a new or increased violation fails; a reduction passes. Read-only: nothing is
+# written back to the repository and nothing reaches Firebase.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "index.html"
+      - "tests/browser/accessibility*"
+      - "tests/browser/teacherWorkflow/**"
+      - "tests/browser/emulator/**"
+      - "tests/browser/studentUxPlatform*"
+      - "tests/platform/accessibility*"
+      - "scripts/accessibility-baseline.json"
+      - "scripts/lib/accessibilityRatchet.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/accessibility-certification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accessibility-certification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ratchet-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - name: Test the ratchet and the screens contract
+        run: node --test tests/platform/accessibilityRatchet.test.mjs tests/platform/accessibilityCertificationContract.test.mjs
+
+  browser-accessibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      # Standalone harnesses (assignment tools, secure exam), served with
+      # src/firebase.js and the Test Cycle / secure exam services swapped for
+      # stubs (tests/browser/emulator/vite.config.mjs).
+      - name: Start the standalone harness server
+        run: |
+          npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort >/tmp/accessibility-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/accessibilitySecureExam.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-vite.log; exit 1
+      # The real app in memory (firebase/* faked, synthetic school), signed in
+      # as a student.
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: Certify WCAG 2.1 AA (ratchet)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: npm run certify:accessibility
+      - name: Keep the report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-certification
+          path: tests/browser/artifacts/accessibility
+          retention-days: 14
