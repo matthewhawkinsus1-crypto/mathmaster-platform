@@ -3,6 +3,8 @@ import {
   authoritativeSisStudentId,
   createExportSnapshot,
   gradePackageFileName,
+  sharedSisStudentIds,
+  sisStudentIdIsShared,
   teamsCsv,
   transferFileName,
   transferSnapshotId,
@@ -10,7 +12,17 @@ import {
   TRANSFER_STATE,
   validSisStudentId,
 } from '../../platform/gradeTransfer/gradeTransferModel.js';
-import { compareStudentsByName, formatStudentLabel, studentIdentityIndexFor } from '../../platform/studentName.js';
+import {
+  compareStudentsByName, formatStudentLabel, formatStudentName, studentIdentityIndexFor, studentSearchText,
+} from '../../platform/studentName.js';
+import {
+  DISTRICT_ID_COPY,
+  DISTRICT_ID_STATUS,
+  describeStudentDistrictId,
+  districtIdSavedMessage,
+  validateDistrictIdDraft,
+} from '../../platform/teacher/studentDistrictIdModel.js';
+import DistrictIdEditor from './DistrictIdEditor.jsx';
 import { buildGradebookZip } from '../../platform/gradeTransfer/gradeTransferPackage.js';
 import {
   confirmTransferUploaded,
@@ -26,6 +38,7 @@ import {
   describeUnitExport,
   EXPORT_STATUS,
   exportStatusLabel,
+  lastFileRowsWithOutdatedDistrictId,
   pendingUploadIds,
 } from '../../platform/gradeTransfer/gradeTransferHistory.js';
 import { resolveAssignmentGradingPeriod } from '../../platform/student/gradingPeriods.js';
@@ -94,6 +107,10 @@ export default function GradeTransferCenter({
   const [practicePasses, setPracticePasses] = useState(new Set());
   const [sisOverrides, setSisOverrides] = useState({});
   const [sisDrafts, setSisDrafts] = useState({});
+  // The district ID list: which student's ID is being corrected
+  // ({ studentId, error }), and the list's own search.
+  const [districtEditor, setDistrictEditor] = useState(null);
+  const [districtSearch, setDistrictSearch] = useState('');
   const [classFilter, setClassFilter] = useState(() => new Set(initialScope?.classIds || []));
   const [assignmentFilter, setAssignmentFilter] = useState(() => initialScope?.assignmentId || null);
   const [periodFilter, setPeriodFilter] = useState(() => (initialScope?.assignmentId ? 'all' : 'current'));
@@ -237,19 +254,40 @@ export default function GradeTransferCenter({
   const identityIndex = useMemo(() => studentIdentityIndexFor(students || []), [students]);
   const personLabel = (row) => transferStudentLabel(row, identityIndex);
 
+  // District IDs more than one student carries: their rows are held back
+  // (gradeTransferModel.js), so they are listed for repair here too.
+  const sharedDistrictIds = useMemo(() => sharedSisStudentIds(projectedStudents), [projectedStudents]);
+
   const sisProblems = useMemo(() => {
     const scopeClasses = classFilter.size ? classFilter : new Set(authorizedClassIds);
     return projectedStudents
       .filter((student) => scopeClasses.has(student.classId))
-      .filter((student) => !validSisStudentId(authoritativeSisStudentId(student)))
+      .filter((student) => !validSisStudentId(authoritativeSisStudentId(student))
+        || sisStudentIdIsShared(sharedDistrictIds, authoritativeSisStudentId(student)))
       .sort(compareStudentsByName)
       .map((student) => ({
         studentId: student.id,
         // The name, or "Name unavailable · ID x": two nameless students in this
         // list must still be told apart, and the id is never shown AS the name.
         name: formatStudentLabel(student),
+        shared: validSisStudentId(authoritativeSisStudentId(student)),
       }));
+  }, [authorizedClassIds, projectedStudents, classFilter, sharedDistrictIds]);
+
+  // Every student in scope, for checking or correcting a district ID that
+  // looks valid but is wrong — the case the repair list above cannot see.
+  const districtRoster = useMemo(() => {
+    const scopeClasses = classFilter.size ? classFilter : new Set(authorizedClassIds);
+    return projectedStudents
+      .filter((student) => scopeClasses.has(student.classId))
+      .sort(compareStudentsByName)
+      .map((student) => ({ student, district: describeStudentDistrictId(student) }));
   }, [authorizedClassIds, projectedStudents, classFilter]);
+  const differingDistrictIds = districtRoster.filter((entry) => entry.district.status === DISTRICT_ID_STATUS.DIFFERS).length;
+  const districtNeedle = districtSearch.trim().toLowerCase();
+  const visibleDistrictRoster = districtNeedle
+    ? districtRoster.filter(({ student }) => studentSearchText(student).includes(districtNeedle))
+    : districtRoster;
 
   const selectable = (unit) => Boolean(summaries.get(unit.key)?.canExport) && stateLoaded;
   const selectedUnits = units.filter((unit) => selected.has(unit.key));
@@ -322,7 +360,13 @@ export default function GradeTransferCenter({
     const copies = buildSnapshotDownloadUnits({ unit, snapshots });
     if (!copies.length) return;
     download(buildGradebookZip(copies), gradePackageFileName(copies).replace(/\.zip$/, '_COPY.zip'), 'application/zip');
-    setMessage({ tone: 'success', text: `Downloaded an exact copy of the last file sent for ${unit.assignmentTitle} · ${unit.classLabel}. Nothing new was recorded.` });
+    // An exact copy keeps the district IDs it was made with. If one has been
+    // corrected since, say so: uploading the copy would send the old number.
+    const outdated = lastFileRowsWithOutdatedDistrictId({ unit, snapshots });
+    const students = new Set(outdated.map((entry) => entry.studentId)).size;
+    setMessage(outdated.length
+      ? { tone: 'warning', text: `Downloaded an exact copy of the last file sent for ${unit.assignmentTitle} · ${unit.classLabel}. Nothing new was recorded. This copy still uses the district ID it was made with for ${students} student${students === 1 ? '' : 's'} whose district ID has been corrected since (${outdated.map((entry) => `district ID ${entry.previousSisStudentId} → ${entry.sisStudentId}`).join(', ')}) — use Export again to send their grades under the corrected ID.` }
+      : { tone: 'success', text: `Downloaded an exact copy of the last file sent for ${unit.assignmentTitle} · ${unit.classLabel}. Nothing new was recorded.` });
   };
 
   const markUploaded = async (unit, summary) => {
@@ -341,19 +385,54 @@ export default function GradeTransferCenter({
   };
 
   const saveSisId = async (studentId) => {
-    const sisStudentId = String(sisDrafts[studentId] || '').trim();
-    if (!/^\d{1,20}$/.test(sisStudentId)) {
-      setMessage({ tone: 'warning', text: 'A district student ID must be 1–20 digits with no letters, spaces, or punctuation.' });
+    const checked = validateDistrictIdDraft(sisDrafts[studentId]);
+    if (!checked.ok) {
+      setMessage({ tone: 'warning', text: checked.error });
       return;
     }
+    const sisStudentId = checked.value;
     setBusy(true);
     try {
       const result = await setStudentSisId({ studentId, sisStudentId });
       setSisOverrides((current) => ({ ...current, [studentId]: result.sisStudentId || sisStudentId }));
       setSisDrafts((current) => ({ ...current, [studentId]: '' }));
-      setMessage({ tone: 'success', text: `Saved district ID ${result.sisStudentId || sisStudentId}. The student's MathMaster account and work were not changed.` });
+      const student = projectedStudents.find((entry) => entry.id === studentId);
+      setMessage({
+        tone: 'success',
+        text: districtIdSavedMessage({
+          studentName: student ? formatStudentLabel(student, { includeId: true }) : '',
+          previousDistrictId: result.previousSisStudentId,
+          districtId: result.sisStudentId || sisStudentId,
+        }),
+      });
     } catch (error) {
       setMessage({ tone: 'danger', text: error.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Correcting a district ID that looks valid but is wrong, from the district
+  // ID list: the same callable, so the same checks — digits only, this
+  // student's teacher, no other student already using the number.
+  const saveDistrictId = async (student, sisStudentId) => {
+    const studentId = student.id;
+    setBusy(true);
+    setDistrictEditor((current) => (current?.studentId === studentId ? { ...current, error: '' } : current));
+    try {
+      const result = await setStudentSisId({ studentId, sisStudentId });
+      setSisOverrides((current) => ({ ...current, [studentId]: result.sisStudentId || sisStudentId }));
+      setDistrictEditor(null);
+      setMessage({
+        tone: 'success',
+        text: districtIdSavedMessage({
+          studentName: formatStudentLabel(student, { includeId: true }),
+          previousDistrictId: result.previousSisStudentId,
+          districtId: result.sisStudentId || sisStudentId,
+        }),
+      });
+    } catch (error) {
+      setDistrictEditor((current) => (current?.studentId === studentId ? { ...current, error: error.message } : current));
     } finally {
       setBusy(false);
     }
@@ -429,7 +508,10 @@ export default function GradeTransferCenter({
           </p>
           {sisProblems.map((problem) => (
             <div key={problem.studentId} className="tw-row" style={{ justifyContent: 'space-between' }}>
-              <span className="tw-strong" style={{ minWidth: 180 }}>{problem.name}</span>
+              <span style={{ minWidth: 180 }}>
+                <span className="tw-strong">{problem.name}</span>
+                {problem.shared && <span className="tw-small tw-muted" style={{ display: 'block' }}>Another student has the same district ID. Enter this student&apos;s correct one.</span>}
+              </span>
               <span className="tw-row">
                 <input
                   className="tw-input"
@@ -446,6 +528,77 @@ export default function GradeTransferCenter({
               </span>
             </div>
           ))}
+        </div>
+      </details>
+    )}
+
+    {districtRoster.length > 0 && (
+      <details className="tw-disclosure" data-district-id-list>
+        <summary>
+          Check or correct district student IDs
+          <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>
+            {districtRoster.length} student{districtRoster.length === 1 ? '' : 's'} in this scope
+            {differingDistrictIds > 0 && <> · {differingDistrictIds} with a district ID different from their MathMaster ID</>}
+          </span>
+        </summary>
+        <div className="tw-disclosure__body tw-stack" style={{ gap: 9 }}>
+          <p className="tw-small tw-muted" style={{ margin: 0 }}>
+            TEAMS files use each student&apos;s district ID, never their MathMaster ID. If a district ID is wrong — even one that looks
+            like a valid number — correct it here or in Student Access. The student&apos;s MathMaster account, work, grades and sign-in stay
+            exactly as they are; only future exports change.
+          </p>
+          {districtRoster.length > 8 && (
+            <input
+              className="tw-input"
+              type="search"
+              aria-label="Find a student's district ID"
+              placeholder="Find a student by name or ID…"
+              value={districtSearch}
+              onChange={(event) => setDistrictSearch(event.target.value)}
+              style={{ maxWidth: 320 }}
+            />
+          )}
+          {visibleDistrictRoster.map(({ student, district }) => {
+            const label = formatStudentLabel(student, { includeId: true });
+            const editing = districtEditor?.studentId === student.id;
+            return (
+              <div key={student.id} className="tw-row" data-district-id-row={student.id} style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <span style={{ minWidth: 0, flex: '1 1 260px' }}>
+                  <span className="tw-strong">{formatStudentName(student)}</span>
+                  <span className="tw-small tw-muted"> · MathMaster ID {student.id}</span>
+                  <span className="tw-small" data-district-id-status={district.status} style={{ display: 'block', color: district.tone === 'warning' ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)' }}>
+                    {district.status === DISTRICT_ID_STATUS.SAME && <>District ID: same as the MathMaster ID</>}
+                    {district.status === DISTRICT_ID_STATUS.DIFFERS && <><strong>District ID {district.districtId}</strong> · {district.note}</>}
+                    {(district.status === DISTRICT_ID_STATUS.MISSING || district.status === DISTRICT_ID_STATUS.INVALID) && <>{district.note}</>}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="tw-btn tw-btn--sm"
+                  aria-expanded={editing}
+                  aria-label={`${district.actionLabel} for ${label}`}
+                  disabled={busy && !editing}
+                  onClick={() => setDistrictEditor(editing ? null : { studentId: student.id, error: '' })}
+                >
+                  {district.actionLabel}
+                </button>
+                {editing && (
+                  <DistrictIdEditor
+                    student={student}
+                    studentLabel={label}
+                    saving={busy}
+                    error={districtEditor.error}
+                    onSave={(value) => saveDistrictId(student, value)}
+                    onCancel={() => setDistrictEditor(null)}
+                  />
+                )}
+              </div>
+            );
+          })}
+          {districtNeedle && visibleDistrictRoster.length === 0 && (
+            <p className="tw-small tw-muted" style={{ margin: 0 }}>No student in this scope matches “{districtSearch.trim()}”.</p>
+          )}
+          <p className="tw-small tw-muted" style={{ margin: 0 }}>Student Access has the same {DISTRICT_ID_COPY.editAction} control for every student you teach.</p>
         </div>
       </details>
     )}
@@ -536,7 +689,17 @@ export default function GradeTransferCenter({
                     <button type="button" className="tw-btn tw-btn--sm" disabled={busy} onClick={() => markUploaded(unit, summary)}>Mark uploaded</button>
                   )}
                   {summary?.canDownloadAgain && (
-                    <button type="button" className="tw-btn tw-btn--sm tw-btn--quiet" disabled={busy} onClick={() => downloadAgain(unit)} title="An exact copy of the last file exported — nothing new is recorded">Download last file</button>
+                    <button
+                      type="button"
+                      className="tw-btn tw-btn--sm tw-btn--quiet"
+                      disabled={busy}
+                      onClick={() => downloadAgain(unit)}
+                      title={summary.reidentifiedCount
+                        ? 'An exact copy of the last file exported — it keeps the district IDs it was made with, including one corrected since. Use Export again for the corrected ID.'
+                        : 'An exact copy of the last file exported — nothing new is recorded'}
+                    >
+                      Download last file
+                    </button>
                   )}
                   {onOpenGrades && (
                     <button type="button" className="tw-btn tw-btn--sm tw-btn--quiet" onClick={() => onOpenGrades(unit.classId, unit.assignmentId)}>Open grades</button>
@@ -576,6 +739,14 @@ export default function GradeTransferCenter({
                 ? 'Answer YES to “Overwrite existing grades?” — this replaces grades already sent.'
                 : `Answer YES to “Overwrite existing grades?” for the ${plan.overwriteFileCount} file${plan.overwriteFileCount === 1 ? '' : 's'} sent before and NO for the ${plan.fileCount - plan.overwriteFileCount} new one${plan.fileCount - plan.overwriteFileCount === 1 ? '' : 's'}. MANIFEST.txt in the ZIP says which is which.`}</dd>
             <dt>File name</dt><dd>{gradePackageFileName(plan.packageUnits)}</dd>
+            {plan.reidentified.length > 0 && <>
+              <dt>District IDs</dt>
+              <dd data-reidentified={plan.reidentified.length}>
+                Corrected since the last export for {plan.reidentified.length} student{plan.reidentified.length === 1 ? '' : 's'}:{' '}
+                {plan.reidentified.map((entry) => `${personLabel(entry)} (district ID ${entry.previousSisStudentId} → ${entry.sisStudentId})`).join(', ')}.
+                {' '}This file sends their grades under the corrected ID. A grade TEAMS already accepted under the old ID stays there until you remove it in TEAMS.
+              </dd>
+            </>}
           </dl>
           {plan.assignmentTitles.length > 1 && (
             <details>

@@ -258,7 +258,7 @@ All counts are numbers only. Under `active.*`, disabled students are left out.
 | `needsStructuredNameConfirmation` | a person must confirm the name or its first/last: Classroom-only source, ambiguous split (three words, a suffix), or a lone stored first or last name |
 | `unresolved.noAuthoritativeSource` / `.conflictingSources` | no write; a person adds the name |
 | `duplicateHumanNames` | groups of different students with the same name. Reported, never merged |
-| `duplicateSisIds` | groups of roster records sharing one SIS id |
+| `duplicateSisIds` | groups of roster records sharing one SIS id. Grade Export holds those students' rows back when one teacher holds both; a teacher fixes each with *Edit district ID* in Student Access ([`docs/STUDENT_DISTRICT_ID.md`](../STUDENT_DISTRICT_ID.md)) |
 | `identityRecordMismatches.*` | aliases, directory links, roster links or credentials that point at no roster record; alias keys that do not match their student; a Google account linked to several students in one course |
 | `execution.applied` / `.skipped.{deleted,noLongerNeeded,planChanged}` | what `--execute` wrote, and what it skipped after the in-transaction re-check |
 | `rollback.rolledBack` / `.fieldsRemoved` / `.skipped` | what `--rollback` removed |

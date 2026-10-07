@@ -90,6 +90,61 @@ export const rowsChangedSinceExport = (part, history = []) => {
   });
 };
 
+/*
+ * A DISTRICT ID CORRECTED AFTER A FILE WENT OUT.
+ *
+ * A teacher may correct a student's district ID (Student Access, or the
+ * district IDs list here) after grades were already exported under the old
+ * number — the account was made with a mistyped number, and every file so far
+ * carried it. The student's rows are then "changed since export" although no
+ * grade moved: the destination did. The teacher needs to know that, because
+ * the corrected file is only half of the fix — a grade TEAMS accepted under
+ * the old number stays on that record until someone removes it there.
+ *
+ * Returns [{ studentId, previousSisStudentId, sisStudentId }] for each row of
+ * `rows` whose student was last exported (in `history`) under another ID.
+ */
+export const rowsReidentifiedSince = (rows = [], history = []) => {
+  if (!history.length) return [];
+  const exported = lastExportedRowsByStudent(history);
+  return (rows || []).flatMap((row) => {
+    const previous = exported.get(text(row?.studentId));
+    const before = text(previous?.sisStudentId);
+    return before && before !== text(row?.sisStudentId)
+      ? [{ studentId: text(row.studentId), previousSisStudentId: before, sisStudentId: text(row.sisStudentId) }]
+      : [];
+  });
+};
+
+const uniqueReidentified = (entries) => {
+  const seen = new Map();
+  entries.forEach((entry) => {
+    const key = `${entry.studentId}|${entry.previousSisStudentId}|${entry.sisStudentId}`;
+    if (!seen.has(key)) seen.set(key, entry);
+  });
+  return [...seen.values()];
+};
+
+/**
+ * The rows of the LAST file per part ("Download last file") that carry a
+ * district ID the student no longer has. That copy is reproduced byte for
+ * byte, so it still says the old number; the teacher is told before relying
+ * on it. Compared with the current finalized rows by studentId.
+ */
+export const lastFileRowsWithOutdatedDistrictId = ({ unit, snapshots = [] } = {}) => uniqueReidentified(
+  transferParts(unit).flatMap((part) => {
+    const latest = snapshotsForPart(part, snapshots)[0];
+    if (!latest) return [];
+    const current = new Map((part?.allRows || []).map((row) => [text(row.studentId), text(row.sisStudentId)]));
+    return (latest.rows || []).flatMap((row) => {
+      const now = current.get(text(row?.studentId));
+      return now && now !== text(row?.sisStudentId)
+        ? [{ studentId: text(row.studentId), previousSisStudentId: text(row.sisStudentId), sisStudentId: now }]
+        : [];
+    });
+  }),
+);
+
 const latestTime = (values) => {
   const numbers = values.map(millis).filter((value) => value !== null);
   return numbers.length ? Math.max(...numbers) : null;
@@ -107,6 +162,17 @@ export const describeUnitExport = ({ unit, snapshots = [] } = {}) => {
     .map(({ history }) => history[0])
     .filter((latest) => latest && !latest.uploadConfirmedAt);
   const changedRows = partHistories.flatMap(({ part, history }) => rowsChangedSinceExport(part, history));
+  const reidentified = uniqueReidentified(partHistories.flatMap(({ part, history }) => rowsReidentifiedSince(part?.allRows, history)));
+  // Changed rows whose GRADE is what it was: only the district ID moved. They
+  // are not "grades changed", and the status line must not call them that.
+  const idOnlyChangedCount = partHistories.reduce((count, { part, history }) => {
+    if (!history.length) return count;
+    const exported = lastExportedRowsByStudent(history);
+    return count + (part?.allRows || []).filter((row) => {
+      const previous = exported.get(text(row.studentId));
+      return previous && previous.grade === row.grade && text(previous.sisStudentId) !== text(row.sisStudentId);
+    }).length;
+  }, 0);
   const fullRowCount = parts.reduce((sum, part) => sum + (part?.allRows?.length || 0), 0);
   const lastExportedAt = latestTime(everyHistory.map((snapshot) => snapshot.createdAt));
   const lastUploadedAt = latestTime(everyHistory.map((snapshot) => snapshot.uploadConfirmedAt));
@@ -139,6 +205,11 @@ export const describeUnitExport = ({ unit, snapshots = [] } = {}) => {
     exportCount: new Set(everyHistory.map((snapshot) => snapshot.packageId || snapshot.transferId || snapshot.id)).size,
     pendingUploads,
     changedCount: changedRows.length,
+    // Students whose district ID was corrected after their grade was last
+    // exported (each counted once, however many section files carry them).
+    reidentified,
+    reidentifiedCount: new Set(reidentified.map((entry) => entry.studentId)).size,
+    idOnlyChangedCount,
     fullRowCount,
     canExport: !blocked && fullRowCount > 0,
     canExportChanges: !blocked && exported && changedRows.length > 0,
@@ -159,7 +230,21 @@ export const exportStatusLabel = (summary) => {
     case EXPORT_STATUS.READY: return { label: 'Not exported', tone: 'primary', detail: 'Final grades are ready to export.' };
     case EXPORT_STATUS.EXPORTED: return { label: `Exported ${shortDate(summary.lastExportedAt)}`, tone: 'neutral', detail: 'Not marked uploaded yet. You can export it again at any time.' };
     case EXPORT_STATUS.UPLOADED: return { label: `Uploaded ${shortDate(summary.lastUploadedAt)}`, tone: 'success', detail: 'No grade has changed since the last export.' };
-    case EXPORT_STATUS.CHANGED: return { label: `Changed since export · ${summary.changedCount}`, tone: 'warning', detail: `${summary.changedCount} grade${summary.changedCount === 1 ? '' : 's'} changed or newly finalized since ${shortDate(summary.lastExportedAt)}.` };
+    case EXPORT_STATUS.CHANGED: {
+      const since = shortDate(summary.lastExportedAt);
+      const corrected = Number(summary.reidentifiedCount) || 0;
+      // A row whose only change is its district ID is not a changed grade.
+      const gradeChanges = Math.max(0, (Number(summary.changedCount) || 0) - (Number(summary.idOnlyChangedCount) || 0));
+      const sentences = [
+        gradeChanges ? `${gradeChanges} grade${gradeChanges === 1 ? '' : 's'} changed or newly finalized since ${since}.` : '',
+        corrected ? `District ID corrected for ${corrected} student${corrected === 1 ? '' : 's'} since ${gradeChanges ? 'then' : since} — export again so TEAMS gets their grades under the corrected ID.` : '',
+      ].filter(Boolean);
+      return {
+        label: `Changed since export · ${summary.changedCount}`,
+        tone: 'warning',
+        detail: sentences.join(' ') || `${summary.changedCount} grade${summary.changedCount === 1 ? '' : 's'} changed or newly finalized since ${since}.`,
+      };
+    }
     case EXPORT_STATUS.WAITING_EXTENSION: return { label: 'Waiting on extensions', tone: 'neutral', detail: 'Students with an active extension are held back until their own deadline.' };
     case EXPORT_STATUS.NEEDS_REVIEW: return { label: 'Needs review', tone: 'danger', detail: 'No finalized grade could be produced yet. Open the grades to check.' };
     case EXPORT_STATUS.ID_PROBLEM: return { label: 'Student ID missing', tone: 'danger', detail: 'Add the district student ID for the students listed, then export.' };
@@ -228,10 +313,13 @@ const dedupeStudents = (rows) => {
  * optional and returns a marking-period label.
  */
 export const buildExportPlan = ({ entries = [], snapshots = [], periodFor = null } = {}) => {
+  // Each file says which of its students were last exported under another
+  // district ID (the MANIFEST prints it; the review step names them).
+  const withReidentified = (part) => ({ ...part, reidentified: rowsReidentifiedSince(part.rows, snapshotsForPart(part, snapshots)) });
   const planned = entries.map(({ unit, mode }) => ({
     unit,
     mode: mode === 'changes' ? 'changes' : 'full',
-    packageUnits: mode === 'changes' ? buildChangesOnlyUnits(unit) : buildFullExportUnits({ unit, snapshots }),
+    packageUnits: (mode === 'changes' ? buildChangesOnlyUnits(unit) : buildFullExportUnits({ unit, snapshots })).map(withReidentified),
   }));
   const packageUnits = planned.flatMap((entry) => entry.packageUnits);
   const units = planned.map((entry) => entry.unit);
@@ -250,6 +338,9 @@ export const buildExportPlan = ({ entries = [], snapshots = [], periodFor = null
     // already sent (answer YES) with first-time files (answer NO).
     overwriteFileCount: packageUnits.filter((unit) => unit.exportKind === 'delta' || unit.reexport).length,
     reexportCount: planned.filter((entry) => entry.packageUnits.some((unit) => unit.reexport)).length,
+    // One entry per student whose district ID was corrected since a file
+    // carrying them went out: this package sends them under the new ID.
+    reidentified: dedupeStudents(packageUnits.flatMap((unit) => unit.reidentified || [])),
     empty: packageUnits.length === 0,
   };
 };

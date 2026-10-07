@@ -2671,11 +2671,13 @@ function App() {
     return summaries;
   };
 
-  // SignInAccess calls this after the server saves a corrected student name.
-  // Refetching the compact roster rebuilds the identity index once, which is
-  // what makes Home, Live and every id-keyed history record show the new name.
+  // SignInAccess calls this after the server saves a corrected student name
+  // or district ID. Refetching the compact roster rebuilds the identity index
+  // once, which is what makes Home, Live and every id-keyed history record
+  // show the new name — and every summary-roster screen the new district ID.
+  // (Grade Export reads live grades documents, so it follows on its own.)
   const refreshTeacherRosterAfterNameChange = () => fetchTeacherRosterSummaries()
-    .catch((error) => console.error('Could not refresh the roster after a student name change:', error));
+    .catch((error) => console.error('Could not refresh the roster after a student identity change:', error));
 
   useEffect(() => {
     if (user?.role !== 'teacher') return undefined;

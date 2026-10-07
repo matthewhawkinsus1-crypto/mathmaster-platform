@@ -3397,6 +3397,15 @@ async function studentIdentity() {
   return studentIdentityModule;
 }
 
+// What a student's DISTRICT (SIS) ID is, and that the account ID is not one
+// once a district ID is stored: its format, the duplicate rule and who may
+// change it. Shared with Grade Export and Student Access in the browser.
+let studentDistrictIdModule = null;
+async function studentDistrictIds() {
+  if (!studentDistrictIdModule) studentDistrictIdModule = await import("./shared/studentDistrictId.mjs");
+  return studentDistrictIdModule;
+}
+
 /**
  * The identity-bearing fields of one grades document, plus its id — what the
  * shared resolver needs and nothing from the attempt history. The identifiers
@@ -4301,6 +4310,23 @@ exports.createStudentAccount = onCall(async (request) => {
   if (aliasSnapshot.exists || caseInsensitiveExisting) {
     throw new HttpsError("already-exists", "That student ID already exists in MathMaster. Refresh the account list before creating it again.");
   }
+  // The new account's number is also its district ID, so another student must
+  // not already answer to it — above all one whose district ID a teacher
+  // corrected TO this number (setStudentSisId). Same rule, same shared module.
+  const districtIds = await studentDistrictIds();
+  const districtIdHolders = await db.collection("grades")
+    .where("sisStudentId", "in", districtIds.districtStudentIdVariants(studentId))
+    .select("sisStudentId")
+    .limit(5)
+    .get();
+  const districtConflict = districtIds.findDistrictStudentIdConflict({
+    studentId,
+    districtId: studentId,
+    districtIdHolders: districtIdHolders.docs.map((entry) => entry.id),
+    accountIdHolders: rosterSnapshot.docs.map((entry) => entry.id).filter((id) => districtIds.sameDistrictStudentId(id, studentId)),
+    creating: true,
+  });
+  if (districtConflict) throw new HttpsError("already-exists", districtConflict.message);
 
   // Creation is one atomic batch. A network or audit failure can no longer
   // leave a roster document behind while the UI reports an INTERNAL error.
@@ -21705,53 +21731,96 @@ exports.confirmGradeTransferUploaded = onCall(async (request) => {
   return { transferId, confirmed: true };
 });
 
+/**
+ * Teacher action: set or CORRECT a student's district (SIS) ID — the number
+ * Grade Export writes into every TEAMS file for this student.
+ *
+ * This is how a student whose MathMaster account was created with a mistyped
+ * but valid-looking number (account 123456, district record 123465) gets
+ * their grades onto their real district record. Only grades/{studentId}
+ * .sisStudentId and its verification stamp change. The account ID does not,
+ * so nothing keyed by it moves: attempts, grades, evidence, rewards, supports,
+ * Classroom links, the PIN credential, sign-in aliases and the Google link all
+ * stay exactly where they are, and the student signs in exactly as before.
+ * See functions/shared/studentDistrictId.mjs for what each ID is for.
+ *
+ * Authorized like setStudentName: the root administrator, the student's
+ * roster teacher, or the teacher of record of the student's class. Refused,
+ * writing nothing, when the number is not 1–20 digits or when another student
+ * already answers to it (the shared duplicate rule — a stored district ID or
+ * an account ID, leading zeros ignored). The duplicate check, the write and
+ * the audit entry are one transaction, and every read is a field mask: no
+ * student's attempt history is loaded. The audit entry keeps the previous
+ * district ID, so a correction can always be traced and undone.
+ */
 exports.setStudentSisId = onCall(async (request) => {
   await requireTeacher(request);
   const db = getFirestore();
+  const districtIds = await studentDistrictIds();
   const studentId = String(request.data?.studentId || "").trim();
-  if (!studentId) throw new HttpsError("invalid-argument", "studentId is required.");
-  const sisStudentId = normalizeTeamsSisStudentId(request.data?.sisStudentId);
-  const studentRef = db.collection("grades").doc(studentId);
-  const studentSnapshot = await studentRef.get();
-  if (!studentSnapshot.exists) throw new HttpsError("not-found", "That student is not on the MathMaster roster.");
-
+  if (!studentId || studentId.length > 180 || studentId.includes("/")) {
+    throw new HttpsError("invalid-argument", "studentId is required.");
+  }
+  const checked = districtIds.validateDistrictStudentIdInput(request.data?.sisStudentId);
+  if (!checked.ok) throw new HttpsError("invalid-argument", checked.error);
+  const sisStudentId = checked.value;
   const email = callerEmail(request);
   const isRootAdmin = request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(email);
-  const student = studentSnapshot.data() || {};
-  let authorized = isRootAdmin
-    || String(student.assignedTeacherEmail || "").trim().toLowerCase() === email;
-  const classId = String(student.classId || "").trim();
-  if (!authorized && classId) {
-    const classSnapshot = await db.collection(CLASS_COLLECTION).doc(classId).get();
-    authorized = classSnapshot.exists
-      && String(classSnapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email;
-  }
-  if (!authorized) throw new HttpsError("permission-denied", "Only this student's teacher of record can set the SIS Student ID.");
+  const studentRef = db.collection("grades").doc(studentId);
+  const auditRef = db.collection(authLib.ADMIN_AUDIT_COLLECTION).doc();
+  // Every way this number can be stored (leading zeros do not make a
+  // different district number): at most 20, so one `in` query and one getAll.
+  const variants = districtIds.districtStudentIdVariants(sisStudentId);
 
-  const [sameField, sameDocument] = await Promise.all([
-    db.collection("grades").where("sisStudentId", "==", sisStudentId).limit(2).get(),
-    db.collection("grades").doc(sisStudentId).get(),
-  ]);
-  const conflictingField = sameField.docs.find((entry) => entry.id !== studentId);
-  const conflictingDocument = sameDocument.exists && sameDocument.id !== studentId ? sameDocument : null;
-  if (conflictingField || conflictingDocument) {
-    throw new HttpsError("already-exists", "That SIS Student ID is already assigned to another MathMaster student.");
-  }
+  return db.runTransaction(async (transaction) => {
+    const [snapshot] = await transaction.getAll(studentRef, { fieldMask: ["assignedTeacherEmail", "classId", "sisStudentId"] });
+    if (!snapshot.exists) throw new HttpsError("not-found", "That student is not on the MathMaster roster.");
+    const student = snapshot.data() || {};
+    const classId = String(student.classId || "").trim();
 
-  await studentRef.set({
-    sisStudentId,
-    sisStudentIdVerifiedAt: FieldValue.serverTimestamp(),
-    sisStudentIdVerifiedBy: email,
-    updatedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
-  await writeAdminAudit(
-    db,
-    { uid: request.auth?.uid || null, email },
-    "sis_student_id_set",
-    studentId,
-    { sisStudentId, classId: classId || null },
-  );
-  return { studentId, sisStudentId };
+    let authorized = districtIds.mayChangeStudentDistrictId({ callerEmail: email, isRootAdmin, student });
+    if (!authorized && classId) {
+      const classSnapshot = await transaction.get(db.collection(CLASS_COLLECTION).doc(classId));
+      authorized = districtIds.mayChangeStudentDistrictId({
+        callerEmail: email,
+        isRootAdmin,
+        student,
+        classRecord: classSnapshot.exists ? classSnapshot.data() || {} : null,
+      });
+    }
+    if (!authorized) throw new HttpsError("permission-denied", "Only this student's teacher of record can change the student's district ID.");
+
+    // Every other record that already answers to this number — as its stored
+    // district ID, or as its account ID. Ids and one field only.
+    const [districtIdHolders, accountIdHolders] = await Promise.all([
+      transaction.get(db.collection("grades").where("sisStudentId", "in", variants).select("sisStudentId").limit(5)),
+      transaction.getAll(...variants.map((variant) => db.collection("grades").doc(variant)), { fieldMask: ["sisStudentId"] }),
+    ]);
+    const conflict = districtIds.findDistrictStudentIdConflict({
+      studentId,
+      districtId: sisStudentId,
+      districtIdHolders: districtIdHolders.docs.map((entry) => entry.id),
+      accountIdHolders: accountIdHolders.filter((entry) => entry.exists).map((entry) => entry.id),
+    });
+    if (conflict) throw new HttpsError("already-exists", conflict.message);
+
+    const change = districtIds.districtIdChangeRecord({ studentId, student, districtId: sisStudentId, classId });
+    transaction.update(studentRef, {
+      sisStudentId,
+      sisStudentIdVerifiedAt: FieldValue.serverTimestamp(),
+      sisStudentIdVerifiedBy: email,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(auditRef, {
+      actorUid: request.auth?.uid || null,
+      actorEmail: email,
+      action: "sis_student_id_set",
+      target: studentId,
+      details: change.details,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return change.response;
+  });
 });
 
 /**

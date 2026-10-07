@@ -9,6 +9,12 @@ import {
   studentNameParts,
   studentSearchText,
 } from './platform/studentName';
+import {
+  DISTRICT_ID_STATUS,
+  describeStudentDistrictId,
+  districtIdSavedMessage,
+} from './platform/teacher/studentDistrictIdModel.js';
+import DistrictIdEditor from './components/teacher/DistrictIdEditor.jsx';
 
 const card = {
   border: '1px solid var(--mm-border)',
@@ -89,6 +95,8 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   // The one row whose name is being added or corrected: { studentId, firstName, lastName, error }.
   const [nameEditor, setNameEditor] = useState(null);
+  // The one row whose district ID is being added or corrected: { studentId, error }.
+  const [districtEditor, setDistrictEditor] = useState(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -159,6 +167,11 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
 
   const needingSetup = access.students.filter((student) => !student.hasPasscode).length;
   const namelessCount = useMemo(() => access.students.filter(isNameMissing).length, [access.students]);
+  // Students whose grades cannot be exported: no usable district ID on file.
+  const noDistrictIdCount = useMemo(
+    () => access.students.filter((student) => !describeStudentDistrictId(student).exportable).length,
+    [access.students],
+  );
   const isRootAdmin = access.authority?.isRootAdmin === true;
   const adminMode = mode === 'admin';
   const activeClasses = useMemo(
@@ -223,13 +236,48 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
     }
   };
 
+  /**
+   * Add or correct a student's district ID through the server
+   * (setStudentSisId) — the only number grade exports use. The MathMaster
+   * account ID, the student's work and how they sign in do not change. Then
+   * reload this screen's roster and tell the app, exactly as a name change
+   * does, so every screen holding this student shows the new district ID.
+   */
+  const saveStudentDistrictId = async (student, districtId) => {
+    const { studentId } = student;
+    setPendingAction(`district:${studentId}`);
+    setError(null);
+    setStatus(null);
+    setDistrictEditor((current) => (current?.studentId === studentId ? { ...current, error: '' } : current));
+    try {
+      const saved = await teacherAdmin.setStudentSisId({ studentId, sisStudentId: districtId });
+      setDistrictEditor(null);
+      setStatus(districtIdSavedMessage({
+        studentName: formatStudentLabel(student, { includeId: true }),
+        previousDistrictId: saved.previousSisStudentId,
+        districtId: saved.sisStudentId || districtId,
+      }));
+      await refresh();
+      onStudentIdentityChanged?.();
+    } catch (caught) {
+      setDistrictEditor((current) => (current?.studentId === studentId ? { ...current, error: describeAuthError(caught) } : current));
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
   return (
     <div>
       <h2 style={{ marginTop: 0 }}>{adminMode ? 'Administration' : 'Student Access'}</h2>
       <p style={{ color: 'var(--mm-text-muted)', maxWidth: '80ch', lineHeight: 1.6 }}>
         {adminMode
           ? 'Root administration is server-authorized. Manage teacher access, student accounts, permanent erasure, and the administrative audit trail here.'
-          : 'Students sign in with a school Google account, or with their student ID and a PIN they choose once using the class code below.'}
+          : 'Students sign in with a school Google account, or with their MathMaster ID and a PIN they choose once using the class code below.'}
+      </p>
+      <p style={{ color: 'var(--mm-text-muted)', maxWidth: '80ch', lineHeight: 1.6, marginTop: 0 }}>
+        Each student has a <strong>MathMaster ID</strong> — they sign in with it, and all of their work stays attached to it — and a{' '}
+        <strong>district ID</strong>, the only number grade exports to TEAMS use. They are usually the same. If a district ID is wrong,
+        use <em>Edit district ID</em> on the student&apos;s row: it changes only the number grade exports use.
       </p>
 
       {adminMode && !loading && !isRootAdmin && <div role="alert" style={{ ...card, background: 'var(--mm-warning-soft)', borderColor: '#f9ab00', color: 'var(--mm-warning-text)' }}><strong>Administration is visible, but server authorization is not active yet.</strong> The signed-in session does not currently carry the root-admin claim. Deploy the matching Functions build, then sign out and back in so the token refreshes. No privileged action is enabled until the server confirms root authority.</div>}
@@ -247,7 +295,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
 
       {adminMode && isRootAdmin && <section style={{ ...card, borderColor: 'var(--mm-primary-border)', background: 'var(--mm-surface-tint)' }}>
         <h3 style={{ margin: '0 0 6px' }}>Create student account</h3>
-        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.55 }}>Use the student&apos;s official district/SIS student ID (digits only), then enter the first and last name and place the student in a class. Students can no longer create a new roster identity by typing an email or made-up ID during first sign-in.</p>
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.55 }}>Use the student&apos;s official district/SIS student ID (digits only), then enter the first and last name and place the student in a class. Students can no longer create a new roster identity by typing an email or made-up ID during first sign-in. The number becomes both the student&apos;s MathMaster ID (which never changes) and their district ID; if it later turns out to be wrong, correct the district ID on the student&apos;s row.</p>
         <form onSubmit={(event) => {
           event.preventDefault();
           if (!/^\d{1,20}$/.test(newStudent.studentId.trim()) || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId) return;
@@ -334,6 +382,13 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
           </p>
         )}
 
+        {!loading && noDistrictIdCount > 0 && (
+          <p data-district-id-diagnostic style={{ margin: '0 0 12px', padding: '9px 12px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: '13px', lineHeight: 1.5 }}>
+            <strong>{noDistrictIdCount} student{noDistrictIdCount === 1 ? ' has' : 's have'} no usable district ID on file.</strong>{' '}
+            Their grades cannot be exported to TEAMS until one is added with <em>Add district ID</em> or <em>Edit district ID</em>.
+          </p>
+        )}
+
         <input
           type="search"
           value={search}
@@ -356,6 +411,8 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
             const editingName = nameEditor?.studentId === student.studentId;
             const savingName = pendingAction === `name:${student.studentId}`;
             const studentLabel = formatStudentLabel(student, { includeId: true });
+            const district = describeStudentDistrictId(student);
+            const editingDistrict = districtEditor?.studentId === student.studentId;
             const assignmentDraft = assignmentDrafts[student.studentId] || {
               classId: student.classId || '',
             };
@@ -374,11 +431,22 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
                 }}
               >
                 <div style={{ minWidth: 0 }}>
-                  <strong style={{ fontSize: '16px', ...(nameMissing ? { color: 'var(--mm-warning-text)', fontStyle: 'italic' } : {}) }}>{formatStudentName(student)}</strong><span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}> · ID {student.studentId}</span>
+                  <strong style={{ fontSize: '16px', ...(nameMissing ? { color: 'var(--mm-warning-text)', fontStyle: 'italic' } : {}) }}>{formatStudentName(student)}</strong><span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}> · MathMaster ID {student.studentId}</span>
                   <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginTop: '3px', wordBreak: 'break-word' }}>
                     {student.classPeriod}
                     {student.assignedTeacherEmail && <> · Teacher: {student.assignedTeacherEmail}</>}
                     {student.linkedEmail && <> · {student.linkedEmail}</>}
+                  </div>
+                  {/* The district ID is printed only when it is not the
+                      MathMaster ID, so a difference stands out and the same
+                      number never appears twice on one row. */}
+                  <div
+                    data-district-id-status={district.status}
+                    style={{ fontSize: '13px', marginTop: '3px', color: district.tone === 'warning' ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)' }}
+                  >
+                    {district.status === DISTRICT_ID_STATUS.SAME && <>District ID: same as the MathMaster ID</>}
+                    {district.status === DISTRICT_ID_STATUS.DIFFERS && <><strong style={{ color: 'var(--mm-text)' }}>District ID {district.districtId}</strong> · {district.note}</>}
+                    {(district.status === DISTRICT_ID_STATUS.MISSING || district.status === DISTRICT_ID_STATUS.INVALID) && <>{district.note}</>}
                   </div>
                 </div>
 
@@ -405,6 +473,16 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
                     onClick={() => (editingName ? setNameEditor(null) : openNameEditor(student))}
                   >
                     {nameMissing ? 'Add name' : 'Edit name'}
+                  </button>
+
+                  <button
+                    type="button"
+                    style={{ ...quietButton, ...(district.exportable ? {} : { borderColor: '#f9ab00', color: 'var(--mm-warning-text)' }) }}
+                    aria-expanded={editingDistrict}
+                    aria-label={`${district.actionLabel} for ${studentLabel}`}
+                    onClick={() => setDistrictEditor(editingDistrict ? null : { studentId: student.studentId, error: '' })}
+                  >
+                    {district.actionLabel}
                   </button>
 
                   <button
@@ -457,6 +535,17 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
                     <button type="button" disabled={savingName} onClick={() => setNameEditor(null)} style={{ ...quietButton, minHeight: 36 }}>Cancel</button>
                     {nameEditor.error && <p role="alert" style={{ flex: '1 1 100%', margin: 0, color: 'var(--mm-error-text)', fontSize: 13 }}>{nameEditor.error}</p>}
                   </form>
+                )}
+
+                {editingDistrict && (
+                  <DistrictIdEditor
+                    student={student}
+                    studentLabel={studentLabel}
+                    saving={pendingAction === `district:${student.studentId}`}
+                    error={districtEditor.error}
+                    onSave={(districtId) => saveStudentDistrictId(student, districtId)}
+                    onCancel={() => setDistrictEditor(null)}
+                  />
                 )}
               </div>
             );
