@@ -9,7 +9,11 @@ const css = fs.readFileSync(new URL('../../src/App.css', import.meta.url), 'utf8
 test('gold achievement state only requires every question to be correct', () => {
   assert.match(app, /allCorrect: section\.entries\.length > 0 && section\.entries\.every\(\(entry\) => sectionQuestionIsCorrect\(entry\.index\)\)/);
   assert.match(app, /section\.allCorrect \? ' is-complete'/);
-  assert.match(app, /sectionComplete=\{Boolean\(currentNavigationSection\?\.allCorrect\)\}/);
+  // The gold tab state still requires every question correct (above). The
+  // workspace's section-complete signal follows TERMINAL completion instead
+  // (decision 4: done at any accuracy), so a student out of tries on the last
+  // question still gets the continue/hand-off action.
+  assert.match(app, /sectionComplete=\{Boolean\(currentNavigationSection\?\.complete\)\}/);
 });
 
 test('completed section tabs communicate completion without color alone', () => {

@@ -43,3 +43,13 @@ test('the continue button only leads to a question workable NOW — never a clos
   assert.match(handoff, /nextAvailableSection \? sectionWorkTarget\(nextAvailableSection\) : null/);
   assert.doesNotMatch(handoff, /sectionNavigationTarget/);
 });
+
+test('the hand-off follows TERMINAL completion (decision 4), not all-correct', () => {
+  // A student who used up the tries on the last question has finished the
+  // section; they still get next section / Up next / results.
+  assert.match(app, /const assignmentHandoff = currentNavigationSection\?\.complete\b/);
+  assert.match(app, /sectionComplete=\{Boolean\(currentNavigationSection\?\.complete\)\}/);
+  assert.doesNotMatch(app, /sectionComplete=\{Boolean\(currentNavigationSection\?\.allCorrect\)\}/);
+  // `complete` means every entry is terminal (correct or expired).
+  assert.match(app, /const sectionQuestionIsComplete = \(index\) => \['correct', 'expired'\]\.includes/);
+});

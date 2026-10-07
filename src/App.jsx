@@ -10899,7 +10899,10 @@ function App() {
     const nextAvailableSectionMeta = nextAvailableSection
       ? (activitySectionMeta[nextAvailableSection.role] || { label: nextAvailableSection.role })
       : null;
-    const assignmentHandoff = currentNavigationSection?.allCorrect
+    // Decision 4: a section is done at ANY accuracy — out of tries counts —
+    // so the hand-off follows terminal completion; `allCorrect` stays for the
+    // tab's correctness styling only.
+    const assignmentHandoff = currentNavigationSection?.complete
       ? resolveAssignmentHandoff({
         nextIncompleteSection: nextAvailableSectionTarget ? nextAvailableSection : null,
         nextIncompleteSectionLabel: nextAvailableSectionMeta?.label || '',
@@ -11460,7 +11463,7 @@ function App() {
               onNextQuestion={nextQuestionEntry ? () => changeQuestion(nextQuestionEntry.index) : null}
               nextQuestionLabel={nextQuestionDestinationLabel}
               nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
-              sectionComplete={Boolean(currentNavigationSection?.allCorrect)}
+              sectionComplete={Boolean(currentNavigationSection?.complete)}
               sectionLabel={currentSectionMeta.label}
               sectionQuestionCount={currentSectionQuestionCount}
               onContinueSection={assignmentHandoff ? continueAfterSection : null}
