@@ -11,8 +11,8 @@
 // pure, so the simulated learner and a real student go through the same
 // conversion — the simulator only differs in which document it reads.
 
-import { buildStudentMasteryProfile } from '../../masteryEngine.js';
 import { teksSkillId } from './skillGraph.js';
+import { buildUnifiedMasteryProfiles, masteryBySkillFromProfiles } from '../mastery/unifiedMastery.js';
 
 // Weighted evidence at which the path engine treats mastery as trustworthy.
 // Matches CONFIDENT_ATTEMPTS in the recommendation engine.
@@ -60,9 +60,14 @@ export const buildMasteryBySkill = (profile) => {
 
 /**
  * One call from a student (or simulated) document to path-engine input.
+ *
+ * It goes through the SAME unified profiles the mastery wheel reads (server
+ * Path evidence merged over the assignment fallback) and the same Mastered
+ * rule (functions/shared/masteryRule.mjs). `serverProfiles` is the student's
+ * studentMasteryProfiles map; a simulated learner has none and passes nothing.
  */
-export const buildMasteryBySkillForStudent = ({ student, assignments = [] }) => (
-  buildMasteryBySkill(buildStudentMasteryProfile({ student, assignments }))
+export const buildMasteryBySkillForStudent = ({ student, assignments = [], serverProfiles = {} }) => (
+  masteryBySkillFromProfiles(buildUnifiedMasteryProfiles({ student, assignments, serverProfiles }))
 );
 
 /**

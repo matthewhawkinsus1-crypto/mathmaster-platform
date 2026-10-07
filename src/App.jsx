@@ -306,6 +306,7 @@ import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 import RecommendedSkills from './components/student/RecommendedSkills.jsx';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
+import { subscribeStudentServerMasteryProfiles } from './platform/mastery/serverMasteryProfiles.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
 import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor, projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
@@ -929,6 +930,9 @@ function App() {
   const [pacingByClass, setPacingByClass] = useState({});
   const [skillOverrides, setSkillOverrides] = useState([]);
   const [studentPathIntervention, setStudentPathInterventionState] = useState(null);
+  // The server mastery profile: the one mastery source the Path map, Recommended
+  // and the wheel all read (platform/mastery/unifiedMastery.js).
+  const [studentServerMasteryProfiles, setStudentServerMasteryProfiles] = useState(null);
   const [pathInterventionBusyStudentId, setPathInterventionBusyStudentId] = useState(null);
   const [pacingBusy, setPacingBusy] = useState(false);
   // Weekly Path goal settings, per class. Stored beside pacing and read the
@@ -2180,6 +2184,18 @@ function App() {
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
+      setStudentServerMasteryProfiles(null);
+      return undefined;
+    }
+    return subscribeStudentServerMasteryProfiles({
+      studentId: user.id,
+      onChange: setStudentServerMasteryProfiles,
+      onError: (error) => console.error('Server mastery profile failed to load:', error),
+    });
+  }, [user?.role, user?.id]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
       setStudentPathInterventionState(null);
       return undefined;
     }
@@ -2224,7 +2240,8 @@ function App() {
     courseId: studentCourseId,
     pacing: studentStoredPacing,
     teacherOverrides: studentOverrides,
-  }), [studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides]);
+    serverMasteryProfiles: studentServerMasteryProfiles,
+  }), [studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides, studentServerMasteryProfiles]);
 
   // Downstream presentation may want to say whether timing is automatic or
   // teacher-set. The engine has already resolved that distinction for us.

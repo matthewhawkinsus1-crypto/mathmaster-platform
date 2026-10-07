@@ -503,12 +503,12 @@ export const MyMathPathProductionContainer = ({
         }}
       >
         <h1 style={{ margin: '0 0 8px', fontSize: 21, color: 'inherit' }}>
-          {completedSessionError ? 'This Path pass is already complete' : 'Next level is temporarily unavailable'}
+          {completedSessionError ? 'This practice round is already done' : 'Next level is temporarily unavailable'}
         </h1>
         <p style={{ margin: '0 0 10px', lineHeight: 1.65, color: 'var(--mm-text)' }}>
           {completedSessionError
             ? 'Your completed pass is saved. Return to My Math Path to see its completion badge and choose the next level or another open skill.'
-            : 'Your earlier Path pass is still complete. MathMaster could not prepare a usable question for the next level, so it stopped instead of giving you broken or duplicate work.'}
+            : 'Your earlier practice round is still done. MathMaster could not prepare a usable question for the next level, so it stopped instead of giving you broken or duplicate work.'}
         </p>
         {!completedSessionError && (
           <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: 'var(--mm-warning-text)' }}>
@@ -614,13 +614,13 @@ export const MyMathPathProductionContainer = ({
         {courseChallengeIntent && !paused && (
           <div style={{ margin: '0 auto 16px', maxWidth: 540, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', lineHeight: 1.55 }}>
             <strong style={{ display: 'block', marginBottom: 3 }}>Ahead-of-class Challenge complete</strong>
-            This session adds mastery evidence, but it does not advance the numbered Foundation → Deeper practice → Mastery challenge pass loop for this skill.
+            This session adds mastery evidence, but it does not advance the numbered Foundation → Deeper practice → Stretch practice levels for this skill.
           </div>
         )}
         {coursePassLevel && !paused && (
           <div style={{ margin: '0 auto 16px', maxWidth: 540 }}>
             <div style={{ display: 'inline-block', padding: '6px 11px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 12, fontWeight: 950, letterSpacing: '.04em', textTransform: 'uppercase' }}>
-              ✓ Path Pass {coursePassLevel} complete · {coursePassName}
+              ✓ Level {coursePassLevel} round done · {coursePassName}
             </div>
             <p style={{ margin: '10px 0 0', color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.6 }}>
               {nextCourseLevel
@@ -638,7 +638,7 @@ export const MyMathPathProductionContainer = ({
           {paused
             ? (session.teacherMessage || 'Your progress is saved. Check in with your teacher before continuing this skill.')
             : coursePassLevel
-              ? `You completed ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions in this Path pass.`
+              ? `You completed ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions in this practice round.`
               : `You worked through ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}
         </p>
         {!paused && (

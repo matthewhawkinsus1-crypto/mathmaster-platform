@@ -4,8 +4,7 @@ import { MyMathPathExperience } from '../student/MyMathPathApp.jsx';
 import { STUDENT_DESTINATION } from '../../platform/student/navigationModel.js';
 import { buildStudentDashboardModel } from '../../studentDashboardModel.js';
 import { buildStudentPathOptions } from '../../platform/path/studentPathOptions.js';
-import { buildStudentMasteryProfile, collectStudentEvidence } from '../../masteryEngine.js';
-import { adaptLegacyMasteryToPhase5 } from '../../services/masteryStateService.js';
+import { buildUnifiedMasteryProfiles } from '../../platform/mastery/unifiedMastery.js';
 import {
   assignmentIsForStudent, getAssignmentLifecycle, getDOLState, getIncludedQuestionIndices,
   prerequisiteAccess, questionIsIncluded,
@@ -197,10 +196,11 @@ export default function SimulatedStudentExperience({
   }) : null), [learner, allAssignments, courseId, pacing, teacherOverrides, nowValue]);
 
   const masteryData = useMemo(() => {
-    const legacyProfile = buildStudentMasteryProfile({ student: learner, assignments: allAssignments });
-    const evidenceRows = collectStudentEvidence({ student: learner, assignments: allAssignments });
+    // The same builder the live student's wheel and Path map read, with no
+    // server document — a simulated learner has none — so the simulator applies
+    // the identical Mastered rule.
     return {
-      masteryProfilesByTEKS: adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows, retentionSchedulesByTEKS }),
+      masteryProfilesByTEKS: buildUnifiedMasteryProfiles({ student: learner, assignments: allAssignments, serverProfiles: {}, retentionSchedulesByTEKS }),
       retentionSchedulesByTEKS,
     };
   }, [learner, allAssignments, retentionSchedulesByTEKS]);

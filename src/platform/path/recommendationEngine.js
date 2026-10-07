@@ -100,7 +100,19 @@ const masteryFor = (masteryBySkill, skillId) => {
     attempts: Math.max(0, Number(entry.attempts) || 0),
     recentAccuracy: entry.recentAccuracy == null ? null : clamp01(entry.recentAccuracy),
     evidenceStrength: clamp01(entry.evidenceStrength ?? (Math.min(1, (Number(entry.attempts) || 0) / CONFIDENT_ATTEMPTS))),
+    // The shared mastery rule's verdict, when the record came through the
+    // unified profiles. Absent only for hand-built records (tests, legacy).
+    mastered: typeof entry.mastered === 'boolean' ? entry.mastered : null,
   };
+};
+
+// Mastered is the shared rule's verdict (functions/shared/masteryRule.mjs:
+// 85+, four events, two independent successes, a DOK-3 item). The 0.9 number
+// is only the fallback for a record that carries no verdict.
+const isMasteredState = (state) => {
+  if (!state) return false;
+  if (typeof state.mastered === 'boolean') return state.mastered;
+  return state.mastery != null && state.mastery >= MASTERED_THRESHOLD;
 };
 
 /**
@@ -178,7 +190,8 @@ const overrideFor = (overrides, skillId) => (Array.isArray(overrides) ? override
  * The scoring model. Every term is separate and signed so a teacher-facing
  * explanation can name the ones that actually moved the number.
  */
-export const scoreSkill = ({ readiness, timing, teacherPriority, assignmentRelevance, mastery, recentAccuracy, avoidanceCount, extensionReady, softShortfall = 0 }) => {
+export const scoreSkill = ({ readiness, timing, teacherPriority, assignmentRelevance, mastery, recentAccuracy, avoidanceCount, extensionReady, softShortfall = 0, mastered = null }) => {
+  const isMastered = typeof mastered === 'boolean' ? mastered : (mastery != null && mastery >= MASTERED_THRESHOLD);
   const terms = {
     prerequisiteReadiness: readiness * 0.30,
     curriculumTiming: timing === TIMING.CURRENT ? 0.30
@@ -196,7 +209,7 @@ export const scoreSkill = ({ readiness, timing, teacherPriority, assignmentRelev
     softPrerequisiteGap: softShortfall > 0 ? -0.08 : 0,
     excessiveAdvancementPenalty: timing === TIMING.FUTURE ? -0.35 : 0,
     // A skill already mastered should not crowd out unlearned material.
-    masteredPenalty: mastery != null && mastery >= MASTERED_THRESHOLD ? -0.4 : 0,
+    masteredPenalty: isMastered ? -0.4 : 0,
   };
   const score = Object.values(terms).reduce((total, value) => total + value, 0);
   return { score: Number(Math.max(0, Math.min(1, score)).toFixed(4)), terms };
@@ -288,7 +301,7 @@ export const getStudentPathOptions = ({
       && evidenceStrengthFor(masteryBySkill, skill.prerequisites) >= 0.5;
     if (extensionReady) reasons.push(REASON.STRONG_MASTERY);
 
-    const isMastered = mastery != null && mastery >= MASTERED_THRESHOLD;
+    const isMastered = isMasteredState(state);
     if (isMastered) reasons.push(REASON.ALREADY_MASTERED);
 
     const { score, terms } = scoreSkill({
@@ -301,6 +314,7 @@ export const getStudentPathOptions = ({
       avoidanceCount,
       extensionReady,
       softShortfall: prereq.supportiveShortfall.length,
+      mastered: isMastered,
     });
 
     // Stage 11 — final classification. Order matters: required work outranks

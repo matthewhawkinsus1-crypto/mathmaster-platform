@@ -161,6 +161,9 @@ export const buildStudentPathOptions = ({
   // that are actually open, because "your teacher assigned this" is a fact the
   // assignment list already knows.
   requiredSkillIds = null,
+  // The student's studentMasteryProfiles map. With it the map, Recommended,
+  // locks and Challenge unlocks read the same mastery the wheel reads.
+  serverMasteryProfiles = null,
   nowValue = Date.now(),
 } = {}) => {
   // A saved teacher position is an override, not an ignition switch. When it
@@ -181,7 +184,7 @@ export const buildStudentPathOptions = ({
   const pacingProvider = resolvePacingProvider({ courseId, skills, pacing: effectivePacing, nowValue });
   return getStudentPathOptions({
     courseId,
-    masteryBySkill: buildMasteryBySkillForStudent({ student: safeStudent, assignments: safeAssignments }),
+    masteryBySkill: buildMasteryBySkillForStudent({ student: safeStudent, assignments: safeAssignments, serverProfiles: serverMasteryProfiles || {} }),
     pacing: effectivePacing,
     pacingProvider,
     teacherOverrides,

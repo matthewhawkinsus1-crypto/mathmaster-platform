@@ -8,6 +8,9 @@ import PracticeAsMenu from './PracticeAsMenu.jsx';
 import { describeCoursePathPass } from '../../platform/path/pathPassPresentation.js';
 import StandardBadge from '../common/StandardBadge.jsx';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
+import { masteryChecklist } from '../../../functions/shared/masteryRule.mjs';
+
+const VISUALLY_HIDDEN = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 };
 
 export const SkillDetailCardModal = ({
   teksCode,
@@ -34,7 +37,10 @@ export const SkillDetailCardModal = ({
   const signals = masteryProfile?.signals || { retention: 'stable', breadth: 'developing' };
   const dimensions = masteryProfile?.dimensions || { eligibleGradeLevelEvents: 0, dokRepresented: [], familiesRepresented: [] };
   const statusColor = MASTERY_STATUS_COLORS[mastery.status] || 'var(--mm-text-muted)';
-  const pass = describeCoursePathPass(pathPassProgress || {}, { mastered: String(mastery.status || '').toLowerCase() === 'mastered' });
+  // The shared rule the server trigger uses — the same verdict as the wheel,
+  // the Path map and Recommended, and the checklist of what is still missing.
+  const checklist = masteryChecklist(masteryProfile || {});
+  const pass = describeCoursePathPass(pathPassProgress || {}, { mastered: checklist.mastered });
 
   return (
     <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'grid', placeItems: 'center', padding: '16px', background: 'rgba(0,0,0,.5)' }}>
@@ -65,29 +71,37 @@ export const SkillDetailCardModal = ({
           <div style={{ marginTop: '3px', fontSize: '13px', fontWeight: 900 }}>
             {pass.nextLabel}
           </div>
-          {pass.hasCompletedPass && String(mastery.status || '').toLowerCase() !== 'mastered' && (
+          {pass.hasCompletedPass && !checklist.mastered && (
             <div style={{ marginTop: '4px', color: 'var(--mm-text)', fontSize: '11.5px', lineHeight: 1.45 }}>
-              This Path pass is complete. Mastery is a stronger claim and can require broader or higher-level evidence.
+              Levels are how deep your practice goes. Mastered is earned separately, from your answers — see what is left below.
             </div>
           )}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '18px' }}>
-          <div style={{ padding: '13px', borderRadius: '8px', background: 'var(--mm-surface-sunken)' }}><div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>Mastery estimate</div><div style={{ fontSize: '21px', fontWeight: 900, color: statusColor }}>{mastery.estimate == null ? '—' : `${mastery.estimate}%`}</div><div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>{mastery.status}</div></div>
-          <div style={{ padding: '13px', borderRadius: '8px', background: 'var(--mm-surface-sunken)' }}><div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>Observed accuracy</div><div style={{ fontSize: '21px', fontWeight: 900 }}>{mastery.observedPerformance == null ? '—' : `${mastery.observedPerformance}%`}</div><div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>{dimensions.eligibleGradeLevelEvents || 0} evidence event(s)</div></div>
-        </div>
-        <div style={{ margin: '18px 0', color: 'var(--mm-text)', fontSize: '13px', lineHeight: 1.7 }}>
-          {/* DOK levels and family counts describe how the platform indexes a
-              question, not what the student has shown. What a student can act
-              on is the RANGE of the evidence and how independent it was. */}
+        {/* ONE number. "Mastery estimate" and "Observed accuracy" were the same
+            value under two names (the server writes both from one estimate). */}
+        <div style={{ marginTop: '18px', padding: '13px', borderRadius: '8px', background: 'var(--mm-surface-sunken)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
-            <strong>Range of work:</strong>{' '}
-            {dimensions.dokRepresented?.length >= 3 ? 'You have shown this several different ways.'
-              : dimensions.dokRepresented?.length === 2 ? 'You have shown this two different ways.'
-                : dimensions.dokRepresented?.length === 1 ? 'So far all your evidence is one kind of question.'
-                  : 'Not enough evidence yet.'}
+            <div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>Your score on this skill</div>
+            <div style={{ fontSize: '21px', fontWeight: 900, color: statusColor }}>{mastery.estimate == null ? '—' : `${mastery.estimate}%`}</div>
           </div>
-          <div><strong>Confidence:</strong> {mastery.confidence || 'Low'}</div>
+          <div style={{ textAlign: 'right' }}>
+            <div data-mastery-status style={{ fontSize: '14px', fontWeight: 900, color: statusColor }}>{checklist.status}</div>
+            <div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>{dimensions.eligibleGradeLevelEvents || 0} question{Number(dimensions.eligibleGradeLevelEvents) === 1 ? '' : 's'} counted · confidence {mastery.confidence || 'Low'}</div>
+          </div>
         </div>
+        <section aria-labelledby="skill-detail-left" style={{ margin: '16px 0 18px' }}>
+          <h3 id="skill-detail-left" style={{ margin: '0 0 8px', fontSize: '14px', color: 'var(--mm-text-strong)' }}>
+            {checklist.mastered ? 'You have mastered this skill' : "What's left to master this"}
+          </h3>
+          <ul style={{ margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+            {checklist.items.map((item) => (
+              <li key={item.key} data-mastery-check={item.key} data-met={item.met ? 'true' : 'false'} style={{ listStyle: 'none', display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: '13px', lineHeight: 1.45, color: item.met ? 'var(--mm-success-text)' : 'var(--mm-text)' }}>
+                <span aria-hidden="true" style={{ fontWeight: 900, minWidth: 16 }}>{item.met ? '✓' : '○'}</span>
+                <span><span style={{ fontWeight: item.met ? 700 : 800 }}>{item.label}</span> <span style={{ color: 'var(--mm-text-muted)' }}>· {item.progress}</span><span style={VISUALLY_HIDDEN}>{item.met ? ' (done)' : ' (not yet)'}</span></span>
+              </li>
+            ))}
+          </ul>
+        </section>
         {blocked ? (
           <div style={{ padding: '13px 15px', borderRadius: '8px', background: blocked === STATUS.FUTURE ? 'var(--mm-surface-tint)' : 'var(--mm-warning-bg)', border: `1px ${blocked === STATUS.FUTURE ? 'dashed var(--mm-primary-border)' : 'solid var(--mm-warning-border-soft)'}`, color: blocked === STATUS.FUTURE ? 'var(--mm-primary-text)' : 'var(--mm-warning-text)', fontSize: '13px', lineHeight: 1.6 }}>
             {blocked === STATUS.FUTURE

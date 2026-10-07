@@ -98,7 +98,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
           </div>
           {node.status !== 'mastered' && (
             <div style={{ marginTop: 4, color: 'var(--mm-text)', fontSize: 11.5, lineHeight: 1.45 }}>
-              This Path pass is complete. Mastery is tracked separately and can require broader or higher-level evidence.
+              This practice round is done. Levels are how deep your practice goes; Mastered is earned separately from your answers.
             </div>
           )}
         </div>

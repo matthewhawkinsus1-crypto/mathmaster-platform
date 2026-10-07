@@ -18588,6 +18588,7 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     const creditedScore = independent ? score : score * SUPPORTED_CREDIT;
     const dok = Number(evidence.questionSnapshot?.dok) || null;
     const familyId = evidence.questionSnapshot?.familyId || null;
+    const masteryRule = await import("./shared/masteryRule.mjs");
 
     await db.runTransaction(async (transaction) => {
       const [application, profileSnapshot] = await Promise.all([
@@ -18613,16 +18614,14 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
         const dokRepresented = [...new Set([...(previous.dimensions?.dokRepresented || []), ...(dok ? [dok] : [])])].sort();
         const familiesRepresented = [...new Set([...(previous.dimensions?.familiesRepresented || []), ...(familyId ? [familyId] : [])])];
         const estimate = effectiveWeight > 0 ? Math.round((weightedScoreSum / effectiveWeight) * 100) : null;
-        let status = "Not Enough Evidence";
-        if (eligibleEvents >= 2 && effectiveWeight >= 1.1) {
-          // Mastered additionally requires evidence the student did the
-          // mathematics themselves. Without this, a high estimate assembled
-          // entirely from supported successes would still read as mastery.
-          if (estimate >= 85 && eligibleEvents >= 4 && independentSuccesses >= 2 && dokRepresented.some((value) => Number(value) >= 3)) status = "Mastered";
-          else if (estimate >= 70) status = "Secure";
-          else if (estimate >= 50) status = "Developing";
-          else status = "Needs Attention";
-        }
+        // ONE definition of Mastered (functions/shared/masteryRule.mjs), read
+        // by the wheel, the Path map, Recommended and the prerequisite locks.
+        // Mastered additionally requires evidence the student did the
+        // mathematics themselves: a high estimate assembled entirely from
+        // supported successes must not read as mastery.
+        const status = masteryRule.classifyMasteryStatus({
+          estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented,
+        });
         const confidence = eligibleEvents >= 8 && effectiveWeight >= 5 && dokRepresented.length >= 2 ? "High" : eligibleEvents >= 4 && effectiveWeight >= 2.4 ? "Medium" : "Low";
         const lastIndependentSuccessAt = evidence.performance?.isCorrect && independent
           ? Math.max(Number(previous.dimensions?.lastIndependentSuccessAt || 0), Number(evidence.occurredAt || 0))
