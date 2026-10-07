@@ -81,6 +81,9 @@ const rigorPolicy = require("./lib/rigorPolicy");
 // server-side facts (mastery documents, coverage indexes) it reasons over.
 const pathRouting = require("./lib/pathRouting");
 const pathContentRelease = require("./lib/pathContentRelease");
+// The end-of-session recap: recorded per closed question by submitPathResponse,
+// released by getMyPathSessionRecap only for a completed session.
+const pathSessionRecap = require("./lib/pathSessionRecap");
 const assignmentAi = require("./lib/assignmentAi");
 const weeklyPathSync = require("./lib/weeklyPathSync");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
@@ -15350,6 +15353,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     pathRouting.routing(),
     pathRouting.skillGraph(),
   ]);
+  const recapRules = await pathSessionRecap.pathSessionRecapRules();
 
   // The authorization context this evidence will carry, resolved from the
   // student's class before the transaction so the read is not inside it.
@@ -15701,11 +15705,42 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
       session: publicPathSession(nextSession),
       needsNextQuestion: questionFinalized && nextStatus === "active",
     };
-    transaction.set(submissionRef, { studentId, sessionId, submissionId, createdAt: now, result });
+    // A CLOSED question leaves its recap entry (the question as issued, the
+    // student's answer, the correct answer, the review) on this server-only
+    // document. getMyPathSessionRecap releases it once the session is completed.
+    const recapJson = pathSessionRecap.closedQuestionRecapJson(recapRules, {
+      sessionId,
+      currentQuestion,
+      responsePayload: request.data?.responsePayload || {},
+      grading: result.grading,
+      solutionReview: attemptSupport.solutionReview,
+      questionNumber: nextSummary.completedQuestions,
+      skillCode: activeSkillCode,
+      closedAt: now,
+      onError: (error) => logger.warn("Path recap entry was not recorded", { sessionId, questionInstanceId, message: error?.message || String(error) }),
+    });
+    transaction.set(submissionRef, { studentId, sessionId, submissionId, createdAt: now, result, ...(recapJson ? { recapJson } : {}) });
     return { duplicate: false, result };
   });
 
   return transactionResult.result;
+}));
+
+/**
+ * The end-of-session recap: the questions the student missed or got partly
+ * right, each as they saw it, with their answer, the correct answer and the
+ * worked solution. ONLY the caller's own session, and ONLY once the server has
+ * marked it completed — an active or paused session is refused, so nothing
+ * here can reveal anything while an item can still be answered. Rules:
+ * functions/shared/pathSessionRecap.mjs.
+ */
+exports.getMyPathSessionRecap = onCall((request) => withPathCallableDiagnostics("getMyPathSessionRecap", async () => {
+  const { studentId } = requireStudent(request);
+  const sessionId = String(request.data?.sessionId || "").trim();
+  if (!sessionId || sessionId.length > 180) throw new HttpsError("invalid-argument", "sessionId is required.");
+  const loaded = await pathSessionRecap.loadMyPathSessionRecap(getFirestore(), { studentId, sessionId });
+  if (loaded.refused) throw new HttpsError(loaded.refused.code, loaded.refused.message);
+  return { success: true, sessionId, ...loaded.recap };
 }));
 
 // Phase 6A: DOK 3/4 modeling labs are graded from a teacher-authored private
