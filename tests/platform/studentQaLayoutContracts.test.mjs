@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { revealUnlessVisibleWhileZoomed } from '../../src/platform/layout/pinchZoomReveal.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -9,10 +10,18 @@ const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), '
 // its "Pick up" chip — dragging from there selected the toolbar's text instead.
 test('a field focused on the student\'s behalf is scrolled clear of the sticky action bar on desktop', () => {
   const source = read('src/MathInput.jsx');
-  const effect = source.slice(source.indexOf('if (!focusSignal || !mfRef.current)'), source.indexOf('}, [focusSignal, isMobile]);'));
+  const effect = source.slice(source.indexOf('if (!focusSignal || !mfRef.current)'), source.indexOf('}, [focusSignal, isMobile'));
   const focusAt = effect.indexOf("focus?.({ preventScroll: true })");
-  const revealAt = effect.search(/if \(!isMobile\) mathField\?\.scrollIntoView\?\.\(\{ block: 'nearest'/);
+  // The reveal is the field's own scrollIntoView, or the zoom-aware helper that
+  // makes that same call unless the person is pinch-zoomed onto a field they
+  // can already see (platform/layout/pinchZoomReveal.js).
+  const revealAt = effect.search(/if \(!isMobile\) (mathField\?\.scrollIntoView\?\.\(|revealUnlessVisibleWhileZoomed\(mathField, )\{ block: 'nearest'/);
   assert.ok(focusAt > 0 && revealAt > focusAt, 'focus first, then reveal on non-mobile');
+  // Unzoomed, the helper IS the reveal: a field under the bar is scrolled clear.
+  const calls = [];
+  const field = { getBoundingClientRect: () => ({ top: 860, left: 200, width: 300, height: 40 }), scrollIntoView: (options) => calls.push(options) };
+  revealUnlessVisibleWhileZoomed(field, { block: 'nearest', inline: 'nearest' }, { visualViewport: { scale: 1, offsetTop: 0, offsetLeft: 0, width: 1536, height: 900 } });
+  assert.deepEqual(calls, [{ block: 'nearest', inline: 'nearest' }], 'at 1x the field is revealed exactly as before');
 
   const css = read('src/App.css');
   const rule = css.match(/\.mathmaster-assignment-screen math-field \{\s*scroll-margin-bottom:\s*(\d+)px;/);

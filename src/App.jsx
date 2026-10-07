@@ -317,6 +317,14 @@ import {
   studentRouteKey,
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
+import {
+  TEACHER_HISTORY_DOCUMENT_ID,
+  planTeacherHistoryWrite,
+  readTeacherHistoryEntry,
+  teacherRouteKey,
+  teacherRouteSignature,
+  writeTeacherRouteState,
+} from './platform/teacher/teacherBrowserHistory.js';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
 import {
@@ -1188,6 +1196,13 @@ function App() {
   // therefore leave MathMaster altogether.
   const studentBrowserHistoryReadyRef = useRef(false);
   const studentBrowserRouteRef = useRef(null);
+  // The teacher's counterpart (teacherBrowserRoute, near Live Teaching below).
+  const teacherBrowserHistoryReadyRef = useRef(false);
+  const teacherHistoryStepBackAtRef = useRef(0);
+  const teacherHistoryRestoreRef = useRef(null);
+  // Which assignment the in-memory preview tracker belongs to, so Back into a
+  // preview resumes it only when the work on screen is that assignment's.
+  const previewTrackerAssignmentIdRef = useRef(null);
   const studentBrowserRoute = useMemo(() => {
     if (user?.role !== 'student') return null;
     if (activeView === 'assignment') {
@@ -5764,6 +5779,7 @@ function App() {
     setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
     setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
+    previewTrackerAssignmentIdRef.current = assignmentId;
     setActiveView('teacherPreview');
   };
 
@@ -5873,6 +5889,197 @@ function App() {
     setAssignmentOverviewExpanded(false);
     setActiveView('teacherPreview');
   };
+
+  /*
+   * BROWSER BACK AND FORWARD FOR THE TEACHER.
+   *
+   * The teacher workspace is state-driven, like the student side, so without
+   * History API entries the browser treats every teacher screen as one page and
+   * a single Back press leaves MathMaster — the classic way to lose the room
+   * mid-lesson. Each screen (a sidebar tab, an Administration tab, the "View as
+   * Student" / Live Teaching preview) and each panel opened over a screen (an
+   * assignment's hub, a student's drawer, case review, support report, the Test
+   * Cycle preview) gets its own entry. The rules live in
+   * platform/teacher/teacherBrowserHistory.js.
+   *
+   * The arrival entry is marked as where the teacher started. Back from there
+   * still leaves the site — that is the browser's, not MathMaster's, to take.
+   */
+  const teacherBrowserRoute = useMemo(() => {
+    if (user?.role !== 'teacher') return null;
+    if (activeView === 'teacherPreview') {
+      return { surface: 'preview', assignmentId: activeAssignmentId || '', questionIndex: currentQuestionIndex };
+    }
+    const administrationVisible = teacherWorkspaceMode === 'administration'
+      && (user.isRootAdmin === true || isRootAdminEmail(user.email));
+    if (administrationVisible) return { surface: 'administration', adminTab };
+    return {
+      surface: 'workspace',
+      tab: teacherTab,
+      panels: {
+        hubAssignmentId: assignmentHubTarget?.assignmentId,
+        hubClassId: assignmentHubTarget?.classId,
+        studentId: profileDrawerStudentId,
+        caseReviewStudentId,
+        supportReportStudentId,
+        testCyclePreviewAssignmentId: testCyclePreviewAssignment?.id,
+      },
+    };
+  }, [
+    user?.role, user?.isRootAdmin, user?.email, activeView, activeAssignmentId, currentQuestionIndex,
+    teacherWorkspaceMode, adminTab, teacherTab, assignmentHubTarget, profileDrawerStudentId,
+    caseReviewStudentId, supportReportStudentId, testCyclePreviewAssignment?.id,
+  ]);
+
+  useEffect(() => {
+    if (!teacherBrowserRoute) {
+      teacherBrowserHistoryReadyRef.current = false;
+      return;
+    }
+    // The entry the teacher arrived on (sign-in, a reload, a bookmark) becomes
+    // this screen. Later screens are pushed after it.
+    if (!teacherBrowserHistoryReadyRef.current) {
+      teacherBrowserHistoryReadyRef.current = true;
+      writeTeacherRouteState(teacherBrowserRoute, { replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID });
+      return;
+    }
+
+    // A step back is in flight: the browser is about to land on the entry this
+    // screen already matches, and its popstate clears the mark.
+    if (Date.now() - teacherHistoryStepBackAtRef.current < 1000) return;
+
+    const plan = planTeacherHistoryWrite({
+      entry: readTeacherHistoryEntry(window.history.state),
+      target: teacherBrowserRoute,
+      documentId: TEACHER_HISTORY_DOCUMENT_ID,
+    });
+    if (plan.action === 'back') {
+      teacherHistoryStepBackAtRef.current = Date.now();
+      window.history.back();
+      return;
+    }
+    if (plan.action === 'replace' || plan.action === 'push') {
+      writeTeacherRouteState(teacherBrowserRoute, {
+        replace: plan.action === 'replace',
+        fromKey: plan.fromKey,
+        documentId: plan.documentId,
+      });
+    }
+  }, [teacherBrowserRoute]);
+
+  // A dialog that can hold work or a decision. Back never acts underneath one:
+  // the page it would reveal is not the page the dialog belongs to, and an
+  // editor's unsaved changes are not something Back should be able to discard.
+  // These render only over the teacher workspace, so only there do they block.
+  const teacherDialogOpen = teacherBrowserRoute?.surface === 'workspace' && Boolean(
+    questionEditorAssignment || contentUpgradeRequest || assignmentPreflight || deleteDialog
+    || classroomSyncProposal || teacherWorksheetDialog || exportJsonAssignment
+    || teacherScratchpadDialog || responseInspectorTarget,
+  );
+
+  // Re-assigned every render so the listener below always restores with the
+  // newest assignments and Live Teaching session, without re-subscribing.
+  teacherHistoryRestoreRef.current = (event) => {
+    const ownStepBack = Date.now() - teacherHistoryStepBackAtRef.current < 1000;
+    teacherHistoryStepBackAtRef.current = 0;
+    const entry = readTeacherHistoryEntry(event.state);
+    if (!entry) return;
+    const route = entry.route;
+
+    // The popstate from closing a panel: the screen already shows this entry
+    // (that is why App stepped back to it). Nothing to restore — and a dialog
+    // opened by the same click (the hub's "Edit questions") must not read it
+    // as the teacher pressing Back.
+    if (ownStepBack) {
+      if (teacherBrowserRoute && teacherRouteSignature(route) !== teacherRouteSignature(teacherBrowserRoute)) {
+        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId });
+      }
+      return;
+    }
+
+    if (teacherDialogOpen) {
+      // The browser has already moved; put this screen's entry back and stay.
+      if (teacherBrowserRoute) {
+        writeTeacherRouteState(teacherBrowserRoute, { fromKey: teacherRouteKey(route), documentId: TEACHER_HISTORY_DOCUMENT_ID });
+      }
+      toastInfo('Close the open window first', 'Save or close what is open, then use Back. Nothing was changed.');
+      return;
+    }
+
+    setQuickSearchOpen(false);
+
+    if (route.surface === 'preview') {
+      const assignmentData = assignments.find((assignment) => String(assignment.id) === route.assignmentId);
+      const isLiveLesson = liveTeachingSession?.active && String(liveTeachingSession.assignmentId) === route.assignmentId;
+      if (assignmentData && isLiveLesson) {
+        resumeLiveTeaching();
+        return;
+      }
+      if (assignmentData && previewTrackerAssignmentIdRef.current === route.assignmentId) {
+        // The preview's in-memory work is still this assignment's: step back
+        // into it where the teacher left it.
+        setActiveAssignmentId(assignmentData.id);
+        setCurrentQuestionIndex(route.questionIndex);
+        setActiveView('teacherPreview');
+        return;
+      }
+      if (assignmentData && getStoredAssignmentQuestions(assignmentData).length) {
+        // Preview is in-memory and always starts blank; another preview has
+        // run since, so this one starts again from the top.
+        startTeacherPreview(assignmentData.id, { lessonRuntime: true });
+        return;
+      }
+      // The assignment is gone. Stay on the current screen and make this entry
+      // say so, rather than leave Back pointing at a preview that cannot open.
+      if (teacherBrowserRoute) {
+        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId });
+      }
+      return;
+    }
+
+    // Leaving the preview by Back is the same as its own exit button: the
+    // Live Teaching session stays running, with Resume on Live Classroom.
+    if (activeView === 'teacherPreview') setActiveAssignmentId(null);
+    setActiveView('dashboard');
+
+    if (route.surface === 'administration') {
+      setTeacherWorkspaceMode('administration');
+      setAdminTab(route.adminTab);
+      return;
+    }
+
+    setTeacherWorkspaceMode('teacher');
+    if (route.tab !== teacherTab) {
+      setTeacherTab(route.tab);
+      // The same one-shot hand-offs the sidebar clears on a tab change. The
+      // Gradebook's class and assignment are left alone: Back into Grades
+      // should show the assignment the teacher was reading.
+      setHomeNavigationPeriod(null);
+      setLiveFocus(null);
+    }
+    const { panels } = route;
+    setAssignmentHubTarget((current) => {
+      if (!panels.hubAssignmentId) return null;
+      return current?.assignmentId === panels.hubAssignmentId
+        ? current
+        : { assignmentId: panels.hubAssignmentId, classId: panels.hubClassId || null };
+    });
+    setProfileDrawerStudentId(panels.studentId || null);
+    setCaseReviewStudentId(panels.caseReviewStudentId || null);
+    setSupportReportStudentId(panels.supportReportStudentId || null);
+    setTestCyclePreviewAssignment((current) => {
+      if (!panels.testCyclePreviewAssignmentId) return null;
+      if (current?.id === panels.testCyclePreviewAssignmentId) return current;
+      return assignments.find((assignment) => String(assignment.id) === panels.testCyclePreviewAssignmentId) || null;
+    });
+  };
+
+  useEffect(() => {
+    if (user?.role !== 'teacher') return undefined;
+    const restoreTeacherFromBrowserHistory = (event) => teacherHistoryRestoreRef.current?.(event);
+    window.addEventListener('popstate', restoreTeacherFromBrowserHistory);
+    return () => window.removeEventListener('popstate', restoreTeacherFromBrowserHistory);
+  }, [user?.role]);
 
   const endLiveTeaching = () => {
     if (liveTeachingSession?.sessionId) {

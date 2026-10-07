@@ -6,6 +6,7 @@ import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
 import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
+import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/layout/pinchZoomReveal.js';
 import { typedFractionCommandStep, typedFractionKeyStep, typedFractionValueStep } from './platform/math/typedFractionEntry.js';
 
 const BASIC_KEYS = [
@@ -331,6 +332,9 @@ export default function MathInput({
     if (!mathField) return undefined;
 
     mathField.mathVirtualKeyboardPolicy = 'manual';
+    // MathLive reveals the field on focus and on every edit. Pinch-zoomed onto
+    // it, a field the person can see stays put (platform/layout/pinchZoomReveal.js).
+    mathField.onScrollIntoView = revealMathFieldHost;
     // Most math responses use MathMaster's controlled mobile keypad. Function
     // rules are different: students may legitimately need arbitrary names, so
     // keep the device keyboard there. Algebra operations now have an equation-
@@ -465,7 +469,9 @@ export default function MathInput({
       // its Pick up chip were hidden there). 'nearest' leaves a visible field
       // alone; the field's scroll-margin keeps it clear of the bar. Phones keep
       // their own viewport stabilisation.
-      if (!isMobile) mathField?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      // Pinch-zoomed onto a field that is already on the magnified screen, it
+      // is left exactly where it is.
+      if (!isMobile) revealUnlessVisibleWhileZoomed(mathField, { block: 'nearest', inline: 'nearest' });
     };
     if (deferredFocusHost) return deferredFocusHost.request(focusField, { since: 'now', channel: 'field' });
     const frame = window.requestAnimationFrame(focusField);

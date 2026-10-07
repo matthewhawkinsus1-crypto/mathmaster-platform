@@ -19,8 +19,11 @@
  *   render part      `part="render"` inside <math-span>/<math-div>, whose child
  *                    count says whether lazy typesetting has happened.
  *   CSS parts        `virtual-keyboard-toggle`, `menu-toggle`, hidden in
- *                    src/index.css. CSS cannot import this file, so the names
- *                    are listed for the compatibility test to hold both to.
+ *                    src/index.css, and `keyboard-sink`, repositioned there
+ *                    onto its own field so typing while pinch-zoomed does not
+ *                    pan the page (platform/layout/pinchZoomReveal.js). CSS
+ *                    cannot import this file, so the names are listed for the
+ *                    compatibility test to hold both to.
  *   deferred focus   MathLive focuses a field's sink from a 60 ms timer after
  *                    the field's onFocus, by calling the sink element's own
  *                    `focus` method — which is where guardStaleMathFieldFocus
@@ -47,6 +50,9 @@ export const MATHLIVE_VERIFIED_VERSION = '0.110.0';
 export const MATHLIVE_KEYBOARD_SINK_SELECTOR = '[part="keyboard-sink"], .ML__keyboard-sink';
 export const MATHLIVE_RENDER_PART_SELECTOR = '[part="render"]';
 export const MATHLIVE_HIDDEN_CSS_PARTS = Object.freeze(['virtual-keyboard-toggle', 'menu-toggle']);
+// Styled, not hidden: index.css moves the sink from MathLive's position: fixed
+// (the field's PAGE position) onto the field itself.
+export const MATHLIVE_REPOSITIONED_CSS_PARTS = Object.freeze(['keyboard-sink']);
 
 /** The hidden element that owns DOM focus while a student types in a field. */
 export const mathFieldKeyboardSink = (mathField) => (

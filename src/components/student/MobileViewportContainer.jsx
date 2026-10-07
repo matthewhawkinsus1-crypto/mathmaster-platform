@@ -117,13 +117,9 @@ export const MobileViewportContainer = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-    const html = document.documentElement;
-    if (visualViewport.pinchZoomed) html.dataset.mmPinchZoomed = 'true';
-    else delete html.dataset.mmPinchZoomed;
-    return () => { delete html.dataset.mmPinchZoomed; };
-  }, [visualViewport.pinchZoomed]);
+  // html[data-mm-pinch-zoomed] is page-wide and owned by installPinchZoomRootFlag
+  // (main.jsx). Setting it here and clearing it on unmount left the next
+  // question reading "not zoomed" while the person was still zoomed in.
 
   useEffect(() => {
     const root = rootRef.current;

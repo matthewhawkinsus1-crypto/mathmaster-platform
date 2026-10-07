@@ -6,6 +6,7 @@ import { evaluateCalculatorExpression } from '../platform/policies/calculatorExp
 import { clampCalculatorPosition, settleCalculatorPosition } from './calculatorPanelGeometry.js';
 import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
+import { revealMathFieldHost } from '../platform/layout/pinchZoomReveal.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
@@ -92,6 +93,9 @@ export const CalculatorPanel = ({
     const mathField = mathFieldRef.current;
     if (!mathField || !isOpen || !estimateUnlocked) return undefined;
     mathField.mathVirtualKeyboardPolicy = 'manual';
+    // Pinch-zoomed onto the calculator, typing leaves the view where it is
+    // (platform/layout/pinchZoomReveal.js).
+    mathField.onScrollIntoView = revealMathFieldHost;
     mathField.setAttribute('inputmode', 'none');
     mathField.menuItems = [];
     mathField.smartFence = true;

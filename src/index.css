@@ -186,6 +186,43 @@ math-field::part(menu-toggle) {
   display: none;
 }
 
+/* MathLive's keyboard sink is the invisible element that holds focus while
+   someone types in a math field. MathLive makes it `position: fixed` with no
+   offsets, which Chrome resolves to the field's position on the PAGE (1392px
+   down a scrolled page) rather than on screen. At 1x nothing can scroll toward
+   a fixed element, so nobody noticed; pinch-zoomed, Chrome pans the magnified
+   view toward that phantom spot on every keystroke and the field the teacher is
+   typing in leaves the screen (tests/browser/pinchZoomTyping.mjs). Sitting the
+   sink on its own field makes "reveal what I am typing in" mean that field.
+   Offsets are pinned too: MathLive writes left: -1000px into it on selection.
+   1px, so as an absolutely positioned box it never widens a scroll area.
+   See platform/layout/pinchZoomReveal.js. */
+math-field::part(keyboard-sink) {
+  position: absolute;
+  top: auto;
+  left: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* While pinch-zoomed, the page stops asking for room around a revealed field.
+   App.css reserves ~300-500px above any field (scroll-padding on html/body,
+   scroll-margin on the fields) so it never lands under the sticky task card.
+   A zoomed view is ~320px tall: no position satisfies that, so every caret
+   reveal jumped the page. Under a magnifying glass the sticky bars are mostly
+   off the magnified area anyway. The flag is set by installPinchZoomRootFlag
+   (main.jsx). */
+html[data-mm-pinch-zoomed="true"],
+html[data-mm-pinch-zoomed="true"] body,
+html[data-mm-pinch-zoomed="true"] .mathmaster-assignment-screen {
+  scroll-padding: 0 !important;
+}
+
+html[data-mm-pinch-zoomed="true"] * {
+  scroll-margin: 0 !important;
+}
+
 math-field:focus-within {
   outline: 3px solid color-mix(in srgb, var(--mm-focus) 35%, transparent);
   outline-offset: 2px;
