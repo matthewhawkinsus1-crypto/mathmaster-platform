@@ -102,7 +102,7 @@ const startFactoring = async (page, termLabels) => {
   await page.locator('.algebra-structure-toggle--factor').first().click();
   await settle(page);
   for (const label of termLabels) {
-    await page.locator(`[aria-label="${label}, select as a term to factor"]`).first().click();
+    await page.locator(`[data-term-text="${label}"][aria-label$="select as a term to factor"]`).first().click();
     await settle(page, 120);
   }
   await page.getByRole('button', { name: 'Factor to primes' }).first().click();
@@ -187,8 +187,8 @@ async function factoredPartial(context) {
   expect(journey, (await page.locator('.algebra-structure-toggle--factor').count()) === 1, 'Factor was not offered again for 5x - 15');
   await page.locator('.algebra-structure-toggle--factor').click();
   await settle(page);
-  await page.locator('[aria-label="5 x, select as a term to factor"]').first().click();
-  await page.locator('[aria-label="- 15, select as a term to factor"]').first().click();
+  await page.locator('[data-term-text="5 x"][aria-label$="select as a term to factor"]').first().click();
+  await page.locator('[data-term-text="- 15"][aria-label$="select as a term to factor"]').first().click();
   await page.getByRole('button', { name: 'Factor to primes' }).click();
   await settle(page);
   await chooseTokens(page, ['Factor 5 of 5 x', 'Factor 5 of -15']);
@@ -244,7 +244,7 @@ async function slopeFiveTwoSix(context) {
   const page = await open(context, 0);
   const host = page.locator('body');
   await balancedMoveAtEnd(page, host, 'Subtract', '5x');
-  await page.locator('[aria-label="- 5 x, select to cancel"]').first().click();
+  await page.locator('[data-term-text="- 5 x"][aria-label$="select to cancel"]').first().click();
   await settle(page, 1200);
   if (await page.locator('.algebra-optional-simplification').count()) await simplifySide(page, host, 'right', '6 - 5x');
   await settle(page, 700);
@@ -290,8 +290,8 @@ async function slopeFiveTwoSix(context) {
   expect(journey, !/2\.5/.test(reduced), 'a decimal replaced 5/2');
   await page.locator('.algebra-structure-toggle--arrange').click();
   await settle(page);
-  const labels = await page.locator('[aria-label$="select to move"]').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
-  await page.locator(`[aria-label="${labels[0]}"]`).last().click();
+  const labels = await page.locator('[aria-label$="select to move"]').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
+  await page.locator(`[data-term-text="${labels[0]}"][aria-label$="select to move"]`).last().click();
   await page.locator('[aria-label$="tap to swap with the selected term"]').last().click();
   await page.getByRole('button', { name: 'Keep this order' }).click();
   await settle(page, 900);
@@ -309,7 +309,7 @@ async function slopeTwoFourEight(context) {
   const page = await open(context, 3);
   const host = page.locator('body');
   await balancedMoveAtEnd(page, host, 'Subtract', '2x');
-  const cancel = page.locator('[aria-label="- 2 x, select to cancel"]').first();
+  const cancel = page.locator('[data-term-text="- 2 x"][aria-label$="select to cancel"]').first();
   if (await cancel.count()) await cancel.click();
   await settle(page, 1200);
   if (await page.locator('.algebra-optional-simplification').count()) await simplifySide(page, host, 'right', '8 - 2x');
@@ -375,7 +375,7 @@ async function keyboard(context) {
   await page.keyboard.press('Enter');
   await settle(page);
   for (const label of ['15 x', '- 45']) {
-    await page.locator(`[aria-label="${label}, select as a term to factor"]`).first().focus();
+    await page.locator(`[data-term-text="${label}"][aria-label$="select as a term to factor"]`).first().focus();
     await page.keyboard.press('Enter');
     await settle(page, 120);
   }
@@ -412,7 +412,7 @@ async function phone(browserInstance) {
   const page = await open(context, 1);
   const tap = async (locator) => { await locator.tap(); await settle(page, 220); };
   await tap(page.locator('.algebra-structure-toggle--factor').first());
-  for (const label of ['15 x', '- 45']) await tap(page.locator(`[aria-label="${label}, select as a term to factor"]`).first());
+  for (const label of ['15 x', '- 45']) await tap(page.locator(`[data-term-text="${label}"][aria-label$="select as a term to factor"]`).first());
   await tap(page.getByRole('button', { name: 'Factor to primes' }).first());
   for (const label of ['Factor 3 of 15 x', 'Factor 5 of 15 x']) await tap(token(page, label).first());
   await tap(token(page, 'Factor 3 of -45').first());
@@ -437,9 +437,9 @@ async function solveRegression(context) {
   const host = page.locator('body');
   await balancedMove(page, host, 'Subtract', '6');
   const cancel = page.locator('[aria-label$="select to cancel"]').filter({ hasText: '' });
-  const labels = await page.locator('[aria-label$="select to cancel"]').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
-  const six = labels.find((label) => /^[-+]?\s*6,/.test(label));
-  if (six) await page.locator(`[aria-label="${six}"]`).first().click();
+  const labels = await page.locator('[aria-label$="select to cancel"]').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
+  const six = labels.find((label) => /^[-+]?\s*6$/.test(label));
+  if (six) await page.locator(`[data-term-text="${six}"][aria-label$="select to cancel"]`).first().click();
   await settle(page, 1200);
   if (await page.locator('.algebra-optional-simplification').count()) await simplifySide(page, host, 'right', '15');
   await settle(page, 700);

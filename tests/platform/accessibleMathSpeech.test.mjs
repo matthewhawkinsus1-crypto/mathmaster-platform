@@ -75,3 +75,9 @@ test('cancellable algebra terms are named in words and keep the keyboard focus r
   assert.match(row, /aria-label=\{onTermClick \? `\$\{spokenMathLabel\(term\.text\)\}, \$\{interactionLabel\}` : undefined\}/);
   assert.doesNotMatch(row, /outline: [^,\n]*'none'/, 'no inline outline:none on an interactive term');
 });
+
+// substitution-browser CI (PR #454): "x equals 2~ y" and "the quantity minus 3".
+test('LaTeX spacing is silent and a sign that opens a bracket is a negative', () => {
+  assert.equal(mathToSpeech('x = 2~y - 3'), 'x equals 2 y minus 3');
+  assert.equal(mathToSpeech('3(-3 + 2y) + 5y = 24'), '3 times the quantity negative 3 plus 2y plus 5y equals 24');
+});

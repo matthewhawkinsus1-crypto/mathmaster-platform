@@ -115,6 +115,8 @@ const latexToSpeech = (raw, w) => {
     // Sizing only: \left( is "(".
     .replace(/\\(?:left|right|big|Big|bigg|Bigg)(?![A-Za-z])/g, '')
     .replace(/\\[,;:! ]/g, ' ')
+    // `~` is a LaTeX non-breaking space, never a word.
+    .replace(/~/g, ' ')
     .replace(/\\\{/g, ` ${w.setOpen} `)
     .replace(/\\\}/g, ` ${w.setClose} `);
   text = rewriteCommand(text, String.raw`\\(?:text|mathrm|textbf|mathbf|operatorname)\s*`, 1, (body) => ` ${body} `);
@@ -210,7 +212,7 @@ const plainMathToSpeech = (raw, w) => {
     .replace(/\(/g, ` ${w.quantity} `);
   // A minus sign is "negative" where it starts a quantity (start, after an
   // operator word or an opening bracket) and "minus" between two quantities.
-  const operatorWords = [w.eq, w.plus, w.minus, w.times, w.over, w.lt, w.gt, w.le, w.ge, w.ne, w.pm, w.of, w.point, w.divided, w.power]
+  const operatorWords = [w.eq, w.plus, w.minus, w.times, w.over, w.lt, w.gt, w.le, w.ge, w.ne, w.pm, w.of, w.point, w.divided, w.power, w.quantity]
     .map((word) => word.split(' ').pop());
   text = text.replace(/(\S*)\s*[-−]\s*(?=[A-Za-z0-9.(√])/g, (match, before) => {
     const previous = before.trim();

@@ -69,6 +69,9 @@ export default function AlgebraTermRow({
             tabIndex={onTermClick ? 0 : undefined}
             onKeyDown={onTermClick ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onTermClick(index); } } : undefined}
             aria-label={onTermClick ? `${spokenMathLabel(term.text)}, ${interactionLabel}` : undefined}
+            // The term's source text, for code (tests, drivers) that must find a term
+            // without depending on how it is spoken.
+            data-term-text={term.text}
             aria-pressed={onTermClick ? selected : undefined}
             style={{
               position: 'relative',
