@@ -1996,13 +1996,16 @@ function App() {
       assignments,
       testCycleGrades,
       teacherGradeOverridesByAssignment,
+      // The student's own records, before overrides are projected onto them:
+      // a per-question change is listed only while it still applies.
+      trackerByAssignment: tracker,
       controlsByAssignmentId: studentAssignmentControls?.byAssignmentId || {},
       nowValue: whatChangedMinute * 60000,
       seenAt: whatChangedSeenAt,
     };
     const firstSeenByKey = rememberWhatChangedFirstSeen(user.id, untimedWhatChangedKeys(buildWhatChanged(input)), input.nowValue);
     return buildWhatChanged({ ...input, firstSeenByKey });
-  }, [user?.role, user?.id, user?.classId, user?.classPeriod, assignments, testCycleGrades, teacherGradeOverridesByAssignment, studentAssignmentControls, whatChangedMinute, whatChangedSeenAt]);
+  }, [user?.role, user?.id, user?.classId, user?.classPeriod, assignments, testCycleGrades, teacherGradeOverridesByAssignment, tracker, studentAssignmentControls, whatChangedMinute, whatChangedSeenAt]);
   // What was last projected into state, so re-running an effect with nothing
   // new projects nothing again (every projection makes new lesson objects).
   const lastPublishedRef = useRef(null);

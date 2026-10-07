@@ -52,6 +52,8 @@ test('What changed items are built once in App from records the student reads, w
   const memo = region(app, 'const whatChangedItems = useMemo(', '}, [user?.role, user?.id, user?.classId', 'What changed memo');
   assert.match(memo, /controlsByAssignmentId: studentAssignmentControls\?\.byAssignmentId/);
   assert.match(memo, /teacherGradeOverridesByAssignment,/);
+  // Raw records, so an override the student has re-attempted past is not claimed.
+  assert.match(memo, /trackerByAssignment: tracker,/);
   assert.match(memo, /return buildWhatChanged\(\{ \.\.\.input, firstSeenByKey \}\)/);
 });
 

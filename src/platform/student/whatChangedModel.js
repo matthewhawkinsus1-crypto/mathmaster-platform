@@ -1,4 +1,5 @@
-import { assignmentIsForStudent, getAssignmentDate } from '../../assignmentLifecycle.js';
+import { assignmentIsForStudent, getAssignmentDate, getIncludedQuestionIndices } from '../../assignmentLifecycle.js';
+import { projectTeacherOverridesForDisplay } from '../grading/canonicalGradeProjection.js';
 import { TEST_CYCLE_DISCOVERY, describeTestCycleForStudent } from './testCycleDiscovery.js';
 import { SECTION_LABEL } from './lessonSections.js';
 import { assignmentIsArchived, assignmentIsUnpublished } from '../../../functions/shared/assessmentAvailability.mjs';
@@ -26,6 +27,9 @@ import { isUnpublishedDraft } from '../assignments/assignmentAvailability.js';
  *                                      createdAt / releaseAt
  *   testCycleGrades[assignmentId]      the server's Test Cycle projection
  *   teacherGradeOverridesByAssignment  per-question and integrity overrides
+ *   trackerByAssignment                the student's own question records
+ *                                      (grades/{sid}.gradesByAssignment — the
+ *                                      raw tracker, before any projection)
  *   controlsByAssignmentId             this student's own controls
  *                                      (studentAssignmentControls.byAssignmentId)
  */
@@ -148,13 +152,29 @@ const releasedAndRetest = ({ assignment, projection, nowValue }) => {
   return items;
 };
 
-const gradeChanges = ({ assignment, overrides }) => {
+/*
+ * A per-question override is bound to the attempt it was made on
+ * (functions/shared/responseInspector.mjs overrideAppliesToRecord): once the
+ * student re-attempts, the gradebook stops applying it. Ask the SAME browser
+ * projection the gradebook uses whether it still applies — never a copy of its
+ * rule. With no record for the question there is nothing the override can
+ * apply to, so it is not claimed as a change.
+ */
+const PROBE = 'whatChanged';
+const overrideStillApplies = (record, override) => {
+  if (!isObject(record)) return false;
+  const projected = projectTeacherOverridesForDisplay({ [PROBE]: { q: record } }, { [PROBE]: { q: override } });
+  return projected?.[PROBE]?.q?.teacherGradeOverrideDisplay === override;
+};
+
+const gradeChanges = ({ assignment, overrides, tracker }) => {
   if (!isObject(overrides)) return [];
   const title = titleOf(assignment);
   const items = [];
   const questions = [];
   let questionsAt = null;
   const incidents = new Map();
+  let includedIndices = null;
 
   Object.keys(overrides).forEach((key) => {
     const record = overrides[key];
@@ -184,7 +204,14 @@ const gradeChanges = ({ assignment, overrides }) => {
       });
       return;
     }
-    questions.push(Number(key) + 1);
+    if (!overrideStillApplies(isObject(tracker) ? tracker[key] : null, record)) return;
+    // Numbered as Review My Work numbers it (functions/lib/reviewMyWork.js):
+    // position among the questions the teacher has not excluded. An override
+    // on an excluded question changes no grade, so it is not news.
+    includedIndices = includedIndices || getIncludedQuestionIndices(assignment);
+    const position = includedIndices.indexOf(Number(key));
+    if (position < 0) return;
+    questions.push(position + 1);
     if (at && (!questionsAt || at > questionsAt)) questionsAt = at;
   });
 
@@ -260,6 +287,7 @@ export const buildWhatChanged = ({
   assignments = [],
   testCycleGrades = {},
   teacherGradeOverridesByAssignment = {},
+  trackerByAssignment = {},
   controlsByAssignmentId = {},
   nowValue = Date.now(),
   windowDays = 14,
@@ -280,7 +308,11 @@ export const buildWhatChanged = ({
     const control = controlsByAssignmentId?.[assignmentId] || null;
     const events = [
       ...releasedAndRetest({ assignment, projection: testCycleGrades?.[assignmentId], nowValue: now }),
-      ...gradeChanges({ assignment, overrides: teacherGradeOverridesByAssignment?.[assignmentId] }),
+      ...gradeChanges({
+        assignment,
+        overrides: teacherGradeOverridesByAssignment?.[assignmentId],
+        tracker: trackerByAssignment?.[assignmentId],
+      }),
       ...controlChanges({ assignment, control, studentId }),
       ...(control?.excused === true ? [] : newAssignment({ assignment, nowValue: now })),
     ];

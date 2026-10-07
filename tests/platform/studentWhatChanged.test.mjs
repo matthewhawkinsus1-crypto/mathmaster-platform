@@ -94,10 +94,33 @@ test('a retest opening is "Retest ready", and replaces the earlier release', () 
 
 /* ---- grade changes ------------------------------------------------------- */
 
+/*
+ * A per-question override is bound to the attempt it was made on: the record
+ * the student has now must be that attempt (same totalAttempts, variant and
+ * submission), or the gradebook no longer applies it.
+ */
+const v5Lesson = (id, questions, extra = {}) => lesson(id, {
+  schemaVersion: 5,
+  sections: [{ id: 's1', role: 'classwork', title: 'Classwork', questions }],
+  ...extra,
+});
+const q = (n, extra = {}) => ({ questionId: `q${n}`, prompt: `Question ${n}`, ...extra });
+const questions = (count) => Array.from({ length: count }, (_, n) => q(n));
+const attempt = (index, extra = {}) => ({
+  status: 'attempted', partialCredit: 0, totalAttempts: 1, variantIndex: 0,
+  lastSubmissionId: `sub-${index}-1`, lastAttemptAt: iso(NOW - 5 * HOUR), ...extra,
+});
+const overrideOn = (index, extra = {}) => ({
+  active: true, score: 100, source: 'teacher-override',
+  totalAttempts: 1, variantIndex: 0, submissionId: `sub-${index}-1`, lastAttemptAt: iso(NOW - 5 * HOUR),
+  updatedAt: iso(NOW - HOUR), ...extra,
+});
+
 test('a per-question teacher override names the question, with no reason', () => {
   const items = build({
-    assignments: [lesson('a1')],
-    teacherGradeOverridesByAssignment: { a1: { 2: { active: true, score: 100, updatedAt: iso(NOW - HOUR), source: 'teacher-override' } } },
+    assignments: [v5Lesson('a1', questions(4))],
+    trackerByAssignment: { a1: { 2: attempt(2) } },
+    teacherGradeOverridesByAssignment: { a1: { 2: overrideOn(2) } },
   });
   assert.deepEqual(kinds(items), ['gradeChanged:a1']);
   assert.equal(items[0].text, 'Your teacher updated your grade on Lesson a1 (Question 3)');
@@ -106,20 +129,98 @@ test('a per-question teacher override names the question, with no reason', () =>
 });
 
 test('several changed questions are one line, numbered in order, at the latest time', () => {
+  const tracker = { 0: attempt(0), 1: attempt(1), 2: attempt(2), 4: attempt(4), 7: attempt(7) };
   const items = build({
-    assignments: [lesson('a1')],
+    assignments: [v5Lesson('a1', questions(8))],
+    trackerByAssignment: { a1: tracker },
     teacherGradeOverridesByAssignment: { a1: {
-      4: { active: true, score: 50, updatedAt: iso(NOW - 3 * HOUR) },
-      0: { active: true, score: 80, updatedAt: iso(NOW - HOUR) },
-      1: { active: true, score: 80, updatedAt: iso(NOW - 2 * HOUR) },
-      7: { active: false, score: 0, updatedAt: iso(NOW) },
+      4: overrideOn(4, { score: 50, updatedAt: iso(NOW - 3 * HOUR) }),
+      0: overrideOn(0, { score: 80, updatedAt: iso(NOW - HOUR) }),
+      1: overrideOn(1, { score: 80, updatedAt: iso(NOW - 2 * HOUR) }),
+      7: overrideOn(7, { active: false, score: 0, updatedAt: iso(NOW) }),
     } },
   });
   assert.equal(items.length, 1);
   assert.equal(items[0].text, 'Your teacher updated your grade on Lesson a1 (Questions 1, 2 and 5)');
   assert.equal(items[0].at, NOW - HOUR);
-  const two = build({ assignments: [lesson('a1')], teacherGradeOverridesByAssignment: { a1: { 0: { active: true, updatedAt: iso(NOW) }, 2: { active: true, updatedAt: iso(NOW) } } } });
+  const two = build({
+    assignments: [v5Lesson('a1', questions(8))],
+    trackerByAssignment: { a1: tracker },
+    teacherGradeOverridesByAssignment: { a1: { 0: overrideOn(0, { updatedAt: iso(NOW) }), 2: overrideOn(2, { updatedAt: iso(NOW) }) } },
+  });
   assert.equal(two[0].text, 'Your teacher updated your grade on Lesson a1 (Questions 1 and 3)');
+});
+
+test('an override the student has since re-attempted past is not a change: the gradebook no longer applies it', () => {
+  const input = {
+    assignments: [v5Lesson('a1', questions(4))],
+    teacherGradeOverridesByAssignment: { a1: { 1: overrideOn(1), 3: overrideOn(3) } },
+  };
+  // Question 2 was re-attempted after the override (attempt 2, a new submission);
+  // Question 4 is still the attempt the teacher graded.
+  const items = build({
+    ...input,
+    trackerByAssignment: { a1: {
+      1: attempt(1, { totalAttempts: 2, lastSubmissionId: 'sub-1-2', lastAttemptAt: iso(NOW - 30 * 60 * 1000) }),
+      3: attempt(3),
+    } },
+  });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].text, 'Your teacher updated your grade on Lesson a1 (Question 4)');
+  // Every question re-attempted: nothing to claim.
+  assert.deepEqual(build({
+    ...input,
+    trackerByAssignment: { a1: {
+      1: attempt(1, { totalAttempts: 2, lastSubmissionId: 'sub-1-2' }),
+      3: attempt(3, { variantIndex: 1 }),
+    } },
+  }), []);
+});
+
+test('with no record for the question (or no tracker at all) an override is not claimed', () => {
+  const input = {
+    assignments: [v5Lesson('a1', questions(4))],
+    teacherGradeOverridesByAssignment: { a1: { 2: overrideOn(2) } },
+  };
+  assert.deepEqual(build({ ...input, trackerByAssignment: { a1: { 0: attempt(0) } } }), []);
+  assert.deepEqual(build(input), []);
+});
+
+test('questions are numbered as Review My Work numbers them: excluded questions do not count', () => {
+  const items = build({
+    assignments: [v5Lesson('a1', [q(0), q(1, { teacherExcluded: true }), q(2), q(3)])],
+    trackerByAssignment: { a1: { 2: attempt(2), 1: attempt(1) } },
+    teacherGradeOverridesByAssignment: { a1: { 2: overrideOn(2) } },
+  });
+  // Storage index 2 sits behind an excluded question: it is the student's Question 2.
+  assert.equal(items[0].text, 'Your teacher updated your grade on Lesson a1 (Question 2)');
+  // An override on the excluded question itself changes no grade.
+  assert.deepEqual(build({
+    assignments: [v5Lesson('a1', [q(0), q(1, { teacherExcluded: true }), q(2)])],
+    trackerByAssignment: { a1: { 1: attempt(1) } },
+    teacherGradeOverridesByAssignment: { a1: { 1: overrideOn(1) } },
+  }), []);
+});
+
+test('the numbering matches the server Review My Work rows across sections', async () => {
+  const { createRequire } = await import('node:module');
+  const require = createRequire(import.meta.url);
+  const { runtimeIncludedQuestionIndices } = require('../../functions/lib/assignmentRuntime.js');
+  const assignment = lesson('a1', {
+    schemaVersion: 5,
+    sections: [
+      { id: 'w', role: 'warmup', questions: [q(0), q(1, { teacherExcluded: true })] },
+      { id: 'c', role: 'classwork', questions: [q(2, { teacherExcluded: true }), q(3), q(4)] },
+    ],
+  });
+  const reviewNumberOf = (index) => runtimeIncludedQuestionIndices(assignment).indexOf(index) + 1;
+  const items = build({
+    assignments: [assignment],
+    trackerByAssignment: { a1: { 4: attempt(4) } },
+    teacherGradeOverridesByAssignment: { a1: { 4: overrideOn(4) } },
+  });
+  assert.equal(reviewNumberOf(4), 3);
+  assert.equal(items[0].text, `Your teacher updated your grade on Lesson a1 (Question ${reviewNumberOf(4)})`);
 });
 
 test('a section integrity zero is one line for the section, with the fixed reason only', () => {
@@ -162,14 +263,15 @@ test('no teacher note, identity or email ever reaches the output', () => {
   const actor = { uid: 'uid-teacher-9', email: 'teacher@school.example', name: 'Ms Teacher' };
   const items = build({
     assignments: [
-      lesson('a1', { feedbackReleased: true, feedbackReleasedAt: iso(NOW - HOUR), releasedBy: actor, teacherNote: 'SECRET-NOTE' }),
+      v5Lesson('a1', questions(4), { feedbackReleased: true, feedbackReleasedAt: iso(NOW - HOUR), releasedBy: actor, teacherNote: 'SECRET-NOTE' }),
       lesson('a2'),
       testCycle('t1'),
     ],
     testCycleGrades: { t1: { stage: 'corrections', stageChangedAt: NOW - HOUR, releasedBy: actor, note: 'SECRET-NOTE' } },
+    trackerByAssignment: { a1: { 0: attempt(0) } },
     teacherGradeOverridesByAssignment: {
       a1: {
-        0: { active: true, score: 90, updatedAt: iso(NOW - HOUR), note: 'SECRET-NOTE', actor, audit: 'private audit' },
+        0: overrideOn(0, { score: 90, note: 'SECRET-NOTE', actor, audit: 'private audit' }),
         3: { active: true, score: 0, source: 'teacher-section-zero', incidentId: 'i', sectionRole: 'dol', reason: 'Account or laptop switching', note: 'SECRET-NOTE', actor, at: iso(NOW - HOUR) },
         __assignment: { active: true, score: 0, reason: 'Prohibited cellphone use', note: 'SECRET-NOTE', actor, at: iso(NOW - HOUR) },
       },
@@ -177,6 +279,7 @@ test('no teacher note, identity or email ever reaches the output', () => {
     controlsByAssignmentId: { a2: { reopened: true, extension: { grantedAt: NOW - HOUR, by: actor }, lateDueAt: '2026-10-25', note: 'SECRET-NOTE' } },
   });
   assert.ok(items.length >= 5, 'the fixture produces items to inspect');
+  assert.ok(items.some((item) => item.key === 'gradeChanged:a1:questions'), 'the per-question override is among them');
   const output = JSON.stringify(items);
   for (const secret of secrets) assert.ok(!output.includes(secret), `"${secret}" leaked into What changed`);
   // Every item carries exactly the documented fields — nothing spread in.
