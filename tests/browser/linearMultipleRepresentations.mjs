@@ -511,7 +511,9 @@ journeys['cw1-free-order'] = async (browser) => {
     await page.getByRole('button', { name: label }).first().click();
     await settle(page, 150);
   }
-  const withoutLayout = ({ expandedCards: _layout, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
+  // The work without the layout — and without the fresh marker, which a first
+  // collapse extends with `expandedCards` (see mathOf): bookkeeping, not work.
+  const withoutLayout = ({ expandedCards: _layout, [TOOL_WORKSPACE_FRESH_FIELD]: _fresh, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
   check(withoutLayout(await work(page, id)) === withoutLayout(beforeCollapse), 'collapsing and reopening every card changes no work');
   check(await hasCorrectBadge(page, 'graphPointSlope'), 'verdicts survive collapse/expand');
 
