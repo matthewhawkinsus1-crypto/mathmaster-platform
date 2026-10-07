@@ -954,6 +954,49 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Class rewards: a teacher's own NON-ACADEMIC redeemables ("Choose your
+    // seat for a day", 50 Class Points) and the requests students make with
+    // them (functions/shared/classRewardCatalog.mjs). Every write goes through
+    // the callables in functions/lib/classRewardStore.js on the Admin SDK — a
+    // client that could write a request could skip paying for it, and one
+    // that could write the catalog could put a grade effect on it — so no
+    // client writes either collection, not even the root administrator.
+    //
+    // The catalog is one document per class, keyed by classId. A student
+    // reads only their OWN class's (their grade record names it); a teacher
+    // reads only a class they are teacher of record for.
+    function classRewardClassTeacher(classId) {
+      return teacher()
+        && get(/databases/$(database)/documents/classes/$(classId)).data.get('teacherOfRecord', null)
+          == request.auth.token.email;
+    }
+
+    function classRewardClassStudent(classId) {
+      return signedIn()
+        && request.auth.token.get('role', '') == 'student'
+        && request.auth.token.get('studentId', '') != ''
+        && get(/databases/$(database)/documents/grades/$(request.auth.token.studentId)).data.get('classId', null)
+          == classId;
+    }
+
+    match /classRewardCatalogs/{classId} {
+      allow get: if rootAdmin() || classRewardClassTeacher(classId) || classRewardClassStudent(classId);
+      allow list: if rootAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // A request is private to the student who made it and the class's
+    // teachers: `authorizedTeacherEmails` (the ledger's own field, so a
+    // pending-requests query is provable), or the class's CURRENT teacher of
+    // record for a single read after the class changed hands.
+    match /classRewardRequests/{requestDocId} {
+      allow read: if rootAdmin()
+        || ownsStudent(resource.data.studentId)
+        || authorizedTeacher()
+        || classRewardClassTeacher(resource.data.classId);
+      allow create, update, delete: if false;
+    }
+
     // Live class monitoring. Ephemeral by design: a student's client writes
     // its own document on a heartbeat and deletes it on leaving, and nothing
     // reads it outside the teacher's live grid. It carries no response text —

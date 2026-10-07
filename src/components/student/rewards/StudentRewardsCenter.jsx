@@ -4,15 +4,17 @@ import ClassPointsWallet from '../ClassPointsWallet.jsx';
 import ClassPointsCelebrations from '../ClassPointsCelebrations.jsx';
 import UsePracticePassDialog from './UsePracticePassDialog.jsx';
 import RewardHistory from './RewardHistory.jsx';
+import ClassRewardsShelf from './ClassRewardsShelf.jsx';
 import { STUDENT_SELF_NEUTRAL_LABEL, formatStudentName } from '../../../platform/studentName.js';
 import {
   PRACTICE_PASS,
+  badgeView,
   describeExpiry,
   describeGrantSource,
   formatRewardDate,
-  grantDisplayName,
   grantReason,
 } from '../../../platform/rewards/rewardWallet.js';
+import { useStudentClassRewards } from '../../../platform/rewards/useClassRewards.js';
 import '../../rewards/rewards.css';
 
 /*
@@ -20,6 +22,7 @@ import '../../rewards/rewards.css';
  *
  *   What do I have?           Practice Passes (×n), badges, Class Points
  *   What does each one do?    one plain sentence, from the shared catalog
+ *   What else can I spend on? my teacher's class rewards (non-academic)
  *   Can I use it now?         the button says so, or says why not
  *   What happened when I did? Practice excused for … (and History)
  *   What did I earn before?   History, loaded only when opened
@@ -107,9 +110,21 @@ export default function StudentRewardsCenter({
   onNavigate = null,
   onLogout = null,
   nowMs = Date.now(),
+  // The teacher's class rewards: { catalog, requests, unavailable, redeem }.
+  // When the caller does not pass them, this screen opens its own listeners
+  // for the signed-in student's class — only for a real student (role,
+  // id and class of record), never in a teacher's preview.
+  classRewards = undefined,
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const newIds = useMemo(() => (newGrantIds instanceof Set ? newGrantIds : new Set(newGrantIds || [])), [newGrantIds]);
+  const ownClassRewards = useStudentClassRewards({
+    studentId: student?.role === 'student' ? student.id : null,
+    classId: student?.role === 'student' ? student.classId : null,
+    enabled: classRewards === undefined,
+  });
+  const shelfData = classRewards === undefined ? ownClassRewards : (classRewards || {});
+  const pointsKnown = Boolean(classPoints) && !classPoints.unavailable;
 
   return (
     <div
@@ -146,22 +161,45 @@ export default function StudentRewardsCenter({
           />
         </div>
 
+        {/* Practice Pass stays first; the teacher's own rewards come next. */}
+        <ClassRewardsShelf
+          catalog={shelfData.catalog || null}
+          requests={shelfData.requests || []}
+          balance={pointsKnown ? Number(classPoints?.account?.balance) || 0 : 0}
+          balanceKnown={pointsKnown}
+          unavailable={Boolean(shelfData.unavailable)}
+          onRedeem={shelfData.redeem}
+          nowMs={nowMs}
+        />
+
         {wallet.badges.length > 0 && (
           <section aria-labelledby="badges-heading" className="rw-card">
             <h2 id="badges-heading">🏅 Badges</h2>
-            <ul className="rw-list">
-              {wallet.badges.map((grant) => (
-                <li key={grant.grantId} className={`rw-row${newIds.has(grant.grantId) ? ' rw-celebrate' : ''}`}>
-                  <span className="rw-row__main">
-                    <span className="rw-row__title">{grantDisplayName(grant)}</span>
-                    <span className="rw-muted" style={{ display: 'block' }}>
-                      {[describeGrantSource(grant), grantReason(grant), formatRewardDate(grant.awardedAt, nowMs)].filter(Boolean).join(' · ')}
-                    </span>
-                  </span>
-                  {newIds.has(grant.grantId) ? <span className="rw-chip rw-chip--new">New</span> : <span className="rw-chip rw-chip--ok">Earned</span>}
-                </li>
-              ))}
-            </ul>
+            {/* Grouped by what they recognize, so growth, effort and mastery
+                read as achievements in their own right, not only wins. */}
+            {(wallet.badgeGroups || [{ group: 'all', heading: null, badges: wallet.badges }]).map((group) => (
+              <div key={group.group} data-qa={`badge-group-${group.group}`}>
+                {group.heading && <h3 style={{ marginTop: 12 }}>{group.heading}</h3>}
+                <ul className="rw-list">
+                  {group.badges.map((grant) => {
+                    const view = badgeView(grant);
+                    return (
+                      <li key={grant.grantId} className={`rw-row${newIds.has(grant.grantId) ? ' rw-celebrate' : ''}`}>
+                        <span className="rw-reward-icon" aria-hidden="true" style={{ fontSize: 24 }}>{view.icon}</span>
+                        <span className="rw-row__main">
+                          <span className="rw-row__title">{view.label}</span>
+                          {view.description && <span className="rw-muted" style={{ display: 'block' }}>{view.description}</span>}
+                          <span className="rw-muted" style={{ display: 'block' }}>
+                            {[describeGrantSource(grant), grantReason(grant) !== view.label ? grantReason(grant) : null, formatRewardDate(grant.awardedAt, nowMs)].filter(Boolean).join(' · ')}
+                          </span>
+                        </span>
+                        {newIds.has(grant.grantId) ? <span className="rw-chip rw-chip--new">New</span> : <span className="rw-chip rw-chip--ok">Earned</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
           </section>
         )}
 
