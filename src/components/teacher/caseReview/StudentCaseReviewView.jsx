@@ -12,6 +12,7 @@ import {
 import {
   NEXT_STEPS_MAX_LENGTH, forgetOtherAccountsDrafts, nextStepsDraftAvailable, readNextStepsDraft, writeNextStepsDraft,
 } from '../../../platform/caseReview/nextStepsDraft.js';
+import Dialog from '../../../ui/Dialog.jsx';
 import CaseSummaryTab from './CaseSummaryTab.jsx';
 import CaseGradesTab from './CaseGradesTab.jsx';
 import CaseQuestionsTab from './CaseQuestionsTab.jsx';
@@ -163,21 +164,15 @@ export default function StudentCaseReviewView({
     closeRef.current?.focus();
   }, [open, student?.id, teacherUid]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Escape closes the case review only when it is the top layer: the Response
-  // Inspector or the Support Evidence Report opened from here sit above it and
-  // close first.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (event) => {
-      if (event.key !== 'Escape' || event.defaultPrevented || printing) return;
-      const modals = [...document.querySelectorAll('[aria-modal="true"]')];
-      if (modals.length && modals[modals.length - 1] !== shellRef.current) return;
-      event.preventDefault();
-      onCloseRef.current?.();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, printing]);
+  // Escape (via Dialog, never while printing) closes the case review only when
+  // it is the top layer: the Response Inspector or the Support Evidence Report
+  // opened from here sit above it and close first (Dialog's stack), and a
+  // modal that is not a Dialog (a Toast confirmation) by DOM order.
+  const closeIfTopLayer = () => {
+    const modals = [...document.querySelectorAll('[aria-modal="true"]')];
+    if (modals.length && modals[modals.length - 1] !== shellRef.current) return;
+    onCloseRef.current?.();
+  };
 
   // Print: the print copy is portalled onto <body> only while printing, so a
   // Support Evidence Report printed from above this view prints alone.
@@ -409,7 +404,7 @@ export default function StudentCaseReviewView({
 
   return (
     <div className="cr-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCloseRef.current?.(); }}>
-      <article ref={shellRef} className="cr-shell" role="dialog" aria-modal="true" aria-labelledby="case-review-title" data-case-review={student.id} onScroll={rememberScroll}>
+      <Dialog as="article" ref={shellRef} className="cr-shell" onClose={closeIfTopLayer} closeOnEscape={!printing} initialFocusRef={closeRef} aria-labelledby="case-review-title" data-case-review={student.id} onScroll={rememberScroll}>
         <header className="cr-header">
           <div className="cr-header__top">
             <div style={{ minWidth: 0 }}>
@@ -544,7 +539,7 @@ export default function StudentCaseReviewView({
             </div>
           )}
         </div>
-      </article>
+      </Dialog>
       {printing && model && createPortal(
         <div className="cr-print-root"><CasePrintView model={model} nextSteps={nextSteps} /></div>,
         document.body,

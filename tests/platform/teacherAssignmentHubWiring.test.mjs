@@ -80,11 +80,18 @@ test('a closed lesson leads with its grades; opening it again today is folded, n
 test('a student opened from the hub stacks on top of it, and Escape closes one layer at a time', () => {
   // Same z-index, so DOM order decides: the student drawer must come after.
   assert.ok(app.indexOf('<StudentProfileDrawer') > app.indexOf('<AssignmentHub'), 'student drawer renders after the hub');
-  const onKey = region(hub, 'const onKey = (event) => {', 'window.addEventListener', 'hub Escape handler');
-  // A confirmation handles Escape on `document` first and marks it handled…
-  assert.match(onKey, /event\.defaultPrevented\) return;/);
-  // …and a student drawer above the hub closes before the hub does.
-  assert.match(onKey, /modals\[modals\.length - 1\] !== panelRef\.current\) return;/);
+  // The hub is the shared modal Dialog: Escape reaches it only when nothing
+  // above handled the key and it is the topmost Dialog (a student drawer, also
+  // a Dialog, closes first)…
+  const dialog = read('src/ui/Dialog.jsx');
+  assert.match(dialog, /if \(event\.defaultPrevented \|\| !isTopDialog\(token\)\) return;/);
+  const shell = region(hub, '<Dialog as="aside"', '\n', 'hub dialog');
+  assert.match(shell, /ref=\{panelRef\}/);
+  assert.match(shell, /onClose=\{closeIfTopLayer\}/);
+  // …and a confirmation that is not a Dialog ("Close the DOL now?") is above it
+  // by DOM order, so the hub stays open while the confirmation closes.
+  const guard = region(hub, 'const closeIfTopLayer = () => {', '\n  };', 'hub top-layer guard');
+  assert.match(guard, /if \(modals\.length && modals\[modals\.length - 1\] !== panelRef\.current\) return;\n\s*onCloseRef\.current\?\.\(\);/);
 });
 
 test('student -> assignment -> work, from the Students page and from the student drawer alike', () => {

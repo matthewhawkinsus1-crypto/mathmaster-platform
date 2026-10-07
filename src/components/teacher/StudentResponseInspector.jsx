@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { inspectStudentResponse, overrideStudentResponseGrade } from '../../services/responseInspectorService.js';
+import Dialog from '../../ui/Dialog.jsx';
 import { STUDENT_NAME_UNAVAILABLE, resolveRosterStudentName, studentIdLabel } from '../../platform/studentName.js';
 
 const show = (value) => value === null || value === undefined ? 'Unavailable' : typeof value === 'string' ? value || 'Unavailable' : JSON.stringify(value);
@@ -29,7 +30,7 @@ export default function StudentResponseInspector({ studentId, assignmentId, ques
     studentId: inspectedStudentId, index: studentIdentityIndex instanceof Map ? studentIdentityIndex : null,
     historicalName: model?.student?.name, lastFirst: false,
   });
-  return <div role="dialog" aria-modal="true" aria-label="Student Response Inspector" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(32,33,36,.62)', overflowY: 'auto', padding: 24 }}>
+  return <Dialog onClose={onClose} aria-label="Student Response Inspector" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(32,33,36,.62)', overflowY: 'auto', padding: 24 }}>
     <main style={{ maxWidth: 1180, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 14, padding: 24, color: 'var(--mm-text-strong)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><h2 style={{ margin: 0 }}>Student Response Inspector &amp; Grade Override</h2><button onClick={onClose}>Close</button></div>
       {error && <p role="alert" style={{ color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</p>}
@@ -45,5 +46,5 @@ export default function StudentResponseInspector({ studentId, assignmentId, ques
         <section><h3>Audit History</h3>{model.auditHistory.length ? <ol>{model.auditHistory.map((event, index) => <li key={`${event.at}-${index}`}>{show(event.at)} · {event.actor?.name || event.actor?.email || event.actor?.uid || 'Unavailable'} · {event.previousScore}% → {event.newScore}% · {event.reason}{event.note ? ` — ${event.note}` : ''}</li>)}</ol> : <p>Unavailable</p>}</section>
       </>}
     </main>
-  </div>;
+  </Dialog>;
 }

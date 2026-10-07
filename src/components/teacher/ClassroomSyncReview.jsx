@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import Dialog from '../../ui/Dialog.jsx';
 import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName } from '../../platform/studentName.js';
 
 /*
@@ -36,14 +37,6 @@ const SHEET = {
 export default function ClassroomSyncReview({ proposal = null, students = [], onClose = null }) {
   const closeRef = useRef(null);
 
-  useEffect(() => {
-    if (!proposal) return undefined;
-    const onKey = (event) => { if (event.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', onKey);
-    closeRef.current?.focus();
-    return () => window.removeEventListener('keydown', onKey);
-  }, [proposal, onClose]);
-
   if (!proposal) return null;
 
   const download = () => {
@@ -61,7 +54,7 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
 
   return (
     <div style={OVERLAY} role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
-      <div style={SHEET} role="dialog" aria-modal="true" aria-label="Review weekly Path grades before publishing">
+      <Dialog style={SHEET} onClose={onClose} initialFocusRef={closeRef} aria-label="Review weekly Path grades before publishing">
         <header style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--mm-border-soft)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
             <div>
@@ -124,7 +117,7 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
             Includes the grading policy, so the numbers can be explained later.
           </span>
         </footer>
-      </div>
+      </Dialog>
     </div>
   );
 }

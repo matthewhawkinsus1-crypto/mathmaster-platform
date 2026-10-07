@@ -98,11 +98,23 @@ test('the evidence callable is read-only, teacher-only, and authorizes before it
 });
 
 test('Escape closes the case review only when it is the top layer and nothing above handled it', () => {
-  const effect = region(view, 'const onKey = (event) => {', '\n    };', 'escape handler');
-  assert.match(effect, /if \(event\.key !== 'Escape' \|\| event\.defaultPrevented \|\| printing\) return;/);
-  assert.match(effect, /if \(modals\.length && modals\[modals\.length - 1\] !== shellRef\.current\) return;/);
-  assert.match(effect, /event\.preventDefault\(\);\n      onCloseRef\.current\?\.\(\);/);
-  assert.match(view, /<article ref=\{shellRef\} className="cr-shell" role="dialog" aria-modal="true"/);
+  // The shell is the shared modal Dialog (src/ui/Dialog.jsx): it answers Escape
+  // only when it is the topmost Dialog and nothing above already handled the
+  // key, marks it handled, and stays open while printing.
+  const dialog = read('src/ui/Dialog.jsx');
+  assert.match(view, /import Dialog from '\.\.\/\.\.\/\.\.\/ui\/Dialog\.jsx';/);
+  const shell = region(view, '<Dialog as="article"', '\n', 'case review shell');
+  assert.match(shell, /ref=\{shellRef\}/);
+  assert.match(shell, /className="cr-shell"/);
+  assert.match(shell, /onClose=\{closeIfTopLayer\}/);
+  assert.match(shell, /closeOnEscape=\{!printing\}/);
+  assert.match(dialog, /if \(event\.defaultPrevented \|\| !isTopDialog\(token\)\) return;/);
+  assert.match(dialog, /if \(escapeRef\.current && typeof onCloseRef\.current === 'function'\) \{\s*event\.stopPropagation\(\);\s*event\.preventDefault\(\);/);
+  assert.match(dialog, /<Tag ref=\{setRef\} role=\{role\} aria-modal="true"/);
+  // A modal above it that is not a Dialog (a Toast confirmation) is found by
+  // DOM order.
+  const guard = region(view, 'const closeIfTopLayer = () => {', '\n  };', 'top-layer guard');
+  assert.match(guard, /if \(modals\.length && modals\[modals\.length - 1\] !== shellRef\.current\) return;\n\s*onCloseRef\.current\?\.\(\);/);
 });
 
 test('printing renders the print copy onto <body> and hides the app while it prints', () => {
