@@ -129,7 +129,7 @@ test('engine rows carry the evidence they were decided on', () => {
   const evidence = explainRecommendationEvidence(slope);
   assert.ok(texts(evidence).includes('Your score on this is 58% from 6 questions.'));
   assert.ok(texts(evidence).includes('Your class covered this earlier (Module 2: Exploring Constant Rate of Change).'));
-  assert.ok(texts(explainRecommendationEvidence(slope, null, { limit: 6 })).some((text) => /^Builds on Slope from similar triangles/.test(text)));
+  assert.ok(texts(explainRecommendationEvidence(slope, null, { limit: 6 })).some((text) => text.startsWith('Builds on Slope from similar triangles')));
 });
 
 test('Recommended cards and map cards carry the named evidence', () => {
