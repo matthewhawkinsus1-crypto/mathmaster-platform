@@ -171,7 +171,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         <button
           type="button"
           onClick={() => onChoose(node)}
-          style={{ padding: '9px 14px', minHeight: 40, border: 0, borderRadius: 8, background: node.tone, color: '#fff', fontWeight: 900, cursor: 'pointer' }}
+          style={{ padding: '9px 14px', minHeight: 44, border: 0, borderRadius: 8, background: node.tone, color: '#fff', fontWeight: 900, cursor: 'pointer' }}
         >
           {pass.buttonLabel}
         </button>
