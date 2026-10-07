@@ -6,6 +6,8 @@ import { region, executableSource } from './helpers/sourceContract.mjs';
 import { studentAssignmentOverrideId } from '../../functions/shared/studentAssignmentOverrides.mjs';
 import { practicePassRedemptionId } from '../../functions/shared/classPointRewards.mjs';
 import { responseInspectionEvidenceDocumentId } from '../../functions/shared/responseInspector.mjs';
+import { resolveStudentSupportDeadline } from '../../functions/shared/supportDeadline.mjs';
+import { assignmentFinalCloseAt } from '../../functions/shared/sectionDeadline.mjs';
 
 /*
  * REVIEW MY WORK, SERVER SIDE (functions/lib/reviewMyWork.js).
@@ -31,7 +33,7 @@ const CLASS = 'class-a';
 
 const snapshot = (id, data) => ({ id, exists: data !== undefined, data: () => (data === undefined ? undefined : structuredClone(data)) });
 
-const fakeDb = (docs = {}) => {
+const fakeDb = (docs = {}, { failQuery = () => false } = {}) => {
   const reads = [];
   const docRef = (path) => ({
     path,
@@ -46,7 +48,9 @@ const fakeDb = (docs = {}) => {
       limit: () => query,
       select: () => query,
       get: async () => {
-        reads.push(`${path}?${filters.map(([f, v]) => `${f}=${v}`).join('&')}`);
+        const queryPath = `${path}?${filters.map(([f, v]) => `${f}=${v}`).join('&')}`;
+        if (failQuery(queryPath)) throw new Error(`simulated read failure: ${queryPath}`);
+        reads.push(queryPath);
         const prefix = `${path}/`;
         const matches = Object.entries(docs)
           .filter(([key]) => key.startsWith(prefix) && !key.slice(prefix.length).includes('/'))
@@ -100,7 +104,7 @@ const evidenceDoc = (index, rec, response, extra = {}) => ({
   },
 });
 
-const world = ({ assignment = baseAssignment(), grade = {}, extraDocs = {} } = {}) => {
+const world = ({ assignment = baseAssignment(), grade = {}, extraDocs = {}, failQuery } = {}) => {
   const r0 = record('correct', { id: 0 });
   const r1 = record('attempted', { id: 1, partialCredit: 50, bestPartialCredit: 50 });
   const r2 = record('expired', { id: 2, totalAttempts: 2 });
@@ -120,7 +124,7 @@ const world = ({ assignment = baseAssignment(), grade = {}, extraDocs = {} } = {
     [`grades/${OTHER}`]: { classId: CLASS, gradesByAssignment: { [ASSIGNMENT]: { 0: record('correct', { id: 'other' }) } } },
     ...Object.fromEntries([evidence(0, r0, '4'), evidence(1, r1, '5x'), evidence(2, r2, '\\frac{1}{2}'), evidence(3, r3, '9')]),
     ...extraDocs,
-  });
+  }, { failQuery });
 };
 
 const load = (db, data = { assignmentId: ASSIGNMENT }, { studentId = STUDENT, now = NOW } = {}) => (
@@ -424,4 +428,146 @@ test('solutions wait until the assignment has closed for the WHOLE class — a c
     assert.match(error.message, /whole class/);
     return true;
   });
+});
+
+/* ------------------------------- review findings: audience, Warm-Up, dates, prompt */
+
+const CLASS_B = 'class-b';
+const CLASS_B_STUDENT = 'stu-b1';
+
+// A real pinned grades/{id}.profile: an active plan window whose extra-time
+// accommodation carries a 5-school-day due-date extension.
+const extraTimeProfile = {
+  supportPlan: { windows: [{
+    revisionId: 'rev-1', revision: 1, effectiveStart: '2026-09-01', status: 'active',
+    accommodations: [{ id: 'extra-time', params: { dueDateExtension: { mode: 'school-days', value: 5 } } }],
+  }] },
+};
+
+test('fixture check: the class-b profile really extends the final close past NOW (to Oct 8)', () => {
+  const assignment = baseAssignment({ assignedClassIds: [CLASS, CLASS_B] });
+  const support = resolveStudentSupportDeadline({ assignment, profile: extraTimeProfile });
+  assert.ok(support, 'the profile yields a support deadline');
+  assert.equal(new Date(support.supportFinalAtMs).toISOString(), '2026-10-09T04:59:59.999Z'); // Oct 8 23:59:59.999 Chicago
+  const classBFinal = assignmentFinalCloseAt(assignment, null, CLASS_B_STUDENT, extraTimeProfile);
+  assert.ok(classBFinal > NOW, 'still answerable for the class-b student on Oct 7');
+  assert.ok(assignmentFinalCloseAt(assignment, null, STUDENT, null) < NOW, 'closed for the class-a caller');
+});
+
+test('finding 1: a class-b student\'s support-plan extension holds back class-a\'s solutions on a shared lesson', async () => {
+  const assignment = baseAssignment({ assignedClassIds: [CLASS, CLASS_B] });
+  const extraDocs = { [`grades/${CLASS_B_STUDENT}`]: { classId: CLASS_B, profile: extraTimeProfile } };
+  const db = world({ assignment, extraDocs });
+  await assert.rejects(load(db), (error) => {
+    assert.equal(error.code, 'failed-precondition');
+    assert.match(error.message, /whole class/);
+    assert.doesNotMatch(error.message, new RegExp(CLASS_B_STUDENT));
+    return true;
+  });
+  assert.ok(db.reads.includes(`grades?classId=${CLASS_B}`), `reads the other class's profiles: ${db.reads.join(', ')}`);
+  // After the class-b student's Oct 8 support cutoff, the review opens.
+  const later = await load(world({ assignment, extraDocs }), undefined, { now: Date.parse('2026-10-09T12:00:00Z') });
+  assert.equal(later.questions.length, 5);
+});
+
+test('finding 1: an audience class whose profiles cannot be read is a generic refusal, never a review', async () => {
+  const assignment = baseAssignment({ assignedClassIds: [CLASS, CLASS_B] });
+  const db = world({ assignment, failQuery: (path) => path === `grades?classId=${CLASS_B}` });
+  await assert.rejects(load(db), (error) => {
+    assert.equal(error.code, 'failed-precondition');
+    assert.doesNotMatch(error.message, /simulated|class-b|grades/);
+    return true;
+  });
+});
+
+test('finding 1: the audience resolver is index.js assignmentAudience', () => {
+  const block = region(indexSource, 'const assignmentAudience = (assignment = {}) => ({', '\n});');
+  // eslint-disable-next-line no-new-func
+  const indexAudience = new Function(`${block}\n});\nreturn assignmentAudience;`)();
+  const samples = [
+    {}, { assignedClassIds: null }, { assignedClassIds: [' a ', 'a', '', 'b', 7] }, { assignedClassIds: [CLASS, CLASS_B] },
+  ];
+  samples.forEach((sample) => assert.deepEqual(reviewMyWork.assignmentAudience(sample), indexAudience(sample)));
+});
+
+const warmupRoles = (result) => result.questions.filter((row) => row.sectionRole === 'warmup');
+
+test('finding 2: a Warm-Up reopen dated today (or later, or undated) in ANY class withholds every Warm-Up row', async () => {
+  const reopen = (byClassId) => baseAssignment({ assignedClassIds: [CLASS, CLASS_B], warmup: { autoCloseByClassId: byClassId } });
+  const todayEntry = { dateKey: '2026-10-07', closesAt: '2026-10-07T15:00:00Z', setAt: '2026-10-07T14:00:00Z', reason: 'manual-reopen-until-class-end' };
+  for (const byClassId of [
+    { [CLASS_B]: todayEntry }, // another class's "Open Warm-Up Today"
+    { [CLASS]: { ...todayEntry, dateKey: '2026-10-09' } }, // dated later
+    { [CLASS]: { closesAt: '2026-10-02T15:00:00Z' } }, // undated: resolveWarmupClose honours it every day
+    { [CLASS]: { ...todayEntry, dateKey: '2026-10-05', closesAt: '2026-10-08T15:00:00Z' } }, // closes in the future
+  ]) {
+    const db = world({ assignment: reopen(byClassId) });
+    const result = await load(db);
+    assert.equal(warmupRoles(result).length, 0, JSON.stringify(byClassId));
+    assert.equal(result.warmupWithheld, true);
+    assert.deepEqual(result.questions.map((row) => row.index), [2, 3, 4]);
+    // Numbers do not shift: the first Classwork question is still question 3.
+    assert.deepEqual(result.questions.map((row) => row.number), [3, 4, 5]);
+    const text = JSON.stringify(result);
+    assert.ok(!text.includes('"5x"') && !text.includes('"Simplify q0"'), 'no Warm-Up answer or prompt');
+    assert.ok(db.reads.every((path) => !/__q[01]$/.test(path)), `no Warm-Up evidence read: ${db.reads.join(', ')}`);
+  }
+  // A reopen that ended on an earlier day changes nothing.
+  const past = await load(world({ assignment: reopen({ [CLASS]: { dateKey: '2026-10-05', closesAt: '2026-10-05T15:00:00Z' } }) }));
+  assert.equal(warmupRoles(past).length, 2);
+  assert.equal(past.warmupWithheld, false);
+});
+
+const DATE_OR_TIME = /\d{4}-\d{2}-\d{2}|\b\d{1,2}:\d{2}\b|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d|\b(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day\b|\b\d{1,2}\/\d{1,2}\b|\b(a\.?m\.?|p\.?m\.?)\b|\b(today|tomorrow)\b/i;
+
+test('finding 3: no refusal message carries a date or time — above all the "whole class" one', async () => {
+  const classmate = { [`studentAssignmentOverrides/${studentAssignmentOverrideId(OTHER, ASSIGNMENT)}`]: { studentId: OTHER, assignmentId: ASSIGNMENT, lateDueAt: '2026-10-10T22:00:00Z' } };
+  const cases = [
+    load(world({ extraDocs: classmate })),
+    load(world({ assignment: baseAssignment({ assignedClassIds: [CLASS, CLASS_B] }), extraDocs: { [`grades/${CLASS_B_STUDENT}`]: { classId: CLASS_B, profile: extraTimeProfile } } })),
+    load(world({ assignment: baseAssignment({ assignedClassIds: [CLASS, CLASS_B] }), failQuery: (path) => path.startsWith('grades?') })),
+    load(world(), undefined, { now: Date.parse('2026-10-02T12:00:00Z') }),
+    load(world({ assignment: baseAssignment({ dueAt: null, lateDueAt: null }) })),
+    load(world({ assignment: baseAssignment({ feedbackReleased: false, sections: [{ id: 's-q', role: 'quiz', title: 'Quiz', questions: [literal('q0', '4')] }] }) })),
+    load(world({ assignment: baseAssignment({ secure: true }) })),
+    load(world({ assignment: baseAssignment({ archived: true }) })),
+    load(world({ assignment: baseAssignment({ assignedClassIds: ['class-z'] }) })),
+    load(fakeDb({ [`assignments/${ASSIGNMENT}`]: baseAssignment() })),
+    load(world(), { assignmentId: 'missing' }),
+    load(world(), { assignmentId: 'a/b' }),
+    loadMyReviewWorkHandler({ db: world(), auth: null, data: { assignmentId: ASSIGNMENT }, now: NOW }),
+  ];
+  const messages = [];
+  for (const pending of cases) {
+    await assert.rejects(pending, (error) => { messages.push(error.message); return true; });
+  }
+  assert.ok(messages.some((message) => /whole class/.test(message)));
+  messages.forEach((message) => assert.doesNotMatch(message, DATE_OR_TIME, message));
+});
+
+test('finding A: the prompt shown is the delivered instance\'s wording, not the template\'s', async () => {
+  const template = { questionId: 'gen', type: 'algebra', prompt: 'Solve {{a}}x + {{b}} = {{c}}', variantGenerator: { kind: 'x' }, answer: 999 };
+  const delivered = { ...template, prompt: 'Solve 2x + 1 = 7', authoredPrompt: template.prompt, answer: 3 };
+  const r0 = record('attempted', { id: 0 });
+  const db = fakeDb({
+    [`assignments/${ASSIGNMENT}`]: baseAssignment({ sections: [{ id: 's', role: 'classwork', title: 'Classwork', questions: [template] }] }),
+    [`grades/${STUDENT}`]: { classId: CLASS, gradesByAssignment: { [ASSIGNMENT]: { 0: r0 } } },
+    [`grades/${STUDENT}/responseInspectionEvidence/${ASSIGNMENT}__q0`]: evidenceDoc(0, r0, { kind: 'value', value: '3' }, {
+      deliveredInstanceAuthority: { authoritative: true, question: delivered },
+    }),
+  });
+  const { questions } = await load(db);
+  assert.equal(questions[0].solutionSource, SOLUTION_SOURCE.DELIVERED);
+  assert.equal(questions[0].prompt, 'Solve 2x + 1 = 7');
+  assert.ok(!questions[0].prompt.includes('{{'));
+});
+
+test('row numbers are positions among the non-excluded questions, stable when Warm-Up is withheld', async () => {
+  const assignment = baseAssignment();
+  assignment.sections[0].questions[1].teacherExcluded = true; // q1 excluded
+  const plain = await load(world({ assignment }));
+  assert.deepEqual(plain.questions.map((row) => [row.index, row.number]), [[0, 1], [2, 2], [3, 3], [4, 4]]);
+  assignment.warmup = { autoCloseByClassId: { [CLASS]: { dateKey: '2026-10-07', closesAt: '2026-10-07T15:00:00Z' } } };
+  const withheld = await load(world({ assignment }));
+  assert.deepEqual(withheld.questions.map((row) => [row.index, row.number]), [[2, 2], [3, 3], [4, 4]]);
 });

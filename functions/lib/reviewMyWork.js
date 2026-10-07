@@ -91,8 +91,9 @@ function reviewMyWorkDeps() {
       import("../shared/serverGrading/deliveredQuestion.mjs"),
       import("../shared/assessmentAvailability.mjs"),
       import("../shared/testCyclePolicy.mjs"),
-    ]).then(([inspector, deadlines, overrides, policies, rewards, familyGrading, familyInstance, delivered, availability, testCyclePolicy]) => ({
-      inspector, deadlines, overrides, policies, rewards, familyGrading, familyInstance, delivered, availability, testCyclePolicy,
+      import("../shared/instructionalCalendar.mjs"),
+    ]).then(([inspector, deadlines, overrides, policies, rewards, familyGrading, familyInstance, delivered, availability, testCyclePolicy, calendar]) => ({
+      inspector, deadlines, overrides, policies, rewards, familyGrading, familyInstance, delivered, availability, testCyclePolicy, calendar,
     }));
   }
   return depsPromise;
@@ -130,9 +131,48 @@ const hiddenFromStudents = (assignment = {}, deps = null) => {
   return Boolean(state) && DRAFT_AUTHORING_STATES.has(state);
 };
 
-const assignedToClass = (assignment = {}, classId = null) => {
-  const ids = list(assignment.assignedClassIds).map((value) => String(value).trim()).filter(Boolean);
-  return Boolean(classId) && ids.includes(String(classId));
+/*
+ * The classes an assignment is assigned to. The same resolver as
+ * functions/index.js `assignmentAudience` (which every audience-wide server
+ * path — e.g. queueClassroomGradeSignalForAudience — reads); index.js cannot be
+ * required from here, so the test evaluates both and asserts they agree.
+ */
+const assignmentAudience = (assignment = {}) => ({
+  classIds: [...new Set((Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : [])
+    .map(String).map((value) => value.trim()).filter(Boolean))],
+});
+
+const assignedToClass = (assignment = {}, classId = null) => (
+  Boolean(classId) && assignmentAudience(assignment).classIds.includes(String(classId))
+);
+
+const isWarmupRole = (role) => String(role || "").toLowerCase().replace(/[^a-z]/g, "") === "warmup";
+
+/*
+ * A WARM-UP A TEACHER CAN STILL HAVE OPEN.
+ *
+ * "Open Warm-Up Today" / a Warm-Up timer writes
+ * `warmup.autoCloseByClassId[classId] = { dateKey, closesAt, ... }`
+ * (sectionDeadline.mjs applyWarmupTeacherControl), on any day — including after
+ * the assignment's final cutoff. resolveWarmupClose honours it on its dateKey
+ * (or on every day when it has none), and ingestion then accepts credit-bearing
+ * Warm-Up work past the final close (studentSubmissionDisposition.mjs:
+ * teacherReopenedWarmupAtCapture). So while ANY class holds such an entry dated
+ * today or later (school time zone), dated nowhere, or closing in the future,
+ * Warm-Up answers and solutions are withheld — conservatively, from every
+ * class's entry, not only the caller's.
+ */
+const warmupReopenPending = ({ assignment, now, deps }) => {
+  const byClassId = assignment?.warmup?.autoCloseByClassId;
+  if (!byClassId || typeof byClassId !== "object") return false;
+  const todayKey = deps.calendar.zonedDateKey(Number(now), deps.deadlines.SCHOOL_TIME_ZONE);
+  return Object.values(byClassId).some((entry) => {
+    if (!entry) return false;
+    const dateKey = isObject(entry) ? clean(entry.dateKey, 20) : "";
+    if (!dateKey || !todayKey || dateKey >= todayKey) return true;
+    const closesAtMs = deps.calendar.parseInstant(isObject(entry) ? entry.closesAt : entry);
+    return closesAtMs === null || closesAtMs >= Number(now);
+  });
 };
 
 /**
@@ -287,6 +327,7 @@ function projectReviewMyWork({
   audits = [],
   omitted = new Set(),
   excused = false,
+  withholdWarmup = false,
   deps,
 } = {}) {
   const questions = runtimeQuestionsFromAssignment(assignment);
@@ -299,8 +340,16 @@ function projectReviewMyWork({
     : null;
 
   const rows = [];
+  // The question number the student knows: position among the questions the
+  // teacher has not excluded (assignmentLifecycle.js getIncludedQuestionIndices,
+  // the numbering "What changed" uses). Counted BEFORE any withheld row is
+  // skipped, so withholding the Warm-Up never renumbers the Classwork.
+  let includedPosition = 0;
   questions.forEach((question, index) => {
     if (question?.teacherExcluded === true) return;
+    includedPosition += 1;
+    const number = includedPosition;
+    if (withholdWarmup && isWarmupRole(question?.activityRole)) return;
     const record = tracker[String(index)] ?? tracker[index] ?? null;
     const override = overrides[String(index)] ?? overrides[index] ?? null;
     const attempted = questionWasAttempted(record);
@@ -348,10 +397,15 @@ function projectReviewMyWork({
 
     rows.push({
       index,
+      number,
       questionId: clean(question?.questionId || question?.id, 200) || null,
       sectionTitle: clean(question?.sectionTitle, 120) || null,
       sectionRole: clean(question?.activityRole, 40).toLowerCase() || null,
-      prompt: promptSummary(question),
+      // The wording the student was shown: the delivered instance's prompt
+      // whenever one exists (a generated / Question Family item's template
+      // carries different values, or placeholders). Only with no delivered
+      // instance is the template's own prompt the best there is.
+      prompt: deliveredQuestion ? promptSummary(deliveredQuestion) : promptSummary(question),
       deliveredQuestion,
       solutionSource,
       submittedResponse: submitted.response,
@@ -367,6 +421,7 @@ function projectReviewMyWork({
     assignmentId: String(assignmentId),
     title: clean(assignment?.title, 200) || null,
     excused: excused === true,
+    warmupWithheld: withholdWarmup === true,
     assignmentChange: assignmentZero,
     questions: rows,
   };
@@ -379,12 +434,16 @@ function projectReviewMyWork({
  * from the caller's verified token. `data.studentId`, if sent, is ignored.
  */
 /**
- * The latest final close anyone in `classId` holds for `assignment`: the class
- * deadline, every private override for this assignment, the legacy shared
- * per-student copies, and each classmate's support-plan deadline. Null when
- * the assignment has no final close at all (it never closes, so never shows).
+ * The latest final close anyone assigned this work holds: the class deadline,
+ * every private override for this assignment, the legacy shared per-student
+ * copies, and the support-plan deadline of every student in EVERY class of the
+ * assignment's audience — not only the caller's class: a fixed question shared
+ * by class-a and class-b must not show its solution to class-a while a class-b
+ * student's extra time keeps it answerable. Null when the assignment has no
+ * final close at all (it never closes, so never shows). Throws when any read
+ * fails: an unread class could hold the latest deadline.
  */
-const latestClassFinalCloseAt = async ({ db, assignment, assignmentId, classId, deps }) => {
+const latestAudienceFinalCloseAt = async ({ db, assignment, assignmentId, deps }) => {
   const closes = [];
   const push = (value) => {
     if (value === null || value === undefined) return false;
@@ -392,9 +451,10 @@ const latestClassFinalCloseAt = async ({ db, assignment, assignmentId, classId, 
     return true;
   };
   if (!push(deps.deadlines.assignmentFinalCloseAt(assignment, null, null, null))) return null;
-  const [overrideSnap, classSnap] = await Promise.all([
+  const classIds = assignmentAudience(assignment).classIds;
+  const [overrideSnap, ...classSnaps] = await Promise.all([
     db.collection(deps.overrides.STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION).where("assignmentId", "==", assignmentId).get(),
-    classId ? db.collection("grades").where("classId", "==", classId).select("profile").get() : Promise.resolve({ docs: [] }),
+    ...classIds.map((id) => db.collection("grades").where("classId", "==", id).select("profile").get()),
   ]);
   const privateByStudent = new Map();
   (overrideSnap?.docs || []).forEach((doc) => {
@@ -402,7 +462,8 @@ const latestClassFinalCloseAt = async ({ db, assignment, assignmentId, classId, 
     const sid = clean(data.studentId, 200);
     if (sid) privateByStudent.set(sid, data);
   });
-  const profileByStudent = new Map((classSnap?.docs || []).map((doc) => [doc.id, (doc.data() || {}).profile || null]));
+  const profileByStudent = new Map(classSnaps.flatMap((snap) => (snap?.docs || [])
+    .map((doc) => [doc.id, (doc.data() || {}).profile || null])));
   const legacyIds = assignment?.studentOverrides && typeof assignment.studentOverrides === "object"
     ? Object.keys(assignment.studentOverrides)
     : [];
@@ -461,15 +522,23 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
    * NOT WHILE ANY CLASSMATE CAN STILL ANSWER.
    *
    * Closed for this student is not closed for the class: a classmate's
-   * extension, private deadline or extended-time accommodation can keep the
-   * same fixed questions answerable. A worked solution shown now could be
-   * passed to them, so the panel waits until the latest deadline anyone in
-   * the class holds has passed. The message names no one and no reason.
+   * extension, private deadline or extended-time accommodation — in ANY class
+   * the assignment is assigned to — can keep the same fixed questions
+   * answerable. A worked solution shown now could be passed to them, so the
+   * panel waits until the latest deadline anyone assigned this work holds has
+   * passed. The message names no one, no reason and no date.
    */
-  const classCloseAtMs = await latestClassFinalCloseAt({ db, assignment, assignmentId, classId, deps });
+  let classCloseAtMs;
+  try {
+    classCloseAtMs = await latestAudienceFinalCloseAt({ db, assignment, assignmentId, deps });
+  } catch {
+    throw new HttpsError("failed-precondition", "Your answers and solutions cannot be shown right now. Try again later.");
+  }
+  // No date in this message: the latest deadline is someone else's.
   if (classCloseAtMs === null || !(Number(now) > Number(classCloseAtMs))) {
     throw new HttpsError("failed-precondition", "Your answers and solutions appear here once this assignment has closed for your whole class.");
   }
+  const withholdWarmup = warmupReopenPending({ assignment, now, deps });
   const questions = runtimeQuestionsFromAssignment(assignment);
   if (feedbackHeld(assignment, questions, deps.policies)) {
     throw new HttpsError("failed-precondition", "Your teacher has not released feedback for this assignment yet.");
@@ -497,6 +566,7 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
   const attemptedIndices = questions
     .map((question, index) => index)
     .filter((index) => questions[index]?.teacherExcluded !== true
+      && !(withholdWarmup && isWarmupRole(questions[index]?.activityRole))
       && questionWasAttempted(tracker[String(index)] ?? tracker[index]));
   const evidenceSnaps = await Promise.all(attemptedIndices.map((index) => gradeRef
     .collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
@@ -517,7 +587,7 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
     : [];
 
   return projectReviewMyWork({
-    assignment, assignmentId, studentId, classId, gradeData, evidenceByIndex, audits, omitted, excused, deps,
+    assignment, assignmentId, studentId, classId, gradeData, evidenceByIndex, audits, omitted, excused, withholdWarmup, deps,
   });
 }
 
@@ -526,6 +596,7 @@ module.exports = {
   OUTCOME,
   SOLUTION_SOURCE,
   reviewMyWorkDeps,
+  assignmentAudience,
   sanitizeSubmittedResponse,
   projectReviewMyWork,
   loadMyReviewWorkHandler,

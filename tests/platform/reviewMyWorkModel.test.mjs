@@ -154,3 +154,41 @@ test('component: loading, error with retry, and tap targets', () => {
   assert.match(region(code, 'const buttonStyle = {', '};'), /minHeight: MIN_TOUCH_TARGET_PX/);
   assert.doesNotMatch(code, /width:\s*['"]?\d{3,}px/);
 });
+
+test('the prompt shown comes from the delivered question, never the stored template', () => {
+  const template = { questionId: 'q2', type: 'algebra', prompt: 'Solve {{a}}x + {{b}} = {{c}}', answer: 999 };
+  const generated = { ...assignment, sections: [assignment.sections[0], { ...assignment.sections[1], questions: [template] }] };
+  const delivered = { ...template, prompt: 'Solve 2x + 1 = 7', answer: 3 };
+  const row = { ...result.questions[2], solutionSource: 'delivered', deliveredQuestion: delivered };
+  // Even when the server's own prompt is the template (an older server) or empty.
+  for (const prompt of ['Solve {{a}}x + {{b}} = {{c}}', '', null]) {
+    const model = buildReviewMyWorkModel({ result: { ...result, questions: [{ ...row, prompt }] }, assignment: generated });
+    assert.equal(model.items[0].prompt, 'Solve 2x + 1 = 7');
+  }
+  // With no delivered instance: the server's prompt, then the stored question's.
+  assert.equal(buildReviewMyWorkModel({ result, assignment }).items[0].prompt, 'Simplify 2+2');
+  const noServerPrompt = { ...result, questions: [{ ...result.questions[0], prompt: '' }] };
+  assert.equal(buildReviewMyWorkModel({ result: noServerPrompt, assignment }).items[0].prompt, 'Simplify 2+2');
+});
+
+test('numbers do not shift when Warm-Up rows are withheld: the server number, else the included position', () => {
+  const classworkOnly = { ...result, warmupWithheld: true, questions: [result.questions[2]] };
+  // No server number (older server): the position among the stored, non-excluded questions.
+  assert.equal(buildReviewMyWorkModel({ result: classworkOnly, assignment }).items[0].number, 3);
+  // The server's number wins.
+  const numbered = { ...classworkOnly, questions: [{ ...result.questions[2], number: 3 }] };
+  assert.equal(buildReviewMyWorkModel({ result: numbered, assignment: null }).items[0].number, 3);
+  // A teacher-excluded question earlier in the list is not counted.
+  const excluded = structuredClone(assignment);
+  excluded.sections[0].questions[1].teacherExcluded = true;
+  assert.equal(buildReviewMyWorkModel({ result: classworkOnly, assignment: excluded }).items[0].number, 2);
+});
+
+test('a withheld Warm-Up is explained, never silently missing', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { buildReviewMyWorkModel } = await import('../../src/platform/student/reviewMyWorkModel.js');
+  assert.equal(buildReviewMyWorkModel({ result: { questions: [], warmupWithheld: true } }).warmupWithheld, true);
+  assert.equal(buildReviewMyWorkModel({ result: { questions: [] } }).warmupWithheld, false);
+  const component = readFileSync(new URL('../../src/components/student/ReviewMyWork.jsx', import.meta.url), 'utf8');
+  assert.match(component, /\{model\.warmupWithheld && <p[^>]*>Your Warm-Up review will appear here after your teacher closes the Warm-Up again\.<\/p>\}/);
+});

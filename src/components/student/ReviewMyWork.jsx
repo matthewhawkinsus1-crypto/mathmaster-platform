@@ -160,6 +160,7 @@ export default function ReviewMyWork({ assignment, load, onClose = null }) {
       {model && (
         <>
           {model.excused && <p style={{ color: 'var(--mm-text-muted)' }}>This assignment is excused for you. Your answers and the solutions are here to learn from.</p>}
+          {model.warmupWithheld && <p style={{ color: 'var(--mm-text-muted)' }}>Your Warm-Up review will appear here after your teacher closes the Warm-Up again.</p>}
           {model.assignmentLine && <p style={{ color: 'var(--mm-primary-text)', fontWeight: 700 }}>{model.assignmentLine}</p>}
           {model.items.length === 0 ? (
             <p style={{ color: 'var(--mm-text-muted)' }}>There are no questions to review on this assignment.</p>

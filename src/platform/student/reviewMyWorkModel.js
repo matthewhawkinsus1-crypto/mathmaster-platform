@@ -1,4 +1,5 @@
 import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
+import { getIncludedQuestionIndices } from '../../assignmentLifecycle.js';
 
 /*
  * REVIEW MY WORK — what the student sees for each question of a closed
@@ -116,6 +117,25 @@ const sectionLabel = (row, stored) => {
   return SECTION_ROLE_LABEL[role] || '';
 };
 
+const promptText = (question) => {
+  const text = typeof question?.prompt === 'string' ? question.prompt
+    : typeof question?.question === 'string' ? question.question
+      : typeof question?.title === 'string' ? question.title : '';
+  return text.trim();
+};
+
+/*
+ * The wording the student was shown. A delivered instance (generated, adaptive
+ * or Question Family) is the only source of it when the server sent one: the
+ * stored question is the TEMPLATE, with different values or placeholders, so
+ * it is never used in that case. Without a delivered instance the server's
+ * prompt comes first, then the stored question's.
+ */
+const rowPrompt = (row, storedQuestion) => {
+  if (isObject(row?.deliveredQuestion)) return promptText(row.deliveredQuestion) || String(row.prompt || '').trim();
+  return String(row?.prompt || '').trim() || promptText(storedQuestion);
+};
+
 /**
  * Merge the server's rows with the assignment's stored questions.
  * `result` is what loadMyReviewWork returned; anything else yields no rows.
@@ -123,6 +143,19 @@ const sectionLabel = (row, stored) => {
 export const buildReviewMyWorkModel = ({ result = null, assignment = null } = {}) => {
   const rows = isObject(result) ? list(result.questions) : [];
   const stored = getStoredAssignmentQuestions(assignment || {});
+  const included = getIncludedQuestionIndices(stored);
+  /*
+   * The number the student knows this question by: the server's stable
+   * `number` (position among non-excluded questions), else the same position
+   * computed from the stored questions — never the row's position in this
+   * list, which shifts when rows (a withheld Warm-Up) are left out.
+   */
+  const questionNumber = (row, position) => {
+    const fromServer = Number(row.number);
+    if (Number.isInteger(fromServer) && fromServer > 0) return fromServer;
+    const includedPosition = included.indexOf(Number(row.index));
+    return includedPosition >= 0 ? includedPosition + 1 : position + 1;
+  };
   const items = rows
     .filter((row) => isObject(row) && Number.isInteger(Number(row.index)))
     .map((row, position) => {
@@ -138,9 +171,9 @@ export const buildReviewMyWorkModel = ({ result = null, assignment = null } = {}
       return {
         key: `${row.index}-${row.questionId || position}`,
         index: Number(row.index),
-        number: position + 1,
+        number: questionNumber(row, position),
         section: sectionLabel(row, storedQuestion),
-        prompt: String(row.prompt || storedQuestion?.prompt || '').trim(),
+        prompt: rowPrompt(row, storedQuestion),
         outcome,
         outcomeLabel: OUTCOME_LABEL[outcome],
         credit: Number.isFinite(Number(row.credit)) && row.credit !== null ? Number(row.credit) : null,
@@ -154,6 +187,8 @@ export const buildReviewMyWorkModel = ({ result = null, assignment = null } = {}
   return {
     title: String(result?.title || assignment?.title || '').trim(),
     excused: result?.excused === true,
+    // The server left the Warm-Up out because a teacher has reopened it.
+    warmupWithheld: result?.warmupWithheld === true,
     assignmentLine: isObject(result?.assignmentChange)
       ? (assignmentReason ? `Your teacher changed this grade: ${assignmentReason}` : 'Your teacher changed this grade.')
       : null,
