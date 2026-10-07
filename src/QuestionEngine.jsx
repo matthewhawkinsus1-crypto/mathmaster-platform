@@ -2104,7 +2104,7 @@ function QuestionEngineBody({
       {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '7px 12px', borderRadius: '10px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: '14px', fontWeight: 800 }}>DOL exit ticket · this question counts toward today&apos;s DOL grade.</div>}
       {questionGradeWeight !== 1 && (
         <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '9px 13px', borderRadius: '10px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>
-          Grade weight ×{questionGradeWeight} · this question contributes {questionGradeWeight} times a standard-weight question to the assignment grade.
+          Grade weight ×{questionGradeWeight} · this question counts {questionGradeWeight} times a standard-weight question in this section&apos;s grade and in the assignment grade.
         </div>
       )}
 

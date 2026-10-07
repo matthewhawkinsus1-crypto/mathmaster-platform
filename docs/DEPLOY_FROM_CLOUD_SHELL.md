@@ -447,9 +447,47 @@ first — `node scripts/release-firebase.mjs` does that for you.
 | **Hosting upload `ConnectTimeoutError` / `retries exhausted`** | Run `npm run deploy:hosting`. The helper throttles Firebase's upload concurrency and retries transient upload failures automatically. |
 | **`Functions NOT verified (sha-mismatch)`** at the end of a release | The functions are not serving your commit — or report `unknown`, meaning the stamp did not reach the upload (check the first predeploy step and the `ignore` list in `firebase.json`). Run the `Finish with:` command it printed. Rules and Hosting were held back on purpose. |
 | **`Functions NOT verified (unreachable)`** | `platformBuildInfo` did not answer. Check with `node scripts/release-firebase.mjs --whats-live`; if it answers there, run the `Finish with:` command. |
+| **A button says "did not go through: the server did not answer (Cloud Function "…")"**, or a callable fails with `internal` while the rest of the app works | That function is most likely closed to browsers. Run `node scripts/verify-callable-access.mjs --fix`. See "A callable that answers nothing" below. |
+| **`Browser access NOT verified`** at the end of a release | A callable is still closed to browsers, or `gcloud` could not check. Run the `Finish with:` command it printed. Rules and Hosting were held back on purpose. |
 | Hosting refuses with uncommitted `coursePathReleaseV2.manifest.json` / `pathReleaseManifest.generated.js` | The course Path content changed and the rebuilt release was not committed. Commit both files (the build only rewrites them when the certified release changed), then deploy again. |
 
 ---
+
+## A callable that answers nothing ("internal")
+
+A teacher presses a button and sees *"… did not go through: the server did not
+answer (Cloud Function "teacherTestCycleAction")"*, every time, on a working
+connection, while the rest of the app works. The same callable works in the
+emulator.
+
+The most likely cause is that the function's Cloud Run service does not let
+browsers in. A browser can only call a callable when its service grants `allUsers` the
+`roles/run.invoker` role. MathMaster still checks who is calling inside every
+function, so this binding only lets the request in to be asked. The Firebase
+CLI grants it **once, when it creates the function**, and never on a later
+deploy. If that one grant failed (Google throttles IAM changes during a big
+deploy), the function is deployed and healthy and every browser gets a 403.
+The browser cannot read that 403, so the Firebase client reports `internal`.
+Redeploying the function reports success and changes nothing.
+
+Check every callable, and open the ones that are closed:
+
+```
+cd ~/mathmaster-platform && node scripts/verify-callable-access.mjs --fix
+```
+
+It lists every callable that is closed, not deployed, or whose last deploy did
+not finish. For a closed one, `--fix` grants the binding and reads it back.
+That is the only change it ever makes. It never deploys: for a function that
+needs a deploy, it prints the command. It never touches the schedulers, which
+stay private on purpose. Without `--fix` it only reports. To check one function
+the way a browser does, add `--functions teacherTestCycleAction --probe`. If
+that passes and the button still fails, the function itself is failing. The
+script prints the `gcloud functions logs read …` command to read its log.
+
+`node scripts/release-firebase.mjs --execute` now runs the same check, with
+`--fix`, after every functions deploy. A callable that is still closed holds
+back rules and Hosting, like a function that did not deploy.
 
 ## If several functions fail to deploy
 
