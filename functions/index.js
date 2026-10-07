@@ -14606,7 +14606,8 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const { studentId } = requireStudent(request);
   let targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
   if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
-  const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
+  // `let`: a weekly slot's frozen purpose can settle the kind below.
+  let sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
   let requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
   let assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
   const requestedCoursePracticeIntent = String(request.data?.coursePracticeIntent || "").trim() === "challenge"
@@ -14662,6 +14663,22 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly assessment context.");
     }
     assessmentFramework = assignedFramework;
+  }
+
+  // A RETENTION SLOT IS A RETENTION CHECK (functions/shared/pathRetentionCheck.mjs).
+  // The slot's frozen purpose decides the session kind, not the browser: only
+  // a retentionProbe moves the retention schedule, so practice launched on a
+  // Retention slot filled it without ever clearing the check. A browser a
+  // release behind still asks for practice and is given the check; a check
+  // asked for on any other slot is refused.
+  const retentionCheck = await import("./shared/pathRetentionCheck.mjs");
+  if (weeklySlot) {
+    const weeklyKind = retentionCheck.resolveWeeklySlotSessionKind({ slotPurpose: weeklySlot.purpose, requestedSessionKind: sessionKind });
+    if (!weeklyKind.ok) throw new HttpsError("failed-precondition", weeklyKind.message, { reason: weeklyKind.reason });
+    if (weeklyKind.sessionKind !== sessionKind) {
+      sessionKind = weeklyKind.sessionKind;
+      requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
+    }
   }
 
   // A weekly slot can supply the assessment framework after the initial request
@@ -14773,7 +14790,10 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       const existingRef = db.collection("pathSessions").doc(lock.data().sessionId);
       const existing = await transaction.get(existingRef);
       if (existing.exists && existing.data()?.status === "active" && existing.data()?.studentId === studentId) {
-        if (existing.data()?.sessionKind !== sessionKind) {
+        // A weekly slot's open session is resumed whatever kind it was opened
+        // as (practice opened on a Retention slot before it became a check);
+        // refusing it would leave a Resume button that can never work.
+        if (!retentionCheck.canResumeOpenSession({ existingSessionKind: existing.data()?.sessionKind, sessionKind, weeklySlotKey: requestedWeeklySlotKey })) {
           throw new HttpsError("failed-precondition", "Finish the active session for this TEKS before starting a different check.");
         }
         if ((existing.data()?.assessmentFramework || null) !== assessmentFramework) {
@@ -15630,25 +15650,19 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     if (retentionSnapshot) {
       const displayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
       const schedules = retentionSnapshot.exists ? retentionSnapshot.data()?.schedules || {} : {};
-      const currentSchedule = schedules[displayCode] || {};
-      const passed = nextSummary.completedQuestions >= 2 && nextSummary.independentSuccesses >= 2;
-      const successfulCheckCount = passed ? Number(currentSchedule.successfulCheckCount || 0) + 1 : Number(currentSchedule.successfulCheckCount || 0);
-      const updatedSchedule = passed ? {
-        ...currentSchedule,
+      // ONE verdict for a finished retention check, shared with the Teacher
+      // Path Simulator (functions/shared/pathRetentionCheck.mjs): both answers
+      // right on the student's own moves the next check out (14/30/60 days);
+      // anything less marks a concern and keeps the check due.
+      const { retentionCheckOutcome } = await import("./shared/pathRetentionCheck.mjs");
+      const verdict = retentionCheckOutcome({
         teksCode: displayCode,
-        status: "scheduled",
-        lastVerifiedAt: now,
-        successfulCheckCount,
-        nextCheckDueAt: mathPath.nextRetentionDue(now, successfulCheckCount),
-        daysOverdue: 0,
-      } : {
-        ...currentSchedule,
-        teksCode: displayCode,
-        status: "concern",
-        lastFailedCheckAt: now,
-      };
-      transaction.set(retentionRef, { schedules: { ...schedules, [displayCode]: updatedSchedule }, updatedAt: now }, { merge: true });
-      nextSession.retentionOutcome = passed ? "passed" : "failed";
+        summary: nextSummary,
+        currentSchedule: schedules[displayCode] || {},
+        now,
+      });
+      transaction.set(retentionRef, { schedules: { ...schedules, [displayCode]: verdict.schedule }, updatedAt: now }, { merge: true });
+      nextSession.retentionOutcome = verdict.outcome;
     }
 
     if (questionFinalized && currentQuestion.assessmentContext?.examStyle === true) {
