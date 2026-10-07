@@ -13,9 +13,18 @@
 //
 // A CODE IS EVIDENCE, NEVER A GRADE. Classification runs after grading, on a
 // copy of its result, and nothing it returns is read by the attempt policy:
-// correctness, score, partial credit, attempts, accommodations and what the
-// student is shown are identical with and without it
+// correctness, score, partial credit, attempts, accommodations and the
+// recorded evidence are identical with and without it
 // (functions/shared/misconceptionClassifiers.mjs).
+//
+// WHAT THE STUDENT IS SHOWN MAY DIFFER — AND ONLY AS DISPLAY. After a graded
+// miss whose outcome feedback is open, the classroom engine runs the same pure
+// classifiers on its own copy of the shared grader's result and shows a
+// non-revealing message for the code (misconceptionStudentMessages.mjs;
+// src/platform/supports/feedback/missDiagnosis.js). That display code is never
+// stored, never sent with the attempt and never read by the attempt policy:
+// the evidence is still only what the server classifies at ingestion. Nothing
+// is shown while an assessment item can still be answered.
 //
 // WHERE A CODE IS STORED, AND THE ONLY PLACE IT IS READ FROM:
 //

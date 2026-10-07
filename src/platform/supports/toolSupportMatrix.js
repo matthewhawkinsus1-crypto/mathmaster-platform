@@ -19,6 +19,7 @@
 
 import { PATH_TOOL_IDS } from '../../../functions/shared/pathToolContracts.mjs';
 import { SUPPORT } from '../../../functions/shared/supportEntitlements.mjs';
+import { TOOLS_WITH_SOLUTION_REVIEW_BUILDER } from '../../tools/shared/toolSolutionReview.js';
 
 /** How well a tool honours a support. Deliberately more than yes/no. */
 export const COMPAT = Object.freeze({
@@ -43,10 +44,9 @@ export const COMPAT_LABEL = Object.freeze({
 });
 
 /** Tools whose solution review the builder can genuinely produce. */
-export const TOOLS_WITH_REAL_SOLUTION_REVIEW = Object.freeze([
-  'sequenceExplorer', 'representationMatch', 'functionInvestigation2',
-  'relationMapping', 'openSortBoard', 'constraintFunctionBuilder',
-]);
+// Read from the review builder itself, so a tool gains the flag the moment
+// its builder is implemented (src/tools/shared/reviews/).
+export const TOOLS_WITH_REAL_SOLUTION_REVIEW = TOOLS_WITH_SOLUTION_REVIEW_BUILDER;
 
 /**
  * Interactions with a genuine non-pointer route, verified by the accessibility
