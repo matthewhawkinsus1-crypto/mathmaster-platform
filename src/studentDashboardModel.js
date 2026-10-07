@@ -1,6 +1,5 @@
 import {
   getStoredAssignmentQuestions,
-  getStoredAssignmentTypeProjection,
 } from './platform/contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
 import { localDateKey, studentDueDates } from './assignmentLifecycle.js';
@@ -568,7 +567,6 @@ export const buildStudentDashboardModel = ({
  *      than left as an empty screen.
  */
 export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => {
-  const first = (bucket) => (dashboard?.groups?.[bucket] || [])[0] || null;
   // The card prints a due date under the decision, and it has to be this
   // student's: an individualized (extra-time) due date lives on the lifecycle
   // each candidate was bucketed with, not on the assignment's class fields.
