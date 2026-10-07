@@ -313,6 +313,12 @@ import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRe
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction, resolveUpNext } from './studentDashboardModel.js';
 import { resolveAssignmentHandoff } from './platform/student/assignmentHandoff.js';
+import WhatChangedList from './components/student/WhatChangedList.jsx';
+import {
+  buildWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
+} from './platform/student/whatChangedModel.js';
+import { describeLogoutRisk } from './platform/student/logoutGuard.js';
+import { describeSaveStatus } from './platform/student/saveStatusModel.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import {
@@ -1950,6 +1956,34 @@ function App() {
   const studentViewerRef = useRef({ studentId: null, profile: null });
   const studentControlsRef = useRef(EMPTY_STUDENT_CONTROLS);
   studentControlsRef.current = studentAssignmentControls;
+  /*
+   * "WHAT CHANGED" (decision 6): a read-only list built from records the
+   * student already reads — released results, grade changes with their fixed
+   * reason, excused/reopened/extended work, new work, retests
+   * (platform/student/whatChangedModel.js). The device's last-seen time is
+   * read once per visit so "New" does not vanish while it is being read.
+   */
+  const [whatChangedSeenAt, setWhatChangedSeenAt] = useState(0);
+  useEffect(() => {
+    if (user?.role === 'student' && user?.id) setWhatChangedSeenAt(readWhatChangedSeenAt(user.id));
+  }, [user?.role, user?.id]);
+  const whatChangedMinute = Math.floor(now / 60000);
+  const whatChangedItems = useMemo(() => {
+    if (user?.role !== 'student' || !user?.id) return [];
+    const input = {
+      studentId: user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod || null,
+      assignments,
+      testCycleGrades,
+      teacherGradeOverridesByAssignment,
+      controlsByAssignmentId: studentAssignmentControls?.byAssignmentId || {},
+      nowValue: whatChangedMinute * 60000,
+      seenAt: whatChangedSeenAt,
+    };
+    const firstSeenByKey = rememberWhatChangedFirstSeen(user.id, untimedWhatChangedKeys(buildWhatChanged(input)), input.nowValue);
+    return buildWhatChanged({ ...input, firstSeenByKey });
+  }, [user?.role, user?.id, user?.classId, user?.classPeriod, assignments, testCycleGrades, teacherGradeOverridesByAssignment, studentAssignmentControls, whatChangedMinute, whatChangedSeenAt]);
   // What was last projected into state, so re-running an effect with nothing
   // new projects nothing again (every projection makes new lesson objects).
   const lastPublishedRef = useRef(null);
@@ -11472,6 +11506,13 @@ function App() {
         student={preview ? null : { ...studentRecord, ...user }}
         classPointsBalance={preview || studentClassPoints.unavailable ? null : studentClassPoints.account.balance}
         onLogout={preview ? null : handleLogout}
+        // Unsent work still queued: Log Out asks first (logoutGuard.js).
+        logoutRisk={preview ? null : describeLogoutRisk({
+          outboxDepth: studentOutboxDepth,
+          pendingGradeCount: studentPendingGradeCount,
+          needsReviewCount: studentNeedsReviewCount,
+          persistenceStatus: studentPersistenceStatus,
+        })}
       />
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED && (
         <section role="dialog" aria-label="Student Spotlight request" style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>

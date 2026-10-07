@@ -44,3 +44,18 @@ test('Tests & Exams carries the shared student navigation, and Back names Home',
   assert.match(backLabel, /'Back to Home'/);
   assert.doesNotMatch(backLabel, /'Back to Dashboard'/);
 });
+
+test('What changed items are built once in App from records the student reads, with their imports', () => {
+  assert.match(app, /import \{[^}]*\bbuildWhatChanged\b[^}]*\} from '\.\/platform\/student\/whatChangedModel\.js'/);
+  assert.match(app, /import WhatChangedList from '\.\/components\/student\/WhatChangedList\.jsx'/);
+  const memo = region(app, 'const whatChangedItems = useMemo(', '}, [user?.role, user?.id, user?.classId', 'What changed memo');
+  assert.match(memo, /controlsByAssignmentId: studentAssignmentControls\?\.byAssignmentId/);
+  assert.match(memo, /teacherGradeOverridesByAssignment,/);
+  assert.match(memo, /return buildWhatChanged\(\{ \.\.\.input, firstSeenByKey \}\)/);
+});
+
+test('Log Out warns about unsent work on the one identity bar', () => {
+  assert.match(app, /import \{ describeLogoutRisk \} from '\.\/platform\/student\/logoutGuard\.js'/);
+  const bar = region(app, '<StudentIdentityBar', '/>', 'identity bar');
+  assert.match(bar, /logoutRisk=\{preview \? null : describeLogoutRisk\(\{\s*outboxDepth: studentOutboxDepth,\s*pendingGradeCount: studentPendingGradeCount/);
+});
