@@ -12981,7 +12981,8 @@ function App() {
             supportPresentation={getStudentSupportPresentation(user.profile)}
             onNavigate={navigateStudent}
             onLogout={handleLogout}
-            onContinue={(assignmentId) => startAssignment(assignmentId)}
+            // Lands on the row's next unfinished open question.
+            onContinue={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex)}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
           />
@@ -13145,6 +13146,12 @@ function App() {
    */
   if (user.role === 'student' && activeView === 'assignmentResult' && assignmentResultRoute) {
     const resultEntry = findGradeCenterEntry(studentGradeCenter, assignmentResultRoute.assignmentId);
+    // The Today rule for this assignment and what comes after it: the result
+    // page is where "nothing open now" lands, so it says what opens when and
+    // hands off to Up next.
+    const resultDashboard = buildStudentDashboardNow();
+    const resultTodayEntry = resultDashboard?.allEntries.find((entry) => entry.assignment.id === assignmentResultRoute.assignmentId) || null;
+    const resultUpNext = resolveUpNext({ dashboard: resultDashboard, assignmentId: assignmentResultRoute.assignmentId });
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
       ? assignmentResultRoute.sectionLabel || assignmentResultRoute.sectionKey
       : null;
@@ -13186,6 +13193,13 @@ function App() {
           })}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
+          todayEntry={resultTodayEntry}
+          upNext={resultUpNext}
+          // New work, not a return trip: no returnToResult.
+          onContinue={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex)}
+          onUpNext={(next) => (next.opensResult
+            ? openStudentAssignmentResult(next.assignment.id, { origin: assignmentResultRoute.origin || 'assignments' })
+            : startAssignment(next.assignment.id, next.questionIndex ?? 0))}
           origin={assignmentResultRoute.origin || 'assignments'}
           onBackToHome={() => openStudentDashboardMode('assignments')}
           recoveryPanel={studentRecoverySummary.length ? (

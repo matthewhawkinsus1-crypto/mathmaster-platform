@@ -70,3 +70,14 @@ test('Home is wired without the support flag, with results, save status and What
   const before = region(app, 'const studentNextAction = resolveNextAction({', '<StudentDashboardView', 'before Home');
   assert.doesNotMatch(before, /renderStudentWarmupBanner\(\)/, 'Home offers the Warm-Up once, not as a banner too');
 });
+
+test('the result page receives the Today entry, Up next and Continue; the Assignments Center passes the question', () => {
+  const result = region(app, "activeView === 'assignmentResult' && assignmentResultRoute", 'if (isStudentAssignment)', 'result view');
+  assert.match(result, /const resultDashboard = buildStudentDashboardNow\(\);/);
+  assert.match(result, /resolveUpNext\(\{ dashboard: resultDashboard, assignmentId: assignmentResultRoute\.assignmentId \}\)/);
+  assert.match(result, /todayEntry=\{resultTodayEntry\}/);
+  assert.match(result, /upNext=\{resultUpNext\}/);
+  assert.match(result, /onContinue=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex\)\}/);
+  const center = region(app, '<StudentAssignmentsCenter', '/>', 'Assignments Center');
+  assert.match(center, /onContinue=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex\)\}/);
+});
