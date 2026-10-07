@@ -95,12 +95,15 @@ export const ccmrTestDateDraftProblem = (value, { now = Date.now() } = {}) => {
   return null;
 };
 
-export const ccmrCountdownText = (daysUntil) => {
+// Spoken to the student by default; a teacher reading a student's plan is told
+// about "the" test, not "your" test.
+export const ccmrCountdownText = (daysUntil, { audience = 'student' } = {}) => {
   if (daysUntil == null) return '';
-  if (daysUntil < 0) return 'Your test date has passed';
-  if (daysUntil === 0) return 'Your test is today';
-  if (daysUntil === 1) return '1 day to your test';
-  return `${daysUntil} days to your test`;
+  const teacher = audience === 'teacher';
+  if (daysUntil < 0) return teacher ? 'The test date has passed' : 'Your test date has passed';
+  if (daysUntil === 0) return teacher ? 'The test is today' : 'Your test is today';
+  const days = daysUntil === 1 ? '1 day' : `${daysUntil} days`;
+  return `${days} to ${teacher ? 'the' : 'your'} test`;
 };
 
 export const ccmrTestDateLabel = (testDate) => {
@@ -119,9 +122,10 @@ export const ccmrTestDateLabel = (testDate) => {
  * benchmark (its index is not an AFQT score), so its line says so rather than
  * inventing one.
  */
-export const describeCcmrPlan = (plan, { now = Date.now() } = {}) => {
+export const describeCcmrPlan = (plan, { now = Date.now(), audience = 'student' } = {}) => {
   const current = cleanPlan(plan);
   const proximity = ccmrTestProximity(current, { now });
+  const countdown = proximity ? ccmrCountdownText(proximity.daysUntil, { audience }) : '';
   const lines = current.goals.map(({ framework }) => {
     const threshold = EXAM_BENCHMARKS[framework]?.readinessThreshold;
     const benchmark = threshold != null
@@ -132,14 +136,14 @@ export const describeCcmrPlan = (plan, { now = Date.now() } = {}) => {
       framework,
       benchmark,
       isTest,
-      text: isTest ? `${benchmark} · ${ccmrCountdownText(proximity.daysUntil)}` : benchmark,
+      text: isTest ? `${benchmark} · ${countdown}` : benchmark,
     };
   });
   return {
     lines,
     test: proximity ? {
       ...proximity,
-      countdown: ccmrCountdownText(proximity.daysUntil),
+      countdown,
       dateLabel: ccmrTestDateLabel(proximity.testDate),
       testName: shortName(proximity.framework),
     } : null,

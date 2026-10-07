@@ -121,8 +121,12 @@ test('the CCMR hub has a bounded test-date field, benchmark lines, and stays rea
   assert.match(hub, /import \{\s*ccmrTestDateBounds, ccmrTestDateDraftProblem, describeCcmrPlan,\s*\} from '\.\.\/\.\.\/platform\/ccmr\/ccmrPlan\.js';/);
   assert.match(panel, /type="date"[\s\S]*min=\{bounds\.min\}[\s\S]*max=\{bounds\.max\}/);
   assert.match(panel, /onClick=\{\(\) => onChangeTest\?\.\(\{ testDate: draftDate, testFramework: framework \}\)\}/);
-  assert.match(panel, /disabled=\{!changed \|\| Boolean\(problem\) \|\| !draftDate\}/);
+  // Save is off until a valid, different date is entered — and looks off.
+  assert.match(panel, /const saveDisabled = !changed \|\| Boolean\(problem\) \|\| !draftDate;/);
+  assert.match(panel, /disabled=\{saveDisabled\}[\s\S]{0,160}style=\{buttonStyle\(true, saveDisabled\)\}/);
   assert.match(panel, /described\.lines\.map\(\(line\) => \(/);
+  // A teacher is told about "the" test; the student about "your" test.
+  assert.match(panel, /describeCcmrPlan\(plan, \{ now, audience: readOnly \? 'teacher' : 'student' \}\)/);
   // Read-only renders the date as text: the input and its buttons live only
   // in the editable branch.
   const readOnlyBranch = region(panel, '{readOnly ? (', ') : (', 'read-only test date');

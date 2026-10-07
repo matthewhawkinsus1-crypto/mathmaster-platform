@@ -60,7 +60,10 @@ const planStatusText = (planStatus, readOnly) => {
 // "I'm preparing for…", the test date, and what each test's benchmark is.
 // The plan is the student's saved CCMR plan; a teacher sees it read-only.
 function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, onChangeTest }) {
-  const described = useMemo(() => describeCcmrPlan(plan, { now }), [plan, now]);
+  const described = useMemo(
+    () => describeCcmrPlan(plan, { now, audience: readOnly ? 'teacher' : 'student' }),
+    [plan, now, readOnly],
+  );
   const savedDate = plan?.testDate || '';
   const savedFramework = plan?.testFramework || '';
   const [draftDate, setDraftDate] = useState(savedDate);
@@ -80,12 +83,16 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
   const status = planStatusText(planStatus, readOnly);
   const statusIsError = Boolean(planStatus?.error) || planStatus?.state === 'error';
   const controlStyle = { minHeight: TAP, padding: '8px 10px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', font: 'inherit', boxSizing: 'border-box' };
-  const buttonStyle = (primary) => ({
-    minHeight: TAP, padding: '8px 14px', borderRadius: 8, fontWeight: 850, fontSize: 13, cursor: 'pointer',
-    border: primary ? 0 : '1px solid var(--mm-border)',
-    background: primary ? '#1a73e8' : 'var(--mm-surface)',
-    color: primary ? '#fff' : 'var(--mm-text)',
+  // A disabled button must look disabled: "Save date" is off until the date
+  // actually changes, and a bright blue button that does nothing reads as broken.
+  const buttonStyle = (primary, disabled = false) => ({
+    minHeight: TAP, padding: '8px 14px', borderRadius: 8, fontWeight: 850, fontSize: 13,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    border: primary && !disabled ? 0 : '1px solid var(--mm-border)',
+    background: primary && !disabled ? '#1a73e8' : 'var(--mm-surface)',
+    color: primary && !disabled ? '#fff' : (disabled ? 'var(--mm-text-muted)' : 'var(--mm-text)'),
   });
+  const saveDisabled = !changed || Boolean(problem) || !draftDate;
 
   return (
     <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border)' }}>
@@ -144,9 +151,9 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
                 />
                 <button
                   type="button"
-                  disabled={!changed || Boolean(problem) || !draftDate}
+                  disabled={saveDisabled}
                   onClick={() => onChangeTest?.({ testDate: draftDate, testFramework: framework })}
-                  style={buttonStyle(true)}
+                  style={buttonStyle(true, saveDisabled)}
                 >
                   Save date
                 </button>

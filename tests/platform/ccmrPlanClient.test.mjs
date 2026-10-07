@@ -87,6 +87,15 @@ test('the countdown reads naturally on the last days and after the test', () => 
   assert.equal(describeCcmrPlan(plan(['act'], '2026-10-07', 'act'), { now: NOW }).lines[0].text, 'ACT math benchmark: 22 · Your test is today');
 });
 
+test('a teacher reading the plan is told about "the" test, not "your" test', () => {
+  const teacher = describeCcmrPlan(plan(['act'], '2026-10-30', 'act'), { now: NOW, audience: 'teacher' });
+  assert.equal(teacher.lines[0].text, 'ACT math benchmark: 22 · 23 days to the test');
+  assert.equal(teacher.test.countdown, '23 days to the test');
+  assert.equal(ccmrCountdownText(1, { audience: 'teacher' }), '1 day to the test');
+  assert.equal(ccmrCountdownText(0, { audience: 'teacher' }), 'The test is today');
+  assert.equal(ccmrCountdownText(-1, { audience: 'teacher' }), 'The test date has passed');
+});
+
 test('browser goals move to the account once, only when the server says there is no plan', () => {
   const base = { loaded: true, exists: false, fromCache: false, legacyGoals: ['act', 'act', 'bogus', 'tsia2'] };
   assert.deepEqual(decideLegacyCcmrMigration(base), {
