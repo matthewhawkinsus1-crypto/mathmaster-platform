@@ -38,7 +38,7 @@ test('the identity bar is one line on a phone and keeps every piece of identity'
   assert.match(bar, /className="mm-identity-name"[^>]*>\s*\{name\}\{context \? ` • \$\{context\}` : ''\}/);
   assert.match(bar, /aria-label=\{`\$\{classPointsBalance\} Class Points`\} className="mm-identity-points"/);
   assert.match(bar, /\{classPointsBalance\}<span className="mm-identity-points-word"> Class Points<\/span>/);
-  assert.match(bar, /onClick=\{onLogout\}[\s\S]*>\s*Log Out\s*</);
+  assert.match(bar, /onClick=\{handleLogoutPress\}[\s\S]*?>\s*Log Out\s*</);
   // What used to wrap is in the stylesheet, where a media query can undo it.
   assert.doesNotMatch(bar, /flexWrap: 'wrap'|overflowWrap: 'anywhere'/);
 });
