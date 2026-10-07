@@ -302,6 +302,18 @@ export const decideQuestionProgress = ({
   return outcome(SUBMISSION_DISPOSITION.ACCEPTED, record ? null : 'time-already-recorded', record);
 };
 
+/**
+ * Is this question finished under the server's own attempt limit? `correct`,
+ * or `expired` with no attempt left — the rule recordQuestionAttempt and
+ * recordQuestionStep apply. A teacher-granted extra attempt raises the limit,
+ * which is how it reopens an expired question.
+ */
+export const questionIsFinal = (record, maximumAttempts) => {
+  const current = normalizeQuestionRecord(record);
+  if (current.status === 'correct') return true;
+  return current.status === 'expired' && getAttemptsRemaining(current, Math.max(1, finite(maximumAttempts, 3))) <= 0;
+};
+
 /*
  * SANITIZING A BROWSER-SUPPLIED ATTEMPT RECORD.
  *
@@ -421,7 +433,7 @@ export const sanitizeClientAttemptRecord = ({
   // TERMINAL STAYS TERMINAL — the same rule recordQuestionAttempt and
   // recordQuestionStep apply to a server-graded attempt. Nothing the browser
   // claims about a finished question is recorded.
-  if (canonical.status === 'correct' || (canonical.status === 'expired' && getAttemptsRemaining(canonical, attemptLimit) <= 0)) {
+  if (questionIsFinal(canonical, attemptLimit)) {
     return canonical;
   }
 
@@ -569,6 +581,26 @@ export const buildIngestedAttempt = ({
     activityPolicy,
     teacherGrantedExtraAttempts,
   });
+  /*
+   * A FINISHED QUESTION RECORDS NOTHING MORE.
+   *
+   * Correct, or expired with no attempt left under this limit: no attempt can
+   * count, so nothing is built to be written — not the record, not the
+   * teacher's response evidence, not an attempt's evidence event, not the
+   * question's checkpoint. Such a delivery used to come back ACCEPTED with no
+   * attempt counted, yet restamp the record as its own (`lastSubmissionId`,
+   * `submissionOrigin`), replace the evidence of the response that DID count
+   * with the one that did not, overwrite the final attempt's evidence event
+   * (keyed by attempt number) and mark a deadline's auto-submitted checkpoint
+   * "explicitly submitted". A Warm-Up the deadline closed and a teacher then
+   * reopened is where one can arrive. `final` tells the caller to retire it
+   * (SUPERSEDED: a newer — the final — attempt already counts); `record` is
+   * the canonical record as it stands. A replacement is the one submission a
+   * finished question still takes: it starts a new version.
+   */
+  if (envelope.kind !== 'questionReplacement' && questionIsFinal(canonical, maximumAttempts)) {
+    return { blocked: false, final: true, reason: 'question-already-final', record: canonical, gradedBy: null };
+  }
   let regrade = family.familyBacked && !family.question
     ? { regrade: false, reason: family.reason }
     : serverCanRegradeEnvelope({ envelope, question: gradingQuestion });

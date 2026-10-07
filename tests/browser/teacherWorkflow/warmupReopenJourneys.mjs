@@ -42,6 +42,27 @@
 //                through the same close / reopen / refresh.
 //   bridge-corrupt  the malformed-draft audit on that second family.
 //
+// WITH THE SERVER (`?server=1`, fakeServer.js: ingestion and the deadline
+// finalizer around the same shared modules functions/index.js calls). The
+// journeys above have none — a Check stays queued, nothing is finalized — and
+// that is why they never met the production failure: it needed the SERVER to
+// close the question.
+//
+//   server-expired   the incident. B Checks twice (both wrong, both ingested),
+//                    leaves a third complete sort unchecked; the timer closes
+//                    the Warm-Up and the finalizer auto-submits that sort — the
+//                    third attempt, so Q1 is CLOSED. The open screen learns it;
+//                    the teacher reopens; B's Q1 must render closed with its
+//                    solution and the sort that was submitted — no "This
+//                    question did not load" — in the session, after a refresh
+//                    and on another Chromebook; Q2 stays reachable.
+//   server-attempted one Check, then a complete sort left unchecked: the
+//                    auto-submit is attempt 2 of 3. After the reopen the board
+//                    shows that sort, open, with one attempt left — and the
+//                    next Check is the third, on the screen and on the server.
+//   server-correct   a correct Q1, through the close, the finalizer and the
+//                    reopen: final, locked, nothing re-recorded.
+//
 // `--slow` adds 4× CPU throttling and a slow network: the Chromebook.
 // Exit code 1 on any failure.
 
@@ -87,7 +108,7 @@ const wanted = (name) => !ONLY || ONLY.includes(name);
 
 /* ------------------------------------------------------------- devices */
 
-const openDevice = async (label, { studentId, server = null, storageState = null, startMs = null } = {}) => {
+const openDevice = async (label, { studentId, server = null, storageState = null, startMs = null, ingestion = false } = {}) => {
   const context = await browser.newContext({ viewport: VIEWPORT, ...(storageState ? { storageState } : {}) });
   if (server) {
     await context.addInitScript(([key, value]) => {
@@ -109,6 +130,7 @@ const openDevice = async (label, { studentId, server = null, storageState = null
   const cdp = SLOW ? await context.newCDPSession(page) : null;
   if (cdp) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
   const search = new URLSearchParams({ as: 'student', studentId, questions: 'lmr', p3StartMin: '2' });
+  if (ingestion) search.set('server', '1');
   if (!server && !storageState) search.set('reset', '1');
   await page.goto(`${PAGE}?${search}`, { timeout: 180000 });
   await page.getByText('Log Out').first().waitFor({ timeout: 180000 });
@@ -503,6 +525,217 @@ const journeyBridgeCorrupt = async () => {
   }
 };
 
+/* ------------------------------------------------- with the server */
+
+// "Let's back up" after a wrong Check: the student answers and carries on.
+const answerScaffold = async (page) => {
+  const dialog = page.locator('[role="dialog"][aria-label="Productive struggle scaffold"]');
+  if (await dialog.count()) {
+    await dialog.locator('button', { hasText: 'Yes' }).click();
+    await page.waitForTimeout(400 * SLOW_FACTOR);
+  }
+};
+// Every card into one group (0 = Line A, 1 = Line B), whatever it held before.
+const sortAllInto = async (page, slot) => {
+  await answerScaffold(page);
+  const letter = slot === 0 ? 'A' : 'B';
+  if ((await groupButton(page, slot).getAttribute('aria-checked')) !== 'true') await groupButton(page, slot).click();
+  const total = await cards(page).count();
+  for (let index = 0; index < total; index += 1) {
+    let label = (await cards(page).nth(index).getAttribute('aria-label')) || '';
+    if (label.includes(`In Line ${letter}.`)) continue;
+    // A card in the other group returns to the deck on a click, then joins this one.
+    if (/In Line [AB]\./.test(label)) {
+      await cards(page).nth(index).click();
+      label = (await cards(page).nth(index).getAttribute('aria-label')) || '';
+    }
+    if (/not sorted yet/i.test(label)) await cards(page).nth(index).click();
+  }
+};
+// The first card into `slot`: after a one-group sort, a complete sort unlike
+// either one-group sort.
+const moveFirstCardTo = async (page, slot) => {
+  await answerScaffold(page);
+  const label = (await cards(page).nth(0).getAttribute('aria-label')) || '';
+  if (label.includes(`In Line ${slot === 0 ? 'A' : 'B'}.`)) return;
+  await cards(page).nth(0).click();
+  if ((await groupButton(page, slot).getAttribute('aria-checked')) !== 'true') await groupButton(page, slot).click();
+  await cards(page).nth(0).click();
+};
+const checkGroups = async (page) => {
+  await page.getByRole('button', { name: /Check groups/i }).click();
+  await page.waitForTimeout(3000 * SLOW_FACTOR);
+};
+const serverRecord = (page, studentId) => page.evaluate(([student, assignment]) => {
+  const record = window.__mmHarnessStore.get(`grades/${student}`)?.gradesByAssignment?.[assignment]?.['0'] || null;
+  return record && {
+    status: record.status,
+    totalAttempts: record.totalAttempts,
+    variantIndex: record.variantIndex,
+    origin: record.submissionOrigin || null,
+    gradedBy: record.gradedBy || null,
+    lastSubmissionId: record.lastSubmissionId || null,
+    pin: record.familyDelivery?.fingerprint || null,
+    credit: record.bestPartialCredit ?? record.partialCredit ?? null,
+  };
+}, [studentId, ASSIGNMENT]);
+// The scheduler runs: every active checkpoint, against the real close.
+const runFinalizer = (page) => page.evaluate(() => window.__mmHarnessServer.finalizeResponseCheckpoints({ now: Date.now() }));
+const failurePanel = (page) => page.evaluate(() => {
+  const panel = document.querySelector('[data-question-resolution-failure]');
+  const text = document.querySelector('.mathmaster-question-stage')?.innerText || '';
+  return panel || /This question did not load|This question could not be displayed/.test(text)
+    ? (panel?.innerText || text).replace(/\s+/g, ' ').slice(0, 300)
+    : null;
+});
+const reviewShown = async (page) => /Card-sort solution/.test(await stageText(page));
+const promptOf = async (page) => (await stageText(page)).match(/Two different lines are hiding in these cards[^.]*\./)?.[0] || null;
+
+// One look at Q1 as a closed (finished) question: rendered, locked, solved, the sort kept.
+const expectClosedQ1 = async (device, where, { prompt, sorted }) => {
+  const failed = await failurePanel(device.page);
+  check(!failed && !(await crashed(device.page)), `${device.label}: Q1 renders ${where} — no "This question did not load"`, failed || '');
+  check((await promptOf(device.page)) === prompt, `${device.label}: the same question ${where}`, await promptOf(device.page));
+  check(await lockedNow(device.page), `${device.label}: closed stays closed ${where}`);
+  check(await reviewShown(device.page), `${device.label}: the card-sort solution is shown ${where}`, (await stageText(device.page)).slice(0, 240));
+  check((await sortedOnScreen(device.page)) === sorted, `${device.label}: the sort that was submitted is on the board ${where}`, String(await sortedOnScreen(device.page)));
+  noErrors(device, where);
+};
+
+const journeyServerExpired = async () => {
+  console.log('\n== server-expired: two Checks, the deadline auto-submits the third sort, the teacher reopens (lmr-wu-1)');
+  const b = await openDevice('B', { studentId: STUDENT_B, ingestion: true });
+  await openTodayWarmup(b.page);
+  const prompt = await promptOf(b.page);
+  check(Boolean(prompt), 'B: opened Warm-Up Q1 (lmr-wu-1)', prompt || (await stageText(b.page)).slice(0, 200));
+  const total = await cards(b.page).count();
+  for (const slot of [1, 0]) {
+    await sortAllInto(b.page, slot);
+    await checkGroups(b.page);
+  }
+  const checked = await serverRecord(b.page, STUDENT_B);
+  check(checked?.totalAttempts === 2 && checked.gradedBy === 'server', 'B: both Checks ingested and marked by the server', checked);
+  const dealt = checked?.pin;
+
+  // A third complete sort, not checked: the board saves it, the checkpoint stores it.
+  await sortAllInto(b.page, 1);
+  await moveFirstCardTo(b.page, 0);
+  await b.page.waitForTimeout(SAVED_MS);
+  check((await sortedOnScreen(b.page)) === total, 'B: a third complete sort on the board', String(await sortedOnScreen(b.page)));
+
+  // The Warm-Up's timer runs out; the scheduler finalizes.
+  await b.page.clock.fastForward('10:00');
+  await b.page.waitForTimeout(1500 * SLOW_FACTOR);
+  const outcomes = await runFinalizer(b.page);
+  const closed = await serverRecord(b.page, STUDENT_B);
+  check(closed?.status === 'expired' && closed.totalAttempts === 3 && closed.origin === 'deadline-auto-submit', 'B: the deadline auto-submitted the third sort and closed Q1', { closed, outcomes });
+  check(closed?.pin === dealt, 'B: the server kept the instance B was shown', { dealt, pin: closed?.pin });
+  await b.page.waitForTimeout(2500 * SLOW_FACTOR);
+  // The open screen learns of the auto-submit from its grade listener.
+  await expectClosedQ1(b, 'in the open session after the auto-submit', { prompt, sorted: total });
+
+  await b.page.clock.fastForward('02:00');
+  await teacher(b.page, 'reopen');
+  await b.page.waitForTimeout(2000 * SLOW_FACTOR);
+  await expectClosedQ1(b, 'after the teacher reopens', { prompt, sorted: total });
+  check(JSON.stringify(await serverRecord(b.page, STUDENT_B)) === JSON.stringify(closed), 'B: the reopen changed nothing on the server');
+
+  await b.refresh();
+  await openTodayWarmup(b.page);
+  await b.page.waitForTimeout(1500 * SLOW_FACTOR);
+  await expectClosedQ1(b, 'after a refresh', { prompt, sorted: total });
+
+  // Another Chromebook: no local draft, no device pin — the server's copy only.
+  await b.page.waitForTimeout(SAVED_MS);
+  const server = await serverDb(b.page);
+  const other = await openDevice('B (second Chromebook)', { studentId: STUDENT_B, server, startMs: await b.page.evaluate(() => Date.now()), ingestion: true });
+  await openTodayWarmup(other.page);
+  await other.page.waitForTimeout(2500 * SLOW_FACTOR);
+  await expectClosedQ1(other, 'on another Chromebook', { prompt, sorted: total });
+  await other.page.getByRole('button', { name: 'Next question' }).first().click();
+  await other.page.waitForTimeout(1200 * SLOW_FACTOR);
+  check(!(await failurePanel(other.page)) && /situation/i.test(await stageText(other.page)), 'B2: Q2 is reachable');
+  check(JSON.stringify(await serverRecord(other.page, STUDENT_B)) === JSON.stringify(closed), 'B: no attempt, grade or pin changed anywhere');
+  noErrors(other, 'on Q2');
+  await other.context.close();
+  await b.context.close();
+};
+
+const journeyServerAttempted = async () => {
+  console.log('\n== server-attempted: one Check, the deadline auto-submits attempt 2, the reopen gives the third');
+  const b = await openDevice('B', { studentId: STUDENT_B, ingestion: true });
+  await openTodayWarmup(b.page);
+  const total = await cards(b.page).count();
+  await sortAllInto(b.page, 0);
+  await checkGroups(b.page);
+  await sortAllInto(b.page, 1);
+  await moveFirstCardTo(b.page, 0);
+  await b.page.waitForTimeout(SAVED_MS);
+  await b.page.clock.fastForward('10:00');
+  await b.page.waitForTimeout(1500 * SLOW_FACTOR);
+  await runFinalizer(b.page);
+  const submitted = await serverRecord(b.page, STUDENT_B);
+  check(submitted?.totalAttempts === 2 && submitted.origin === 'deadline-auto-submit' && submitted.status === 'attempted', 'B: the deadline auto-submitted attempt 2 of 3', submitted);
+  await b.page.waitForTimeout(2500 * SLOW_FACTOR);
+
+  await b.page.clock.fastForward('02:00');
+  await teacher(b.page, 'reopen');
+  await b.page.waitForTimeout(2000 * SLOW_FACTOR);
+  check(!(await failurePanel(b.page)) && !(await crashed(b.page)), 'B: Q1 renders after the reopen', await failurePanel(b.page) || '');
+  // "Let's back up" after a wrong attempt; answered, the board is the student's again.
+  await answerScaffold(b.page);
+  check(!(await lockedNow(b.page)), 'B: an attempt is left, so Q1 is open again');
+  check((await sortedOnScreen(b.page)) === total, 'B: the auto-submitted sort is on the board', String(await sortedOnScreen(b.page)));
+  noErrors(b, 'after the reopen');
+
+  // In the same session — no refresh since the auto-submit — the next Check is
+  // the third and last: the screen counted the deadline's attempt, so the
+  // server takes it (a screen still counting one attempt would send a stale
+  // count, and the server would refuse the student's real third attempt).
+  await moveFirstCardTo(b.page, 1);
+  await checkGroups(b.page);
+  const third = await serverRecord(b.page, STUDENT_B);
+  check(third?.totalAttempts === 3 && third.origin === 'server-ingestion', 'B: the next Check is the third attempt on the server', third);
+  check(/final allowed attempt \(3 total\)/.test(await stageText(b.page)) && (await lockedNow(b.page)), 'B: and the last on the screen — no phantom attempt left', await attemptStrip(b.page));
+  noErrors(b, 'after the third Check');
+
+  // Closed now; after a refresh it renders closed, with its solution.
+  await b.refresh();
+  await openTodayWarmup(b.page);
+  await b.page.waitForTimeout(1500 * SLOW_FACTOR);
+  const failed = await failurePanel(b.page);
+  check(!failed && (await lockedNow(b.page)) && (await reviewShown(b.page)), 'B: the closed Q1 renders, locked, with its solution, after a refresh', failed || '');
+  check((await sortedOnScreen(b.page)) === total, 'B: with the sort of the third Check', String(await sortedOnScreen(b.page)));
+  noErrors(b, 'on the closed Q1');
+  await b.context.close();
+};
+
+const journeyServerCorrect = async () => {
+  console.log('\n== server-correct: a correct Q1 through the close, the finalizer and the reopen');
+  const a = await openDevice('A', { studentId: STUDENT_A, ingestion: true });
+  await openTodayWarmup(a.page);
+  await sortCorrectly(a.page, STUDENT_A);
+  await checkGroups(a.page);
+  const correct = await serverRecord(a.page, STUDENT_A);
+  check(correct?.status === 'correct' && correct.gradedBy === 'server', 'A: a correct sort, marked by the server', correct);
+  await a.page.clock.fastForward('10:00');
+  await a.page.waitForTimeout(1500 * SLOW_FACTOR);
+  await runFinalizer(a.page);
+  await a.page.clock.fastForward('02:00');
+  await teacher(a.page, 'reopen');
+  await a.page.waitForTimeout(2000 * SLOW_FACTOR);
+  check(!(await failurePanel(a.page)) && !(await crashed(a.page)), 'A: Q1 renders after the reopen', await failurePanel(a.page) || '');
+  check(await lockedNow(a.page), 'A: a correct Q1 stays locked');
+  check(/Correct|Question complete/i.test(await stageText(a.page)), 'A: and says it is complete');
+  check(JSON.stringify(await serverRecord(a.page, STUDENT_A)) === JSON.stringify(correct), 'A: the close, the finalizer and the reopen recorded nothing more');
+  await a.refresh();
+  await openTodayWarmup(a.page);
+  await a.page.waitForTimeout(1500 * SLOW_FACTOR);
+  check(!(await failurePanel(a.page)) && (await lockedNow(a.page)), 'A: still rendered and locked after a refresh');
+  noErrors(a, 'on a correct Q1');
+  await a.context.close();
+};
+
 if (wanted('inprogress')) await journeyInProgress();
 if (wanted('submitted')) await journeySubmitted();
 if (wanted('pristine')) await journeyPristine();
@@ -510,6 +743,9 @@ if (wanted('corrupt')) await journeyCorrupt();
 if (wanted('cycles')) await journeyCycles();
 if (wanted('bridge')) await journeyBridge();
 if (wanted('bridge-corrupt')) await journeyBridgeCorrupt();
+if (wanted('server-expired')) await journeyServerExpired();
+if (wanted('server-attempted')) await journeyServerAttempted();
+if (wanted('server-correct')) await journeyServerCorrect();
 
 await browser.close();
 console.log(failures.length ? `\n${failures.length} failure(s):\n- ${failures.join('\n- ')}` : '\nall Warm-Up reopen journeys passed');

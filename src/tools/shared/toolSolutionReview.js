@@ -6,10 +6,25 @@ import {
   sequenceTerm,
 } from '../sequenceExplorer/sequenceMath.js';
 import {
+  LINEAR_EQUATION_KINDS,
+  buildLinearConnectionCards,
+  describeLinearCard,
   findTableMismatchIndexes,
+  linearConnectionsCardKinds,
+  linearConnectionsTask,
+  linearGroupLabels,
+  linearMismatchSetFor,
   mismatchedRepresentationKinds,
   representationById,
+  representationMatchMode,
+  representationMixedSet,
+  representationSetsFor,
+  representationTargetId,
+  scoreLinearMismatchSelection,
+  tableAuditFunction,
+  tableAuditRows,
 } from '../representationMatch/representationMath.js';
+import { DEFAULT_LINEAR_GRAPH_BOUNDS, LINEAR_KIND_LABELS } from '../representationMatch/linearCardLabels.js';
 import {
   FUNCTION_FAMILY_LABELS,
   behaviorForSpec,
@@ -119,10 +134,60 @@ const buildSequenceReview = (question) => {
   };
 };
 
+/*
+ * THE CARD SORT'S ANSWER, READ FROM THE DECK THE STUDENT SORTED.
+ *
+ * `linearConnections` is not a completeSet: it has no single target with an
+ * equation, a table and a context. It fell through to that review, which put a
+ * set's `table` into the page — and a Question Family set carries its table as
+ * a SPEC, `{ xValues: [...] }`, not as text. React refused to render the
+ * object, and because this review appears only once a question is closed, a
+ * student whose Warm-Up card sort ran out of attempts (often at the deadline,
+ * by auto-submit) lost the whole question to "This question did not load"
+ * (lmr-wu-1, after the teacher reopened the Warm-Up).
+ *
+ * The review is built from what the board and the shared grader build from —
+ * the same deck (buildLinearConnectionCards), the same group names, the same
+ * words for every card (describeLinearCard, LINEAR_KIND_LABELS) — so it shows
+ * exactly the grouping the grader calls correct.
+ */
+const buildLinearConnectionsReview = (question) => {
+  const sets = representationSetsFor(question);
+  const bounds = question.graphBounds || DEFAULT_LINEAR_GRAPH_BOUNDS;
+  const cardText = (card) => `${LINEAR_KIND_LABELS[card.kind] || card.kind}: ${describeLinearCard(card, { bounds })}`;
+  if (linearConnectionsTask(question) === 'findMismatch') {
+    const mismatchSet = linearMismatchSetFor(question, sets);
+    const cards = mismatchSet ? buildLinearConnectionCards([mismatchSet], LINEAR_EQUATION_KINDS) : [];
+    const { expectedId } = scoreLinearMismatchSelection(cards, '');
+    const mismatch = cards.find((card) => card.id === expectedId) || null;
+    const correction = (Array.isArray(question.correctionOptions) ? question.correctionOptions : [])
+      .find((option) => option && option.id === question.correctionAnswerId) || null;
+    return {
+      title: 'Representation solution',
+      items: [
+        { label: 'Card that does not belong', value: mismatch ? cardText(mismatch) : '—' },
+        ...(correction ? [{ label: 'Correction', value: correction.label ?? correction.text ?? correction.value }] : []),
+      ],
+    };
+  }
+  const cards = buildLinearConnectionCards(sets, linearConnectionsCardKinds(question));
+  const labels = linearGroupLabels(question, sets);
+  return {
+    title: 'Card-sort solution',
+    items: sets.map((set, index) => ({
+      label: labels[index],
+      value: cards.filter((card) => card.setId === set.id).map(cardText).join(' · '),
+    })),
+    note: 'A sort is marked by which cards are grouped together, not by which group name they are under.',
+  };
+};
+
 const buildRepresentationReview = (question) => {
-  const mode = question.mode || 'completeSet';
-  const sets = Array.isArray(question.sets) ? question.sets : [];
-  const target = representationById(sets, question.targetId || sets[0]?.id);
+  const mode = representationMatchMode(question);
+  if (mode === 'linearConnections') return buildLinearConnectionsReview(question);
+  // The sets and target the board shows, including its fallbacks.
+  const sets = representationSetsFor(question);
+  const target = representationById(sets, representationTargetId(question, sets));
   if (mode === 'graphMatch') {
     const index = sets.findIndex((item) => item.id === target?.id);
     return {
@@ -134,7 +199,8 @@ const buildRepresentationReview = (question) => {
     };
   }
   if (mode === 'findMismatch') {
-    const mixed = question.mixedSet || {};
+    // The mixed set the board deals and the grader marks, authored or not.
+    const mixed = representationMixedSet(question, sets, target?.id);
     const mismatch = mismatchedRepresentationKinds(target?.id, mixed);
     return {
       title: 'Representation solution',
@@ -142,7 +208,10 @@ const buildRepresentationReview = (question) => {
     };
   }
   if (mode === 'tableAudit') {
-    const mismatches = findTableMismatchIndexes(question.function || {}, question.rows || [], Number(question.tolerance ?? 0.01));
+    // The function and rows the board shows and the grader checks, with
+    // the same defaults when the author left them out.
+    const spec = tableAuditFunction(question);
+    const mismatches = findTableMismatchIndexes(spec, tableAuditRows(question, spec), Number(question.tolerance ?? 0.01));
     return {
       title: 'Table-audit solution',
       items: [{ label: 'Row that breaks the rule', value: mismatches.length ? mismatches.map((index) => `Row ${index + 1}`).join(', ') : 'none' }],
@@ -276,17 +345,58 @@ const buildRelationReview = (question) => {
   };
 };
 
-export const buildToolSolutionReviewModel = (question = {}) => {
-  const toolId = question.toolId || question.type;
-  try {
-    if (toolId === 'sequenceExplorer') return buildSequenceReview(question);
-    if (toolId === 'representationMatch') return buildRepresentationReview(question);
-    if (toolId === 'functionInvestigation2') return buildFunctionReview(question);
-    if (toolId === 'relationMapping') return buildRelationReview(question);
-    if (toolId === 'openSortBoard') return buildOpenSortReview(question);
-    if (toolId === 'constraintFunctionBuilder') return buildConstraintFunctionReview(question);
-  } catch (error) {
-    return { title: 'Solution review', items: [], note: `The worked solution could not be generated: ${error.message}` };
+/*
+ * A REVIEW IS TEXT, WHATEVER THE QUESTION HELD.
+ *
+ * Every builder above reads authored or generated question fields, and a field
+ * can hold structure where a sentence was expected: a Question Family's table
+ * is a spec (`{ xValues }`), an authored label can be an object. The review is
+ * rendered beside a closed question, so a value React cannot render must never
+ * reach it. A number, a coordinate pair or a list of them keeps its meaning;
+ * anything else is shown as "—" rather than guessed at.
+ */
+const reviewText = (value) => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? finiteText(value) : '';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) {
+    if (value.length === 2 && value.every((entry) => typeof entry === 'number' && Number.isFinite(entry))) {
+      return `(${finiteText(value[0])}, ${finiteText(value[1])})`;
+    }
+    return value.map(reviewText).filter(Boolean).join(', ');
   }
+  return '';
+};
+
+const textOnlyReview = (model) => {
+  if (!model || typeof model !== 'object') return null;
+  const items = (Array.isArray(model.items) ? model.items : [])
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({ label: reviewText(item.label) || 'Answer', value: reviewText(item.value) || '—' }));
+  return {
+    title: reviewText(model.title) || 'Solution review',
+    items,
+    note: reviewText(model.note) || null,
+  };
+};
+
+const reviewBuilderFor = (toolId) => {
+  if (toolId === 'sequenceExplorer') return buildSequenceReview;
+  if (toolId === 'representationMatch') return buildRepresentationReview;
+  if (toolId === 'functionInvestigation2') return buildFunctionReview;
+  if (toolId === 'relationMapping') return buildRelationReview;
+  if (toolId === 'openSortBoard') return buildOpenSortReview;
+  if (toolId === 'constraintFunctionBuilder') return buildConstraintFunctionReview;
   return null;
+};
+
+export const buildToolSolutionReviewModel = (question = {}) => {
+  const source = question && typeof question === 'object' ? question : {};
+  const builder = reviewBuilderFor(source.toolId || source.type);
+  if (!builder) return null;
+  try {
+    return textOnlyReview(builder(source));
+  } catch {
+    return { title: 'Solution review', items: [], note: 'The worked solution could not be generated for this question.' };
+  }
 };

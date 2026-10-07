@@ -58,6 +58,7 @@ import {
 } from '../../../functions/shared/sectionRecoveryResolution.mjs';
 import { buildRecoveryReplacementItems } from '../../../functions/shared/sectionRecoveryPlan.mjs';
 import { recoveryContextFor } from './recoveryFixture.js';
+import { ingestStudentSubmissions as ingestLikeTheServer } from './fakeServer.js';
 
 const iso = (value) => (value instanceof Timestamp ? value.toDate().toISOString() : value || null);
 const harness = (typeof window !== 'undefined' && (window.__mmHarness = window.__mmHarness || {})) || {};
@@ -778,6 +779,15 @@ const handlers = {
 };
 
 export const getFunctions = () => ({ region: 'harness' });
+// `?server=1`: the harness runs server ingestion (fakeServer.js — the shared
+// modules functions/index.js runs), so a Submit becomes a canonical attempt
+// instead of staying queued. Off by default: the journeys written before it
+// read "submitted" from the device's own queue, and still do.
+harness.serverIngestion = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('server') === '1';
+if (harness.serverIngestion) {
+  handlers.ingestStudentSubmissions = ({ submissions = [] } = {}) => ingestLikeTheServer({ studentId: requireStudent(), submissions });
+}
+
 export const connectFunctionsEmulator = () => {};
 export const unimplementedCallableError = (name) => Object.assign(
   new Error(`The teacher harness has no fake for the callable "${name}" (functions/unimplemented). Add one to tests/browser/teacherWorkflow/fakeFunctions.js if a journey needs it.`),

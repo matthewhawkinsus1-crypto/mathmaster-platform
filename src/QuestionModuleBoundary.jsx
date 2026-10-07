@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import RecoveryPanel from './components/common/RecoveryPanel.jsx';
 import { isChunkLoadError, recentlyReloadedForChunk, reloadForCurrentBuild } from './platform/runtime/chunkLoadRecovery.js';
-import { recordClientDiagnostic } from './platform/runtime/clientDiagnostics.js';
+import { QUESTION_DIAGNOSTIC_MESSAGE_LIMIT, recordClientDiagnostic } from './platform/runtime/clientDiagnostics.js';
 import { questionDraftEnvelopeVersion } from './questionDraftStorage.js';
 
 /*
@@ -62,12 +62,19 @@ export default class QuestionModuleBoundary extends Component {
       activityRole: context.activityRole || 'none',
       lifecycle: context.lifecycle || 'unknown',
       draftVersion,
+      // Which instance and which record (QuestionResolutionBoundary.jsx
+      // questionFailureContext): never the student.
+      variant: Number.isInteger(context.variant) ? context.variant : 'unknown',
+      attempts: Number.isInteger(context.attempts) ? context.attempts : 'unknown',
+      origin: context.origin || 'none',
+      pin: context.pinKind ? `${context.pinKind}${context.pinRef ? `:${context.pinRef}` : ''}` : 'none',
     };
     console.error('Question module crashed:', this.props.questionType, where, error, info);
     recordClientDiagnostic({
       kind: isChunkLoadError(error) ? 'chunk-load' : 'question-module-error',
-      message: `${this.props.questionType || 'unknown type'}: ${error?.message || error} | ${where.assignmentId} ${where.questionId} family=${where.family} role=${where.activityRole} lifecycle=${where.lifecycle} draft=v${where.draftVersion}`,
+      message: `${this.props.questionType || 'unknown type'}: ${error?.message || error} | ${where.assignmentId} ${where.questionId} family=${where.family} role=${where.activityRole} lifecycle=${where.lifecycle} variant=${where.variant} attempts=${where.attempts} origin=${where.origin} pin=${where.pin} draft=v${where.draftVersion}`,
       source: 'question',
+      limit: QUESTION_DIAGNOSTIC_MESSAGE_LIMIT,
     });
   }
 

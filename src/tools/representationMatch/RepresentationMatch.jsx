@@ -35,6 +35,7 @@ import {
   tableAuditFunction,
   tableAuditRows,
 } from './representationMath';
+import { DEFAULT_LINEAR_GRAPH_BOUNDS, LINEAR_KIND_LABELS } from './linearCardLabels.js';
 
 const inputStyle = { display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -274,11 +275,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const targetSet = representationById(sets, targetId);
   const cards = mixedRepresentationCards(sets, mixed);
 
-  const LINEAR_KIND_LABELS = {
-    slopeIntercept: 'Slope-intercept equation', factoredLinear: 'Factored form', pointSlope: 'Point-slope equation', standard: 'Standard-form equation',
-    graph: 'Graph', slope: 'Slope', point: 'Point', xIntercept: 'x-intercept', yIntercept: 'y-intercept', context: 'Situation', table: 'Table',
-  };
-  const linearGraphBounds = questionData.graphBounds || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
+  const linearGraphBounds = questionData.graphBounds || DEFAULT_LINEAR_GRAPH_BOUNDS;
   const renderLinearCardBody = (card) => {
     if (card.kind === 'graph') {
       // The plane scales to the card's width; this sets its proportions. At

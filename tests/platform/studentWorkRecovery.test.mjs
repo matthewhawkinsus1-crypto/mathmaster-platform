@@ -30,6 +30,7 @@ import {
   workspaceDraftDocumentId,
 } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { createWorkspaceDraftSync } from '../../src/platform/persistence/workspaceDraftSync.js';
+import { canonicalResponseSavedAt } from '../../src/platform/persistence/canonicalResponseTime.js';
 import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
 import {
   createDurableAction,
@@ -271,7 +272,11 @@ test('restoring drafts is the last step, after canonical grades and the outbox',
   assert.match(block, /selectRestorableDraftEntries\(\{/);
   assert.match(block, /localSavedAt: \(key\) => questionDraftSavedAt\(key\)/);
   assert.match(block, /canonicalSavedAt:/);
-  assert.match(block, /record\.lastAttemptAt/);
+  // Against the question's last canonical response, read by the shared reader:
+  // `lastAttemptAt` for an attempt the student made, and for a deadline
+  // auto-submit (which records the close) when its work was captured.
+  assert.match(block, /canonicalSavedAt: \(entry\) => canonicalResponseSavedAt\(normalizeQuestionRecord\(assignmentGrades\[entry\?\.questionIndex\]\)\)/);
+  assert.equal(canonicalResponseSavedAt({ lastAttemptAt: '2026-09-14T15:00:00.000Z' }), Date.parse('2026-09-14T15:00:00.000Z'));
 });
 
 /* ==========================================================================
