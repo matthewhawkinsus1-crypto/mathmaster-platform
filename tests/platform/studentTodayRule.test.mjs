@@ -456,3 +456,27 @@ test('the Path Simulator reads timed sections as untimed (it has no bell schedul
   assert.equal(entry.finished, false);
   assert.equal(entry.actionable, true);
 });
+
+test('late work on the primary card names the student\'s own last day — their extension included', async () => {
+  const lesson = bundle('late', {
+    dueAt: inHours(-24 * 7),
+    lateDueAt: inHours(-24 * 4),
+    studentOverrides: { s1: { lateDueAt: inHours(24 * 9) } },
+  });
+  // As App does: this student's lifecycle (their extension folded in).
+  const dashboard = model({
+    assignments: [lesson],
+    studentId: 's1',
+    tracker: { late: { 0: { status: 'correct', totalAttempts: 1 } } },
+    providers: { ...PROVIDERS, getAssignmentLifecycle: (assignment, nowValue) => getAssignmentLifecycle(assignment, nowValue, { studentId: 's1' }) },
+  });
+  const next = resolveNextAction({ dashboard, weeklyProgress: { completed: 1, required: 1, remaining: 0 } });
+  assert.equal(next.assignment.id, 'late');
+  assert.match(next.lateLine, /^Your last day to turn in: /);
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL('../../src/components/student/WhatShouldIDoNow.jsx', import.meta.url), 'utf8');
+  assert.match(card, /nextAction\.assignment && nextAction\.lateLine \? \([\s\S]*?Late · \{nextAction\.lateLine\}/);
+  // On-time work keeps its plain due date.
+  const onTime = resolveNextAction({ dashboard: model({ assignments: [bundle('fresh')] }), weeklyProgress: { completed: 1, required: 1, remaining: 0 } });
+  assert.equal(onTime.lateLine, undefined);
+});

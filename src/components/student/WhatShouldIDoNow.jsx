@@ -116,7 +116,13 @@ export default function WhatShouldIDoNow({
       {/* The student's own due date, resolved by the model from their
           lifecycle — never the assignment's class date, which is a day early
           for a student with an individualized due date. */}
-      {nextAction.assignment && nextAction.dueAt && (
+      {/* Late work names the student's own last day (an extension included),
+          never only a class due date that has already passed. */}
+      {nextAction.assignment && nextAction.lateLine ? (
+        <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 800 }}>
+          Late · {nextAction.lateLine}
+        </div>
+      ) : nextAction.assignment && nextAction.dueAt && (
         <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 800 }}>
           Due {formatDateTime(nextAction.dueAt)}
         </div>

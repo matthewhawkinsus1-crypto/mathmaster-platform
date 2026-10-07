@@ -136,3 +136,11 @@ test('the Warm-Up banner never recommends excused or unopened work (review findi
   assert.match(banner, /if \(!getAssignmentLifecycle\(assignment, now, \{ studentId: user\.id \}\)\.isOpen\) return null;/);
   assert.match(app, /import \{[^}]*\bassignmentIsExcusedForStudent\b[^}]*\} from '\.\/platform\/student\/studentGradeCenterModel\.js'/);
 });
+
+test('the cached dashboard never outlives the signed-in student (shared Chromebook)', () => {
+  // The cache holds the student's lessons with their own controls; the
+  // private-controls journey scans React state after sign-out for them.
+  assert.match(app, /useEffect\(\(\) => \{\s*studentUpNextCacheRef\.current = \{ inputs: null, dashboard: null \};\s*\}, \[user\?\.id, user\?\.role\]\);/);
+  const logout = region(app, 'const handleLogout = async () => {', 'hydratedSessionUidRef.current = null;', 'logout');
+  assert.match(logout, /studentUpNextCacheRef\.current = \{ inputs: null, dashboard: null \};/);
+});

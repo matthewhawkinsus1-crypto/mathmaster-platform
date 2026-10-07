@@ -3404,6 +3404,8 @@ function App() {
   const handleLogout = async () => {
     await stopStudentSpotlight?.();
     setUser(null);
+    // The Today/Up-next cache holds this student's lessons and controls.
+    studentUpNextCacheRef.current = { inputs: null, dashboard: null };
     // At once, not when the auth listener catches up: the lessons carried
     // this account's own controls (a shared Chromebook's next student must
     // never be handed them, even for a frame).
@@ -3932,6 +3934,12 @@ function App() {
   // Up Next at the end of an assignment, cached per assignment/tracker/minute
   // so a finished section does not rebuild the whole dashboard every render.
   const studentUpNextCacheRef = useRef({ inputs: null, dashboard: null });
+  // A shared Chromebook: the cache holds the student's lessons and their own
+  // controls, so it is dropped the moment the signed-in student changes or
+  // signs out — nothing of one student survives into the next session.
+  useEffect(() => {
+    studentUpNextCacheRef.current = { inputs: null, dashboard: null };
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {

@@ -2,7 +2,7 @@ import {
   getStoredAssignmentQuestions,
 } from './platform/contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
-import { localDateKey, studentDueDates } from './assignmentLifecycle.js';
+import { localDateKey, studentDueDateLines, studentDueDates } from './assignmentLifecycle.js';
 import { studentAssignmentAvailability } from './platform/assignments/assignmentAvailability.js';
 import { filterStudentRequiredIndices, studentOmittedIndices } from '../functions/shared/reducedWorkload.mjs';
 import { assignmentIsArchived, assignmentIsUnpublished } from '../functions/shared/assessmentAvailability.mjs';
@@ -608,7 +608,7 @@ export const buildStudentDashboardModel = ({
  *   6. Nothing pressing — which is a real answer, and is said as one rather
  *      than left as an empty screen.
  */
-export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => {
+const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
   // The card prints a due date under the decision, and it has to be this
   // student's: an individualized (extra-time) due date lives on the lifecycle
   // each candidate was bucketed with, not on the assignment's class fields.
@@ -802,6 +802,29 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     actionLabel: 'Open My Math Path',
     urgency: 'none',
   };
+};
+
+/*
+ * THE STUDENT'S OWN DEADLINE ON THE ONE PRIMARY CARD.
+ *
+ * Late work names the student's last day to turn it in — their own, with an
+ * extension or individualized date folded in (studentDueDateLines) — not the
+ * class due date that has already passed. Before the next-action card became
+ * the single primary action, a separate Resume card said this; merging the
+ * duplicate must not lose it (private-controls journey P1/P2).
+ */
+export const resolveNextAction = (args = {}) => {
+  const action = resolveNextActionCore(args);
+  if (!action?.assignment) return action;
+  const dashboard = args.dashboard || {};
+  const id = action.assignment.id;
+  const lifecycle = (dashboard.allEntries || dashboard.entries || []).find((entry) => entry.assignment?.id === id)?.lifecycle
+    || (dashboard.resumeAssignment?.id === id ? dashboard.resumeLifecycle : null)
+    || [...(dashboard.activeDols || []), ...(dashboard.activeWarmups || [])].find((live) => live.assignment?.id === id)?.lifecycle
+    || null;
+  if (!lifecycle?.isLate) return action;
+  const lines = studentDueDateLines(action.assignment, lifecycle);
+  return { ...action, lateLine: `${lines.finalLabel}: ${lines.finalText}` };
 };
 
 /**
