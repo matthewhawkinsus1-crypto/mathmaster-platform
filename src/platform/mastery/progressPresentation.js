@@ -12,6 +12,7 @@
 
 import { compareMasteryGrowth } from '../../../functions/shared/masteryHistory.mjs';
 import { studentLabelForTeks } from '../path/skillLabels.js';
+import { weeklyDueDayName } from '../../../functions/shared/weeklyPathGrade.mjs';
 
 const dateLabel = (weekKey) => {
   const parsed = Date.parse(`${weekKey}T00:00:00Z`);
@@ -124,7 +125,9 @@ const weekProgress = (week) => {
   if (!week.hasGoal) {
     return week.current ? 'Open your Path to set this week’s goal.' : 'No weekly goal was set this week.';
   }
-  if (!week.closed) return `${week.completed} of ${week.required} done so far`;
+  // The goal's own deadline: teachers choose the due day, so no day is assumed.
+  const dueDay = weeklyDueDayName({ dueAt: week.dueAt });
+  if (!week.closed) return `${week.completed} of ${week.required} done so far${dueDay ? ` · due ${dueDay} night` : ''}`;
   const late = Number(week.lateCompletions) || 0;
   return `${week.completedOnTime} of ${week.required} done by the deadline${late ? ` · ${late} finished late` : ''}`;
 };
@@ -145,8 +148,12 @@ export const describeWeeklyHistoryForStudent = (history = null) => {
       label: week.current ? 'This week' : weekOfLabel(week.weekKey),
       status: weekStatus(week),
       progress: weekProgress(week),
-      // Only a closed week has a grade: the number its gradebook received.
-      grade: week.closed && week.score !== null && week.score !== undefined ? `${week.score}` : null,
+      // The number Classroom was sent when it was sent; otherwise, once the week
+      // is closed, the MathMaster weekly grade — and the row says which.
+      grade: week.score !== null && week.score !== undefined && (week.closed || week.gradeSource === 'classroom') ? `${week.score}` : null,
+      gradeNote: week.gradeSource === 'classroom'
+        ? 'Sent to Google Classroom'
+        : week.gradeSource === 'mathmaster' ? 'Not sent to Google Classroom' : null,
       passing: week.passing ?? null,
     }));
 
@@ -159,7 +166,7 @@ export const describeWeeklyHistoryForStudent = (history = null) => {
       value: streak.atLeast ? `${count}+` : `${count}`,
       label: count === 1 ? 'week in a row' : 'weeks in a row',
       detail: count === 0
-        ? 'Finish every session in a week’s goal by Sunday night to start a streak.'
+        ? 'Finish every session in a week’s goal by its due day to start a streak.'
         : streak.includesOpenWeek
           ? 'Including this week. Keep it going next week.'
           : 'Finish this week’s goal to make it one more.',

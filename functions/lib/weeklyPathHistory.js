@@ -9,6 +9,8 @@
 "use strict";
 
 const DEFAULT_GOAL_COLLECTION = "weeklyPathGoalSnapshots";
+// The Classroom publisher's record of what it sent (runWeeklyPathClassroomSync).
+const DEFAULT_SYNC_COLLECTION = "weeklyPathClassroomSyncs";
 const PATH_SESSIONS = "pathSessions";
 // Same fallback ceiling as getMyWeeklyPathCompletions: used only while the
 // (studentId, completedAt) composite index is still building.
@@ -31,6 +33,7 @@ async function loadWeeklyPathHistory(db, {
   now = Date.now(),
   displayTeks = null,
   goalCollection = DEFAULT_GOAL_COLLECTION,
+  syncCollection = DEFAULT_SYNC_COLLECTION,
 } = {}) {
   const id = String(studentId || "").trim();
   if (!id) throw new Error("loadWeeklyPathHistory needs the signed-in student's id.");
@@ -66,7 +69,27 @@ async function loadWeeklyPathHistory(db, {
     }
   }
 
-  return history.buildWeeklyPathHistory({ weekKeys, goalsByWeekKey, sessions, now, displayTeks, truncated });
+  // What Classroom was actually sent for each of those weeks. The sync record
+  // is keyed {classId}__{weekKey} by the frozen goal's own class (computed, not
+  // scanned), and holds every student's entry: only the caller's is read out.
+  const publishedByWeekKey = {};
+  const syncTargets = Object.entries(goalsByWeekKey)
+    .map(([weekKey, goal]) => ({ weekKey, classId: String(goal?.classId || "").trim() }))
+    .filter((target) => target.classId);
+  const syncSnapshots = await Promise.all(syncTargets.map(({ weekKey, classId }) => (
+    db.collection(syncCollection).doc(`${classId}__${weekKey}`).get()
+  )));
+  syncSnapshots.forEach((snapshot, index) => {
+    const entry = snapshot.exists ? snapshot.data()?.publishedByStudentId?.[id] : null;
+    if (!entry || !Number.isFinite(Number(entry.score))) return;
+    publishedByWeekKey[syncTargets[index].weekKey] = {
+      score: Number(entry.score),
+      points: Number.isFinite(Number(entry.points)) ? Number(entry.points) : null,
+      at: Number(entry.at) || null,
+    };
+  });
+
+  return history.buildWeeklyPathHistory({ weekKeys, goalsByWeekKey, sessions, now, displayTeks, truncated, publishedByWeekKey });
 }
 
-module.exports = { loadWeeklyPathHistory, DEFAULT_GOAL_COLLECTION, FALLBACK_SESSION_LIMIT };
+module.exports = { loadWeeklyPathHistory, DEFAULT_GOAL_COLLECTION, DEFAULT_SYNC_COLLECTION, FALLBACK_SESSION_LIMIT };

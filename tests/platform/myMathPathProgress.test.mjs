@@ -163,3 +163,27 @@ test('the screen renders the shared descriptions and keeps the Path vocabulary',
   assert.doesNotMatch(screen, /Path Pass|Mastery challenge/);
   assert.doesNotMatch(read('src/platform/mastery/progressPresentation.js'), /Path Pass|Mastery challenge/);
 });
+
+test('past weeks say whether their grade is the one Classroom received, and no deadline day is assumed', () => {
+  // A class due on Friday: 23:59 Friday 9 October 2026 in Central time.
+  const fridayDue = Date.parse('2026-10-10T04:59:59Z');
+  const described = describeWeeklyHistoryForStudent({
+    weeks: [
+      { weekKey: '2026-10-05', current: true, hasGoal: true, closed: false, hit: false, required: 3, completed: 1, completedOnTime: 1, score: null, gradeSource: null, dueAt: fridayDue },
+      { weekKey: '2026-09-28', current: false, hasGoal: true, closed: true, hit: true, required: 3, completed: 3, completedOnTime: 3, score: 85, gradeSource: 'classroom', passing: true, dueAt: fridayDue - 7 * 86400000 },
+      { weekKey: '2026-09-21', current: false, hasGoal: true, closed: true, hit: false, required: 3, completed: 2, completedOnTime: 2, score: 61.33, gradeSource: 'mathmaster', passing: false, dueAt: fridayDue - 14 * 86400000 },
+    ],
+    streak: { weeks: 0, includesOpenWeek: false, atLeast: false },
+  });
+  const [open, sent, notSent] = described.rows;
+  assert.match(open.progress, /due Friday night/);
+  assert.equal(open.grade, null);
+  assert.equal(sent.grade, '85');
+  assert.equal(sent.gradeNote, 'Sent to Google Classroom');
+  assert.equal(notSent.grade, '61.33');
+  assert.equal(notSent.gradeNote, 'Not sent to Google Classroom');
+  assert.doesNotMatch(described.streak.detail, /Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday/);
+  for (const file of ['src/platform/mastery/progressPresentation.js', 'src/components/student/MyMathPathProgress.jsx']) {
+    assert.doesNotMatch(executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8')), /Sunday/, `${file} assumes a Sunday deadline`);
+  }
+});

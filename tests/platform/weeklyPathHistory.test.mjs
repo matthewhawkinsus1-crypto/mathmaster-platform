@@ -218,7 +218,7 @@ test('end to end: a week with no goal is a closed week not hit, and ends the str
 
 // --------------------------------------------------------------- the loader
 
-const fakeDb = ({ goals = {}, sessions = [], rangeNeedsIndex = false } = {}) => {
+const fakeDb = ({ goals = {}, sessions = [], rangeNeedsIndex = false, syncs = {} } = {}) => {
   const reads = { docs: [], queries: [] };
   const query = (name, filters, limit = null) => ({
     where: (field, op, value) => query(name, [...filters, [field, op, value]], limit),
@@ -241,7 +241,9 @@ const fakeDb = ({ goals = {}, sessions = [], rangeNeedsIndex = false } = {}) => 
       doc: (id) => ({
         get: async () => {
           reads.docs.push(`${name}/${id}`);
-          const data = name === 'weeklyPathGoalSnapshots' ? goals[id] : undefined;
+          const data = name === 'weeklyPathGoalSnapshots' ? goals[id]
+            : name === 'weeklyPathClassroomSyncs' ? syncs[id]
+              : undefined;
           return { exists: Boolean(data), data: () => data };
         },
       }),
@@ -261,7 +263,12 @@ test('the loader reads only the caller\'s own goals, by computed id, and only th
     ],
   });
   const history = await loadWeeklyPathHistory(db, { studentId: 'S1', now: NOW, displayTeks: display });
-  assert.deepEqual(db.reads.docs, recentWeeklyPathWeekKeys(NOW).map((weekKey) => `weeklyPathGoalSnapshots/S1__${weekKey}`));
+  // The caller's goals by computed id, then the publisher's record for each
+  // week that had a goal, by its computed {classId}__{weekKey} id.
+  assert.deepEqual(db.reads.docs, [
+    ...recentWeeklyPathWeekKeys(NOW).map((weekKey) => `weeklyPathGoalSnapshots/S1__${weekKey}`),
+    `weeklyPathClassroomSyncs/class-a__${LAST_WEEK}`,
+  ]);
   assert.equal(db.reads.queries.length, 1);
   assert.deepEqual(db.reads.queries[0].filters[0], ['studentId', '==', 'S1']);
   assert.equal(history.weeks.find((week) => week.weekKey === LAST_WEEK).hit, true);
@@ -314,4 +321,44 @@ test('the client asks for the signed-in student\'s history and sends no identity
   const fetcher = region(store, 'export const fetchMyWeeklyPathHistory = async () => {', '};', 'history fetch');
   assert.match(fetcher, /httpsCallable\(functions, 'getMyWeeklyPathHistory'\)/);
   assert.match(fetcher, /await call\(\{\}\)/);
+});
+
+
+test('a closed week shows the grade Classroom was sent, not a recomputation that late work has moved', async () => {
+  // Published Monday morning from the on-time session alone. A session
+  // finished after the deadline, but inside the publisher's eight-day window,
+  // still moves the quality half of a recomputed grade — Classroom keeps what it
+  // was sent.
+  const goal = frozenGoal(LAST_WEEK);
+  const late = goal.dueAt + 2 * 3600000;
+  const sessions = [
+    completed(goal, 1, monday(LAST_WEEK) + DAY, { correct: 5, questions: 5 }),
+    completed(goal, 2, late, { correct: 0, questions: 5 }),
+  ];
+  const sentAt = goal.dueAt + 7 * 3600000;
+  const db = fakeDb({
+    goals: { [`S1__${LAST_WEEK}`]: goal },
+    sessions,
+    syncs: { [`class-a__${LAST_WEEK}`]: { publishedByStudentId: { S1: { points: 85, score: 85, at: sentAt }, S2: { points: 12, score: 12, at: sentAt } } } },
+  });
+  const history = await loadWeeklyPathHistory(db, { studentId: 'S1', now: NOW, displayTeks: display });
+  const week = history.weeks.find((entry) => entry.weekKey === LAST_WEEK);
+  const recomputed = buildWeeklyPathHistory({ goalsByWeekKey: { [LAST_WEEK]: goal }, sessions, now: NOW, displayTeks: display })
+    .weeks.find((entry) => entry.weekKey === LAST_WEEK);
+  assert.notEqual(recomputed.score, 85, 'the case is real: the late session moves a recomputed grade');
+  assert.equal(week.score, 85, 'the number Classroom received');
+  assert.equal(week.gradeSource, 'classroom');
+  assert.equal(week.publishedAt, sentAt);
+  assert.equal(JSON.stringify(history).includes('"score":12'), false, 'another student\'s published grade never leaves the server');
+});
+
+test('a closed week Classroom was never sent shows the MathMaster grade, and says so', async () => {
+  const goal = frozenGoal(LAST_WEEK);
+  const db = fakeDb({ goals: { [`S1__${LAST_WEEK}`]: goal }, sessions: [completed(goal, 1, monday(LAST_WEEK) + DAY)] });
+  const history = await loadWeeklyPathHistory(db, { studentId: 'S1', now: NOW, displayTeks: display });
+  const week = history.weeks.find((entry) => entry.weekKey === LAST_WEEK);
+  assert.equal(week.gradeSource, 'mathmaster');
+  assert.equal(typeof week.score, 'number');
+  const open = history.weeks.find((entry) => entry.weekKey === THIS_WEEK);
+  assert.equal(open.gradeSource, null, 'an open week has no grade yet');
 });

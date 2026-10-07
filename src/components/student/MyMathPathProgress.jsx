@@ -181,6 +181,7 @@ function WeeklyCard({ state, onRetry, unavailable, onOpenPath }) {
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase' }}>Grade</div>
                     <strong style={{ fontSize: 20, color: row.passing ? 'var(--mm-success-text)' : 'var(--mm-text-strong)' }}>{row.grade}</strong>
+                    {row.gradeNote && <div data-grade-source style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.35 }}>{row.gradeNote}</div>}
                   </div>
                 )}
               </li>
@@ -194,7 +195,7 @@ function WeeklyCard({ state, onRetry, unavailable, onOpenPath }) {
           )}
           {weekly.rows.some((row) => row.grade !== null) && (
             <p style={{ ...MUTED, marginTop: 10, fontSize: 12 }}>
-              Each grade is the weekly Path grade your teacher receives when that week closes on Sunday night.
+              &ldquo;Sent to Google Classroom&rdquo; is the exact grade your teacher&apos;s gradebook received for that week. &ldquo;Not sent&rdquo; is your MathMaster weekly grade for a week that was not sent to Classroom.
             </p>
           )}
           {openWeek && onOpenPath && (

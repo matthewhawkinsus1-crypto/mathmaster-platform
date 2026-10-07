@@ -68,8 +68,15 @@ const hasWeeklyGoal = (goal) => Boolean(goal && Array.isArray(goal.sessions) && 
  *
  * `completions` must be the week's completions as the publisher collects them
  * (collectWeeklyPathSessions for that weekKey). `hit` is full on-time
- * completion; `grade`/`score` are the published grade and appear only once the
- * week is closed.
+ * completion.
+ *
+ * `published` is what the Classroom publisher actually sent for this student
+ * and week (weeklyPathClassroomSyncs → publishedByStudentId[studentId]). When
+ * it exists, THAT is the grade: the quality half of the grade counts work
+ * finished after the deadline, so recomputing a closed week after Monday's
+ * publish could show a number Classroom never received. Without a published
+ * record the week shows the MathMaster weekly grade once it is closed, and says
+ * it was not sent (`gradeSource`).
  */
 export const summarizeWeeklyPathWeek = ({
   weekKey,
@@ -77,6 +84,7 @@ export const summarizeWeeklyPathWeek = ({
   completions = [],
   now = Date.now(),
   currentWeekKey = weekKeyFor(now),
+  published = null,
 } = {}) => {
   const key = String(weekKey || '');
   const current = key === currentWeekKey;
@@ -94,6 +102,8 @@ export const summarizeWeeklyPathWeek = ({
       lateCompletions: 0,
       grade: null,
       score: null,
+      gradeSource: null,
+      publishedAt: null,
       passing: null,
       dueAt: null,
     };
@@ -101,6 +111,7 @@ export const summarizeWeeklyPathWeek = ({
 
   const graded = gradeWeeklyGoal({ goal, completions, now });
   const dueAt = Number(goal.dueAt) || null;
+  const publishedScore = published && Number.isFinite(Number(published.score)) ? Number(published.score) : null;
   // Closed exactly when the grade is final. A goal frozen without a due date
   // never freezes its grade, so it closes with its calendar week instead.
   const closed = graded.frozen || (!dueAt && key < currentWeekKey);
@@ -114,10 +125,15 @@ export const summarizeWeeklyPathWeek = ({
     completed: graded.progress.completed,
     completedOnTime: graded.progress.completedOnTime,
     lateCompletions: graded.progress.lateCompletions,
-    grade: closed ? graded.grade : null,
-    // The published grade itself, as the gradebook shows it.
-    score: closed ? graded.grade : null,
-    passing: closed ? graded.passing : null,
+    // The number Classroom was sent, when it was sent; otherwise, once the
+    // week is closed, the MathMaster weekly grade.
+    grade: publishedScore ?? (closed ? graded.grade : null),
+    score: publishedScore ?? (closed ? graded.grade : null),
+    gradeSource: publishedScore !== null ? 'classroom' : (closed ? 'mathmaster' : null),
+    publishedAt: publishedScore !== null ? (Number(published?.at) || null) : null,
+    passing: publishedScore !== null
+      ? publishedScore >= Number(graded.policy?.passingGrade ?? 0)
+      : (closed ? graded.passing : null),
     dueAt,
   };
 };
@@ -161,6 +177,8 @@ export const buildWeeklyPathHistory = ({
   now = Date.now(),
   displayTeks = null,
   truncated = false,
+  // weekKey → what the Classroom publisher sent this student ({ score, points, at }).
+  publishedByWeekKey = {},
 } = {}) => {
   const currentWeekKey = weekKeyFor(now);
   const requested = Array.isArray(weekKeys) && weekKeys.length ? weekKeys : recentWeeklyPathWeekKeys(now);
@@ -172,7 +190,7 @@ export const buildWeeklyPathHistory = ({
     const completions = hasWeeklyGoal(goal)
       ? collectWeeklyPathSessions({ sessions, weekKey, displayTeks }).completions
       : [];
-    return summarizeWeeklyPathWeek({ weekKey, goal, completions, now, currentWeekKey });
+    return summarizeWeeklyPathWeek({ weekKey, goal, completions, now, currentWeekKey, published: publishedByWeekKey?.[weekKey] || null });
   });
   return {
     currentWeekKey,
