@@ -63,7 +63,7 @@ test('what the separate cards carried moves into the next-action card', () => {
   assert.match(card, /const TIMED_KINDS = new Set\(\['dol', 'warmup'\]\)/);
   assert.match(card, /const showCountdown = TIMED_KINDS\.has\(nextAction\.kind\) && Boolean\(countdownEndsAt\) && !hideCountdowns/);
   assert.match(card, /\{showCountdown && \([\s\S]*?<DOLCountdown endsAt=\{countdownEndsAt\} \/>/);
-  assert.match(card, /nextAction\.kind === 'resume' && resume && \([\s\S]*?Continue at Question \{resume\.questionNumber\}\. Your work is saved\./);
+  assert.match(card, /nextAction\.kind === 'resume' && resume && \([\s\S]*?Continue at Question \{resume\.questionNumber\}\. Your answers are kept as you go\./);
   assert.match(card, /resume\.gradeText/);
 });
 
@@ -158,7 +158,7 @@ test('group hints and Resume copy do not contradict the rest of the screen', () 
   assert.match(hints, /pastDue: 'Late work is still open and still counts\.'/);
   assert.match(hints, /practice: 'These are closed\. Trying them again is for practice and does not change your grade\.'/);
   assert.doesNotMatch(code, /restored from this browser/);
-  assert.match(code, /Your work is saved\./);
+  assert.match(code, /Your answers are kept as you go\./);
 });
 
 test('"Nothing waiting" only when the next action is not assigned work', () => {

@@ -100,7 +100,7 @@ export default function WhatShouldIDoNow({
           The work itself is saved on the server, not in this browser. */}
       {nextAction.kind === 'resume' && resume && (
         <div data-resume-detail style={{ marginTop: 8, color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.5 }}>
-          <div style={{ fontWeight: 800 }}>Continue at Question {resume.questionNumber}. Your work is saved.</div>
+          <div style={{ fontWeight: 800 }}>Continue at Question {resume.questionNumber}. Your answers are kept as you go.</div>
           {resume.gradeText && (
             <div style={{ marginTop: 2, color: 'var(--mm-text-muted)', fontWeight: 800 }}>{resume.gradeText}</div>
           )}

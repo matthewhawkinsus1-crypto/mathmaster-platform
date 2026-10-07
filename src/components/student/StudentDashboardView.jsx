@@ -473,7 +473,7 @@ export default function StudentDashboardView({
               <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>Pick up where you left off</div>
               <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{resumeAssignment.title}</div>
               <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
-                Continue at Question {resumeQuestionIndex + 1}. Your work is saved.
+                Continue at Question {resumeQuestionIndex + 1}. Your answers are kept as you go.
                 {resumeGradeText ? ` ${resumeGradeText}.` : ''}
                 {' '}{resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until it closes` : `Due ${studentDueDateLines(resumeAssignment, resumeLifecycle).dueText}`}
               </div>
