@@ -14,6 +14,7 @@ import { matchesSmartView } from '../../assignmentSmartViews.js';
 import { createTeacherPathRuntime } from '../../platform/simulation/teacherPathRuntime.js';
 import { fetchTeacherPathBankSnapshot } from '../../platform/path/pathBankSimulationService.js';
 import { buildSimulatorCoverageIndex } from '../../platform/simulation/simulatorCoverageIndex.js';
+import { ccmrPlanFrameworks, normalizeStoredCcmrPlan, validateCcmrPlanInput } from '../../platform/ccmr/ccmrPlan.js';
 
 // The same arithmetic App.jsx uses for a real student's recorded grade. It is
 // three lines and lives on App's closure there; duplicating those three lines
@@ -229,15 +230,33 @@ export default function SimulatedStudentExperience({
     },
   }), [assignments, classPeriod, nowValue, learner]);
 
+  // The simulated student's CCMR plan. A teacher sets goals and a test date in
+  // the student's own CCMR hub below, exactly as a student would; the saves
+  // stay here in memory and never reach the setMyCcmrPlan callable or a real
+  // student's document. The same plan feeds the CCMR screens (through the
+  // context override) and the weekly Path (through `ccmrPlan`), so the
+  // simulated week follows a goal or a test date the way a real one does.
+  const [simulatedCcmrPlan, setSimulatedCcmrPlan] = useState(null);
+  const saveSimulatedCcmrPlan = (request) => {
+    // The callable's own rule, so the simulator refuses what production refuses.
+    const validated = validateCcmrPlanInput(request, { now: Date.now() });
+    if (!validated.ok) {
+      return Promise.reject(Object.assign(new Error(validated.message), { code: 'functions/invalid-argument' }));
+    }
+    const plan = normalizeStoredCcmrPlan({ ...validated.plan, updatedAt: Date.now() });
+    setSimulatedCcmrPlan(plan);
+    return Promise.resolve(plan);
+  };
+
   // The forced CCMR evidence, handed straight to the student's own CCMR
   // screens: a teacher who sets SAT proficiency to 45% should watch the real
   // wheel become a transfer gap, not read a number in an inspector.
   const assessmentContext = useMemo(() => ({
     assessmentEvidence,
     directIndex,
-    goals: [],
+    goals: ccmrPlanFrameworks(simulatedCcmrPlan),
     teacherPriorities: [],
-  }), [assessmentEvidence, directIndex]);
+  }), [assessmentEvidence, directIndex, simulatedCcmrPlan]);
 
   return (
     <div>
@@ -320,6 +339,8 @@ export default function SimulatedStudentExperience({
             evidenceEvents={simulatedEvidenceEvents}
             loading={false}
             assessmentContextOverride={assessmentContext}
+            ccmrPlan={simulatedCcmrPlan}
+            onSaveCcmrPlan={saveSimulatedCcmrPlan}
             onExit={assignments.length ? () => setView('assignments') : null}
           />
         </>
