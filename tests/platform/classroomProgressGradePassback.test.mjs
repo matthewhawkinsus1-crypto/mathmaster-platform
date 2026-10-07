@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const require = createRequire(import.meta.url);
 const {
@@ -166,10 +167,16 @@ test('student UI watches confirmed Classroom receipts and labels progress versus
   assert.match(app, /Due-date grade sent to Google Classroom/);
   assert.match(app, /Google Classroom shows/);
   assert.match(app, /Classroom teacher draft/);
-  assert.match(dashboard, /Current grade · if stopped now/);
-  assert.match(dashboard, /Classroom teacher draft/);
-  assert.match(dashboard, /Google Classroom shows/);
-  assert.match(dashboard, /next checkpoint/i);
+  // Home is the student's quick view: it labels the live number plainly
+  // ("Grade so far") and repeats a Classroom receipt only when the student can
+  // see that grade in Google Classroom. The teacher-draft / checkpoint
+  // vocabulary lives on App's result surfaces above, not on Home's cards.
+  const card = region(dashboard, 'const renderAssignmentCard = (entry) => {', '\n  const nothingElseToDo', 'Home assignment card');
+  assert.match(card, /describeClassroomReceipt\(/);
+  assert.match(card, /showClassroomGrade = [^;]*receipt\.studentVisible/);
+  assert.match(card, /\{showClassroomGrade && \([\s\S]*?Google Classroom shows \{receipt\.grade\}%/);
+  assert.match(card, /'Grade so far'/);
+  assert.doesNotMatch(executableSource(card), /Classroom teacher draft|checkpoint|if stopped now/i);
 });
 
 test('teacher assessment release and manual retry carry explicit passback reasons', () => {

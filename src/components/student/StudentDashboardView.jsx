@@ -9,6 +9,7 @@ import BuildStamp from './BuildStamp.jsx';
 import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studentDashboardModel.js';
 import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
+import { SECTION_STATE, describeSectionWait } from '../../platform/student/lessonSections.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { testCycleHasUnseenChange } from '../../platform/student/testCycleDiscovery.js';
 
@@ -35,20 +36,77 @@ import RewardsSummaryCard from './rewards/RewardsSummaryCard.jsx';
 // is what lets one set of components serve a real student reading live data and
 // a simulated learner reading synthetic data.
 
-const formatTime = (seconds) => {
-  if (!seconds) return '0s';
-  const minutes = Math.floor(seconds / 60);
-  const remaining = seconds % 60;
-  return minutes > 0 ? `${minutes}m ${remaining}s` : `${remaining}s`;
+
+// A clock time for a Date-ish value ("2:15 PM"), for a DOL whose window opens
+// later today. Formatting only; the time itself comes from the model.
+const formatClock = (value) => {
+  const date = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return null;
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+};
+
+// Next-action kinds whose assignment Home would otherwise ALSO show as its own
+// big card (the live DOL, the live Warm-Up, Resume). The next-action card is
+// the single primary action, so that second card is not rendered.
+const CARRIED_BY_NEXT_ACTION = new Set(['dol', 'warmup', 'resume']);
+
+// "Nothing waiting" is only true when the next action is not assigned work.
+const NOTHING_ASSIGNED_KINDS = new Set(['clear', 'weeklyPath', 'weeklyPathStatus']);
+
+const SAVE_TONE = {
+  saved: { color: 'var(--mm-success-text)', icon: '✓' },
+  saving: { color: 'var(--mm-text-muted)', icon: '…' },
+  offline: { color: 'var(--mm-warning-text)', icon: '○' },
+  attention: { color: 'var(--mm-warning-text)', icon: '!' },
+};
+
+const CHIP = { fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', whiteSpace: 'nowrap' };
+
+/*
+ * ONE SECTION'S PROGRESS, AS A SHORT CHIP: "Classwork 2/3", "Classwork 3/3 ✓",
+ * "DOL opens at 2:15 PM", "Practice — Excused". Read from the section state
+ * the one "Today" rule decided (lessonSections.js); nothing is re-decided here.
+ */
+const sectionChip = (section, { waitText = null, nextOpening = null } = {}) => {
+  const { label, state, doneCount = 0, total = 0 } = section;
+  switch (state) {
+    case SECTION_STATE.DONE:
+      return { text: `${label} ${doneCount}/${total} ✓`, tone: 'done' };
+    case SECTION_STATE.EXCUSED:
+      return { text: `${label} — Excused`, tone: 'muted' };
+    case SECTION_STATE.OPEN:
+      return { text: `${label} ${doneCount}/${total}`, tone: 'open' };
+    case SECTION_STATE.RECOVERY:
+      return { text: `${label} — Recovery ready`, tone: 'open' };
+    case SECTION_STATE.OPENS_LATER:
+      // The model already worded the lesson's next opening against its own
+      // clock; reuse it so the chip and the status line say the same time.
+      return { text: (nextOpening === section && waitText) || describeSectionWait(section) || `${label} opens later`, tone: 'muted' };
+    case SECTION_STATE.LOCKED:
+      return { text: section.reason === 'prerequisite' ? `${label} — after earlier classwork` : `${label} — opens in class`, tone: 'muted' };
+    case SECTION_STATE.CLOSED:
+      return { text: `${label} — Closed`, tone: 'muted' };
+    default:
+      return { text: label, tone: 'muted' };
+  }
+};
+
+const CHIP_TONE = {
+  done: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  open: { background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  muted: { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
 };
 
 export default function StudentDashboardView({
   // Exactly what buildStudentDashboardModel returned.
   dashboard,
-  // { id, displayName, classPeriod, inclusionStatus }
+  // { id, displayName, classPeriod }. Support-plan details are never shown on
+  // Home: a classmate can read this screen over a shoulder.
   student,
   supportPresentation = {},
   onStartAssignment,
+  // The assignment's result page: finished work, a closed lesson, a Recovery.
+  onOpenResult = null,
   onExportAssignmentPdf = null,
   // Still its own prop because "What should I do now?" can recommend Path work
   // directly, which is a recommendation rather than a navigation choice.
@@ -72,12 +130,29 @@ export default function StudentDashboardView({
   rewardWallet = null,
   hasNewRewards = false,
   onOpenRewards = null,
+  // { tone: 'saved'|'saving'|'offline'|'attention', text } — one polite line.
+  saveStatus = null,
+  // The read-only "What changed" list, rendered after the assignment groups.
+  whatChangedPanel = null,
+  // { count } ways to raise a grade (Recoveries, retests). The link opens
+  // Grades through the shared onNavigate — Home owns no per-destination
+  // props (studentGlobalNavigation.test.mjs).
+  waysToRaise = null,
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
     resumeRecordedGrade, resumeQuestionsAttempted, resumeFeedbackHeld,
-    activeDols, activeWarmups, doNowEntries, comingUpEntries, completedEntries, groups,
+    activeDols = [], activeWarmups = [], groups,
   } = dashboard;
+  const hideCountdowns = Boolean(supportPresentation.hideCountdowns);
+
+  // Finished work, a closed lesson and a Recovery open the result page. A
+  // caller without that page falls back to Start, which lands on the result
+  // when nothing is open.
+  const openResult = (assignmentId) => {
+    if (onOpenResult) onOpenResult(assignmentId);
+    else onStartAssignment?.(assignmentId);
+  };
 
   const [exportingAssignmentId, setExportingAssignmentId] = useState(null);
   const exportPdf = async (assignmentId) => {
@@ -90,11 +165,38 @@ export default function StudentDashboardView({
     }
   };
 
+  /*
+   * EACH ACTION APPEARS ONCE.
+   *
+   * When the next action IS the live DOL, the live Warm-Up or Resume, the
+   * next-action card carries it (countdown, "Continue at Question N", grade
+   * so far) and that assignment's own big card is not rendered. Any OTHER
+   * live DOL/Warm-Up/Resume still shows, as a compact secondary card.
+   */
+  const carriedAssignmentId = nextAction && CARRIED_BY_NEXT_ACTION.has(nextAction.kind)
+    ? nextAction.assignment?.id ?? null
+    : null;
+  const secondaryWarmups = activeWarmups.filter(({ assignment }) => assignment.id !== carriedAssignmentId);
+  const secondaryDols = activeDols.filter(({ assignment }) => assignment.id !== carriedAssignmentId);
+  const showResumeCard = Boolean(resumeAssignment) && resumeAssignment.id !== carriedAssignmentId;
+
+  const resumeGradeText = resumeAssignment && resumeQuestionsAttempted > 0
+    ? (resumeFeedbackHeld && !resumeLifecycle?.isClosed ? 'Grade: waiting for your teacher' : `Grade so far: ${resumeRecordedGrade}%`)
+    : null;
+
+  // The window the next-action card counts down, from the same live state the
+  // separate card used to read.
+  const nextActionEndsAt = (() => {
+    if (!nextAction?.assignment) return null;
+    const pool = nextAction.kind === 'dol' ? activeDols : nextAction.kind === 'warmup' ? activeWarmups : [];
+    return pool.find(({ assignment }) => assignment.id === nextAction.assignment.id)?.state?.endsAt ?? null;
+  })();
+
   // A group is only worth a heading when it has something in it. Six headings
   // reading "0 items" looks like a system with nothing to offer.
   const GROUP_HINTS = {
     pastDue: 'Late work is still open and still counts.',
-    practice: 'Past its due date, so it no longer changes your grade — but the practice still counts toward what you know.',
+    practice: 'These are closed. Trying them again is for practice and does not change your grade.',
   };
 
   /*
@@ -142,26 +244,97 @@ export default function StudentDashboardView({
     );
   };
 
+  /*
+   * AN ASSIGNMENT CARD SAYS ONLY WHAT IS TRUE FOR THIS STUDENT NOW.
+   *
+   * Finished work is never "Late" and never offers "Continue Late Work". A
+   * Start/Continue button only appears on work the student can do this minute
+   * (entry.actionable, the one "Today" rule) and lands on the question the
+   * model chose. Work that is waiting says what it is waiting for instead of a
+   * dead "Locked" button. The lesson's real sections are listed with their
+   * progress — the retired `assignmentType` field never decides a label.
+   */
   const renderAssignmentCard = (entry) => {
     if (entry.testCycle) return renderTestCycleCard(entry);
-    const { assignment, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0 } = entry;
+    const {
+      assignment, lifecycle, access = {}, recordedGrade, dol = {}, lesson = null,
+      feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0, bucket,
+    } = entry;
+    const excused = entry.excused === true;
+    const closed = bucket === 'practice';
+    const finished = excused || closed || entry.finished === true || bucket === 'completed';
+    // An entry from an older caller has no `actionable`; its `disabled` is the
+    // same rule spelled the old way.
+    const actionable = !finished && (entry.actionable ?? !entry.disabled) === true;
+    const waiting = !finished && !actionable;
+    const isRecovery = actionable && entry.action === 'recovery';
+    const late = !finished && Boolean(lifecycle.isLate);
+
+    const status = excused
+      ? { border: 'var(--mm-border)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Excused' }
+      : closed
+        ? { border: 'var(--mm-border)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Closed' }
+        : finished
+          ? { border: 'var(--mm-success-border)', bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', label: 'Finished' }
+          : late
+            ? { border: '#f9ab00', bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', label: 'Late' }
+            : waiting
+              ? { border: 'var(--mm-border-strong)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Not open yet' }
+              : { border: 'var(--mm-border)', bg: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', label: 'Open now' };
+
+    // What the card is waiting for, in the student's words. Never "Locked"
+    // alone: the reason is the whole point.
+    const waitLine = waiting
+      ? entry.waitText
+        || (access.open === false ? `Opens after you finish the earlier classwork, or on ${formatDateTime(assignment.releaseAt)}.` : 'Not open yet — your teacher will open it.')
+      : null;
+    // A lesson with no section list still says when its DOL really opens.
+    const dolOpensAt = !lesson?.sections?.length && dol.enabled && ['waiting', 'beforeClass'].includes(dol.status)
+      ? formatClock(dol.opensAt)
+      : null;
+
+    const sections = lesson?.sections || [];
     const classroomReceipt = classroomSyncStatusByAssignment?.[assignment.id] || null;
-    // Which checkpoint this receipt is, decided by the shared reader so the
-    // Assignment Result screen cannot label the same receipt differently.
+    // The shared reader decides whether the student can see this receipt in
+    // Google Classroom; only then is it worth a line here.
     const receipt = describeClassroomReceipt({ receipt: classroomReceipt, mathMasterGrade: recordedGrade });
-    const receiptFinal = receipt.isFinal;
-    const receiptStudentVisible = receipt.studentVisible;
-    const receiptLabel = receipt.label;
-    const classroomGrade = receipt.grade;
-    const classroomIsCurrent = receipt.matchesMathMaster;
-    const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', label: 'Late' } : lifecycle.isScheduled ? { border: 'var(--mm-border-strong)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Scheduled' } : { border: 'var(--mm-border)', bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', label: 'On time' };
+    const showClassroomGrade = !feedbackHeld && Boolean(classroomReceipt) && receipt.studentVisible && receipt.grade != null;
+    const showGrade = !excused && questionsAttempted > 0;
+    const dates = studentDueDateLines(assignment, lifecycle);
+
+    const primaryButton = (label, onClick, key) => (
+      <button key={key} type="button" onClick={onClick} style={{ minHeight: 44, padding: '10px 18px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '2px solid var(--mm-primary-border)', borderRadius: '8px', cursor: 'pointer', fontWeight: 900 }}>{label}</button>
+    );
+
     return (
-      <article key={assignment.id} style={{ background: 'var(--mm-surface)', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
-        <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: 'var(--mm-text-strong)' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{Object.keys(assignment.sectionVariantModes || {}).length > 0 ? <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>SECTION-SPECIFIC VERSIONS</span> : assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>SAME CLASS VERSION</span>}</div>
-          <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.55 }}>{(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText} · {dates.finalLabel}: {dates.finalText}</>; })()}{lifecycle.isLate && <><br /><strong style={{ color: 'var(--mm-warning-text)' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: 'var(--mm-error-text)' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
-          {questionsTotal > 0 && assignment.assignmentType !== 'notesClasswork' && (
-            <div style={{ marginTop: '12px', maxWidth: '340px' }}>
+      <article key={assignment.id} data-assignment-card={assignment.id} data-card-status={status.label} style={{ background: 'var(--mm-surface)', padding: 'clamp(14px, 3vw, 21px) clamp(14px, 3vw, 24px)', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', border: `2px solid ${status.border}` }}>
+        <div style={{ textAlign: 'left', flex: '1 1 320px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+            <h3 style={{ margin: 0, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{assignment.title}</h3>
+            <span data-status-chip style={{ ...CHIP, textTransform: 'uppercase', background: status.bg, color: status.color }}>{status.label}</span>
+          </div>
+          {sections.length > 0 && (
+            <>
+              <div data-section-makeup style={{ color: 'var(--mm-text-muted)', fontSize: '12.5px', fontWeight: 800 }}>
+                {sections.map((section) => section.label).join(' · ')}
+              </div>
+              <ul aria-label="Sections" style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {sections.map((section) => {
+                  const chip = sectionChip(section, { waitText: entry.waitText, nextOpening: lesson?.nextOpening });
+                  return <li key={section.role} data-section-chip={section.state} style={{ ...CHIP, ...CHIP_TONE[chip.tone], whiteSpace: 'normal' }}>{chip.text}</li>;
+                })}
+              </ul>
+            </>
+          )}
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.55, marginTop: 6 }}>
+            {waitLine && <strong data-wait-line style={{ display: 'block', color: 'var(--mm-text)' }}>{waitLine}</strong>}
+            {!finished && <>{dates.dueLabel}: {dates.dueText} · {dates.finalLabel}: {dates.finalText}</>}
+            {finished && !excused && <>{dates.dueLabel}: {dates.dueText}</>}
+            {late && <><br /><strong style={{ color: 'var(--mm-warning-text)' }}>Late work is still open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}
+            {dolOpensAt && !waitLine && <><br />DOL opens at {dolOpensAt}.</>}
+          </div>
+          {questionsTotal > 0 && !finished && (
+            <div style={{ marginTop: '10px', maxWidth: '340px' }}>
               <ProgressBar
                 value={questionsDone}
                 max={questionsTotal}
@@ -170,52 +343,58 @@ export default function StudentDashboardView({
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {questionsAttempted > 0 && (
-            <div style={{ textAlign: 'right', marginRight: '6px', minWidth: 175 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {showGrade && (
+            <div data-grade-line style={{ textAlign: 'right', marginRight: '6px' }}>
               <div style={{ fontSize: '11px', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>
-                {feedbackHeld && !lifecycle.isPracticeOnly
-                  ? 'Grade status'
-                  : lifecycle.isPracticeOnly
-                    ? 'Frozen grade'
-                    : 'Current grade · if stopped now'}
+                {feedbackHeld && !finished ? 'Grade' : finished ? 'Your grade' : 'Grade so far'}
               </div>
-              <div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !lifecycle.isPracticeOnly ? 'var(--mm-primary-text)' : recordedGrade >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>
-                {feedbackHeld && !lifecycle.isPracticeOnly ? 'Awaiting teacher release' : `${recordedGrade}%`}
+              <div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !finished ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)' }}>
+                {feedbackHeld && !finished ? 'Waiting for your teacher' : `${recordedGrade}%`}
               </div>
-              {!feedbackHeld && classroomReceipt && classroomGrade != null && (
-                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: receiptFinal ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800 }}>
-                  {receiptStudentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'}: {classroomGrade}% · {receiptLabel}
-                  {!receiptFinal && !classroomIsCurrent ? <><br />Your MathMaster grade has changed; Classroom updates at the next checkpoint.</> : null}
-                  {!receiptStudentVisible ? <><br />This checkpoint is visible to your teacher; your live grade is the MathMaster grade above.</> : null}
-                </div>
-              )}
-              {!feedbackHeld && !classroomReceipt && !lifecycle.isPracticeOnly && (
-                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: 'var(--mm-text-muted)' }}>
-                  Classroom progress grades begin after meaningful work is underway.
+              {showClassroomGrade && (
+                <div style={{ marginTop: 4, fontSize: 11.5, color: 'var(--mm-text-muted)', fontWeight: 800 }}>
+                  Google Classroom shows {receipt.grade}%
                 </div>
               )}
             </div>
           )}
-          <button
-            type="button"
-            disabled={disabled || !onExportAssignmentPdf || exportingAssignmentId === assignment.id}
-            onClick={() => exportPdf(assignment.id)}
-            style={{ padding: '10px 16px', background: 'var(--mm-surface)', color: disabled ? 'var(--mm-text-subtle)' : 'var(--mm-primary-text)', border: `2px solid ${disabled ? 'var(--mm-border)' : 'var(--mm-primary-border)'}`, borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 900 }}
-          >
-            {exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}
-          </button>
-          <button disabled={disabled} onClick={() => onStartAssignment(assignment.id)} style={{ padding: '10px 20px', background: disabled ? '#dadce0' : lifecycle.isPracticeOnly ? '#5f6368' : lifecycle.isLate ? '#8a5a00' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>{lifecycle.isPracticeOnly ? 'Practice — No Credit' : lifecycle.isLate ? 'Continue Late Work' : disabled ? 'Locked' : questionsAttempted > 0 ? 'Continue' : 'Start'}</button>
+          {onExportAssignmentPdf && !waiting && (
+            <button
+              type="button"
+              disabled={exportingAssignmentId === assignment.id}
+              onClick={() => exportPdf(assignment.id)}
+              style={{ minHeight: 44, padding: '10px 14px', background: 'var(--mm-surface)', color: 'var(--mm-text)', border: '1px solid var(--mm-border-strong)', borderRadius: '8px', cursor: 'pointer', fontWeight: 800 }}
+            >
+              {exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}
+            </button>
+          )}
+          {finished && primaryButton('See results', () => openResult(assignment.id), 'results')}
+          {closed && primaryButton('Try it again — no credit', () => onStartAssignment?.(assignment.id), 'again')}
+          {isRecovery && primaryButton('Open Recovery', () => openResult(assignment.id), 'recovery')}
+          {actionable && !isRecovery && primaryButton(
+            questionsAttempted > 0 ? 'Continue' : 'Start',
+            () => onStartAssignment?.(assignment.id, entry.nextQuestionIndex ?? 0),
+            'start',
+          )}
         </div>
       </article>
     );
   };
 
+  const nothingElseToDo = !resumeAssignment && !activeDols.length && !activeWarmups.length
+    && (!nextAction || NOTHING_ASSIGNED_KINDS.has(nextAction.kind));
+  const saveTone = saveStatus ? SAVE_TONE[saveStatus.tone] || SAVE_TONE.saved : null;
+  const openGrades = onNavigate ? () => onNavigate(STUDENT_DESTINATION.GRADES) : null;
+  const raiseCount = Number(waysToRaise?.count) || 0;
+
   return (
-    <div className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`} style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: supportPresentation.highContrast ? 'var(--mm-surface)' : 'var(--mm-surface-control)', minHeight: '100vh', padding: '34px 20px', fontSize: supportPresentation.largeText ? '120%' : undefined }}>
+    <div className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`} style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: supportPresentation.highContrast ? 'var(--mm-surface)' : 'var(--mm-surface-control)', minHeight: '100vh', padding: 'clamp(16px, 4vw, 34px) clamp(12px, 3vw, 20px)', fontSize: supportPresentation.largeText ? '120%' : undefined }}>
       <div style={{ maxWidth: '920px', margin: '0 auto' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: '20px 30px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '24px', gap: '20px', flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: 'var(--mm-primary)', fontSize: '25px' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1><p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)' }}>{student.classPeriod}{student.inclusionStatus ? ' · Inclusion supports active' : ''}</p></div>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: 'clamp(14px, 3vw, 20px) clamp(14px, 3vw, 30px)', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: saveStatus ? '8px' : '20px', gap: '16px', flexWrap: 'wrap' }}>
+          {/* Name and class period only. Nothing about a support plan is ever
+              shown here: Home is the screen most often read over a shoulder. */}
+          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: 'var(--mm-primary)', fontSize: '25px' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1><p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)' }}>{student.classPeriod}</p></div>
           {/*
             One navigation, shared with Assignments, Grades and My Math Path.
             These were four independently written buttons, which is how My Math
@@ -229,81 +408,76 @@ export default function StudentDashboardView({
           />
         </header>
 
-        {rewardWallet && onOpenRewards && (
-          <RewardsSummaryCard wallet={rewardWallet} hasNew={hasNewRewards} onOpen={onOpenRewards} />
+        {saveStatus && saveStatus.text && (
+          <p role="status" aria-live="polite" data-save-tone={saveStatus.tone} style={{ margin: '0 0 16px', padding: '0 4px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: saveTone.color }}>
+            <span aria-hidden="true">{saveTone.icon} </span>{saveStatus.text}
+          </p>
         )}
-        {classPoints && <ClassPointsCelebrations announcements={classPoints.announcements} />}
 
+        {/* Time-critical: the class is starting it now, so it stays on top. */}
         {liveChallengeInvite && ['invited', 'joined', 'running'].includes(liveChallengeInvite.status) && (
           <section style={{ marginBottom: '18px', padding: '20px 24px', borderRadius: '16px', background: 'var(--mm-primary-soft)', border: '3px solid #1a73e8', color: 'var(--mm-primary-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
             <div><div style={{ fontSize: '13px', fontWeight: 1000, textTransform: 'uppercase' }}>⚡ Live Challenge</div><h2 style={{ margin: '4px 0' }}>{liveChallengeInvite.title || 'Class Live Challenge'}</h2><p style={{ margin: 0 }}>{liveChallengeInvite.status === 'running' ? 'The challenge is running now.' : 'Your teacher opened the lobby. Join now so you are ready when Round 1 starts.'}{liveChallengeInvite.alias ? ` You will play as ${liveChallengeInvite.alias}.` : ''}</p></div>
-            <button type="button" onClick={() => onOpenLiveChallenge?.()} style={{ padding: '13px 20px', border: 0, borderRadius: '10px', background: '#174ea6', color: '#fff', fontWeight: 900, fontSize: '16px' }}>{liveChallengeInvite.status === 'running' ? 'Join Challenge Now' : 'Enter Challenge Lobby'}</button>
+            <button type="button" onClick={() => onOpenLiveChallenge?.()} style={{ minHeight: 44, padding: '13px 20px', border: 0, borderRadius: '10px', background: '#174ea6', color: '#fff', fontWeight: 900, fontSize: '16px' }}>{liveChallengeInvite.status === 'running' ? 'Join Challenge Now' : 'Enter Challenge Lobby'}</button>
           </section>
         )}
 
-        {/* One answer, above everything else on the page. */}
+        {/* One answer, first on the page: the single primary action. */}
         {nextAction && (
           <WhatShouldIDoNow
             nextAction={nextAction}
             onStartAssignment={(assignment, questionIndex) => onStartAssignment(assignment.id, questionIndex || 0)}
+            onOpenResult={openResult}
             onOpenMathPath={onOpenMathPath}
+            countdownEndsAt={nextActionEndsAt}
+            hideCountdowns={hideCountdowns}
+            resume={nextAction.kind === 'resume' && resumeAssignment
+              ? { questionNumber: (resumeQuestionIndex ?? 0) + 1, gradeText: resumeGradeText }
+              : null}
           />
         )}
 
-        {(activeWarmups || []).map(({ assignment, state, questionIndices = [] }) => (
-          <section key={`warmup-${assignment.id}`} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: 'var(--mm-warning-bg)', border: '3px solid #f9ab00', color: 'var(--mm-warning-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase' }}>🔥 Warm-Up active now</div>
-              <h2 style={{ margin: '4px 0' }}>{assignment.title} · Warm-Up</h2>
-              <p style={{ margin: 0 }}>Start with the Warm-Up. It closes automatically when the class Warm-Up timer reaches zero.</p>
-              {!supportPresentation.hideCountdowns && (
-                <div style={{ marginTop: '8px', fontSize: '22px', fontWeight: 1000 }}>
-                  <DOLCountdown endsAt={state.endsAt} /> remaining
-                </div>
-              )}
+        {raiseCount > 0 && openGrades && (
+          <button type="button" data-ways-to-raise onClick={openGrades} style={{ display: 'block', minHeight: 44, margin: '-10px 0 18px', padding: '8px 4px', border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 14.5, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+            {raiseCount} {raiseCount === 1 ? 'way' : 'ways'} to raise your grade →
+          </button>
+        )}
+
+        {/* Other live work — never the one the card above already names. */}
+        {secondaryWarmups.map(({ assignment, state, questionIndices = [] }) => (
+          <section key={`warmup-${assignment.id}`} data-secondary-live="warmup" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-warning-bg)', border: '2px solid #f9ab00', color: 'var(--mm-warning-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}>Warm-Up active now</div>
+              <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{assignment.title}</div>
+              {!hideCountdowns && <div style={{ fontWeight: 900 }}><DOLCountdown endsAt={state.endsAt} /> left</div>}
             </div>
-            <button
-              type="button"
-              onClick={() => onStartAssignment(assignment.id, questionIndices[0] ?? 0)}
-              style={{ padding: '13px 20px', border: 0, borderRadius: '10px', background: '#b06000', color: '#fff', fontWeight: 900, fontSize: '16px' }}
-            >
-              Start Warm-Up Now
-            </button>
+            <button type="button" onClick={() => onStartAssignment(assignment.id, questionIndices[0] ?? 0)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #b06000', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontWeight: 900 }}>Start Warm-Up</button>
           </section>
         ))}
 
-        {activeDols.map(({ assignment, state }) => (
-          <section key={assignment.id} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: 'var(--mm-accent-soft)', border: '3px solid #9334e6', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
-            <div><div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase' }}>DOL available now</div><h2 style={{ margin: '4px 0' }}>{assignment.title} · DOL section</h2><p style={{ margin: 0 }}>Complete all {(state.questionIndices || [state.questionIndex]).length} DOL question{(state.questionIndices || [state.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</p>{!supportPresentation.hideCountdowns && <div style={{ marginTop: '8px', fontSize: '22px', fontWeight: 1000 }}><DOLCountdown endsAt={state.endsAt} /> remaining</div>}</div>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button type="button" disabled={!onExportAssignmentPdf || exportingAssignmentId === assignment.id} onClick={() => exportPdf(assignment.id)} style={{ padding: '12px 16px', border: '2px solid #9334e6', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>{exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}</button>
-              <button onClick={() => onStartAssignment(assignment.id, (state.questionIndices || [state.questionIndex])[0])} style={{ padding: '13px 20px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, fontSize: '16px' }}>Start DOL Now</button>
+        {secondaryDols.map(({ assignment, state }) => (
+          <section key={`dol-${assignment.id}`} data-secondary-live="dol" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-accent-soft)', border: '2px solid #9334e6', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}>DOL open now</div>
+              <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{assignment.title}</div>
+              {!hideCountdowns && <div style={{ fontWeight: 900 }}><DOLCountdown endsAt={state.endsAt} /> left</div>}
             </div>
+            <button type="button" onClick={() => onStartAssignment(assignment.id, (state.questionIndices || [state.questionIndex])[0])} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #681da8', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Start DOL</button>
           </section>
         ))}
 
-        {resumeAssignment && (
-          <section aria-label="Resume assignment" style={{ marginBottom: '28px', padding: '28px 30px', borderRadius: '18px', background: 'linear-gradient(135deg, #174ea6 0%, #1a73e8 62%, #4f8fe8 100%)', color: '#fff', boxShadow: '0 16px 38px rgba(26,115,232,0.28)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', flexWrap: 'wrap', textAlign: 'left' }}>
-            <div style={{ flex: '1 1 450px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.82, marginBottom: '7px' }}>Resume Action</div>
-              <h2 style={{ margin: 0, fontSize: 'clamp(25px, 4vw, 38px)', lineHeight: 1.12, color: 'inherit' }}>Resume {resumeAssignment.title}</h2>
-              <p style={{ margin: '10px 0 0', fontSize: '17px', lineHeight: 1.5, opacity: 0.94 }}>Continue at Question {resumeQuestionIndex + 1}. Your typed responses, plotted points, graph sketch, endpoint symbols, multipart analysis, and algebra work are restored from this browser.</p>
-              {resumeQuestionsAttempted > 0 && (
-                <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 9, background: 'rgba(255,255,255,0.14)', fontSize: 13, fontWeight: 900 }}>
-                  {resumeFeedbackHeld && !resumeLifecycle.isClosed
-                    ? 'Grade status: awaiting teacher release'
-                    : `Current grade if stopped now: ${resumeRecordedGrade}%`}
-                  {classroomSyncStatusByAssignment?.[resumeAssignment.id]?.grade != null && (
-                    <span> · Google Classroom has {classroomSyncStatusByAssignment[resumeAssignment.id].grade}%</span>
-                  )}
-                </div>
-              )}
-              <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold', opacity: 0.88 }}>{resumeLifecycle.isClosed ? 'Permanently closed · review saved work' : resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until final close` : `Due ${studentDueDateLines(resumeAssignment, resumeLifecycle).dueText}`}</div>
+        {showResumeCard && (
+          <section aria-label="Resume assignment" data-secondary-live="resume" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-surface)', border: '2px solid var(--mm-primary-border)', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>Pick up where you left off</div>
+              <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{resumeAssignment.title}</div>
+              <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
+                Continue at Question {resumeQuestionIndex + 1}. Your work is saved.
+                {resumeGradeText ? ` ${resumeGradeText}.` : ''}
+                {' '}{resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until it closes` : `Due ${studentDueDateLines(resumeAssignment, resumeLifecycle).dueText}`}
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button type="button" disabled={!onExportAssignmentPdf || exportingAssignmentId === resumeAssignment.id} onClick={() => exportPdf(resumeAssignment.id)} style={{ padding: '13px 18px', border: '2px solid rgba(255,255,255,0.76)', borderRadius: '12px', background: 'transparent', color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer' }}>{exportingAssignmentId === resumeAssignment.id ? 'Preparing PDF…' : 'Export PDF'}</button>
-              <button type="button" onClick={() => onStartAssignment(resumeAssignment.id, resumeQuestionIndex)} style={{ padding: '15px 24px', border: 'none', borderRadius: '12px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: '17px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.18)' }}>{resumeLifecycle.isClosed ? 'Review Question' : 'Resume Question'} {resumeQuestionIndex + 1} →</button>
-            </div>
+            <button type="button" onClick={() => onStartAssignment(resumeAssignment.id, resumeQuestionIndex)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid var(--mm-primary-border)', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>Continue</button>
           </section>
         )}
 
@@ -332,9 +506,9 @@ export default function StudentDashboardView({
               />
             ))}
 
-            {/* Every group empty is a real state and deserves a sentence, not a
-                blank space where the work would be. */}
-            {BUCKET_ORDER.every((bucket) => !((groups && groups[bucket]) || []).length) && (
+            {/* Every group empty AND nothing assigned to do now: a real state
+                that deserves a sentence. Never under a Resume or a live card. */}
+            {nothingElseToDo && BUCKET_ORDER.every((bucket) => !((groups && groups[bucket]) || []).length) && (
               <EmptyState
                 icon="✅"
                 title="Nothing waiting"
@@ -343,6 +517,14 @@ export default function StudentDashboardView({
             )}
           </>
         )}
+
+        {whatChangedPanel}
+
+        {/* Rewards come after the work, never between the student and it. */}
+        {rewardWallet && onOpenRewards && (
+          <RewardsSummaryCard wallet={rewardWallet} hasNew={hasNewRewards} onOpen={onOpenRewards} />
+        )}
+        {classPoints && <ClassPointsCelebrations announcements={classPoints.announcements} />}
 
         {/* Below the assigned work, never above it: teacher assignments are
             the classroom contract, this is the student's own time. */}
