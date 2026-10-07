@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  ACCESS_FUNCTIONS,
   BUILD_INFO_FUNCTION as B,
   DEFAULT_FUNCTIONS_REGION,
   RELEASE_TARGETS as T,
@@ -27,6 +28,7 @@ import {
 import { executeReleasePlan } from '../../scripts/lib/releaseExecutor.mjs';
 import { listDeployableFunctions } from '../../scripts/lib/functionsInventory.mjs';
 import { buildDeployProvenance, provenanceLabels, sanitizeLabelValue } from '../../scripts/write-functions-provenance.mjs';
+import { region } from './helpers/sourceContract.mjs';
 
 const HEAD = 'c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00';
 const OTHER = 'decade00decade00decade00decade00decade00';
@@ -39,6 +41,9 @@ const serving = (gitSha, { treeClean = true } = {}) => async () => ({
   body: { result: { codebase: 'default', gitSha, gitShaShort: String(gitSha).slice(0, 12), treeClean, writtenAt: '2026-10-01T00:00:00.000Z' } },
   error: null,
 });
+
+// What the access step resolves when a browser can reach every callable.
+const reachable = async () => ({ ok: true, checked: true, summary: { total: 3, failing: [] }, grants: [], redeploy: [] });
 
 test('changed files decide the targets, and say why', () => {
   const { targets, reasons } = classifyChangedFiles(['src/App.jsx', 'docs/x.md', 'tests/platform/a.test.mjs']);
@@ -62,9 +67,11 @@ test('a functions/lib file the path-admin codebase vendors is a change to both c
   assert.deepEqual(classifyChangedFiles(['functions/lib/classroom.js']).targets, [T.FUNCTIONS], 'not vendored: default codebase only');
 });
 
-test('the order is indexes, functions, the functions check, path admin, rules, database, then Hosting', () => {
+test('the order is indexes, functions, the functions checks, path admin, rules, database, then Hosting', () => {
   // platformBuildInfo is part of every functions release (the inventory must
   // have it), and the read-only verify step follows the last functions group.
+  // The browser-access step follows it: both come before anything a new client
+  // or new rules would rely on.
   const steps = buildReleasePlan({
     targets: [T.HOSTING, T.RULES, T.FUNCTIONS, T.INDEXES, T.PATH_ADMIN],
     allFunctions: ['a', 'b', 'c', B],
@@ -72,7 +79,7 @@ test('the order is indexes, functions, the functions check, path admin, rules, d
     expectedGitSha: HEAD,
   });
   assert.deepEqual(steps.map((step) => step.label), [
-    T.INDEXES, 'functions group 1/2', 'functions group 2/2', `verify ${B}`, T.PATH_ADMIN, T.RULES, T.HOSTING,
+    T.INDEXES, 'functions group 1/2', 'functions group 2/2', `verify ${B}`, 'browser access to callables', T.PATH_ADMIN, T.RULES, T.HOSTING,
   ]);
   assert.deepEqual(steps.filter((step) => step.target === T.FUNCTIONS).map((step) => step.group), [['a', 'b'], ['c', B]]);
 });
@@ -103,7 +110,7 @@ test('the real default codebase has platformBuildInfo, so a real exact-name rele
   const names = listDeployableFunctions().functions.map((fn) => fn.name);
   assert.ok(names.includes(B), `${B} must be exported by the default codebase`);
   const steps = buildReleasePlan({ targets: [], only: [T.FUNCTIONS], allFunctions: names, functionNames: ['submitPathResponse'], expectedGitSha: HEAD });
-  assert.deepEqual(steps.map((step) => step.target), [T.FUNCTIONS, VERIFY_FUNCTIONS]);
+  assert.deepEqual(steps.map((step) => step.target), [T.FUNCTIONS, VERIFY_FUNCTIONS, ACCESS_FUNCTIONS]);
   assert.deepEqual(steps[0].group, ['submitPathResponse', B]);
 });
 
@@ -119,11 +126,13 @@ test('the verify step follows every functions step, expects HEAD, and precedes e
   assert.equal(targets.filter((target) => target === VERIFY_FUNCTIONS).length, 1);
   assert.equal(verifyIndex, targets.lastIndexOf(T.FUNCTIONS) + 1, 'immediately after the last functions group');
   assert.ok(targets.slice(verifyIndex + 1).every((target) => target !== T.FUNCTIONS));
-  assert.deepEqual(targets.slice(verifyIndex + 1), [T.PATH_ADMIN, T.RULES, T.DATABASE_RULES, T.HOSTING]);
+  // The browser-access step is the one check between it and the rest.
+  assert.deepEqual(targets.slice(verifyIndex + 1), [ACCESS_FUNCTIONS, T.PATH_ADMIN, T.RULES, T.DATABASE_RULES, T.HOSTING]);
   assert.equal(steps[verifyIndex].function, B);
   assert.equal(steps[verifyIndex].expectedGitSha, HEAD, 'a full commit id, lowercased');
-  assert.equal(buildReleasePlan({ targets: [T.FUNCTIONS], allFunctions: [B], expectedGitSha: 'c0ffee00' }).at(-1).expectedGitSha, null,
-    'an abbreviated id is not a commit the check can confirm');
+  assert.equal(buildReleasePlan({ targets: [T.FUNCTIONS], allFunctions: [B], expectedGitSha: 'c0ffee00' })
+    .find((step) => step.target === VERIFY_FUNCTIONS).expectedGitSha, null,
+  'an abbreviated id is not a commit the check can confirm');
   assert.throws(() => deployCommandFor(steps[verifyIndex], { project: 'p' }), /read-only check/);
 });
 
@@ -164,6 +173,7 @@ test('a quota storm is waited out and the release completes', async () => {
     steps: plan(['a', 'b', 'c', 'd', 'e'], [T.RULES, T.HOSTING]),
     runner: async () => { calls += 1; return calls <= 2 ? { ok: false, output: 'HTTP Error: 429, Quota exceeded' } : { ok: true, output: '' }; },
     verifyBuildInfo: serving(HEAD),
+    ensureCallableAccess: reachable,
     sleep: async (seconds) => { waits.push(seconds); },
   });
   assert.equal(outcome.ok, true);
@@ -232,8 +242,11 @@ test('the verify step asks platformBuildInfo after the last functions group and 
     steps: plan(['a', 'b', 'c', 'd', 'e'], [T.PATH_ADMIN, T.RULES, T.HOSTING]),
     runner: async (step) => { order.push(step.group ? `functions:${step.group.join('+')}` : step.target); return { ok: true, output: '' }; },
     verifyBuildInfo: async (step) => { order.push(`verify:${step.function}`); return serving(HEAD)(); },
+    ensureCallableAccess: async (step) => { order.push(`access:${step.functions.join('+')}`); return reachable(); },
   });
-  assert.deepEqual(order, ['functions:a+b+c+d', `functions:e+${B}`, `verify:${B}`, T.PATH_ADMIN, T.RULES, T.HOSTING]);
+  // The access step asks after the commit is proven, about the functions this
+  // release deployed, and before anything a browser would use them from.
+  assert.deepEqual(order, ['functions:a+b+c+d', `functions:e+${B}`, `verify:${B}`, `access:a+b+c+d+e+${B}`, T.PATH_ADMIN, T.RULES, T.HOSTING]);
   assert.equal(outcome.ok, true);
   assert.equal(outcome.verification.status, 'passed');
   assert.equal(outcome.verification.liveGitSha, HEAD);
@@ -303,6 +316,7 @@ test('a function created moments ago that answers late is waited for, and the re
       asked += 1;
       return asked === 1 ? { url: 'u', reachable: true, status: 403, body: null, error: 'Forbidden' } : serving(HEAD)();
     },
+    ensureCallableAccess: reachable,
     sleep: async (seconds) => { waits.push(seconds); },
   });
   assert.equal(outcome.ok, true);
@@ -361,7 +375,7 @@ test('platformBuildInfo is asked the way the client SDK asks any callable', () =
   assert.equal(real.trigger, 'callable');
   assert.equal(real.region, null, 'functions/index.js sets no region; the verify URL assumes the default');
   assert.equal(DEFAULT_FUNCTIONS_REGION, 'us-central1');
-  const verify = buildReleasePlan({ targets: [T.FUNCTIONS], allFunctions: [B], expectedGitSha: HEAD }).at(-1);
+  const verify = buildReleasePlan({ targets: [T.FUNCTIONS], allFunctions: [B], expectedGitSha: HEAD }).find((step) => step.target === VERIFY_FUNCTIONS);
   assert.match(describeStep(verify, { project: 'mathmaster-aleks' }), /^POST https:\/\/us-central1-mathmaster-aleks\.cloudfunctions\.net\/platformBuildInfo \{"data":\{\}\} -> result\.gitSha must be c0ffee00c0ff/);
 });
 
@@ -469,4 +483,136 @@ test('the inventory is the real entry point, including the functions index.js do
   const script = readFileSync(new URL('../../scripts/deploy-functions-in-groups.sh', import.meta.url), 'utf8');
   assert.match(script, /mapfile -t NAMES < <\(node "\$REPO_ROOT\/scripts\/lib\/functionsInventory\.mjs"/);
   assert.doesNotMatch(script, /grep -o '\^exports/);
+});
+
+// --- proving a browser can reach every callable ---------------------------------
+//
+// The Firebase CLI grants a callable `allUsers` roles/run.invoker only when it
+// creates it. A grant that failed then stays missing through every later
+// deploy, and browsers see "internal" (scripts/lib/callableAccess.mjs). The
+// access step is what notices and repairs that before a client ships.
+
+const unreachable = (failing = ['teacherTestCycleAction']) => async () => ({
+  ok: false, checked: true, summary: { total: 3, failing }, grants: [], redeploy: [],
+});
+
+test('a callable browsers cannot reach is treated like a failed function: path-admin, rules and Hosting wait', async () => {
+  const deployed = [];
+  const outcome = await executeReleasePlan({
+    steps: plan(['a'], [T.PATH_ADMIN, T.RULES, T.HOSTING]),
+    runner: async (step) => { deployed.push(step.target); return { ok: true, output: '' }; },
+    verifyBuildInfo: serving(HEAD),
+    ensureCallableAccess: unreachable(),
+  });
+  assert.equal(outcome.ok, false);
+  assert.deepEqual(deployed, [T.FUNCTIONS], 'nothing after the functions deployed');
+  assert.deepEqual(outcome.stoppedBeforeTargets, [T.PATH_ADMIN, T.RULES, T.HOSTING]);
+  assert.deepEqual(outcome.failedFunctions, [], 'every deploy step itself succeeded');
+  assert.equal(outcome.verification.status, 'passed');
+  assert.equal(outcome.access.status, 'failed');
+  assert.deepEqual(outcome.access.failing, ['teacherTestCycleAction']);
+  // The finishing command is the repair itself, then what was held back.
+  assert.equal(retryCommandFor(outcome),
+    'node scripts/verify-callable-access.mjs --fix --codebase default && node scripts/release-firebase.mjs --execute --only path-admin,rules,hosting');
+});
+
+test('an access check that could not run is never a pass, and neither is no checker at all', async () => {
+  const notChecked = async () => ({ ok: false, checked: false, reason: 'gcloud is not on PATH (Cloud Shell has it)' });
+  const claimsOkWithoutChecking = async () => ({ ok: true, checked: false, reason: 'gcloud is not on PATH' });
+  const throws = async () => { throw new Error('spawn gcloud EACCES'); };
+  for (const ensureCallableAccess of [notChecked, claimsOkWithoutChecking, throws, undefined]) {
+    const deployed = [];
+    // eslint-disable-next-line no-await-in-loop
+    const outcome = await executeReleasePlan({
+      steps: plan(['a'], [T.HOSTING]),
+      runner: async (step) => { deployed.push(step.target); return { ok: true, output: '' }; },
+      verifyBuildInfo: serving(HEAD),
+      ...(ensureCallableAccess ? { ensureCallableAccess } : {}),
+    });
+    assert.equal(outcome.ok, false);
+    assert.equal(outcome.access.status, 'failed');
+    assert.match(outcome.access.detail, /^not checked: /);
+    assert.deepEqual(deployed, [T.FUNCTIONS], 'Hosting waits');
+  }
+});
+
+test('a callable repaired by the access step lets the release go on, and says what it granted', async () => {
+  const deployed = [];
+  const outcome = await executeReleasePlan({
+    steps: plan(['a'], [T.HOSTING]),
+    runner: async (step) => { deployed.push(step.target); return { ok: true, output: '' }; },
+    verifyBuildInfo: serving(HEAD),
+    ensureCallableAccess: async () => ({
+      ok: true,
+      checked: true,
+      summary: { total: 3, failing: [] },
+      grants: [{ name: 'teacherTestCycleAction', service: 'teachertestcycleaction', ok: true, error: null }],
+      redeploy: [],
+    }),
+  });
+  assert.equal(outcome.ok, true);
+  assert.deepEqual(deployed, [T.FUNCTIONS, T.HOSTING]);
+  assert.equal(outcome.access.status, 'passed');
+  assert.deepEqual(outcome.access.granted, ['teacherTestCycleAction']);
+  assert.match(outcome.access.detail, /granted browser access to teacherTestCycleAction/);
+});
+
+test('when a function did not deploy, the access step is skipped, not run', async () => {
+  let asked = 0;
+  const outcome = await executeReleasePlan({
+    steps: plan(['broken'], [T.HOSTING]),
+    runner: async (step) => (step.group?.includes('broken') ? { ok: false, output: 'SyntaxError' } : { ok: true, output: '' }),
+    verifyBuildInfo: serving(HEAD),
+    ensureCallableAccess: async () => { asked += 1; return reachable(); },
+  });
+  assert.equal(outcome.ok, false);
+  assert.equal(asked, 0);
+  assert.equal(outcome.access.status, 'skipped');
+  assert.equal(outcome.verification.status, 'skipped');
+});
+
+test('--continue-after-function-failure applies to an unreachable callable too', async () => {
+  const deployed = [];
+  const outcome = await executeReleasePlan({
+    steps: plan(['a'], [T.RULES, T.HOSTING]),
+    runner: async (step) => { deployed.push(step.target); return { ok: true, output: '' }; },
+    verifyBuildInfo: serving(HEAD),
+    ensureCallableAccess: unreachable(),
+    continueAfterFunctionFailure: true,
+  });
+  assert.equal(outcome.ok, false, 'still reported incomplete');
+  assert.deepEqual(deployed, [T.FUNCTIONS, T.RULES, T.HOSTING]);
+});
+
+test('a release that stops before its functions lists only deploy targets as held back, never the checks', async () => {
+  const outcome = await executeReleasePlan({
+    steps: buildReleasePlan({ targets: [T.INDEXES, T.FUNCTIONS, T.HOSTING], allFunctions: ['a', B], expectedGitSha: HEAD }),
+    runner: async (step) => (step.target === T.INDEXES ? { ok: false, output: 'Error: 403 PERMISSION_DENIED' } : { ok: true, output: '' }),
+    verifyBuildInfo: serving(HEAD),
+    ensureCallableAccess: reachable,
+  });
+  assert.equal(outcome.failedStep, T.INDEXES);
+  assert.deepEqual(outcome.stoppedBeforeTargets, [T.FUNCTIONS, T.HOSTING]);
+  assert.equal(outcome.access.status, 'skipped');
+});
+
+test('the access step changes IAM, not code: it is never a deploy command, and the plan says what it checks', () => {
+  const step = buildReleasePlan({ targets: [T.FUNCTIONS], allFunctions: ['a', B], expectedGitSha: HEAD })
+    .find((entry) => entry.target === ACCESS_FUNCTIONS);
+  assert.deepEqual(step.functions, ['a', B], 'it knows which functions this release deployed');
+  assert.throws(() => deployCommandFor(step, { project: 'p' }), /not a deploy command/);
+  assert.match(describeStep(step, { project: 'p' }), /allUsers roles\/run\.invoker/);
+  assert.equal(retryCommandFor({ failedFunctions: [], verification: { status: 'passed' }, access: { status: 'passed' } }), null);
+  // A failed function's re-run repeats the access step, so it is all it takes.
+  assert.equal(retryCommandFor({ failedFunctions: [{ name: 'broken' }], access: { status: 'failed' } }),
+    'node scripts/release-firebase.mjs --execute --functions broken');
+});
+
+test('the release wires the access check into the executor, imported where it is called', () => {
+  const source = readFileSync(new URL('../../scripts/release-firebase.mjs', import.meta.url), 'utf8');
+  assert.match(source, /^import \{ ensureCallableAccess \} from '\.\/verify-callable-access\.mjs';$/m);
+  assert.match(source, /^import \{ releaseAccessVerdict \} from '\.\/lib\/callableAccess\.mjs';$/m);
+  const call = region(source, 'const outcome = await executeReleasePlan({', '\n});', 'the executeReleasePlan call');
+  // Injected as the executor's checker, judged on this release's functions, and repairing.
+  assert.match(call, /ensureCallableAccess: async \(step\) => \{[\s\S]*releaseAccessVerdict\(await ensureCallableAccess\(\{[\s\S]*fix: true,[\s\S]*\}\), \{ released: step\.functions \|\| null \}\)/);
 });

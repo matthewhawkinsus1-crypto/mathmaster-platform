@@ -49,6 +49,7 @@
     "test:draft-persistence": "node scripts/run-draft-persistence-certification.mjs",
     "gates:serve": "node scripts/serve-gate.mjs",
     "verify:persistence-production": "node scripts/verify-persistence-production.mjs",
+    "verify:callable-access": "node scripts/verify-callable-access.mjs",
     "verify:persistence-indexes": "node scripts/check-persistence-indexes.mjs",
     "deploy:persistence": "bash scripts/deploy-persistence.sh",
     "verify:response-inspector-production": "node scripts/verify-response-inspector-production.mjs",
