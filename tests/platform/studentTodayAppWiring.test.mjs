@@ -81,3 +81,25 @@ test('the result page receives the Today entry, Up next and Continue; the Assign
   const center = region(app, '<StudentAssignmentsCenter', '/>', 'Assignments Center');
   assert.match(center, /onContinue=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex\)\}/);
 });
+
+test('Grades gets Start, ways to raise and What changed; Home gets the count — with imports', () => {
+  assert.match(app, /import \{ buildWaysToRaise, countWaysToRaise \} from '\.\/platform\/student\/waysToRaiseModel\.js'/);
+  const memo = region(app, 'const studentWaysToRaise = useMemo(', '}) : []), [', 'ways memo');
+  assert.match(memo, /recoverySummariesByAssignment: studentRecoverySummariesByAssignment/);
+  const grades = region(app, '<StudentGradeCenter', '/>\n', 'Grades');
+  assert.match(grades, /onStart=\{\(assignmentId\) => startAssignment\(assignmentId\)\}/);
+  assert.match(grades, /waysToRaise=\{studentWaysToRaise\}/);
+  assert.match(grades, /whatChangedPanel=\{renderWhatChangedPanel\(false\)\}/);
+  const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
+  assert.match(home, /waysToRaise=\{\{ count: countWaysToRaise\(studentWaysToRaise\) \}\}/);
+});
+
+test('Review My Work shows only for closed, released, non-Test-Cycle work — with imports', () => {
+  assert.match(app, /import ReviewMyWork from '\.\/components\/student\/ReviewMyWork\.jsx'/);
+  assert.match(app, /import \{ loadMyReviewWork \} from '\.\/services\/reviewMyWorkService\.js'/);
+  const panel = region(app, 'reviewPanel={', ': null}', 'review panel');
+  assert.match(panel, /resultEntry\.frozen/);
+  assert.match(panel, /!resultEntry\.isTestCycle/);
+  assert.match(panel, /!assignmentHasHeldTeacherFeedback\(recoveryAssignment\)/);
+  assert.match(panel, /<ReviewMyWork assignment=\{recoveryAssignment\} load=\{loadMyReviewWork\} \/>/);
+});

@@ -319,6 +319,9 @@ import {
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { describeSaveStatus } from './platform/student/saveStatusModel.js';
+import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
+import ReviewMyWork from './components/student/ReviewMyWork.jsx';
+import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import {
@@ -1509,6 +1512,17 @@ function App() {
       })
       : []
   ), [user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now]);
+
+  // "Ways to raise your grade" (platform/student/waysToRaiseModel.js): missing
+  // work, late windows, Test Cycle corrections/retests, Recoveries and Practice
+  // Passes, from the models already built above. Grades lists them; Home
+  // shows their count.
+  const studentWaysToRaise = useMemo(() => (studentGradeCenter ? buildWaysToRaise({
+    gradeCenter: studentGradeCenter,
+    recoverySummariesByAssignment: studentRecoverySummariesByAssignment,
+    practicePassEligibleAssignmentIds: studentPracticePassEligibleAssignments,
+    nowValue: now,
+  }) : []), [studentGradeCenter, studentRecoverySummariesByAssignment, studentPracticePassEligibleAssignments, now]);
 
   const studentRewardWallet = useMemo(() => buildRewardWallet({
     grants: studentClassPoints.grants,
@@ -13025,6 +13039,15 @@ function App() {
             onLogout={handleLogout}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
+            onStart={(assignmentId) => startAssignment(assignmentId)}
+            waysToRaise={studentWaysToRaise}
+            onWayAction={(way) => {
+              if (way.action === 'openResult') return openStudentAssignmentResult(way.assignmentId, { origin: 'grades' });
+              if (way.action === 'openRewards') return openStudentDashboardMode('rewards');
+              // 'start' and 'openTestCycle' (startAssignment opens the cycle card).
+              return startAssignment(way.assignmentId);
+            }}
+            whatChangedPanel={renderWhatChangedPanel(false)}
           />
         </>,
       );
@@ -13105,6 +13128,7 @@ function App() {
           online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
         })}
         whatChangedPanel={renderWhatChangedPanel(true)}
+        waysToRaise={{ count: countWaysToRaise(studentWaysToRaise) }}
         supportPresentation={supportPresentation}
         classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
         onStartAssignment={startAssignment}
@@ -13193,6 +13217,14 @@ function App() {
           })}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
+          // Decision 3: once the work is closed for this student and feedback
+          // is released, their own answers beside the worked solutions. The
+          // callable re-checks every gate; this only decides whether to show it.
+          reviewPanel={resultEntry && recoveryAssignment && resultEntry.frozen
+            && !resultEntry.isTestCycle
+            && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
+            ? <ReviewMyWork assignment={recoveryAssignment} load={loadMyReviewWork} />
+            : null}
           todayEntry={resultTodayEntry}
           upNext={resultUpNext}
           // New work, not a return trip: no returnToResult.
