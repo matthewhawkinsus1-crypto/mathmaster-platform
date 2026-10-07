@@ -16,7 +16,9 @@
 // panel and the map to disagree about the same skill.
 
 import { STATUS, explainForStudent } from './recommendationEngine.js';
-import { describeSkill } from './skillGraph.js';
+import { describeSkill, teksSkillId } from './skillGraph.js';
+import { RETENTION_CHECK_ACTION_LABEL } from './pathSessionLaunch.js';
+import { toDisplayCode } from '../../utils/teksUtils.js';
 
 export const PATH_MARK = Object.freeze({
   [STATUS.REQUIRED]: { symbol: '★', label: 'Assigned', tone: '#a50e0e' },
@@ -50,6 +52,19 @@ export const CONTENT_PENDING_MARK = Object.freeze({
 export const RETENTION_MARK = Object.freeze({
   symbol: '↻', label: 'Quick retention check', tone: '#1e8e3e',
 });
+
+// Why a retention check is on the map, in the student's words. A concern (a
+// check that was missed, or recent slips on a skill that was secure) says so
+// plainly; neither sentence is a verdict, and both end on what the check is for.
+export const RETENTION_REASON = Object.freeze({
+  due: 'You learned this a while ago. A couple of questions is enough to check it has stayed with you.',
+  concern: 'Some recent answers on this one were off. A couple of questions will check it has stayed with you.',
+});
+
+// The retention scheduler's priority for a concern (retentionScheduler.js).
+const CONCERN_PRIORITY = 1;
+
+const ENGINE_BUCKETS = ['required', 'remediation', 'priority', 'recommended', 'available', 'extension', 'future', 'locked', 'mastered'];
 
 const mark = (status) => PATH_MARK[status] || { symbol: '●', label: 'Available', tone: '#5f6368' };
 
@@ -156,14 +171,73 @@ export const DEFAULT_LIMITS = Object.freeze({
   mastered: 6, retention: 2,
 });
 
+// A retention check on a skill the student has already shown. It is always a
+// door — a skill mastered ahead of the class is still worth checking — and it
+// launches a two-question check rather than practice (`isRetentionCheck`).
+const retentionCheckNode = (row, { concern = false } = {}) => ({
+  ...toPathNode(row),
+  selectable: true,
+  blockedBy: null,
+  symbol: RETENTION_MARK.symbol,
+  statusLabel: RETENTION_MARK.label,
+  tone: RETENTION_MARK.tone,
+  reason: concern ? RETENTION_REASON.concern : RETENTION_REASON.due,
+  isRetentionCheck: true,
+  retentionConcern: Boolean(concern),
+  actionLabel: RETENTION_CHECK_ACTION_LABEL,
+});
+
+/**
+ * The retention checks the map offers.
+ *
+ * `retentionDue` is the retention scheduler's `pendingProbes`
+ * (evaluateStudentRetentionSchedule) — the list the Overview banner reads, in
+ * its order: concerns first, then the most overdue. Nothing used to feed this
+ * section at all: it read a `retentionDue` flag on the engine's rows that no
+ * code ever set, so "Quick retention check" was always empty while the banner
+ * said a check was due.
+ *
+ * A check is offered only for a skill this course's engine returned, and the
+ * card is built from that row, so its name matches every other screen. A row an
+ * older caller flagged `retentionDue` / `retentionConcern` is still honoured,
+ * after the scheduler's. Content coverage is applied last and can only close
+ * the door, as everywhere else on the map.
+ */
+const buildRetentionChecks = (rowsFor, { retentionDue = [], cap = DEFAULT_LIMITS.retention, isCovered = null } = {}) => {
+  const rowBySkill = new Map();
+  ENGINE_BUCKETS.forEach((key) => rowsFor(key).forEach((row) => {
+    if (row?.skillId && !rowBySkill.has(row.skillId)) rowBySkill.set(row.skillId, row);
+  }));
+
+  const seen = new Set();
+  const checks = [];
+  list(retentionDue).forEach((probe) => {
+    const code = toDisplayCode(probe?.teksCode);
+    const row = code ? rowBySkill.get(teksSkillId(code)) : null;
+    if (!row || seen.has(row.skillId)) return;
+    seen.add(row.skillId);
+    checks.push(retentionCheckNode(row, { concern: Number(probe?.priority) === CONCERN_PRIORITY }));
+  });
+  rowsFor('mastered')
+    .filter((row) => row.retentionDue || row.retentionConcern)
+    .forEach((row) => {
+      if (seen.has(row.skillId)) return;
+      seen.add(row.skillId);
+      checks.push(retentionCheckNode(row, { concern: Boolean(row.retentionConcern) }));
+    });
+
+  return checks.slice(0, cap).map((node) => withCoverage(node, isCovered));
+};
+
 /**
  * Build the map.
  *
  * `options` is exactly what getStudentPathOptions returned. Returns null when
  * there is nothing to draw, so the caller can say why rather than render an
- * empty diagram.
+ * empty diagram. `retentionDue` is the retention scheduler's pending checks;
+ * see buildRetentionChecks.
  */
-export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) => {
+export const buildPathMap = (options, { limits = {}, isCovered = null, retentionDue = [] } = {}) => {
   if (!options || typeof options !== 'object') return null;
   const cap = { ...DEFAULT_LIMITS, ...limits };
   const rows = (key) => list(options[key]);
@@ -226,18 +300,7 @@ export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) =>
   // as a number in a sentence. A student who has finished eight skills should
   // be able to see the eight.
   const masteredNodes = mastered.slice(0, cap.mastered).map((row) => toNode(row));
-  const retentionDue = mastered
-    .filter((row) => row.retentionDue || row.retentionConcern)
-    .slice(0, cap.retention)
-    .map((row) => ({
-      ...toNode(row),
-      selectable: true,
-      symbol: RETENTION_MARK.symbol,
-      statusLabel: RETENTION_MARK.label,
-      tone: RETENTION_MARK.tone,
-      reason: 'You learned this a while ago. A couple of questions is enough to check it has stayed with you.',
-      isRetentionCheck: true,
-    }));
+  const retentionChecks = buildRetentionChecks(rows, { retentionDue, cap: cap.retention, isCovered });
 
   return {
     courseId: options.courseId || null,
@@ -248,13 +311,15 @@ export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) =>
     needsSupport,
     challenge,
     mastered: masteredNodes,
-    retentionDue,
+    retentionDue: retentionChecks,
     masteredCount: mastered.length,
     // What the whole course looks like, so a screen can say "8 of 48" without
     // counting rows itself.
-    totalSkills: ['required', 'remediation', 'priority', 'recommended', 'available', 'extension', 'future', 'locked', 'mastered']
-      .reduce((sum, key) => sum + rows(key).length, 0),
-    isEmpty: !focus.length && !branches.length && !comingUp.length && !needsSupport.length && !challenge.length,
+    totalSkills: ENGINE_BUCKETS.reduce((sum, key) => sum + rows(key).length, 0),
+    // A due retention check is something to do, so a map holding only that is
+    // not empty.
+    isEmpty: !focus.length && !branches.length && !comingUp.length && !needsSupport.length && !challenge.length
+      && !retentionChecks.length,
   };
 };
 
@@ -265,8 +330,7 @@ export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) =>
  */
 export const statusForSkill = (options, skillId) => {
   if (!options || !skillId) return null;
-  const buckets = ['required', 'remediation', 'priority', 'recommended', 'available', 'extension', 'future', 'locked', 'mastered'];
-  for (const key of buckets) {
+  for (const key of ENGINE_BUCKETS) {
     const found = list(options[key]).find((row) => row.skillId === skillId);
     if (found) return found.status;
   }

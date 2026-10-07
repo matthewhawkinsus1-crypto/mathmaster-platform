@@ -118,17 +118,27 @@ export default function SimulatedStudentExperience({
   // simulated session died on "That simulated session no longer exists."
   const learnerRef = useRef(learner);
   learnerRef.current = learner;
+  // Retention schedules follow the same read-through-a-ref, sync-afterwards
+  // pattern: a finished retention check moves them inside the runtime, which
+  // publishes them back up exactly as production's submitPathResponse does.
+  const retentionSchedulesRef = useRef(retentionSchedulesByTEKS);
+  retentionSchedulesRef.current = retentionSchedulesByTEKS;
   const runtime = useMemo(() => (pathBankQuestions ? createTeacherPathRuntime({
     assignments,
     pathBankQuestions,
     courseId,
     learner: learnerRef.current,
-    onChange: ({ learner: nextLearner, sessionAssignment }) => {
+    retentionSchedulesByTEKS: retentionSchedulesRef.current,
+    onChange: ({ learner: nextLearner, sessionAssignment, retentionSchedulesByTEKS: nextSchedules }) => {
       setSessionAssignments((current) => [
         ...current.filter((entry) => entry.id !== sessionAssignment.id),
         sessionAssignment,
       ]);
-      evidenceRef.current?.({ learner: nextLearner, sessionAssignment });
+      evidenceRef.current?.({
+        learner: nextLearner,
+        sessionAssignment,
+        ...(nextSchedules ? { retentionSchedulesByTEKS: nextSchedules } : {}),
+      });
     },
     // A deliberate reset (new slot, or "Reset simulated student") DOES replace
     // the runtime, because the learner identity changed.
@@ -137,6 +147,8 @@ export default function SimulatedStudentExperience({
   // Teacher force-skill actions rewrite the learner without changing its id.
   // Hand those through rather than rebuilding.
   useEffect(() => { runtime?.syncLearner?.(learner); }, [runtime, learner]);
+  // "Make Retention Due" rewrites the schedules the same way.
+  useEffect(() => { runtime?.syncRetentionSchedules?.(retentionSchedulesByTEKS); }, [runtime, retentionSchedulesByTEKS]);
 
   // Flatten the synthetic learner's recorded attempts into the evidence-event
   // shape the practice-history timeline reads.

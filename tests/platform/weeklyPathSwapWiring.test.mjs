@@ -11,6 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { weeklySessionLaunchOptions } from '../../src/platform/path/pathSessionLaunch.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -106,7 +107,14 @@ test('the Path screen offers only frozen swaps and launches what was chosen', ()
   assert.match(launchable, /: isSkillLaunchable\(coverage, teksCode\)/);
 
   const weeklyStart = region(app, 'const startWeeklySession = (session) => {', 'const chooseWeeklySlotAlternative', 'weekly start');
-  assert.match(weeklyStart, /chosenSkillId: chosen\?\.studentChose \? \(chosen\.chosenSkillId \|\| null\) : null,/);
+  // The weekly launch goes through the shared launch options (which also make
+  // a Retention slot a retention check); only a slot the student actually
+  // swapped names a chosen skill.
+  assert.match(weeklyStart, /startSession\(code, weeklySessionLaunchOptions\(session, \{ weekKey: weeklyGoal\?\.weekKey \|\| null \}\)\);/);
+  const swapped = weeklySessionLaunchOptions({ slot: 1, weeklySlotKey: 'k', purpose: 'currentLearning', studentChose: true, chosenSkillId: 'teks:A.5B' }, { weekKey: '2026-10-05' });
+  assert.equal(swapped.chosenSkillId, 'teks:A.5B');
+  const notSwapped = weeklySessionLaunchOptions({ slot: 1, weeklySlotKey: 'k', purpose: 'currentLearning', studentChose: false, chosenSkillId: 'teks:A.5B' }, { weekKey: '2026-10-05' });
+  assert.equal(notSwapped.chosenSkillId, null, 'an unswapped slot never sends a chosen skill');
   const sessionStart = region(app, 'const startSession = (teksCode, options = {}) => {', 'const launchedRef = useRef(null);', 'session start');
   assert.match(sessionStart, /chosenSkillId: options\.weeklySlotKey \? \(options\.chosenSkillId \|\| null\) : null,/);
 

@@ -58,7 +58,12 @@ const whyLabel = (blockedBy) => (
 function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress = null }) {
   const [showWhy, setShowWhy] = useState(false);
   const clickable = node.selectable && typeof onChoose === 'function' && !disabled;
-  const pass = describeCoursePathPass(passProgress || {}, { mastered: node.status === 'mastered' });
+  // A retention check is a two-question check, not a practice round, so its
+  // card carries no Level badge and its button says what it starts.
+  const retentionCheck = Boolean(node.isRetentionCheck);
+  const pass = retentionCheck
+    ? { hasCompletedPass: false, levelLabel: null, buttonLabel: node.actionLabel }
+    : describeCoursePathPass(passProgress || {}, { mastered: node.status === 'mastered' });
 
   return (
     <div style={{
@@ -104,7 +109,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         </div>
       )}
 
-      {!pass.hasCompletedPass && node.selectable && !disabled && (
+      {!pass.hasCompletedPass && pass.levelLabel && node.selectable && !disabled && (
         <div style={{ margin: '4px 0 9px', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850 }}>
           {pass.levelLabel}
         </div>
@@ -170,15 +175,17 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         <button
           type="button"
           onClick={() => onChoose(node)}
-          style={{ padding: '9px 14px', minHeight: 40, border: 0, borderRadius: 8, background: node.tone, color: '#fff', fontWeight: 900, cursor: 'pointer' }}
+          style={{ padding: '9px 14px', minHeight: 44, border: 0, borderRadius: 8, background: node.tone, color: '#fff', fontWeight: 900, cursor: 'pointer' }}
         >
           {pass.buttonLabel}
         </button>
       )}
 
       {/* Only rendered where a legitimate assessment alignment exists — the
-          menu returns nothing rather than showing four disabled buttons. */}
-      {clickable && practiceAs && (
+          menu returns nothing rather than showing four disabled buttons. A
+          retention check is the course skill itself, so it offers no other
+          format. */}
+      {clickable && practiceAs && !retentionCheck && (
         <PracticeAsMenu
           skillId={node.skillId}
           pathOptions={practiceAs.pathOptions}
@@ -219,6 +226,10 @@ function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = fals
 export const StudentLearningPath = ({
   pathOptions = null,
   onChooseSkill = null,
+  // The retention scheduler's pending checks (evaluateStudentRetentionSchedule
+  // `pendingProbes`). They fill "Quick retention check"; without them that
+  // section is empty, which is what it always was before they were passed.
+  retentionDue = null,
   // Everything the "Practice this skill as…" menu needs. Absent means the
   // menu is not offered at all, which is the honest state before CCMR
   // evidence has been loaded.
@@ -242,8 +253,12 @@ export const StudentLearningPath = ({
   skillProgressByTEKS = {},
 }) => {
   const map = useMemo(
-    () => buildPathMap(pathOptions, { ...(limits ? { limits } : {}), ...(isCovered ? { isCovered } : {}) }),
-    [pathOptions, limits, isCovered],
+    () => buildPathMap(pathOptions, {
+      ...(limits ? { limits } : {}),
+      ...(isCovered ? { isCovered } : {}),
+      ...(Array.isArray(retentionDue) ? { retentionDue } : {}),
+    }),
+    [pathOptions, limits, isCovered, retentionDue],
   );
   const passSummary = useMemo(
     () => summarizeCoursePathPasses(skillProgressByTEKS),
@@ -289,6 +304,8 @@ export const StudentLearningPath = ({
     title: node.title,
     status: node.status,
     remediationTarget: node.strengthen?.skillId || null,
+    // Read by pathCardLaunchOptions: a retention-check card starts the check.
+    isRetentionCheck: Boolean(node.isRetentionCheck),
   }) : null;
 
   return (
