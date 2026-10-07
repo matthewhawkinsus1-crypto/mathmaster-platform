@@ -1,4 +1,5 @@
 import MathDisplay from './MathDisplay';
+import { spokenMathLabel } from './platform/language/mathSpeechLabel.js';
 
 // Renders a side's terms (from algebraAstEngine's splitAdditiveTerms) as
 // individually addressable spans so the parent can measure real bounding
@@ -67,7 +68,7 @@ export default function AlgebraTermRow({
             role={onTermClick ? 'button' : undefined}
             tabIndex={onTermClick ? 0 : undefined}
             onKeyDown={onTermClick ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onTermClick(index); } } : undefined}
-            aria-label={onTermClick ? `${term.text}, ${interactionLabel}` : undefined}
+            aria-label={onTermClick ? `${spokenMathLabel(term.text)}, ${interactionLabel}` : undefined}
             aria-pressed={onTermClick ? selected : undefined}
             style={{
               position: 'relative',
@@ -82,7 +83,8 @@ export default function AlgebraTermRow({
               opacity: crossed ? 0.4 : 1,
               transition: 'opacity 0.25s ease 0.2s, outline-color 0.15s ease, background 0.15s ease',
               cursor: onTermClick ? 'pointer' : undefined,
-              outline: selected ? '2px solid #1a73e8' : 'none',
+              // Unselected: no inline outline, so the keyboard focus ring shows.
+              outline: selected ? '2px solid #1a73e8' : undefined,
               outlineOffset: '2px',
               background: selected ? 'rgba(26,115,232,0.12)' : 'transparent',
               borderRadius: onTermClick ? '8px' : 0,
