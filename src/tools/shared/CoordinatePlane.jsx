@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useMemo, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePlotHelpSlot } from './plotHelpScope.js';
 import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
@@ -6,6 +6,7 @@ import { readGraphPointCoordinates } from '../../graphPointUtils';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { useHasParentWorkView, usePublishWorkViewCapabilities } from '../../platform/workView/workViewCapabilities.js';
 import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js';
+import { describeCoordinatePlane } from '../../platform/language/graphDescription.js';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
@@ -40,6 +41,24 @@ const ZOOM_BUTTON = {
 };
 
 const tidy = (value) => Number(Number(value).toFixed(6));
+// One shared empty list standing in for every empty data prop, so the
+// description memo below is not invalidated by a fresh `[]` default (or a
+// caller's inline `[]`) on each render.
+const NONE = [];
+const orNone = (list) => (Array.isArray(list) && list.length ? list : NONE);
+
+const DATA_TABLE_TOGGLE = {
+  minHeight: 44,
+  padding: '0 10px',
+  border: '1px solid var(--mm-tint-border)',
+  borderRadius: 8,
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-primary-text)',
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+const DATA_CELL = { border: '1px solid var(--mm-tint-border)', padding: '3px 8px', textAlign: 'left' };
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 
 // `Math.round(v / step) * step` reintroduces float noise for steps like 0.1,
@@ -144,6 +163,17 @@ export default function CoordinatePlane({
   // draws the same snap-step minor grid a plotting plane does. Without it,
   // (3, -1) sits between gridlines two units apart and has to be guessed.
   readableGrid = false,
+  // WHAT A SCREEN READER HEARS BEYOND THE NAME (WCAG 1.1.1).
+  //
+  // By default the plane describes itself from the data it draws
+  // (platform/language/graphDescription.js): the window, each line, curve,
+  // guide, shape and point, read at the grid's resolution and never as an
+  // equation. Authored alt text, when a caller has it, wins.
+  description = null,
+  // The "Show data table" disclosure under a read-only plane. It is also left
+  // out automatically when the plane sits inside another control (a graph
+  // card that is itself a button), where a nested button is invalid.
+  dataTable = true,
   children,
 }) {
   const insideParentWorkView = useHasParentWorkView();
@@ -397,6 +427,56 @@ export default function CoordinatePlane({
     }
   };
 
+  /*
+   * GRAPHS SPEAK. The name stays short ("Coordinate plane"); what is drawn
+   * goes in the accessible description, so two graphs on one screen no longer
+   * announce identically. Memoised on the data, so a crosshair moving across an
+   * interactive plane does not resample every curve. Marks a tool draws itself
+   * as `children` cannot be read from data, and the text says so rather than
+   * pretending the list is complete.
+   */
+  const hasToolMarks = typeof children === 'function' || React.Children.toArray(children).length > 0;
+  const describedPoints = orNone(points);
+  const describedLines = orNone(lines);
+  const describedFunctions = orNone(functions);
+  const describedPolylines = orNone(polylines);
+  const describedRegions = orNone(regions);
+  const describedVerticals = orNone(verticalLines);
+  const describedHorizontals = orNone(horizontalLines);
+  const generatedDescription = useMemo(() => describeCoordinatePlane({
+    xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
+    points: describedPoints,
+    lines: describedLines,
+    functions: describedFunctions,
+    polylines: describedPolylines,
+    regions: describedRegions,
+    verticalLines: describedVerticals,
+    horizontalLines: describedHorizontals,
+    label: ariaLabel,
+    hasUndescribedMarks: hasToolMarks,
+    emptyText: interactive ? 'Nothing is plotted yet.' : 'Nothing is plotted.',
+  }), [
+    xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
+    describedPoints, describedLines, describedFunctions, describedPolylines, describedRegions, describedVerticals, describedHorizontals,
+    ariaLabel, hasToolMarks, interactive,
+  ]);
+  const authoredDescription = typeof description === 'string' ? description.trim() : '';
+  const spokenDescription = authoredDescription || generatedDescription.description;
+  // IDREFs, not url(#…), so useId's own characters are fine here.
+  const descriptionUid = useId();
+  const descriptionId = `mm-plane-desc-${descriptionUid}`;
+  const dataTableId = `mm-plane-table-${descriptionUid}`;
+  const [dataTableOpen, setDataTableOpen] = useState(false);
+  // Null until measured: the toggle must never render, even for one frame,
+  // inside a control it would be nested in.
+  const planeRef = useRef(null);
+  const [insideControl, setInsideControl] = useState(null);
+  useLayoutEffect(() => {
+    const host = planeRef.current?.parentElement;
+    setInsideControl(Boolean(host?.closest?.('button, a[href], label, [role="button"], [role="link"], [role="option"]')));
+  }, []);
+  const showDataTable = !interactive && dataTable !== false && insideControl === false && generatedDescription.tables.length > 0;
+
   const preview = keyboardActive ? keyboardCursor : pointerPreview;
   const previewText = preview ? `${cursorLabel} ${formatCoordinate(preview)}` : '';
 
@@ -443,13 +523,14 @@ export default function CoordinatePlane({
   usePublishWorkViewCapabilities(`coordinate-plane:${ariaLabel}`, publishedCapabilities);
 
   const plane = (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div ref={planeRef} style={{ position: 'relative', width: '100%' }}>
       <svg
         className={interactive ? 'mathmaster-responsive-canvas mathmaster-touch-surface' : 'mathmaster-responsive-canvas'}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         role={interactive ? 'application' : 'img'}
         aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.` : ariaLabel}
+        aria-describedby={descriptionId}
         tabIndex={interactive ? 0 : undefined}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -660,6 +741,45 @@ export default function CoordinatePlane({
             clipPath so they stop at the plotting rectangle too. */}
         {typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height, plotClip }) : children}
       </svg>
+      {/* The plane's accessible description. aria-describedby reads it even
+          while it is aria-hidden, so browse mode does not hear it a second
+          time as a loose paragraph after the image. Inside a card that is
+          itself a control, it stays exposed: there it is part of the card's
+          name, which is how the student tells the cards apart. */}
+      <p id={descriptionId} className="mm-sr-only" aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
+
+      {showDataTable ? (
+        <div className="mathmaster-plane-data" style={{ margin: '6px 0 0', textAlign: 'left' }}>
+          <button
+            type="button"
+            aria-expanded={dataTableOpen}
+            aria-controls={dataTableId}
+            onClick={() => setDataTableOpen((open) => !open)}
+            style={DATA_TABLE_TOGGLE}
+          >
+            {dataTableOpen ? 'Hide data table' : 'Show data table'}
+          </button>
+          <div id={dataTableId} hidden={!dataTableOpen} style={{ overflowX: 'auto', maxWidth: '100%' }}>
+            {dataTableOpen ? generatedDescription.tables.map((table) => (
+              <table key={table.caption} style={{ borderCollapse: 'collapse', margin: '8px 0 0', fontSize: 13, color: 'var(--mm-text)' }}>
+                <caption style={{ textAlign: 'left', fontWeight: 700, padding: '0 0 4px', color: 'var(--mm-text-muted)' }}>{table.caption}</caption>
+                <thead>
+                  <tr>{table.columns.map((column) => <th key={column} scope="col" style={DATA_CELL}>{column}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {table.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, cellIndex) => (cellIndex === 0
+                        ? <th key={cellIndex} scope="row" style={DATA_CELL}>{cell}</th>
+                        : <td key={cellIndex} style={DATA_CELL}>{cell}</td>))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )) : null}
+          </div>
+        </div>
+      ) : null}
 
       {zoomable ? (
         <div
