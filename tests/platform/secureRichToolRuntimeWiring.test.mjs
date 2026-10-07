@@ -153,9 +153,18 @@ test('Corrections and the teacher preview render through the same runtime', () =
   assert.doesNotMatch(executableSource(corrections), /<input|type="radio"/, 'no second field renderer');
   assert.match(preview, /<SecureExamQuestionPlayer[\s\S]{0,700}executionScope="teacherPreview"/);
   assert.match(preview, /<RichQuestionRuntime[\s\S]{0,200}mode="corrections"/);
-  // The preview asks the server for the stage's real policy, and keeps nothing.
+  // The preview asks the server for the stage's real policy — for a saved
+  // Test Cycle and for the unsaved one on the review screen alike.
   assert.match(preview, /previewTestCycleSecureItems\(\{ assignmentId: assignment\.id, draw: nextDraw, stage \}\)/);
-  assert.match(preview, /useEffect\(\(\) => \(\) => clearPreviewDrafts\(assignment\.id\), \[assignment\.id\]\);/);
+  assert.match(preview, /previewTestCycleSecureItems\(\{ candidate, draw: nextDraw, stage \}\)/);
+  // And keeps nothing: when it closes it clears its drafts under the SAME key
+  // every draft was written with. (An unsaved candidate has no assignment id,
+  // so the key is not always the id; what matters is that the two agree.)
+  const cleanup = preview.match(/useEffect\(\(\) => \(\) => clearPreviewDrafts\((\w+)\), \[\1\]\);/);
+  assert.ok(cleanup, 'the preview clears its drafts when it closes');
+  const written = [...preview.matchAll(/sessionId: previewDraftSession\((\w+)\)/g)].map((match) => match[1]);
+  assert.ok(written.length >= 2, 'both the Test and the Corrections players write preview drafts');
+  assert.ok(written.every((key) => key === cleanup[1]), `drafts are written under ${written.join(', ')} but cleared under ${cleanup[1]}`);
 });
 
 test('QuestionEngine publishes a registry tool\'s live work under server grading, ungraded', () => {

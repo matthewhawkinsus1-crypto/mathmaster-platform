@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
@@ -11,6 +11,7 @@ import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assign
 import { applySafeToolContractRepairs } from '../../platform/contract/questionToolContract.js';
 import { formatPlannedTime } from '../../platform/teacher/classworkPacing.js';
 import {
+  SECURE_FAMILY_IMPORT_ROUTE,
   buildTestCyclePhaseStatus,
   isTestCycleAssignment,
   resolveTestCycleStage,
@@ -41,6 +42,14 @@ import {
   repairQuestionWithAI,
 } from '../../services/assignmentAiService.js';
 import { preflightTestCycleCandidate } from '../../services/testCycleService.js';
+import { seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
+import { clearTeacherPathBankSnapshotCache } from '../../platform/path/pathBankSimulationService.js';
+import { testCycleCandidateContract } from '../../platform/teacher/testCyclePreviewModel.js';
+import {
+  familyDocumentsToRegister,
+  registrableTestCycleFamilies,
+  unavailableTestCycleFamilies,
+} from '../../platform/teacher/testCycleFamilyRegistration.js';
 import RepresentationAudit from './RepresentationAudit';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
 import {
@@ -57,6 +66,10 @@ import {
   newlyIntroducedPreflightErrors,
   replaceQuestionAtFlatIndex,
 } from '../../platform/preflight/preflightQuestionRepair.js';
+
+// The full student preview of a Test Cycle mounts the secure question player
+// and every Rich Tool, so it loads only when a teacher opens it.
+const TestCyclePreview = lazy(() => import('./TestCyclePreview.jsx'));
 
 // Narrow enough that side-by-side panels stop working. Matches the breakpoint
 // the student-side mobile container already uses, so the two agree about what
@@ -189,6 +202,9 @@ export const LessonPreflightModal = ({
   // { classId: number of active students } — lets Pre-Flight compare each
   // question's distinct versions with the class it will actually be given to.
   rosterSizesByClassId = {},
+  // Discoverability only: the root administrator is offered the in-place
+  // import of a Test Cycle's missing secure families. The server re-checks.
+  canManageSecureBank = false,
 }) => {
   const isNarrow = useIsNarrow();
   const [draft, setDraft] = useState(() => initialReviewDraft(initialDraft));
@@ -201,6 +217,10 @@ export const LessonPreflightModal = ({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewReviewComplete, setPreviewReviewComplete] = useState(false);
   const [serverCyclePreflight, setServerCyclePreflight] = useState(null);
+  // Bumped to ask the server again, e.g. after the missing families are imported.
+  const [serverCyclePreflightRun, setServerCyclePreflightRun] = useState(0);
+  const [familyRegistration, setFamilyRegistration] = useState({ busy: false, message: '', error: '', rejected: [] });
+  const [cyclePreviewOpen, setCyclePreviewOpen] = useState(false);
   const [honorsEnrichmentQuestion, setHonorsEnrichmentQuestion] = useState(null);
   const [honorsAiBusy, setHonorsAiBusy] = useState(false);
   const [honorsAiMessage, setHonorsAiMessage] = useState('');
@@ -269,7 +289,64 @@ export const LessonPreflightModal = ({
         if (active) setServerCyclePreflight({ loading: false, blocked: true, checks: [], errors: [error.message || 'Secure Test validation could not be completed.'] });
       });
     return () => { active = false; };
-  }, [effectiveAssignmentV5]);
+  }, [effectiveAssignmentV5, serverCyclePreflightRun]);
+  // What the server is sent to preview the unsaved Test Cycle: its contract,
+  // not its Review answers. Memoized, because the preview reloads on a change.
+  const testCycleCandidate = useMemo(
+    () => (isTestCycleAssignment(effectiveAssignmentV5) ? testCycleCandidateContract(effectiveAssignmentV5) : null),
+    [effectiveAssignmentV5],
+  );
+  const familiesToRegister = useMemo(() => (
+    serverCyclePreflight && !serverCyclePreflight.loading
+      ? registrableTestCycleFamilies(unavailableTestCycleFamilies({ preflight: serverCyclePreflight, blueprint: effectiveAssignmentV5.testBlueprint }))
+      : []
+  ), [serverCyclePreflight, effectiveAssignmentV5]);
+  // Import exactly the missing families from the Test's secure-families file,
+  // through the same validated, all-or-nothing importer Administration uses,
+  // then ask the server again. Families already in the bank are not touched.
+  const registerSecureFamilies = async (file) => {
+    if (!file || familyRegistration.busy) return;
+    setFamilyRegistration({ busy: true, message: 'Reading the families file…', error: '', rejected: [] });
+    let reachedServer = false;
+    try {
+      let parsed;
+      try {
+        parsed = JSON.parse(await file.text());
+      } catch {
+        throw new Error('That file is not valid JSON. Choose the secure-families .json file that came with this Test.');
+      }
+      const wanted = familiesToRegister.map((row) => row.familyId);
+      const { documents, missingFromFile } = familyDocumentsToRegister({ parsed, familyIds: wanted });
+      if (!documents.length) {
+        throw new Error(`That file does not contain ${wanted.join(', ')}. Choose the secure-families file that came with this Test.`);
+      }
+      reachedServer = true;
+      const imported = await seedPathQuestionBank(documents, {
+        onProgress: ({ phase }) => setFamilyRegistration((current) => ({
+          ...current,
+          message: phase === 'validating' ? 'The server is checking the family before anything is saved…'
+            : phase === 'coverage' ? 'Saved. Updating My Math Path coverage…'
+              : 'Saving to the secure question bank…',
+        })),
+      });
+      if (!imported.imported) {
+        setFamilyRegistration({ busy: false, message: '', error: 'The server refused it, so nothing was saved:', rejected: imported.rejected || [] });
+        return;
+      }
+      clearTeacherPathBankSnapshotCache();
+      setFamilyRegistration({
+        busy: false,
+        message: `Registered ${documents.map((document) => document.id).join(', ')} in the secure question bank.${missingFromFile.length ? ` Not in that file: ${missingFromFile.join(', ')}.` : ''}`,
+        error: '',
+        rejected: [],
+      });
+    } catch (error) {
+      setFamilyRegistration({ busy: false, message: '', error: error.message || 'The families could not be registered.', rejected: [] });
+    } finally {
+      // Whatever happened on the server, show what is true now.
+      if (reachedServer) setServerCyclePreflightRun((run) => run + 1);
+    }
+  };
   const publishingValidation = useMemo(
     () => validateLessonPublishingIntent(publishingIntent),
     [publishingIntent],
@@ -1410,7 +1487,12 @@ export const LessonPreflightModal = ({
           <button type="button" onClick={() => setPreviewReviewComplete((value) => !value)}>
             {previewReviewComplete ? 'Reset Review preview' : 'Simulate Review complete'}
           </button>
-          <small>This preview is isolated. It does not create or update student Test Cycle records, and secure questions are not loaded.</small>
+          <small>This preview is isolated. It does not create or update student Test Cycle records, and secure questions are not loaded here.</small>
+          {testCycleCandidate && (
+            <button type="button" onClick={() => setCyclePreviewOpen(true)} style={{ justifySelf: 'start', minHeight: 44 }}>
+              Sit the secure Test, Corrections and Retest as a student →
+            </button>
+          )}
         </section>
       )}
       {!currentActivity && <p>No sections are available to preview.</p>}
@@ -1618,6 +1700,76 @@ export const LessonPreflightModal = ({
           <strong>{serverCyclePreflight.loading ? 'Resolving secure Test…' : serverCyclePreflight.blocked ? 'Test Cycle cannot be published' : 'Test Cycle server preflight passed'}</strong>
           {(serverCyclePreflight.checks || []).map((check) => <div key={check.id}>{check.passed ? '✓' : '✗'} {check.label}</div>)}
           {(serverCyclePreflight.errors || []).map((error) => <div key={error} role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</div>)}
+          {familiesToRegister.length > 0 && (
+            <div data-secure-family-registration style={{ marginTop: 12, padding: 12, borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', display: 'grid', gap: 8 }}>
+              <strong>
+                {familiesToRegister.length === 1
+                  ? 'This Test names a secure family that is not in the question bank yet'
+                  : `This Test names ${familiesToRegister.length} secure families that are not in the question bank yet`}
+              </strong>
+              <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.5 }}>
+                {familiesToRegister.map((row) => (
+                  <li key={row.familyId}>
+                    {row.label}{row.alignmentKey ? ` (${row.alignmentKey.replace(/^texas:/i, '')})` : ''} — <code style={{ overflowWrap: 'anywhere' }}>{row.familyId}</code>
+                  </li>
+                ))}
+              </ul>
+              {canManageSecureBank ? (
+                <>
+                  <label style={{ display: 'grid', gap: 6, fontWeight: 800, fontSize: 13 }}>
+                    Import {familiesToRegister.length === 1 ? 'it' : 'them'} from this Test's secure-families file
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      disabled={familyRegistration.busy}
+                      onChange={(event) => {
+                        const [file] = event.target.files || [];
+                        event.target.value = '';
+                        registerSecureFamilies(file);
+                      }}
+                      style={{ fontSize: 14, minHeight: 44 }}
+                    />
+                  </label>
+                  <small style={{ color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
+                    Only the {familiesToRegister.length === 1 ? 'family' : 'families'} listed above {familiesToRegister.length === 1 ? 'is' : 'are'} imported; families already in the bank are not touched.
+                    The server checks {familiesToRegister.length === 1 ? 'it' : 'each one'} first and saves nothing if anything fails.
+                  </small>
+                </>
+              ) : (
+                <p style={{ margin: 0, lineHeight: 1.5 }}>
+                  Ask your MathMaster administrator to import this Test's secure-families file ({SECURE_FAMILY_IMPORT_ROUTE}), then open this review again.
+                </p>
+              )}
+            </div>
+          )}
+          {/* Outside the box: once nothing is missing the box goes, and the
+              teacher should still see what was registered (or why not). */}
+          {(familyRegistration.message || familyRegistration.error) && (
+            <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
+              {familyRegistration.message && <div role="status" style={{ fontWeight: 700, color: 'var(--mm-primary-text)' }}>{familyRegistration.message}</div>}
+              {familyRegistration.error && <div role="alert" style={{ fontWeight: 700, color: 'var(--mm-error-text)' }}>{familyRegistration.error}</div>}
+              {familyRegistration.rejected.map((entry, index) => (
+                <div key={`${entry.id || 'rejected'}-${index}`} style={{ fontSize: 13, color: 'var(--mm-error-text)' }}>
+                  <code>{entry.id || '(no id)'}</code>: {entry.reason}{entry.detail ? ` — ${entry.detail}` : ''}{entry.propertyPath ? ` (at ${entry.propertyPath})` : ''}
+                </div>
+              ))}
+            </div>
+          )}
+          {!serverCyclePreflight.loading && testCycleCandidate && (
+            <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => setCyclePreviewOpen(true)}
+                style={{ justifySelf: 'start', minHeight: 44, padding: '9px 14px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}
+              >
+                Preview the Test, Corrections and Retest as a student
+              </button>
+              <small style={{ color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
+                The student's card at every stage, and real secure items you can answer and have graded. Nothing is saved, and no student sees anything.
+                {serverCyclePreflight.blocked ? ' While this Test is blocked, the questions that cannot be issued yet are named in the preview.' : ''}
+              </small>
+            </div>
+          )}
         </section>
       )}
       <fieldset style={{ ...fieldsetStyle, marginTop: 0, padding: 0 }}>
@@ -1827,6 +1979,26 @@ export const LessonPreflightModal = ({
           )}
         </footer>
       </section>
+      {cyclePreviewOpen && testCycleCandidate && (
+        <Suspense fallback={<p role="status" style={{ position: 'fixed', top: 12, left: 12, zIndex: 11000, margin: 0, padding: '8px 12px', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)' }}>Opening the student preview…</p>}>
+          <TestCyclePreview
+            assignment={effectiveAssignmentV5}
+            candidate={testCycleCandidate}
+            onClose={() => setCyclePreviewOpen(false)}
+            // Review is ordinary content, already playable in this review's
+            // own student preview: go there instead of a second player.
+            onPreviewReview={() => {
+              const reviewIndex = activities.findIndex((activity) => activity.role === 'review');
+              setCyclePreviewOpen(false);
+              setPreviewOpen(true);
+              if (reviewIndex >= 0) {
+                setDemoActivityIndex(reviewIndex);
+                setDemoQuestionIndex(0);
+              }
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

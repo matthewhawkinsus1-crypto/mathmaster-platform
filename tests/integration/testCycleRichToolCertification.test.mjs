@@ -46,7 +46,7 @@ import { createRequire } from 'node:module';
 import { BANK_FAMILY_BY_TOOL, RICH_TOOL_ANSWERS, loadBankFamilies } from '../fixtures/secureRichToolAnswers.mjs';
 import { assistanceKeysIn } from '../../functions/shared/questionRuntimePolicy.mjs';
 import {
-  db, fns, readCorrectionPlan, readRecord, readSession, refusal, studentRequest, teacherRequest, TEACHER_EMAIL,
+  db, fns, readCorrectionPlan, readRecord, readSession, refusal, studentRequest, teacherRequest, TEACHER_EMAIL, OTHER_TEACHER_EMAIL,
 } from './testCycleCertificationHarness.mjs';
 
 const require = createRequire(import.meta.url);
@@ -442,4 +442,61 @@ test('teacher preview renders the same Rich Tool items, grades them with the rea
   const correctionsPreview = await fns.previewTestCycleSecureItems.run(teacherRequest({ assignmentId: ASSIGNMENT_ID, draw: 4, stage: 'corrections' }));
   correctionsPreview.items.forEach((item) => assert.equal(item.questionInstance.runtimeMode, 'corrections'));
   assert.equal(await countSessions(), sessionsBefore, 'preview created no session');
+});
+
+test('an UNSAVED Test Cycle previews the same Rich Tool items from the review screen, graded inside its own blueprint, writing nothing', async () => {
+  // The review screen has no assignment id: the teacher is still deciding
+  // whether to publish, and while preflight blocks it they could not save it.
+  const countSessions = async () => (await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT_ID).get()).size;
+  const sessionsBefore = await countSessions();
+  const { id: _unsaved, ...candidate } = assignmentDoc(`${PREFIX}unsaved`);
+  const answer = (item) => ({ responses: {}, raw: answerFor(item.questionInstance) });
+
+  const preview = await fns.previewTestCycleSecureItems.run(teacherRequest({ assignment: candidate, draw: 1, stage: 'test' }));
+  assert.equal(preview.writes, 'none');
+  assert.equal(preview.candidate, true);
+  assert.equal(preview.assignmentId, null, 'an unsaved cycle has no id, and is given none');
+  assert.equal(preview.items.length, TOOLS.length);
+  for (const item of preview.items) {
+    assertSecurePublic(item.questionInstance, 'secureTest');
+    // eslint-disable-next-line no-await-in-loop
+    const graded = await fns.gradeTestCyclePreviewItem.run(teacherRequest({ previewItemId: item.previewItemId, assignment: candidate, responsePayload: answer(item) }));
+    assert.equal(graded.isCorrect, true, `${item.questionInstance.pathToolId} graded correct in the unsaved preview`);
+  }
+  const retest = await fns.previewTestCycleSecureItems.run(teacherRequest({ assignment: candidate, draw: 2, stage: 'retest' }));
+  retest.items.forEach((item) => assert.equal(item.questionInstance.runtimeMode, 'secureRetest'));
+  const corrections = await fns.previewTestCycleSecureItems.run(teacherRequest({ assignment: candidate, draw: 3, stage: 'corrections' }));
+  corrections.items.forEach((item) => assert.equal(item.questionInstance.runtimeMode, 'corrections'));
+
+  // The grading boundary is the saved preview's: the family must be in the
+  // candidate's own blueprint, the seed this teacher's, and never a student.
+  const [first] = preview.items;
+  const narrowed = { ...candidate, testBlueprint: { ...candidate.testBlueprint, targets: candidate.testBlueprint.targets.filter((target) => !target.familyIds.includes(first.slot.familyId)) } };
+  const outside = await refusal(fns.gradeTestCyclePreviewItem.run(teacherRequest({ previewItemId: first.previewItemId, assignment: narrowed, responsePayload: answer(first) })));
+  assert.equal(outside?.code, 'permission-denied', 'a family outside the candidate blueprint is not graded');
+  const otherTeacher = await refusal(fns.gradeTestCyclePreviewItem.run(teacherRequest({ previewItemId: first.previewItemId, assignment: candidate, responsePayload: answer(first) }, OTHER_TEACHER_EMAIL)));
+  assert.equal(otherTeacher?.code, 'permission-denied', 'another teacher cannot use this preview as an oracle');
+  const student = await refusal(fns.previewTestCycleSecureItems.run(studentRequest(STUDENT, { assignment: candidate })));
+  assert.equal(student?.code, 'permission-denied', 'a student cannot preview an unsaved cycle');
+  const studentGrade = await refusal(fns.gradeTestCyclePreviewItem.run(studentRequest(STUDENT, { previewItemId: first.previewItemId, assignment: candidate, responsePayload: answer(first) })));
+  assert.equal(studentGrade?.code, 'permission-denied');
+
+  // A blueprint naming a family that was never imported: the preview shows the
+  // rest and names the empty slot; preflight names the family and the fix.
+  const missing = { ...candidate, testBlueprint: { ...candidate.testBlueprint, targets: [...candidate.testBlueprint.targets, {
+    targetId: 't-not-imported', alignmentKey: 'texas:A2.3F', label: 'Graph a system of inequalities', dok: 2, difficultyBand: 3,
+    representation: 'graph', toolId: 'systemsWorkspace', anchor: true, weight: 1, questionCount: 1, familyIds: [`${PREFIX}never_imported`],
+  }] } };
+  const partial = await fns.previewTestCycleSecureItems.run(teacherRequest({ assignment: missing }));
+  assert.equal(partial.items.length, TOOLS.length);
+  assert.equal(partial.unfilledSlots, 1);
+  assert.deepEqual(partial.unfilledTargetIds, ['t-not-imported']);
+  const { preflight } = await fns.preflightTestCycleCandidate.run(teacherRequest({ assignment: missing }));
+  assert.equal(preflight.blocked, true);
+  assert.deepEqual(preflight.unavailableFamilies.map((row) => [row.familyId, row.status]), [[`${PREFIX}never_imported`, 'unregistered']]);
+  assert.ok(preflight.errors.some((error) => error.includes(`Not in the secure question bank: ${PREFIX}never_imported`)), preflight.errors.join('\n'));
+
+  assert.equal(await countSessions(), sessionsBefore, 'the unsaved preview created no session');
+  const candidateSessions = await db.collection('examSessions').where('courseTest.assignmentId', '>=', 'candidate-').where('courseTest.assignmentId', '<', 'candidate.').get();
+  assert.equal(candidateSessions.size, 0, 'and none under a candidate id either');
 });

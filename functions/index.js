@@ -22206,12 +22206,54 @@ function decodePreviewItem(text) {
   }
 }
 
+/*
+ * PREVIEW A TEST CYCLE BEFORE IT IS SAVED.
+ *
+ * A teacher reviewing an import has no assignment id yet, and while preflight
+ * blocks the save never gets one, so the one screen that shows how the Test,
+ * its Corrections and its Retest look to a student was unreachable exactly
+ * when the teacher needed it. A candidate is previewed by the same plan,
+ * instantiation, certification and sanitizer as a saved Test Cycle, and
+ * nothing is written.
+ *
+ * Its grading boundary is the saved preview's: the family must be one the
+ * candidate's own blueprint names, and the seed must name this teacher's
+ * preview student. Any teacher can make a blueprint real by saving it, so this
+ * is no wider an answer oracle than a saved Test Cycle already is.
+ */
+async function loadTestCycleCandidate(db, candidate) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    throw new HttpsError("invalid-argument", "A Test Cycle assignment candidate is required.");
+  }
+  const shared = await testCycleLib.shared();
+  if (!shared.policy.declaresTestCycle(candidate)) {
+    throw new HttpsError("failed-precondition", "That assignment is not a MathMaster Test Cycle.");
+  }
+  const policy = shared.policy.normalizeTestCyclePolicy(candidate.assessmentPolicy)
+    || shared.policy.defaultTestCyclePolicy();
+  const { blueprint } = await resolveSecureTestBlueprint(db, candidate, shared);
+  // Issuance seeds need an assignment id. A candidate's is its blueprint's
+  // digest: the same review shows the same draw, and an edited blueprint a
+  // new one. It is never a real assignment's id, so no student's seed matches.
+  const digest = crypto.createHash("sha256").update(JSON.stringify(blueprint)).digest("hex").slice(0, 24);
+  return { assignmentId: `candidate-${digest}`, assignment: candidate, policy, blueprint, shared };
+}
+
 exports.previewTestCycleSecureItems = onCall(async (request) => {
   const db = getFirestore();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
-  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  let teacherUid;
+  let loaded;
+  if (request.data?.assignmentId) {
+    const assignmentSnapshot = await db.collection("assignments").doc(String(request.data.assignmentId).trim()).get();
+    if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+    ({ teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot));
+    loaded = await loadTestCycleAssignment(db, request.data.assignmentId, { allowInvalid: true });
+  } else {
+    // The unsaved Test Cycle on the teacher's review screen.
+    teacherUid = await requireTeacher(request);
+    loaded = { ...(await loadTestCycleCandidate(db, request.data?.assignment)), candidate: true };
+  }
+  const { assignmentId, assignment, policy, blueprint, shared } = loaded;
   if (!blueprint.targets.length) throw new HttpsError("failed-precondition", "This Test Cycle has no secure Test blueprint to preview.");
 
   const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(blueprint));
@@ -22285,17 +22327,26 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
         secureCompatible: certification.compatible,
         devices: certification.devices || null,
       },
-      previewItemId: encodePreviewItem({ a: assignmentId, f: entry.familyId, s: entry.seedKey, d: entry.dok, b: entry.difficultyBand }),
+      // A candidate's item is regraded against the candidate the teacher
+      // sends back (`c`), a saved one against the stored assignment (`a`).
+      previewItemId: encodePreviewItem({
+        ...(loaded.candidate ? { c: 1 } : { a: assignmentId }),
+        f: entry.familyId, s: entry.seedKey, d: entry.dok, b: entry.difficultyBand,
+      }),
     });
   }
   return {
     success: true,
-    assignmentId,
+    assignmentId: loaded.candidate ? null : assignmentId,
+    candidate: loaded.candidate === true,
     title: blueprint.title || assignment?.title || "Test",
     draw,
     totalQuestions: plan.totalQuestions,
     shown: items.length,
     unfilledSlots: plan.unfilledSlots.length,
+    // Which blueprint targets have no family to preview (teacher only), so the
+    // screen can say "Question 8 is missing" rather than show nine of ten.
+    unfilledTargetIds: [...new Set(plan.unfilledSlots.map((slot) => slot.targetId))],
     delivery: testCycleDeliveryFacts(blueprint),
     policy: {
       passingScore: policy.passingScore,
@@ -22311,11 +22362,20 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
 exports.gradeTestCyclePreviewItem = onCall(async (request) => {
   const db = getFirestore();
   const decoded = decodePreviewItem(request.data?.previewItemId);
-  if (!decoded?.a || !decoded?.f || !decoded?.s) throw new HttpsError("invalid-argument", "That preview item is not valid.");
-  const assignmentSnapshot = await db.collection("assignments").doc(String(decoded.a)).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
-  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { blueprint } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
+  if (!(decoded?.a || decoded?.c === 1) || !decoded?.f || !decoded?.s) throw new HttpsError("invalid-argument", "That preview item is not valid.");
+  let teacherUid;
+  let blueprint;
+  if (decoded.c === 1) {
+    // An unsaved candidate's item: judged against the candidate the teacher
+    // is reviewing, under the same family and preview-seed checks below.
+    teacherUid = await requireTeacher(request);
+    ({ blueprint } = await loadTestCycleCandidate(db, request.data?.assignment));
+  } else {
+    const assignmentSnapshot = await db.collection("assignments").doc(String(decoded.a)).get();
+    if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+    ({ teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot));
+    ({ blueprint } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true }));
+  }
   if (!blueprintFamilyIds(blueprint).includes(String(decoded.f))) {
     throw new HttpsError("permission-denied", "That family is not part of this Test's blueprint.");
   }
