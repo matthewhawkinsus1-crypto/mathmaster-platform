@@ -40,7 +40,12 @@ const SCENES = [
   // The Assignments Center is the densest of these screens — tabs, a search
   // box, a period select and a card list — so it is the most likely to push
   // the page sideways at 390px.
-  { name: 'assignmentsCenter', mustContain: ['My Assignments', 'Active · ', 'Upcoming · ', 'Completed · 2', 'Closed — try again · 1'], mustReach: ['Assignments', 'Grades', 'My Math Path', 'Tests & Exams', 'Home'] },
+  // Completed · 4: a lesson is finished when every section is done at any
+  // accuracy (product decision 4), so the two classwork lessons whose every
+  // question is answered or out of tries count as Completed alongside the two
+  // practice-only ones — the same four the Grade Center lists as Graded.
+  // (Inequalities Review is closed, so it is also under "Closed — try again".)
+  { name: 'assignmentsCenter', mustContain: ['My Assignments', 'Active · ', 'Upcoming · ', 'Completed · 4', 'Closed — try again · 1'], mustReach: ['Assignments', 'Grades', 'My Math Path', 'Tests & Exams', 'Home'] },
   // Everything has closed, so the default Active tab is empty. An empty tab on
   // a screen whose job is finding things has to say where the work went.
   { name: 'assignmentsCenterClosed', mustContain: ['My Assignments', 'All marking periods'], mustReach: ['Grades'] },
@@ -56,7 +61,9 @@ const SCENES = [
   { name: 'gradeCenter', mustContain: ['My Grades', 'Current MathMaster grade', 'View Results'], mustReach: ['← Home', 'Assignments'] },
   // A closed row offers its no-credit re-try, never a bare "Practice".
   { name: 'gradeCenterClosed', mustContain: ['Past Marking Periods'], mustReach: ['← Home', 'Try it again — no credit'] },
-  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL'], mustReach: ['View All Grades', 'Try DOL again — no credit', '← Assignments'] },
+  // The Classroom receipt is said plainly: never the sync's "checkpoint" or
+  // "teacher draft" vocabulary.
+  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL', 'Google Classroom shows 84%'], mustNotContain: ['checkpoint', 'teacher draft'], mustReach: ['View All Grades', 'Try DOL again — no credit', '← Assignments'] },
   { name: 'assignmentResultOpen', mustContain: ['Your grade'], mustReach: ['View All Grades'] },
 ];
 
@@ -186,6 +193,9 @@ for (const scene of SCENES) {
   const renderedText = seen.text.toLowerCase();
   for (const needle of scene.mustContain || []) {
     if (!renderedText.includes(needle.toLowerCase())) problems.push(`missing expected text: ${needle}`);
+  }
+  for (const needle of scene.mustNotContain || []) {
+    if (renderedText.includes(needle.toLowerCase())) problems.push(`student copy contains: ${needle}`);
   }
   for (const needle of scene.mustReach || []) {
     const control = seen.controls.find((entry) => entry.label.toLowerCase().includes(needle.toLowerCase()));

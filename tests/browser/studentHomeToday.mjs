@@ -211,6 +211,67 @@ for (const viewport of VIEWPORTS) {
   check(JSON.stringify(recoveryPress) === JSON.stringify([{ fn: 'result', args: ['recovery'] }]), tag(`recovery: press ${JSON.stringify(recoveryPress)}`));
   await layout('recovery');
 
+  // --- The other kinds of next action ---------------------------------------
+  // Each scene: exactly one primary action, rewards below it, no support-plan
+  // wording, no teacher jargon, no "Nothing waiting" beside work.
+  const FORBIDDEN = /inclusion|\bIEP\b|special[- ]ed|accommodat|support plan|section-specific|teacher draft|checkpoint|\bvariant|\bseed\b|\btoken\b|restored from this browser/i;
+  const sceneBasics = async (name, model) => {
+    check(await page.locator('[data-primary-action]').count() === 1, tag(`${name}: ${await page.locator('[data-primary-action]').count()} primary actions`));
+    const words = await text();
+    const bad = words.match(FORBIDDEN);
+    check(!bad, tag(`${name}: forbidden wording "${bad?.[0]}"`));
+    const yPrimary = await y('[data-primary-action]');
+    const yRewards = await y('[aria-labelledby="rewards-summary-heading"]');
+    if (yRewards > -1) check(yPrimary > 0 && yRewards > yPrimary, tag(`${name}: rewards (${yRewards}) above the primary action (${yPrimary})`));
+    await layout(name);
+    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `home-${name}-${viewport.name}.png`), fullPage: true });
+    return { words, model };
+  };
+
+  const warm = await scene('warmup');
+  await sceneBasics('warmup', warm);
+  check(warm.nextAction.kind === 'warmup' && warm.nextAction.assignmentId === 'warmlive', tag(`warmup: next action ${JSON.stringify(warm.nextAction)}`));
+  check(await page.locator('[data-secondary-live="warmup"]').count() === 0, tag('warmup: Warm-Up rendered twice'));
+  await page.locator('[data-primary-action]').click();
+  const warmPress = await calls();
+  // Question 0 of the Warm-Up is already correct; Start lands on question 1.
+  check(JSON.stringify(warmPress) === JSON.stringify([{ fn: 'start', args: ['warmlive', 1] }]), tag(`warmup: primary press ${JSON.stringify(warmPress)} (question 0 is finished)`));
+
+  const both = await scene('bothLive');
+  await sceneBasics('bothLive', both);
+  check(both.nextAction.kind === 'dol' && both.activeWarmups.includes('warmlive'), tag(`bothLive: ${JSON.stringify({ next: both.nextAction, warmups: both.activeWarmups })}`));
+  await page.locator('[data-secondary-live="warmup"] button').click();
+  const secondaryPress = await calls();
+  check(JSON.stringify(secondaryPress) === JSON.stringify([{ fn: 'start', args: ['warmlive', 1] }]), tag(`bothLive: secondary Start Warm-Up sent ${JSON.stringify(secondaryPress)} (question 0 is finished)`));
+
+  const waitingOnly = await scene('waitingOnly');
+  const waitingWords = (await sceneBasics('waitingOnly', waitingOnly)).words;
+  check(waitingOnly.nextAction.kind === 'assignedSoon', tag(`waitingOnly: next action ${JSON.stringify(waitingOnly.nextAction)}`));
+  check(!/caught up|Nothing waiting/i.test(waitingWords), tag('waitingOnly: celebrates or says "Nothing waiting" while work is waiting'));
+  check(/opens/i.test(await page.locator('#what-now-heading').locator('..').innerText()), tag('waitingOnly: the card does not say what the work is waiting for'));
+  await page.locator('[data-primary-action]').click();
+  check(JSON.stringify(await calls()) === JSON.stringify([{ fn: 'mathPath', args: [] }]), tag('waitingOnly: primary does not open My Math Path'));
+
+  const nothing = await scene('nothingAssigned');
+  const nothingWords = (await sceneBasics('nothingAssigned', nothing)).words;
+  check(nothing.nextAction.kind === 'weeklyPath', tag(`nothingAssigned: next action ${JSON.stringify(nothing.nextAction)}`));
+  check(/Nothing assigned yet/.test(nothingWords), tag('nothingAssigned: no "Nothing assigned yet"'));
+
+  const allDone = await scene('allDone');
+  const allDoneWords = (await sceneBasics('allDone', allDone)).words;
+  check(allDone.nextAction.kind === 'clear', tag(`allDone: next action ${JSON.stringify(allDone.nextAction)}`));
+  check(!/\bLate\b/.test(allDoneWords.replace(/Late work is still open and still counts\./g, '')), tag('allDone: finished work says Late'));
+
+  const weekly = await scene('weeklyPath');
+  await sceneBasics('weeklyPath', weekly);
+  check(weekly.nextAction.kind === 'weeklyPath', tag(`weeklyPath: next action ${JSON.stringify(weekly.nextAction)}`));
+  check(!/caught up/i.test(await text()), tag('weeklyPath: says "caught up" with the Path goal pending'));
+
+  const unknown = await scene('pathUnknown');
+  await sceneBasics('pathUnknown', unknown);
+  check(unknown.nextAction.kind === 'weeklyPathStatus', tag(`pathUnknown: next action ${JSON.stringify(unknown.nextAction)}`));
+  check(!/caught up/i.test(await text()), tag('pathUnknown: celebrates an unconfirmed Path goal'));
+
   check(consoleErrors.length === 0, tag(`console errors: ${consoleErrors.join(' | ')}`));
   await context.close();
 }

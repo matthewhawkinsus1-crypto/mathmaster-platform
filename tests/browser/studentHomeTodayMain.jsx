@@ -41,11 +41,13 @@ const YESTERDAY = dateKey(NOW - 24 * HOUR);
 // Period 1 runs around "now". The DOL works the last 10 minutes before a
 // 5-minute pack-up, so a period ending in 60 minutes has its DOL waiting and
 // one ending in 12 minutes has it open.
-const scheduleEndingIn = (minutes) => ({
+// `startedMinutesAgo` moves the bell: a period that began 3 minutes ago has
+// its Warm-Up open (it closes 10 minutes after the start).
+const scheduleEndingIn = (minutes, startedMinutesAgo = 30) => ({
   version: 2,
   dayTypeOverrides: { [TODAY]: 'A' },
   daySchedules: {
-    A: { periods: { [PERIOD]: { enabled: true, start: clock(NOW - 30 * MINUTE), end: clock(NOW + minutes * MINUTE) } } },
+    A: { periods: { [PERIOD]: { enabled: true, start: clock(NOW - startedMinutesAgo * MINUTE), end: clock(NOW + minutes * MINUTE) } } },
     B: { periods: {} },
   },
 });
@@ -80,6 +82,9 @@ const A = {
   finished: lesson('finished', 'Solving Two-Step Equations', { classwork: 1, practice: 2 }, { dueAt: at(-24 * HOUR), lateDueAt: at(5 * 24 * HOUR) }),
   closed: lesson('closed', 'Order of Operations', { classwork: 1, practice: 2 }, { dueAt: at(-10 * 24 * HOUR), lateDueAt: at(-3 * 24 * HOUR) }),
   dollive: lesson('dollive', 'Rate of Change', { classwork: 1, dol: 2 }, { dol: { enabled: true, instructionDate: TODAY } }),
+  // A live Warm-Up whose first question is already answered: Start lands on
+  // the second one, never back on the finished first.
+  warmlive: lesson('warmlive', 'Factoring Trinomials', { warmup: 2, classwork: 1 }, { warmup: { enabled: true, instructionDate: TODAY } }),
 };
 
 const TRACKER = {
@@ -91,6 +96,7 @@ const TRACKER = {
   finished: { 0: correct, 1: correct, 2: expired },
   closed: { 0: correct, 1: tried },
   dollive: { 0: correct },
+  warmlive: { 0: correct },
 };
 
 const PROVIDERS = {
@@ -109,21 +115,25 @@ const PROVIDERS = {
   getSectionAccessState,
 };
 
-const build = (assignments, { scheduleMinutes = 60 } = {}) => {
+const build = (assignments, { scheduleMinutes = 60, startedMinutesAgo = 30, weeklyProgress = { completed: 1, required: 2, remaining: 1 } } = {}) => {
   const dashboard = buildStudentDashboardModel({
     assignments,
     classId: CLASS_ID,
     classPeriod: PERIOD,
     nowValue: NOW,
     tracker: TRACKER,
-    classSchedule: scheduleEndingIn(scheduleMinutes),
+    classSchedule: scheduleEndingIn(scheduleMinutes, startedMinutesAgo),
     studentId: STUDENT_ID,
     recoveryStateByAssignment: { recovery: { dol: 'unlocked' } },
     providers: PROVIDERS,
   });
-  const nextAction = resolveNextAction({ dashboard, weeklyProgress: { completed: 1, required: 2, remaining: 1 } });
+  const nextAction = resolveNextAction({ dashboard, weeklyProgress });
   return { dashboard, nextAction };
 };
+
+// A wallet with something in it, so the rewards card renders and its place
+// below the primary action can be measured.
+const WALLET = { hasAnything: true, practicePasses: { count: 1, expiringSoonCount: 0 }, badges: [], classPoints: { balance: 120 } };
 
 window.__mmHomeCalls = [];
 const record = (fn) => (...args) => { window.__mmHomeCalls.push({ fn, args }); };
@@ -135,8 +145,8 @@ const WhatChanged = () => (
   </section>
 );
 
-const home = ({ assignments, scheduleMinutes, supportPresentation = {}, extras = {} }) => {
-  const { dashboard, nextAction } = build(assignments, { scheduleMinutes });
+const home = ({ assignments, scheduleMinutes, startedMinutesAgo, weeklyProgress, supportPresentation = {}, extras = {} }) => {
+  const { dashboard, nextAction } = build(assignments, { scheduleMinutes, startedMinutesAgo, weeklyProgress });
   window.__mmHomeModel = {
     nextAction: { kind: nextAction.kind, assignmentId: nextAction.assignment?.id ?? null, questionIndex: nextAction.questionIndex ?? null, opensResult: Boolean(nextAction.opensResult) },
     entries: dashboard.allEntries.map((entry) => ({
@@ -146,6 +156,7 @@ const home = ({ assignments, scheduleMinutes, supportPresentation = {}, extras =
     resume: dashboard.resumeAssignment?.id ?? null,
     resumeQuestionIndex: dashboard.resumeQuestionIndex,
     activeDols: dashboard.activeDols.map(({ assignment }) => assignment.id),
+    activeWarmups: dashboard.activeWarmups.map(({ assignment }) => assignment.id),
   };
   return (
     <StudentDashboardView
@@ -183,6 +194,19 @@ const SCENES = {
   dol: () => home({ assignments: [A.inprog, A.dollive, A.later], scheduleMinutes: 12 }),
   dolHidden: () => home({ assignments: [A.inprog, A.dollive, A.later], scheduleMinutes: 12, supportPresentation: { hideCountdowns: true } }),
   recovery: () => home({ assignments: [A.recovery, A.finished] }),
+  // The remaining kinds of "what should I do now?" — each must still be ONE
+  // primary action, with rewards below it.
+  warmup: () => home({ assignments: [A.warmlive, A.later], scheduleMinutes: 50, startedMinutesAgo: 3, extras: { rewardWallet: WALLET, onOpenRewards: record('rewards') } }),
+  // Path goal met, so the waiting work itself is the answer ("DOL opens at …").
+  // A short period: the Warm-Up (first 10 minutes) and the DOL (last 10
+  // before pack-up) are both live. The DOL leads; the Warm-Up is a secondary
+  // card whose Start still lands on its unfinished question.
+  bothLive: () => home({ assignments: [A.dollive, A.warmlive], scheduleMinutes: 12, startedMinutesAgo: 3 }),
+  waitingOnly: () => home({ assignments: [A.locked, A.dolwait], weeklyProgress: { completed: 2, required: 2, remaining: 0 }, extras: { rewardWallet: WALLET, onOpenRewards: record('rewards') } }),
+  nothingAssigned: () => home({ assignments: [], extras: { rewardWallet: WALLET, onOpenRewards: record('rewards') } }),
+  allDone: () => home({ assignments: [A.finished, A.excused, A.closed], weeklyProgress: { completed: 2, required: 2, remaining: 0 }, extras: { rewardWallet: WALLET, onOpenRewards: record('rewards') } }),
+  weeklyPath: () => home({ assignments: [A.finished, A.excused], extras: { rewardWallet: WALLET, onOpenRewards: record('rewards') } }),
+  pathUnknown: () => home({ assignments: [A.finished], weeklyProgress: null }),
 };
 
 const listeners = new Set();

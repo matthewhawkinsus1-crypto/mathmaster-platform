@@ -10,6 +10,7 @@ import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studen
 import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
 import { SECTION_STATE, describeSectionWait } from '../../platform/student/lessonSections.js';
+import { firstOpenLiveQuestionIndex } from '../../platform/student/liveSectionEntry.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { testCycleHasUnseenChange } from '../../platform/student/testCycleDiscovery.js';
 
@@ -444,25 +445,25 @@ export default function StudentDashboardView({
         )}
 
         {/* Other live work — never the one the card above already names. */}
-        {secondaryWarmups.map(({ assignment, state, questionIndices = [] }) => (
+        {secondaryWarmups.map(({ assignment, state, questionIndices = [], records = [] }) => (
           <section key={`warmup-${assignment.id}`} data-secondary-live="warmup" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-warning-bg)', border: '2px solid #f9ab00', color: 'var(--mm-warning-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}>Warm-Up active now</div>
               <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{assignment.title}</div>
               {!hideCountdowns && <div style={{ fontWeight: 900 }}><DOLCountdown endsAt={state.endsAt} /> left</div>}
             </div>
-            <button type="button" onClick={() => onStartAssignment(assignment.id, questionIndices[0] ?? 0)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #b06000', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontWeight: 900 }}>Start Warm-Up</button>
+            <button type="button" onClick={() => onStartAssignment(assignment.id, firstOpenLiveQuestionIndex({ indices: questionIndices, records, section: 'warmup' }) ?? 0)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #b06000', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontWeight: 900 }}>Start Warm-Up</button>
           </section>
         ))}
 
-        {secondaryDols.map(({ assignment, state }) => (
+        {secondaryDols.map(({ assignment, state, records = [] }) => (
           <section key={`dol-${assignment.id}`} data-secondary-live="dol" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-accent-soft)', border: '2px solid #9334e6', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}>DOL open now</div>
               <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{assignment.title}</div>
               {!hideCountdowns && <div style={{ fontWeight: 900 }}><DOLCountdown endsAt={state.endsAt} /> left</div>}
             </div>
-            <button type="button" onClick={() => onStartAssignment(assignment.id, (state.questionIndices || [state.questionIndex])[0])} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #681da8', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Start DOL</button>
+            <button type="button" onClick={() => onStartAssignment(assignment.id, firstOpenLiveQuestionIndex({ indices: state.questionIndices || [state.questionIndex], records, section: 'dol' }) ?? 0)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #681da8', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Start DOL</button>
           </section>
         ))}
 

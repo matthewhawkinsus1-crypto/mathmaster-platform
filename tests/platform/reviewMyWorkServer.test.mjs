@@ -361,3 +361,46 @@ test('the integrity labels shown to students are exactly index.js ASSIGNMENT_ZER
   const labels = [...block.matchAll(/:\s*"([^"]+)"/g)].map((match) => match[1]);
   assert.deepEqual([...INTEGRITY_REASON_LABELS].sort(), labels.sort());
 });
+
+/* ---------------------------------------- verifier: more doors that stay shut */
+
+test('refuses work the teacher has hidden from students: archived, paused, or an authoring draft', async () => {
+  await rejects(load(world({ assignment: baseAssignment({ archived: true }) })), 'failed-precondition');
+  await rejects(load(world({ assignment: baseAssignment({ unpublished: true }) })), 'failed-precondition');
+  await rejects(load(world({ assignment: baseAssignment({ authoringState: 'incomplete' }) })), 'failed-precondition');
+  await rejects(load(world({ assignment: baseAssignment({ authoringReview: { state: 'needsReview' } }) })), 'failed-precondition');
+  // A published, unarchived assignment still opens.
+  const open = await load(world({ assignment: baseAssignment({ authoringState: 'published', archived: false, unpublished: false }) }));
+  assert.equal(open.questions.length, 5);
+});
+
+test('refuses an older Test Cycle declared by gradingPurpose + rolePolicy + a Review section', async () => {
+  const legacyCycle = baseAssignment({
+    gradingPurpose: 'test',
+    deliveryPolicy: { sectionGating: 'rolePolicy' },
+    sections: [
+      { id: 's-r', role: 'review', title: 'Review', questions: [literal('q0', '4')] },
+      { id: 's-t', role: 'test', title: 'Test', questions: [literal('q1', '5')] },
+    ],
+    feedbackReleased: true,
+  });
+  await rejects(load(world({ assignment: legacyCycle })), 'failed-precondition');
+});
+
+test('a missing grades document and a missing assignment are refusals, never an empty review', async () => {
+  const db = fakeDb({ [`assignments/${ASSIGNMENT}`]: baseAssignment() });
+  await rejects(load(db), 'failed-precondition');
+  await rejects(load(world(), { assignmentId: 'no-such-assignment' }), 'not-found');
+});
+
+test('another student\'s id as the assignment id reads nothing of theirs', async () => {
+  const db = world();
+  await rejects(load(db, { assignmentId: OTHER }), 'not-found');
+  assert.ok(db.reads.every((path) => !path.startsWith(`grades/${OTHER}`)), db.reads.join(', '));
+});
+
+test('an assignment id that is a path is refused before anything is read', async () => {
+  const db = world({ extraDocs: { [`assignments/${ASSIGNMENT}/private/answers`]: baseAssignment() } });
+  await rejects(load(db, { assignmentId: `${ASSIGNMENT}/private/answers` }), 'invalid-argument');
+  assert.deepEqual(db.reads, []);
+});

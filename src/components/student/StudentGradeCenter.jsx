@@ -4,7 +4,7 @@ import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
-import { GRADE_STATUS, describeGradeMath } from '../../platform/student/studentGradeCenterModel.js';
+import { GRADE_STATUS, applyTodayToGradeActions, describeGradeMath } from '../../platform/student/studentGradeCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { formatDateTime } from '../../assignmentLifecycle';
 
@@ -198,11 +198,17 @@ function WaysToRaise({ ways, onWayAction }) {
   );
 }
 
-function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart }) {
+function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = null }) {
   const tone = TONE[entry.status] || TONE[GRADE_STATUS.NOT_STARTED];
   // Which buttons this row offers was decided by the model
-  // (resolveGradeRowActions); the row only draws them.
-  const actions = entry.actions || {};
+  // (resolveGradeRowActions, narrowed by the one "Today" rule when App passes
+  // the dashboard's entry); the row only draws them.
+  const actions = applyTodayToGradeActions(entry.actions || {}, today);
+  const pressStart = () => {
+    if (actions.start?.opensResult) onOpenResult?.(entry.assignmentId);
+    else if (Number.isInteger(actions.start?.questionIndex)) onStart?.(entry.assignmentId, actions.start.questionIndex);
+    else onStart?.(entry.assignmentId);
+  };
 
   return (
     <article
@@ -234,6 +240,10 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart }) {
         </div>
       </div>
 
+      {actions.waitText && (
+        <p data-wait-line style={{ margin: '10px 0 0', fontSize: 13, fontWeight: 800, color: 'var(--mm-text)' }}>{actions.waitText}</p>
+      )}
+
       {entry.exclusionText && (
         <p style={{ margin: '10px 0 0', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{entry.exclusionText}</p>
       )}
@@ -243,7 +253,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart }) {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
         {actions.start && (
-          <button type="button" style={actionButton(true)} onClick={() => onStart?.(entry.assignmentId)}>
+          <button type="button" style={actionButton(true)} onClick={pressStart}>
             {actions.start.label}
           </button>
         )}
@@ -264,7 +274,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart }) {
   );
 }
 
-function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart }) {
+function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayByAssignment = null }) {
   const [open, setOpen] = useState(group.defaultOpen === true);
   if (!group.entries.length) return null;
 
@@ -312,6 +322,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart }) {
               onOpenResult={onOpenResult}
               onPractice={onPractice}
               onStart={onStart}
+              today={todayByAssignment?.[entry.assignmentId] || null}
             />
           ))}
         </div>
@@ -329,6 +340,11 @@ export default function StudentGradeCenter({
   // Start / Continue on open, unfinished work: App's startAssignment, which
   // lands on the first unfinished open question (or the Test Cycle card).
   onStart = null,
+  // OPTIONAL { [assignmentId]: dashboard entry } (buildStudentDashboardModel
+  // allEntries). With it, Start/Continue follows the one "Today" rule: only on
+  // work that can be done now, landing on the question Home would choose, and
+  // a Recovery opens the result page. Without it, the rows behave as before.
+  todayByAssignment = null,
   // The "Ways to raise your grade" list from buildWaysToRaise, and the handler
   // for one of its rows. Undefined list: the section is not drawn.
   waysToRaise = undefined,
@@ -392,7 +408,7 @@ export default function StudentGradeCenter({
         <WaysToRaise ways={waysToRaise} onWayAction={onWayAction} />
 
         {currentGroup && (
-          <PeriodGroup group={currentGroup} hidden={hidden} onOpenResult={onOpenResult} onPractice={onPractice} onStart={onStart} />
+          <PeriodGroup group={currentGroup} hidden={hidden} onOpenResult={onOpenResult} onPractice={onPractice} onStart={onStart} todayByAssignment={todayByAssignment} />
         )}
 
         {pastPeriodGroups.length > 0 && (
@@ -406,6 +422,7 @@ export default function StudentGradeCenter({
                 onOpenResult={onOpenResult}
                 onPractice={onPractice}
                 onStart={onStart}
+                todayByAssignment={todayByAssignment}
               />
             ))}
           </>

@@ -11,7 +11,7 @@ import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js'
  * its own copy of the assignment: with no server rows there is nothing to show,
  * so no solution can appear while the work can still be answered. The stored
  * question is used only to fill in a solution the server vouched for
- * (`solutionSource` other than 'unavailable').
+ * (`solutionSource` 'delivered', 'family' or 'assignment').
  */
 
 export const REVIEW_OUTCOME = Object.freeze({
@@ -35,6 +35,9 @@ export const NO_ANSWER_TEXT = 'No answer recorded';
 export const RECORDED_WORK_TEXT = 'Your work on this question was saved, but it cannot be shown as text here.';
 export const SOLUTION_UNAVAILABLE_TEXT = 'The worked solution for your version of this question is not available.';
 export const LOAD_ERROR_TEXT = 'Your answers could not be loaded right now. Try again.';
+
+// functions/lib/reviewMyWork.js SOLUTION_SOURCE, minus 'unavailable'.
+const SOLUTION_SOURCES_SHOWN = new Set(['delivered', 'family', 'assignment']);
 
 const SECTION_ROLE_LABEL = Object.freeze({
   warmup: 'Warm-Up',
@@ -124,7 +127,10 @@ export const buildReviewMyWorkModel = ({ result = null, assignment = null } = {}
     .filter((row) => isObject(row) && Number.isInteger(Number(row.index)))
     .map((row, position) => {
       const storedQuestion = stored[Number(row.index)] || null;
-      const solutionAllowed = row.solutionSource !== 'unavailable';
+      // Fail closed: only a source the server named vouches for a solution.
+      // A row with no source (or one this browser does not know) shows none,
+      // rather than falling back to the stored template.
+      const solutionAllowed = SOLUTION_SOURCES_SHOWN.has(row.solutionSource);
       const solutionQuestion = solutionAllowed
         ? (isObject(row.deliveredQuestion) ? row.deliveredQuestion : storedQuestion)
         : null;

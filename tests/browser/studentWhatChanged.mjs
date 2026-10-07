@@ -107,6 +107,22 @@ for (const viewport of VIEWPORTS) {
   check(await dialog.count() === 0, `${where}: Stay did not close the confirm`);
   check(!(await page.locator('[data-harness="log"]').textContent()).includes('logout'), `${where}: Stay logged out`);
 
+  // Stay hands focus back to Log Out (not the top of the page).
+  check(await page.evaluate(() => document.activeElement?.textContent) === 'Log Out', `${where}: focus did not return to Log Out after Stay`);
+
+  // Keyboard: Enter on Log Out opens the question, Escape closes it and
+  // focus returns to Log Out.
+  await logOut.focus();
+  await page.keyboard.press('Enter');
+  check(await dialog.isVisible(), `${where}: Enter on Log Out did not open the confirm`);
+  check(await page.evaluate(() => document.activeElement?.textContent) === 'Stay and let it send', `${where}: keyboard: focus is not on the safe choice`);
+  await page.keyboard.press('Tab');
+  check(await page.evaluate(() => document.activeElement?.textContent) === 'Log out anyway', `${where}: Tab does not reach "Log out anyway"`);
+  await page.keyboard.press('Escape');
+  check(await dialog.count() === 0, `${where}: Escape did not close the confirm`);
+  check(await page.evaluate(() => document.activeElement?.textContent) === 'Log Out', `${where}: focus did not return to Log Out after Escape`);
+  check(!(await page.locator('[data-harness="log"]').textContent()).includes('logout'), `${where}: Escape logged out`);
+
   await logOut.click();
   await page.getByRole('button', { name: 'Log out anyway' }).click();
   check((await page.locator('[data-harness="log"]').textContent()).endsWith('|logout'), `${where}: Log out anyway did not log out`);

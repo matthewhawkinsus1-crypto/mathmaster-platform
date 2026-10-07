@@ -18,6 +18,8 @@
  *   - the assignment is assigned to the student's current class;
  *   - it is not a secure Test Cycle test (those release through their own
  *     assessment path, functions/lib/testCycle.js — never through here);
+ *   - the teacher has not hidden it from students (archived, paused, or an
+ *     unfinished authoring draft);
  *   - the student's own final cutoff has passed (the one resolver ingestion
  *     uses: sectionDeadline.mjs assignmentFinalCloseAt, with their private
  *     override and support profile) — so nothing here can reveal an answer
@@ -87,8 +89,10 @@ function reviewMyWorkDeps() {
       import("../shared/questionFamilyGrading.mjs"),
       import("../shared/questionFamilyInstance.mjs"),
       import("../shared/serverGrading/deliveredQuestion.mjs"),
-    ]).then(([inspector, deadlines, overrides, policies, rewards, familyGrading, familyInstance, delivered]) => ({
-      inspector, deadlines, overrides, policies, rewards, familyGrading, familyInstance, delivered,
+      import("../shared/assessmentAvailability.mjs"),
+      import("../shared/testCyclePolicy.mjs"),
+    ]).then(([inspector, deadlines, overrides, policies, rewards, familyGrading, familyInstance, delivered, availability, testCyclePolicy]) => ({
+      inspector, deadlines, overrides, policies, rewards, familyGrading, familyInstance, delivered, availability, testCyclePolicy,
     }));
   }
   return depsPromise;
@@ -100,9 +104,31 @@ const clean = (value, max = 200) => String(value ?? "").trim().slice(0, max);
 
 /* ------------------------------------------------------------------ gates */
 
-const isTestCycleAssignment = (assignment = {}) => (
-  String(assignment?.assessmentPolicy?.mode || "") === "testCycle" || assignment?.secure === true
+// index.js secureAssignmentMode / `secure`, plus the older Test Cycle
+// declaration (gradingPurpose 'test' + rolePolicy gating + a Review section)
+// every other surface also treats as a cycle — whichever is stricter.
+const isTestCycleAssignment = (assignment = {}, deps = null) => (
+  String(assignment?.assessmentPolicy?.mode || "") === "testCycle"
+  || assignment?.secure === true
+  || deps?.testCyclePolicy?.declaresTestCycle?.(assignment) === true
 );
+
+// Authoring states that mean "not finished, not for students"
+// (src/platform/assignments/assignmentAvailability.js isUnpublishedDraft).
+const DRAFT_AUTHORING_STATES = new Set(["incomplete", "needsReview"]);
+
+/**
+ * Hidden from students: archived, paused (`unpublished`) or still a draft.
+ * Home never lists such work, so its answers and solutions are not offered
+ * here either, whatever its dates say.
+ */
+const hiddenFromStudents = (assignment = {}, deps = null) => {
+  const availability = deps?.availability;
+  if (availability?.assignmentIsArchived?.(assignment) || assignment?.archived === true) return true;
+  if (availability?.assignmentIsUnpublished?.(assignment) || assignment?.unpublished === true) return true;
+  const state = clean(assignment?.authoringState || assignment?.authoringReview?.state, 40);
+  return Boolean(state) && DRAFT_AUTHORING_STATES.has(state);
+};
 
 const assignedToClass = (assignment = {}, classId = null) => {
   const ids = list(assignment.assignedClassIds).map((value) => String(value).trim()).filter(Boolean);
@@ -356,7 +382,9 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
   const studentId = clean(auth?.studentId, 200);
   if (!studentId) throw new HttpsError("permission-denied", "Review My Work is available to signed-in students.");
   const assignmentId = clean(data?.assignmentId, 400);
-  if (!assignmentId) throw new HttpsError("invalid-argument", "Choose an assignment to review.");
+  // One document id, never a path: "asg/sub/doc" would otherwise address a
+  // document in a subcollection of assignments.
+  if (!assignmentId || assignmentId.includes("/")) throw new HttpsError("invalid-argument", "Choose an assignment to review.");
 
   const deps = await reviewMyWorkDeps();
   const gradeRef = db.collection("grades").doc(studentId);
@@ -374,8 +402,11 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
   const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
   const gradeData = gradeSnap.data() || {};
   const classId = clean(gradeData.classId, 200) || null;
-  if (isTestCycleAssignment(assignment)) {
+  if (isTestCycleAssignment(assignment, deps)) {
     throw new HttpsError("failed-precondition", "Test results are reviewed in the test's own results page.");
+  }
+  if (hiddenFromStudents(assignment, deps)) {
+    throw new HttpsError("failed-precondition", "Your teacher has put this assignment away, so it cannot be reviewed right now.");
   }
   if (!assignedToClass(assignment, classId)) {
     throw new HttpsError("permission-denied", "This assignment is not assigned to your class.");

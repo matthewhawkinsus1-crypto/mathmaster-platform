@@ -1,6 +1,8 @@
 import { assignmentIsForStudent, getAssignmentDate } from '../../assignmentLifecycle.js';
 import { TEST_CYCLE_DISCOVERY, describeTestCycleForStudent } from './testCycleDiscovery.js';
 import { SECTION_LABEL } from './lessonSections.js';
+import { assignmentIsArchived, assignmentIsUnpublished } from '../../../functions/shared/assessmentAvailability.mjs';
+import { isUnpublishedDraft } from '../assignments/assignmentAvailability.js';
 
 /*
  * "WHAT CHANGED" — READ FROM WHAT THE PLATFORM ALREADY RECORDS.
@@ -89,8 +91,30 @@ const questionList = (numbers) => {
   return `Questions ${sorted.slice(0, -1).join(', ')} and ${sorted[sorted.length - 1]}`;
 };
 
-const assignmentHidden = (assignment) => assignment?.archived === true
+/*
+ * Work the teacher has hidden from students — archived, PAUSED (`unpublished`)
+ * or still an authoring draft — is never news: Home does not list it either
+ * (studentDashboardModel `visible`), and "New: <title>" for a paused lesson
+ * would announce work the student cannot open.
+ */
+const assignmentHidden = (assignment) => assignmentIsArchived(assignment)
+  || assignmentIsUnpublished(assignment)
+  || isUnpublishedDraft(assignment)
   || ['archived', 'draft', 'deleted'].includes(clean(assignment?.status).toLowerCase());
+
+/*
+ * THE ONLY REASONS A STUDENT IS SHOWN: the fixed integrity labels the server
+ * writes (functions/index.js ASSIGNMENT_ZERO_REASONS; asserted equal by
+ * tests/platform/studentVerifyFixes.test.mjs). Anything else in `reason` — an
+ * older record, a hand-edited one — is not shown, so a teacher's free-typed
+ * sentence can never reach the student's screen through this list.
+ */
+export const STUDENT_VISIBLE_REASONS = Object.freeze([
+  'Prohibited cellphone use',
+  'Unauthorized assistance / cheating',
+  'Account or laptop switching',
+]);
+const fixedReason = (value) => (STUDENT_VISIBLE_REASONS.includes(clean(value)) ? clean(value) : null);
 
 /* ---- one assignment's events -------------------------------------------- */
 
@@ -141,7 +165,7 @@ const gradeChanges = ({ assignment, overrides }) => {
         keySuffix: 'assignment',
         at: toMillis(record.at) ?? toMillis(record.updatedAt),
         text: `Your teacher updated your grade on ${title}`,
-        reasonText: clean(record.reason) || null,
+        reasonText: fixedReason(record.reason),
       });
       return;
     }
@@ -180,7 +204,7 @@ const gradeChanges = ({ assignment, overrides }) => {
       keySuffix: `section:${incidentKey}`,
       at: incident.at,
       text: `Your teacher updated your grade on ${title}${section ? ` (${section})` : ''}`,
-      reasonText: incident.reason || null,
+      reasonText: fixedReason(incident.reason),
     });
   });
   return items;

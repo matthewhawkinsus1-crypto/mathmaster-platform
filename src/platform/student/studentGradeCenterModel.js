@@ -413,6 +413,45 @@ export const resolveGradeRowActions = ({ status, overall, lifecycle, locked = fa
 };
 
 /**
+ * THE ONE "TODAY" RULE, APPLIED TO A GRADE ROW'S START BUTTON.
+ *
+ * resolveGradeRowActions knows the grade status and the assignment's dates, not
+ * whether anything in the lesson can be worked this minute. A lesson whose
+ * Classwork is done and whose DOL opens at 2:15 read "Continue" on Grades and
+ * landed the student on the result page. Given the dashboard's entry for the
+ * same assignment (buildStudentDashboardModel allEntries: actionable,
+ * nextQuestionIndex, action, waitText — the rule Home and Assignments use),
+ * the row:
+ *
+ *   - offers Start/Continue only when the lesson is actionable now, and says
+ *     where it lands (`questionIndex`);
+ *   - offers "Open Recovery" (the result page) instead when the open work is a
+ *     Recovery, and drops the second button to that same page;
+ *   - offers no Start on waiting work, and carries its wait line instead.
+ *
+ * Without a dashboard entry (or for a Test Cycle, whose card owns its stages)
+ * the actions are returned unchanged. It never ADDS a Start the grade rules
+ * refused.
+ */
+export const applyTodayToGradeActions = (actions = {}, today = null) => {
+  if (!actions?.start || !today || today.testCycle) return actions;
+  if (today.excused === true || today.finished === true) return { ...actions, start: null };
+  if (today.actionable !== true) {
+    return { ...actions, start: null, waitText: clean(today.waitText) || null };
+  }
+  if (today.action === 'recovery') {
+    return { ...actions, start: { label: 'Open Recovery', opensResult: true }, viewResults: false };
+  }
+  return {
+    ...actions,
+    start: {
+      ...actions.start,
+      questionIndex: Number.isInteger(today.nextQuestionIndex) ? today.nextQuestionIndex : null,
+    },
+  };
+};
+
+/**
  * Everything the Grade Center renders, computed once.
  *
  * `tracker` is the canonical `grades/{studentId}.gradesByAssignment` map that

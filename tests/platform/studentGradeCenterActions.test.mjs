@@ -209,9 +209,13 @@ const screen = region(gradeCenterSource, 'export default function StudentGradeCe
 
 test('GradeRow draws Start, View Results and the no-credit re-try from entry.actions only', () => {
   const code = executableSource(gradeRow);
-  assert.match(code, /const actions = entry\.actions/);
+  // entry.actions, narrowed only by the model's applyTodayToGradeActions (the
+  // one "Today" rule, tests/platform/studentVerifyFixes.test.mjs).
+  assert.match(code, /const actions = applyTodayToGradeActions\(entry\.actions \|\| \{\}, today\);/);
   assert.match(code, /\{actions\.start && \(/);
-  assert.match(code, /onClick=\{\(\) => onStart\?\.\(entry\.assignmentId\)\}[^]*?\{actions\.start\.label\}/);
+  assert.match(code, /onClick=\{pressStart\}[^]*?\{actions\.start\.label\}/);
+  const press = region(code, 'const pressStart = () => {', '};', 'pressStart');
+  assert.match(press, /onStart\?\.\(entry\.assignmentId\)/);
   assert.match(code, /\{actions\.viewResults && \([^]*?onOpenResult\?\.\(entry\.assignmentId\)[^]*?View Results/);
   assert.match(code, /\{actions\.practiceNoCredit && \([^]*?onPractice\?\.\(entry\.assignmentId\)[^]*?Try it again — no credit/);
   // The row does not re-decide: no status or lifecycle test drives a button.

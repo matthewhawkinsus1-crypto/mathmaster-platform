@@ -61,7 +61,13 @@ test('the identity bar asks before logging out when logoutRisk is set, and never
   assert.match(dialog, /role="alertdialog"/);
   assert.match(dialog, /position: 'fixed', top: `calc\(var\(\$\{STUDENT_IDENTITY_STACK_OFFSET\}, 38px\)/);
   assert.match(dialog, /\{logoutRisk\.message \|\| LOGOUT_RISK_MESSAGE\}/);
-  assert.match(dialog, /onClick=\{\(\) => setConfirmingLogout\(false\)\}[\s\S]*Stay and let it send/);
+  // Stay (and Escape) close the question AND hand focus back to Log Out, so a
+  // keyboard user is not dropped at the top of the page.
+  assert.match(dialog, /onClick=\{stayLoggedIn\}[\s\S]*Stay and let it send/);
+  assert.match(dialog, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\) stayLoggedIn\(\); \}\}/);
+  const stay = region(source, 'const stayLoggedIn = () => {', '};', 'Stay');
+  assert.match(stay, /setConfirmingLogout\(false\);\s*logoutRef\.current\?\.focus\(\);/);
+  assert.match(bar, /ref=\{logoutRef\}[\s\S]*?onClick=\{handleLogoutPress\}/);
   assert.match(dialog, /onClick=\{confirmLogout\}[\s\S]*Log out anyway/);
   assert.equal((dialog.match(/minHeight: MIN_TOUCH_TARGET_PX/g) || []).length, 2, 'both answers are thumb-sized');
   const confirm = region(source, 'const confirmLogout = () => {', '};', 'Log out anyway');

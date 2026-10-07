@@ -31,6 +31,7 @@ const periodLabel = (value) => {
 export default function StudentIdentityBar({ student = null, preview = false, classPointsBalance = null, onLogout = null, logoutRisk = null }) {
   const barRef = useRef(null);
   const stayRef = useRef(null);
+  const logoutRef = useRef(null);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const handleLogoutPress = () => {
     if (logoutRisk) setConfirmingLogout(true);
@@ -39,6 +40,12 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
   const confirmLogout = () => {
     setConfirmingLogout(false);
     onLogout?.();
+  };
+  // Stay (or Escape) closes the question and puts focus back on Log Out, so a
+  // keyboard user is not dropped at the top of the page.
+  const stayLoggedIn = () => {
+    setConfirmingLogout(false);
+    logoutRef.current?.focus();
   };
   // The queue drained while the question was open: nothing is at risk now,
   // so the question no longer applies.
@@ -100,6 +107,7 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
           <span className="mm-identity-logout" style={{ flexShrink: 0 }}>
             <span className="mm-identity-not-you">Not you? </span>
             <button
+              ref={logoutRef}
               type="button"
               onClick={handleLogoutPress}
               aria-haspopup={logoutRisk ? 'dialog' : undefined}
@@ -116,7 +124,7 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
             aria-modal="false"
             aria-labelledby="mm-logout-risk-message"
             data-logout-confirm="open"
-            onKeyDown={(event) => { if (event.key === 'Escape') setConfirmingLogout(false); }}
+            onKeyDown={(event) => { if (event.key === 'Escape') stayLoggedIn(); }}
             // A popover under the pinned bar, outside it: the bar's own layout
             // (one line on a phone) is the stylesheet's, and this must not
             // change its measured height.
@@ -136,7 +144,7 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
               <button
                 ref={stayRef}
                 type="button"
-                onClick={() => setConfirmingLogout(false)}
+                onClick={stayLoggedIn}
                 style={{ minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 14px', borderRadius: 9, border: 0, background: 'var(--mm-info-text)', color: 'var(--mm-surface)', font: 'inherit', fontWeight: 900, cursor: 'pointer', flex: '1 1 auto' }}
               >
                 Stay and let it send

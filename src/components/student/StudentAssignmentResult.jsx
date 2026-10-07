@@ -265,11 +265,16 @@ export default function StudentAssignmentResult({
           </p>
         )}
 
-        {receipt.present && receipt.grade !== null && (
-          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text)' }}>
-            {receipt.studentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'}: {receipt.grade}% · {receipt.label}
+        {/* The Classroom number, only when the student can see it there too,
+            and never while the teacher is holding feedback: a grade the
+            teacher has not released (a Classroom draft) is not shown here,
+            and neither is the sync's vocabulary ("teacher draft",
+            "checkpoint"). */}
+        {receipt.present && receipt.grade !== null && receipt.studentVisible && !entry.feedbackHeld && (
+          <p data-classroom-receipt style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text)' }}>
+            Google Classroom shows {receipt.grade}%{receipt.isFinal ? ' (final)' : ''}.
             {!receipt.isFinal && !receipt.matchesMathMaster && (
-              <> Your MathMaster grade has changed; Classroom updates at the next checkpoint.</>
+              <> Your MathMaster grade has changed since then; Google Classroom catches up at its next update.</>
             )}
           </p>
         )}

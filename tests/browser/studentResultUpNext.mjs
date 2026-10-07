@@ -189,6 +189,32 @@ for (const viewport of VIEWPORTS) {
     problems.push(...await layoutProblems(page));
   });
 
+  await scene('grades', async (problems) => {
+    const rowOf = (title) => page.evaluate((needle) => {
+      const row = [...document.querySelectorAll('article')].find((article) => article.querySelector('h3')?.textContent === needle);
+      return row ? { text: row.innerText, buttons: [...row.querySelectorAll('button')].map((button) => button.innerText.trim()) } : null;
+    }, title);
+    // Waiting work (DOL later today, Practice locked): no Start/Continue, and
+    // the row says what it is waiting for.
+    for (const [title, wait] of [['Slope from Two Points', /DOL opens at/], ['Solving Inequalities', /Practice opens when your teacher/]]) {
+      const row = await rowOf(title);
+      expect(problems, row && !row.buttons.some((label) => /^(Start|Continue)$/.test(label)), `${title} offers ${JSON.stringify(row?.buttons)} although nothing is open`);
+      expect(problems, row && wait.test(row.text), `${title} does not say what it is waiting for`);
+    }
+    // A Recovery opens the result page, once.
+    const recovery = await rowOf('Graphing Lines');
+    expect(problems, JSON.stringify(recovery?.buttons) === JSON.stringify(['Open Recovery']), `Recovery row offers ${JSON.stringify(recovery?.buttons)}`);
+    expect(problems, await clickButton(page, 'Open Recovery', { within: { selector: 'article', text: 'Graphing Lines' } }) === 'ok', 'Open Recovery not clickable');
+    const recover = await lastCall();
+    expect(problems, recover?.type === 'openResult' && recover.args[0] === 'recovery', `Open Recovery sent ${JSON.stringify(recover)}`);
+    // Continue lands on the question Home would choose.
+    expect(problems, await clickButton(page, 'Continue', { within: { selector: 'article', text: 'Systems of Equations' } }) === 'ok', 'Continue not clickable');
+    const cont = await lastCall();
+    expect(problems, cont?.type === 'continue' && cont.args[0] === 'actionable' && cont.args[1] === 1, `Continue sent ${JSON.stringify(cont)}`);
+    // Start on missing work.
+    expect(problems, (await rowOf('Linear Functions'))?.buttons.includes('Start'), 'missing work has no Start');
+  });
+
   await scene('resultWaiting', async (problems) => {
     const text = await textOf(page);
     for (const needle of ['Nothing here is open right now', 'DOL opens at', 'Classwork — done', 'DOL — opens at', 'Up next', 'Systems of Equations']) {

@@ -18,6 +18,7 @@ import { createRoot } from 'react-dom/client';
 import '../../src/theme/tokens.css';
 import StudentAssignmentsCenter from '../../src/components/student/StudentAssignmentsCenter.jsx';
 import StudentAssignmentResult from '../../src/components/student/StudentAssignmentResult.jsx';
+import StudentGradeCenter from '../../src/components/student/StudentGradeCenter.jsx';
 import { NOW, buildScreens } from '../platform/fixtures/studentTodayScreens.mjs';
 
 const screens = buildScreens();
@@ -57,6 +58,19 @@ const SCENES = {
       onContinue={record('continue')}
       onOpenResult={record('openResult')}
       onPractice={record('practice')}
+    />
+  ),
+  // Grades with the dashboard's entries: Start/Continue follows the same
+  // "Today" rule as the Assignments Center.
+  grades: () => (
+    <StudentGradeCenter
+      gradeCenter={screens.gradeCenter}
+      todayByAssignment={Object.fromEntries(screens.dashboard.allEntries.map((entry) => [entry.assignment.id, entry]))}
+      onNavigate={record('navigate')}
+      onLogout={() => {}}
+      onOpenResult={record('openResult')}
+      onPractice={record('practice')}
+      onStart={record('continue')}
     />
   ),
   resultWaiting: () => result('waiting-dol'),
