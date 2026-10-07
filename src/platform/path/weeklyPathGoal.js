@@ -23,23 +23,27 @@ import { attachWeeklyAlternatives } from './weeklyPathChoice.js';
 // Re-exported here so nothing that already imported these names had to change.
 import {
   GRADING_POLICY,
+  WEEK_TIME_ZONE,
   evaluateWeeklyGoalProgress,
   describeWeeklyGradeForStudent,
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
   weekKeyFor,
+  weeklyDueDayName,
   weeklySlotKey,
 } from '../../../functions/shared/weeklyPathGrade.mjs';
 
 export {
   GRADING_POLICY,
+  WEEK_TIME_ZONE,
   evaluateWeeklyGoalProgress,
   describeWeeklyGradeForStudent,
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
   weekKeyFor,
+  weeklyDueDayName,
   weeklySlotKey,
 };
 
@@ -154,7 +158,10 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
 // working Sunday evening would have been marked late for finishing before
 // midnight. A deadline that decides whether work counts has to be the deadline
 // the student was told about.
-export const WEEK_TIME_ZONE = 'America/Chicago';
+//
+// WEEK_TIME_ZONE ('America/Chicago') is defined in weeklyPathGrade.mjs and
+// re-exported above, so the student's "the week closes on Friday night" is
+// named in the same zone this deadline is built in.
 
 // How far the named zone sits from UTC at a given instant. Read from Intl rather
 // than hardcoded, because a fixed offset is wrong for half the year: Central is

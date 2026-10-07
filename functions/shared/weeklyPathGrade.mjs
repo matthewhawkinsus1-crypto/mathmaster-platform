@@ -17,6 +17,16 @@
 
 const DAY = 24 * 60 * 60 * 1000;
 
+/*
+ * The week closes at midnight where the students are, not at midnight UTC
+ * (dueAtFor in src/platform/path/weeklyPathGoal.js builds the deadline in this
+ * zone). It lives here, beside the grade, so the sentence that names the due
+ * day reads the same zone the deadline was built in.
+ */
+export const WEEK_TIME_ZONE = 'America/Chicago';
+
+const DUE_DAY_NAMES = Object.freeze(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']);
+
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const list = (value) => (Array.isArray(value) ? value : []);
 
@@ -273,6 +283,32 @@ export const gradeWeeklyGoal = ({
   };
 };
 
+/**
+ * The day this week's goal is due, named in the school's time zone ("Friday").
+ *
+ * Teachers choose the due day, so a fixed "Sunday night" told a class due on
+ * Friday the wrong deadline. The name is read from goal.dueAt — the instant
+ * the week actually closes, 11:59pm local — in WEEK_TIME_ZONE: that instant is
+ * already the next morning in UTC, so a UTC weekday would name the day after.
+ * A goal without a usable deadline falls back to its configured
+ * dueDayOfWeek, and to null when neither is known, so the caller can say
+ * "when the week closes" without naming a day it does not know.
+ */
+export const weeklyDueDayName = (goal = null, { timeZone = WEEK_TIME_ZONE } = {}) => {
+  const dueAt = Number(goal?.dueAt);
+  if (Number.isFinite(dueAt) && dueAt > 0) {
+    try {
+      const name = new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'long' }).format(new Date(dueAt));
+      if (DUE_DAY_NAMES.includes(name)) return name;
+    } catch {
+      // No time-zone data in this runtime. Naming the UTC weekday instead
+      // would be a day late, so fall through to the configured day.
+    }
+  }
+  const configured = goal?.settings?.dueDayOfWeek;
+  return Number.isInteger(configured) && configured >= 0 && configured <= 6 ? DUE_DAY_NAMES[configured] : null;
+};
+
 /*
  * THE WEEK'S GRADE, IN WORDS A STUDENT CAN ACT ON.
  *
@@ -333,6 +369,8 @@ export const describeWeeklyGradeForStudent = ({
       ? 'Every session is done. Anything else you practise this week is extra.'
       : `Finish ${remaining} more session${remaining === 1 ? '' : 's'} to earn at least ${floor}.`;
 
+  const dueDay = weeklyDueDayName(goal);
+
   return {
     // The same number the gradebook will carry, out of 100.
     score,
@@ -347,7 +385,9 @@ export const describeWeeklyGradeForStudent = ({
     // Stated once, plainly, so a student is never surprised by where it went.
     teacherNote: final
       ? 'Your teacher has this grade for the week.'
-      : 'This goes to your teacher when the week closes on Sunday night.',
+      : dueDay
+        ? `This goes to your teacher when the week closes on ${dueDay} night.`
+        : 'This goes to your teacher when the week closes.',
     completed: done,
     required,
     remaining,

@@ -7,7 +7,9 @@ import {
   GRADING_POLICY,
   describeWeeklyGradeForStudent,
   gradeWeeklyGoal,
+  weeklyDueDayName,
 } from '../../functions/shared/weeklyPathGrade.mjs';
+import { buildWeeklyGoal } from '../../src/platform/path/weeklyPathGoal.js';
 
 const require = createRequire(import.meta.url);
 const { weeklyPathPublishDecision } = require('../../functions/lib/weeklyPathClassroom.js');
@@ -123,11 +125,63 @@ test('no goal means no grade card rather than a wrong one', () => {
   assert.equal(describeWeeklyGradeForStudent(), null);
 });
 
+// Deadlines as dueAtFor builds them: 11:59pm in Chicago on the teacher's day.
+const SUNDAY_CLOSE = Date.parse('2026-09-06T23:59:59.999-05:00');
+const FRIDAY_CLOSE = Date.parse('2026-09-04T23:59:59.999-05:00');
+// The same Friday deadline after daylight saving ends (UTC-6, not UTC-5).
+const FRIDAY_CLOSE_STANDARD_TIME = Date.parse('2026-11-06T23:59:59.999-06:00');
+const daysBefore = (at, days = 3) => at - days * 24 * 60 * 60 * 1000;
+
 test('where the grade goes is stated plainly, once', () => {
   // A student should never be surprised to find this in their gradebook.
-  const goal = goalOf(4);
-  const shown = describeWeeklyGradeForStudent({ goal, completions: completionsFor(goal, 2) });
-  assert.match(shown.teacherNote, /goes to your teacher when the week closes on Sunday night\./);
+  const goal = { ...goalOf(4), dueAt: SUNDAY_CLOSE };
+  const shown = describeWeeklyGradeForStudent({ goal, completions: completionsFor(goal, 2), now: daysBefore(SUNDAY_CLOSE) });
+  assert.equal(shown.teacherNote, 'This goes to your teacher when the week closes on Sunday night.');
+});
+
+test('the note names the day the teacher chose, not a fixed Sunday', () => {
+  // Teachers set the due day. "Sunday night" told a class due on Friday that
+  // they had two more days than they did.
+  const goal = { ...goalOf(4), dueAt: FRIDAY_CLOSE };
+  const shown = describeWeeklyGradeForStudent({ goal, completions: completionsFor(goal, 1), now: daysBefore(FRIDAY_CLOSE) });
+  assert.equal(shown.teacherNote, 'This goes to your teacher when the week closes on Friday night.');
+});
+
+test('the day is read where the students are, not in UTC', () => {
+  // 11:59pm Friday in Chicago is already Saturday morning in UTC, so a UTC
+  // weekday would name the day after the deadline.
+  assert.equal(new Date(FRIDAY_CLOSE).getUTCDay(), 6, 'the fixture must cross midnight UTC to mean anything');
+  assert.equal(weeklyDueDayName({ dueAt: FRIDAY_CLOSE }), 'Friday');
+  assert.equal(weeklyDueDayName({ dueAt: FRIDAY_CLOSE_STANDARD_TIME }), 'Friday', 'and after daylight saving ends');
+  assert.equal(weeklyDueDayName({ dueAt: SUNDAY_CLOSE }), 'Sunday');
+});
+
+test('the day comes from the goal the student was given', () => {
+  // The same deadline builder the student's goal uses, with a Friday due day.
+  const now = Date.parse('2026-09-01T15:00:00Z'); // a Tuesday
+  const goal = buildWeeklyGoal({
+    plan: { sessions: [{ skillId: 's1', teksCode: 'A.5A', purpose: 'current_learning' }] },
+    config: { dueDayOfWeek: 5 },
+    studentId: 'S1',
+    now,
+  });
+  const shown = describeWeeklyGradeForStudent({ goal, completions: [], now });
+  assert.equal(shown.teacherNote, 'This goes to your teacher when the week closes on Friday night.');
+});
+
+test('without a usable deadline the note falls back to the configured day, then to no day at all', () => {
+  assert.equal(weeklyDueDayName({ settings: { dueDayOfWeek: 3 } }), 'Wednesday');
+  assert.equal(weeklyDueDayName({ dueAt: 'soon', settings: { dueDayOfWeek: 0 } }), 'Sunday');
+  // A runtime without time-zone data must not fall back to the UTC weekday.
+  assert.equal(weeklyDueDayName({ dueAt: FRIDAY_CLOSE, settings: { dueDayOfWeek: 5 } }, { timeZone: 'Not/A_Zone' }), 'Friday');
+  assert.equal(weeklyDueDayName({ dueAt: FRIDAY_CLOSE }, { timeZone: 'Not/A_Zone' }), null);
+  assert.equal(weeklyDueDayName({ settings: { dueDayOfWeek: 9 } }), null);
+  assert.equal(weeklyDueDayName(null), null);
+
+  const goal = { ...goalOf(4), dueAt: null };
+  const shown = describeWeeklyGradeForStudent({ goal, completions: [] });
+  assert.equal(shown.teacherNote, 'This goes to your teacher when the week closes.',
+    'a day it does not know is not named');
 });
 
 test('the panel computes the grade rather than being handed a number', () => {
