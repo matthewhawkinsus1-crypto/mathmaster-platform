@@ -140,6 +140,33 @@ export const withAuthoritativeActivityRole = ({ envelope, question = null } = {}
   return { ...envelope, activityRole: authoritative };
 };
 
+/*
+ * ON A TEST CYCLE, ONLY THE SECURE STAGES ARE SECURE. REVIEW IS ORDINARY WORK.
+ *
+ * Ingestion, question progress and checkpoint finalization used to refuse a
+ * whole Test Cycle assignment ("secure-assignment-excluded"). But none of a
+ * cycle's secure work is in the assignment's runtime questions: the Test and
+ * Retest are issued item by item through exam sessions, and preflight refuses
+ * a cycle that authors a secure stage as student-visible content. What IS in
+ * them is the Review: instructional, hints allowed, and the thing the Test
+ * gate reads from `gradesByAssignment`. Refusing it meant a student's Review
+ * answers were acknowledged on the device and never reached the server, so
+ * the teacher saw 0/12 after every refresh and Review could never unlock the
+ * Test. The mastery-gated Review grading below was written for exactly these
+ * submissions and could not run.
+ *
+ * So: an assignment flagged `secure` is refused whole, as before. On a Test
+ * Cycle, a question whose role in the SERVER'S copy of the assignment is
+ * `review` is ordinary work; any other question stays refused. The role is
+ * the stored question's, never the envelope's, so a device cannot claim
+ * "review" to have anything else accepted.
+ */
+export const excludedAsSecureWork = ({ testCycle = false, secure = false, question = null } = {}) => {
+  if (secure === true) return true;
+  if (testCycle !== true) return false;
+  return trimmed(question?.activityRole).toLowerCase() !== 'review';
+};
+
 /**
  * Does this envelope describe the question the server is holding?
  *

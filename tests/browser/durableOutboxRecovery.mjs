@@ -449,6 +449,57 @@ try {
   check(!afterIgnored.result.skipped && afterIgnored.sentFromThisPage === 4,
     '(3) a report the server ignored must not let the next one be skipped');
 
+  /* ---------------------------------------------------------------------
+   * REVIEW WORK REFUSED AS "SECURE" GOES BACK IN THE QUEUE, EXACTLY ONCE.
+   *
+   * Before the server ingested a Test Cycle's Review, every Review answer was
+   * retired as "secure-assignment-excluded". The move back is one transaction
+   * across the queue, `retired` and the tally's store, which the memory
+   * adapter cannot get wrong on anyone's behalf. Two tabs resending at once
+   * must move each row once, and the tally must still match the rows.
+   * ------------------------------------------------------------------- */
+  await harness(() => window.outboxHarness.reset());
+  await open();
+  await harness(() => window.outboxHarness.seedRefusedReviewWork());
+  // The first summary builds the tally, so the move has to keep it current.
+  await harness(() => window.outboxHarness.summary());
+  const resendTab = await context.newPage();
+  await resendTab.goto(`${origin}/tests/browser/durableOutboxHarness.html`);
+  await resendTab.getByText('Durable outbox ready').waitFor();
+  const [resentHere, resentThere] = await Promise.all([
+    harness(() => window.outboxHarness.resendReview()),
+    resendTab.evaluate(() => window.outboxHarness.resendReview()),
+  ]);
+  await resendTab.close();
+  check(resentHere.resent + resentThere.resent === 2,
+    `two tabs resending at once must move each refused Review row exactly once (${resentHere.resent} + ${resentThere.resent})`);
+  const resentQueue = await harness(() => window.outboxHarness.list());
+  check(JSON.stringify(resentQueue.map((row) => row.actionId).sort()) === JSON.stringify(['refused-review-0', 'refused-review-1']),
+    `only the Review rows refused as secure go back in the queue: ${resentQueue.map((row) => row.actionId)}`);
+  check(resentQueue.every((row) => !row.retirement && row.reviewResend?.attempts === 1 && row.payload?.record),
+    'a resent row is the student\'s own envelope, without its old verdict, counted as one resend');
+  const leftRetired = (await harness(() => window.outboxHarness.listRetired())).map((row) => row.actionId).sort();
+  check(JSON.stringify(leftRetired) === JSON.stringify(['refused-classwork', 'refused-review-closed']),
+    `classwork, and Review refused for a real reason, stay retired: ${leftRetired}`);
+  const resendSummary = await harness(() => window.outboxHarness.summary());
+  const resendOracle = await harness(() => window.outboxHarness.fullScanRetiredCounts());
+  check(sameRetiredCounts(resendSummary, resendOracle) && resendSummary.retired === 2,
+    `the retired tally must match the rows after the move: ${describe(resendSummary)} vs ${describe(resendOracle)}`);
+  check(resendSummary.queued === 2, 'and the restored work is counted as queued');
+  const resendAgain = await harness(() => window.outboxHarness.resendReview());
+  check(resendAgain.resent === 0 && resendAgain.checked === false, 'the resend runs once per page');
+  // The restored work survives a reload and is delivered.
+  await page.reload();
+  await page.getByText('Durable outbox ready').waitFor();
+  const resendDelivered = await harness(() => window.outboxHarness.drain());
+  check(resendDelivered.remaining === 0 && resendDelivered.seen.length === 2,
+    'the restored Review work survives a reload and is delivered');
+  // A tab still holding the old read must not bring delivered work back.
+  const staleRestore = await harness(() => window.outboxHarness.restoreFromStaleRead('refused-review-0'));
+  const afterStale = await harness(() => window.outboxHarness.list());
+  check(staleRestore === false && afterStale.length === 0,
+    'a stale restore must not put delivered Review work back in the queue');
+
   if (failures.length) {
     console.error(`Chromebook IndexedDB certification failed:\n  - ${failures.join('\n  - ')}`);
     process.exitCode = 1;

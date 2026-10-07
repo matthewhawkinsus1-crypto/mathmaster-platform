@@ -356,6 +356,7 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     decideCheckpointFinalization,
     buildCheckpointFinalization,
   } = await responseCheckpointFinalizer();
+  const { excludedAsSecureWork } = await submissionIngestion();
 
   // The student's class is needed to resolve the class period the Warm-Up/DOL
   // window is defined against. Read it before the transaction so the
@@ -420,7 +421,9 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
       question,
       schedule,
       classPeriod,
-      isSecureAssignment: secureAssignmentMode(assignment),
+      // A Test Cycle's Review is ordinary work (excludedAsSecureWork); the
+      // finalizer still refuses an assignment flagged `secure` on its own.
+      isSecureAssignment: excludedAsSecureWork({ testCycle: secureAssignmentMode(assignment), question }),
       privateOverride,
       now,
     });
@@ -809,17 +812,23 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
     const classId = authoritativeStudentClassId(gradeData);
 
+    const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
+
     // Secure Test Cycle work keeps its own server-authoritative state machine
-    // and never becomes an ordinary attempt, whatever an envelope claims.
-    if (assignment && (secureAssignmentMode(assignment) || assignment.secure === true)) {
+    // and never becomes an ordinary attempt, whatever an envelope claims. A
+    // cycle's Review is not secure work: it is ingested like any other
+    // question, and it is what the Test gate reads (excludedAsSecureWork).
+    if (assignment && ingestion.excludedAsSecureWork({
+      testCycle: secureAssignmentMode(assignment),
+      secure: assignment.secure === true,
+      question,
+    })) {
       return {
         actionId: envelope.actionId,
         disposition: dispositions.SUBMISSION_DISPOSITION.PERMANENTLY_INVALID,
         reason: "secure-assignment-excluded",
       };
     }
-
-    const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
     // The activity this work is judged under: the question's own wherever it
     // carries one, never Classwork by omission (withAuthoritativeActivityRole).
     const activityRole = ingestion.withAuthoritativeActivityRole({ envelope, question })?.activityRole || null;
@@ -1169,15 +1178,21 @@ async function recordOneQuestionProgress({ db, studentId, envelope }) {
       ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
       : null;
     const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
     const decision = ingestion.decideQuestionProgress({
       envelope,
       assignmentExists: assignmentSnapshot.exists,
       gradeRecordExists: gradeSnapshot.exists,
-      secureAssignment: Boolean(assignment && (secureAssignmentMode(assignment) || assignment.secure === true)),
+      // A Test Cycle's Review is ordinary work (excludedAsSecureWork).
+      secureAssignment: Boolean(assignment && ingestion.excludedAsSecureWork({
+        testCycle: secureAssignmentMode(assignment),
+        secure: assignment.secure === true,
+        question,
+      })),
       authorizedForClass: assignment
         ? studentMatchesAssignmentAudience({ assignment, classId: authoritativeStudentClassId(gradeData) })
         : null,
-      question: assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null,
+      question,
       canonicalRecord: gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[questionKey] ?? null,
     });
     if (decision.record) {

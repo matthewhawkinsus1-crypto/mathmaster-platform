@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   assignTestCycleSessions,
   getTeacherTestCyclePlans,
@@ -11,6 +11,7 @@ import {
 import { proctorExamAction } from '../../services/secureExamService.js';
 import { GRADE_REPLACEMENT } from '../../platform/assessment/testCycle.js';
 import { TEACHER_BUCKET_LABEL, TEACHER_BUCKET_ORDER, describeTeacherRow, teacherActionsForRow } from '../../platform/teacher/testCycleTeacherRows.js';
+import { describeTestCycleCallError } from '../../platform/teacher/testCycleCallErrors.js';
 import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName, studentIdOf } from '../../platform/studentName.js';
 
 /*
@@ -130,10 +131,43 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
   const [preflight, setPreflight] = useState(null);
   const [plans, setPlans] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
+  // { text, tone: 'success' | 'error' }. An error is shown as one, not in the
+  // same blue as "Released 3 results."
+  const [message, setMessage] = useState(null);
+  // A row action's outcome belongs on that row, where the teacher pressed it,
+  // not at the top of a 40-student table.
+  const [rowOutcome, setRowOutcome] = useState(null);
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const [editingPolicy, setEditingPolicy] = useState(false);
   const [bucketFilter, setBucketFilter] = useState('all');
+  const [openActionsFor, setOpenActionsFor] = useState(null);
+
+  /*
+   * THE ACTIONS PANEL STAYS ON SCREEN.
+   *
+   * The actions used to open inside the last table cell, a 220px stack that
+   * widened a table already at its minimum width: on a laptop with the sidebar
+   * open, "Waive Review" was cut off at the panel's edge and anything below or
+   * beside it could not be seen. The panel is now a full-width row under the
+   * student, pinned to the left of the scrolling area and exactly as wide as
+   * the part of the table that is visible, so every button and its
+   * explanation are in view however far the table is scrolled.
+   */
+  const scrollerRef = useRef(null);
+  const [visibleTableWidth, setVisibleTableWidth] = useState(null);
+  useEffect(() => {
+    const node = scrollerRef.current;
+    if (!node) return undefined;
+    const measure = () => setVisibleTableWidth(node.clientWidth || null);
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [open, openActionsFor]);
 
   const audienceClassIds = useMemo(() => (Array.isArray(assignment?.assignedClassIds) ? assignment.assignedClassIds : []), [assignment?.assignedClassIds]);
   // The class bar's class only when it IS one of this cycle's classes; the
@@ -156,7 +190,13 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
       setListing(records);
       setPreflight(checks.preflight || null);
     } catch (error) {
-      setMessage(error.message || 'The Test Cycle could not be loaded.');
+      setMessage({
+        tone: 'error',
+        text: describeTestCycleCallError(error, {
+          action: 'Loading this Test Cycle',
+          callable: 'listTeacherTestCycleRecords / preflightTestCycleAssignment',
+        }),
+      });
     }
   }, [assignmentId]);
 
@@ -164,15 +204,26 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
 
   if (!assignmentId) return null;
 
-  const run = async (work, successText) => {
+  /*
+   * `context` names what was pressed and which callable carries it, so a
+   * failure says "Waive Review did not go through" instead of the client's
+   * bare "internal"; with a studentId the outcome is shown on that row.
+   */
+  const run = async (work, successText, { action = 'That action', callable = '', studentId = null } = {}) => {
     setBusy(true);
-    setMessage('');
+    setMessage(null);
+    setRowOutcome(null);
+    const report = (outcome) => {
+      if (!outcome.text) return;
+      if (studentId) setRowOutcome({ ...outcome, studentId });
+      else setMessage(outcome);
+    };
     try {
       const result = await work();
-      setMessage(typeof successText === 'function' ? successText(result) : successText);
+      report({ tone: 'success', text: typeof successText === 'function' ? successText(result) : successText });
       await load();
     } catch (error) {
-      setMessage(error.message || 'That action did not complete.');
+      report({ tone: 'error', text: describeTestCycleCallError(error, { action, callable }) });
     } finally {
       setBusy(false);
     }
@@ -194,24 +245,69 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
 
   const applyRowAction = (row, item) => {
     const name = rosterStudentLabel(row.studentId, students, row.studentName);
+    const context = (callable) => ({ action: item.label, callable, studentId: row.studentId });
     if (item.kind === 'plans') {
-      run(async () => setPlans(await getTeacherTestCyclePlans({ assignmentId, studentId: row.studentId })), '');
+      run(async () => setPlans(await getTeacherTestCyclePlans({ assignmentId, studentId: row.studentId })), '', context('getTeacherTestCyclePlans'));
       return;
     }
     if (item.kind === 'unlock') {
-      run(() => proctorExamAction({ examSessionId: item.examSessionId, action: 'unlock' }), `${item.label} done for ${name}.`);
+      run(() => proctorExamAction({ examSessionId: item.examSessionId, action: 'unlock' }), `${item.label} done for ${name}.`, context('proctorExamAction'));
       return;
     }
     if (item.kind === 'release') {
-      run(() => releaseTestCycleResults({ assignmentId, stage: item.stage, studentIds: [row.studentId] }), `${item.label} done for ${name}.`);
+      run(() => releaseTestCycleResults({ assignmentId, stage: item.stage, studentIds: [row.studentId] }), `${item.label} done for ${name}.`, context('releaseTestCycleResults'));
+      return;
+    }
+    if (item.kind === 'openSession') {
+      // The class-wide callable, for this one student. The server re-checks
+      // that they are in the assignment's audience and re-runs preflight.
+      run(
+        () => assignTestCycleSessions({ assignmentId, classId: targetClassId, studentIds: [row.studentId] }),
+        (result) => (result?.createdSessions ? `Test session opened for ${name}.` : `${name} already has a Test session.`),
+        context('assignTestCycleSessions'),
+      );
       return;
     }
     const { action, stage = 'test' } = item;
     run(
       () => teacherTestCycleAction({ assignmentId, studentId: row.studentId, action, stage }),
-      `${item.label} applied for ${name}.`,
+      `${item.label} applied for ${name}.${item.doneNote ? ` ${item.doneNote}` : ''}`,
+      context('teacherTestCycleAction'),
     );
   };
+
+  const columns = ['Student', 'Where they are', 'Actions', 'Review', external ? 'Original' : 'Test', 'Corrections', 'Retest', external ? `Original (${scoreSource})` : 'Original Test', 'Retest raw', 'Retest capped', 'Recorded'];
+  // A row's outcome is shown in its open panel; if that row is filtered out or
+  // its panel closed, the outcome is shown at the top instead of being lost.
+  const rowOutcomeOnRow = Boolean(rowOutcome)
+    && openActionsFor === rowOutcome.studentId
+    && sortedRows.some((row) => row.studentId === rowOutcome.studentId);
+  const statusMessage = message || (rowOutcome && !rowOutcomeOnRow ? rowOutcome : null);
+  const statusLine = (outcome) => (
+    <p
+      role={outcome.tone === 'error' ? 'alert' : 'status'}
+      style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 700, lineHeight: 1.5, color: outcome.tone === 'error' ? 'var(--mm-error-text)' : 'var(--mm-primary-text)' }}
+    >
+      {outcome.text}
+    </p>
+  );
+  const confirmBox = (pending) => (
+    <div role="alertdialog" aria-modal="true" aria-labelledby="test-cycle-confirm-title" style={{ margin: '12px 0', padding: 14, borderRadius: 10, border: '2px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
+      <strong id="test-cycle-confirm-title">{pending.title}</strong>
+      <p style={{ margin: '6px 0 10px', lineHeight: 1.5 }}>{pending.body}</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" autoFocus onClick={() => setPendingConfirm(null)} style={button()}>Cancel</button>
+        <button
+          type="button"
+          disabled={busy}
+          style={button('primary', !busy)}
+          onClick={() => { setPendingConfirm(null); run(pending.work, pending.done, pending.context); }}
+        >
+          {pending.confirmLabel}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <section data-test-cycle-teacher={assignmentId} style={{ padding: 'clamp(14px, 3vw, 18px)', border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', color: 'var(--mm-text)' }}>
@@ -288,7 +384,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                     const result = await updateTestCyclePolicy({ assignmentId, policy: draft });
                     setEditingPolicy(false);
                     return result;
-                  }, (result) => (result?.changed ? 'Retest policy saved.' : 'Nothing changed.'))}
+                  }, (result) => (result?.changed ? 'Retest policy saved.' : 'Nothing changed.'), { action: 'Saving the retest policy', callable: 'updateTestCyclePolicy' })}
                 />
               )}
             </div>
@@ -360,6 +456,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                   ...(external ? { originalScores: Object.fromEntries(Object.entries(originalScores).filter(([, value]) => String(value).trim() !== '')) } : {}),
                 }),
                 (result) => `Secure ${noun} sessions: ${result?.createdSessions || 0} opened, ${result?.reusedSessions || 0} already open.${external ? ` ${(result?.skippedStudents || []).length} skipped for a missing or passing original score.` : ''}`,
+                { action: `Opening secure ${noun} sessions`, callable: 'assignTestCycleSessions' },
               )}
             >
               {busy ? 'Working…' : targetClassId || audienceClassIds.length <= 1
@@ -379,6 +476,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                   confirmLabel: `Release ${noun} results`,
                   work: () => releaseTestCycleResults({ assignmentId, stage: 'test' }),
                   done: (result) => `Released ${result?.released || 0} ${noun} result${result?.released === 1 ? '' : 's'}.`,
+                  context: { action: `Releasing ${noun} results`, callable: 'releaseTestCycleResults' },
                 })}
               >
                 Release {readyToRelease.test} {noun} result{readyToRelease.test === 1 ? '' : 's'}
@@ -395,33 +493,20 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                   confirmLabel: 'Release retest results',
                   work: () => releaseTestCycleResults({ assignmentId, stage: 'retest' }),
                   done: (result) => `Released ${result?.released || 0} retest result${result?.released === 1 ? '' : 's'}.`,
+                  context: { action: 'Releasing retest results', callable: 'releaseTestCycleResults' },
                 })}
               >
                 Release {readyToRelease.retest} retest result{readyToRelease.retest === 1 ? '' : 's'}
               </button>
             )}
-            <button type="button" disabled={busy} onClick={() => { setMessage(''); load(); }} style={button()}>Refresh</button>
+            <button type="button" disabled={busy} onClick={() => { setMessage(null); setRowOutcome(null); load(); }} style={button()}>Refresh</button>
           </div>
 
-          {message && <p role="status" style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-primary-text)' }}>{message}</p>}
+          {statusMessage && statusLine(statusMessage)}
 
-          {pendingConfirm && (
-            <div role="alertdialog" aria-modal="true" aria-labelledby="test-cycle-confirm-title" style={{ margin: '12px 0', padding: 14, borderRadius: 10, border: '2px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
-              <strong id="test-cycle-confirm-title">{pendingConfirm.title}</strong>
-              <p style={{ margin: '6px 0 10px', lineHeight: 1.5 }}>{pendingConfirm.body}</p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button type="button" autoFocus onClick={() => setPendingConfirm(null)} style={button()}>Cancel</button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  style={button('primary', !busy)}
-                  onClick={() => { const pending = pendingConfirm; setPendingConfirm(null); run(pending.work, pending.done); }}
-                >
-                  {pendingConfirm.confirmLabel}
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Class-wide confirmations here, beside the buttons that raise them;
+              a student's are in that student's actions panel. */}
+          {pendingConfirm && !pendingConfirm.studentId && confirmBox(pendingConfirm)}
 
           {/* Where the class is, at a glance — and a filter to the students in
               that state. "Submitted — release needed" is first because it is
@@ -437,11 +522,14 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
             </div>
           )}
 
-          <div style={{ overflowX: 'auto', marginTop: 12 }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 900 }}>
+          <div ref={scrollerRef} style={{ overflowX: 'auto', marginTop: 12 }}>
+            {/* 840, not 900: the columns' own minimum is about 845, and at 900 a
+                teacher's laptop with the sidebar open (an ~865px panel) had to
+                scroll sideways to reach the last column. */}
+            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 840 }}>
               <thead>
                 <tr>
-                  {['Student', 'Where they are', 'Review', external ? 'Original' : 'Test', 'Corrections', 'Retest', external ? `Original (${scoreSource})` : 'Original Test', 'Retest raw', 'Retest capped', 'Recorded', 'Actions'].map((heading) => (
+                  {columns.map((heading) => (
                     <th key={heading} scope="col" style={{ ...cell, ...(heading === 'Student' ? stickyCell : null), fontSize: 11, textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{heading}</th>
                   ))}
                 </tr>
@@ -450,60 +538,102 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                 {sortedRows.map((row) => {
                   const described = describeTeacherRow(row, { external });
                   const actions = teacherActionsForRow(row, { external });
+                  const name = rosterStudentLabel(row.studentId, students, row.studentName);
+                  const actionsOpen = openActionsFor === row.studentId && actions.length > 0;
+                  const panelId = `test-cycle-actions-${row.studentId}`;
                   return (
-                    <tr key={row.studentId} data-teacher-bucket={row.bucket}>
-                      <th scope="row" style={{ ...cell, ...stickyCell, fontWeight: 800 }}>{rosterStudentLabel(row.studentId, students, row.studentName)}</th>
-                      <td style={{ ...cell, fontWeight: described.needsRelease ? 900 : 600, color: described.needsRelease ? 'var(--mm-warning-text)' : 'var(--mm-text)' }}>{described.bucketLabel}</td>
-                      <td style={cell}>{described.reviewText}</td>
-                      <td style={cell}>{described.testText}</td>
-                      <td style={cell}>{described.correctionsText}</td>
-                      <td style={cell}>{described.retestText}</td>
-                      <td style={cell}>{percent(row.originalTestGrade)}</td>
-                      <td style={cell}>{percent(row.rawRetestGrade)}</td>
-                      <td style={cell}>{percent(row.retestCappedContribution)}</td>
-                      <td style={{ ...cell, fontWeight: 900 }} title={row.gradeReason || ''}>{percent(row.recordedGrade)}</td>
-                      <td style={cell}>
-                        {actions.length === 0 ? <span style={{ color: 'var(--mm-text-muted)' }}>—</span> : (
-                          <details>
-                            <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 }}>Actions</summary>
-                            <div style={{ display: 'grid', gap: 6, marginTop: 6, minWidth: 220 }}>
-                              {/*
-                                Reset names its stage. One "Reset session" button had to
-                                pick a default, and the default was the Test — so a
-                                teacher resetting a student's Retest would instead have
-                                force-submitted the Test and cleared its released score.
-                                Which session is being thrown away is not something a
-                                button should decide on a teacher's behalf.
-                              */}
-                              {actions.map((item) => (
-                                <button
-                                  key={item.key}
-                                  type="button"
-                                  disabled={busy}
-                                  title={item.detail || ''}
-                                  style={{ ...button(item.kind === 'release' ? 'primary' : null, !busy), textAlign: 'left' }}
-                                  onClick={() => (item.confirm
-                                    ? setPendingConfirm({
-                                      title: `${item.label} for ${rosterStudentLabel(row.studentId, students, row.studentName)}?`,
-                                      body: item.detail,
-                                      confirmLabel: item.label,
-                                      work: () => teacherTestCycleAction({ assignmentId, studentId: row.studentId, action: item.action, stage: item.stage || 'test' }),
-                                      done: () => `${item.label} applied for ${rosterStudentLabel(row.studentId, students, row.studentName)}.`,
-                                    })
-                                    : applyRowAction(row, item))}
-                                >
-                                  {item.label}
-                                </button>
-                              ))}
+                    <React.Fragment key={row.studentId}>
+                      <tr data-teacher-bucket={row.bucket}>
+                        <th scope="row" style={{ ...cell, ...stickyCell, fontWeight: 800 }}>{name}</th>
+                        <td style={{ ...cell, fontWeight: described.needsRelease ? 900 : 600, color: described.needsRelease ? 'var(--mm-warning-text)' : 'var(--mm-text)' }}>{described.bucketLabel}</td>
+                        {/* Beside where the student is, not past the grades, so the
+                            toggle is on screen without scrolling the table sideways. */}
+                        <td style={cell}>
+                          {actions.length === 0 ? <span style={{ color: 'var(--mm-text-muted)' }}>—</span> : (
+                            <button
+                              type="button"
+                              aria-expanded={actionsOpen}
+                              aria-controls={panelId}
+                              onClick={() => {
+                                // A student's unanswered confirmation goes with their panel;
+                                // a class-wide one stays where it was raised.
+                                setPendingConfirm((current) => (current?.studentId ? null : current));
+                                if (actionsOpen) setRowOutcome((current) => (current?.studentId === row.studentId ? null : current));
+                                setOpenActionsFor(actionsOpen ? null : row.studentId);
+                              }}
+                              style={{ ...button(actionsOpen ? 'primary' : null), padding: '7px 10px', whiteSpace: 'nowrap' }}
+                            >
+                              {actionsOpen ? 'Close ▴' : 'Actions ▾'}
+                            </button>
+                          )}
+                        </td>
+                        <td style={cell}>{described.reviewText}</td>
+                        <td style={cell}>{described.testText}</td>
+                        <td style={cell}>{described.correctionsText}</td>
+                        <td style={cell}>{described.retestText}</td>
+                        <td style={cell}>{percent(row.originalTestGrade)}</td>
+                        <td style={cell}>{percent(row.rawRetestGrade)}</td>
+                        <td style={cell}>{percent(row.retestCappedContribution)}</td>
+                        <td style={{ ...cell, fontWeight: 900 }} title={row.gradeReason || ''}>{percent(row.recordedGrade)}</td>
+                      </tr>
+                      {actionsOpen && (
+                        <tr data-test-cycle-actions-for={row.studentId}>
+                          <td colSpan={columns.length} style={{ padding: 0, borderBottom: '1px solid var(--mm-border)', background: 'var(--mm-surface-sunken)' }}>
+                            <div
+                              id={panelId}
+                              role="group"
+                              aria-label={`Actions for ${name}`}
+                              style={{ position: 'sticky', left: 0, boxSizing: 'border-box', width: visibleTableWidth ? `${visibleTableWidth}px` : '100%', maxWidth: '100%', padding: '12px 14px', display: 'grid', gap: 10, textAlign: 'left', overflowWrap: 'anywhere' }}
+                            >
+                              <strong style={{ color: 'var(--mm-text-strong)' }}>Actions for {name}</strong>
+                              {rowOutcomeOnRow && rowOutcome.studentId === row.studentId && statusLine(rowOutcome)}
+                              {pendingConfirm?.studentId === row.studentId ? confirmBox(pendingConfirm) : (
+                                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 8 }}>
+                                  {/*
+                                    Reset names its stage. One "Reset session" button had to
+                                    pick a default, and the default was the Test — so a
+                                    teacher resetting a student's Retest would instead have
+                                    force-submitted the Test and cleared its released score.
+                                    Which session is being thrown away is not something a
+                                    button should decide on a teacher's behalf.
+
+                                    Each action says what it does in words beside it, not
+                                    only in a hover tooltip a Chromebook or iPad never shows.
+                                  */}
+                                  {actions.map((item) => (
+                                    <li key={item.key} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                                      <button
+                                        type="button"
+                                        disabled={busy}
+                                        style={{ ...button(item.kind === 'release' || item.kind === 'openSession' ? 'primary' : null, !busy), textAlign: 'left' }}
+                                        onClick={() => (item.confirm
+                                          ? setPendingConfirm({
+                                            studentId: row.studentId,
+                                            title: `${item.label} for ${name}?`,
+                                            body: item.detail,
+                                            confirmLabel: item.label,
+                                            work: () => teacherTestCycleAction({ assignmentId, studentId: row.studentId, action: item.action, stage: item.stage || 'test' }),
+                                            done: () => `${item.label} applied for ${name}.`,
+                                            context: { action: item.label, callable: 'teacherTestCycleAction', studentId: row.studentId },
+                                          })
+                                          : applyRowAction(row, item))}
+                                      >
+                                        {item.label}
+                                      </button>
+                                      {item.detail && <span style={{ flex: '1 1 240px', fontSize: 12.5, lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>{item.detail}</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
-                          </details>
-                        )}
-                      </td>
-                    </tr>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
                 {!rows.length && (
-                  <tr><td style={cell} colSpan={11}>No students are assigned this Test Cycle yet. Assign it to a class, then open secure Test sessions.</td></tr>
+                  <tr><td style={cell} colSpan={columns.length}>No students are assigned this Test Cycle yet. Assign it to a class, then open secure Test sessions.</td></tr>
                 )}
               </tbody>
             </table>
