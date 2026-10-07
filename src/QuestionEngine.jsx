@@ -2370,8 +2370,13 @@ function QuestionEngineBody({
       </WorkViewCapabilityProvider>
         )}
         actionButtons={!locked && shouldShowSubmit ? (
-        <button ref={submitButtonRef} type="button" className="mathmaster-bar-submit" onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: submitDisabled ? 'var(--mm-disabled-text)' : 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
-          {submitLabel}
+        <button ref={submitButtonRef} type="button" className="mathmaster-bar-submit" aria-label={submitLabel} onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: submitDisabled ? 'var(--mm-disabled-text)' : 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
+          {/* A phone's one-row bar now carries a Hint control too: "Submit"
+              alone fits beside five icons where "Submit An…" was cut off.
+              The full label stays the button's accessible name. */}
+          {/^Submit .+/.test(submitLabel)
+            ? <>Submit<span className="mathmaster-action-label-long">{submitLabel.slice('Submit'.length)}</span></>
+            : submitLabel}
         </button>
         ) : barContinueAction ? (
         // THE NEXT STEP GOES WHERE SUBMIT WAS. The large continuation card is
