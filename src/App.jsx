@@ -4953,10 +4953,8 @@ function App() {
             return;
           }
 
-          toastSuccess(
-            'Progress checkpoint saved to Google Classroom',
-            `${title}: your current ${gradeText} was saved as a teacher draft in Classroom. Your live grade is visible here in MathMaster and is not final—keep working to raise it.`,
-          );
+          // A draft the teacher has not released is invisible to the student
+          // in Classroom; announcing it only added sync jargon. No toast.
         });
       },
       (error) => console.error('Could not watch Google Classroom grade receipts:', error),
@@ -11117,18 +11115,17 @@ function App() {
                     ? 'Preview progress'
                     : lifecycle.isPracticeOnly
                       ? 'Frozen recorded grade'
-                      : lifecycle.isLate
-                        ? 'Current late grade · if stopped now'
-                        : 'Current grade · if stopped now'}
+                      : 'Grade so far'}
                 </div>
                 <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : recordedGrade >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>
                   {preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}
                 </div>
-                {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && (
+                {/* Only a grade the student can actually see in Classroom, in
+                    plain words — never a teacher draft or sync stage. */}
+                {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && classroomReceiptStudentVisible && (
                   <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: classroomReceiptFinal ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800 }}>
-                    {classroomReceiptStudentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'} {classroomReceiptGrade}% · {classroomReceiptFinal ? 'FINAL' : classroomReceiptStage === 'due-checkpoint' ? 'DUE-DATE CHECKPOINT' : classroomReceiptStudentVisible ? 'RELEASED UPDATE' : 'PROGRESS'}
-                    {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Next checkpoint will send your newer MathMaster grade.</> : null}
-                    {!classroomReceiptStudentVisible ? <><br />Your live grade is shown here; this Classroom checkpoint is not released to students yet.</> : null}
+                    Google Classroom shows {classroomReceiptGrade}%{classroomReceiptFinal ? ' (final)' : ' (not final yet)'}
+                    {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Classroom will catch up with your newer grade.</> : null}
                   </div>
                 )}
               </div>
@@ -13041,7 +13038,10 @@ function App() {
             onLogout={handleLogout}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
-            onStart={(assignmentId) => startAssignment(assignmentId)}
+            onStart={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0)}
+            // The Today rule per row: no Start on work that cannot be done
+            // now, Open Recovery, and Start lands on the next question.
+            todayByAssignment={Object.fromEntries((buildStudentDashboardNow()?.allEntries || []).map((entry) => [entry.assignment.id, entry]))}
             waysToRaise={studentWaysToRaise}
             onWayAction={(way) => {
               if (way.action === 'openResult') return openStudentAssignmentResult(way.assignmentId, { origin: 'grades' });

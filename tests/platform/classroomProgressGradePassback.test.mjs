@@ -161,12 +161,14 @@ test('student UI watches confirmed Classroom receipts and labels progress versus
   const dashboard = read('src/components/student/StudentDashboardView.jsx');
 
   assert.match(app, /classroomSyncStatusByAssignment/);
-  assert.match(app, /Progress checkpoint saved to Google Classroom/);
+  // A teacher draft is invisible to the student in Classroom: no toast and no
+  // draft/checkpoint wording anywhere a student reads.
+  assert.doesNotMatch(executableSource(app), /Progress checkpoint saved to Google Classroom|Classroom teacher draft|DUE-DATE CHECKPOINT/);
   assert.match(app, /Updated grade released to Google Classroom/);
   assert.match(app, /Final grade sent to Google Classroom/);
   assert.match(app, /Due-date grade sent to Google Classroom/);
   assert.match(app, /Google Classroom shows/);
-  assert.match(app, /Classroom teacher draft/);
+  assert.match(app, /classroomReceiptGrade != null && classroomReceiptStudentVisible && \(/);
   // Home is the student's quick view: it labels the live number plainly
   // ("Grade so far") and repeats a Classroom receipt only when the student can
   // see that grade in Google Classroom. The teacher-draft / checkpoint

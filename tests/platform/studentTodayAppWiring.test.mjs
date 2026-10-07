@@ -87,7 +87,8 @@ test('Grades gets Start, ways to raise and What changed; Home gets the count —
   const memo = region(app, 'const studentWaysToRaise = useMemo(', '}) : []), [', 'ways memo');
   assert.match(memo, /recoverySummariesByAssignment: studentRecoverySummariesByAssignment/);
   const grades = region(app, '<StudentGradeCenter', '/>\n', 'Grades');
-  assert.match(grades, /onStart=\{\(assignmentId\) => startAssignment\(assignmentId\)\}/);
+  assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0\)\}/);
+  assert.match(grades, /todayByAssignment=\{Object\.fromEntries\(\(buildStudentDashboardNow\(\)\?\.allEntries/);
   assert.match(grades, /waysToRaise=\{studentWaysToRaise\}/);
   assert.match(grades, /whatChangedPanel=\{renderWhatChangedPanel\(false\)\}/);
   const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
