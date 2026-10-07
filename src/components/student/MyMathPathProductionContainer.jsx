@@ -31,6 +31,9 @@ export const MyMathPathProductionContainer = ({
   weekKey = null,
   weeklySlotKey = null,
   weeklySlot = null,
+  // The alternative swapped into this weekly slot, if any. A label for the
+  // server, which authorizes the launch against the frozen slot.
+  chosenSkillId = null,
   intendedDok = null,
   intendedDifficultyBand = null,
   weeklyPurpose = null,
@@ -91,13 +94,16 @@ export const MyMathPathProductionContainer = ({
     weekKey,
     weeklySlotKey,
     weeklySlot,
+    // Forwarded by both runtimes, so a swapped weekly session is relaunched
+    // as the same swap after a content-release rollover.
+    chosenSkillId,
     // Synthetic Teacher Path Runtime consumes these. The live service
     // deliberately does not forward them to Firebase; production resolves
     // rigor from the frozen server weekly snapshot.
     intendedDok,
     intendedDifficultyBand,
     weeklyPurpose,
-  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot, intendedDok, intendedDifficultyBand, weeklyPurpose]);
+  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot, chosenSkillId, intendedDok, intendedDifficultyBand, weeklyPurpose]);
 
   const contentRefreshNotice = {
     headline: 'Practice updated',

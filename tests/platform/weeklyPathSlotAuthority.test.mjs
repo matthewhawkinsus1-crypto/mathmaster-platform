@@ -233,7 +233,7 @@ test('a week frozen before swaps permits only its own standards', () => {
   // The schema-1 snapshot shape: no `alternatives` on any slot.
   const legacy = frozenWeek();
   legacy.schemaVersion = 1;
-  legacy.sessions = legacy.sessions.map(({ alternatives, ...slot }) => slot);
+  legacy.sessions = legacy.sessions.map(({ alternatives: _omitted, ...slot }) => slot);
   const [slot] = legacy.sessions;
   assert.deepEqual(permittedWeeklySlotAlternatives(legacy, slot, SERVER), []);
   assert.equal(authorizeWeeklySlotLaunch({ goal: legacy, weeklySlotKey: slot.weeklySlotKey, targetAlignmentKey: 'texas:A.7C', ...SERVER }).ok, false);

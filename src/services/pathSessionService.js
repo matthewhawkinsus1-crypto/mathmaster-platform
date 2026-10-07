@@ -131,10 +131,14 @@ const mockQuestionFor = (session) => {
   };
 };
 
-export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions = 5, assessmentFramework = null, coursePracticeIntent = null, weekKey = null, weeklySlotKey = null, weeklySlot = null }) => {
+export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions = 5, assessmentFramework = null, coursePracticeIntent = null, weekKey = null, weeklySlotKey = null, weeklySlot = null, chosenSkillId = null }) => {
   assertRuntimeAvailable();
   const canonicalKey = toCanonicalKey(targetAlignmentKey);
   if (!canonicalKey) throw new Error('Choose a TEKS standard before starting My Math Path.');
+  // "Swap a skill": which alternative the student put in this weekly slot. It
+  // names the choice and authorizes nothing — the server accepts the target
+  // only if it is the slot's own TEKS or one of its frozen alternatives.
+  const weeklyChosenSkillId = weeklySlotKey && chosenSkillId ? String(chosenSkillId) : null;
   if (usingMockRuntime()) {
     const existing = [...mockSessions.values()].find((item) => item.status === 'active' && item.target.alignmentKey === canonicalKey && item.sessionKind === sessionKind && (item.assessmentFramework || null) === (assessmentFramework || null) && (item.coursePracticeIntent || null) === (coursePracticeIntent === 'challenge' ? 'challenge' : null) && (item.weeklySlotKey || null) === (weeklySlotKey || null));
     if (existing) return { success: true, session: clone(existing) };
@@ -147,6 +151,7 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
       weekKey: weekKey || null,
       weeklySlotKey: weeklySlotKey || null,
       weeklySlot: weeklySlot || null,
+      chosenSkillId: weeklyChosenSkillId,
       isDevelopmentSandbox: true,
       requiredQuestions: Math.max(2, Math.min(10, Number(requiredQuestions) || 5)),
       target: { alignmentKey: canonicalKey },
@@ -166,6 +171,7 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
     weekKey: weekKey || null,
     weeklySlotKey: weeklySlotKey || null,
     weeklySlot: weeklySlot || null,
+    chosenSkillId: weeklyChosenSkillId,
   });
 };
 

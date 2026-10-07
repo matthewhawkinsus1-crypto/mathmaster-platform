@@ -63,3 +63,71 @@ test('a weekly launch is authorized by the shared rule and records the swap', ()
   assert.match(record, /chosenAlternative: weeklySwap\?\.chosenAlternative \|\| null/);
   assert.match(weekly, /weeklySwap = authorization\.swapped\s*\?\s*\{ swappedFromTeks: authorization\.swappedFromTeks, chosenAlternative: authorization\.chosenAlternative \}/);
 });
+
+test('the live service and the session container carry the chosen skill to the server', () => {
+  const service = executableSource(read('src/services/pathSessionService.js'));
+  const start = region(service, 'export const startOrResumePathSession', 'export const fetchMyMathPathSkillProgress', 'live start');
+  assert.match(start, /weeklySlot = null, chosenSkillId = null \}\) =>/);
+  // Only a weekly launch names a chosen alternative.
+  assert.match(start, /const weeklyChosenSkillId = weeklySlotKey && chosenSkillId \? String\(chosenSkillId\) : null;/);
+  const payload = region(start, "invokePathCallable('startMyMathPathSession'", '});', 'callable payload');
+  assert.match(payload, /chosenSkillId: weeklyChosenSkillId,/);
+
+  const container = executableSource(read('src/components/student/MyMathPathProductionContainer.jsx'));
+  const props = region(container, 'export const MyMathPathProductionContainer = ({', '}) => {', 'container props');
+  assert.match(props, /chosenSkillId = null,/);
+  const launch = region(container, 'const sessionLaunchConfig = useMemo(() => ({', '}), [', 'launch config');
+  assert.match(launch, /chosenSkillId,/);
+  const deps = region(container, 'const sessionLaunchConfig = useMemo(', 'const contentRefreshNotice', 'launch config deps');
+  assert.match(deps, /\}\), \[[^\]]*\bchosenSkillId\b[^\]]*\]\);/);
+});
+
+test('the Path screen offers only frozen swaps and launches what was chosen', () => {
+  const app = executableSource(read('src/components/student/MyMathPathApp.jsx'));
+  // Imported where it is called: App-level .jsx has no no-undef safety net.
+  assert.match(app, /import \{[^}]*\bapplyWeeklySlotChoices\b[^}]*\bmergeWeeklyGoalSnapshot\b[^}]*\bresolveWeeklySlotChoices\b[^}]*\} from '..\/..\/platform\/path\/weeklyPathChoice\.js';/);
+
+  const freeze = region(app, 'const [assignedWeeklyGoal, setAssignedWeeklyGoal]', 'const weeklyGoal = ', 'weekly freeze effect');
+  assert.match(freeze, /setAssignedWeeklyGoal\(mergeWeeklyGoalSnapshot\(\{ proposed: proposedWeeklyGoal, snapshot \}\)\)/,
+    'a live student\'s swaps come from the server\'s frozen week');
+  assert.match(freeze, /sessionProvider\.freezeWeeklyPathGoal\(proposedWeeklyGoal\)/, 'the simulator freezes by the same rule');
+  assert.match(freeze, /mergeWeeklyGoalSnapshot\(\{ proposed: proposedWeeklyGoal, snapshot: simulatedSnapshot, assignmentState: 'simulation' \}\)/);
+  assert.doesNotMatch(freeze, /\.\.\.snapshot,/, 'the raw spread kept the proposal\'s swaps on a frozen week');
+  assert.match(app, /const unfrozenWeeklyGoal = useMemo\(\(\) => mergeWeeklyGoalSnapshot\(\{ proposed: proposedWeeklyGoal \}\)/);
+  assert.match(app, /const weeklyGoal = assignedWeeklyGoal \|\| unfrozenWeeklyGoal;/);
+
+  const choices = region(app, 'const weeklyGoalWithChoices = useMemo(', '}, [weeklyGoal,', 'weekly choices');
+  // Raw completions: each carries the slot key its session was launched with.
+  assert.match(choices, /resolveWeeklySlotChoices\(\{[\s\S]*?choices: weeklyChoices,[\s\S]*?inProgress: weeklyInProgress,[\s\S]*?completions: weeklyCompletions,/);
+  assert.match(choices, /applyWeeklySlotChoices\(\{[\s\S]*?isLaunchable: coverageLoaded \? weeklyAlternativeLaunchable : null,/);
+  assert.match(app, /const weeklyMatchedCompletions = useMemo\(\(\) => \(weeklyGoal && weeklyCompletions\s*\? matchWeeklyGoalCompletions\(\{ goal: weeklyGoal, completions: weeklyCompletions \}\)\.matched/);
+  const launchable = region(app, 'const weeklyAlternativeLaunchable = useCallback(', '}, [coverage]);', 'swap coverage');
+  assert.match(launchable, /frameworkCoverageKnown\(coverage, framework\) && isFrameworkSkillLaunchable\(coverage, teksCode, framework\)/);
+  assert.match(launchable, /: isSkillLaunchable\(coverage, teksCode\)/);
+
+  const weeklyStart = region(app, 'const startWeeklySession = (session) => {', 'const chooseWeeklySlotAlternative', 'weekly start');
+  assert.match(weeklyStart, /chosenSkillId: chosen\?\.studentChose \? \(chosen\.chosenSkillId \|\| null\) : null,/);
+  const sessionStart = region(app, 'const startSession = (teksCode, options = {}) => {', 'const launchedRef = useRef(null);', 'session start');
+  assert.match(sessionStart, /chosenSkillId: options\.weeklySlotKey \? \(options\.chosenSkillId \|\| null\) : null,/);
+
+  assert.match(app, /goal=\{weeklyGoalWithChoices\}/);
+  assert.match(app, /onChooseAlternative=\{chooseWeeklySlotAlternative\}/);
+  assert.match(app, /<MyMathPathDashboard[^>]*weeklyGoal=\{weeklyGoalWithChoices\}/s);
+  assert.match(app, /<MyMathPathProductionContainer \{\.\.\.sessionConfig\}/);
+});
+
+test('the weekly panel promises a swap only where a card offers one', () => {
+  const panel = executableSource(read('src/components/student/WeeklyPathGoalPanel.jsx'));
+  assert.match(panel, /import \{[^}]*\bweeklyGoalOffersSwap\b[^}]*\} from '..\/..\/platform\/path\/weeklyPathChoice\.js';/);
+  assert.match(panel, /const swapOffered = weeklyGoalOffersSwap\(\{ goal, completedSlots, inProgress \}\);/);
+  // Every sentence that mentions swapping sits behind swapOffered.
+  const swapSentences = panel.match(/'[^'\n]*\bswap[^'\n]*'/gi) || [];
+  assert.ok(swapSentences.length >= 2);
+  swapSentences.forEach((sentence) => {
+    const at = panel.indexOf(sentence);
+    assert.match(panel.slice(Math.max(0, at - 160), at), /swapOffered\s*\?\s*$/, `unconditional swap promise: ${sentence}`);
+  });
+  // A card without frozen options renders no swap control at all.
+  const slotChoice = region(panel, 'function SlotChoice(', 'export const inProgressForSlot', 'swap control');
+  assert.match(slotChoice, /if \(!choice\.canChoose\) return null;/);
+});
