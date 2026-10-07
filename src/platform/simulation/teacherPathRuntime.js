@@ -30,6 +30,7 @@ import {
 } from '../../../functions/shared/pathToolContracts.mjs';
 import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
+import { buildPathRecapEntry, buildPathSessionRecap } from '../../../functions/shared/pathSessionRecap.mjs';
 import * as answerEquivalence from '../../../functions/shared/answerEquivalence.mjs';
 import { selectNextFamily, recordFamilyUse } from '../../../functions/shared/pathQuestionSelection.mjs';
 import { generatePathInstanceWithRetries, hasPathGenerator } from '../../../functions/shared/pathQuestionGeneration.mjs';
@@ -645,6 +646,27 @@ export const createTeacherPathRuntime = ({
     if (isCorrect && supportUsage.isMathematicallyIndependent !== false && !supportUsage.hintUsed && !supportUsage.scaffoldUsed) {
       session.summary.independentSuccesses += 1;
     }
+    // The end-of-session recap entry, built by the module the server uses, from
+    // what this question looked like to the student and what they gave.
+    // Released only once the session is completed (fetchPathSessionRecap).
+    if (!session.closedItems) session.closedItems = [];
+    session.closedItems.push(buildPathRecapEntry({
+      sessionId: session.sessionId,
+      questionInstanceId: instance.questionInstanceId,
+      questionNumber: session.summary.completedQuestions,
+      skillCode: instance.teksCode || null,
+      closedAt: Date.now(),
+      publicQuestion: instance,
+      privateGrading: session.privateGrading,
+      responsePayload,
+      grading: {
+        isCorrect: isCorrect === true,
+        score: graded?.score ?? (isCorrect ? 1 : 0),
+        attemptNumber: instance.attemptsUsed,
+        attemptsAllowed: instance.attemptsAllowed,
+      },
+      solutionReview: attemptSupport.solutionReview,
+    }));
 
     const masteryBySkill = masteryNow(session);
 
@@ -834,11 +856,20 @@ export const createTeacherPathRuntime = ({
     };
   };
 
+  // The same gate the callable applies: a recap exists only for a completed
+  // session, so a teacher previewing one sees exactly what a student would.
+  const fetchPathSessionRecap = async ({ sessionId }) => {
+    const session = sessions.get(sessionId);
+    if (!session) throw new Error('That simulated session no longer exists.');
+    return buildPathSessionRecap({ session: publicSession(session), entries: session.closedItems || [] });
+  };
+
   return {
     startOrResumePathSession,
     fetchNextSanitizedQuestion,
     submitStudentResponse,
     forceCurrentQuestionOutcome,
+    fetchPathSessionRecap,
     getLearner: () => learner,
     /**
      * Take an updated synthetic learner WITHOUT tearing the runtime down.

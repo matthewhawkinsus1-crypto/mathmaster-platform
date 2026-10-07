@@ -93,12 +93,13 @@ const fieldsOf = (view) => (view.responseFields.length
   : [{ id: 'answer', label: 'Answer', inputProfile: view.choices.length ? 'choice' : 'text' }]);
 
 /**
- * One value, ready to show: a choice id becomes its label, a typed word stays
- * a word, and anything typed in the math editor is LaTeX. `format` tells the
- * screen which: 'rich' may hold $…$ math (a choice label), 'math' is LaTeX,
- * 'text' is plain.
+ * One value, ready to show: a choice id becomes its label and a typed word
+ * stays a word. `format` tells the screen how to draw it: 'text' is plain,
+ * 'math' is LaTeX (what the student's math editor submits), and 'rich' is
+ * prose that may hold $…$ math or ASCII notation such as `x<=4` (a choice
+ * label, an authored answer key).
  */
-const displayValue = (field, value, view) => {
+const displayValue = (field, value, view, { typedFormat = 'math' } = {}) => {
   if (value === null || value === undefined || isObject(value) || Array.isArray(value)) return null;
   const raw = clampText(value, 400);
   if (!raw) return null;
@@ -107,7 +108,7 @@ const displayValue = (field, value, view) => {
     const chosen = choices.find((choice) => choice.id === raw);
     return chosen ? { label: field.label, value: chosen.label, format: 'rich' } : null;
   }
-  return { label: field.label, value: raw, format: field.inputProfile === 'text' ? 'text' : 'math' };
+  return { label: field.label, value: raw, format: field.inputProfile === 'text' ? 'text' : typedFormat };
 };
 
 const TOOL_ANSWER_KEYS = ['finalEquation', 'finalRelation', 'value', 'answer', 'equation', 'expression'];
@@ -137,7 +138,7 @@ export const describeRecapResponse = (view, responsePayload) => {
     const answer = toolAnswer(payload.raw);
     return {
       kind: 'tool',
-      entries: answer ? [{ label: 'Your answer', value: answer, format: 'math' }] : [],
+      entries: answer ? [{ label: 'Your answer', value: answer, format: 'rich' }] : [],
     };
   }
   return { kind: 'none', entries: [] };
@@ -155,7 +156,7 @@ export const describeRecapCorrectAnswer = (view, privateGrading) => {
     const definition = isObject(privateGrading.definition) ? privateGrading.definition : {};
     const expected = ['expected', 'solution'].map((key) => definition[key])
       .find((value) => ['string', 'number'].includes(typeof value) && text(value));
-    return expected === undefined ? [] : [{ label: 'Answer', value: clampText(expected, 400), format: 'math' }];
+    return expected === undefined ? [] : [{ label: 'Answer', value: clampText(expected, 400), format: 'rich' }];
   }
   const fields = fieldsOf(view);
   return list(privateGrading.fields).map((graded) => {
@@ -163,7 +164,8 @@ export const describeRecapCorrectAnswer = (view, privateGrading) => {
     // generic label rather than borrowing another field's.
     const field = fields.find((candidate) => candidate.id === String(graded?.id))
       || { id: String(graded?.id || 'answer'), label: 'Answer', inputProfile: view.choices.length ? 'choice' : 'text' };
-    return displayValue(field, graded?.expected ?? list(graded?.accepted)[0], view);
+    // An answer key is authored notation, not editor LaTeX.
+    return displayValue(field, graded?.expected ?? list(graded?.accepted)[0], view, { typedFormat: 'rich' });
   }).filter(Boolean);
 };
 

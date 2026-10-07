@@ -152,9 +152,11 @@ test('building a recap entry can never fail the graded answer', async () => {
 });
 
 test('typed answers keep their notation and an untrusted payload is never stored raw', () => {
+  // The student's math editor submits LaTeX; an answer key is authored
+  // notation (`x<=4`), which the screen draws as prose with math typography.
   const typed = entry();
   assert.deepEqual(typed.response.entries, [{ label: 'x =', value: '5', format: 'math' }]);
-  assert.deepEqual(typed.correctAnswer, [{ label: 'x =', value: '4', format: 'math' }]);
+  assert.deepEqual(typed.correctAnswer, [{ label: 'x =', value: '4', format: 'rich' }]);
 
   const words = entry({
     publicQuestion: { prompt: 'Name the property.', responseFields: [{ id: 'answer', label: 'Property', inputProfile: 'text' }] },
@@ -173,8 +175,8 @@ test('typed answers keep their notation and an untrusted payload is never stored
     responsePayload: { raw: { finalEquation: 'x=5', steps: [[1, 2], [3, 4]] } },
   });
   assert.equal(tool.question.prompt, 'Solve 3x = 12.');
-  assert.deepEqual(tool.response, { kind: 'tool', entries: [{ label: 'Your answer', value: 'x=5', format: 'math' }] });
-  assert.deepEqual(tool.correctAnswer, [{ label: 'Answer', value: '4', format: 'math' }]);
+  assert.deepEqual(tool.response, { kind: 'tool', entries: [{ label: 'Your answer', value: 'x=5', format: 'rich' }] });
+  assert.deepEqual(tool.correctAnswer, [{ label: 'Answer', value: '4', format: 'rich' }]);
   assert.doesNotMatch(JSON.stringify(tool), /steps/);
 });
 
