@@ -30,6 +30,9 @@
 //                functionModeling recipe) and `relationMapping` with a recipe:
 //                readComposedQuestion — the reading WorkflowRunner and the
 //                composedWorkflow grader share — gives the stages and the key.
+//                A standalone `relationshipModel` (RelationshipModel.jsx:
+//                quantities, axes, discrete/continuous, starting point) is
+//                read through relationshipModelRequirements the same way.
 //   relation     the `relationMapping` registry tool: the authored pairs, the
 //                `ask` list, the grader's own relation helpers.
 //   table        the legacy function `table` (question.table.answers, rule).
@@ -38,10 +41,12 @@
 //                functionInvestigationMath.mjs.
 //   attributes   multiAnswer items whose EVERY field is a function attribute
 //                (domain, range, discrete/continuous, parent family, an
-//                asymptote, an intercept, "which is true") on a prompt or label
-//                about those attributes — and none that is a vertex, a
-//                transformation, an inverse, a composition or a slope (those
-//                belong to later families or to linesAndSlope).
+//                asymptote, a y-intercept beside them, "which is true") on a
+//                prompt or label about those attributes — and none that is a
+//                vertex, a transformation, an inverse, a composition, a slope,
+//                a zero or an x-intercept (those belong to later families or to
+//                linesAndSlope). A platform family instance is never claimed:
+//                no platform family id is a function-attribute family.
 //
 // HOW IT STAYS SAFE.
 //   - expectedValues lists what the student must FIND, in every spelling a hint
@@ -64,12 +69,12 @@
 //     key), and offered only when its prompt, every step and its answer avoid
 //     this question's answers (the platform's own checks, run here first). Its
 //     steps never use a verdict word either, so whether a sibling is offered
-//     never depends on this question's verdict. A graph or attribute sibling
-//     whose domain could be "every real number" is drawn on a closed interval
-//     instead — always for that shape of question, so its look says nothing
-//     about this question's answer. A sibling that would share an answer
-//     (the domain of a shifted parabola is every real number, as this one's
-//     is) is not offered: null.
+//     never depends on this question's verdict. A graph sibling that answers
+//     interval questions is always drawn on a closed interval (as is an
+//     attribute sibling of a line, a cubic or a cube root), so "every real
+//     number" — shared by every shifted parabola — is never its answer, and
+//     its look depends on the question's shape, not its key. A sibling that
+//     would still share an answer is not offered: null.
 //   - backUpQuestion asks about the first MOVE (which axis, which coordinate,
 //     which number in a pair is the input), never a feature's value.
 //
@@ -399,7 +404,8 @@ const renderRhs = (spec) => {
   if (type === 'logarithmic') {
     const base = baseOf(spec);
     const name = base === 2 ? 'log₂' : base === 10 ? 'log' : `log_${baseText(base)}`;
-    return `${withDotCoefficient(a, `${name}(${inside})`)}${plusConstant(k)}`;
+    const log = `${name}(${inside})`;
+    return `${same(a, -1) ? `-${log}` : withDotCoefficient(a, log)}${plusConstant(k)}`;
   }
   if (type === 'rational') return `${dec(a)}/${same(h, 0) ? 'x' : `(${inside})`}${plusConstant(k)}`;
   return '';
@@ -1202,24 +1208,24 @@ const featureHint = (spec, equation) => {
     linear: 'This graph is a line: check whether it keeps going (arrows) or stops at endpoints (dots), and whether it rises or falls from left to right.',
     quadratic: 'Compare the equation with vertex form a(x - h)² + k: the vertex (h, k) is the turning point, and the sign of a tells you whether the parabola opens up or down.',
     absolute: 'Compare the equation with a|x - h| + k: the vertex (h, k) is the corner of the V, and the sign of a tells you whether the V opens up or down.',
-    squareRoot: 'The expression under a square root cannot be negative: find the x-value that makes it zero. The graph starts there and runs in one direction only.',
+    squareRoot: 'Which x-values keep the expression under the square root from being negative? The graph exists only for those x-values; where is that expression exactly zero?',
     cubic: 'Compare the equation with a(x - h)³ + k: the point (h, k) is the center of the curve, and the sign of a tells you whether it rises or falls from left to right.',
     cubeRoot: 'Compare the equation with a∛(x - h) + k: the point (h, k) is the center of the curve, and the sign of a tells you whether it rises or falls from left to right.',
-    exponential: 'The constant added at the end sets the horizontal asymptote, a line the graph approaches but never touches; the base and the sign in front decide whether the graph rises or falls.',
-    logarithmic: 'The input of a logarithm must be positive, which puts a vertical asymptote where that input would be zero; the graph gets close to that line but never touches it.',
-    rational: 'The denominator cannot be zero, which gives a vertical asymptote; the constant added at the end gives the horizontal asymptote the outputs approach.',
+    exponential: 'Far to one side the power term gets very close to zero: what are the outputs close to there? The base and the sign in front decide whether the graph rises or falls.',
+    logarithmic: 'Which x-values can go into the logarithm? Look for the vertical asymptote the graph gets close to but never touches.',
+    rational: 'Which x-value would make the denominator zero, and what does the graph do near it? What value do the outputs get close to far to the left and right?',
   }[type] || 'Find the feature that organizes this graph (a turning point, an endpoint, a center or an asymptote) before reading anything else.';
   if (!equation) return [plain];
   const numbered = {
     linear: `${equation} is a line: check whether its graph keeps going (arrows) or stops at endpoints (dots), and whether it rises or falls from left to right.`,
     quadratic: `Compare ${equation} with vertex form a(x - h)² + k: which numbers play the roles of h and k? The vertex (h, k) is the turning point, and the sign of a tells you whether the parabola opens up or down.`,
     absolute: `Compare ${equation} with a|x - h| + k: which numbers play the roles of h and k? The vertex (h, k) is the corner of the V, and the sign of a tells you whether it opens up or down.`,
-    squareRoot: `In ${equation}, the expression under the square root, ${inside}, cannot be negative. Which x-value makes it exactly zero? The graph starts there and runs in one direction only.`,
+    squareRoot: `In ${equation}, which x-values keep the expression under the square root, ${inside}, from being negative? The graph exists only for those x-values; where is ${inside} exactly zero?`,
     cubic: `Compare ${equation} with a(x - h)³ + k: which numbers play the roles of h and k? (h, k) is the center of the curve, and the sign of a tells you whether it rises or falls.`,
     cubeRoot: `Compare ${equation} with a∛(x - h) + k: which numbers play the roles of h and k? (h, k) is the center of the curve, and the sign of a tells you whether it rises or falls.`,
-    exponential: `In ${equation}, the constant added at the end sets the horizontal asymptote, a line the graph approaches but never touches; the base and the sign in front decide whether the graph rises or falls.`,
-    logarithmic: `In ${equation}, the input of the logarithm, ${inside}, must be positive: the vertical asymptote is where ${inside} would be zero, and the graph gets close to that line but never touches it.`,
-    rational: `In ${equation}, the denominator ${inside} cannot be zero: that x-value is a vertical asymptote. The constant added at the end is the horizontal asymptote the outputs approach.`,
+    exponential: `In ${equation}, far to one side the power term gets very close to zero: what are the outputs close to there? The base and the sign in front decide whether the graph rises or falls.`,
+    logarithmic: `In ${equation}, which values of ${inside} can a logarithm accept, and so which x-values can the graph use? Look for the vertical asymptote the graph gets close to but never touches.`,
+    rational: `In ${equation}, which x-value would make the denominator ${inside} zero, and what does the graph do near it? What value do the outputs get close to far to the left and right?`,
   }[type];
   return [numbered, plain];
 };
@@ -1293,7 +1299,7 @@ const graphHints = (model, guard) => {
   }
   if (points.length) {
     const words = [];
-    if (points.includes('point:xIntercepts')) words.push('an x-intercept has y-coordinate zero, so solve f(x) = zero');
+    if (points.includes('point:xIntercepts')) words.push('an x-intercept has y-coordinate zero, so set f(x) equal to zero');
     if (points.includes('point:yIntercept')) words.push('the y-intercept is the output when x is zero');
     if (points.some((kind) => /vertex|localMinimum|localMaximum/.test(kind))) words.push('the vertex, minimum or maximum is the turning point of the graph');
     if (points.includes('point:center')) words.push('the center is where the two asymptotes cross');
@@ -1452,9 +1458,11 @@ const tableHints = (model, guard) => {
   if (model.rule?.type === 'quadratic') {
     out.push('Square the x-value first (a negative number squared is positive), multiply by its coefficient, then add or subtract the other terms.');
     out.push('Check the column: in a quadratic table the differences of the outputs change by the same amount each time x goes up by the same step.');
-  } else {
+  } else if (model.rule?.type === 'linear') {
     out.push('Multiply the x-value by the slope first, then add or subtract the constant term.');
     out.push('Check the column: for a linear rule the outputs change by the same amount each time x goes up by the same step.');
+  } else {
+    out.push('Follow the order of operations in the rule: powers first, then multiplication and division, then addition and subtraction.');
   }
   return out;
 };
@@ -1508,12 +1516,12 @@ const sequenceHints = (model, guard) => {
 };
 
 const INVESTIGATION_DOMAIN_HINT = Object.freeze({
-  squareRoot: 'A square root graph starts at an endpoint and runs in one direction from there.',
-  logarithmic: 'A logarithmic graph has a vertical asymptote on one side and keeps going on the other.',
-  rational: 'A rational graph skips one x-value and one y-value, at its two asymptotes.',
-  exponential: 'An exponential graph runs across the whole page left to right but stays on one side of its horizontal asymptote.',
-  quadratic: 'A parabola runs across the whole page left to right, but its turning point limits its y-values.',
-  absolute: 'A V-shaped graph runs across the whole page left to right, but its corner limits its y-values.',
+  squareRoot: 'Does a square root graph cover the page from left to right, or does it start somewhere? Is that starting point on the graph?',
+  logarithmic: 'Does a logarithmic graph reach every x-value, or is there a vertical asymptote on one side that it never crosses?',
+  rational: 'Is there an x-value the graph never reaches, and a y-value it never reaches? Look at the dashed asymptotes.',
+  exponential: 'Does an exponential graph reach every y-value, or does it stay on one side of its horizontal asymptote?',
+  quadratic: 'How far left and right does the parabola go? How low (or how high) does it go: does its turning point limit the y-values?',
+  absolute: 'How far left and right does the V go? How low (or how high) does it go: does its corner limit the y-values?',
 });
 
 const investigationHints = (model, guard) => {
@@ -1556,7 +1564,7 @@ const investigationHints = (model, guard) => {
 const ATTRIBUTE_DOMAIN_HINT = Object.freeze({
   squareRoot: 'Which inputs can go under the square root and give a real output? Try a negative input, zero and a positive input.',
   cubeRoot: 'Can you take the cube root of a negative number? Of zero? Of a positive number?',
-  rational: 'Which input would make the denominator zero? That input cannot be used.',
+  rational: 'Which input would make the denominator zero, and can that input be used?',
   logarithmic: 'A logarithm only accepts certain inputs: can you take the logarithm of a negative number, or of zero?',
 });
 const ATTRIBUTE_RANGE_HINT = Object.freeze({
@@ -1971,7 +1979,7 @@ const tableGraphSibling = (question, model, guard, seed) => {
   const tableStage = model.stages.find((stage) => stageGroup(stage) === 'table');
   const count = Math.max(3, Math.min(6, list(tableStage?.xValues).length || 4));
   const candidates = [];
-  for (const m of [2, 3, 4, -2, -3, 5]) for (const b of [5, 7, -4, 9, 6, -5, 8]) for (const start of [4, 5, 6, -6]) candidates.push({ m, b, start });
+  for (const m of [2, 3, 4, -2, -3, 5, 6]) for (const b of [5, 7, -4, 9, 6, -5, 8, 11]) for (const start of [4, 5, 6, 8, 10, 12, -6, -9]) candidates.push({ m, b, start });
   const salt = `${typeOf(question)}|${text(question.prompt)}`;
   return fromCandidates(candidates, seed, salt, ({ m, b, start }) => {
     const spec = { type: 'linear', m, b };

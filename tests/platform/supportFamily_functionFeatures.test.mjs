@@ -30,12 +30,19 @@
  * interval, point and value is checked by sampling.
  *
  * Mutation-checked (each went red, then was restored):
- *   - graphHints was made to append the first accepted answer of the first
- *     analysis part to its orientation hint → "hints never contain an answer"
- *     fails on the graphAnalysis items (and buildQuestionHints drops it);
- *   - rangeOf was made to return the domain → the sibling re-solve fails;
- *   - the relation verdict phrase was dropped from expectedValues → the
- *     expectedValues coverage test fails.
+ *   - graphHints' orientation hint was made to end with the first accepted
+ *     answer of the first analysis part ("… MUTATION: [-3,4)") and hints() lost
+ *     its own leak filter → "none contains an answer" fails on the
+ *     graphAnalysis items, and the ladder test fails because the platform
+ *     guard drops the hint;
+ *   - the same leaking hint WITH the filter kept but the graph expectedValues
+ *     blinded (so the family's guard cannot see it) → only this file's
+ *     independent key catches it: the leak test and the expectedValues
+ *     coverage test fail (and the platform ladder would have shown it);
+ *   - rangeOf was made to return the domain → the sibling re-solve fails
+ *     ("range [-1, 4]: the graph reaches y = -4");
+ *   - the relation's verdict value and phrases were dropped from
+ *     expectedValues → the coverage test fails ("names yes-definition").
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -150,6 +157,29 @@ const ATTRIBUTE_ITEMS = CORPUS.filter(({ question }) => question.type === 'multi
 const compiledSample = questionsIn(compileAuthoringIntentV5(sample('SAMPLE_AUTHORING_INTENT_V5.json')).package)
   .map((question) => ({ source: 'SAMPLE_AUTHORING_INTENT_V5.json', question }));
 
+// More table-then-graph items, authored the way the L1 Day 2 lesson authors
+// its own and compiled by the same compiler (new functions and x-values).
+const authoredTableGraph = (() => {
+  const lesson = JSON.parse(readFileSync(path.join(ROOT, 'teacher-import-jsons/algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json'), 'utf8'));
+  const section = lesson.sections.find(({ questions }) => questions.some((question) => question.table && question.function?.family === 'linear'));
+  const base = section.questions.find((question) => question.table && question.function?.family === 'linear');
+  const item = (m, b, xs, rangeText, extra = {}) => ({
+    ...base,
+    prompt: `Complete the table for f(x) = ${m}x ${b < 0 ? '−' : '+'} ${Math.abs(b)} over x ∈ {${xs.join(', ')}}, plot only those points, state the domain and range, and classify the relation as discrete or continuous.`,
+    function: { family: 'linear', m, b },
+    table: { columns: ['x', 'f(x)'], rows: xs.map((x) => [x, null]) },
+    answerModel: { domain: `{${xs.join(', ')}}`, range: rangeText, continuity: 'discrete' },
+    ...extra,
+  });
+  const questions = [
+    item(2, -3, [-1, 1, 3, 5], '{-5, -1, 3, 7}'),
+    item(-3, 2, [-2, -1, 0, 1, 2], '{-4, -1, 2, 5, 8}', { studentActions: ['completeTable', 'constructGraph', 'analyzeRange', 'classifyContinuity'] }),
+    item(0.25, 2, [0, 4, 8, 12], '{2, 3, 4, 5}'),
+  ];
+  return questionsIn(compileAuthoringIntentV5({ ...lesson, sections: [{ ...section, questions }] }).package)
+    .map((question) => ({ source: 'authored L1 Day 2 table items', question }));
+})();
+
 /** Every item, by the sub-kind the family claims it as. */
 const KINDS = {
   graph: [
@@ -167,7 +197,7 @@ const KINDS = {
     ...compiledSample.filter(({ question }) => question.type === 'relationshipModel'),
     ...sampleTools('SAMPLE_ACTIVITY_1_1_AXIS_BUILDER.json', ['relationshipModel']),
   ],
-  tableGraph: [...corpusOf('functionGraph'), ...compiledSample.filter(({ question }) => question.type === 'functionGraph' && readComposedQuestion(question).composed)],
+  tableGraph: [...corpusOf('functionGraph'), ...compiledSample.filter(({ question }) => question.type === 'functionGraph' && readComposedQuestion(question).composed), ...authoredTableGraph],
   relation: [...corpusOf('relationMapping'), ...compiledSample.filter(({ question }) => question.type === 'relationMapping')],
   table: [
     ...generated('SAMPLE_GUIDED_NOTES_CLASSWORK.json', 'table', ['seed-1', 'seed-2', 'seed-3']),
@@ -816,7 +846,7 @@ const VERIFY = {
  * ------------------------------------------------------------------------- */
 
 test('the corpus and samples give several real items of every sub-kind the family claims', () => {
-  const minimum = { graph: 20, characteristics: 15, modeling: 6, tableGraph: 2, relation: 8, table: 6, sequence: 6, investigation: 5, attributes: 10 };
+  const minimum = { graph: 20, characteristics: 15, modeling: 6, tableGraph: 5, relation: 8, table: 6, sequence: 6, investigation: 5, attributes: 10 };
   Object.entries(minimum).forEach(([kind, count]) => assert.ok(KINDS[kind].length >= count, `${kind}: ${KINDS[kind].length} items`));
   assert.equal(ATTRIBUTE_ITEMS.length, ATTRIBUTE_PROMPTS.length, 'every listed attribute prompt is in the corpus');
   // Every function-type item of the corpus is one of the kinds above.
