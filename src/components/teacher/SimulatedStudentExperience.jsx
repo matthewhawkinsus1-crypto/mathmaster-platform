@@ -9,22 +9,23 @@ import {
   assignmentIsForStudent, getAssignmentLifecycle, getDOLState, getIncludedQuestionIndices,
   prerequisiteAccess, questionIsIncluded,
 } from '../../assignmentLifecycle';
-import { getQuestionCredit, normalizeQuestionRecord } from '../../attemptPolicy';
+import { normalizeQuestionRecord } from '../../attemptPolicy';
+import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
+import { splitGrade } from '../../platform/teacher/gradeEvidence.js';
 import { matchesSmartView } from '../../assignmentSmartViews.js';
 import { createTeacherPathRuntime } from '../../platform/simulation/teacherPathRuntime.js';
 import { fetchTeacherPathBankSnapshot } from '../../platform/path/pathBankSimulationService.js';
 import { buildSimulatorCoverageIndex } from '../../platform/simulation/simulatorCoverageIndex.js';
 import { ccmrPlanFrameworks, normalizeStoredCcmrPlan, validateCcmrPlanInput } from '../../platform/ccmr/ccmrPlan.js';
 
-// The same arithmetic App.jsx uses for a real student's recorded grade. It is
-// three lines and lives on App's closure there; duplicating those three lines
-// is better than exporting App's internals into the simulator.
-const calculateGrade = (assignmentTracker, assignmentData) => {
-  if (!assignmentTracker || !assignmentData?.questions?.length) return 0;
-  const included = getIncludedQuestionIndices(assignmentData);
-  if (!included.length) return 0;
-  const earned = included.reduce((total, index) => total + getQuestionCredit(assignmentTracker?.[index]), 0);
-  return Math.round((earned / included.length) * 100);
+// The same grade App.jsx gives a real student: its calculateGrade lives on
+// App's closure, so these two lines repeat it. Both read splitGrade, the one
+// weighted grade every gradebook and export uses, so a simulated student is
+// never graded by different arithmetic (a private copy here once ignored
+// question weights, and read V5 assignments as having no questions).
+const calculateGrade = (assignmentTracker, assignmentData, { practicePassRedeemed = false, supportProfile = null } = {}) => {
+  if (!assignmentTracker || !getStoredAssignmentQuestions(assignmentData).length) return 0;
+  return splitGrade({ tracker: assignmentTracker, assignment: assignmentData, practicePassRedeemed, supportProfile }).score ?? 0;
 };
 
 // What the simulated student is actually looking at.
