@@ -21,8 +21,9 @@ import { teksCodeFromSkillId, teksSkillId } from '../../platform/path/skillGraph
 import { statusForSkill } from '../../platform/path/pathMap.js';
 import { buildStudentLearningProfile } from '../../platform/profile/studentLearningProfile.js';
 import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
-import { CCMR_EXPECTATION, buildWeeklyGoal, deriveCompletionsFromEvidence, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
-import { resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
+import { CCMR_EXPECTATION, buildWeeklyGoal, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
+import { fetchMyWeeklyPathCompletions, fetchTeacherWeeklyPathCompletions, resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
+import { collectWeeklyPathSessions } from '../../../functions/shared/weeklyPathCompletion.mjs';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { chooseWeeklyAlternative } from '../../platform/path/weeklyPathChoice.js';
@@ -296,12 +297,43 @@ export const MyMathPathExperience = ({
 
   const weeklyGoal = assignedWeeklyGoal || (proposedWeeklyGoal ? { ...proposedWeeklyGoal, assignmentState: 'proposed' } : null);
 
-  const weeklyCompletions = useMemo(
-    () => deriveCompletionsFromEvidence({ evidenceEvents, weekKey: weeklyGoal?.weekKey }),
-    [evidenceEvents, weeklyGoal],
-  );
+  // ONE COMPLETION TRUTH. A slot is done when its Path session is COMPLETED on
+  // the server — the rule the teacher's table and the Classroom publisher use
+  // (functions/shared/weeklyPathCompletion.mjs). Counting a session with one
+  // finalized answer as done showed a student a 🎉 and a "Grade so far" that
+  // Classroom would never receive. A half-finished session is `inProgress` and
+  // keeps its Resume button. Null while loading: no grade card rather than a
+  // wrong one.
+  const [weeklySessionFacts, setWeeklySessionFacts] = useState({ weekKey: null, completions: null, inProgress: [] });
+  const [weeklyRefreshKey, setWeeklyRefreshKey] = useState(0);
+  const weeklyGoalWeekKey = weeklyGoal?.weekKey || null;
+  useEffect(() => {
+    if (!weeklyGoalWeekKey) return undefined;
+    let cancelled = false;
+    const load = sessionProvider
+      // The simulator's runtime holds session documents of the production
+      // shape; the same collector counts them.
+      ? Promise.resolve(collectWeeklyPathSessions({ sessions: sessionProvider.listPathSessions?.() || [], weekKey: weeklyGoalWeekKey }))
+      : readOnly
+        // A teacher inspecting a student reads the teacher callable, which uses
+        // the same completion rule.
+        ? fetchTeacherWeeklyPathCompletions({ classId: studentRecord?.classId || studentProfile?.classId || null, weekKey: weeklyGoalWeekKey })
+          .then((result) => ({ completions: result.byStudentId?.[studentId] || [], inProgress: [] }))
+        : fetchMyWeeklyPathCompletions({ weekKey: weeklyGoalWeekKey });
+    load
+      .then((facts) => {
+        if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: facts.completions || [], inProgress: facts.inProgress || [] });
+      })
+      .catch((caught) => {
+        console.error('Could not load weekly Path completions:', caught);
+        if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: null, inProgress: [] });
+      });
+    return () => { cancelled = true; };
+  }, [weeklyGoalWeekKey, sessionProvider, readOnly, studentId, studentRecord?.classId, studentProfile?.classId, weeklyRefreshKey, evidenceEvents]);
+  const weeklyCompletions = weeklySessionFacts.weekKey === weeklyGoalWeekKey ? weeklySessionFacts.completions : null;
+  const weeklyInProgress = weeklySessionFacts.weekKey === weeklyGoalWeekKey ? weeklySessionFacts.inProgress : [];
   const weeklyProgress = useMemo(
-    () => (weeklyGoal ? evaluateWeeklyGoalProgress({ goal: weeklyGoal, completions: weeklyCompletions }) : null),
+    () => (weeklyGoal && weeklyCompletions ? evaluateWeeklyGoalProgress({ goal: weeklyGoal, completions: weeklyCompletions }) : null),
     [weeklyGoal, weeklyCompletions],
   );
   // Exact one-to-one slot matching. Two weekly rows may intentionally use the
@@ -318,7 +350,7 @@ export const MyMathPathExperience = ({
     };
   }, [weeklyGoal, weeklyChoices]);
 
-  const completedSlots = useMemo(() => (weeklyGoal
+  const completedSlots = useMemo(() => (weeklyGoal && weeklyCompletions
     ? matchWeeklyGoalCompletions({ goal: weeklyGoal, completions: weeklyCompletions }).matched.map((entry) => entry.matchedSlot)
     : []), [weeklyGoal, weeklyCompletions]);
 
@@ -465,6 +497,7 @@ export const MyMathPathExperience = ({
   const returnToDashboard = () => {
     setSessionConfig(null);
     setActiveTab('path');
+    setWeeklyRefreshKey((value) => value + 1);
     onReload?.();
   };
 
@@ -521,6 +554,7 @@ export const MyMathPathExperience = ({
                 progress={weeklyProgress}
                 completions={weeklyCompletions}
                 completedSlots={completedSlots}
+                inProgress={weeklyInProgress}
                 onStartSession={startWeeklySession}
                 onChooseAlternative={chooseWeeklySlotAlternative}
               />
@@ -562,9 +596,9 @@ export const MyMathPathExperience = ({
           />
         </div>
       )}
-      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} skillProgressByTEKS={skillProgressByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} weeklyCompletions={weeklyCompletions} completedSlots={completedSlots} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
+      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} skillProgressByTEKS={skillProgressByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} weeklyCompletions={weeklyCompletions} completedSlots={completedSlots} weeklyInProgress={weeklyInProgress} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
-      {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => onReload?.()} />}
+      {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => { setWeeklyRefreshKey((value) => value + 1); onReload?.(); }} />}
     </div>
   );
 };

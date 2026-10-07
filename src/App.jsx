@@ -396,7 +396,7 @@ import {
   normalizeGradingPeriodSettings,
 } from './platform/student/gradingPeriods.js';
 import {
-  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot, fetchMyWeeklyPathCompletions,
   interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
   setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
   subscribeStudentPathIntervention,
@@ -404,7 +404,7 @@ import {
 import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
 import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
-import { buildTeacherWeeklyView, buildWeeklyGoal, deriveCompletionsFromEvidence, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor } from './platform/path/weeklyPathGoal.js';
+import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor } from './platform/path/weeklyPathGoal.js';
 import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
 import PreproductionReset from './components/admin/PreproductionReset.jsx';
@@ -2148,8 +2148,9 @@ function App() {
 
     Promise.all([
       fetchStudentWeeklyPathGoalSnapshot({ weekKey: currentWeekKey }),
-      fetchStudentEvidenceEvents(user.id),
-    ]).then(([goal, evidenceEvents]) => {
+      // Server-counted completions: the rule the teacher table and Classroom use.
+      fetchMyWeeklyPathCompletions({ weekKey: currentWeekKey }),
+    ]).then(([goal, weeklyFacts]) => {
       if (!active) return;
       if (!goal) {
         const required = Number(settings.sessions) || 0;
@@ -2163,12 +2164,7 @@ function App() {
         return;
       }
 
-      const completions = deriveCompletionsFromEvidence({
-        evidenceEvents,
-        weekKey: goal.weekKey,
-        weekStartsOn: goal?.settings?.weekStartsOn || settings.weekStartsOn || 1,
-        now,
-      });
+      const completions = weeklyFacts?.completions || [];
       setStudentWeeklyPathProgress(evaluateWeeklyGoalProgress({ goal, completions, now }));
     }).catch((error) => {
       if (!active) return;

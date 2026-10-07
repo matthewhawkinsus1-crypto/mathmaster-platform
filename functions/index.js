@@ -14075,6 +14075,59 @@ exports.getStudentWeeklyPathGoalSnapshot = onCall(async (request) => {
 });
 
 /**
+ * The student's own weekly Path completions, counted by the SAME rule the
+ * teacher table and the Classroom publisher use (weeklyPathCompletion.mjs):
+ * only a session the server marked "completed" counts. Also returns the
+ * student's unfinished sessions for this week's slots so the panel can offer
+ * Resume. Only the caller's own sessions; aggregate facts only, no payloads.
+ */
+exports.getMyWeeklyPathCompletions = onCall((request) => withPathCallableDiagnostics("getMyWeeklyPathCompletions", async () => {
+  const { studentId } = requireStudent(request);
+  const weekKey = String(request.data?.weekKey || "").trim();
+  const weeklyCompletion = await import("./shared/weeklyPathCompletion.mjs");
+  const completionWindow = weeklyCompletion.weeklyCompletionWindow(weekKey);
+  if (!completionWindow) throw new HttpsError("invalid-argument", "A valid weekly Path weekKey is required.");
+  const db = getFirestore();
+  const sessions = [];
+  const collect = (snapshot) => snapshot.docs.forEach((doc) => sessions.push({ id: doc.id, data: doc.data() || {} }));
+
+  // Every session launched from this week's slots, in any status. Two
+  // equality filters are served by Firestore's single-field index merge, so
+  // this needs no composite index and has no cap that could drop a slot.
+  collect(await db.collection("pathSessions")
+    .where("studentId", "==", studentId)
+    .where("weekKey", "==", weekKey)
+    .get());
+
+  // Open practice finished inside the week. The grader's legacy rule lets a
+  // completed session on the slot's own TEKS fill it, so the student must see
+  // the same sessions the teacher's table sees.
+  let truncated = false;
+  try {
+    collect(await db.collection("pathSessions")
+      .where("studentId", "==", studentId)
+      .where("completedAt", ">=", completionWindow.start)
+      .where("completedAt", "<", completionWindow.end)
+      .get());
+  } catch (error) {
+    // Composite index (studentId, completedAt) not built yet: fall back to the
+    // student's sessions without a range, filtered here.
+    if (Number(error?.code) !== 9 && error?.code !== "failed-precondition") throw error;
+    const LIMIT = 1000;
+    const fallback = await db.collection("pathSessions").where("studentId", "==", studentId).limit(LIMIT).get();
+    truncated = fallback.size >= LIMIT;
+    collect(fallback);
+  }
+
+  const { completions, inProgress } = weeklyCompletion.collectWeeklyPathSessions({
+    sessions,
+    weekKey,
+    displayTeks: mathPath.displayAlignmentKey,
+  });
+  return { success: true, weekKey, completions, inProgress, truncated };
+}));
+
+/**
  * Teacher-only weekly Path progress for one real class.
  *
  * `pathSessions` is intentionally server-only. The teacher UI needs completion
@@ -14103,9 +14156,12 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) {
     throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
   }
-  const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
-  if (!Number.isFinite(weekStart)) throw new HttpsError("invalid-argument", "weekKey is not a valid date.");
-  const weekEnd = weekStart + (7 * 24 * 60 * 60 * 1000);
+  const weeklyCompletion = await import("./shared/weeklyPathCompletion.mjs");
+  const completionWindow = weeklyCompletion.weeklyCompletionWindow(weekKey);
+  if (!completionWindow) throw new HttpsError("invalid-argument", "weekKey is not a valid date.");
+  // The Classroom publisher's window (the week plus the Sunday-evening day), so
+  // the teacher's table counts exactly the sessions the grade will count.
+  const { start: weekStart, end: weekEnd } = completionWindow;
 
   const roster = await db.collection("grades").where("classId", "==", classId).get();
   const studentIds = new Set(roster.docs
@@ -14157,25 +14213,13 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
     if (page === MAX_PAGES - 1) truncated = true;
   }
 
+  // The same completion rule the student panel and the Classroom publisher use.
   sessionDocs.forEach((sessionDoc) => {
     const session = sessionDoc.data() || {};
     const studentId = String(session.studentId || "");
-    if (!studentIds.has(studentId) || session.status !== "completed") return;
-    const completedQuestions = Number(session.summary?.completedQuestions || 0);
-    const correctQuestions = Number(session.summary?.correctQuestions || 0);
-    const alignmentKey = String(session.target?.alignmentKey || "");
-    byStudentId[studentId].push({
-      status: "completed",
-      sessionId: sessionDoc.id,
-      completedAt: Number(session.completedAt || session.updatedAt || 0),
-      teksCode: alignmentKey ? mathPath.displayAlignmentKey(alignmentKey) : null,
-      accuracy: completedQuestions > 0 ? Math.max(0, Math.min(1, correctQuestions / completedQuestions)) : null,
-      sessionKind: session.sessionKind || "practice",
-      assessmentFramework: session.assessmentFramework || null,
-      weekKey: session.weekKey || null,
-      weeklySlotKey: session.weeklySlotKey || null,
-      weeklySlot: session.weeklySlot || null,
-    });
+    if (!studentIds.has(studentId)) return;
+    const completion = weeklyCompletion.completionFromPathSession(sessionDoc.id, session, { displayTeks: mathPath.displayAlignmentKey });
+    if (completion) byStudentId[studentId].push(completion);
   });
 
   Object.values(byStudentId).forEach((rows) => rows.sort((a, b) => a.completedAt - b.completedAt));
@@ -14257,15 +14301,13 @@ exports.setWeeklyPathClassroomSync = onCall(async (request) => {
  * grades that are quietly too low, and the sync refuses to publish on it.
  */
 async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
-  const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
-  if (!Number.isFinite(weekStart)) throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
-  // One extra day past the UTC week boundary. The week closes at midnight in
-  // the school's own timezone, which is early Monday in UTC, so a window that
-  // stopped at the UTC boundary would silently drop every session finished on
-  // Sunday evening — the busiest hours of a Sunday-night deadline. Sessions
-  // pulled in from the next week cannot be miscounted: matching is by frozen
-  // slot key and weekKey, not by timestamp.
-  const weekEnd = weekStart + (8 * 24 * 60 * 60 * 1000);
+  // One extra day past the UTC week boundary (see weeklyPathCompletion.mjs):
+  // the week closes at local midnight, which is early Monday in UTC. Matching
+  // is by frozen slot key and weekKey, so the extra day cannot miscount.
+  const weeklyCompletion = await import("./shared/weeklyPathCompletion.mjs");
+  const completionWindow = weeklyCompletion.weeklyCompletionWindow(weekKey);
+  if (!completionWindow) throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
+  const { start: weekStart, end: weekEnd } = completionWindow;
 
   const roster = await db.collection("grades").where("classId", "==", classId).get();
   const students = roster.docs
@@ -14299,22 +14341,9 @@ async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
     pageDocs.docs.forEach((sessionDoc) => {
       const session = sessionDoc.data() || {};
       const studentId = String(session.studentId || "");
-      if (!ids.has(studentId) || session.status !== "completed") return;
-      const completedQuestions = Number(session.summary?.completedQuestions || 0);
-      const correctQuestions = Number(session.summary?.correctQuestions || 0);
-      completionsByStudentId[studentId].push({
-        status: "completed",
-        completedAt: Number(session.completedAt || session.updatedAt || 0),
-        teksCode: session.target?.alignmentKey
-          ? mathPath.displayAlignmentKey(String(session.target.alignmentKey))
-          : null,
-        accuracy: completedQuestions > 0
-          ? Math.max(0, Math.min(1, correctQuestions / completedQuestions))
-          : null,
-        assessmentFramework: session.assessmentFramework || null,
-        weekKey: session.weekKey || null,
-        weeklySlotKey: session.weeklySlotKey || null,
-      });
+      if (!ids.has(studentId)) return;
+      const completion = weeklyCompletion.completionFromPathSession(sessionDoc.id, session, { displayTeks: mathPath.displayAlignmentKey });
+      if (completion) completionsByStudentId[studentId].push(completion);
     });
     cursor = pageDocs.docs[pageDocs.docs.length - 1];
     if (pageDocs.size < PAGE_SIZE) break;

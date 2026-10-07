@@ -315,6 +315,22 @@ export const fetchStudentWeeklyPathGoalSnapshot = async ({ weekKey } = {}) => {
   return result?.data?.goal || null;
 };
 
+/**
+ * The signed-in student's weekly completions, counted on the server by the
+ * same rule the teacher table and the Classroom publisher use (only sessions
+ * the server marked "completed"), plus unfinished weekly sessions to resume.
+ */
+export const fetchMyWeeklyPathCompletions = async ({ weekKey } = {}) => {
+  if (!weekKey) return { completions: [], inProgress: [], truncated: false };
+  const call = httpsCallable(functions, 'getMyWeeklyPathCompletions');
+  const result = await call({ weekKey });
+  return {
+    completions: Array.isArray(result?.data?.completions) ? result.data.completions : [],
+    inProgress: Array.isArray(result?.data?.inProgress) ? result.data.inProgress : [],
+    truncated: result?.data?.truncated === true,
+  };
+};
+
 /** Freeze or retrieve this student's server-owned weekly commitment. */
 export const resolveWeeklyPathGoalSnapshot = async (goal) => {
   if (!goal?.weekKey) return null;

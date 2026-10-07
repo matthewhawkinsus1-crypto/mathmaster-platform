@@ -28,6 +28,7 @@ export const MyMathPathDashboard = ({
   weeklyProgress = null,
   weeklyCompletions = null,
   completedSlots = [],
+  weeklyInProgress = [],
   onPracticeAs = null,
   onStartSession,
   onStartWeeklySession = null,
@@ -72,6 +73,7 @@ export const MyMathPathDashboard = ({
             progress={weeklyProgress}
             completions={weeklyCompletions}
             completedSlots={completedSlots}
+            inProgress={weeklyInProgress}
             onStartSession={onStartWeeklySession}
             compact
           />
@@ -122,7 +124,7 @@ export const MyMathPathDashboard = ({
             {/* The legend used the same green glyph for two different states
                 and named a fourth state ("Needs work") that never appears —
                 the wheel says "Needs Attention". */}
-            <strong>What the colours mean</strong><br />🟢 Mastered · 🔵 Secure · 🟡 Developing · 🔴 Needs Attention · ⚪ Not practised yet<br /><span style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>●</span> completed Path pass · <span style={{ color: 'var(--mm-accent-text)', fontWeight: 900 }}>●</span> Mastery-challenge pass
+            <strong>What the colours mean</strong><br />🟢 Mastered · 🔵 Secure · 🟡 Developing · 🔴 Needs Attention · ⚪ Not practised yet<br /><span style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>●</span> practice round done · <span style={{ color: 'var(--mm-accent-text)', fontWeight: 900 }}>●</span> Level 3 (stretch) round done
           </div>
         </div>
       </div>

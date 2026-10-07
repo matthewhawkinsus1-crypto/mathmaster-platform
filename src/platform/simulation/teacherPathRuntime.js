@@ -697,6 +697,7 @@ export const createTeacherPathRuntime = ({
       session.teacherMessage = decision.explanation;
     } else if (decision.action === PATH_ACTION.COMPLETE) {
       session.status = 'completed';
+      session.completedAt = Date.now();
     } else {
       // BRIDGE and RETURN_TO_ORIGIN both end the excursion: the bridging
       // question is asked on the origin skill, which is where the student is
@@ -859,6 +860,13 @@ export const createTeacherPathRuntime = ({
       learner = nextLearner;
       return true;
     },
+    // The session documents, in the shape the production `pathSessions`
+    // collection has, so the student's weekly panel counts simulated sessions
+    // with the same rule (weeklyPathCompletion.mjs) it uses for a real student.
+    listPathSessions: () => [...sessions.values()].map((session) => ({
+      id: session.sessionId,
+      data: { ...publicSession(session), completedAt: session.completedAt || null, updatedAt: session.completedAt || null },
+    })),
     getSessionAssignments: () => [...sessions.values()].map((session) => sessionAssignment(session.sessionId, session.issued)),
     hasQuestionsFor: (skillId) => bankHasSkill(bank, skillId),
     alignedSkillIds: () => [...bank.keys()],

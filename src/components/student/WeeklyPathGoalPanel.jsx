@@ -200,7 +200,27 @@ function SlotChoice({ session, onChoose, disabled }) {
   );
 }
 
-function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
+/**
+ * The unfinished server session for a slot, if the student opened one. A swap
+ * keeps the slot's frozen key, so this follows the slot, not the skill.
+ */
+export const inProgressForSlot = (inProgress = [], session = {}) => (
+  (Array.isArray(inProgress) ? inProgress : []).find((entry) => (
+    entry?.weeklySlotKey && entry.weeklySlotKey === session?.weeklySlotKey
+  )) || null
+);
+
+/** The start button's words: a half-done session is resumed, never restarted. */
+export const weeklyStartLabel = (session, active, required) => {
+  if (active) {
+    const answered = Number(active.answeredQuestions) || 0;
+    const of = Number(active.requiredQuestions) || null;
+    return of ? `Resume session ${session.slot} · ${answered} of ${of} answered` : `Resume session ${session.slot}`;
+  }
+  return required ? `Start session ${session.slot} of ${required}` : 'Start weekly session';
+};
+
+function SessionCard({ session, done, active = null, onStart, onChoose, disabled, total }) {
   const tone = PURPOSE_TONE[session.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING];
   const choice = describeSlotChoice(session);
   return (
@@ -260,11 +280,13 @@ function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
               minHeight: 44, width: '100%',
             }}
           >
-            Start weekly session
+            {weeklyStartLabel(session, active, total)}
           </button>
         )}
 
-        {!done && <SlotChoice session={session} onChoose={onChoose} disabled={disabled} />}
+        {/* An opened session is bound to its skill on the server, so the swap
+            control only appears before the first answer. */}
+        {!done && !active && <SlotChoice session={session} onChoose={onChoose} disabled={disabled} />}
       </div>
     </li>
   );
@@ -279,6 +301,9 @@ export default function WeeklyPathGoalPanel({
   // into showing a student one score and their family another.
   completions = null,
   completedSlots = [],
+  // Weekly sessions the student opened and has not finished. They never count
+  // as done; they turn "Start" into "Resume".
+  inProgress = [],
   onStartSession = null,
   onChooseAlternative = null,
   busy = false,
@@ -415,7 +440,7 @@ export default function WeeklyPathGoalPanel({
               minHeight: 46, width: '100%',
             }}
           >
-            {busy ? 'Starting…' : `Start session ${next.slot} of ${required}`}
+            {busy ? 'Starting…' : weeklyStartLabel(next, inProgressForSlot(inProgress, next), required)}
           </button>
         </div>
       )}
@@ -426,6 +451,7 @@ export default function WeeklyPathGoalPanel({
             key={session.slot}
             session={session}
             done={done.has(session.slot)}
+            active={done.has(session.slot) ? null : inProgressForSlot(inProgress, session)}
             onStart={onStartSession}
             onChoose={onChooseAlternative}
             disabled={busy}
