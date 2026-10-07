@@ -30,6 +30,14 @@
  * runs a read-only verify step: it calls that callable and requires the commit
  * it reports to be this checkout's HEAD. A wrong commit or no answer is treated
  * like a function that did not deploy — path-admin, rules and Hosting wait.
+ *
+ * PROVING A BROWSER CAN REACH THEM. A deployed callable is still unreachable
+ * from a browser when its Cloud Run service does not grant `allUsers`
+ * `roles/run.invoker`, and the Firebase CLI grants that only when it creates a
+ * callable, never on a later deploy. So after the verify step comes an access
+ * step: every callable in the default codebase is checked, and the binding is
+ * granted where it is missing (scripts/lib/callableAccess.mjs). One a browser
+ * still cannot reach is treated like a function that did not deploy.
  */
 
 import { VENDORED_PATHS } from '../sync-path-admin-runtime.mjs';
@@ -49,6 +57,14 @@ export const RELEASE_TARGETS = Object.freeze({
  * It is planned whenever default-codebase functions are.
  */
 export const VERIFY_FUNCTIONS = 'verify:functions';
+
+/**
+ * The browser-access step that follows the verify step: every default-codebase
+ * callable must grant `allUsers` `roles/run.invoker`, and is granted it where
+ * it does not. It changes IAM bindings only, never code, so like the verify
+ * step it is not a deploy target and `--only` cannot name it.
+ */
+export const ACCESS_FUNCTIONS = 'access:functions';
 
 /** The callable every functions release redeploys and then asks which commit is live. */
 export const BUILD_INFO_FUNCTION = 'platformBuildInfo';
@@ -193,6 +209,9 @@ export const buildReleasePlan = ({
         function: BUILD_INFO_FUNCTION,
         expectedGitSha: normalizeGitSha(expectedGitSha),
       });
+      // Every callable is checked and repaired; the ones this release deployed
+      // decide whether it may go on (callableAccess.mjs#releaseAccessVerdict).
+      steps.push({ target: ACCESS_FUNCTIONS, label: 'browser access to callables', functions: names });
       continue;
     }
     steps.push({ target, label: target });
@@ -207,6 +226,9 @@ export const buildReleasePlan = ({
 export const deployCommandFor = (step, { project }) => {
   if (step.target === VERIFY_FUNCTIONS) {
     throw new Error(`${VERIFY_FUNCTIONS} is a read-only check, not a deploy command.`);
+  }
+  if (step.target === ACCESS_FUNCTIONS) {
+    throw new Error(`${ACCESS_FUNCTIONS} checks and grants Cloud Run IAM bindings; it is not a deploy command.`);
   }
   if (step.target === RELEASE_TARGETS.HOSTING) {
     return { command: 'npm', args: ['run', 'deploy:hosting'], env: { FIREBASE_PROJECT: project } };
@@ -349,6 +371,9 @@ export const describeStep = (step, { project, region = DEFAULT_FUNCTIONS_REGION 
     const expected = step.expectedGitSha ? step.expectedGitSha.slice(0, 12) : 'HEAD';
     return `POST ${url} ${init.body} -> result.gitSha must be ${expected}, else path-admin, rules and Hosting wait`;
   }
+  if (step.target === ACCESS_FUNCTIONS) {
+    return 'gcloud: every callable\'s Cloud Run service must grant allUsers roles/run.invoker (granted where missing), else path-admin, rules and Hosting wait';
+  }
   const { command, args } = deployCommandFor(step, { project });
   return `${command} ${args.join(' ')}`;
 };
@@ -356,17 +381,21 @@ export const describeStep = (step, { project, region = DEFAULT_FUNCTIONS_REGION 
 /**
  * The command that finishes an incomplete release: the functions that did not
  * deploy — and platformBuildInfo when the verify step failed, since
- * redeploying it re-runs the check — then the targets held back.
+ * redeploying it re-runs the check — then the targets held back. When only
+ * the access step failed, the repair is the access check itself; a functions
+ * re-run would repeat it anyway.
  */
-export const retryCommandFor = ({ failedFunctions = [], verification = null, stoppedBeforeTargets = null } = {}) => {
+export const retryCommandFor = ({ failedFunctions = [], verification = null, access = null, stoppedBeforeTargets = null } = {}) => {
   const names = [...new Set([
     ...(failedFunctions || []).map((entry) => entry.name),
     ...(verification?.status === 'failed' ? [verification.function || BUILD_INFO_FUNCTION] : []),
   ])];
-  if (!names.length) return null;
+  const first = names.length
+    ? `node scripts/release-firebase.mjs --execute --functions ${names.join(',')}`
+    : (access?.status === 'failed' ? 'node scripts/verify-callable-access.mjs --fix --codebase default' : null);
+  if (!first) return null;
   const held = [...new Set(stoppedBeforeTargets || [])].map(aliasFor);
-  return `node scripts/release-firebase.mjs --execute --functions ${names.join(',')}`
-    + (held.length ? ` && node scripts/release-firebase.mjs --execute --only ${held.join(',')}` : '');
+  return first + (held.length ? ` && node scripts/release-firebase.mjs --execute --only ${held.join(',')}` : '');
 };
 
 /**
