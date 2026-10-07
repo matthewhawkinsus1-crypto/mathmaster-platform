@@ -8,7 +8,7 @@ import { teamsCsv } from '../../src/platform/gradeTransfer/gradeTransferModel.js
 import { getStoredAssignmentQuestions } from '../../src/platform/contract/storedAssignmentV5.js';
 import { questionWeightShares } from '../../src/platform/grading/questionWeights.js';
 import { buildAssignmentWeightReviewRequest } from '../../src/platform/grading/weightReviewPack.js';
-import { region } from './helpers/sourceContract.mjs';
+import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 
 const require = createRequire(import.meta.url);
@@ -174,4 +174,25 @@ test('the AI weight review is told a weight counts inside its own section', () =
   assert.match(request, /share of its OWN SECTION's grade, and also of the whole-assignment grade/);
   assert.match(request, /Never scale a whole section up or down/);
   assert.doesNotMatch(request, /contribute to the WHOLE assignment grade/);
+});
+
+test('the Teacher Path Simulator grades a simulated student with the same weighted split', () => {
+  // The simulated dashboard's "Current grade" comes from this provider. A private
+  // copy of the arithmetic once ignored question weights and returned 0 for every
+  // V5 assignment (it looked for a flat questions list V5 does not have).
+  const simulator = executableSource(componentSource('src/components/teacher/SimulatedStudentExperience.jsx'));
+  assert.match(simulator, /import \{ splitGrade \} from '\.\.\/\.\.\/platform\/teacher\/gradeEvidence\.js'/);
+  assert.match(simulator, /import \{ getStoredAssignmentQuestions \} from '\.\.\/\.\.\/platform\/contract\/storedAssignmentV5\.js'/);
+  const grade = region(simulator, 'const calculateGrade = (', '\n};', 'simulator calculateGrade');
+  assert.match(grade, /getStoredAssignmentQuestions\(assignmentData\)\.length/, 'a V5 assignment keeps its questions in sections');
+  assert.match(grade, /return splitGrade\(\{ tracker: assignmentTracker, assignment: assignmentData, practicePassRedeemed, supportProfile \}\)\.score \?\? 0/);
+  assert.doesNotMatch(grade, /getQuestionCredit|\.questions\?\.length/, 'no private, unweighted average');
+  const providers = region(simulator, 'providers: {', '},', 'simulated dashboard providers');
+  assert.match(providers, /\bcalculateGrade,/);
+});
+
+test('a student is told a weighted question counts in this section\'s grade, not only the assignment\'s', () => {
+  const engine = componentSource('src/QuestionEngine.jsx');
+  const note = region(engine, '{questionGradeWeight !== 1 && (', '</div>', 'student weight note');
+  assert.match(note, /times a standard-weight question in this section&apos;s grade and in the assignment grade/);
 });
