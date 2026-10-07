@@ -262,6 +262,9 @@ export const sourceTypeLabel = (transaction = {}) => {
     case 'liveChallengeAchievement': return 'Live Challenge';
     case 'rewardRedemption': return 'Reward redeemed';
     case 'rewardRefund': return 'Reward returned';
+    // Paid by the server's growth rules (functions/shared/growthRewardRules.mjs),
+    // not by a teacher: it must not read as "Teacher award".
+    case 'growthReward': return 'Growth reward';
     default: return 'Teacher award';
   }
 };
@@ -322,6 +325,8 @@ export const describeClassPointTransaction = (transaction = {}) => {
         ? 'refund'
       : transaction.sourceType === 'liveChallengeAchievement'
         ? 'challenge'
+      : transaction.sourceType === 'growthReward'
+        ? 'growth'
         : 'earned';
   return {
     amount,
@@ -331,6 +336,7 @@ export const describeClassPointTransaction = (transaction = {}) => {
       : kind === 'spent' ? 'Reward used'
         : kind === 'refund' ? 'Points returned'
         : kind === 'challenge' ? 'Live Challenge reward'
+        : kind === 'growth' ? 'Growth reward'
           : 'Earned',
     reasonLabel: String(transaction.reasonLabel || '').trim(),
   };
