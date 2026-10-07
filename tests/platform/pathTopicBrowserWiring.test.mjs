@@ -1,5 +1,5 @@
 /*
- * BROWSE ALL TOPICS AND "WHY RECOMMENDED" — WIRING.
+ * BROWSE ALL TOPICS, THE WHEEL LEGEND AND "WHY RECOMMENDED" — WIRING.
  *
  * Node cannot render these screens, so these contracts bind each screen to the
  * logic the behaviour tests cover (pathTopicBrowser.test.mjs,
@@ -16,6 +16,8 @@ const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, im
 const learningPath = read('src/components/student/StudentLearningPath.jsx');
 const browser = read('src/components/student/MyMathPathTopicBrowser.jsx');
 const app = read('src/components/student/MyMathPathApp.jsx');
+const wheel = read('src/components/student/MyMathPathWheel.jsx');
+const dashboard = read('src/components/student/MyMathPathDashboard.jsx');
 const recommended = read('src/components/student/RecommendedSkills.jsx');
 
 test('the Path tab reaches "Browse all topics", and the browser launches through the map\'s own launcher', () => {
@@ -95,4 +97,29 @@ test('map cards and Recommended cards show the named evidence in place of the ve
   const list = region(card, '{evidence.length ? (', ') : (', 'the card evidence');
   assert.match(list, /evidence\.map\(\(item\) =>/);
   assert.match(list, /\{item\.text\}/);
+});
+
+test('the wheel labels its wedges by topic and lists every topic and skill under it', () => {
+  // The SVG says what it is and how it is organised.
+  assert.match(wheel, /role="group"\s*aria-label=\{`Texas \$\{courseLabel\} mastery wheel: \$\{entries\.length\} skills in \$\{strands\.length\} topics/);
+  // Each wedge names its skill AND its topic.
+  assert.match(wheel, /aria-label=\{`\$\{studentLabelForTeks\(entry\.code\)\} \(topic \$\{entry\.strandNumber\}, \$\{entry\.strand\.title\}\): \$\{status\}/);
+  // The numbered ring that ties a wedge to its topic in the list.
+  assert.match(wheel, /<text x=\{arc\.label\.x\}[^>]*>\{arc\.number\}<\/text>/);
+  const legend = region(wheel, '{showLegend && (', '\n      )}\n    </div>', 'the legend');
+  assert.match(legend, /Topics on your wheel/);
+  assert.match(legend, /\{arc\.strand\.title\}/);
+  assert.match(legend, /aria-expanded=\{open\}/);
+  const skill = region(legend, 'arc.members.map((entry) => {', '</button>', 'a legend skill');
+  assert.match(skill, /onClick=\{\(\) => onSelectTEKS\?\.\(entry\.code\)\}/, 'a listed skill opens the same card its wedge does');
+  assert.match(skill, /\{studentLabelForTeks\(entry\.code\)\}/);
+  assert.match(skill, /\{status\}/);
+  assert.match(wheel, /showLegend = true,/);
+});
+
+test('the colour key is drawn from the wheel\'s own colours, not emoji', () => {
+  const key = region(dashboard, '<strong>What the colours mean</strong>', '</ul>', 'the colour key');
+  assert.match(key, /Object\.entries\(MASTERY_STATUS_COLORS\)\.map\(\(\[status, color\]\) =>/);
+  assert.match(key, /background: color/);
+  assert.doesNotMatch(dashboard, /🔵|🟢|🟡|🔴|⚪/, 'an emoji key drew Secure blue beside a green wedge');
 });

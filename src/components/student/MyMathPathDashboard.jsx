@@ -3,7 +3,7 @@ import MyMathPathWheel from './MyMathPathWheel.jsx';
 import SkillDetailCardModal from './SkillDetailCardModal.jsx';
 import RetentionQuickCheckBanner from './RetentionQuickCheckBanner.jsx';
 import { evaluateStudentRetentionSchedule } from '../../platform/retention/retentionScheduler.js';
-import { DEFAULT_MASTERY_COURSE_ID, masteryCourseLabel } from '../../platform/mastery/strandConfig.js';
+import { DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, masteryCourseLabel } from '../../platform/mastery/strandConfig.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
 import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
@@ -89,7 +89,9 @@ export const MyMathPathDashboard = ({
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '22px', alignItems: 'center' }}>
+      {/* Top-aligned: the wheel's topic list can open long, and a centred
+          focus card would drift down the page with it. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '22px', alignItems: 'start' }}>
         <div style={{ minWidth: 0, padding: '18px', border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface)' }}>
           <h2 style={{ margin: '0 0 10px', fontSize: '18px', color: 'var(--mm-text)', textAlign: 'left' }}>Your skills map</h2>
           <MyMathPathWheel masteryProfilesByTEKS={masteryProfilesByTEKS} skillProgressByTEKS={skillProgressByTEKS} onSelectTEKS={setSelectedTeks} courseId={courseId} />
@@ -123,8 +125,20 @@ export const MyMathPathDashboard = ({
           <div style={{ padding: '15px', border: '1px solid var(--mm-border)', borderRadius: '9px', background: 'var(--mm-surface)', textAlign: 'left', fontSize: '12px', lineHeight: 1.7 }}>
             {/* The legend used the same green glyph for two different states
                 and named a fourth state ("Needs work") that never appears —
-                the wheel says "Needs Attention". */}
-            <strong>What the colours mean</strong><br />🟢 Mastered · 🔵 Secure · 🟡 Developing · 🔴 Needs Attention · ⚪ Not practised yet<br /><span style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>●</span> practice round done · <span style={{ color: 'var(--mm-accent-text)', fontWeight: 900 }}>●</span> Level 3 (stretch) round done
+                the wheel says "Needs Attention". It then drew Secure as a blue
+                circle beside a wheel that paints Secure light green: the key
+                is now drawn from the wheel's own colours and the shared
+                rule's own words. */}
+            <strong>What the colours mean</strong>
+            <ul data-mastery-key style={{ listStyle: 'none', margin: '4px 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '2px 12px' }}>
+              {Object.entries(MASTERY_STATUS_COLORS).map(([status, color]) => (
+                <li key={status} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span aria-hidden="true" style={{ width: 11, height: 11, borderRadius: 999, background: color, border: '1px solid var(--mm-border-strong)' }} />
+                  {status}
+                </li>
+              ))}
+            </ul>
+            <span style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>●</span> practice round done · <span style={{ color: 'var(--mm-accent-text)', fontWeight: 900 }}>●</span> Level 3 (stretch) round done · numbers around the wheel are the topics listed under it
           </div>
         </div>
       </div>
