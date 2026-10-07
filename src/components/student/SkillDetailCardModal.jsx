@@ -51,7 +51,7 @@ export const SkillDetailCardModal = ({
             <h2 id="skill-detail-title" style={{ margin: '4px 0 0', fontSize: '20px' }}>{studentLabelForTeks(teksCode)}</h2>
             <StandardBadge code={teksCode} showName={false} style={{ marginTop: 8 }} />
           </div>
-          <button type="button" onClick={onClose} aria-label="Close skill details" style={{ border: 0, background: 'transparent', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+          <button type="button" onClick={onClose} aria-label="Close skill details" style={{ border: 0, background: 'transparent', fontSize: '20px', cursor: 'pointer', minWidth: 44, minHeight: 44, flexShrink: 0 }}>✕</button>
         </div>
         {signals.retention === 'concern' && <div style={{ marginTop: '16px', padding: '11px 13px', borderRadius: '7px', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}><strong>Retention check recommended.</strong> Recent evidence suggests this skill should be verified again.</div>}
         <div
@@ -109,7 +109,7 @@ export const SkillDetailCardModal = ({
               : 'This one builds on an earlier skill. Your path shows which skill to strengthen first, and starting there is what opens this.'}
           </div>
         ) : (
-          <button type="button" onClick={() => onStartPractice?.(teksCode, { sessionKind: 'practice', requiredQuestions: 5 })} style={{ width: '100%', padding: '12px 16px', border: 0, borderRadius: '8px', background: '#1a73e8', color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer' }}>{pass.buttonLabel} · 5 questions</button>
+          <button type="button" onClick={() => onStartPractice?.(teksCode, { sessionKind: 'practice', requiredQuestions: 5 })} style={{ width: '100%', minHeight: 44, padding: '12px 16px', border: 0, borderRadius: '8px', background: '#1a73e8', color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer' }}>{pass.buttonLabel} · 5 questions</button>
         )}
         {!blocked && assessmentContext && onPracticeAs && (
           <PracticeAsMenu
