@@ -29,10 +29,10 @@ import {
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
-  requiredWeeklySessions,
   weekKeyFor,
   weeklyDueDayName,
   weeklySlotKey,
+  requiredWeeklySessions,
 } from '../../../functions/shared/weeklyPathGrade.mjs';
 
 export {
@@ -43,10 +43,10 @@ export {
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
-  requiredWeeklySessions,
   weekKeyFor,
   weeklyDueDayName,
   weeklySlotKey,
+  requiredWeeklySessions,
 };
 
 const DAY = 24 * 60 * 60 * 1000;
