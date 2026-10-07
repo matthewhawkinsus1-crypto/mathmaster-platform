@@ -81,7 +81,10 @@ export const describeTeacherRow = (row = {}, { external = false } = {}) => {
     if (session.state === 'assigned') return opened;
     return '—';
   };
-  const testText = !test.examSessionId && row.stage === 'review'
+  // No session is "Not opened" whatever the stage. A student whose Review was
+  // waived (or finished) before sessions were opened is at the Test stage with
+  // nothing to enter, and a bare dash there hid that the teacher still owes them one.
+  const testText = !test.examSessionId
     ? 'Not opened'
     : sessionText(test, { opened: row.stage === 'test' ? 'Ready' : 'Opened' }, 'test');
 
@@ -125,7 +128,15 @@ const externalActionsForRow = (row, actions) => {
     actions.push({ key: 'release', label: 'Release retest result', kind: 'release', stage: 'test' });
   }
   if (!controls.reviewWaived && row.stage === 'review') {
-    actions.push({ key: 'waiveReview', action: 'waiveReview', label: 'Waive Review', detail: 'Lets this student start the retest without finishing Review.' });
+    actions.push({
+      key: 'waiveReview',
+      action: 'waiveReview',
+      label: 'Waive Review',
+      detail: test.examSessionId
+        ? 'Lets this student start the retest without finishing Review.'
+        : 'Lets this student skip Review. Their retest session is not open yet: enter their original score and open retest sessions so they can start.',
+      doneNote: test.examSessionId ? null : 'Their retest opens once you enter their original score and open retest sessions.',
+    });
   }
   if (controls.reviewWaived && !['inProgress', 'submitted', 'released'].includes(test.state)) {
     actions.push({ key: 'requireReview', action: 'requireReview', label: 'Require Review', detail: 'Review must be finished again before the retest.' });
@@ -180,7 +191,32 @@ export const teacherActionsForRow = (row = {}, { external = false } = {}) => {
     actions.push({ key: 'release', label: test.state === 'submitted' ? 'Release Test result' : 'Release retest result', kind: 'release', stage: test.state === 'submitted' ? 'test' : 'retest' });
   }
   if (!testReleased && !controls.reviewWaived && stage === 'review') {
-    actions.push({ key: 'waiveReview', action: 'waiveReview', label: 'Waive Review', detail: 'Lets this student start the Test without finishing Review.' });
+    actions.push({
+      key: 'waiveReview',
+      action: 'waiveReview',
+      label: 'Waive Review',
+      detail: test.examSessionId
+        ? 'Lets this student start the Test without finishing Review.'
+        : 'Lets this student skip Review. Their Test is not open yet, so open it afterwards with "Open this student\'s Test session".',
+      // Said after it succeeds: the waiver alone does not let them start.
+      doneNote: test.examSessionId ? null : 'Their Test is not open yet. Use "Open this student\'s Test session" below so they can start it.',
+    });
+  }
+  /*
+   * Waiving Review (or finishing it) before any Test session exists leaves the
+   * student at the Test stage with nothing to enter: their card says "Your
+   * teacher has not opened the secure test session yet." The class-wide button
+   * fixes it but is a screen away from the row, so the row offers it for this
+   * student. It is the same callable, scoped to one student; the server still
+   * checks they are in the assignment's audience and re-runs preflight.
+   */
+  if (!test.examSessionId && (controls.reviewWaived || stage === 'test')) {
+    actions.push({
+      key: 'openTest',
+      kind: 'openSession',
+      label: 'Open this student\'s Test session',
+      detail: 'Issues this student\'s secure Test now so they can start it.',
+    });
   }
   if (controls.reviewWaived && !['inProgress', 'submitted', 'released'].includes(test.state)) {
     actions.push({ key: 'requireReview', action: 'requireReview', label: 'Require Review', detail: 'Review must be finished again before the Test.' });
