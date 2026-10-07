@@ -3937,7 +3937,7 @@ function App() {
   const assignmentOpenSpanRef = useRef(null);
   // Up Next at the end of an assignment, cached per assignment/tracker/minute
   // so a finished section does not rebuild the whole dashboard every render.
-  const studentUpNextCacheRef = useRef({ key: null, tracker: null, dashboard: null });
+  const studentUpNextCacheRef = useRef({ inputs: null, dashboard: null });
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
@@ -10874,15 +10874,27 @@ function App() {
     // When a student finishes an entire section, point the celebration CTA at
     // the next AVAILABLE unfinished section. A locked DOL is intentionally
     // skipped rather than becoming a dead-end button.
-    const nextAvailableIncompleteSection = laterNavigationSections.find((section) => !section.complete && sectionNavigationTarget(section));
+    // "Can be viewed" is not "can be worked now": a Warm-Up closed for the
+    // period or an ended DOL stays viewable for review, but the continue
+    // button must only ever lead to an unfinished question open right now.
+    const entryIsWorkableNow = (entry) => {
+      if (!entryIsAvailable(entry)) return false;
+      if (preview || lifecycle.isPracticeOnly) return true;
+      if (entry?.role === 'warmup' && warmupState.enabled) return warmupState.status === 'active';
+      if (entry?.isTimedDOLQuestion && dolState.enabled) return dolState.status === 'active';
+      return true;
+    };
+    const sectionWorkTarget = (section) => (section?.entries || [])
+      .find((entry) => entryIsWorkableNow(entry) && !sectionQuestionIsComplete(entry.index)) || null;
+    const nextAvailableIncompleteSection = laterNavigationSections.find((section) => sectionWorkTarget(section));
     // Only a section with work left: "Continue to Practice" with Practice
     // already complete was a dead loop. With none left, hand off to Up next
     // (what Home would recommend) or to this assignment's results.
     const nextAvailableSection = nextAvailableIncompleteSection
       // An EARLIER section still open with work left beats leaving the assignment.
-      || navigationSections.find((section) => section.role !== currentNavigationSection?.role && !section.complete && sectionNavigationTarget(section))
+      || navigationSections.find((section) => section.role !== currentNavigationSection?.role && sectionWorkTarget(section))
       || null;
-    const nextAvailableSectionTarget = nextAvailableSection ? sectionNavigationTarget(nextAvailableSection) : null;
+    const nextAvailableSectionTarget = nextAvailableSection ? sectionWorkTarget(nextAvailableSection) : null;
     const nextAvailableSectionMeta = nextAvailableSection
       ? (activitySectionMeta[nextAvailableSection.role] || { label: nextAvailableSection.role })
       : null;
@@ -12916,15 +12928,22 @@ function App() {
       },
     });
   }
-  // The workspace's Up Next reads the same model, cached per assignment,
-  // tracker and minute so a finished section does not rebuild it every render.
+  // The workspace's Up Next, the result page and Grades read the same model.
+  // Cached on the identity of everything it reads (and the minute), so a
+  // screen that re-renders on every keystroke does not rebuild it each time.
   // eslint-disable-next-line no-inner-declarations
   function studentUpNextDashboard() {
-    const key = `${activeAssignmentId}|${Math.floor(now / 60000)}`;
+    const inputs = [
+      Math.floor(now / 60000), user, assignments, gradeDisplayTracker, assignmentActivity,
+      classworkGradesByAssignment, classSchedule, resumeAction, studentClassPoints.redemptionsByAssignment,
+      testCycleGrades, studentRecoverySummariesByAssignment,
+    ];
     const cache = studentUpNextCacheRef.current;
-    if (cache.dashboard && cache.key === key && cache.tracker === gradeDisplayTracker) return cache.dashboard;
+    if (cache.dashboard && cache.inputs?.length === inputs.length && inputs.every((input, index) => input === cache.inputs[index])) {
+      return cache.dashboard;
+    }
     const dashboard = buildStudentDashboardNow();
-    studentUpNextCacheRef.current = { key, tracker: gradeDisplayTracker, dashboard };
+    studentUpNextCacheRef.current = { inputs, dashboard };
     return dashboard;
   }
   const studentDashboard = user.role === 'student' && activeView === 'dashboard'
@@ -13041,7 +13060,7 @@ function App() {
             onStart={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0)}
             // The Today rule per row: no Start on work that cannot be done
             // now, Open Recovery, and Start lands on the next question.
-            todayByAssignment={Object.fromEntries((buildStudentDashboardNow()?.allEntries || []).map((entry) => [entry.assignment.id, entry]))}
+            todayByAssignment={Object.fromEntries((studentUpNextDashboard()?.allEntries || []).map((entry) => [entry.assignment.id, entry]))}
             waysToRaise={studentWaysToRaise}
             onWayAction={(way) => {
               if (way.action === 'openResult') return openStudentAssignmentResult(way.assignmentId, { origin: 'grades' });
@@ -13175,9 +13194,10 @@ function App() {
     // The Today rule for this assignment and what comes after it: the result
     // page is where "nothing open now" lands, so it says what opens when and
     // hands off to Up next.
-    const resultDashboard = buildStudentDashboardNow();
+    const resultDashboard = studentUpNextDashboard();
     const resultTodayEntry = resultDashboard?.allEntries.find((entry) => entry.assignment.id === assignmentResultRoute.assignmentId) || null;
     const resultUpNext = resolveUpNext({ dashboard: resultDashboard, assignmentId: assignmentResultRoute.assignmentId });
+    const recoveryAssignment = assignments.find((item) => item.id === assignmentResultRoute.assignmentId) || null;
     // Decision 3: once the work is closed for this student and feedback is
     // released, their own answers beside the worked solutions. The callable
     // re-checks every gate; this only decides whether to show the panel.
@@ -13193,7 +13213,6 @@ function App() {
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
       ? assignmentResultRoute.sectionLabel || assignmentResultRoute.sectionKey
       : null;
-    const recoveryAssignment = assignments.find((item) => item.id === assignmentResultRoute.assignmentId) || null;
     const openRecoveryEntry = recoverySession?.assignmentId === assignmentResultRoute.assignmentId
       ? studentRecoverySummary.find((entry) => entry.section === recoverySession.section) || null
       : null;

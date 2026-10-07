@@ -73,7 +73,7 @@ test('Home is wired without the support flag, with results, save status and What
 
 test('the result page receives the Today entry, Up next and Continue; the Assignments Center passes the question', () => {
   const result = region(app, "activeView === 'assignmentResult' && assignmentResultRoute", 'if (isStudentAssignment)', 'result view');
-  assert.match(result, /const resultDashboard = buildStudentDashboardNow\(\);/);
+  assert.match(result, /const resultDashboard = studentUpNextDashboard\(\);/);
   assert.match(result, /resolveUpNext\(\{ dashboard: resultDashboard, assignmentId: assignmentResultRoute\.assignmentId \}\)/);
   assert.match(result, /todayEntry=\{resultTodayEntry\}/);
   assert.match(result, /upNext=\{resultUpNext\}/);
@@ -88,7 +88,7 @@ test('Grades gets Start, ways to raise and What changed; Home gets the count —
   assert.match(memo, /recoverySummariesByAssignment: studentRecoverySummariesByAssignment/);
   const grades = region(app, '<StudentGradeCenter', '/>\n', 'Grades');
   assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0\)\}/);
-  assert.match(grades, /todayByAssignment=\{Object\.fromEntries\(\(buildStudentDashboardNow\(\)\?\.allEntries/);
+  assert.match(grades, /todayByAssignment=\{Object\.fromEntries\(\(studentUpNextDashboard\(\)\?\.allEntries/);
   assert.match(grades, /waysToRaise=\{studentWaysToRaise\}/);
   assert.match(grades, /whatChangedPanel=\{renderWhatChangedPanel\(false\)\}/);
   const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');

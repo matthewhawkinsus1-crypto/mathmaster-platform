@@ -32,3 +32,14 @@ test('App offers only an INCOMPLETE later section, then Up next / results (with 
   const engine = region(app, 'onContinueSection={', 'continueSectionLabel=', 'QuestionEngine hand-off prop');
   assert.match(engine, /assignmentHandoff/);
 });
+
+test('the continue button only leads to a question workable NOW — never a closed Warm-Up or ended DOL', () => {
+  const workable = region(app, 'const entryIsWorkableNow = (entry) => {', 'const nextAvailableIncompleteSection', 'workable-now gate');
+  assert.match(workable, /entry\?\.role === 'warmup' && warmupState\.enabled\) return warmupState\.status === 'active'/);
+  assert.match(workable, /entry\?\.isTimedDOLQuestion && dolState\.enabled\) return dolState\.status === 'active'/);
+  assert.match(workable, /entryIsWorkableNow\(entry\) && !sectionQuestionIsComplete\(entry\.index\)/);
+  const handoff = region(app, 'const nextAvailableIncompleteSection =', 'const nextAvailableSectionMeta', 'section choice');
+  assert.match(handoff, /laterNavigationSections\.find\(\(section\) => sectionWorkTarget\(section\)\)/);
+  assert.match(handoff, /nextAvailableSection \? sectionWorkTarget\(nextAvailableSection\) : null/);
+  assert.doesNotMatch(handoff, /sectionNavigationTarget/);
+});

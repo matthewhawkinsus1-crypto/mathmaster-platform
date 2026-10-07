@@ -8,6 +8,7 @@ import { filterStudentRequiredIndices, studentOmittedIndices } from '../function
 import { assignmentIsArchived, assignmentIsUnpublished } from '../functions/shared/assessmentAvailability.mjs';
 import { describeTestCycleForStudent } from './platform/student/testCycleDiscovery.js';
 import { SECTION_STATE, describeLessonSections, describeSectionWait } from './platform/student/lessonSections.js';
+import { firstOpenLiveQuestionIndex } from './platform/student/liveSectionEntry.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 
 // What a student's assignment dashboard actually contains, computed once.
@@ -65,7 +66,7 @@ export const BUCKET_LABEL = Object.freeze({
   [BUCKET.PAST_DUE]: 'Past due',
   [BUCKET.DO_NOW]: 'Due today',
   [BUCKET.COMING_UP]: 'Assigned — due later',
-  [BUCKET.PRACTICE]: 'Closed — practice anytime',
+  [BUCKET.PRACTICE]: 'Closed — try again (no credit)',
   [BUCKET.COMPLETED]: 'Finished',
 });
 
@@ -167,6 +168,24 @@ export const buildStudentDashboardModel = ({
     getSectionAccessState = null,
   } = providers;
   const todayKey = localDateKey(nowValue);
+  /*
+   * ONE Warm-Up/DOL window per assignment per build. Each is read by Resume,
+   * the "Today" rule, the live DOL/Warm-Up cards and the entry itself, and
+   * every read re-normalizes the bell schedule; a 60-lesson student spent a
+   * third of the build doing that again and again (job C verification: 25 ms
+   * → see tests). Same arguments, same answer, so it is computed once.
+   */
+  const windowCache = new Map();
+  const windowOf = (kind, provider, assignment) => {
+    if (typeof provider !== 'function') return null;
+    const key = `${kind}:${assignment?.id}`;
+    if (!windowCache.has(key)) {
+      windowCache.set(key, provider({ assignment, schedule: classSchedule, classId, classPeriod, nowValue }));
+    }
+    return windowCache.get(key);
+  };
+  const dolStateOf = (assignment) => windowOf('dol', getDOLState, assignment);
+  const warmupStateOf = (assignment) => windowOf('warmup', getWarmupState, assignment);
   const isExcused = (assignment) => Boolean(studentId)
     && resolveStudentOverride({ assignment, studentId })?.excused === true;
 
@@ -220,12 +239,8 @@ export const buildStudentDashboardModel = ({
   const resumeEligibleIndicesFor = (assignment) => {
     const required = requiredIndicesFor(assignment);
     const questions = getStoredAssignmentQuestions(assignment);
-    const warmupState = typeof getWarmupState === 'function'
-      ? getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue })
-      : null;
-    const dolState = typeof getDOLState === 'function'
-      ? getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue })
-      : null;
+    const warmupState = warmupStateOf(assignment);
+    const dolState = dolStateOf(assignment);
     return required.filter((index) => {
       const role = resolveQuestionActivityRole({ question: questions[index], assignment });
       if (role === 'warmup' && warmupState?.enabled) return warmupState.status === 'active';
@@ -266,7 +281,6 @@ export const buildStudentDashboardModel = ({
       role: resolveQuestionActivityRole({ question: questions[storageIndex], assignment }),
     }));
     const assignmentTracker = tracker?.[assignment.id] || null;
-    const context = { assignment, schedule: classSchedule, classId, classPeriod, nowValue };
     const lesson = describeLessonSections({
       entries: lessonEntries,
       requiredIndices: requiredIndicesFor(assignment),
@@ -274,8 +288,8 @@ export const buildStudentDashboardModel = ({
       lifecycle: availability.lifecycle,
       access: availability.access,
       excused: isExcused(assignment),
-      warmupState: typeof getWarmupState === 'function' ? getWarmupState(context) : null,
-      dolState: typeof getDOLState === 'function' ? getDOLState(context) : null,
+      warmupState: warmupStateOf(assignment),
+      dolState: dolStateOf(assignment),
       sectionAccessOf: typeof getSectionAccessState === 'function'
         ? (role) => getSectionAccessState({ assignment, activityRole: role, classId, classPeriod, studentId, nowValue })
         : null,
@@ -320,16 +334,18 @@ export const buildStudentDashboardModel = ({
 
   const activeDols = visible
     .map((assignment) => {
-      const state = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
+      const state = dolStateOf(assignment);
       // Only this student's own DOL items: one their accommodation omits is
       // not unfinished work that keeps the DOL card up.
-      const records = withoutOmitted(assignment, (state.questionIndices || [state.questionIndex])
-        .filter((index) => Number.isInteger(index) && index >= 0))
-        .map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
+      const questionIndices = withoutOmitted(assignment, (state.questionIndices || [state.questionIndex])
+        .filter((index) => Number.isInteger(index) && index >= 0));
+      const records = questionIndices.map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
       return {
         assignment,
         lifecycle: getAssignmentLifecycle(assignment, nowValue),
         state,
+        // This student's own DOL items, aligned with `records`.
+        questionIndices,
         records,
       };
     })
@@ -339,7 +355,7 @@ export const buildStudentDashboardModel = ({
   const activeWarmups = typeof getWarmupState === 'function'
     ? visible
       .map((assignment) => {
-        const state = getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
+        const state = warmupStateOf(assignment);
         const questions = getStoredAssignmentQuestions(assignment);
         const questionIndices = withoutOmitted(assignment, questions.reduce((indices, question, index) => {
           if (
@@ -409,7 +425,7 @@ export const buildStudentDashboardModel = ({
       const recordedGrade = calculateGrade(assignmentTracker, assignment, gradeOptionsFor(assignment));
       const activity = assignmentActivity[assignment.id] || {};
       const classwork = classworkGradesByAssignment[assignment.id];
-      const dol = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
+      const dol = dolStateOf(assignment);
       const feedbackHeld = assignmentHasHeldTeacherFeedback(assignment);
       const dueSoon = matchesSmartView(assignment, 'today', { nowValue });
 
@@ -445,8 +461,11 @@ export const buildStudentDashboardModel = ({
         tracker: assignmentTracker,
         nowValue,
       });
-      const done = testCycle ? testCycle.done === true : isDone(assignment, lifecycle);
       const excused = isExcused(assignment);
+      // An excused Test Cycle is finished like any excused work: its stage
+      // description knows nothing of the excusal, and without this it was
+      // filed under "Past due — still counts" with a Start Review button.
+      const done = testCycle ? (excused || testCycle.done === true) : isDone(assignment, lifecycle);
       const lesson = testCycle ? null : lessonOf(assignment);
       // A Recovery the student can take now is the lesson's remaining work,
       // taken from the result page where the Recovery panel lives.
@@ -457,12 +476,13 @@ export const buildStudentDashboardModel = ({
        * is what removes the "Nothing open right now" dead end.
        */
       const actionable = testCycle
-        ? testCycle.actionRequired === true && !['opensLater', 'paused'].includes(testCycle.key)
-        : !done && !excused && (lesson?.sections.length
-          ? (Boolean(lesson.workableNow) || recoveryReady)
-          // No required question to place (a notes-only lesson): the
-          // assignment-level release/prerequisite rule is all there is.
-          : !availability.locked);
+        ? !excused && testCycle.actionRequired === true && !['opensLater', 'paused'].includes(testCycle.key)
+        // No question to land on (a notes-only lesson, or every question
+        // removed): never actionable. Entry has nothing to open — Start did
+        // nothing at all (startAssignment returns on an empty assignment) —
+        // so it must not be the button Home leads with.
+        : !done && !excused && Boolean(lesson?.sections.length)
+          && (Boolean(lesson.workableNow) || recoveryReady);
       const started = testCycle
         ? testCycle.started && testCycle.actionRequired === true && !['testReady', 'retestReady'].includes(testCycle.key)
         : questionsAttempted > 0 && !done;
@@ -578,14 +598,18 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     // assignment at question 0 — a closed Warm-Up — and entry fell through to
     // Classwork Q1, spending the timed DOL on a finished question (live QA,
     // Algebra I DOL #2). `records` is built from these same indices, in order.
-    const dolIndices = (activeDol.state?.questionIndices || [activeDol.state?.questionIndex])
-      .filter((index) => Number.isInteger(index) && index >= 0);
-    const firstUnattempted = dolIndices.find((index, position) => !(activeDol.records?.[position]?.totalAttempts > 0));
+    // `records` line up with the student's own DOL items (an accommodation
+    // can omit some), so the first not-yet-tried one is read from those.
+    const firstUnattempted = firstOpenLiveQuestionIndex({
+      indices: activeDol.questionIndices || activeDol.state?.questionIndices || [activeDol.state?.questionIndex],
+      records: activeDol.records,
+      section: 'dol',
+    });
     return {
       kind: 'dol',
       assignment: activeDol.assignment,
       dueAt: dueFor(activeDol.assignment, activeDol.lifecycle),
-      questionIndex: firstUnattempted ?? dolIndices[0],
+      questionIndex: firstUnattempted ?? 0,
       headline: 'Your exit ticket is open',
       detail: 'It is timed, so do this one first.',
       actionLabel: 'Start the exit ticket',
@@ -599,7 +623,8 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
       kind: 'warmup',
       assignment: activeWarmup.assignment,
       dueAt: dueFor(activeWarmup.assignment, activeWarmup.lifecycle),
-      questionIndex: activeWarmup.questionIndices?.[0] ?? 0,
+      // The first Warm-Up question still to do, never a finished one.
+      questionIndex: firstOpenLiveQuestionIndex({ indices: activeWarmup.questionIndices, records: activeWarmup.records, section: 'warmup' }) ?? 0,
       headline: 'Warm-Up is open now',
       detail: 'Start with the Warm-Up while its class timer is running.',
       actionLabel: 'Start Warm-Up',

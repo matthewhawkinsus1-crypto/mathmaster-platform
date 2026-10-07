@@ -289,7 +289,7 @@ test('a Test Cycle stage is not forced into "Due today"', () => {
     assignedClassIds: ['class-1'],
     dueAt: inHours(24 * 4),
     lateDueAt: inHours(24 * 9),
-    assessmentPolicy: { kind: 'testCycle', review: { required: true } },
+    assessmentPolicy: { mode: 'testCycle', review: { required: true } },
     sections: [{ id: 'review', role: 'review', questions: [{ type: 'algebra', prompt: 'R', equationLatex: 'x=1', activityRole: 'review' }] }],
   };
   const dashboard = model({
@@ -298,10 +298,13 @@ test('a Test Cycle stage is not forced into "Due today"', () => {
     testCycleGrades: { cycle: { stage: 'test', testState: 'assigned' } },
   });
   const entry = entryOf(dashboard, 'cycle');
-  if (entry.testCycle) {
-    assert.notEqual(entry.bucket, BUCKET.DO_NOW, 'due in four days is not due today');
-    assert.equal(entry.bucket, BUCKET.COMING_UP);
-  }
+  // `mode: 'testCycle'` is the declaration (testCyclePolicy.mjs); with the
+  // old `kind:` key this fixture was an ordinary lesson and the test asserted
+  // nothing.
+  assert.ok(entry.testCycle, 'the fixture is a real Test Cycle');
+  assert.equal(entry.testCycle.key, 'testReady');
+  assert.notEqual(entry.bucket, BUCKET.DO_NOW, 'due in four days is not due today');
+  assert.equal(entry.bucket, BUCKET.COMING_UP);
 });
 
 test('Up Next after an assignment hands off to other actionable work, never back to the same one', () => {
@@ -324,4 +327,34 @@ test('next question follows storage order even when a later section is stored fi
   });
   assert.equal(result.nextQuestionIndex, 0);
   assert.deepEqual(result.workableQuestionIndices, [0, 1]);
+});
+
+test('the live Warm-Up next action opens the first unfinished Warm-Up question, not a finished one', () => {
+  const dashboard = {
+    activeDols: [],
+    activeWarmups: [{
+      assignment: { id: 'w', title: 'w' },
+      lifecycle: {},
+      questionIndices: [0, 1, 2],
+      records: [{ status: 'correct' }, { status: 'attempted' }, { status: 'unattempted' }],
+    }],
+    groups: {},
+  };
+  assert.equal(resolveNextAction({ dashboard }).questionIndex, 1);
+});
+
+test('the live DOL next action reads the student\'s own items, aligned with their records', () => {
+  const dashboard = {
+    activeDols: [{
+      assignment: { id: 'd', title: 'd' },
+      lifecycle: {},
+      // The class DOL is 4,5,6; an accommodation omits 5 for this student.
+      state: { questionIndices: [4, 5, 6] },
+      questionIndices: [4, 6],
+      records: [{ totalAttempts: 1 }, { totalAttempts: 0 }],
+    }],
+    activeWarmups: [],
+    groups: {},
+  };
+  assert.equal(resolveNextAction({ dashboard }).questionIndex, 6);
 });
