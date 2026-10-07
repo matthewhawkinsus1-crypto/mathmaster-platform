@@ -1098,3 +1098,38 @@ test('a merge that would outgrow the value cap falls back to the newer copy, who
   assert.equal('a0' in board.value, false, 'nothing is merged in past the cap');
   assert.equal(board.value.b0, 'x'.repeat(300));
 });
+
+test('leaving the assignment while a save is in flight still sends the edits made during it — once', async () => {
+  // App.jsx's teardown is flushNow() then stop(). With a save already on its
+  // way, flushNow hands it back without sending what changed since, and a
+  // stopped sync scheduled nothing after it: those last edits stayed on this
+  // Chromebook, and a tool workspace never offers its draft again on opening,
+  // so another device never saw them.
+  const scheduler = manualScheduler();
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let server = serverWith([]);
+  let writes = 0;
+  const sync = createWorkspaceDraftSync({
+    studentId: STUDENT,
+    assignmentId: ASSIGNMENT,
+    scheduler,
+    flush: async ({ document }) => { writes += 1; await gate; server = applyPatch(server, document); },
+  });
+  sync.record({ key: draftKey(0, 'literal'), value: 'first', savedAt: 10 });
+  scheduler.runAll();
+  sync.record({ key: draftKey(0, 'literal'), value: 'second', savedAt: 20 });
+  // The student leaves the assignment before the save lands.
+  void sync.flushNow();
+  sync.stop();
+  assert.equal(writes, 1, 'nothing new is sent while the first save is in flight');
+  release();
+  for (let turn = 0; turn < 4; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(writes, 2, 'one last save follows it');
+  assert.equal(valueOf(server, 0), 'second', 'and it carries the edit made during the first');
+  // And then the sync is stopped: nothing further is recorded or sent.
+  assert.equal(sync.record({ key: draftKey(1, 'literal'), value: 'late', savedAt: 30 }), false);
+  scheduler.runAll();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(writes, 2);
+});
