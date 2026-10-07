@@ -212,6 +212,7 @@ import {
   enqueueDurableAction,
   listDurableActions,
   overlayDurableActionsOnGrades,
+  resendRetiredReviewWork,
 } from './platform/performance/durableActionOutbox.js';
 import {
   PROGRESS_KINDS,
@@ -3859,6 +3860,12 @@ function App() {
     let cancelled = false;
 
     const recoverAndReconcileQueuedStudentWork = async () => {
+      // Test Cycle Review answers the server refused as "secure" before it
+      // ingested Review go back in the queue, so they are shown and delivered
+      // below with everything else. Once per page; never blocks the rest.
+      await resendRetiredReviewWork({ studentId: user.id })
+        .catch((error) => console.error('Could not restore refused Review work:', error));
+      if (cancelled) return;
       const actions = await listDurableActions({ studentId: user.id });
       if (cancelled) return;
       setStudentOutboxDepth(actions.length);

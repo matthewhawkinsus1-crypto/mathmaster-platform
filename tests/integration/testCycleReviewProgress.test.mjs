@@ -160,6 +160,21 @@ test('finishing Review opens the Test for the student, through the same path', a
   assert.equal(studentCard.canEnter, true);
 });
 
+test('Review work the device resends after the fix never counts twice', async () => {
+  // The device resends answers it retired while the server refused Review
+  // (durableActionOutbox.js, resendRetiredReviewWork). Question 0 was answered
+  // again since, so an older envelope for it is behind the server's record.
+  const [older] = await ingest([envelope(0, 'an earlier answer', `${PREFIX}refused-before-fix`)]);
+  assert.equal(older.disposition, 'superseded');
+  // The same envelope delivered twice, as two tabs might.
+  const [again] = await ingest([envelope(0, REVIEW_ANSWERS[0], `${PREFIX}r0`)]);
+  assert.equal(again.disposition, 'duplicate');
+  const stored = (await db.collection('grades').doc(STUDENT).get()).data().gradesByAssignment[ASSIGNMENT_ID]['0'];
+  assert.equal(stored.totalAttempts, 1, 'still one attempt');
+  assert.equal(stored.status, 'correct');
+  assert.equal((await teacherRow()).review.attempted, 3);
+});
+
 test('a non-Review question on a Test Cycle is still refused, whatever the envelope claims', async () => {
   // Out-of-range index: no stored Review question backs it, so a device
   // naming "review" cannot get it accepted.

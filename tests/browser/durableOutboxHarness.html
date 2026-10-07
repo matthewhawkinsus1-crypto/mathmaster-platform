@@ -15,8 +15,10 @@ import {
   createDurableAction,
   drainDurableActions,
   enqueueDurableAction,
+  indexedDbOutboxStorage,
   listDurableActions,
   listRetiredDurableActions,
+  resendRetiredReviewWork,
   summarizeDurableOutbox,
 } from '/src/platform/performance/durableActionOutbox.js';
 import { SUBMISSION_DISPOSITION } from '/functions/shared/studentSubmissionDisposition.mjs';
@@ -202,6 +204,30 @@ const deleteDatabase = () => new Promise((resolve) => {
   request.onblocked = () => resolve(false);
 });
 
+/*
+ * Review answers a server refused as "secure" before it ingested a Test
+ * Cycle's Review, as the drain left them in `retired`, beside rows that must
+ * stay there: classwork refused the same way, and Review refused for a real reason.
+ */
+const REFUSED_AT = 1760000000000;
+const refusedRow = (actionId, { role = 'review', reason = 'secure-assignment-excluded', questionIndex = 0 } = {}) => ({
+  ...semesterRow(1),
+  actionId,
+  studentId: STUDENT,
+  assignmentId: 'test-cycle-assignment',
+  questionIndex,
+  createdAt: REFUSED_AT - 1000 + questionIndex,
+  createdOrder: (REFUSED_AT - 1000 + questionIndex) * 1000,
+  payload: { previousTotalAttempts: 0, activityRole: role, record: { totalAttempts: 1, attemptCount: 1, status: 'attempted' } },
+  retirement: { disposition: 'permanently-invalid', reason, retiredAt: REFUSED_AT, receipt: null },
+});
+const seedRefusedReviewWork = () => seedRetiredRows([
+  refusedRow('refused-review-0', { questionIndex: 0 }),
+  refusedRow('refused-review-1', { questionIndex: 1 }),
+  refusedRow('refused-classwork', { role: 'classwork', questionIndex: 2 }),
+  refusedRow('refused-review-closed', { reason: 'section-closed-at-capture', questionIndex: 3 }),
+]);
+
 window.outboxHarness = {
   SUBMISSION_DISPOSITION,
   reset: deleteDatabase,
@@ -221,6 +247,18 @@ window.outboxHarness = {
   enqueue: (actionId, options = {}) => enqueueDurableAction(action({ actionId, ...options })).then((queued) => queued.actionId),
   list: () => listDurableActions({ studentId: STUDENT }),
   listRetired: () => listRetiredDurableActions({ studentId: STUDENT }),
+  seedRefusedReviewWork,
+  /** The real resend, against real IndexedDB, as the student runtime calls it. */
+  resendReview: (now = REFUSED_AT + 60_000) => resendRetiredReviewWork({ studentId: STUDENT, now }),
+  /**
+   * A tab acting on what it read before another tab moved and delivered the
+   * row: the same retirement it saw, straight to the storage operation.
+   */
+  restoreFromStaleRead: (actionId) => {
+    const stale = refusedRow(actionId);
+    const { retirement, ...restored } = stale;
+    return indexedDbOutboxStorage.restoreRetiredIfUnchanged(actionId, retirement, restored);
+  },
   summary: () => summarizeDurableOutbox({ studentId: STUDENT }),
   /** A first summary and exactly what it read, for two tabs racing to build a tally. */
   summaryWithCalls: async () => {
