@@ -8,6 +8,7 @@ import WeeklyPathGoalPanel from './WeeklyPathGoalPanel.jsx';
 import MyMathPathProgress from './MyMathPathProgress.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
+import { buildUnifiedMasteryProfiles } from '../../platform/mastery/unifiedMastery.js';
 import { fetchMyMathPathSkillProgress } from '../../services/pathSessionService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
@@ -316,6 +317,7 @@ export const MyMathPathExperience = ({
     plan: weeklyPlan, config: weeklyGoalConfig || {}, honors, studentId, courseId,
   }) : null), [weeklyPlan, weeklyGoalConfig, honors, studentId, courseId]);
   const [assignedWeeklyGoal, setAssignedWeeklyGoal] = useState(null);
+  const frozenWeeklySnapshotRef = useRef(null);
 
   useEffect(() => {
     if (!proposedWeeklyGoal) { setAssignedWeeklyGoal(null); return undefined; }
@@ -337,11 +339,21 @@ export const MyMathPathExperience = ({
         : { ...proposedWeeklyGoal, assignmentState: 'simulation' });
       return undefined;
     }
+    // The server freezes a week exactly once, so its snapshot is reused for
+    // the rest of that week. The proposal is rebuilt whenever the live mastery
+    // profile moves (after every answer); asking the server again each time
+    // only cost a callable and flashed the unfrozen proposal in between.
+    const frozen = frozenWeeklySnapshotRef.current;
+    if (frozen && frozen.weekKey === proposedWeeklyGoal.weekKey) {
+      setAssignedWeeklyGoal(mergeWeeklyGoalSnapshot({ proposed: proposedWeeklyGoal, snapshot: frozen.snapshot }));
+      return undefined;
+    }
     let cancelled = false;
     setAssignedWeeklyGoal(null);
     resolveWeeklyPathGoalSnapshot(proposedWeeklyGoal)
       .then((snapshot) => {
         if (cancelled || !snapshot) return;
+        frozenWeeklySnapshotRef.current = { weekKey: snapshot.weekKey || proposedWeeklyGoal.weekKey, snapshot };
         // Swaps come from the frozen week only — what the server agreed to,
         // and none at all for a week frozen before swaps existed.
         setAssignedWeeklyGoal(mergeWeeklyGoalSnapshot({ proposed: proposedWeeklyGoal, snapshot }));
@@ -839,6 +851,25 @@ export const MyMathPathApp = (props) => {
 
   useEffect(() => { loadState(); }, [loadState]);
 
+  // LIVE MASTERY. App.jsx subscribes to the student's server mastery profile,
+  // which the background trigger rewrites a moment after each answer, and its
+  // Path options already read it. The wheel, the map's mastery chips and the
+  // retention report re-derive from the same live profile here, through the
+  // same builder, instead of waiting for the next reload — otherwise a skill
+  // could read Mastered on the map and Secure on the wheel until then.
+  const liveServerMasteryProfiles = props.serverMasteryProfiles || null;
+  const liveMasteryData = useMemo(() => {
+    if (!liveServerMasteryProfiles || !masteryData.fallbackInputs) return masteryData;
+    return {
+      ...masteryData,
+      masteryProfilesByTEKS: buildUnifiedMasteryProfiles({
+        ...masteryData.fallbackInputs,
+        serverProfiles: liveServerMasteryProfiles,
+        retentionSchedulesByTEKS: masteryData.retentionSchedulesByTEKS,
+      }),
+    };
+  }, [masteryData, liveServerMasteryProfiles]);
+
   // THE CCMR PLAN, from the server. Read live for the student and for a
   // teacher's read-only view alike — the teacher sees the student's plan, not
   // whatever their own browser happens to hold.
@@ -915,7 +946,7 @@ export const MyMathPathApp = (props) => {
   return (
     <MyMathPathExperience
       {...props}
-      masteryData={masteryData}
+      masteryData={liveMasteryData}
       evidenceEvents={evidenceEvents}
       skillProgressByTEKS={skillProgressByTEKS}
       loading={loading}

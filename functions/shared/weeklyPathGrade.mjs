@@ -353,3 +353,23 @@ export const describeWeeklyGradeForStudent = ({
     remaining,
   };
 };
+
+/**
+ * The weekly goal exactly as the Classroom publisher grades it.
+ *
+ * The publisher (weeklyPathSync → gradeWeeklyGoal) grades the frozen snapshot
+ * document as it is stored. That document carries no `settings`, so the
+ * default grading policy applies, and its own `dueAt`, so a due day the
+ * teacher changes after the freeze applies from the next week. A screen that
+ * grades the client-merged goal — the frozen snapshot plus the teacher's live
+ * settings — would apply a policy the publisher never sees, and the student's
+ * "Grade so far" could then differ from what Classroom receives. Every client
+ * grade of an assigned (or simulated-frozen) week goes through this. A week
+ * not yet frozen has no published grade and is graded as proposed.
+ */
+export const publishedWeeklyGoal = (goal) => {
+  if (!goal || typeof goal !== 'object') return goal;
+  if (goal.assignmentState !== 'assigned' && goal.assignmentState !== 'simulation') return goal;
+  const { settings: _clientSettings, ...published } = goal;
+  return published;
+};

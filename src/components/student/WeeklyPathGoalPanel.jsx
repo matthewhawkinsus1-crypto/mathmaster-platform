@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PURPOSE } from '../../platform/path/recommendationV2.js';
 import { describeSlotChoice, weeklyGoalOffersSwap } from '../../platform/path/weeklyPathChoice.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
-import { describeWeeklyGradeForStudent } from '../../platform/path/weeklyPathGoal.js';
+import { describeWeeklyGradeForStudent, publishedWeeklyGoal } from '../../platform/path/weeklyPathGoal.js';
 import { RETENTION_PROBE_QUESTIONS, isRetentionPurpose } from '../../../functions/shared/pathRetentionCheck.mjs';
 
 // The student's week is a commitment the platform can count, not a vague list
@@ -340,7 +340,9 @@ export default function WeeklyPathGoalPanel({
   // Null when the caller has no completions to hand, which simply means no
   // grade card rather than a wrong one.
   const gradeSummary = Array.isArray(completions)
-    ? describeWeeklyGradeForStudent({ goal, completions })
+    // Graded as the Classroom publisher grades it (publishedWeeklyGoal): the
+    // frozen goal, not the teacher's live settings merged over it.
+    ? describeWeeklyGradeForStudent({ goal: publishedWeeklyGoal(goal), completions })
     : null;
 
   if (compact) {

@@ -25,5 +25,12 @@ export const fetchStudentMasteryState = async (studentId, { assignments: supplie
   // The same builder the Path map and Recommended read, so every screen agrees.
   const masteryProfilesByTEKS = buildUnifiedMasteryProfiles({ student, assignments, serverProfiles, retentionSchedulesByTEKS });
 
-  return { masteryProfilesByTEKS, retentionSchedulesByTEKS, serverMasteryProfiles: serverProfiles };
+  return {
+    masteryProfilesByTEKS,
+    retentionSchedulesByTEKS,
+    serverMasteryProfiles: serverProfiles,
+    // What the fallback was built from, so a live server profile can be merged
+    // over the same assignment evidence without fetching it again.
+    fallbackInputs: { student, assignments },
+  };
 };

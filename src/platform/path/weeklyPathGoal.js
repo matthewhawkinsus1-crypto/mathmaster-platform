@@ -28,6 +28,7 @@ import {
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
+  publishedWeeklyGoal,
   weekKeyFor,
   weeklySlotKey,
 } from '../../../functions/shared/weeklyPathGrade.mjs';
@@ -39,6 +40,7 @@ export {
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
+  publishedWeeklyGoal,
   weekKeyFor,
   weeklySlotKey,
 };
@@ -375,7 +377,9 @@ export const deriveCompletionsFromEvidence = ({
  */
 export const buildTeacherWeeklyView = (entries = [], { now = Date.now() } = {}) => (
   list(entries).map(({ studentId, studentName, goal, completions = [] }) => {
-    const grade = gradeWeeklyGoal({ goal, completions, now });
+    // Graded as the Classroom publisher grades it: the frozen goal, without
+    // the teacher's live settings (publishedWeeklyGoal).
+    const grade = gradeWeeklyGoal({ goal: publishedWeeklyGoal(goal), completions, now });
     const profile = goal?.profile || null;
     return {
       studentId,
