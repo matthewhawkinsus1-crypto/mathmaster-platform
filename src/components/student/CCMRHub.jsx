@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ASSESSMENT_FRAMEWORKS, FRAMEWORK_LABELS, READINESS,
   explainAssessmentRecommendation, getAssessmentRecommendations,
 } from '../../platform/ccmr/assessmentPathways';
 import { getAssessmentProfile } from '../../platform/ccmr/assessmentProfiles';
+import {
+  ccmrTestDateBounds, ccmrTestDateDraftProblem, describeCcmrPlan,
+} from '../../platform/ccmr/ccmrPlan.js';
 import { matchesAssessmentReferenceSearch, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import CcmrReferenceList from '../common/CcmrReferenceList.jsx';
 import CCMRReadinessWheel from './CCMRReadinessWheel.jsx';
@@ -39,6 +42,151 @@ const BUCKET_TITLES = [
   ['available', 'Ready'],
   ['challenge', 'Challenge / completed'],
 ];
+
+// Every control on this screen is at least 44px tall: it is used on phones
+// and on shared Chromebooks with touch screens.
+const TAP = 44;
+
+const planStatusText = (planStatus, readOnly) => {
+  if (!planStatus) return '';
+  if (planStatus.error) return planStatus.error;
+  if (!planStatus.loaded) return readOnly ? 'Loading this student’s plan…' : 'Loading your plan…';
+  if (planStatus.state === 'saving') return 'Saving…';
+  if (planStatus.state === 'error') return planStatus.message || 'Your plan could not be saved.';
+  if (planStatus.state === 'saved') return 'Saved to your account. It follows you to any device.';
+  return '';
+};
+
+// "I'm preparing for…", the test date, and what each test's benchmark is.
+// The plan is the student's saved CCMR plan; a teacher sees it read-only.
+function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, onChangeTest }) {
+  const described = useMemo(
+    () => describeCcmrPlan(plan, { now, audience: readOnly ? 'teacher' : 'student' }),
+    [plan, now, readOnly],
+  );
+  const savedDate = plan?.testDate || '';
+  const savedFramework = plan?.testFramework || '';
+  const [draftDate, setDraftDate] = useState(savedDate);
+  const [draftFramework, setDraftFramework] = useState(savedFramework || goals[0] || '');
+  // Keyed by the goals' VALUES: the array is rebuilt whenever the evidence
+  // reloads, and an unsaved choice must not be reset by that.
+  const goalsKey = goals.join('|');
+  useEffect(() => { setDraftDate(savedDate); }, [savedDate]);
+  useEffect(() => { setDraftFramework(savedFramework || goalsKey.split('|')[0] || ''); }, [savedFramework, goalsKey]);
+
+  // Editing waits for the saved plan to arrive; a teacher never edits.
+  const locked = !readOnly && Boolean(planStatus) && planStatus.editable === false;
+  const bounds = ccmrTestDateBounds({ now });
+  const framework = goals.includes(draftFramework) ? draftFramework : (goals[0] || '');
+  const problem = ccmrTestDateDraftProblem(draftDate, { now });
+  const changed = draftDate !== savedDate || (Boolean(draftDate) && framework !== savedFramework);
+  const status = planStatusText(planStatus, readOnly);
+  const statusIsError = Boolean(planStatus?.error) || planStatus?.state === 'error';
+  const controlStyle = { minHeight: TAP, padding: '8px 10px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', font: 'inherit', boxSizing: 'border-box' };
+  // A disabled button must look disabled: "Save date" is off until the date
+  // actually changes, and a bright blue button that does nothing reads as broken.
+  const buttonStyle = (primary, disabled = false) => ({
+    minHeight: TAP, padding: '8px 14px', borderRadius: 8, fontWeight: 850, fontSize: 13,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    border: primary && !disabled ? 0 : '1px solid var(--mm-border)',
+    background: primary && !disabled ? '#1a73e8' : 'var(--mm-surface)',
+    color: primary && !disabled ? '#fff' : (disabled ? 'var(--mm-text-muted)' : 'var(--mm-text)'),
+  });
+  const saveDisabled = !changed || Boolean(problem) || !draftDate;
+
+  return (
+    <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border)' }}>
+      <fieldset disabled={locked} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
+        <legend style={{ padding: 0, margin: '0 0 8px', fontWeight: 800, fontSize: 13, color: 'var(--mm-text)' }}>I&apos;m preparing for:</legend>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {ASSESSMENT_FRAMEWORKS.map((id) => (
+            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontSize: 13, fontWeight: 700, cursor: readOnly ? 'default' : 'pointer', minHeight: TAP, boxSizing: 'border-box' }}>
+              <input
+                type="checkbox"
+                checked={goals.includes(id)}
+                onChange={() => onToggleGoal(id)}
+                disabled={readOnly}
+                style={{ width: 18, height: 18 }}
+              />
+              {FRAMEWORK_LABELS[id]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
+        {readOnly
+          ? 'Teacher read-only view: these are the student’s current CCMR goals. Goals cannot be changed here.'
+          : 'Choosing one moves it up your list. It never locks the others away.'}
+      </p>
+
+      {(goals.length > 0 || savedDate) && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--mm-border)' }}>
+          {readOnly ? (
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--mm-text)' }}>
+              <strong>Test date:</strong>{' '}
+              {described.test ? `${described.test.dateLabel} · ${described.test.testName}` : 'none set'}
+            </p>
+          ) : (
+            <fieldset disabled={locked} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
+              <legend style={{ padding: 0, margin: '0 0 6px', fontWeight: 800, fontSize: 13, color: 'var(--mm-text)' }}>My test date (optional)</legend>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                {goals.length > 1 && (
+                  <select
+                    aria-label="Which test is on this date"
+                    value={framework}
+                    onChange={(event) => setDraftFramework(event.target.value)}
+                    style={{ ...controlStyle, flex: '0 1 auto' }}
+                  >
+                    {goals.map((id) => <option key={id} value={id}>{FRAMEWORK_LABELS[id]}</option>)}
+                  </select>
+                )}
+                <input
+                  type="date"
+                  aria-label="Test date"
+                  value={draftDate}
+                  min={bounds.min}
+                  max={bounds.max}
+                  onChange={(event) => setDraftDate(event.target.value)}
+                  style={{ ...controlStyle, flex: '1 1 150px', minWidth: 0, maxWidth: 220 }}
+                />
+                <button
+                  type="button"
+                  disabled={saveDisabled}
+                  onClick={() => onChangeTest?.({ testDate: draftDate, testFramework: framework })}
+                  style={buttonStyle(true, saveDisabled)}
+                >
+                  Save date
+                </button>
+                {savedDate && (
+                  <button type="button" onClick={() => onChangeTest?.({ testDate: null })} style={buttonStyle(false)}>
+                    Remove date
+                  </button>
+                )}
+              </div>
+              {problem && <p role="alert" style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-error-text)' }}>{problem}</p>}
+              <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+                When your weekly Path includes test practice, it leans toward this test in the four weeks before it.
+              </p>
+            </fieldset>
+          )}
+          {described.lines.length > 0 && (
+            <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 4 }}>
+              {described.lines.map((line) => (
+                <li key={line.framework} style={{ fontSize: 12.5, fontWeight: line.isTest ? 850 : 700, color: line.isTest ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>
+                  {line.text}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <p role="status" aria-live="polite" style={{ margin: status ? '8px 0 0' : 0, fontSize: 12, fontWeight: 700, color: statusIsError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)' }}>
+        {status}
+      </p>
+    </div>
+  );
+}
 
 function SkillRow({ item, onPractise, showFramework = false, readOnly = false }) {
   const [showReference, setShowReference] = useState(false);
@@ -87,14 +235,14 @@ function SkillRow({ item, onPractise, showFramework = false, readOnly = false })
             Student can practise this
           </span>
         ) : (
-          <button type="button" onClick={() => onPractise?.(item)} style={{ minHeight: 38, padding: '8px 12px', border: 0, borderRadius: 8, background: item.status === READINESS.MAINTENANCE ? '#137333' : '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>
+          <button type="button" onClick={() => onPractise?.(item)} style={{ minHeight: TAP, padding: '8px 12px', border: 0, borderRadius: 8, background: item.status === READINESS.MAINTENANCE ? '#137333' : '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>
             {stage.actionLabel}
           </button>
         )}
       </div>
       {item.references?.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <button type="button" onClick={() => setShowReference((value) => !value)} style={{ padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850, cursor: 'pointer' }}>
+          <button type="button" onClick={() => setShowReference((value) => !value)} style={{ minHeight: TAP, display: 'inline-flex', alignItems: 'center', padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850, cursor: 'pointer' }}>
             {showReference ? 'Hide official standard connection' : 'Dig deeper into the standard connection'}
           </button>
           {showReference && <div style={{ marginTop: 8 }}><CcmrReferenceList references={item.references} /></div>}
@@ -139,11 +287,18 @@ export default function CCMRHub({
   directIndex = null,
   coverage = undefined,
   goals = [],
+  // The student's saved CCMR plan (goals, test date) and where saving it
+  // stands. Both optional: without them the hub still lists and ranks.
+  plan = null,
+  planStatus = null,
   teacherPriorities = [],
   onChangeGoals,
+  onChangeTest,
   onPractise,
   onReturnToCourse,
   readOnly = false,
+  // Injectable for a deterministic browser harness; the live screen reads the clock.
+  now = undefined,
 }) {
   const [framework, setFramework] = useState(null);
   // Which part of the test the student is looking at. The wheel is a way in to
@@ -217,28 +372,15 @@ export default function CCMRHub({
         Your course path is still your main path — this is here when you want it.
       </p>
 
-      <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border)' }}>
-        <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 13, color: 'var(--mm-text)' }}>I&apos;m preparing for:</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {ASSESSMENT_FRAMEWORKS.map((id) => (
-            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 999, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>
-              <input
-                type="checkbox"
-                checked={goals.includes(id)}
-                onChange={() => toggleGoal(id)}
-                disabled={readOnly}
-                style={{ width: 18, height: 18 }}
-              />
-              {FRAMEWORK_LABELS[id]}
-            </label>
-          ))}
-        </div>
-        <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
-          {readOnly
-            ? 'Teacher read-only view: these are the student’s current CCMR goals. Goals cannot be changed here.'
-            : 'Choosing one moves it up your list. It never locks the others away.'}
-        </p>
-      </div>
+      <CcmrPlanPanel
+        goals={goals}
+        plan={plan}
+        planStatus={planStatus}
+        readOnly={readOnly}
+        now={now ?? Date.now()}
+        onToggleGoal={toggleGoal}
+        onChangeTest={readOnly ? null : onChangeTest}
+      />
 
       <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)' }}>
         <label htmlFor="ccmr-standard-search" style={{ display: 'block', marginBottom: 6, fontWeight: 850, fontSize: 13, color: 'var(--mm-text)' }}>Find practice by CCMR standard or skill</label>
@@ -248,7 +390,7 @@ export default function CCMRHub({
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Try ACT F 502, recursive sequence, SAT nonlinear functions, TSIA2 Algebraic Reasoning, or ASVAB MK"
-          style={{ width: '100%', minHeight: 42, padding: '9px 11px', border: '1px solid var(--mm-border)', borderRadius: 9, font: 'inherit' }}
+          style={{ width: '100%', minHeight: TAP, boxSizing: 'border-box', padding: '9px 11px', border: '1px solid var(--mm-border)', borderRadius: 9, font: 'inherit' }}
         />
         <p style={{ margin: '7px 0 0', color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.5 }}>
           Search uses the official identifier each assessment actually publishes. ACT has numbered CCRS standards; Digital SAT and TSIA2 use official skill names; ASVAB uses AR/MK subtest codes.
@@ -293,11 +435,11 @@ export default function CCMRHub({
             {/* §17 — never trapped in one pathway. */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {offered.filter((id) => id !== framework).map((id) => (
-                <button key={id} type="button" onClick={() => { setFramework(id); setDomainId(null); }} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
+                <button key={id} type="button" onClick={() => { setFramework(id); setDomainId(null); }} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: TAP }}>
                   Switch to {FRAMEWORK_LABELS[id]}
                 </button>
               ))}
-              <button type="button" onClick={() => onReturnToCourse?.()} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
+              <button type="button" onClick={() => onReturnToCourse?.()} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: TAP }}>
                 Back to course path
               </button>
             </div>
@@ -329,7 +471,7 @@ export default function CCMRHub({
               <span style={{ fontSize: 12, color: 'var(--mm-text)', fontWeight: 800 }}>
                 Showing {activeDomainTitle} only
               </span>
-              <button type="button" onClick={() => setDomainId(null)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 34 }}>
+              <button type="button" onClick={() => setDomainId(null)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: TAP }}>
                 Show every part of the test
               </button>
             </div>

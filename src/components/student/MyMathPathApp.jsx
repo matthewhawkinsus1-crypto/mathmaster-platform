@@ -35,9 +35,13 @@ import { applyWeeklySlotChoices, mergeWeeklyGoalSnapshot, resolveWeeklySlotChoic
 import { pathCardLaunchOptions, weeklySessionLaunchOptions } from '../../platform/path/pathSessionLaunch.js';
 import { evaluateStudentRetentionSchedule } from '../../platform/retention/retentionScheduler.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
+import { buildStudentAssessmentContext } from '../../platform/ccmr/studentAssessmentContext.js';
 import {
-  buildStudentAssessmentContext, readCcmrGoals, writeCcmrGoals,
-} from '../../platform/ccmr/studentAssessmentContext.js';
+  ccmrPlanFrameworks, ccmrPlanSaveRequest, ccmrPlanWithGoals, ccmrPlanWithTest, decideLegacyCcmrMigration,
+} from '../../platform/ccmr/ccmrPlan.js';
+import {
+  clearLegacyCcmrGoals, readLegacyCcmrGoals, saveMyCcmrPlan, subscribeStudentCcmrPlan,
+} from '../../platform/ccmr/ccmrPlanStore.js';
 import { FRAMEWORK_LABELS, getSkillCrosswalk } from '../../platform/ccmr/assessmentCrosswalk.js';
 import {
   mathPathRouteKey,
@@ -124,6 +128,18 @@ export const MyMathPathExperience = ({
   // does this student's SAT wheel look like at 45%?" — so it supplies the
   // whole context rather than having one derived from a synthetic document.
   assessmentContextOverride = null,
+  // The student's CCMR plan ("I'm preparing for…" and an optional test date),
+  // as data. The live container reads studentCcmrPlans and saves through the
+  // setMyCcmrPlan callable; the simulator hands over a synthetic plan and keeps
+  // its saves in memory. `ccmrPlanLoaded` means the plan is known, and only
+  // then may it be edited. `ccmrPlanSettled` holds the weekly plan back until
+  // the student's own plan is known (or plainly unavailable), so a week is
+  // not frozen without it.
+  ccmrPlan = null,
+  ccmrPlanLoaded = true,
+  ccmrPlanSettled = true,
+  ccmrPlanError = null,
+  onSaveCcmrPlan = null,
   // Injected by the Teacher Path Simulator so a practice session runs against
   // the synthetic learner. Absent for a real student, who gets the live
   // secure service.
@@ -268,7 +284,13 @@ export const MyMathPathExperience = ({
     return () => { cancelled = true; };
   }, [courseId, coverageOverride]);
 
-  const weeklyPlan = useMemo(() => (pathOptions ? buildWeeklyPathPlan({
+  const weeklySettings = useMemo(
+    () => normalizeWeeklyGoalConfig(weeklyGoalConfig || {}, { honors }),
+    [weeklyGoalConfig, honors],
+  );
+  // The student's saved plan feeds the week, so the week waits for it: a goal
+  // proposed before the plan loaded would be frozen without it for seven days.
+  const weeklyPlan = useMemo(() => (pathOptions && ccmrPlanSettled ? buildWeeklyPathPlan({
     options: pathOptions,
     courseId,
     profile: learningProfile,
@@ -277,13 +299,18 @@ export const MyMathPathExperience = ({
     evidenceEvents,
     // The PLAN must be built to the same length the GOAL will ask for.
     // Building four and then asking for six leaves two empty cards.
-    sessions: normalizeWeeklyGoalConfig(weeklyGoalConfig || {}, { honors }).sessions,
+    sessions: weeklySettings.sessions,
     honors,
     interventionMode: Boolean(weeklyGoalConfig?.interventionMode),
-    allowTransfer: normalizeWeeklyGoalConfig(weeklyGoalConfig || {}, { honors }).ccmrExpectation !== CCMR_EXPECTATION.NONE,
+    allowTransfer: weeklySettings.ccmrExpectation !== CCMR_EXPECTATION.NONE,
     pinnedSkills: weeklyGoalConfig?.pinnedSkills || [],
     coverage,
-  }) : null), [pathOptions, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig, coverage]);
+    // "Auto" follows the student's own goals and test date; a framework the
+    // teacher picked wins. Either way it only chooses the FORMAT of transfer
+    // slots the evidence and the teacher's expectation already allow.
+    ccmrPlan,
+    ccmrFramework: weeklySettings.framework,
+  }) : null), [pathOptions, ccmrPlanSettled, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig, weeklySettings, coverage, ccmrPlan]);
 
   const proposedWeeklyGoal = useMemo(() => (weeklyPlan ? buildWeeklyGoal({
     plan: weeklyPlan, config: weeklyGoalConfig || {}, honors, studentId, courseId,
@@ -447,7 +474,16 @@ export const MyMathPathExperience = ({
 
   // CCMR. The components have existed since Batch 9; what was missing was any
   // route a student could take to reach them, and the evidence to fill them.
-  const [goals, setGoals] = useState(() => readCcmrGoals(studentId));
+  //
+  // The goals are the student's saved plan, supplied as data. While a save is
+  // in flight the screen shows what the student just chose (`pendingCcmrPlan`);
+  // when every save has settled it shows the server's copy again, so a failed
+  // save visibly undoes itself instead of pretending to have worked.
+  const [pendingCcmrPlan, setPendingCcmrPlan] = useState(null);
+  const [ccmrPlanSaveState, setCcmrPlanSaveState] = useState({ state: 'idle', message: null });
+  const ccmrSavesInFlight = useRef(0);
+  const visibleCcmrPlan = pendingCcmrPlan || ccmrPlan;
+  const goals = useMemo(() => ccmrPlanFrameworks(visibleCcmrPlan), [visibleCcmrPlan]);
   const [coverageNotice, setCoverageNotice] = useState(null);
   const assessmentContext = useMemo(() => (assessmentContextOverride || buildStudentAssessmentContext({
     student: studentRecord,
@@ -460,14 +496,55 @@ export const MyMathPathExperience = ({
     ...(assessmentContext || {}),
     coverage,
   }), [assessmentContext, coverage]);
+  const saveCcmrPlan = useCallback((next) => {
+    if (readOnly || !onSaveCcmrPlan) {
+      setCoverageNotice(teacherReadOnlyNotice);
+      return;
+    }
+    setPendingCcmrPlan(next);
+    setCcmrPlanSaveState({ state: 'saving', message: null });
+    ccmrSavesInFlight.current += 1;
+    Promise.resolve()
+      .then(() => onSaveCcmrPlan(ccmrPlanSaveRequest(next, { now: Date.now() })))
+      .then(() => {
+        if (ccmrSavesInFlight.current === 1) setCcmrPlanSaveState({ state: 'saved', message: null });
+      })
+      .catch((caught) => {
+        console.error('Could not save the CCMR plan:', caught);
+        setCcmrPlanSaveState({
+          state: 'error',
+          message: String(caught?.code || '').endsWith('invalid-argument') && caught?.message
+            ? caught.message
+            : 'Your plan could not be saved. Check your connection and try again.',
+        });
+      })
+      .finally(() => {
+        ccmrSavesInFlight.current -= 1;
+        if (ccmrSavesInFlight.current === 0) setPendingCcmrPlan(null);
+      });
+  }, [readOnly, onSaveCcmrPlan]);
   const changeGoals = useCallback((next) => {
     if (readOnly) {
       setCoverageNotice(teacherReadOnlyNotice);
       return;
     }
-    setGoals(next);
-    writeCcmrGoals(studentId, next);
-  }, [studentId, readOnly]);
+    saveCcmrPlan(ccmrPlanWithGoals(visibleCcmrPlan, next));
+  }, [readOnly, saveCcmrPlan, visibleCcmrPlan]);
+  const changeTest = useCallback((test) => {
+    if (readOnly) {
+      setCoverageNotice(teacherReadOnlyNotice);
+      return;
+    }
+    saveCcmrPlan(ccmrPlanWithTest(visibleCcmrPlan, test));
+  }, [readOnly, saveCcmrPlan, visibleCcmrPlan]);
+  const ccmrPlanStatus = useMemo(() => ({
+    loaded: ccmrPlanLoaded,
+    error: ccmrPlanError,
+    // Editing waits for the saved plan: a save built on a plan that never
+    // loaded would overwrite the student's real one.
+    editable: !readOnly && Boolean(onSaveCcmrPlan) && ccmrPlanLoaded && !ccmrPlanError,
+    ...ccmrPlanSaveState,
+  }), [ccmrPlanLoaded, ccmrPlanError, readOnly, onSaveCcmrPlan, ccmrPlanSaveState]);
 
   const startSession = (teksCode, options = {}) => {
     if (readOnly) {
@@ -681,8 +758,11 @@ export const MyMathPathExperience = ({
             directIndex={assessmentContext.directIndex}
             coverage={coverage}
             goals={assessmentContext.goals}
+            plan={visibleCcmrPlan}
+            planStatus={ccmrPlanStatus}
             teacherPriorities={assessmentContext.teacherPriorities}
             onChangeGoals={changeGoals}
+            onChangeTest={changeTest}
             onPractise={(item) => { const code = teksCodeFromSkillId(item.skillId); if (code) startSession(code, { framework: item.framework }); }}
             onReturnToCourse={() => setActiveTab('path')}
             readOnly={readOnly}
@@ -759,6 +839,79 @@ export const MyMathPathApp = (props) => {
 
   useEffect(() => { loadState(); }, [loadState]);
 
+  // THE CCMR PLAN, from the server. Read live for the student and for a
+  // teacher's read-only view alike — the teacher sees the student's plan, not
+  // whatever their own browser happens to hold.
+  const readOnly = Boolean(props.readOnly);
+  const [ccmrPlanState, setCcmrPlanState] = useState({ studentId: null, plan: null, loaded: false, exists: false, fromCache: true, error: null });
+  useEffect(() => {
+    setCcmrPlanState({ studentId, plan: null, loaded: false, exists: false, fromCache: true, error: null });
+    return subscribeStudentCcmrPlan({
+      studentId,
+      onChange: ({ plan, exists, fromCache }) => setCcmrPlanState({ studentId, plan, loaded: true, exists, fromCache, error: null }),
+      onError: (caught) => {
+        console.error('Could not load the CCMR plan:', caught);
+        setCcmrPlanState((current) => ({
+          ...current,
+          studentId,
+          loaded: true,
+          error: readOnly ? 'This student’s CCMR plan could not be loaded.' : 'Your CCMR plan could not be loaded. Reload to try again.',
+        }));
+      },
+    });
+  }, [studentId, readOnly]);
+
+  // One save at a time, in the order the student made them, so the plan the
+  // server ends up with is the last one the student chose.
+  const ccmrSaveQueue = useRef(Promise.resolve());
+  const saveCcmrPlan = useCallback((request) => {
+    const run = ccmrSaveQueue.current.catch(() => {}).then(() => saveMyCcmrPlan(request));
+    ccmrSaveQueue.current = run;
+    return run.then((plan) => {
+      setCcmrPlanState((current) => (current.studentId === studentId ? { ...current, plan, exists: Boolean(plan) } : current));
+      return plan;
+    });
+  }, [studentId]);
+
+  // ONE-TIME MOVE OUT OF BROWSER STORAGE. A student who chose goals before
+  // they were saved to their account keeps them: once the server confirms it
+  // has no plan, this browser's old copy is saved, once, and then forgotten.
+  const ccmrMigrationAttempted = useRef(null);
+  useEffect(() => {
+    if (ccmrPlanState.studentId !== studentId || ccmrPlanState.error) return;
+    const decision = decideLegacyCcmrMigration({
+      readOnly,
+      loaded: ccmrPlanState.loaded,
+      exists: ccmrPlanState.exists,
+      fromCache: ccmrPlanState.fromCache,
+      legacyGoals: readLegacyCcmrGoals(studentId),
+      attempted: ccmrMigrationAttempted.current === studentId,
+    });
+    if (decision.action === 'clear') clearLegacyCcmrGoals(studentId);
+    if (decision.action !== 'migrate') return;
+    ccmrMigrationAttempted.current = studentId;
+    saveCcmrPlan(decision.request)
+      .then(() => clearLegacyCcmrGoals(studentId))
+      .catch((caught) => console.warn('Could not move saved CCMR goals to this account yet:', caught));
+  }, [studentId, readOnly, ccmrPlanState, saveCcmrPlan]);
+
+  const ccmrPlanCurrent = ccmrPlanState.studentId === studentId;
+  // "No plan" from the offline cache is not an answer — the server may hold
+  // one — so the week waits for the server. It stops waiting after a few
+  // seconds, so an offline Chromebook still shows its week.
+  const [ccmrPlanWaitExpired, setCcmrPlanWaitExpired] = useState(false);
+  useEffect(() => {
+    setCcmrPlanWaitExpired(false);
+    const timer = setTimeout(() => setCcmrPlanWaitExpired(true), 8000);
+    return () => clearTimeout(timer);
+  }, [studentId]);
+  // Known: the server (or a cached copy of a real plan) has answered. Only a
+  // known plan may be edited — a save built on a guess would overwrite a plan
+  // the student saved on another device.
+  const ccmrPlanKnown = ccmrPlanCurrent && ccmrPlanState.loaded && !ccmrPlanState.error
+    && (ccmrPlanState.exists || !ccmrPlanState.fromCache);
+  const ccmrPlanSettled = ccmrPlanCurrent && (ccmrPlanKnown || Boolean(ccmrPlanState.error) || ccmrPlanWaitExpired);
+
   return (
     <MyMathPathExperience
       {...props}
@@ -769,6 +922,11 @@ export const MyMathPathApp = (props) => {
       error={error}
       historyError={historyError}
       onReload={loadState}
+      ccmrPlan={ccmrPlanCurrent ? ccmrPlanState.plan : null}
+      ccmrPlanLoaded={ccmrPlanKnown}
+      ccmrPlanSettled={ccmrPlanSettled}
+      ccmrPlanError={ccmrPlanCurrent ? ccmrPlanState.error : null}
+      onSaveCcmrPlan={readOnly ? null : saveCcmrPlan}
     />
   );
 };

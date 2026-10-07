@@ -3603,7 +3603,8 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
   // The derived per-student documents are single records, not collections.
   // The mastery history follows its profile: a new teacher reads it, and an
   // earlier non-origin teacher stops reading it, on the same move.
-  for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules", "studentMasteryHistory"]) {
+  // studentCcmrPlans is the student's own CCMR plan (shared/ccmrPlan.mjs).
+  for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules", "studentMasteryHistory", "studentCcmrPlans"]) {
     const ref = db.collection(collectionName).doc(studentId);
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await ref.get();
@@ -14106,6 +14107,36 @@ exports.getMyWeeklyPathCompletions = onCall((request) => withPathCallableDiagnos
     displayTeks: mathPath.displayAlignmentKey,
   });
   return { success: true, weekKey, completions, inProgress, truncated };
+}));
+
+/**
+ * Save the signed-in student's own CCMR plan: the tests they are preparing for
+ * and an optional test date. The ONLY write path for studentCcmrPlans — the
+ * rules refuse every client write. Validation, caps and the record shape live
+ * in shared/ccmrPlan.mjs; this reads the roster row for the authorization
+ * context and writes once, inside a transaction, only when something changed.
+ */
+exports.setMyCcmrPlan = onCall((request) => withPathCallableDiagnostics("setMyCcmrPlan", async () => {
+  const { studentId } = requireStudent(request);
+  const ccmrPlan = await import("./shared/ccmrPlan.mjs");
+  const validated = ccmrPlan.validateCcmrPlanInput(request.data, { now: Date.now() });
+  if (!validated.ok) throw new HttpsError("invalid-argument", validated.message);
+  const db = getFirestore();
+  const studentSnapshot = await db.collection("grades").doc(studentId).get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "Your MathMaster student record is unavailable.");
+  const student = studentSnapshot.data() || {};
+  const classRecord = await loadStudentClass(db, student);
+  const ref = db.collection(ccmrPlan.CCMR_PLAN_COLLECTION).doc(studentId);
+  const saved = await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    const { record, unchanged } = ccmrPlan.buildCcmrPlanRecord({
+      studentId, plan: validated.plan, existing: existing.exists ? existing.data() : null, student, classRecord, now: Date.now(),
+    });
+    if (unchanged) return existing.data();
+    transaction.set(ref, record);
+    return record;
+  });
+  return { success: true, plan: ccmrPlan.publicCcmrPlan(saved) };
 }));
 
 /**
