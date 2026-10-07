@@ -322,3 +322,18 @@ test('6. "Ask my teacher" adds a time and a question position to the student\'s 
   const start = region(app, 'const startPresence = async () => {', '};', 'starting presence');
   assert.ok(start.indexOf('publishPresenceNowRef.current = publishLatest;') > start.indexOf('await deleteDoc(presenceRef);'));
 });
+
+/* ------------------------------------------- the compiler keeps authored hints */
+
+test('the V5 compiler keeps a question\'s authored hints, so the Hint control can read them', async () => {
+  const { compileAuthoringIntentV5 } = await import('../../src/platform/contract/authoringIntentV5.js');
+  const source = JSON.parse(read('teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json'));
+  const first = source.sections[0].questions[0];
+  source.sections[0].questions[0] = { ...first, hints: ['Compare f(x − 4) with f(x): which way does the graph move?'], hint: 'Look at the + 3 outside the function.' };
+  const compiled = compileAuthoringIntentV5(source);
+  const question = compiled.package.sections[0].questions[0];
+  assert.deepEqual(question.hints, ['Compare f(x − 4) with f(x): which way does the graph move?']);
+  assert.equal(question.hint, 'Look at the + 3 outside the function.');
+  const hints = buildQuestionHints(question).map((hint) => hint.text);
+  assert.ok(hints.includes('Compare f(x − 4) with f(x): which way does the graph move?'));
+});
