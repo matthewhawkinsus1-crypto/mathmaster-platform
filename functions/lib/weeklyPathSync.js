@@ -67,9 +67,14 @@ async function syncWeeklyPathClassWeek({
   gradeWeeklyGoal,
   logger = null,
 } = {}) {
+  // One post describes the whole class, so it names the count the teacher set
+  // (requestedSessions). A student whose week came up short is graded against
+  // their own smaller goalSessions; snapshots frozen before requestedSessions
+  // existed carried the teacher's count in goalSessions.
+  const firstGoal = Object.values(goalsByStudentId)[0] || null;
   const work = weeklyPathCourseWork({
     classId, weekKey, weekLabel, launchUrl, maxPoints,
-    goalSessions: Object.values(goalsByStudentId)[0]?.goalSessions || 0,
+    goalSessions: firstGoal?.requestedSessions || firstGoal?.goalSessions || 0,
   });
   if (!work) {
     return { ok: false, reason: "incomplete_class_week_identity", results: [] };

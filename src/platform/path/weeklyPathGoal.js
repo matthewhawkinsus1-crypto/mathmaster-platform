@@ -29,6 +29,7 @@ import {
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
+  requiredWeeklySessions,
   weekKeyFor,
   weeklyDueDayName,
   weeklySlotKey,
@@ -42,6 +43,7 @@ export {
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
+  requiredWeeklySessions,
   weekKeyFor,
   weeklyDueDayName,
   weeklySlotKey,
@@ -262,6 +264,24 @@ export const buildWeeklyGoal = ({
     ? sessions.filter((session) => session.purpose !== PURPOSE.TRANSFER)
     : sessions;
 
+  // Each slot keeps its frozen key and gains the equally-useful options the
+  // student may put in it instead. Swapping never changes the key, so a week
+  // already in progress keeps counting exactly as it did. No more slots than
+  // the teacher asked for: the server freezes the same first N.
+  const slots = attachWeeklyAlternatives({
+    sessions: filtered.slice(0, settings.sessions).map((session, index) => {
+      const slot = index + 1;
+      return {
+        ...session,
+        slot,
+        weeklySlotKey: weeklySlotKey(session, slot),
+        purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
+        status: 'notStarted',
+      };
+    }),
+    considered: list(plan?.considered),
+  });
+
   return {
     studentId,
     courseId,
@@ -270,24 +290,13 @@ export const buildWeeklyGoal = ({
     createdAt: now,
     settings,
     // The goal is a number of SESSIONS. It is never a number of TEKS, and the
-    // distinction is the whole design.
-    goalSessions: settings.sessions,
-    // Each slot keeps its frozen key and gains the equally-useful options the
-    // student may put in it instead. Swapping never changes the key, so a week
-    // already in progress keeps counting exactly as it did.
-    sessions: attachWeeklyAlternatives({
-      sessions: filtered.map((session, index) => {
-        const slot = index + 1;
-        return {
-          ...session,
-          slot,
-          weeklySlotKey: weeklySlotKey(session, slot),
-          purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
-          status: 'notStarted',
-        };
-      }),
-      considered: list(plan?.considered),
-    }),
+    // distinction is the whole design. It is the sessions this week actually
+    // HAS: when the planner cannot fill every slot the teacher asked for, a
+    // student given three cards is asked for three, not "0 of 4" forever.
+    goalSessions: requiredWeeklySessions({ goalSessions: settings.sessions, sessions: slots }),
+    // What the teacher asked for, kept so a short week is visible as short.
+    requestedSessions: settings.sessions,
+    sessions: slots,
     ccmr: {
       expectation: settings.ccmrExpectation,
       framework: settings.framework,
@@ -387,7 +396,9 @@ export const buildTeacherWeeklyView = (entries = [], { now = Date.now() } = {}) 
     return {
       studentId,
       studentName,
-      goal: Number(goal?.goalSessions) || 0,
+      // The count the grade was computed against — never more than the slots
+      // the student was given — so the table and the grade beside it agree.
+      goal: grade.progress.required,
       complete: grade.progress.completed,
       academicProfile: profile
         ? `${profile.instructionalBandLabel} · ${profile.performanceProjectionLabel}`

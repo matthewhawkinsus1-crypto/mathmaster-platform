@@ -13978,7 +13978,9 @@ function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord }) {
   if (goal?.courseId && String(goal.courseId) !== courseId) {
     throw new HttpsError("failed-precondition", "This weekly Path proposal belongs to a different course.");
   }
-  const requested = Math.max(3, Math.min(6, Number(goal?.goalSessions) || 4));
+  // The teacher's count: a current client sends it as requestedSessions (its
+  // goalSessions is already the number of sessions it could fill).
+  const requested = Math.max(3, Math.min(6, Number(goal?.requestedSessions) || Number(goal?.goalSessions) || 4));
   const proposed = Array.isArray(goal?.sessions) ? goal.sessions.slice(0, requested) : [];
   if (!proposed.length) throw new HttpsError("failed-precondition", "MathMaster could not build any weekly Path sessions for this week.");
 
@@ -14024,7 +14026,11 @@ function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord }) {
     courseId,
     weekKey,
     dueAt: Number(goal?.dueAt) || null,
-    goalSessions: requested,
+    // The sessions this week actually holds. A planner that could not fill
+    // every requested slot freezes fewer cards, and a goal asking for more
+    // than that could never be finished (requiredWeeklySessions).
+    goalSessions: sessions.length,
+    requestedSessions: requested,
     sessions,
     ccmr: goal?.ccmr && typeof goal.ccmr === "object" ? {
       expectation: String(goal.ccmr.expectation || "none").slice(0, 40),

@@ -78,6 +78,28 @@ export const weeklySlotKey = (session = {}, slot = session?.slot) => [
   Number(session?.difficultyBand) || 0,
 ].join('|');
 
+/**
+ * How many sessions a weekly goal can require: its count, but never more than
+ * the slots the week was actually given.
+ *
+ * The planner can come back short — a student early in the course may have
+ * three open skills, not four — and the week is then frozen with three cards.
+ * Requiring four of them made a finished week impossible: the panel read
+ * "3 of 4", the grade stopped near 75, and that is what Classroom received.
+ * Weeks frozen before the count was capped at the server still carry the
+ * larger number, so the cap is applied here, where every reader of the goal
+ * (student panel, teacher table, Classroom publisher) gets it.
+ *
+ * A goal with no slots at all keeps its count: that is an older count-only
+ * week, graded by count.
+ */
+export const requiredWeeklySessions = (goal = null) => {
+  const requested = Math.max(0, Math.round(Number(goal?.goalSessions) || 0));
+  const slots = list(goal?.sessions).length;
+  if (!slots) return requested;
+  return requested ? Math.min(requested, slots) : slots;
+};
+
 const completionMatchesLegacySlot = (slot, completion, weekKey) => {
   if (completion?.weekKey && weekKey && completion.weekKey !== weekKey) return false;
   const slotTeks = String(slot?.teksCode || '').trim();
@@ -114,7 +136,7 @@ export const matchWeeklyGoalCompletions = ({ goal, completions = [] } = {}) => {
   // count-based semantics so old weeks do not retroactively become zeroes.
   // Current assigned weeks are strict: only the frozen slot can earn that slot.
   if (!strictAssignedMatching) {
-    const required = Math.max(0, Number(goal?.goalSessions) || slots.length);
+    const required = requiredWeeklySessions({ goalSessions: goal?.goalSessions, sessions: slots });
     available.slice(0, required).forEach((entry, index) => {
       const { __index, ...completion } = entry;
       used.add(__index);
@@ -191,7 +213,7 @@ export const normalizeGradingPolicy = (policy = {}) => {
  * completion, and is also not a failure — it is simply not yet done.
  */
 export const evaluateWeeklyGoalProgress = ({ goal, completions = [], now = Date.now() } = {}) => {
-  const required = Number(goal?.goalSessions) || 0;
+  const required = requiredWeeklySessions(goal);
   const { matched: done, unmatched } = matchWeeklyGoalCompletions({ goal, completions });
   const onTime = done.filter((entry) => !goal?.dueAt || Number(entry.completedAt) <= Number(goal.dueAt));
 
