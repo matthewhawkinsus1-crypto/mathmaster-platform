@@ -11496,6 +11496,16 @@ function App() {
     );
   };
 
+  // The read-only "What changed" list, on Home (compact) and Grades.
+  const renderWhatChangedPanel = (compact) => (
+    <WhatChangedList
+      items={whatChangedItems}
+      compact={compact}
+      onOpenAssignment={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: compact ? 'assignments' : 'grades' })}
+      onMarkSeen={() => { if (user?.id) markWhatChangedSeen(user.id, Date.now()); }}
+    />
+  );
+
   // This is the authenticated-student shell boundary. Keeping identity here,
   // outside every destination, makes it survive Focus View, compact/mobile
   // assignment controls, Live Challenge, and screens that omit global nav.
@@ -13080,10 +13090,20 @@ function App() {
     return renderStudentIdentityShell(
       <>
         {renderStudentPackUpBanner()}
-        {renderStudentWarmupBanner()}
+        {/* No Warm-Up banner on Home: the next-action card (or its compact
+            Warm-Up card) is the one place the Warm-Up is offered here. */}
         <StudentDashboardView
         dashboard={dashboard}
-        student={{ ...studentRecord, ...user, inclusionStatus: user.profile?.inclusionStatus }}
+        // Never the student's support status: Home is read over shoulders.
+        student={{ ...studentRecord, ...user }}
+        onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
+        saveStatus={describeSaveStatus({
+          persistenceStatus: studentPersistenceStatus,
+          outboxDepth: studentOutboxDepth,
+          pendingGradeCount: studentPendingGradeCount,
+          online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+        })}
+        whatChangedPanel={renderWhatChangedPanel(true)}
         supportPresentation={supportPresentation}
         classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
         onStartAssignment={startAssignment}

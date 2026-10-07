@@ -59,3 +59,14 @@ test('Log Out warns about unsent work on the one identity bar', () => {
   const bar = region(app, '<StudentIdentityBar', '/>', 'identity bar');
   assert.match(bar, /logoutRisk=\{preview \? null : describeLogoutRisk\(\{\s*outboxDepth: studentOutboxDepth,\s*pendingGradeCount: studentPendingGradeCount/);
 });
+
+test('Home is wired without the support flag, with results, save status and What changed', () => {
+  const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
+  assert.doesNotMatch(home, /inclusionStatus/);
+  assert.match(home, /onOpenResult=\{\(assignmentId\) => openStudentAssignmentResult\(assignmentId/);
+  assert.match(home, /saveStatus=\{describeSaveStatus\(\{/);
+  assert.match(home, /whatChangedPanel=\{renderWhatChangedPanel\(true\)\}/);
+  assert.match(app, /import \{ describeSaveStatus \} from '\.\/platform\/student\/saveStatusModel\.js'/);
+  const before = region(app, 'const studentNextAction = resolveNextAction({', '<StudentDashboardView', 'before Home');
+  assert.doesNotMatch(before, /renderStudentWarmupBanner\(\)/, 'Home offers the Warm-Up once, not as a banner too');
+});
