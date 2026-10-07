@@ -26,7 +26,7 @@ import { fetchMyWeeklyPathCompletions, fetchTeacherWeeklyPathCompletions, resolv
 import { collectWeeklyPathSessions } from '../../../functions/shared/weeklyPathCompletion.mjs';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
-import { chooseWeeklyAlternative } from '../../platform/path/weeklyPathChoice.js';
+import { applyWeeklySlotChoices, mergeWeeklyGoalSnapshot, resolveWeeklySlotChoices } from '../../platform/path/weeklyPathChoice.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
 import {
   buildStudentAssessmentContext, readCcmrGoals, writeCcmrGoals,
@@ -139,7 +139,9 @@ export const MyMathPathExperience = ({
   const [sessionConfig, setSessionConfig] = useState(null);
   // Which alternative the student put in each slot, keyed by the slot's frozen
   // key. Deliberately session-scoped: a swap is a decision about what to work on
-  // right now, not a setting worth persisting or a thing to explain later.
+  // right now, not a setting worth persisting. Once the swapped session is
+  // opened, the server's record of it carries the choice across reloads
+  // (resolveWeeklySlotChoices below).
   const [weeklyChoices, setWeeklyChoices] = useState({});
 
   // Keep My Math Path's own tabs/session in the browser history too. App.jsx
@@ -271,9 +273,21 @@ export const MyMathPathExperience = ({
   useEffect(() => {
     if (!proposedWeeklyGoal) { setAssignedWeeklyGoal(null); return undefined; }
     // The simulator owns its synthetic runtime and never touches production
-    // student callables. Live students freeze the proposal on the server once.
+    // student callables. Live students freeze the proposal on the server once;
+    // the simulator's runtime freezes it by the same rule
+    // (weeklyPathSlotAuthority.mjs), so its swaps are the swaps a student gets.
     if (sessionProvider) {
-      setAssignedWeeklyGoal({ ...proposedWeeklyGoal, assignmentState: 'simulation' });
+      let simulatedSnapshot = null;
+      try {
+        simulatedSnapshot = typeof sessionProvider.freezeWeeklyPathGoal === 'function'
+          ? sessionProvider.freezeWeeklyPathGoal(proposedWeeklyGoal)
+          : null;
+      } catch (caught) {
+        console.error('Could not freeze the simulated Weekly Path goal:', caught);
+      }
+      setAssignedWeeklyGoal(simulatedSnapshot
+        ? mergeWeeklyGoalSnapshot({ proposed: proposedWeeklyGoal, snapshot: simulatedSnapshot, assignmentState: 'simulation' })
+        : { ...proposedWeeklyGoal, assignmentState: 'simulation' });
       return undefined;
     }
     let cancelled = false;
@@ -281,13 +295,9 @@ export const MyMathPathExperience = ({
     resolveWeeklyPathGoalSnapshot(proposedWeeklyGoal)
       .then((snapshot) => {
         if (cancelled || !snapshot) return;
-        setAssignedWeeklyGoal({
-          ...proposedWeeklyGoal,
-          ...snapshot,
-          settings: proposedWeeklyGoal.settings,
-          profile: proposedWeeklyGoal.profile,
-          suppressed: proposedWeeklyGoal.suppressed,
-        });
+        // Swaps come from the frozen week only — what the server agreed to,
+        // and none at all for a week frozen before swaps existed.
+        setAssignedWeeklyGoal(mergeWeeklyGoalSnapshot({ proposed: proposedWeeklyGoal, snapshot }));
       })
       .catch((caught) => {
         if (!cancelled) console.error('Could not freeze Weekly Path goal:', caught);
@@ -295,7 +305,9 @@ export const MyMathPathExperience = ({
     return () => { cancelled = true; };
   }, [proposedWeeklyGoal, sessionProvider]);
 
-  const weeklyGoal = assignedWeeklyGoal || (proposedWeeklyGoal ? { ...proposedWeeklyGoal, assignmentState: 'proposed' } : null);
+  // Until the week is frozen it offers no swaps: the server has agreed to none.
+  const unfrozenWeeklyGoal = useMemo(() => mergeWeeklyGoalSnapshot({ proposed: proposedWeeklyGoal }), [proposedWeeklyGoal]);
+  const weeklyGoal = assignedWeeklyGoal || unfrozenWeeklyGoal;
 
   // ONE COMPLETION TRUTH. A slot is done when its Path session is COMPLETED on
   // the server — the rule the teacher's table and the Classroom publisher use
@@ -338,21 +350,43 @@ export const MyMathPathExperience = ({
   );
   // Exact one-to-one slot matching. Two weekly rows may intentionally use the
   // same TEKS, so a set of worked standards would incorrectly mark both done.
+  // A swapped session keeps its slot key, so it fills its own slot here too.
+  const weeklyMatchedCompletions = useMemo(() => (weeklyGoal && weeklyCompletions
+    ? matchWeeklyGoalCompletions({ goal: weeklyGoal, completions: weeklyCompletions }).matched
+    : []), [weeklyGoal, weeklyCompletions]);
+  const completedSlots = useMemo(
+    () => weeklyMatchedCompletions.map((entry) => entry.matchedSlot),
+    [weeklyMatchedCompletions],
+  );
+
+  // A swap option the secure bank cannot issue is not offered: the launch
+  // would only fail on a coverage notice. Unknown until coverage has loaded,
+  // and `startSession` still fails closed on its own.
+  const weeklyAlternativeLaunchable = useCallback((teksCode, context) => {
+    const framework = context && context !== 'course' ? context : null;
+    return framework
+      ? frameworkCoverageKnown(coverage, framework) && isFrameworkSkillLaunchable(coverage, teksCode, framework)
+      : isSkillLaunchable(coverage, teksCode);
+  }, [coverage]);
+
+  // The week as the student acts on it. A slot they already opened or
+  // finished takes its choice from that server session, so Resume reopens a
+  // swapped session after a reload rather than starting the recommendation as
+  // a second one; otherwise this tab's click stands.
   const weeklyGoalWithChoices = useMemo(() => {
     if (!weeklyGoal?.sessions?.length) return weeklyGoal;
-    return {
-      ...weeklyGoal,
-      sessions: weeklyGoal.sessions.map((session) => (
-        weeklyChoices[session.weeklySlotKey]
-          ? chooseWeeklyAlternative(session, weeklyChoices[session.weeklySlotKey])
-          : session
-      )),
-    };
-  }, [weeklyGoal, weeklyChoices]);
-
-  const completedSlots = useMemo(() => (weeklyGoal && weeklyCompletions
-    ? matchWeeklyGoalCompletions({ goal: weeklyGoal, completions: weeklyCompletions }).matched.map((entry) => entry.matchedSlot)
-    : []), [weeklyGoal, weeklyCompletions]);
+    const choices = resolveWeeklySlotChoices({
+      goal: weeklyGoal,
+      choices: weeklyChoices,
+      inProgress: weeklyInProgress,
+      completions: weeklyCompletions,
+    });
+    return applyWeeklySlotChoices({
+      goal: weeklyGoal,
+      choices,
+      isLaunchable: coverageLoaded ? weeklyAlternativeLaunchable : null,
+    });
+  }, [weeklyGoal, weeklyChoices, weeklyInProgress, weeklyCompletions, coverageLoaded, weeklyAlternativeLaunchable]);
 
   // CCMR. The components have existed since Batch 9; what was missing was any
   // route a student could take to reach them, and the evidence to fill them.
@@ -427,6 +461,9 @@ export const MyMathPathExperience = ({
       weekKey: options.weekKey || null,
       weeklySlotKey: options.weeklySlotKey || null,
       weeklySlot: options.weeklySlot || null,
+      // The alternative the student swapped into this slot, if any. The server
+      // authorizes the launch by the frozen slot; this only names the option.
+      chosenSkillId: options.weeklySlotKey ? (options.chosenSkillId || null) : null,
       intendedDok: options.intendedDok ?? null,
       intendedDifficultyBand: options.intendedDifficultyBand ?? null,
       weeklyPurpose: options.weeklyPurpose || null,
@@ -458,6 +495,7 @@ export const MyMathPathExperience = ({
   const startWeeklySession = (session) => {
     // The session arrives with the student's swap already applied, and a swap
     // keeps the slot's frozen key, so the completion still fills its own slot.
+    // Its context, DOK and band are the slot's (chooseWeeklyAlternative).
     const chosen = session;
     const code = chosen?.teksCode || teksCodeFromSkillId(chosen?.skillId);
     if (!code) return;
@@ -465,7 +503,7 @@ export const MyMathPathExperience = ({
       weekKey: weeklyGoal?.weekKey || null,
       weeklySlotKey: chosen?.weeklySlotKey || null,
       weeklySlot: chosen?.slot || null,
-      chosenSkillId: chosen?.chosenSkillId || null,
+      chosenSkillId: chosen?.studentChose ? (chosen.chosenSkillId || null) : null,
       intendedDok: chosen?.dok ?? null,
       intendedDifficultyBand: chosen?.difficultyBand ?? null,
       weeklyPurpose: chosen?.purpose || null,
@@ -596,7 +634,7 @@ export const MyMathPathExperience = ({
           />
         </div>
       )}
-      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} skillProgressByTEKS={skillProgressByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} weeklyCompletions={weeklyCompletions} completedSlots={completedSlots} weeklyInProgress={weeklyInProgress} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
+      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} skillProgressByTEKS={skillProgressByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoalWithChoices} weeklyProgress={weeklyProgress} weeklyCompletions={weeklyCompletions} completedSlots={completedSlots} weeklyInProgress={weeklyInProgress} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => { setWeeklyRefreshKey((value) => value + 1); onReload?.(); }} />}
     </div>

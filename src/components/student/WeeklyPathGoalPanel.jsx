@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PURPOSE } from '../../platform/path/recommendationV2.js';
-import { describeSlotChoice } from '../../platform/path/weeklyPathChoice.js';
+import { describeSlotChoice, weeklyGoalOffersSwap } from '../../platform/path/weeklyPathChoice.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { describeWeeklyGradeForStudent } from '../../platform/path/weeklyPathGoal.js';
 
@@ -327,6 +327,10 @@ export default function WeeklyPathGoalPanel({
   const remaining = Math.max(0, required - completed);
   const complete = remaining === 0;
   const next = goal.sessions.find((session) => !done.has(session.slot));
+  // Swapping is promised only where a card actually offers it. A week frozen
+  // before swaps existed has no options, and saying "swap it on any card"
+  // there points at a control that is not on the screen.
+  const swapOffered = weeklyGoalOffersSwap({ goal, completedSlots, inProgress });
   // Null when the caller has no completions to hand, which simply means no
   // grade card rather than a wrong one.
   const gradeSummary = Array.isArray(completions)
@@ -349,7 +353,11 @@ export default function WeeklyPathGoalPanel({
             {complete ? `You hit all ${required} sessions.` : `${completed} of ${required} sessions complete · ${remaining} to go`}
           </strong>
           <span style={{ ...MUTED, display: 'block', marginTop: 3 }}>
-            {complete ? 'Anything else you practise this week is extra.' : 'Do them in any order, and you can swap a skill on any card.'}
+            {complete
+              ? 'Anything else you practise this week is extra.'
+              : swapOffered
+                ? 'Do them in any order, and swap a skill where a card offers other options.'
+                : 'Do them in any order.'}
           </span>
         </div>
         <div style={{ display: 'grid', gap: 9, justifyItems: 'stretch' }}>
@@ -380,8 +388,9 @@ export default function WeeklyPathGoalPanel({
             </h2>
             {!complete && (
               <p style={{ ...MUTED, margin: '5px 0 0', fontSize: 13 }}>
-                MathMaster picked these for you and says why. Do them in any order — and if a
-                different skill would help you more, swap it on any card below.
+                {swapOffered
+                  ? 'MathMaster picked these for you and says why. Do them in any order — and if a different skill would help you more, swap it on a card that offers other options.'
+                  : 'MathMaster picked these for you and says why. Do them in any order.'}
               </p>
             )}
           </div>

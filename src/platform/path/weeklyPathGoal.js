@@ -17,7 +17,7 @@
 // the caller's.
 
 import { PURPOSE, PURPOSE_LABEL } from './recommendationV2.js';
-import { attachWeeklyAlternatives } from './weeklyPathChoice.js';
+import { attachWeeklyAlternatives, describeWeeklySlotSwaps } from './weeklyPathChoice.js';
 // The grading half of this module now lives in functions/shared so the Cloud
 // Function that publishes weekly grades to Google Classroom can reach it too.
 // Re-exported here so nothing that already imported these names had to change.
@@ -389,6 +389,9 @@ export const buildTeacherWeeklyView = (entries = [], { now = Date.now() } = {}) 
       overdue: grade.progress.overdue,
       grade: grade.grade,
       passing: grade.passing,
+      // "Chose X instead of Y" for each slot a swapped session filled, so the
+      // teacher can see the student made a choice, not only that it counted.
+      swaps: describeWeeklySlotSwaps({ goal, completions }),
     };
   })
 );

@@ -280,6 +280,11 @@ export default function WeeklyPathControls({
                         onOpen={onOpenStudent}
                         style={{ fontSize: 13.5 }}
                       />
+                      {row.swaps?.length > 0 && (
+                        <div style={{ marginTop: 3, fontSize: 11.5, fontWeight: 700, color: 'var(--mm-text-muted)' }}>
+                          {row.swaps.map((swap) => swap.sentence).join(' · ')}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: 10, textAlign: 'right' }}>{row.goal}</td>
                     <td style={{ padding: 10, textAlign: 'right', fontWeight: 900, color: row.overdue ? 'var(--mm-warning-text)' : 'var(--mm-text-strong)' }}>
