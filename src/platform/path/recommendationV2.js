@@ -27,6 +27,9 @@ import {
   GAP, INSTRUCTIONAL_BAND, diagnoseGaps,
 } from '../profile/studentLearningProfile.js';
 import { isFrameworkSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
+import {
+  chooseTransferFramework, resolveTransferFrameworkPreference, transferExplanationFor,
+} from './weeklyTransferFramework.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -503,6 +506,11 @@ export const buildWeeklyRecommendations = ({
   interventionMode = false,
   allowTransfer = true,
   coverage = undefined,
+  // The student's own CCMR plan and the teacher's framework setting. They
+  // choose the FORMAT of transfer work and nothing else — see
+  // weeklyTransferFramework.js. Absent, the week is exactly what it was.
+  ccmrPlan = null,
+  teacherFramework = null,
   now = Date.now(),
 } = {}) => {
   const currentSet = new Set(currentInstructionSkills.map(String));
@@ -511,6 +519,12 @@ export const buildWeeklyRecommendations = ({
   const prereqSet = new Set(prerequisiteOfCurrent.map(String));
   const gapTypes = diagnoseGaps(profile).map((gap) => gap.type);
   const transferGaps = diagnoseGaps(profile).filter((gap) => gap.type === GAP.TRANSFER);
+  const transferPreference = resolveTransferFrameworkPreference({
+    teacherFramework,
+    ccmrPlan,
+    gapFrameworks: transferGaps.map((gap) => gap.framework),
+    now,
+  });
 
   const candidates = list(rows).map((row) => {
     const code = String(row.teksCode || row.code || row.skillId || '');
@@ -550,6 +564,18 @@ export const buildWeeklyRecommendations = ({
       recentFailureBand: row.recentFailureBand ?? null,
     });
 
+    // The purpose above was decided by the evidence alone. Only a skill that is
+    // already transfer work gets a format chosen, and the evidence's own
+    // framework is the fallback, so the count of transfer sessions cannot move.
+    const transferChoice = purpose === PURPOSE.TRANSFER
+      ? chooseTransferFramework({
+        preference: transferPreference,
+        teksCode: code,
+        coverage,
+        evidenceFramework: transferGapFramework,
+      })
+      : null;
+
     const scored = scoreCandidate({
       baseScore: row.score,
       purpose,
@@ -583,8 +609,11 @@ export const buildWeeklyRecommendations = ({
       eligibility,
       purpose,
       purposeLabel: PURPOSE_LABEL[purpose],
-      studentExplanation: STUDENT_EXPLANATION[purpose],
-      context: purpose === PURPOSE.TRANSFER ? (transferGapFramework || 'course') : 'course',
+      studentExplanation: transferExplanationFor(transferChoice) || STUDENT_EXPLANATION[purpose],
+      context: purpose === PURPOSE.TRANSFER ? (transferChoice?.framework || transferGapFramework || 'course') : 'course',
+      // Why this transfer slot uses this test's format (teacher, test date,
+      // student goal or evidence). Null for every non-transfer slot.
+      transferFrameworkReason: transferChoice?.reason || null,
       dok: target.dok,
       difficultyBand: target.difficultyBand,
       targetReason: target.reason,

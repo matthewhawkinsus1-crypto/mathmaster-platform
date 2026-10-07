@@ -173,6 +173,11 @@ export const buildWeeklyPathPlan = ({
   interventionMode = false,
   allowTransfer = true,
   coverage = undefined,
+  // The student's saved CCMR plan (studentCcmrPlans) and the teacher's
+  // framework setting ("auto" follows the student). Between them they choose
+  // the FORMAT of transfer slots; they never add one (weeklyTransferFramework.js).
+  ccmrPlan = null,
+  ccmrFramework = null,
   now = Date.now(),
 } = {}) => {
   const strandIndex = buildStrandIndex(courseId);
@@ -211,6 +216,8 @@ export const buildWeeklyPathPlan = ({
     interventionMode,
     allowTransfer,
     coverage,
+    ccmrPlan,
+    teacherFramework: ccmrFramework,
     now,
   });
 
