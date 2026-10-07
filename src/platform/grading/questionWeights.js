@@ -53,6 +53,44 @@ export const weightedQuestionTotals = ({
 };
 
 /*
+ * WHAT A WEIGHT DECIDES, WHERE IT IS GRADED.
+ *
+ * Warm-Up, Classwork, Practice and DOL are each graded on their own and leave
+ * MathMaster as their own columns (Grade Transfer, Classroom section
+ * passback), so a question's weight is first its share of ITS SECTION's grade
+ * and then of the whole-assignment grade. One entry per question (null when
+ * excluded): both shares over the included questions, grouped by the role the
+ * section split grades a question under (its activityRole, which the stored
+ * flattening fills from its section). A student's own grade differs only where
+ * it leaves questions out (a Practice Pass, a reduced-item accommodation).
+ */
+const shareRole = (question) => String(question?.activityRole ?? '').trim().toLowerCase() || 'practice';
+
+export const questionWeightShares = (questions = []) => {
+  const list = Array.isArray(questions) ? questions : [];
+  const sectionTotals = new Map();
+  let assignmentTotal = 0;
+  list.forEach((question) => {
+    if (question?.teacherExcluded === true) return;
+    const weight = normalizeQuestionWeight(question);
+    const role = shareRole(question);
+    sectionTotals.set(role, (sectionTotals.get(role) || 0) + weight);
+    assignmentTotal += weight;
+  });
+  return list.map((question) => {
+    if (question?.teacherExcluded === true) return null;
+    const weight = normalizeQuestionWeight(question);
+    const role = shareRole(question);
+    return {
+      role,
+      sectionShare: (weight / sectionTotals.get(role)) * 100,
+      assignmentShare: (weight / assignmentTotal) * 100,
+      sectionCount: sectionTotals.size,
+    };
+  });
+};
+
+/*
  * The value MathMaster gives a question when it is created — the SAME rule
  * the authoring compiler stamps, the editor's "Suggest" offers and the AI
  * weight review is shown (functions/shared/questionValue.mjs). It counts the
