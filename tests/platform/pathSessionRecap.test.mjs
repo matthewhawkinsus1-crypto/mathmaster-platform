@@ -65,11 +65,13 @@ const storedItem = async (question = authored, questionInstanceId = 'qi-1') => {
   };
 };
 
-// What the browser was handed for that stored item.
+// What the browser was handed for that stored item: issueNextQuestion re-sends
+// a stored item with `issued: true`, so its runtime choice ids are kept.
 const servedTo = (item) => mathPath.buildSanitizedQuestion(item, {
   questionInstanceId: item.questionInstanceId,
   attemptsAllowed: item.attemptsAllowed,
   toolPayload: mathPath.storedToolPayload(item),
+  issued: true,
 });
 
 const finalized = (overrides = {}) => ({
@@ -356,4 +358,16 @@ test('submitPathResponse records the entry on the finalizing submission, from ru
   assert.match(recorded, /grading: result\.grading,/);
   assert.match(recorded, /solutionReview: attemptSupport\.solutionReview,/);
   assert.match(recorded, /transaction\.set\(submissionRef, \{ studentId, sessionId, submissionId, createdAt: now, result, \.\.\.\(recapJson \? \{ recapJson \} : \{\}\) \}\);/);
+});
+
+test('the recap re-sends the stored item the way issueNextQuestion does, keeping its issued choice ids', () => {
+  // The stored item's options already carry the runtime ids the student
+  // answered with and the answer key names. Without `issued: true` the recap's
+  // ids are derived afresh (functions/lib/mathPath.js choiceRuntimeId) and the
+  // student's answer matches nothing. Proven end to end with a multiple-choice
+  // item in tests/integration/pathSessionRecapEndToEnd.test.mjs.
+  const lib = readFileSync(new URL('../../functions/lib/pathSessionRecap.js', import.meta.url), 'utf8');
+  const call = lib.slice(lib.indexOf('const publicQuestion = mathPath.buildSanitizedQuestion(currentQuestion, {'));
+  assert.ok(call.length > 0, 'the recap builds its public question from the stored item');
+  assert.match(call.slice(0, call.indexOf('});')), /\n\s*issued: true,\n/);
 });

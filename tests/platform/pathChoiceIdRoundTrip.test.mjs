@@ -85,7 +85,7 @@ test('re-issuing and resuming serve the same ids: sanitizing an issued item is i
   assert.deepEqual(again.choices, served.choices);
   // The ids are still opaque — the boundary has not started leaking author ids.
   assert.ok(served.choices.every((choice) => /^choice_[0-9a-f]{28}$/.test(choice.id)));
-  assert.ok(!served.choices.some((choice) => choice.id.startsWith('opt-')));
+  assert.ok(!served.choices.some((choice) => /^opt-/.test(choice.id)));
 });
 
 test('field-level options round-trip the same way', async () => {

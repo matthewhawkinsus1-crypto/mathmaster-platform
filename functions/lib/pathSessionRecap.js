@@ -41,12 +41,17 @@ function closedQuestionRecapJson(rules, {
 } = {}) {
   if (!rules || !grading?.questionFinalized || !currentQuestion) return null;
   try {
-    // Exactly what issueNextQuestion handed the browser for this item.
+    // Exactly what issueNextQuestion handed the browser for this item. The
+    // stored item was ISSUED (its options already carry the runtime ids the
+    // student answered with and the answer key names), so it is re-sent the
+    // way issueNextQuestion re-sends it — `issued: true` — or the recap's
+    // option ids would be derived afresh and match neither.
     const publicQuestion = mathPath.buildSanitizedQuestion(currentQuestion, {
       questionInstanceId: currentQuestion.questionInstanceId,
       attemptsAllowed: currentQuestion.attemptsAllowed,
       attemptsUsed: Number(grading.attemptNumber) || Number(currentQuestion.attemptsUsed) || 0,
       toolPayload: mathPath.storedToolPayload(currentQuestion),
+      issued: true,
     });
     const entry = rules.buildPathRecapEntry({
       sessionId,

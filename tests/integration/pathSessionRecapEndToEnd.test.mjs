@@ -211,3 +211,31 @@ test('the recap is recorded in the submit transaction and released only for the 
   assert.deepEqual(missed.correctAnswer, [{ label: 'x =', value: '4', format: 'rich' }]);
   assert.equal(missed.solutionReview.reasoning[1], 'Divide by 2: $x = 4$.');
 });
+
+test('a missed multiple-choice item is recapped with the option the student chose and the right one', async () => {
+  // The recap re-sends the STORED item, whose options already carry the issued
+  // runtime ids the student answered with. It must keep them (`issued: true`),
+  // or the student's answer matches nothing and "Your answer" comes out empty.
+  const studentId = 'path-recap-harness-choice-recap-student';
+  const sessionId = 'path-recap-harness-choice-recap-session';
+  await seedSession({ studentId, sessionId, item: await openItem(choiceQuestion, 'qi-recap-harness-choice-recap'), sessionKind: 'retentionProbe' });
+
+  const { questionInstance } = await functionsIndex.issueNextQuestion.run(studentRequest(studentId, { sessionId }));
+  const wrong = questionInstance.choices.find((choice) => choice.label === '$x = 7$');
+  assert.ok(wrong, 'the served item lists the options');
+  const result = await functionsIndex.submitPathResponse.run(studentRequest(studentId, {
+    sessionId,
+    questionInstanceId: questionInstance.questionInstanceId,
+    submissionId: 'sub-recap-harness-choice-recap',
+    responsePayload: { responses: { answer: wrong.id } },
+  }));
+  assert.equal(result.grading.isCorrect, false);
+  assert.equal(result.session.status, 'completed');
+
+  const recap = await functionsIndex.getMyPathSessionRecap.run(studentRequest(studentId, { sessionId }));
+  assert.equal(recap.available, true);
+  assert.equal(recap.items.length, 1);
+  const [missed] = recap.items;
+  assert.deepEqual(missed.response.entries.map((entry) => entry.value), ['$x = 7$'], 'the option the student chose, by its label');
+  assert.deepEqual(missed.correctAnswer.map((entry) => entry.value), ['$x = 4$']);
+});
