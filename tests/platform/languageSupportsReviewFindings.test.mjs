@@ -36,7 +36,7 @@ test('a tool the profile limits to quizzes and tests is not offered in classwork
     todayKey: '2026-10-06',
   });
   const tools = (activityRole) => toolsEntitlementFromProfile(profile, { nowValue: NOW, activityRole }).tools;
-  const universal = (activityRole) => toolsEntitlementFromProfile(profile, { nowValue: NOW, activityRole }).universal;
+  const universal = (activityRole) => toolsEntitlementFromProfile(profile, { nowValue: NOW, activityRole, universalDesignRole: activityRole }).universal;
   // Outside its scope the PLAN support is not offered. Since universal design
   // (job F, product decision 8) every student has Vocabulary in classwork and
   // practice anyway — as a universal tool, which is never recorded as the
@@ -49,7 +49,7 @@ test('a tool the profile limits to quizzes and tests is not offered in classwork
   assert.ok(tools('classwork').includes(SUPPORT_TOOL.BREAK_IT_DOWN));
   assert.ok(tools('classwork').includes(SUPPORT_TOOL.TRANSLATE));
   // QuestionEngine asks with the item's own role.
-  assert.match(source('src/QuestionEngine.jsx'), /toolsEntitlementFromProfile\(stableStudentProfile, \{ activityRole \}\)/);
+  assert.match(source('src/QuestionEngine.jsx'), /toolsEntitlementFromProfile\(stableStudentProfile, \{ activityRole(?:, universalDesignRole: explicitActivityRole)? \}\)/);
 });
 
 // --- My Math Path: tool questions record what they showed -------------------------------------

@@ -51,10 +51,14 @@ const tabbableWithin = (root) => {
   }));
 };
 
-// Layers that may hold focus while a Dialog is open without counting as an
-// escape from it: another dialog, the on-screen math keyboard, a floating tool
-// lifted above Work View (the calculator), anything marked to allow it.
-const ALLOWED_FOCUS_LAYERS = `[role="dialog"], [role="alertdialog"], ${MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR}, [data-work-view-floating-tool], [data-dialog-allow-focus]`;
+// Layers that may hold focus while a Dialog is the top layer without counting
+// as an escape from it: the on-screen math keyboard, a floating tool lifted
+// above Work View (the calculator), anything marked to allow it. NOT another
+// dialog: a modal ABOVE this one already makes it stand down (stack, or
+// coveredByForeignModal), so a dialog holding focus while this one is on top
+// is beneath it — the parent of a nested confirm — and focus there is an
+// escape to pull back (Codex review, PR #454).
+const ALLOWED_FOCUS_LAYERS = `${MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR}, [data-work-view-floating-tool], [data-dialog-allow-focus]`;
 const inAllowedLayer = (element) => Boolean(element?.closest?.(ALLOWED_FOCUS_LAYERS));
 
 // The last element that had focus anywhere. A dialog whose opener was

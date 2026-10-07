@@ -62,6 +62,11 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.equal(await focused(page), 'confirm-no', `${at}: [data-autofocus] wins (least destructive)`);
   await page.keyboard.press('Tab');
   assert.equal(await focused(page), 'confirm-yes', `${at}: the confirm traps on its own`);
+  // Focus moved into the PARENT dialog while the confirm is on top is pulled
+  // back into the confirm (Codex review, PR #454).
+  await page.evaluate(() => document.querySelector('[data-test="name"]').focus());
+  assert.ok(['confirm-yes', 'confirm-no'].includes(await focused(page)), `${at}: focus cannot sit in the parent under an open confirm`);
+  await page.locator('[data-test="confirm-yes"]').focus();
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('[data-test="confirm"]').count(), 0, `${at}: Escape closed the confirm`);
   assert.equal(await page.locator('[data-test="dialog"]').count(), 1, `${at}: …and only the confirm`);

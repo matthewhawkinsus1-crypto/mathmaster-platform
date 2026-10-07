@@ -188,6 +188,9 @@ function QuestionEngineBody({
   replacementWarning = '',
   dolMode = false,
   activityRole = 'practice',
+  // The role exactly as the host passed it (null when omitted): universal
+  // support tools are granted only on an explicit warm-up/classwork/practice.
+  explicitActivityRole = null,
   activityPolicy = null,
   feedbackReleased = false,
   assessmentContext = null,
@@ -516,8 +519,8 @@ function QuestionEngineBody({
   // My Math Path passes the server's own list instead (`supportEntitlement`):
   // the Path client never decides from a profile it read itself.
   const languageTools = useMemo(
-    () => supportEntitlement || toolsEntitlementFromProfile(stableStudentProfile, { activityRole }),
-    [supportEntitlement, stableStudentProfile, activityRole],
+    () => supportEntitlement || toolsEntitlementFromProfile(stableStudentProfile, { activityRole, universalDesignRole: explicitActivityRole }),
+    [supportEntitlement, stableStudentProfile, activityRole, explicitActivityRole],
   );
   const supportItemKey = `${processedQuestion?.questionId ?? processedQuestion?.id ?? ''}|${record.variantIndex ?? 0}`;
   const reportToolEvidence = useCallback((evidence) => onSupportEvidenceRef.current?.(evidence), []);
@@ -2406,7 +2409,7 @@ export default function QuestionEngine(props) {
       technicalDetails={props.resolutionTechnicalDetails !== false}
       draftKey={props.draftKey || null}
     >
-      <QuestionEngineBody key={resolutionAttempt} {...props} onResolutionRetry={retry} />
+      <QuestionEngineBody key={resolutionAttempt} {...props} explicitActivityRole={activityRole ?? null} onResolutionRetry={retry} />
     </QuestionResolutionBoundary>
   );
 }

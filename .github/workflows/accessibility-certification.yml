@@ -15,6 +15,9 @@ on:
       - "src/**"
       - "index.html"
       - "tests/browser/accessibility*"
+      - "tests/browser/mathSpeech*"
+      - "tests/browser/graphDescription*"
+      - "tests/browser/accessiblePrimitives*"
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/emulator/**"
       - "tests/browser/studentUxPlatform*"
@@ -76,6 +79,26 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: npm run certify:accessibility
+      # What a screen reader is given, read from Chromium's accessibility tree
+      # (these harnesses import no Firebase, so the standalone server serves them).
+      - name: Math is spoken once, in words
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/mathSpeech.mjs
+      - name: Graphs are described, and say no feature value while answerable
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/graphDescription.mjs
+      - name: Dialog focus, keyboard focus ring and the new-question announcement
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/accessiblePrimitives.mjs
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@v4

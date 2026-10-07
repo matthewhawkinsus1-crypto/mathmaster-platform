@@ -126,3 +126,14 @@ test('a movable point is picked up, carried and dropped by keyboard', () => {
   assert.match(escape, /if \(keyboardHeldIndex != null\) \{\s*event\.preventDefault\(\);\s*event\.stopPropagation\(\);\s*setKeyboardHeldIndex\(null\);/, 'Escape puts it back without closing Work View');
   assert.match(plane, /else if \(keyboardHeldIndex === index && keyboardCursor\) \[pointX, pointY\] = keyboardCursor;/, 'the held point is drawn at the crosshair');
 });
+
+// Codex review on PR #454: browser proofs nobody runs prove nothing.
+test('CI runs every accessibility browser proof, read-only', () => {
+  const workflow = read('.github/workflows/accessibility-certification.yml');
+  for (const driver of ['mathSpeech', 'graphDescription', 'accessiblePrimitives']) {
+    assert.match(workflow, new RegExp(`run: node tests/browser/${driver}\\.mjs`), driver);
+  }
+  assert.match(workflow, /run: npm run certify:accessibility/);
+  assert.match(workflow, /permissions:\s*\n\s*contents: read/);
+  assert.doesNotMatch(workflow, /contents: write/);
+});

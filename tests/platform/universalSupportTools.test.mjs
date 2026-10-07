@@ -17,7 +17,7 @@ const PROMPT = 'Find the slope of the line through the two points. What is the y
 
 test('every student has Vocabulary and Read aloud in warm-ups, classwork and practice', () => {
   for (const activityRole of UNIVERSAL_ACTIVITY_ROLES) {
-    const entitlement = toolsEntitlementFromProfile(null, { nowValue: NOW, activityRole });
+    const entitlement = toolsEntitlementFromProfile(null, { nowValue: NOW, activityRole, universalDesignRole: activityRole });
     assert.deepEqual(entitlement.tools, [SUPPORT_TOOL.VOCABULARY, SUPPORT_TOOL.READ_ALOUD], activityRole);
     assert.deepEqual(entitlement.universal, [SUPPORT_TOOL.VOCABULARY, SUPPORT_TOOL.READ_ALOUD]);
     assert.equal(entitlement.language, null, 'translation stays profile-based');
@@ -26,7 +26,7 @@ test('every student has Vocabulary and Read aloud in warm-ups, classwork and pra
 
 test('assessments, and an unknown activity, add nothing', () => {
   for (const activityRole of ['quiz', 'test', 'dol', null, undefined, '']) {
-    assert.deepEqual(toolsEntitlementFromProfile(null, { nowValue: NOW, activityRole }).tools, [], String(activityRole));
+    assert.deepEqual(toolsEntitlementFromProfile(null, { nowValue: NOW, activityRole, universalDesignRole: activityRole }).tools, [], String(activityRole));
   }
   // My Math Path asks with no role until its own bar can host the tools (wave 2).
   assert.deepEqual(toolsEntitlementFromPath({ applicableSupports: [] }).tools, []);
@@ -40,17 +40,17 @@ test('a plan support stays a plan support: not marked universal, still evidence'
     }],
     todayKey: '2026-10-06',
   });
-  const entitlement = toolsEntitlementFromProfile(profile, { nowValue: NOW, activityRole: 'practice' });
+  const entitlement = toolsEntitlementFromProfile(profile, { nowValue: NOW, activityRole: 'practice', universalDesignRole: 'practice' });
   assert.deepEqual(entitlement.universal, [SUPPORT_TOOL.VOCABULARY]);
   const model = supportToolsForItem({ entitlement, prompt: PROMPT, speech: true });
   const evidence = toolEvidenceRecords(model, { surface: 'assignment' });
   assert.deepEqual(evidence.map((record) => record.supportId), ['text-to-speech'], 'only the plan support is evidence');
   // On a test the plan support is offered and nothing universal is.
-  assert.deepEqual(toolsEntitlementFromProfile(profile, { nowValue: NOW, activityRole: 'test' }).tools, [SUPPORT_TOOL.READ_ALOUD]);
+  assert.deepEqual(toolsEntitlementFromProfile(profile, { nowValue: NOW, activityRole: 'test', universalDesignRole: 'test' }).tools, [SUPPORT_TOOL.READ_ALOUD]);
 });
 
 test('a universal tool is shown but never reported', () => {
-  const entitlement = toolsEntitlementFromProfile(null, { nowValue: NOW, activityRole: 'classwork' });
+  const entitlement = toolsEntitlementFromProfile(null, { nowValue: NOW, activityRole: 'classwork', universalDesignRole: 'classwork' });
   const model = supportToolsForItem({ entitlement, prompt: PROMPT, speech: true });
   assert.ok(model.tools.every((tool) => tool.universal === true));
   assert.ok(model.tools.some((tool) => tool.state === 'available'), 'something to show');
@@ -58,6 +58,16 @@ test('a universal tool is shown but never reported', () => {
   assert.deepEqual(pathDeliveryOf(model, []).presented, []);
   const tray = executableSource(read('src/components/student/supportTools/SupportToolsTray.jsx'));
   assert.match(region(tray, 'const recordUse = (tool) => {', '};', 'recordUse'), /if \(tool\.universal\) return;/, 'opening one is not "used" evidence');
+});
+
+// Coordinator review, PR #454: QuestionEngine defaults a missing role to
+// 'practice', so universal tools failed OPEN for a host that omitted it.
+test('universal tools need the role the host declared, never a defaulted one', () => {
+  assert.deepEqual(toolsEntitlementFromProfile(null, { nowValue: NOW, activityRole: 'practice' }).tools, [], 'a defaulted role grants nothing');
+  assert.deepEqual(toolsEntitlementFromProfile(null, { nowValue: NOW, activityRole: 'practice', universalDesignRole: null }).tools, []);
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(engine, /<QuestionEngineBody key=\{resolutionAttempt\} \{\.\.\.props\} explicitActivityRole=\{activityRole \?\? null\}/, 'the wrapper passes the role exactly as given');
+  assert.match(engine, /toolsEntitlementFromProfile\(stableStudentProfile, \{ activityRole, universalDesignRole: explicitActivityRole \}\)/);
 });
 
 test('without the plan support the assignment tray carries Read aloud itself', () => {

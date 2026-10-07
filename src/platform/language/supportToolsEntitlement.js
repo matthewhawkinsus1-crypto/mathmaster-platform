@@ -79,16 +79,20 @@ const withUniversalTools = (entitled, language, activityRole) => {
  * profile limits to some activities ("quizzes and tests only") is offered only
  * in those (`activityRole`, as studentSupportTelemetry.js decides its launch
  * records with supportAppliesToRole). Outside assessments the universal tools
- * are added (above); with no activity role nothing universal is assumed.
+ * are added (above) — only for an explicit `universalDesignRole`.
  */
-export const toolsEntitlementFromProfile = (profile, { nowValue = Date.now(), activityRole = null } = {}) => {
-  if (!profile || typeof profile !== 'object') return withUniversalTools([], null, activityRole);
+export const toolsEntitlementFromProfile = (profile, { nowValue = Date.now(), activityRole = null, universalDesignRole = null } = {}) => {
+  // Universal tools FAIL CLOSED: only for the role the host explicitly
+  // declared (`universalDesignRole`), never for a defaulted `activityRole`.
+  // QuestionEngine defaults a missing role to 'practice' for plan scoping; a
+  // host that forgot to say what the item is must not open tools on a test.
+  if (!profile || typeof profile !== 'object') return withUniversalTools([], null, universalDesignRole);
   const flat = effectiveFlatSupportProfile(profile, { nowValue });
   const plan = activityRole ? resolveEffectiveSupportPlan(profile, { nowValue }) : null;
   const ids = new Set(flat.accommodations.filter((id) => !plan || supportAppliesToRole(plan, id, activityRole)));
   const language = translationLanguageOf(flat.translationLanguage);
   const entitled = TOOL_ORDER.filter((tool) => (tool === SUPPORT_TOOL.TRANSLATE ? Boolean(language) : ids.has(TOOL_SUPPORT_ID[tool])));
-  return withUniversalTools(entitled, language, activityRole);
+  return withUniversalTools(entitled, language, universalDesignRole);
 };
 
 /**

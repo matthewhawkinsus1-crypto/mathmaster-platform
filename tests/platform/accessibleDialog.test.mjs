@@ -106,3 +106,13 @@ test('no hand-rolled aria-modal outside the primitive', async () => {
   walk(root);
   assert.deepEqual(offenders, [], `use <Dialog> or useModalDialog from src/ui/Dialog.jsx: ${offenders.join(', ')}`);
 });
+
+// Codex review on PR #454: with [role="dialog"] an allowed focus layer, focus
+// could sit in the PARENT of a nested confirm. Only genuine external layers are
+// exempt. Browser proof: tests/browser/accessiblePrimitives.mjs.
+test('focus in a dialog beneath the top one is an escape, not an allowed layer', () => {
+  const source = executableSource(read('src/ui/Dialog.jsx'));
+  const layers = source.match(/const ALLOWED_FOCUS_LAYERS = `([^`]*)`;/)?.[1] || '';
+  assert.ok(layers.includes('${MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR}') && layers.includes('[data-work-view-floating-tool]') && layers.includes('[data-dialog-allow-focus]'));
+  assert.doesNotMatch(layers, /role=/, 'no dialog role is exempt');
+});
