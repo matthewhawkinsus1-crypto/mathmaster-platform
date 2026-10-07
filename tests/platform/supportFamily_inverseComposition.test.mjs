@@ -296,7 +296,7 @@ const ORACLES = {
     const F = defs.get('f').fn;
     const G = defs.get('g').fn;
     return question.answerFields.flatMap((field) => {
-      const fn = /^\(f∘g\)/.test(flat(field.label)) ? (t) => F(G(t)) : (t) => G(F(t));
+      const fn = flat(field.label).startsWith('(f∘g)') ? (t) => F(G(t)) : (t) => G(F(t));
       assert.ok(sameFunction(keyFn(field), fn), field.label);
       return polyForms(polyOf(fn));
     });
@@ -548,9 +548,9 @@ const VERIFY = {
       if (ops[label]) {
         assert.ok(sameFunction(fnOf(rhs(piece)), ops[label], [-3.5, 0.5, 1.5, 7.25]), `${piece}`);
         checked += 1;
-      } else if (/^excluded/.test(piece)) {
+      } else if (piece.startsWith('excluded')) {
         rhs(piece).split(', ').forEach((root) => assert.ok(near(G(num(root)), 0), `${piece} zeroes g`));
-      } else if (/^degree/.test(piece)) {
+      } else if (piece.startsWith('degree')) {
         assert.equal(Number(piece.split(' ')[1]), degreeOf((t) => F(t) * G(t)));
       }
     });
@@ -608,14 +608,12 @@ const VERIFY = {
     pieces(example.answer).forEach((piece) => {
       const label = flat(piece.split(' = ')[0]);
       const value = num(rhs(piece));
-      const [, X] = label.match(/\)\(([-\d.]+)\)$|\(([-\d.]+)\)$/) || [];
       if (label.startsWith('(f∘g)')) assert.ok(near(value, F(G(num(label.match(/\(([-\d.]+)\)$/)[1])))), piece);
       else if (label.startsWith('(g∘f)')) assert.ok(near(value, G(F(num(label.match(/\(([-\d.]+)\)$/)[1])))), piece);
       else {
         const y = num(label.match(/⁻¹\(([-\d.]+)\)/)[1]);
         assert.ok(near(F(value), y), `${piece}: f(${value}) = ${y}`);
       }
-      void X;
     });
   },
   derive(example) { VERIFY.linearInverse(example); },

@@ -820,7 +820,7 @@ const labHints = (model) => {
   const out = [];
   if (model.parts.includes('fog')) {
     out.push([
-      `In (f ∘ g)(${X}), g acts on ${X} first and f acts on g's output; in (g ∘ f)(${X}) the order is reversed.`,
+      `In (f ∘ g)(${X}), g acts on ${X} first and f acts on g’s output; in (g ∘ f)(${X}) the order is reversed.`,
       'In (f ∘ g), g acts on the input first and f acts on g’s output; in (g ∘ f) the order is reversed.',
     ]);
     out.push([
