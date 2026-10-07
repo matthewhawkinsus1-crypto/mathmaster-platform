@@ -4,10 +4,12 @@ import {
   studentDueDates,
 } from '../../assignmentLifecycle.js';
 import {
+  SECTION_GRADE_KEYS,
   gradeWeightTotals,
   splitGrade,
   splitGradesBySection,
 } from '../teacher/gradeEvidence.js';
+import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import {
   buildTestCycleGradeState,
   isTestCycleAssignment,
@@ -244,16 +246,26 @@ export const summarizeGradeEntries = (entries = []) => {
   let graded = 0;
   let missing = 0;
   let pending = 0;
+  let excused = 0;
+  // Counted work that is still open and unfinished: it is in the average at
+  // the score it holds right now, and "How this grade is figured" names it so
+  // a student knows that number can still move.
+  const inProgress = [];
 
   list(entries).forEach((entry) => {
     if (entry.status === GRADE_STATUS.MISSING) missing += 1;
     if (entry.status === GRADE_STATUS.PENDING_GRADE) pending += 1;
+    if (entry.status === GRADE_STATUS.EXCUSED) excused += 1;
     if (!entry.countsTowardPeriodGrade) return;
     graded += 1;
     earnedWeight += Number(entry.weights?.earnedWeight) || 0;
     possibleWeight += Number(entry.weights?.possibleWeight) || 0;
+    if (IN_PROGRESS_STATUSES.has(entry.status)) {
+      inProgress.push({ assignmentId: entry.assignmentId, title: entry.title, score: entry.displayGrade ?? null });
+    }
   });
 
+  const total = list(entries).length;
   return {
     score: possibleWeight > 0 ? Math.round((earnedWeight / possibleWeight) * 100) : null,
     earnedWeight,
@@ -261,7 +273,142 @@ export const summarizeGradeEntries = (entries = []) => {
     graded,
     missing,
     pending,
-    total: list(entries).length,
+    excused,
+    inProgress,
+    // Everything else that is not in the average: not started, not open yet,
+    // closed with nothing recorded, or nothing gradeable. Never a zero.
+    notCountedOther: Math.max(0, total - graded - missing - pending - excused),
+    total,
+  };
+};
+
+// Started, open and not finished: counted at the score it holds now.
+const IN_PROGRESS_STATUSES = new Set([GRADE_STATUS.IN_PROGRESS, GRADE_STATUS.LATE, GRADE_STATUS.REOPENED]);
+
+const formatPoints = (value) => {
+  const rounded = Math.round((Number(value) || 0) * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+};
+
+/**
+ * "How this grade is figured", in a student's words, from the summary's own
+ * numbers. It explains summarizeGradeEntries; it never computes a second
+ * grade — the percent it prints IS summary.score.
+ */
+export const describeGradeMath = (summary = {}) => {
+  const score = summary?.score ?? null;
+  const lines = [];
+  const headline = score === null
+    ? 'Nothing is counted yet, so there is no grade to figure.'
+    : `You've earned ${formatPoints(summary.earnedWeight)} of ${formatPoints(summary.possibleWeight)} points on counted work = ${score}%.`;
+  if (score !== null) {
+    lines.push('Bigger questions are worth more points, so every assignment counts by its size.');
+  }
+  const inProgress = list(summary?.inProgress);
+  if (inProgress.length) {
+    lines.push(`Work you've started counts at its current score until you finish: ${inProgress.map((item) => item.title).join(', ')}.`);
+  }
+  const notCounted = [
+    [summary?.missing, 'missing'],
+    [summary?.pending, 'waiting on your teacher'],
+    [summary?.excused, 'excused'],
+    [summary?.notCountedOther, 'not started or not open yet'],
+  ].filter(([count]) => Number(count) > 0)
+    .map(([count, label]) => `${count} ${label}`);
+  if (notCounted.length) {
+    lines.push(`Not counted in this grade: ${notCounted.join(', ')}. None of these count as a zero.`);
+  }
+  return {
+    headline,
+    lines,
+    score,
+    earnedPoints: formatPoints(summary?.earnedWeight),
+    possiblePoints: formatPoints(summary?.possibleWeight),
+    inProgressTitles: inProgress.map((item) => item.title),
+  };
+};
+
+/*
+ * EACH SECTION'S SHARE OF ONE ASSIGNMENT'S GRADE.
+ *
+ * Read through gradeWeightTotals() — the same function that weighs the whole
+ * assignment — on a view of the assignment holding only that section's current
+ * questions (every other question is treated as teacher-excluded, so storage
+ * indices and the tracker still line up). No question weight or credit is
+ * computed here.
+ *
+ * The shares are only returned when they RECONCILE: the sections' possible and
+ * earned points must add up to exactly the assignment's own. When they cannot
+ * (a Test Cycle, whose grade is not the tracker; a reduced-item accommodation
+ * that plans over the whole assignment) the row shows no shares rather than
+ * numbers that disagree with its grade.
+ */
+const sectionOnlyAssignment = (assignment, keep) => {
+  let storageIndex = 0;
+  return {
+    ...assignment,
+    sections: list(assignment?.sections).map((section) => ({
+      ...section,
+      questions: list(section?.questions).map((question) => {
+        const index = storageIndex;
+        storageIndex += 1;
+        return keep.has(index) ? question : { ...question, teacherExcluded: true };
+      }),
+    })),
+  };
+};
+
+const sectionWeightShares = ({ assignment, tracker, practicePassRedeemed, supportProfile, weights }) => {
+  const possible = Number(weights?.possibleWeight) || 0;
+  if (!(possible > 0)) return null;
+  const entries = projectCurrentAssignmentContent(assignment).entries;
+  const shares = {};
+  let possibleSum = 0;
+  let earnedSum = 0;
+  SECTION_GRADE_KEYS.forEach((key) => {
+    const keep = new Set(entries.filter((entry) => entry.logicalRole === key).map((entry) => entry.storageIndex));
+    if (!keep.size) return;
+    const part = gradeWeightTotals({
+      tracker, assignment: sectionOnlyAssignment(assignment, keep), practicePassRedeemed, supportProfile,
+    });
+    possibleSum += part.possibleWeight;
+    earnedSum += part.earnedWeight;
+    shares[key] = {
+      possibleWeight: part.possibleWeight,
+      earnedWeight: part.earnedWeight,
+      sharePercent: Math.round((part.possibleWeight / possible) * 100),
+    };
+  });
+  const close = (a, b) => Math.abs(a - b) < 1e-9;
+  if (!close(possibleSum, possible) || !close(earnedSum, Number(weights?.earnedWeight) || 0)) return null;
+  return shares;
+};
+
+/*
+ * WHAT A ROW OFFERS, DECIDED HERE SO NO COMPONENT DECIDES IT.
+ *
+ *   start            open, unlocked, unfinished work the student can still do
+ *                    for credit: Start (nothing recorded) or Continue.
+ *   viewResults      hidden only on work that has never been started and is
+ *                    still open — a result page with nothing on it is a dead end.
+ *   practiceNoCredit the closed assignment's voluntary re-try, which can never
+ *                    change the recorded grade.
+ */
+const START_STATUSES = new Set([
+  GRADE_STATUS.MISSING, GRADE_STATUS.NOT_STARTED, GRADE_STATUS.IN_PROGRESS,
+  GRADE_STATUS.LATE, GRADE_STATUS.REOPENED,
+]);
+
+export const resolveGradeRowActions = ({ status, overall, lifecycle, locked = false, excused = false } = {}) => {
+  const attempted = Number(overall?.attempted) || 0;
+  const frozen = lifecycle?.isPracticeOnly === true;
+  const canStart = START_STATUSES.has(status) && lifecycle?.isOpen === true && !locked && !excused && !frozen;
+  const noEvidenceYet = (status === GRADE_STATUS.NOT_STARTED || status === GRADE_STATUS.MISSING)
+    && attempted === 0 && !frozen;
+  return {
+    start: canStart ? { label: attempted > 0 ? 'Continue' : 'Start' } : null,
+    viewResults: !noEvidenceYet,
+    practiceNoCredit: frozen,
   };
 };
 
@@ -466,6 +613,17 @@ export const buildStudentGradeCenter = ({
       // only remaining action on a closed assignment.
       practiceAvailable: lifecycle.isPracticeOnly,
       reviewAvailable: Number(effectiveOverall.attempted) > 0,
+      // The row's buttons (Start/Continue, View Results, Try it again — no
+      // credit), decided once here.
+      actions: resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }),
+      // Each section's share of this assignment's grade, or null when the
+      // shares would not add up to the grade shown.
+      sectionShares: testCycle ? null : sectionWeightShares({
+        assignment, tracker: assignmentTracker, practicePassRedeemed, supportProfile, weights,
+      }),
+      // The server-written Test Cycle stage, so "Ways to raise your grade" can
+      // offer corrections or a retest. Null on every ordinary assignment.
+      testCycleStage: cycleStage || null,
       classroomReceipt: classroomSyncStatusByAssignment?.[assignment.id] || null,
       gradingPeriod: resolveAssignmentGradingPeriod(assignment, settings),
     };

@@ -4,7 +4,7 @@ import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
-import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
+import { GRADE_STATUS, describeGradeMath } from '../../platform/student/studentGradeCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { formatDateTime } from '../../assignmentLifecycle';
 
@@ -98,12 +98,111 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
         <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>{summary.missing} missing</li>
         <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{summary.pending} pending</li>
       </ul>
+
+      {!hidden && <GradeMath summary={summary} />}
     </section>
   );
 }
 
-function GradeRow({ entry, hidden, onOpenResult, onPractice }) {
+/*
+ * "HOW THIS GRADE IS FIGURED."
+ *
+ * Every number here is the summary's own (describeGradeMath reads
+ * summarizeGradeEntries' earned/possible points and counts): the percent it
+ * prints IS the big number above, so the explanation can never disagree with
+ * the grade it explains. Hidden with the grade, because it is the grade.
+ */
+function GradeMath({ summary }) {
+  const [open, setOpen] = useState(false);
+  const math = describeGradeMath(summary);
+  return (
+    <div style={{ marginTop: 12 }}>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="grade-math-body"
+        onClick={() => setOpen((current) => !current)}
+        style={{
+          appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+          minHeight: MIN_TOUCH_TARGET_PX, padding: '8px 12px', borderRadius: 10,
+          border: '2px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)',
+          fontWeight: 900, fontSize: 14, cursor: 'pointer', textAlign: 'left', overflowWrap: 'anywhere',
+        }}
+      >
+        <span aria-hidden="true" style={{ display: 'inline-block', marginRight: 8, transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
+        How this grade is figured
+      </button>
+      {open && (
+        <div id="grade-math-body" data-grade-math style={{ marginTop: 10, fontSize: 14, lineHeight: 1.5, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>
+          <p style={{ margin: 0, fontWeight: 800 }}>{math.headline}</p>
+          {math.lines.map((line) => (
+            <p key={line} style={{ margin: '6px 0 0' }}>{line}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/*
+ * "WAYS TO RAISE YOUR GRADE."
+ *
+ * The list is built by buildWaysToRaise (platform/student/waysToRaiseModel.js)
+ * and arrives as a prop; this only draws it. Each row is one button that hands
+ * the way back to App, which opens the screen that enforces the rule.
+ * Not wired (undefined) renders nothing; an empty list says so kindly.
+ */
+function WaysToRaise({ ways, onWayAction }) {
+  if (!Array.isArray(ways)) return null;
+  return (
+    <section
+      aria-labelledby="ways-to-raise-heading"
+      style={{
+        background: 'var(--mm-surface)', borderRadius: 14, border: '1px solid var(--mm-border)',
+        padding: '14px 16px', marginBottom: 18, textAlign: 'left',
+      }}
+    >
+      <h2 id="ways-to-raise-heading" style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+        Ways to raise your grade{ways.length ? ` (${ways.length})` : ''}
+      </h2>
+      {ways.length === 0 ? (
+        <p style={{ margin: '8px 0 0', fontSize: 14, color: 'var(--mm-text-muted)' }}>
+          You're all caught up — nothing to make up right now.
+        </p>
+      ) : (
+        <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 8 }}>
+          {ways.map((way) => (
+            <li key={way.id || `${way.kind}:${way.assignmentId}`} style={{ minWidth: 0 }}>
+              <button
+                type="button"
+                data-way-kind={way.kind}
+                onClick={() => onWayAction?.(way)}
+                style={{
+                  appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap',
+                  width: '100%', minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 12px', borderRadius: 10,
+                  border: '1px solid var(--mm-border)',
+                  borderLeft: `4px solid ${way.urgency === 'high' ? 'var(--mm-warning-text)' : 'var(--mm-primary-text)'}`,
+                  background: way.urgency === 'high' ? 'var(--mm-warning-soft)' : 'var(--mm-surface-sunken)',
+                  color: 'var(--mm-text)', cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <span style={{ flex: '1 1 200px', minWidth: 0, fontSize: 14, fontWeight: 700, overflowWrap: 'anywhere' }}>{way.text}</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-primary-text)', whiteSpace: 'nowrap' }}>{way.actionLabel} →</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart }) {
   const tone = TONE[entry.status] || TONE[GRADE_STATUS.NOT_STARTED];
+  // Which buttons this row offers was decided by the model
+  // (resolveGradeRowActions); the row only draws them.
+  const actions = entry.actions || {};
 
   return (
     <article
@@ -139,16 +238,25 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice }) {
         <p style={{ margin: '10px 0 0', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{entry.exclusionText}</p>
       )}
 
-      <GradeSectionBreakdown sections={entry.sections} hidden={hidden} compact />
+      <GradeSectionBreakdown sections={entry.sections} shares={entry.sectionShares} hidden={hidden} compact />
       <TestCycleGradeBreakdown entry={entry} hidden={hidden} compact />
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-        <button type="button" style={actionButton(true)} onClick={() => onOpenResult?.(entry.assignmentId)}>
-          View Results
-        </button>
-        {entry.practiceAvailable && (
+        {actions.start && (
+          <button type="button" style={actionButton(true)} onClick={() => onStart?.(entry.assignmentId)}>
+            {actions.start.label}
+          </button>
+        )}
+        {actions.viewResults && (
+          <button type="button" style={actionButton(!actions.start)} onClick={() => onOpenResult?.(entry.assignmentId)}>
+            View Results
+          </button>
+        )}
+        {actions.practiceNoCredit && (
+          // Voluntary work on a closed assignment. Never called "Practice":
+          // in student copy that word means only the lesson's Practice section.
           <button type="button" style={actionButton(false)} onClick={() => onPractice?.(entry.assignmentId)}>
-            Practice
+            Try it again — no credit
           </button>
         )}
       </div>
@@ -156,7 +264,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice }) {
   );
 }
 
-function PeriodGroup({ group, hidden, onOpenResult, onPractice }) {
+function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart }) {
   const [open, setOpen] = useState(group.defaultOpen === true);
   if (!group.entries.length) return null;
 
@@ -203,6 +311,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice }) {
               hidden={hidden}
               onOpenResult={onOpenResult}
               onPractice={onPractice}
+              onStart={onStart}
             />
           ))}
         </div>
@@ -217,6 +326,15 @@ export default function StudentGradeCenter({
   onBackToHome = null,
   onOpenResult = null,
   onPractice = null,
+  // Start / Continue on open, unfinished work: App's startAssignment, which
+  // lands on the first unfinished open question (or the Test Cycle card).
+  onStart = null,
+  // The "Ways to raise your grade" list from buildWaysToRaise, and the handler
+  // for one of its rows. Undefined list: the section is not drawn.
+  waysToRaise = undefined,
+  onWayAction = null,
+  // The read-only "What changed" panel, rendered right after the summary.
+  whatChangedPanel = null,
   // The shared student destinations. Grades used to offer one "← Home"
   // control, which made it a cul-de-sac: a student checking a grade and then
   // wanting the assignment behind it had to go up to Home and back down.
@@ -264,13 +382,17 @@ export default function StudentGradeCenter({
         <PeriodSummary
           courseLabel={courseLabel}
           periodLabel={currentPeriod?.label || ''}
-          summary={currentSummary || { score: null, graded: 0, missing: 0, pending: 0 }}
+          summary={currentSummary || { score: null, graded: 0, missing: 0, pending: 0, excused: 0, inProgress: [], notCountedOther: 0 }}
           hidden={hidden}
           onToggleHidden={() => setHidden((current) => !current)}
         />
 
+        {whatChangedPanel || null}
+
+        <WaysToRaise ways={waysToRaise} onWayAction={onWayAction} />
+
         {currentGroup && (
-          <PeriodGroup group={currentGroup} hidden={hidden} onOpenResult={onOpenResult} onPractice={onPractice} />
+          <PeriodGroup group={currentGroup} hidden={hidden} onOpenResult={onOpenResult} onPractice={onPractice} onStart={onStart} />
         )}
 
         {pastPeriodGroups.length > 0 && (
@@ -283,6 +405,7 @@ export default function StudentGradeCenter({
                 hidden={hidden}
                 onOpenResult={onOpenResult}
                 onPractice={onPractice}
+                onStart={onStart}
               />
             ))}
           </>
