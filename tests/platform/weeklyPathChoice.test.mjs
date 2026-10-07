@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildWeeklyGoal, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, weeklySlotKey } from '../../src/platform/path/weeklyPathGoal.js';
+import {
+  buildTeacherWeeklyView, buildWeeklyGoal, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, weeklySlotKey,
+} from '../../src/platform/path/weeklyPathGoal.js';
 import {
   MAX_ALTERNATIVES,
   applyWeeklySlotChoices,
@@ -10,6 +12,7 @@ import {
   chooseWeeklyAlternative,
   clearWeeklyAlternative,
   describeSlotChoice,
+  describeWeeklySlotSwaps,
   frozenSlotAlternatives,
   mergeWeeklyGoalSnapshot,
   resolveWeeklySlotChoices,
@@ -396,6 +399,31 @@ test('options another slot holds, or the bank cannot issue, are not offered', ()
   });
   assert.deepEqual([...asked], ['digitalSAT']);
   assert.equal(applyWeeklySlotChoices({ goal: null }), null);
+});
+
+test('the teacher sees "chose X instead of Y" for a slot a swap filled', () => {
+  const proposed = goalFor();
+  // The teacher receives the frozen snapshot itself (goalsByStudentId).
+  const week = frozenFrom(proposed);
+  const [first, second] = week.sessions;
+  const at = proposed.createdAt;
+  const completions = [
+    { status: 'completed', weekKey: week.weekKey, weeklySlotKey: first.weeklySlotKey, teksCode: 'A.7C', completedAt: at + 1000, accuracy: 1 },
+    { status: 'completed', weekKey: week.weekKey, weeklySlotKey: second.weeklySlotKey, teksCode: 'A.3B', completedAt: at + 2000, accuracy: 1 },
+    // Free practice on slot 2's option is not a swap.
+    { status: 'completed', weekKey: null, weeklySlotKey: null, teksCode: 'A.4D', completedAt: at + 3000, accuracy: 1 },
+  ];
+  const swaps = describeWeeklySlotSwaps({ goal: week, completions });
+  assert.deepEqual(swaps.map((swap) => swap.sentence), ['Session 1: chose A.7C instead of A.5A']);
+  assert.equal(swaps[0].chosenLabel, 'Skill A.7C', 'labelled from the frozen week');
+  assert.equal(swaps[0].recommendedLabel, 'Skill A.5A');
+  // Another week's session with the same key says nothing about this week.
+  assert.deepEqual(describeWeeklySlotSwaps({ goal: week, completions: [{ ...completions[0], weekKey: '2026-01-05' }] }), []);
+  assert.deepEqual(describeWeeklySlotSwaps({}), []);
+
+  const [row] = buildTeacherWeeklyView([{ studentId: 'S1', studentName: 'Student', goal: week, completions }], { now: at + 4000 });
+  assert.equal(row.complete, 2, 'the swapped session counts for its slot in the teacher table');
+  assert.deepEqual(row.swaps.map((swap) => swap.chosenTeks), ['A.7C']);
 });
 
 test('the panel promises a swap only where an open card offers one', () => {

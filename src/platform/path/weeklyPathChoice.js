@@ -377,4 +377,36 @@ export const applyWeeklySlotChoices = ({ goal = null, choices = {}, isLaunchable
   };
 };
 
+/**
+ * What a teacher should know about swaps in one student's week: for each slot
+ * a finished session filled with a different standard, "chose X instead of Y".
+ *
+ * Read from completions by the slot key each session was launched with. The
+ * server only ever accepts a different standard for a slot when it is one of
+ * that slot's frozen alternatives, so a slot-keyed completion on another
+ * standard is a swap by construction. Labels come from the frozen week.
+ */
+export const describeWeeklySlotSwaps = ({ goal = null, completions = [] } = {}) => {
+  const thisWeek = (entry) => !entry?.weekKey || !goal?.weekKey || entry.weekKey === goal.weekKey;
+  return list(goal?.sessions).flatMap((slot) => {
+    const key = text(slot?.weeklySlotKey);
+    if (!key) return [];
+    const filled = list(completions).find((entry) => (
+      entry?.status === 'completed' && text(entry?.weeklySlotKey) === key && thisWeek(entry)
+    ));
+    if (!filled?.teksCode || sameTeks(filled.teksCode, slot.teksCode)) return [];
+    const option = list(slot.alternatives).find((entry) => sameTeks(entry?.teksCode, filled.teksCode));
+    const chosenTeks = option?.teksCode || filled.teksCode;
+    return [{
+      slot: Number(slot.slot) || null,
+      weeklySlotKey: key,
+      recommendedTeks: slot.teksCode || null,
+      recommendedLabel: slot.studentLabel || null,
+      chosenTeks,
+      chosenLabel: option?.studentLabel || null,
+      sentence: `Session ${Number(slot.slot) || '?'}: chose ${chosenTeks} instead of ${slot.teksCode}`,
+    }];
+  });
+};
+
 export default attachWeeklyAlternatives;

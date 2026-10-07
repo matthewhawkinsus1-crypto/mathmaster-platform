@@ -116,6 +116,15 @@ test('the Path screen offers only frozen swaps and launches what was chosen', ()
   assert.match(app, /<MyMathPathProductionContainer \{\.\.\.sessionConfig\}/);
 });
 
+test('the teacher weekly table shows which slots a student swapped', () => {
+  const controls = executableSource(read('src/components/teacher/WeeklyPathControls.jsx'));
+  // Rows come from buildTeacherWeeklyView, which carries `swaps`.
+  assert.match(controls, /const rows = useMemo\(\(\) => buildTeacherWeeklyView\(/);
+  const studentCell = region(controls, '<StudentNameLink', '</td>', 'student cell');
+  assert.match(studentCell, /row\.swaps\?\.length > 0 &&/);
+  assert.match(studentCell, /row\.swaps\.map\(\(swap\) => swap\.sentence\)/);
+});
+
 test('the weekly panel promises a swap only where a card offers one', () => {
   const panel = executableSource(read('src/components/student/WeeklyPathGoalPanel.jsx'));
   assert.match(panel, /import \{[^}]*\bweeklyGoalOffersSwap\b[^}]*\} from '..\/..\/platform\/path\/weeklyPathChoice\.js';/);
