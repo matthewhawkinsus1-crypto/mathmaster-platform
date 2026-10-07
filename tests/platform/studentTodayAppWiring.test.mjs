@@ -106,3 +106,10 @@ test('Review My Work shows only for closed, released, non-Test-Cycle work — wi
   assert.match(panel, /!assignmentHasHeldTeacherFeedback\(recoveryAssignment\)/);
   assert.match(panel, /<ReviewMyWork assignment=\{recoveryAssignment\} load=\{loadMyReviewWork\} \/>/);
 });
+
+test('"Use a Practice Pass" is offered only to a student who holds one', () => {
+  const memo = region(app, 'const studentWaysToRaise = useMemo(', '}) : []), [', 'ways memo');
+  assert.match(memo, /practicePassEligibleAssignmentIds: studentRewardWallet\?\.practicePasses\?\.count > 0 \? studentPracticePassEligibleAssignments : \[\]/);
+  // The wallet is declared before the memo reads it.
+  assert.ok(app.indexOf('const studentRewardWallet = useMemo') < app.indexOf('const studentWaysToRaise = useMemo'));
+});

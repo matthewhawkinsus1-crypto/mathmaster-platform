@@ -1515,6 +1515,13 @@ function App() {
       : []
   ), [user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now]);
 
+  const studentRewardWallet = useMemo(() => buildRewardWallet({
+    grants: studentClassPoints.grants,
+    redemptions: studentClassPoints.redemptions,
+    account: studentClassPoints.unavailable ? null : studentClassPoints.account,
+    nowMs: now,
+  }), [studentClassPoints.grants, studentClassPoints.redemptions, studentClassPoints.account, studentClassPoints.unavailable, now]);
+
   // "Ways to raise your grade" (platform/student/waysToRaiseModel.js): missing
   // work, late windows, Test Cycle corrections/retests, Recoveries and Practice
   // Passes, from the models already built above. Grades lists them; Home
@@ -1522,16 +1529,10 @@ function App() {
   const studentWaysToRaise = useMemo(() => (studentGradeCenter ? buildWaysToRaise({
     gradeCenter: studentGradeCenter,
     recoverySummariesByAssignment: studentRecoverySummariesByAssignment,
-    practicePassEligibleAssignmentIds: studentPracticePassEligibleAssignments,
+    // Only offered to a student who holds a Practice Pass to use.
+    practicePassEligibleAssignmentIds: studentRewardWallet?.practicePasses?.count > 0 ? studentPracticePassEligibleAssignments : [],
     nowValue: now,
-  }) : []), [studentGradeCenter, studentRecoverySummariesByAssignment, studentPracticePassEligibleAssignments, now]);
-
-  const studentRewardWallet = useMemo(() => buildRewardWallet({
-    grants: studentClassPoints.grants,
-    redemptions: studentClassPoints.redemptions,
-    account: studentClassPoints.unavailable ? null : studentClassPoints.account,
-    nowMs: now,
-  }), [studentClassPoints.grants, studentClassPoints.redemptions, studentClassPoints.account, studentClassPoints.unavailable, now]);
+  }) : []), [studentGradeCenter, studentRecoverySummariesByAssignment, studentPracticePassEligibleAssignments, studentRewardWallet, now]);
 
   // "New" lasts for one visit to My Rewards: leaving it clears the marks.
   const previousStudentModeRef = useRef(null);
