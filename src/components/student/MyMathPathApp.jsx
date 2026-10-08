@@ -23,7 +23,7 @@ import { teksCodeFromSkillId, teksSkillId } from '../../platform/path/skillGraph
 import { statusForSkill } from '../../platform/path/pathMap.js';
 import { buildStudentLearningProfile } from '../../platform/profile/studentLearningProfile.js';
 import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
-import { CCMR_EXPECTATION, buildWeeklyGoal, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
+import { buildWeeklyGoal, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, weeklyPlanClassInputs } from '../../platform/path/weeklyPathGoal.js';
 import { fetchMyWeeklyPathCompletions, fetchMyWeeklyPathHistory, fetchTeacherWeeklyPathCompletions, resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
 import { collectWeeklyPathSessions } from '../../../functions/shared/weeklyPathCompletion.mjs';
 import { describeWeeklySessionEnd, sessionLaunchKey } from '../../platform/path/pathSessionEnd.js';
@@ -285,10 +285,6 @@ export const MyMathPathExperience = ({
     return () => { cancelled = true; };
   }, [courseId, coverageOverride]);
 
-  const weeklySettings = useMemo(
-    () => normalizeWeeklyGoalConfig(weeklyGoalConfig || {}, { honors }),
-    [weeklyGoalConfig, honors],
-  );
   // The student's saved plan feeds the week, so the week waits for it: a goal
   // proposed before the plan loaded would be frozen without it for seven days.
   const weeklyPlan = useMemo(() => (pathOptions && ccmrPlanSettled ? buildWeeklyPathPlan({
@@ -299,19 +295,16 @@ export const MyMathPathExperience = ({
     retentionSchedules: masteryData.retentionSchedulesByTEKS,
     evidenceEvents,
     // The PLAN must be built to the same length the GOAL will ask for.
-    // Building four and then asking for six leaves two empty cards.
-    sessions: weeklySettings.sessions,
-    honors,
-    interventionMode: Boolean(weeklyGoalConfig?.interventionMode),
-    allowTransfer: weeklySettings.ccmrExpectation !== CCMR_EXPECTATION.NONE,
-    pinnedSkills: weeklyGoalConfig?.pinnedSkills || [],
+    // Building four and then asking for six leaves two empty cards. The
+    // class's settings reach the planner through the helper the teacher's
+    // screens use, so their preview is this week. "Auto" follows the
+    // student's own goals and test date; a framework the teacher picked wins.
+    // Either way it only chooses the FORMAT of transfer slots the evidence
+    // and the teacher's expectation already allow.
+    ...weeklyPlanClassInputs({ config: weeklyGoalConfig || {}, honors }),
     coverage,
-    // "Auto" follows the student's own goals and test date; a framework the
-    // teacher picked wins. Either way it only chooses the FORMAT of transfer
-    // slots the evidence and the teacher's expectation already allow.
     ccmrPlan,
-    ccmrFramework: weeklySettings.framework,
-  }) : null), [pathOptions, ccmrPlanSettled, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig, weeklySettings, coverage, ccmrPlan]);
+  }) : null), [pathOptions, ccmrPlanSettled, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig, coverage, ccmrPlan]);
 
   const proposedWeeklyGoal = useMemo(() => (weeklyPlan ? buildWeeklyGoal({
     plan: weeklyPlan, config: weeklyGoalConfig || {}, honors, studentId, courseId,

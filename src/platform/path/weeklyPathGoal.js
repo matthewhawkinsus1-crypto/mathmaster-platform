@@ -147,6 +147,28 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
 
 
 /**
+ * The planner inputs a class's weekly settings decide, for EVERY screen that
+ * builds a student's week: the student's own Path, the teacher's Weekly Path
+ * table before the week is frozen, and the teacher's profile drawer. Built in
+ * one place, so a teacher's preview asks the planner for the week the
+ * student's screen asks for: the same number of sessions, transfer work only
+ * when the class expects it, and the framework the teacher picked. (A class
+ * that expects no CCMR work previewed an EMPTY week to its teacher while its
+ * students were given four sessions.)
+ */
+export const weeklyPlanClassInputs = ({ config = {}, honors = false } = {}) => {
+  const settings = normalizeWeeklyGoalConfig(config || {}, { honors });
+  return {
+    sessions: settings.sessions,
+    honors: Boolean(honors),
+    interventionMode: Boolean(config?.interventionMode),
+    allowTransfer: settings.ccmrExpectation !== CCMR_EXPECTATION.NONE,
+    pinnedSkills: config?.pinnedSkills || [],
+    ccmrFramework: settings.framework,
+  };
+};
+
+/**
  * The week a moment belongs to, as a stable key.
  *
  * Goals persist per week, and "this week" has to mean the same thing on Monday

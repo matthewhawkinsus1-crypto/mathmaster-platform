@@ -93,8 +93,10 @@ test('the weekly plan waits for the student\'s plan and uses it with the teacher
   const weekly = region(experience, 'const weeklyPlan = useMemo(', '\n  const proposedWeeklyGoal', 'weeklyPlan memo');
   assert.match(weekly, /pathOptions && ccmrPlanSettled \? buildWeeklyPathPlan\(\{/);
   assert.match(weekly, /\bccmrPlan,\s/);
-  assert.match(weekly, /ccmrFramework: weeklySettings\.framework,/);
-  assert.match(weekly, /allowTransfer: weeklySettings\.ccmrExpectation !== CCMR_EXPECTATION\.NONE,/);
+  // The class's settings arrive through the helper the teacher's previews
+  // use (weeklyPlanClassInputs, behaviour-tested in weeklyPlanClassInputs.test.mjs).
+  assert.match(weekly, /\.\.\.weeklyPlanClassInputs\(\{ config: weeklyGoalConfig \|\| \{\}, honors \}\),/);
+  assert.match(pathApp, /import \{[^}]*\bweeklyPlanClassInputs\b[^}]*\} from '\.\.\/\.\.\/platform\/path\/weeklyPathGoal\.js';/);
   assert.match(weekly, /\[pathOptions, ccmrPlanSettled,[^\]]*ccmrPlan\]/, 'and recomputes when the plan arrives');
   // Editing, not the week, follows the stricter "known" signal.
   assert.match(region(experience, 'const ccmrPlanStatus = useMemo(', '}), [', 'plan status'), /editable: !readOnly && Boolean\(onSaveCcmrPlan\) && ccmrPlanLoaded && !ccmrPlanError,/);

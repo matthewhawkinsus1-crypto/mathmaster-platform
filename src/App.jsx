@@ -406,7 +406,7 @@ import {
 import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
 import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
-import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor } from './platform/path/weeklyPathGoal.js';
+import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
 import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
 import PreproductionReset from './components/admin/PreproductionReset.jsx';
@@ -1637,8 +1637,7 @@ function App() {
         options: pathOptions,
         courseId,
         profile: teacherLearningProfiles[student.id] || null,
-        sessions: config.sessions || (honors ? 5 : 4),
-        honors,
+        ...weeklyPlanClassInputs({ config, honors }),
         now,
       });
       const proposedGoal = buildWeeklyGoal({
@@ -8335,10 +8334,14 @@ function App() {
       options,
       courseId: context.courseId,
       profile: profileDrawerLearningProfile,
-      sessions: context.courseLevel === 'honors' ? 5 : 4,
-      honors: context.courseLevel === 'honors',
+      ...weeklyPlanClassInputs({
+        config: storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
+          classId: profileDrawerStudent.classId, classPeriod: profileDrawerStudent.classPeriod,
+        }) || {},
+        honors: context.courseLevel === 'honors',
+      }),
     });
-  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, profileDrawerLearningProfile]);
+  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, profileDrawerLearningProfile, weeklyGoalsByClass]);
 
   // A view that cannot answer anything across five classes gets one chosen for
   // it rather than being left on an option its own bar does not offer. Weekly
