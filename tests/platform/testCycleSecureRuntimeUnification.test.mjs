@@ -66,7 +66,9 @@ test('integrity monitoring, timers, autosave and proctor lock are not duplicated
   assert.match(container, /<ExamPrepHeader/);
   assert.match(container, /onTimeExpired=/);
   assert.match(container, /saveSecureExamDraft/);
-  assert.match(container, /Exam paused for proctor review/);
+  // One pause overlay, with the teacher's pause and the integrity pause in it.
+  assert.equal((executableSource(container).match(/data-secure-pause=\{pause\}/g) || []).length, 1, 'one pause overlay');
+  assert.match(container, /Your teacher paused the test/);
   // And the card adds none of its own.
   assert.doesNotMatch(executableSource(card), /ExamIntegrityLogger|recordSecureExamIntegrityEvent/);
 });

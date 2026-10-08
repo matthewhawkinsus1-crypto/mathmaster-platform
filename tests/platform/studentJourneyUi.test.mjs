@@ -51,9 +51,15 @@ test('journey 5: secure testing hides standards while preserving usable math and
   assert.match(secureToolItem, /showStandardBadge=\{false\}/);
   assert.match(securePlayer, /<MathText as="h1"/);
   assert.match(securePlayer, /<PathQuestionStimulus stimulus=\{question\.stimulus\}/);
-  assert.match(securePlayer, /type="text"/);
-  assert.match(securePlayer, /inputMode=\{isNumericProfile/);
+  // Fractions stay typeable: a typed answer goes through the secure answer
+  // field, which is the math editor (3/4 arrives as \\frac34, which the
+  // server grader accepts — secureMathAnswerRoundTrip.test.mjs) or a TEXT box,
+  // and never an HTML number input, which refuses 3/4.
+  const answerField = read('src/components/assessment/SecureMathAnswerField.jsx');
+  assert.match(securePlayer, /<SecureMathAnswerField\b/);
+  assert.match(answerField, /data-secure-answer-editor="text"\s+data-secure-answer-profile=\{entry\.profile\}\s+type="text"/);
   assert.doesNotMatch(securePlayer, /type="number"/);
+  assert.doesNotMatch(answerField, /type="number"/);
   const activeBranch = secureDashboard.slice(secureDashboard.indexOf('if (active)'), secureDashboard.indexOf('return (', secureDashboard.indexOf('if (active)') + 15));
   assert.match(activeBranch, /onExitAfterFinished/);
   assert.doesNotMatch(activeBranch, /<button/);
@@ -61,9 +67,13 @@ test('journey 5: secure testing hides standards while preserving usable math and
 });
 
 test('journey 5 review: standards return only after teacher-released feedback', () => {
-  assert.match(secureDashboard, /Review released feedback/);
+  // The list opens the review only once results are released.
+  assert.match(secureDashboard, /const canReview = done && session\.feedbackReleased === true;/);
+  assert.match(secureDashboard, /onClick=\{\(\) => canReview \? setReviewing\(session\) : setActive\(session\)\}/);
+  assert.match(secureDashboard, /\{canReview \? 'See your results'/);
   assert.match(secureReview, /Released feedback/);
-  assert.match(secureReview, /standards and CCMR connections are shown now/);
+  // The released-only wording is pinned in secureResultsWiring.test.mjs ("the
+  // review names standards only once released, in plain words").
   assert.match(secureReview, /<StandardBadge/);
   assert.match(functionSource, /exports\.getStudentSecureExamReview/);
   assert.match(functionSource, /session\.feedbackReleased !== true/);

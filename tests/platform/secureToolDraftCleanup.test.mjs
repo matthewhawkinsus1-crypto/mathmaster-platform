@@ -81,10 +81,11 @@ test('a family prefix never reaches past its own boundary', () => {
 
 test('the secure container and the preview forget the cache wherever they clear storage', () => {
   const container = read('src/components/assessment/SecureExamContainer.jsx');
-  const submit = region(container, 'const submitResponse = async (', 'const autosaveDraft = useCallback(', 'submit');
-  assert.match(submit, /removeQuestionDraftFamily\(itemDraftKey\(session\.examSessionId, question\.questionInstanceId\)\);[\s\S]{0,260}forgetToolDraftFamily\(itemDraftKey\(session\.examSessionId, question\.questionInstanceId\)\)/);
   const clear = region(container, 'const clearLocalDrafts = (', 'const SAVE_LABEL', 'session cleanup');
-  assert.match(clear, /forgetToolDraftFamily\(sessionDraftFamily\(examSessionId\)\)/);
+  assert.match(clear, /removeQuestionDraftFamily\(sessionDraftFamily\(examSessionId\)\);\s*forgetToolDraftFamily\(sessionDraftFamily\(examSessionId\)\);/);
+  // Nothing is recorded question by question any more, so that is the only
+  // place the container removes stored drafts — and it forgets the cache too.
+  assert.equal(container.split('removeQuestionDraftFamily(').length - 1, 1, 'every removal of stored drafts goes through clearLocalDrafts');
   const preview = read('src/components/teacher/TestCyclePreview.jsx');
   const previewClear = region(preview, 'const clearPreviewDrafts = (', 'const DEVICE_WORDS', 'preview clear');
   assert.match(previewClear, /removeQuestionDraftFamily\(family\);[\s\S]*forgetToolDraftFamily\(family\)/);
