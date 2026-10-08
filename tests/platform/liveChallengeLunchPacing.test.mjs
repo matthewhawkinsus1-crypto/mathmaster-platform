@@ -172,7 +172,7 @@ test('final speed scoring uses activeRoundSeconds rather than the teacher baseli
   const start = server.indexOf('exports.submitLiveChallengeResponse');
   const end = server.indexOf('// Phase 5D', start);
   const block = server.slice(start, end);
-  assert.match(block, /const activeRoundMs = challenge\.normalizeRoundSeconds\([\s\S]*latestRoom\.activeRoundSeconds \|\| latestRoom\.roundSeconds/);
+  assert.match(block, /const activeRoundMs = (?:Math\.round\()?challenge\.normalizeRoundSeconds\([\s\S]*latestRoom\.activeRoundSeconds \|\| latestRoom\.roundSeconds/);
   assert.match(block, /totalMs: activeRoundMs/);
   assert.doesNotMatch(block, /totalMs: challenge\.normalizeRoundSeconds\(latestRoom\.roundSeconds\) \* 1000/);
 });

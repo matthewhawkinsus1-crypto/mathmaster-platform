@@ -99,7 +99,7 @@ const ACADEMIC_WORDING = Object.freeze([
   { pattern: /\bassignments?\b|\bclasswork\b/i, words: 'required work' },
   { pattern: /\bretakes?\b|\bredo\b|\bre-?test\b/i, words: 'a retake' },
   // "Skip the line at the pencil sharpener" is fine; skipping WORK is not.
-  { pattern: /\bskip\s+(?:a|an|the|one|my|your)?\s*(?:questions?|problems?|sections?|practice|work|warm[\s-]?ups?)\b|\bexcuse[ds]?\b|\bexempt(?:ion)?\b|\bwaive[ds]?\b|\bwaiver\b/i, words: 'skipping or excusing work' },
+  { pattern: /\bskip\s+(?:a|an|the|one|my|your|\d+)?\s*(?:questions?|problems?|sections?|practice|work|warm[\s-]?ups?)\b|\bexcuse[ds]?\b|\bexempt(?:ion)?\b|\bwaive[ds]?\b|\bwaiver\b/i, words: 'skipping or excusing work' },
   { pattern: /\blate\s+work\b|\bdeadline\b|\bextensions?\b|\bdue\s+date\b/i, words: 'a deadline' },
   { pattern: /\banswers?\b|\banswer\s+key\b|\bhints?\b/i, words: 'answers or hints' },
   { pattern: /\bpractice\s+pass\b/i, words: 'the Practice Pass' },
@@ -116,6 +116,7 @@ const ACADEMIC_WORDING = Object.freeze([
   // question", "Retry a problem", "Do-over". An attempt is always about
   // work; "try" only counts with a number or "extra/another/second" before it,
   // so "Try the class snack" is still fine.
+  { pattern: /\battempts?\b|\bre-?tr(?:y|ies)\b|\bdo[\s-]?overs?\b|\b(?:extra|another|second|2nd|one\s+more|bonus|\d+)\s+(?:more\s+)?tr(?:y|ies)\b/i, words: 'another attempt' },
   // Seeing the work done for you: "Peek at the solution", "Worked example".
   { pattern: /\bsolutions?\b|\bworked\s+examples?\b|\bsolve\s+(?:it|one|a|the)\s+for\b/i, words: 'answers or hints' },
   // A counted or chosen question or problem: "Skip 1 question", "Skip 2

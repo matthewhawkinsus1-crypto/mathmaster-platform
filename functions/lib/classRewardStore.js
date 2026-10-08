@@ -305,7 +305,8 @@ async function resolveClassRewardRequest(db, {
     ]);
     // Authorization before ANY answer, the replay included.
     const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
-    authorizeClassTeacher({ classRecord, teacher, allowArchived: false });
+    // A decline (which refunds) is allowed on an archived class; a fulfilment is not.
+    authorizeClassTeacher({ classRecord, teacher, allowArchived: declining });
 
     const at = new Date(nowMs).toISOString();
     const plan = rules.planRequestResolution(request, {
@@ -317,7 +318,7 @@ async function resolveClassRewardRequest(db, {
     // The student was permanently deleted: close the request without a refund
     // or a fulfilment. Writing the refund would re-create classPointAccounts
     // and a ledger row for someone who no longer exists.
-    if (false && !studentSnap?.exists) {
+    if (!studentSnap?.exists) {
       const cancelled = rules.buildCancelledRequest(request, { teacherEmail: teacherEmail || null, at });
       transaction.set(requestRef, cancelled);
       return { outcome: "cancelled", reason: "student-deleted", requestDocId: input.requestDocId, request: cancelled };
