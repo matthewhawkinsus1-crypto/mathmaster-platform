@@ -369,7 +369,13 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
           onStepGrade={handleStepGrade}
         />
       ) : (
-        <p style={{ ...panelStyle, margin: 0 }}>There is no practice question to show right now.</p>
+        // Practice deals every version the student has not seen, so this
+        // means they have seen them all (or the question cannot be made right
+        // now). Either way the next step is a person, not a retry: a teacher
+        // can review the practice and, for a DOL, grant another attempt.
+        <p data-recovery-practice-empty="true" style={{ ...panelStyle, margin: 0 }}>
+          There are no new practice questions left for this Recovery. Let your teacher know — they can help you with what comes next.
+        </p>
       )}
       {triesUsedUp && (
         <div role="status" style={{ ...panelStyle, display: 'grid', gap: 8 }}>

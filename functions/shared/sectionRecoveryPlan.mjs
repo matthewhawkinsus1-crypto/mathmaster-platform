@@ -3,9 +3,10 @@
  *
  * Two kinds of generated question come out of a Recovery:
  *
- *   PRACTICE ITEMS — the mastery gate's evidence. Unlimited, one at a time,
- *   cycling through the original section's families so every skill is
- *   practised, and never repeating a question the student has already seen.
+ *   PRACTICE ITEMS — the mastery gate's evidence. One at a time, for as long
+ *   as the families hold a version the student has not seen, cycling through
+ *   the original section's families so every skill is practised, and never
+ *   repeating a question the student has already seen.
  *
  *   THE RECOVERY ASSESSMENT — for a DOL, one fresh instance of every original
  *   DOL question (same family, same constraints, same tool, so the same skill
@@ -16,7 +17,11 @@
  *
  * "Fresh" is enforced, not hoped for: each instance comes from its own list
  * (a distinct slot key) and the walk skips every fingerprint the student has
- * already met — their original deliveries and their practice items.
+ * already met — their original deliveries and their practice items — and
+ * only those (`historyIsComplete`). The engine's own reconstruction of a
+ * student's earlier variants is for callers that have no such history; run
+ * on top of one, it hid versions the student had never seen, and Practice ran
+ * dry with most of a family unused (tests/platform/recoveryPracticeSupply).
  * Shuffling answer choices would not count as a different question here,
  * because fingerprints ignore choice order.
  *
@@ -66,6 +71,9 @@ export const buildRecoveryPracticeItem = ({
     slotKey: recoverySlotKey({ assignmentId, section, kind: 'recoveryPractice', opportunity, questionId: slot.questionId || `index-${slot.storageIndex}` }),
     allocation,
     excludeFingerprints: seenFingerprints,
+    // Every version the student has been shown — originals and every earlier
+    // Practice item — is in `seenFingerprints`, so nothing is reconstructed.
+    historyIsComplete: true,
   });
   if (result.error) return { error: result.error };
   return {
@@ -110,6 +118,8 @@ export const buildRecoveryAssessmentPlan = ({
       slotKey: recoverySlotKey({ assignmentId, section, kind: 'recovery', opportunity, questionId: slot.questionId || `index-${slot.storageIndex}` }),
       allocation: resolveGenerationAllocation({ seatInfo, variant: round }),
       excludeFingerprints: [...seen],
+      // `seen` is the student's whole history plus this plan's earlier items.
+      historyIsComplete: true,
     });
     if (result.error) return { error: result.error, position };
     // Two Recovery items must not be the same question either.
@@ -208,6 +218,8 @@ export const buildRecoveryReplacementItems = ({
         }),
         allocation: resolveGenerationAllocation({ seatInfo, variant: 0 }),
         excludeFingerprints: [...seen],
+        // Every version the student was shown, the failed pins included.
+        historyIsComplete: true,
       });
     } catch {
       return { error: 'replacement-unavailable', itemId, classification: 'resolution-exception' };

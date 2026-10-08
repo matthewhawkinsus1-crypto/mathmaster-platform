@@ -58,7 +58,7 @@ export const ASSIGNMENT_CATEGORY_LABEL = Object.freeze({
 });
 
 export const ASSIGNMENT_CATEGORY_HINT = Object.freeze({
-  [ASSIGNMENT_CATEGORY.ACTIVE]: 'Started, due today, or past due — all still open and still counting.',
+  [ASSIGNMENT_CATEGORY.ACTIVE]: 'Started, due today, past due, or with a Recovery open — all still open and still counting.',
   [ASSIGNMENT_CATEGORY.UPCOMING]: 'Assigned and due later, or not open to you yet.',
   [ASSIGNMENT_CATEGORY.COMPLETED]: 'Work you finished, and closed work with a recorded result.',
   [ASSIGNMENT_CATEGORY.PRACTICE]: 'Past the final deadline. You can still practise these; they no longer change your grade.',
@@ -89,11 +89,17 @@ export const categoryForBucket = (bucket) => {
   return ASSIGNMENT_CATEGORY.ACTIVE;
 };
 
-export const categoriesForRow = ({ bucket, practiceAvailable }) => {
+export const categoriesForRow = ({ bucket, practiceAvailable, recoveryOpen = false }) => {
   const primary = categoryForBucket(bucket);
   const categories = [primary];
   if (practiceAvailable && primary !== ASSIGNMENT_CATEGORY.PRACTICE) {
     categories.push(ASSIGNMENT_CATEGORY.PRACTICE);
+  }
+  // A Warm-Up/DOL Recovery the student can act on is open, counting work, even
+  // on an assignment whose questions are all finished: it belongs in Active,
+  // the tab a student opens, as well as in its finished group.
+  if (recoveryOpen && !categories.includes(ASSIGNMENT_CATEGORY.ACTIVE)) {
+    categories.push(ASSIGNMENT_CATEGORY.ACTIVE);
   }
   return categories;
 };
@@ -147,9 +153,12 @@ const resolveActions = ({ entry, gradeEntry }) => {
  * are kept on the row so a caller can reach anything either model computed
  * without this function having to forward every field by hand.
  */
-export const buildAssignmentRow = ({ entry, gradeEntry }) => {
+export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
   const assignment = entry.assignment || {};
   const actions = resolveActions({ entry, gradeEntry });
+  // The open Warm-Up/DOL Recoveries for this assignment, as
+  // buildStudentRecoveryDiscovery described them. Never computed here.
+  const openRecovery = list(recovery);
   /*
    * A Test Cycle is ONE row here, never four.
    *
@@ -171,7 +180,12 @@ export const buildAssignmentRow = ({ entry, gradeEntry }) => {
     ...studentDueDates(assignment, entry.lifecycle),
     lifecycle: entry.lifecycle,
     bucket: entry.bucket,
-    categories: categoriesForRow({ bucket: entry.bucket, practiceAvailable: actions.practiceAvailable }),
+    categories: categoriesForRow({
+      bucket: entry.bucket,
+      practiceAvailable: actions.practiceAvailable,
+      recoveryOpen: openRecovery.length > 0,
+    }),
+    recovery: openRecovery,
     questionsTotal: entry.questionsTotal,
     questionsDone: entry.questionsDone,
     questionsAttempted: entry.questionsAttempted,
@@ -230,12 +244,16 @@ export const buildStudentAssignmentsCenter = ({
   search = '',
   periodId = null,
   category = ASSIGNMENT_CATEGORY.ACTIVE,
+  // { [assignmentId]: [opportunity, ...] } from buildStudentRecoveryDiscovery,
+  // grouped by groupRecoveryOpportunitiesByAssignment. Read, never recomputed.
+  recoveryByAssignment = {},
 } = {}) => {
   const settings = normalizeGradingPeriodSettings(gradingPeriodSettings || {});
   const rows = list(dashboard?.allEntries)
     .map((entry) => buildAssignmentRow({
       entry,
       gradeEntry: findGradeCenterEntry(gradeCenter, entry?.assignment?.id),
+      recovery: recoveryByAssignment?.[entry?.assignment?.id] || [],
     }))
     .sort(byMostRecentDue);
 
