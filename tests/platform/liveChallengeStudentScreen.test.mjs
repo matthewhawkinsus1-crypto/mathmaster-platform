@@ -155,3 +155,12 @@ test('a finished game asks once for the student\'s own recap, and a failure show
   assert.match(recapCard, /round\.solutionReview && <RoundSolutionCard /);
   assert.match(recapCard, /\{round\.result\.text\}/);
 });
+
+// Under StrictMode the effect's cleanup runs once on the development double
+// mount; a ref only ever cleared would stay false and drop every missed-round
+// notice. The effect must set it in its body before returning the cleanup.
+test('the missed-round notice survives StrictMode\'s double mount', () => {
+  const student = executableSource(readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8'));
+  const effect = region(student, 'const mountedRef = useRef(true);', '}, []);', 'the mounted-ref effect');
+  assert.ok(effect.indexOf('mountedRef.current = true;') >= 0 && effect.indexOf('mountedRef.current = true;') < effect.indexOf('return () =>'));
+});

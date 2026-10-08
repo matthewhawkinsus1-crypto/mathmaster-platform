@@ -90,7 +90,10 @@ test('the catalog editor starts fresh for each class: a draft can never be saved
   // The draft state lives in the keyed body, not in the wrapper.
   assert.doesNotMatch(exported, /useState|useClassRewardCatalog/);
   const body = region(editor, 'function ClassCatalogEditorBody', 'const onSave = async', 'editor body');
-  assert.match(body, /const \[draft, setDraft\] = useState\(\[\]\);/);
+  // It starts from nothing, or from unsaved edits kept for THIS class only
+  // (classRewardDraftStore: keyed by account and classId).
+  assert.match(body, /const \[kept\] = useState\(\(\) => readClassRewardDraft\(\{ ownerUid, classId \}\)\);/);
+  assert.match(body, /const \[draft, setDraft\] = useState\(\(\) => kept\?\.draft \|\| \[\]\);/);
   assert.match(body, /const savedRevision = useRef\(0\);/);
 });
 

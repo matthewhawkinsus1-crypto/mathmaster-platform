@@ -27,13 +27,12 @@ import {
 import { planLifecycleCommand } from '../../functions/shared/liveChallengeLifecycle.mjs';
 import { timerAcceptsArrival } from '../../functions/shared/liveChallengeTimer.mjs';
 
+import { region } from './helpers/sourceContract.mjs';
+
 const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-const regionOf = (source, startMarker, endMarker) => {
-  const start = source.indexOf(startMarker);
-  assert.ok(start >= 0, `${startMarker} must exist`);
-  const end = source.indexOf(endMarker, start + startMarker.length);
-  return source.slice(start, end > start ? end : source.length);
-};
+// The repo's strict helper: an end marker that is missing fails the test
+// instead of binding the assertion to the rest of the file.
+const regionOf = (source, startMarker, endMarker) => region(source, startMarker, endMarker);
 
 /* ---------- solution reveal: never while the question can be answered ---------- */
 

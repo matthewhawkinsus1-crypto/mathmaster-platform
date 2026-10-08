@@ -789,7 +789,7 @@ function App() {
   // Growth, effort and mastery rewards (Retest improvement, Corrections,
   // weekly Path goal, mastery milestones) are re-derived by the server from
   // the student's own records, once per session (functions/lib/growthRewards.js).
-  useGrowthRewardSync(user?.id, { enabled: user?.role === 'student' && Boolean(user?.classId) });
+  useGrowthRewardSync(user?.id, { uid: user?.uid, enabled: user?.role === 'student' && Boolean(user?.classId) });
 
   // A new reward gets one toast and a "New" mark (useRewardCelebrations).
   const celebratingStudentId = user?.role === 'student' ? user.id : null;
@@ -10852,15 +10852,18 @@ function App() {
             invite={liveChallengeInvite}
             // The whole support profile, so the game gives the same Read aloud
             // a standalone game does (extended time travels on the invite).
-            studentProfile={{ ...(user?.profile || {}), studentId: user?.studentId, name: user?.name }}
-            // The same rewards card a standalone game shows when it ends.
+            studentProfile={{ ...(user?.profile || {}), studentId: user?.id, name: user?.name }}
+            // The same rewards card a standalone game shows when it ends —
+            // without its "Open My Rewards" link: mid-Warm-Up the one way on
+            // is Back to Warm-Up, which records the game and keeps the
+            // assignment's own exit and flush.
             renderMatchRewards={(roomId, match = {}) => (
               <ChallengeRewardsEarned
                 roomId={roomId}
                 offered={match.offered}
                 grants={studentClassPoints.grants}
                 transactions={studentClassPoints.transactions}
-                onOpenRewards={() => openStudentDashboardMode('rewards')}
+                onOpenRewards={null}
               />
             )}
             onExitToAssignment={() => setWarmupChallengePlayedRoomIds((previous) => (
@@ -12497,6 +12500,7 @@ function App() {
                 />
                 <ClassRewardCatalogEditor
                   classId={activeClass.classId}
+                  ownerUid={user.uid}
                   className={classes.find((entry) => entry.classId === activeClass.classId)?.name}
                 />
               </section>

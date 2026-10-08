@@ -19,6 +19,7 @@ import {
   teacherRewardActionError,
 } from '../../platform/rewards/classRewardsModel.js';
 import { useClassRewardCatalog } from '../../platform/rewards/useClassRewards.js';
+import { readClassRewardDraft, writeClassRewardDraft } from '../../platform/rewards/classRewardDraftStore.js';
 import './rewards.css';
 
 /*
@@ -134,17 +135,21 @@ function ItemEditor({ item, index, onChange, onRemove, disabled }) {
  * list (same revision number, so the stale-tab check would not catch it).
  * Done here rather than asked of the caller, so no mounting can get it wrong.
  */
-export default function ClassRewardCatalogEditor({ classId, className = '' }) {
-  return <ClassCatalogEditorBody key={classId || 'no-class'} classId={classId} className={className} />;
+// `ownerUid`: the signed-in teacher's auth uid, so unsaved edits are kept for
+// this tab and account (classRewardDraftStore.js) and cleared at sign-out.
+export default function ClassRewardCatalogEditor({ classId, className = '', ownerUid = null }) {
+  return <ClassCatalogEditorBody key={classId || 'no-class'} classId={classId} className={className} ownerUid={ownerUid} />;
 }
 
-function ClassCatalogEditorBody({ classId, className }) {
+function ClassCatalogEditorBody({ classId, className, ownerUid }) {
   const { catalog, loaded, unavailable, save } = useClassRewardCatalog({ classId, enabled: Boolean(classId) });
-  const [draft, setDraft] = useState([]);
-  const [baseRevision, setBaseRevision] = useState(0);
-  const [dirty, setDirty] = useState(false);
+  // Unsaved edits from an earlier visit to this class come back, and say so.
+  const [kept] = useState(() => readClassRewardDraft({ ownerUid, classId }));
+  const [draft, setDraft] = useState(() => kept?.draft || []);
+  const [baseRevision, setBaseRevision] = useState(() => kept?.baseRevision || 0);
+  const [dirty, setDirty] = useState(() => Boolean(kept));
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState(null);
+  const [feedback, setFeedback] = useState(() => (kept ? { kind: 'info', text: 'Your unsaved changes to this list were kept. Save them, or reload the saved list.' } : null));
   const [stale, setStale] = useState(false);
   const [startersOpen, setStartersOpen] = useState(false);
   const inFlight = useRef(false);
@@ -163,6 +168,18 @@ function ClassCatalogEditorBody({ classId, className }) {
     // An empty list opens the suggestions: the fastest start is one click.
     if (!draftFromCatalog(catalog).length) setStartersOpen(true);
   }, [catalog, dirty]);
+
+  // While the list has unsaved changes they are kept for this tab, and leaving
+  // the page asks first.
+  useEffect(() => {
+    writeClassRewardDraft({ ownerUid, classId, draft: dirty ? draft : null, baseRevision });
+  }, [ownerUid, classId, draft, dirty, baseRevision]);
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (event) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   const update = (next) => { setDraft(next); setDirty(true); setFeedback(null); };
   const changeItem = (index, patch) => update(draft.map((item, position) => (position === index ? { ...item, ...patch } : item)));
@@ -253,7 +270,7 @@ function ClassCatalogEditorBody({ classId, className }) {
             <p className="rw-feedback rw-feedback--bad" role="alert">{problem}</p>
           )}
           {feedback && (
-            <p className={`rw-feedback ${feedback.kind === 'ok' ? 'rw-feedback--ok' : 'rw-feedback--bad'}`} role={feedback.kind === 'ok' ? 'status' : 'alert'}>
+            <p className={`rw-feedback ${feedback.kind === 'ok' ? 'rw-feedback--ok' : feedback.kind === 'info' ? 'rw-feedback--info' : 'rw-feedback--bad'}`} role={feedback.kind === 'bad' ? 'alert' : 'status'}>
               {feedback.text}
             </p>
           )}

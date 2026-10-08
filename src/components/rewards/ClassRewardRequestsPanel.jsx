@@ -108,8 +108,12 @@ export default function ClassRewardRequestsPanel({ classId, teacherEmail, studen
   const [announcement, setAnnouncement] = useState('');
   const pending = sortPendingRequests(requests);
 
+  const headingRef = useRef(null);
   const onResolve = async ({ request, resolution, reason, studentName }) => {
     await resolve({ requestDocId: request.requestDocId, resolution, reason });
+    // The row holding the focused button is about to disappear: keep keyboard
+    // focus in the panel (its heading, beside the announcement).
+    headingRef.current?.focus();
     setAnnouncement(resolution === 'declined'
       ? `Declined ${studentName}'s “${request.itemLabel}”. ${request.cost} points were returned.`
       : `Marked ${studentName}'s “${request.itemLabel}” fulfilled.`);
@@ -117,7 +121,7 @@ export default function ClassRewardRequestsPanel({ classId, teacherEmail, studen
 
   return (
     <section aria-labelledby="class-reward-requests-heading" className="rw-card" data-qa="class-reward-requests">
-      <h2 id="class-reward-requests-heading">Class reward requests</h2>
+      <h2 id="class-reward-requests-heading" ref={headingRef} tabIndex={-1}>Class reward requests</h2>
       <p className="rw-muted">{loaded && !unavailable ? pendingSummary(pending) : ' '}</p>
       {unavailable && <p className="rw-feedback rw-feedback--info" role="status">Requests could not load. Check again in a minute.</p>}
       {!loaded && !unavailable && <p className="rw-muted" role="status">Loading…</p>}

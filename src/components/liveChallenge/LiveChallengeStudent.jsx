@@ -993,7 +993,12 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // results of the rounds in between once, and says which closed without this
   // student's answer. A copy from the device's cache is not the server's word.
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  // Set in the body, not only cleared: StrictMode's development double mount
+  // runs the cleanup once, and a ref left false would drop every notice.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   useEffect(() => {
     if (!roomId || !playerKey || !room || room.roomId !== roomId || roomFromCache || !everInSync) return;
     const now = seenRoundOf(room);

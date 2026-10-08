@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import UseClassRewardDialog from './UseClassRewardDialog.jsx';
 import { buildClassRewardShelf, describeClassRewardRequest } from '../../../platform/rewards/classRewardsModel.js';
 import { formatRewardDate } from '../../../platform/rewards/rewardWallet.js';
@@ -46,6 +46,7 @@ export default function ClassRewardsShelf({
   nowMs = Date.now(),
 }) {
   const [openItemId, setOpenItemId] = useState(null);
+  const requestsHeadingRef = useRef(null);
   const shelf = useMemo(
     () => buildClassRewardShelf({ catalog, requests, balance, balanceKnown, nowMs }),
     [catalog, requests, balance, balanceKnown, nowMs],
@@ -103,7 +104,7 @@ export default function ClassRewardsShelf({
 
       {(shelf.pending.length > 0 || shelf.finished.length > 0) && (
         <>
-          <h3 style={{ marginTop: 16 }}>My requests</h3>
+          <h3 ref={requestsHeadingRef} tabIndex={-1} style={{ marginTop: 16 }}>My requests</h3>
           {/* Waiting first, then the most recent finished ones — visible, not
               folded away, so a decline and its reason are seen. */}
           <ul className="rw-list" aria-label="My requests">
@@ -120,7 +121,17 @@ export default function ClassRewardsShelf({
           entry={openEntry}
           balance={balance}
           onUse={onRedeem}
-          onClose={() => { setOpenItemId(null); setAgreedItem(null); }}
+          onClose={() => {
+            setOpenItemId(null);
+            setAgreedItem(null);
+            // The dialog hands focus back to the button that opened it — which
+            // a request just used up may have disabled, leaving focus on the
+            // page. Then keyboard users land on the request they just made.
+            window.setTimeout(() => {
+              const active = document.activeElement;
+              if (!active || active === document.body || active.disabled) requestsHeadingRef.current?.focus();
+            }, 0);
+          }}
         />
       )}
     </section>

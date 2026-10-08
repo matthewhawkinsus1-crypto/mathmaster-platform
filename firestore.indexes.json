@@ -275,6 +275,24 @@
       ]
     },
     {
+      "collectionGroup": "classRewardRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "authorizedTeacherEmails",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "classId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "classPointAccounts",
       "queryScope": "COLLECTION",
       "fields": [
