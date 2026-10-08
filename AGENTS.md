@@ -131,6 +131,17 @@ Rules for every agent/operator:
 
 The wrapper is `scripts/deploy-hosting-resilient.sh`.
 
+### A callable that answers "internal" in production but works in the emulator
+
+Check its Cloud Run invoker binding before you touch the code. The Firebase CLI
+grants a callable `allUsers → roles/run.invoker` only when it **creates** it.
+An update never grants it again. `setGlobalOptions({ invoker: "public" })` does
+not reach `onCall` functions at all. So a grant that failed once (IAM
+throttling during a fleet deploy) survives every redeploy. The browser then gets
+a 403 with no CORS headers, and the client reports bare `internal`.
+`node scripts/verify-callable-access.mjs --fix` checks every callable and
+repairs this. Every functions release runs it before rules and Hosting.
+
 ### One command for a whole release
 
 ```bash

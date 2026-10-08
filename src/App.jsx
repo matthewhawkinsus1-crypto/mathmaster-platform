@@ -8070,12 +8070,12 @@ function App() {
       if (weightChanges.length > 0 && Array.isArray(liveRepairs) && liveRepairs.length > 0) {
         toastSuccess(
           'Live repairs and grade weights saved',
-          'Student responses and attempt history were preserved. MathMaster recalculated weighted grades and queued Google Classroom to reconcile the updated score.',
+          'Student responses and attempt history were preserved. MathMaster recalculated the assignment and section grades with the new weights and queued Google Classroom to reconcile them.',
         );
       } else if (weightChanges.length > 0) {
         toastSuccess(
           'Grade weights saved',
-          'Existing responses and attempts were not changed. MathMaster recalculated the assignment using the new question weights and queued Google Classroom to reconcile the updated score.',
+          'Existing responses and attempts were not changed. MathMaster recalculated the assignment and section grades using the new question weights and queued Google Classroom to reconcile them.',
         );
       } else if (presentationOnlyLiveRepair) {
         toastSuccess(
