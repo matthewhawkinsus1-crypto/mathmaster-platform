@@ -21,11 +21,28 @@ import { evaluateWeeklyGoalProgress, weekKeyFor } from './weeklyPathGrade.mjs';
  *   corrections    testCycleRecords.corrections
  *   weekly Path    weeklyPathGoalSnapshots (frozen by the server) + the
  *                  student's completed pathSessions (server-only)
- *   mastery        studentMasteryProfiles. Teachers may write this document
- *                  too (firestore.rules). That is accepted on purpose: the
- *                  teacher is the authority over mastery, and a teacher who
- *                  marks a skill Mastered is making exactly the claim this
- *                  rule rewards. A student cannot write it.
+ *   mastery        studentMasteryProfiles, written ONLY by the evidence
+ *                  trigger updateMyMathPathMasteryFromEvidence (Admin SDK)
+ *                  from server-only evidenceEvents. No client — student,
+ *                  teacher or root administrator — may write it
+ *                  (firestore.rules). It used to be teacher-writable, and
+ *                  `authorizedTeacherEmails` keeps former teachers, so a
+ *                  teacher who once had the student could write 200 made-up
+ *                  Mastered keys and mint 1,000 points. Defence in depth on
+ *                  top of the rule: a skill pays only when its key is a
+ *                  canonical skill code and it carries the evidence counts
+ *                  the trigger writes, consistent with Mastered
+ *                  (serverDerivedMastered), and at most
+ *                  MASTERY_SKILLS_PER_SYNC skills pay per sync.
+ *
+ * Read but never trusted to mint: the assignment (teacher-writable) supplies
+ * only the policy (server-owned fields in firestore.rules) and, when the
+ * record names no class, the audience — which can route one real event's
+ * single award to the class of record but never create a second one, since
+ * identities name the student and the event, not the class. grades/{id}
+ * supplies the class of record (roster fields are immutable to clients) and
+ * the disabled flag (which can only refuse). The ledger and rewardGrants,
+ * read to find streak blocks already paid, are client-unwritable.
  *
  * DEPENDENCY. My Math Path (Job D) is exposing better weekly-goal and mastery
  * data. Until that merges, this reads the existing weeklyPathGoalSnapshots +
@@ -92,6 +109,13 @@ export const GROWTH_REWARD_AMOUNTS = Object.freeze({
 export const RETEST_IMPROVEMENT_POINTS = 10;
 /** Consecutive on-time weekly goals that make a streak. */
 export const PATH_STREAK_WEEKS = 3;
+/**
+ * At most this many newly Mastered skills pay in one sync; the rest pay on
+ * later syncs under the same identities. Real mastery arrives a skill at a
+ * time, so this never delays an honest student by more than a sync, and it
+ * bounds what any undetected bad profile could mint at once.
+ */
+export const MASTERY_SKILLS_PER_SYNC = 5;
 /** Mastered-skill counts that earn a badge. */
 export const MASTERY_COUNT_BADGES = Object.freeze([
   Object.freeze({ count: 5, badgeCode: 'mastery-5' }),
@@ -112,6 +136,7 @@ export const SKIP_REASON = Object.freeze({
   EXTERNAL_ORIGINAL_MISSING: 'external_original_missing',
   GOAL_SET_AFTER_WEEK: 'goal_set_after_week',
   RUN_START_UNKNOWN: 'run_start_unknown',
+  SYNC_LIMIT: 'sync_limit',
 });
 
 export const MASTERED_STATUS = 'Mastered';
@@ -378,16 +403,24 @@ export const weeklyGoalOutcome = ({ goal = {}, completions = [], nowMs = Date.no
  * once, named by the block's last week — so three weeks earn it, six earn it
  * twice, and a fourth week alone does not re-pay the first three.
  *
- * Blocks are counted from the run's first week, so that week must be known.
+ * PAID BLOCKS ARE FIXED. `paidStreakWeeks` names every week in view whose
+ * streak award is already delivered (the reader checks the ledger and grant
+ * documents). Each paid block claims its last week and the two before it, and
+ * a new block is built only from three consecutive qualifying weeks that no
+ * paid block claims. So the history already paid is never re-segmented: a
+ * later read that misses a week (its sessions did not load) splits a run, but
+ * the pieces fall inside blocks already paid and pay nothing new. Counting
+ * the run from its first week would instead name a new block (weeks 0-5 paid
+ * blocks ending at weeks 2 and 5; dropping week 1 used to pay a third, ending
+ * at week 4). Blocks are named by their last week, so identities are the same
+ * as before.
+ *
  * When a run begins at the very first week the reader loaded and the week
  * before it could have qualified (the one-year window has moved past the
- * start date), the run's true start is out of sight. The blocks already paid
- * inside the run then fix the alignment: `paidStreakWeeks` names the weeks
- * whose streak award is already delivered, and counting resumes three weeks
- * after the earliest of them. Without that anchor the run is skipped rather
- * than counted from the wrong week (which would re-pay a block under a
- * different name) — that only happens to a student who did not sync for a
- * whole run of the window.
+ * start date), the run's true start is out of sight: its weeks count only
+ * after the first week a paid block claims. With no paid block in it the run
+ * is skipped rather than counted from the wrong week — that only happens to a
+ * student who did not sync for a whole run of the window.
  */
 export const evaluateWeeklyPathGrowth = ({
   studentId, classId, goals = [], completions = [], nowMs = Date.now(), windowStartWeekKey = null,
@@ -436,7 +469,25 @@ export const evaluateWeeklyPathGrowth = ({
 
   // Runs of consecutive qualifying weeks.
   const ordered = [...qualifying].sort();
-  const paid = new Set(list(paidStreakWeeks).map((weekKey) => clean(weekKey, 10)));
+  const paid = new Set(list(paidStreakWeeks).map((weekKey) => clean(weekKey, 10)).filter(isWeekKey));
+  // Every week a paid block covers: the block's last week and the two before
+  // it. A claimed week never counts toward a new block, so however a later
+  // read cuts the runs (a week whose sessions did not load, a week that left
+  // the window), no week is ever paid into a second block.
+  const claimed = new Set();
+  paid.forEach((end) => {
+    for (let back = 0; back < PATH_STREAK_WEEKS; back += 1) claimed.add(weekKeyFor(weekStartMs(end) - back * WEEK));
+  });
+  const streakAwards = (lastWeek) => eventAwards({
+    studentId,
+    classId,
+    ruleId: GROWTH_RULE_IDS.WEEKLY_PATH_STREAK,
+    sourceId: lastWeek,
+    points: GROWTH_REWARD_AMOUNTS.weeklyPathStreak,
+    badgeCode: GROWTH_BADGES.PATH_STREAK,
+    reasonLabel: 'Met your My Math Path goal on time three weeks in a row',
+    eventAtMs: null,
+  });
   let run = [];
   const closeRun = () => {
     if (!run.length) return;
@@ -444,30 +495,36 @@ export const evaluateWeeklyPathGrowth = ({
     const previous = weekKeyFor(weekStartMs(first) - WEEK);
     const firstIsWindowEdge = windowStartWeekKey && first <= windowStartWeekKey;
     const previousCouldQualify = previous >= startWeekKey;
-    // Index (1-based) of the first block end to pay.
-    let firstEnd = PATH_STREAK_WEEKS;
+    // A run whose start is out of sight counts only after a block already
+    // paid inside it; with none, it is skipped rather than guessed.
+    let counting = true;
     if (run.length >= PATH_STREAK_WEEKS && firstIsWindowEdge && previousCouldQualify) {
-      const anchor = run.findIndex((weekKey) => paid.has(weekKey));
-      if (anchor < 0) {
+      if (!run.some((weekKey) => claimed.has(weekKey))) {
         skipped.push(skip(GROWTH_RULE_IDS.WEEKLY_PATH_STREAK, first, SKIP_REASON.RUN_START_UNKNOWN));
         run = [];
         return;
       }
-      firstEnd = anchor + 1;
+      counting = false;
     }
-    for (let end = firstEnd; end <= run.length; end += PATH_STREAK_WEEKS) {
-      const lastWeek = run[end - 1];
-      awards.push(...eventAwards({
-        studentId,
-        classId,
-        ruleId: GROWTH_RULE_IDS.WEEKLY_PATH_STREAK,
-        sourceId: lastWeek,
-        points: GROWTH_REWARD_AMOUNTS.weeklyPathStreak,
-        badgeCode: GROWTH_BADGES.PATH_STREAK,
-        reasonLabel: 'Met your My Math Path goal on time three weeks in a row',
-        eventAtMs: null,
-      }));
-    }
+    let open = 0;
+    run.forEach((weekKey) => {
+      if (paid.has(weekKey)) {
+        // Re-offer a paid block: the delivery reports it already delivered,
+        // or completes a half (points without badge) that was refused.
+        awards.push(...streakAwards(weekKey));
+      }
+      if (claimed.has(weekKey)) {
+        counting = true;
+        open = 0;
+        return;
+      }
+      if (!counting) return;
+      open += 1;
+      if (open === PATH_STREAK_WEEKS) {
+        awards.push(...streakAwards(weekKey));
+        open = 0;
+      }
+    });
     run = [];
   };
   ordered.forEach((weekKey) => {
@@ -484,13 +541,70 @@ export const evaluateWeeklyPathGrowth = ({
 // MASTERY
 // ---------------------------------------------------------------------------
 
-/** The skills a mastery profile document says are Mastered right now, sorted. */
+/**
+ * Every skill a mastery profile document LABELS Mastered right now, sorted —
+ * whatever its shape. Used only for the baseline, where counting too much can
+ * only pay less.
+ */
 export const masteredSkills = (masteryProfile = {}) => Object.entries(
   masteryProfile?.profiles && typeof masteryProfile.profiles === 'object' ? masteryProfile.profiles : {},
 )
   .filter(([, profile]) => profile?.mastery?.status === MASTERED_STATUS)
   .map(([code, profile]) => clean(profile?.teksCode || code, 120))
   .filter(Boolean)
+  .sort();
+
+/*
+ * The key the evidence trigger writes: mathPath.displayAlignmentKey of a
+ * `texas:` alignment key — an upper-case TEKS student expectation such as
+ * A.2C, A2.4F or 8.5D (the same shape reducedWorkload.mjs accepts).
+ */
+export const CANONICAL_SKILL_CODE = /^[A-Z0-9]{1,4}\.\d{1,2}[A-Z]?$/;
+
+// The thresholds updateMyMathPathMasteryFromEvidence (functions/index.js)
+// requires before it writes Mastered.
+const MASTERED_MIN_ESTIMATE = 85;
+const MASTERED_MIN_ELIGIBLE_EVENTS = 4;
+const MASTERED_MIN_INDEPENDENT_SUCCESSES = 2;
+const MASTERED_MIN_EFFECTIVE_WEIGHT = 1.1;
+const MASTERED_MIN_DOK = 3;
+
+const nonNegativeInteger = (value) => Number.isInteger(value) && value >= 0;
+const nonNegative = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
+/**
+ * Whether one profile entry is a Mastered skill AS THE SERVER DERIVES IT: a
+ * canonical code that is also the entry's own teksCode, and the evidence
+ * counts the trigger writes (accumulator + dimensions, which it keeps equal),
+ * consistent with the Mastered thresholds and with the estimate the
+ * accumulator implies. A label alone — `{ mastery: { status: 'Mastered' } }` —
+ * is not mastery.
+ */
+export const serverDerivedMastered = (code, entry) => {
+  if (!CANONICAL_SKILL_CODE.test(String(code || ''))) return false;
+  if (!entry || typeof entry !== 'object' || entry.teksCode !== code) return false;
+  if (entry.mastery?.status !== MASTERED_STATUS) return false;
+  const accumulator = entry.accumulator || {};
+  const dimensions = entry.dimensions || {};
+  const { effectiveWeight, weightedScoreSum, eligibleEvents, independentSuccesses } = accumulator;
+  if (!nonNegative(effectiveWeight) || !nonNegative(weightedScoreSum)) return false;
+  if (!nonNegativeInteger(eligibleEvents) || !nonNegativeInteger(independentSuccesses)) return false;
+  if (dimensions.eligibleGradeLevelEvents !== eligibleEvents || dimensions.independentSuccesses !== independentSuccesses) return false;
+  if (eligibleEvents < MASTERED_MIN_ELIGIBLE_EVENTS || independentSuccesses < MASTERED_MIN_INDEPENDENT_SUCCESSES) return false;
+  if (independentSuccesses > eligibleEvents) return false;
+  if (effectiveWeight < MASTERED_MIN_EFFECTIVE_WEIGHT || weightedScoreSum > effectiveWeight) return false;
+  if (!list(dimensions.dokRepresented).some((value) => Number(value) >= MASTERED_MIN_DOK)) return false;
+  const estimate = Math.round((weightedScoreSum / effectiveWeight) * 100);
+  if (entry.mastery.estimate !== estimate || estimate < MASTERED_MIN_ESTIMATE) return false;
+  return finite(entry.updatedAt) !== null;
+};
+
+/** The skills that can pay: Mastered as the server derives it (serverDerivedMastered), sorted. */
+export const payableMasteredSkills = (masteryProfile = {}) => Object.entries(
+  masteryProfile?.profiles && typeof masteryProfile.profiles === 'object' ? masteryProfile.profiles : {},
+)
+  .filter(([code, entry]) => serverDerivedMastered(code, entry))
+  .map(([code]) => code)
   .sort();
 
 /**
@@ -513,11 +627,22 @@ export const masteryBaselineFor = (masteryProfile = {}, nowMs = Date.now()) => (
  * names the skill, so falling back to Secure and returning to Mastered pays
  * nothing new. Reaching 5 and 10 Mastered skills earns a badge, but only when
  * that count was crossed after the baseline.
+ *
+ * Only skills Mastered as the server derives it count (serverDerivedMastered).
+ * At most MASTERY_SKILLS_PER_SYNC skills that have not been paid yet pay per
+ * call, in code order; `paidSkills` names the skills whose award is already
+ * delivered (the reader checks their ledger documents), so the next sync
+ * moves on to the next ones. Already-paid skills are still returned, under
+ * the same identity, so the delivery reports them as already delivered. A
+ * count badge counts only the skills paid by now (baseline + paid + this
+ * sync's), so it never runs ahead of the points.
  */
-export const evaluateMasteryGrowth = ({ studentId, classId, masteryProfile = null, baseline = null } = {}) => {
+export const evaluateMasteryGrowth = ({
+  studentId, classId, masteryProfile = null, baseline = null, paidSkills = [], maxSkillsPerSync = MASTERY_SKILLS_PER_SYNC,
+} = {}) => {
   if (!masteryProfile || !baseline) return { awards: [], skipped: [] };
   const profileClass = clean(masteryProfile.classId, 120);
-  const mastered = masteredSkills(masteryProfile);
+  const mastered = payableMasteredSkills(masteryProfile);
   const baselineSkills = new Set(list(baseline.skills).map((code) => clean(code, 120)));
   const fresh = mastered.filter((code) => !baselineSkills.has(code));
   if (!fresh.length) return { awards: [], skipped: [] };
@@ -542,11 +667,22 @@ export const evaluateMasteryGrowth = ({ studentId, classId, masteryProfile = nul
   const awards = [];
   const skipped = [];
   const profiles = masteryProfile.profiles || {};
+  const paid = new Set(list(paidSkills).map((code) => clean(code, 120)));
+  const limit = Math.max(0, Math.floor(Number(maxSkillsPerSync) || 0));
+  let paying = 0;
+  let paidCount = 0;
   fresh.forEach((code) => {
-    const entry = profiles[code] || Object.values(profiles).find((profile) => clean(profile?.teksCode, 120) === code) || {};
-    const updatedAt = finite(entry.updatedAt);
-    if (updatedAt !== null && updatedAt < GROWTH_REWARDS_START_MS) {
+    const updatedAt = finite(profiles[code]?.updatedAt);
+    if (updatedAt < GROWTH_REWARDS_START_MS) {
       skipped.push(skip(GROWTH_RULE_IDS.MASTERY_SKILL, code, SKIP_REASON.BEFORE_START));
+      return;
+    }
+    if (paid.has(code)) {
+      paidCount += 1;
+    } else if (paying < limit) {
+      paying += 1;
+    } else {
+      skipped.push(skip(GROWTH_RULE_IDS.MASTERY_SKILL, code, SKIP_REASON.SYNC_LIMIT));
       return;
     }
     awards.push(...eventAwards({
@@ -561,8 +697,9 @@ export const evaluateMasteryGrowth = ({ studentId, classId, masteryProfile = nul
   });
 
   const baselineCount = baselineSkills.size;
+  const creditedCount = (mastered.length - fresh.length) + paidCount + paying;
   MASTERY_COUNT_BADGES.forEach(({ count, badgeCode }) => {
-    if (mastered.length >= count && baselineCount < count) {
+    if (creditedCount >= count && baselineCount < count) {
       awards.push(...eventAwards({
         studentId,
         classId,
@@ -585,7 +722,7 @@ export const evaluateMasteryGrowth = ({ studentId, classId, masteryProfile = nul
  *
  *   testCycles  [{ record, assignment }]  the student's Test Cycle records
  *   goals, completions, windowStartWeekKey, paidStreakWeeks, nowMs   (see evaluateWeeklyPathGrowth)
- *   masteryProfile, masteryBaseline                  (see evaluateMasteryGrowth)
+ *   masteryProfile, masteryBaseline, paidMasterySkills   (see evaluateMasteryGrowth)
  *
  * Returns { awards, skipped }. Awards are de-duplicated by document id, so a
  * caller can deliver the list as-is.
@@ -600,6 +737,7 @@ export const evaluateGrowthRewards = ({
   paidStreakWeeks = [],
   masteryProfile = null,
   masteryBaseline = null,
+  paidMasterySkills = [],
   nowMs = Date.now(),
 } = {}) => {
   const student = clean(studentId, 64);
@@ -612,7 +750,9 @@ export const evaluateGrowthRewards = ({
       evaluateCorrectionsGrowth({ studentId: student, classId: cls, record, assignment }),
     ]),
     evaluateWeeklyPathGrowth({ studentId: student, classId: cls, goals, completions, nowMs, windowStartWeekKey, paidStreakWeeks }),
-    evaluateMasteryGrowth({ studentId: student, classId: cls, masteryProfile, baseline: masteryBaseline }),
+    evaluateMasteryGrowth({
+      studentId: student, classId: cls, masteryProfile, baseline: masteryBaseline, paidSkills: paidMasterySkills,
+    }),
   ];
 
   const seen = new Set();

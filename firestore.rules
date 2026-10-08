@@ -1817,9 +1817,19 @@ service cloud.firestore {
 
     // Students can read their derived Phase 5 state but cannot forge it, and a
     // teacher reads it only for a student they are authorized for.
+    //
+    // Nobody writes it from a client — not the student, not a teacher, not
+    // the root administrator. It is derived state: the evidence trigger
+    // (updateMyMathPathMasteryFromEvidence) writes it from server-only
+    // evidenceEvents, and the roster/backfill/reset paths maintain it, all on
+    // the Admin SDK. It pays growth rewards (5 Class Points per newly Mastered
+    // skill, functions/shared/growthRewardRules.mjs), and authorizedTeacherEmails
+    // keeps FORMER teachers, so a teacher write here let anyone who ever had
+    // the student mint points and badges by writing made-up Mastered skills.
+    // No client wrote it (the browser only reads it, masteryStateService.js).
     match /studentMasteryProfiles/{studentId} {
       allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
-      allow write: if rootAdmin() || authorizedTeacher();
+      allow write: if false;
     }
 
     match /studentRetentionSchedules/{studentId} {

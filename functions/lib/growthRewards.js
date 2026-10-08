@@ -28,8 +28,10 @@
  * immediate one would have.
  *
  * Every read is bounded: at most MAX_TEST_CYCLE_RECORDS records, one
- * assignment per record, at most WEEK_LOOKBACK snapshot ids, the Path sessions
- * of those weeks, one mastery profile and one state document.
+ * assignment per record, at most WEEK_LOOKBACK snapshot ids and their streak
+ * award documents, the completed Path sessions of those weeks, one mastery
+ * profile with the ledger documents of its newly Mastered skills, and one
+ * state document.
  */
 
 const { FieldValue } = require("firebase-admin/firestore");
@@ -104,7 +106,7 @@ async function readRosterInTransaction(transaction, db, modules, { classId, stud
 }
 
 /** Credit one growth award to the Class Points ledger. Never credits twice. */
-async function deliverGrowthPoints(db, modules, award) {
+async function deliverGrowthPoints(db, modules, award, nowMs) {
   const { classPoints } = modules;
   const { classId, studentId } = award;
   const ledgerRef = db.collection(LEDGER).doc(award.id);
@@ -141,7 +143,12 @@ async function deliverGrowthPoints(db, modules, award) {
       ruleVersion: award.ruleVersion,
       growthSourceId: award.sourceId,
       awardIdentity: award.identity,
-      createdAt: FieldValue.serverTimestamp(),
+      // An ISO string, like every other ledger writer (classPoints.mjs
+      // builders). The student's Recent points is
+      // orderBy('createdAt','desc').limit(10), and Firestore orders every
+      // string above every timestamp: a server Timestamp here sank each growth
+      // credit below the student's ISO-dated rows, out of the list.
+      createdAt: new Date(nowMs).toISOString(),
     };
     const nextAccount = classPoints.applyTransaction(baseAccount, transactionData);
     transaction.set(accountRef, {
@@ -196,7 +203,8 @@ async function deliverGrowthBadge(db, modules, award, nowMs) {
         authorizedTeacherEmails: authContext.authorizedTeacherEmails,
       }),
       reasonLabel: award.reasonLabel,
-      createdAt: FieldValue.serverTimestamp(),
+      // ISO, the same instant as awardedAt (the wallet orders grants by it).
+      createdAt: new Date(nowMs).toISOString(),
       updatedAt: FieldValue.serverTimestamp(),
     });
     return { outcome: "delivered" };
@@ -204,7 +212,7 @@ async function deliverGrowthBadge(db, modules, award, nowMs) {
 }
 
 const deliverOne = (db, modules, award, nowMs) => (award.kind === "classPoints"
-  ? deliverGrowthPoints(db, modules, award)
+  ? deliverGrowthPoints(db, modules, award, nowMs)
   : deliverGrowthBadge(db, modules, award, nowMs));
 
 /**
@@ -257,18 +265,26 @@ async function loadWeeklyPath(db, modules, studentId, nowMs) {
   const goals = goalDocs.filter((entry) => entry.exists).map((entry) => entry.data() || {})
     .filter((goal) => String(goal.studentId || studentId) === studentId);
   if (!goals.length) return { goals, completions: [], windowStartWeekKey, paidStreakWeeks: [] };
-  const paidStreakWeeks = await loadPaidStreakWeeks(db, modules, { studentId, goals, windowStartWeekKey, startWeekKey });
+  const paidStreakWeeks = await loadPaidStreakWeeks(db, modules, { studentId, goals });
 
   // Every assigned weekly session carries weekKey (startPathSession requires
-  // it with weeklySlotKey), so the student's sessions for these weeks are two
-  // equality filters — served by Firestore's built-in single-field indexes,
-  // with no composite index to deploy.
+  // it with weeklySlotKey), so the student's COMPLETED sessions for these
+  // weeks are three equality filters (`in` is a set of equalities). Firestore
+  // serves an equality-only query by merging the built-in single-field
+  // indexes, so there is still no composite index to deploy
+  // (firestore.indexes.json has no fieldOverrides exempting these fields).
+  // Filtering on status in the query, not afterwards, keeps abandoned and
+  // in-progress sessions from crowding completed ones past the limit — a week
+  // that drops out of one read must not look like a broken streak (and the
+  // paid-block anchoring in evaluateWeeklyPathGrowth makes sure it cannot
+  // re-pay one even if it does).
   const completions = [];
   for (const keys of chunk(goals.map((goal) => goal.weekKey).filter(Boolean), FIRESTORE_IN_LIMIT)) {
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await db.collection(PATH_SESSIONS)
       .where("studentId", "==", studentId)
       .where("weekKey", "in", keys)
+      .where("status", "==", "completed")
       .limit(MAX_SESSIONS_PER_QUERY)
       .get();
     snapshot.docs.forEach((entry) => {
@@ -288,25 +304,17 @@ async function loadWeeklyPath(db, modules, studentId, nowMs) {
 }
 
 /*
- * Once the one-year window has moved past the start date, a run of goal weeks
- * that begins at the window's first week may have begun earlier, out of
- * sight. The streak blocks already paid inside that run fix where its blocks
- * fall (see evaluateWeeklyPathGrowth), so read which of its weeks already
- * hold a streak award. Only the unbroken stretch of goal weeks from the
- * window's first week can be such a run, so only those ids are read; in the
- * first year nothing is read at all.
+ * The goal weeks whose streak block is already paid. Every goal week in view
+ * is checked (at most WEEK_LOOKBACK, two documents each): a paid block claims
+ * its weeks for good, so evaluateWeeklyPathGrowth never builds a new block
+ * across them, whether a later read misses a week or the window has moved past
+ * the run's start.
  */
-async function loadPaidStreakWeeks(db, modules, { studentId, goals, windowStartWeekKey, startWeekKey }) {
-  if (!(windowStartWeekKey > startWeekKey)) return [];
-  const { weekKeyFor } = modules.weeklyPath;
+async function loadPaidStreakWeeks(db, modules, { studentId, goals }) {
   const { rules, rewardGrants } = modules;
-  const goalWeeks = new Set(goals.map((goal) => goal.weekKey));
-  const edgeWeeks = [];
-  for (let at = Date.parse(`${windowStartWeekKey}T00:00:00Z`); goalWeeks.has(weekKeyFor(at)); at += WEEK_MS) {
-    edgeWeeks.push(weekKeyFor(at));
-  }
-  if (!edgeWeeks.length) return [];
-  const identities = edgeWeeks.map((weekKey) => rules.growthAwardIdentity({
+  const goalWeeks = [...new Set(goals.map((goal) => String(goal.weekKey || "")).filter(Boolean))].sort();
+  if (!goalWeeks.length) return [];
+  const identities = goalWeeks.map((weekKey) => rules.growthAwardIdentity({
     studentId, ruleId: rules.GROWTH_RULE_IDS.WEEKLY_PATH_STREAK, sourceId: weekKey,
   }));
   // The points and the badge share one identity; either one in place means
@@ -315,22 +323,40 @@ async function loadPaidStreakWeeks(db, modules, { studentId, goals, windowStartW
     ...identities.map((identity) => db.collection(LEDGER).doc(rules.growthLedgerTransactionId(identity))),
     ...identities.map((identity) => db.collection(rewardGrants.REWARD_GRANTS_COLLECTION).doc(rules.growthGrantId(identity))),
   );
-  return edgeWeeks.filter((weekKey, index) => docs[index].exists || docs[index + edgeWeeks.length].exists);
+  return goalWeeks.filter((weekKey, index) => docs[index].exists || docs[index + goalWeeks.length].exists);
 }
 
-/** The mastery profile and its baseline, creating the baseline on the first sync (see masteryBaselineFor). */
+/**
+ * The mastery profile and its baseline, creating the baseline on the first
+ * sync (see masteryBaselineFor), and which payable skills are already paid —
+ * evaluateMasteryGrowth pays at most MASTERY_SKILLS_PER_SYNC new ones per sync
+ * and needs to know which those are.
+ */
 async function loadMastery(db, modules, studentId, nowMs) {
+  const { rules } = modules;
   const profileRef = db.collection(MASTERY_PROFILES).doc(studentId);
   const stateRef = db.collection(GROWTH_STATE).doc(studentId);
-  return db.runTransaction(async (transaction) => {
+  const loaded = await db.runTransaction(async (transaction) => {
     const [profileSnap, stateSnap] = await Promise.all([transaction.get(profileRef), transaction.get(stateRef)]);
     const masteryProfile = profileSnap.exists ? (profileSnap.data() || {}) : null;
     const stored = stateSnap.exists ? stateSnap.data()?.masteryBaseline : null;
     if (stored && Array.isArray(stored.skills)) return { masteryProfile, masteryBaseline: stored };
-    const masteryBaseline = modules.rules.masteryBaselineFor(masteryProfile || {}, nowMs);
+    const masteryBaseline = rules.masteryBaselineFor(masteryProfile || {}, nowMs);
     transaction.set(stateRef, { studentId, masteryBaseline, updatedAt: nowMs }, { merge: true });
     return { masteryProfile, masteryBaseline };
   });
+
+  const baseline = new Set(loaded.masteryBaseline.skills || []);
+  const candidates = rules.payableMasteredSkills(loaded.masteryProfile || {}).filter((code) => !baseline.has(code));
+  const paidMasterySkills = [];
+  for (const codes of chunk(candidates, 100)) {
+    // eslint-disable-next-line no-await-in-loop
+    const docs = await db.getAll(...codes.map((code) => db.collection(LEDGER).doc(rules.growthLedgerTransactionId(
+      rules.growthAwardIdentity({ studentId, ruleId: rules.GROWTH_RULE_IDS.MASTERY_SKILL, sourceId: code }),
+    ))));
+    docs.forEach((entry, index) => { if (entry.exists) paidMasterySkills.push(codes[index]); });
+  }
+  return { ...loaded, paidMasterySkills };
 }
 
 const publicAward = (award) => ({
@@ -382,6 +408,7 @@ async function syncStudentGrowthRewards(db, { studentId, nowMs = Date.now() } = 
     paidStreakWeeks: weekly.paidStreakWeeks,
     masteryProfile: mastery.masteryProfile,
     masteryBaseline: mastery.masteryBaseline,
+    paidMasterySkills: mastery.paidMasterySkills,
     nowMs,
   });
 

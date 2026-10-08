@@ -10,6 +10,10 @@
 //   * an archived class or a disabled student earns nothing new, including
 //     when the roster changes between evaluation and delivery
 //   * a Path streak longer than the one-year window keeps paying
+//   * a later read missing a paid week never pays a new streak block
+//   * abandoned Path sessions cannot crowd completed ones out of the read
+//   * mastery pays only server-derived skills, at most five per sync
+//   * a growth credit is the newest row in the student's Recent points query
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -104,6 +108,22 @@ const accountFor = async (studentId, classId = CLASS_ID) => (await db.collection
 
 const sync = (studentId) => growth.syncStudentGrowthRewards(db, { studentId, nowMs: NOW });
 
+/*
+ * A skill as updateMyMathPathMasteryFromEvidence writes it after four correct,
+ * independent answers at weight 1, one at DOK 3. Mastery pays only for this
+ * shape (growthRewardRules.mjs serverDerivedMastered), not a bare label.
+ */
+const derivedMastered = (code, updatedAt) => ({
+  teksCode: code,
+  mastery: { estimate: 100, observedPerformance: 100, status: 'Mastered', confidence: 'Medium' },
+  dimensions: {
+    eligibleGradeLevelEvents: 4, modifiedEvidenceEvents: 0, independentSuccesses: 4,
+    dokRepresented: [2, 3], familiesRepresented: [], lastIndependentSuccessAt: updatedAt,
+  },
+  accumulator: { effectiveWeight: 4, weightedScoreSum: 4, eligibleEvents: 4, modifiedEvents: 0, independentSuccesses: 4 },
+  updatedAt,
+});
+
 test('the first sync delivers every earned award, and a second sync delivers nothing again', async () => {
   const { studentId } = await seedStudent();
   const first = await sync(studentId);
@@ -149,7 +169,7 @@ test('mastery pays only for skills reached after the first sync, once', async ()
   assert.deepEqual(state.masteryBaseline.skills, ['A.1'], 'the skill already Mastered is the baseline');
 
   await db.collection('studentMasteryProfiles').doc(studentId).set({
-    profiles: { 'A.2': { teksCode: 'A.2', mastery: { status: 'Mastered' }, updatedAt: NOW - HOUR } },
+    profiles: { 'A.2': derivedMastered('A.2', NOW - HOUR) },
   }, { merge: true });
   const next = await sync(studentId);
   assert.deepEqual(next.delivered.map((award) => [award.ruleId, award.sourceId, award.amount]), [['masterySkill', 'A.2', 5]]);
@@ -313,4 +333,134 @@ test('a weekly Path streak longer than the one-year window keeps paying its bloc
   assert.ok(!december.skipped.some((entry) => entry.reason === 'run_start_unknown'));
   const ledger = await ledgerFor(studentId);
   assert.equal((await accountFor(studentId)).balance, ledger.reduce((sum, entry) => sum + entry.amount, 0));
+});
+
+test('mastery pays only server-derived skills, at most five per sync, each once', async () => {
+  const { studentId } = await seedStudent();
+  await sync(studentId); // freezes the baseline (A.1)
+
+  // A former teacher's forgery, had the rules still let one through: bare
+  // labels pay nothing.
+  const forged = Object.fromEntries(Array.from({ length: 50 }, (_, index) => {
+    const code = `A.${index + 2}F`;
+    return [code, { teksCode: code, mastery: { status: 'Mastered' }, updatedAt: NOW - HOUR }];
+  }));
+  await db.collection('studentMasteryProfiles').doc(studentId).set({ profiles: forged }, { merge: true });
+  assert.deepEqual((await sync(studentId)).delivered, []);
+
+  // Twelve skills reached through evidence: five, five, then two.
+  const real = Object.fromEntries(Array.from({ length: 12 }, (_, index) => {
+    const code = `A2.${index + 1}B`;
+    return [code, derivedMastered(code, NOW - HOUR)];
+  }));
+  await db.collection('studentMasteryProfiles').doc(studentId).set({ profiles: real }, { merge: true });
+  const skillsOf = (result) => result.delivered.filter((award) => award.ruleId === 'masterySkill').map((award) => award.sourceId);
+  const rounds = [];
+  for (let round = 0; round < 4; round += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    rounds.push(skillsOf(await sync(studentId)));
+  }
+  assert.deepEqual(rounds.map((round) => round.length), [5, 5, 2, 0]);
+  assert.deepEqual(rounds.flat().sort(), Object.keys(real).sort());
+  const ledger = await ledgerFor(studentId);
+  assert.equal(ledger.filter((entry) => entry.ruleId === 'masterySkill').length, 12);
+  assert.equal((await accountFor(studentId)).balance, FIRST_SYNC_POINTS + 12 * 5);
+  assert.deepEqual((await grantsFor(studentId)).map((grant) => grant.badgeCode).filter((code) => code.startsWith('mastery')).sort(), ['mastery-10', 'mastery-5']);
+});
+
+test('a growth credit is the newest row in the student\'s Recent points query', async () => {
+  const { studentId } = await seedStudent();
+  // Ten earlier ledger rows from the other writers, ISO-dated (classPoints.mjs builders).
+  const batch = db.batch();
+  for (let index = 0; index < 10; index += 1) {
+    batch.set(db.collection('classPointTransactions').doc(uniqueId('gr-manual')), {
+      studentId, classId: CLASS_ID, amount: 1, reasonLabel: 'Helping a classmate', sourceType: 'teacherAward',
+      authorizedTeacherEmails: [TEACHER], createdAt: new Date(NOW - (index + 1) * DAY).toISOString(),
+    });
+  }
+  await batch.commit();
+  await sync(studentId);
+
+  // Exactly the student's history query (src/platform/classPointsClient.js
+  // subscribeToStudentClassPoints).
+  const recent = await db.collection('classPointTransactions')
+    .where('studentId', '==', studentId)
+    .where('classId', '==', CLASS_ID)
+    .orderBy('createdAt', 'desc')
+    .limit(10)
+    .get();
+  const rows = recent.docs.map((entry) => entry.data());
+  assert.equal(rows[0].sourceType, 'growthReward', JSON.stringify(rows.map((row) => [row.sourceType, row.createdAt])));
+  assert.equal(rows.filter((row) => row.sourceType === 'growthReward').length, 3, 'all three growth credits are in the newest ten');
+  rows.filter((row) => row.sourceType === 'growthReward').forEach((row) => {
+    assert.equal(typeof row.createdAt, 'string');
+    assert.equal(row.createdAt, new Date(NOW).toISOString());
+  });
+  (await grantsFor(studentId)).forEach((grant) => assert.equal(typeof grant.createdAt, 'string'));
+});
+
+const seedPathWeeks = async (studentId, indexes, { sessionPrefix = 'gr-path' } = {}) => {
+  const weekAt = (index) => new Date(WEEK_START + index * 7 * DAY).toISOString().slice(0, 10);
+  const batch = db.batch();
+  const sessionIds = {};
+  for (const index of indexes) {
+    const weekKey = weekAt(index);
+    const start = Date.parse(`${weekKey}T00:00:00Z`);
+    batch.set(db.collection('weeklyPathGoalSnapshots').doc(`${studentId}__${weekKey}`), {
+      studentId, classId: CLASS_ID, weekKey, goalSessions: 1, assignmentState: 'assigned',
+      dueAt: start + 7 * DAY + 5 * HOUR, createdAt: start + 2 * DAY + HOUR,
+      sessions: [{ slot: 1, weeklySlotKey: `${weekKey}|1` }],
+    });
+    const sessionId = uniqueId(sessionPrefix);
+    sessionIds[index] = sessionId;
+    batch.set(db.collection('pathSessions').doc(sessionId), {
+      studentId, classId: CLASS_ID, status: 'completed', weekKey, weeklySlotKey: `${weekKey}|1`, completedAt: start + 3 * DAY,
+    });
+  }
+  await batch.commit();
+  return { weekAt, sessionIds };
+};
+const pathStudent = async () => {
+  const studentId = uniqueId('gr-path-student');
+  await db.collection('grades').doc(studentId).set({ classId: CLASS_ID, assignedTeacherEmail: TEACHER, status: 'active', displayName: 'Path Student' });
+  return studentId;
+};
+const streakEndsOf = (result) => result.delivered
+  .filter((award) => award.ruleId === 'weeklyPathStreak' && award.kind === 'classPoints')
+  .map((award) => award.sourceId)
+  .sort();
+
+test('a later read missing a paid week pays no new streak block', async () => {
+  const studentId = await pathStudent();
+  const { weekAt, sessionIds } = await seedPathWeeks(studentId, [0, 1, 2, 3, 4, 5]);
+  const atNow = Date.parse('2026-11-20T15:00:00Z');
+  const first = await growth.syncStudentGrowthRewards(db, { studentId, nowMs: atNow });
+  assert.deepEqual(streakEndsOf(first), [weekAt(2), weekAt(5)]);
+
+  // Week 1's completed session is no longer read (the reproduced case paid a
+  // new block ending at week 4 here).
+  await db.collection('pathSessions').doc(sessionIds[1]).delete();
+  const later = await growth.syncStudentGrowthRewards(db, { studentId, nowMs: atNow });
+  assert.deepEqual(later.delivered, [], JSON.stringify(later.delivered));
+  const streakLedger = (await ledgerFor(studentId)).filter((entry) => entry.ruleId === 'weeklyPathStreak');
+  assert.deepEqual(streakLedger.map((entry) => entry.growthSourceId).sort(), [weekAt(2), weekAt(5)]);
+});
+
+test('abandoned Path sessions cannot crowd the completed ones out of the read', async () => {
+  const studentId = await pathStudent();
+  const { weekAt } = await seedPathWeeks(studentId, [0], { sessionPrefix: 'z-completed' });
+  // More unfinished sessions in the same week than one read returns, with ids
+  // that sort before the completed one.
+  for (let start = 0; start < 320; start += 160) {
+    const batch = db.batch();
+    for (let index = start; index < start + 160; index += 1) {
+      batch.set(db.collection('pathSessions').doc(`a-abandoned-${studentId}-${String(index).padStart(3, '0')}`), {
+        studentId, classId: CLASS_ID, status: index % 2 ? 'abandoned' : 'active', weekKey: weekAt(0), weeklySlotKey: `${weekAt(0)}|1`,
+      });
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  const result = await growth.syncStudentGrowthRewards(db, { studentId, nowMs: Date.parse('2026-10-21T15:00:00Z') });
+  assert.deepEqual(result.delivered.map((award) => [award.ruleId, award.sourceId]), [['weeklyPathGoal', weekAt(0)]]);
 });

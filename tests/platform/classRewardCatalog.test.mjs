@@ -7,6 +7,7 @@ import {
   STARTER_CLASS_REWARDS,
   academicWordingIn,
   activeCatalogItems,
+  buildCancelledRequest,
   buildCatalogDocument,
   buildClassRewardRequest,
   evaluateClassRewardRedemption,
@@ -194,4 +195,57 @@ test('resolution: pending → fulfilled never refunds; pending → declined refu
   assert.equal(flip.outcome, 'refused');
   assert.match(flip.message, /already marked fulfilled/);
   assert.equal(planRequestResolution(decline.next, { resolution: 'fulfilled', at: 'later' }).outcome, 'refused');
+});
+
+// The student screen promises "This does not change any grade or assignment."
+// These five got past the first word list (review finding: each was accepted
+// as a label). Another go at the work, a counted skip and a peek at the
+// solution are all academic effects.
+test('another attempt, a counted skip and a peek at the solution are refused', () => {
+  [
+    'Skip 1 question',
+    'One extra attempt on Path',
+    'Second try on any question',
+    'Peek at the solution',
+    'Skip 2 problems',
+    'Retry a problem',
+    'Redo the last question',
+    'Do-over on one question',
+  ].forEach((label) => {
+    assert.notEqual(academicWordingIn(label), null, label);
+    assert.throws(() => validateCatalogItem(item({ label })), /can't change grades or required work/, label);
+  });
+  // In the description as well as the name.
+  assert.throws(() => validateCatalogItem(item({ label: 'Golden ticket', description: 'Trade it for a second try on any question.' })), /mentions/);
+});
+
+test('the wider word list still lets ordinary privileges through', () => {
+  [
+    'Choose your seat for a day',
+    'Music with headphones during independent work',
+    'Be the class DJ for the warm-up',
+    'Line leader for the day',
+    'Try the class snack',
+    'Skip the line at the pencil sharpener',
+  ].forEach((label) => {
+    assert.equal(academicWordingIn(label), null, label);
+    assert.doesNotThrow(() => validateCatalogItem(item({ label })), label);
+  });
+});
+
+test('a request whose student was erased is cancelled: terminal, no refund, no student label', () => {
+  const pending = buildClassRewardRequest({
+    requestDocId: 'crr_9', requestId: 'r9', studentId: 's', classId: 'c', item: item(), weekKey: '2026-10-05',
+    studentLabel: 'Ava M.', debitTransactionId: 'crd_9', originTeacherEmail: 't', authorizedTeacherEmails: ['t'], at: 'then',
+  });
+  const cancelled = buildCancelledRequest(pending, { teacherEmail: 't', at: 'now' });
+  assert.equal(cancelled.status, CLASS_REWARD_REQUEST_STATUS.CANCELLED);
+  assert.equal(cancelled.studentLabel, null);
+  assert.equal(cancelled.refundTransactionId, null);
+  assert.equal(cancelled.history.at(-1).status, 'cancelled');
+  for (const resolution of ['declined', 'fulfilled']) {
+    const plan = planRequestResolution(cancelled, { resolution, reason: 'x', at: 'later' });
+    assert.equal(plan.outcome, 'refused', resolution);
+    assert.match(plan.message, /cancelled/);
+  }
 });

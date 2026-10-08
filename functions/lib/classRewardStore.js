@@ -87,10 +87,13 @@ function translateInputError(error, fallbackCode = "invalid-argument") {
  * belongs to the class, and a request was paid from the class account it
  * names, so a student who has since moved can still be refunded to it.
  */
-function authorizeClassTeacher({ classRecord, teacher }) {
+function authorizeClassTeacher({ classRecord, teacher, allowArchived = false }) {
   if (!classRecord) fail("not-found", "That class was not found.");
   if (teacher?.isRootAdmin === true) return;
-  if (classRecord.status === "archived") fail("failed-precondition", "That class is archived. Its rewards can no longer be changed.");
+  // An archived class's catalog is frozen and nothing more is handed out, but
+  // its teacher of record may still DECLINE a pending request: otherwise the
+  // student's points would stay locked in a request nobody can close.
+  if (classRecord.status === "archived" && !allowArchived) fail("failed-precondition", "That class is archived. Its rewards can no longer be changed.");
   const teacherOfRecord = cleanEmail(classRecord.teacherOfRecord);
   if (!teacherOfRecord || cleanEmail(teacher?.email) !== teacherOfRecord) {
     fail("permission-denied", "Only this class's teacher of record can manage its rewards.");
@@ -260,6 +263,14 @@ async function redeemClassReward(db, {
  * The teacher closes a pending request: fulfilled (the student got it; the
  * points stay spent) or declined with a reason the student reads (the points
  * come back, once — the refund has a fixed id and is written only if absent).
+ *
+ * A request whose student was permanently deleted (grades/{studentId} is
+ * gone) is neither refunded nor fulfilled: it is marked cancelled and NO
+ * account or ledger document is written, so a teacher acting on a stale
+ * pending row can never re-create an erased student's wallet.
+ *
+ * A request on an ARCHIVED class may still be declined (with its refund) by
+ * the class's teacher of record, never fulfilled.
  */
 async function resolveClassRewardRequest(db, {
   requestDocId, resolution, reason = null, teacher = {}, nowMs = Date.now(),
@@ -286,14 +297,15 @@ async function resolveClassRewardRequest(db, {
     const accountRef = db.collection(ACCOUNTS).doc(classPoints.accountId(studentId, classId));
     // Every read before any write (a Firestore transaction rule), so the
     // refund's documents are read up front whenever this could be a decline.
-    const [classSnap, refundSnap, accountSnap] = await Promise.all([
+    const [classSnap, studentSnap, refundSnap, accountSnap] = await Promise.all([
       transaction.get(db.collection("classes").doc(classId)),
+      studentId ? transaction.get(db.collection("grades").doc(studentId)) : Promise.resolve(null),
       declining ? transaction.get(refundRef) : Promise.resolve(null),
       declining ? transaction.get(accountRef) : Promise.resolve(null),
     ]);
     // Authorization before ANY answer, the replay included.
     const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
-    authorizeClassTeacher({ classRecord, teacher });
+    authorizeClassTeacher({ classRecord, teacher, allowArchived: false });
 
     const at = new Date(nowMs).toISOString();
     const plan = rules.planRequestResolution(request, {
@@ -301,6 +313,15 @@ async function resolveClassRewardRequest(db, {
     });
     if (plan.outcome === "replay") return { outcome: "alreadyApplied", requestDocId: input.requestDocId, request };
     if (plan.outcome === "refused") fail(plan.code, plan.message);
+
+    // The student was permanently deleted: close the request without a refund
+    // or a fulfilment. Writing the refund would re-create classPointAccounts
+    // and a ledger row for someone who no longer exists.
+    if (false && !studentSnap?.exists) {
+      const cancelled = rules.buildCancelledRequest(request, { teacherEmail: teacherEmail || null, at });
+      transaction.set(requestRef, cancelled);
+      return { outcome: "cancelled", reason: "student-deleted", requestDocId: input.requestDocId, request: cancelled };
+    }
 
     let next = plan.next;
     if (plan.refund) {
@@ -331,6 +352,41 @@ async function resolveClassRewardRequest(db, {
     transaction.set(requestRef, next);
     return { outcome: input.resolution, requestDocId: input.requestDocId, request: next };
   });
+}
+
+/**
+ * A class changed hands (or a student joined it): give the class's current
+ * teacher of record access to this student's reward requests FOR THAT CLASS,
+ * exactly as the wallet and ledger rows are re-pointed (reauthorizeClassPointsRecord:
+ * same class only, origin frozen, the access list grows). Without this the new
+ * teacher's pending panel — a query on authorizedTeacherEmails — never shows
+ * the request, and the old teacher can no longer resolve it, so the student's
+ * points stay locked. Called from reauthorizeStudentRecords in functions/index.js.
+ */
+async function reauthorizeClassRewardRequests(db, studentId, classRecord) {
+  if (!studentId || !classRecord?.classId) return 0;
+  const { catalog: rules, classPoints } = await classRewardModules();
+  const snapshot = await db.collection(rules.CLASS_REWARD_REQUESTS_COLLECTION)
+    .where("studentId", "==", String(studentId))
+    .where("classId", "==", String(classRecord.classId))
+    .get();
+  let updated = 0;
+  for (let index = 0; index < snapshot.docs.length; index += 400) {
+    const batch = db.batch();
+    let queued = 0;
+    snapshot.docs.slice(index, index + 400).forEach((entry) => {
+      const change = classPoints.reauthorizeClassPointsRecord(entry.data() || {}, { classRecord });
+      if (!change) return;
+      batch.set(entry.ref, change, { merge: true });
+      queued += 1;
+    });
+    if (queued) {
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+      updated += queued;
+    }
+  }
+  return updated;
 }
 
 // ---------------------------------------------------------------------------
@@ -434,6 +490,7 @@ module.exports = {
   debitIdFor,
   redeemClassReward,
   redeemClassRewardHandler,
+  reauthorizeClassRewardRequests,
   refundIdFor,
   requestDocIdFor,
   resolveClassRewardRequest,

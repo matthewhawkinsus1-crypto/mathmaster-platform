@@ -20,12 +20,19 @@ const STUDENT_QUERY_COLLECTIONS = Object.freeze([
   "studentPathInterventionAudit",
   "liveSpotlightRequests",
   "liveSpotlightFrames",
+  // A student's class reward requests (classRewardCatalog.mjs). They carry
+  // the student's display label, and a pending one left behind could be
+  // "declined" into a re-created wallet for an erased student.
+
 ]);
 
 const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
   "studentMasteryProfiles",
   "studentRetentionSchedules",
   "studentPathInterventions",
+  // growthRewardState/{studentId} (functions/lib/growthRewards.js): created
+  // the first time a student opens the app; holds their mastery baseline.
+
 ]);
 
 const PREPRODUCTION_RESET_CONFIRMATION = "RESET TEST DATA";
@@ -84,6 +91,12 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   // Practice Pass pointing at history that no longer exists.
   "classPointRewardRedemptions",
   "rewardGrants",
+  // Class rewards: the teacher's catalog (keyed by classId; test classes'
+  // lists go with the test data), the students' requests, and each student's
+  // growth-reward baseline.
+  "classRewardCatalogs",
+  "classRewardRequests",
+  "growthRewardState",
   // The rest of the Live Challenge runtime: finished-match results and
   // reports (both name students), room scoring/name settings, and teacher
   // rehearsals.

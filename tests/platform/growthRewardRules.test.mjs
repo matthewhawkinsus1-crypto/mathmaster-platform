@@ -300,10 +300,30 @@ test('a run longer than the window keeps paying, aligned to the blocks already p
 
 // --- Mastery ---------------------------------------------------------------
 
+/*
+ * One profile entry exactly as updateMyMathPathMasteryFromEvidence
+ * (functions/index.js) writes it after `events` eligible events, all correct
+ * and independent at weight 1, one of them DOK 3. Mastery pays only for this
+ * shape (serverDerivedMastered); a bare `{ mastery: { status } }` label does
+ * not.
+ */
+const serverEntry = (code, status, updatedAt, { events = 4 } = {}) => {
+  if (status !== 'Mastered') return { teksCode: code, mastery: { status }, updatedAt };
+  return {
+    teksCode: code,
+    mastery: { estimate: 100, observedPerformance: 100, status, confidence: 'Medium' },
+    dimensions: {
+      eligibleGradeLevelEvents: events, modifiedEvidenceEvents: 0, independentSuccesses: events,
+      dokRepresented: [2, 3], familiesRepresented: [], lastIndependentSuccessAt: updatedAt,
+    },
+    accumulator: { effectiveWeight: events, weightedScoreSum: events, eligibleEvents: events, modifiedEvents: 0, independentSuccesses: events },
+    updatedAt,
+  };
+};
 const profileDoc = (statuses, { classId = CLASS, updatedAt = AFTER_START } = {}) => ({
   studentId: STUDENT,
   classId,
-  profiles: Object.fromEntries(Object.entries(statuses).map(([code, status]) => [code, { teksCode: code, mastery: { status }, updatedAt }])),
+  profiles: Object.fromEntries(Object.entries(statuses).map(([code, status]) => [code, serverEntry(code, status, updatedAt)])),
 });
 const codes = (count, prefix = 'A.') => Array.from({ length: count }, (_, index) => `${prefix}${index + 1}`);
 const mastered = (list) => Object.fromEntries(list.map((code) => [code, 'Mastered']));
@@ -334,8 +354,18 @@ test('5 and 10 mastered skills earn badges only when the count is crossed after 
   });
   assert.deepEqual(badgesOf(alreadyFive.awards), []);
 
-  const both = evaluateMasteryGrowth({
+  // Ten at once: five pay now (MASTERY_SKILLS_PER_SYNC), so only the 5 badge;
+  // once those five are paid the next five pay and the 10 badge follows.
+  const firstFive = evaluateMasteryGrowth({
     studentId: STUDENT, classId: CLASS, masteryProfile: profileDoc(mastered(codes(10))), baseline: { skills: [] },
+  });
+  assert.deepEqual(badgesOf(firstFive.awards).map((award) => award.badgeCode), ['mastery-5']);
+  const both = evaluateMasteryGrowth({
+    studentId: STUDENT,
+    classId: CLASS,
+    masteryProfile: profileDoc(mastered(codes(10))),
+    baseline: { skills: [] },
+    paidSkills: pointsOf(firstFive.awards).map((award) => award.sourceId),
   });
   assert.deepEqual(badgesOf(both.awards).map((award) => award.badgeCode).sort(), ['mastery-10', 'mastery-5']);
 });

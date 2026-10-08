@@ -22,6 +22,12 @@
  *   pending ──teacher: declined───► declined    (terminal; refunds the points
  *                                                once, with a reason the
  *                                                student sees)
+ *   pending ──student erased──────► cancelled   (terminal; the teacher acted
+ *                                                on a request whose student was
+ *                                                permanently deleted: nothing
+ *                                                is refunded or fulfilled, so
+ *                                                no wallet or ledger row is
+ *                                                ever re-created for them)
  *
  * The transactions live in functions/lib/classRewardStore.js; this file holds
  * every rule they apply, so the browser's "can I use this?" and the server's
@@ -50,6 +56,7 @@ export const CLASS_REWARD_REQUEST_STATUS = Object.freeze({
   PENDING: 'pending',
   FULFILLED: 'fulfilled',
   DECLINED: 'declined',
+  CANCELLED: 'cancelled',
 });
 
 export class ClassRewardInputError extends Error {
@@ -105,6 +112,16 @@ const ACADEMIC_WORDING = Object.freeze([
   { pattern: /\b(?:unit|skills?|progress|knowledge|mastery|exit|next)\s+checks?\b/i, words: 'a quiz or test' },
   { pattern: /\bturn(?:ed|ing|s)?\s+(?:(?:it|work|something)\s+)?in\b[^.]*\blate\b|\b(?:a\s+day|days?|hours?)\s+late\b/i, words: 'a deadline' },
   { pattern: /\bopen[\s-]?(?:notes?|book)\b|\buse\s+(?:your\s+|my\s+)?notes\b/i, words: 'answers or hints' },
+  // Another go at the work: "One extra attempt on Path", "Second try on any
+  // question", "Retry a problem", "Do-over". An attempt is always about
+  // work; "try" only counts with a number or "extra/another/second" before it,
+  // so "Try the class snack" is still fine.
+  // Seeing the work done for you: "Peek at the solution", "Worked example".
+  { pattern: /\bsolutions?\b|\bworked\s+examples?\b|\bsolve\s+(?:it|one|a|the)\s+for\b/i, words: 'answers or hints' },
+  // A counted or chosen question or problem: "Skip 1 question", "Skip 2
+  // problems", "any question", "the next problem". The skip rule above only
+  // knew "a/an/the/one" in front of the noun.
+  { pattern: /\b(?:\d+|one|two|three|four|five|a|an|any|every|each|next|last|hardest|extra|free|bonus|skip(?:ped|ping|s)?|drop(?:ped|ping|s)?|peek)\s+(?:\w+\s+)?(?:questions?|problems?)\b/i, words: 'skipping or excusing work' },
 ]);
 
 /** The academic effect a piece of text promises, in a few words, or null. */
@@ -393,6 +410,9 @@ export const buildClassRewardRefund = ({
 export const planRequestResolution = (request, { resolution, reason = null, teacherEmail = null, at }) => {
   if (!request) return { outcome: 'refused', code: 'not-found', message: 'That request was not found.' };
   if (request.status === resolution) return { outcome: 'replay' };
+  if (request.status === CLASS_REWARD_REQUEST_STATUS.CANCELLED) {
+    return { outcome: 'refused', code: 'failed-precondition', message: 'That student\'s account was deleted, so the request was cancelled. Nothing was refunded.' };
+  }
   if (request.status !== CLASS_REWARD_REQUEST_STATUS.PENDING) {
     return {
       outcome: 'refused',
@@ -419,3 +439,22 @@ export const planRequestResolution = (request, { resolution, reason = null, teac
     },
   };
 };
+
+/**
+ * A pending request whose student no longer exists (permanently deleted).
+ * Closed without a refund or a fulfilment, so nothing re-creates the erased
+ * student's wallet or ledger, and with the student's display label removed.
+ */
+export const buildCancelledRequest = (request, { teacherEmail = null, at }) => ({
+  ...request,
+  status: CLASS_REWARD_REQUEST_STATUS.CANCELLED,
+  studentLabel: null,
+  resolvedAt: at,
+  resolvedByEmail: teacherEmail || null,
+  declineReason: null,
+  cancelledReason: 'student-deleted',
+  history: [
+    ...(Array.isArray(request?.history) ? request.history : []),
+    { status: CLASS_REWARD_REQUEST_STATUS.CANCELLED, at, actor: 'system', reason: 'student-deleted' },
+  ],
+});
