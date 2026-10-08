@@ -96,8 +96,9 @@ test('no student-facing copy says free practice is locked or unlocked', () => {
     'src/components/student/WeeklyPathGoalPanel.jsx',
     'src/components/student/MyMathPathSessionRecap.jsx',
     'src/components/student/MyMathPathSkillsMoved.jsx',
+    'src/components/student/StudentLearningPath.jsx',
   ]) {
-    assert.doesNotMatch(executableSource(read(file)), /free[- ]choice paths are (?:un)?locked|unlocked for the rest of the week|free practice is (?:un)?locked/i, file);
+    assert.doesNotMatch(executableSource(read(file)), /free[- ]choice paths are (?:un)?locked|unlocked for the rest of the week|free practice is (?:un)?locked|finish your weekly target first/i, file);
   }
   assert.match(containerCode, /Anything else you practise this week is extra\./);
 });

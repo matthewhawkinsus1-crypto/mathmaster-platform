@@ -135,6 +135,10 @@ export const MyMathPathProductionContainer = ({
     masteryProfilesByTEKS,
     serverProfiles: liveServerMasteryProfiles,
   }));
+  // What the session already held when it first loaded here. A resumed
+  // session carries answers from before the break; "Skills that moved" waits
+  // only for the answers given on this screen.
+  const [evidenceAtLoad, setEvidenceAtLoad] = useState(null);
   const [recap, setRecap] = useState({ status: 'idle' });
   const [recapRequest, setRecapRequest] = useState(0);
   const [skillsPatienceExpired, setSkillsPatienceExpired] = useState(false);
@@ -509,6 +513,10 @@ export const MyMathPathProductionContainer = ({
     return () => clearTimeout(timer);
   }, [sessionCompleted]);
 
+  useEffect(() => {
+    if (session && evidenceAtLoad === null) setEvidenceAtLoad(session.evidenceBySkill || {});
+  }, [session, evidenceAtLoad]);
+
   const skillsMoved = useMemo(() => describeSessionSkillsMoved({
     session,
     start: masteryAtStart,
@@ -516,7 +524,8 @@ export const MyMathPathProductionContainer = ({
     currentProfiles: masteryProfilesByTEKS,
     simulated: Boolean(sessionProvider),
     patienceExpired: skillsPatienceExpired,
-  }), [session, masteryAtStart, liveServerMasteryProfiles, masteryProfilesByTEKS, sessionProvider, skillsPatienceExpired]);
+    evidenceAtLoad,
+  }), [session, masteryAtStart, liveServerMasteryProfiles, masteryProfilesByTEKS, sessionProvider, skillsPatienceExpired, evidenceAtLoad]);
 
   if (loading) {
     return (

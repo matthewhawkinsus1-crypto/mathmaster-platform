@@ -129,10 +129,27 @@ test('open practice, another week, or a view that cannot launch all lead back to
   const open = { ...pathSession(1), weeklySlotKey: null, weekKey: null };
   assert.equal(describeWeeklySessionEnd({ goal, completions: [], finishedSession: open }), null);
   assert.equal(chooseSessionEndNextStep({ session: open, weeklyEnd: null, canStartNext: true }).kind, SESSION_END_STEP.BACK_TO_PATH);
-  assert.equal(describeWeeklySessionEnd({ goal, completions: [], finishedSession: pathSession(1, { weekKey: '2026-09-28' }) }), null);
+  // A session from another week claims nothing for this one — not even the
+  // launch-time "it was the last slot" flag.
+  const otherWeek = describeWeeklySessionEnd({ goal, completions: [], finishedSession: pathSession(1, { weekKey: '2026-09-28' }) });
+  assert.deepEqual(otherWeek, { status: 'otherWeek' });
+  assert.equal(chooseSessionEndNextStep({ session: pathSession(3), weeklyEnd: otherWeek, completesWeeklyGoal: true, canStartNext: true }).kind,
+    SESSION_END_STEP.BACK_TO_PATH);
   // A teacher's read-only view gets no Start button.
   const end = describeWeeklySessionEnd({ goal, completions: [], finishedSession: pathSession(1) });
   assert.equal(chooseSessionEndNextStep({ session: pathSession(1), weeklyEnd: end, canStartNext: false }).kind, SESSION_END_STEP.BACK_TO_PATH);
+});
+
+test('the end screen counts the finished session only inside the week\'s window, as the server does', () => {
+  // Completed after the week's window closed: the teacher's table and
+  // Classroom never count it, so the end screen does not either.
+  const late = pathSession(1, { completedAt: Date.parse(`${WEEK}T00:00:00Z`) + 8 * 86400000 + 3600000 });
+  const end = describeWeeklySessionEnd({ goal, completions: [], finishedSession: late });
+  assert.equal(end.status, 'ready');
+  assert.equal(end.counted, false);
+  assert.equal(end.completed, 0);
+  // Inside the window it counts.
+  assert.equal(describeWeeklySessionEnd({ goal, completions: [], finishedSession: pathSession(1) }).counted, true);
 });
 
 test('each launch is a different container; a resume is the same one', () => {
@@ -203,6 +220,38 @@ test('"Updating your skills…" until the trigger has applied this session, then
     'Solving linear equations 62% → 71% · Developing → Secure',
     `${ready.moves[1].label} 80% → 75%`,
   ]);
+});
+
+test('a resumed session waits only for the answers given since it reopened', () => {
+  // Before the break the student answered the excursion skill 8.8C once; its
+  // profile moved then, and the screen's start snapshot already includes it.
+  // After resuming, every answer was on A.5A.
+  const resumedStart = snapshotMasteryAtSessionStart({
+    masteryProfilesByTEKS: {},
+    serverProfiles: {
+      'A.5A': serverProfile({ estimate: 62, events: 4, updatedAt: START }),
+      '8.8C': serverProfile({ estimate: 75, events: 4, updatedAt: START }),
+    },
+  });
+  const atLoad = { 'teks:A.5A': { finalized: 2 }, 'teks:8.8C': { finalized: 1 } };
+  const landed = {
+    'A.5A': serverProfile({ estimate: 71, events: 8, updatedAt: DONE + 400 }),
+    '8.8C': serverProfile({ estimate: 75, events: 4, updatedAt: START }),
+  };
+  const ready = describeSessionSkillsMoved({ session: liveSession(), start: resumedStart, liveServerProfiles: landed, evidenceAtLoad: atLoad });
+  assert.equal(ready.state, SKILLS_MOVED_STATE.READY, 'not "Updating your skills…" for good');
+  assert.deepEqual(ready.moves.map((move) => move.code), ['A.5A']);
+  // Without the record of what it held at load, the old wait never ends.
+  assert.equal(describeSessionSkillsMoved({ session: liveSession(), start: resumedStart, liveServerProfiles: landed }).state, SKILLS_MOVED_STATE.PENDING);
+  // A skill answered on this screen must still have moved.
+  const atLoadBefore8 = { 'teks:A.5A': { finalized: 2 } };
+  assert.equal(sessionEvidenceLanded({ session: liveSession(), start: resumedStart, liveServerProfiles: landed, evidenceAtLoad: atLoadBefore8 }), false);
+});
+
+test('the container records what the session held when it first loaded, and passes it on', () => {
+  const container = readFileSync(new URL('../../src/components/student/MyMathPathProductionContainer.jsx', import.meta.url), 'utf8');
+  assert.match(container, /if \(session && evidenceAtLoad === null\) setEvidenceAtLoad\(session\.evidenceBySkill \|\| \{\}\);/);
+  assert.match(container, /describeSessionSkillsMoved\(\{[\s\S]*?evidenceAtLoad,\s*\}\), \[[^\]]*evidenceAtLoad\]\);/);
 });
 
 test('only skills that changed are listed, and Mastered is the rule\'s verdict, not the estimate\'s', () => {

@@ -188,12 +188,6 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         </button>
       )}
 
-      {disabled && node.selectable && (
-        <div style={{ marginTop: 2, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)', fontSize: 12, fontWeight: 800 }}>
-          Finish your weekly target first
-        </div>
-      )}
-
       {clickable && (
         <button
           type="button"
@@ -284,11 +278,9 @@ export const StudentLearningPath = ({
   // the map happily draws a Start button in front of a standard with no
   // content, and the student learns about it only after clicking.
   isCovered = null,
-  // Weekly Path is the actual student commitment. Ordinary classroom assignment
-  // TEKS no longer create an invisible permanent gate. While a weekly target is
-  // unfinished, this screen says exactly how many sessions remain and keeps
-  // free-choice cards closed so practice launched without the weekly slot key
-  // cannot look complete while failing to count.
+  // Free practice is never locked behind the weekly target: the weekly panel
+  // says what counts toward the week, and anything else is extra. A caller
+  // can still disable the cards (a view that cannot launch).
   freeChoiceLocked = false,
   freeChoiceMessage = null,
   // Server-owned completed course Path passes. This is intentionally separate

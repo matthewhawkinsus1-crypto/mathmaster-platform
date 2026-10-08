@@ -80,23 +80,42 @@ const evidenceSkillCodes = (session = {}) => {
   return recorded.length ? [...new Set(recorded)] : [codeOf(session?.target?.alignmentKey)].filter(Boolean);
 };
 
+// The skills answered since the session loaded in this screen. A resumed
+// session already holds evidence from before the break, which the start
+// snapshot includes; only the answers given here can still be on their way.
+// Null when the screen did not record what the session held at load.
+const freshEvidenceSkillCodes = (session = {}, evidenceAtLoad = null) => {
+  if (!isObject(evidenceAtLoad)) return null;
+  const now = isObject(session?.evidenceBySkill) ? session.evidenceBySkill : {};
+  const finalized = (record) => Math.max(0, Number(record?.finalized) || 0);
+  return [...new Set(Object.keys(now)
+    .filter((skillId) => finalized(now[skillId]) > finalized(evidenceAtLoad[skillId]))
+    .map((skillId) => codeOf(teksCodeFromSkillId(skillId) || skillId))
+    .filter(Boolean))];
+};
+
 /**
  * Has the background trigger applied this session's evidence?
  *
  * The last answer's evidence lands on its skill with an `updatedAt` at or
- * after the session's completion, and every other skill the session worked on
- * has moved past where it stood at the start.
+ * after the session's completion, and every other skill answered on this
+ * screen has moved past where it stood at the start. `evidenceAtLoad` is the
+ * session's evidenceBySkill when the screen first loaded it: without it a
+ * resumed session waited for skills answered before the break, whose profiles
+ * had already moved, and "Updating your skills…" never finished.
  */
-export const sessionEvidenceLanded = ({ session = null, start = null, liveServerProfiles = null } = {}) => {
+export const sessionEvidenceLanded = ({ session = null, start = null, liveServerProfiles = null, evidenceAtLoad = null } = {}) => {
   if (!isObject(liveServerProfiles) || !isObject(session)) return false;
   const finishedAt = Number(session.completedAt || session.updatedAt || 0);
   if (!(finishedAt > 0)) return false;
   const codes = evidenceSkillCodes(session);
   if (!codes.length) return false;
+  const fresh = freshEvidenceSkillCodes(session, evidenceAtLoad);
+  const mustMove = fresh && fresh.length ? fresh : codes;
   const updatedAt = (code) => Number(serverProfileFor(liveServerProfiles, code)?.updatedAt || 0);
   const startedAt = (code) => Number(start?.profiles?.[code]?.updatedAt || 0);
   return codes.some((code) => updatedAt(code) >= finishedAt)
-    && codes.every((code) => updatedAt(code) > startedAt(code));
+    && mustMove.every((code) => updatedAt(code) > startedAt(code));
 };
 
 const estimateOf = (profile) => {
@@ -135,13 +154,14 @@ export const describeSessionSkillsMoved = ({
   currentProfiles = null,
   simulated = false,
   patienceExpired = false,
+  evidenceAtLoad = null,
 } = {}) => {
   if (session?.status !== 'completed' || !isObject(start?.profiles)) return { state: SKILLS_MOVED_STATE.NONE, moves: [] };
   const codes = sessionSkillCodes(session);
   if (simulated) {
     return { state: SKILLS_MOVED_STATE.READY, moves: describeSkillMoves({ before: start.profiles, after: currentProfiles || {}, codes }) };
   }
-  if (!sessionEvidenceLanded({ session, start, liveServerProfiles })) {
+  if (!sessionEvidenceLanded({ session, start, liveServerProfiles, evidenceAtLoad })) {
     return { state: patienceExpired ? SKILLS_MOVED_STATE.DELAYED : SKILLS_MOVED_STATE.PENDING, moves: [] };
   }
   const after = {};

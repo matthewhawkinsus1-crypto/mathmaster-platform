@@ -14,7 +14,7 @@
 // counts only when the server marked it "completed", so a paused session never
 // moves the week. Pure: no React, no Firestore.
 
-import { completionFromPathSession } from '../../../functions/shared/weeklyPathCompletion.mjs';
+import { collectWeeklyPathSessions } from '../../../functions/shared/weeklyPathCompletion.mjs';
 import { evaluateWeeklyGoalProgress } from '../../../functions/shared/weeklyPathGrade.mjs';
 
 export const SESSION_END_STEP = Object.freeze({
@@ -56,12 +56,18 @@ export const describeWeeklySessionEnd = ({
   now = Date.now(),
 } = {}) => {
   if (!finishedSession?.weeklySlotKey || !list(goal?.sessions).length) return null;
-  if (goal.weekKey && finishedSession.weekKey && goal.weekKey !== finishedSession.weekKey) return null;
+  // A session from another week never speaks for this one, not even through
+  // the launch-time "last slot" flag (chooseSessionEndNextStep).
+  if (goal.weekKey && finishedSession.weekKey && goal.weekKey !== finishedSession.weekKey) return { status: 'otherWeek' };
   if (!Array.isArray(completions)) return { status: 'loading' };
 
-  // The same record the server's weekly callable builds — and null unless the
-  // session is "completed".
-  const finished = completionFromPathSession(finishedSession.sessionId, finishedSession);
+  // The same record the server's weekly callable builds, by the same rule:
+  // null unless the session is "completed" inside this week's window
+  // (collectWeeklyPathSessions), as for the teacher table and Classroom.
+  const finished = collectWeeklyPathSessions({
+    sessions: [{ id: finishedSession.sessionId, data: finishedSession }],
+    weekKey: goal.weekKey,
+  }).completions[0] || null;
   const merged = [
     ...completions.filter((entry) => !finished || String(entry?.sessionId || '') !== finished.sessionId),
     ...(finished ? [finished] : []),
@@ -118,7 +124,9 @@ export const chooseSessionEndNextStep = ({
     return back;
   }
   // The week's facts have not arrived. The launch-time flag — this was the
-  // last undone slot when it started — still holds for a completed session.
+  // last undone slot when it started — still holds for a completed session of
+  // THIS week; a session from another week claims nothing.
+  if (weeklyEnd?.status === 'otherWeek') return back;
   if (completesWeeklyGoal) return { kind: SESSION_END_STEP.WEEKLY_GOAL_COMPLETE, required: null };
   return back;
 };
