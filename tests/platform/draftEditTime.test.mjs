@@ -618,10 +618,14 @@ test('a registry tool\'s field judges its writes from when it mounted, and a sub
   assert.match(source, /useState\(\(\) => \{\s*inputMarkRef\.current = studentInputMark\(\);\s*return restoreField\(/);
   assert.match(source, /keyRef\.current = key;\s*inputMarkRef\.current = studentInputMark\(\);/);
   assert.match(source, /commitField\(keyRef\.current, field, resolved, coalesceMs, studentInputSince\(inputMarkRef\.current\)\)/);
-  assert.match(source, /writeQuestionDraft\(key, store\.record, \{ edit: edit \|\| coalescedEdit \}\)/);
+  // What is written is the store's record — with its fresh marker while it
+  // has one (a workspace this device started from nothing) — and each write
+  // says whether it is the student's edit.
+  assert.match(source, /const storedRecord = \(store\) => \(store\.fresh\s*\? \{ \.\.\.store\.record, \[TOOL_WORKSPACE_FRESH_FIELD\]: \[\.\.\.store\.fresh\] \}\s*: store\.record\);/);
+  assert.match(source, /writeQuestionDraft\(key, storedRecord\(store\), \{ edit: edit \|\| coalescedEdit \}\)/);
   assert.match(source, /store\.pendingEdit = store\.pendingEdit === true \|\| edit;/);
-  assert.match(source, /const edit = store\.pendingEdit === true;[\s\S]*?writeQuestionDraft\(store\.key, store\.record, \{ edit \}\)/);
-  assert.match(source, /stampToolDraftSubmission[\s\S]*?writeQuestionDraft\(key, store\.record, \{ edit: true \}\)/);
+  assert.match(source, /const edit = store\.pendingEdit === true;[\s\S]*?writeQuestionDraft\(store\.key, storedRecord\(store\), \{ edit \}\)/);
+  assert.match(source, /stampToolDraftSubmission[\s\S]*?writeQuestionDraft\(key, storedRecord\(store\), \{ edit: true \}\)/);
 });
 
 test('a composed question\'s step reports an edit only when the student touched the page after the step appeared', () => {

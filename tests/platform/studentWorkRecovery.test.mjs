@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   MAX_WORKSPACE_DRAFT_ENTRIES,
+  TOOL_WORKSPACE_FRESH_FIELD,
   buildWorkspaceDraftPatch,
   isSyncableDraftKey,
   mergeWorkspaceDraftDocument,
@@ -961,4 +962,174 @@ test('the merge is bounded, keeping the newest work when the caps are reached', 
   assert.equal(merged.entries.length, MAX_WORKSPACE_DRAFT_ENTRIES);
   const savedAts = merged.entries.map((entry) => entry.savedAt);
   assert.equal(Math.min(...savedAts) > 20, true, 'the oldest drafts are the ones dropped');
+});
+
+/* ===========================================================================
+ * A TOOL'S WORKSPACE IS ONE RECORD OF FIELDS, MERGED FIELD BY FIELD.
+ *
+ * `${draftKey}:work:${scope}` (usePersistentToolState) holds every answerable
+ * value of a tool — the Multiple Representations board keeps twenty of them,
+ * and its collapsed panels, in one record — and a field is in the record only
+ * once a device has set it. The question opens before the server's copy is
+ * read (PQ-044), so on a Chromebook that has never seen this work the record
+ * starts empty, and the student's first edit — a typed box, a collapsed panel,
+ * a "Find the slope" — saved `{ thatField }` as the newest copy of the whole
+ * workspace. Newest-wins per key then kept that on the server and restored it
+ * over every other device: the whole board, gone everywhere.
+ * ======================================================================== */
+
+const BOARD_KEY = draftKey(4, 'work:tool');
+const fullBoard = () => ({
+  slopeInterceptEquation: 'y=-2x+6',
+  standardFormEquation: '2x+y=6',
+  tableRows: [{ x: '0', y: '6' }, { x: '1', y: '4' }, { x: '2', y: '2' }, { x: '3', y: '0' }],
+  graph1Points: [[3, 0], [0, 6]],
+  processLog: { v: 1, bind: 'lmr1-0123456789abcdef', entries: [{ id: 'readSlopeIntercept-1', strategy: 'readSlopeIntercept', from: 'given', at: 1, tries: 1, ev: { m: '-2', b: '6' } }] },
+  expandedCards: { equationForms: true, features: true, table: true, context: true, graph1: true, graph2: true, graph3: true },
+});
+const boardEntry = (value, savedAt) => ({ key: BOARD_KEY, value, savedAt, questionIndex: 4, savedAtIsEdit: true });
+
+test('a fresh Chromebook\'s first edit to a tool workspace keeps every field the server already had', () => {
+  const server = serverWith([boardEntry(fullBoard(), 1_000)]);
+  // Chromebook B has never seen this work: its record starts empty, and the
+  // student collapses one panel before the server's copy has been read.
+  const deviceB = trackingSync();
+  const collapsed = { ...fullBoard().expandedCards, table: false };
+  // Its record says it started from nothing, and which field the student edited.
+  deviceB.sync.record({ key: BOARD_KEY, value: { expandedCards: collapsed, [TOOL_WORKSPACE_FRESH_FIELD]: ['expandedCards'] }, savedAt: 2_000, edit: true });
+  deviceB.scheduler.runAll();
+  const merged = applyPatch(server, deviceB.writes[0]);
+  const board = readWorkspaceDraftEntries(merged).find((entry) => entry.key === BOARD_KEY);
+  assert.equal(board.value.slopeInterceptEquation, 'y=-2x+6', 'the equation from Chromebook A survives');
+  assert.deepEqual(board.value.tableRows, fullBoard().tableRows, 'the table survives');
+  assert.deepEqual(board.value.graph1Points, [[3, 0], [0, 6]], 'the graph survives');
+  assert.equal(board.value.processLog.entries.length, 1, 'the established facts survive');
+  assert.equal(board.value.expandedCards.table, false, 'and Chromebook B\'s own change is kept');
+  assert.equal(board.savedAt, 2_000, 'the merged copy is as new as the newest edit');
+  assert.equal(board.savedAtIsEdit, true);
+  assert.equal(TOOL_WORKSPACE_FRESH_FIELD in board.value, false, 'merged with the server copy, it is no longer fresh');
+});
+
+test('the merge does not depend on which save reaches the server first', () => {
+  // Chromebook A's save was still pending (offline, or inside the debounce)
+  // when Chromebook B's partial record landed.
+  const partialFirst = serverWith([boardEntry({ slopeInterceptEquation: 'y=-2x+7', [TOOL_WORKSPACE_FRESH_FIELD]: ['slopeInterceptEquation'] }, 2_000)]);
+  const merged = applyPatch(partialFirst, buildWorkspaceDraftPatch({ studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [boardEntry(fullBoard(), 1_000)] }));
+  const board = readWorkspaceDraftEntries(merged).find((entry) => entry.key === BOARD_KEY);
+  assert.equal(board.value.slopeInterceptEquation, 'y=-2x+7', 'the field the student edited comes from the fresh copy');
+  assert.deepEqual(board.value.tableRows, fullBoard().tableRows, 'a field only the older copy holds is kept');
+  assert.equal(board.savedAt, 2_000);
+});
+
+test('starting a tool over still clears it everywhere, and other drafts still replace whole', () => {
+  // "Start over" tombstones the whole record with null (resetQuestionDraftFamily).
+  const reset = applyPatch(serverWith([boardEntry(fullBoard(), 1_000)]), buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [boardEntry(null, 2_000)],
+  }));
+  assert.equal(readWorkspaceDraftEntries(reset).find((entry) => entry.key === BOARD_KEY).value, null);
+  // The first edit after the reset starts a new record; the tombstone keeps nothing for it to merge.
+  const restarted = applyPatch(reset, buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [boardEntry({ slopeInterceptEquation: 'y=x' }, 3_000)],
+  }));
+  assert.deepEqual(readWorkspaceDraftEntries(restarted).find((entry) => entry.key === BOARD_KEY).value, { slopeInterceptEquation: 'y=x' });
+  // A draft that is not a tool workspace is a whole state, not a set of fields.
+  const literal = applyPatch(serverWith([entryFor(4, { answer: '12', unit: 'cm' }, 1_000)]), buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [entryFor(4, { answer: '13' }, 2_000)],
+  }));
+  assert.deepEqual(valueOf(literal, 4), { answer: '13' });
+});
+
+test('Start over still sticks when the student types again before the reset reaches the server', () => {
+  // The sync keeps one pending entry per key, so a reset followed by an edit
+  // inside the debounce — or while offline — sends only the new record. It is
+  // built on the reset (not fresh), so it replaces the old work whole.
+  const server = serverWith([boardEntry(fullBoard(), 1_000)]);
+  const device = trackingSync();
+  device.sync.record({ key: BOARD_KEY, value: null, savedAt: 2_000, edit: true });
+  device.sync.record({ key: BOARD_KEY, value: { slopeInterceptEquation: 'y=x' }, savedAt: 3_000, edit: true });
+  device.scheduler.runAll();
+  assert.equal(device.writes[0].entries.length, 1, 'only the newest copy of the key is sent');
+  const merged = applyPatch(server, device.writes[0]);
+  assert.deepEqual(readWorkspaceDraftEntries(merged).find((entry) => entry.key === BOARD_KEY).value, { slopeInterceptEquation: 'y=x' });
+});
+
+test('only what the fresh device\'s student edited overrides; a newer copy that is not fresh still replaces whole', () => {
+  // A tool that sets a field as it mounts (a derived default) puts it in the
+  // record without the student touching it. On a fresh device that value was
+  // derived without the server's copy, so it must not override it.
+  const server = serverWith([boardEntry(fullBoard(), 1_000)]);
+  const fresh = buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT,
+    entries: [boardEntry({ tableRows: [{ x: '', y: '' }], featureSlope: '-2', [TOOL_WORKSPACE_FRESH_FIELD]: ['featureSlope'] }, 2_000)],
+  });
+  const merged = readWorkspaceDraftEntries(applyPatch(server, fresh)).find((entry) => entry.key === BOARD_KEY).value;
+  assert.deepEqual(merged.tableRows, fullBoard().tableRows, 'a field the student did not edit there keeps the server\'s value');
+  assert.equal(merged.featureSlope, '-2', 'a field only the fresh copy holds is kept');
+  // Newer and built on a copy of its own (not fresh): the ordinary rule, whole,
+  // whether what it replaces was fresh or not.
+  const freshStored = serverWith([boardEntry({ featureSlope: '4', [TOOL_WORKSPACE_FRESH_FIELD]: ['featureSlope'] }, 1_000)]);
+  const own = buildWorkspaceDraftPatch({ studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [boardEntry({ slopeInterceptEquation: 'y=4x' }, 2_000)] });
+  assert.deepEqual(readWorkspaceDraftEntries(applyPatch(freshStored, own)).find((entry) => entry.key === BOARD_KEY).value, { slopeInterceptEquation: 'y=4x' });
+});
+
+test('the server read settles a workspace this device started from nothing before restoring, and remounts for either', () => {
+  const app = appSource.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+  assert.match(app, /import \{[^}]*\breconcileToolWorkspaceDrafts\b[^}]*\} from '\.\/questionDraftStorage';/, 'imported next to its call');
+  const start = app.indexOf('const readServerCopy = () => {');
+  assert.notEqual(start, -1, 'the server read is where it was');
+  const read = app.slice(start, app.indexOf('\n    readServerCopy();', start));
+  const settle = read.indexOf('const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId });');
+  const restore = read.indexOf('const restored = restoreQuestionDrafts(restorable);');
+  assert.notEqual(settle, -1, 'the read settles fresh workspaces');
+  assert.ok(restore > settle, 'before the restore, so a newer server copy is not then swapped in over the student\'s edits');
+  assert.match(read.slice(restore), /^const restored = restoreQuestionDrafts\(restorable\);\s*if \(restored \|\| settled\) \{[\s\S]*?setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/, 'and the question remounts for either');
+});
+
+test('a merge that would outgrow the value cap falls back to the newer copy, whole', () => {
+  // Each copy fits; together they would not. The ordinary rule then applies.
+  const big = (prefix) => Object.fromEntries(Array.from({ length: 30 }, (_, index) => [`${prefix}${index}`, 'x'.repeat(300)]));
+  const server = serverWith([boardEntry(big('a'), 1_000)]);
+  const fresh = buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT,
+    entries: [boardEntry({ ...big('b'), [TOOL_WORKSPACE_FRESH_FIELD]: ['b0'] }, 2_000)],
+  });
+  const board = readWorkspaceDraftEntries(applyPatch(server, fresh)).find((entry) => entry.key === BOARD_KEY);
+  assert.equal(board.savedAt, 2_000);
+  assert.equal('a0' in board.value, false, 'nothing is merged in past the cap');
+  assert.equal(board.value.b0, 'x'.repeat(300));
+});
+
+test('leaving the assignment while a save is in flight still sends the edits made during it — once', async () => {
+  // App.jsx's teardown is flushNow() then stop(). With a save already on its
+  // way, flushNow hands it back without sending what changed since, and a
+  // stopped sync scheduled nothing after it: those last edits stayed on this
+  // Chromebook, and a tool workspace never offers its draft again on opening,
+  // so another device never saw them.
+  const scheduler = manualScheduler();
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let server = serverWith([]);
+  let writes = 0;
+  const sync = createWorkspaceDraftSync({
+    studentId: STUDENT,
+    assignmentId: ASSIGNMENT,
+    scheduler,
+    flush: async ({ document }) => { writes += 1; await gate; server = applyPatch(server, document); },
+  });
+  sync.record({ key: draftKey(0, 'literal'), value: 'first', savedAt: 10 });
+  scheduler.runAll();
+  sync.record({ key: draftKey(0, 'literal'), value: 'second', savedAt: 20 });
+  // The student leaves the assignment before the save lands.
+  void sync.flushNow();
+  sync.stop();
+  assert.equal(writes, 1, 'nothing new is sent while the first save is in flight');
+  release();
+  for (let turn = 0; turn < 4; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(writes, 2, 'one last save follows it');
+  assert.equal(valueOf(server, 0), 'second', 'and it carries the edit made during the first');
+  // And then the sync is stopped: nothing further is recorded or sent.
+  assert.equal(sync.record({ key: draftKey(1, 'literal'), value: 'late', savedAt: 30 }), false);
+  scheduler.runAll();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(writes, 2);
 });

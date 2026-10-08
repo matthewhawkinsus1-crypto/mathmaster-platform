@@ -1,4 +1,11 @@
 import { auditDraftWrite } from './platform/persistence/draftSyncDiagnostics.js';
+import {
+  freshToolWorkspaceEdits,
+  isSyncableDraftKey,
+  isToolWorkspaceDraftKey,
+  mergeFreshToolWorkspace,
+  toolWorkspaceFields,
+} from '../functions/shared/workspaceDraftSchema.mjs';
 
 const DRAFT_PREFIX = 'mathmaster:draft:v2:';
 const RESUME_PREFIX = 'mathmaster:resume:v1:';
@@ -280,6 +287,12 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
 /** When the student last edited that draft (as this device knows it), or 0. */
 export const questionDraftSavedAt = (key) => storedSavedAt(key);
 
+/**
+ * Does this device hold any copy of that draft — work, or a reset's
+ * tombstone? Read-only: unlike readQuestionDraft it is no promise to write.
+ */
+export const questionDraftExists = (key) => storedEnvelope(key) !== null;
+
 /*
  * HOW A CACHE KNOWS THE SERVER OVERWROTE IT.
  *
@@ -309,10 +322,13 @@ export const restoreQuestionDrafts = (entries = []) => {
     const key = String(entry?.key || '');
     const savedAt = Number(entry?.savedAt) || 0;
     if (!key || !savedAt || savedAt <= questionDraftSavedAt(key)) return;
+    // A tool workspace restored from the server is the server's copy, and so
+    // is never "started from nothing" here, whatever it carried there.
+    const value = isToolWorkspaceDraftKey(key) ? toolWorkspaceFields(entry.value) : entry.value;
     try {
       // The server entry's edit-time marker comes with it (see writeQuestionDraft).
       window.localStorage.setItem(key, JSON.stringify({
-        version: 2, savedAt, value: entry.value, ...(entry.savedAtIsEdit === true ? { savedAtIsEdit: true } : {}),
+        version: 2, savedAt, value, ...(entry.savedAtIsEdit === true ? { savedAtIsEdit: true } : {}),
       }));
       restored += 1;
     } catch {
@@ -321,6 +337,65 @@ export const restoreQuestionDrafts = (entries = []) => {
   });
   if (restored) restoreGeneration += 1;
   return restored;
+};
+
+/**
+ * Settle every tool workspace this device started from nothing against the
+ * server's copy of the same draft, once that copy has been read.
+ *
+ * Such a record carries `__fresh`, the fields its student edited
+ * (usePersistentToolState.js). Where the server holds a record for the key:
+ *   - a newer edit there wins the fields both copies hold, and this device
+ *     keeps any field only it set — the newer copy's time comes with it;
+ *   - otherwise this device's edited fields, and any field only it holds, are
+ *     laid over the server's copy, and this device keeps its own time.
+ * Where the server holds nothing, or a reset, there is nothing to merge. In
+ * every case the marker goes: this device has now seen the server's copy.
+ *
+ * Without this, a Chromebook whose student touched the question before the
+ * read landed went on showing only that touch, and its next save carried the
+ * partial record as the newest copy of the whole workspace. Returns how many
+ * records were settled; the caller remounts the question when it is not 0,
+ * as for restoreQuestionDrafts.
+ */
+export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignmentId } = {}) => {
+  if (!storageAvailable() || !studentId || !assignmentId) return 0;
+  const prefix = `${DRAFT_PREFIX}:${normalizeKeyPart(studentId)}:${normalizeKeyPart(assignmentId)}:`;
+  const server = new Map((Array.isArray(entries) ? entries : []).map((entry) => [String(entry?.key || ''), entry]));
+  const keys = [];
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key?.startsWith(prefix) && isToolWorkspaceDraftKey(key) && isSyncableDraftKey(key)) keys.push(key);
+    }
+  } catch {
+    return 0;
+  }
+  let settled = 0;
+  keys.forEach((key) => {
+    const envelope = storedEnvelope(key);
+    if (!envelope || !freshToolWorkspaceEdits(envelope.value)) return;
+    const entry = server.get(key);
+    const serverValue = entry?.value;
+    const isRecord = Boolean(serverValue) && typeof serverValue === 'object' && !Array.isArray(serverValue);
+    const localSavedAt = Number(envelope.savedAt) || 0;
+    const serverSavedAt = Number(entry?.savedAt) || 0;
+    let next = { ...envelope, value: toolWorkspaceFields(envelope.value) };
+    if (isRecord && entry.savedAtIsEdit === true && serverSavedAt > localSavedAt) {
+      next = { ...next, savedAt: serverSavedAt, savedAtIsEdit: true, value: { ...next.value, ...toolWorkspaceFields(serverValue) } };
+    } else if (isRecord) {
+      next = { ...next, value: mergeFreshToolWorkspace(serverValue, envelope.value) };
+    }
+    try {
+      window.localStorage.setItem(key, JSON.stringify(next));
+      settled += 1;
+    } catch {
+      // Out of quota: the record stays fresh here, and the server merge still
+      // keeps the server's copy whole.
+    }
+  });
+  if (settled) restoreGeneration += 1;
+  return settled;
 };
 
 export const removeQuestionDraft = (key) => {
