@@ -104,6 +104,11 @@ stated answer with the tool's shared grader before returning it.
   group is the student's step.
 - **Generic miss messages** are display text only, never registry codes.
 
+Coordinator decisions (2026-10-08): keep "Ask my teacher" on DOLs, but never inside a secure Test or Test Cycle. That
+is now pinned by `feedbackThatTeaches.test.mjs` test 6 and a secure-host case in `tests/browser/feedbackTeaches.mjs`:
+the control needs a host callback and no server grading, and the secure path passes neither. Keep the last hint
+rung. Show the worked solution on question close, not on section lock.
+
 ## Files outside lane A (each a small, local edit)
 
 - `src/App.jsx`: the Ask-my-teacher state, the presence payload field, an immediate publish after the stale document

@@ -174,6 +174,14 @@ for (const device of DEVICES) {
     await context.close();
   }
 
+  /* ------------------------------- a secure Test item: no Hint, no Ask */
+  {
+    const { page, context } = await open(device, 'q=multi&role=test&secure=1');
+    check((await page.locator('[data-hint-control]').count()) === 0, `${device.name} secure: no Hint and no "Ask my teacher", even with a host callback`);
+    check((await page.locator('.mathmaster-hint-panel, [data-hint-panel]').count()) === 0, `${device.name} secure: no hint panel in the document`);
+    await context.close();
+  }
+
   /* ------------------------------------------------ Read aloud + Translate */
   {
     const { page, context } = await open(device, 'q=system&role=practice&support=translate');

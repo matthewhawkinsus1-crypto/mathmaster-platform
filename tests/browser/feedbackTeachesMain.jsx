@@ -5,6 +5,9 @@
 //   ?q=multi|family|system  the fixture
 //   ?support=translate      give the student Read aloud + Translate (Spanish)
 //   ?run=<id>               a fresh draft namespace
+//   ?secure=1               mount it the way a secure Test item is mounted:
+//                           server-graded (RichQuestionRuntime), and still
+//                           handed an onAskTeacher callback
 //
 // Graded submissions land on window.__mmGrades, "Ask my teacher" toggles on
 // window.__mmHelp.
@@ -63,6 +66,14 @@ const studentProfile = params.get('support') === 'translate'
 window.__mmGrades = [];
 window.__mmHelp = [];
 
+const serverGrading = params.get('secure') === '1' ? {
+  pathToolId: null,
+  submit: async () => {
+    window.__mmGrades.push({ server: true });
+    return { isCorrect: false, status: 'attempted', attemptCount: 1, remainingAttempts: 0, message: 'Your answer is recorded.' };
+  },
+} : null;
+
 function Harness() {
   const [record, setRecord] = useState(emptyQuestionRecord());
   const [help, setHelp] = useState(false);
@@ -88,6 +99,7 @@ function Harness() {
           executionScope="student"
           studentProfile={studentProfile}
           onGrade={onGrade}
+          serverGrading={serverGrading}
           onAskTeacher={(requested) => { window.__mmHelp.push(requested); setHelp(requested); }}
           helpRequested={help}
         />

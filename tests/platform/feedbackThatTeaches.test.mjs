@@ -337,3 +337,21 @@ test('the V5 compiler keeps a question\'s authored hints, so the Hint control ca
   const hints = buildQuestionHints(question).map((hint) => hint.text);
   assert.ok(hints.includes('Compare f(x − 4) with f(x): which way does the graph move?'));
 });
+
+test('6. "Ask my teacher" is never offered inside a secure Test or Test Cycle', () => {
+  // The control exists only where the host hands QuestionEngine a callback,
+  // and never under server grading (every secure item is server-graded).
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(engine, /const askTeacher = typeof onAskTeacher === 'function' && !locked && !serverGrading\s*\?/);
+  // The secure path (Tests, Retests, Test Cycle, Corrections, CCMR exams)
+  // never passes one: only the classroom assignment workspace does.
+  ['src/components/assessment/SecureExamContainer.jsx', 'src/components/assessment/SecureExamQuestionPlayer.jsx',
+    'src/components/question/RichQuestionRuntime.jsx', 'src/components/student/TestCycleCorrections.jsx',
+    'src/components/student/TestCycleCard.jsx'].forEach((path) => assert.doesNotMatch(read(path), /onAskTeacher|helpRequested/, path));
+  const app = read('src/App.jsx');
+  assert.equal((app.match(/onAskTeacher=/g) || []).length, 1, 'one host: the assignment workspace');
+  // And the secure host really is server-graded: the exam player renders
+  // RichQuestionRuntime, which mounts QuestionEngine with serverGrading.
+  assert.match(read('src/components/assessment/SecureExamQuestionPlayer.jsx'), /<RichQuestionRuntime/);
+  assert.match(read('src/components/question/RichQuestionRuntime.jsx'), /\n\s*serverGrading=\{serverGrading\}\n/);
+});
