@@ -371,8 +371,9 @@ await journey('inequality-like-terms', 'inequality-like-terms', async (page, ste
   step('open Combine like terms and choose 2x and 3x');
   await visibleButton(page, /^Combine like terms$/).click();
   await settle(page, 300);
-  await visibleLabelled(page, '2 x, select as a term to combine').click();
-  await visibleLabelled(page, '3 x, select as a term to combine').click();
+  // By source text: the chips' accessible names are spoken math.
+  await page.locator('button[data-term-text="2 x"][aria-label$="select as a term to combine"]:visible').first().click();
+  await page.locator('button[data-term-text="3 x"][aria-label$="select as a term to combine"]:visible').first().click();
   await settle(page, 300);
   const field = page.locator('math-field[aria-label^="Enter the single term these selected terms combine to"]:visible').first();
   const focused = await page.evaluate(() => document.activeElement?.tagName?.toLowerCase());

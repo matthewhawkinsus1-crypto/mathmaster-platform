@@ -174,6 +174,11 @@ const latexToSpeech = (raw, w) => {
 /** Plain-text mathematics (after LaTeX is reduced) to words. */
 const plainMathToSpeech = (raw, w) => {
   let text = ` ${raw} `;
+  // The last word of every operator phrase: a bracket after one of these is a
+  // new quantity, not a product ("x equals the quantity …", never "equals
+  // times the quantity").
+  const operatorWords = [w.eq, w.plus, w.minus, w.times, w.over, w.lt, w.gt, w.le, w.ge, w.ne, w.pm, w.of, w.point, w.divided, w.power, w.quantity]
+    .map((word) => word.split(' ').pop());
   // Coordinates: a bracket group of two or three comma-separated values.
   text = text.replace(/\(\s*([^(),]+?)\s*,\s*([^(),]+?)\s*(?:,\s*([^(),]+?)\s*)?\)/g, (match, a, b, c) => (
     ` ${w.point} ${a}, ${b}${c ? `, ${c}` : ''} `
@@ -207,13 +212,11 @@ const plainMathToSpeech = (raw, w) => {
     .replace(/\+/g, ` ${w.plus} `)
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
     .replace(/\)\s*\(/g, ')\uE000(')
-    .replace(/([A-Za-z0-9])\s*\(/g, '$1\uE000(')
+    .replace(/([\p{L}0-9]+)\s*\(/gu, (match, token) => (operatorWords.includes(token) ? `${token} (` : `${token}\uE000(`))
     .replace(/\uE000/g, ` ${w.times} `)
     .replace(/\(/g, ` ${w.quantity} `);
   // A minus sign is "negative" where it starts a quantity (start, after an
   // operator word or an opening bracket) and "minus" between two quantities.
-  const operatorWords = [w.eq, w.plus, w.minus, w.times, w.over, w.lt, w.gt, w.le, w.ge, w.ne, w.pm, w.of, w.point, w.divided, w.power, w.quantity]
-    .map((word) => word.split(' ').pop());
   text = text.replace(/(\S*)\s*[-−]\s*(?=[A-Za-z0-9.(√])/g, (match, before) => {
     const previous = before.trim();
     const unary = !previous || /[(,[]$/.test(previous) || operatorWords.includes(previous);

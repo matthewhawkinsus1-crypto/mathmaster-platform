@@ -419,7 +419,9 @@ export default function EnlargeableFigure({
   // Support tools outside assessments (universal design), and a fourth 44px
   // header button squeezed a phone's task from four lines to six — cut off in
   // the header (studentUxPlatform "staged", PR #454). With Help present, the
-  // tools open inside Help there; elsewhere they keep their own button.
+  // tools open inside Help there; elsewhere they keep their own button. The
+  // button is still named "Help" and the drawer "Help and instructions": the
+  // tray inside is its own group, "Support tools".
   const supportsInHelp = Boolean(help && supports && viewport.mode === 'mobile');
   const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
     .filter((name) => !['task', 'help', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
@@ -583,7 +585,6 @@ export default function EnlargeableFigure({
           <button
             type="button"
             data-work-view-supports={supportsInHelp ? '' : undefined}
-            aria-label={supportsInHelp ? `Help and ${(supports.label || 'Support tools').toLowerCase()}` : undefined}
             aria-expanded={drawer === 'help'}
             onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'help'))}
           >
@@ -596,7 +597,7 @@ export default function EnlargeableFigure({
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'task' ? 'true' : 'false'} aria-label="Original task">
         {task ? (typeof task === 'string' ? <MathText>{task}</MathText> : task) : null}
       </section>
-      <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'help' ? 'true' : 'false'} aria-label={supportsInHelp ? 'Help, instructions and support tools' : 'Help and instructions'}>
+      <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'help' ? 'true' : 'false'} aria-label="Help and instructions">
         {help || null}
         {supportsInHelp && enlarged && drawer === 'help' ? supports.render() : null}
       </section>

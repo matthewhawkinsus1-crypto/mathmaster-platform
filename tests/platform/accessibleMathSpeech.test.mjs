@@ -74,10 +74,31 @@ test('cancellable algebra terms are named in words and keep the keyboard focus r
   assert.match(row, /import \{ spokenMathLabel \} from '\.\/platform\/language\/mathSpeechLabel\.js';/);
   assert.match(row, /aria-label=\{onTermClick \? `\$\{spokenMathLabel\(term\.text\)\}, \$\{interactionLabel\}` : undefined\}/);
   assert.doesNotMatch(row, /outline: [^,\n]*'none'/, 'no inline outline:none on an interactive term');
+  assert.match(row, /data-term-text=\{term\.text\}/);
+  // The relation workspace's Combine like terms chips are the same kind of
+  // control: spoken, with the source text kept for code (questionFamilyCases).
+  const combine = executableSource(read('src/RelationStructureTools.jsx'));
+  assert.match(combine, /import \{ spokenMathLabel \} from '\.\/platform\/language\/mathSpeechLabel\.js';/);
+  assert.match(combine, /aria-label=\{`\$\{spokenMathLabel\(term\.text\.replace\(\/\^\\\+\\s\*\/, ''\)\)\}, select as a term to combine`\}/);
+  assert.match(combine, /data-term-text=\{term\.text\.replace\(\/\^\\\+\\s\*\/, ''\)\}/);
+  assert.equal(spokenMathLabel('-6 * x'), 'negative 6 times x');
 });
 
 // substitution-browser CI (PR #454): "x equals 2~ y" and "the quantity minus 3".
 test('LaTeX spacing is silent and a sign that opens a bracket is a negative', () => {
   assert.equal(mathToSpeech('x = 2~y - 3'), 'x equals 2 y minus 3');
   assert.equal(mathToSpeech('3(-3 + 2y) + 5y = 24'), '3 times the quantity negative 3 plus 2y plus 5y equals 24');
+});
+
+// A bracket after an operator word opens a quantity; only a number, a letter
+// or a closing bracket before it makes a product.
+test('a bracket after an operator is a quantity, not a product', () => {
+  assert.equal(mathToSpeech('x = (2 + 1)'), 'x equals the quantity 2 plus 1');
+  assert.equal(mathToSpeech('3 * (x + 1)'), '3 times the quantity x plus 1');
+  assert.equal(mathToSpeech('3 ÷ (x + 1)'), '3 divided by the quantity x plus 1');
+  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x plus the quantity 2');
+  assert.equal(mathToSpeech('2(x + 1)'), '2 times the quantity x plus 1');
+  assert.equal(mathToSpeech('x^2(x+1)'), 'x squared times the quantity x plus 1');
+  assert.equal(mathToSpeech('x + (2 - x)', { language: 'es' }), 'x más la cantidad 2 menos x');
+  assert.equal(mathToSpeech('3 * (x + 1)', { language: 'es' }), '3 por la cantidad x más 1');
 });
