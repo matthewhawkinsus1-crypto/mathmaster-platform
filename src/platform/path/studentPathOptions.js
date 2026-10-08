@@ -6,12 +6,13 @@
 // adaptive brief forbids (§42), so the assembly lives here and both callers
 // pass the same result around.
 
-import { getSkillGraph } from './skillGraph.js';
+import { getSkillGraph, teksSkillId } from './skillGraph.js';
 import { DEFAULT_CLASS_PACING, normalizeClassPacing, sequenceProvider } from './curriculumPacing.js';
 import { calendarPacingProvider, toEngineTiming } from './curriculumCalendar.js';
 import { DISTRICT_CALENDAR_COURSES } from './districtUnits.js';
 import { getStudentPathOptions } from './recommendationEngine.js';
 import { buildMasteryBySkillForStudent, collectAssignmentSkillIds } from './masteryAdapter.js';
+import { toDisplayCode } from '../../utils/teksUtils.js';
 
 // Courses with a real district calendar and a skill crosswalk. Anything not
 // listed falls back to the provisional even spread, and says so. The table
@@ -144,6 +145,27 @@ export const deriveAutomaticClassPacing = ({
   });
 };
 
+// Answers on an adjusted version (an IEP modification) carry no weight in the
+// mastery rule, so the engine never sees them. The evidence lines do need
+// them: a student who practised a skill only with adjusted questions must not
+// read "You haven't practised this yet." Each row of a skill with adjusted
+// answers gets their count; the engine's decisions are untouched.
+const withAdjustedAnswerCounts = (options, serverProfiles) => {
+  const counts = new Map();
+  Object.entries(serverProfiles || {}).forEach(([code, profile]) => {
+    const count = Math.max(0, Number(profile?.accumulator?.modifiedEvents ?? profile?.dimensions?.modifiedEvidenceEvents) || 0);
+    if (count > 0) counts.set(teksSkillId(toDisplayCode(code)), count);
+  });
+  if (!counts.size || !options || typeof options !== 'object') return options;
+  const annotate = (rows) => rows.map((row) => (
+    row && counts.has(row.skillId) ? { ...row, modifiedEvidenceCount: counts.get(row.skillId) } : row
+  ));
+  return Object.fromEntries(Object.entries(options).map(([key, value]) => [
+    key,
+    Array.isArray(value) && value.some((row) => row?.skillId) ? annotate(value) : value,
+  ]));
+};
+
 export const buildStudentPathOptions = ({
   student,
   assignments = [],
@@ -176,7 +198,7 @@ export const buildStudentPathOptions = ({
     ? normalizeClassPacing(pacing)
     : deriveAutomaticClassPacing({ courseId, assignments: safeAssignments, skills, nowValue });
   const pacingProvider = resolvePacingProvider({ courseId, skills, pacing: effectivePacing, nowValue });
-  return getStudentPathOptions({
+  return withAdjustedAnswerCounts(getStudentPathOptions({
     courseId,
     masteryBySkill: buildMasteryBySkillForStudent({ student: safeStudent, assignments: safeAssignments, serverProfiles: serverMasteryProfiles || {} }),
     pacing: effectivePacing,
@@ -192,5 +214,5 @@ export const buildStudentPathOptions = ({
     // exact session slots and visible x-of-y progress.
     requiredSkillIds: Array.isArray(requiredSkillIds) ? requiredSkillIds : [],
     assignmentSkillIds: collectAssignmentSkillIds(safeAssignments),
-  });
+  }), serverMasteryProfiles);
 };

@@ -496,21 +496,38 @@ const nameList = (skillIds = [], max = 2) => {
 // the screen holds it — the wheel and the skill card read that same object, so
 // the numbers match what the student sees there — and otherwise from the row,
 // which the engine built from that profile.
+//
+// `adjusted` counts the answers given on an adjusted version (an IEP
+// modification). The mastery rule gives them no weight, so they are not in the
+// score's question count — but the student did answer them, and must never be
+// told they have not practised. Students read "adjusted", never "modified"
+// (practiceHistoryPresentation.js).
+const adjustedAnswers = (row, profile) => Math.max(0, Number(
+  profile?.accumulator?.modifiedEvents ?? profile?.dimensions?.modifiedEvidenceEvents ?? row?.modifiedEvidenceCount,
+) || 0);
+
 const scoreFacts = (row, profile) => {
+  const adjusted = adjustedAnswers(row, profile);
   if (profile && typeof profile === 'object') {
     const facts = masteryFactsFromProfile(profile);
     if (facts.eligibleEvents > 0 && facts.estimate != null && Number.isFinite(Number(facts.estimate))) {
-      return { percent: Math.round(Number(facts.estimate)), count: facts.eligibleEvents, status: classifyMasteryStatus(facts) };
+      return { percent: Math.round(Number(facts.estimate)), count: facts.eligibleEvents, status: classifyMasteryStatus(facts), adjusted };
     }
   }
-  if (row?.mastery == null || !Number.isFinite(Number(row.mastery))) return null;
+  if (row?.mastery == null || !Number.isFinite(Number(row.mastery))) {
+    return adjusted > 0 ? { percent: null, count: 0, status: null, adjusted } : null;
+  }
   const count = Math.max(0, Number(row.evidenceCount) || 0);
-  return { percent: Math.round(clamp01(row.mastery) * 100), count: count || null, status: row.masteryStatus || null };
+  return { percent: Math.round(clamp01(row.mastery) * 100), count: count || null, status: row.masteryStatus || null, adjusted };
 };
 
 const scoreSentence = (row, facts) => {
+  const adjusted = Math.max(0, Number(facts.adjusted) || 0);
+  if (adjusted > 0 && !facts.count) {
+    return `You've practised this with ${plural(adjusted, 'adjusted question')}. Your score here comes from questions that are not adjusted, so it is not set yet.`;
+  }
   if (facts.count != null && facts.count < MASTERY_RULE.minimumEvents) {
-    return `You've answered ${plural(facts.count, 'question')} on this so far.`;
+    return `You've answered ${plural(facts.count + adjusted, 'question')} on this so far.`;
   }
   const basis = facts.count ? ` from ${plural(facts.count, 'question')}` : '';
   const mastered = facts.status ? facts.status === MASTERY_STATUS.MASTERED : row?.status === STATUS.MASTERED;

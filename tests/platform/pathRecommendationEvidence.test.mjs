@@ -205,3 +205,61 @@ test('grade 6-8 strand titles are student-facing topic names, with no TEKS refer
   });
   assert.equal(getMasteryStrands('grade8').find((strand) => strand.codes.includes('8.4A')).title, 'Slope and rate of change');
 });
+
+// Exactly what updateMyMathPathMasteryFromEvidence writes after six answers on
+// an adjusted version (an IEP modification): the rule gives them no weight.
+const adjustedOnly = (adjusted = 6, counted = 0) => ({
+  mastery: { estimate: counted ? 80 : null },
+  accumulator: { eligibleEvents: counted, effectiveWeight: counted, independentSuccesses: counted, modifiedEvents: adjusted },
+  dimensions: { eligibleGradeLevelEvents: counted, modifiedEvidenceEvents: adjusted, dokRepresented: counted ? [2] : [] },
+});
+
+test('a student who practised only with adjusted questions is never told they have not practised', () => {
+  const serverMasteryProfiles = { 'A.2E': adjustedOnly(6) };
+  const options = buildStudentPathOptions({ student: { id: 's' }, assignments: [], courseId: 'algebra1', serverMasteryProfiles, nowValue: NOW });
+  const rows = Object.values(options).filter(Array.isArray).flat();
+  const source = rows.find((entry) => entry.skillId === teksSkillId('A.2E'));
+  assert.ok(source, 'A.2E is part of the course');
+  assert.equal(source.modifiedEvidenceCount, 6, 'the row carries the adjusted answers');
+  assert.equal(source.evidenceCount, 0, 'and the engine still counts none of them');
+  const expected = "You've practised this with 6 adjusted questions. Your score here comes from questions that are not adjusted, so it is not set yet.";
+
+  // The engine row alone (Recommended cards on Home), the map with the unified
+  // profiles, and the topic browser all say the same true thing.
+  const fromRow = texts(explainRecommendationEvidence(source));
+  assert.ok(fromRow.includes(expected), fromRow.join(' | '));
+  const profiles = buildUnifiedMasteryProfiles({ serverProfiles: serverMasteryProfiles });
+  const fromProfile = texts(explainRecommendationEvidence(source, profiles['A.2E']));
+  assert.ok(fromProfile.includes(expected), fromProfile.join(' | '));
+  // The profile alone is enough, for a caller holding a row the engine made
+  // without the student's server profiles.
+  const profileOnly = texts(explainRecommendationEvidence(row({ skillId: teksSkillId('A.2E') }), profiles['A.2E']));
+  assert.ok(profileOnly.includes(expected), profileOnly.join(' | '));
+  const panel = curateStudentPanel(options);
+  const map = buildPathMap(options, { masteryProfilesByTEKS: profiles });
+  const shown = [
+    ...[panel.best, panel.strengthen, panel.challenge, ...panel.choices].filter(Boolean),
+    ...map.focus, ...map.branches, ...map.comingUp, ...map.needsSupport, ...map.challenge,
+  ].filter((card) => card.skillId === teksSkillId('A.2E'));
+  assert.ok(shown.length, 'A.2E is on a screen in October');
+  shown.forEach((card) => {
+    const lines = texts(card.evidence || []);
+    assert.equal(lines.includes("You haven't practised this yet."), false, lines.join(' | '));
+    assert.ok(lines.includes(expected), lines.join(' | '));
+  });
+  // Students read "adjusted", never the teacher's word for it.
+  [...fromRow, ...fromProfile].forEach((line) => assert.doesNotMatch(line, /modif|IEP|504/i));
+});
+
+test('adjusted answers count as answered, beside the ones that count toward the score', () => {
+  const mixed = { 'A.2E': adjustedOnly(5, 1) };
+  const options = buildStudentPathOptions({ student: { id: 's' }, assignments: [], courseId: 'algebra1', serverMasteryProfiles: mixed, nowValue: NOW });
+  const source = Object.values(options).filter(Array.isArray).flat().find((entry) => entry.skillId === teksSkillId('A.2E'));
+  const profiles = buildUnifiedMasteryProfiles({ serverProfiles: mixed });
+  assert.ok(texts(explainRecommendationEvidence(source, profiles['A.2E'])).includes("You've answered 6 questions on this so far."));
+  // A skill with no answers at all still says so plainly.
+  assert.ok(texts(explainRecommendationEvidence(row())).includes("You haven't practised this yet."));
+  // And a student with no adjusted answers gets rows exactly as the engine made them.
+  const plain = buildStudentPathOptions({ student: { id: 's' }, assignments: [], courseId: 'algebra1', nowValue: NOW });
+  assert.equal(Object.values(plain).filter(Array.isArray).flat().some((entry) => 'modifiedEvidenceCount' in entry), false);
+});
