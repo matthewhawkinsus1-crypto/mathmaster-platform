@@ -226,7 +226,17 @@ export const weeklyStartLabel = (session, active, required) => {
   return isRetentionPurpose(session?.purpose) ? `${start} · ${RETENTION_PROBE_QUESTIONS} questions` : start;
 };
 
-function SessionCard({ session, done, active = null, onStart, onChoose, disabled, total }) {
+/**
+ * What a weekly launch button says while it cannot launch yet. Until the
+ * student's own sessions for the week have loaded, a card may show the
+ * recommendation for a slot whose swap is already open, so Start waits rather
+ * than guessing (MyMathPathApp gates the launch the same way).
+ */
+export const weeklyFactsBlockedLabel = (factsStatus) => (
+  factsStatus === 'loading' ? 'Checking your week…' : null
+);
+
+function SessionCard({ session, done, active = null, onStart, onChoose, disabled, total, blockedLabel = null, swapHidden = false }) {
   const tone = PURPOSE_TONE[session.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING];
   const choice = describeSlotChoice(session);
   return (
@@ -286,13 +296,14 @@ function SessionCard({ session, done, active = null, onStart, onChoose, disabled
               minHeight: 44, width: '100%',
             }}
           >
-            {weeklyStartLabel(session, active, total)}
+            {blockedLabel || weeklyStartLabel(session, active, total)}
           </button>
         )}
 
         {/* An opened session is bound to its skill on the server, so the swap
-            control only appears before the first answer. */}
-        {!done && !active && <SlotChoice session={session} onChoose={onChoose} disabled={disabled} />}
+            control only appears before the first answer — and only once the
+            student's sessions have loaded, which is when "opened" is known. */}
+        {!done && !active && !swapHidden && <SlotChoice session={session} onChoose={onChoose} disabled={disabled} />}
       </div>
     </li>
   );
@@ -310,6 +321,11 @@ export default function WeeklyPathGoalPanel({
   // Weekly sessions the student opened and has not finished. They never count
   // as done; they turn "Start" into "Resume".
   inProgress = [],
+  // Whether `completions` and `inProgress` are settled for this week:
+  // 'loading', 'ready' or 'failed'. Weekly Start, Resume and the swap options
+  // wait for 'ready'. Callers that hand over settled facts can leave it.
+  factsStatus = 'ready',
+  onRetryFacts = null,
   onStartSession = null,
   onChooseAlternative = null,
   busy = false,
@@ -333,10 +349,15 @@ export default function WeeklyPathGoalPanel({
   const remaining = Math.max(0, required - completed);
   const complete = remaining === 0;
   const next = goal.sessions.find((session) => !done.has(session.slot));
+  // No weekly launch until the student's sessions for the week are known —
+  // and no swap control either: whether a slot can still be swapped depends
+  // on whether it is already open.
+  const launchBlocked = factsStatus !== 'ready';
+  const blockedLabel = weeklyFactsBlockedLabel(factsStatus);
   // Swapping is promised only where a card actually offers it. A week frozen
   // before swaps existed has no options, and saying "swap it on any card"
   // there points at a control that is not on the screen.
-  const swapOffered = weeklyGoalOffersSwap({ goal, completedSlots, inProgress });
+  const swapOffered = !launchBlocked && weeklyGoalOffersSwap({ goal, completedSlots, inProgress });
   // Null when the caller has no completions to hand, which simply means no
   // grade card rather than a wrong one.
   const gradeSummary = Array.isArray(completions)
@@ -361,10 +382,12 @@ export default function WeeklyPathGoalPanel({
             {complete ? `You hit all ${required} sessions.` : `${completed} of ${required} sessions complete · ${remaining} to go`}
           </strong>
           <span style={{ ...MUTED, display: 'block', marginTop: 3 }}>
+            {/* This compact summary has no session cards, so it says where
+                the swap control is rather than pointing at one. */}
             {complete
               ? 'Anything else you practise this week is extra.'
               : swapOffered
-                ? 'Do them in any order, and swap a skill where a card offers other options.'
+                ? 'Do them in any order. On your Path, some sessions let you swap in a different skill.'
                 : 'Do them in any order.'}
           </span>
         </div>
@@ -425,6 +448,33 @@ export default function WeeklyPathGoalPanel({
         )}
       </header>
 
+      {factsStatus === 'failed' && (
+        <div role="alert" style={{
+          ...CARD,
+          padding: 14,
+          display: 'flex', justifyContent: 'center', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+          border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)',
+        }}>
+          <span style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.5, flex: '1 1 240px' }}>
+            MathMaster couldn&apos;t check which weekly sessions you&apos;ve already started, so Start is paused.
+          </span>
+          {onRetryFacts && (
+            <button
+              type="button"
+              onClick={() => onRetryFacts()}
+              style={{
+                appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+                minHeight: 44, padding: '10px 16px', borderRadius: 10,
+                border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-surface)',
+                color: 'var(--mm-warning-text)', fontWeight: 900, cursor: 'pointer',
+              }}
+            >
+              Try again
+            </button>
+          )}
+        </div>
+      )}
+
       {next && (
         <div style={{ ...CARD, background: 'var(--mm-surface-tint)', borderColor: 'var(--mm-tint-border)' }}>
           <div style={{ fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
@@ -448,16 +498,16 @@ export default function WeeklyPathGoalPanel({
           <button
             type="button"
             onClick={() => onStartSession?.(next)}
-            disabled={busy}
+            disabled={busy || launchBlocked}
             style={{
               appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
               marginTop: 12, padding: '12px 18px', borderRadius: 11, border: 0,
-              background: busy ? '#c7ccd4' : '#174ea6', color: '#fff',
-              fontSize: 15, fontWeight: 900, cursor: busy ? 'default' : 'pointer',
+              background: busy || launchBlocked ? '#c7ccd4' : '#174ea6', color: '#fff',
+              fontSize: 15, fontWeight: 900, cursor: busy || launchBlocked ? 'default' : 'pointer',
               minHeight: 46, width: '100%',
             }}
           >
-            {busy ? 'Starting…' : weeklyStartLabel(next, inProgressForSlot(inProgress, next), required)}
+            {busy ? 'Starting…' : (blockedLabel || weeklyStartLabel(next, inProgressForSlot(inProgress, next), required))}
           </button>
         </div>
       )}
@@ -471,7 +521,9 @@ export default function WeeklyPathGoalPanel({
             active={done.has(session.slot) ? null : inProgressForSlot(inProgress, session)}
             onStart={onStartSession}
             onChoose={onChooseAlternative}
-            disabled={busy}
+            disabled={busy || launchBlocked}
+            blockedLabel={blockedLabel}
+            swapHidden={launchBlocked}
             total={required}
           />
         ))}

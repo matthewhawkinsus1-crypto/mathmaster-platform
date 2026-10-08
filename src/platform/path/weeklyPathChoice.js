@@ -317,6 +317,12 @@ export const mergeWeeklyGoalSnapshot = ({ proposed = null, snapshot = null, assi
  * what was chosen. Otherwise the click made in this tab stands; it is
  * deliberately not stored anywhere else.
  *
+ * A FINISHED session outranks an open one. A slot is done once a completed
+ * session fills it, and the card then has to name the standard that filled it
+ * — the one the grade, the teacher's row and Classroom credit
+ * (matchWeeklyGoalCompletions takes the first completion with the slot's key,
+ * and so does this) — not a second session still open beside it.
+ *
  * Facts are read by the slot key each SESSION was launched with — never by a
  * key a count-based legacy match assigned — so free practice on an option's
  * standard is never mistaken for a swap.
@@ -332,8 +338,8 @@ export const resolveWeeklySlotChoices = ({
   list(goal?.sessions).forEach((slot) => {
     const key = text(slot?.weeklySlotKey);
     if (!key) return;
-    const fact = list(inProgress).find((entry) => text(entry?.weeklySlotKey) === key && thisWeek(entry))
-      || list(completions).find((entry) => text(entry?.weeklySlotKey) === key && thisWeek(entry));
+    const fact = list(completions).find((entry) => text(entry?.weeklySlotKey) === key && thisWeek(entry))
+      || list(inProgress).find((entry) => text(entry?.weeklySlotKey) === key && thisWeek(entry));
     if (fact) {
       if (sameTeks(fact.teksCode, slot.teksCode)) return;
       const option = list(slot.alternatives).find((entry) => sameTeks(entry?.teksCode, fact.teksCode));
@@ -344,6 +350,31 @@ export const resolveWeeklySlotChoices = ({
     if (wanted) resolved[key] = wanted;
   });
   return resolved;
+};
+
+/**
+ * The card a weekly Start button launches.
+ *
+ * A slot the student already opened is resumed, never restarted. The server
+ * resumes a session through the standard it was opened with, so the launch
+ * names THAT standard even when the card cannot show it as the slot's choice
+ * — the frozen week has not loaded, so the swap is not among the card's
+ * options — rather than the recommendation the card fell back to. Only the
+ * standard moves (and the claim of which option was picked, which the server
+ * then works out itself); the slot's key, purpose, context, depth and band are
+ * the card's own.
+ */
+export const weeklyLaunchSession = ({ session = null, inProgress = [] } = {}) => {
+  const key = text(session?.weeklySlotKey);
+  if (!session || !key) return session;
+  const open = list(inProgress).find((entry) => text(entry?.weeklySlotKey) === key && text(entry?.teksCode));
+  if (!open || sameTeks(open.teksCode, session.teksCode)) return session;
+  return {
+    ...session,
+    teksCode: text(open.teksCode),
+    chosenSkillId: null,
+    studentChose: false,
+  };
 };
 
 /**

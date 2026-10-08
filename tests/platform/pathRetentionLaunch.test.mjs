@@ -115,7 +115,7 @@ test('the map card, the banner and the Overview focus all launch the same check'
 test('the screens launch through those helpers, and import them', () => {
   const app = executableSource(read('src/components/student/MyMathPathApp.jsx'));
   const weekly = region(app, 'const startWeeklySession = (session) => {', '\n  };', 'startWeeklySession');
-  assert.match(weekly, /startSession\(code, weeklySessionLaunchOptions\(session, \{ weekKey: weeklyGoal\?\.weekKey \|\| null \}\)\);/);
+  assert.match(weekly, /startSession\(code, weeklySessionLaunchOptions\(chosen, \{ weekKey: weeklyGoal\?\.weekKey \|\| null \}\)\);/);
   assert.match(app, /import \{ pathCardLaunchOptions, weeklySessionLaunchOptions \} from '\.\.\/\.\.\/platform\/path\/pathSessionLaunch\.js';/);
   assert.match(region(app, 'onChooseSkill={(card) =>', '\n', 'map card launch'), /startSession\(code, pathCardLaunchOptions\(card\)\)/);
   // startSession carries the kind and the two-question count to the session.

@@ -110,7 +110,7 @@ test('the Path screen offers only frozen swaps and launches what was chosen', ()
   // The weekly launch goes through the shared launch options (which also make
   // a Retention slot a retention check); only a slot the student actually
   // swapped names a chosen skill.
-  assert.match(weeklyStart, /startSession\(code, weeklySessionLaunchOptions\(session, \{ weekKey: weeklyGoal\?\.weekKey \|\| null \}\)\);/);
+  assert.match(weeklyStart, /startSession\(code, weeklySessionLaunchOptions\(chosen, \{ weekKey: weeklyGoal\?\.weekKey \|\| null \}\)\);/);
   const swapped = weeklySessionLaunchOptions({ slot: 1, weeklySlotKey: 'k', purpose: 'currentLearning', studentChose: true, chosenSkillId: 'teks:A.5B' }, { weekKey: '2026-10-05' });
   assert.equal(swapped.chosenSkillId, 'teks:A.5B');
   const notSwapped = weeklySessionLaunchOptions({ slot: 1, weeklySlotKey: 'k', purpose: 'currentLearning', studentChose: false, chosenSkillId: 'teks:A.5B' }, { weekKey: '2026-10-05' });
@@ -137,7 +137,14 @@ test('the teacher weekly table shows which slots a student swapped', () => {
 test('the weekly panel promises a swap only where a card offers one', () => {
   const panel = executableSource(read('src/components/student/WeeklyPathGoalPanel.jsx'));
   assert.match(panel, /import \{[^}]*\bweeklyGoalOffersSwap\b[^}]*\} from '..\/..\/platform\/path\/weeklyPathChoice\.js';/);
-  assert.match(panel, /const swapOffered = weeklyGoalOffersSwap\(\{ goal, completedSlots, inProgress \}\);/);
+  // ...and only once the week's sessions are known: the swap control is
+  // hidden until then (see the launch-gate contract below).
+  assert.match(panel, /const swapOffered = !launchBlocked && weeklyGoalOffersSwap\(\{ goal, completedSlots, inProgress \}\);/);
+  // The compact summary (Mastery Overview) renders no session cards, so it
+  // must not point at a control on "a card".
+  const compactBranch = region(panel, 'if (compact) {', '\n  }\n', 'compact panel');
+  assert.match(compactBranch, /swapOffered\s*\?\s*'[^']*\bswap\b[^']*'/, 'the compact copy still mentions swapping when it is offered');
+  assert.doesNotMatch(compactBranch, /'[^'\n]*\bswap\b[^'\n]*\bcard\b[^'\n]*'/i, 'the compact summary has no cards to point at');
   // Every sentence that mentions swapping sits behind swapOffered.
   const swapSentences = panel.match(/'[^'\n]*\bswap[^'\n]*'/gi) || [];
   assert.ok(swapSentences.length >= 2);
@@ -148,4 +155,56 @@ test('the weekly panel promises a swap only where a card offers one', () => {
   // A card without frozen options renders no swap control at all.
   const slotChoice = region(panel, 'function SlotChoice(', 'export const inProgressForSlot', 'swap control');
   assert.match(slotChoice, /if \(!choice\.canChoose\) return null;/);
+});
+
+// FIX PASS, finding 1. After a reload the panel rendered with Start enabled
+// before the student's own sessions for the week had loaded (and for good if
+// that load failed). A swapped slot then showed its recommendation, and Start
+// opened a second session beside the open swap. The server now resumes a
+// slot's open session whatever the launch names
+// (weeklyPathSlotOneOpenSession.test.mjs); the screen also waits until it
+// knows, and resumes on the open session's standard.
+test('weekly launches wait until the week\'s sessions are known, and resume what is open', () => {
+  const app = executableSource(read('src/components/student/MyMathPathApp.jsx'));
+  // Imported where it is called: App-level .jsx has no no-undef safety net.
+  assert.match(app, /import \{[^}]*\bweeklyLaunchSession\b[^}]*\} from '..\/..\/platform\/path\/weeklyPathChoice\.js';/);
+
+  const facts = region(app, 'const [weeklySessionFacts, setWeeklySessionFacts]', 'const weeklyProgress = useMemo(', 'weekly session facts');
+  assert.match(facts, /useState\(\{ weekKey: null, completions: null, inProgress: \[\], status: 'loading' \}\)/, 'unsettled until the first load answers');
+  const effect = region(facts, 'useEffect(() => {', '}, [weeklyGoalWeekKey,', 'facts effect');
+  // Every (re)load unsettles the facts BEFORE it starts reading.
+  const unsettle = effect.indexOf("setWeeklySessionFacts((current) => (current.status === 'loading' ? current : { ...current, status: 'loading' }));");
+  assert.ok(unsettle > -1 && unsettle < effect.indexOf('const load ='), 'a reload marks the facts loading before it reads');
+  assert.match(region(effect, '.then((facts) => {', '.catch(', 'facts loaded'), /status: 'ready'/);
+  assert.match(region(effect, '.catch((caught) => {', 'return () =>', 'facts failed'), /status: 'failed'/);
+  // Facts for another week are not this week's.
+  assert.match(facts, /const weeklyFactsStatus = weeklySessionFacts\.weekKey === weeklyGoalWeekKey \? weeklySessionFacts\.status : 'loading';/);
+  assert.match(facts, /const retryWeeklyFacts = useCallback\(\(\) => setWeeklyRefreshKey\(\(value\) => value \+ 1\), \[\]\);/);
+
+  const weeklyStart = region(app, 'const startWeeklySession = (session) => {', 'const chooseWeeklySlotAlternative', 'weekly start');
+  const gate = weeklyStart.indexOf("if (weeklyFactsStatus !== 'ready') {");
+  assert.ok(gate > -1, 'startWeeklySession refuses until the facts are ready');
+  assert.match(region(weeklyStart, "if (weeklyFactsStatus !== 'ready') {", '}\n', 'gate body'), /\breturn;/);
+  assert.ok(gate < weeklyStart.indexOf('startSession('), 'the gate comes before the launch');
+  // An opened slot is relaunched on the standard it was opened with.
+  assert.match(weeklyStart, /const chosen = weeklyLaunchSession\(\{ session, inProgress: weeklyInProgress \}\);/);
+
+  const panelElement = region(app, '<WeeklyPathGoalPanel', '/>', 'Path weekly panel');
+  assert.match(panelElement, /factsStatus=\{weeklyFactsStatus\}/);
+  assert.match(panelElement, /onRetryFacts=\{retryWeeklyFacts\}/);
+
+  const panel = executableSource(read('src/components/student/WeeklyPathGoalPanel.jsx'));
+  assert.match(panel, /const launchBlocked = factsStatus !== 'ready';/);
+  const nextButton = region(panel, 'onClick={() => onStartSession?.(next)}', '</button>', '"do this next" button');
+  assert.match(nextButton, /disabled=\{busy \|\| launchBlocked\}/);
+  assert.match(nextButton, /blockedLabel \|\| weeklyStartLabel\(next/);
+  const cards = region(panel, '<SessionCard', '/>', 'session cards');
+  assert.match(cards, /disabled=\{busy \|\| launchBlocked\}/);
+  assert.match(cards, /swapHidden=\{launchBlocked\}/);
+  assert.match(panel, /\{!done && !active && !swapHidden && <SlotChoice/);
+  // A failed load says so and offers a retry, instead of a silent dead button.
+  const failed = region(panel, "{factsStatus === 'failed' && (", '</div>\n      )}', 'facts failed notice');
+  assert.match(failed, /role="alert"/);
+  assert.match(failed, /onClick=\{\(\) => onRetryFacts\(\)\}/);
+  assert.match(failed, /Start is paused/);
 });

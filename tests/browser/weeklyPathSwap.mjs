@@ -19,6 +19,13 @@
 //      the right edge, at 1366x768 and 390x844 — including with an options
 //      list open.
 //   4. NO WHITE SCREEN, NO CONSOLE ERRORS.
+//   5. NO START BEFORE THE WEEK IS KNOWN (fix pass, finding 1). While the
+//      student's sessions load, every weekly Start is disabled, says
+//      "Checking your week…", and no swap control or swap promise shows. If
+//      the load fails, an alert says Start is paused and offers Try again;
+//      after a successful retry Start and the swap controls return. A Resume
+//      on a week whose frozen copy has not loaded launches the open swap's
+//      standard, not the recommendation the card fell back to.
 //
 // NO PRODUCTION CONTACT: every non-localhost request is aborted.
 
@@ -55,8 +62,31 @@ const SCENES = [
     mustContain: ['Completed ✓', 'Solve linear inequalities', `You chose this instead of ${RECOMMENDED_LABEL}`, '1 of 4 done'],
     toggles: 2,
   },
-  { name: 'compactSwappable', mustContain: ['Your weekly target', 'swap a skill where a card offers other options'], toggles: 0 },
+  // The compact summary has no cards, so it says where the swap control is.
+  { name: 'compactSwappable', mustContain: ['Your weekly target', 'On your Path, some sessions let you swap in a different skill.'], mustNotContain: ['card offers'], toggles: 0 },
   { name: 'compactLegacy', mustContain: ['Your weekly target', 'Do them in any order.'], mustNotContain: ['swap'], toggles: 0 },
+  {
+    name: 'checking',
+    mustContain: ['Your Weekly Math Path', 'Checking your week…', 'Do them in any order.'],
+    // No completions yet: no grade card rather than a wrong one.
+    mustNotContain: ['swap', 'Start session', 'Start is paused', 'Grade so far'],
+    toggles: 0,
+    launchButtons: { count: 5, allDisabled: true },
+  },
+  {
+    name: 'factsFailed',
+    mustContain: ["MathMaster couldn't check which weekly sessions you've already started, so Start is paused.", 'Try again', 'Start session 1 of 4'],
+    mustNotContain: ['swap', 'Checking your week', 'Grade so far'],
+    toggles: 0,
+    launchButtons: { count: 5, allDisabled: true },
+  },
+  {
+    name: 'resumeUnfrozen',
+    mustContain: ['Resume session 1 · 2 of 5 answered', RECOMMENDED_LABEL],
+    mustNotContain: ['swap'],
+    toggles: 0,
+    launchButtons: { count: 5, allDisabled: false },
+  },
 ];
 
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -88,6 +118,12 @@ const measure = (page) => page.evaluate(({ minTap, toggle }) => {
       .slice(0, 5)
       .map(({ element, box }) => `<${element.tagName.toLowerCase()}> to ${Math.round(box.right)}px: "${(element.innerText || '').trim().slice(0, 40)}"`),
     launch: document.querySelector('[data-mm-launch]')?.textContent || null,
+    // Every weekly launch button: the "do this next" button and each card's.
+    launchButtons: controls
+      .filter(({ element }) => element.tagName === 'BUTTON'
+        && /^(Start session|Resume session|Start weekly session|Checking your week|Starting)/.test((element.innerText || '').trim()))
+      .map(({ element }) => ({ text: (element.innerText || '').trim(), disabled: element.disabled })),
+    alerts: [...document.querySelectorAll('[role="alert"]')].map((element) => (element.innerText || '').trim()),
   };
 }, { minTap: MIN_TAP, toggle: TOGGLE });
 
@@ -146,7 +182,64 @@ for (const { name: viewportName, viewport, options } of VIEWPORTS) {
     (scene.mustContain || []).forEach((needle) => { if (!text.includes(needle.toLowerCase())) problems.push(`missing text: ${needle}`); });
     (scene.mustNotContain || []).forEach((needle) => { if (text.includes(needle.toLowerCase())) problems.push(`must not say: ${needle}`); });
     if (seen.toggles !== scene.toggles) problems.push(`expected ${scene.toggles} swap control(s), found ${seen.toggles}`);
+    if (scene.launchButtons) {
+      const { count, allDisabled } = scene.launchButtons;
+      if (seen.launchButtons.length !== count) problems.push(`expected ${count} weekly launch button(s), found ${seen.launchButtons.length}: ${seen.launchButtons.map((entry) => entry.text).join(' | ')}`);
+      const wrong = seen.launchButtons.filter((entry) => entry.disabled !== allDisabled);
+      if (wrong.length) problems.push(`launch buttons should all be ${allDisabled ? 'disabled' : 'enabled'}: ${wrong.map((entry) => entry.text).join(' | ')}`);
+    }
     record(scene.name, problems);
+  }
+
+  // Flow C: the load of the week's sessions failed. Start is paused, a press
+  // does nothing, and Try again brings Start and the swap controls back.
+  {
+    errors.length = 0;
+    const problems = [];
+    await page.evaluate(() => window.__mmSwapScene('legacyWeek'));
+    await page.waitForTimeout(100);
+    await page.evaluate(() => window.__mmSwapScene('factsFailed'));
+    await page.waitForTimeout(250);
+    const paused = await measure(page);
+    if (!paused.alerts.some((text) => text.includes('Start is paused'))) problems.push('no alert says Start is paused');
+    await click(page, 'Start session 1 of 4');
+    await page.waitForTimeout(150);
+    const pressed = await measure(page);
+    if (pressed.launch) problems.push(`a paused Start still launched: ${pressed.launch}`);
+    if (!await click(page, 'Try again')) problems.push('no Try again button');
+    await page.waitForTimeout(100);
+    const retrying = await measure(page);
+    if (!retrying.text.includes('Checking your week…')) problems.push('Try again does not show the week being checked');
+    if (retrying.alerts.length) problems.push('the failure alert stays up while retrying');
+    await page.waitForTimeout(500);
+    const ready = await measure(page);
+    if (ready.launchButtons.some((entry) => entry.disabled)) problems.push('Start is still disabled after a successful retry');
+    if (ready.toggles !== 3) problems.push(`expected the 3 swap controls back after the retry, found ${ready.toggles}`);
+    if (!await click(page, 'Start session 1 of 4')) problems.push('no Start button after the retry');
+    await page.waitForTimeout(150);
+    const launched = await measure(page);
+    const expected = 'Launch authorized: A.5A · course · DOK 2, band 3';
+    if (launched.launch !== expected) problems.push(`launch after retry: expected "${expected}", got "${launched.launch}"`);
+    problems.push(...layoutProblems(launched, errors));
+    record('flow: failed load, Try again, then Start', problems);
+  }
+
+  // Flow D: the frozen week (and so the swap) has not loaded, but the open
+  // swapped session has. Resume must reopen THAT session's standard.
+  {
+    errors.length = 0;
+    const problems = [];
+    await page.evaluate(() => window.__mmSwapScene('legacyWeek'));
+    await page.waitForTimeout(100);
+    await page.evaluate(() => window.__mmSwapScene('resumeUnfrozen'));
+    await page.waitForTimeout(250);
+    if (!await click(page, 'Resume session 1 · 2 of 5 answered', 'Weekly session 1 of 4')) problems.push('no Resume button on session 1');
+    await page.waitForTimeout(150);
+    const resumed = await measure(page);
+    const expected = 'Launch authorized: A.5B instead of A.5A · course · DOK 2, band 3';
+    if (resumed.launch !== expected) problems.push(`Resume launch: expected "${expected}", got "${resumed.launch}"`);
+    problems.push(...layoutProblems(resumed, errors));
+    record('flow: Resume before the frozen week loads', problems);
   }
 
   // Flow A: swap a course slot, launch it, then put the recommendation back.
