@@ -252,14 +252,28 @@ const retentionCheckNode = (row, { concern = false } = {}) => ({
  * older caller flagged `retentionDue` / `retentionConcern` is still honoured,
  * after the scheduler's. Content coverage is applied last and can only close
  * the door, as everywhere else on the map.
+ *
+ * One card per skill: a skill the map already draws as practice (focus,
+ * branches, coming up, needs support, challenge) or that the engine locked is
+ * never also offered as a check. The scheduler due-lists only Mastered skills,
+ * and those sit in the engine's "mastered" bucket unless a teacher assigned
+ * them — then the assignment is the card.
  */
-const buildRetentionChecks = (rowsFor, { retentionDue = [], cap = DEFAULT_LIMITS.retention, isCovered = null } = {}) => {
+const buildRetentionChecks = (rowsFor, {
+  retentionDue = [],
+  cap = DEFAULT_LIMITS.retention,
+  isCovered = null,
+  shownIds = new Set(),
+} = {}) => {
   const rowBySkill = new Map();
   ENGINE_BUCKETS.forEach((key) => rowsFor(key).forEach((row) => {
     if (row?.skillId && !rowBySkill.has(row.skillId)) rowBySkill.set(row.skillId, row);
   }));
 
-  const seen = new Set();
+  // One card per skill. A skill the map already shows as something to
+  // practise (or as locked) is not also "already shown — check it stayed".
+  const seen = new Set(shownIds);
+  rowBySkill.forEach((row, skillId) => { if (row.status === STATUS.LOCKED) seen.add(skillId); });
   const checks = [];
   list(retentionDue).forEach((probe) => {
     const code = toDisplayCode(probe?.teksCode);
@@ -332,7 +346,8 @@ export const buildPathMap = (options, { limits = {}, isCovered = null, retention
   // as a number in a sentence. A student who has finished eight skills should
   // be able to see the eight.
   const masteredNodes = mastered.slice(0, cap.mastered).map((row) => toNode(row));
-  const retentionChecks = buildRetentionChecks(rows, { retentionDue, cap: cap.retention, isCovered });
+  const shownIds = new Set([...focus, ...branches, ...comingUp, ...needsSupport, ...challenge].map((node) => node.skillId));
+  const retentionChecks = buildRetentionChecks(rows, { retentionDue, cap: cap.retention, isCovered, shownIds });
 
   return {
     courseId: options.courseId || null,

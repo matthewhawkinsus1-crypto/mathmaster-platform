@@ -152,6 +152,7 @@ const masteredServerProfile = (daysAgo) => ({
 });
 
 const codes = skills.slice(3, 6).map((skill) => teksCodeFromSkillId(skill.skillId));
+const teksSkillIdFor = (code) => skills.find((skill) => teksCodeFromSkillId(skill.skillId) === code)?.skillId;
 
 const studentState = (schedules = {}) => {
   const profiles = buildUnifiedMasteryProfiles({
@@ -207,14 +208,45 @@ test('concerns come first, the section is short, unknown skills are skipped, and
   });
 });
 
-test('a check on a skill the class has not reached is still a door, not a calendar lock', () => {
-  const options = optionsFor({}, 0);
-  const future = options.future[0];
-  assert.ok(future, 'this fixture must produce future work');
-  const map = buildPathMap(options, { retentionDue: [{ teksCode: teksCodeFromSkillId(future.skillId), priority: 3 }] });
-  assert.equal(map.retentionDue.length, 1);
-  assert.equal(map.retentionDue[0].selectable, true);
-  assert.equal(map.retentionDue[0].blockedBy, null, 'it must not say "your class reaches this later"');
+test('one card per skill: a skill the map shows as practice, or as locked, is never also a check', () => {
+  // A mastered skill the teacher assigned stays assigned work: its focus card
+  // is the one card, not "already shown — check it stayed" beside it.
+  const assigned = teksSkillIdFor(codes[0]);
+  const profiles = buildUnifiedMasteryProfiles({ serverProfiles: { [codes[0]]: masteredServerProfile(20) } });
+  const options = getStudentPathOptions({
+    courseId: COURSE,
+    masteryBySkill: masteryBySkillFromProfiles(profiles),
+    pacing: { windowIndex: 2, windowCount: 6, accelerationRadius: 1 },
+    pacingProvider: sequenceProvider({ skills, windowCount: 6 }),
+    requiredSkillIds: [assigned],
+  });
+  const due = [{ teksCode: codes[0], priority: 3 }];
+  const map = buildPathMap(options, { retentionDue: due });
+  assert.ok(map.focus.some((node) => node.skillId === assigned), 'the assigned skill leads the map');
+  assert.equal(map.retentionDue.some((node) => node.skillId === assigned), false);
+
+  // A locked or not-yet-reached skill is not offered a check either: the map
+  // already says what it is.
+  const early = optionsFor({}, 0);
+  const notYet = early.future[0];
+  assert.ok(notYet, 'this fixture must produce future work');
+  assert.deepEqual(buildPathMap(early, { retentionDue: [{ teksCode: teksCodeFromSkillId(notYet.skillId), priority: 3 }] }).retentionDue, []);
+  // Locked beyond the capped "Needs support" section, so the map draws no
+  // card for it at all: it still is not a check.
+  const lockedRows = early.future.slice(0, DEFAULT_LIMITS.needsSupport + 1).map((row) => ({ ...row, status: 'locked' }));
+  assert.equal(lockedRows.length, DEFAULT_LIMITS.needsSupport + 1, 'this fixture must have enough rows');
+  const beyond = lockedRows[lockedRows.length - 1];
+  const lockedMap = buildPathMap({ courseId: COURSE, locked: lockedRows }, { retentionDue: [{ teksCode: teksCodeFromSkillId(beyond.skillId), priority: 3 }] });
+  assert.equal(lockedMap.needsSupport.some((node) => node.skillId === beyond.skillId), false);
+  assert.deepEqual(lockedMap.retentionDue, []);
+});
+
+test('a mastered skill\'s check is a door: startable, with no calendar lock', () => {
+  const { map } = studentState();
+  map.retentionDue.forEach((node) => {
+    assert.equal(node.selectable, true);
+    assert.equal(node.blockedBy, null, 'it must not say "your class reaches this later"');
+  });
   assert.equal(buildPathMap({}, { retentionDue: [{ teksCode: codes[0] }] }).isEmpty, true);
 
   // A student whose only open work is a due check has something to do: the
@@ -222,6 +254,27 @@ test('a check on a skill the class has not reached is still a door, not a calend
   const onlyMastered = { courseId: COURSE, mastered: studentState().options.mastered };
   assert.equal(buildPathMap(onlyMastered).isEmpty, true);
   assert.equal(buildPathMap(onlyMastered, { retentionDue: [{ teksCode: codes[0], priority: 3 }] }).isEmpty, false);
+});
+
+test('a Secure skill is still being learned: no check is due for it, so no door offers one', () => {
+  // 75 from four questions, last shown 40 days ago: Secure by the shared rule,
+  // not Mastered. A check here said "you have already shown this" beside the
+  // same skill's practice card, and two passes marked it retained, which
+  // kept it out of weekly plans for 45 days although it was never mastered.
+  const secure = {
+    mastery: { estimate: 75, confidence: 'Medium' },
+    accumulator: { eligibleEvents: 4, effectiveWeight: 4, independentSuccesses: 2 },
+    dimensions: { eligibleGradeLevelEvents: 4, dokRepresented: [2, 3], lastIndependentSuccessAt: NOW - 40 * DAY },
+  };
+  const profiles = buildUnifiedMasteryProfiles({ serverProfiles: { [codes[0]]: secure, [codes[2]]: masteredServerProfile(25) } });
+  assert.equal(profiles[codes[0]].mastery.status, 'Secure');
+  const report = evaluateStudentRetentionSchedule(profiles, {}, NOW);
+  assert.deepEqual(report.pendingProbes.map((probe) => probe.teksCode), [codes[2]], 'only the mastered skill is due');
+  assert.equal(report.schedules[codes[0]], undefined);
+  const map = buildPathMap(optionsFor(masteryBySkillFromProfiles(profiles)), { retentionDue: report.pendingProbes });
+  assert.deepEqual(map.retentionDue.map((node) => node.code), [codes[2]]);
+  // The Overview's focus card and the banner read the same pending list.
+  assert.notEqual(overviewFocus({ pendingProbes: report.pendingProbes, recommendedTeks: null })?.teksCode, codes[0]);
 });
 
 test('after a check the map follows the moved schedule: a pass clears it, a miss keeps it as a concern', () => {
