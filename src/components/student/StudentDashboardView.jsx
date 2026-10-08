@@ -11,6 +11,7 @@ import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { testCycleHasUnseenChange } from '../../platform/student/testCycleDiscovery.js';
+import { RecoveryHomeSection } from './RecoveryOpportunities.jsx';
 
 // A Test Cycle's pill, by the tone its stage description gives it.
 const TEST_CYCLE_TONE = {
@@ -72,6 +73,11 @@ export default function StudentDashboardView({
   rewardWallet = null,
   hasNewRewards = false,
   onOpenRewards = null,
+  // Every Warm-Up/DOL Recovery this student can act on now
+  // (buildStudentRecoveryDiscovery), and the handler that opens one. Absent
+  // where there is no signed-in student (the Teacher Path Simulator).
+  recoveryOpportunities = [],
+  onOpenRecovery = null,
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
@@ -281,6 +287,15 @@ export default function StudentDashboardView({
             </div>
           </section>
         ))}
+
+        {/* A closed Warm-Up or DOL with a second try open. Below the live,
+            timed cards (they close first) and above everything that waits:
+            it was reachable only from View Results, and students missed it. */}
+        <RecoveryHomeSection
+          opportunities={recoveryOpportunities}
+          studentId={student?.id || null}
+          onOpen={onOpenRecovery}
+        />
 
         {resumeAssignment && (
           <section aria-label="Resume assignment" style={{ marginBottom: '28px', padding: '28px 30px', borderRadius: '18px', background: 'linear-gradient(135deg, #174ea6 0%, #1a73e8 62%, #4f8fe8 100%)', color: '#fff', boxShadow: '0 16px 38px rgba(26,115,232,0.28)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', flexWrap: 'wrap', textAlign: 'left' }}>
