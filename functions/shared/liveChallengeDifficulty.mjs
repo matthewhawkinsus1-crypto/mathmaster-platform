@@ -16,6 +16,13 @@
  *   DOK 4   (extended thinking)       never in a timed round
  *   no DOK recorded                   any timed round (nothing to judge by)
  *
+ * "The round" is the round the question would actually run: the server fits
+ * a round's length to its question (liveChallenge.mjs
+ * complexityAdjustedRoundSeconds), so a 90-second game can run a one-step
+ * bank question in 50 seconds. The filter judges that adjusted length, and
+ * the opening clamps a DOK 3 round to DOK3_MIN_ROUND_SECONDS as a backstop
+ * (timedRoundSecondsFor) — the promise holds however a question was drawn.
+ *
  * A Pace Race round has no countdown to fit, so everything fits.
  *
  * The rule filters the candidates BEFORE the variety-first selection, so a
@@ -40,9 +47,20 @@ export const fitsTimedRound = (question = {}, { roundSeconds = 0, timingMode = '
   return false;
 };
 
+/**
+ * The seconds a round runs for its question: the adjusted length, but never
+ * less than DOK3_MIN_ROUND_SECONDS for a DOK 3 or 4 question in a timed round.
+ */
+export const timedRoundSecondsFor = ({ question = {}, adjustedSeconds = 0, timingMode = 'timed' } = {}) => {
+  const seconds = Number(adjustedSeconds) || 0;
+  if (timingMode === 'pace') return seconds;
+  const dok = questionDok(question);
+  return dok !== null && dok >= 3 ? Math.max(seconds, DOK3_MIN_ROUND_SECONDS) : seconds;
+};
+
 /** Why a candidate pool emptied, in a teacher's words (null when it did not). */
 export const timedRoundShortfallMessage = ({ before = 0, after = 0, needed = 0, roundSeconds = 0 } = {}) => {
   if (after >= needed || before <= after) return null;
-  return `Only ${after} of these questions fit a ${roundSeconds}-second round — the rest are multi-step (DOK 3–4) questions that need more time. `
-    + `Choose rounds of at least ${DOK3_MIN_ROUND_SECONDS} seconds or Pace Race, or pick a different standard.`;
+  return `Only ${after} of these questions fit ${roundSeconds}-second rounds — the rest are multi-step (DOK 3–4) questions, and each needs at least ${DOK3_MIN_ROUND_SECONDS} seconds of its own. `
+    + 'Choose longer rounds or Pace Race, or pick a different standard.';
 };

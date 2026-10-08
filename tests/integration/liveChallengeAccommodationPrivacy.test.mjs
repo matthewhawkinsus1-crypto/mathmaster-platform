@@ -173,10 +173,16 @@ test('an answer after the class deadline stays off the public row until the roun
   await sleep(Math.max(0, classEndsAtMs - Date.now() + 1_500));
   // Past the class's deadline: the round is not ready while R2 is inside theirs.
   const early = await failureOf(roundCommand('closeLiveChallengeRound', GA));
+  assert.equal(early?.details?.lifecycle, 'round_in_progress');
   assert.equal(early?.details?.readiness, 'extended_time');
+  // The class's time is up, R2's is not: no worked solution exists yet.
+  assert.equal((await roomRef(GA).collection('solutions').doc('0').get()).exists, false);
+  assert.deepEqual((await roomOf(GA)).revealedSolutionRounds || [], []);
   const publicBefore = await publicRowOf(GA, R2);
   const graded = await answer(GA, R2, { correct: true });
   assert.equal(graded.isCorrect, true, 'accepted inside their own deadline');
+  // An accommodation costs no points: scored for speed against their own round.
+  assert.notEqual(graded.speedTier, 'expired', `speed tier ${graded.speedTier}`);
   const publicAfterAnswer = await publicRowOf(GA, R2);
   assert.equal(publicAfterAnswer.answeredRound, publicBefore.answeredRound, 'nothing public moved');
   assert.equal(publicAfterAnswer.score, publicBefore.score);
@@ -202,4 +208,27 @@ test('a recap withholds worked solutions while the student is in another game th
   await call('cancelLiveChallenge', teacher({ roomId: GB }));
   const after = await call('getLiveChallengeMatchRecap', student(R1, { roomId: GA }));
   assert.equal(after.solutionsWithheld, false, 'back once that game ended');
+});
+
+test('a round waits for an extended-time student who has not answered until their own deadline has passed', async () => {
+  const GC = await create({ roundCount: 1, roundSeconds: 15 });
+  await call('joinLiveChallenge', student(R1, { roomId: GC }));
+  await call('joinLiveChallenge', student(R2, { roomId: GC }));
+  await call('startLiveChallenge', teacher({ roomId: GC }));
+  await waitForRoundStart(GC);
+  await answer(GC, R1, { correct: true });
+  const room = await roomOf(GC);
+  const startsAtMs = millis(room.startsAt);
+  const classEndsAtMs = millis(room.endsAt);
+  const personalEndsAtMs = startsAtMs + Math.round(Number(room.activeRoundSeconds) * 1000 * 1.5);
+  await sleep(Math.max(0, classEndsAtMs - Date.now() + 1_500));
+  const held = await failureOf(roundCommand('closeLiveChallengeRound', GC));
+  assert.equal(held?.details?.readiness, 'extended_time', 'past the class deadline, inside R2\'s');
+  assert.equal((await roomRef(GC).collection('solutions').doc('0').get()).exists, false);
+  // After their deadline and the arrival grace, the round closes without them.
+  await sleep(Math.max(0, personalEndsAtMs - Date.now() + 1_500));
+  await roundCommand('closeLiveChallengeRound', GC);
+  assert.equal((await roomOf(GC)).roundState, 'closed');
+  assert.equal((await roomRef(GC).collection('solutions').doc('0').get()).exists, true);
+  await call('finishLiveChallenge', teacher({ roomId: GC }));
 });

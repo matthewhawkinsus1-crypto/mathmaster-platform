@@ -3591,9 +3591,17 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
       .where("classId", "==", classRecord.classId)
       .get();
     counts.classPointTransactions = await apply(transactionsSnapshot.docs, classPointsChange);
+
+    // Class reward requests were paid from this same wallet, so they follow
+    // it: same class only, same helper. Without this a handed-over class's
+    // pending requests are invisible to the new teacher and unresolvable by
+    // the old one, and the student's points stay locked.
+    counts.classRewardRequests = await require("./lib/classRewardStore")
+      .reauthorizeClassRewardRequests(db, studentId, classRecord);
   } else {
     counts.classPointAccounts = 0;
     counts.classPointTransactions = 0;
+    counts.classRewardRequests = 0;
   }
 
   // A temporary personal Path recommendation belongs to the current teacher /
@@ -10633,9 +10641,15 @@ async function loadChallengeCandidates(db, { courseId, standardCode, questionSty
   // question never lands under a short countdown, a DOK 4 never under any.
   // A third gate, after style, so a pool it empties says so in its own words.
   // A caller that names no round length (an older dry run) is not filtered.
+  // Judged against the length each question's round would actually run
+  // (complexityAdjustedRoundSeconds, as prepareLiveChallengeRoundOpening
+  // computes it), not the teacher's baseline.
   const fitting = roundSeconds == null
     ? candidates
-    : candidates.filter((question) => difficulty.fitsTimedRound(question, { roundSeconds, timingMode }));
+    : candidates.filter((question) => difficulty.fitsTimedRound(question, {
+      roundSeconds: challenge.complexityAdjustedRoundSeconds({ baselineSeconds: roundSeconds, question }),
+      timingMode,
+    }));
 
   const planned = await Promise.all(fitting.map(async (question) => ({
     question,
@@ -10859,6 +10873,8 @@ async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questi
   // state only (liveChallengeSolutionReveal.mjs). It never joins the public
   // question below; it is published after the round closes.
   if (solutionSink) {
+    // The draw itself (private), so the opening can read its DOK.
+    solutionSink.issued = issued;
     const support = await mathPath.buildPrivateSupport(issued);
     const { solutionReveal } = await liveChallengeEngine();
     solutionSink.record = solutionReveal.roundSolutionRecord({
@@ -11722,9 +11738,16 @@ async function prepareLiveChallengeRoundOpening(db, { roomId, room, privateState
   const authoredQuestion = privateState.roundQuestions?.[roundIndex] || null;
   const solutionSink = {};
   const currentQuestion = await buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId, authoredQuestion, solutionSink });
-  const roundSeconds = challenge.complexityAdjustedRoundSeconds({
-    baselineSeconds: room.roundSeconds,
-    question: authoredQuestion || currentQuestion,
+  // A multi-step (DOK 3+) question never runs under DOK3_MIN_ROUND_SECONDS in
+  // a timed round, whatever the adjustment gave (liveChallengeDifficulty.mjs).
+  const { difficulty } = await liveChallengeEngine();
+  const roundSeconds = difficulty.timedRoundSecondsFor({
+    question: solutionSink.issued || authoredQuestion || currentQuestion,
+    adjustedSeconds: challenge.complexityAdjustedRoundSeconds({
+      baselineSeconds: room.roundSeconds,
+      question: authoredQuestion || currentQuestion,
+    }),
+    timingMode: room.timingMode,
   });
   return { roundIndex, questionId, currentQuestion, roundSeconds, solution: solutionSink.record || null };
 }
@@ -13641,9 +13664,18 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const missedRounds = Array.isArray(player.missedRounds) ? player.missedRounds.map(Number) : [];
     const missedOriginally = isSecondChance && missedRounds.includes(Number(secondChanceOf));
 
-    const activeRoundMs = challenge.normalizeRoundSeconds(
+    // AN ACCOMMODATION MUST NOT COST POINTS. A student with extended time is
+    // scored for speed against their own round — its length times their
+    // multiplier, to their own deadline — so a correct answer at 17 s of
+    // their 22.5 s earns what a classmate's at 11 s of 15 s does, never the
+    // "time expired" tier of the class's clock.
+    const timeMultiplier = engine.accommodations.storedTimeMultiplier(player.timeMultiplier);
+    const activeRoundMs = Math.round(challenge.normalizeRoundSeconds(
       latestRoom.activeRoundSeconds || latestRoom.roundSeconds,
-    ) * 1000;
+    ) * 1000 * timeMultiplier);
+    const personalEndsAtMs = engine.accommodations.personalRoundTimer(latestTimer, timeMultiplier, {
+      fullDurationMs: engine.accommodations.roomFullRoundMs(latestRoom),
+    }).endsAtMs || 0;
     const officialElapsedMs = request.data?.autoFinalizedAtRoundEnd === true
       ? activeRoundMs
       : parity.authoritativeElapsed({
@@ -13661,7 +13693,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     finalScore = strategy.scoreResponse({
       gradeScore: grading?.score ?? (grading?.isCorrect ? 1 : 0),
       isCorrect: grading?.isCorrect === true,
-      remainingMs: latestEndsAtMs ? Math.max(0, latestEndsAtMs - nowMs) : 0,
+      remainingMs: personalEndsAtMs ? Math.max(0, personalEndsAtMs - nowMs) : 0,
       totalMs: activeRoundMs,
       elapsedMs: officialElapsedMs,
       previousStreak: player.streak || 0,

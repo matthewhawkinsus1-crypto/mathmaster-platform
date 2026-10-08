@@ -697,6 +697,10 @@ const handlers = {
   // class's teacher of record only, the student in that class, then the
   // student's grants, redemptions, latest Class Points and Live Challenge
   // reward explanations for the class.
+  // Growth rewards (functions/lib/growthRewards.js): a signed-in student's app
+  // asks once per session for awards earned since the last visit. The harness
+  // has no records that earn one, so it answers like a sync with nothing new.
+  syncStudentGrowthRewards: () => ({ delivered: [], alreadyDelivered: 0, skipped: [] }),
   getStudentRewards: ({ studentId, classId } = {}) => {
     const student = String(studentId || '').trim();
     const cls = String(classId || '').trim();
