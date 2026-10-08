@@ -78,10 +78,10 @@ export default function MathDisplay({
   const cleanValue = stripRedundantStackedFractionParens(
     stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value))),
   );
-  const elementRef = useRef(null);
-  useEffect(() => ensureMathElementRenders(elementRef.current), [cleanValue, format]);
   // ONE SPOKEN COPY (below). Memoised: a screen of math re-renders often.
   const spoken = useMemo(() => mathSpeechLabel({ value: cleanValue, ariaLabel }), [cleanValue, ariaLabel]);
+  const elementRef = useRef(null);
+  useEffect(() => ensureMathElementRenders(elementRef.current), [cleanValue, format]);
   if (!cleanValue) return null;
 
   // Important: stackDivisions may have introduced a LaTeX \frac into a value
