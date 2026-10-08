@@ -145,7 +145,8 @@ test('the server reads the multiplier at join, keeps it private, and judges arri
   const publicRow = join.slice(join.indexOf('transaction.set(publicPlayerRef'), join.indexOf('transaction.set(inviteRef'));
   assert.doesNotMatch(publicRow, /timeMultiplier/);
   const submit = regionOf(server, 'exports.submitLiveChallengeResponse = onCall', '\nexports.');
-  assert.equal((submit.match(/accommodations\.personalRoundTimer\(/g) || []).length, 2);
+  // Two arrival checks (before and inside the transaction) and the speed score.
+  assert.equal((submit.match(/accommodations\.personalRoundTimer\(/g) || []).length, 3);
   const completion = regionOf(server, 'function liveChallengeRoundCompletion(', '\n}\n');
   assert.match(completion, /extendedTimePendingCount\(/);
 });
@@ -165,7 +166,8 @@ test('no DOK-3 question under a 45-second timer; DOK 4 never in a timed round', 
 
 test('the candidate filter applies the timing rule on the server', () => {
   const loader = regionOf(server, 'async function loadChallengeCandidates(', '\n}\n');
-  assert.match(loader, /difficulty\.fitsTimedRound\(question, \{ roundSeconds, timingMode \}\)/);
+  // Judged against the round the question would actually run, not the baseline.
+  assert.match(loader, /difficulty\.fitsTimedRound\(question, \{\s*roundSeconds: challenge\.complexityAdjustedRoundSeconds\(\{ baselineSeconds: roundSeconds, question \}\),\s*timingMode,\s*\}\)/);
   const create = regionOf(server, 'exports.createLiveChallenge = onCall', '\nexports.');
   assert.match(create, /\.plan\(\{\s*db, courseId, standardCode, modeConfig, roundCount: requestedRoundCount, roundSeconds, timingMode,/);
 });
@@ -201,23 +203,34 @@ test('a closing threshold shortens the class\'s deadline, never an accommodated 
   assert.equal(personalRoundClock({ startsAtMs: 10_000, endsAtMs: 22_000, timeMultiplier: 1.5, fullDurationMs: 30_000 }).endsAtMs, 55_000);
   // And the server passes the full length on every judgement.
   const submit = regionOf(server, 'exports.submitLiveChallengeResponse = onCall', '\nexports.');
-  assert.equal((submit.match(/fullDurationMs: engine\.accommodations\.roomFullRoundMs\(/g) || []).length, 2);
+  assert.equal((submit.match(/fullDurationMs: engine\.accommodations\.roomFullRoundMs\(/g) || []).length, 3);
   const completion = regionOf(server, 'function liveChallengeRoundCompletion(', '\n}\n');
   assert.match(completion, /fullDurationMs: engine\.accommodations\.roomFullRoundMs\(room\)/);
 });
 
-test('a student\'s board lists the same top few as the projector: never a small class\'s last place', async () => {
-  const { projectorBoardLimit } = await import('../../src/platform/liveChallenge/liveChallengeProjectorModel.js');
-  // Five players: classmates' screens list four; the fifth sees only their own row.
-  assert.equal(projectorBoardLimit({}, PUBLIC_TOP_COUNT, 5), 4);
-  assert.equal(projectorBoardLimit({ standingsDisplay: 'full' }, PUBLIC_TOP_COUNT, 5), 5);
+test('a student\'s board lists classmates by the projector\'s rule: never a place tied with the last', async () => {
+  const { publicStandingsRows } = await import('../../src/platform/liveChallenge/liveChallengeProjectorModel.js');
+  const five = Array.from({ length: 5 }, (_, index) => ({ playerKey: `p${index + 1}`, rank: index + 1 }));
+  // Five players: a classmate's screen lists 1st–3rd (4th and 5th unshown together);
+  // the fifth sees the same three and their own row.
+  assert.deepEqual(publicStandingsRows({}, five, { selfKey: 'p2' }).rows.map((row) => row.playerKey), ['p1', 'p2', 'p3']);
+  const last = publicStandingsRows({}, five, { selfKey: 'p5' });
+  assert.equal(last.self?.playerKey, 'p5');
+  assert.equal(publicStandingsRows({ standingsDisplay: 'full' }, five, { selfKey: 'p2' }).rows.length, 5);
   const student = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8');
   const shell = readFileSync(new URL('../../src/components/liveChallenge/ChallengeStudentShell.jsx', import.meta.url), 'utf8');
-  // Both of the student's boards take their limit from that rule…
-  assert.equal((student.match(/boardLimit=\{projectorBoardLimit\(room, PUBLIC_TOP_COUNT,/g) || []).length, 2);
-  // …and every student board uses it instead of a fixed five.
-  assert.doesNotMatch(shell, /look="student" limit=\{5\}/);
-  assert.equal((shell.match(/look="student" limit=\{boardLimit\}/g) || []).length, 3);
+  // Every student board is a decided public list, never a bare count …
+  assert.doesNotMatch(shell, /look="student" limit=/);
+  assert.equal((shell.match(/board=\{publicStandingsRows\(room, /g) || []).length, 3);
+  assert.equal((shell.match(/<(StandingsBoard|RoundResultsTable)\b/g) || []).length, 3);
+  // … the final card's with the class's last rank, from the snapshot's every-seat ranks …
+  assert.match(shell, /<StandingsBoard board=\{publicStandingsRows\(room, rows, \{ selfKey, lastRank, totalCount: totalPlayers \|\| null \}\)\}/);
+  assert.match(student, /const finalLastRank = finalStandings \? lastRankOf\(projectionRankTable\(projection\)\) : null;/);
+  assert.match(student, /\n\s*lastRank=\{finalLastRank\}\n/);
+  // … and both cards are handed the room (its standings choice).
+  assert.equal((student.match(/\n\s*room=\{room\}\n/g) || []).length, 2);
+  assert.match(student, /import \{ PROJECTION_KIND, projectionRankTable, standingsFromProjection \} from/);
+  assert.match(student, /import \{ lastRankOf \} from '\.\.\/\.\.\/platform\/liveChallenge\/liveChallengeProjectorModel\.js';/);
 });
 
 /* ---------- audit follow-ups: nothing public names an accommodated student ---------- */
@@ -261,4 +274,32 @@ test('the reveal and the replay plan read Second Chance through one predicate', 
   const plan = regionOf(server, 'function planNextLiveChallengeRound(', '\n}\n');
   assert.match(reveal, /liveChallengeSecondChancePossible\(room, mode\)/);
   assert.match(plan, /!liveChallengeSecondChancePossible\(room, mode\)/);
+});
+
+
+test('the DOK rule judges the round a question would really run, and the opening clamps DOK 3 as a backstop', async () => {
+  const { complexityAdjustedRoundSeconds } = await import('../../functions/shared/liveChallenge.mjs');
+  const { timedRoundSecondsFor } = await import('../../functions/shared/liveChallengeDifficulty.mjs');
+  // A one-step DOK 3 bank question in a "90-second" game runs 50 s: it does not fit.
+  const shallow = { dok: 3 };
+  const shallowSeconds = complexityAdjustedRoundSeconds({ baselineSeconds: 90, question: shallow });
+  assert.ok(shallowSeconds < DOK3_MIN_ROUND_SECONDS, `runs ${shallowSeconds} s`);
+  assert.equal(fitsTimedRound(shallow, { roundSeconds: shallowSeconds }), false);
+  // A deep DOK 3 question at a 75-second baseline runs longer than 90 s: it fits.
+  const deep = { dok: 3, solutionDepth: 4 };
+  const deepSeconds = complexityAdjustedRoundSeconds({ baselineSeconds: 75, question: deep });
+  assert.ok(deepSeconds >= DOK3_MIN_ROUND_SECONDS, `runs ${deepSeconds} s`);
+  assert.equal(fitsTimedRound(deep, { roundSeconds: deepSeconds }), true);
+  // The opening never runs a DOK 3 round under the floor; Pace Race and DOK 2 are untouched.
+  assert.equal(timedRoundSecondsFor({ question: shallow, adjustedSeconds: 50 }), DOK3_MIN_ROUND_SECONDS);
+  assert.equal(timedRoundSecondsFor({ question: { dok: 2 }, adjustedSeconds: 50 }), 50);
+  assert.equal(timedRoundSecondsFor({ question: shallow, adjustedSeconds: 50, timingMode: 'pace' }), 50);
+  const opening = regionOf(server, 'async function prepareLiveChallengeRoundOpening(', '\n}\n');
+  assert.match(opening, /const roundSeconds = difficulty\.timedRoundSecondsFor\(\{/);
+});
+
+test('an extended-time student is scored for speed against their own round', () => {
+  const submit = regionOf(server, 'exports.submitLiveChallengeResponse = onCall', '\nexports.');
+  assert.match(submit, /\* 1000 \* timeMultiplier\);/);
+  assert.match(submit, /remainingMs: personalEndsAtMs \? Math\.max\(0, personalEndsAtMs - nowMs\) : 0,/);
 });

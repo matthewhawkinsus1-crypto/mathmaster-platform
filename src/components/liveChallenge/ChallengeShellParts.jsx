@@ -161,9 +161,15 @@ export function StandingsBoard({
   // board (the projector) says everyone sees their own place on their device
   // (liveChallengeProjectorModel.projectorMoreText); default "and N more players".
   describeMore = null,
+  // A public list already decided (liveChallengeProjectorModel.publicStandingsRows:
+  // never a place tied with the last, never one player left unnamed). When
+  // given, it is drawn as it is: its rows, the viewer's own row, its note.
+  board = null,
 }) {
   const style = lookOf(look);
-  const visible = standingsWindow(rows, { limit, selfKey, total: totalCount });
+  const visible = board
+    ? { top: board.rows, self: board.self, hiddenCount: board.hiddenCount + (board.self ? 1 : 0), total: board.totalCount }
+    : standingsWindow(rows, { limit, selfKey, total: totalCount });
   const unseen = visible.hiddenCount - (visible.self ? 1 : 0);
   if (!visible.total) return <p style={{ margin: 0, color: style.muted }}>{emptyText}</p>;
   const unit = presentation?.total?.short || 'pts';
@@ -225,7 +231,7 @@ export function StandingsBoard({
       )}
       {unseen > 0 && (
         <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
-          {typeof describeMore === 'function' ? describeMore(unseen) : `and ${unseen} more ${unseen === 1 ? 'player' : 'players'}`}
+          {typeof describeMore === 'function' ? describeMore(unseen) : board?.moreText || `and ${unseen} more ${unseen === 1 ? 'player' : 'players'}`}
         </div>
       )}
     </div>
@@ -247,13 +253,15 @@ export const roundPerformanceText = (row, presentation) => {
  * One round's results: place in the round, what each player did, and — when
  * a round's place earns the match points (Grand Prix) — the points it earned.
  */
-export function RoundResultsTable({ view, presentation, look = 'console', limit = 6, selfKey = null, describeMore = null }) {
+// `board`: a public list already decided (publicStandingsRows), drawn as it is.
+export function RoundResultsTable({ view, presentation, look = 'console', limit = 6, selfKey = null, describeMore = null, board = null }) {
   const style = lookOf(look);
   if (!view) return <p style={{ margin: 0, color: style.muted }}>Tallying the round…</p>;
   const rows = view.rows || [];
   if (!rows.length) return <p style={{ margin: 0, color: style.muted }}>Nobody played this round.</p>;
-  const shown = rows.slice(0, limit);
-  const self = selfKey ? rows.find((row) => row.isSelf && !shown.includes(row)) : null;
+  const shown = board ? board.rows : rows.slice(0, limit);
+  const self = board ? board.self : selfKey ? rows.find((row) => row.isSelf && !shown.includes(row)) : null;
+  const unseen = board ? board.hiddenCount : rows.length - shown.length - (self ? 1 : 0);
   const renderRow = (row) => (
     <li key={row.playerKey || row.alias} data-mm-round-result={row.playerKey || ''} style={{
       display: 'grid', gridTemplateColumns: `${look === 'projector' ? '3.4em' : '52px'} minmax(0,1fr) auto auto`, gap: 10, alignItems: 'center',
@@ -273,9 +281,9 @@ export function RoundResultsTable({ view, presentation, look = 'console', limit 
     <div style={{ display: 'grid', gap: 6 }}>
       <ol aria-label="Round results" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>{shown.map(renderRow)}</ol>
       {self && <ol aria-label="Your round result" style={{ listStyle: 'none', margin: 0, padding: 0 }}>{renderRow(self)}</ol>}
-      {rows.length > shown.length + (self ? 1 : 0) && (
-        <div data-mm-board-more={rows.length - shown.length - (self ? 1 : 0)} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
-          {typeof describeMore === 'function' ? describeMore(rows.length - shown.length - (self ? 1 : 0)) : `and ${rows.length - shown.length - (self ? 1 : 0)} more`}
+      {unseen > 0 && (
+        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
+          {typeof describeMore === 'function' ? describeMore(unseen) : board?.moreText || `and ${unseen} more`}
         </div>
       )}
     </div>

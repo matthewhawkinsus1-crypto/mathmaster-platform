@@ -61,24 +61,40 @@ test('the console reads the solution only for a published round at results, and 
   assert.match(consoleParts, /export function HostSolutionPanel\(/);
 });
 
-test('every class-wide board on the projector is limited by the room\'s standings choice', () => {
+test('every class-wide list on the projector goes through the one public rule', () => {
+  // Each board hands its rows to publicStandingsRows (never a count limit)
+  // and draws what it returns.
+  const code = executableSource(projector);
+  assert.doesNotMatch(code, /projectorBoardLimit|belowPodiumLimit|upToLastButOne/, 'no count-based limit is left');
   const running = region(projector, 'function RunningView(', '\nfunction RushRunningView(', 'running view');
-  // Each board passes how many players it ranks, so a small class stops
-  // before its last player (projectorBoardLimit's third argument).
-  assert.match(running, /const liveRows = standingsRows\(leaderboard\);/);
-  assert.match(running, /<StandingsBoard rows=\{liveRows\} [^\n]*limit=\{projectorBoardLimit\(room, rows, liveRows\.length\)\} describeMore=\{\(hidden\) => projectorMoreText\(room, hidden\)\}/);
+  assert.match(running, /const liveBoard = publicStandingsRows\(room, liveRows, \{ spaceForRows: rows \}\);/);
+  assert.match(running, /<StandingsBoard board=\{liveBoard\} /);
   const rush = region(projector, 'function RushRunningView(', '\n/*\n * THE WORKED SOLUTION', 'rush view');
-  assert.match(rush, /const racerCount = rushRaceRows\(players, roundIndex\)\.length;\s*const boardLimit = projectorBoardLimit\(room, rows, racerCount\);/);
-  assert.match(rush, /<RushRaceBoard [^\n]*limit=\{boardLimit\}/);
+  assert.match(rush, /const raceBoard = publicStandingsRows\(room, rushRaceRanked\(rushRaceRows\(players, roundIndex\)\), \{ spaceForRows: rows \}\);\s*const boardLimit = raceBoard\.rows\.length;\s*const racersMore = raceBoard\.moreText;/);
+  assert.match(rush, /\{boardLimit > 0 && <RushRaceBoard [^\n]*limit=\{boardLimit\}/);
   const results = region(projector, 'function ResultsView(', '\n/** Host controls along the bottom', 'results view');
-  assert.match(results, /<RoundResultsTable [^\n]*limit=\{projectorBoardLimit\(room, Math\.max\(3, rows - 1\), roundView\?\.rows\?\.length\)\} describeMore=\{describeMore\}/);
-  assert.match(results, /<StandingsBoard rows=\{standings\} [^\n]*limit=\{projectorBoardLimit\(room, rows, standings\.length\)\} describeMore=\{describeMore\}/);
+  assert.match(results, /const standingsBoard = standings \? publicStandingsRows\(room, standings, \{ spaceForRows: rows \}\) : null;/);
+  assert.match(results, /const roundBoard = roundView \? publicStandingsRows\(room, roundView\.rows, \{ spaceForRows: Math\.max\(3, rows - 1\) \}\) : null;/);
+  assert.match(results, /<RoundResultsTable view=\{roundView\} board=\{roundBoard\} /);
+  assert.match(results, /<StandingsBoard board=\{standingsBoard\} /);
+  // Every StandingsBoard / RoundResultsTable on the projector draws a decided board.
+  for (const tag of code.match(/<(StandingsBoard|RoundResultsTable)\b[^\n]*/g) || []) {
+    if (/rows=\{standingsRows\(shownBelow\)\}/.test(tag)) continue; // under the podium: rows finalBoardRows decided, fitted to the space
+    assert.match(tag, /board=\{/, tag);
+  }
+  // The podium's steps come from the same list, not the raw leaderboard.
   const finale = region(projector, 'function FinalPodium(', '\nfunction LobbyView(', 'final podium');
-  assert.match(finale, /const board = finalBoardRows\(room, leaderboard, rows\);/);
+  assert.match(finale, /const board = finalBoardRows\(room, leaderboard, rows\);\s*const remaining = board\.rows;\s*const podium = board\.podium;/);
+  assert.doesNotMatch(executableSource(finale), /podiumRows\(/);
+  assert.match(finale, /\{hasPodium \? \(/);
   assert.match(projector, /<FinalPodium room=\{room\} /);
-  // The note under a board comes from the caller when given.
+  // The shell draws a decided board as it is: its rows, own row, count and note.
   const board = region(shellParts, 'export function StandingsBoard(', '\n/** What one player did', 'standings board');
-  assert.match(board, /typeof describeMore === 'function' \? describeMore\(unseen\)/);
+  assert.match(board, /const visible = board\s*\? \{ top: board\.rows, self: board\.self, hiddenCount: board\.hiddenCount \+ \(board\.self \? 1 : 0\), total: board\.totalCount \}/);
+  assert.match(board, /board\?\.moreText \|\|/);
+  const table = region(shellParts, 'export function RoundResultsTable(', '\nexport function ConfirmDialog', 'round results');
+  assert.match(table, /const shown = board \? board\.rows : rows\.slice\(0, limit\);/);
+  assert.match(table, /const unseen = board \? board\.hiddenCount :/);
 });
 
 test('recognitions sit under the podium by alias, never by player key', () => {
@@ -92,19 +108,64 @@ test('recognitions sit under the podium by alias, never by player key', () => {
 
 test('extended time reads "still finishing" on the projector and the console, and End Round Now stays', () => {
   const clock = region(projector, 'function ArenaClock(', '\nconst PODIUM_RANKS', 'arena clock');
-  assert.match(clock, /if \(extendedTime\) \{[\s\S]*\{EXTENDED_TIME_MESSAGE\}/);
+  assert.match(clock, /if \(finishing\) \{[\s\S]*\{STILL_FINISHING_MESSAGE\}/);
   const running = region(projector, 'function RunningView(', '\nfunction RushRunningView(', 'running view');
-  assert.match(running, /const extendedTime = roundWaitingOnExtendedTime\(\{ room, locked, joinedCount, answeredCount \}\);/);
-  assert.match(running, /<ArenaClock [^\n]*extendedTime=\{extendedTime\}/);
+  assert.match(running, /const finishing = roundStillFinishing\(\{ room, locked, joinedCount, answeredCount \}\);/);
+  assert.match(running, /<ArenaClock [^\n]*finishing=\{finishing\}/);
   const strip = region(projector, 'function HostStrip(', '\nexport const formatArenaClock', 'projector strip');
-  assert.match(strip, /const endableRound = [^\n]*\|\| extendedTime;/);
+  assert.match(strip, /const endableRound = [^\n]*\|\| finishing;/);
+  // The strip is inside the full-screen projector: its words are the neutral hint.
+  assert.match(strip, /\{finishing \? STILL_FINISHING_HOST_HINT : primaryAction\.hint\}/);
   const status = region(teacher, 'export function ChallengeLiveStatus(', '\nconst STANDINGS_DISPLAY_KEY', 'console status');
   assert.match(status, /const extendedTime = roundWaitingOnExtendedTime\(\{ room, locked, joinedCount, answeredCount \}\);/);
   assert.match(status, /extendedTime\s*\?\s*<div data-mm-extended-time="1"[^\n]*\{EXTENDED_TIME_MESSAGE\}/);
   const controls = region(teacher, 'const extendedTime = roundWaitingOnExtendedTime({ room, locked: stage === CHALLENGE_STAGE.ROUND_LOCKED', 'const roundAction', 'console controls');
   assert.match(controls, /stage === CHALLENGE_STAGE\.ROUND_ACTIVE \|\| stage === CHALLENGE_STAGE\.ROUND_PAUSED \|\| extendedTime\s*\?\s*\{ key: 'close', label: 'End Round Now'/);
+  // The explicit reason stays on the teacher's private console …
   assert.match(teacher, /const roundAction = extendedTime && primaryAction \? \{ \.\.\.primaryAction, hint: EXTENDED_TIME_HOST_HINT \} : primaryAction;/);
   assert.match(teacher, /<HostControlBar action=\{roundAction\} [^\n]*secondary=\{secondaryControls\}/);
+  // … and the projector is handed the plain action, never the console's hint.
+  const projectorCall = region(teacher, "if (projector && ['lobby', 'running', 'finished'].includes(room.status))", '\n    />;', 'projector delegation');
+  assert.match(projectorCall, /\n\s*primaryAction=\{primaryAction\}\n/);
+  assert.doesNotMatch(projectorCall, /roundAction|EXTENDED_TIME_HOST_HINT/);
+});
+
+/*
+ * NOTHING THE CLASS READS SAYS WHO HAS AN ACCOMMODATION. The projector's
+ * full-screen element holds the stage AND the host strip, so every word it
+ * renders is projected. "The round waits for students with extended time"
+ * beside "Locked in 23 / 24" names the student still typing. So: no such word
+ * in the projector's code (comments may explain the boundary), and none in
+ * any string it imports from a model and renders.
+ */
+const FORBIDDEN = /extended|accommodat|extra time|support plan|\bIEP\b|\b504\b/i;
+test('the projector never says "extended time" or "accommodation", in any stage', async () => {
+  const code = executableSource(projector);
+  assert.doesNotMatch(code, FORBIDDEN, 'the projector\'s own code and words');
+  // Every name it imports from a .js/.mjs model, and the value behind it.
+  const imports = [...code.matchAll(/import\s*\{([^}]*)\}\s*from\s*'([^']+\.m?js)'/g)];
+  assert.ok(imports.length >= 5, 'the projector imports its models');
+  let strings = 0;
+  for (const [, names, from] of imports) {
+    const module = await import(new URL(from, new URL('../../src/components/liveChallenge/', import.meta.url)));
+    for (const name of names.split(',').map((part) => part.trim().split(/\s+as\s+/)[0]).filter(Boolean)) {
+      assert.doesNotMatch(name, FORBIDDEN, `imports ${name} from ${from}`);
+      const value = module[name];
+      if (typeof value === 'string') {
+        strings += 1;
+        assert.doesNotMatch(value, FORBIDDEN, `${name} (${from}) renders "${value}"`);
+      }
+    }
+  }
+  assert.ok(strings >= 2, 'the still-finishing words are among them');
+  // The components it renders from .jsx files say none of it either.
+  for (const part of ['ChallengeShellParts.jsx', 'GraphFeatureRushHost.jsx']) {
+    assert.doesNotMatch(executableSource(read(`src/components/liveChallenge/${part}`)), FORBIDDEN, part);
+  }
+  // The neutral words are what it renders at that moment, in the clock, the
+  // question panel and the host strip.
+  assert.equal((code.match(/\{STILL_FINISHING_MESSAGE\}|\$\{STILL_FINISHING_MESSAGE\}/g) || []).length, 2);
+  assert.match(code, /STILL_FINISHING_HOST_HINT/);
 });
 
 test('the create panel offers the projector choice and sends it with every new game', () => {

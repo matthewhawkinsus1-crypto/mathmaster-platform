@@ -238,8 +238,10 @@ test('the final standings under the podium show only rows that fit whole, and th
   assert.match(finale, /const shownBelow = fit\.room \? remaining\.slice\(0, fit\.rows\) : \[\];/);
   assert.match(finale, /<div ref=\{boardRef\} style=\{\{ minHeight: 0, overflow: 'hidden'/);
   // With no room under the podium at all (150% zoom), the note moves into
-  // the podium's heading rather than vanishing.
-  assert.match(finale, /\{!fit\.room && someoneUnseen && <span data-mm-final-more="header">/);
+  // the podium's heading rather than vanishing. (With no podium at all — no
+  // place may be projected — the note stands in for the steps instead.)
+  assert.match(finale, /\{hasPodium && !fit\.room && someoneUnseen && <span data-mm-final-more="header">/);
+  assert.match(finale, /<section data-mm-podium-none=\{board\.totalCount\}[^\n]*\n[^\n]*Everyone sees their own final place on their device\./);
   const fit = region(projector, 'function useRowsThatFit(', '\nfunction FinalPodium(', 'row fit');
   assert.match(fit, /Math\.floor\(\(space - FINAL_NOTE_PX \+ 6\) \/ rowHeight\)/);
   assert.match(fit, /const room = space >= FINAL_NOTE_PX;/);

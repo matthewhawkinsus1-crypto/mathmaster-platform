@@ -2,6 +2,7 @@ import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mj
 import { amountText, ordinal, rewardSummaryLines, roundPlacementSentence } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { finalPlaceIsHeadline } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { finalPlaceIsPrivate, gameGradeSentence, recapHasContent, RESULT_TONE } from '../../platform/liveChallenge/challengeRecapModel.js';
+import { publicStandingsRows } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
 import { RoundSolutionCard } from './ChallengeSolutionParts.jsx';
 
@@ -83,11 +84,11 @@ export function StudentLobbyCard({ room, alias, joining = false, playerCount = 0
  * the caller renders only for this closed round; it sits between how the round
  * went and the standings, where the class talks the question through.
  */
-// `boardLimit`: how many classmates' rows a student's board lists — the same
-// top few as the projector, stopping before the last player in a small class
-// (liveChallengeProjectorModel.projectorBoardLimit). A student's own row is
-// always added under it.
-export function StudentRoundResultsCard({ view, presentation, guidance, rushRound = false, solutionSlot = null, boardLimit = 5 }) {
+// Classmates' rows follow the projector's rule for `room`
+// (liveChallengeProjectorModel.publicStandingsRows): the top few, never a
+// place tied with the class's last, never one classmate left unnamed. A
+// student's own row is always shown.
+export function StudentRoundResultsCard({ view, presentation, guidance, rushRound = false, solutionSlot = null, room = null }) {
   if (!view) {
     return (
       <section aria-live="polite" style={card}>
@@ -145,8 +146,8 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
           <span style={{ color: '#9fb0cc', fontSize: 13 }}>{presentation.total.long}</span>
         </div>
         {view.standings
-          ? <StandingsBoard rows={view.standings} presentation={presentation} look="student" limit={boardLimit} selfKey={standing?.playerKey || null} label="Standings after this round" />
-          : <RoundResultsTable view={view} presentation={presentation} look="student" limit={boardLimit} selfKey={self?.playerKey || null} />}
+          ? <StandingsBoard board={publicStandingsRows(room, view.standings, { selfKey: standing?.playerKey || null })} presentation={presentation} look="student" label="Standings after this round" />
+          : <RoundResultsTable view={view} board={publicStandingsRows(room, view.rows, { selfKey: self?.playerKey || null })} presentation={presentation} look="student" />}
       </section>
     </div>
   );
@@ -166,7 +167,10 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
  * the student's Warm-Up grade (warmupChallengeGrade.mjs) and its points are
  * not; a standalone game changes no grade.
  */
-export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false, loading = false, warmup = false, highlights = [], fullStandings = false, boardLimit = 5 }) {
+// `rows` are the snapshot's top of the class and this student; `lastRank` is
+// the class's last place (the snapshot's every-seat rank list) and
+// `totalPlayers` how many played, so the rule sees the whole class.
+export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false, loading = false, warmup = false, highlights = [], fullStandings = false, room = null, lastRank = null }) {
   const podium = Boolean(selfRow) && finalPlaceIsHeadline(selfRow.rank);
   // "Only you see this" is said only when no class-wide board shows the row.
   const placeIsPrivate = Boolean(selfRow) && finalPlaceIsPrivate({ rank: selfRow.rank, fullStandings });
@@ -223,7 +227,7 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
       </section>
       {rewardsSlot}
       <section style={quietPanel}>
-        <StandingsBoard rows={rows} presentation={presentation} look="student" limit={boardLimit} selfKey={selfKey} showMovement={false} label="Final standings" totalCount={totalPlayers || null} />
+        <StandingsBoard board={publicStandingsRows(room, rows, { selfKey, lastRank, totalCount: totalPlayers || null })} presentation={presentation} look="student" showMovement={false} label="Final standings" />
       </section>
     </div>
   );

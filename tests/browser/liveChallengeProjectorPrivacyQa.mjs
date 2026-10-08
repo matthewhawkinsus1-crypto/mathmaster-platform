@@ -14,17 +14,26 @@
 // Chromium. Student 8 has extended time on their support plan; student 7
 // never answers, so they are last on every board.
 //
+// Every list is checked against the one public rule (publicStandingsRows):
+// never a place tied with the class's last, never exactly one player unshown
+// (the lobby listed every alias), the top five at most.
+//
 //   1. Top 5 only (the default), 1366×768:
 //      live board   five rows and "and 3 more players · everyone sees their
 //                   own place on their device"; 7th and 8th never named
 //      deadline     student 8 is still inside their extended time: the
 //                   projector says "A few students are still finishing", not a
-//                   frozen "Time!", the round stays open, End Round Now works
+//                   frozen "Time!", and NOTHING on it (host strip included)
+//                   says "extended" or "accommodation"; the round stays open,
+//                   End Round Now works
 //      results      the worked solution, large; Hide solution shows the
 //                   round's table (five rows); 125% zoom and 1920×1080 too
 //      podium       top three, then 4th and 5th only; recognitions by alias
 //   2. Full standings, 1920×1080: the last-placed alias IS on the live board,
 //      the results and under the podium; Play Again keeps the choice.
+//   3. A table of four, one right: the live board, both results tables and
+//      the podium show the winner only — three tied for last stay off.
+//   4. A game of three: the podium shows 1st only.
 //
 // NOTHING TOUCHES PRODUCTION: firebase.js is swapped for an emulator module,
 // the browser blocks every non-local request, and the project id is
@@ -113,7 +122,7 @@ const db = admin.firestore();
 const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
 const challenge = await import(path.join(repo, 'functions/shared/liveChallenge.mjs'));
 const { leaderboardOptionsFor } = await import(path.join(repo, 'functions/shared/liveChallengeScoring.mjs'));
-const { podiumRecognitionRows } = await import(path.join(repo, 'src/platform/liveChallenge/liveChallengeProjectorModel.js'));
+const { podiumRecognitionRows, publicStandingsRows } = await import(path.join(repo, 'src/platform/liveChallenge/liveChallengeProjectorModel.js'));
 
 const authFor = (identity = {}) => (identity.as === 'teacher'
   ? { uid: `${identity.email}-uid`, token: { role: 'teacher', email: identity.email, email_verified: true } }
@@ -437,6 +446,9 @@ try {
   const liveKeys = await keysIn(teacher, '[aria-label="Live standings"] [data-mm-standing]');
   check(liveKeys.length === 5, `the live board shows ${liveKeys.length} rows (expected 5)`, 'the live board shows five rows');
   check(JSON.stringify(liveKeys) === JSON.stringify(live.slice(0, 5).map((row) => row.playerKey)), 'the live board is not the top five', 'the live board is the server\'s top five');
+  const liveRule = publicStandingsRows(created, live, { spaceForRows: 6 });
+  check(JSON.stringify(liveKeys) === JSON.stringify(liveRule.rows.map((row) => row.playerKey)), 'the live board is not what the public rule allows', 'the live board is exactly what the public rule allows');
+  check(liveRule.hiddenCount !== 1, 'the live board leaves exactly one player unnamed', 'the live board leaves two or more unnamed');
   check(await waitForText(teacher, 'and 3 more players · everyone sees their own place on their device', 3_000), 'the live board does not say "and 3 more players · everyone sees their own place on their device"', 'the live board says "and 3 more players · everyone sees their own place on their device"');
   let text = await textOf(teacher);
   check(!lastAliases.some((alias) => text.includes(alias)), 'the live board names a last-placed player', 'the live board never names the last-placed players');
@@ -449,13 +461,16 @@ try {
   check(open1.extendedTimeInPlay === true, 'the round opened without extendedTimeInPlay', 'the round opened with extendedTimeInPlay (never who)');
   log(`  · round 1 lasts ${Math.round((ms(open1.endsAt) - ms(open1.startsAt)) / 1000)} s for the class, ${Math.round((extendedEndsMs - ms(open1.startsAt)) / 1000)} s with extended time`);
   await waitForDeadline(roomId, 1_800);
-  check(await waitForAttr(teacher, '[data-mm-arena-clock]', 'data-mm-arena-clock', 'extendedTime', 5_000), 'the projector shows a frozen clock while students with extended time finish', 'the projector says students are still finishing');
+  check(await waitForAttr(teacher, '[data-mm-arena-clock]', 'data-mm-arena-clock', 'stillFinishing', 5_000), 'the projector shows a frozen clock while students with extended time finish', 'the projector says students are still finishing');
   check(await waitForText(teacher, 'A few students are still finishing — results in a moment', 2_000), 'the extended-time words are missing', 'the projector reads "A few students are still finishing — results in a moment"');
   text = await textOf(teacher);
   check(!text.includes('Time!'), 'the projector still shows "Time!" during extended time', 'no frozen "Time!"');
   const extendedAlias = await aliasOf(roomId, EXTENDED);
-  const clockText = await teacher.page.locator('[data-mm-arena-clock="extendedTime"]').first().innerText().catch(() => '');
+  const clockText = await teacher.page.locator('[data-mm-arena-clock="stillFinishing"]').first().innerText().catch(() => '');
   check(!IDS.some((id) => clockText.includes(id)) && !clockText.includes(extendedAlias), 'the projector says who has extended time', 'the projector never says who has extended time');
+  // The whole projected screen — stage AND host strip — gives no reason.
+  check(!/extended|accommodat|extra time|support plan/i.test(text), `the projector says why the round waits: "${(text.match(/[^.]*(extended|accommodat)[^.]*/i) || [''])[0].trim()}"`, 'nothing on the projector says "extended time" or "accommodation"');
+  check(await teacher.page.locator('[data-mm-arena-host]').innerText().then((strip) => /Waiting for the last answers/.test(strip)).catch(() => false), 'the host strip does not read "Waiting for the last answers"', 'the host strip reads "Waiting for the last answers. End Round Now still works."');
   await shot(teacher, 'P02-extended-time');
   // Past the class's deadline and its arrival grace, inside student 8's own.
   await wait(1_500);
@@ -631,6 +646,94 @@ try {
   await teacher.page.reload({ waitUntil: 'domcontentloaded' });
   await teacher.page.locator('text=Create a challenge').first().waitFor({ timeout: 60_000 });
   check(await teacher.page.locator('select[data-mm-standings-display]').inputValue() === 'full', 'the choice is not remembered on this device', 'the choice is remembered on this device');
+  /* ================= 3. A TABLE OF FOUR, ONE RIGHT ================= */
+
+  // Three players tie for the last place: none of them is ever projected, and
+  // "and 3 more players" is the only word about them.
+  log('▶ a table of four, one right (ties at the bottom)');
+  const tableId = await createClassic(teacher, { standingsDisplay: 'topFew' });
+  const TABLE = IDS.slice(0, 4);
+  for (const id of TABLE) await botCall('joinLiveChallenge', id, { roomId: tableId });
+  await teacher.page.setViewportSize(VIEWPORTS.projector);
+  await toProjector(teacher);
+  await waitForAttr(teacher, '[data-mm-lobby-count]', 'data-mm-lobby-count', '4', 15_000);
+  await startFromProjector(teacher, tableId);
+  for (const [index, id] of TABLE.entries()) await botAnswer(tableId, id, { correct: index === 0, humanElapsedMs: 2_000 + index * 600 });
+  await wait(1_500);
+  const tableLive = await standingsOf(tableId);
+  const tableWinner = tableLive.find((row) => row.rank === 1);
+  const tableLast = tableLive.filter((row) => row.rank === tableLive[tableLive.length - 1].rank);
+  check(tableLast.length === 3, `the table's bottom is ${tableLast.length} players (expected 3 tied)`, 'three players tie for last at the table');
+  const tableLiveKeys = await keysIn(teacher, '[aria-label="Live standings"] [data-mm-standing]');
+  check(JSON.stringify(tableLiveKeys) === JSON.stringify([tableWinner?.playerKey]), `the table's live board shows ${tableLiveKeys.length} rows (expected the winner only)`, 'the table\'s live board shows the winner only');
+  check(await waitForText(teacher, 'and 3 more players · everyone sees their own place on their device', 3_000), 'the table\'s live board does not say "and 3 more players"', 'the table\'s live board says "and 3 more players · everyone sees their own place on their device"');
+  text = await textOf(teacher);
+  check(!tableLast.some((row) => text.includes(row.alias)), 'the table\'s live board names a player tied for last', 'no player tied for last is named live');
+  await shot(teacher, 'T01-table-live');
+  await waitForDeadline(tableId, 1_000);
+  check(await waitForRoom(tableId, (room) => room.roundState === 'closed', 20_000), 'the table\'s round never closed', 'the table\'s round closes');
+  check(await waitForArena(teacher, 'roundResults', 10_000), 'no results for the table', 'the table\'s results');
+  await wait(1_000);
+  const tableStandingKeys = await keysIn(teacher, '[aria-label="Standings after this round"] [data-mm-standing]');
+  check(JSON.stringify(tableStandingKeys) === JSON.stringify([tableWinner?.playerKey]), `the standings after the round show ${tableStandingKeys.length} rows (expected the winner only)`, 'the standings after the round show the winner only');
+  text = await textOf(teacher);
+  check(!tableLast.some((row) => text.includes(row.alias)), 'the table\'s results name a player tied for last', 'the results name nobody tied for last');
+  await shot(teacher, 'T02-table-results');
+  const hide = teacher.page.getByRole('button', { name: 'Hide solution' });
+  if (await hide.isVisible().catch(() => false)) await hide.click();
+  await wait(600);
+  const tableRoundKeys = await keysIn(teacher, '[aria-label="Round results"] [data-mm-round-result]');
+  check(tableRoundKeys.length === 1, `the table's round results show ${tableRoundKeys.length} rows (expected 1)`, 'the round\'s table shows the winner only (no "T-2nd … 0 pts" rows)');
+  text = await textOf(teacher);
+  check(!tableLast.some((row) => text.includes(row.alias)), 'the round\'s table names a player tied for last', 'the round\'s table names nobody tied for last');
+  await shot(teacher, 'T03-table-round-table');
+  await teacher.page.getByRole('button', { name: 'End Game' }).click();
+  await confirmDialog(teacher, 'End Game');
+  await waitForRoom(tableId, (room) => room.status === 'finished', 30_000);
+  check(await waitForArena(teacher, 'completed', 15_000), 'the table\'s podium did not show', 'the table\'s podium shows');
+  await wait(1_500);
+  const tablePodium = await teacher.page.locator('[data-mm-podium]').evaluateAll((nodes) => nodes.map((node) => node.innerText));
+  const tableFinal = await standingsOf(tableId);
+  const tableFinalLast = tableFinal.filter((row) => row.rank === tableFinal[tableFinal.length - 1].rank);
+  check(tablePodium.length === 1 && tablePodium[0].includes(tableFinal[0].alias), `the table's podium has ${tablePodium.length} step(s)`, 'the table\'s podium shows the champion only');
+  text = await textOf(teacher);
+  const tableRecognized = new Set(((await roomOf(tableId)).recognitions || []).flatMap((entry) => entry.aliases || []));
+  check(!tableFinalLast.some((row) => !tableRecognized.has(row.alias) && text.includes(row.alias)), 'the table\'s podium names a player tied for last', 'the table\'s podium names nobody tied for last (a recognition aside)');
+  await shot(teacher, 'T04-table-podium');
+
+  /* ======================= 4. A GAME OF THREE ======================= */
+
+  log('▶ a game of three (the podium shows 1st only)');
+  await teacher.page.locator('[data-mm-arena-host] button', { hasText: 'New Challenge' }).first().click();
+  const threeId = await createClassic(teacher, { standingsDisplay: 'topFew' });
+  const THREE = IDS.slice(0, 3);
+  for (const id of THREE) await botCall('joinLiveChallenge', id, { roomId: threeId });
+  await toProjector(teacher);
+  await waitForAttr(teacher, '[data-mm-lobby-count]', 'data-mm-lobby-count', '3', 15_000);
+  await startFromProjector(teacher, threeId);
+  for (const [index, id] of THREE.entries()) await botAnswer(threeId, id, { correct: true, humanElapsedMs: 2_000 + index * 1_500 });
+  await wait(1_500);
+  const threeLive = await standingsOf(threeId);
+  const threeLiveKeys = await keysIn(teacher, '[aria-label="Live standings"] [data-mm-standing]');
+  check(threeLive.length === 3 && new Set(threeLive.map((row) => row.rank)).size === 3, `the three ranks are ${threeLive.map((row) => row.rank).join(',')}`, 'three players, three places');
+  check(JSON.stringify(threeLiveKeys) === JSON.stringify([threeLive[0].playerKey]), `the live board of three shows ${threeLiveKeys.length} rows (expected 1st only)`, 'the live board of three shows 1st only (2nd would name 3rd by elimination)');
+  await shot(teacher, 'G01-three-live');
+  await waitForDeadline(threeId, 1_000);
+  await waitForRoom(threeId, (room) => room.roundState === 'closed', 20_000);
+  await waitForArena(teacher, 'roundResults', 10_000);
+  await teacher.page.getByRole('button', { name: 'End Game' }).click();
+  await confirmDialog(teacher, 'End Game');
+  await waitForRoom(threeId, (room) => room.status === 'finished', 30_000);
+  check(await waitForArena(teacher, 'completed', 15_000), 'the game of three has no podium screen', 'the game of three shows its podium screen');
+  await wait(1_500);
+  const threeFinal = await standingsOf(threeId);
+  const threePodium = await teacher.page.locator('[data-mm-podium]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-mm-podium')));
+  check(JSON.stringify(threePodium) === JSON.stringify(['1']), `the podium of three shows steps ${JSON.stringify(threePodium)}`, 'the podium of three shows 1st only');
+  text = await textOf(teacher);
+  check(!text.includes(threeFinal[2].alias) || new Set(((await roomOf(threeId)).recognitions || []).flatMap((entry) => entry.aliases || [])).has(threeFinal[2].alias), 'the podium of three names 3rd', 'the podium of three never names 3rd');
+  await shot(teacher, 'G02-three-podium');
+  await teacher.page.getByRole('button', { name: 'Exit Projector View' }).click().catch(() => {});
+
   check(teacher.errors.length === 0, `console errors: ${teacher.errors.slice(0, 3).join(' | ')}`, 'no console errors');
   const refused = bridgeCalls.filter((call) => !call.ok);
   log(`  · refused callables: ${JSON.stringify(refused)}`);

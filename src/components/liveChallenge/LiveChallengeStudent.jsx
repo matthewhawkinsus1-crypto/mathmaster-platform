@@ -4,7 +4,7 @@ import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functio
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { getScoringStrategy, leaderboardOptionsFor, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
+import { PROJECTION_KIND, projectionRankTable, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { CHALLENGE_STAGE, GO_FLASH_MS, personalRoundClock, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
@@ -12,8 +12,8 @@ import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/langua
 import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, unansweredRounds, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
 import { normalizeMatchRecap, recapHighlights } from '../../platform/liveChallenge/challengeRecapModel.js';
-import { PUBLIC_TOP_COUNT, finalPlaceIsHeadline, roomShowsFullStandings } from '../../../functions/shared/liveChallengePrivacy.mjs';
-import { projectorBoardLimit } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
+import { finalPlaceIsHeadline, roomShowsFullStandings } from '../../../functions/shared/liveChallengePrivacy.mjs';
+import { lastRankOf } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { roomFullRoundMs, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import { resolveSupportEntitlements } from '../../../functions/shared/supportEntitlements.mjs';
 import { useChallengeClock, usePreviousRoundSummary, useRoundSolution, useRoundSummary } from '../../platform/liveChallenge/challengeHooks.js';
@@ -610,8 +610,9 @@ function StudentRoundResults({ room, stage, playerKey, guidance, presentation, r
       guidance={guidance}
       rushRound={rushRound}
       solutionSlot={<RoundSolutionPanel state={solutionState} solution={solution} />}
-      // The projector's top few, never a small class's last place.
-      boardLimit={projectorBoardLimit(room, PUBLIC_TOP_COUNT, view?.standings?.length ?? view?.fieldSize ?? null)}
+      // Classmates' rows follow the projector's rule (publicStandingsRows):
+      // never a place tied with the last, never one classmate left unnamed.
+      room={room}
     />
   );
 }
@@ -1079,6 +1080,9 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const finalStandings = room.status === 'finished' && standings?.kind === PROJECTION_KIND.FINAL ? standings : null;
   const finalRows = finalStandings ? standingsRows(projectionBoardRows(finalStandings, { selfKey: playerKey, alias: invite.alias }), { selfKey: playerKey }) : [];
   const finalSelfRow = finalRows.find((row) => row.isSelf) || null;
+  // The snapshot's rows are the top of the class and this student; its rank
+  // list covers every seat, so it knows the class's last place.
+  const finalLastRank = finalStandings ? lastRankOf(projectionRankTable(projection)) : null;
   // Their correct answers are on their own row, which the match result was built from.
   const finalSelf = finalSelfRow ? { ...finalSelfRow, correctCount: Math.max(0, Math.round(Number(selfRow?.correctCount) || 0)) } : null;
 
@@ -1183,7 +1187,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               highlights={recapHighlights(recap)}
               // A teacher's full standings put every place on the projector.
               fullStandings={roomShowsFullStandings(room)}
-              boardLimit={projectorBoardLimit(room, PUBLIC_TOP_COUNT, finalStandings?.count ?? null)}
+              room={room}
+              lastRank={finalLastRank}
             />
             <StudentMatchRecap recap={recap} />
             <button type="button" onClick={onExit} style={{ ...exitButton, justifySelf: 'center' }}>{exitLabel}</button>
