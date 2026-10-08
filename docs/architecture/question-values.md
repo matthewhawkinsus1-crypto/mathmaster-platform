@@ -111,6 +111,12 @@ Mode board.
   changes the question's value.
 - A section's grade is computed within the section: re-valuing Classwork never
   moves the DOL column.
+- A value therefore counts first inside its own section. A ×5 Practice question
+  answered right beside two ×1 answered wrong exports Practice as 71, not 33,
+  in Grade Transfer's TEAMS row and in Classroom's section column
+  (`tests/platform/sectionQuestionWeights.test.mjs`). The question editor shows
+  each value as its share of its section's grade and of the whole assignment's
+  (`questionWeightShares`), and the AI weight review is told the same.
 
 ## 6. Pre-Flight (`src/platform/preflight/questionValuePreflight.js`)
 

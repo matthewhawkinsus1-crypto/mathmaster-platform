@@ -3,11 +3,15 @@
  *
  * The teacher panel used to print `error.message` from the callable as-is.
  * For a callable that never answered, that is the single word "internal": the
- * Firebase client reports a fetch with no usable response (the function is not
- * deployed, failed to start, or the network dropped) as code `internal` with
- * the code itself as the message. A teacher who pressed "Waive Review" was
- * told "internal" and nothing else: not what failed, whether anything changed,
- * or what to try next.
+ * Firebase client reports a fetch with no usable response as code `internal`
+ * with the code itself as the message. A common cause is a function whose
+ * Cloud Run service does not let browsers in: Google answers the CORS
+ * preflight with a 403 the browser cannot read. The Firebase CLI grants that
+ * access only when it creates a callable, so a deployed, healthy function can
+ * stay closed (scripts/verify-callable-access.mjs). Not deployed, failing to
+ * start, or a dropped network look the same from here. A teacher who pressed
+ * "Waive Review" was told "internal" and nothing else: not what failed,
+ * whether anything changed, or what to try next.
  *
  * Three cases, told apart by what the client actually received:
  *   - no answer at all: lowercase "internal" (or unavailable / deadline);
@@ -37,7 +41,8 @@ export const describeTestCycleCallError = (error, { action = 'That action', call
   if (bareCode && (code === 'internal' || NO_ANSWER_CODES.has(code))) {
     return `${action} did not go through: the server did not answer${fn}. `
       + 'Refresh to see whether it was applied, then try again. '
-      + 'If it keeps happening on a working connection, that function is probably not deployed or is failing to start.';
+      + 'If it keeps happening on a working connection, that function is probably closed to browsers (its Cloud Run invoker access), '
+      + 'not deployed, or failing to start.';
   }
   if (!bareCode) return message;
   return `${action} did not complete${code ? ` (${code})` : ''}. Refresh and try again.`;

@@ -35,7 +35,9 @@ test('a callable that never answered is named, not reported as "internal"', () =
   assert.match(text, /did not answer/);
   assert.match(text, /teacherTestCycleAction/, 'names the function to check');
   assert.match(text, /Refresh to see whether it was applied/, 'does not claim nothing changed');
-  assert.match(text, /not deployed or is failing to start/);
+  // The causes an operator can check, the most common first: a callable the
+  // Firebase CLI never opened to browsers (scripts/verify-callable-access.mjs).
+  assert.match(text, /closed to browsers \(its Cloud Run invoker access\), not deployed, or failing to start/);
   // A timeout or outage with no message from the server is the same case.
   assert.match(describeTestCycleCallError(Object.assign(new Error('unavailable'), { code: 'functions/unavailable' }), { action: 'Waive Review' }), /did not answer/);
 });
