@@ -81,8 +81,10 @@ test('the student card carries reviewBySkill and the Test\'s own released sessio
   assert.match(payload, /reviewBySkill: await testCycleLib\.reviewProgressBySkill\(assignment, tracker, \{ targets: blueprint\?\.targets \}\)/);
   // The tracker it reads is the student's own grade document for THIS assignment.
   assert.match(payload, /const tracker = gradeSnapshot\.data\(\)\?\.gradesByAssignment\?\.\[assignmentId\] \|\| \{\};/);
-  // Released only: an unreleased Test never names a reviewable session.
-  assert.match(payload, /testReviewExamSessionId: record\.test\.state === shared\.record\.SESSION_STATE\.RELEASED\s*\?\s*record\.test\.examSessionId\s*:\s*null/);
+  // Released only: an unreleased Test never names a reviewable session — and
+  // neither does a released one while its Retest is assigned or under way
+  // (tests/platform/testCycleSkillNames.test.mjs holds that to the review guard).
+  assert.match(payload, /testReviewExamSessionId: record\.test\.state === shared\.record\.SESSION_STATE\.RELEASED\s*&&/);
   // What's on the test stays, from the blueprint.
-  assert.match(payload, /testSkills: testCycleSkillList\(blueprint\)/);
+  assert.match(payload, /testSkills: await testCycleSkillList\(blueprint\)/);
 });

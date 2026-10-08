@@ -17570,8 +17570,13 @@ exports.getStudentTestCycle = onCall(async (request) => {
         : null,
     // The original Test's released session on its own, so "Review my Test"
     // still reaches it once a released Retest has taken over the field above.
-    // The card offers it only at stages where no secure item can be answered.
+    // The card offers it only at stages where no secure item can be answered,
+    // and it is not sent at all while a Retest session is assigned or under
+    // way — the line getStudentSecureExamReview holds (`retest_open`). A
+    // teacher closing retesting does not end a Retest already issued, so the
+    // stage alone ("retestClosed") cannot say the review would open.
     testReviewExamSessionId: record.test.state === shared.record.SESSION_STATE.RELEASED
+      && !([shared.record.SESSION_STATE.ASSIGNED, shared.record.SESSION_STATE.IN_PROGRESS].includes(record.retest.state) && record.retest.examSessionId)
       ? record.test.examSessionId
       : null,
     grade: shared.record.testCycleGradeBreakdown(record, policy),
@@ -17600,8 +17605,9 @@ exports.getStudentTestCycle = onCall(async (request) => {
     }),
     // "What's on this test": the skills the blueprint covers and how many
     // questions each gets — what a real test's study guide says. Never which
-    // question is which, and nothing about families, seeds or answers.
-    testSkills: testCycleSkillList(blueprint),
+    // question is which (not even by the list's order), and nothing about
+    // families, seeds or answers.
+    testSkills: await testCycleSkillList(blueprint),
     // The Review, skill by skill: answered and correct so far, from the same
     // tracker the gate reads. Instruction only — nothing from the secure Test,
     // and it does not change what unlocks it (reviewProgress does that).
@@ -17609,19 +17615,15 @@ exports.getStudentTestCycle = onCall(async (request) => {
   };
 });
 
+/*
+ * The blueprint's skills for the student card. The rules live in
+ * functions/lib/testCycle.js `testSkillList`, where node tests run them on a
+ * real normalized blueprint: a label is sent only when it is a name (never the
+ * code normalizeTestBlueprint puts in an empty label), and the list's order
+ * says nothing about the order questions are issued in.
+ */
 function testCycleSkillList(blueprint) {
-  const bySkill = new Map();
-  (Array.isArray(blueprint?.targets) ? blueprint.targets : []).forEach((target) => {
-    const alignmentKey = mathPath.canonicalAlignmentKey(target?.alignmentKey) || String(target?.alignmentKey || "").trim();
-    const label = String(target?.label || "").trim().slice(0, 160);
-    const key = alignmentKey || label;
-    if (!key) return;
-    const existing = bySkill.get(key) || { alignmentKey: alignmentKey || null, label: label || null, questionCount: 0 };
-    existing.questionCount += Math.max(0, Math.floor(Number(target?.questionCount) || 0));
-    if (!existing.label && label) existing.label = label;
-    bySkill.set(key, existing);
-  });
-  return [...bySkill.values()].slice(0, 40);
+  return testCycleLib.testSkillList(blueprint);
 }
 
 /**

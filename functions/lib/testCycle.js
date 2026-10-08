@@ -15,6 +15,7 @@
  * secure responses back into the evidence shape the corrections algorithm eats.
  */
 
+const crypto = require("crypto");
 const { runtimeQuestionsFromAssignment } = require("./assignmentRuntime");
 const { assignmentGradeProgress, normalizeStoredQuestionRecord, questionWasAttempted } = require("./classroomGradeRuntime");
 
@@ -163,6 +164,26 @@ function roleQuestionIndices(assignment = {}, role = "") {
   }, []);
 }
 
+/*
+ * WHAT COUNTS AS AN ANSWERED REVIEW QUESTION — ONE RULE PER POLICY.
+ *
+ * The default gate counts what the gradebook counts (`questionWasAttempted`).
+ * A mastery-gated Review (`review.minimumMastery`, the district DOL) has always
+ * read the raw record instead: an attempt on file, or a correct, attempted or
+ * expired status. Both rules are the gate and stay exactly as they were. The
+ * card's per-skill view (`reviewProgressBySkill`) asks the same function, so
+ * its rows add up to the "Review: X of Y questions answered" line beside them.
+ */
+function masteryReviewAttempted(record) {
+  return Number(record?.totalAttempts || record?.attemptCount || 0) > 0
+    || ['correct', 'attempted', 'expired'].includes(record?.status);
+}
+
+function reviewAttemptRule(assignment = {}) {
+  const threshold = assignment.assessmentPolicy?.review?.minimumMastery;
+  return threshold !== undefined && threshold !== null ? masteryReviewAttempted : questionWasAttempted;
+}
+
 /**
  * Review progress, in the shape the stage machine expects.
  *
@@ -199,8 +220,7 @@ function reviewProgress(assignment = {}, tracker = {}) {
     });
     const mastery = possible > 0 ? earned / possible * 100 : 0;
     const minimumMastery = Number.isFinite(Number(threshold)) ? Math.max(0, Math.min(100, Number(threshold))) : 80;
-    const attempted = indices.filter((index) => Number(tracker[index]?.totalAttempts || tracker[index]?.attemptCount || 0) > 0
-      || ['correct', 'attempted', 'expired'].includes(tracker[index]?.status)).length;
+    const attempted = indices.filter((index) => masteryReviewAttempted(tracker[index])).length;
     return { total: progress.total, attempted, mastery, minimumMastery,
       complete: progress.total > 0 && attempted === progress.total && mastery >= minimumMastery };
   }
@@ -223,6 +243,36 @@ async function reviewSkillModules() {
   return skillModules;
 }
 
+/*
+ * A BLUEPRINT TARGET'S LABEL, ONLY IF IT IS A NAME.
+ *
+ * normalizeTestBlueprint fills a label the teacher left empty with the
+ * standard's code (`texas:A.5A`) or "Target 3", and preflight does not ask for
+ * one — so a "label" is often a code, and a student read "texas:A.5A · 4
+ * questions". A code-like label is sent as null, and the card names the
+ * standard in a student's words. This mirrors isCodeLikeSkillLabel in
+ * src/platform/assessment/secureExamResultsModel.js, which also guards what
+ * reaches the screen; tests/platform/testCycleSkillNames.test.mjs holds the
+ * two to the same answers.
+ */
+const STANDARD_CODE_LABEL = /^(?:teks\s+)?(?:texas:)?[A-Z0-9]+\.\d+[A-Z]?$/i;
+const SYNTHESIZED_TARGET_LABEL = /^target\s*\d+$/i;
+const NAMESPACED_KEY_LABEL = /^[a-z][a-z0-9_-]*:\S+$/i;
+const squash = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+function isCodeLikeTargetLabel(label, alignmentKey = null) {
+  const text = clean(label);
+  if (!text) return false;
+  const key = clean(alignmentKey);
+  if (key && (squash(text) === squash(key) || squash(text) === squash(key.replace(/^texas:/i, "")))) return true;
+  return STANDARD_CODE_LABEL.test(text) || SYNTHESIZED_TARGET_LABEL.test(text) || NAMESPACED_KEY_LABEL.test(text);
+}
+
+function studentFacingTargetLabel(target = {}) {
+  const label = clean(target?.label).slice(0, 160);
+  return label && !isCodeLikeTargetLabel(label, target?.alignmentKey) ? label : null;
+}
+
 /**
  * Review progress, skill by skill — what the student's card SHOWS, never what
  * the gate reads.
@@ -231,15 +281,17 @@ async function reviewSkillModules() {
  * teacher's rule: answer everything, or reach the mastery bar), and its shape
  * is unchanged. This is the view a student can use while working: for each
  * standard the Review covers, how many questions they have answered and how
- * many they have right — the same "attempted" the gate counts, and "correct"
- * as the Review runtime itself showed it.
+ * many they have right — "answered" by the very rule the gate uses for this
+ * policy (`reviewAttemptRule`), and "correct" as the Review runtime itself
+ * showed it, counted only on an answered question.
  *
  * A question's standard is read the way its evidence is
  * (attemptEvidenceEvent.mjs): declared `masteryEvidenceKeys` first, then its
  * primary standard. The blueprint target on the same standard lends its
- * teacher-written label; otherwise the label is left null and the card names
- * the standard in a student's words. Review questions with no standard are
- * kept, as one unlabelled row, so the counts still add up.
+ * teacher-written label when it is a name (`studentFacingTargetLabel`);
+ * otherwise the label is left null and the card names the standard in a
+ * student's words. Review questions with no standard are kept, as one
+ * unlabelled row, so the counts still add up.
  *
  * Nothing here comes from the secure Test, so it says nothing about a Test
  * result the teacher has not released.
@@ -253,9 +305,10 @@ async function reviewProgressBySkill(assignment = {}, tracker = {}, { targets = 
   const labels = new Map();
   list(targets).forEach((target) => {
     const key = canonical(target?.alignmentKey);
-    const label = clean(target?.label).slice(0, 160);
+    const label = studentFacingTargetLabel(target);
     if (key && label && !labels.has(key)) labels.set(key, label);
   });
+  const answered = reviewAttemptRule(assignment);
   const questions = runtimeQuestionsFromAssignment(assignment);
   const bySkill = new Map();
   roleQuestionIndices(assignment, "review").forEach((index) => {
@@ -266,18 +319,59 @@ async function reviewProgressBySkill(assignment = {}, tracker = {}, { targets = 
     const entry = bySkill.get(key) || { alignmentKey: key || null, label: labels.get(key) || null, attempted: 0, correct: 0, total: 0 };
     const record = tracker?.[index];
     entry.total += 1;
-    if (questionWasAttempted(record)) entry.attempted += 1;
-    if (normalizeStoredQuestionRecord(record).status === "correct") entry.correct += 1;
+    if (answered(record)) {
+      entry.attempted += 1;
+      if (normalizeStoredQuestionRecord(record).status === "correct") entry.correct += 1;
+    }
     bySkill.set(key, entry);
   });
   return [...bySkill.values()].slice(0, 40);
+}
+
+/**
+ * "What's on this test": the skills the blueprint covers and how many
+ * questions each gets — what a real test's study guide says.
+ *
+ * NEVER WHICH QUESTION IS WHICH. Slots are issued target by target
+ * (expandBlueprintSlots), so a list in blueprint order, with counts, told a
+ * student that questions 1–4 were on one standard and 5–7 on the next — the
+ * very cue secureExam.publicQuestion keeps off each question. So the list
+ * leaves here in an order that has nothing to do with the blueprint's (a hash
+ * of each skill), and the card sorts it by name. Labels are names or null
+ * (`studentFacingTargetLabel`); targets with neither a standard nor a name
+ * share one row, so the counts still add up to the Test.
+ */
+async function testSkillList(blueprint = {}) {
+  const { teks } = await reviewSkillModules();
+  const bySkill = new Map();
+  list(blueprint?.targets).forEach((target) => {
+    const raw = clean(target?.alignmentKey);
+    const alignmentKey = raw ? clean(teks.toCanonicalKey(raw)) : "";
+    const label = studentFacingTargetLabel(target);
+    const key = alignmentKey || label || "";
+    const entry = bySkill.get(key) || { alignmentKey: alignmentKey || null, label: label || null, questionCount: 0 };
+    entry.questionCount += Math.max(0, Math.floor(Number(target?.questionCount) || 0));
+    if (!entry.label && label) entry.label = label;
+    bySkill.set(key, entry);
+  });
+  const orderOf = (entry) => crypto.createHash("sha256").update(`${entry.alignmentKey || ""}|${entry.label || ""}`).digest("hex");
+  return [...bySkill.values()]
+    .filter((entry) => entry.questionCount > 0)
+    .map((entry) => ({ entry, order: orderOf(entry) }))
+    .sort((left, right) => (left.order < right.order ? -1 : left.order > right.order ? 1 : 0))
+    .map(({ entry }) => entry)
+    .slice(0, 40);
 }
 
 module.exports = {
   shared,
   roleQuestionIndices,
   reviewProgress,
+  reviewAttemptRule,
   reviewProgressBySkill,
+  isCodeLikeTargetLabel,
+  studentFacingTargetLabel,
+  testSkillList,
   responsesForProfile,
   secureSessionScorePercent,
   weightedSessionScorePercent,

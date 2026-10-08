@@ -5,7 +5,15 @@ import TestCycleCorrections from './TestCycleCorrections.jsx';
 import { getStudentTestCycle } from '../../services/testCycleService.js';
 import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testCycle.js';
 import { formatDateTime } from '../../assignmentLifecycle.js';
-import { markTestCycleSeen } from '../../platform/student/testCycleDiscovery.js';
+import {
+  markTestCycleSeen,
+  retestPolicyRelevant,
+  reviewRequirementText,
+  reviewSkillRows,
+  testReviewLabel,
+  testReviewSessionIdFor,
+  testSkillsSection,
+} from '../../platform/student/testCycleDiscovery.js';
 
 /*
  * ONE CARD. ONE STAGE. ONE GRADE.
@@ -30,6 +38,24 @@ import { markTestCycleSeen } from '../../platform/student/testCycleDiscovery.js'
  * unlocks it (per phase), whether the Test is timed, what a retest can do to a
  * grade, when the assessment is due or opens, and how far along Review and
  * Corrections are. None of it is a score the teacher has not released.
+ *
+ * AND WHAT HELPS THEM PREPARE. Before the Test, what is on it (the blueprint's
+ * skills and how many questions each). During Review, how they are doing on
+ * each Review skill, weakest first, with a way to practise the ones they have
+ * started — the teacher's Review rule still decides what unlocks the Test.
+ * Once a Test's results are released, "Review my Test" reaches its answers and
+ * worked solutions from Corrections and afterwards — never while a Retest can
+ * be answered. The retest rule ("can raise your grade up to 70%") is shown
+ * only while a retest could still change the grade: a student who passed is
+ * not read a cap meant for failing. Each of these is shaped by a tested helper
+ * in testCycleDiscovery.js, and every skill is named the way
+ * secureExamResultsModel.js names it everywhere else.
+ *
+ * A REVIEW OPENED FROM CORRECTIONS LIES OVER THEM. Corrections stay mounted,
+ * hidden, while the released Test is open, so the practice question, an
+ * answer typed and not yet checked, and its tries left are all as the student
+ * left them; Back returns focus to the corrections heading. Back from any
+ * review to the card returns focus to the card's heading.
  *
  * IT FOLLOWS THE SERVER. `refreshKey` changes when the student's grade document
  * changes — Review progress landing, a teacher releasing results, a retest
@@ -100,7 +126,7 @@ const quietButtonStyle = {
 
 const factStyle = { margin: 0, fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.5 };
 
-export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null }) => {
+export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
   /*
    * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
    * payload in exactly the shape the server returns. The card then makes NO
@@ -110,10 +136,26 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   const previewing = Boolean(previewCard);
   const [card, setCard] = useState(previewCard);
   const [mode, setMode] = useState('card');
+  // Where "Review my Test" was opened from, so its Back returns there — to
+  // the card, or to the corrections question the student was working on.
+  const [testReviewReturn, setTestReviewReturn] = useState('card');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const modeRef = useRef(mode);
   useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  // Where focus goes when a full-screen review hands the screen back: the
+  // card's heading, or the corrections heading the student left.
+  const headingRef = useRef(null);
+  const correctionsRef = useRef(null);
+  const returnFocusRef = useRef(null);
+  useEffect(() => {
+    const returnTo = returnFocusRef.current;
+    if (!returnTo || returnTo !== mode) return;
+    returnFocusRef.current = null;
+    if (returnTo === 'corrections') correctionsRef.current?.querySelector('[data-corrections-heading]')?.focus();
+    else headingRef.current?.focus();
+  }, [mode, card]);
 
   // The server writes a release in steps (score, then the corrections plan), so
   // two loads can be in flight at once. Only the newest one may set the card:
@@ -167,6 +209,12 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   }
   if (!card) return null;
 
+  // The released original Test, when this stage may show it (see the helper).
+  // A teacher preview has no student session to open, so it never offers one.
+  const testReviewId = previewing ? null : testReviewSessionIdFor(card);
+  const openTestReview = (from) => { setTestReviewReturn(from); setMode('testReview'); };
+  const backToCard = () => { returnFocusRef.current = 'card'; setMode('card'); load(); };
+
   // Secure delivery owns the whole screen while it runs, and there is no exit
   // control inside it — leaving through an app button would unmount the
   // integrity logger and break the monitored-session contract.
@@ -193,19 +241,52 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
     return (
       <SecureExamReview
         examSessionId={card.reviewExamSessionId}
-        onBack={() => { setMode('card'); load(); }}
+        onBack={backToCard}
+        onPracticeSkill={onPracticeSkill}
+        skillLabels={card.testSkills}
+        backLabel="Back to my assessment"
       />
     );
   }
 
-  if (mode === 'corrections' && card.corrections) {
+  // Corrections — and the released Test opened from inside them, drawn over
+  // the corrections rather than instead of them (see above).
+  const reviewingFromCorrections = mode === 'testReview' && testReviewReturn === 'corrections' && Boolean(testReviewId);
+  if ((mode === 'corrections' || reviewingFromCorrections) && card.corrections) {
     return (
-      <TestCycleCorrections
-        assignmentId={assignmentId}
-        corrections={card.corrections}
-        onProgress={load}
-        onComplete={() => { setMode('card'); load(); }}
-        onExit={() => { setMode('card'); load(); }}
+      <>
+        <div ref={correctionsRef} style={reviewingFromCorrections ? { display: 'none' } : undefined}>
+          <TestCycleCorrections
+            assignmentId={assignmentId}
+            corrections={card.corrections}
+            reviewExamSessionId={testReviewId}
+            onReviewTest={() => openTestReview('corrections')}
+            onProgress={load}
+            onComplete={backToCard}
+            onExit={backToCard}
+          />
+        </div>
+        {reviewingFromCorrections && (
+          <SecureExamReview
+            examSessionId={testReviewId}
+            onBack={() => { returnFocusRef.current = 'corrections'; setMode('corrections'); }}
+            onPracticeSkill={onPracticeSkill}
+            skillLabels={card.testSkills}
+            backLabel="Back to my corrections"
+          />
+        )}
+      </>
+    );
+  }
+
+  if (mode === 'testReview' && testReviewId) {
+    return (
+      <SecureExamReview
+        examSessionId={testReviewId}
+        onBack={backToCard}
+        onPracticeSkill={onPracticeSkill}
+        skillLabels={card.testSkills}
+        backLabel="Back to my assessment"
       />
     );
   }
@@ -226,6 +307,8 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   const review = card.reviewProgress || null;
   // An external-original cycle's one secure session is the retest.
   const noun = card.policy?.external ? 'Retest' : 'Test';
+  const reviewSkills = card.stage === TEST_CYCLE_STAGE.REVIEW ? reviewSkillRows(card.reviewBySkill) : [];
+  const testSkills = testSkillsSection(card);
 
   return (
     <section style={shell} data-test-cycle-stage={card.stage} data-availability={availability?.reason || 'open'}>
@@ -234,7 +317,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         {card.secure && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-error-text)' }}>Secure · monitored</span>}
         {card.hintsAllowed && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-success-text)' }}>Help allowed</span>}
       </div>
-      <h2 style={{ margin: 0, fontSize: 'clamp(18px, 4vw, 23px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{card.title}</h2>
+      <h2 ref={headingRef} tabIndex={-1} style={{ margin: 0, fontSize: 'clamp(18px, 4vw, 23px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{card.title}</h2>
       <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{card.detail}</p>
 
       {availability?.reason === 'scheduled' && availability.opensAt && (
@@ -245,10 +328,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
 
       {card.stage === TEST_CYCLE_STAGE.REVIEW && review && review.total > 0 && (
         <p style={factStyle}>
-          Review: {review.attempted} of {review.total} questions answered.{' '}
-          {review.minimumMastery !== undefined && review.minimumMastery !== null
-            ? `Answer every Review question and earn at least ${review.minimumMastery}% to unlock your ${noun} (now ${Math.floor(Number(review.mastery) || 0)}%).`
-            : `Answer every Review question to unlock your ${noun} — they do not have to be correct.`}
+          Review: {review.attempted} of {review.total} questions answered. {reviewRequirementText(review, noun)}
         </p>
       )}
 
@@ -292,12 +372,19 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
       <div style={{ display: 'grid', gap: 4 }}>
         {card.delivery && (
           <p style={factStyle}>
-            {card.delivery.timed ? `${noun} is timed: ${card.delivery.timeLimitMinutes} minutes once you start.` : `${noun} is not timed.`}
-            {card.delivery.questionCount ? ` ${card.delivery.questionCount} questions, one attempt each.` : ''}
+            {/* The minutes are this student's own, extended time included
+                (testCycleDeliveryFacts). Answers stay changeable until Submit:
+                every secure item is a draft until the session is finalized. */}
+            {card.delivery.timed
+              ? `${noun} is timed: ${card.delivery.timeLimitMinutes} minutes once you start${Number(card.delivery.extendedTimeMultiplier) > 1 ? ', including your extended time' : ''}.`
+              : `${noun} is not timed.`}
+            {card.delivery.questionCount ? ` ${card.delivery.questionCount} questions. You can change your answers until you submit.` : ''}
           </p>
         )}
-        {/* Once the cycle is finished the breakdown above already shows the rule that was applied. */}
-        {card.policy?.summary && card.stage !== 'complete' && <p style={factStyle}>{card.policy.summary}</p>}
+        {/* Only while a retest could still happen. A student who passed is not
+            read a cap meant for a failing grade, and once the cycle is finished
+            the breakdown above already shows the rule that was applied. */}
+        {card.policy?.summary && retestPolicyRelevant(card) && <p style={factStyle}>{card.policy.summary}</p>}
         {card.dueAt && <p style={factStyle}>Due {formatDateTime(card.dueAt)}.</p>}
       </div>
 
@@ -310,12 +397,61 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         >
           {card.actionLabel}
         </button>
+        {testReviewId && (
+          <button type="button" onClick={() => openTestReview('card')} style={quietButtonStyle}>
+            {testReviewLabel(card)}
+          </button>
+        )}
         {onExit && (
           <button type="button" onClick={onExit} style={quietButtonStyle}>
             Back
           </button>
         )}
       </div>
+
+      {/* How the Review is going, skill by skill — what to practise, not what
+          unlocks the Test (the Review line above states the teacher's rule).
+          Below the action, like the study guide, so "Continue Review" stays on
+          the first screen of a Chromebook. */}
+      {reviewSkills.length > 0 && (
+        <section aria-labelledby="review-skill-progress" style={{ display: 'grid', gap: 6, paddingTop: 12, borderTop: '1px solid var(--mm-border-soft)', textAlign: 'left' }}>
+          <h3 id="review-skill-progress" style={{ margin: 0, fontSize: 14, color: 'var(--mm-text-strong)' }}>How your Review is going</h3>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+            {reviewSkills.map((skill) => (
+              <li key={skill.key} data-review-skill={skill.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '6px 12px', padding: '8px 12px', border: '1px solid var(--mm-border-soft)', borderRadius: 9, background: 'var(--mm-surface-sunken)' }}>
+                <div style={{ minWidth: 0, flex: '1 1 200px' }}>
+                  <strong style={{ display: 'block', color: 'var(--mm-text-strong)', fontSize: 14, overflowWrap: 'anywhere' }}>{skill.label}</strong>
+                  <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{skill.summary}</span>
+                </div>
+                {onPracticeSkill && skill.canPractise && !previewing && (
+                  <button type="button" onClick={() => onPracticeSkill({ alignmentKey: skill.alignmentKey, framework: null, domainId: null })} aria-label={`Practise ${skill.label}`} style={{ ...quietButtonStyle, minHeight: 44, color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' }}>
+                    Practise this skill
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* The study guide: what the next secure session asks about. Below the
+          action, so the button that starts it stays on the first screen. */}
+      {testSkills && (
+        <section aria-labelledby="test-cycle-skills" data-test-skills="" style={{ display: 'grid', gap: 6, paddingTop: 12, borderTop: '1px solid var(--mm-border-soft)', textAlign: 'left' }}>
+          <h3 id="test-cycle-skills" style={{ margin: 0, fontSize: 14, color: 'var(--mm-text-strong)' }}>{testSkills.title}</h3>
+          {testSkills.note && <p style={{ ...factStyle, color: 'var(--mm-text)' }}>{testSkills.note}</p>}
+          <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 4, color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.45 }}>
+            {testSkills.rows.map((skill) => (
+              <li key={skill.key} style={{ overflowWrap: 'anywhere' }}>
+                {skill.label}
+                {testSkills.showCounts && skill.questionCount > 0 && (
+                  <span style={{ color: 'var(--mm-text-muted)' }}> · {skill.questionCount} {skill.questionCount === 1 ? 'question' : 'questions'}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </section>
   );
 };
