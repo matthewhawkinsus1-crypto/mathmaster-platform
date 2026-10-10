@@ -222,7 +222,9 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
   // The item the SERVER dealt (targeted Recovery). While one is in play the
   // record's own next item does not replace it.
   const [serverDealt, setServerDealt] = useState(false);
-  const [dealing, setDealing] = useState(true);
+  // Targeting only reorders and picks among unseen versions, so when the
+  // record has no next item the server has none either: no wait then.
+  const [dealing, setDealing] = useState(Boolean(entry.nextPracticeItem));
   const nextDealtRef = useRef(null);
   const [outcome, setOutcome] = useState(null);
   const [notice, setNotice] = useState('');
@@ -243,6 +245,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
       setItem(dealt || entry.nextPracticeItem || null);
       setDealing(false);
     };
+    if (!entry.nextPracticeItem) { settle(null); return undefined; }
     const timer = setTimeout(() => settle(null), SERVER_DEAL_TIMEOUT_MS);
     fetchSectionRecoveryStatus({ assignmentId: assignment.id, section: entry.section })
       .then((status) => settle(status?.nextPracticeItem))

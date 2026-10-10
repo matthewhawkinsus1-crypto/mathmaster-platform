@@ -269,4 +269,9 @@ test('the server reads the evidence and passes it in; the runner shows the serve
   assert.match(practice, /setItem\(dealt \|\| entry\.nextPracticeItem \|\| null\);/);
   assert.match(practice, /nextDealtRef\.current = dealtItem\(result\?\.nextPracticeItem\);/);
   assert.match(practice, /!dealing && !serverDealt && !outcome/, 'the record does not replace a server-dealt item');
+  // With no next item on the record there is nothing to deal: the empty
+  // state shows at once, never after a wait on the callable (CI on #464:
+  // a hanging callable hid "no new practice questions left").
+  assert.match(practice, /useState\(Boolean\(entry\.nextPracticeItem\)\)/);
+  assert.match(practice, /if \(!entry\.nextPracticeItem\) \{ settle\(null\); return undefined; \}/);
 });
