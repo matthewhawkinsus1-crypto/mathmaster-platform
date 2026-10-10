@@ -312,6 +312,11 @@ test('practice-only work is not filed as past due or Finished unless the student
   assert.equal(result.pastDueEntries.length, 0);
   assert.equal(result.practiceEntries.length, 1);
   assert.equal(result.completedEntries.length, 0);
+  // Decision 4: closed with nothing left to work is Finished — it asks nothing
+  // more of the student and is never recommended — while staying filed under
+  // the closed/practice group rather than beside work the student completed.
+  assert.equal(result.practiceEntries[0].finished, true);
+  assert.equal(result.practiceEntries[0].actionable, false);
 });
 
 test('every entry lands in exactly one group', () => {

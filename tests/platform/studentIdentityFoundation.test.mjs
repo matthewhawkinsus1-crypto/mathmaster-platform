@@ -27,7 +27,10 @@ test('identity bar shows a full natural name, period, and normal not-you logout 
   assert.match(source, /import \{[^}]*\bSTUDENT_SELF_NEUTRAL_LABEL\b[^}]*\} from '\.\.\/\.\.\/platform\/studentName\.js'/);
   assert.match(source, /`Period \$\{period\}`/);
   assert.match(source, /Not you\?/);
-  assert.match(source, /onClick=\{onLogout\}[\s\S]*Log Out/);
+  // Log Out goes through handleLogoutPress, which asks first only when work
+  // is still unsent (logoutRisk) and otherwise calls onLogout directly.
+  assert.match(source, /onClick=\{handleLogoutPress\}[\s\S]*Log Out/);
+  assert.match(region(source, 'const handleLogoutPress = () => {', '};', 'Log Out press'), /else onLogout\?\.\(\);/);
   assert.match(source, /position: 'sticky'/, 'the thin identity row must remain visible in compact and mobile layouts');
 });
 

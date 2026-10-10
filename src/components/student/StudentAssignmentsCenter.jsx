@@ -114,26 +114,45 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
           button is the assignment's practice, which never unlocks one. */}
       <RecoveryInlineNotice opportunities={row.recovery} studentId={studentId} onOpen={onOpenRecovery} />
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+      {/* Every button comes from the one "Today" rule (resolveActions): Start/
+          Continue only when it lands on work open this minute, at the
+          question it names; a Recovery opens the result page where it lives;
+          waiting work says what it waits for; closed work is a no-credit
+          retry; excused work offers its result only. */}
+      <div data-row-actions={row.assignmentId} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 14 }}>
         {row.canContinue && (
-          <button type="button" style={control(true)} onClick={() => onContinue?.(row.assignmentId)}>
+          <button
+            type="button"
+            style={control(true)}
+            onClick={() => onContinue?.(row.assignmentId, row.continueQuestionIndex ?? undefined)}
+          >
             {row.continueLabel}
           </button>
         )}
+        {row.canRecover && (
+          <button type="button" style={control(true)} onClick={() => onOpenResult?.(row.assignmentId)}>
+            {row.recoveryLabel}
+          </button>
+        )}
+        {row.waitText && (
+          <span data-row-wait style={{ flex: '1 1 200px', fontSize: 13, fontWeight: 800, color: 'var(--mm-text)', lineHeight: 1.45 }}>
+            {row.waitText}
+          </span>
+        )}
         {row.canViewResults && (
-          <button type="button" style={control(!row.canContinue)} onClick={() => onOpenResult?.(row.assignmentId)}>
+          <button type="button" style={control(!row.canContinue && !row.canRecover)} onClick={() => onOpenResult?.(row.assignmentId)}>
             View Results
           </button>
         )}
         {row.canPractice && (
           <button type="button" style={control(false)} onClick={() => onPractice?.(row.assignmentId)}>
-            Practice
+            {row.practiceLabel}
           </button>
         )}
-        {/* A locked assignment with nothing to open says why, rather than
-            offering a button that does nothing. */}
-        {!row.canContinue && !row.canViewResults && !row.canPractice && (
-          <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>Opens when your teacher releases it.</span>
+        {/* Nothing to open and no wait to name (a release date not yet
+            reached, say): still say so, rather than an empty row. */}
+        {!row.canContinue && !row.canRecover && !row.waitText && !row.canViewResults && !row.canPractice && (
+          <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>Not open yet — it appears here when it opens.</span>
         )}
       </div>
     </article>

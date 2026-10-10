@@ -317,7 +317,18 @@ import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability
 import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor, projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
 import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRecoveryGrades.js';
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
-import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
+import { buildStudentDashboardModel, resolveNextAction, resolveUpNext } from './studentDashboardModel.js';
+import { resolveAssignmentHandoff } from './platform/student/assignmentHandoff.js';
+import { questionIsTerminal, timedSectionWorkableNow } from './platform/student/studentWorkState.js';
+import WhatChangedList from './components/student/WhatChangedList.jsx';
+import {
+  buildWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
+} from './platform/student/whatChangedModel.js';
+import { describeLogoutRisk } from './platform/student/logoutGuard.js';
+import { describeSaveStatus } from './platform/student/saveStatusModel.js';
+import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
+import { loadMyReviewWork } from './services/reviewMyWorkService.js';
+import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import {
   readStudentRouteState,
@@ -361,7 +372,7 @@ import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePo
 import { isSecureExamActive, useSecureExamActive } from './platform/assessment/secureExamPresence.js';
 import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from './services/assessmentLifecycleService.js';
 import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from './platform/assessment/testCycleContractEdit.js';
-import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
+import StudentGlobalNav, { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
 import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAuditTrail.jsx';
@@ -401,6 +412,7 @@ import StudentRewardsCenter from './components/student/rewards/StudentRewardsCen
 import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
 
 import {
+  assignmentIsExcusedForStudent,
   buildStudentGradeCenter,
   findGradeCenterEntry,
 } from './platform/student/studentGradeCenterModel.js';
@@ -529,6 +541,9 @@ const MathToolsLab = lazy(() => import('./dev/MathToolsLab.jsx'));
 const LessonPreflightModal = lazy(() => import('./components/teacher/LessonPreflightModal.jsx'));
 const MyMathPathApp = lazy(() => import('./components/student/MyMathPathApp.jsx'));
 const StudentSecureExamDashboard = lazy(() => import('./components/assessment/StudentSecureExamDashboard.jsx'));
+// Lazy: the worked-solution renderers pull MathLive, which stays out of the
+// first load (initialBundleBoundary.test.mjs).
+const ReviewMyWork = lazy(() => import('./components/student/ReviewMyWork.jsx'));
 const TeacherSecureExamDashboard = lazy(() => import('./components/assessment/TeacherSecureExamDashboard.jsx'));
 const TeacherAnalyticsDashboard = lazy(() => import('./components/analytics/TeacherAnalyticsDashboard.jsx'));
 // Student Case Review / Academic Evidence Deep Dive: its code loads only when a
@@ -1400,6 +1415,23 @@ function App() {
   const recoveryAssignmentId = user?.role === 'student' && activeView === 'assignmentResult'
     ? assignmentResultRoute?.assignmentId || null
     : null;
+  // Recovery for every open assignment, so Home's "Today" rule and Grades'
+  // "Ways to raise your grade" see the Recoveries the result page would offer
+  // (platform/student/recoveryStates.js). Refreshed once a minute at most.
+  const studentRecoveryMinute = Math.floor(now / 60000);
+  const studentRecoverySummariesByAssignment = useMemo(() => (user?.role === 'student' && user?.id
+    ? buildRecoverySummariesByAssignment({
+      assignments,
+      trackerByAssignment: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment) || {},
+      sectionRecoveryByAssignment,
+      studentId: user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      schedule: classSchedule,
+      studentProfile: user.profile || null,
+      nowValue: studentRecoveryMinute * 60000,
+    })
+    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.profile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
   const studentRecoverySummary = useMemo(() => {
     if (!recoveryAssignmentId || !user?.id) return [];
     const assignment = assignments.find((item) => item.id === recoveryAssignmentId);
@@ -2043,6 +2075,37 @@ function App() {
   const studentViewerRef = useRef({ studentId: null, profile: null });
   const studentControlsRef = useRef(EMPTY_STUDENT_CONTROLS);
   studentControlsRef.current = studentAssignmentControls;
+  /*
+   * "WHAT CHANGED" (decision 6): a read-only list built from records the
+   * student already reads — released results, grade changes with their fixed
+   * reason, excused/reopened/extended work, new work, retests
+   * (platform/student/whatChangedModel.js). The device's last-seen time is
+   * read once per visit so "New" does not vanish while it is being read.
+   */
+  const [whatChangedSeenAt, setWhatChangedSeenAt] = useState(0);
+  useEffect(() => {
+    if (user?.role === 'student' && user?.id) setWhatChangedSeenAt(readWhatChangedSeenAt(user.id));
+  }, [user?.role, user?.id]);
+  const whatChangedMinute = Math.floor(now / 60000);
+  const whatChangedItems = useMemo(() => {
+    if (user?.role !== 'student' || !user?.id) return [];
+    const input = {
+      studentId: user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod || null,
+      assignments,
+      testCycleGrades,
+      teacherGradeOverridesByAssignment,
+      // The student's own records, before overrides are projected onto them:
+      // a per-question change is listed only while it still applies.
+      trackerByAssignment: tracker,
+      controlsByAssignmentId: studentAssignmentControls?.byAssignmentId || {},
+      nowValue: whatChangedMinute * 60000,
+      seenAt: whatChangedSeenAt,
+    };
+    const firstSeenByKey = rememberWhatChangedFirstSeen(user.id, untimedWhatChangedKeys(buildWhatChanged(input)), input.nowValue);
+    return buildWhatChanged({ ...input, firstSeenByKey });
+  }, [user?.role, user?.id, user?.classId, user?.classPeriod, assignments, testCycleGrades, teacherGradeOverridesByAssignment, tracker, studentAssignmentControls, whatChangedMinute, whatChangedSeenAt]);
   // What was last projected into state, so re-running an effect with nothing
   // new projects nothing again (every projection makes new lesson objects).
   const lastPublishedRef = useRef(null);
@@ -3453,6 +3516,8 @@ function App() {
   const handleLogout = async () => {
     await stopStudentSpotlight?.();
     setUser(null);
+    // The Today/Up-next cache holds this student's lessons and controls.
+    studentUpNextCacheRef.current = { inputs: null, dashboard: null };
     // At once, not when the auth listener catches up: the lessons carried
     // this account's own controls (a shared Chromebook's next student must
     // never be handed them, even for a frame).
@@ -3985,6 +4050,15 @@ function App() {
   }, [practiceTracker, activeAssignmentId]);
 
   const assignmentOpenSpanRef = useRef(null);
+  // Up Next at the end of an assignment, cached per assignment/tracker/minute
+  // so a finished section does not rebuild the whole dashboard every render.
+  const studentUpNextCacheRef = useRef({ inputs: null, dashboard: null });
+  // A shared Chromebook: the cache holds the student's lessons and their own
+  // controls, so it is dropped the moment the signed-in student changes or
+  // signs out — nothing of one student survives into the next session.
+  useEffect(() => {
+    studentUpNextCacheRef.current = { inputs: null, dashboard: null };
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
@@ -5015,10 +5089,8 @@ function App() {
             return;
           }
 
-          toastSuccess(
-            'Progress checkpoint saved to Google Classroom',
-            `${title}: your current ${gradeText} was saved as a teacher draft in Classroom. Your live grade is visible here in MathMaster and is not final—keep working to raise it.`,
-          );
+          // A draft the teacher has not released is invisible to the student
+          // in Classroom; announcing it only added sync jargon. No toast.
         });
       },
       (error) => console.error('Could not watch Google Classroom grade receipts:', error),
@@ -5745,11 +5817,14 @@ function App() {
       const entryNow = Date.now();
       const studentContext = { classId: user.classId || null, classPeriod: user.classPeriod };
       const roleIsActionable = (role) => {
+        // The same predicate as Home's Today rule (studentWorkState.js): a
+        // Warm-Up/DOL with its class window switched off is open like
+        // Classwork; otherwise only an active window is.
         if (role === 'warmup') {
-          return getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }).status === 'active';
+          return timedSectionWorkableNow(getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }));
         }
         if (role === 'dol') {
-          return getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }).status === 'active';
+          return timedSectionWorkableNow(getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }));
         }
         if (role === 'classwork' || role === 'practice') {
           return getSectionAccessState({
@@ -5768,7 +5843,33 @@ function App() {
         requestedQuestionIndex: safeQuestionIndex,
         roleIsActionable,
         restrictToRole: scopedSectionKey,
+        // Start/Continue lands on the first unfinished question open now;
+        // Review My Work (returnToResult) keeps the question it asked for.
+        // Finished means what Home means: correct, or out of tries (a
+        // teacher-granted extra DOL try reopens an expired DOL question).
+        isFinished: options?.returnToResult
+          ? null
+          : (index) => questionIsTerminal({
+            record: tracker?.[assignmentId]?.[index],
+            role: stageEntries.find((entry) => entry.storageIndex === index)?.logicalRole || null,
+            question: assignmentQuestions[index],
+            assignment: assignmentData,
+            classId: user.classId || null,
+            studentId: user.id,
+          }),
       });
+      if (actionableIndex === null && options?.returnToResult) {
+        // Asked from the result page: going "back" to the same page would do
+        // nothing visible, so say why instead.
+        toastInfo('Nothing to open right now', 'None of this assignment is open to you at the moment. The result page shows what opens when.');
+        return;
+      }
+      if (actionableIndex === null && user?.role === 'student' && !scopedSectionKey) {
+        // No dead end: with nothing open this minute, show the assignment's
+        // result page — its sections, what opens when, and what to do next.
+        openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
+        return;
+      }
       if (actionableIndex === null) {
         toastInfo(
           scopedSectionKey ? 'This section is not open right now' : 'Nothing open right now',
@@ -10063,6 +10164,10 @@ function App() {
           nowValue: now,
         });
         if (state.status !== 'active') return null;
+        // Never recommend work the student cannot do for credit: excused
+        // for them, or not open to them (not released yet / closed).
+        if (assignmentIsExcusedForStudent(assignment, user.id)) return null;
+        if (!getAssignmentLifecycle(assignment, now, { studentId: user.id }).isOpen) return null;
         const questions = getStoredAssignmentQuestions(assignment);
         const bannerOmitted = new Set(studentRequiredFor(assignment).omitted);
         const questionIndices = questions.reduce((indices, question, index) => {
@@ -10957,13 +11062,52 @@ function App() {
     // When a student finishes an entire section, point the celebration CTA at
     // the next AVAILABLE unfinished section. A locked DOL is intentionally
     // skipped rather than becoming a dead-end button.
-    const nextAvailableIncompleteSection = laterNavigationSections.find((section) => !section.complete && sectionNavigationTarget(section));
+    // "Can be viewed" is not "can be worked now": a Warm-Up closed for the
+    // period or an ended DOL stays viewable for review, but the continue
+    // button must only ever lead to an unfinished question open right now.
+    const entryIsWorkableNow = (entry) => {
+      if (!entryIsAvailable(entry)) return false;
+      if (preview || lifecycle.isPracticeOnly) return true;
+      if (entry?.role === 'warmup' && warmupState.enabled) return warmupState.status === 'active';
+      if (entry?.isTimedDOLQuestion && dolState.enabled) return dolState.status === 'active';
+      return true;
+    };
+    const sectionWorkTarget = (section) => (section?.entries || [])
+      .find((entry) => entryIsWorkableNow(entry) && !sectionQuestionIsComplete(entry.index)) || null;
+    const nextAvailableIncompleteSection = laterNavigationSections.find((section) => sectionWorkTarget(section));
+    // Only a section with work left: "Continue to Practice" with Practice
+    // already complete was a dead loop. With none left, hand off to Up next
+    // (what Home would recommend) or to this assignment's results.
     const nextAvailableSection = nextAvailableIncompleteSection
-      || laterNavigationSections.find((section) => sectionNavigationTarget(section));
-    const nextAvailableSectionTarget = nextAvailableSection ? sectionNavigationTarget(nextAvailableSection) : null;
+      // An EARLIER section still open with work left beats leaving the assignment.
+      || navigationSections.find((section) => section.role !== currentNavigationSection?.role && sectionWorkTarget(section))
+      || null;
+    const nextAvailableSectionTarget = nextAvailableSection ? sectionWorkTarget(nextAvailableSection) : null;
     const nextAvailableSectionMeta = nextAvailableSection
       ? (activitySectionMeta[nextAvailableSection.role] || { label: nextAvailableSection.role })
       : null;
+    // Decision 4: a section is done at ANY accuracy — out of tries counts —
+    // so the hand-off follows terminal completion; `allCorrect` stays for the
+    // tab's correctness styling only.
+    const assignmentHandoff = currentNavigationSection?.complete
+      ? resolveAssignmentHandoff({
+        nextIncompleteSection: nextAvailableSectionTarget ? nextAvailableSection : null,
+        nextIncompleteSectionLabel: nextAvailableSectionMeta?.label || '',
+        upNext: !preview && user?.role === 'student' && !lifecycle.isPracticeOnly && !nextAvailableSectionTarget
+          ? resolveUpNext({ dashboard: studentUpNextDashboard(), assignmentId: activeAssignmentId })
+          : null,
+        student: !preview && user?.role === 'student',
+      })
+      : null;
+    const continueAfterSection = !assignmentHandoff
+      ? null
+      : assignmentHandoff.kind === 'section'
+        ? () => changeQuestion(nextAvailableSectionTarget.index)
+        : assignmentHandoff.kind === 'upNext'
+          ? () => (assignmentHandoff.upNext.opensResult
+            ? openStudentAssignmentResult(assignmentHandoff.upNext.assignment.id, { origin: 'assignments' })
+            : startAssignment(assignmentHandoff.upNext.assignment.id, assignmentHandoff.upNext.questionIndex ?? 0))
+          : () => openStudentAssignmentResult(activeAssignmentId, { origin: 'assignments' });
     const returnsToAssignmentResult = !preview
       && assignmentResultRoute?.assignmentId === activeAssignmentId;
     // Name the destination, not the direction. A student who opened this from
@@ -10974,7 +11118,7 @@ function App() {
         ? 'Back to Assignments'
         : studentDashboardMode === 'grades'
           ? 'Back to Grades'
-          : 'Back to Dashboard';
+          : 'Back to Home';
     const isLiveTeachingThisAssignment = preview
       && liveTeachingSession?.active
       && String(liveTeachingSession.assignmentId) === String(assignment.id);
@@ -11184,18 +11328,17 @@ function App() {
                     ? 'Preview progress'
                     : lifecycle.isPracticeOnly
                       ? 'Frozen recorded grade'
-                      : lifecycle.isLate
-                        ? 'Current late grade · if stopped now'
-                        : 'Current grade · if stopped now'}
+                      : 'Grade so far'}
                 </div>
                 <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : recordedGrade >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>
                   {preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}
                 </div>
-                {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && (
+                {/* Only a grade the student can actually see in Classroom, in
+                    plain words — never a teacher draft or sync stage. */}
+                {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && classroomReceiptStudentVisible && (
                   <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: classroomReceiptFinal ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800 }}>
-                    {classroomReceiptStudentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'} {classroomReceiptGrade}% · {classroomReceiptFinal ? 'FINAL' : classroomReceiptStage === 'due-checkpoint' ? 'DUE-DATE CHECKPOINT' : classroomReceiptStudentVisible ? 'RELEASED UPDATE' : 'PROGRESS'}
-                    {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Next checkpoint will send your newer MathMaster grade.</> : null}
-                    {!classroomReceiptStudentVisible ? <><br />Your live grade is shown here; this Classroom checkpoint is not released to students yet.</> : null}
+                    Google Classroom shows {classroomReceiptGrade}%{classroomReceiptFinal ? ' (final)' : ' (not final yet)'}
+                    {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Classroom will catch up with your newer grade.</> : null}
                   </div>
                 )}
               </div>
@@ -11522,11 +11665,11 @@ function App() {
               onNextQuestion={nextQuestionEntry ? () => changeQuestion(nextQuestionEntry.index) : null}
               nextQuestionLabel={nextQuestionDestinationLabel}
               nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
-              sectionComplete={Boolean(currentNavigationSection?.allCorrect)}
+              sectionComplete={Boolean(currentNavigationSection?.complete)}
               sectionLabel={currentSectionMeta.label}
               sectionQuestionCount={currentSectionQuestionCount}
-              onContinueSection={nextAvailableSectionTarget ? () => changeQuestion(nextAvailableSectionTarget.index) : null}
-              continueSectionLabel={nextAvailableSectionMeta?.label || ''}
+              onContinueSection={assignmentHandoff ? continueAfterSection : null}
+              continueSectionLabel={assignmentHandoff?.label || ''}
               onSupportEvidence={preview || lifecycle.isPracticeOnly
                 ? null
                 : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole })}
@@ -11588,6 +11731,16 @@ function App() {
     );
   };
 
+  // The read-only "What changed" list, on Home (compact) and Grades.
+  const renderWhatChangedPanel = (compact) => (
+    <WhatChangedList
+      items={whatChangedItems}
+      compact={compact}
+      onOpenAssignment={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: compact ? 'assignments' : 'grades' })}
+      onMarkSeen={() => { if (user?.id) markWhatChangedSeen(user.id, Date.now()); }}
+    />
+  );
+
   // This is the authenticated-student shell boundary. Keeping identity here,
   // outside every destination, makes it survive Focus View, compact/mobile
   // assignment controls, Live Challenge, and screens that omit global nav.
@@ -11599,6 +11752,13 @@ function App() {
         student={preview ? null : { ...studentRecord, ...user }}
         classPointsBalance={preview || studentClassPoints.unavailable ? null : studentClassPoints.account.balance}
         onLogout={preview ? null : handleLogout}
+        // Unsent work still queued: Log Out asks first (logoutGuard.js).
+        logoutRisk={preview ? null : describeLogoutRisk({
+          outboxDepth: studentOutboxDepth,
+          pendingGradeCount: studentPendingGradeCount,
+          needsReviewCount: studentNeedsReviewCount,
+          persistenceStatus: studentPersistenceStatus,
+        })}
       />
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED && (
         <section role="dialog" aria-label="Student Spotlight request" style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>
@@ -12934,8 +13094,12 @@ function App() {
    * Built in render flow rather than a useMemo because several of its providers
    * are component-scope helpers declared further down this file.
    */
-  const studentDashboard = user.role === 'student' && activeView === 'dashboard'
-    ? buildStudentDashboardModel({
+  // A hoisted declaration (not a const) so the assignment workspace, defined
+  // above, can ask for Up Next when a student finishes a section; it is only
+  // called from render paths that run after everything it reads is set up.
+  // eslint-disable-next-line no-inner-declarations
+  function buildStudentDashboardNow() {
+    return buildStudentDashboardModel({
       assignments,
       classId: user.classId || null,
       classPeriod: user.classPeriod,
@@ -12950,8 +13114,14 @@ function App() {
       // Describes each Test Cycle by its server-written stage on Home and in
       // the Assignments Center; the card still asks the server what is open.
       testCycleGrades,
+      // The one "Today" rule needs who the student is (their excusal) and
+      // which closed sections have a Recovery they can take now.
+      studentId: user.id,
+      recoveryStateByAssignment: recoveryStatesFromSummaries(studentRecoverySummariesByAssignment),
       providers: {
         assignmentIsForStudent,
+        // The teacher's per-class Classwork/Practice lock, for this student.
+        getSectionAccessState,
         // Wrapped so the dashboard's own lifecycle bucketing (Do Now / In
         // Progress / Practice Only) sees this signed-in student's extension,
         // without changing the generic module's signature — the Path
@@ -12969,7 +13139,48 @@ function App() {
         // Same wrap as getAssignmentLifecycle above, and for the same reason.
         matchesSmartView: (assignment, viewId, options) => matchesSmartView(assignment, viewId, { ...options, studentId: user.id }),
       },
-    })
+    });
+  }
+  // The workspace's Up Next, the result page and Grades read the same model.
+  // Cached on the identity of everything it reads (and the minute), so a
+  // screen that re-renders on every keystroke does not rebuild it each time.
+  // eslint-disable-next-line no-inner-declarations
+  function studentUpNextDashboard() {
+    const inputs = [
+      Math.floor(now / 60000), user, assignments, gradeDisplayTracker, assignmentActivity,
+      classworkGradesByAssignment, classSchedule, resumeAction, studentClassPoints.redemptionsByAssignment,
+      testCycleGrades, studentRecoverySummariesByAssignment,
+    ];
+    const cache = studentUpNextCacheRef.current;
+    if (cache.dashboard && cache.inputs?.length === inputs.length && inputs.every((input, index) => input === cache.inputs[index])) {
+      return cache.dashboard;
+    }
+    const dashboard = buildStudentDashboardNow();
+    studentUpNextCacheRef.current = { inputs, dashboard };
+    return dashboard;
+  }
+  // The one "Today" map Grades rows and "Ways to raise" both read.
+  // eslint-disable-next-line no-inner-declarations
+  function studentTodayByAssignment() {
+    return Object.fromEntries((studentUpNextDashboard()?.allEntries || []).map((entry) => [entry.assignment.id, entry]));
+  }
+  // "Ways to raise your grade" (platform/student/waysToRaiseModel.js): missing
+  // work, late windows, Test Cycle corrections/retests, Recoveries and Practice
+  // Passes — filtered by the Today rule so it never promises a Start the
+  // student cannot take. Grades lists them; Home shows their count.
+  // eslint-disable-next-line no-inner-declarations
+  function studentWaysToRaiseNow() {
+    return studentGradeCenter ? buildWaysToRaise({
+      gradeCenter: studentGradeCenter,
+      recoverySummariesByAssignment: studentRecoverySummariesByAssignment,
+      // Only offered to a student who holds a Practice Pass to use.
+      practicePassEligibleAssignmentIds: studentRewardWallet?.practicePasses?.count > 0 ? studentPracticePassEligibleAssignments : [],
+      todayByAssignment: studentTodayByAssignment(),
+      nowValue: now,
+    }) : [];
+  }
+  const studentDashboard = user.role === 'student' && activeView === 'dashboard'
+    ? buildStudentDashboardNow()
     : null;
 
   if (user.role === 'student' && activeView === 'dashboard') {
@@ -13035,7 +13246,8 @@ function App() {
             supportPresentation={getStudentSupportPresentation(user.profile)}
             onNavigate={navigateStudent}
             onLogout={handleLogout}
-            onContinue={(assignmentId) => startAssignment(assignmentId)}
+            // Lands on the row's next unfinished open question.
+            onContinue={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex)}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
             recoveryByAssignment={studentRecoveryByAssignment}
@@ -13081,6 +13293,21 @@ function App() {
             onLogout={handleLogout}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
+            onStart={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0)}
+            // The Today rule per row: no Start on work that cannot be done
+            // now, Open Recovery, and Start lands on the next question.
+            // The Today rule per row: no Start on work that cannot be done
+            // now, Open Recovery, and Start lands on the next question.
+            todayByAssignment={studentTodayByAssignment()}
+            waysToRaise={studentWaysToRaiseNow()}
+            onWayAction={(way) => {
+              if (way.action === 'none') return undefined; // waiting: nothing to open
+              if (way.action === 'openResult') return openStudentAssignmentResult(way.assignmentId, { origin: 'grades' });
+              if (way.action === 'openRewards') return openStudentDashboardMode('rewards');
+              if (way.action === 'start') return startAssignment(way.assignmentId, way.questionIndex ?? 0);
+              return startAssignment(way.assignmentId); // 'openTestCycle' (startAssignment opens the cycle card)
+            }}
+            whatChangedPanel={renderWhatChangedPanel(false)}
           />
         </>,
       );
@@ -13116,6 +13343,11 @@ function App() {
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {/* Tests & Exams teaches the same navigation as every other
+              student destination (it had none of its own). */}
+          <div style={{ maxWidth: 920, margin: '0 auto', padding: '16px 14px 0', boxSizing: 'border-box' }}>
+            <StudentGlobalNav current={STUDENT_DESTINATION.SECURE_EXAMS} onNavigate={navigateStudent} />
+          </div>
           <StudentSecureExamDashboard
           studentProfile={user.profile}
           onExit={() => setStudentDashboardMode('assignments')}
@@ -13142,10 +13374,21 @@ function App() {
     return renderStudentIdentityShell(
       <>
         {renderStudentPackUpBanner()}
-        {renderStudentWarmupBanner()}
+        {/* No Warm-Up banner on Home: the next-action card (or its compact
+            Warm-Up card) is the one place the Warm-Up is offered here. */}
         <StudentDashboardView
         dashboard={dashboard}
-        student={{ ...studentRecord, ...user, inclusionStatus: user.profile?.inclusionStatus }}
+        // Never the student's support status: Home is read over shoulders.
+        student={{ ...studentRecord, ...user }}
+        onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
+        saveStatus={describeSaveStatus({
+          persistenceStatus: studentPersistenceStatus,
+          outboxDepth: studentOutboxDepth,
+          pendingGradeCount: studentPendingGradeCount,
+          online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+        })}
+        whatChangedPanel={renderWhatChangedPanel(true)}
+        waysToRaise={{ count: countWaysToRaise(studentWaysToRaiseNow()) }}
         supportPresentation={supportPresentation}
         classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
         onStartAssignment={startAssignment}
@@ -13189,10 +13432,28 @@ function App() {
    */
   if (user.role === 'student' && activeView === 'assignmentResult' && assignmentResultRoute) {
     const resultEntry = findGradeCenterEntry(studentGradeCenter, assignmentResultRoute.assignmentId);
+    // The Today rule for this assignment and what comes after it: the result
+    // page is where "nothing open now" lands, so it says what opens when and
+    // hands off to Up next.
+    const resultDashboard = studentUpNextDashboard();
+    const resultTodayEntry = resultDashboard?.allEntries.find((entry) => entry.assignment.id === assignmentResultRoute.assignmentId) || null;
+    const resultUpNext = resolveUpNext({ dashboard: resultDashboard, assignmentId: assignmentResultRoute.assignmentId });
+    const recoveryAssignment = assignments.find((item) => item.id === assignmentResultRoute.assignmentId) || null;
+    // Decision 3: once the work is closed for this student and feedback is
+    // released, their own answers beside the worked solutions. The callable
+    // re-checks every gate; this only decides whether to show the panel.
+    const resultReviewPanel = resultEntry && recoveryAssignment && resultEntry.frozen
+      && !resultEntry.isTestCycle
+      && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
+      ? (
+        <Suspense fallback={<p role="status" style={{ margin: '14px 0 0' }}>Loading your work…</p>}>
+          <ReviewMyWork assignment={recoveryAssignment} load={loadMyReviewWork} />
+        </Suspense>
+      )
+      : null;
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
       ? assignmentResultRoute.sectionLabel || assignmentResultRoute.sectionKey
       : null;
-    const recoveryAssignment = assignments.find((item) => item.id === assignmentResultRoute.assignmentId) || null;
     const openRecoveryEntry = recoverySession?.assignmentId === assignmentResultRoute.assignmentId
       ? studentRecoverySummary.find((entry) => entry.section === recoverySession.section) || null
       : null;
@@ -13230,6 +13491,17 @@ function App() {
           })}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
+          // Decision 3: once the work is closed for this student and feedback
+          // is released, their own answers beside the worked solutions. The
+          // callable re-checks every gate; this only decides whether to show it.
+          reviewPanel={resultReviewPanel}
+          todayEntry={resultTodayEntry}
+          upNext={resultUpNext}
+          // New work, not a return trip: no returnToResult.
+          onContinue={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex)}
+          onUpNext={(next) => (next.opensResult
+            ? openStudentAssignmentResult(next.assignment.id, { origin: assignmentResultRoute.origin || 'assignments' })
+            : startAssignment(next.assignment.id, next.questionIndex ?? 0))}
           origin={assignmentResultRoute.origin || 'assignments'}
           onBackToHome={() => openStudentDashboardMode('assignments')}
           recoveryPanel={studentRecoverySummary.length ? (
