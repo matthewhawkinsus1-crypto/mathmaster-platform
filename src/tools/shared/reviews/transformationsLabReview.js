@@ -28,7 +28,9 @@
 //   - a number the review would print is neither a short decimal nor a
 //     fraction with denominator up to 1000;
 //   - identify, describe or anchor ask the student to READ a value off a graph
-//     that does not fix it. The grader marks the question's own a, h, k, but
+//     that does not fix it. identify accepts any parameters that draw the
+//     same function (sameTransformedFunction), but a review must still pick
+//     one reading, and
 //       · a line has no distinguished point, so h and k are not readable;
 //       · an exponential's a and h trade off (2·2^(x−1) is 2^x), so its a, h,
 //         reference point and descriptions are not readable;
@@ -39,6 +41,10 @@
 //     shapes of the graph itself, so anchor stays covered for any b there.
 //     A worked solution for those cases would present an arbitrary choice as
 //     a deduction; the review states nothing instead.
+//     describe always asks for a horizontal scale and reflection, which no
+//     graph fixes either (4x² is (2x)², x² is (−x)²). Its review states the
+//     description with b = 1 and says that it chose that form; it never
+//     claims the graph shows b = 1.
 //   - a plotTransform source point is not a finite coordinate pair, or a
 //     pointMap parent point is not the [x, y] pair the lab prints.
 //
@@ -443,9 +449,9 @@ const buildDescribe = (w, question, resolved, digits) => {
       { label: 'Vertical shift (units)', value: verticalDistance.shown },
     ],
     steps: [
-      `Write the graph as $y = a \\cdot f(b(x - h)) + k$ with $f(x) = ${parentTex(w, spec)}$, reading a, h and k from the graph.`,
+      `Write the graph as $y = a \\cdot f(b(x - h)) + k$ with $f(x) = ${parentTex(w, spec)}$. The graph alone does not fix b — for this family a horizontal stretch or compression can always be traded for a change outside — so describe it in its simplest form, with $b = 1$, and read a, h and k from the graph.`,
       ...reading.steps,
-      `So the graph is $y = ${equation}$: ${parametersTex(w, spec, ['a', 'h', 'k'])}, and no number multiplies x inside, so $b = 1$.`,
+      `So the graph is $y = ${equation}$: ${parametersTex(w, spec, ['a', 'h', 'k'])}, with no number multiplying x inside ($b = 1$).`,
       `Outside, y's tell the truth: $a = ${A}$ is ${spec.a < 0 ? 'negative, so the graph is reflected across the x-axis' : 'positive, so there is no reflection across the x-axis'}, and $|a| = ${w.tex(descriptor.verticalScale)}$ ${scaleSentence(w, descriptor.verticalScaleKind, descriptor.verticalScale, 'vertical')}.`,
       `Inside, x's lie: $b = 1$ is positive, so there is no reflection across the y-axis, and $\\frac{1}{|b|} = ${w.tex(descriptor.horizontalScale)}$ ${scaleSentence(w, descriptor.horizontalScaleKind, descriptor.horizontalScale, 'horizontal')}.`,
       hStep,
