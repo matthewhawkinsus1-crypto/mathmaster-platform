@@ -213,6 +213,8 @@ export default function SupportToolsTray({
   }, [model, itemKey, surface, toolType]);
 
   const recordUse = (tool) => {
+    // A universal-design tool is not a plan support; its use is not evidence.
+    if (tool.universal) return;
     const key = `${itemKey}|${tool.supportId}|used`;
     if (recordedRef.current.has(key)) return;
     recordedRef.current.add(key);

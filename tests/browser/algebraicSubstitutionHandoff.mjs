@@ -97,7 +97,7 @@ const isolateXWithStepAlgebra = async (page) => {
   await host.locator('[aria-label$="on the right side"]').first().click();
   await page.waitForTimeout(600);
   // The added 2y term, selected to cancel against -2y.
-  await host.locator('[aria-label^="+ 2"][aria-label$="select to cancel"]').first().click();
+  await host.locator('[data-term-text^="+ 2"][aria-label$="select to cancel"]').first().click();
   await page.locator('text=Isolated expression ready').waitFor({ timeout: 10000 });
 };
 

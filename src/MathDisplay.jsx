@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import './platform/math/mathliveRuntime.js';
 import { ensureMathElementRenders } from './platform/math/ensureMathElementRenders.js';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
 import { resolveMathDisplayFormat, unicodeSubscriptsToMathMarkup } from './mathDisplayFormat.js';
+import { mathSpeechLabel } from './platform/language/mathSpeechLabel.js';
+import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
 // Before the inequality keypad became atomic, MathLive could serialize
 // "\\le" followed immediately by t as the TeX command "\\let" (and the
@@ -58,7 +60,10 @@ export default function MathDisplay({
   value,
   format = 'auto',
   inline = false,
-  ariaLabel = 'Mathematical expression',
+  // Optional. Without one the expression is spoken from its own value
+  // ("y equals negative 2 over 3 x plus 4"); a label in program syntax or
+  // LaTeX is spoken in words too (../platform/language/mathSpeechLabel.js).
+  ariaLabel = null,
   style = {},
   className = '',
 }) {
@@ -73,6 +78,8 @@ export default function MathDisplay({
   const cleanValue = stripRedundantStackedFractionParens(
     stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value))),
   );
+  // ONE SPOKEN COPY (below). Memoised: a screen of math re-renders often.
+  const spoken = useMemo(() => mathSpeechLabel({ value: cleanValue, ariaLabel }), [cleanValue, ariaLabel]);
   const elementRef = useRef(null);
   useEffect(() => ensureMathElementRenders(elementRef.current), [cleanValue, format]);
   if (!cleanValue) return null;
@@ -84,13 +91,19 @@ export default function MathDisplay({
   const resolvedFormat = resolveMathDisplayFormat(cleanValue, format);
   const typesetValue = unicodeSubscriptsToMathMarkup(cleanValue, resolvedFormat);
   const Element = inline ? 'math-span' : 'math-div';
+  // ONE SPOKEN COPY. MathLive exposes the LaTeX source and its own MathML
+  // under whatever label it is given, so a screen reader announced every
+  // expression three times — and with the old default label, never as math.
+  // The typeset element is hidden from assistive technology; the words beside
+  // it (`spoken`, above) are what is read.
 
   return (
+    <>
     <Element
       ref={elementRef}
       key={`${resolvedFormat}:${typesetValue}`}
       format={resolvedFormat}
-      aria-label={ariaLabel}
+      aria-hidden="true"
       className={className}
       style={{
         display: inline ? 'inline-block' : 'block',
@@ -113,5 +126,7 @@ export default function MathDisplay({
     >
       {typesetValue}
     </Element>
+    {spoken ? <span className="mm-math-spoken" style={SR_ONLY_STYLE}>{spoken}</span> : null}
+    </>
   );
 }

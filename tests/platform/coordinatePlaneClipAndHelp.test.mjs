@@ -71,7 +71,9 @@ test('plotting directions: one line, keyboard help on keyboard focus, once per t
   assert.match(help, /\{keyboardHelpVisible \? \(\s*<p[^>]*>\s*The arrow keys move the\s*\n?\s*crosshair/, 'the keyboard gesture is still described');
   assert.doesNotMatch(help, /QuietDisclosure/);
   assert.match(svg, /onFocus=\{\(event\) => \{[\s\S]*?event\.currentTarget\.matches\(':focus-visible'\)[\s\S]*?setKeyboardHelpVisible\(true\)/);
-  assert.match(svg, /onBlur=\{\(\) => setKeyboardHelpVisible\(false\)\}/);
+  // Leaving the plane hides the keyboard help (and puts down a point the
+  // keyboard was holding — keyboard sweep S6).
+  assert.match(svg, /onBlur=\{\(\) => \{ setKeyboardHelpVisible\(false\); setKeyboardHeldIndex\(null\); \}\}/);
   assert.match(plane, /const showPlotHelpHere = usePlotHelpSlot\(interactive && showPlotHelp\);/);
   const shell = read('src/tools/shared/ToolShell.jsx');
   // One scope per tool: everything in the shell's body is inside it. (The body
@@ -79,7 +81,7 @@ test('plotting directions: one line, keyboard help on keyboard focus, once per t
   const body = shell.slice(shell.indexOf('<div className="mathmaster-tool-shell-body"'));
   assert.match(body.slice(0, body.indexOf('</div>')), /^<div className="mathmaster-tool-shell-body"[^>]*>(?:<[A-Za-z.]+[^>]*>)*<PlotHelpScope>\{children\}<\/PlotHelpScope>/);
   // A screen reader keeps its instructions on every plane, deduplicated or not.
-  assert.match(svg, /aria-label=\{interactive \? `\$\{ariaLabel\}\. Click to plot, or use the arrow keys to move the crosshair and Enter to plot\.`/);
+  assert.match(svg, /aria-label=\{interactive \? `\$\{ariaLabel\}\. Click to plot, or use the arrow keys to move the crosshair and Enter to plot\.(?:`|\$\{canMovePoints \? ' Enter on a plotted point picks it up to move it\.' : ''\}`)/);
 });
 
 test('the help scope gives the directions to the first plane that asks, and passes them on', () => {

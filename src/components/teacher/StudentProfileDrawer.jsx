@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import Dialog from '../../ui/Dialog.jsx';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentLearningProfileView from './StudentLearningProfileView.jsx';
 import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigor.js';
@@ -99,19 +100,14 @@ export default function StudentProfileDrawer({
   // one pulled focus back to Close.
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
-  useEffect(() => {
-    if (!open) return undefined;
-    // Escape closes only the top layer: a service log or profile dialog opened
-    // from this drawer handles its own Escape first (and marks it handled).
-    const onKey = (event) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
-      const modals = [...document.querySelectorAll('[aria-modal="true"]')];
-      if (modals.length && modals[modals.length - 1] !== panelRef.current) return;
-      onCloseRef.current?.();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  // Escape (via Dialog) closes only the top layer: a service log or profile
+  // dialog opened from this drawer closes first (Dialog's stack), and a modal
+  // that is not a Dialog (a Toast confirmation) by DOM order.
+  const closeIfTopLayer = () => {
+    const modals = [...document.querySelectorAll('[aria-modal="true"]')];
+    if (modals.length && modals[modals.length - 1] !== panelRef.current) return;
+    onCloseRef.current?.();
+  };
   useEffect(() => {
     // Focus lands on the close control so a keyboard user is inside the drawer,
     // not still tabbing through the page behind it.
@@ -132,7 +128,7 @@ export default function StudentProfileDrawer({
       role="presentation"
       onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
     >
-      <aside ref={panelRef} style={PANEL} role="dialog" aria-modal="true" aria-label={`Learning profile for ${studentName}`} data-student-profile-drawer={studentId || ''}>
+      <Dialog as="aside" ref={panelRef} style={PANEL} onClose={closeIfTopLayer} initialFocusRef={closeRef} aria-label={`Learning profile for ${studentName}`} data-student-profile-drawer={studentId || ''}>
         <header style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--mm-border-soft)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
             <div style={{ minWidth: 0 }}>
@@ -326,7 +322,7 @@ export default function StudentProfileDrawer({
             Recording support evidence never changes this student&apos;s plan.
           </span>
         </footer>
-      </aside>
+      </Dialog>
     </div>
   );
 }

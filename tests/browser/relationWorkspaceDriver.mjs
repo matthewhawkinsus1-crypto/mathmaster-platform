@@ -134,7 +134,7 @@ export const combineLikeTerms = async (page, labels, combined, log = () => {}) =
     await settle(page, 300);
   }
   for (const label of labels) {
-    await page.locator(`[aria-label="${label}, select as a term to combine"]:visible`).first().click();
+    await page.locator(`[data-term-text="${label}"][aria-label$="select as a term to combine"]:visible`).first().click();
     await settle(page, 150);
   }
   await setMathField(page, page.locator('math-field[aria-label^="Enter the single term these selected terms combine to"]:visible').first(), combined);
@@ -271,13 +271,13 @@ export const solveLinearInRelationWorkspace = async (page, { variable = 'x', log
     if (!parts) throw new Error(`the ${side} side is not linear: ${expression}`);
     const texts = await termTexts(page, side);
     if (texts.length <= 2 && !/\)\s*\(|\)\(/.test(expression)) continue;
-    const labels = await page.locator('[aria-label$="select as a term to combine"]').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label').replace(/, select as a term to combine$/, '')));
+    const labels = await page.locator('[aria-label$="select as a term to combine"]').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
     const plain = !/\(/.test(expression);
     if (plain && texts.length === 3) {
       // Three plain terms: two of them are like terms. Combine them.
       await page.locator('button:visible').filter({ hasText: /^Combine like terms$/ }).first().click();
       await settle(page, 300);
-      const offered = await page.locator('[aria-label$="select as a term to combine"]:visible').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label').replace(/, select as a term to combine$/, '')));
+      const offered = await page.locator('[aria-label$="select as a term to combine"]:visible').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
       const variableTerms = offered.filter((label) => termIsVariable(label, variable));
       const constantTerms = offered.filter((label) => !termIsVariable(label, variable));
       const chosen = variableTerms.length >= 2 ? variableTerms : constantTerms;

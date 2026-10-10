@@ -49,6 +49,9 @@ export const MATHLIVE_VERIFIED_VERSION = '0.110.0';
 
 export const MATHLIVE_KEYBOARD_SINK_SELECTOR = '[part="keyboard-sink"], .ML__keyboard-sink';
 export const MATHLIVE_RENDER_PART_SELECTOR = '[part="render"]';
+// The on-screen math keyboard, appended to <body> outside any dialog that
+// opened it: focus there is not an escape from the dialog (src/ui/Dialog.jsx).
+export const MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR = '.ML__keyboard';
 export const MATHLIVE_HIDDEN_CSS_PARTS = Object.freeze(['virtual-keyboard-toggle', 'menu-toggle']);
 // Styled, not hidden: index.css moves the sink from MathLive's position: fixed
 // (the field's PAGE position) onto the field itself.

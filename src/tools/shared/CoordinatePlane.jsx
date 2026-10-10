@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useMemo, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePlotHelpSlot } from './plotHelpScope.js';
 import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
@@ -6,6 +6,9 @@ import { readGraphPointCoordinates } from '../../graphPointUtils';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { useHasParentWorkView, usePublishWorkViewCapabilities } from '../../platform/workView/workViewCapabilities.js';
 import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js';
+import { describeCoordinatePlane } from '../../platform/language/graphDescription.js';
+import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
@@ -40,6 +43,24 @@ const ZOOM_BUTTON = {
 };
 
 const tidy = (value) => Number(Number(value).toFixed(6));
+// One shared empty list standing in for every empty data prop, so the
+// description memo below is not invalidated by a fresh `[]` default (or a
+// caller's inline `[]`) on each render.
+const NONE = [];
+const orNone = (list) => (Array.isArray(list) && list.length ? list : NONE);
+
+const DATA_TABLE_TOGGLE = {
+  minHeight: 44,
+  padding: '0 10px',
+  border: '1px solid var(--mm-tint-border)',
+  borderRadius: 8,
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-primary-text)',
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+const DATA_CELL = { border: '1px solid var(--mm-tint-border)', padding: '3px 8px', textAlign: 'left' };
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 
 // `Math.round(v / step) * step` reintroduces float noise for steps like 0.1,
@@ -56,6 +77,28 @@ const pointXY = (point) => {
   return coordinates || [Number.NaN, Number.NaN];
 };
 const formatCoordinate = (point) => { const [x, y] = pointXY(point); return `(${tidy(x)}, ${tidy(y)})`; };
+
+// Tools pass curves inline (`functions={[(x) => …]}`), a new array every
+// render, which re-ran the description memo — sampling every curve — on every
+// render (PR #454 review M2). The same curves, judged by what they draw at a
+// few points across the window, keep the same array.
+const SIGNATURE_SAMPLES = 13;
+const curveSignature = (fns, lo, hi) => fns.map((fn) => {
+  let out = '';
+  for (let i = 0; i < SIGNATURE_SAMPLES; i += 1) {
+    const x = lo + ((hi - lo) * (i + 0.37)) / SIGNATURE_SAMPLES;
+    let y;
+    try { y = fn(x); } catch { y = NaN; }
+    out += `${Number.isFinite(y) ? Number(y).toPrecision(8) : 'x'},`;
+  }
+  return out;
+}).join('|');
+const useStableFunctions = (fns, lo, hi) => {
+  const signature = curveSignature(fns, lo, hi);
+  const kept = useRef({ signature: null, fns });
+  if (kept.current.signature !== signature) kept.current = { signature, fns };
+  return kept.current.fns;
+};
 
 export default function CoordinatePlane({
   xMin: domainXMin = -10, xMax: domainXMax = 10, yMin: domainYMin = -10, yMax: domainYMax = 10,
@@ -144,6 +187,27 @@ export default function CoordinatePlane({
   // draws the same snap-step minor grid a plotting plane does. Without it,
   // (3, -1) sits between gridlines two units apart and has to be guessed.
   readableGrid = false,
+  // WHAT A SCREEN READER HEARS BEYOND THE NAME (WCAG 1.1.1).
+  //
+  // By default the plane describes itself from the data it draws
+  // (platform/language/graphDescription.js): the window, each line, curve,
+  // guide, shape and point, read at the grid's resolution and never as an
+  // equation. Authored alt text, when a caller has it, wins.
+  description = null,
+  // WHETHER THE DESCRIPTION MAY STATE FEATURE VALUES (axis crossings, high and
+  // low points, positions) and offer the data table. While a question can be
+  // answered it may not: "crosses the y-axis at −4" answers "What is the
+  // y-intercept?" for anyone with a screen reader on. Null decides, failing
+  // closed: values only once the question is closed (QuestionLifecycle
+  // terminal). A screen that asks nothing (a report, a solution review) passes
+  // true; an authored `description` always wins.
+  describeFeatures = null,
+  // The "Show data table" disclosure under a read-only plane. Only where
+  // feature values may be stated, never where the plane withholds coordinates
+  // (revealCoordinates or pointHoverEnabled false), and left out automatically
+  // inside another control (a graph card that is itself a button), where a
+  // nested button is invalid.
+  dataTable = true,
   children,
 }) {
   const insideParentWorkView = useHasParentWorkView();
@@ -175,6 +239,13 @@ export default function CoordinatePlane({
   const [keyboardCursor, setKeyboardCursor] = useState(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
   const [keyboardActive, setKeyboardActive] = useState(false);
+  // KEYBOARD MOVE (keyboard sweep S6). Which placed point the keyboard has
+  // picked up — the keyboard twin of `dragIndex` — so a misplaced point is
+  // moved, not only fixable with Undo. Null while the keyboard is plotting.
+  const [keyboardHeldIndex, setKeyboardHeldIndex] = useState(null);
+  // A held point is an index into `points`: a new question or a changed set
+  // of points puts it down rather than move the wrong one.
+  useEffect(() => { setKeyboardHeldIndex(null); }, [viewResetKey, points.length]);
   // Keyboard focus on the plane (Tab, not a click): shows the keyboard help.
   const [keyboardHelpVisible, setKeyboardHelpVisible] = useState(false);
   // Which existing point the finger or mouse currently has hold of, and where it
@@ -390,15 +461,95 @@ export default function CoordinatePlane({
         const target = keyboardCursor || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
         setKeyboardCursor(target);
         setKeyboardActive(true);
+        // Holding a point: Enter drops it where the crosshair is.
+        if (keyboardHeldIndex != null) {
+          const moved = keyboardHeldIndex;
+          setKeyboardHeldIndex(null);
+          onMovePoint(moved, [clamp(target[0], domainXMin, domainXMax), clamp(target[1], domainYMin, domainYMax)]);
+          break;
+        }
+        // On a point the tool lets the student move: pick it up, exactly as a
+        // press on it does with a finger or mouse.
+        const onPoint = canMovePoints ? pointIndexNear(target) : null;
+        if (onPoint != null) { setKeyboardHeldIndex(onPoint); break; }
         onPlot(target);
         break;
       }
+      case 'Escape':
+        // Put a held point back without moving it — and keep the Escape from
+        // also closing Work View around the plane.
+        if (keyboardHeldIndex != null) {
+          event.preventDefault();
+          event.stopPropagation();
+          setKeyboardHeldIndex(null);
+        }
+        break;
       default: break;
     }
   };
 
+  /*
+   * GRAPHS SPEAK. The name stays short ("Coordinate plane"); what is drawn
+   * goes in the accessible description, so two graphs on one screen no longer
+   * announce identically. Memoised on the data, so a crosshair moving across an
+   * interactive plane does not resample every curve. Marks a tool draws itself
+   * as `children` cannot be read from data, and the text says so rather than
+   * pretending the list is complete.
+   */
+  const hasToolMarks = typeof children === 'function' || React.Children.toArray(children).length > 0;
+  const describedPoints = orNone(points);
+  const describedLines = orNone(lines);
+  const describedFunctions = useStableFunctions(orNone(functions), xMin, xMax);
+  const describedPolylines = orNone(polylines);
+  const describedRegions = orNone(regions);
+  const describedVerticals = orNone(verticalLines);
+  const describedHorizontals = orNone(horizontalLines);
+  const { terminal: questionClosed } = useQuestionLifecycle();
+  const descriptionDetail = (describeFeatures == null ? questionClosed : describeFeatures === true) ? 'features' : 'kinds';
+  const generatedDescription = useMemo(() => describeCoordinatePlane({
+    xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
+    detail: descriptionDetail,
+    minorGridDrawn: showMinorGrid,
+    listPlottedPoints: interactive,
+    points: describedPoints,
+    lines: describedLines,
+    functions: describedFunctions,
+    polylines: describedPolylines,
+    regions: describedRegions,
+    verticalLines: describedVerticals,
+    horizontalLines: describedHorizontals,
+    label: ariaLabel,
+    hasUndescribedMarks: hasToolMarks,
+    emptyText: interactive ? 'Nothing is plotted yet.' : 'Nothing is plotted.',
+  }), [
+    xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
+    describedPoints, describedLines, describedFunctions, describedPolylines, describedRegions, describedVerticals, describedHorizontals,
+    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid,
+  ]);
+  const authoredDescription = typeof description === 'string' ? description.trim() : '';
+  const spokenDescription = authoredDescription || generatedDescription.description;
+  // IDREFs, not url(#…), so useId's own characters are fine here.
+  const descriptionUid = useId();
+  const descriptionId = `mm-plane-desc-${descriptionUid}`;
+  const dataTableId = `mm-plane-table-${descriptionUid}`;
+  const [dataTableOpen, setDataTableOpen] = useState(false);
+  // Null until measured: the toggle must never render, even for one frame,
+  // inside a control it would be nested in.
+  const planeRef = useRef(null);
+  const [insideControl, setInsideControl] = useState(null);
+  useLayoutEffect(() => {
+    const host = planeRef.current?.parentElement;
+    setInsideControl(Boolean(host?.closest?.('button, a[href], label, [role="button"], [role="link"], [role="option"]')));
+  }, []);
+  const showDataTable = !interactive && dataTable !== false && insideControl === false
+    && descriptionDetail === 'features' && revealCoordinates !== false && pointHoverEnabled !== false
+    && generatedDescription.tables.length > 0;
+
   const preview = keyboardActive ? keyboardCursor : pointerPreview;
-  const previewText = preview ? `${cursorLabel} ${formatCoordinate(preview)}` : '';
+  const heldPoint = keyboardHeldIndex != null ? points[keyboardHeldIndex] : null;
+  const previewText = heldPoint && keyboardCursor
+    ? `Moving the point from ${formatCoordinate(heldPoint)} to ${formatCoordinate(keyboardCursor)}. Enter to drop it here, Escape to put it back.`
+    : preview ? `${cursorLabel} ${formatCoordinate(preview)}` : '';
 
   // The readout chip flips to the other side of the cursor near the edges so it
   // never gets clipped by the plot border.
@@ -443,13 +594,14 @@ export default function CoordinatePlane({
   usePublishWorkViewCapabilities(`coordinate-plane:${ariaLabel}`, publishedCapabilities);
 
   const plane = (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div ref={planeRef} style={{ position: 'relative', width: '100%' }}>
       <svg
         className={interactive ? 'mathmaster-responsive-canvas mathmaster-touch-surface' : 'mathmaster-responsive-canvas'}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         role={interactive ? 'application' : 'img'}
-        aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.` : ariaLabel}
+        aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.${canMovePoints ? ' Enter on a plotted point picks it up to move it.' : ''}` : ariaLabel}
+        aria-describedby={descriptionId}
         tabIndex={interactive ? 0 : undefined}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -462,7 +614,7 @@ export default function CoordinatePlane({
           try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }
           if (keyboard) setKeyboardHelpVisible(true);
         }}
-        onBlur={() => setKeyboardHelpVisible(false)}
+        onBlur={() => { setKeyboardHelpVisible(false); setKeyboardHeldIndex(null); }}
         style={{
           // `maxHeight` is NOT set here. It used to be an inline '100%', which
           // beats every stylesheet rule and so silently defeated the
@@ -601,6 +753,7 @@ export default function CoordinatePlane({
           // While a point is held, draw it where the finger is. Leaving it at
           // its old coordinates makes the drag look broken until release.
           if (dragIndex === index && pointerPreview) [pointX, pointY] = pointerPreview;
+          else if (keyboardHeldIndex === index && keyboardCursor) [pointX, pointY] = keyboardCursor;
           if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
 
           if (point?.marker === 'arrow') {
@@ -640,7 +793,7 @@ export default function CoordinatePlane({
             );
           }
 
-          const held = dragIndex === index;
+          const held = dragIndex === index || keyboardHeldIndex === index;
           return (
             <g
               key={`p${index}`}
@@ -660,6 +813,48 @@ export default function CoordinatePlane({
             clipPath so they stop at the plotting rectangle too. */}
         {typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height, plotClip }) : children}
       </svg>
+      {/* The plane's accessible description. aria-describedby reads it even
+          while it is aria-hidden, so browse mode does not hear it a second
+          time as a loose paragraph after the image. Inside a card that is
+          itself a control, it stays exposed: there it is part of the card's
+          name, which is how the student tells the cards apart. */}
+      {/* Inline as well as the class: a host that loads no UI kit CSS must not
+          show the description as a visible paragraph (it pushed a staged
+          question's first step off a phone screen, PR #454). */}
+      <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
+
+      {showDataTable ? (
+        <div className="mathmaster-plane-data" style={{ margin: '6px 0 0', textAlign: 'left' }}>
+          <button
+            type="button"
+            aria-expanded={dataTableOpen}
+            aria-controls={dataTableId}
+            onClick={() => setDataTableOpen((open) => !open)}
+            style={DATA_TABLE_TOGGLE}
+          >
+            {dataTableOpen ? 'Hide data table' : 'Show data table'}
+          </button>
+          <div id={dataTableId} hidden={!dataTableOpen} style={{ overflowX: 'auto', maxWidth: '100%' }}>
+            {dataTableOpen ? generatedDescription.tables.map((table) => (
+              <table key={table.caption} style={{ borderCollapse: 'collapse', margin: '8px 0 0', fontSize: 13, color: 'var(--mm-text)' }}>
+                <caption style={{ textAlign: 'left', fontWeight: 700, padding: '0 0 4px', color: 'var(--mm-text-muted)' }}>{table.caption}</caption>
+                <thead>
+                  <tr>{table.columns.map((column) => <th key={column} scope="col" style={DATA_CELL}>{column}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {table.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, cellIndex) => (cellIndex === 0
+                        ? <th key={cellIndex} scope="row" style={DATA_CELL}>{cell}</th>
+                        : <td key={cellIndex} style={DATA_CELL}>{cell}</td>))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )) : null}
+          </div>
+        </div>
+      ) : null}
 
       {zoomable ? (
         <div

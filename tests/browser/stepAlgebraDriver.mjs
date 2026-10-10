@@ -53,11 +53,17 @@ export const balancedMove = async (page, host, label, operand) => {
   await settle(page, 500);
 };
 
-export const cancellationLabels = (host) => host.locator('[aria-label$="select to cancel"]').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
+// Terms are found by their source text (data-term-text), not their accessible
+// name: the name is spoken words ("plus 7, select to cancel") since job F.
+/** The source text of every term that can be cancelled now ("+ 7", "- 2 x"). */
+export const cancellationLabels = (host) => host.locator('[aria-label$="select to cancel"]').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
+
+/** A selector for one interactive term: its source text and what selecting it does. */
+export const termSelector = (termText, interaction) => `[data-term-text="${termText}"][aria-label$="${interaction}"]`;
 
 /** Cross out a cancelling term by its visible label ("- 12"), on either side. */
 export const cancelTerm = async (page, host, termText) => {
-  await host.locator(`[aria-label="${termText}, select to cancel"]`).first().click();
+  await host.locator(`[data-term-text="${termText}"][aria-label$="select to cancel"]`).first().click();
   await settle(page, 700);
 };
 
@@ -107,7 +113,7 @@ const COMBINE_SUFFIX = 'select as a term to combine';
 const matchingTerms = async (host, side, suffix, match) => {
   const labels = await sideBox(host, side).locator(`[data-term-index][aria-label$="${suffix}"]`).evaluateAll((elements) => elements.map((element) => ({
     index: Number(element.getAttribute('data-term-index')),
-    text: element.getAttribute('aria-label').replace(/, select as .*$/, ''),
+    text: element.dataset.termText,
   })));
   if (Array.isArray(match)) return match;
   if (typeof match === 'number') return [match];

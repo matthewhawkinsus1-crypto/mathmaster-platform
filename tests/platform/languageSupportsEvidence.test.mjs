@@ -135,7 +135,7 @@ test('the tray is wired into questions, Work View and the Path, and loads lazily
   assert.match(tools, /const SupportToolsTray = lazy\(\(\) => import\('\.\/supportTools\/SupportToolsTray\.jsx'\)\);/);
   assert.match(tools, /if \(!entitlement\?\.tools\?\.length\) return null;/);
   const engine = executableSource(readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'));
-  assert.match(engine, /supportEntitlement \|\| toolsEntitlementFromProfile\(stableStudentProfile, \{ activityRole \}\)/);
+  assert.match(engine, /supportEntitlement \|\| toolsEntitlementFromProfile\(stableStudentProfile, \{ activityRole(?:, universalDesignRole: explicitActivityRole)? \}\)/);
   assert.match(engine, /supportTray=\{supportTrayFor\('assignment'\)\}/);
   assert.match(engine, /supports: languageTools\.tools\.length \? \{ label: 'Support tools', render: \(\) => supportTrayFor\('enlarged'\) \} : null,/);
   assert.match(engine, /onEvidence=\{reportToolEvidence\}/);
