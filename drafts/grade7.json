@@ -3808,12 +3808,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "A smaller real distance per drawing unit produces a larger drawing.",
+        "headline": "On Drawing A each centimeter stands for only ${{a}}$ m, so the same object needs more centimeters than on Drawing B (${{b}}$ m per cm).",
         "reasoning": [
-          "Drawing A packs fewer real meters into each centimeter.",
-          "So the same real object uses more centimeters on Drawing A."
+          "Take a real object ${{len}}$ m long, a length both scales divide evenly.",
+          "Drawing A: $1$ cm stands for ${{a}}$ m, so the drawing length is ${{len}} \\div {{a}} = {{b}}$ cm.",
+          "Drawing B: $1$ cm stands for ${{b}}$ m, so the drawing length is ${{len}} \\div {{b}} = {{a}}$ cm.",
+          "Since ${{b}} > {{a}}$, Drawing A shows the object longer. Dividing any real length by the smaller number of meters per centimeter (${{a}}$) gives the longer drawing."
         ],
-        "answerSummary": "drawingA"
+        "commonError": "Choosing Drawing B because ${{b}}$ is the bigger number; more meters per centimeter means each centimeter covers more, so the drawing is shorter.",
+        "answerSummary": "Drawing A"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -3833,6 +3836,9 @@
             "min": 9,
             "max": 20
           }
+        },
+        "derived": {
+          "len": "a*b"
         }
       }
     },
@@ -4052,12 +4058,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "A compound event needs both component outcomes in each sample-space entry.",
+        "headline": "Each outcome of a coin and a spinner with ${{s}}$ colors has two parts, so the sample space is a list of ordered pairs.",
         "reasoning": [
-          "Each result records one coin outcome and one spinner outcome.",
-          "Ordered pairs preserve both pieces of information."
+          "One trial produces a coin result (heads or tails) and a spinner result (one of the ${{s}}$ colors). Each outcome must record both, such as (heads, first color).",
+          "Pairing each of the $2$ coin results with each of the ${{s}}$ colors gives $2 \\times {{s}} = {{total}}$ ordered pairs.",
+          "A list of only the ${{s}}$ colors loses the coin result, and a list of only heads and tails loses the color. Neither one lists the ${{total}}$ outcomes."
         ],
-        "answerSummary": "pairs"
+        "commonError": "Listing coin results and spinner colors side by side (${{s}}+2={{listed}}$ items) instead of pairing them; the compound sample space has ${{total}}$ outcomes, not ${{listed}}$.",
+        "answerSummary": "Ordered pairs pairing each coin result with each spinner color"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -4072,6 +4080,10 @@
             "min": 3,
             "max": 10
           }
+        },
+        "derived": {
+          "total": "2*s",
+          "listed": "s+2"
         }
       }
     },
@@ -4187,12 +4199,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "A fair simulation must preserve the event probabilities.",
+        "headline": "A fair coin has $2$ equally likely outcomes, so each of the ${{n}}$ simulated tosses needs a device with $2$ equally likely outcomes.",
         "reasoning": [
-          "A fair coin has two equally likely outcomes.",
-          "The two-outcome random generator matches that structure."
+          "Each of the ${{n}}$ simulated tosses must behave like a fair coin: two outcomes, heads and tails, each with probability $\\frac{1}{2}$.",
+          "A random generator with two equally likely outcomes gives each result probability $\\frac{1}{2}$, an exact match for one toss.",
+          "The die (only $1$ is heads) gives heads probability $\\frac{1}{6}$, and the spinner with $1$ heads section and $3$ tails sections gives $\\frac{1}{1+3}=\\frac{1}{4}$. Both make heads less likely than tails, so over ${{n}}$ tosses they would produce too few heads."
         ],
-        "answerSummary": "two"
+        "commonError": "Picking a device just because it has a heads outcome and a tails outcome; the two outcomes must also be equally likely, each with probability $\\frac{1}{2}$.",
+        "answerSummary": "A random generator with two equally likely outcomes"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -4323,12 +4337,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "A simulation of a compound event must model each component event.",
+        "headline": "Each trial must produce both a coin result and one of ${{s}}$ spinner results, because every outcome of this compound event has both parts.",
         "reasoning": [
-          "Each trial needs a coin result and a spinner result.",
-          "Leaving out either stage changes the sample space."
+          "The compound event has two stages: the coin ($2$ equally likely results) and the ${{s}}$-section spinner. Assume its ${{s}}$ sections are equal, as the correct simulation does, so each of its ${{s}}$ results is equally likely.",
+          "Its sample space has $2 \\times {{s}} = {{total}}$ outcomes, each a (coin, spinner) pair. With a fair coin and equal sections, all ${{total}}$ pairs are equally likely.",
+          "Generating one of two equal coin results and one of ${{s}}$ equal spinner results each trial produces all ${{total}}$ pairs with the right chances.",
+          "Generating only a coin result gives $2$ outcomes, and only a spinner result gives ${{s}}$ outcomes. Either one drops a stage, so it cannot simulate the compound event."
         ],
-        "answerSummary": "both"
+        "commonError": "Simulating the two stages in separate experiments; each trial must record both results together so that pairs such as (heads, section $1$) can be counted.",
+        "answerSummary": "Generate one of two equal coin results and one of {{s}} equal spinner results each trial."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -4343,6 +4360,9 @@
             "min": 3,
             "max": 12
           }
+        },
+        "derived": {
+          "total": "2*s"
         }
       }
     },
@@ -4455,12 +4475,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "More trials generally reduce random fluctuation in experimental probability.",
+        "headline": "${{large}}$ trials give a more reliable estimate than ${{small}}$: relative frequencies settle down as the number of trials grows.",
         "reasoning": [
-          "Small samples can vary widely by chance.",
-          "A much larger number of trials tends to stabilize the relative frequency."
+          "Each result is one part of the total. With ${{small}}$ trials, one result is about ${{pctSmall}}\\%$ of the data, so a couple of lucky or unlucky results can move the estimate a lot.",
+          "With ${{large}}$ trials, one result is only about ${{pctLarge}}\\%$ of the data, so chance swings barely move the estimate.",
+          "As the number of trials increases, the experimental probability tends to get closer to the true probability. The ${{large}}$-trial plan is generally more reliable."
         ],
-        "answerSummary": "large"
+        "commonError": "Thinking a short experiment is just as good; with only ${{small}}$ trials chance swings are large, so the estimate can land far from the true probability.",
+        "answerSummary": "Run {{large}} trials."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -4480,6 +4502,10 @@
             "min": 100,
             "max": 500
           }
+        },
+        "derived": {
+          "pctSmall": "round(1000/small)/10",
+          "pctLarge": "round(10000/large)/100"
         }
       }
     },
@@ -5748,12 +5774,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Inference about a population needs a sample selected without systematic favoritism.",
+        "headline": "Only a random sample from the full roster of ${{n}}$ students gives every student a chance to be chosen.",
         "reasoning": [
-          "A roster-based random selection gives every student a chance to be chosen.",
-          "The other methods can overrepresent particular groups."
+          "The population is all ${{n}}$ students in the school, so the sample must be able to include any of them.",
+          "A random sample from the full roster gives each of the ${{n}}$ students the same chance of selection, so no group is favored.",
+          "Members of one after-school club share an interest, and the first students at one entrance share an arrival time and route. Either group can have preferences unlike the rest of the school.",
+          "Those samples are biased toward particular groups, so the random roster sample is the one that supports a schoolwide inference."
         ],
-        "answerSummary": "random"
+        "commonError": "Choosing a sample because it is easy to collect; a convenient group can still misrepresent the ${{n}}$-student school.",
+        "answerSummary": "A random sample drawn from the full student roster"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -5883,12 +5912,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Larger random samples generally show less sampling variability.",
+        "headline": "Both samples estimate ${{p}}\\%$, but Sample B's ${{bN}}$ people give a more stable estimate than Sample A's ${{aN}}$.",
         "reasoning": [
-          "Both samples use the same random design and estimate the same proportion.",
-          "The larger sample is generally less sensitive to chance fluctuations."
+          "Both are random samples from the same population and both estimate ${{p}}\\%$ support, so the only difference is the sample size: ${{aN}}$ people versus ${{bN}}$ people.",
+          "In Sample A one person is about ${{onePctA}}\\%$ of the sample; in Sample B one person is only about ${{onePctB}}\\%$. A few unusual people shift a small sample's percent much more.",
+          "So if each sample were drawn again, Sample B's estimate would generally vary less. Sample size does affect sampling variability, and being smaller does not make Sample A more accurate."
         ],
-        "answerSummary": "larger"
+        "commonError": "Deciding the samples are equally good because both gave ${{p}}\\%$; agreeing once does not mean they would vary equally if repeated.",
+        "answerSummary": "Sample B generally provides a more stable estimate because it is larger."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -5913,6 +5944,10 @@
             "min": 150,
             "max": 400
           }
+        },
+        "derived": {
+          "onePctA": "round(1000/aN)/10",
+          "onePctB": "round(10000/bN)/100"
         }
       }
     },
@@ -6494,12 +6529,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Larger experiments generally have less relative random fluctuation.",
+        "headline": "Both simulations estimate $50\\%$, but Simulation B's ${{b}}$ trials fluctuate less than Simulation A's ${{a}}$ trials.",
         "reasoning": [
-          "Simulation B uses many more trials.",
-          "That larger trial count generally stabilizes the experimental proportion."
+          "Both simulations estimate $50\\%$, so the only difference is the number of trials: ${{a}}$ for A and ${{b}}$ for B.",
+          "In Simulation A one trial is about ${{oneA}}\\%$ of the results; in Simulation B one trial is only about ${{oneB}}\\%$.",
+          "A rerun of A that lands just a few trials away from half moves its estimate by several percentage points, while B's ${{b}}$ trials average out such swings. Simulation B would generally fluctuate less."
         ],
-        "answerSummary": "B"
+        "commonError": "Thinking the simulations are equally reliable because both gave $50\\%$; one matching result does not show how much each estimate would change on a rerun.",
+        "answerSummary": "Simulation B"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -6519,6 +6556,10 @@
             "min": 200,
             "max": 500
           }
+        },
+        "derived": {
+          "oneA": "round(1000/a)/10",
+          "oneB": "round(10000/b)/100"
         }
       }
     },
@@ -6882,12 +6923,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Experimental and theoretical probability are related but not identical ideas.",
+        "headline": "An experimental probability of ${{p}}\\%$ is an estimate from trials; it does not prove the theoretical probability is exactly ${{p}}\\%$.",
         "reasoning": [
-          "Experimental probability depends on observed trials and can fluctuate.",
-          "Theoretical probability is determined from the modeled equally likely outcomes."
+          "The ${{p}}\\%$ is experimental: the fraction of observed trials in which the event happened. Repeat the experiment and the percent will usually change.",
+          "Theoretical probability comes from the sample space: favorable outcomes divided by equally likely outcomes. For a fair coin, heads has probability $\\frac{1}{2}=50\\%$ whatever one experiment shows.",
+          "For example, a fair coin tossed $10$ times can land heads $7$ times, an experimental probability of $7 \\div 10 = 70\\%$, while the theoretical probability stays $50\\%$. So the ${{p}}\\%$ result estimates the theoretical probability but cannot prove its exact value."
         ],
-        "answerSummary": "no"
+        "commonError": "Treating one experiment as exact; experimental probability varies from run to run and only tends toward the theoretical value over many trials.",
+        "answerSummary": "Experimental results can vary; theoretical probability comes from the sample space."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -12160,12 +12203,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Distribution comparisons use several features, not one extreme value.",
+        "headline": "Maximums of ${{amax}}$ and ${{bmax}}$ describe one value in each group; comparing distributions needs shape, center and spread.",
         "reasoning": [
-          "A maximum describes only one endpoint.",
-          "Centers, spreads, and shapes provide information about the full groups."
+          "The student compares only the largest values: Group A's maximum is ${{amax}}-{{bmax}}={{gap}}$ more than Group B's.",
+          "A maximum is a single data point. Suppose Group A is one value of ${{amax}}$ plus many values far below ${{bmax}}$, while every value in Group B is close to ${{bmax}}$. Then Group A's median is far below Group B's, so Group A has the smaller center even though its maximum is larger.",
+          "To compare the groups, compare their centers (median or mean), spreads (range or IQR) and shapes. Only then can you say which group's values tend to be larger."
         ],
-        "answerSummary": "summary"
+        "commonError": "Using one extreme value, such as the maximum, to describe a whole group; a single unusual value can make a maximum large.",
+        "answerSummary": "A full comparison should consider shape, center, and spread, not only one maximum."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -12185,6 +12230,9 @@
             "min": 40,
             "max": 59
           }
+        },
+        "derived": {
+          "gap": "amax-bmax"
         }
       }
     },
@@ -12381,12 +12429,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Random selection reduces systematic sampling bias.",
+        "headline": "Randomly selecting from the full list of ${{pop}}$ residents is the sample that can represent the whole city.",
         "reasoning": [
-          "A full-list random sample can include residents from across the city.",
-          "Convenience and voluntary-response samples can overrepresent particular people."
+          "The population is all ${{pop}}$ city residents, so every one of them should have a chance to be in the sample.",
+          "Random selection from the full city list gives each of the ${{pop}}$ residents the same chance, so no neighborhood or group is favored.",
+          "People at one park are a convenience sample: they live nearby or like that park. Volunteers answering one social-media post choose themselves, and people with strong opinions are more likely to respond.",
+          "Both of those samples can differ systematically from the city, so only the random full-list sample supports the inference."
         ],
-        "answerSummary": "random"
+        "commonError": "Choosing a sample because it is easy to collect or attracts many responses; a large biased sample still misrepresents the ${{pop}}$ residents.",
+        "answerSummary": "Randomly select residents from the full city list."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -12512,12 +12563,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "A random-sample statistic is an estimate, not an exact population census.",
+        "headline": "A random sample of ${{n}}$ students showing ${{p}}\\%$ support supports an estimate of about ${{p}}\\%$, not an exact claim.",
         "reasoning": [
-          "Different random samples can vary somewhat.",
-          "The sample supports an approximate population inference, not certainty."
+          "The ${{p}}\\%$ comes from one random sample of ${{n}}$ students, not from every member of the population.",
+          "Another random sample of ${{n}}$ students would likely give a somewhat different percent, so ${{p}}\\%$ is an estimate with sampling variation.",
+          "Claiming exactly ${{p}}\\%$ for every possible subgroup goes too far twice: the population percent is not known exactly, and subgroups (such as different grades) can differ from the overall percent.",
+          "So the appropriately cautious conclusion is that about ${{p}}\\%$ of the population may support it."
         ],
-        "answerSummary": "estimate"
+        "commonError": "Treating a sample percent as the exact population percent, or as true for every subgroup.",
+        "answerSummary": "About {{p}}% of the population may support it, recognizing sampling variation."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -12716,12 +12770,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Separated sample centers support a comparative population inference without claiming perfect separation.",
+        "headline": "Sample medians of ${{a}}$ and ${{b}}$ are far apart, so Population B likely has the larger center.",
         "reasoning": [
-          "The random sample from B has a much larger center.",
-          "That supports a population-level difference in typical values, but not a statement about every individual."
+          "Compare the centers: the sample median for B is ${{b}}$ and for A is ${{a}}$, a difference of ${{b}}-{{a}}={{gap}}$.",
+          "Both medians come from random samples, so a gap this large is evidence that the population centers differ too: Population B likely has the larger center.",
+          "Medians describe typical values, not every value. Some members of A can still be larger than some members of B, so \"every member of B is larger\" is not supported, and \"identical centers\" ignores the gap of ${{gap}}$."
         ],
-        "answerSummary": "B"
+        "commonError": "Turning a difference in centers into a claim about every individual; medians describe typical values only.",
+        "answerSummary": "Population B likely has a larger center than Population A."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -12741,6 +12797,9 @@
             "min": 60,
             "max": 90
           }
+        },
+        "derived": {
+          "gap": "b-a"
         }
       }
     },
@@ -12785,12 +12844,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Greater sample spread can provide evidence of greater population variability.",
+        "headline": "With similar medians, B's sample range of ${{rb}}$ versus A's ${{ra}}$ suggests Population B is more variable.",
         "reasoning": [
-          "The sample centers are similar.",
-          "B has the much larger range, indicating more spread in the observed sample."
+          "The medians are similar, so the centers do not separate the groups; compare the spreads.",
+          "Population B's sample range is ${{rb}}$ and Population A's is ${{ra}}$, so B's range is ${{rb}}-{{ra}}={{gap}}$ larger.",
+          "A larger range means the sampled values are more spread out, so the samples suggest Population B is more variable."
         ],
-        "answerSummary": "B"
+        "commonError": "Comparing the medians instead of the spreads; when the centers are similar, the sample with the larger range, ${{rb}}$ rather than ${{ra}}$, shows more variability.",
+        "answerSummary": "Population B"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -12810,6 +12871,9 @@
             "min": 18,
             "max": 35
           }
+        },
+        "derived": {
+          "gap": "rb-ra"
         }
       }
     },
@@ -12858,12 +12922,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Random samples support comparative tendencies, not absolute claims about every member.",
+        "headline": "Means of ${{a}}$ and ${{b}}$ from random samples of ${{n}}$ suggest Population B has a higher center, not that every B value is larger.",
         "reasoning": [
-          "The sample means differ substantially.",
-          "That is evidence about centers, not proof of complete separation."
+          "Both samples have ${{n}}$ random observations. Sample B's mean, ${{b}}$, is ${{b}}-{{a}}={{gap}}$ more than Sample A's mean, ${{a}}$.",
+          "A difference this large between random samples of size ${{n}}$ is evidence that Population B's center is higher.",
+          "A mean is a balance point, not a minimum: some values in B can be below ${{a}}$ and some values in A above ${{b}}$, so \"every value in B exceeds every value in A\" is not supported.",
+          "\"The populations must have equal means\" conflicts with the gap of ${{gap}}$ between the sample means. The best-supported conclusion is that Population B has a higher center."
         ],
-        "answerSummary": "center"
+        "commonError": "Reading a difference in means as proof about every individual value; means describe centers only.",
+        "answerSummary": "The sampled data suggest Population B has a higher center."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -12888,6 +12955,9 @@
             "min": 55,
             "max": 80
           }
+        },
+        "derived": {
+          "gap": "b-a"
         }
       }
     },
@@ -13498,12 +13568,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Compound interest can earn interest on prior interest.",
+        "headline": "Over ${{t}}$ years at ${{r}}\\%$, compound interest earns more because it also earns interest on earlier interest.",
         "reasoning": [
-          "Simple interest repeatedly uses only the original principal.",
-          "Compound interest updates the balance, so with a positive rate and more than one period it earns more."
+          "Simple interest: each year earns ${{r}}\\%$ of the original ${{P}}$ dollars, which is ${{yearly}}$ dollars. After ${{t}}$ years the balance is ${{P}}+{{t}} \\times {{yearly}}={{simpleTotal}}$ dollars.",
+          "Compound interest: each year earns ${{r}}\\%$ of the current balance, so the balance is multiplied by ${{growth}}$ each year. After ${{t}}$ years it is ${{P}} \\times {{growth}}^{{t}} \\approx {{compoundTotal}}$ dollars.",
+          "Compare: ${{compoundTotal}}-{{simpleTotal}}={{extra}}$ dollars more with compounding.",
+          "The extra is interest on interest: in year $2$, compound interest is figured on ${{P}}+{{yearly}}={{afterYear1}}$ dollars instead of ${{P}}$. With a positive rate and more than one year, compounding comes out ahead."
         ],
-        "answerSummary": "compound"
+        "commonError": "Taking ${{r}}\\%$ of the original ${{P}}$ dollars every year for the compound account too; that is simple interest. Compounding takes ${{r}}\\%$ of the growing balance.",
+        "answerSummary": "Compound interest"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -13532,6 +13605,15 @@
             "min": 2,
             "max": 5
           }
+        },
+        "derived": {
+          "yearly": "P*r/100",
+          "simpleTotal": "(100*P+t*P*r)/100",
+          "growth": "(100+r)/100",
+          "compoundCents": "round(100*P*((100+r)/100)^t)",
+          "compoundTotal": "compoundCents/100",
+          "extra": "(compoundCents-100*P-t*P*r)/100",
+          "afterYear1": "(100*P+P*r)/100"
         }
       }
     },
