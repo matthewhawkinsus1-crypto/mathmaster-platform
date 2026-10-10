@@ -330,6 +330,8 @@ export const runPathChoiceIdRegradeReport = async ({
       submittedAt: iso(submission.createdAt),
       submissionDocId: doc.id,
       sessionId: String(submission.sessionId || ''),
+      // The session whose weekly accuracy (summary.correctQuestions) counted it.
+      sessionPath: submission.sessionId ? `pathSessions/${submission.sessionId}` : null,
       questionInstanceId: recapEntry?.questionInstanceId || null,
       questionId: event?.questionSnapshot?.questionId || null,
       attemptNumber: submission.result?.grading?.attemptNumber ?? null,
@@ -365,8 +367,11 @@ export const runPathChoiceIdRegradeReport = async ({
     const [marker] = await db.getAll(db.collection('masteryEvidenceApplications').doc(markerId), { fieldMask: ['appliedAt'] });
     const studentProfiles = profiles.get(entry.studentId);
     const codes = [...new Set(entry.evidence.alignmentKeys.map((key) => mathPath.displayAlignmentKey(mathPath.canonicalAlignmentKey(key))))];
+    // Every stored entry the wrong-marked answer fed, by path, so an owner who
+    // chooses to void it (rather than re-grade) can name exactly what to undo.
     entry.mastery = {
       profilePath: `studentMasteryProfiles/${entry.studentId}`,
+      applicationMarkerPath: `masteryEvidenceApplications/${markerId}`,
       applied: Boolean(marker?.exists),
       appliedAt: iso(marker?.exists ? marker.data()?.appliedAt : null),
       current: Object.fromEntries(codes.map((code) => {

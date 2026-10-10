@@ -385,8 +385,11 @@ test('the report lists exactly the void answers, with their evidence and mastery
   assert.equal(a.skill, 'A.5A');
   assert.equal(a.submittedAt, new Date(T).toISOString());
   assert.equal(a.evidence.path, 'grades/STU-A/evidenceEvents/ev-sa');
+  assert.equal(a.sessionPath, `pathSessions/${a.sessionId}`);
+  assert.ok(a.sessionId, 'the session it counted in');
   assert.deepEqual(a.mastery, {
     profilePath: 'studentMasteryProfiles/STU-A',
+    applicationMarkerPath: `masteryEvidenceApplications/${mathPath.opaqueId('mastery', 'STU-A', 'ev-sa')}`,
     applied: true,
     appliedAt: new Date(T + 5).toISOString(),
     current: { 'A.5A': { estimate: 20, status: 'Developing', confidence: 'Low' } },
