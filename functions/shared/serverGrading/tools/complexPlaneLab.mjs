@@ -9,7 +9,7 @@
  */
 import declaration from '../declarations/complexPlaneLab.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
-import { gradedResult } from '../gradingResult.mjs';
+import { gradedResult, ungradedResult } from '../gradingResult.mjs';
 import { nearlyEqual } from '../../toolMath/shared/toolMath.mjs';
 import {
   complexAdd,
@@ -47,11 +47,24 @@ const features = (question, work) => {
   });
 };
 
+/*
+ * The operations the lab's Operations view offers (and toolSchemas.js lets a
+ * teacher author). Any other operation, such as 'divide' (division is its own
+ * mode), used to fall through to multiplication; it is now refused as a
+ * question the lab cannot pose rather than graded as z × w.
+ */
+const OPERATIONS = Object.freeze({
+  add: complexAdd,
+  subtract: complexSubtract,
+  multiply: complexMultiplyValues,
+});
+
 const operations = (question, work) => {
   const z = toComplex(question.z || { re: 2, im: 3 });
   const w = toComplex(question.w || { re: -1, im: 2 });
   const operation = question.operation || 'multiply';
-  const expected = operation === 'add' ? complexAdd(z, w) : operation === 'subtract' ? complexSubtract(z, w) : complexMultiplyValues(z, w);
+  if (!Object.hasOwn(OPERATIONS, operation)) return ungradedResult('invalid-question');
+  const expected = OPERATIONS[operation](z, w);
   return gradedResult({
     parts: [
       part('real', 'Real part', work.real, matchesNumber(work.real, expected.re)),

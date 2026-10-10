@@ -200,8 +200,12 @@ const FIXTURES = [
   // Points: 0.12 from the line.
   { name: 'boundary: a point 0.11 off is on the line', question: graphing2({ mode: 'slopeIntercept', line: { m: 2, b: -1 } }), points: [[0, -1], [1, 1.11]], isCorrect: true, isComplete: true, score: 1 },
   { name: 'boundary: a point 0.13 off is off the line', question: graphing2({ mode: 'slopeIntercept', line: { m: 2, b: -1 } }), points: [[0, -1], [1, 1.13]], isCorrect: false, isComplete: true, score: 0.5 },
-  // The line's intercept: twice the point tolerance (0.24).
-  { name: 'boundary: an intercept 0.2 off still matches the line', question: graphing2({ mode: 'slopeIntercept', line: { m: 1, b: 0 } }), points: [[0, 0.2], [4, 4.2]], isCorrect: true, isComplete: true, score: 1 },
+  // The line's intercept: twice the point tolerance (0.24) — but both points
+  // must also be within the point tolerance, so a parallel line 0.2 above the
+  // target (each point 0.2 off it) is a different line, not a match (K job:
+  // equivalentLine no longer ignores its own point checks).
+  { name: 'boundary: an intercept 0.2 off, every point 0.2 off the line, is not the line', question: graphing2({ mode: 'slopeIntercept', line: { m: 1, b: 0 } }), points: [[0, 0.2], [4, 4.2]], isCorrect: false, isComplete: true, score: 0 },
+  { name: 'boundary: an intercept 0.1 off, every point 0.1 off the line, still matches it', question: graphing2({ mode: 'slopeIntercept', line: { m: 1, b: 0 } }), points: [[0, 0.1], [4, 4.1]], isCorrect: true, isComplete: true, score: 1 },
   { name: 'boundary: an intercept 0.3 off does not', question: graphing2({ mode: 'slopeIntercept', line: { m: 1, b: 0 } }), points: [[0, 0.3], [4, 4.3]], isCorrect: false, isComplete: true, score: 0 },
   // Form-aware anchor: within the point tolerance of the intercept.
   { name: 'boundary formAware: an anchor 0.1 off counts', question: graphing2({ mode: 'slopeIntercept', line: { m: 2, b: -1 }, constructionPolicy: FORM_AWARE }), points: [[0, -0.9], [2, 3]], isCorrect: true, isComplete: true, score: 1 },

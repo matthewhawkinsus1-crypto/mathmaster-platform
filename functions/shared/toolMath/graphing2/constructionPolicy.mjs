@@ -11,7 +11,7 @@
 // This module never changes constructionEvidence/targetLineFromQuestion — it
 // only adds new, additive grading on top of them.
 import { nearlyEqual } from '../shared/toolMath.mjs';
-import { constructionEvidenceDetail, lineFromPoints, linesEquivalent, pointOnLine } from './graphingMath.mjs';
+import { constructionEvidenceDetail, graphing2SnapStep, lineFromPoints, linesEquivalent, pointOnLine, targetReachableOnGrid } from './graphingMath.mjs';
 
 export const resolveConstructionPolicy = (question = {}) => {
   const policy = question.constructionPolicy || {};
@@ -96,7 +96,8 @@ export const evaluateConstructionDetail = (points = [], question = {}, target, t
   // two points sharing the constant coordinate); form-aware adds nothing new
   // for either, so both strategies fall back to the legacy grader unchanged.
   if (policy.strategy !== 'formAware' || mode === 'throughPoints' || mode === 'verticalHorizontal') {
-    const { evidence: legacy, coincident } = constructionEvidenceDetail(points, target, tolerance);
+    const requirePointsOnLine = targetReachableOnGrid(target, graphing2SnapStep(question, target), tolerance);
+    const { evidence: legacy, coincident } = constructionEvidenceDetail(points, target, tolerance, { requirePointsOnLine });
     return {
       legacy: true,
       coincident,

@@ -152,9 +152,11 @@ const assertHygiene = (label, text) => {
   HYGIENE.forEach(([pattern, what]) => assert.doesNotMatch(text, pattern, `${label}: ${what} in "${text}"`));
 };
 
-const workFor = (model, pairs, r) => ({
+// The run carries m and b as well as r, as the calculator's execute() stores
+// it: the shared grader checks all three against the run's own table.
+const workFor = (model, pairs, r, m, b) => ({
   table: [...pairs].reverse(),
-  regressionRun: { operation: 'linearRegression', table: pairs.map((pair) => [...pair]), r },
+  regressionRun: { operation: 'linearRegression', table: pairs.map((pair) => [...pair]), r, m, b },
   interpretation: {
     direction: (model.items.find((item) => item.label === 'Direction')?.value || '').toLowerCase(),
     strength: (model.items.find((item) => item.label === 'Strength')?.value || '').toLowerCase(),
@@ -261,7 +263,7 @@ const auditOne = (label, question) => {
   assert.equal(sign, exact.r === 0 ? 'zero' : exact.r > 0 ? 'positive' : 'negative', `${label}: the shared sign`);
 
   // The shared grader marks the stated work correct, with the printed r too.
-  const result = gradeToolWork({ toolId: TOOL_ID, question, work: workFor(model, pairs, num(rText)) });
+  const result = gradeToolWork({ toolId: TOOL_ID, question, work: workFor(model, pairs, num(rText), Number(exact.m), Number(exact.b)) });
   assert.equal(result.graded, true, `${label}: graded`);
   assert.equal(result.isCorrect, true, `${label}: the stated work is correct (${JSON.stringify(result.parts)})`);
   return 'review';
