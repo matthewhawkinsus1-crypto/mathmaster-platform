@@ -161,9 +161,13 @@ Also fixed: the one-step inequality structure showed `3*x+0 <= 18`.
    content reaches students only after a root admin publishes release **`course-path-v2-2d6d479a345c9162`**: open
    Administration → My Math Path content coverage and publish it there (`publishCoursePathReleaseV2`). Until then
    the bank keeps serving the old draws.
-   Order: (a) default-codebase functions; (b) `npm run deploy:path-admin` (the release script's path-admin step);
-   (c) the admin publish; (d) rules (none here) and Hosting.
-   The publish can happen any time after (b); the order of (a) and (c) is safe either way. The 26 widened templates'
+   If #469 ships too, publish #469's release id instead (see the #469 section).
+   **Order (Publish is disabled until Hosting matches):** (a) default-codebase functions; (b) `npm run
+   deploy:path-admin`; (c) Hosting (step 3); (d) the root-admin publish of the new release id. Publish must come
+   after Hosting. The admin panel compares the Hosting bundle's release id with the deployed one
+   (`pathReleasePlan.mjs`, `DEPLOYMENT_MISMATCH`) and disables Publish while they differ
+   (`PathReleaseV2Panel.jsx`). Production Hosting currently names `course-path-v2-605951fe94fedd2b`. No rules
+   change here. The 26 widened templates'
    `familyVersion` went from 3 to 4. Recap withholding follows the version actually served
    (`RECAP_WIDENED_TEMPLATE_VERSIONS`), so a recap of an old draw stays withheld before and after the publish. A
    session already in progress keeps its stored instances.
@@ -180,6 +184,11 @@ Also fixed: the one-step inequality structure showed `3*x+0 <= 18`.
   `revealableRounds`, new `questionKeys`). Tests cover the four repros and a sweep of more than 3,000 plans; both
   layers were mutation-checked. With literal focus and more rounds than literal structures, repeats cannot be
   avoided; the hold covers that case.
+  Re-check: two different equations in one family could still share an answer. For example, `4*|x-4|+6 = 22` and
+  `|16-4*x| = 16` both give x = 0 OR x = 8 (seed sw-275). Outside literal equations, each round is now also keyed on
+  family plus final relation (OR parts sorted) in the planner, the swap and the reveal hold. The sw-275 repro and
+  the same-answer pair are pinned. A round that cannot stay in its planned band now takes the nearest band, not
+  the family's easiest, and it is labelled with its own band.
 - **M1. Bare `log` spellings on the A2.5B log model removed.** The form-preserving grader reads `log` as a product,
   so `L=10log(I)/100` and similar answers were marked correct. Only `log_{10}` and `\log_{10}` are accepted. The
   reviewer's wrong answers are pinned as rejected.

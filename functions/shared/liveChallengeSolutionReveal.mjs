@@ -30,7 +30,7 @@
  * shows once a question closes (pathSolutionSupport.mjs).
  */
 
-import { solverRaceEquationKey } from './solverRace.mjs';
+import { solverRaceQuestionKeys } from './solverRace.mjs';
 
 export const SOLUTIONS_COLLECTION = 'solutions';
 
@@ -39,21 +39,22 @@ export const SOLUTIONS_COLLECTION = 'solutions';
  * Solver Race plans distinct equations (solverRace.mjs), but a round whose
  * question comes back later in the schedule must not have its solution
  * published before that later round closes — the same rule as a Second
- * Chance replay. A round's key is its equation, compared by structure; a
- * round with no generated question has none.
+ * Chance replay. A Solver Race round's keys are its equation, compared by
+ * structure, and its answer (solverRaceQuestionKeys); a round with no
+ * generated question and no id has none.
  */
 export const roundQuestionKeys = (roundQuestions = [], questionIds = []) => {
   const generated = list(roundQuestions);
   const ids = list(questionIds);
   return Array.from({ length: Math.max(generated.length, ids.length) }, (_, round) => {
     const question = generated[round];
-    const equation = question && typeof question === 'object' ? solverRaceEquationKey(question) : null;
-    if (equation) return equation;
+    const keys = question && typeof question === 'object' ? solverRaceQuestionKeys(question) : [];
+    if (keys.length) return keys;
     // A bank round (standard Live Challenge): its draw is seeded per round, so
     // the template is the question — a later round on the same template is
     // held for, whatever its numbers (coordinator, #469 addendum).
     const id = String(ids[round] ?? '').trim();
-    return id ? `bank|${id}` : null;
+    return id ? [`bank|${id}`] : null;
   });
 };
 
@@ -99,9 +100,9 @@ export const roundSolutionRecord = ({ question = {}, solutionReview = null, disp
  *                                           replays planned so far, or null when the plan is not
  *                                           known yet
  * @param {boolean} [input.finished]         the match finished: everything is public
- * @param {Array<string|null>} [input.questionKeys] per scheduled round, its question's
- *                                           key (roundQuestionKeys); a round is held while a
- *                                           later, unclosed round has the same key
+ * @param {Array<string|string[]|null>} [input.questionKeys] per scheduled round, its
+ *                                           question's keys (roundQuestionKeys); a round is held
+ *                                           while a later, unclosed round shares a key
  * @returns {number[]} ascending round indices
  */
 export const revealableRounds = ({
@@ -136,11 +137,12 @@ export const revealableRounds = ({
   }
   if (finished) return rounds;
   // Held while a later round that has not closed asks the same question.
-  const keys = list(questionKeys);
+  // A round's entry is one key or a list of them; any shared key holds it.
+  const keys = list(questionKeys).map((entry) => (Array.isArray(entry) ? entry : [entry]).filter(Boolean));
   return rounds.filter((round) => {
-    const key = keys[round];
-    if (!key) return true;
-    return !keys.some((other, later) => later > round && later > closed && other === key);
+    const own = keys[round] || [];
+    if (!own.length) return true;
+    return !keys.some((other, later) => later > round && later > closed && other.some((key) => own.includes(key)));
   });
 };
 

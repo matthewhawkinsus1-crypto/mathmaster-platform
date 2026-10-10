@@ -177,14 +177,17 @@ test('the one-step inequality structure shows a·x, never "+0"', () => {
 import {
   SOLVER_RACE_FOCUS,
   SOLVER_RACE_DIFFICULTIES,
+  DIFFICULTY_BANDS,
   generateDistinctSolverRaceQuestion,
+  solverRaceAnswerKey,
   solverRaceEquationKey,
+  solverRaceQuestionKeys,
 } from '../../functions/shared/solverRace.mjs';
 import { revealableRounds, roundQuestionKeys } from '../../functions/shared/liveChallengeSolutionReveal.mjs';
 import { executableSource as srcOf, region as regionOf } from './helpers/sourceContract.mjs';
 
 const repeatedKeys = (race) => {
-  const keys = race.map(solverRaceEquationKey);
+  const keys = race.flatMap(solverRaceQuestionKeys);
   return keys.filter((key, index) => keys.indexOf(key) !== index);
 };
 
@@ -202,6 +205,50 @@ test('literal equations are compared by structure, with the solved-for letter ke
   const key = (equation, solveFor = 'x') => solverRaceEquationKey({ challengeFamily: 'literalEquation', equation, solveFor });
   assert.equal(key('q = k*n + d', 'n'), key('v = p*u + h', 'u'), 'renamed letters are the same question');
   assert.notEqual(key('q = n - k', 'n'), key('q = d - n', 'n'), 'y = x - a and y = b - x differ');
+});
+
+test('re-check of #464: one family never asks two equations with the same answer', () => {
+  // sw-275 used to plan 4*|x-4|+6 = 22 and |16-4*x| = 16, both x = 0 OR x = 8.
+  const race = planSolverRace({ roundCount: 10, focus: 'mixed', difficulty: 'ramp', seed: 'sw-275' });
+  assert.deepEqual(repeatedKeys(race), []);
+  const answers = race.filter((q) => q.challengeFamily === 'absoluteValueEquation').map((q) => q.expectedFinalRelation);
+  assert.equal(new Set(answers).size, answers.length, answers.join(' | '));
+  const pair = [
+    { challengeFamily: 'absoluteValueEquation', equation: '4*|x-4|+6 = 22', solveFor: 'x', expectedFinalRelation: 'x = 0 OR x = 8' },
+    { challengeFamily: 'absoluteValueEquation', equation: '|16-4*x| = 16', solveFor: 'x', expectedFinalRelation: 'x = 8 OR x = 0' },
+  ];
+  assert.notEqual(solverRaceEquationKey(pair[0]), solverRaceEquationKey(pair[1]), 'different equations');
+  assert.equal(solverRaceAnswerKey(pair[0]), solverRaceAnswerKey(pair[1]), 'the same answer, in either order');
+  assert.equal(solverRaceAnswerKey({ ...pair[0], challengeFamily: 'literalEquation' }), null, 'literal answers are keyed by structure');
+  const keys = roundQuestionKeys(pair);
+  const base = { scheduledRoundCount: 2, secondChancePossible: false, replayOf: {}, questionKeys: keys };
+  assert.deepEqual(revealableRounds({ ...base, closedThrough: 0 }), [], 'round 0 is held while round 1 has its answer');
+  assert.deepEqual(revealableRounds({ ...base, closedThrough: 1 }), [0, 1]);
+});
+
+test('a round that leaves its planned band goes to the nearest one, and is labelled with its own band', () => {
+  const rank = (band) => DIFFICULTY_BANDS.indexOf(band);
+  for (const focus of SOLVER_RACE_FOCUS) {
+    for (const difficulty of DIFFICULTY_BANDS) {
+      const bands = new Set(SOLVER_RACE_CATALOG.filter((entry) => focus === 'mixed' || entry.challengeFamily === focus).map((entry) => entry.difficultyBand));
+      for (let seed = 0; seed < 20; seed += 1) {
+        for (const question of planSolverRace({ roundCount: 5, focus, difficulty, seed: `band-${seed}` })) {
+          assert.equal(question.solverRaceStage, question.difficultyBand, 'the label is the round\'s band');
+          if (focus === 'mixed') assert.ok(Math.abs(rank(question.difficultyBand) - rank(difficulty)) <= 1, `${difficulty}: ${question.difficultyBand}`);
+        }
+      }
+      if (focus === 'literalEquation' && difficulty === 'challenge') {
+        // One challenge structure: the other rounds come from advanced first, never foundation.
+        const race = planSolverRace({ roundCount: 4, focus, difficulty, seed: 'band-literal' });
+        assert.ok(bands.has('advanced'));
+        assert.ok(race.every((question) => question.difficultyBand !== 'foundation'), race.map((q) => q.difficultyBand).join(','));
+      }
+    }
+  }
+  for (let seed = 0; seed < 40; seed += 1) {
+    const race = planSolverRace({ roundCount: 10, focus: 'mixed', difficulty: 'challenge', seed: `band-mixed-${seed}` });
+    assert.ok(race.every((question) => question.difficultyBand !== 'foundation'), `band-mixed-${seed}`);
+  }
 });
 
 test('every focus, stage and length: equations are distinct whenever the family has enough of them', () => {
@@ -234,7 +281,7 @@ test('a solution is held while a later, unclosed round asks the same question', 
   assert.deepEqual(revealableRounds({ ...base, closedThrough: 1, finished: true }), [0, 1, 2, 3]);
   const race = [{ challengeFamily: 'literalEquation', equation: 'q = k*n + d', solveFor: 'n' }, { challengeFamily: 'literalEquation', equation: 'v = p*u + h', solveFor: 'u' }];
   const [first, second] = roundQuestionKeys(race);
-  assert.equal(first, second);
+  assert.deepEqual(first, second);
   assert.deepEqual(roundQuestionKeys([null, {}]), [null, null]);
 });
 
@@ -243,13 +290,13 @@ test('a dry-run swap never brings in an equation another round asks', () => {
   const taken = new Set();
   for (let index = 0; index < 8; index += 1) {
     const question = generateDistinctSolverRaceQuestion({ structure, seedKey: `swap-${index}`, usedKeys: taken });
-    const key = solverRaceEquationKey(question);
-    assert.equal(taken.has(key), false, `swap ${index} is new (${question.equation})`);
-    taken.add(key);
+    const keys = solverRaceQuestionKeys(question);
+    assert.equal(keys.some((key) => taken.has(key)), false, `swap ${index} is new (${question.equation} -> ${question.expectedFinalRelation})`);
+    keys.forEach((key) => taken.add(key));
   }
   const index = srcOf(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
   const swap = regionOf(index, 'async swap({ dryRun, roundIndex }) {', 'const GRAPH_FEATURE_RUSH_PLANNER');
-  assert.match(swap, /\.filter\(\(_, index\) => index !== roundIndex\)\s*\.map\(\(question\) => solverRace\.solverRaceEquationKey\(question\)\)/);
+  assert.match(swap, /\.filter\(\(_, index\) => index !== roundIndex\)\s*\.flatMap\(\(question\) => solverRace\.solverRaceQuestionKeys\(question\)\)/);
   assert.match(swap, /solverRace\.generateDistinctSolverRaceQuestion\(\{\s*structure: alternate,[\s\S]*?usedKeys,\s*\}\)/);
   const reveal = regionOf(index, 'function liveChallengeRevealableRounds(', 'function applyLiveChallengeSolutionReveals(');
   assert.match(reveal, /questionKeys: engine\.solutionReveal\.roundQuestionKeys\(privateState\.roundQuestions, questionIds\)/);
@@ -258,13 +305,13 @@ test('a dry-run swap never brings in an equation another round asks', () => {
 test('standard Live Challenge: a round on the same bank template as a later round is held (#469 addendum)', () => {
   // Bank rounds are drawn per round from the template, so the template is the question.
   const keys = roundQuestionKeys(null, ['tpl-a', 'tpl-b', 'tpl-a']);
-  assert.deepEqual(keys, ['bank|tpl-a', 'bank|tpl-b', 'bank|tpl-a']);
+  assert.deepEqual(keys, [['bank|tpl-a'], ['bank|tpl-b'], ['bank|tpl-a']]);
   const base = { scheduledRoundCount: 3, secondChancePossible: false, replayOf: {}, questionKeys: keys };
   assert.deepEqual(revealableRounds({ ...base, closedThrough: 1 }), [1], 'round 0 waits for round 2 on the same template');
   assert.deepEqual(revealableRounds({ ...base, closedThrough: 2 }), [0, 1, 2]);
   // Solver Race rounds keep their equation key; ids alone do not override it.
   const mixed = roundQuestionKeys([{ challengeFamily: 'linearEquation', equation: 'x+7 = 12', solveFor: 'x' }], ['sr-1']);
-  assert.match(mixed[0], /^linearEquation\|/);
+  assert.match(mixed[0][0], /^linearEquation\|/);
   // The bank planner itself never schedules one template twice: it draws
   // distinct bank documents, and a swap takes the first one not in use.
   const index = srcOf(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));

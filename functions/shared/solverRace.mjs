@@ -312,28 +312,56 @@ export const solverRaceEquationKey = (question) => {
   return `${question?.challengeFamily || ''}|${canonical}`;
 };
 
+/*
+ * THE SAME ANSWER (re-check of #464, B1). Two different equations of one
+ * family can share a solution set: "4*|x-4|+6 = 22" and "|16-4*x| = 16" both
+ * end at x = 0 OR x = 8, so the first round's published steps would answer
+ * the second. Outside literal equations (whose answer is fixed by the
+ * structure, already keyed above), a round is also keyed on its family and
+ * its final relation, the parts of an OR in a fixed order.
+ */
+export const solverRaceAnswerKey = (question) => {
+  const family = String(question?.challengeFamily || '');
+  const relation = String(question?.expectedFinalRelation ?? '').replace(/\s+/g, '');
+  if (!relation || family === 'literalEquation') return null;
+  return `${family}|answer|${relation.split(/OR/i).sort().join('OR')}`;
+};
+
+/** Every key a round claims: its equation, and its answer where that is not fixed by the structure. */
+export const solverRaceQuestionKeys = (question) => [solverRaceEquationKey(question), solverRaceAnswerKey(question)].filter(Boolean);
+
 const DISTINCT_RESEEDS = 24;
 
+const bandDistance = (entry, structure) => Math.abs(
+  DIFFICULTY_BANDS.indexOf(entry.difficultyBand) - DIFFICULTY_BANDS.indexOf(structure.difficultyBand),
+);
+
+/** The family's structures nearest in difficulty first (catalog order within a band). */
+const nearestBandFirst = (entries, structure) => entries
+  .map((entry, index) => ({ entry, index, distance: bandDistance(entry, structure) }))
+  .sort((a, b) => a.distance - b.distance || a.index - b.index)
+  .map(({ entry }) => entry);
+
 /**
- * A round whose equation is not in `usedKeys`: the structure re-seeded first
- * (new numbers), then the family's other structures at the same stage, then
- * any of the family's structures. Returns the question, or the first draw
- * when every option collides (the reveal then holds the earlier solution —
+ * A round that claims no key in `usedKeys` (solverRaceQuestionKeys): the
+ * structure re-seeded first (new numbers), then the family's other structures,
+ * nearest difficulty band first. Returns the question, or the first draw when
+ * every option collides (the reveal then holds the earlier solution —
  * liveChallengeSolutionReveal.mjs `questionKeys`).
  */
 export const generateDistinctSolverRaceQuestion = ({ structure, seedKey, usedKeys = new Set() }) => {
+  const isNew = (question) => !solverRaceQuestionKeys(question).some((key) => usedKeys.has(key));
   const first = generateSolverRaceQuestion(structure, seedKey);
-  if (!usedKeys.has(solverRaceEquationKey(first))) return first;
+  if (isNew(first)) return first;
   for (let attempt = 1; attempt <= DISTINCT_RESEEDS; attempt += 1) {
     const candidate = generateSolverRaceQuestion(structure, `${seedKey}|distinct-${attempt}`);
-    if (!usedKeys.has(solverRaceEquationKey(candidate))) return candidate;
+    if (isNew(candidate)) return candidate;
   }
   const family = SOLVER_RACE_CATALOG.filter((entry) => entry.challengeFamily === structure.challengeFamily && entry.id !== structure.id);
-  const sameStage = family.filter((entry) => entry.difficultyBand === structure.difficultyBand);
-  for (const alternative of [...sameStage, ...family.filter((entry) => !sameStage.includes(entry))]) {
+  for (const alternative of nearestBandFirst(family, structure)) {
     for (let attempt = 0; attempt <= 3; attempt += 1) {
       const candidate = generateSolverRaceQuestion(alternative, `${seedKey}|alternative-${alternative.id}-${attempt}`);
-      if (!usedKeys.has(solverRaceEquationKey(candidate))) return candidate;
+      if (isNew(candidate)) return candidate;
     }
   }
   return first;
@@ -362,7 +390,7 @@ export const planSolverRace = ({ roundCount = 10, focus = 'mixed', difficulty = 
     const usedKeys = new Set();
     return sequence.map((entry, roundIndex) => {
       const question = generateDistinctSolverRaceQuestion({ structure: entry, seedKey: `${seed}|${entry.id}|${roundIndex}`, usedKeys });
-      usedKeys.add(solverRaceEquationKey(question));
+      solverRaceQuestionKeys(question).forEach((key) => usedKeys.add(key));
       return { ...question, id: `${question.familyId}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: question.difficultyBand };
     });
   }
@@ -372,12 +400,16 @@ export const planSolverRace = ({ roundCount = 10, focus = 'mixed', difficulty = 
     const desired = bands[roundIndex];
     const familyPool = SOLVER_RACE_CATALOG.filter((entry) => entry.challengeFamily === family);
     const exact = familyPool.filter((entry) => entry.difficultyBand === desired);
-    const pool = exact.length ? exact : familyPool;
+    // No structure at the planned band: the nearest band, not the family's easiest.
+    const planned = { difficultyBand: desired };
+    const nearest = Math.min(...familyPool.map((entry) => bandDistance(entry, planned)));
+    const pool = exact.length ? exact : familyPool.filter((entry) => bandDistance(entry, planned) === nearest);
     const occurrence = used.get(family) || 0;
     used.set(family, occurrence + 1);
     const selected = pool[(hash(`${seed}|${family}|${roundIndex}`) + occurrence) % pool.length];
     const question = generateDistinctSolverRaceQuestion({ structure: selected, seedKey: `${seed}|${selected.id}|${roundIndex}`, usedKeys });
-    usedKeys.add(solverRaceEquationKey(question));
-    return { ...question, id: `${question.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: desired };
+    solverRaceQuestionKeys(question).forEach((key) => usedKeys.add(key));
+    // The stage shown is the round's own band (a distinct draw may move it).
+    return { ...question, id: `${question.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: question.difficultyBand };
   });
 };

@@ -10824,11 +10824,12 @@ const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
       )];
       if (!alternate) throw new HttpsError("failed-precondition", "There is no other Solver Race structure for this stage.");
       const swapNumber = Math.max(1, Number(current?.solverRaceSwap) + 1 || 1);
-      // Never an equation another round of this match already asks: its
-      // solution is published when that round closes (review of #464, B1).
+      // Never an equation, or a same-family answer, another round of this
+      // match already has: its solution is published when that round closes
+      // (review of #464, B1).
       const usedKeys = new Set(roundQuestions
         .filter((_, index) => index !== roundIndex)
-        .map((question) => solverRace.solverRaceEquationKey(question))
+        .flatMap((question) => solverRace.solverRaceQuestionKeys(question))
         .filter(Boolean));
       const generated = solverRace.generateDistinctSolverRaceQuestion({
         structure: alternate,
