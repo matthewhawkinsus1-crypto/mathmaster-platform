@@ -11,6 +11,7 @@ import { SECTION_STATE, describeLessonSections, describeSectionWait } from './pl
 import { firstOpenLiveQuestionIndex } from './platform/student/liveSectionEntry.js';
 import { questionIsTerminal } from './platform/student/studentWorkState.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
+import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
 
 // What a student's assignment dashboard actually contains, computed once.
 //
@@ -346,6 +347,16 @@ export const buildStudentDashboardModel = ({
   const resumeQuestionIndex = savedResume && resumeWorkable.includes(requestedResumeIndex)
     ? requestedResumeIndex
     : (resumeWorkable[0] ?? 0);
+  // "Continue at Classwork Question 2": the number the workspace shows for
+  // that question, and the one its URL carries (app/routes/questionAddress.js),
+  // not its position in storage.
+  const resumeQuestionAddress = resumeAssignment
+    ? questionAddressFor(studentQuestionEntries(resumeAssignment, {
+      omittedIndices: supportProfile
+        ? studentOmittedIndices({ assignment: resumeAssignment, profile: supportProfile, tracker: tracker?.[resumeAssignment.id] || null, nowValue })
+        : [],
+    }), resumeQuestionIndex)
+    : null;
 
   const activeDols = visible
     .map((assignment) => {
@@ -569,6 +580,7 @@ export const buildStudentDashboardModel = ({
     allEntries,
     resumeAssignment,
     resumeQuestionIndex,
+    resumeQuestionAddress,
     resumeLifecycle: getAssignmentLifecycle(resumeAssignment, nowValue),
     resumeRecordedGrade,
     resumeQuestionsAttempted,

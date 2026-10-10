@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "description": "Gzip bytes a student downloads before the sign-in screen (signIn) and before Home (studentHome), from the production build. Ratchet: may grow by at most allowanceBytes. Regenerate with `node scripts/check-first-load-budget.mjs --write-baseline` only after a deliberate reduction.",
+  "allowanceBytes": 8192,
+  "paths": {
+    "signIn": {
+      "bytes": 295689,
+      "files": 20
+    },
+    "studentHome": {
+      "bytes": 1467048,
+      "files": 219
+    }
+  }
+}

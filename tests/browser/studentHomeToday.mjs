@@ -118,7 +118,7 @@ for (const viewport of VIEWPORTS) {
   await page.waitForTimeout(100);
   const body = await text();
   check(!/Inclusion|\bIEP\b|special ed/i.test(body), tag('today: support-plan wording on Home'));
-  check(/Continue at Question 2\. Your answers are kept as you go\./.test(body), tag('today: resume detail missing from the next-action card'));
+  check(/Continue at Classwork Question 2\. Your answers are kept as you go\./.test(body), tag('today: resume detail missing from the next-action card'));
   check(!/restored from this browser|Continue Late Work|teacher draft|checkpoint|SECTION-SPECIFIC|SAME CLASS VERSION|if stopped now|final \d+ minutes/i.test(body), tag('today: stale or jargon copy present'));
   check(!/Nothing waiting/.test(body), tag('today: "Nothing waiting" shown with work on screen'));
   check(await page.locator('[role="status"]', { hasText: 'All work saved' }).count() === 1, tag('today: save status line missing'));

@@ -66,6 +66,15 @@
         ]
       },
       {
+        "regex": "^/(?:assignments(?:/.*)?|grades|rewards|path(?:/.*)?|tests|test-cycle(?:/.*)?|live|teacher(?:/.*)?)?/?$",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
         "source": "/assets/**",
         "headers": [
           {
@@ -77,7 +86,7 @@
     ],
     "rewrites": [
       {
-        "source": "**",
+        "regex": "^/(?:[^a].*|a(?:[^s].*)?|as(?:[^s].*)?|ass(?:[^e].*)?|asse(?:[^t].*)?|asset(?:[^s].*)?|assets(?:[^/].*)?)?$",
         "destination": "/index.html"
       }
     ],

@@ -1,7 +1,9 @@
 import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import App from './App.jsx';
+// The shell renders sign-in itself and loads App.jsx only for a signed-in
+// account (app/shell/AppShell.jsx): the first load is not the whole app.
+import AppShell from './app/shell/AppShell.jsx';
 import { AuthProvider } from './auth/AuthProvider.jsx';
 import { ToastProvider } from './ui/Toast.jsx';
 import BuildFreshnessNotice from './components/common/BuildFreshnessNotice.jsx';
@@ -42,7 +44,7 @@ createRoot(rootElement).render(
       <ToastProvider>
         <AuthProvider>
           <Suspense fallback={<main style={{ padding: 24 }}>Opening MathMaster…</main>}>
-            <App />
+            <AppShell />
           </Suspense>
           {/* Tells a long-open tab (or the retired Vercel copy) that it is not
               running the build Hosting serves. Never reloads on its own. */}

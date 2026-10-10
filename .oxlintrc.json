@@ -1,7 +1,14 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "oxc", "unicorn", "typescript"],
-  "env": { "es2024": true },
+  "plugins": [
+    "react",
+    "oxc",
+    "unicorn",
+    "typescript"
+  ],
+  "env": {
+    "es2024": true
+  },
   "rules": {
     "react/rules-of-hooks": "error",
     "react/jsx-no-undef": "error",
@@ -10,22 +17,120 @@
   },
   "overrides": [
     {
-      "files": ["src/**", "tests/browser/**/*.jsx"],
-      "env": { "browser": true, "es2024": true },
-      "rules": { "no-undef": "error" }
+      "files": [
+        "src/**",
+        "tests/browser/**/*.jsx"
+      ],
+      "env": {
+        "browser": true,
+        "es2024": true
+      },
+      "rules": {
+        "no-undef": "error"
+      }
     },
     {
-      "files": ["src/platform/**"],
-      "rules": { "react/exhaustive-deps": "error" }
+      "files": [
+        "src/app/**"
+      ],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          "addEventListener",
+          "blur",
+          "close",
+          "closed",
+          "confirm",
+          "defaultStatus",
+          "defaultstatus",
+          "event",
+          "external",
+          "find",
+          "focus",
+          "frameElement",
+          "frames",
+          "history",
+          "innerHeight",
+          "innerWidth",
+          "length",
+          "location",
+          "locationbar",
+          "menubar",
+          "moveBy",
+          "moveTo",
+          "name",
+          "onblur",
+          "onerror",
+          "onfocus",
+          "onload",
+          "onresize",
+          "onunload",
+          "open",
+          "opener",
+          "opera",
+          "outerHeight",
+          "outerWidth",
+          "pageXOffset",
+          "pageYOffset",
+          "parent",
+          "print",
+          "removeEventListener",
+          "resizeBy",
+          "resizeTo",
+          "screen",
+          "screenLeft",
+          "screenTop",
+          "screenX",
+          "screenY",
+          "scroll",
+          "scrollbars",
+          "scrollBy",
+          "scrollTo",
+          "scrollX",
+          "scrollY",
+          "self",
+          "status",
+          "statusbar",
+          "stop",
+          "toolbar",
+          "top",
+          "origin"
+        ]
+      }
     },
     {
-      "files": ["functions/*.js", "functions/lib/**", "functions/shared/**", "functions-path-admin/*.js", "functions-path-admin/lib/**", "scripts/**"],
-      "env": { "node": true, "es2024": true },
-      "rules": { "no-undef": "error" }
+      "files": [
+        "src/platform/**"
+      ],
+      "rules": {
+        "react/exhaustive-deps": "error"
+      }
     },
     {
-      "files": ["tests/browser/**"],
-      "rules": { "react-hooks/rules-of-hooks": "off", "react/rules-of-hooks": "off" }
+      "files": [
+        "functions/*.js",
+        "functions/lib/**",
+        "functions/shared/**",
+        "functions-path-admin/*.js",
+        "functions-path-admin/lib/**",
+        "scripts/**"
+      ],
+      "env": {
+        "node": true,
+        "es2024": true
+      },
+      "rules": {
+        "no-undef": "error"
+      }
+    },
+    {
+      "files": [
+        "tests/browser/**"
+      ],
+      "rules": {
+        "react-hooks/rules-of-hooks": "off",
+        "react/rules-of-hooks": "off"
+      }
     }
   ]
 }

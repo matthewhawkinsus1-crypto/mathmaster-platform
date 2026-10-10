@@ -45,7 +45,11 @@ test('17 / 18. one student controls listener and one teacher controls listener â
   assert.equal(count(code, /useStudentAssignmentControls\(/g), 1);
   assert.equal(count(code, /useTeacherClassControls\(/g), 1);
   // The student's: the SESSION's own student, and nobody when not a student.
-  assert.match(code, /useStudentAssignmentControls\(\{\s*db,\s*studentId: auth\.status === 'ready' && auth\.session\?\.role === 'student' \? auth\.session\.studentId : null,\s*\}\)/);
+  // The session's student, one commit after App mounts (App mounts after
+  // sign-in since app/shell/AppShell.jsx): one subscription, never one per
+  // mount pass (privateControlsJourneys: "the own-controls listener was opened once").
+  assert.match(code, /useStudentAssignmentControls\(\{\s*db,\s*studentId: accountListenersReady && auth\.status === 'ready' && auth\.session\?\.role === 'student' \? auth\.session\.studentId : null,\s*\}\)/);
+  assert.match(code, /const \[accountListenersReady, setAccountListenersReady\] = useState\(false\);\s*useEffect\(\(\) => \{ setAccountListenersReady\(true\); \}, \[\]\);/);
   // The teacher's: one scope key for the viewer and the classes on screen.
   assert.match(code, /const teacherClassControls = useTeacherClassControls\(\{ db, scopeKey: teacherControlsScope \}\);/);
   assert.match(region(code, 'const teacherControlsScope = useMemo(', 'const teacherClassControls', 'teacher scope'), /if \(user\?\.role !== 'teacher'\) return '';/);
@@ -168,7 +172,9 @@ test('surfaces showing another class say so, and the app keeps their students\' 
   assert.match(scope, /teacherTab === 'attendanceHistory' \? teacherSurfaceClasses\.attendance : null,/);
   assert.match(scope, /studentClass\(caseReviewStudentId\),\s*studentClass\(supportReportStudentId\),/);
   assert.match(scope, /crossClassTab: TEACHER_CROSS_CLASS_TABS\.has\(teacherTab\),/);
-  assert.match(code, /const TEACHER_CROSS_CLASS_TABS = new Set\(\['gradeTransfer', 'actionCenter', 'parentContacts'\]\);/);
+  // The table lives in app/screenScopes.js since the App split; App imports it.
+  assert.match(readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'), /export const TEACHER_CROSS_CLASS_TABS = new Set\(\['gradeTransfer', 'actionCenter', 'parentContacts'\]\);/);
+  assert.match(code, /\bTEACHER_CROSS_CLASS_TABS,\n[\s\S]*?\} from '\.\/app\/screenScopes\.js';/);
 });
 
 test('16. a copy of a lesson carries no student\'s private state â€” even from the teacher\'s merged view', () => {

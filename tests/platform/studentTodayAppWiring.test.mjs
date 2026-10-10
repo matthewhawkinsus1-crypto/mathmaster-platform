@@ -29,7 +29,10 @@ test('the dashboard model receives the student, their Recovery states and the te
 test('Start/Continue lands on the first unfinished open question, and never on a dead end', () => {
   const start = region(app, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
   const entry = region(start, 'resolveStudentAssignmentEntry({', 'safeQuestionIndex = actionableIndex', 'entry resolution');
-  assert.match(entry, /isFinished:\s*options\?\.returnToResult\s*\?\s*null/);
+  // Review My Work keeps the question it asked for; a question's address
+  // keeps it only while its section is open (roleIsActionable).
+  assert.match(entry, /isFinished:\s*keepRequested\s*\?\s*null/);
+  assert.match(start, /const keepRequested = Boolean\(options\?\.returnToResult\)\s*\|\| Boolean\(options\?\.keepRequestedQuestion && roleIsActionable\(requestedRole\)\);/);
   // The same "finished" as Home: questionIsTerminal (extra DOL tries reopen).
   assert.match(entry, /: \(index\) => questionIsTerminal\(\{\s*record: tracker\?\.\[assignmentId\]\?\.\[index\]/);
   // With nothing open for a whole-assignment start, the student is taken to
@@ -103,7 +106,9 @@ test('Grades gets Start, ways to raise and What changed; Home gets the count —
 
 test('Review My Work shows only for closed, released, non-Test-Cycle work — with imports', () => {
   // Lazy, so MathLive (pulled by the solution renderers) stays out of the first load.
-  assert.match(app, /const ReviewMyWork = lazy\(\(\) => import\('\.\/components\/student\/ReviewMyWork\.jsx'\)\)/);
+  // Declared in app/lazyScreens.js since the App split; App imports it from there.
+  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /export const ReviewMyWork = lazy\(\(\) => import\('\.\.\/components\/student\/ReviewMyWork\.jsx'\)\)/);
+  assert.match(app, /\bReviewMyWork,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
   assert.match(app, /import \{ loadMyReviewWork \} from '\.\/services\/reviewMyWorkService\.js'/);
   const panel = region(app, 'const resultReviewPanel =', ': null;', 'review panel');
   assert.match(app, /reviewPanel=\{resultReviewPanel\}/);

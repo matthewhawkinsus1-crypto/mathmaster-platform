@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import {
   clearPerformanceDiagnostics,
   getPerformanceDiagnostics,
@@ -50,7 +51,9 @@ test('student performance architecture keeps tools lazy, secure prefetch guarded
   assert.ok(durableSubmitRegion.indexOf('await enqueueDurableAction') < durableSubmitRegion.indexOf('setTracker(updatedTracker)'));
   assert.ok(engine.indexOf("startPerformanceSpan('submit_local_ack_ms'") < engine.indexOf('await onGrade('));
   assert.match(firebase, /persistentLocalCache\(\{ tabManager: persistentMultipleTabManager\(\) \}\)/);
-  assert.match(app, /const QuestionEngine = lazy\(\(\) => import\('\.\/QuestionEngine\.jsx'\)\)/);
+  // Declared lazily in app/lazyScreens.js since the App split.
+  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /export const QuestionEngine = lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\)/);
+  assert.match(app, /\bQuestionEngine,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
   const questionMount = app.match(/<QuestionEngine[\s\S]*?\/>/)?.[0] || '';
   assert.match(questionMount, /key=\{`\$\{activeAssignmentId\}-\$\{currentQuestionIndex\}-\$\{currentRecord\.variantIndex\}/);
   assert.doesNotMatch(questionMount.split('question=')[0], /lastResponseKey|attemptCount|teacherLearningProfiles/);

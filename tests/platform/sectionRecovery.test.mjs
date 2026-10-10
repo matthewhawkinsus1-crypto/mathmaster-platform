@@ -16,6 +16,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { DEFAULT_RECOVERY_POLICY, RECOVERY_TYPE, normalizeRecoveryPolicy, recoveryCapFor } from '../../functions/shared/recoveryPolicy.mjs';
@@ -843,7 +844,9 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   // Lazy, so MathLive (which the runner's QuestionEngine brings) stays out of
   // the first load (tests/platform/initialBundleBoundary.test.mjs). Either form
   // binds the name to the same module.
-  assert.match(app, /^(?:import SectionRecoveryRunner from |const SectionRecoveryRunner = lazy\(\(\) => import\()'\.\/components\/student\/SectionRecoveryRunner\.jsx'(?:\)\))?;$/m);
+  // Since the App split the lazy declaration lives in app/lazyScreens.js.
+  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /^export const SectionRecoveryRunner = lazy\(\(\) => import\('\.\.\/components\/student\/SectionRecoveryRunner\.jsx'\)\);$/m);
+  assert.match(app, /\bSectionRecoveryRunner,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
   assert.match(app, /^import \{ buildStudentRecoverySummary \} from '\.\/platform\/recovery\/studentRecoveryModel\.js';$/m);
   assert.match(app, /^import \{ recoveryErrorCode, startSectionRecovery \} from '\.\/services\/sectionRecoveryService\.js';$/m);
   assert.match(resultView, /<SectionRecoveryRunner\b/);
