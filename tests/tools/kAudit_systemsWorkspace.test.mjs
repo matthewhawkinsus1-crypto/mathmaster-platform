@@ -943,14 +943,17 @@ test('spatial: 150 seeded three-plane models — the point (or no point) stated 
     const label = `spatial ${index} ${JSON.stringify(equations)}`;
     assertClean(model, label);
     assertDerivationsFollow(model, VARS3, augmented, label);
-    const first = model.steps[0];
+    // The step that names the point: since K, the three-plane model derives
+    // it first, so it is the conclusion of the work, not always steps[0].
+    const first = model.steps.find((step) => /single point|The three planes are/.test(step)) || model.steps[0];
+    const all = model.steps.join(' ');
     if (truth === 'one') {
-      const [point] = pointsIn(first.match(/single point (\([^)]*\))/)[1]);
+      const [point] = pointsIn(all.match(/single point (\([^)]*\))/)[1]);
       const reduced = rref(augmented.map((row) => [...row.slice(0, 3), row[3].neg()]));
       point.forEach((coordinate, position) => assert.ok(F(coordinate).equals(reduced[position][3]), `${label}: coordinate ${position + 1}`));
       reviewed += 1;
     } else if (/The three planes are/.test(first)) {
-      assert.match(first, truth === 'none' ? /no point in common/ : /infinitely many points/, label);
+      assert.match(all, truth === 'none' ? /no point in common/ : /infinitely many points/, label);
     }
     assert.equal(itemValue(model, 'Where do the planes meet?'), answer, label);
     assertAccepted(question, { responses: [{ id: 'meet', value: answer }] }, label);

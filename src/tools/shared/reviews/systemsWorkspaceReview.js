@@ -1304,6 +1304,35 @@ const planeExplanation = (forms, vars, { first, second }, truth) => {
   return `Planes ${first} and ${second}: every coefficient of plane ${second} is ${exact(ratio)} times plane ${first}'s, and its constant ${exact(b.constant)} ${truth === 'coincident' ? 'is' : 'is not'} ${exact(ratio)} × ${bracketed(a.constant)}, so they ${relation}.`;
 };
 
+// A dependent or inconsistent 3×3 by elimination: the first plan (fewest
+// multiplications) whose statement with no variable is the system's own
+// (`type`, 'none' or 'infinite'), with the steps that reach it — or null.
+const eliminationOutcome = (forms, vars, texts, type) => {
+  const outcomeOf = (plan) => {
+    const remaining = vars.filter((name) => name !== plan.variable);
+    const steps = [
+      ...standardFormNote(forms, vars, texts),
+      ...plan.rounds.map((round, index) => roundText(round, round.pair.map(equationLabel), vars, `R${index + 1}`)),
+    ];
+    const rows = plan.rounds.map((round) => ({ form: round.combined, type: nonzeroVariables(round.combined, vars).length ? null : degenerateType(round.combined) }));
+    // eliminationOutcome's reading: a contradiction in either row, else an
+    // identity once both rows are done, else the reduced 2×2 decides.
+    let terminal = rows.find((row) => row.type === 'none') || rows.find((row) => row.type === 'infinite') || null;
+    if (!terminal) {
+      const reduced = plan.rounds.map((round) => restrictForm(round.combined, remaining));
+      const sub = solveTwoByTwo(reduced.map((form, index) => equationOf(form, `R${index + 1}`)), remaining, 'elimination');
+      if (sub.type === 'one') return null;
+      steps.push(`Solve the reduced system R1: ${formText(reduced[0], remaining)} and R2: ${formText(reduced[1], remaining)}.`, ...sub.steps);
+      terminal = { form: sub.statement, type: sub.type };
+    }
+    const statement = `0 = ${exact(terminal.form.constant)}`;
+    // The grader's reading of the statement must be the system's own.
+    if (terminal.type !== type || noVariableStatementType(statement.replace(/−/g, '-'), vars) !== type) return null;
+    return { statement, steps };
+  };
+  return eliminationPlans(forms, vars, texts).map(outcomeOf).find(Boolean) || null;
+};
+
 const algebraicThreeReview = (question) => {
   if (!Array.isArray(question.equations) || question.equations.length !== 3) return null;
   const config = normalizeAlgebraicSystemConfig(question);
@@ -1363,31 +1392,7 @@ const algebraicThreeReview = (question) => {
 
   // Dependent or inconsistent: only the elimination workflow classifies it.
   if (config.method !== 'elimination') return null;
-  const plans = eliminationPlans(forms, vars, texts);
-  // The first plan (fewest multiplications) whose statement is the system's own.
-  const outcomeOf = (plan) => {
-    const remaining = vars.filter((name) => name !== plan.variable);
-    const steps = [
-      ...standardFormNote(forms, vars, texts),
-      ...plan.rounds.map((round, index) => roundText(round, round.pair.map(equationLabel), vars, `R${index + 1}`)),
-    ];
-    const rows = plan.rounds.map((round) => ({ form: round.combined, type: nonzeroVariables(round.combined, vars).length ? null : degenerateType(round.combined) }));
-    // eliminationOutcome's reading: a contradiction in either row, else an
-    // identity once both rows are done, else the reduced 2×2 decides.
-    let terminal = rows.find((row) => row.type === 'none') || rows.find((row) => row.type === 'infinite') || null;
-    if (!terminal) {
-      const reduced = plan.rounds.map((round) => restrictForm(round.combined, remaining));
-      const sub = solveTwoByTwo(reduced.map((form, index) => equationOf(form, `R${index + 1}`)), remaining, 'elimination');
-      if (sub.type === 'one') return null;
-      steps.push(`Solve the reduced system R1: ${formText(reduced[0], remaining)} and R2: ${formText(reduced[1], remaining)}.`, ...sub.steps);
-      terminal = { form: sub.statement, type: sub.type };
-    }
-    const statement = `0 = ${exact(terminal.form.constant)}`;
-    // The grader's reading of the statement must be the system's own.
-    if (terminal.type !== key.type || noVariableStatementType(statement.replace(/−/g, '-'), vars) !== key.type) return null;
-    return { statement, steps };
-  };
-  const outcome = plans.map(outcomeOf).find(Boolean) || null;
+  const outcome = eliminationOutcome(forms, vars, texts, key.type);
   if (!outcome) return null;
   const meaning = SYSTEM_MEANINGS.find((option) => option.value === key.type)?.label;
   const kindValue = key.type === 'infinite' ? 'identity' : 'contradiction';
@@ -1440,6 +1445,13 @@ const spatialReview = (question) => {
   const answers = fields.map((field) => ({ label: String(field.label || field.id), answer: fieldAnswerText(field) }));
   // The geometry the model shows, from the equations it draws — context for
   // the answers, so a system it cannot write exactly only leaves it out.
+  //
+  // Where the three planes meet is worked out, not asserted: the same
+  // derivation the algebraic mode writes (substitution when a variable has
+  // coefficient 1 or −1, else elimination; elimination to a statement with no
+  // variable for a dependent or inconsistent system), checked against
+  // classifyLinearSystem. A derivation that cannot be written, or that would
+  // not fit beside the answers, falls back to the one-sentence summary.
   const geometry = (() => {
     const vars = Array.isArray(question.variables) && question.variables.length === 3 ? question.variables.map((name) => String(name).trim()) : ['x', 'y', 'z'];
     const texts = Array.isArray(question.equations) && question.equations.length === 3 && question.equations.every((text) => typeof text === 'string') ? question.equations : null;
@@ -1448,26 +1460,80 @@ const spatialReview = (question) => {
       const forms = texts.map((text) => linearEquationForm(text, vars));
       const key = forms.every(Boolean) ? classifyLinearSystem(forms, vars) : { type: 'invalid' };
       const planes = `The three planes are ${listText(texts.map(prettyEquation))}.`;
+      const worked = (derive) => {
+        try {
+          return derive();
+        } catch (error) {
+          if (error instanceof Unwritable) return null;
+          throw error;
+        }
+      };
       if (key.type === 'unique') {
         const values = Object.fromEntries(vars.map((name) => [name, stated(key.solution[name])]));
         const point = pointText(vars.map((name) => values[name]));
         const checks = texts.map((text) => equationSides(text, vars, values));
+        const derivation = worked(() => {
+          const plans = eliminationPlans(forms, vars, texts);
+          const solved = hasUnitCoefficient(forms, vars) || !plans.length
+            ? substitutionUnique(forms, vars, texts)
+            : eliminationUnique(forms, vars, texts, plans[0]);
+          if (!vars.every((name) => reductionValueMatches(solved.values[name], key.solution[name]))) return null;
+          return [
+            `${planes} A point on all three planes satisfies all three equations at once, so solve the system.`,
+            ...solved.steps,
+            `So (${vars.join(', ')}) = ${point} is the only solution: the single point ${point} is the one place all three planes meet.`,
+          ];
+        });
         return {
-          step: `${planes} Solving the system gives the single point ${point}, the one place all three planes meet.`,
+          derivation,
+          summary: `${planes} Solving the system gives the single point ${point}, the one place all three planes meet.`,
           why: `${point} lies on all three planes: ${texts.map((text, index) => `${sideSentence(checks[index].leftWork, checks[index].left)} and the right side is ${exact(checks[index].right)}`).join('; ')}.`,
         };
       }
-      if (key.type === 'none') return { step: `${planes} No point satisfies all three equations, so the planes have no point in common.`, why: null };
-      if (key.type === 'infinite') return { step: `${planes} The equations are dependent, so the planes share infinitely many points.`, why: null };
+      if (key.type === 'none' || key.type === 'infinite') {
+        const derivation = worked(() => {
+          const outcome = eliminationOutcome(forms, vars, texts, key.type);
+          if (!outcome) return null;
+          const opening = `${planes} A point on all three planes satisfies all three equations at once, so eliminate a variable and see what is left.`;
+          if (key.type === 'none') {
+            return [
+              opening,
+              ...outcome.steps,
+              `${outcome.statement} is false whatever ${listText(vars)} are — a contradiction — so no point satisfies all three equations: the planes have no point in common.`,
+            ];
+          }
+          const identity = `${outcome.statement} is true whatever ${listText(vars)} are — an identity — so the equations do not pin down one point: the planes share infinitely many points.`;
+          // A line or a whole plane: two planes that are not parallel meet in a line.
+          const truth = planeTruthFor({ equations: texts, variables: vars });
+          const crossing = planePairs(3).find(({ id }) => truth[id] === 'line');
+          const shape = crossing
+            ? `${planeExplanation(forms, vars, crossing, 'line')} Every common point lies on that line, and the identity says the remaining equation adds no new condition, so every point of the line is on all three planes: the planes share a line of points.`
+            : planePairs(3).every(({ id }) => truth[id] === 'coincident')
+              ? 'Every equation is a multiple of the others, constant included, so all three are the same plane.'
+              : null;
+          if (!shape) return null;
+          return [opening, ...outcome.steps, identity, shape];
+        });
+        return {
+          derivation,
+          summary: key.type === 'none'
+            ? `${planes} No point satisfies all three equations, so the planes have no point in common.`
+            : `${planes} The equations are dependent, so the planes share infinitely many points.`,
+          why: null,
+        };
+      }
       return null;
     } catch (error) {
       if (error instanceof Unwritable) return null;
       throw error;
     }
   })();
-  const steps = geometry ? [geometry.step] : [];
+  const answerSteps = answers.map(({ label, answer }) => `${label} — ${answer}`);
+  // The derivation and the answers must both fit; else the summary sentence.
+  const geometrySteps = !geometry ? []
+    : geometry.derivation && geometry.derivation.length + answerSteps.length <= MAX_STEPS ? geometry.derivation : [geometry.summary];
+  const steps = [...geometrySteps, ...answerSteps];
   const why = geometry?.why || null;
-  answers.forEach(({ label, answer }) => steps.push(`${label} — ${answer}`));
   if (steps.length > MAX_STEPS) return null;
   return {
     title: 'Three-plane model solution',
