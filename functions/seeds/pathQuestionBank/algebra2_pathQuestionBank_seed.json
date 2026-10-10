@@ -2242,7 +2242,10 @@
               "id": "inverse-form",
               "label": "Inverse expression g(x)",
               "inputProfile": "expression",
-              "expected": "{{h}}-sqrt(x-({{k}}))"
+              "expected": "{{h}}-sqrt(x-({{k}}))",
+              "accepted": [
+                "-sqrt(x-({{k}})){{h|signed}}"
+              ]
             }
           ],
           "solutionReview": {
@@ -2356,7 +2359,10 @@
             "min": -5,
             "max": 5
           }
-        }
+        },
+        "constraints": [
+          "h!=k"
+        ]
       }
     },
     {
@@ -3387,7 +3393,10 @@
             "min": -5,
             "max": 5
           }
-        }
+        },
+        "constraints": [
+          "h!=k"
+        ]
       },
       "variants": [
         {
@@ -5560,13 +5569,13 @@
             },
             {
               "id": "point1",
-              "label": "First ordered-pair solution",
+              "label": "Solution with the smaller x-value",
               "inputProfile": "orderedPair",
               "expected": "({{u}},{{yu}})"
             },
             {
               "id": "point2",
-              "label": "Second ordered-pair solution",
+              "label": "Solution with the larger x-value",
               "inputProfile": "orderedPair",
               "expected": "({{v}},{{yv}})"
             }
@@ -5794,13 +5803,13 @@
         },
         {
           "id": "point1",
-          "label": "First complete solution",
+          "label": "Solution with the smaller x-value",
           "inputProfile": "orderedPair",
           "expected": "({{u}},{{yu}})"
         },
         {
           "id": "point2",
-          "label": "Second complete solution",
+          "label": "Solution with the larger x-value",
           "inputProfile": "orderedPair",
           "expected": "({{v}},{{yv}})"
         }
@@ -5913,13 +5922,13 @@
             },
             {
               "id": "point1",
-              "label": "First solution",
+              "label": "Solution with the smaller x-value",
               "inputProfile": "orderedPair",
               "expected": "({{u}},{{yu}})"
             },
             {
               "id": "point2",
-              "label": "Second solution",
+              "label": "Solution with the larger x-value",
               "inputProfile": "orderedPair",
               "expected": "({{v}},{{yv}})"
             }
@@ -12260,7 +12269,10 @@
           "id": "factored",
           "label": "Factored zero-product equation",
           "inputProfile": "equation",
-          "expected": "{{a}}(x-({{u}}))(x-({{v}}))=0"
+          "expected": "{{a}}(x-({{u}}))(x-({{v}}))=0",
+          "accepted": [
+            "{{a}}(x-({{v}}))(x-({{u}}))=0"
+          ]
         },
         {
           "id": "r1",
@@ -29017,7 +29029,7 @@
         },
         {
           "id": "root-1",
-          "label": "Root 1",
+          "label": "Root 1 (least)",
           "inputProfile": "number",
           "expected": "{{r1}}"
         },
@@ -29029,7 +29041,7 @@
         },
         {
           "id": "root-2",
-          "label": "Root 2",
+          "label": "Root 2 (middle)",
           "inputProfile": "number",
           "expected": "{{r2}}"
         },
@@ -29041,7 +29053,7 @@
         },
         {
           "id": "root-3",
-          "label": "Root 3",
+          "label": "Root 3 (greatest)",
           "inputProfile": "number",
           "expected": "{{r3}}"
         },
@@ -29212,7 +29224,7 @@
         },
         {
           "id": "root-1",
-          "label": "Root 1",
+          "label": "Root 1 (least)",
           "inputProfile": "number",
           "expected": "{{r1}}"
         },
@@ -29224,7 +29236,7 @@
         },
         {
           "id": "root-2",
-          "label": "Root 2",
+          "label": "Root 2 (second least)",
           "inputProfile": "number",
           "expected": "{{r2}}"
         },
@@ -29236,7 +29248,7 @@
         },
         {
           "id": "root-3",
-          "label": "Root 3",
+          "label": "Root 3 (second greatest)",
           "inputProfile": "number",
           "expected": "{{r3}}"
         },
@@ -29248,7 +29260,7 @@
         },
         {
           "id": "root-4",
-          "label": "Root 4",
+          "label": "Root 4 (greatest)",
           "inputProfile": "number",
           "expected": "{{r4}}"
         },
@@ -29599,7 +29611,7 @@
         },
         {
           "id": "root-1",
-          "label": "Root 1",
+          "label": "Root 1 (least)",
           "inputProfile": "number",
           "expected": "{{r1}}"
         },
@@ -29611,7 +29623,7 @@
         },
         {
           "id": "root-2",
-          "label": "Root 2",
+          "label": "Root 2 (second least)",
           "inputProfile": "number",
           "expected": "{{r2}}"
         },
@@ -29623,7 +29635,7 @@
         },
         {
           "id": "root-3",
-          "label": "Root 3",
+          "label": "Root 3 (second greatest)",
           "inputProfile": "number",
           "expected": "{{r3}}"
         },
@@ -29635,7 +29647,7 @@
         },
         {
           "id": "root-4",
-          "label": "Root 4",
+          "label": "Root 4 (greatest)",
           "inputProfile": "number",
           "expected": "{{r4}}"
         },
@@ -30973,13 +30985,13 @@
           "responseFields": [
             {
               "id": "cancelled-factor-1",
-              "label": "First canceled factor",
+              "label": "Canceled factor from the first numerator",
               "inputProfile": "expression",
               "expected": "x-({{a}})"
             },
             {
               "id": "cancelled-factor-2",
-              "label": "Second canceled factor",
+              "label": "Canceled factor from the first denominator",
               "inputProfile": "expression",
               "expected": "x-({{c}})"
             },
