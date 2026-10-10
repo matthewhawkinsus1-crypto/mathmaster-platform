@@ -43,7 +43,7 @@
  * nothing (tests/platform/pxToRemCodemod.test.mjs). Re-run it after merging
  * main and review the diff.
  */
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -166,8 +166,17 @@ export const transformJs = (source) => {
 };
 
 // ---- Files -------------------------------------------------------------------
+// Printed output, not the screen: a PDF's font sizes are points on paper and
+// must not follow the teacher's browser text size (review of #463).
+export const PRINT_ONLY = Object.freeze([
+  'src/platform/resources/assignmentWorksheetPdf.js',
+  'src/platform/resources/lessonNotesPdf.js',
+  'src/platform/resources/assignmentWorksheetPdfModel.js',
+]);
+
 export const EXCLUDED = (relative) => (
-  relative === 'src/App.jsx'
+  PRINT_ONLY.includes(relative)
+  || relative === 'src/App.jsx'
   || relative === 'src/App.css'
   || relative.startsWith('src/app/')
   || relative === 'src/main.jsx'
@@ -184,10 +193,14 @@ const walk = (dir, root, out = []) => {
 };
 
 export const runCodemod = ({ root, paths = ['src'], write = false, includeAppShell = false } = {}) => {
+  const missing = [];
   const files = paths.flatMap((entry) => {
     const absolute = path.resolve(root, entry);
+    // A path that does not exist yet (src/app before job G's split lands) is
+    // skipped with a note, not a crash.
+    if (!existsSync(absolute)) { missing.push(entry); return []; }
     return statSync(absolute).isDirectory() ? walk(absolute, root) : [path.relative(root, absolute).replaceAll('\\', '/')];
-  }).filter((relative) => relative.startsWith('src/') && (includeAppShell || !EXCLUDED(relative)));
+  }).filter((relative) => relative.startsWith('src/') && !PRINT_ONLY.includes(relative) && (includeAppShell || !EXCLUDED(relative)));
   const report = [];
   for (const relative of files) {
     const absolute = path.join(root, relative);
@@ -196,6 +209,7 @@ export const runCodemod = ({ root, paths = ['src'], write = false, includeAppShe
     if (changes || skipped) report.push({ file: relative, changes, skipped });
     if (write && output !== source) writeFileSync(absolute, output);
   }
+  report.missing = missing;
   return report;
 };
 
@@ -210,6 +224,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   const report = runCodemod({ root, paths: paths.length ? paths : ['src'], write, includeAppShell });
   const total = report.reduce((sum, row) => sum + row.changes, 0);
   const skipped = report.reduce((sum, row) => sum + row.skipped, 0);
+  for (const entry of report.missing || []) console.log(`skipped ${entry}: no such path (yet)`);
   for (const row of report) console.log(`${row.changes.toString().padStart(4)} ${row.skipped ? `(${row.skipped} skipped) ` : ''}${row.file}`);
   console.log(`${write ? 'rewrote' : 'would rewrite'} ${total} value(s) in ${report.filter((row) => row.changes).length} file(s); ${skipped} skipped for review (SVG text files)`);
 }

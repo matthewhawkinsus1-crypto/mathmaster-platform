@@ -268,9 +268,9 @@ tool code; they are listed here so the integration lane can decide ownership.
 * **Not a gap:** the drawing canvas (`ScratchpadOverlay.jsx:515`) is freehand
   and path-dependent, which 2.1.1 exempts. Its toolbar (pen, colours, eraser,
   undo, pages, Save, Close) is all real buttons and reachable.
-* **Proposed fix:** the pattern already in this repo at
-  `src/components/common/SolverWorkspaceFrame.jsx:116-147` (Escape + Tab wrap +
-  initial focus) applied to the overlay root:
+* **Proposed fix** (done by job F with `src/ui/Dialog.jsx`; the pattern cited
+  here, `SolverWorkspaceFrame.jsx`, was deleted unrendered by job H): Escape,
+  Tab wrap and initial focus on the overlay root:
   * on open: remember `document.activeElement` (or take an `openerRef` from
     QuestionEngine) and focus the first toolbar button (`requestAnimationFrame`).
   * `keydown` on the overlay: `Escape` → `requestClose()` (so unsaved work still
@@ -290,8 +290,8 @@ tool code; they are listed here so the integration lane can decide ownership.
   opener (`:250-259`).
 * **Effect:** with Work View covering the screen, Tab goes on into controls of
   the page underneath that the student cannot see (2.4.3, 2.4.11).
-* **Proposed fix:** add the Tab wrap to the existing handler (same code as
-  `SolverWorkspaceFrame.jsx:124-137`, using `hostRef.current` as the container):
+* **Proposed fix** (done by job F with `useModalDialog`): add the Tab wrap to
+  the existing handler, using `hostRef.current` as the container:
   ```js
   if (event.key === 'Tab') {
     const focusables = [...hostRef.current.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), math-field, [tabindex]:not([tabindex="-1"])')]

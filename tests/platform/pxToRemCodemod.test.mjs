@@ -109,3 +109,22 @@ test('--mm-px is one CSS pixel at the default text size, at both root sizes', ()
   assert.match(root, /@media \(max-width: 1024px\) \{\s*font-size: 100%;\s*--mm-px: calc\(1rem \/ 16\);\s*\}/);
   assert.doesNotMatch(root, /font(?:-size)?:\s*\d+px/);
 });
+
+// Review of #463: printed PDFs keep their sizes, even in G's run; a path that
+// does not exist yet (src/app before G's split) is skipped, not a crash.
+test('PDF generators are never rewritten; a missing path is skipped with a note', async () => {
+  const { runCodemod, PRINT_ONLY } = await import('../../scripts/codemods/px-to-rem.mjs');
+  const { mkdtempSync, mkdirSync, writeFileSync, readFileSync: readText } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const path = await import('node:path');
+  const root = mkdtempSync(path.join(tmpdir(), 'px-to-rem-pdf-'));
+  mkdirSync(path.join(root, 'src/platform/resources'), { recursive: true });
+  for (const file of PRINT_ONLY) writeFileSync(path.join(root, file), 'const s = { fontSize: 11 };');
+  for (const includeAppShell of [false, true]) {
+    const report = runCodemod({ root, paths: ['src', 'src/app'], write: true, includeAppShell });
+    assert.deepEqual(report.map((row) => row.file), [], 'no PDF generator is touched');
+    assert.deepEqual(report.missing, ['src/app'], 'the missing path is reported, not thrown');
+  }
+  for (const file of PRINT_ONLY) assert.equal(readText(path.join(root, file), 'utf8'), 'const s = { fontSize: 11 };');
+  assert.ok(PRINT_ONLY.includes('src/platform/resources/assignmentWorksheetPdf.js') && PRINT_ONLY.includes('src/platform/resources/lessonNotesPdf.js'));
+});

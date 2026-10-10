@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { region } from './helpers/sourceContract.mjs';
 import { readFile } from 'node:fs/promises';
+import { existsSync as existsSyncFs } from 'node:fs';
+
+const existsSyncCss = () => existsSyncFs(new URL('../../src/components/common/SolverWorkspaceFrame.css', import.meta.url));
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -10,6 +13,7 @@ const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8
 // replaced it, so wave 2 (job H) deleted it rather than re-plumb its modal.
 // Universal Work View (EnlargeableFigure on useModalDialog) is the one shell.
 test('the legacy solver frame is gone and nothing imports it', async () => {
+  assert.equal(existsSyncCss(), false, 'its stylesheet went with it (nothing imported it)');
   const { existsSync, readdirSync, statSync, readFileSync } = await import('node:fs');
   const path = await import('node:path');
   assert.equal(existsSync(new URL('../../src/components/common/SolverWorkspaceFrame.jsx', import.meta.url)), false);
@@ -105,22 +109,9 @@ test('both algebra solvers preserve their public entry points while using Univer
   assert.doesNotMatch(relation, /<SolverWorkspaceFrame/);
 });
 
-test('focus mode expands the work surface and keeps operation controls available', async () => {
-  const css = await read('src/components/common/SolverWorkspaceFrame.css');
-  assert.match(css, /data-solver-workspace-mode="enlarged"/);
-  assert.match(css, /data-solver-workspace-mode="focus"/);
-  assert.match(css, /position:\s*fixed/);
-  assert.match(css, /\.algebra-balance-workspace-shell/);
-  assert.match(css, /\.algebra-operation-composer/);
-  assert.match(css, /\.multi-relation-operation-dock/);
-  assert.match(css, /\.solver-workspace-focus-panel/);
-  assert.match(css, /@media \(max-width: 780px\)/);
-});
-
 test('multi-relation workspace uses presentation-only density for branches and absolute-value split entry', async () => {
   const wrapper = await read('src/MultiRelationAlgebra.jsx');
   const core = await read('src/MultiRelationAlgebraCore.jsx');
-  const css = await read('src/components/common/SolverWorkspaceFrame.css');
 
   assert.match(wrapper, /const denseWorkspace = props\.workspaceMode !== 'normal'/);
   assert.match(wrapper, /denseWorkspace=\{denseWorkspace\}/);
@@ -131,9 +122,4 @@ test('multi-relation workspace uses presentation-only density for branches and a
   assert.match(core, /denseWorkspace && relationState\.branches\.length > 1 && operationDock/);
   assert.match(core, /!denseWorkspace && branchIndex === 1 && relationState\.branches\.length > 1 && operationDock/);
   assert.equal((core.match(/className="multi-relation-operation-dock"/g) || []).length, 1);
-
-  assert.match(css, /\.multi-relation-branches--dense\s*\{/);
-  assert.match(css, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\)/);
-  assert.match(css, /\.multi-relation-absolute-split-fields--dense/);
-  assert.match(css, /@media \(max-width: 780px\)[\s\S]*\.multi-relation-branches--dense[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
 });
