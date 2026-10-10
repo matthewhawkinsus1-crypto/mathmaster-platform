@@ -265,6 +265,28 @@ for (const device of DEVICES) {
     await page.close();
   }
 
+  /* --- an open review the server stops offering --------------------------- */
+  // Wherever a review was opened from, it asks again on coming back to the
+  // tab (and on focus, and every 30 seconds): a refusal closes it, its
+  // answers and solutions gone, the server's reason in their place.
+  const closesOnRefusal = async (page, label) => {
+    await page.waitForSelector('[data-results-score]', { timeout: 15000 });
+    await page.evaluate(() => {
+      window.__reviewRefusal = 'This review opens again when you finish the test you are taking now.';
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    const closed = await page.waitForSelector('[data-results-score]', { state: 'detached', timeout: 10000 }).then(() => true).catch(() => false);
+    const body = await bodyText(page);
+    check(closed && !/Correct answer|Worked solution/i.test(body) && await page.locator('article[data-result-status]').count() === 0, at(`${label}: the review closes, nothing of it left`), body.slice(0, 160));
+    check(/This review opens again when you finish the test you are taking now\./.test(body), at(`${label}: the server's reason is shown`), body.slice(0, 160));
+  };
+  {
+    const { page, errors } = await openPage(context, 'scene=review&session=course-test');
+    await closesOnRefusal(page, 'a review opened on its own (the Tests & Exams list)');
+    noErrors(errors, at('revoked review'));
+    await page.close();
+  }
+
   /* --- dark theme, the long results page --------------------------------- */
   {
     const { page, errors } = await openPage(context, 'scene=review&session=course-test&theme=dark');
@@ -467,6 +489,9 @@ for (const device of DEVICES) {
     check(await page.locator('[data-test-skills]').count() === 0, at('passed: nothing left to prepare for'));
     await layout(page, at('card passed'), CARD_SCOPES);
     await shot(page, device, 'card-passed');
+    // The card's main "Review Test" re-checks too (a teacher resets the Test while it is open).
+    await cardButton(page, 'Review Test').click();
+    await closesOnRefusal(page, 'passed: a review opened from "Review Test"');
     noErrors(errors, at('card passed'));
     await page.close();
   }

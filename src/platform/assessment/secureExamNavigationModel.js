@@ -425,6 +425,13 @@ const isPractice = (session) => String(session?.examType || '') !== 'courseTest'
 const resultsAreAutomatic = (session) => isPractice(session) && session?.releasePolicy === 'automatic';
 
 /**
+ * An attempt a teacher's reset replaced. Its results are not offered from the
+ * list (the server refuses its review while the new attempt can be answered);
+ * the assignment card is where the student's current attempt lives.
+ */
+export const sessionWasReplaced = (session) => Boolean(session?.resetAt);
+
+/**
  * The status a student reads on their list of tests, in their words — never
  * `locked_integrity`. `tone` picks the colour; it never means right or wrong.
  */
@@ -433,6 +440,7 @@ export function studentSessionStatus(session) {
   const done = TERMINAL.has(status);
   const released = session?.feedbackReleased === true;
   const make = (label, tone) => ({ status, label, tone, done, released });
+  if (sessionWasReplaced(session)) return make('Replaced by a new attempt', 'neutral');
   if (done && released) return make('Results ready', 'ready');
   switch (status) {
     case SESSION_STATUS.NOT_STARTED: return make('Not started', 'neutral');
@@ -450,7 +458,7 @@ export function studentSessionStatus(session) {
 export function resultsTimingText(session) {
   const status = String(session?.status || '');
   const done = TERMINAL.has(status);
-  if (done && session?.feedbackReleased === true) return null;
+  if (sessionWasReplaced(session) || (done && session?.feedbackReleased === true)) return null;
   if (resultsAreAutomatic(session)) return done ? 'Your results are being prepared.' : 'Results are ready right after you submit.';
   return done ? 'Your teacher hasn\'t released results yet.' : null;
 }

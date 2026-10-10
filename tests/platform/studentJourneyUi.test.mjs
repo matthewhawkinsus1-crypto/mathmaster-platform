@@ -68,7 +68,8 @@ test('journey 5: secure testing hides standards while preserving usable math and
 
 test('journey 5 review: standards return only after teacher-released feedback', () => {
   // The list opens the review only once results are released.
-  assert.match(secureDashboard, /const canReview = done && session\.feedbackReleased === true;/);
+  // …and never for an attempt a teacher's reset replaced: the card has the current one.
+  assert.match(secureDashboard, /const canReview = done && session\.feedbackReleased === true && !sessionWasReplaced\(session\);/);
   assert.match(secureDashboard, /onClick=\{\(\) => canReview \? setReviewing\(session\) : setActive\(session\)\}/);
   assert.match(secureDashboard, /\{canReview \? 'See your results'/);
   assert.match(secureReview, /Released feedback/);

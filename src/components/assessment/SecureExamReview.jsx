@@ -145,6 +145,12 @@ const PracticeEstimate = ({ report }) => (
   </section>
 );
 
+// How often an open review asks the server whether it may stay open.
+const REVIEW_RECHECK_MS = 30000;
+// The server's "not now" (secureExam.courseReviewBlockedBy, a reset, a release
+// taken back), as opposed to a network failure, which leaves the review as it is.
+const reviewRefused = (error) => /failed-precondition|permission-denied|not-found/.test(String(error?.code || ''));
+
 export default function SecureExamReview({ examSessionId, onBack, onPracticeSkill = null, skillLabels = null, backLabel = 'Back to Tests & Exams' }) {
   const [review, setReview] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -164,6 +170,42 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
 
   useEffect(() => {
     if (released) headingRef.current?.focus();
+  }, [released, examSessionId]);
+
+  /*
+   * AN OPEN REVIEW STAYS ONLY WHILE THE SERVER STILL OFFERS IT.
+   *
+   * A teacher's reset or a Retest opening closes a released review on the
+   * server while another attempt can be answered, and held answers can be
+   * held again (a student joins, an attempt is reset). Wherever the review
+   * was opened from, it asks again on coming back to the tab or the window and
+   * every 30 seconds. A refusal closes it: the review's data is dropped and the
+   * server's reason is shown in its place. A new answer replaces what is on
+   * screen, so held answers disappear the moment they are held again.
+   */
+  useEffect(() => {
+    if (!released) return undefined;
+    let active = true;
+    const recheck = () => {
+      if (document.visibilityState === 'hidden') return;
+      getStudentSecureExamReview({ examSessionId })
+        .then((result) => { if (active) setReview(result.review || null); })
+        .catch((recheckError) => {
+          if (!active || !reviewRefused(recheckError)) return;
+          setReview(null);
+          setError(recheckError.message || 'This review is closed for now.');
+        });
+    };
+    const onVisibility = () => { if (document.visibilityState === 'visible') recheck(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', recheck);
+    const timer = window.setInterval(recheck, REVIEW_RECHECK_MS);
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', recheck);
+      window.clearInterval(timer);
+    };
   }, [released, examSessionId]);
 
   if (loading) return <div style={{ minHeight: '70vh', display: 'grid', placeItems: 'center', color: 'var(--mm-text-muted)' }}>Loading your results…</div>;

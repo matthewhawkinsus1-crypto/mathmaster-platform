@@ -396,3 +396,18 @@ test('a held review says when the answers will come, and the teacher can release
   const service = componentSource('src/services/testCycleService.js');
   assert.match(region(service, 'export const releaseTestCycleAnswers = async (', '\n};', 'service'), /return call\('releaseTestCycleAnswers', \{ assignmentId, stage, studentIds \}\);/);
 });
+
+test('every open review asks the server again, and a refusal closes it (coordinator re-check, PR #461)', () => {
+  // The card's "Review my Test" re-check covered one way in; the review itself
+  // now re-checks wherever it was opened: the card's "Review Test" or
+  // "Review Retest", Corrections, and the Tests & Exams list.
+  const review = componentSource('src/components/assessment/SecureExamReview.jsx');
+  assert.match(review, /^const REVIEW_RECHECK_MS = 30000;$/m);
+  const recheck = region(review, '  useEffect(() => {\n    if (!released) return undefined;', '  }, [released, examSessionId]);', 'review re-check');
+  assert.match(recheck, /document\.addEventListener\('visibilitychange', onVisibility\);/);
+  assert.match(recheck, /window\.addEventListener\('focus', recheck\);/);
+  assert.match(recheck, /const timer = window\.setInterval\(recheck, REVIEW_RECHECK_MS\);/);
+  // A refusal drops the review's data and shows the server's reason; a network failure does not.
+  assert.match(recheck, /if \(!active \|\| !reviewRefused\(recheckError\)\) return;\s+setReview\(null\);\s+setError\(recheckError\.message/);
+  assert.match(review, /const reviewRefused = \(error\) => \/failed-precondition\|permission-denied\|not-found\/\.test\(String\(error\?\.code \|\| ''\)\);/);
+});

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import SecureExamContainer from './SecureExamContainer.jsx';
 import SecureExamReview from './SecureExamReview.jsx';
 import { listStudentSecureExamSessions } from '../../services/secureExamService.js';
-import { resultsTimingText, studentSessionStatus, timeAllowance, timeAllowanceText } from '../../platform/assessment/secureExamNavigationModel.js';
+import { resultsTimingText, sessionWasReplaced, studentSessionStatus, timeAllowance, timeAllowanceText } from '../../platform/assessment/secureExamNavigationModel.js';
 
 const terminalStatuses = new Set(['submitted', 'force_submitted', 'time_expired']);
 
@@ -91,7 +91,8 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
                 {!group.rows.length && <div style={{ padding: 18, background: 'var(--mm-surface)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Nothing here yet.</div>}
                 {group.rows.map((session) => {
                   const done = terminalStatuses.has(session.status);
-                  const canReview = done && session.feedbackReleased === true;
+                  // A replaced attempt's results are not offered here: the card has the current one.
+                  const canReview = done && session.feedbackReleased === true && !sessionWasReplaced(session);
                   const status = studentSessionStatus(session);
                   const timing = resultsTimingText(session);
                   return (

@@ -157,6 +157,12 @@ const delay = (ms = 60) => new Promise((resolve) => { setTimeout(resolve, ms); }
 export const getStudentSecureExamReview = async ({ examSessionId }) => {
   await delay();
   window.__reviewsOpened = [...(window.__reviewsOpened || []), examSessionId];
+  // The server closing an open review (a reset, a Retest opening): its refusal, shaped like the SDK's.
+  if (window.__reviewRefusal) {
+    const error = new Error(window.__reviewRefusal);
+    error.code = 'functions/failed-precondition';
+    throw error;
+  }
   const build = REVIEWS[examSessionId];
   if (!build) throw new Error('Your teacher has not released feedback for this exam yet.');
   return { review: build() };

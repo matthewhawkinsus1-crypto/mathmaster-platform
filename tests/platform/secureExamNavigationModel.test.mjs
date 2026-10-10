@@ -55,6 +55,7 @@ import {
   reviewSummary,
   startScreenRules,
   startScreenTime,
+  sessionWasReplaced,
   studentSessionStatus,
   targetFor,
   timeAllowance,
@@ -250,6 +251,11 @@ test('statuses are a student\'s words; a practice test says its results come rig
   assert.equal(label('time_expired', { feedbackReleased: true }), 'Results ready');
   assert.equal(label('something_new'), 'Not available yet');
   assert.equal(label('in_progress', { feedbackReleased: true }), 'In progress', 'released results are not shown before the test is finished');
+  // An attempt a teacher's reset replaced keeps its release on the server, but the list does not offer it.
+  assert.equal(label('force_submitted', { feedbackReleased: true, resetAt: 1_700_000_000_000 }), 'Replaced by a new attempt');
+  assert.equal(sessionWasReplaced({ status: 'force_submitted', feedbackReleased: true, resetAt: 1_700_000_000_000 }), true);
+  assert.equal(sessionWasReplaced({ status: 'submitted', feedbackReleased: true }), false);
+  assert.equal(resultsTimingText({ status: 'force_submitted', resetAt: 1_700_000_000_000 }), null, 'no "waiting for results" on a replaced attempt');
   for (const raw of ['not_started', 'in_progress', 'locked_proctor', 'locked_integrity', 'submitted', 'force_submitted', 'time_expired']) {
     assert.doesNotMatch(label(raw), /_/, `${raw} is shown as words`);
   }
