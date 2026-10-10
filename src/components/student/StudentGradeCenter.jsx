@@ -76,7 +76,6 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
         <button
           type="button"
           onClick={onToggleHidden}
-          aria-pressed={hidden}
           style={{
             appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
             minHeight: MIN_TOUCH_TARGET_PX, minWidth: MIN_TOUCH_TARGET_PX,
@@ -84,7 +83,12 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
             background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 900, cursor: 'pointer',
           }}
         >
-          {hidden ? '👁 Show grade' : '🙈 Hide grade'}
+          {/* The emoji is decoration: the name is "Hide grade" / "Show grade",
+              never "see-no-evil monkey Hide grade". The label already says
+              what pressing does, so there is no aria-pressed: "Show grade,
+              pressed" contradicts itself. */}
+          <span aria-hidden="true">{hidden ? '👁' : '🙈'}</span>
+          {hidden ? ' Show grade' : ' Hide grade'}
         </button>
       </div>
 
