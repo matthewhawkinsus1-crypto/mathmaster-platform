@@ -9,7 +9,8 @@
 // (publicRoundSummary, hostRounds/{n}).
 //
 // Held here over many random rounds, for every scoring strategy:
-//   1. the class copy names nobody the public rule hides;
+//   1. the class copy obeys the rule (checked against an oracle written in
+//      this file, not the implementation) and names nobody it hides;
 //   2. each student's own entry is their place on the table the screens draw
 //      (the same ranking as the class copy's rows) and in the standings after;
 //   3. a student's screen, built from the class copy and their own summary,
@@ -30,7 +31,7 @@ import {
   publicRoundSummary,
   roundTableByPoints,
 } from '../../functions/shared/liveChallengeResults.mjs';
-import { classStandingsRows, publicStandingsRows, roundTableRows } from '../../functions/shared/liveChallengePrivacy.mjs';
+import { publicStandingsRows, roundTableRows } from '../../functions/shared/liveChallengePrivacy.mjs';
 import {
   PLAYER_SUMMARY_SCHEMA_VERSION,
   finalSummaryEntries,
@@ -98,26 +99,71 @@ const ROUNDS = [];
 
 const keysOf = (rows) => (rows || []).map((row) => row.playerKey);
 
+// THE PRODUCT RULE, WRITTEN HERE (decision 7), not read from the code that
+// enforces it. `published` are the rows a class-readable document carries;
+// `everyone` is every player's row on that list, in the order the screens
+// draw it (a round's table, or the standings after it). The last place in the
+// class is the worst rank when everyone has one; when someone has no rank (no
+// answer this round), the last place is them and anyone who earned nothing.
+const isRank = (value) => Number.isInteger(value) && value >= 1;
+const inLastPlace = (row, everyone) => {
+  if (!isRank(row.rank)) return true;
+  if (everyone.every((other) => isRank(other.rank))) return row.rank === Math.max(...everyone.map((other) => other.rank));
+  // Someone has no rank: a row that earned nothing sits with them; a list
+  // without points cannot tell, so its worst rank is last too.
+  if (Number.isFinite(row.roundPoints)) return row.roundPoints <= 0;
+  return row.rank === Math.max(...everyone.filter((other) => isRank(other.rank)).map((other) => other.rank));
+};
+const assertObeysTheRule = (published, everyone, label) => {
+  const place = new Map(everyone.map((row) => [row.playerKey, row]));
+  // At most the top few.
+  assert.ok(published.length <= 5, `${label}: ${published.length} rows`);
+  // The top of the list, in its order, each with their own place.
+  assert.deepEqual(keysOf(published), keysOf(everyone.slice(0, published.length)), `${label}: not the top of the list`);
+  for (const row of published) {
+    assert.ok(isRank(row.rank), `${label}: a row with no rank`);
+    assert.equal(row.rank, place.get(row.playerKey).rank, `${label}: ${row.playerKey}'s place`);
+    // Never a row tied with the class's last place.
+    assert.equal(inLastPlace(place.get(row.playerKey), everyone), false, `${label}: ${row.playerKey} (rank ${row.rank}) is tied for last`);
+  }
+  // Never exactly one player unshown when anyone is shown.
+  if (published.length > 0) assert.notEqual(everyone.length - published.length, 1, `${label}: exactly one player unshown`);
+  // Two players: no ranking. Three: first place only.
+  if (everyone.length === 2) assert.equal(published.length, 0, `${label}: two players, a ranking`);
+  if (everyone.length === 3) published.forEach((row) => assert.equal(row.rank, 1, `${label}: three players, a row below first`));
+};
+
 test('1. the class copy of a round names nobody the public rule hides', () => {
-  let hiddenSomeone = 0;
+  const seen = { published: 0, lastPlaceInTopFew: 0, two: 0, three: 0, hidden: 0 };
   for (const round of ROUNDS) {
+    const label = `${round.scoringStrategyId}, ${round.players.length} players`;
     const table = roundTableRows(round.host.standings, { byPoints: round.byPoints });
-    const shownTable = new Set(keysOf(classStandingsRows(table, { totalCount: table.length }).rows));
-    const shownAfter = new Set(keysOf(classStandingsRows(round.standingsAfterRound).rows));
+    assert.equal(table.length, round.players.length, 'the table is every player');
+    for (const [published, everyone] of [[round.classCopy.standings, table], [round.classCopy.standingsAfterRound, round.standingsAfterRound]]) {
+      assertObeysTheRule(published, everyone, label);
+      if (published.length) seen.published += 1;
+      if (everyone.slice(0, 5).some((row) => inLastPlace(row, everyone))) seen.lastPlaceInTopFew += 1;
+      if (everyone.length === 2) seen.two += 1;
+      if (everyone.length === 3) seen.three += 1;
+    }
+    // Anyone on neither published list is nowhere in the document (key or alias).
+    const shown = new Set([...keysOf(round.classCopy.standings), ...keysOf(round.classCopy.standingsAfterRound)]);
     const text = JSON.stringify(round.classCopy);
     for (const player of round.players) {
-      // Anyone on neither public list is nowhere in the document (key or alias).
-      if (shownTable.has(player.playerKey) || shownAfter.has(player.playerKey)) continue;
-      hiddenSomeone += 1;
-      assert.equal(text.includes(`"${player.playerKey}"`), false, `${round.scoringStrategyId}: ${player.playerKey} is in the class copy`);
-      assert.equal(text.includes(`"${player.alias}"`), false, `${round.scoringStrategyId}: ${player.alias} is in the class copy`);
+      if (shown.has(player.playerKey)) continue;
+      seen.hidden += 1;
+      assert.equal(text.includes(`"${player.playerKey}"`), false, `${label}: ${player.playerKey} is in the class copy`);
+      assert.equal(text.includes(`"${player.alias}"`), false, `${label}: ${player.alias} is in the class copy`);
     }
-    assert.ok(round.classCopy.standings.length <= 5 && round.classCopy.standingsAfterRound.length <= 5);
     assert.equal(round.classCopy.visibility, 'class');
     assert.equal(round.classCopy.participantCount, round.roundResult.participantCount);
-    assert.equal(JSON.stringify(round.classCopy).includes('studentId'), false, 'never a student id');
+    assert.equal(text.includes('studentId'), false, 'never a student id');
   }
-  assert.ok(hiddenSomeone > 500, `the cases hid players (${hiddenSomeone})`);
+  // The cases reach every part of the rule.
+  assert.ok(seen.published > 200, `lists published rows (${seen.published})`);
+  assert.ok(seen.lastPlaceInTopFew > 100, `the last place reached the top few (${seen.lastPlaceInTopFew})`);
+  assert.ok(seen.two > 0 && seen.three > 0, `two- and three-player classes (${seen.two}, ${seen.three})`);
+  assert.ok(seen.hidden > 500, `the cases hid players (${seen.hidden})`);
   // The teacher's copy is every player's.
   assert.equal(ROUNDS[0].host.standings.length, ROUNDS[0].players.length);
 });
