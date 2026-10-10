@@ -28,7 +28,7 @@ const SCENES = [
     name: 'ready',
     mustContain: [
       'Your answers and solutions', 'Question 1', 'Warm-Up', 'Your answer', 'Correct', 'Partly correct · 50%',
-      'Your teacher changed this grade: Partial credit awarded', 'Slope', 'No answer recorded', 'Not correct',
+      'Your teacher changed this grade: Partial credit awarded', 'Slope', 'No answer recorded', 'Not correct yet',
       'x=4', 'Sum S5', 'The worked solution for your version of this question is not available.', 'Not answered',
     ],
     minSolutions: 4,
@@ -80,8 +80,7 @@ for (const viewport of VIEWPORTS) {
         viewportWidth,
         scrollWidth: document.documentElement.scrollWidth,
         text: document.body.innerText.replace(/\s+/g, ' '),
-        // The tool review panel is labelled "Worked solution" since #462.
-        solutions: document.querySelectorAll('[aria-label="Solution review"], [aria-label="Worked solution"]').length,
+        solutions: document.querySelectorAll('[aria-label="Solution review"]').length,
         small: controls.filter(({ box }) => box.height < minTap || box.width < minTap).map(({ label, box }) => `${label} ${Math.round(box.width)}x${Math.round(box.height)}`),
         controls: controls.map(({ label, box }) => ({ label, right: Math.round(box.right) })),
         overflowing: [...document.querySelectorAll('body *')]

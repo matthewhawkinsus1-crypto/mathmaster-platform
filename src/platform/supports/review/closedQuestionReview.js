@@ -48,39 +48,22 @@ const legacyHasContent = (question, legacyContent) => {
   }
 };
 
-// Does the legacy review walk through steps (a workflow), or only state the answer?
-const legacyHasSteps = (question, legacyContent) => {
-  try {
-    return typeof legacyContent === 'function' && list(legacyContent(question)?.workflowSolution?.entries).length > 0;
-  } catch {
-    return false;
-  }
-};
-const list = (value) => (Array.isArray(value) ? value : []);
-
 export const buildClosedQuestionReview = ({ question = null, isToolQuestion = false, wasCorrect = false, legacyContent = null } = {}) => {
   if (!question || typeof question !== 'object') return null;
   const authored = authoredReviewOf(question);
   const tool = isToolQuestion ? toolReviewOf(question) : null;
   const legacy = !isToolQuestion && legacyHasContent(question, legacyContent);
   const hasContent = Boolean(authored || tool || legacy);
-  // The words promise what is shown: steps only when there are steps
-  // (release-candidate QA m9 — "Compare each step" over a bare answer).
-  const hasSteps = Boolean(list(authored?.reasoning).length || list(tool?.steps).length || (legacy && legacyHasSteps(question, legacyContent)));
   const intro = !hasContent
     ? 'A worked solution is not available for this question yet. Ask your teacher to go over it with you.'
     : wasCorrect
-      ? (hasSteps
-        ? 'You got this one. Here is the reasoning behind it, so the next one is not a guess.'
-        : 'You got this one. Here is the answer, for reference.')
-      : (hasSteps
-        ? 'This question is closed. Compare each step of your work with the worked solution.'
-        : 'This question is closed. Compare your answer with the correct one below.');
+      ? 'You got this one. Here is the reasoning behind it, so the next one is not a guess.'
+      : 'This question is closed. Compare each step of your work with the worked solution.';
   const speechText = [
     authored?.headline, ...(authored?.reasoning || []), authored?.answerSummary, authored?.commonError,
     ...(tool?.steps || []), ...(tool?.items || []).map((item) => `${item.label}: ${item.value}`), tool?.why ? `Why it works: ${tool.why}` : '',
   ].map(clean).filter(Boolean).join(' ');
-  return { authored, tool, legacy, hasContent, hasSteps, intro, speechText };
+  return { authored, tool, legacy, hasContent, intro, speechText };
 };
 
 /** Does this closed question have a worked solution to point at? */

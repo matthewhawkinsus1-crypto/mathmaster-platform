@@ -27,14 +27,13 @@ export const REVIEW_OUTCOME = Object.freeze({
 export const OUTCOME_LABEL = Object.freeze({
   [REVIEW_OUTCOME.CORRECT]: 'Correct',
   [REVIEW_OUTCOME.PARTIAL]: 'Partly correct',
-  // The assignment is closed: there is no "yet" (release-candidate QA m9).
-  [REVIEW_OUTCOME.INCORRECT]: 'Not correct',
+  [REVIEW_OUTCOME.INCORRECT]: 'Not correct yet',
   [REVIEW_OUTCOME.NOT_ANSWERED]: 'Not answered',
   [REVIEW_OUTCOME.EXCUSED]: 'Excused',
 });
 
 export const NO_ANSWER_TEXT = 'No answer recorded';
-export const RECORDED_WORK_TEXT = 'Your work on this question was a graph or a diagram, so it is not repeated here. It was saved with your answer.';
+export const RECORDED_WORK_TEXT = 'Your work on this question was saved, but it cannot be shown as text here.';
 export const SOLUTION_UNAVAILABLE_TEXT = 'The worked solution for your version of this question is not available.';
 export const LOAD_ERROR_TEXT = 'Your answers could not be loaded right now. Try again.';
 
@@ -62,24 +61,10 @@ export const looksLikeMath = (text) => {
   return /\\[A-Za-z]+|[\^_{}]|\d\s*\/\s*\d|[≤≥≠√π]/.test(value);
 };
 
-const primitiveText = (value) => (typeof value === 'string' ? value.trim()
-  : typeof value === 'number' || typeof value === 'boolean' ? String(value) : null);
-
 const textOf = (value) => {
   if (value === null || value === undefined) return '';
-  const plain = primitiveText(value);
-  if (plain !== null) return plain;
-  // A list of plain values (a sequence's terms, a set): written as a list.
-  if (Array.isArray(value) && value.length && value.every((entry) => primitiveText(entry) !== null)) {
-    return value.map(primitiveText).filter(Boolean).join(', ');
-  }
-  // A wrapped plain value ({ value }, { text }, { latex }, { answer }).
-  if (isObject(value)) {
-    for (const key of ['text', 'value', 'latex', 'answer']) {
-      const inner = primitiveText(value[key]);
-      if (inner) return inner;
-    }
-  }
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   return null; // structured (a graph, a sort): not text
 };
 
