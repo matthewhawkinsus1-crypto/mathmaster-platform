@@ -59,8 +59,12 @@
 }
 
 /* Focus lands here only so the next Tab reaches the solver's first control,
-   which draws its own ring; outlining the whole step reads as an error box. */
-.mathmaster-systems-embedded-step-algebra:focus {
+   which draws its own ring; outlining the whole step after a pointer press
+   reads as an error box. Guarded by :not(:focus-visible): when the reveal
+   followed a KEYBOARD action Chromium matches :focus-visible on this
+   programmatic focus and the ring stays, so a keyboard student can see where
+   focus went (WCAG 2.4.7). Nothing is suppressed for keyboard focus. */
+.mathmaster-systems-embedded-step-algebra:focus:not(:focus-visible) {
   outline: none;
 }
 
@@ -172,7 +176,6 @@
 .mathmaster-systems-variable-drop.is-armed {
   border-color: var(--mm-primary-border);
   background: var(--mm-primary-subtle);
-  outline: none;
 }
 
 .mathmaster-systems-variable-drop.is-drag-over {
@@ -480,7 +483,6 @@
 .mathmaster-systems-operation-rail button.is-selected {
   border-color: #174ea6;
   background: var(--mm-primary-soft);
-  outline: none;
 }
 
 .mathmaster-systems-operation-symbol {
