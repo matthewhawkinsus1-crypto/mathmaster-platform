@@ -64,7 +64,7 @@ const ARTIFACTS = process.env.ARTIFACTS_DIR || path.join(ROOT, 'tests/browser/ar
 const PLAYWRIGHT_MODULE = process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs';
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH || undefined;
 const { chromium } = await import(PLAYWRIGHT_MODULE);
-const { sanitizeWorkspaceDraftValue } = await import(path.join(ROOT, 'functions/shared/workspaceDraftSchema.mjs'));
+const { TOOL_WORKSPACE_FRESH_FIELD, sanitizeWorkspaceDraftValue } = await import(path.join(ROOT, 'functions/shared/workspaceDraftSchema.mjs'));
 const { deriveLinearMultipleRepresentations, resolveRequiredCards } = await import(path.join(ROOT, 'functions/shared/toolMath/representationBridge/linearMultipleRepresentationsMath.mjs'));
 
 const LAPTOP = { width: 1366, height: 768 };
@@ -204,8 +204,11 @@ const overflow = (page) => page.evaluate(() => {
 // phone's portrait bar.
 const platformUndo = (page) => page.locator('.mathmaster-universal-undo:visible').first();
 // The work as a student built it, without the record's layout and Check
-// fingerprints — what an Undo is allowed to change.
-const mathOf = ({ expandedCards: _layout, checkedCards: _checks, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
+// fingerprints — what an Undo is allowed to change — and without the fresh
+// marker: the fields edited on a device that has not yet seen the server's
+// copy (usePersistentToolState.js), which this harness never syncs. It is
+// bookkeeping, not work, and grows with every first edit of a field.
+const mathOf = ({ expandedCards: _layout, checkedCards: _checks, [TOOL_WORKSPACE_FRESH_FIELD]: _fresh, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
 /**
  * Record what screen readers would be told: every node or text added to any
  * live region on the page (aria-live, role=status/alert), including regions
@@ -508,7 +511,9 @@ journeys['cw1-free-order'] = async (browser) => {
     await page.getByRole('button', { name: label }).first().click();
     await settle(page, 150);
   }
-  const withoutLayout = ({ expandedCards: _layout, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
+  // The work without the layout — and without the fresh marker, which a first
+  // collapse extends with `expandedCards` (see mathOf): bookkeeping, not work.
+  const withoutLayout = ({ expandedCards: _layout, [TOOL_WORKSPACE_FRESH_FIELD]: _fresh, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
   check(withoutLayout(await work(page, id)) === withoutLayout(beforeCollapse), 'collapsing and reopening every card changes no work');
   check(await hasCorrectBadge(page, 'graphPointSlope'), 'verdicts survive collapse/expand');
 

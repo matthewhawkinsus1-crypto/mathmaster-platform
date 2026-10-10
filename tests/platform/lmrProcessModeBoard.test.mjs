@@ -47,10 +47,25 @@ test('what the student has established is the shared marking\'s — the function
   // A Check asks the same marking, with the activity's feedback policy.
   const check = region(file(PROCESS_FILES[0]), 'const check = () => {', '\n  };', 'the workspace Check');
   assert.match(check, /decideProcessCheck\(\{[^}]*reveal: canCheck/);
-  // Work written for another version is cleared, never shown or reused.
-  const stale = region(board(), 'useEffect(() => {\n    if (!processMode) return;', '}, [processMode', 'the stale-work reset');
-  assert.match(stale, /if \(processState\?\.stale\) setProcessLog\(null\);/);
-  assert.match(stale, /rawProcessDraft\.bind !== processBinding\) setRawProcessDraft\(null\)/);
+  // Work written for another version is never shown or reused: the marking
+  // ignores a log bound to another version (tests/tools/lmrProcessMode.test.mjs,
+  // "another version starts clean"), and the work in progress opens empty for
+  // one.
+  const source = board();
+  assert.match(region(source, 'const processDraft = useMemo(', ');', 'the work in progress'), /readProcessDraft\(rawProcessDraft, processBinding\)/);
+  // ...and it is never ERASED for being seen. Until the first Submit pins the
+  // version on the server, another Chromebook can be dealt another version
+  // under the same draft key. Erasing the work there reached every device with
+  // the next keystroke, and the original version came back with every card
+  // locked. So the log changes only when the student records work, and the
+  // work in progress only through setProcessDraft, which binds it to the
+  // version on screen.
+  const record = region(source, 'const recordProcess = (entry, { target, keepOpen = false }) => {', '\n  };', 'recording work');
+  assert.equal((source.match(/\bsetProcessLog\(/g) || []).length, 1, 'one place writes the process log');
+  assert.match(record, /setProcessLog\(nextLog\);/, 'and it records the student\'s work');
+  const rebind = region(source, 'const setProcessDraft = useCallback(', '}), [setRawProcessDraft, processBinding]);', 'setProcessDraft');
+  assert.equal((source.match(/\bsetRawProcessDraft\(/g) || []).length, 1, 'one place writes the work in progress');
+  assert.match(rebind, /setRawProcessDraft\(\(raw\) => \{[\s\S]*bind: processBinding/, 'and it binds the work to the version on screen');
 });
 
 test('a card the student\'s facts have not opened says what it waits for and offers a way to find it — it holds nothing to type into', () => {

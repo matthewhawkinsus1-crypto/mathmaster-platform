@@ -32,6 +32,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import {
   parseQuestionDraftKey,
   questionDraftEnvelopeVersion,
+  questionDraftExists,
   questionDraftRestoreGeneration,
   questionDraftSavedAt,
   readQuestionDraft,
@@ -40,6 +41,13 @@ import {
   studentInputSince,
   writeQuestionDraft,
 } from '../../questionDraftStorage.js';
+import {
+  TOOL_WORKSPACE_FRESH_FIELD,
+  freshToolWorkspaceEdits,
+  isSyncableDraftKey,
+  isToolWorkspaceDraftKey,
+  toolWorkspaceFields,
+} from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { recordClientDiagnostic } from '../../platform/runtime/clientDiagnostics.js';
 
 /*
@@ -78,10 +86,39 @@ export const toolDraftKey = (draftKey, scope = DEFAULT_TOOL_DRAFT_SCOPE) => (
 
 const isPlainRecord = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
+/*
+ * A WORKSPACE THIS DEVICE STARTS FROM NOTHING SAYS SO (`__fresh`).
+ *
+ * The question opens before the server's copy of its drafts is read (PQ-044),
+ * so on a Chromebook that has never held this work the record starts empty —
+ * and every write saves the WHOLE record. The student's first edit there used
+ * to become the newest copy of the entire workspace, and replaced the full
+ * board on the server and on every device (workspaceDraftSchema.mjs, "a
+ * workspace a device started from nothing").
+ *
+ * Such a record carries `__fresh`: the fields its student has edited. The
+ * server merge lays those over the copy it holds instead of swapping the
+ * record in, and reconcileToolWorkspaceDrafts settles this device's copy the
+ * same way once the read lands; either drops the marker. A record begun on
+ * anything stored — the student's own copy, a restored one, a reset's
+ * tombstone — is not fresh, which is what keeps "Start over" stuck. Only a
+ * synced tool workspace is marked: a secure item's or a preview's never is.
+ */
+const tracksFreshness = (key) => isToolWorkspaceDraftKey(key) && isSyncableDraftKey(key);
+
 const readRecord = (key) => {
   const stored = readQuestionDraft(key, null);
-  return isPlainRecord(stored) ? { ...stored } : {};
+  const fields = isPlainRecord(stored) ? toolWorkspaceFields(stored) : {};
+  if (!tracksFreshness(key)) return { fields, fresh: null };
+  const edited = freshToolWorkspaceEdits(stored);
+  if (edited) return { fields, fresh: new Set(edited) };
+  return { fields, fresh: questionDraftExists(key) ? null : new Set() };
 };
+
+/** What is written for a store: its fields, and its fresh marker while it has one. */
+const storedRecord = (store) => (store.fresh
+  ? { ...store.record, [TOOL_WORKSPACE_FRESH_FIELD]: [...store.fresh] }
+  : store.record);
 
 /*
  * One parsed record per key, shared by every field of the tool showing it.
@@ -113,7 +150,8 @@ const loadStore = (key) => {
   const generation = questionDraftRestoreGeneration();
   let store = stores.get(key);
   if (!store) {
-    store = { key, record: readRecord(key), generation, timer: null, pending: false, pendingEdit: false };
+    const loaded = readRecord(key);
+    store = { key, record: loaded.fields, fresh: loaded.fresh, generation, timer: null, pending: false, pendingEdit: false };
     stores.set(key, store);
     evictOldest();
     return store;
@@ -121,9 +159,12 @@ const loadStore = (key) => {
   // A server workspace restore wrote straight into local storage behind us.
   // Its copy was already checked against this device's and against the
   // question's last canonical attempt, so it outranks anything cached here.
+  // So does a fresh record settled against the server's copy.
   if (store.generation !== generation) {
     flushStore(store);
-    store.record = readRecord(key);
+    const loaded = readRecord(key);
+    store.record = loaded.fields;
+    store.fresh = loaded.fresh;
     store.generation = generation;
   }
   return store;
@@ -139,7 +180,7 @@ function flushStore(store) {
   // An edit if any change it coalesced was one (see commitField).
   const edit = store.pendingEdit === true;
   store.pendingEdit = false;
-  writeQuestionDraft(store.key, store.record, { edit });
+  writeQuestionDraft(store.key, storedRecord(store), { edit });
   return true;
 }
 
@@ -172,15 +213,19 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
  */
 const commitField = (key, field, value, coalesceMs, edit = true) => {
   if (!key) return false;
-  const store = stores.get(key) || loadStore(key);
+  // Through loadStore, so an edit that lands after a restore (or a fresh
+  // record's settling) and before the remount is applied to what was
+  // restored, not to the cached copy it replaced.
+  const store = loadStore(key);
   store.record = { ...store.record, [field]: value };
+  if (store.fresh && edit) store.fresh.add(field);
   if (!coalesceMs) {
     store.pending = false;
     // A coalesced edit still waiting goes out with this write, as an edit.
     const coalescedEdit = store.pendingEdit === true;
     store.pendingEdit = false;
     if (store.timer !== null) { clearTimeout(store.timer); store.timer = null; }
-    return writeQuestionDraft(key, store.record, { edit: edit || coalescedEdit }) !== false;
+    return writeQuestionDraft(key, storedRecord(store), { edit: edit || coalescedEdit }) !== false;
   }
   store.pending = true;
   store.pendingEdit = store.pendingEdit === true || edit;
@@ -426,7 +471,7 @@ export const stampToolDraftSubmission = (draftKey) => {
     flushStore(store);
     // Deliberately the newest time: the student just submitted this work,
     // here (PQ-044 keeps every other unchanged write at its old time).
-    writeQuestionDraft(key, store.record, { edit: true });
+    writeQuestionDraft(key, storedRecord(store), { edit: true });
     stamped += 1;
   });
   return stamped;

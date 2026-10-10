@@ -711,13 +711,17 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     const next = typeof updater === 'function' ? updater(current) : updater;
     return readProcessDraft({ ...next, bind: processBinding }, processBinding);
   }), [setRawProcessDraft, processBinding]);
-  // Work recorded for another question — another version of a Question Family
-  // slot — establishes nothing here, so it is cleared rather than kept.
-  useEffect(() => {
-    if (!processMode) return;
-    if (processState?.stale) setProcessLog(null);
-    if (rawProcessDraft && rawProcessDraft.bind !== processBinding) setRawProcessDraft(null);
-  }, [processMode, processState?.stale, rawProcessDraft, processBinding, setProcessLog, setRawProcessDraft]);
+  // Work recorded for another version of this Question Family slot
+  // establishes nothing here — resolveLmrProcess ignores a log bound to
+  // another version, and readProcessDraft opens an empty workspace for one —
+  // but it is never erased just because it was seen. Until the first Submit
+  // pins the version on the server, another Chromebook can be dealt a
+  // different version under this same draft key, and a question that cannot
+  // be read for a moment binds as 'lmr1-invalid'. Erasing on sight made either
+  // permanent: the next keystroke synced the erased log to every device, and
+  // the device still showing the original version came back to locked cards.
+  // The first work recorded on this version replaces it (appendProcessEntry
+  // starts a log bound to this version; setProcessDraft rebinds the draft).
   const processRelevant = useMemo(() => (processMode ? lmrRelevantFacts(questionData) : []), [processMode, questionData]);
   const processSnapStep = useMemo(() => (processMode ? lmrProcessSnapStep(questionData, canonicalFacts) : 1), [processMode, questionData, canonicalFacts]);
   // The embedded algebra workspaces keep their drafts beside this question's,

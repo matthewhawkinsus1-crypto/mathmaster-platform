@@ -129,6 +129,7 @@ import {
   clearResumeAction,
   questionDraftSavedAt,
   readResumeAction,
+  reconcileToolWorkspaceDrafts,
   removeAssignmentDrafts,
   restoreQuestionDrafts,
   saveResumeAction,
@@ -363,6 +364,15 @@ import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAudit
 import StudentDolRecoveryRow from './components/teacher/StudentDolRecoveryRow.jsx';
 import { completedRecoverySections, heldRecoverySections, warmupChallengeCounts } from './platform/recovery/teacherRecoveryAudit.js';
 import { buildStudentRecoverySummary } from './platform/recovery/studentRecoveryModel.js';
+import {
+  buildStudentRecoveryDiscovery,
+  groupRecoveryOpportunitiesByAssignment,
+  markRecoveryNotified,
+  markRecoverySeen,
+  recoveryNotice,
+  recoveryWasNotified,
+} from './platform/recovery/studentRecoveryDiscovery.js';
+import { RecoveryInlineNotice } from './components/student/RecoveryOpportunities.jsx';
 import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/stickyHeightRef.js';
@@ -538,6 +548,16 @@ const TestCyclePreview = lazy(() => import('./components/teacher/TestCyclePrevie
 // The Recovery runner mounts QuestionEngine, and with it MathLive (~780 KB):
 // a student who opens a Recovery fetches it then, not every student at sign-in.
 const SectionRecoveryRunner = lazy(() => import('./components/student/SectionRecoveryRunner.jsx'));
+// A stable "none", so a signed-in teacher's clock tick never hands the student
+// surfaces a new empty list.
+const NO_RECOVERY_OPPORTUNITIES = Object.freeze([]);
+// The discovery scope that means "every assignment" (the dashboard screens);
+// otherwise the scope is the one open assignment's id.
+const RECOVERY_DISCOVERY_ALL = '__allAssignments__';
+// Where a newly open Recovery is announced: the screens a student chooses
+// their next step from (Home, Assignments, Grades) — never inside a Live
+// Challenge, My Math Path or a secure exam.
+const RECOVERY_ANNOUNCEMENT_MODES = new Set(['assignments', 'assignmentsCenter', 'grades']);
 
 
 
@@ -1397,6 +1417,89 @@ function App() {
   useEffect(() => {
     if (!recoveryAssignmentId) setRecoverySession(null);
   }, [recoveryAssignmentId]);
+
+  /*
+   * EVERY OPEN RECOVERY, WHERE A STUDENT WILL SEE IT.
+   *
+   * The summary above exists only while View Results is open, and that was the
+   * only place a Recovery could be found. Home, the Assignments Center and the
+   * assignment's own header read this list instead. It is built per assignment
+   * by the same summary — the original read after teacher overrides and BEFORE
+   * any Recovery — so no surface offers what the panel would not. `now` is a
+   * dependency because a Recovery opens when a Warm-Up or DOL window closes,
+   * and the precise student clock wakes at exactly that second.
+   *
+   * Built only for what is on screen: every assignment on the dashboard
+   * screens, and inside an assignment only that one — the tracker changes with
+   * every step a student saves there, and a summary costs a few milliseconds
+   * per assignment on a Chromebook.
+   */
+  const recoveryDiscoveryScope = user?.role !== 'student' || !user?.id
+    ? null
+    : activeView === 'dashboard'
+      ? RECOVERY_DISCOVERY_ALL
+      : (activeView === 'assignment' && activeAssignmentId) || null;
+  const studentRecoveryDiscovery = useMemo(() => {
+    if (!recoveryDiscoveryScope) return NO_RECOVERY_OPPORTUNITIES;
+    return buildStudentRecoveryDiscovery({
+      assignments: recoveryDiscoveryScope === RECOVERY_DISCOVERY_ALL
+        ? assignments
+        : assignments.filter((assignment) => assignment.id === recoveryDiscoveryScope),
+      trackerByAssignment: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment) || {},
+      sectionRecoveryByAssignment,
+      studentId: user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      schedule: classSchedule,
+      studentProfile: user.profile || null,
+      nowValue: now,
+    });
+  }, [recoveryDiscoveryScope, user?.id, user?.classId, user?.classPeriod, user?.profile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
+  const studentRecoveryByAssignment = useMemo(
+    () => groupRecoveryOpportunitiesByAssignment(studentRecoveryDiscovery),
+    [studentRecoveryDiscovery],
+  );
+
+  // Looking at a Recovery's panel (or its runner, which sits on the same
+  // route) is seeing it: its NEW mark goes, and it is never announced after.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user?.id || !recoveryAssignmentId) return;
+    studentRecoverySummary.forEach((entry) => markRecoverySeen(user.id, {
+      assignmentId: recoveryAssignmentId,
+      section: entry.section,
+      state: entry.state,
+      plan: entry.plan,
+    }));
+  }, [studentRecoverySummary, recoveryAssignmentId, user?.role, user?.id]);
+
+  /*
+   * A RECOVERY THAT OPENS IS ANNOUNCED — ONCE.
+   *
+   * Like a Test Cycle result, a Recovery opening is news a student should not
+   * have to go looking for. Unlike one, it is a standing offer with an end
+   * date, so it is announced at the first visit that finds it as well as the
+   * moment it opens while the student is signed in (the Warm-Up or DOL window
+   * closing): one quiet toast per Recovery and phase — available, then
+   * unlocked — per device, while the Home card keeps it in view until the end
+   * date. Only where a student chooses what to do next, never over a
+   * question, a Live Challenge or a secure exam.
+   */
+  const recoveryAnnouncedRef = useRef(new Set());
+  useEffect(() => {
+    if (user?.role !== 'student' || !user?.id) return;
+    if (activeView !== 'dashboard' || !RECOVERY_ANNOUNCEMENT_MODES.has(studentDashboardMode)) return;
+    if (isSecureExamActive()) return;
+    const fresh = studentRecoveryDiscovery.filter((opportunity) => opportunity.notify
+      && !recoveryAnnouncedRef.current.has(opportunity.noticeKey)
+      && !recoveryWasNotified(user.id, opportunity));
+    if (!fresh.length) return;
+    fresh.forEach((opportunity) => {
+      recoveryAnnouncedRef.current.add(opportunity.noticeKey);
+      markRecoveryNotified(user.id, opportunity);
+    });
+    const notice = recoveryNotice(fresh);
+    if (notice) (notice.tone === 'success' ? toastSuccess : toastInfo)(notice.title, notice.message);
+  }, [studentRecoveryDiscovery, activeView, studentDashboardMode, user?.role, user?.id, toastInfo, toastSuccess]);
 
   // Active students per class, for Pre-Flight's "enough distinct questions
   // for this class" check. Counts only: no identities leave this memo.
@@ -3793,7 +3896,14 @@ function App() {
             // its own submission (canonicalResponseTime.js).
             canonicalSavedAt: (entry) => canonicalResponseSavedAt(normalizeQuestionRecord(assignmentGrades[entry?.questionIndex])),
           });
-          if (restoreQuestionDrafts(restorable)) {
+          // A tool workspace this device started from nothing — the student
+          // touched it before this read landed — is settled against the
+          // server's copy first: merged, so a newer copy is not then swapped
+          // in over the student's edits, nor their partial copy kept over the
+          // server's whole one (reconcileToolWorkspaceDrafts).
+          const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId });
+          const restored = restoreQuestionDrafts(restorable);
+          if (restored || settled) {
             setDraftRestoreFocus({
               questionIndex: currentQuestionIndexRef.current,
               position: answerFocusPosition(assignmentQuestionStageRef.current),
@@ -5773,6 +5883,24 @@ function App() {
     } finally {
       setRecoveryBusySection(null);
     }
+  };
+
+  // One door into a Recovery from anywhere a student finds it — Home, the
+  // Assignments Center, or the assignment's own header. It lands on the
+  // assignment's Results route, where the panel and the runner already live,
+  // and opens the practice, the server-built second try, or the one in
+  // progress. Leaving an open assignment saves its activity first, as Back does.
+  const openStudentRecovery = (opportunity) => {
+    const assignmentId = opportunity?.assignmentId;
+    const section = opportunity?.section;
+    if (!assignmentId || !section) return;
+    if (activeView === 'assignment' && activeAssignmentId) flushAssignmentActivity(activeAssignmentId).catch(() => {});
+    openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
+    if (opportunity.action === 'start') {
+      startStudentRecovery(assignmentId, section);
+      return;
+    }
+    setRecoverySession({ assignmentId, section, mode: opportunity.action === 'continue' ? 'assessment' : 'practice' });
   };
 
   const startTeacherPreview = (assignmentId, { lessonRuntime = false } = {}) => {
@@ -11010,6 +11138,16 @@ function App() {
               <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginTop: '7px', lineHeight: 1.5 }}>
                 {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText}<br />{dates.finalLabel}: {dates.finalText}</>; })()}
               </div>
+              {/* A student who opens the assignment from a Google Classroom link
+                  never passes Home or View Results; the assignment itself says
+                  its Warm-Up or DOL has a second try open. */}
+              {!preview && user?.role === 'student' && (
+                <RecoveryInlineNotice
+                  opportunities={studentRecoveryByAssignment[assignment.id]}
+                  studentId={user.id}
+                  onOpen={openStudentRecovery}
+                />
+              )}
               {!preview && user?.role === 'student' && (
                 <StudentSupportTools
                   profile={user.profile}
@@ -12868,6 +13006,9 @@ function App() {
             onContinue={(assignmentId) => startAssignment(assignmentId)}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
+            recoveryByAssignment={studentRecoveryByAssignment}
+            studentId={user.id}
+            onOpenRecovery={openStudentRecovery}
           />
         </>,
       );
@@ -12991,6 +13132,8 @@ function App() {
         rewardWallet={studentRewardWallet}
         hasNewRewards={newRewardIds.size > 0}
         onOpenRewards={() => openStudentDashboardMode('rewards')}
+        recoveryOpportunities={studentRecoveryDiscovery}
+        onOpenRecovery={openStudentRecovery}
         recommended={{
           student: studentRecord,
           assignments: studentPathAssignments,
