@@ -42,6 +42,11 @@ const browser = await chromium.launch(launchOptions);
 const failures = [];
 const report = [];
 
+const applyTextScale = async (page) => {
+  if (!page.__cdp || page.__textScale === 1) return;
+  await page.__cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * page.__textScale, fixed: 13 * page.__textScale } });
+};
+
 const newPage = async ({ width, height, mobile = false, textScale = 1 }) => {
   const context = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile, colorScheme: 'light', reducedMotion: 'reduce' });
   await context.route('**/*', (route) => {
@@ -50,17 +55,21 @@ const newPage = async ({ width, height, mobile = false, textScale = 1 }) => {
     return route.abort();
   });
   const page = await context.newPage();
+  page.__textScale = textScale;
   if (textScale !== 1) {
-    // The browser text-size setting: Chromium's default font sizes.
-    const cdp = await context.newCDPSession(page);
-    await cdp.send('Page.enable');
-    await cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * textScale, fixed: 13 * textScale } });
+    // The browser text-size setting: Chromium's default font sizes. A
+    // renderer swap on navigation can drop it, so it is re-applied before
+    // every measurement (applyTextScale) and the root size is checked.
+    page.__cdp = await context.newCDPSession(page);
+    await page.__cdp.send('Page.enable');
+    await applyTextScale(page);
   }
   return { context, page };
 };
 
 // What 1.4.10 / 1.4.4 failures look like, measured in the page.
-const MEASURE = () => {
+const MEASURE = (rootSelector) => {
+  const root = (rootSelector && document.querySelector(rootSelector)) || document.body;
   const EXEMPT = 'svg, canvas, table, [role="img"], [role="grid"], [role="table"], math-field, .ML__container, [data-reflow-exempt], [aria-hidden="true"], .mathmaster-responsive-canvas, pre, code';
   const exempt = (element) => Boolean(element.closest(EXEMPT));
   const visible = (element) => {
@@ -83,7 +92,7 @@ const MEASURE = () => {
   // A horizontal page scroll: who sticks out past the right edge?
   const wide = [];
   if (scrollX > 1) {
-    for (const element of document.body.querySelectorAll('*')) {
+    for (const element of root.querySelectorAll('*')) {
       if (exempt(element) || !visible(element)) continue;
       const rect = element.getBoundingClientRect();
       if (rect.right > window.innerWidth + 1 && rect.left < window.innerWidth) {
@@ -92,22 +101,48 @@ const MEASURE = () => {
       }
     }
   }
-  // Text cut off by its own box: overflow hidden/clip and content larger.
+  // Text cut off by a clipping box: a text element that lies (partly) outside
+  // an ancestor with overflow hidden/clip, and that the student cannot scroll
+  // to — no scrollable box between the two.
   const clipped = [];
-  for (const element of document.body.querySelectorAll('*')) {
-    if (exempt(element) || !visible(element)) continue;
-    const style = getComputedStyle(element);
-    const hidesX = /hidden|clip/.test(style.overflowX);
-    const hidesY = /hidden|clip/.test(style.overflowY);
-    if (!hidesX && !hidesY) continue;
-    if (srOnly(element)) continue;
-    const text = (element.innerText || '').trim();
-    if (!text) continue;
-    const overX = hidesX && element.scrollWidth > element.clientWidth + 2 && style.textOverflow !== 'ellipsis';
-    const overY = hidesY && element.scrollHeight > element.clientHeight + 2 && !style.webkitLineClamp?.match?.(/\d/);
-    if (overX || overY) clipped.push(`${element.tagName.toLowerCase()}.${String(element.className).split(' ')[0] || ''}${overX ? ' x' : ''}${overY ? ' y' : ''} "${text.slice(0, 40).replace(/\s+/g, ' ')}"`);
+  const scrollable = (node) => /(auto|scroll)/.test(getComputedStyle(node).overflowY + getComputedStyle(node).overflowX);
+  for (const element of root.querySelectorAll('*')) {
+    if (exempt(element) || !visible(element) || srOnly(element) || !ownText(element)) continue;
+    const rect = element.getBoundingClientRect();
+    for (let node = element.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+      if (scrollable(node)) break;
+      const style = getComputedStyle(node);
+      if (!/hidden|clip/.test(style.overflowX + style.overflowY) || node === document.body) continue;
+      const box = node.getBoundingClientRect();
+      const outY = /hidden|clip/.test(style.overflowY) && (rect.bottom > box.bottom + 2 || rect.top < box.top - 2);
+      const outX = /hidden|clip/.test(style.overflowX) && (rect.right > box.right + 2 || rect.left < box.left - 2) && style.textOverflow !== 'ellipsis' && getComputedStyle(element).textOverflow !== 'ellipsis';
+      if (outY || outX) {
+        clipped.push(`${element.tagName.toLowerCase()}.${String(element.className).split(' ')[0] || ''} "${ownText(element).slice(0, 30)}" cut by ${node.tagName.toLowerCase()}.${String(node.className).split(' ')[0] || ''}${outX ? ' x' : ''}${outY ? ' y' : ''}`);
+        break;
+      }
+    }
   }
-  return { scrollX, wide: wide.slice(0, 8), clipped: [...new Set(clipped)].slice(0, 12), clippedCount: clipped.length, ownTextProbe: ownText(document.body).length };
+  // Content pushed past the right edge (html clips overflow-x, so this is the
+  // reflow failure that shows no scrollbar): any non-exempt text box whose
+  // right edge is beyond the viewport.
+  const offscreen = [];
+  for (const element of root.querySelectorAll('*')) {
+    if (exempt(element) || !visible(element) || srOnly(element) || !ownText(element)) continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.right > window.innerWidth + 1 || rect.left < -1) offscreen.push(`${element.tagName.toLowerCase()}.${String(element.className).split(' ')[0] || ''} "${ownText(element).slice(0, 30)}" ${Math.round(rect.left)}..${Math.round(rect.right)}`);
+  }
+  // Every text box's font size, in document order: compared with the same
+  // scene at 100% to find text that did not grow (1.4.4).
+  const sizes = [];
+  for (const element of root.querySelectorAll('*')) {
+    if (exempt(element) || !visible(element) || srOnly(element) || !ownText(element)) continue;
+    sizes.push({ size: parseFloat(getComputedStyle(element).fontSize), what: `${element.tagName.toLowerCase()}.${String(element.className).split(' ')[0] || ''} "${ownText(element).slice(0, 24)}"` });
+  }
+  return {
+    rootFont: getComputedStyle(document.documentElement).fontSize,
+    scrollX, wide: wide.slice(0, 8), clipped: [...new Set(clipped)].slice(0, 12), clippedCount: clipped.length,
+    offscreen: [...new Set(offscreen)].slice(0, 12), offscreenCount: offscreen.length, sizes,
+  };
 };
 
 const runScenes = async (setting, callback) => {
@@ -126,7 +161,8 @@ const runScenes = async (setting, callback) => {
           failures.push(`${label} ${setting.id}: could not reach the scene — ${error.message.split('\n')[0]}`);
           break;
         }
-        await page.waitForTimeout(500);
+        await applyTextScale(page);
+        await page.waitForTimeout(700);
         await callback(page, label, screen);
       }
     } catch (error) {
@@ -235,19 +271,40 @@ if (CHECKS.has('s5')) {
   await context.close();
 }
 
+// Text that did not grow at 200%: the same scene's text boxes at 100%, in
+// document order, at the same viewport.
+const baselineSizes = new Map();
+const unscaled = (label, settingId, sizes) => {
+  const base = baselineSizes.get(`${label}|${settingId.replace('-200%', '')}`);
+  if (!base || base.length !== sizes.length) return { comparable: false, list: [] };
+  const list = sizes.filter((entry, index) => entry.size < base[index].size * 1.5).map((entry, index) => entry.what);
+  return { comparable: true, list };
+};
+
 if (CHECKS.has('text')) {
   for (const setting of [
+    { id: 'chromebook', width: 1366, height: 768, textScale: 1, baseline: true },
+    { id: 'phone', width: 390, height: 844, mobile: true, textScale: 1, baseline: true },
     { id: 'chromebook-200%', width: 1366, height: 768, textScale: 2 },
     { id: 'phone-200%', width: 390, height: 844, mobile: true, textScale: 2 },
     { id: 'reflow-320', width: 320, height: 640, mobile: true, textScale: 1 },
   ]) {
-    await runScenes(setting, async (page, label) => {
-      const result = await page.evaluate(MEASURE);
-      report.push({ label, setting: setting.id, ...result });
-      const fine = result.scrollX <= 1 && result.clippedCount === 0;
-      console.log(`${fine ? 'ok  ' : 'FAIL'} text ${label.padEnd(30)} ${setting.id.padEnd(16)} scrollX=${result.scrollX} clipped=${result.clippedCount}`);
+    await runScenes(setting, async (page, label, screen) => {
+      // A screen's `include` (the certification's: the assignment tools are
+      // measured inside .mathmaster-question-stage, not the harness's
+      // stand-in navigator).
+      const result = await page.evaluate(MEASURE, screen.include || null);
+      if (setting.baseline) { baselineSizes.set(`${label}|${setting.id}`, result.sizes); return; }
+      if (setting.textScale > 1 && parseFloat(result.rootFont) < 16 * 1.9) failures.push(`${label} ${setting.id}: the text-size setting did not apply (root ${result.rootFont}); the measurement is void`);
+      const grow = setting.textScale > 1 ? unscaled(label, setting.id, result.sizes) : { comparable: true, list: [] };
+      const { sizes, ...kept } = result;
+      report.push({ label, setting: setting.id, ...kept, unscaled: grow.list, unscaledComparable: grow.comparable, textBoxes: sizes.length });
+      const fine = result.scrollX <= 1 && result.clippedCount === 0 && result.offscreenCount === 0 && grow.list.length === 0;
+      console.log(`${fine ? 'ok  ' : 'FAIL'} text ${label.padEnd(30)} ${setting.id.padEnd(16)} root=${result.rootFont} scrollX=${result.scrollX} clipped=${result.clippedCount} offscreen=${result.offscreenCount} unscaled=${grow.comparable ? `${grow.list.length}/${sizes.length}` : 'n/a'}`);
       if (result.scrollX > 1) failures.push(`${label} ${setting.id}: horizontal scroll ${result.scrollX}px (${result.wide.join('; ')})`);
       if (result.clippedCount) failures.push(`${label} ${setting.id}: ${result.clippedCount} clipped text box(es): ${result.clipped.join('; ')}`);
+      if (result.offscreenCount) failures.push(`${label} ${setting.id}: ${result.offscreenCount} text box(es) past the viewport edge: ${result.offscreen.join('; ')}`);
+      if (grow.list.length) failures.push(`${label} ${setting.id}: ${grow.list.length} text box(es) did not grow at 200%: ${[...new Set(grow.list)].slice(0, 10).join('; ')}`);
       await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true }).catch(() => {});
     });
   }

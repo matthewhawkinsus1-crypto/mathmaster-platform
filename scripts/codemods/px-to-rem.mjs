@@ -5,6 +5,8 @@
  *   node scripts/codemods/px-to-rem.mjs            # dry run: what would change, per file
  *   node scripts/codemods/px-to-rem.mjs --write    # rewrite the files
  *   node scripts/codemods/px-to-rem.mjs --write src/components/student   # only under these paths
+ *   node scripts/codemods/px-to-rem.mjs --write --include-app-shell src/App.jsx src/App.css src/app
+ *                                                    # job G's run, after the App.jsx split lands
  *
  * About 2,190 inline font sizes were written in px, so a student who sets the
  * browser's text size to 200% got no bigger text. This rewrites each one to
@@ -181,11 +183,11 @@ const walk = (dir, root, out = []) => {
   return out;
 };
 
-export const runCodemod = ({ root, paths = ['src'], write = false } = {}) => {
+export const runCodemod = ({ root, paths = ['src'], write = false, includeAppShell = false } = {}) => {
   const files = paths.flatMap((entry) => {
     const absolute = path.resolve(root, entry);
     return statSync(absolute).isDirectory() ? walk(absolute, root) : [path.relative(root, absolute).replaceAll('\\', '/')];
-  }).filter((relative) => relative.startsWith('src/') && !EXCLUDED(relative));
+  }).filter((relative) => relative.startsWith('src/') && (includeAppShell || !EXCLUDED(relative)));
   const report = [];
   for (const relative of files) {
     const absolute = path.join(root, relative);
@@ -200,9 +202,12 @@ export const runCodemod = ({ root, paths = ['src'], write = false } = {}) => {
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const args = process.argv.slice(2);
   const write = args.includes('--write');
+  // Job G's run, once its App.jsx split has landed: --include-app-shell
+  // src/App.jsx src/App.css src/app (src/main.jsx carries no font sizes).
+  const includeAppShell = args.includes('--include-app-shell');
   const paths = args.filter((arg) => !arg.startsWith('--'));
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-  const report = runCodemod({ root, paths: paths.length ? paths : ['src'], write });
+  const report = runCodemod({ root, paths: paths.length ? paths : ['src'], write, includeAppShell });
   const total = report.reduce((sum, row) => sum + row.changes, 0);
   const skipped = report.reduce((sum, row) => sum + row.skipped, 0);
   for (const row of report) console.log(`${row.changes.toString().padStart(4)} ${row.skipped ? `(${row.skipped} skipped) ` : ''}${row.file}`);

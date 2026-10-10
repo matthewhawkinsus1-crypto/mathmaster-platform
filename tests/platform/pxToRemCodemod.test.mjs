@@ -78,7 +78,24 @@ test('idempotent: a second run changes nothing', () => {
   assert.deepEqual(transformCss(onceCss), { output: onceCss, changes: 0, skipped: 0 });
 });
 
-test("job G's files are never touched", () => {
+test("job G's files: skipped unless G's own run asks for them", async () => {
+  const { runCodemod } = await import('../../scripts/codemods/px-to-rem.mjs');
+  const { mkdtempSync, mkdirSync, writeFileSync, readFileSync: readText } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const path = await import('node:path');
+  const root = mkdtempSync(path.join(tmpdir(), 'px-to-rem-'));
+  mkdirSync(path.join(root, 'src/app'), { recursive: true });
+  writeFileSync(path.join(root, 'src/App.css'), '.a { font-size: 14px; }');
+  writeFileSync(path.join(root, 'src/app/Shell.jsx'), 'const a = { fontSize: 12 };');
+  writeFileSync(path.join(root, 'src/Other.jsx'), 'const a = { fontSize: 12 };');
+  assert.deepEqual(runCodemod({ root, paths: ['src'], write: true }).map((row) => row.file), ['src/Other.jsx']);
+  assert.equal(readText(path.join(root, 'src/App.css'), 'utf8'), '.a { font-size: 14px; }', 'untouched by a default run');
+  const g = runCodemod({ root, paths: ['src/App.css', 'src/app'], write: true, includeAppShell: true }).map((row) => row.file).sort();
+  assert.deepEqual(g, ['src/App.css', 'src/app/Shell.jsx']);
+  assert.match(readText(path.join(root, 'src/App.css'), 'utf8'), /font-size: calc\(14 \* var\(--mm-px\)\)/);
+});
+
+test("job G's files are never touched by default", () => {
   for (const file of ['src/App.jsx', 'src/App.css', 'src/app/shell/Shell.jsx', 'src/main.jsx']) assert.equal(EXCLUDED(file), true, file);
   for (const file of ['src/QuestionEngine.jsx', 'src/components/student/StudentGradeCenter.jsx', 'src/index.css']) assert.equal(EXCLUDED(file), false, file);
 });
