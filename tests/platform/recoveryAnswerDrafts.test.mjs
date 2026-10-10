@@ -329,6 +329,53 @@ test('tries used up travel as a bare flag, with the answer dropped', async () =>
   assert.deepEqual(entry.value, { v: 1, itemId: 'r1', fingerprint: 'fp-r1', response: null, closed: true });
 });
 
+test('review fixes: a near-limit table answer is stored; anything the server did not keep is never "saved to your account"', async () => {
+  // A filled table near the tool's 24,000-character cap, quote-heavy so the
+  // escaping inside `valueJson` grows it well past 30,000 bytes.
+  const work = { rows: Array.from({ length: 24 }, () => Array.from({ length: 150 }, () => 'a"')) };
+  const table = buildToolResponse({ question: { type: 'table' }, toolId: 'table', work });
+  assert.ok(table.value.length > 20_000 && !table.oversize, `near the cap (${table.value.length})`);
+  const server = memoryServer();
+  const sync = createRecoveryAnswerSync({ studentId: STUDENT, assignmentId: ASSIGNMENT, writer: 'page', flush: server.flush });
+  sync.save(key('r1'), buildRecoveryAnswerValue({ itemId: 'r1', fingerprint: 'fp-r1', response: table }));
+  await sync.whenIdle();
+  assert.ok(server.get().entries[0].valueJson.length > 30_000, `stored escaped (${server.get().entries[0].valueJson.length})`);
+  assert.equal(readRecoveryDraftEntries(server.get()).length, 1, 'the server keeps it');
+  assert.equal(sync.savedWhere(key('r1')), RECOVERY_ANSWER_SAVED_WHERE.ACCOUNT);
+
+  // A server that keeps nothing it was sent: the answer stays "this device only".
+  const dropping = createRecoveryAnswerSync({ studentId: STUDENT, assignmentId: ASSIGNMENT, writer: 'page-2', flush: async () => [] });
+  dropping.save(key('r2'), answer('r2', '4'));
+  await dropping.whenIdle();
+  assert.equal(dropping.savedWhere(key('r2')), RECOVERY_ANSWER_SAVED_WHERE.DEVICE);
+  assert.deepEqual(dropping.pendingKeys(), [], 'and it is not resent in a loop');
+});
+
+test('review fixes: tries used up on one device are never reopened by an answer from another', async () => {
+  const server = memoryServer();
+  const a = createRecoveryAnswerSync({ studentId: STUDENT, assignmentId: ASSIGNMENT, writer: 'a', flush: server.flush, now: () => 100 });
+  const b = createRecoveryAnswerSync({ studentId: STUDENT, assignmentId: ASSIGNMENT, writer: 'b', flush: server.flush, now: () => 999 });
+  a.save(key('r1'), buildRecoveryAnswerValue({ itemId: 'r1', fingerprint: 'fp-r1', closed: true }));
+  await a.whenIdle();
+  b.save(key('r1'), answer('r1', '7'));
+  await b.whenIdle();
+  const [stored] = readRecoveryDraftEntries(server.get());
+  assert.equal(stored.value.closed, true, 'the server keeps it closed');
+  assert.equal(b.entry(key('r1')).value.closed, true, 'and the other device learns it is over');
+});
+
+test('review fixes: a stopped sync never rewrites this device\'s copy', async () => {
+  const gate = deferred();
+  let writes = 0;
+  const sync = createRecoveryAnswerSync({ studentId: STUDENT, assignmentId: ASSIGNMENT, writer: 'old', persist: () => { writes += 1; }, flush: () => gate.promise.then(() => []) });
+  sync.save(key('r1'), answer('r1', '5'));
+  const before = writes;
+  sync.stop();
+  gate.resolve();
+  await tick(); await tick();
+  assert.equal(writes, before);
+});
+
 /* --------------------------------------------------------------- wiring */
 
 test('the runner saves through the drafts, says where, and submits what every device saved', () => {
@@ -344,6 +391,10 @@ test('the runner saves through the drafts, says where, and submits what every de
   const sent = submit.indexOf('submitSectionRecovery(');
   assert.ok(prepared > -1 && sent > prepared, 'the server copy is read before Submit sends anything');
   assert.match(submit, /Object\.entries\(latest\.responses\)/, 'Submit sends the merged answers');
+  // Without the server copy, never a silent partial submission.
+  const unchecked = submit.indexOf('if (!latest.checkedAccount)');
+  assert.ok(unchecked > prepared && unchecked < sent, 'an unread account is said before anything is sent');
+  assert.match(submit, /couldn\\u2019t check your account for answers saved on another device/);
   // "Saved" alone only once the server has it.
   const copy = region(runner, 'export const RECOVERY_SAVED_COPY = Object.freeze({', '});', 'saved copy');
   assert.match(copy, /\[RECOVERY_ANSWER_SAVED_WHERE\.ACCOUNT\]: 'Answer saved to your MathMaster account/);

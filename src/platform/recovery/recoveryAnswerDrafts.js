@@ -46,7 +46,9 @@ export const RECOVERY_ANSWER_DRAFT_PURPOSE = 'sectionRecoveryAnswers';
 // A Recovery has a handful of questions per opportunity; this keeps the
 // newest answers if a student somehow accumulates far more.
 export const MAX_RECOVERY_ANSWER_ENTRIES = 120;
-export const MAX_RECOVERY_ANSWER_BYTES = 30_000;
+// A tool may send 24,000 characters of work, which JSON escaping inside
+// `valueJson` can nearly double; room for that and the envelope.
+export const MAX_RECOVERY_ANSWER_BYTES = 60_000;
 export const MAX_RECOVERY_DOCUMENT_BYTES = 400_000;
 
 /** The draft document's own assignment id: never the assignment's, so no assignment-draft reader sees it. */
@@ -183,12 +185,23 @@ export const readRecoveryAnswerValue = (value) => {
 
 /**
  * Which of two copies of one question's answer is the newer.
- * Same page: the higher revision, always. Different pages: the later edit;
- * a tie goes to `incoming` (the same page re-sending).
+ * Tries used up on a question instance are final: that copy wins over any
+ * answer to the same instance, so no device can reopen it. Otherwise, same
+ * page: the higher revision, always. Different pages: the later edit by each
+ * device's clock; a tie goes to `incoming` (the same page re-sending).
  */
+const entryValue = (entry) => {
+  if (entry?.value && typeof entry.value === 'object') return entry.value;
+  try { return JSON.parse(entry?.valueJson ?? 'null'); } catch { return null; }
+};
 export const newerRecoveryEntry = (current, incoming) => {
   if (!current) return incoming;
   if (!incoming) return current;
+  const before = entryValue(current);
+  const after = entryValue(incoming);
+  const sameInstance = !before?.fingerprint || !after?.fingerprint || before.fingerprint === after.fingerprint;
+  if (sameInstance && before?.closed === true && after?.closed !== true) return current;
+  if (sameInstance && after?.closed === true && before?.closed !== true) return incoming;
   if (current.writer && current.writer === incoming.writer) {
     return (Number(incoming.revision) || 0) >= (Number(current.revision) || 0) ? incoming : current;
   }
@@ -325,8 +338,13 @@ export const createRecoveryAnswerSync = ({
   let stopped = false;
   const idleWaiters = new Set();
 
-  const pendingKeys = () => [...entries.values()].filter((entry) => !entry.synced).map((entry) => entry.key);
+  // `refused`: sent, and the server did not keep it (too large, past a cap).
+  // It stays on this device, says so, and is not resent until changed.
+  const pendingKeys = () => [...entries.values()].filter((entry) => !entry.synced && !entry.refused).map((entry) => entry.key);
   const changed = () => {
+    // A stopped sync's late save must not overwrite the copy a newer page
+    // of this Recovery is keeping on this device.
+    if (stopped) return;
     persist(snapshot());
     onChange();
   };
@@ -375,7 +393,7 @@ export const createRecoveryAnswerSync = ({
 
   function kick() {
     if (stopped || inFlight || typeof flush !== 'function') return inFlight;
-    const sending = [...entries.values()].filter((entry) => !entry.synced);
+    const sending = [...entries.values()].filter((entry) => !entry.synced && !entry.refused);
     if (!sending.length) { failing = false; settleWaiters(); return null; }
     if (retryHandle !== null) { timers.clear(retryHandle); retryHandle = null; }
     const patch = buildRecoveryDraftPatch({ studentId, assignmentId, entries: sending });
@@ -394,12 +412,12 @@ export const createRecoveryAnswerSync = ({
           echoed.add(entry?.key);
           adopt(entry, { origin: 'server' });
         });
-        // A key the server did not echo is still acknowledged if this page's
-        // copy is exactly the one that was sent.
+        // A key the server did not echo back was not stored: never "saved to
+        // your account". It is kept on this device and says so.
         sending.forEach((sent) => {
           const current = entries.get(sent.key);
           if (echoed.has(sent.key) || !current) return;
-          if (current.writer === sent.writer && current.revision === sent.revision) entries.set(sent.key, { ...current, synced: true });
+          if (current.writer === sent.writer && current.revision === sent.revision) entries.set(sent.key, { ...current, synced: false, refused: true });
         });
         changed();
       })
@@ -455,7 +473,7 @@ export const createRecoveryAnswerSync = ({
       revision += 1;
       // After this page's last save and after any server copy it has seen.
       lastStamp = Math.max(now(), lastStamp + 1, (serverSavedAt.get(key) || 0) + 1);
-      entries.set(key, { key, value: clean, savedAt: lastStamp, writer, revision, synced: false, origin: 'here' });
+      entries.set(key, { key, value: clean, savedAt: lastStamp, writer, revision, synced: false, refused: false, origin: 'here' });
       changed();
       kick();
       return true;
@@ -476,7 +494,7 @@ export const createRecoveryAnswerSync = ({
       const entry = entries.get(key);
       if (!entry) return null;
       if (entry.synced) return RECOVERY_ANSWER_SAVED_WHERE.ACCOUNT;
-      return failing ? RECOVERY_ANSWER_SAVED_WHERE.DEVICE : RECOVERY_ANSWER_SAVED_WHERE.SAVING;
+      return failing || entry.refused ? RECOVERY_ANSWER_SAVED_WHERE.DEVICE : RECOVERY_ANSWER_SAVED_WHERE.SAVING;
     },
     snapshot,
     pendingKeys,

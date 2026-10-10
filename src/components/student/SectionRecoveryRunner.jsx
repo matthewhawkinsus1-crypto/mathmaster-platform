@@ -538,6 +538,17 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
     // the server's newest copy is read (useRecoveryAnswerDrafts.js).
     const latest = await drafts.prepareSubmit();
     setSubmitting(false);
+    // Never a silent partial submission: without the server copy, answers
+    // saved on another Chromebook could be missing (and count as unanswered).
+    if (!latest.checkedAccount) {
+      const anyway = await confirm({
+        title: 'We couldn\u2019t check your account',
+        message: 'We couldn\u2019t check your account for answers saved on another device. If you submit now, only the answers saved on this device will be sent.',
+        confirmLabel: 'Submit anyway',
+        cancelLabel: 'Try again',
+      });
+      if (!anyway) return submitAll();
+    }
     const latestOver = (itemId) => isOver(stepRecords[itemId]) || latest.closed[itemId] === true;
     // Only the student's own unanswered questions "count as incorrect". A
     // question MathMaster could not show is never one of them.

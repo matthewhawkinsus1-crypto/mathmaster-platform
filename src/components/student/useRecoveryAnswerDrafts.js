@@ -167,15 +167,19 @@ export default function useRecoveryAnswerDrafts({ studentId, assignmentId, secti
   /**
    * Before Submit: finish the save on its way, then take the server's newest.
    * Returns what to submit — read from the sync itself, not from this
-   * render's state, which predates the read.
+   * render's state, which predates the read — and whether the server copy
+   * was actually read. When it was not (filtered network, still offline,
+   * too slow), answers saved on another device may be missing, and the
+   * caller must say so before submitting.
    */
   const prepareSubmit = useCallback(async () => {
     const sync = syncRef.current;
-    if (!sync) return computeView();
+    if (!sync) return { ...computeView(), checkedAccount: false };
     sync.retry();
-    await Promise.race([sync.whenIdle(), new Promise((resolve) => { setTimeout(resolve, SUBMIT_WAIT_MS); })]);
-    await Promise.race([sync.read?.() || Promise.resolve(), new Promise((resolve) => { setTimeout(resolve, SUBMIT_WAIT_MS); })]);
-    return computeView();
+    const timeout = () => new Promise((resolve) => { setTimeout(() => resolve(false), SUBMIT_WAIT_MS); });
+    await Promise.race([sync.whenIdle(), timeout()]);
+    const checkedAccount = await Promise.race([sync.read?.() || Promise.resolve(false), timeout()]);
+    return { ...computeView(), checkedAccount: checkedAccount === true };
   }, [computeView]);
 
   /** Submitted: this device's fallback copy is history. */

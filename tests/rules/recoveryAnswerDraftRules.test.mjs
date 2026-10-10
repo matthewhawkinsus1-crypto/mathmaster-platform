@@ -80,3 +80,13 @@ test('a grade-bearing field, a secure flag or a client clock is refused on it', 
   await assertFails(setDoc(ref, { ...current, secure: true, updatedAt: serverTimestamp() }));
   await assertFails(setDoc(ref, { ...current, updatedAt: new Date(Date.now() + 86_400_000) }));
 });
+
+test('nobody creates a draft under another student\'s id, which would lock that student out of it', async () => {
+  const otherDoc = recoveryDraftDocumentId({ studentId: 'S_A', assignmentId: 'a-2' });
+  const forged = { ...buildRecoveryDraftPatch({ studentId: 'S_B', assignmentId: 'a-2', entries: [entry('r1', 'x=1', 1)] }), documentId: otherDoc };
+  // A blind write (no read first, so the read rule never stops it).
+  const { mergeRecoveryDraftDocument } = await import('../../src/platform/recovery/recoveryAnswerDrafts.js');
+  await assertFails(setDoc(doc(studentB(), 'studentWorkspaceDrafts', otherDoc), { ...mergeRecoveryDraftDocument({ patch: forged }), studentId: 'S_B', updatedAt: serverTimestamp() }));
+  // So the real owner's first backup still goes through.
+  await assertSucceeds(save(studentA(), buildRecoveryDraftPatch({ studentId: 'S_A', assignmentId: 'a-2', entries: [entry('r1', 'x=3', 1)] })));
+});
