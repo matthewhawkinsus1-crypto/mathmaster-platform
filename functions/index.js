@@ -81,6 +81,9 @@ const rigorPolicy = require("./lib/rigorPolicy");
 // server-side facts (mastery documents, coverage indexes) it reasons over.
 const pathRouting = require("./lib/pathRouting");
 const pathContentRelease = require("./lib/pathContentRelease");
+// The end-of-session recap: recorded per closed question by submitPathResponse,
+// released by getMyPathSessionRecap only for a completed session.
+const pathSessionRecap = require("./lib/pathSessionRecap");
 const assignmentAi = require("./lib/assignmentAi");
 const weeklyPathSync = require("./lib/weeklyPathSync");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
@@ -3613,7 +3616,10 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
   }
 
   // The derived per-student documents are single records, not collections.
-  for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules"]) {
+  // The mastery history follows its profile: a new teacher reads it, and an
+  // earlier non-origin teacher stops reading it, on the same move.
+  // studentCcmrPlans is the student's own CCMR plan (shared/ccmrPlan.mjs).
+  for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules", "studentMasteryHistory", "studentCcmrPlans"]) {
     const ref = db.collection(collectionName).doc(studentId);
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await ref.get();
@@ -13803,6 +13809,8 @@ function pathSessionRequiredQuestions(sessionKind, requested) {
   return Math.max(2, Math.min(10, Number(requested) || 5));
 }
 
+// Pinned equal to WEEKLY_PATH_FRAMEWORKS (shared/weeklyPathSlotAuthority.mjs),
+// which the simulator and the browser use, by weeklyPathSlotAuthority.test.mjs.
 const PATH_ASSESSMENT_FRAMEWORKS = new Set(["digitalSAT", "act", "tsia2", "asvab"]);
 
 function normalizePathAssessmentFramework(value) {
@@ -13982,73 +13990,34 @@ exports.getMyMathPathSkillProgress = onCall((request) => withPathCallableDiagnos
 
 const WEEKLY_PATH_GOAL_SNAPSHOTS = "weeklyPathGoalSnapshots";
 
-function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord }) {
-  const weekKey = String(goal?.weekKey || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey) || !Number.isFinite(Date.parse(`${weekKey}T00:00:00Z`))) {
-    throw new HttpsError("invalid-argument", "A valid weekly Path weekKey is required.");
-  }
-  const classId = String(classRecord?.classId || "").trim();
-  const courseId = String(classRecord?.course || "").trim();
-  if (!classId || !courseId) throw new HttpsError("failed-precondition", "Your MathMaster class is not fully configured yet.");
-  if (goal?.courseId && String(goal.courseId) !== courseId) {
-    throw new HttpsError("failed-precondition", "This weekly Path proposal belongs to a different course.");
-  }
-  const requested = Math.max(3, Math.min(6, Number(goal?.goalSessions) || 4));
-  const proposed = Array.isArray(goal?.sessions) ? goal.sessions.slice(0, requested) : [];
-  if (!proposed.length) throw new HttpsError("failed-precondition", "MathMaster could not build any weekly Path sessions for this week.");
+// The canonicalizers every weekly-slot decision uses on this side of the wire.
+const WEEKLY_SLOT_TEKS_TOOLS = Object.freeze({
+  canonicalTeks: mathPath.canonicalAlignmentKey,
+  displayTeks: mathPath.displayAlignmentKey,
+  normalizeFramework: normalizePathAssessmentFramework,
+});
 
-  const sessions = proposed.map((session, index) => {
-    const slot = index + 1;
-    const displayCode = mathPath.displayAlignmentKey(mathPath.canonicalAlignmentKey(session?.teksCode || session?.skillId));
-    if (!displayCode) throw new HttpsError("invalid-argument", `Weekly Path slot ${slot} has no valid standard.`);
-    const context = normalizePathAssessmentFramework(session?.context) || "course";
-    const dok = Math.max(1, Math.min(4, Math.round(Number(session?.dok) || 2)));
-    const difficultyBand = Math.max(1, Math.min(5, Math.round(Number(session?.difficultyBand) || 3)));
-    const suppliedKey = String(session?.weeklySlotKey || "").trim();
-    const weeklySlotKey = suppliedKey || [
-      slot,
-      String(session?.skillId || ""),
-      displayCode,
-      String(session?.purpose || "practice"),
-      context,
-      dok,
-      difficultyBand,
-    ].join("|");
-    if (weeklySlotKey.length > 300) throw new HttpsError("invalid-argument", `Weekly Path slot ${slot} key is too long.`);
-    return {
-      slot,
-      weeklySlotKey,
-      skillId: String(session?.skillId || "").slice(0, 180) || null,
-      teksCode: displayCode,
-      purpose: String(session?.purpose || "practice").slice(0, 60),
-      context,
-      dok,
-      difficultyBand,
-      studentLabel: session?.studentLabel ? String(session.studentLabel).slice(0, 180) : null,
-      purposeLabel: session?.purposeLabel ? String(session.purposeLabel).slice(0, 120) : null,
-      studentExplanation: session?.studentExplanation ? String(session.studentExplanation).slice(0, 400) : null,
-      targetReason: session?.targetReason ? String(session.targetReason).slice(0, 180) : null,
-      status: "notStarted",
-    };
-  });
-
-  return {
-    schemaVersion: 1,
-    studentId,
-    classId,
-    courseId,
-    weekKey,
-    dueAt: Number(goal?.dueAt) || null,
-    goalSessions: requested,
-    sessions,
-    ccmr: goal?.ccmr && typeof goal.ccmr === "object" ? {
-      expectation: String(goal.ccmr.expectation || "none").slice(0, 40),
-      framework: String(goal.ccmr.framework || "auto").slice(0, 40),
-      transferCount: Math.max(0, Number(goal.ccmr.transferCount) || 0),
-      satisfied: goal.ccmr.satisfied !== false,
-      shortfallReason: goal.ccmr.shortfallReason ? String(goal.ccmr.shortfallReason).slice(0, 160) : null,
-    } : null,
-  };
+// The freeze — every slot field, and each slot's sanitized "Swap a skill"
+// alternatives — lives in shared/weeklyPathSlotAuthority.mjs, so the Teacher
+// Path Simulator freezes a week by the same rule. Its errors already carry the
+// HttpsError code to answer with.
+async function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord, freezeInputs = {} }) {
+  const slotAuthority = await import("./shared/weeklyPathSlotAuthority.mjs");
+  try {
+    return slotAuthority.freezeWeeklyPathGoalProposal(goal, {
+      studentId,
+      classId: classRecord?.classId,
+      courseId: classRecord?.course,
+      now: Date.now(),
+      // The graded count, the short-week reason and the retention checks
+      // come from the server's records, never the proposal.
+      ...freezeInputs,
+      ...WEEKLY_SLOT_TEKS_TOOLS,
+    });
+  } catch (error) {
+    if (error?.name === "WeeklyPathGoalError") throw new HttpsError(error.code, error.message);
+    throw error;
+  }
 }
 
 /** Freeze the student's proposed autonomous week exactly once. */
@@ -14059,7 +14028,16 @@ exports.resolveWeeklyPathGoalSnapshot = onCall(async (request) => {
   if (!studentSnapshot.exists) throw new HttpsError("not-found", "Your MathMaster student record is unavailable.");
   const classRecord = await loadStudentClass(db, studentSnapshot.data());
   if (!classRecord) throw new HttpsError("failed-precondition", "Your MathMaster class has not been assigned yet.");
-  const proposed = sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord });
+  // A week already frozen is returned as it is: the checks below decide only
+  // what a NEW snapshot may hold.
+  const requestedWeekKey = String(request.data?.goal?.weekKey || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(requestedWeekKey)) {
+    const frozen = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${requestedWeekKey}`).get();
+    if (frozen.exists) return { success: true, goal: frozen.data() };
+  }
+  const { loadWeeklyFreezeInputs } = require("./lib/weeklyPathFreezeInputs");
+  const freezeInputs = await loadWeeklyFreezeInputs({ db, studentId, studentData: studentSnapshot.data(), classRecord, now: Date.now() });
+  const proposed = await sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord, freezeInputs });
   const ref = db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${proposed.weekKey}`);
   const assigned = await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(ref);
@@ -14090,6 +14068,108 @@ exports.getStudentWeeklyPathGoalSnapshot = onCall(async (request) => {
 });
 
 /**
+ * The student's own recent weeks of Path: each frozen weekly goal graded by the
+ * functions the Classroom publisher uses (weeklyPathCompletion.mjs and
+ * gradeWeeklyGoal), and the "weeks hit" streak (weeklyPathHistory.mjs). Every
+ * read is addressed by the caller's own studentId — goal ids are computed, not
+ * scanned — and nothing in request.data can widen it. Aggregate facts only.
+ */
+exports.getMyWeeklyPathHistory = onCall((request) => withPathCallableDiagnostics("getMyWeeklyPathHistory", async () => {
+  const { studentId } = requireStudent(request);
+  const { loadWeeklyPathHistory } = require("./lib/weeklyPathHistory");
+  const history = await loadWeeklyPathHistory(getFirestore(), {
+    studentId,
+    now: Date.now(),
+    displayTeks: mathPath.displayAlignmentKey,
+    goalCollection: WEEKLY_PATH_GOAL_SNAPSHOTS,
+  });
+  return { success: true, ...history };
+}));
+
+/**
+ * The student's own weekly Path completions, counted by the SAME rule the
+ * teacher table and the Classroom publisher use (weeklyPathCompletion.mjs):
+ * only a session the server marked "completed" counts. Also returns the
+ * student's unfinished sessions for this week's slots so the panel can offer
+ * Resume. Only the caller's own sessions; aggregate facts only, no payloads.
+ */
+exports.getMyWeeklyPathCompletions = onCall((request) => withPathCallableDiagnostics("getMyWeeklyPathCompletions", async () => {
+  const { studentId } = requireStudent(request);
+  const weekKey = String(request.data?.weekKey || "").trim();
+  const weeklyCompletion = await import("./shared/weeklyPathCompletion.mjs");
+  const completionWindow = weeklyCompletion.weeklyCompletionWindow(weekKey);
+  if (!completionWindow) throw new HttpsError("invalid-argument", "A valid weekly Path weekKey is required.");
+  const db = getFirestore();
+  const sessions = [];
+  const collect = (snapshot) => snapshot.docs.forEach((doc) => sessions.push({ id: doc.id, data: doc.data() || {} }));
+
+  // Every session launched from this week's slots, in any status. Two
+  // equality filters are served by Firestore's single-field index merge, so
+  // this needs no composite index and has no cap that could drop a slot.
+  collect(await db.collection("pathSessions")
+    .where("studentId", "==", studentId)
+    .where("weekKey", "==", weekKey)
+    .get());
+
+  // Open practice finished inside the week. The grader's legacy rule lets a
+  // completed session on the slot's own TEKS fill it, so the student must see
+  // the same sessions the teacher's table sees.
+  let truncated = false;
+  try {
+    collect(await db.collection("pathSessions")
+      .where("studentId", "==", studentId)
+      .where("completedAt", ">=", completionWindow.start)
+      .where("completedAt", "<", completionWindow.end)
+      .get());
+  } catch (error) {
+    // Composite index (studentId, completedAt) not built yet: fall back to the
+    // student's sessions without a range, filtered here.
+    if (Number(error?.code) !== 9 && error?.code !== "failed-precondition") throw error;
+    const LIMIT = 1000;
+    const fallback = await db.collection("pathSessions").where("studentId", "==", studentId).limit(LIMIT).get();
+    truncated = fallback.size >= LIMIT;
+    collect(fallback);
+  }
+
+  const { completions, inProgress } = weeklyCompletion.collectWeeklyPathSessions({
+    sessions,
+    weekKey,
+    displayTeks: mathPath.displayAlignmentKey,
+  });
+  return { success: true, weekKey, completions, inProgress, truncated };
+}));
+
+/**
+ * Save the signed-in student's own CCMR plan: the tests they are preparing for
+ * and an optional test date. The ONLY write path for studentCcmrPlans — the
+ * rules refuse every client write. Validation, caps and the record shape live
+ * in shared/ccmrPlan.mjs; this reads the roster row for the authorization
+ * context and writes once, inside a transaction, only when something changed.
+ */
+exports.setMyCcmrPlan = onCall((request) => withPathCallableDiagnostics("setMyCcmrPlan", async () => {
+  const { studentId } = requireStudent(request);
+  const ccmrPlan = await import("./shared/ccmrPlan.mjs");
+  const validated = ccmrPlan.validateCcmrPlanInput(request.data, { now: Date.now() });
+  if (!validated.ok) throw new HttpsError("invalid-argument", validated.message);
+  const db = getFirestore();
+  const studentSnapshot = await db.collection("grades").doc(studentId).get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "Your MathMaster student record is unavailable.");
+  const student = studentSnapshot.data() || {};
+  const classRecord = await loadStudentClass(db, student);
+  const ref = db.collection(ccmrPlan.CCMR_PLAN_COLLECTION).doc(studentId);
+  const saved = await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    const { record, unchanged } = ccmrPlan.buildCcmrPlanRecord({
+      studentId, plan: validated.plan, existing: existing.exists ? existing.data() : null, student, classRecord, now: Date.now(),
+    });
+    if (unchanged) return existing.data();
+    transaction.set(ref, record);
+    return record;
+  });
+  return { success: true, plan: ccmrPlan.publicCcmrPlan(saved) };
+}));
+
+/**
  * Teacher-only weekly Path progress for one real class.
  *
  * `pathSessions` is intentionally server-only. The teacher UI needs completion
@@ -14118,9 +14198,12 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) {
     throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
   }
-  const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
-  if (!Number.isFinite(weekStart)) throw new HttpsError("invalid-argument", "weekKey is not a valid date.");
-  const weekEnd = weekStart + (7 * 24 * 60 * 60 * 1000);
+  const weeklyCompletion = await import("./shared/weeklyPathCompletion.mjs");
+  const completionWindow = weeklyCompletion.weeklyCompletionWindow(weekKey);
+  if (!completionWindow) throw new HttpsError("invalid-argument", "weekKey is not a valid date.");
+  // The Classroom publisher's window (the week plus the Sunday-evening day), so
+  // the teacher's table counts exactly the sessions the grade will count.
+  const { start: weekStart, end: weekEnd } = completionWindow;
 
   const roster = await db.collection("grades").where("classId", "==", classId).get();
   const studentIds = new Set(roster.docs
@@ -14172,25 +14255,13 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
     if (page === MAX_PAGES - 1) truncated = true;
   }
 
+  // The same completion rule the student panel and the Classroom publisher use.
   sessionDocs.forEach((sessionDoc) => {
     const session = sessionDoc.data() || {};
     const studentId = String(session.studentId || "");
-    if (!studentIds.has(studentId) || session.status !== "completed") return;
-    const completedQuestions = Number(session.summary?.completedQuestions || 0);
-    const correctQuestions = Number(session.summary?.correctQuestions || 0);
-    const alignmentKey = String(session.target?.alignmentKey || "");
-    byStudentId[studentId].push({
-      status: "completed",
-      sessionId: sessionDoc.id,
-      completedAt: Number(session.completedAt || session.updatedAt || 0),
-      teksCode: alignmentKey ? mathPath.displayAlignmentKey(alignmentKey) : null,
-      accuracy: completedQuestions > 0 ? Math.max(0, Math.min(1, correctQuestions / completedQuestions)) : null,
-      sessionKind: session.sessionKind || "practice",
-      assessmentFramework: session.assessmentFramework || null,
-      weekKey: session.weekKey || null,
-      weeklySlotKey: session.weeklySlotKey || null,
-      weeklySlot: session.weeklySlot || null,
-    });
+    if (!studentIds.has(studentId)) return;
+    const completion = weeklyCompletion.completionFromPathSession(sessionDoc.id, session, { displayTeks: mathPath.displayAlignmentKey });
+    if (completion) byStudentId[studentId].push(completion);
   });
 
   Object.values(byStudentId).forEach((rows) => rows.sort((a, b) => a.completedAt - b.completedAt));
@@ -14272,15 +14343,13 @@ exports.setWeeklyPathClassroomSync = onCall(async (request) => {
  * grades that are quietly too low, and the sync refuses to publish on it.
  */
 async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
-  const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
-  if (!Number.isFinite(weekStart)) throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
-  // One extra day past the UTC week boundary. The week closes at midnight in
-  // the school's own timezone, which is early Monday in UTC, so a window that
-  // stopped at the UTC boundary would silently drop every session finished on
-  // Sunday evening — the busiest hours of a Sunday-night deadline. Sessions
-  // pulled in from the next week cannot be miscounted: matching is by frozen
-  // slot key and weekKey, not by timestamp.
-  const weekEnd = weekStart + (8 * 24 * 60 * 60 * 1000);
+  // One extra day past the UTC week boundary (see weeklyPathCompletion.mjs):
+  // the week closes at local midnight, which is early Monday in UTC. Matching
+  // is by frozen slot key and weekKey, so the extra day cannot miscount.
+  const weeklyCompletion = await import("./shared/weeklyPathCompletion.mjs");
+  const completionWindow = weeklyCompletion.weeklyCompletionWindow(weekKey);
+  if (!completionWindow) throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
+  const { start: weekStart, end: weekEnd } = completionWindow;
 
   const roster = await db.collection("grades").where("classId", "==", classId).get();
   const students = roster.docs
@@ -14314,22 +14383,9 @@ async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
     pageDocs.docs.forEach((sessionDoc) => {
       const session = sessionDoc.data() || {};
       const studentId = String(session.studentId || "");
-      if (!ids.has(studentId) || session.status !== "completed") return;
-      const completedQuestions = Number(session.summary?.completedQuestions || 0);
-      const correctQuestions = Number(session.summary?.correctQuestions || 0);
-      completionsByStudentId[studentId].push({
-        status: "completed",
-        completedAt: Number(session.completedAt || session.updatedAt || 0),
-        teksCode: session.target?.alignmentKey
-          ? mathPath.displayAlignmentKey(String(session.target.alignmentKey))
-          : null,
-        accuracy: completedQuestions > 0
-          ? Math.max(0, Math.min(1, correctQuestions / completedQuestions))
-          : null,
-        assessmentFramework: session.assessmentFramework || null,
-        weekKey: session.weekKey || null,
-        weeklySlotKey: session.weeklySlotKey || null,
-      });
+      if (!ids.has(studentId)) return;
+      const completion = weeklyCompletion.completionFromPathSession(sessionDoc.id, session, { displayTeks: mathPath.displayAlignmentKey });
+      if (completion) completionsByStudentId[studentId].push(completion);
     });
     cursor = pageDocs.docs[pageDocs.docs.length - 1];
     if (pageDocs.size < PAGE_SIZE) break;
@@ -14592,7 +14648,8 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const { studentId } = requireStudent(request);
   let targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
   if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
-  const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
+  // `let`: a weekly slot's frozen purpose can settle the kind below.
+  let sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
   let requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
   let assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
   const requestedCoursePracticeIntent = String(request.data?.coursePracticeIntent || "").trim() === "challenge"
@@ -14621,33 +14678,55 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   }
 
   // Weekly launches are resolved against the frozen server commitment. The
-  // browser may choose which assigned row the student clicks, but it cannot
-  // turn that row into another TEKS, framework, DOK or difficulty.
+  // browser may choose which assigned row the student clicks — and, on a row
+  // frozen with "Swap a skill" alternatives, which of those standards to
+  // practise — but it cannot turn that row into any other TEKS, framework, DOK
+  // or difficulty. The rule is shared with the Teacher Path Simulator
+  // (shared/weeklyPathSlotAuthority.mjs).
   const requestedWeekKey = String(request.data?.weekKey || "").trim() || null;
   const requestedWeeklySlotKey = String(request.data?.weeklySlotKey || "").trim() || null;
   let weeklySlot = null;
+  let weeklySwap = null;
+  let slotAuthority = null;
   if (requestedWeeklySlotKey || requestedWeekKey) {
     if (!requestedWeeklySlotKey || !requestedWeekKey || !/^\d{4}-\d{2}-\d{2}$/.test(requestedWeekKey)) {
       throw new HttpsError("invalid-argument", "weekKey and weeklySlotKey are both required for an assigned weekly session.");
     }
     const snapshot = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${requestedWeekKey}`).get();
-    if (!snapshot.exists) throw new HttpsError("failed-precondition", "This weekly commitment has not been assigned yet. Return to My Math Path and reload the week.");
-    const weeklyGoal = snapshot.data() || {};
-    if (studentClass?.classId && weeklyGoal.classId !== studentClass.classId) {
-      throw new HttpsError("failed-precondition", "This weekly commitment belongs to a different class.");
+    slotAuthority = await import("./shared/weeklyPathSlotAuthority.mjs");
+    const authorization = slotAuthority.authorizeWeeklySlotLaunch({
+      goal: snapshot.exists ? (snapshot.data() || {}) : null,
+      weeklySlotKey: requestedWeeklySlotKey,
+      targetAlignmentKey,
+      requestedFramework: assessmentFramework,
+      // Which option the browser says it picked. A label, never a permission:
+      // the target must still be one of the slot's frozen standards.
+      chosenSkillId: String(request.data?.chosenSkillId || "").trim().slice(0, 180) || null,
+      classId: studentClass?.classId || null,
+      ...WEEKLY_SLOT_TEKS_TOOLS,
+    });
+    if (!authorization.ok) throw new HttpsError(authorization.code, authorization.message, { reason: authorization.reason });
+    weeklySlot = authorization.slot;
+    weeklySwap = authorization.swapped
+      ? { swappedFromTeks: authorization.swappedFromTeks, chosenAlternative: authorization.chosenAlternative }
+      : null;
+    assessmentFramework = authorization.assessmentFramework;
+  }
+
+  // A RETENTION SLOT IS A RETENTION CHECK (functions/shared/pathRetentionCheck.mjs).
+  // The slot's frozen purpose decides the session kind, not the browser: only
+  // a retentionProbe moves the retention schedule, so practice launched on a
+  // Retention slot filled it without ever clearing the check. A browser a
+  // release behind still asks for practice and is given the check; a check
+  // asked for on any other slot is refused.
+  const retentionCheck = await import("./shared/pathRetentionCheck.mjs");
+  if (weeklySlot) {
+    const weeklyKind = retentionCheck.resolveWeeklySlotSessionKind({ slotPurpose: weeklySlot.purpose, requestedSessionKind: sessionKind });
+    if (!weeklyKind.ok) throw new HttpsError("failed-precondition", weeklyKind.message, { reason: weeklyKind.reason });
+    if (weeklyKind.sessionKind !== sessionKind) {
+      sessionKind = weeklyKind.sessionKind;
+      requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
     }
-    weeklySlot = (Array.isArray(weeklyGoal.sessions) ? weeklyGoal.sessions : [])
-      .find((slot) => String(slot?.weeklySlotKey || "") === requestedWeeklySlotKey) || null;
-    if (!weeklySlot) throw new HttpsError("failed-precondition", "That weekly Path slot is no longer part of the assigned week.");
-    const assignedTarget = mathPath.canonicalAlignmentKey(weeklySlot.teksCode);
-    if (!assignedTarget || assignedTarget !== targetAlignmentKey) {
-      throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly standard.");
-    }
-    const assignedFramework = normalizePathAssessmentFramework(weeklySlot.context);
-    if (assessmentFramework && assessmentFramework !== assignedFramework) {
-      throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly assessment context.");
-    }
-    assessmentFramework = assignedFramework;
   }
 
   // A weekly slot can supply the assessment framework after the initial request
@@ -14755,11 +14834,33 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const session = await db.runTransaction(async (transaction) => {
     const now = Date.now();
     const lock = await transaction.get(lockRef);
-    if (lock.exists && lock.data()?.sessionId) {
-      const existingRef = db.collection("pathSessions").doc(lock.data().sessionId);
+    let existingSessionId = lock.exists ? (lock.data()?.sessionId || null) : null;
+    // One open session per weekly slot. The lock is keyed by target, and a slot
+    // frozen with "Swap a skill" alternatives can be launched on more than one
+    // standard, so a launch for a slot that already has an open session on
+    // another of them resumes that session instead of opening a second
+    // (shared/weeklyPathSlotAuthority.mjs, which the simulator also runs).
+    if (requestedWeeklySlotKey && slotAuthority) {
+      const weekSessions = await transaction.get(db.collection("pathSessions")
+        .where("studentId", "==", studentId)
+        .where("weekKey", "==", requestedWeekKey));
+      const openSlotSession = slotAuthority.openWeeklySlotSession({
+        sessions: weekSessions.docs.map((doc) => ({ id: doc.id, data: doc.data() || {} })),
+        studentId,
+        weekKey: requestedWeekKey,
+        weeklySlotKey: requestedWeeklySlotKey,
+        preferSessionId: existingSessionId,
+      });
+      if (openSlotSession) existingSessionId = openSlotSession.id;
+    }
+    if (existingSessionId) {
+      const existingRef = db.collection("pathSessions").doc(existingSessionId);
       const existing = await transaction.get(existingRef);
       if (existing.exists && existing.data()?.status === "active" && existing.data()?.studentId === studentId) {
-        if (existing.data()?.sessionKind !== sessionKind) {
+        // A weekly slot's open session is resumed whatever kind it was opened
+        // as (practice opened on a Retention slot before it became a check);
+        // refusing it would leave a Resume button that can never work.
+        if (!retentionCheck.canResumeOpenSession({ existingSessionKind: existing.data()?.sessionKind, sessionKind, weeklySlotKey: requestedWeeklySlotKey })) {
           throw new HttpsError("failed-precondition", "Finish the active session for this TEKS before starting a different check.");
         }
         if ((existing.data()?.assessmentFramework || null) !== assessmentFramework) {
@@ -14814,6 +14915,11 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       intendedDok: weeklySlot?.dok || null,
       intendedDifficultyBand: weeklySlot?.difficultyBand || null,
       weeklyPurpose: weeklySlot?.purpose || null,
+      // A swap is recorded, not hidden: the frozen standard the slot named and
+      // the alternative the student practised instead. The slot key above is
+      // unchanged, so the completion still fills the slot it was launched for.
+      swappedFromTeks: weeklySwap?.swappedFromTeks || null,
+      chosenAlternative: weeklySwap?.chosenAlternative || null,
       requiredQuestions,
       target: { alignmentKey: targetAlignmentKey },
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
@@ -15340,6 +15446,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     pathRouting.routing(),
     pathRouting.skillGraph(),
   ]);
+  const recapRules = await pathSessionRecap.pathSessionRecapRules();
 
   // The authorization context this evidence will carry, resolved from the
   // student's class before the transaction so the read is not inside it.
@@ -15620,25 +15727,19 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     if (retentionSnapshot) {
       const displayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
       const schedules = retentionSnapshot.exists ? retentionSnapshot.data()?.schedules || {} : {};
-      const currentSchedule = schedules[displayCode] || {};
-      const passed = nextSummary.completedQuestions >= 2 && nextSummary.independentSuccesses >= 2;
-      const successfulCheckCount = passed ? Number(currentSchedule.successfulCheckCount || 0) + 1 : Number(currentSchedule.successfulCheckCount || 0);
-      const updatedSchedule = passed ? {
-        ...currentSchedule,
+      // ONE verdict for a finished retention check, shared with the Teacher
+      // Path Simulator (functions/shared/pathRetentionCheck.mjs): both answers
+      // right on the student's own moves the next check out (14/30/60 days);
+      // anything less marks a concern and keeps the check due.
+      const { retentionCheckOutcome } = await import("./shared/pathRetentionCheck.mjs");
+      const verdict = retentionCheckOutcome({
         teksCode: displayCode,
-        status: "scheduled",
-        lastVerifiedAt: now,
-        successfulCheckCount,
-        nextCheckDueAt: mathPath.nextRetentionDue(now, successfulCheckCount),
-        daysOverdue: 0,
-      } : {
-        ...currentSchedule,
-        teksCode: displayCode,
-        status: "concern",
-        lastFailedCheckAt: now,
-      };
-      transaction.set(retentionRef, { schedules: { ...schedules, [displayCode]: updatedSchedule }, updatedAt: now }, { merge: true });
-      nextSession.retentionOutcome = passed ? "passed" : "failed";
+        summary: nextSummary,
+        currentSchedule: schedules[displayCode] || {},
+        now,
+      });
+      transaction.set(retentionRef, { schedules: { ...schedules, [displayCode]: verdict.schedule }, updatedAt: now }, { merge: true });
+      nextSession.retentionOutcome = verdict.outcome;
     }
 
     if (questionFinalized && currentQuestion.assessmentContext?.examStyle === true) {
@@ -15691,11 +15792,42 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
       session: publicPathSession(nextSession),
       needsNextQuestion: questionFinalized && nextStatus === "active",
     };
-    transaction.set(submissionRef, { studentId, sessionId, submissionId, createdAt: now, result });
+    // A CLOSED question leaves its recap entry (the question as issued, the
+    // student's answer, the correct answer, the review) on this server-only
+    // document. getMyPathSessionRecap releases it once the session is completed.
+    const recapJson = pathSessionRecap.closedQuestionRecapJson(recapRules, {
+      sessionId,
+      currentQuestion,
+      responsePayload: request.data?.responsePayload || {},
+      grading: result.grading,
+      solutionReview: attemptSupport.solutionReview,
+      questionNumber: nextSummary.completedQuestions,
+      skillCode: activeSkillCode,
+      closedAt: now,
+      onError: (error) => logger.warn("Path recap entry was not recorded", { sessionId, questionInstanceId, message: error?.message || String(error) }),
+    });
+    transaction.set(submissionRef, { studentId, sessionId, submissionId, createdAt: now, result, ...(recapJson ? { recapJson } : {}) });
     return { duplicate: false, result };
   });
 
   return transactionResult.result;
+}));
+
+/**
+ * The end-of-session recap: the questions the student missed or got partly
+ * right, each as they saw it, with their answer, the correct answer and the
+ * worked solution. ONLY the caller's own session, and ONLY once the server has
+ * marked it completed — an active or paused session is refused, so nothing
+ * here can reveal anything while an item can still be answered. Rules:
+ * functions/shared/pathSessionRecap.mjs.
+ */
+exports.getMyPathSessionRecap = onCall((request) => withPathCallableDiagnostics("getMyPathSessionRecap", async () => {
+  const { studentId } = requireStudent(request);
+  const sessionId = String(request.data?.sessionId || "").trim();
+  if (!sessionId || sessionId.length > 180) throw new HttpsError("invalid-argument", "sessionId is required.");
+  const loaded = await pathSessionRecap.loadMyPathSessionRecap(getFirestore(), { studentId, sessionId });
+  if (loaded.refused) throw new HttpsError(loaded.refused.code, loaded.refused.message);
+  return { success: true, sessionId, ...loaded.recap };
 }));
 
 // Phase 6A: DOK 3/4 modeling labs are graded from a teacher-authored private
@@ -18578,11 +18710,17 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     const creditedScore = independent ? score : score * SUPPORTED_CREDIT;
     const dok = Number(evidence.questionSnapshot?.dok) || null;
     const familyId = evidence.questionSnapshot?.familyId || null;
+    const masteryRule = await import("./shared/masteryRule.mjs");
+    // Growth over time: one compact snapshot per week, written in this same
+    // transaction from the same profiles (functions/shared/masteryHistory.mjs).
+    const masteryHistory = await import("./shared/masteryHistory.mjs");
+    const historyRef = db.collection(masteryHistory.MASTERY_HISTORY_COLLECTION).doc(studentId);
 
     await db.runTransaction(async (transaction) => {
-      const [application, profileSnapshot] = await Promise.all([
+      const [application, profileSnapshot, historySnapshot] = await Promise.all([
         transaction.get(applicationRef),
         transaction.get(profileRef),
+        transaction.get(historyRef),
       ]);
       if (application.exists) return;
       const profiles = profileSnapshot.exists ? { ...(profileSnapshot.data()?.profiles || {}) } : {};
@@ -18603,16 +18741,14 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
         const dokRepresented = [...new Set([...(previous.dimensions?.dokRepresented || []), ...(dok ? [dok] : [])])].sort();
         const familiesRepresented = [...new Set([...(previous.dimensions?.familiesRepresented || []), ...(familyId ? [familyId] : [])])];
         const estimate = effectiveWeight > 0 ? Math.round((weightedScoreSum / effectiveWeight) * 100) : null;
-        let status = "Not Enough Evidence";
-        if (eligibleEvents >= 2 && effectiveWeight >= 1.1) {
-          // Mastered additionally requires evidence the student did the
-          // mathematics themselves. Without this, a high estimate assembled
-          // entirely from supported successes would still read as mastery.
-          if (estimate >= 85 && eligibleEvents >= 4 && independentSuccesses >= 2 && dokRepresented.some((value) => Number(value) >= 3)) status = "Mastered";
-          else if (estimate >= 70) status = "Secure";
-          else if (estimate >= 50) status = "Developing";
-          else status = "Needs Attention";
-        }
+        // ONE definition of Mastered (functions/shared/masteryRule.mjs), read
+        // by the wheel, the Path map, Recommended and the prerequisite locks.
+        // Mastered additionally requires evidence the student did the
+        // mathematics themselves: a high estimate assembled entirely from
+        // supported successes must not read as mastery.
+        const status = masteryRule.classifyMasteryStatus({
+          estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented,
+        });
         const confidence = eligibleEvents >= 8 && effectiveWeight >= 5 && dokRepresented.length >= 2 ? "High" : eligibleEvents >= 4 && effectiveWeight >= 2.4 ? "Medium" : "Low";
         const lastIndependentSuccessAt = evidence.performance?.isCorrect && independent
           ? Math.max(Number(previous.dimensions?.lastIndependentSuccessAt || 0), Number(evidence.occurredAt || 0))
@@ -18630,16 +18766,32 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
       });
 
       // The mastery profile inherits the evidence's authorization context, so
-      // a derived record is never readable by anyone the source was not.
+      // a derived record is never readable by anyone the source was not. The
+      // history below inherits the very same context object.
+      const authorization = masteryHistory.derivedMasteryAuthorization(evidence);
       transaction.set(profileRef, {
         profiles,
         studentId,
-        classId: evidence.classId ?? null,
-        originClassId: evidence.originClassId ?? evidence.classId ?? null,
-        originTeacherEmail: evidence.originTeacherEmail ?? null,
-        authorizedTeacherEmails: Array.isArray(evidence.authorizedTeacherEmails) ? evidence.authorizedTeacherEmails : [],
+        ...authorization,
         updatedAt: Date.now(),
       }, { merge: true });
+      // An addition, never a gate: if a snapshot cannot be built, the profile
+      // update above still lands and the history simply skips this answer.
+      let historyDocument = null;
+      try {
+        historyDocument = masteryHistory.buildMasteryHistoryDocument({
+          existing: historySnapshot.exists ? historySnapshot.data() : null,
+          profiles,
+          studentId,
+          authorization,
+          occurredAt: evidence.occurredAt,
+          now: Date.now(),
+        });
+      } catch (error) {
+        logger.warn("Mastery history snapshot skipped", { studentId, eventKey, message: error?.message || String(error) });
+      }
+      // Whole, not merged: the pruned weeks map replaces the old one.
+      if (historyDocument) transaction.set(historyRef, historyDocument);
       transaction.set(applicationRef, { studentId, eventKey, appliedAt: Date.now() });
     });
   },

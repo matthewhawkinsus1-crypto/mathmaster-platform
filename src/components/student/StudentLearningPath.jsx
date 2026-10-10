@@ -1,11 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import { buildPathMap } from '../../platform/path/pathMap.js';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { buildPathMap, explainPacing } from '../../platform/path/pathMap.js';
 import PracticeAsMenu from './PracticeAsMenu.jsx';
+import MyMathPathTopicBrowser from './MyMathPathTopicBrowser.jsx';
 import {
   describeCoursePathPass,
   summarizeCoursePathPasses,
 } from '../../platform/path/pathPassPresentation.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
+import { masteredSectionView } from '../../platform/path/masteredSection.js';
 
 // The student's actual learning path.
 //
@@ -58,7 +60,18 @@ const whyLabel = (blockedBy) => (
 function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress = null }) {
   const [showWhy, setShowWhy] = useState(false);
   const clickable = node.selectable && typeof onChoose === 'function' && !disabled;
-  const pass = describeCoursePathPass(passProgress || {}, { mastered: node.status === 'mastered' });
+  // A retention check is a two-question check, not a practice round, so its
+  // card carries no Level badge and its button says what it starts.
+  const retentionCheck = Boolean(node.isRetentionCheck);
+  const pass = retentionCheck
+    ? { hasCompletedPass: false, levelLabel: null, buttonLabel: node.actionLabel }
+    : describeCoursePathPass(passProgress || {}, { mastered: node.status === 'mastered' });
+  const showEvidence = node.selectable && !node.lockedExplanation && !node.isRetentionCheck
+    && Array.isArray(node.evidence) && node.evidence.length > 0;
+  // Said once: when the evidence already places the skill in its unit ("your
+  // class is working on this now (Module 2: …)"), the unit line would repeat it.
+  const showUnit = Boolean(node.unitTitle)
+    && !(showEvidence && node.evidence.some((item) => item.text.includes(node.unitTitle)));
 
   return (
     <div style={{
@@ -98,13 +111,13 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
           </div>
           {node.status !== 'mastered' && (
             <div style={{ marginTop: 4, color: 'var(--mm-text)', fontSize: 11.5, lineHeight: 1.45 }}>
-              This Path pass is complete. Mastery is tracked separately and can require broader or higher-level evidence.
+              This practice round is done. Levels are how deep your practice goes; Mastered is earned separately from your answers.
             </div>
           )}
         </div>
       )}
 
-      {!pass.hasCompletedPass && node.selectable && !disabled && (
+      {!pass.hasCompletedPass && pass.levelLabel && node.selectable && !disabled && (
         <div style={{ margin: '4px 0 9px', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850 }}>
           {pass.levelLabel}
         </div>
@@ -112,20 +125,34 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
       {node.description && (
         <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--mm-text)', lineHeight: 1.5 }}>{node.description}</p>
       )}
-      <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{node.reason}</p>
+      {/* The unit the class calls it by — computed for every card, and now
+          shown. */}
+      {showUnit && (
+        <p data-class-unit style={{ margin: '0 0 8px', fontSize: 11.5, lineHeight: 1.45, color: 'var(--mm-text-muted)', fontWeight: 750 }}>
+          Class unit · {node.unitTitle}
+        </p>
+      )}
+      {/* WHY, WITH THE EVIDENCE NAMED, on a card the student can open. The
+          list restates the engine's reason with what drove it, so it replaces
+          the reason rather than repeating it. Blocked cards keep their reason
+          and their own "why" disclosure; a retention check keeps its own. */}
+      {showEvidence ? (
+        <div data-recommendation-evidence style={{ margin: '0 0 10px' }}>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>Why this is suggested</div>
+          <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 12.5, color: 'var(--mm-text)', lineHeight: 1.5 }}>
+            {node.evidence.map((item) => <li key={`${item.kind}:${item.text}`}>{item.text}</li>)}
+          </ul>
+        </div>
+      ) : (
+        <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{node.reason}</p>
+      )}
 
       {/* A calendar restriction is a date, so show the date. "Not in your
           learning window yet" with no number is indistinguishable from a
-          verdict. */}
-      {node.blockedBy === 'pacing' && node.calendarDaysUntilStart > 0 && (
+          verdict. The sentence is the topic browser's too (explainPacing). */}
+      {node.blockedBy === 'pacing' && (
         <p style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-primary-text)', fontWeight: 700 }}>
-          Your class reaches this in about {node.calendarDaysUntilStart} {node.calendarDaysUntilStart === 1 ? 'day' : 'days'}.
-          {' '}Nothing is wrong — this one is simply later in the course.
-        </p>
-      )}
-      {node.blockedBy === 'pacing' && !node.calendarDaysUntilStart && (
-        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-primary-text)', fontWeight: 700 }}>
-          Your class reaches this later in the course. Nothing is wrong — this one is simply not open yet.
+          {explainPacing(node)}
         </p>
       )}
 
@@ -133,8 +160,9 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         <div style={{ marginBottom: 10 }}>
           <button
             type="button"
+            aria-expanded={showWhy}
             onClick={() => setShowWhy((current) => !current)}
-            style={{ padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+            style={{ minHeight: 44, minWidth: 44, padding: '0 2px', border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}
           >
             {showWhy ? 'Hide' : whyLabel(node.blockedBy)}
           </button>
@@ -150,7 +178,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         <button
           type="button"
           onClick={() => onChoose?.(node.strengthen)}
-          style={{ ...cardStyle(node.strengthen.tone, true), display: 'block', width: '100%', marginBottom: 8, padding: '10px 12px' }}
+          style={{ ...cardStyle(node.strengthen.tone, true), display: 'block', width: '100%', minHeight: 44, marginBottom: 8, padding: '10px 12px' }}
         >
           <span aria-hidden="true">{node.strengthen.symbol}</span>{' '}
           <strong>{node.strengthen.title}</strong>{' '}
@@ -160,25 +188,21 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         </button>
       )}
 
-      {disabled && node.selectable && (
-        <div style={{ marginTop: 2, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)', fontSize: 12, fontWeight: 800 }}>
-          Finish your weekly target first
-        </div>
-      )}
-
       {clickable && (
         <button
           type="button"
           onClick={() => onChoose(node)}
-          style={{ padding: '9px 14px', minHeight: 40, border: 0, borderRadius: 8, background: node.tone, color: '#fff', fontWeight: 900, cursor: 'pointer' }}
+          style={{ padding: '9px 14px', minHeight: 44, border: 0, borderRadius: 8, background: node.tone, color: '#fff', fontWeight: 900, cursor: 'pointer' }}
         >
           {pass.buttonLabel}
         </button>
       )}
 
       {/* Only rendered where a legitimate assessment alignment exists — the
-          menu returns nothing rather than showing four disabled buttons. */}
-      {clickable && practiceAs && (
+          menu returns nothing rather than showing four disabled buttons. A
+          retention check is the course skill itself, so it offers no other
+          format. */}
+      {clickable && practiceAs && !retentionCheck && (
         <PracticeAsMenu
           skillId={node.skillId}
           pathOptions={practiceAs.pathOptions}
@@ -194,7 +218,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
   );
 }
 
-function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = false, skillProgressByTEKS = {} }) {
+function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = false, skillProgressByTEKS = {}, footer = null }) {
   if (!nodes.length) return null;
   return (
     <section style={section}>
@@ -212,13 +236,38 @@ function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = fals
           />
         ))}
       </div>
+      {footer}
     </section>
+  );
+}
+
+// "Show all N mastered skills" / "Show fewer". Drawn only when the section has
+// more mastered skills than its preview (masteredSection.js).
+function MasteredToggle({ view, onToggle }) {
+  if (!view.collapsible) return null;
+  return (
+    <button
+      type="button"
+      aria-expanded={view.expanded}
+      onClick={onToggle}
+      style={{
+        marginTop: 12, minHeight: 44, padding: '10px 15px', borderRadius: 10,
+        border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)',
+        color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer', font: 'inherit',
+      }}
+    >
+      {view.toggleLabel}
+    </button>
   );
 }
 
 export const StudentLearningPath = ({
   pathOptions = null,
   onChooseSkill = null,
+  // The retention scheduler's pending checks (evaluateStudentRetentionSchedule
+  // `pendingProbes`). They fill "Quick retention check"; without them that
+  // section is empty, which is what it always was before they were passed.
+  retentionDue = null,
   // Everything the "Practice this skill as…" menu needs. Absent means the
   // menu is not offered at all, which is the honest state before CCMR
   // evidence has been loaded.
@@ -229,21 +278,39 @@ export const StudentLearningPath = ({
   // the map happily draws a Start button in front of a standard with no
   // content, and the student learns about it only after clicking.
   isCovered = null,
-  // Weekly Path is the actual student commitment. Ordinary classroom assignment
-  // TEKS no longer create an invisible permanent gate. While a weekly target is
-  // unfinished, this screen says exactly how many sessions remain and keeps
-  // free-choice cards closed so practice launched without the weekly slot key
-  // cannot look complete while failing to count.
+  // Free practice is never locked behind the weekly target: the weekly panel
+  // says what counts toward the week, and anything else is extra. A caller
+  // can still disable the cards (a view that cannot launch).
   freeChoiceLocked = false,
   freeChoiceMessage = null,
   // Server-owned completed course Path passes. This is intentionally separate
   // from mastery: a full Path can be completed before the evidence engine is
   // ready to make the stronger "Mastered" claim.
   skillProgressByTEKS = {},
+  // The unified mastery profiles the wheel and the skill card read. Cards name
+  // their evidence from these ("58% from 6 questions"), and the topic browser
+  // shows each skill's mastery status from them.
+  masteryProfilesByTEKS = null,
 }) => {
+  // The map is a handful of nearby cards; "Browse all topics" is the rest of
+  // the course, in the same tab and through the same launcher.
+  const [view, setView] = useState('path');
+  const browseButtonRef = useRef(null);
+  const returningFromBrowser = useRef(false);
+  useEffect(() => {
+    if (view !== 'path' || !returningFromBrowser.current) return;
+    returningFromBrowser.current = false;
+    browseButtonRef.current?.focus();
+  }, [view]);
+
   const map = useMemo(
-    () => buildPathMap(pathOptions, { ...(limits ? { limits } : {}), ...(isCovered ? { isCovered } : {}) }),
-    [pathOptions, limits, isCovered],
+    () => buildPathMap(pathOptions, {
+      ...(limits ? { limits } : {}),
+      ...(isCovered ? { isCovered } : {}),
+      ...(Array.isArray(retentionDue) ? { retentionDue } : {}),
+      ...(masteryProfilesByTEKS ? { masteryProfilesByTEKS } : {}),
+    }),
+    [pathOptions, limits, isCovered, retentionDue, masteryProfilesByTEKS],
   );
   const passSummary = useMemo(
     () => summarizeCoursePathPasses(skillProgressByTEKS),
@@ -260,6 +327,10 @@ export const StudentLearningPath = ({
     onChoose: onPracticeAs,
   } : null), [assessmentContext, onPracticeAs, pathOptions]);
 
+  // The map returns every mastered skill; the section previews some of them.
+  const [showAllMastered, setShowAllMastered] = useState(false);
+  const masteredView = masteredSectionView(map?.mastered, { expanded: showAllMastered });
+
   if (!pathOptions) {
     return (
       <section style={{ ...section, maxWidth: 940, margin: '24px auto' }}>
@@ -272,36 +343,69 @@ export const StudentLearningPath = ({
     );
   }
 
-  if (!map || map.isEmpty) {
-    return (
-      <section style={{ ...section, maxWidth: 940, margin: '24px auto' }}>
-        <h3 style={sectionHeading}>Your path</h3>
-        <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.6 }}>
-          Nothing is open on your path just yet. Try a practice session from your mastery overview to build some
-          evidence.
-        </p>
-      </section>
-    );
-  }
-
+  // ONE launcher for the map and the browser: the same card shape reaches
+  // onChooseSkill, so the browser starts a session exactly as a map card does.
   const choose = onChooseSkill ? (node) => onChooseSkill({
     skillId: node.skillId,
     title: node.title,
     status: node.status,
     remediationTarget: node.strengthen?.skillId || null,
+    // Read by pathCardLaunchOptions: a retention-check card starts the check.
+    isRetentionCheck: Boolean(node.isRetentionCheck),
   }) : null;
+
+  if (view === 'topics') {
+    return (
+      <MyMathPathTopicBrowser
+        pathOptions={pathOptions}
+        masteryProfilesByTEKS={masteryProfilesByTEKS || {}}
+        skillProgressByTEKS={skillProgressByTEKS}
+        isCovered={isCovered}
+        onChooseSkill={choose}
+        disabled={freeChoiceLocked}
+        onBack={() => { returningFromBrowser.current = true; setView('path'); }}
+      />
+    );
+  }
+
+  const browseButton = (
+    <button
+      ref={browseButtonRef}
+      type="button"
+      onClick={() => setView('topics')}
+      style={{ flex: '0 0 auto', minHeight: 44, padding: '10px 15px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer' }}
+    >
+      Browse all topics
+    </button>
+  );
+
+  if (!map || map.isEmpty) {
+    return (
+      <section style={{ ...section, maxWidth: 940, margin: '24px auto' }}>
+        <h3 style={sectionHeading}>Your path</h3>
+        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.6 }}>
+          Nothing is open on your path just yet. Try a practice session from your mastery overview to build some
+          evidence, or browse every topic in your course to see what is coming.
+        </p>
+        {browseButton}
+      </section>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 940, margin: '0 auto', padding: '20px 16px 40px' }}>
-      <header style={{ textAlign: 'left', marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 24, color: 'var(--mm-text-strong)' }}>Your path</h2>
-        <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
-          <strong>{map.masteredCount} of {map.totalSkills}</strong> skills mastered.
-          {passSummary.totalCompletedPasses > 0 && (
-            <> · <strong>{passSummary.totalCompletedPasses}</strong> Path {passSummary.totalCompletedPasses === 1 ? 'pass' : 'passes'} completed across <strong>{passSummary.completedSkillCount}</strong> {passSummary.completedSkillCount === 1 ? 'skill' : 'skills'}.</>
-          )}
-          {map.pacingIsProvisional ? ' Your class position is provisional, so timing may shift.' : ''}
-        </p>
+      <header style={{ textAlign: 'left', marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+          <h2 style={{ margin: 0, fontSize: 24, color: 'var(--mm-text-strong)' }}>Your path</h2>
+          <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
+            <strong>{map.masteredCount} of {map.totalSkills}</strong> skills mastered.
+            {passSummary.totalCompletedPasses > 0 && (
+              <> · <strong>{passSummary.totalCompletedPasses}</strong> practice {passSummary.totalCompletedPasses === 1 ? 'round' : 'rounds'} done across <strong>{passSummary.completedSkillCount}</strong> {passSummary.completedSkillCount === 1 ? 'skill' : 'skills'}.</>
+            )}
+            {map.pacingIsProvisional ? ' Your class position is provisional, so timing may shift.' : ''}
+          </p>
+        </div>
+        {browseButton}
       </header>
 
       {/*
@@ -374,11 +478,12 @@ export const StudentLearningPath = ({
       <PathSection
         title="Mastered"
         note={'Yours already. You can practise any of them again whenever you want to.'}
-        nodes={map.mastered}
+        nodes={masteredView.visible}
         onChoose={choose}
         practiceAs={practiceAs}
         disabled={freeChoiceLocked}
         skillProgressByTEKS={skillProgressByTEKS}
+        footer={<MasteredToggle view={masteredView} onToggle={() => setShowAllMastered((current) => !current)} />}
       />
     </div>
   );

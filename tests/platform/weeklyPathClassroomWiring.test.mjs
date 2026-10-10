@@ -36,13 +36,19 @@ test('the schedule runs after the deadline, not before it', () => {
   assert.match(scheduled, /invoker: "private"/);
 });
 
-test('the completion query reaches past the UTC week boundary to catch Sunday night', () => {
+test('the completion query reaches past the UTC week boundary to catch Sunday night', async () => {
   // The week closes at local midnight, which is early Monday in UTC. A window
   // that stopped at the UTC boundary would silently drop every session finished
   // on Sunday evening — the busiest hours of a Sunday-night deadline.
-  const loader = blockAfter(functionsIndex, 'async function loadWeeklyPathClassWeek', 1400);
-  assert.match(loader, /weekStart \+ \(8 \* 24 \* 60 \* 60 \* 1000\)/);
-  assert.doesNotMatch(loader, /weekStart \+ \(7 \* 24 \* 60 \* 60 \* 1000\)/);
+  // The window now lives in functions/shared/weeklyPathCompletion.mjs so the
+  // teacher table and the student panel use the same one; assert the loader
+  // reads it and that it really spans eight days.
+  const loader = blockAfter(functionsIndex, 'async function loadWeeklyPathClassWeek', 2600);
+  assert.match(loader, /weeklyCompletionWindow\(weekKey\)/);
+  assert.match(loader, /\.where\("completedAt", "<", weekEnd\)/);
+  const { weeklyCompletionWindow } = await import('../../functions/shared/weeklyPathCompletion.mjs');
+  const window = weeklyCompletionWindow('2026-10-05');
+  assert.equal(window.end - window.start, 8 * 24 * 60 * 60 * 1000);
 });
 
 test('the job grades the week that ended, using the same weekKeyFor students got', () => {

@@ -25,6 +25,7 @@ const SLOT_STYLE = {
 function SkillCard({ card, label, onChoose, disabled }) {
   if (!card) return null;
   const style = SLOT_STYLE[card.slot] || SLOT_STYLE.choice;
+  const evidence = Array.isArray(card.evidence) ? card.evidence : [];
   return (
     <button
       type="button"
@@ -44,7 +45,21 @@ function SkillCard({ card, label, onChoose, disabled }) {
       <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', margin: '4px 0 2px', fontSize: 15 }}>
         {card.description || card.title}
       </span>
-      <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>{card.reason}</span>
+      {/* WHY, WITH THE EVIDENCE NAMED. The engine's list restates the verdict
+          with what drove it — the score and the questions behind it, the class
+          unit, what it builds on — so it replaces the one-line reason rather
+          than repeating it. A card with no evidence keeps the reason. */}
+      {evidence.length ? (
+        <span data-recommendation-evidence style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
+          {evidence.map((item) => (
+            <span key={`${item.kind}:${item.text}`} style={{ display: 'block' }}>
+              <span aria-hidden="true">· </span>{item.text}
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>{card.reason}</span>
+      )}
     </button>
   );
 }

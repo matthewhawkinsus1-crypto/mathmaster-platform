@@ -77,9 +77,9 @@ test('active work, completion, and unavailable-next-level states all expose a sa
   assert.match(player, /onClick=\{onExit\}[\s\S]{0,480}Back to My Math Path/);
   assert.match(container, /const sessionOver = session\?\.status === 'completed'/);
   assert.match(container, /Level \$\{coursePassLevel\} complete/);
-  assert.match(container, /Path Pass \{coursePassLevel\} complete/);
+  assert.match(container, /Level \{coursePassLevel\} round done/);
   assert.match(container, /Your completed pass is saved/);
-  assert.match(container, /Your earlier Path pass is still complete/);
+  assert.match(container, /Your earlier practice round is still done/);
   assert.match(container, /Back to My Math Path/);
 });
 
@@ -91,7 +91,7 @@ test('completed-session re-entry stops cleanly instead of fetching another quest
     /if \(result\.session\.status === 'active'\)[\s\S]{0,700}else \{[\s\S]{0,180}setSession\(result\.session\);[\s\S]{0,120}setCurrentQuestion\(null\)/,
   );
   assert.match(container, /completedSessionError = \/session is already complete\|session is already completed\/i/);
-  assert.match(container, /This Path pass is already complete/);
+  assert.match(container, /This practice round is already done/);
 });
 
 test('Teacher Simulator uses the same student Path experience and completion/recovery UI', () => {

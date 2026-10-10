@@ -22,6 +22,8 @@ import { readFileSync } from 'node:fs';
 import {
   SUPPORTED_CREDIT, estimateInstructionalPerformanceLevel,
 } from '../../src/masteryEngine.js';
+import { MASTERY_STATUS, classifyMasteryStatus } from '../../functions/shared/masteryRule.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const serverSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 
@@ -78,8 +80,32 @@ test('mixed evidence lands between the two, not at the top', () => {
 // --- The label requires independent evidence ---------------------------------
 
 test('the Mastered gate requires successes the student produced unaided', () => {
-  assert.ok(serverSource.includes('independentSuccesses >= 2'),
-    'the server Mastered gate must require independent successes, not only a high estimate');
+  // This used to be `serverSource.includes('independentSuccesses >= 2')`. Once
+  // the gate moved into the shared rule, the only line in functions/index.js
+  // that still matched was the RETENTION CHECK's pass test — so the assertion
+  // stood for a behaviour it no longer looked at. It is now bound to the gate:
+  // the trigger hands the rule the count of unaided successes...
+  const trigger = region(
+    executableSource(serverSource),
+    'exports.updateMyMathPathMasteryFromEvidence',
+    '\nexports.',
+    'the server mastery trigger',
+  );
+  assert.match(trigger, /masteryRule\.classifyMasteryStatus\(\{[^}]*\bindependentSuccesses\s*[,}]/,
+    'the server Mastered gate must be given the independent successes, not only a high estimate');
+  // The count it is given is of answers that were right AND unaided.
+  assert.match(
+    trigger,
+    /const independentSuccesses = Number\(accumulator\.independentSuccesses \|\| 0\)\s*\+ \(evidence\.performance\?\.isCorrect && independent && weight > 0 \? 1 : 0\);/,
+    'only a correct answer the student produced without support may count toward Mastered',
+  );
+  // ...and the rule refuses Mastered without two of them, however high the
+  // estimate and however broad the evidence.
+  const strong = { estimate: 100, eligibleEvents: 6, effectiveWeight: 6, dokRepresented: [2, 3] };
+  assert.notEqual(classifyMasteryStatus({ ...strong, independentSuccesses: 0 }), MASTERY_STATUS.MASTERED,
+    'a top label assembled entirely from supported successes is a claim the evidence does not support');
+  assert.notEqual(classifyMasteryStatus({ ...strong, independentSuccesses: 1 }), MASTERY_STATUS.MASTERED);
+  assert.equal(classifyMasteryStatus({ ...strong, independentSuccesses: 2 }), MASTERY_STATUS.MASTERED);
   assert.ok(serverSource.includes('const weight = modified ? 0 : roleWeight;'),
     'the support discount must NOT be folded back into the weight');
   assert.ok(serverSource.includes('SUPPORTED_CREDIT'),

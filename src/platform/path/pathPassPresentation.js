@@ -33,7 +33,7 @@ export const coursePathLevelName = (level = 1) => {
   const safe = Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, whole(level) || 1));
   if (safe === 1) return 'Foundation';
   if (safe === 2) return 'Deeper practice';
-  return 'Mastery challenge';
+  return 'Stretch practice';
 };
 
 export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
@@ -44,7 +44,7 @@ export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
     return {
       ...progress,
       hasCompletedPass: count > 0,
-      completedLabel: count > 0 ? `✓ Path Pass ${Math.min(count, COURSE_PATH_MAX_LEVEL)} complete` : null,
+      completedLabel: count > 0 ? `✓ Level ${Math.min(count, COURSE_PATH_MAX_LEVEL)} round done` : null,
       levelLabel: 'Mastered · review',
       nextLabel: 'Mastered · review anytime',
       buttonLabel: 'Review skill',
@@ -70,7 +70,7 @@ export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
     return {
       ...progress,
       hasCompletedPass: true,
-      completedLabel: '✓ Path Pass 1 complete',
+      completedLabel: '✓ Level 1 round done',
       levelLabel: 'Level 2 · Deeper practice',
       nextLabel: 'Next: Level 2 · Deeper practice',
       buttonLabel: 'Start Level 2',
@@ -83,9 +83,9 @@ export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
     return {
       ...progress,
       hasCompletedPass: true,
-      completedLabel: '✓ Path Pass 2 complete',
-      levelLabel: 'Level 3 · Mastery challenge',
-      nextLabel: 'Next: Level 3 · Mastery challenge',
+      completedLabel: '✓ Level 2 round done',
+      levelLabel: 'Level 3 · Stretch practice',
+      nextLabel: 'Next: Level 3 · Stretch practice',
       buttonLabel: 'Start Level 3',
       tone: '#5b21b6',
       background: 'var(--mm-accent-soft)',
@@ -95,9 +95,9 @@ export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
   return {
     ...progress,
     hasCompletedPass: true,
-    completedLabel: `✓ ${count} Path passes complete`,
+    completedLabel: `✓ ${count} practice rounds done`,
     levelLabel: 'Advanced practice',
-    nextLabel: 'Advanced practice · mastery evidence still building',
+    nextLabel: 'Advanced practice · Mastered is earned from your answers',
     buttonLabel: 'Continue advanced practice',
     tone: '#5b21b6',
     background: 'var(--mm-accent-soft)',
