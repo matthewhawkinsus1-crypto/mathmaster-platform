@@ -58,10 +58,13 @@ const buildRepresentations = (question) => {
   switch (question.type) {
     case 'algebra': {
       const answer = question.generatedAnswer ?? question.answer;
+      // The solution of an equation in x, and its decimal value when that
+      // says something new. Never a point on y = x: that is not what "solve
+      // 2x + 1 = 7" asked (release-candidate QA m9).
+      const decimal = Number.isFinite(Number(answer)) ? Number(answer).toFixed(2).replace(/\.?0+$/, '') : '';
       return unique([
         `x = ${answer}`,
-        Number.isFinite(Number(answer)) ? `Ordered pair on y = x: (${answer}, ${answer})` : '',
-        Number.isFinite(Number(answer)) ? `Decimal form: ${Number(answer).toFixed(2).replace(/\.00$/, '')}` : '',
+        decimal && decimal !== String(answer).trim() ? `Decimal form: ${decimal}` : '',
       ]).slice(0, 3);
     }
     case 'numberLine':
@@ -479,7 +482,7 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
             const prose = isProseRepresentation(representation);
             return (
               <div key={`${representation}-${index}`} style={{ padding: '10px 12px', borderRadius: '8px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)' }}>
-                <strong style={{ color: 'var(--mm-text-muted)', marginRight: '8px' }}>{prose ? 'Solution note' : `Representation ${index + 1}`}:</strong>
+                <strong style={{ color: 'var(--mm-text-muted)', marginRight: '8px' }}>{prose ? 'Solution note' : representations.length === 1 ? 'Answer' : `Form ${index + 1}`}:</strong>
                 {prose
                   ? <span style={{ color: 'var(--mm-text-strong)' }}>{representation}</span>
                   : <MathDisplay value={representation} format={representation.includes('\\') ? 'latex' : 'ascii-math'} inline />}
