@@ -533,6 +533,8 @@ export const graphing2HasNoGridAnswer = (question) => {
 
 // The operations complexPlaneLab's Operations view offers.
 const COMPLEX_OPERATIONS = new Set(['add', 'subtract', 'multiply']);
+// Spellings the grader still reads as multiplication (as the screen shows them).
+const COMPLEX_MULTIPLY_SPELLINGS = new Set(['multiply', 'multiplication', 'product', 'times', '×', '*']);
 
 /*
  * The structural slope-intercept check before and after the change: the
@@ -698,7 +700,8 @@ export const defectsOf = ({ question, surface, work = null, storedQuestion = nul
   // The both-points rule applies only where the grid reaches the target line
   // (targetReachableOnGrid); elsewhere the grader keeps the line rule.
   if (tool === 'graphing2' && graphing2PointOffLine(question, work) && !graphing2HasNoGridAnswer(question)) defects.push(DEFECT.GRAPHING2_BOTH_POINTS);
-  if (tool === 'complexPlaneLab' && mode === 'operations' && question.operation && !COMPLEX_OPERATIONS.has(question.operation)) {
+  if (tool === 'complexPlaneLab' && mode === 'operations' && question.operation && !COMPLEX_OPERATIONS.has(question.operation)
+    && !COMPLEX_MULTIPLY_SPELLINGS.has(String(question.operation).trim().toLowerCase())) {
     defects.push(DEFECT.COMPLEX_OPERATION);
   }
   // Step Algebra 2's slope-intercept rewrite never reaches here: the runtime

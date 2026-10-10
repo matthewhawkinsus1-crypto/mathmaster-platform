@@ -155,7 +155,7 @@ test('complexPlaneLab: an operation the lab does not offer is refused, never gra
   const w = { re: 1, im: -1 };
   const product = math.multiply(math.complex(4, 2), math.complex(1, -1));
   const quotient = math.divide(math.complex(4, 2), math.complex(1, -1));
-  ['divide', 'power', 'Multiply', 'conjugate'].forEach((operation) => {
+  ['divide', 'power', 'conjugate'].forEach((operation) => {
     [product, quotient].forEach((value) => {
       const result = lab({ z, w, operation }, { real: String(value.re), imaginary: String(value.im) });
       assert.equal(result.graded, false, operation);
@@ -337,4 +337,17 @@ test('graphing2: reachability is judged inside the question\'s own window, not b
   }
   assert.equal(graph(question, [[-10, 0], [10, 0.5]]).isCorrect, true, 'the nearest constructible line is right, as on main');
   assert.equal(graph(question, [[-10, 0], [10, 2]]).isCorrect, false, 'a different line is still wrong');
+});
+
+test('complexPlaneLab: legacy spellings of multiplication stay gradable, as the screen shows them (×)', () => {
+  // (2 + 3i)(−1 + 2i) = −2 + 4i − 3i + 6i² = −8 + i.
+  const z = { re: 2, im: 3 };
+  const w = { re: -1, im: 2 };
+  for (const operation of ['multiplication', 'product', 'Multiply', 'times']) {
+    const result = gradeToolWork({ toolId: 'complexPlaneLab', question: { type: 'complexPlaneLab', mode: 'operations', operation, z, w }, work: { real: '-8', imaginary: '1' } });
+    assert.equal(result.graded, true, operation);
+    assert.equal(result.isCorrect, true, operation);
+  }
+  const divide = gradeToolWork({ toolId: 'complexPlaneLab', question: { type: 'complexPlaneLab', mode: 'operations', operation: 'divide', z, w }, work: { real: '-8', imaginary: '1' } });
+  assert.notEqual(divide.isCorrect, true, 'divide is still never graded as multiply');
 });

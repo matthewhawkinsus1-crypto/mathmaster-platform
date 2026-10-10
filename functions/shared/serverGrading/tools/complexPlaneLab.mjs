@@ -59,11 +59,21 @@ const OPERATIONS = Object.freeze({
   multiply: complexMultiplyValues,
 });
 
+// Older content spelled multiplication other ways. The lab's screen shows ×
+// and computes z × w for them (anything but 'add' or 'subtract'), so they stay
+// gradable as multiplication: screen and grader agree.
+const MULTIPLY_SPELLINGS = new Set(['multiply', 'multiplication', 'product', 'times', '×', '*']);
+const operationOf = (question) => {
+  const operation = question.operation || 'multiply';
+  if (Object.hasOwn(OPERATIONS, operation)) return operation;
+  return MULTIPLY_SPELLINGS.has(String(operation).trim().toLowerCase()) ? 'multiply' : null;
+};
+
 const operations = (question, work) => {
   const z = toComplex(question.z || { re: 2, im: 3 });
   const w = toComplex(question.w || { re: -1, im: 2 });
-  const operation = question.operation || 'multiply';
-  if (!Object.hasOwn(OPERATIONS, operation)) return ungradedResult('invalid-question');
+  const operation = operationOf(question);
+  if (!operation) return ungradedResult('invalid-question');
   const expected = OPERATIONS[operation](z, w);
   return gradedResult({
     parts: [
