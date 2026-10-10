@@ -605,6 +605,35 @@ test('the Retest answers wait while anyone can still take a Retest: a student in
     'in Corrections, or yet to finish the Test: all can still take a Retest');
 });
 
+test("a teacher's reset of the Test closes the old Corrections plan until the new Test is submitted", async () => {
+  // A2 is in Corrections, with the correction question opened above still open.
+  const plan = await readCorrectionPlan(ROSTER_ASSIGNMENT_ID, ROSTER_A2);
+  const [correctionId, open] = Object.entries(plan.activeQuestions || {})[0] || [];
+  assert.ok(correctionId && open?.questionInstanceId, 'A2 has a correction question open');
+  const issueCorrection = () => fns.issueTestCycleCorrectionQuestion.run(student(ROSTER_A2, { assignmentId: ROSTER_ASSIGNMENT_ID, correctionId }));
+  const answerCorrection = () => fns.submitTestCycleCorrectionResponse.run(student(ROSTER_A2, {
+    assignmentId: ROSTER_ASSIGNMENT_ID, correctionId, questionInstanceId: open.questionInstanceId, responsePayload: { responses: { answer: CERT_WRONG_ANSWER } },
+  }));
+
+  // The teacher resets A2's Test: a new attempt, drawn from the same families as the old plan.
+  await fns.teacherTestCycleAction.run(roster({ studentId: ROSTER_A2, action: 'resetSecureSession', stage: 'test' }));
+  const newTest = await testSessionOf(ROSTER_A2);
+  created.push(newTest);
+  for (const when of ['assigned', 'under way']) {
+    // eslint-disable-next-line no-await-in-loop
+    if (when === 'under way') await fns.startSecureExamSession.run(student(ROSTER_A2, { examSessionId: newTest }));
+    // eslint-disable-next-line no-await-in-loop
+    const issued = await refusal(issueCorrection());
+    assert.equal(issued?.code, 'failed-precondition', `no correction question while the new Test is ${when}`);
+    assert.match(issued.message, /closed while your Test is open/);
+    // Three misses would hand over a worked solution: not one response is taken.
+    // eslint-disable-next-line no-await-in-loop
+    const answered = await refusal(answerCorrection());
+    assert.equal(answered?.code, 'failed-precondition', `no correction response while the new Test is ${when}`);
+  }
+  assert.equal(Number((await readCorrectionPlan(ROSTER_ASSIGNMENT_ID, ROSTER_A2)).activeQuestions[correctionId].attemptsUsed || 0), 0, 'no attempt was spent');
+});
+
 test("a teacher's reset closes the earlier attempt's answers until the new attempt is submitted", async () => {
   await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
   await db.collection('grades').doc(RESET_STUDENT).set({

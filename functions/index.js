@@ -18333,19 +18333,24 @@ function studentVisibleCorrectionPlan(plan) {
 const CORRECTION_ATTEMPTS_PER_QUESTION = 3;
 
 /*
- * CORRECTIONS CLOSE WHILE THE STUDENT'S OWN RETEST IS OPEN.
+ * CORRECTIONS CLOSE WHILE THE STUDENT'S OWN TEST OR RETEST IS OPEN.
  *
  * Corrections hand out hints and, after a third miss, a worked solution, on
- * parallel items from the same families the Retest draws on. Once the Retest
- * is assigned or under way (a teacher can waive corrections or unlock the
- * retest with the plan unfinished), that is an open book for it: no
- * correction question is issued and no response is taken until the Retest is
- * submitted.
+ * parallel items from the same families the Test and the Retest draw on. Once
+ * either is assigned or under way, that is an open book for it: a Retest a
+ * teacher opened with the plan unfinished (waived corrections, an unlocked
+ * retest), or the new Test a teacher's reset assigned while the old plan is
+ * still there. No correction question is issued and no response is taken
+ * until that attempt is submitted.
  */
 function assertCorrectionsOpenFor(shared, record) {
   const { ASSIGNED, IN_PROGRESS } = shared.record.SESSION_STATE;
-  if (record.retest.state === ASSIGNED || record.retest.state === IN_PROGRESS) {
-    throw new HttpsError("failed-precondition", "Corrections are closed while your Retest is open. They open again once you submit it.", { reason: "retest_open" });
+  const open = (state) => state === ASSIGNED || state === IN_PROGRESS;
+  const sitting = open(record.retest.state) ? "Retest" : open(record.test.state) ? "Test" : null;
+  if (sitting) {
+    throw new HttpsError("failed-precondition", `Corrections are closed while your ${sitting} is open. They open again once you submit it.`, {
+      reason: sitting === "Retest" ? "retest_open" : "test_open",
+    });
   }
 }
 

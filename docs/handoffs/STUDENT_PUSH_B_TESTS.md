@@ -62,7 +62,8 @@ secure-exam region of `functions/index.js`. Client: `SecureExamContainer.jsx`
   student has another practice test of the same exam started or paused. Every
   open review asks again on focus, on return to the tab and every 30 seconds,
   and closes on a refusal. Corrections issue no question and take no response
-  while the student's own Retest is assigned or in progress.
+  while the student's own Test or Retest is assigned or in progress (a Test a
+  teacher's reset reassigned included).
 - A course Test's correct answers and worked solutions wait until no one who
   can still sit that stage is left: the whole roster of every assigned class
   (a student with no session yet included) and every record holder. A
@@ -218,12 +219,13 @@ attempt per question.
   save. The save, submit and finalize gates now run inside each call's
   transaction and read the assignment, record and grade document through it,
   so a save in flight cannot land after a pause.
-- **No Corrections during the student's own Retest.**
+- **No Corrections during the student's own Test or Retest.**
   `issueTestCycleCorrectionQuestion` and `submitTestCycleCorrectionResponse`
-  refuse while that student's Retest is assigned or in progress (inside the
-  submit's transaction, so a Retest opened meanwhile gets no worked solution),
-  and the submit now also refuses a paused or archived Test Cycle, as issue
-  already did.
+  refuse while that student's Retest is assigned or in progress, and while a
+  Test a teacher's reset reassigned is (the old plan's families are in the new
+  Test). Submit checks inside its transaction, so an attempt opened meanwhile
+  gets no worked solution, and it now also refuses a paused or archived Test
+  Cycle, as issue already did.
 - **Proctor actions on a practice test are its creator's and the student's
   teachers'.** `proctorExamAction` refuses any other teacher (the root
   administrator is not filtered). A creator who does not teach the student
@@ -257,7 +259,7 @@ attempt per question.
   launch. Every new or rewritten assertion was mutation-checked (break the
   behaviour, see it red, restore). Existing contracts pinned to old function
   names or copy were rewritten against the behaviour they protect.
-- **Emulator** (`npm run test:secure-exam-navigation`, new, 18 tests):
+- **Emulator** (`npm run test:secure-exam-navigation`, new, 19 tests):
   skip/flag/back and change an answer, graded once at submit; blank =
   unanswered; no verdict in any response; key never on the session; released
   solutions only after release; held vs automatic release; integrity warning;
@@ -266,7 +268,7 @@ attempt per question.
   answer hold over the whole roster (a period with no sessions open, a student
   who joins later, a reset of a covered student, the Retest held while a
   classmate is in Corrections) and the named release; Corrections closed during
-  the student's own Retest and while paused; the legacy record call and Submit
+  the student's own Retest, during a Test a reset reassigned, and while paused; the legacy record call and Submit
   refused while paused or archived, with time-up grading the pre-pause draft;
   practice-test proctor scope; legacy session upgrade. Every fix in the
   coordinator re-check was mutation-checked against this suite (revert it, see
