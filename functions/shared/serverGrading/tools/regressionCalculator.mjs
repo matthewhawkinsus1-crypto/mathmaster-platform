@@ -9,8 +9,12 @@
  *                                pairs, in any row order
  *   linear-regression            that table is right AND the executed run is
  *                                a linear regression on that same table
- *   correlation-produced         that table is right AND the run's r is within
- *                                0.0005 of the source data's r
+ *   correlation-produced         the linear-regression stage passed AND the
+ *                                run's r, m and b are within 0.0005 of the
+ *                                regression of the run's own table, whose r
+ *                                is within 0.0005 of the source data's r (the
+ *                                Path grader's rule; the calculator's run
+ *                                always meets it)
  *   interpretation               direction and strength match the source r
  *                                (0.1 / 0.5 / 0.8 thresholds); not a part at
  *                                all when requireInterpretation is false
@@ -106,6 +110,14 @@ const gradeWorkflow = (tablePartId, tableLabel) => (question, work) => {
   const strength = readChoice(interpretation?.strength);
 
   const tableCorrect = samePairs(entered, source);
+  const regressionCorrect = tableCorrect && ranRegression && samePairs(readPairs(run.table), entered);
+  // As My Math Path grades the same stage: the run's r, m and b are the
+  // regression of the run's own table, and that table's r is the source's.
+  const runStats = regressionCorrect ? regressionCalculatorStats(readPairs(run.table)) : null;
+  const matchesRun = (field) => Math.abs(coordinate(run[field]) - runStats[field]) <= 0.0005;
+  const correlationCorrect = Boolean(runStats)
+    && matchesRun('r') && matchesRun('m') && matchesRun('b')
+    && Math.abs(runStats.r - Number(expected?.r)) <= 0.0005;
   const parts = [
     {
       id: tablePartId,
@@ -119,14 +131,14 @@ const gradeWorkflow = (tablePartId, tableLabel) => (question, work) => {
       id: 'linear-regression',
       label: 'Linear regression',
       isComplete: ranRegression,
-      isCorrect: tableCorrect && ranRegression && samePairs(readPairs(run.table), entered),
+      isCorrect: regressionCorrect,
       response: ranRegression ? REGRESSION_OPERATION : '',
     },
     {
       id: 'correlation-produced',
       label: 'Correlation produced',
       isComplete: Number.isFinite(runR),
-      isCorrect: tableCorrect && Math.abs(runR - Number(expected?.r)) <= 0.0005,
+      isCorrect: correlationCorrect,
       response: Number.isFinite(runR) ? `r = ${runR}` : '',
     },
   ];

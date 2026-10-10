@@ -404,7 +404,10 @@
               "id": "equation",
               "label": "Corresponding monic factored equation",
               "inputProfile": "equation",
-              "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})"
+              "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})",
+              "accepted": [
+                "y=(x{{nr2|signed}})(x{{nr1|signed}})"
+              ]
             }
           ],
           "solutionReview": {

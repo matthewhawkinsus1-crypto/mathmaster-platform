@@ -15,13 +15,18 @@
  *                  share of comparable samples that agree; correct at >= 0.999.
  *   identify       a, b, h, k against the drawn function at 0.01
  *                  (transformationParameterScore). Always four checks: with no
- *                  b box the lab's b is its fixed 1, exactly as before.
+ *                  b box the lab's b is its fixed 1, exactly as before. Any
+ *                  a, b, h, k whose function, rewritten in the question's own
+ *                  form, is within 0.01 of it (sameTransformedFunction) is
+ *                  right in every part: the graph does not fix one set.
  *   pointMap       (x/b + h, ay + k) of the parent point at 0.01. A
  *                  coordinate earns credit only once BOTH are entered.
  *   plotTransform  each plotted point against its source point's image, in
  *                  plotting order, at 0.01; correct only with exactly one
  *                  point per image.
- *   describe       the ten descriptions (six choices, four numbers at 0.01).
+ *   describe       the ten descriptions (six choices, four numbers at 0.01),
+ *                  or a full description of the same function another way
+ *                  (descriptionDrawsSameFunction), right in every part.
  *   anchor         the transformed defining feature at 0.01.
  *
  * Typed coordinates and descriptions are read with parseNumericAnswer (so
@@ -50,6 +55,7 @@ import { bindToolGrader } from '../toolGraderDefinition.mjs';
 import { gradedResult } from '../gradingResult.mjs';
 import { matchesNumericAnswer, parseNumericAnswer } from '../../toolMath/shared/toolMath.mjs';
 import {
+  descriptionDrawsSameFunction,
   mapParentPoint,
   mappedPointIsCorrect,
   resolveTransformationsQuestion,
@@ -126,7 +132,8 @@ const match = (question, work) => {
 const identify = (question, work) => {
   const resolved = resolveTransformationsQuestion(question);
   const boxes = parameterBoxes(resolved, work);
-  const student = Object.fromEntries(PARAMETERS.map((key) => [key, Number(boxes.values[key])]));
+  // A blank box is no number (never 0), so it can never complete a set that draws the same graph.
+  const student = Object.fromEntries(PARAMETERS.map((key) => [key, parameterAnswered(boxes.values[key]) ? Number(boxes.values[key]) : Number.NaN]));
   const { checks } = transformationParameterScore(student, resolved.investigationSpec, TOLERANCE);
   const parts = PARAMETERS.map((key, index) => {
     const answered = parameterAnswered(boxes.values[key]);
@@ -222,9 +229,9 @@ const numberPart = (id, label, value, expected) => {
 };
 
 const describe = (question, work) => {
-  const descriptor = transformationDescriptor(resolveTransformationsQuestion(question).investigationSpec);
-  return gradedResult({
-    parts: [
+  const { investigationSpec } = resolveTransformationsQuestion(question);
+  const descriptor = transformationDescriptor(investigationSpec);
+  const parts = [
       choicePart('reflection', 'Reflection across the x-axis', work.reflection, descriptor.reflection ? 'yes' : 'no'),
       choicePart('vertical-scale-kind', 'Vertical scale', work.scaleKind, descriptor.verticalScaleKind),
       numberPart('vertical-scale-factor', 'Vertical scale factor |a|', work.scaleFactor, descriptor.verticalScale),
@@ -235,8 +242,12 @@ const describe = (question, work) => {
       numberPart('horizontal-distance', 'Horizontal shift (units)', work.horizontalDistance, descriptor.horizontalDistance),
       choicePart('vertical-direction', 'Vertical translation', work.verticalDirection, descriptor.verticalDirection),
       numberPart('vertical-distance', 'Vertical shift (units)', work.verticalDistance, descriptor.verticalDistance),
-    ],
-  });
+  ];
+  // A full description of the same graph another way (4x² as a horizontal
+  // compression by 1/2) is right in every part: the graph is all the student
+  // was shown.
+  const sameGraph = descriptionDrawsSameFunction(work, investigationSpec, TOLERANCE);
+  return gradedResult({ parts: sameGraph ? parts.map((part) => ({ ...part, isCorrect: true })) : parts });
 };
 
 const anchor = (question, work) => {

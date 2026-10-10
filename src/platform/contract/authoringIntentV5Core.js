@@ -15,6 +15,7 @@ import {
 } from './assignmentSchemaV5.js';
 import { normalizeQuestionFamilyReference } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { hasLocalFamilyTemplate, lostTemplatePlaceholders } from '../../../functions/shared/questionFamilyTemplate.mjs';
+import { isValidLogBase } from '../../../functions/shared/toolMath/exponentialLog/exponentialLogMath.mjs';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -38,6 +39,8 @@ const normalizeToken = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+
 // before any student's numbers exist, so a whole-field token is carried as
 // written. Every other value is coerced exactly as before.
 const WHOLE_TEMPLATE_TOKEN = /^\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*\}\}$/;
+// Any placeholder, with the Path generator's optional '|filter' ('{{b|signed}}').
+const TEMPLATE_TOKEN = /\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\|\s*[A-Za-z]+\s*)?\}\}/g;
 const numberOrTemplateToken = (value) => (
   typeof value === 'string' && WHOLE_TEMPLATE_TOKEN.test(value.trim()) ? value.trim() : Number(value)
 );
@@ -160,9 +163,25 @@ const copyCommon = (source, target = {}) => {
   // allocator fills only the questions that have none.
   if (source.questionWeight != null && source.questionWeight !== '') target.questionWeight = source.questionWeight;
   if (isObject(source.questionWeightBasis)) target.questionWeightBasis = source.questionWeightBasis;
-  if (source.standard) target.standard = source.standard;
+  // `standard` has two meanings. On most questions it is the curriculum code
+  // ('A.3C'); graphing2 standard form keeps the line's { A, B, C } there, and
+  // its branch has already put that object on the target. Overwriting it with
+  // the code left the tool drawing "undefinedx + undefinedy" with no answer
+  // that could ever be right. The coefficients stay where the tool reads them
+  // and the code travels as primaryStandard, the shorthand the blueprint
+  // compiles into alignments (or as a secondary standard when a different
+  // primary was authored), so neither meaning is lost.
+  const curriculumStandard = source.standard && !isObject(source.standard) ? source.standard : null;
+  const toolOwnsStandard = curriculumStandard != null && isObject(target.standard);
+  if (source.standard && !toolOwnsStandard) target.standard = source.standard;
   if (source.primaryStandard) target.primaryStandard = source.primaryStandard;
   if (source.secondaryStandards) target.secondaryStandards = source.secondaryStandards;
+  if (toolOwnsStandard) {
+    if (!target.primaryStandard) target.primaryStandard = curriculumStandard;
+    else if (target.primaryStandard !== curriculumStandard && !asArray(target.secondaryStandards).includes(curriculumStandard)) {
+      target.secondaryStandards = [...asArray(target.secondaryStandards), curriculumStandard];
+    }
+  }
   if (source.prerequisiteStandards) target.prerequisiteStandards = source.prerequisiteStandards;
   if (source.alignments) target.alignments = source.alignments;
   return target;
@@ -235,6 +254,41 @@ const toolFunctionSpec = (raw = {}) => {
   const core = coreFunctionSpec(raw);
   if (core.type !== 'linear') return core;
   return { type: 'linear', a: core.m, h: 0, k: core.b, ...(core.domain ? { domain: core.domain } : {}) };
+};
+
+// The exponential/log bridge draws and grades one function only,
+// a·base^(x − h) + k (its logarithm is that function's inverse). A `function`
+// authored there without a type is that exponential: read as the default
+// linear spec it became { type: 'linear', a, k }, dropping h and the base (and
+// taking an a·b^x author's b as the intercept), so the bridge graded a
+// different function from the prompt. A typed spec, or one written with a
+// line's m / slope / intercept, compiles exactly as before.
+const exponentialLogFunctionSpec = (raw = {}) => {
+  if (!hasFunctionIntent(raw) || raw.type || raw.family || ['m', 'slope', 'intercept'].some((key) => raw[key] != null)) {
+    return toolFunctionSpec(raw);
+  }
+  const base = raw.base ?? raw.b;
+  return coreFunctionSpec({ ...raw, type: 'exponential', base, b: raw.base == null ? undefined : raw.b });
+};
+
+// The bridge grades its function with `base` (default 2) and never reads `b`.
+// A base that is not positive and ≠ 1 leaves every attempt ungraded, and a
+// typed exponential written with `b` grades base 2, not the b the prompt
+// shows. Neither changes how the question compiles or grades; the warning
+// tells the teacher at import instead of at grade time. A non-numeric value
+// (a template token) is left to the family instance to fill.
+const exponentialLogFunctionWarnings = (question = {}, label = 'question') => {
+  const fn = question.type === 'exponentialLogBridge' && isObject(question.function) ? question.function : null;
+  if (!fn || fn.type !== 'exponential') return [];
+  const warnings = [];
+  const base = fn.base ?? 2;
+  if (Number.isFinite(Number(base)) && !isValidLogBase(base)) {
+    warnings.push(`${label}: exponentialLogBridge function base ${base} must be positive and not 1; the bridge cannot grade this question.`);
+  }
+  if (fn.base == null && fn.b != null) {
+    warnings.push(`${label}: exponentialLogBridge function has b = ${fn.b} but no base; the bridge grades it with base 2. Write the base as \`base\`.`);
+  }
+  return warnings;
 };
 
 const staticFunctionSpec = (raw = {}) => {
@@ -310,6 +364,19 @@ const hasStudentFacingResponseFields = (q = {}) => {
   return fields.length > 0 && fields.every((field) => isObject(field) && clean(field.label || field.prompt));
 };
 
+// SequenceExplorer's own names for the change are difference / ratio
+// (normalizeSequenceSpec). commonDifference / commonRatio are what authors
+// write; store them under the canonical name, and only when the spec names no
+// change of its own, so the sequence the tool draws is the one it drew before.
+const canonicalSequenceChange = (spec, fallbackKind) => {
+  if (!isObject(spec)) return spec;
+  const kind = spec.kind || fallbackKind;
+  const [alias, canonical] = kind === 'geometric' ? ['commonRatio', 'ratio'] : ['commonDifference', 'difference'];
+  if (spec[alias] == null || spec[canonical] != null || spec.change != null) return spec;
+  const { [alias]: change, ...rest } = spec;
+  return { ...rest, [canonical]: change };
+};
+
 const inferBinaryChoiceOptions = (field = {}) => {
   const label = clean(field.label || field.prompt).toLowerCase();
   const answer = clean(field.answer ?? field.acceptedAnswers?.[0]).toLowerCase();
@@ -344,7 +411,14 @@ const fieldFromIntent = (field, index) => {
       : out.answer !== undefined
         ? [out.answer]
         : [];
-    if (accepted.some((value) => looksLikeFiniteSetNotation(value))) {
+    // A family key's {{name}} placeholders are template syntax, not set
+    // braces: '{{a}}' or '{{union}}/{{total}}' is the number the generator
+    // substitutes. Reading them as set notation compiled such boxes (Digital
+    // SAT student-produced responses) as set fields. Test the key with each
+    // placeholder standing in as a plain literal, so only braces the author
+    // wrote around it ('{ {{a}}, {{b}} }', '{-4, -3}') make a set.
+    const withoutPlaceholders = (value) => (typeof value === 'string' ? value.replace(TEMPLATE_TOKEN, '0') : value);
+    if (accepted.some((value) => looksLikeFiniteSetNotation(withoutPlaceholders(value)))) {
       out.type = 'set';
       out.toolProfile = out.toolProfile || 'set';
     }
@@ -1005,13 +1079,24 @@ const resolveIntentType = (q, actions) => {
     && Array.isArray(q.equations)
     && actions.includes('connectRepresentations');
   if (!isThreePlaneSpatialIntent && (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a)))) return 'representationMatch';
-  const hasSequenceAction = actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a));
+  const sequenceActions = actions.filter((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a));
+  const hasSequenceAction = sequenceActions.length > 0;
   // A sequence is mathematical context, not permission to replace an explicitly
   // authored response contract. If the teacher supplied concrete response
   // fields (for example a₅ + a₉, or one explicit-rule box) and only asked for
   // multipleResponses, preserve those exact fields. SequenceExplorer owns the
   // question only when semantic sequence actions ask it to build that workflow,
   // or when no student-facing response fields were authored at all.
+  //
+  // findSequenceTerm / analyzeSequence alone name no workflow the authored
+  // boxes could not hold: with no targetN, missingIndex or sumN, analyze mode
+  // dropped the boxes and graded a₈ instead of the terms the prompt asks for
+  // (District DOL1's "find the second, third and fifth terms").
+  const asksAuthoredSequenceAnswers = hasSequenceAction
+    && sequenceActions.every((a) => a === 'findSequenceTerm' || a === 'analyzeSequence')
+    && hasStudentFacingResponseFields(q)
+    && [q.targetN, q.missingIndex, q.sumN].every((value) => value == null || value === '');
+  if (asksAuthoredSequenceAnswers) return 'multiAnswer';
   if (hasSequenceAction || (q.sequence && !hasStudentFacingResponseFields(q))) return 'sequenceExplorer';
   // A source table that only asks the student to classify the relation should
   // stay a table. Do not invent a mapping diagram merely because normalized
@@ -1816,17 +1901,49 @@ const compileOne = (q, index, repairs) => {
     case 'parabolaGeometryLab': {
       const p = q.parabola || {};
       out = copyCommon(q, { type, mode: q.mode || (p.focus || q.focus ? 'fromGeometry' : 'features'), h: q.h ?? p.h, k: q.k ?? p.k, p: q.p ?? p.p, orientation: q.orientation || p.orientation, focus: q.focus || p.focus, directrix: q.directrix || p.directrix });
+      // The equidistance view measures from `point` (or the parabola point at
+      // `offset`). Dropping them graded a prompt that names P at the lab's
+      // default sampled point instead. Copied only when authored.
+      {
+        const point = q.point ?? p.point;
+        const offset = q.offset ?? p.offset;
+        if (point != null) out.point = point;
+        if (offset != null) out.offset = offset;
+      }
       break;
     }
     case 'polynomialWorkshop': {
       const p = q.polynomial || {};
       const mode = q.mode || (actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : 'factorQuadratic');
       out = copyCommon(q, { type, mode, coefficients: q.coefficients || p.coefficients, leftBinomial: q.leftBinomial || p.leftBinomial, rightBinomial: q.rightBinomial || p.rightBinomial, dividend: q.dividend || p.dividend, divisor: q.divisor || p.divisor, roots: q.roots || p.roots, denominatorRoots: q.denominatorRoots || p.denominatorRoots });
+      // The factorZero, graphConnection and rationalFeatures views also read
+      // these. Dropping them graded the question with the workshop's defaults
+      // — a different problem from the prompt. Copied only when authored.
+      {
+        const numeratorRoots = q.numeratorRoots || p.numeratorRoots;
+        if (numeratorRoots) out.numeratorRoots = numeratorRoots;
+        ['candidateRoot', 'targetValue', 'leadingCoefficient', 'targetRoot'].forEach((key) => {
+          const value = q[key] ?? p[key];
+          if (value != null) out[key] = value;
+        });
+      }
       break;
     }
     case 'signSolutionAnalyzer': {
       const s = q.signChart || q.inequalityModel || {};
-      out = copyCommon(q, { type, mode: q.mode || s.mode || 'polynomial', factors: q.factors || s.factors, denominatorFactors: q.denominatorFactors || s.denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
+      const denominatorFactors = q.denominatorFactors || s.denominatorFactors;
+      // With no authored mode, denominator factors make the chart rational —
+      // the analyzer's own resolution (declarations/signSolutionAnalyzer.mjs).
+      // A 'polynomial' default here made the tool and grader ignore the
+      // denominator: (x − 2)/(x + 3) ≥ 0 was graded as x − 2 ≥ 0.
+      out = copyCommon(q, { type, mode: q.mode || s.mode || (denominatorFactors?.length ? 'rational' : 'polynomial'), factors: q.factors || s.factors, denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
+      // The analyzer reads `numeratorFactors` ahead of `factors`, and the
+      // router above sends a question to it on numeratorFactors alone;
+      // dropping them graded the default numerator (x + 2)(x − 3) instead.
+      {
+        const numeratorFactors = q.numeratorFactors || s.numeratorFactors;
+        if (numeratorFactors) out.numeratorFactors = numeratorFactors;
+      }
       break;
     }
     case 'sequenceExplorer': {
@@ -1847,13 +1964,13 @@ const compileOne = (q, index, repairs) => {
       out = copyCommon(q, {
         type,
         mode,
-        sequence: q.sequence,
+        sequence: canonicalSequenceChange(q.sequence, q.kind || 'arithmetic'),
         targetN: q.targetN,
         displayCount: q.displayCount,
         missingIndex: q.missingIndex,
         sumN: q.sumN,
-        left: q.left,
-        right: q.right,
+        left: canonicalSequenceChange(q.left, 'arithmetic'),
+        right: canonicalSequenceChange(q.right, 'geometric'),
         compareN: q.compareN,
         leftLabel: q.leftLabel,
         rightLabel: q.rightLabel,
@@ -1868,7 +1985,7 @@ const compileOne = (q, index, repairs) => {
     }
     case 'exponentialLogBridge': {
       const e = q.exponentialLog || q.logarithm || {};
-      out = copyCommon(q, { type, mode: q.mode || e.mode || (actions.includes('solveLogarithmic') ? 'solveLogarithmic' : actions.includes('solveExponential') ? 'solveExponential' : 'equivalentForms'), base: q.base ?? e.base, exponent: q.exponent ?? e.exponent, equation: q.equation || e.equation, function: q.function ? toolFunctionSpec(q.function) : e.function, x: q.x ?? e.x, y: q.y ?? e.y });
+      out = copyCommon(q, { type, mode: q.mode || e.mode || (actions.includes('solveLogarithmic') ? 'solveLogarithmic' : actions.includes('solveExponential') ? 'solveExponential' : 'equivalentForms'), base: q.base ?? e.base, exponent: q.exponent ?? e.exponent, equation: q.equation || e.equation, function: q.function ? exponentialLogFunctionSpec(q.function) : e.function, x: q.x ?? e.x, y: q.y ?? e.y });
       break;
     }
     case 'transformationsLab': {
@@ -2004,6 +2121,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
 
   const repairs = [];
   const decisions = [];
+  const compileWarnings = [];
   const assignment = { ...(input.assignment || {}) };
 
   const compileQuestions = (questions = [], role = null, sectionId = null, sectionTitle = null) => asArray(questions).map((question, index) => {
@@ -2019,6 +2137,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
     const compiled = compileOne(source, index, repairs);
     const interactionSafe = normalizeQuestionInteractionContracts(compiled);
     assertFamilyTemplateCompiled(source, interactionSafe, index);
+    compileWarnings.push(...exponentialLogFunctionWarnings(interactionSafe, `${sectionTitle || sectionId || 'Section'} question ${index + 1}`));
     decisions.push({
       index,
       sectionId,
@@ -2072,7 +2191,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
     package: packageOut,
     repairs,
     decisions,
-    warnings: validation.warnings,
+    warnings: [...validation.warnings, ...compileWarnings],
   };
 };
 

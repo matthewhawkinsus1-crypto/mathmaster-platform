@@ -69,6 +69,21 @@ jobs:
         timeout-minutes: 10
         run: npm run test:identity-repair:emulator
 
+      # The read-only pre-#456 Path multiple-choice report against Firestore,
+      # over answers the real submitPathResponse recorded. Its own emulator
+      # run: the report reads every submission in its window, so another
+      # suite's Path answers in a shared emulator would change what it finds.
+      - name: Certify the Path choice-id report against Firestore
+        timeout-minutes: 10
+        run: npm run test:path-choice-report:emulator
+
+      # The read-only classroom re-grade report (K's grading fixes) against
+      # Firestore, over attempts the real ingestStudentSubmissions recorded.
+      # Its own emulator run, for the same reason as the Path report above.
+      - name: Certify the classroom re-grade report against Firestore
+        timeout-minutes: 10
+        run: npm run test:classroom-regrade-report:emulator
+
       # Whole classes (5-64 students) launching Live Challenge against the real
       # callables and real listeners, then 4 matches in a row on the same open
       # screens. Its budgets and waits are measured for one class at a time, so

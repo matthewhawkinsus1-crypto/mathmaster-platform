@@ -10,8 +10,10 @@
  *     the same composition order (normalizeComposeOrder);
  *   - the same derived key (deriveFunctionOperations from f, g, operations,
  *     composeOrder and restrictions) and the same matchers
- *     (functionOperationAnswerMatches: sameRationalExpression for the
- *     quotient, sameValue for everything else; restrictionsMatch);
+ *     (functionOperationAnswerMatches: the quotient is compared as a rational
+ *     function on its domain, so its poles may fall only at the key's excluded
+ *     values — an unreduced (x² − 1)/(x − 1) is x + 1 for x ≠ 1 — and
+ *     sameValue for everything else; restrictionsMatch);
  *   - the same score: every operation is worth one share, and a quotient's
  *     share is split evenly between its expression and its excluded values —
  *     so the quotient's two parts weigh one half each.
@@ -70,16 +72,16 @@ const functionOperations = (question, work) => {
   const responses = isPlainObject(work.responses) ? work.responses : {};
   const restrictions = entry(work.restrictions);
   const parts = [];
+  const excludedValues = answers.quotient?.excludedValues || [];
   operations.forEach((operation) => {
     const response = entry(responses[operation]);
     const expected = answers[operation]?.expression || '';
-    const expressionCorrect = filled(response) && functionOperationAnswerMatches(operation, response, expected);
+    const expressionCorrect = filled(response) && functionOperationAnswerMatches(operation, response, expected, { excludedValues });
     const label = operationLabel(operation, composeOrder);
     if (operation !== 'quotient') {
       parts.push({ id: operation, label, isComplete: filled(response), isCorrect: expressionCorrect, response });
       return;
     }
-    const excludedValues = answers.quotient?.excludedValues || [];
     parts.push({ id: 'quotient', label, isComplete: filled(response), isCorrect: expressionCorrect, weight: 0.5, response });
     parts.push({
       id: 'quotient-restrictions',

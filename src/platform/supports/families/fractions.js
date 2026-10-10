@@ -28,8 +28,9 @@
 //               or "the product of 2/3 and 3/4" — and whose authored key is
 //               worth exactly that result.
 //   simplify    an authored `fraction` question that says simplify / lowest terms /
-//               simplest form / reduce about exactly one fraction, and whose key is
-//               worth that fraction ("Simplify 9/18.", a Question Family version).
+//               simplest form / reduce about exactly one fraction that is not
+//               already in lowest terms, and whose key is worth that fraction
+//               ("Simplify 9/18.", a Question Family version).
 //   form        any other `fraction` question ("Write the part shaded.",
 //               "Simplify." with no numbers, a drill before generation): owned,
 //               so the guard learns every spelling of its key, but helped only
@@ -52,7 +53,8 @@
 //
 // Pure: no React, no mathjs, no I/O. Exact rational arithmetic only.
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
-import { answerCandidatesForField } from '../../../../functions/shared/answerUtils.mjs';
+import { answerCandidatesForField, matchesFieldAnswer } from '../../../../functions/shared/answerUtils.mjs';
+import { gradeFractionResponse } from '../../../../functions/shared/ordinaryResponseGrading.mjs';
 import {
   FRACTION_QUESTION_SHAPES,
   fractionAnswerCandidates,
@@ -275,7 +277,12 @@ const readingsOf = (raw) => {
   }
   const fractions = runs.map((run) => run.operands[0]).filter(isFraction);
   const words = source.replace(/\$[^$]*\$/g, ' ');
-  if (fractions.length === 1 && SIMPLIFY_WORDS.test(words)) return [{ kind: 'simplify', fraction: fractions[0] }];
+  if (fractions.length === 1 && SIMPLIFY_WORDS.test(words)) {
+    // A fraction already in lowest terms has no common factor to find: every
+    // simplify hint would start from a false premise, so it is helped as a form.
+    const [fraction] = fractions;
+    return gcdInt(fraction.n, fraction.d) === 1 ? [] : [{ kind: 'simplify', fraction }];
+  }
   const operands = runs.map((run) => run.operands[0]);
   if (operands.length !== 2 || !operands.some(isFraction)) return [];
   const named = KEYWORD_OPERATIONS.filter(([, pattern]) => pattern.test(words));
@@ -664,6 +671,11 @@ const denominatorPool = (question) => {
   return authored.length >= 2 ? authored : DEFAULT_DENOMINATORS;
 };
 
+// A number after an operator: a negative one in parentheses, never "+ -3".
+// (A sibling's operands are positive; this question's own may not be.)
+const signedLatex = (n) => (n < 0 ? `(${n})` : String(n));
+const signedFracLatex = (n, d) => (n < 0 ? `(${fracLatex(n, d)})` : fracLatex(n, d));
+
 /** "Simplify: … = \frac{p}{q}." or "… is already in lowest terms." — the last step of every sibling. */
 const simplifyStep = (n, d) => {
   const divisor = gcdInt(n, d);
@@ -689,7 +701,7 @@ const workSum = (op, left, right) => {
       prompt,
       steps: [
         `Both fractions have the denominator ${math(String(left.d))}, so the pieces are the same size: ${verb} the numerators and keep the denominator.`,
-        `${math(`${expressionLatex(op, left, right)} = \\frac{${left.n} ${opLatex} ${right.n}}{${left.d}} = ${fracLatex(total, left.d)}`)}.`,
+        `${math(`${expressionLatex(op, left, right)} = \\frac{${left.n} ${opLatex} ${signedLatex(right.n)}}{${left.d}} = ${fracLatex(total, left.d)}`)}.`,
         simplifyStep(total, left.d),
       ],
     };
@@ -703,7 +715,7 @@ const workSum = (op, left, right) => {
     steps: [
       `The denominators ${math(String(left.d))} and ${math(String(right.d))} are different, so rewrite both fractions over a common denominator. The least common multiple of ${math(String(left.d))} and ${math(String(right.d))} is ${math(String(common))}.`,
       `${rewriteStep(left, common)}, and ${rewriteStep(right, common)}.`,
-      `${capitalize(verb)} the numerators and keep the denominator: ${math(`${fracLatex(a, common)} ${opLatex} ${fracLatex(b, common)} = \\frac{${a} ${opLatex} ${b}}{${common}} = ${fracLatex(total, common)}`)}.`,
+      `${capitalize(verb)} the numerators and keep the denominator: ${math(`${fracLatex(a, common)} ${opLatex} ${signedFracLatex(b, common)} = \\frac{${a} ${opLatex} ${signedLatex(b)}}{${common}} = ${fracLatex(total, common)}`)}.`,
       simplifyStep(total, common),
     ],
   };
@@ -716,20 +728,23 @@ const workProduct = (left, right) => {
     prompt: `Multiply: ${math(expressionLatex('×', left, right))}.`,
     steps: [
       'To multiply fractions, multiply the numerators together and the denominators together; no common denominator is needed.',
-      `${math(`${expressionLatex('×', left, right)} = \\frac{${left.n} \\times ${right.n}}{${left.d} \\times ${right.d}} = ${fracLatex(n, d)}`)}.`,
+      `${math(`${expressionLatex('×', left, right)} = \\frac{${left.n} \\times ${signedLatex(right.n)}}{${left.d} \\times ${right.d}} = ${fracLatex(n, d)}`)}.`,
       simplifyStep(n, d),
     ],
   };
 };
 
 const workQuotient = (left, right) => {
-  const n = left.n * right.d;
-  const d = left.d * right.n;
+  // The reciprocal keeps the sign on top: the reciprocal of -3/4 is -4/3.
+  const rn = right.n < 0 ? -right.d : right.d;
+  const rd = Math.abs(right.n);
+  const n = left.n * rn;
+  const d = left.d * rd;
   return {
     prompt: `Divide: ${math(expressionLatex('÷', left, right))}.`,
     steps: [
-      `Dividing by ${math(fracLatex(right.n, right.d))} is the same as multiplying by its reciprocal, ${math(fracLatex(right.d, right.n))}.`,
-      `${math(`${expressionLatex('÷', left, right)} = ${fracLatex(left.n, left.d)} \\times ${fracLatex(right.d, right.n)} = \\frac{${left.n} \\times ${right.d}}{${left.d} \\times ${right.n}} = ${fracLatex(n, d)}`)}.`,
+      `Dividing by ${math(fracLatex(right.n, right.d))} is the same as multiplying by its reciprocal, ${math(fracLatex(rn, rd))}.`,
+      `${math(`${expressionLatex('÷', left, right)} = ${fracLatex(left.n, left.d)} \\times ${signedFracLatex(rn, rd)} = \\frac{${left.n} \\times ${signedLatex(rn)}}{${left.d} \\times ${rd}} = ${fracLatex(n, d)}`)}.`,
       simplifyStep(n, d),
     ],
   };
@@ -793,10 +808,24 @@ const answerValueOf = (raw) => {
 // (similarProblem.js) reads one: those may appear in a sibling's prompt.
 const isPlainNumber = (value) => /^-?\d+(?:\.\d+)?$|^-?\d+\/-?\d+$/.test(text(value).replace(/−/g, '-').replace(/\s+/g, ''));
 
+// Every fraction a line writes out (\frac{20}{24}, -\frac{3}{4}, 10/12), as a value.
+const WRITTEN_FRACTION = /(-?)\\frac\{(\d+)\}\{(\d+)\}|(-?\d+)\/(\d+)(?!\d)/g;
+const writtenFractions = (line) => [...String(line).matchAll(WRITTEN_FRACTION)].flatMap((match) => {
+  const n = match[2] !== undefined ? Number(match[2]) * (match[1] ? -1 : 1) : Number(match[4]);
+  const d = Number(match[2] !== undefined ? match[3] : match[5]);
+  return d && usableInteger(n) && usableInteger(d) ? [rational(n, d)] : [];
+});
+const sameSize = (left, right) => Math.abs(left.n) === Math.abs(right.n) && left.d === right.d;
+
 /** The platform's sibling checks, run here first so a failing draw is replaced rather than withheld. */
 const siblingIsSafe = (question, model, sibling, answers) => {
   if (!sibling || sameOperands(model, sibling)) return false;
-  if ([model.value, ...list(model.values)].filter(Boolean).some((value) => equals(value, sibling.value))) return false;
+  const values = [model.value, ...list(model.values)].filter(Boolean);
+  if (values.some((value) => equals(value, sibling.value))) return false;
+  // The guard reads spellings; an unreduced fraction worth this question's
+  // answer (10/12 beside the answer 5/6, as an operand or a step) is the
+  // answer all the same, as is its size alone.
+  if ([sibling.prompt, ...sibling.steps].some((line) => writtenFractions(line).some((shown) => values.some((value) => sameSize(shown, value))))) return false;
   if (answers.map(answerValueOf).some((value) => value && value.n === sibling.value.n && value.d === sibling.value.d)) return false;
   if (sibling.prompt === text(question.prompt)) return false;
   if (sibling.steps.some((step) => hintRevealsAnswer(step, answers))) return false;
@@ -820,4 +849,98 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
     }
   }
   return null;
+};
+
+/* ---------------------------------------------------------------------------
+ * workedSolution: THIS question, worked in full, for the closed-question
+ * review only (closedQuestionReview.js). It states the answer, so nothing
+ * shown while the item is open (hints, the back-up step, the sibling) calls
+ * it. The steps are the sibling workers (workSum, workProduct, workQuotient,
+ * workSimplify) run on this question's own operands, and the last step states
+ * the answer in a spelling the question's own grader accepts
+ * (gradeFractionResponse, or the field's matchesFieldAnswer for a multiAnswer
+ * item). null, never a wrong step, for a `form` item (no numbers to work), a
+ * key that is not worth the work shown, or an answer no spelling of which the
+ * grader accepts.
+ * ------------------------------------------------------------------------- */
+
+// What a step must never print: a JS leak or an unsimplified sign.
+const SLOPPY = /NaN|undefined|\bnull\b|\[object|\+\s*-|--|(?<![\d.])-0(?![\d./])/;
+
+const mixedText = (value) => {
+  const magnitude = Math.abs(value.n);
+  if (value.d === 1 || magnitude < value.d) return null;
+  return `${value.n < 0 ? '-' : ''}${Math.floor(magnitude / value.d)} ${magnitude % value.d}/${value.d}`;
+};
+
+/** The first spelling of `value` this question's grader marks right. */
+const gradedSpelling = (question, model, value) => {
+  const spellings = unique([valueText(value), valueLatex(value), mixedText(value),
+    ...list(model.keys).filter((key) => {
+      const keyed = keyValue(key);
+      return keyed && equals(keyed, value);
+    })]);
+  const accepts = typeOf(question) === 'multiAnswer'
+    ? (spelling) => matchesFieldAnswer(spelling, multiAnswerField(question))
+    : (spelling) => gradeFractionResponse(question, spelling).isCorrect === true;
+  return spellings.find((spelling) => {
+    try {
+      return accepts(spelling);
+    } catch {
+      return false;
+    }
+  }) || null;
+};
+
+const workedArithmetic = (model) => {
+  const { op, left, right } = model;
+  const worked = op === '×' ? workProduct(left, right) : op === '÷' ? workQuotient(left, right) : workSum(op, left, right);
+  const whole = [left, right].find((entry) => entry.whole);
+  // The common-denominator work writes a whole number over 1: say so first.
+  const lead = whole && (op === '+' || op === '-')
+    ? [`Write the whole number ${math(String(whole.n))} as a fraction: ${math(`${whole.n} = ${fracLatex(whole.n, 1)}`)}.`]
+    : [];
+  const how = op === '×'
+    ? 'multiply the numerators and the denominators straight across, then simplify'
+    : op === '÷'
+      ? 'multiply by the reciprocal of the second fraction, then simplify'
+      : left.d === right.d
+        ? `${OPERATIONS[op].verb} the numerators over the shared denominator, then simplify`
+        : `rewrite both fractions over a common denominator, ${OPERATIONS[op].verb} the numerators, then simplify`;
+  return {
+    headline: `${capitalize(OPERATIONS[op].verb)} ${math(expressionLatex(op, left, right))}: ${how}.`,
+    steps: [...lead, ...worked.steps],
+    shown: expressionLatex(op, left, right),
+  };
+};
+
+const workedSimplify = (model) => {
+  const { fraction } = model;
+  return {
+    headline: `Simplify ${math(fracLatex(fraction.n, fraction.d))}: divide the numerator and the denominator by their greatest common factor.`,
+    steps: workSimplify(fraction).steps,
+    shown: fracLatex(fraction.n, fraction.d),
+  };
+};
+
+export const workedSolution = (question) => {
+  try {
+    const model = fractionModel(question);
+    if (!model || (model.kind !== 'arithmetic' && model.kind !== 'simplify')) return null;
+    // The work shown must be worth the key the grader holds.
+    const value = model.kind === 'simplify' ? model.fraction.value : compute(model.op, model.left, model.right);
+    if (!value || !model.value || !equals(value, model.value)) return null;
+    if (![value.n, value.d].every(usableInteger)) return null;
+    const stated = gradedSpelling(question, model, value);
+    if (!stated) return null;
+    const worked = model.kind === 'simplify' ? workedSimplify(model) : workedArithmetic(model);
+    const answerLatex = stated === valueText(value) || stated === valueLatex(value) ? valueLatex(value) : stated;
+    const written = answerLatex === valueLatex(value) ? '' : `, written ${math(answerLatex)}`;
+    const steps = [...worked.steps, `So ${math(`${worked.shown} = ${valueLatex(value)}`)}${written}.`];
+    const answerSummary = `The answer is ${math(answerLatex)}.`;
+    if ([worked.headline, ...steps, answerSummary].some((line) => SLOPPY.test(line))) return null;
+    return { headline: worked.headline, steps, answerSummary };
+  } catch {
+    return null;
+  }
 };

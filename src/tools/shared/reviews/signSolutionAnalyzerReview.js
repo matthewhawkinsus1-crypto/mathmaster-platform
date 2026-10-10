@@ -28,8 +28,9 @@
 //     problem the student never saw;
 //   - an explicit polynomial chart carries denominator factors (the chart
 //     ignores them, so it is not the problem the prompt states);
-//   - the relation is not one of > ≥ < ≤ as '>', '>=', '<', '<=' (the grader
-//     reads any other text by its first character, e.g. '≥' as '<');
+//   - the relation is not one of > ≥ < ≤, written '>', '>=', '<', '<=' or as
+//     the symbols '≥', '≤' (the grader reads any other text by its first
+//     character);
 //   - a factor, coefficient or candidate is not a plain number (or numeric
 //     text), a multiplicity is not a whole number from 1 to 12, a candidate
 //     repeats, or a non-default tolerance is set;
@@ -39,6 +40,7 @@ import declaration from '../../../../functions/shared/serverGrading/declarations
 import { resolveToolMode } from '../../../../functions/shared/serverGrading/toolGraderDefinition.mjs';
 import {
   buildSignIntervals,
+  canonicalSignRelation,
   evaluateRadicalEquationCandidate,
   signOfFactoredExpression,
 } from '../../../../functions/shared/toolMath/signSolutionAnalyzer/signSolutionMath.mjs';
@@ -190,7 +192,8 @@ const buildSignChartReview = (question, mode) => {
   if (!Array.isArray(numeratorSource)) return null;
   if (!Array.isArray(denominatorSource) || (rational && denominatorSource.length === 0)) return null;
   if (!rational && Array.isArray(question.denominatorFactors) && question.denominatorFactors.length > 0) return null;
-  const relation = question.relation || '>';
+  // '≥' / '≤' are read as '>=' / '<=', exactly as the grader reads them.
+  const relation = canonicalSignRelation(question.relation || '>');
   const symbol = typeof relation === 'string' && Object.prototype.hasOwnProperty.call(RELATION_SYMBOLS, relation)
     ? RELATION_SYMBOLS[relation] : null;
   if (!symbol) return null;
@@ -318,7 +321,8 @@ const substituted = (m, b, x) => {
   const xText = shownRoot(x);
   if (m === 1 && b === 0) return xText;
   const wrapped = x < 0 ? `(${xText})` : xText;
-  const term = m === 1 ? wrapped : m === -1 ? `−${wrapped}` : `${shownRoot(m)}(${xText})`;
+  // −x at x = 0 is −(0), never "−0".
+  const term = m === 1 ? wrapped : m === -1 ? `−${x === 0 ? '(0)' : wrapped}` : `${shownRoot(m)}(${xText})`;
   if (b === 0) return term;
   return `${term} ${b > 0 ? '+' : '−'} ${shownRoot(Math.abs(b))}`;
 };

@@ -54,7 +54,8 @@
           "inputProfile": "expression",
           "expected": "{{a}} {{d|signed}}(n-1)",
           "accepted": [
-            "{{d}}n {{b|signed}}"
+            "{{d}}n {{b|signed}}",
+            "{{d}}(n-1) {{a|signed}}"
           ]
         }
       ],
@@ -304,7 +305,8 @@
           "inputProfile": "expression",
           "expected": "{{a}} {{d|signed}}(n-1)",
           "accepted": [
-            "{{d}}n {{b|signed}}"
+            "{{d}}n {{b|signed}}",
+            "{{d}}(n-1) {{a|signed}}"
           ]
         }
       ],
@@ -373,7 +375,8 @@
           "inputProfile": "expression",
           "expected": "{{a}} {{d|signed}}(n-1)",
           "accepted": [
-            "{{d}}n {{b|signed}}"
+            "{{d}}n {{b|signed}}",
+            "{{d}}(n-1) {{a|signed}}"
           ]
         }
       ],
@@ -480,7 +483,10 @@
               "id": "formula",
               "label": "Correct right-hand side of f(n)",
               "inputProfile": "expression",
-              "expected": "{{a}}+({{d}})*(n-1)"
+              "expected": "{{a}}+({{d}})*(n-1)",
+              "accepted": [
+                "({{d}})*(n-1)+{{a}}"
+              ]
             },
             {
               "id": "check1",
@@ -577,7 +583,10 @@
               "id": "formula",
               "label": "Correct explicit formula: $f(n)=$",
               "inputProfile": "expression",
-              "expected": "{{a}} {{d|signed}}(n-1)"
+              "expected": "{{a}} {{d|signed}}(n-1)",
+              "accepted": [
+                "{{d}}(n-1) {{a|signed}}"
+              ]
             },
             {
               "id": "verify-nine",

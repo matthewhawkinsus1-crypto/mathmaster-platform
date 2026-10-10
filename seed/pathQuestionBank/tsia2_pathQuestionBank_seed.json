@@ -33881,7 +33881,7 @@
         ],
         "answerSummary": "Substitute or simplify to confirm the selected relationship is equivalent."
       },
-      "prompt": "A rental service charges a fixed fee of ${{fixed}} dollars plus {{rate}} dollars per hour. Which expression gives the total cost $C$ for $h$ hours?",
+      "prompt": "A rental service charges a fixed fee of {{fixed}} dollars plus {{rate}} dollars per hour. Which expression gives the total cost $C$ for $h$ hours?",
       "generator": {
         "parameters": {
           "fixed": {

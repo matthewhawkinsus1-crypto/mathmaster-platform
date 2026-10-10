@@ -55,8 +55,9 @@
 //     problem's own numbers (the equation, the points, the table's x-values)
 //     and a plain spelling that names the move without them. The numbered
 //     spelling is used unless it contains one of this question's answers
-//     (hintRevealsAnswer — the platform's own guard — against expectedValues
-//     plus every plain key the question carries); a text that fails both is
+//     (hintRevealsAnswer — the platform's own guard, also read with "- 3"
+//     closed up to "-3" — against expectedValues plus every plain key the
+//     question carries); a text that fails both is
 //     dropped. No hint states a slope, an intercept, a point to plot, an
 //     equation the student must write, a classification, or a corrected value.
 //   - expectedValues lists what the student must FIND, in every spelling a
@@ -78,7 +79,7 @@
 //
 // Pure: no React, no I/O. Exact rational arithmetic (questionFamilyExact).
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
-import { answerCandidatesForField } from '../../../../functions/shared/answerUtils.mjs';
+import { answerCandidatesForField, matchesFieldAnswer } from '../../../../functions/shared/answerUtils.mjs';
 import {
   ONE,
   ZERO,
@@ -307,11 +308,15 @@ const parseStandard = (equation) => {
   return isZero(A) && isZero(B) ? null : { A, B, C };
 };
 
-/** Every point/number a field's key holds. */
+/** Every point/number a field's key holds (a key may write a coordinate as a fraction). */
+const KEY_NUMBER = '-?\\d+(?:\\.\\d+)?(?:\\/\\d+)?';
+const keyPointsIn = (value) => [...ascii(value).matchAll(new RegExp(`\\(\\s*(${KEY_NUMBER})\\s*,\\s*(${KEY_NUMBER})\\s*\\)`, 'g'))]
+  .map((match) => [exact(match[1]), exact(match[2])])
+  .filter(([x, y]) => x && y);
 const keyedPoints = (field) => answerCandidatesForField(field).flatMap((candidate) => (
   Array.isArray(candidate) && candidate.length === 2
     ? [[exact(candidate[0]), exact(candidate[1])]].filter(([x, y]) => x && y)
-    : pointsIn(candidate)
+    : keyPointsIn(candidate)
 ));
 const keyedNumbers = (field) => answerCandidatesForField(field).map(exact).filter(Boolean);
 
@@ -529,6 +534,96 @@ const interceptsModel = (question) => {
   return null;
 };
 
+/*
+ * twoPoints: "A line passes through (0, 4) and (3, 2)" with a slope field and
+ * a y-intercept field (and at most one x-intercept field), every field open
+ * and every key exactly what those two points give. The points are read from
+ * structured givenPoints / points when the item carries them (and then any
+ * points the prompt prints must be the same two), else from the prompt, which
+ * must name a line and print exactly two distinct points. A vertical line's
+ * slope and y-intercept are claimed only when their keys say so in words
+ * ("undefined", "none"); a horizontal line's x-intercept likewise.
+ */
+const NO_VALUE_WORDS = /^(undefined|none|no slope|no y-intercept|no x-intercept|no intercept|does not exist|dne)$/i;
+const keyedWord = (field) => answerCandidatesForField(field)
+  .map((candidate) => (typeof candidate === 'string' ? text(candidate) : ''))
+  .find((candidate) => NO_VALUE_WORDS.test(candidate)) || '';
+
+const roleOf = (field) => {
+  if (fieldMentions(field, /x.?intercept/i)) return 'xIntercept';
+  if (fieldMentions(field, /y.?intercept|intercept|\bb\b/i)) return 'yIntercept';
+  if (fieldMentions(field, /slope|\bm\b|rate of change/i)) return 'slope';
+  return null;
+};
+
+const readPoint = (point) => (Array.isArray(point) ? [exact(point[0]), exact(point[1])] : isObject(point) ? [exact(point.x), exact(point.y)] : [null, null]);
+/** The two structured points, undefined when the item has none, null when they are unusable. */
+const structuredPoints = (question) => {
+  for (const key of ['givenPoints', 'points']) {
+    const raw = list(question[key]);
+    if (!raw.length) continue;
+    const points = raw.map(readPoint);
+    return points.length === 2 && points.every(([x, y]) => x && y) && !samePoint(points[0], points[1]) ? points : null;
+  }
+  return undefined;
+};
+
+/** What a line gives for one asked role: { value, point } | { none: true } | null (nothing truthful to ask). */
+const roleTruth = (line, role) => {
+  if (line.vertical) {
+    if (role === 'slope') return { none: true };
+    if (role === 'yIntercept') return isZero(line.x) ? null : { none: true };
+    return { value: line.x, point: [line.x, ZERO] };
+  }
+  if (role === 'slope') return { value: line.m, point: null };
+  if (role === 'yIntercept') return { value: line.b, point: [ZERO, line.b] };
+  if (isZero(line.m)) return isZero(line.b) ? null : { none: true };
+  const zero = divide(negate(line.b), line.m);
+  return { value: zero, point: [zero, ZERO] };
+};
+
+const twoPointsModel = (question) => {
+  const fields = list(question.answerFields);
+  if (fields.length < 2 || fields.length > 3 || !fields.every(isOpenField)) return null;
+  if (!/\bline\b/i.test(text(question.prompt))) return null;
+  const printed = distinctPoints(pointsIn(question.prompt));
+  const given = structuredPoints(question);
+  if (given === null) return null;
+  let points = given;
+  if (given) {
+    if (printed.length && !(printed.length === 2 && given.every((point) => printed.some((other) => samePoint(point, other))))) return null;
+  } else {
+    if (printed.length !== 2) return null;
+    points = printed;
+  }
+  const roles = fields.map(roleOf);
+  const count = (role) => roles.filter((entry) => entry === role).length;
+  if (roles.some((role) => !role) || count('slope') !== 1 || count('yIntercept') !== 1 || count('xIntercept') > 1) return null;
+  const line = throughLine(points[0], points[1]);
+  if (!line) return null;
+  const entries = [];
+  for (const [index, field] of fields.entries()) {
+    const role = roles[index];
+    const truth = roleTruth(line, role);
+    if (!truth) return null;
+    if (truth.none) {
+      const word = keyedWord(field);
+      if (!word) return null;
+      entries.push({ role, field, word });
+      continue;
+    }
+    const asNumber = keyedNumbers(field).some((value) => equals(value, truth.value));
+    const asPoint = Boolean(truth.point) && keyedPoints(field).some((point) => samePoint(point, truth.point));
+    if (!asNumber && !asPoint) return null;
+    entries.push({ role, field, asPoint: asPoint && !asNumber });
+  }
+  // Coordinates written as decimals (0.5, 1.5) are worked in decimals.
+  const decimal = given
+    ? list(question.givenPoints ?? question.points).flatMap((point) => (Array.isArray(point) ? point : [point?.x, point?.y])).some((value) => /\d\.\d/.test(String(value)))
+    : /\d\.\d/.test(pointsIn(question.prompt).length ? ascii(question.prompt) : '');
+  return { kind: 'twoPoints', points, line, entries, decimal };
+};
+
 const linearInterceptsModel = (question) => {
   const standard = resolveStandardCoefficients(question);
   if (!standard) return null;
@@ -552,7 +647,7 @@ const modelFor = (question) => {
       const id = familyIdOf(question);
       if (id === SLOPE_FAMILY_ID) return slopeModel(question);
       if (id === INTERCEPTS_FAMILY_ID) return interceptsModel(question);
-      return slopeModel(question) || interceptsModel(question);
+      return slopeModel(question) || interceptsModel(question) || twoPointsModel(question);
     }
     if ((type === 'stepAlgebra' || type === 'stepAlgebra2') && text(question.mode).toLowerCase() === 'linearintercepts') {
       return linearInterceptsModel(question);
@@ -621,6 +716,21 @@ const expectedFor = (model) => {
     }
     case 'slope':
       return numberForms(model.m);
+    case 'twoPoints': {
+      const { line } = model;
+      const asksZero = model.entries.some((entry) => entry.role === 'xIntercept');
+      if (line.vertical) {
+        const out = ['undefined', ...equationForms(`x = ${show(line.x)}`)];
+        if (asksZero) out.push(...numberForms(line.x), ...pairForms([line.x, ZERO]));
+        return unique(out);
+      }
+      const out = [...lineAnswers(line.m, line.b)];
+      if (asksZero && !isZero(line.m)) {
+        const zero = divide(negate(line.b), line.m);
+        out.push(...numberForms(zero), ...pairForms([zero, ZERO]));
+      }
+      return unique(out);
+    }
     case 'intercepts': {
       const [p] = model.xInt;
       const [, q] = model.yInt;
@@ -669,10 +779,19 @@ const rawKeyTexts = (question = {}) => {
 
 const guardFor = (question, model) => unique([...expectedFor(model), ...rawKeyTexts(question)]);
 
+/**
+ * hintRevealsAnswer, also on the spelling with every "- 3" closed up to "-3":
+ * an equation writes a term's sign with a space (y = (x - 3)), which the
+ * platform guard does not read as −3, while a hidden 3 already sent "x - 3"
+ * to the plain spelling.
+ */
+const revealsAnswer = (value, guard) => hintRevealsAnswer(value, guard)
+  || hintRevealsAnswer(String(value ?? '').replace(/[-−]\s+(?=[\d.])/g, '-'), guard);
+
 /** The numbered spelling unless it leaks, else the plain one, else nothing. */
 const choose = (guard) => ([specific, plain]) => {
-  if (specific && !hintRevealsAnswer(specific, guard)) return specific;
-  if (plain && !hintRevealsAnswer(plain, guard)) return plain;
+  if (specific && !revealsAnswer(specific, guard)) return specific;
+  if (plain && !revealsAnswer(plain, guard)) return plain;
   return null;
 };
 
@@ -718,6 +837,13 @@ const lineFeaturesHints = (model) => {
   ];
 };
 
+// y = (x − 3) and y = −(x − 3) have no number written in front of the
+// parentheses: the slope is 1 or −1, said as such.
+const unitFactorLead = (a) => (equals(a, ONE) ? 'Nothing is written in front of the parentheses, so the slope is' : 'Only a minus sign is written in front of the parentheses, so the slope is');
+const unitFactorHint = (a) => (equals(absolute(a), ONE)
+  ? [`${unitFactorLead(a)} ${show(a)}: ${riseRunText(a)}.`, `${unitFactorLead(a)} ${equals(a, ONE) ? 'one' : 'negative one'}: use it as rise over run from the x-axis point.`]
+  : [`The number in front of the parentheses is the slope: ${riseRunText(a)}.`, 'The number in front of the parentheses is the slope: use it as rise over run from the x-axis point.']);
+
 const graphLineHints = (model) => {
   const { mode, line, display } = model;
   if (mode === 'slopeIntercept' && !line.vertical) {
@@ -761,7 +887,7 @@ const graphLineHints = (model) => {
   if (mode === 'factoredLinear') {
     return [
       [`Start from ${display}: which value of x makes y equal zero? That point is on the x-axis.`, 'In y = a(x − c), y is zero when the factor in parentheses is zero. That point is on the x-axis.'],
-      [`The number in front of the parentheses is the slope: ${riseRunText(model.a)}.`, 'The number in front of the parentheses is the slope: use it as rise over run from the x-axis point.'],
+      unitFactorHint(model.a),
       [null, 'Check: substitute the x-value of your second point into the equation. The y-value should match your point.'],
     ];
   }
@@ -849,6 +975,22 @@ const slopeHints = (model) => {
   ];
 };
 
+const twoPointsHints = (model) => {
+  const [first, second] = model.points;
+  const asksZero = model.entries.some((entry) => entry.role === 'xIntercept');
+  // The points as the question prints them: decimals stay decimals.
+  const num = (value) => (model.decimal && decimalText(value)) || show(value);
+  const at = ([x, y]) => `(${num(x)}, ${num(y)})`;
+  return [
+    [`Label ${at(first)} as (x₁, y₁) and ${at(second)} as (x₂, y₂).`, 'Label one point (x₁, y₁) and the other (x₂, y₂).'],
+    [null, 'Slope = (y₂ − y₁) ÷ (x₂ − x₁): the change in y over the change in x, with both subtractions in the same order.'],
+    [`For the y-intercept, substitute your slope and one point, such as ${at(first)}, into y = mx + b and solve for b.`, 'For the y-intercept, substitute your slope and one of the points into y = mx + b and solve for b.'],
+    asksZero
+      ? [null, 'For the x-intercept, set y to zero in your equation and solve for x.']
+      : [null, 'Check: both points must make y = mx + b true with your m and b.'],
+  ];
+};
+
 const interceptHints = (model) => [
   [`The x-intercept of ${model.display} is where the line crosses the x-axis, so its y-coordinate is 0.`, 'The x-intercept is where the line crosses the x-axis, so its y-coordinate is zero.'],
   [`To find it, replace y with 0 in ${model.display} and solve for x.`, 'To find it, replace y with zero and solve for x.'],
@@ -865,6 +1007,7 @@ const HINTS = Object.freeze({
   bridge: bridgeHints,
   multiRep: multiRepHints,
   slope: slopeHints,
+  twoPoints: twoPointsHints,
   intercepts: interceptHints,
 });
 
@@ -911,6 +1054,14 @@ const backUpFor = (model) => {
         ];
       }
       if (mode === 'standardForm') {
+        // 2y = -6 has no x to replace: the question is the one its hints ask.
+        if (isZero(model.A) || isZero(model.B)) {
+          const correct = isZero(model.B) ? 'The x-coordinate' : 'The y-coordinate';
+          return [
+            step(`Let’s back up. On the line ${display}, which coordinate is the same at every point?`, ['The x-coordinate', 'The y-coordinate'], correct),
+            step(`Let’s back up. On a line whose equation has only ${isZero(model.B) ? 'x' : 'y'} in it, which coordinate is the same at every point?`, ['The x-coordinate', 'The y-coordinate'], correct),
+          ];
+        }
         const options = ['Replace x or y with zero to find an intercept', 'Set x and y equal to each other'];
         return [step(`Let’s back up. What is a quick first move for graphing ${display}?`, options, options[0]), step('Let’s back up. What is a quick first move for graphing an equation in standard form?', options, options[0])];
       }
@@ -936,7 +1087,8 @@ const backUpFor = (model) => {
       if (model.given === 'pointSlope') return [step('Let’s back up. In y − y₁ = m(x − x₁), what does (x₁, y₁) give you?', ['A point on the line', 'The y-intercept'], 'A point on the line')];
       if (model.given === 'scenario') return [step('Let’s back up. In the situation, which part of the graph is the starting amount?', ['The y-intercept', 'The slope'], 'The y-intercept')];
       return [RATE_STEP];
-    case 'slope': {
+    case 'slope':
+    case 'twoPoints': {
       const options = ['The change in y', 'The change in x'];
       return [
         step(`Let’s back up. For ${pt(model.points[0])} and ${pt(model.points[1])}, what goes on top of the slope fraction?`, options, options[0]),
@@ -958,7 +1110,7 @@ export const backUpQuestion = (question) => {
   if (!model) return null;
   try {
     const guard = guardFor(question, model);
-    const step = backUpFor(model).find((entry) => ![entry.prompt, ...entry.options].some((part) => hintRevealsAnswer(part, guard)));
+    const step = backUpFor(model).find((entry) => ![entry.prompt, ...entry.options].some((part) => revealsAnswer(part, guard)));
     if (!step) return null;
     // The right answer is not always the first button.
     const options = hash(`${model.kind}|${step.prompt}`) % 2 ? [...step.options].reverse() : [...step.options];
@@ -992,8 +1144,8 @@ const exampleIsSafe = (question, example, guard) => {
   if (guard.some((value) => value.toLowerCase() === answer.toLowerCase())) return false;
   const value = exact(answer);
   if (value && guard.some((entry) => exact(entry) && equals(exact(entry), value))) return false;
-  if (hintRevealsAnswer(answer, guard)) return false;
-  if (steps.some((step) => hintRevealsAnswer(step, guard))) return false;
+  if (revealsAnswer(answer, guard)) return false;
+  if (steps.some((step) => revealsAnswer(step, guard))) return false;
   return !hintRevealsAnswer(prompt, guard.filter((entry) => exact(entry) === null));
 };
 
@@ -1034,7 +1186,7 @@ const tableRowsFor = (m, b, x0, step, count) => Array.from({ length: count }, (_
 const rateStep = (a, b) => {
   const dy = subtract(b.y, a.y);
   const dx = subtract(b.x, a.x);
-  return `From x = ${show(a.x)} to x = ${show(b.x)}: (${differenceText(b.y, a.y)}) ÷ (${differenceText(b.x, a.x)}) = ${show(dy)} ÷ ${show(dx)} = ${show(divide(dy, dx))}.`;
+  return `From x = ${show(a.x)} to x = ${show(b.x)}: (${differenceText(b.y, a.y)}) ÷ (${differenceText(b.x, a.x)}) = ${show(dy)} ÷ ${factorText(dx)} = ${show(divide(dy, dx))}.`;
 };
 const interceptStep = (rows, m, b) => {
   const atZero = rows.find((row) => isZero(row.x));
@@ -1171,7 +1323,7 @@ const siblingGraphLine = (question, model, seed) => {
         prompt: `Graph ${factoredText(a, c)}.`,
         steps: [
           `y is zero when ${factor} = 0, that is when x = ${show(c)}. Plot the x-intercept ${pt(start)}.`,
-          `The number in front of the parentheses, ${show(a)}, is the slope: ${riseRunText(a)}. From ${pt(start)} move ${moveText(a)} to ${pt(second)}.`,
+          `${equals(absolute(a), ONE) ? `${unitFactorLead(a)} ${show(a)}` : `The number in front of the parentheses, ${show(a)}, is the slope`}: ${riseRunText(a)}. From ${pt(start)} move ${moveText(a)} to ${pt(second)}.`,
           `Draw the line through ${pt(start)} and ${pt(second)}.`,
         ],
         answer: `The line through ${pt(start)} and ${pt(second)}`,
@@ -1200,7 +1352,7 @@ const siblingGraphLine = (question, model, seed) => {
 /** "3x = 12, so x = 12 ÷ 3 = 4" — or just "x = 12" when the coefficient is 1. */
 const solvedFor = (coefficient, variable, C, value) => (equals(coefficient, ONE)
   ? `${variable} = ${show(C)}`
-  : `${term(coefficient, variable)} = ${show(C)}, so ${variable} = ${show(C)} ÷ ${paren(coefficient)} = ${show(value)}`);
+  : `${term(coefficient, variable)} = ${show(C)}, so ${variable} = ${show(C)} ÷ ${factorText(coefficient)} = ${show(value)}`);
 
 /** qx + py = pq in lowest terms with a positive x-coefficient: the line through (p, 0) and (0, q). */
 const standardFromIntercepts = (p, q) => {
@@ -1364,6 +1516,113 @@ const siblingSlope = (question, model, seed) => {
   });
 };
 
+/* ---------------------------------------------------------------------------
+ * The worked steps for the line through two points: shared by the twoPoints
+ * sibling (on its own new numbers) and by workedSolution (on THIS question's,
+ * after it closes). `roles` is what is asked, in order (slope, yIntercept,
+ * xIntercept); `statedFor(role, truth)` spells each answer (null: no spelling
+ * to give, so no steps).
+ * ------------------------------------------------------------------------- */
+
+const ROLE_NAMES = Object.freeze({ slope: 'slope', yIntercept: 'y-intercept', xIntercept: 'x-intercept' });
+const ROLE_LABELS = Object.freeze({ slope: 'Slope', yIntercept: 'y-intercept', xIntercept: 'x-intercept' });
+const joinList = (parts) => (parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`);
+const askedText = (roles) => joinList(roles.map((role) => `its ${ROLE_NAMES[role]}`));
+const noneWord = (word) => /^(none|no .*|does not exist|dne)$/i.test(word);
+
+/** A factor in "a × b" or "a ÷ b": negatives and fractions in parentheses. */
+const factorText = (value) => (isNegative(value) || !isInteger(value) ? `(${show(value)})` : show(value));
+
+const twoPointWork = ([first, second], roles, statedFor, { decimal = false } = {}) => {
+  // The numbers as the question writes them: decimals stay decimals.
+  const num = (value) => (decimal && decimalText(value)) || show(value);
+  const signed = (value) => (isNegative(value) ? `(${num(value)})` : num(value));
+  const factor = (value) => (isNegative(value) || (!isInteger(value) && !(decimal && decimalText(value))) ? `(${num(value)})` : num(value));
+  const minus = (a, b) => `${num(a)} - ${signed(b)}`;
+  const at = ([x, y]) => `(${num(x)}, ${num(y)})`;
+  const written = { decimal };
+  const line = throughLine(first, second);
+  if (!line) return null;
+  const stated = {};
+  for (const role of roles) {
+    const truth = roleTruth(line, role);
+    const value = truth ? statedFor(role, truth) : null;
+    if (!value) return null;
+    stated[role] = { value, none: Boolean(truth.none) };
+  }
+  const [x1, y1] = first;
+  const [x2, y2] = second;
+  const dy = subtract(y2, y1);
+  const dx = subtract(x2, x1);
+  const steps = [
+    `Label (x₁, y₁) = ${at(first)} and (x₂, y₂) = ${at(second)}.`,
+    `Change in y: y₂ - y₁ = ${minus(y2, y1)} = ${num(dy)}.`,
+    `Change in x: x₂ - x₁ = ${minus(x2, x1)} = ${num(dx)}.`,
+  ];
+  const needsLine = roles.some((role) => role !== 'slope');
+  if (line.vertical) {
+    const c = num(line.x);
+    steps.push(`Slope = ${num(dy)} ÷ 0, and dividing by zero is undefined: the slope is undefined. Both points have x-coordinate ${c}, so the line is the vertical line x = ${c}.`);
+    if (roles.includes('yIntercept')) steps.push(`Every point on x = ${c} has x-coordinate ${c}, never 0, so the line never crosses the y-axis: there is no y-intercept.`);
+    if (roles.includes('xIntercept')) steps.push(`The line x = ${c} crosses the x-axis at ${at([line.x, ZERO])}.`);
+  } else {
+    const { m, b } = line;
+    steps.push(isZero(m)
+      ? `Slope m = 0 ÷ ${factor(dx)} = 0: y does not change, so the line is horizontal.`
+      : `Slope m = ${num(dy)} ÷ ${factor(dx)} = ${num(m)}.`);
+    if (needsLine) {
+      const onAxis = [first, second].find((point) => isZero(point[0]));
+      if (onAxis) {
+        steps.push(`${at(onAxis)} has x-coordinate 0, so it is where the line crosses the y-axis: b = ${num(b)}.`);
+      } else if (isZero(m)) {
+        steps.push(`Every point on the line has y = ${num(b)}, so it crosses the y-axis at ${at([ZERO, b])}: b = ${num(b)}.`);
+      } else {
+        const product = multiply(m, x1);
+        steps.push(`Substitute m = ${num(m)} and ${at(first)} into y = mx + b: ${num(y1)} = ${factor(m)} × ${factor(x1)} + b, so b = ${num(y1)} - ${factor(product)} = ${num(b)}.`);
+      }
+      steps.push(`So the line is ${lineText(m, b, written)}.`);
+    }
+    if (roles.includes('xIntercept')) {
+      steps.push(isZero(m)
+        ? `On this line y is always ${num(b)}, never 0, so it never meets the x-axis: there is no x-intercept.`
+        : `x-intercept: set y = 0, so 0 = ${term(m, 'x', written)}${signedTail(b, written)} and x = ${num(negate(b))} ÷ ${factor(m)} = ${num(divide(negate(b), m))}.`);
+    }
+  }
+  const said = roles.map((role) => (stated[role].none && noneWord(stated[role].value)
+    ? `there is no ${ROLE_NAMES[role]} (${stated[role].value})`
+    : `the ${ROLE_NAMES[role]} is ${stated[role].value}`));
+  steps.push(`So ${joinList(said)}.`);
+  return {
+    line,
+    steps,
+    answer: roles.map((role) => `${ROLE_LABELS[role]}: ${stated[role].value}`).join('; '),
+  };
+};
+
+/** A plain spelling of each answer (the sibling's: its own new numbers). */
+const plainStated = (role, truth) => (truth.none ? (role === 'slope' ? 'undefined' : 'none') : show(truth.value));
+
+const siblingTwoPoints = (question, model, seed) => {
+  const roles = model.entries.map((entry) => entry.role);
+  const current = model.line;
+  const slopes = !current.vertical && !isInteger(current.m) ? FRACTION_SLOPES : INTEGER_SLOPES;
+  const candidates = product(slopes, SMALL_INTEGERS, [-3, 1, -2, 2, -1, 3].map(R), [1, 2].map(R))
+    .filter(([m, b]) => current.vertical || (!equals(m, current.m) && !equals(b, current.b)));
+  return firstSafe(question, model, seed, candidates, ([m, b, x1, scale]) => {
+    const first = [x1, add(multiply(m, x1), b)];
+    const x2 = add(x1, multiply(rational(m.d), scale));
+    const second = [x2, add(multiply(m, x2), b)];
+    if (model.points.some((point) => samePoint(point, first) || samePoint(point, second))) return null;
+    const worked = twoPointWork([first, second], roles, plainStated);
+    if (!worked) return null;
+    return {
+      prompt: `A line passes through ${pt(first)} and ${pt(second)}. Find ${askedText(roles)}.`,
+      steps: worked.steps,
+      answer: worked.answer,
+    };
+  });
+};
+
 const siblingIntercepts = (question, model, seed) => {
   const [p0] = model.xInt;
   const [, q0] = model.yInt;
@@ -1395,6 +1654,7 @@ const SIBLINGS = Object.freeze({
   bridge: siblingBridge,
   multiRep: siblingMultiRep,
   slope: siblingSlope,
+  twoPoints: siblingTwoPoints,
   intercepts: siblingIntercepts,
 });
 
@@ -1403,6 +1663,384 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
   if (!model) return null;
   try {
     return SIBLINGS[model.kind](question, model, seed);
+  } catch {
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * workedSolution: THIS question's worked solution, for the review panel once
+ * the question is closed (closedQuestionReview.js). It states the answer, so
+ * nothing shown while the item is open (hints, the back-up step, siblings)
+ * ever calls it. Steps are written the way this family's siblings write
+ * theirs, on this item's own numbers, and end on the key the grader accepts.
+ * null for anything it cannot explain exactly.
+ * ------------------------------------------------------------------------- */
+
+/** The first spelling of a field's answer that the multiAnswer grader itself accepts. */
+const acceptedSpelling = (field, spellings) => unique(spellings).find((spelling) => {
+  try {
+    return matchesFieldAnswer(spelling, field);
+  } catch {
+    return false;
+  }
+}) || null;
+
+const numberSpellings = (value) => [show(value), decimalText(value)].filter(Boolean);
+const pairSpellings = (point) => [pt(point), `(${show(point[0])},${show(point[1])})`];
+
+/** The answer of one answer field, spelt so its own key accepts it. */
+const fieldStated = (field, truth, { asPoint = false, word = '', decimal = false } = {}) => {
+  if (truth.none) return word ? acceptedSpelling(field, [word]) : null;
+  const numbers = decimal ? [...numberSpellings(truth.value)].reverse() : numberSpellings(truth.value);
+  const spellings = asPoint || !truth.point
+    ? [...(truth.point ? pairSpellings(truth.point) : []), ...numbers]
+    : [...numbers, ...pairSpellings(truth.point)];
+  return acceptedSpelling(field, spellings);
+};
+
+const workedTwoPoints = (question, model) => {
+  const byRole = Object.fromEntries(model.entries.map((entry) => [entry.role, entry]));
+  const roles = model.entries.map((entry) => entry.role);
+  const worked = twoPointWork(model.points, roles, (role, truth) => fieldStated(byRole[role].field, truth, { ...byRole[role], decimal: model.decimal }), model);
+  if (!worked) return null;
+  return {
+    headline: model.line.vertical
+      ? 'The two points have the same x-coordinate, so the line through them is vertical.'
+      : 'Find the slope as the change in y over the change in x, then use a point in y = mx + b to find b.',
+    steps: worked.steps,
+    answerSummary: worked.answer,
+  };
+};
+
+const workedSlope = (question, model) => {
+  const field = list(question.answerFields).find((entry) => fieldMentions(entry, /slope|\bm\b/i) && isOpenField(entry));
+  if (!field) return null;
+  const worked = twoPointWork(model.points, ['slope'], (role, truth) => fieldStated(field, truth));
+  if (!worked) return null;
+  return {
+    headline: 'The slope is the change in y divided by the change in x, subtracting in the same order.',
+    steps: worked.steps,
+    answerSummary: worked.answer,
+  };
+};
+
+const workedIntercepts = (question, model) => {
+  const { A, B, C, display } = model;
+  const [p] = model.xInt;
+  const [, q] = model.yInt;
+  let xStated = pt(model.xInt);
+  let yStated = pt(model.yInt);
+  if (!model.workspace) {
+    const fields = list(question.answerFields);
+    const xField = fields.find((field) => fieldMentions(field, /x.?intercept/i));
+    const yField = fields.find((field) => fieldMentions(field, /y.?intercept/i));
+    const asPoint = (field, point) => keyedPoints(field).some((keyed) => samePoint(keyed, point));
+    xStated = fieldStated(xField, { value: p, point: model.xInt }, { asPoint: asPoint(xField, model.xInt) });
+    yStated = fieldStated(yField, { value: q, point: model.yInt }, { asPoint: asPoint(yField, model.yInt) });
+    if (!xStated || !yStated) return null;
+  }
+  return {
+    headline: 'Each intercept is where the line meets an axis, so one of the variables is zero there.',
+    steps: [
+      `x-intercept: replace y with 0 in ${display}, which leaves ${solvedFor(A, 'x', C, p)}. The point is ${pt(model.xInt)}.`,
+      `y-intercept: replace x with 0 in ${display}, which leaves ${solvedFor(B, 'y', C, q)}. The point is ${pt(model.yInt)}.`,
+      `Check: ${factorText(A)} × ${factorText(p)} = ${show(C)} and ${factorText(B)} × ${factorText(q)} = ${show(C)}, so both points make ${display} true.`,
+      `So the x-intercept is ${xStated} and the y-intercept is ${yStated}.`,
+    ],
+    answerSummary: `x-intercept: ${xStated}; y-intercept: ${yStated}`,
+  };
+};
+
+/** The graphing grader compares Number(typed) === key exactly: the spelling must survive that. */
+const graphingKeyText = (value, key) => {
+  const spelling = isInteger(value) ? show(value) : decimalText(value);
+  return spelling && Number(spelling) === Number(key) ? spelling : null;
+};
+
+const workedLineFeatures = (question, model) => {
+  const key = lineFeatureKey(question);
+  const mText = graphingKeyText(model.m, key.m);
+  const bText = graphingKeyText(model.b, key.b);
+  if (!mText || !bText) return null;
+  const { m, b } = model;
+  const final = `So the slope is m = ${mText} and the y-intercept is b = ${bText}.`;
+  const answerSummary = `Slope: ${mText}; y-intercept: ${bText}`;
+  if (model.equationShown) {
+    const equation = lineText(m, b);
+    return {
+      headline: 'In y = mx + b the slope is the coefficient of x and the y-intercept is the constant term.',
+      steps: [
+        `Written in slope-intercept form, the line is ${equation}.`,
+        isZero(m) ? `${equation} has no x-term, so the slope is m = 0.` : `The slope is the coefficient of x, sign included: m = ${mText}.`,
+        isZero(b) ? `${equation} has no constant term, so the y-intercept is b = 0.` : `The y-intercept is the constant term, sign included: b = ${bText}.`,
+        final,
+      ],
+      answerSummary,
+    };
+  }
+  // Both points the student reads must be on the graph they see: the
+  // y-intercept, and the nearest whole step of rise over run inside the window.
+  const { xMin, xMax, yMin, yMax } = model.window;
+  const inWindow = ([x, y]) => toNumber(x) >= xMin && toNumber(x) <= xMax && toNumber(y) >= yMin && toNumber(y) <= yMax;
+  if (!inWindow([ZERO, b])) return null;
+  const steps = [1, -1, 2, -2, 3, -3].map((k) => [rational(m.d * k), add(b, rational(m.n * k))]);
+  const point = steps.find(inWindow);
+  if (!point) return null;
+  const [run, toY] = point;
+  const rise = subtract(toY, b);
+  return {
+    headline: 'Read where the line crosses the y-axis, then count rise over run to another point on the line.',
+    steps: [
+      `The line crosses the y-axis at ${pt([ZERO, b])}, so the y-intercept is b = ${bText}.`,
+      `It also passes through ${pt(point)}: from ${pt([ZERO, b])} the run is ${show(run)} and the rise is ${differenceText(toY, b)} = ${show(rise)}.`,
+      `Slope m = rise ÷ run = ${show(rise)} ÷ ${factorText(run)} = ${show(m)}.`,
+      final,
+    ],
+    answerSummary,
+  };
+};
+
+/* graphing2: the points the steps plot are a construction the shared grader accepts. */
+const plotCount = (question) => (Number(question?.constructionPolicy?.minimumPoints) === 3 ? 3 : 2);
+const isFormAware = (question) => question?.constructionPolicy?.strategy === 'formAware';
+const pointsText = (points) => joinList(points.map(pt));
+/** count points from start along the slope (run m.d each), skipping any already listed. */
+const slopeWalk = (start, m, count, avoid = []) => {
+  const out = [start];
+  for (const k of [1, 2, -1, 3, -2, 4]) {
+    if (out.length >= count) break;
+    const point = [add(start[0], rational(m.d * k)), add(start[1], rational(m.n * k))];
+    if (![...out, ...avoid].some((other) => samePoint(other, point))) out.push(point);
+  }
+  return out;
+};
+const slopeMoveStep = (m, start, next) => (isZero(m)
+  ? `The slope is 0, so the line is horizontal: from ${pt(start)} move right 1 to ${pt(next)}.`
+  : `The slope ${show(m)} means ${riseRunText(m)}: from ${pt(start)} move ${moveText(m)} to ${pt(next)}.`);
+const extraPointStep = (points) => (points.length > 2 ? [`Move the same way once more to plot a third point, ${pt(points[2])}.`] : []);
+const lineName = (line) => (line.vertical ? `x = ${show(line.x)}` : lineText(line.m, line.b));
+
+const workedVerticalOrHorizontal = (vertical, value, count, lead) => {
+  const named = vertical ? 'x' : 'y';
+  const points = [0, 1, 2].slice(0, count).map((k) => (vertical ? [value, rational(k)] : [rational(k), value]));
+  return {
+    steps: [
+      ...lead,
+      `Every point on ${named} = ${show(value)} has ${named}-coordinate ${show(value)}; the other coordinate can be any number. Plot ${pointsText(points)}.`,
+      `Draw the ${vertical ? 'vertical' : 'horizontal'} line through ${pointsText(points)}: it is ${named} = ${show(value)}.`,
+    ],
+    points,
+    answer: `The ${vertical ? 'vertical' : 'horizontal'} line ${named} = ${show(value)}, through ${pointsText(points)}`,
+  };
+};
+
+const workedGraphLine = (question, model) => {
+  const { mode, line } = model;
+  const count = plotCount(question);
+  let built = null;
+  if (mode === 'throughPoints') {
+    const [first, second] = model.givenPoints;
+    const tail = line.vertical
+      ? [`Both points have x-coordinate ${show(line.x)}, so the line is vertical.`]
+      : [`Its slope is (${differenceText(second[1], first[1])}) ÷ (${differenceText(second[0], first[0])}) = ${show(line.m)}, so the line ${isZero(line.m) ? 'is horizontal' : isNegative(line.m) ? 'falls from left to right' : 'rises from left to right'}.`];
+    built = {
+      steps: [`Plot the two given points, ${pt(first)} and ${pt(second)}.`, ...tail, `Draw the line through ${pt(first)} and ${pt(second)}: it is ${lineName(line)}.`],
+      points: [first, second],
+      answer: `The line ${lineName(line)}, through ${pt(first)} and ${pt(second)}`,
+    };
+  } else if (line.vertical || mode === 'verticalHorizontal' || (mode === 'standardForm' && isZero(model.A))) {
+    const vertical = Boolean(line.vertical);
+    const value = vertical ? line.x : line.b;
+    let lead = [];
+    if (mode === 'standardForm') {
+      const [variable, coefficient, missing] = vertical ? ['x', model.A, 'y'] : ['y', model.B, 'x'];
+      lead = [equals(coefficient, ONE)
+        ? `${model.display} has no ${missing}-term, so ${variable} = ${show(model.C)}.`
+        : `${model.display} has no ${missing}-term. Solve it for ${variable}: ${variable} = ${show(model.C)} ÷ ${factorText(coefficient)} = ${show(value)}.`];
+    }
+    if (mode === 'slopeIntercept') lead = [`The line is x = ${show(value)}, so it is vertical.`];
+    built = workedVerticalOrHorizontal(vertical, value, count, lead);
+  } else if (mode === 'slopeIntercept') {
+    const { m, b } = line;
+    const points = slopeWalk([ZERO, b], m, count);
+    const number = (value) => decimalText(value) || show(value);
+    built = {
+      steps: [
+        `${model.display} has the form y = mx + b, so the slope is ${number(m)} and the y-intercept is ${number(b)}.`,
+        `Plot the y-intercept ${pt(points[0])}.`,
+        slopeMoveStep(m, points[0], points[1]),
+        ...extraPointStep(points),
+        `Draw the line through ${pointsText(points)}: it is ${lineText(m, b)}.`,
+      ],
+      points,
+      answer: `The line ${lineText(m, b)}, through ${pointsText(points)}`,
+    };
+  } else if (mode === 'pointSlope') {
+    const { m, b } = line;
+    const points = slopeWalk(model.point, m, count);
+    built = {
+      steps: [
+        `Plot the given point ${pt(model.point)}.`,
+        slopeMoveStep(m, points[0], points[1]),
+        ...extraPointStep(points),
+        `Draw the line through ${pointsText(points)}: it is ${lineText(m, b)}.`,
+      ],
+      points,
+      answer: `The line ${lineText(m, b)}, through ${pointsText(points)}`,
+    };
+  } else if (mode === 'standardForm') {
+    const { A, B, C, display } = model;
+    const { m, b } = line;
+    if (isZero(C)) {
+      if (isFormAware(question)) return null; // both intercepts are the origin: no construction meets two anchors
+      const points = slopeWalk([ZERO, ZERO], m, count);
+      built = {
+        steps: [
+          `Replace x with 0 in ${display}: ${solvedFor(B, 'y', C, ZERO)}. The line passes through the origin ${pt(points[0])}.`,
+          `Solved for y it is ${lineText(m, b)}, so the slope is ${show(m)}.`,
+          slopeMoveStep(m, points[0], points[1]),
+          ...extraPointStep(points),
+          `Draw the line through ${pointsText(points)}: it is ${lineText(m, b)}.`,
+        ],
+        points,
+        answer: `The line ${lineText(m, b)}, through ${pointsText(points)}`,
+      };
+    } else {
+      const p = divide(C, A);
+      const yInt = [ZERO, b];
+      const xInt = [p, ZERO];
+      const points = [yInt, xInt, ...slopeWalk(yInt, m, 3, [xInt]).slice(1)].slice(0, Math.max(2, count));
+      built = {
+        steps: [
+          `Replace x with 0: ${solvedFor(B, 'y', C, b)}. Plot the y-intercept ${pt(yInt)}.`,
+          `Replace y with 0: ${solvedFor(A, 'x', C, p)}. Plot the x-intercept ${pt(xInt)}.`,
+          ...(points.length > 2 ? [`For a third point, start at ${pt(yInt)} and use the slope ${show(m)}: move ${moveText(m)} to ${pt(points[2])}.`] : []),
+          `Draw the line through ${pointsText(points)}: it is ${lineText(m, b)}.`,
+        ],
+        points,
+        answer: `The line ${lineText(m, b)}, through ${pointsText(points)}`,
+      };
+    }
+  } else if (mode === 'factoredLinear') {
+    const { a, c } = model;
+    const { m, b } = line;
+    const points = slopeWalk([c, ZERO], a, count);
+    const factor = isZero(c) ? 'x' : isNegative(c) ? `x + ${show(absolute(c))}` : `x - ${show(c)}`;
+    const slopeLead = equals(absolute(a), ONE) ? `${unitFactorLead(a)} ${show(a)}` : `The number in front of the parentheses, ${show(a)}, is the slope`;
+    built = {
+      steps: [
+        `y is zero when ${factor} = 0, that is when x = ${show(c)}. Plot the x-intercept ${pt(points[0])}.`,
+        `${slopeLead}: ${riseRunText(a)}. From ${pt(points[0])} move ${moveText(a)} to ${pt(points[1])}.`,
+        ...extraPointStep(points),
+        `Draw the line through ${pointsText(points)}: it is ${lineText(m, b)}.`,
+      ],
+      points,
+      answer: `The line ${lineText(m, b)}, through ${pointsText(points)}`,
+    };
+  }
+  if (!built) return null;
+  return {
+    headline: 'Plot points the equation gives you directly, then draw the one line through them.',
+    steps: built.steps,
+    answerSummary: built.answer,
+  };
+};
+
+/* linearTableWorkbench and the linear bridge: the intervals the steps record are the evidence the grader asks for. */
+const graderComparisons = (question) => Math.max(1, Number(question?.requiredComparisons) || 3);
+/** Neighbouring rows first, then wider gaps, until `needed` distinct intervals (or null when the table has too few). */
+const intervalsFor = (rows, needed) => {
+  const sorted = sortedRows(rows);
+  const out = [];
+  for (let gap = 1; gap < sorted.length && out.length < needed; gap += 1) {
+    for (let index = 0; index + gap < sorted.length && out.length < needed; index += 1) out.push([sorted[index], sorted[index + gap]]);
+  }
+  return out.length >= needed ? out : null;
+};
+
+const workedTable = (question, model) => {
+  const intervals = intervalsFor(model.rows, Math.max(graderComparisons(question), model.kind === 'tableRepair' ? model.rows.length - 1 : 1));
+  if (!intervals) return null;
+  const rateSteps = intervals.map(([a, b]) => rateStep(a, b));
+  if (model.kind === 'tableRate') {
+    const rates = intervals.map(([a, b]) => rateOf(a, b));
+    if (model.line) {
+      return {
+        headline: 'Compare the rate of change between pairs of rows: a linear table has the same rate everywhere.',
+        steps: [...rateSteps, `Every pair of rows gives the same rate, ${show(model.line.m)}, so the rate of change is constant: the relationship is linear.`],
+        answerSummary: `Linear: the rate of change is constant, ${show(model.line.m)}.`,
+      };
+    }
+    const other = rates.find((rate) => !equals(rate, rates[0]));
+    if (!other) return null;
+    return {
+      headline: 'Compare the rate of change between pairs of rows: a linear table has the same rate everywhere.',
+      steps: [...rateSteps, `The rates are not all the same (${show(rates[0])} and ${show(other)}), so the rate of change is not constant: the relationship is nonlinear.`],
+      answerSummary: 'Nonlinear: the rate of change is not constant.',
+    };
+  }
+  if (model.kind === 'tableEquation') {
+    const { m, b } = model;
+    return {
+      headline: 'The constant rate of change is the slope m; b is the value of y when x is zero.',
+      steps: [
+        ...rateSteps,
+        `Every pair gives the same rate, so the table is linear and m = ${show(m)}.`,
+        interceptStep(sortedRows(model.rows), m, b),
+        `So the table is linear, with m = ${show(m)}, b = ${show(b)} and the equation ${lineText(m, b)}.`,
+      ],
+      answerSummary: `Linear: m = ${show(m)}, b = ${show(b)}, ${lineText(m, b)}`,
+    };
+  }
+  // tableRepair: with three rows any one of them could be "the" broken row.
+  if (model.rows.length < 4) return null;
+  const broken = model.rows[model.index];
+  const sorted = sortedRows(model.rows);
+  const position = sorted.indexOf(broken);
+  const neighbour = sorted[position === 0 ? 1 : position - 1];
+  const dx = subtract(broken.x, neighbour.x);
+  return {
+    headline: 'Find the rate that most pairs of rows agree on; the row that disagrees is the broken one.',
+    steps: [
+      ...rateSteps,
+      `Every rate that uses the row x = ${show(broken.x)} disagrees with the others, which all equal ${show(model.m)}: that row breaks the pattern.`,
+      `Correct it from ${pt([neighbour.x, neighbour.y])}: y = ${show(neighbour.y)} + ${factorText(model.m)} × ${factorText(dx)} = ${show(model.correctedY)}.`,
+      `So row ${model.index + 1} (x = ${show(broken.x)}) should have y = ${show(model.correctedY)}; with that value every pair of rows gives the rate ${show(model.m)}, so the corrected table is linear.`,
+    ],
+    answerSummary: `Row ${model.index + 1} (x = ${show(broken.x)}) should have y = ${show(model.correctedY)}; the corrected table is linear.`,
+  };
+};
+
+const WORKED = Object.freeze({
+  lineFeatures: workedLineFeatures,
+  graphLine: workedGraphLine,
+  tableRate: workedTable,
+  tableEquation: workedTable,
+  tableRepair: workedTable,
+  // bridge / multiRep: their grading also scores meanings and cards this
+  // family cannot state; the tool's own review explains them.
+  slope: workedSlope,
+  twoPoints: workedTwoPoints,
+  intercepts: workedIntercepts,
+});
+
+// What a step must never print: a JS leak or an unsimplified sign. "undefined"
+// is a word only a vertical line's slope may use.
+const SLOPPY = /NaN|\bnull\b|\[object|\+\s*-|--|(?<![\d.])-0(?![\d./])|(?<![\d.)])1x/;
+
+export const workedSolution = (question) => {
+  const model = modelFor(question);
+  if (!model || !WORKED[model.kind]) return null;
+  try {
+    const result = WORKED[model.kind](question, model);
+    if (!result) return null;
+    const steps = list(result.steps).map(text).filter(Boolean);
+    const answerSummary = text(result.answerSummary);
+    if (!steps.length || !answerSummary) return null;
+    const mayBeUndefined = model.kind === 'twoPoints' && model.line.vertical;
+    if ([...steps, answerSummary, text(result.headline)].some((entry) => SLOPPY.test(entry) || (!mayBeUndefined && /undefined/i.test(entry)))) return null;
+    return { headline: text(result.headline), steps, answerSummary };
   } catch {
     return null;
   }

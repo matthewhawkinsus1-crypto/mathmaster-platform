@@ -291,30 +291,56 @@ const buildBridgeReview = (question) => {
     choices.push(need === 1 ? 'any pair of rows counts as the interval' : `any ${need} different pairs of rows count as the intervals`);
   }
 
+  // What the steps so far have derived. A later stage that uses m, b or the
+  // zero first derives whatever no earlier stage did — the same sentences the
+  // general-form and factored-form stages write — so no step uses a number the
+  // review has not shown how to get.
+  const known = { m: stages.includes('rateEvidence'), b: false, zero: false };
+  // m from two neighbouring rows (no rate stage to read it from).
+  const slopeSentence = () => {
+    const [first, second] = [exactRows[order[0]], exactRows[order[1]]];
+    return `m is the table's constant rate. Between ${rowName(order[0])} ${pointSay(first)} and ${rowName(order[1])} ${pointSay(second)}, m = Δy ÷ Δx = (${say(second[1])} − ${factor(first[1])}) ÷ (${say(second[0])} − ${factor(first[0])}) = ${say(m)}.`;
+  };
+  // b from the row at x = 0 when the table has one, else from the row nearest it.
+  const interceptSentence = () => {
+    const anchorIndex = order.reduce((best, index) => (Math.abs(rows[index].x) < Math.abs(rows[best].x) ? index : best), order[0]);
+    const [ax, ay] = exactRows[anchorIndex];
+    return isZero(ax)
+      ? `${rowName(anchorIndex)} ${pointSay([ax, ay])} has x = 0, so its y-value is the y-intercept: b = ${say(b)}.`
+      : `Substitute ${rowName(anchorIndex)} ${pointSay([ax, ay])} and m = ${say(m)} into y = mx + b: ${say(ay)} = ${factor(m)}(${say(ax)}) + b, so b = ${say(ay)} − ${factor(mulFractions(m, ax))} = ${say(b)}.`;
+  };
+  const zeroSentence = () => `c is the zero — the x where y = 0. Set 0 = ${rightSide(m, b)}: x = ${say(negFraction(b))} ÷ ${factor(m)} = ${say(zero)}, so c = ${say(zero)}.`;
+  /** The step that derives m, b (and the zero) where no earlier stage has, before `purpose`. */
+  const deriveFirst = (purpose, { needZero = false } = {}) => {
+    const sentences = [];
+    if (!known.m) sentences.push(slopeSentence());
+    if (!known.b) sentences.push(`${interceptSentence()} So the line is ${sayEquation(slopeInterceptText(m, b))}.`);
+    if (needZero && !known.zero) sentences.push(zeroSentence());
+    Object.assign(known, { m: true, b: true }, needZero ? { zero: true } : {});
+    if (sentences.length) steps.push(`${purpose}, first find what it uses. ${sentences.join(' ')}`);
+  };
+
   if (stages.includes('generalForm')) {
     const equation = slopeInterceptText(m, b);
     work.generalForm = { m: typed(m), b: typed(b), equation };
     items.push({ label: 'General form: m', value: typed(m) }, { label: 'General form: b', value: typed(b) }, { label: 'General form equation', value: equation });
-    // b from the row at x = 0 when the table has one, else from the row nearest it.
-    const anchorIndex = order.reduce((best, index) => (Math.abs(rows[index].x) < Math.abs(rows[best].x) ? index : best), order[0]);
-    const [ax, ay] = exactRows[anchorIndex];
-    const bStep = isZero(ax)
-      ? `${rowName(anchorIndex)} ${pointSay([ax, ay])} has x = 0, so its y-value is the y-intercept: b = ${say(b)}.`
-      : `Substitute ${rowName(anchorIndex)} ${pointSay([ax, ay])} and m = ${say(m)} into y = mx + b: ${say(ay)} = ${factor(m)}(${say(ax)}) + b, so b = ${say(ay)} − ${factor(mulFractions(m, ax))} = ${say(b)}.`;
+    const bStep = interceptSentence();
     if (!stages.includes('rateEvidence')) {
       // No rate stage to read m from: find it from two neighbouring rows.
-      const [first, second] = [exactRows[order[0]], exactRows[order[1]]];
-      steps.push(`${STAGE_TITLES.generalForm}: m is the table's constant rate. Between ${rowName(order[0])} ${pointSay(first)} and ${rowName(order[1])} ${pointSay(second)}, m = Δy ÷ Δx = (${say(second[1])} − ${factor(first[1])}) ÷ (${say(second[0])} − ${factor(first[0])}) = ${say(m)}.`);
+      steps.push(`${STAGE_TITLES.generalForm}: ${slopeSentence()}`);
       steps.push(`${bStep} So the equation is ${sayEquation(equation)}.`);
     } else {
       steps.push(`${STAGE_TITLES.generalForm}: m is the constant rate, ${say(m)}. ${bStep} So the equation is ${sayEquation(equation)}.`);
     }
+    Object.assign(known, { m: true, b: true });
   }
 
   if (stages.includes('factoredForm')) {
     const equation = factoredText(m, zero);
     work.factoredForm = { a: typed(m), c: typed(zero), equation };
     items.push({ label: 'Factored form: a', value: typed(m) }, { label: 'Factored form: c', value: typed(zero) }, { label: 'Factored form equation', value: equation });
+    deriveFirst('To write the factored form');
+    known.zero = true;
     steps.push(`${STAGE_TITLES.factoredForm}: a is the slope, a = ${say(m)}, and c is the zero — the x where y = 0. Set 0 = ${rightSide(m, b)}: x = ${say(negFraction(b))} ÷ ${factor(m)} = ${say(zero)}, so c = ${say(zero)} and y = a(x − c) is ${sayEquation(equation)}.`);
   }
 
@@ -330,11 +356,13 @@ const buildBridgeReview = (question) => {
     const fromSlope = stepPoints.find(fits) || null;
     const second = fromTable ? fromTable.point : fromSlope || stepPoints[0];
     work.graphConstruction = { points: [anchor, second].map((point) => point.map(num)) };
+    const zeroFromFactored = known.zero;
+    deriveFirst('To draw the graph', { needZero: true });
     items.push({ label: 'Graph points', value: `${pointTyped(anchor)} and ${pointTyped(second)}` });
     const secondFrom = fromTable
       ? `${rowName(fromTable.index)} of the table, ${pointSay(second)}, is on the line too`
       : `from it, a run of ${say(subFractions(second[0], zero))} and a rise of ${say(second[1])} (the slope ${say(m)}) reach ${pointSay(second)}`;
-    steps.push(`${STAGE_TITLES.graph}: plot the x-intercept ${pointSay(anchor)} — the c from the factored form — then a second point: ${secondFrom}. The line through the two points is the graph.`);
+    steps.push(`${STAGE_TITLES.graph}: plot the x-intercept ${pointSay(anchor)} — ${zeroFromFactored ? 'the c from the factored form' : 'the zero c found above'} — then a second point: ${secondFrom}. The line through the two points is the graph.`);
     choices.push('any second point on the line works for the graph');
   }
 
@@ -342,6 +370,7 @@ const buildBridgeReview = (question) => {
     const meanings = Object.fromEntries(['rate', 'yIntercept', 'zero'].map((id) => [id, meaningOf(context, id)]));
     if (Object.values(meanings).some((meaning) => !meaning.unit.trim() || !meaning.contextMeaning.trim())) return null;
     work.meaningAssignments = meanings;
+    deriveFirst('To explain what m, b and c mean', { needZero: true });
     items.push(
       { label: `Meaning of m = ${typed(m)}`, value: meaningValue(meanings.rate) },
       { label: `Meaning of b = ${typed(b)}`, value: meaningValue(meanings.yIntercept) },
@@ -360,8 +389,9 @@ const buildBridgeReview = (question) => {
   const checkIndex = order.reduce((best, index) => (Math.abs(rows[index].x) > Math.abs(rows[best].x) ? index : best), order[0]);
   const [cx, cy] = exactRows[checkIndex];
   const rowCheck = `${rowName(checkIndex)} ${pointSay([cx, cy])}: ${evaluated(m, cx, b)} = ${say(cy)}`;
+  // a·x is written as a term ("x", "−x", "(1/2)x"), never "1x" or "(−1)x".
   const why = zero && needsZero
-    ? `Check: expanding a(x − c) gives ${factor(m)}x − ${factor(m)}(${say(zero)}) = ${rightSide(m, b)}, the general form, so the equations are the same line; the zero works, since ${evaluated(m, zero, b)} = 0; and the line passes through every row of the table — for ${rowCheck}. One line, every representation.`
+    ? `Check: expanding a(x − c) gives ${sayEquation(coefficientTerm(m, 'x', true))} − ${factor(m)}(${say(zero)}) = ${rightSide(m, b)}, the general form, so the equations are the same line; the zero works, since ${evaluated(m, zero, b)} = 0; and the line passes through every row of the table — for ${rowCheck}. One line, every representation.`
     : `Check: the line y = mx + b with m = ${say(m)} and b = ${say(b)} passes through every row of the table — for ${rowCheck} — because every interval has the same rate, ${say(m)}.`;
   return {
     title: 'Representation bridge solution',

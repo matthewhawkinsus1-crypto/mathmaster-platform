@@ -28,7 +28,22 @@ export const buildCriticalPoints = ({ numeratorFactors = [], denominatorFactors 
   }));
 };
 
-export const buildSignIntervals = (spec = {}, relation = '>') => {
+/*
+ * The relation as the chart reads it. An author (or the V5 compiler, which
+ * copies `relation` through) may write the symbols themselves; the chart has
+ * always SHOWN '≥' as "≥ 0", but read it by its first character — as '<' —
+ * so the positive intervals were marked wrong and the negative ones right.
+ * '≥' and '≤' are read as '>=' and '<='; every other value is unchanged.
+ */
+const RELATION_SPELLINGS = Object.freeze({ '≥': '>=', '≤': '<=' });
+export const canonicalSignRelation = (relation) => (
+  typeof relation === 'string' && Object.prototype.hasOwnProperty.call(RELATION_SPELLINGS, relation)
+    ? RELATION_SPELLINGS[relation]
+    : relation
+);
+
+export const buildSignIntervals = (spec = {}, rawRelation = '>') => {
+  const relation = canonicalSignRelation(rawRelation);
   const criticalPoints = buildCriticalPoints(spec);
   const bounds = [-Infinity, ...criticalPoints.map((p) => p.value), Infinity];
   const intervals = [];
@@ -43,7 +58,8 @@ export const buildSignIntervals = (spec = {}, relation = '>') => {
   return { criticalPoints, intervals };
 };
 
-export const solutionPiecesForRelation = (spec = {}, relation = '>') => {
+export const solutionPiecesForRelation = (spec = {}, rawRelation = '>') => {
+  const relation = canonicalSignRelation(rawRelation);
   const { criticalPoints, intervals } = buildSignIntervals(spec, relation);
   const inclusive = relation.includes('=');
   return intervals.filter((interval) => interval.included).map((interval) => {

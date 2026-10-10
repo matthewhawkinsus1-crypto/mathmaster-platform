@@ -1818,7 +1818,10 @@
         "derived": {
           "ak": "a*k",
           "ck": "c*k"
-        }
+        },
+        "constraints": [
+          "a!=c"
+        ]
       }
     },
     {
@@ -1904,7 +1907,10 @@
           "yk": "y*k",
           "xplus": "x+k",
           "yplus": "y+k"
-        }
+        },
+        "constraints": [
+          "k!=2 || x!=2 || y!=2"
+        ]
       }
     },
     {
@@ -9673,7 +9679,10 @@
             "min": 1,
             "max": 12
           }
-        }
+        },
+        "constraints": [
+          "a!=b"
+        ]
       }
     },
     {
