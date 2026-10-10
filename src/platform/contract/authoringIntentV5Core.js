@@ -362,6 +362,19 @@ const hasStudentFacingResponseFields = (q = {}) => {
   return fields.length > 0 && fields.every((field) => isObject(field) && clean(field.label || field.prompt));
 };
 
+// SequenceExplorer's own names for the change are difference / ratio
+// (normalizeSequenceSpec). commonDifference / commonRatio are what authors
+// write; store them under the canonical name, and only when the spec names no
+// change of its own, so the sequence the tool draws is the one it drew before.
+const canonicalSequenceChange = (spec, fallbackKind) => {
+  if (!isObject(spec)) return spec;
+  const kind = spec.kind || fallbackKind;
+  const [alias, canonical] = kind === 'geometric' ? ['commonRatio', 'ratio'] : ['commonDifference', 'difference'];
+  if (spec[alias] == null || spec[canonical] != null || spec.change != null) return spec;
+  const { [alias]: change, ...rest } = spec;
+  return { ...rest, [canonical]: change };
+};
+
 const inferBinaryChoiceOptions = (field = {}) => {
   const label = clean(field.label || field.prompt).toLowerCase();
   const answer = clean(field.answer ?? field.acceptedAnswers?.[0]).toLowerCase();
@@ -1057,13 +1070,24 @@ const resolveIntentType = (q, actions) => {
     && Array.isArray(q.equations)
     && actions.includes('connectRepresentations');
   if (!isThreePlaneSpatialIntent && (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a)))) return 'representationMatch';
-  const hasSequenceAction = actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a));
+  const sequenceActions = actions.filter((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a));
+  const hasSequenceAction = sequenceActions.length > 0;
   // A sequence is mathematical context, not permission to replace an explicitly
   // authored response contract. If the teacher supplied concrete response
   // fields (for example a₅ + a₉, or one explicit-rule box) and only asked for
   // multipleResponses, preserve those exact fields. SequenceExplorer owns the
   // question only when semantic sequence actions ask it to build that workflow,
   // or when no student-facing response fields were authored at all.
+  //
+  // findSequenceTerm / analyzeSequence alone name no workflow the authored
+  // boxes could not hold: with no targetN, missingIndex or sumN, analyze mode
+  // dropped the boxes and graded a₈ instead of the terms the prompt asks for
+  // (District DOL1's "find the second, third and fifth terms").
+  const asksAuthoredSequenceAnswers = hasSequenceAction
+    && sequenceActions.every((a) => a === 'findSequenceTerm' || a === 'analyzeSequence')
+    && hasStudentFacingResponseFields(q)
+    && [q.targetN, q.missingIndex, q.sumN].every((value) => value == null || value === '');
+  if (asksAuthoredSequenceAnswers) return 'multiAnswer';
   if (hasSequenceAction || (q.sequence && !hasStudentFacingResponseFields(q))) return 'sequenceExplorer';
   // A source table that only asks the student to classify the relation should
   // stay a table. Do not invent a mapping diagram merely because normalized
@@ -1899,13 +1923,13 @@ const compileOne = (q, index, repairs) => {
       out = copyCommon(q, {
         type,
         mode,
-        sequence: q.sequence,
+        sequence: canonicalSequenceChange(q.sequence, q.kind || 'arithmetic'),
         targetN: q.targetN,
         displayCount: q.displayCount,
         missingIndex: q.missingIndex,
         sumN: q.sumN,
-        left: q.left,
-        right: q.right,
+        left: canonicalSequenceChange(q.left, 'arithmetic'),
+        right: canonicalSequenceChange(q.right, 'geometric'),
         compareN: q.compareN,
         leftLabel: q.leftLabel,
         rightLabel: q.rightLabel,

@@ -90,25 +90,23 @@ test('DOL1: the correct terms are right, and a wrong term is wrong', () => {
 });
 
 /*
- * A STORED ANALYZE-MODE COPY STILL USES THE AUTHORED SEQUENCE.
- *
- * Compile the items exactly as they were first authored (findSequenceTerm),
- * which is the shape a classroom copy imported before this fix holds.
+ * A STORED ANALYZE-MODE COPY STILL USES THE AUTHORED SEQUENCE: the shape a
+ * classroom copy imported before this fix holds.
  */
-const asFirstAuthored = () => {
-  const source = structuredClone(SOURCE);
-  source.sections.forEach((section) => section.questions.forEach((question) => {
-    if (question.sequence) question.studentActions = ['findSequenceTerm'];
-  }));
-  return compiledQuestions(source);
-};
 
 const gradeAnalyze = (question, work) => gradeToolCheck(sequenceExplorerGrader, question, work);
 
+// The two stored copies, pinned as the compiler of 4dc216e..283b29b produced
+// them from the first-authored items (the compiler now routes that shape to
+// multiAnswer, so a live compile no longer reproduces what classrooms hold).
+const STORED_ANALYZE_COPIES = [
+  { type: 'sequenceExplorer', mode: 'analyze', sequence: { kind: 'arithmetic', first: 7, commonDifference: 4 }, prompt: 'An arithmetic sequence starts at 7 and each term is 4 more than the term before it. Find the second, third and fifth terms.', studentActions: ['findSequenceTerm'], standard: 'A.12C', questionId: 'q_section-2_2_12' },
+  { type: 'sequenceExplorer', mode: 'analyze', sequence: { kind: 'arithmetic', first: 20, commonDifference: -3 }, prompt: 'A sequence starts at 20 and each term is 3 less than the term before it. Find the fourth term.', studentActions: ['findSequenceTerm'], standard: 'A.12C', questionId: 'q_section-4_4_8' },
+];
+
 test('a stored analyze-mode DOL1 copy is graded on the sequence it describes, not difference 1', () => {
-  const questions = asFirstAuthored();
-  const arithmetic = byPrompt(questions, ARITHMETIC);
-  const decreasing = byPrompt(questions, DECREASING);
+  const arithmetic = byPrompt(STORED_ANALYZE_COPIES, ARITHMETIC);
+  const decreasing = byPrompt(STORED_ANALYZE_COPIES, DECREASING);
   assert.equal(arithmetic.type, 'sequenceExplorer');
   assert.equal(arithmetic.mode, 'analyze');
   assert.equal(arithmetic.sequence.commonDifference, 4, 'the stored copy carries the authored name verbatim');
