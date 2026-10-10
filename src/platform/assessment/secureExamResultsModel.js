@@ -193,13 +193,15 @@ export const RESULT_STATUS_LABEL = Object.freeze({
 });
 
 export const NO_WORKED_SOLUTION = 'A worked solution isn\'t available for this question.';
+// A course Test's answers wait until the class has finished (index.js courseAnswersRelease).
+export const SOLUTIONS_HELD_NOTE = 'The correct answer and the worked solution appear once everyone has finished this test, or when your teacher releases them.';
 
 const solutionHasBody = (review) => Boolean(review && (
   clean(review.headline) || list(review.reasoning).some((line) => clean(line))
   || clean(review.answerSummary) || clean(review.commonError) || clean(review.connection)
 ));
 
-export const reviewItemResult = (item, index = 0) => {
+export const reviewItemResult = (item, index = 0, { solutionsHeld = false } = {}) => {
   const score = finiteNumber(item?.grading?.score) ?? 0;
   const status = item?.unanswered === true ? RESULT_STATUS.BLANK
     : item?.grading?.isCorrect === true ? RESULT_STATUS.CORRECT
@@ -224,7 +226,7 @@ export const reviewItemResult = (item, index = 0) => {
     questionNumber: position !== null && position >= 0 ? Math.floor(position) + 1 : index + 1,
     correctAnswers,
     workedSolution: solutionHasBody(workedSolution) ? workedSolution : null,
-    solutionNote: solutionHasBody(workedSolution) ? null : NO_WORKED_SOLUTION,
+    solutionNote: solutionHasBody(workedSolution) ? null : (solutionsHeld ? SOLUTIONS_HELD_NOTE : NO_WORKED_SOLUTION),
   };
 };
 

@@ -301,7 +301,10 @@ function scorePoints(session = {}) {
   return { earnedPoints: Math.round(earned * 100) / 100, possiblePoints: planned, weighted: false };
 }
 
-function publicReview(session = {}) {
+// `withSolutions: false` holds the correct answers and worked solutions back
+// (a course Test whose class is still testing — see courseAnswersReleased in
+// index.js); the score and the student's own answers, right or wrong, remain.
+function publicReview(session = {}, { withSolutions = true } = {}) {
   if (!TERMINAL_STATES.has(session.status) || session.feedbackReleased !== true) return null;
   const order = navigation.navigationOf(session).itemOrder;
   const items = Object.values(session.responses && typeof session.responses === 'object' ? session.responses : {})
@@ -327,7 +330,7 @@ function publicReview(session = {}) {
       },
       responsePayload: stripReviewSecrets(response?.responsePayload || { responses: {} }),
       questionSnapshot: stripReviewSecrets(response?.questionSnapshot || null),
-      solution: releasedSolutionOf(response),
+      solution: withSolutions ? releasedSolutionOf(response) : null,
       submittedAt: Number(response?.submittedAt || 0) || null,
     }));
   const correctQuestions = items.filter((item) => item.grading.isCorrect).length;
@@ -342,8 +345,31 @@ function publicReview(session = {}) {
     // Both kinds of test now count unanswered questions as zero. A course Test
     // can also weight questions differently, which the screen explains.
     scoreBasis: isCourseTestSession(session) ? 'plannedWeighted' : 'planned',
+    ...(withSolutions ? {} : { solutionsHeld: true }),
     items,
   };
 }
 
-module.exports = { COURSE_TEST_EXAM_TYPE, EXAM_POLICIES, INTEGRITY_LOCK_THRESHOLD, releasedSolutionOf, scorePoints, LOCKED_STATES, TERMINAL_STATES, deadlineFor, isCourseTestSession, isExpired, nextDomainId, policyFor, publicQuestion, publicReview, publicSession, secureSessionScorePercent, sessionScorePercent, supportsExamType, timeLimitSecondsOf, weightedSessionScorePercent };
+/*
+ * NOT AN OPEN BOOK FOR ANOTHER ATTEMPT.
+ *
+ * A released course Test's or Retest's review carries every answer and worked
+ * solution. While the same student has another attempt of the cycle open — the
+ * Retest, or the new Test or Retest a teacher's reset assigned — that review
+ * stays closed. It opens again once that attempt is submitted, when its
+ * answers can no longer change. `record` is the student's Test Cycle record;
+ * returns the refusal, or null.
+ */
+const OPEN_ATTEMPT_STATES = new Set(["assigned", "inProgress"]);
+function courseReviewBlockedBy(record, { examSessionId, cycleStage } = {}) {
+  const open = [["test", record?.test], ["retest", record?.retest]].find(([, slot]) => (
+    slot && slot.examSessionId && String(slot.examSessionId) !== String(examSessionId) && OPEN_ATTEMPT_STATES.has(slot.state)
+  ));
+  if (!open) return null;
+  if (open[0] === "retest" && String(cycleStage || "") !== "retest") {
+    return { reason: "retest_open", message: "Your Test review opens again when you finish your Retest." };
+  }
+  return { reason: "attempt_open", message: "This review opens again when you finish the test you are taking now." };
+}
+
+module.exports = { COURSE_TEST_EXAM_TYPE, courseReviewBlockedBy, EXAM_POLICIES, INTEGRITY_LOCK_THRESHOLD, releasedSolutionOf, scorePoints, LOCKED_STATES, TERMINAL_STATES, deadlineFor, isCourseTestSession, isExpired, nextDomainId, policyFor, publicQuestion, publicReview, publicSession, secureSessionScorePercent, sessionScorePercent, supportsExamType, timeLimitSecondsOf, weightedSessionScorePercent };

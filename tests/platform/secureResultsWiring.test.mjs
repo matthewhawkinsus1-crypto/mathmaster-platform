@@ -175,7 +175,7 @@ test('the review screen renders nothing unless the server released it', () => {
 
 test('each question shows the answer given, the right answer and the worked solution', () => {
   const article = region(reviewScreen, 'items.map((item, index) => {', '</article>', 'question card');
-  assert.match(article, /const result = reviewItemResult\(item, index\);/);
+  assert.match(article, /const result = reviewItemResult\(item, index, \{ solutionsHeld: review\.solutionsHeld === true \}\);/);
   assert.match(article, /Your answer/);
   assert.match(article, /answerRows\.length \? <AnswerRows rows=\{answerRows\} \/> : <span[^>]*>Left blank<\/span>/);
   assert.match(article, /\{result\.correctAnswers\.length > 0 && \(/);
@@ -372,4 +372,22 @@ test('an open Test review keeps asking whether it may still be shown, and closes
   assert.match(refresh, /else if \(modeRef\.current === 'testReview'\) recheckTestReview\(\);/);
   // The review being checked is the one the student opened.
   assert.match(card, /const openTestReview = \(from\) => \{ openTestReviewIdRef\.current = testReviewId;/);
+});
+
+test('a held review says when the answers will come, and the teacher can release them, told who is still testing', () => {
+  const review = componentSource('src/components/assessment/SecureExamReview.jsx');
+  assert.match(review, /reviewItemResult\(item, index, \{ solutionsHeld: review\.solutionsHeld === true \}\)/);
+  assert.match(review, /The correct answers and worked solutions appear once everyone has finished this test, or when your teacher releases them\./);
+  const controls = componentSource('src/components/teacher/TestCycleControls.jsx');
+  assert.match(controls, /^  releaseTestCycleAnswers,$/m);
+  const button = region(controls, "{!external && ['test', 'retest'].map((stage) => {", '})}', 'answers button');
+  assert.match(button, /if \(!held \|\| held\.released \|\| !rows\.some\(\(row\) => row\[stage\]\?\.state === 'released'\)\) return null;/);
+  assert.match(button, /\.filter\(\(row\) => \['assigned', 'inProgress'\]\.includes\(row\[stage\]\?\.state\)\)/);
+  assert.match(button, /body: `Still testing \(\$\{stillTesting\.length\}\): \$\{stillTesting\.join\(', '\)\}\./);
+  assert.match(button, /work: \(\) => releaseTestCycleAnswers\(\{ assignmentId, stage \}\)/);
+  // The release dialog says exactly what a score release shows.
+  assert.match(controls, /their own answer and whether it was right\. The correct answers and worked solutions open once every student has finished the Test, or when you release them\./);
+  assert.doesNotMatch(executableSource(controls), /Students will see their score and question review\./);
+  const service = componentSource('src/services/testCycleService.js');
+  assert.match(region(service, 'export const releaseTestCycleAnswers = async (', '\n};', 'service'), /return call\('releaseTestCycleAnswers', \{ assignmentId, stage \}\);/);
 });

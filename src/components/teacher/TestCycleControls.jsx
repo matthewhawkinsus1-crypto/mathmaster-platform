@@ -4,6 +4,7 @@ import {
   getTeacherTestCyclePlans,
   listTeacherTestCycleRecords,
   preflightTestCycleAssignment,
+  releaseTestCycleAnswers,
   releaseTestCycleResults,
   teacherTestCycleAction,
   updateTestCyclePolicy,
@@ -479,7 +480,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                   title: `Release ${readyToRelease.test} ${noun} result${readyToRelease.test === 1 ? '' : 's'}?`,
                   body: external
                     ? 'Recorded grades update under the retest policy above: the higher of the original and the capped retest. A released score cannot be hidden again.'
-                    : 'Students will see their score and question review. Students below passing will get corrections, and their retest path opens. A released score cannot be hidden again.',
+                    : 'Students will see their score and, for each question, their own answer and whether it was right. The correct answers and worked solutions open once every student has finished the Test, or when you release them. Students below passing will get corrections, and their retest path opens. A released score cannot be hidden again.',
                   confirmLabel: `Release ${noun} results`,
                   work: () => releaseTestCycleResults({ assignmentId, stage: 'test' }),
                   done: (result) => `Released ${result?.released || 0} ${noun} result${result?.released === 1 ? '' : 's'}.`,
@@ -496,7 +497,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                 style={{ ...button('primary', !busy), minHeight: 44 }}
                 onClick={() => setPendingConfirm({
                   title: `Release ${readyToRelease.retest} retest result${readyToRelease.retest === 1 ? '' : 's'}?`,
-                  body: 'Recorded grades update under the retest policy above, and Google Classroom is updated on the same grade item. A retest never lowers a grade.',
+                  body: 'Recorded grades update under the retest policy above, and Google Classroom is updated on the same grade item. A retest never lowers a grade. Students will see their score and their own answers; the correct answers and worked solutions open once every student retesting has finished, or when you release them.',
                   confirmLabel: 'Release retest results',
                   work: () => releaseTestCycleResults({ assignmentId, stage: 'retest' }),
                   done: (result) => `Released ${result?.released || 0} retest result${result?.released === 1 ? '' : 's'}.`,
@@ -506,6 +507,34 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                 Release {readyToRelease.retest} retest result{readyToRelease.retest === 1 ? '' : 's'}
               </button>
             )}
+            {/* Answers and worked solutions wait until everyone assigned has finished; the teacher can open them sooner, told who is still testing. */}
+            {!external && ['test', 'retest'].map((stage) => {
+              const held = listing?.answersRelease?.[stage];
+              if (!held || held.released || !rows.some((row) => row[stage]?.state === 'released')) return null;
+              const stillTesting = rows
+                .filter((row) => ['assigned', 'inProgress'].includes(row[stage]?.state))
+                .map((row) => rosterStudentLabel(row.studentId, students, row.studentName));
+              const stageNoun = stage === 'retest' ? 'retest' : noun;
+              return (
+                <button
+                  key={`answers-${stage}`}
+                  type="button"
+                  data-release-answers={stage}
+                  disabled={busy}
+                  style={{ ...button(null, !busy), minHeight: 44 }}
+                  onClick={() => setPendingConfirm({
+                    title: `Release ${stageNoun} answers and worked solutions now?`,
+                    body: `Still testing (${stillTesting.length}): ${stillTesting.join(', ')}. Every student whose result is released will see the correct answers and worked solutions now, before these students finish.`,
+                    confirmLabel: 'Release answers and worked solutions',
+                    work: () => releaseTestCycleAnswers({ assignmentId, stage }),
+                    done: () => `Released the ${stageNoun} answers and worked solutions.`,
+                    context: { action: `Releasing ${stageNoun} answers`, callable: 'releaseTestCycleAnswers' },
+                  })}
+                >
+                  Release {stageNoun} answers and worked solutions
+                </button>
+              );
+            })}
             <button type="button" disabled={busy} onClick={() => { setMessage(null); setRowOutcome(null); load(); }} style={button()}>Refresh</button>
           </div>
 

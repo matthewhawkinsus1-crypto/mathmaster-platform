@@ -31,7 +31,7 @@ import {
   certAnswerFromPrompt, certAssignment, certFamilies,
 } from '../fixtures/testCycleCertificationFixture.mjs';
 import {
-  db, fns, readRecord, readCorrectionPlan, readSession, refusal, studentRequest, teacherRequest, TEACHER_EMAIL,
+  db, fns, readRecord, readCorrectionPlan, readSession, refusal, studentRequest, teacherRequest, TEACHER_EMAIL, OTHER_TEACHER_EMAIL,
 } from './testCycleCertificationHarness.mjs';
 
 const SIM_STUDENT = 'NAV_STUDENT_SIM';
@@ -41,7 +41,9 @@ const COURSE_STUDENT = 'NAV_STUDENT_COURSE';
 const LEGACY_STUDENT = 'NAV_STUDENT_LEGACY';
 const HISTORY_STUDENT = 'NAV_STUDENT_LONG_HISTORY';
 const LATE_SAVE_STUDENT = 'NAV_STUDENT_LATE_SAVE';
-const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT, HISTORY_STUDENT, LATE_SAVE_STUDENT];
+const RESET_STUDENT = 'NAV_STUDENT_RESET';
+const PAUSE_STUDENT = 'NAV_STUDENT_PAUSE';
+const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT, HISTORY_STUDENT, LATE_SAVE_STUDENT, RESET_STUDENT, PAUSE_STUDENT];
 const created = [];
 
 const student = (studentId, data) => studentRequest(studentId, data);
@@ -100,6 +102,7 @@ after(async () => {
     ...ALL.map((studentId) => db.collection('grades').doc(studentId).delete()),
     ...ALL.map((studentId) => db.collection('testCycleRecords').doc(`${CERT_ASSIGNMENT_ID}__${studentId}`).delete()),
     ...ALL.map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${CERT_ASSIGNMENT_ID}__${studentId}`).delete()),
+    db.collection('testCycleAnswerReleases').doc(CERT_ASSIGNMENT_ID).delete(),
     ...created.map((id) => db.collection('examSessions').doc(id).delete()),
   ];
   await Promise.allSettled(deletions);
@@ -134,6 +137,25 @@ test('extended time from the support profile multiplies the limit at start', asy
   assert.equal(started.session.timeLimitSeconds, 11 * 60);
   const restarted = await fns.startSecureExamSession.run(student(EXTRA_TIME_STUDENT, { examSessionId: session.examSessionId }));
   assert.equal(restarted.session.timeLimitSeconds, 11 * 60, 'resuming does not multiply again');
+});
+
+test("a practice test goes to the student's own teachers, and their extended time only to them", async () => {
+  // EXTRA_TIME_STUDENT (1.5× time) is in TEACHER's class; OTHER_TEACHER owns no class.
+  const theirs = await createSimulation(EXTRA_TIME_STUDENT, 'act', 2);
+  await fns.startSecureExamSession.run(student(EXTRA_TIME_STUDENT, { examSessionId: theirs.examSessionId }));
+  const byOther = (await fns.createSecureExamSession.run(teacherRequest({ studentId: EXTRA_TIME_STUDENT, examType: 'act', questionCount: 2 }, OTHER_TEACHER_EMAIL))).session;
+  created.push(byOther.examSessionId);
+  await fns.startSecureExamSession.run(student(EXTRA_TIME_STUDENT, { examSessionId: byOther.examSessionId }));
+
+  const own = await fns.listProctorExamSessions.run(teacherRequest({}));
+  assert.equal(own.sessions.find((row) => row.examSessionId === theirs.examSessionId)?.extendedTimeMultiplier, 1.5, "the student's own teacher sees the accommodation");
+
+  const other = await fns.listProctorExamSessions.run(teacherRequest({}, OTHER_TEACHER_EMAIL));
+  assert.equal(other.sessions.some((row) => row.examSessionId === theirs.examSessionId), false, "another teacher does not see this student's practice test");
+  const createdRow = other.sessions.find((row) => row.examSessionId === byOther.examSessionId);
+  assert.ok(createdRow, 'a teacher still sees a practice test they created');
+  assert.equal('extendedTimeMultiplier' in createdRow, false, "but not the student's accommodation");
+  assert.equal('baseTimeLimitSeconds' in createdRow, false);
 });
 
 test('skip, flag, go back and change an answer — graded once, on the server, at submit', async () => {
@@ -399,7 +421,18 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   assert.equal(review.scoreBasis, 'plannedWeighted');
   assert.equal(review.possiblePoints, CERT_TOTAL_QUESTIONS);
   assert.equal(review.earnedPoints, 3);
-  assert.ok(review.items[0].solution?.answers?.[0]?.display, 'the worked answer is released with the results');
+  // Classmates are still assigned this Test: the score and the student's own
+  // answers release, the correct answers and worked solutions wait.
+  assert.equal(review.solutionsHeld, true, 'answers and worked solutions wait while classmates can still sit the Test');
+  assert.equal(review.items.some((item) => item.solution), false);
+  const listing = await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID }));
+  assert.equal(listing.answersRelease.test.released, false);
+  assert.ok(listing.answersRelease.test.stillTesting > 0, 'the teacher is told how many are still testing');
+  // The teacher releases them explicitly; the review now carries them.
+  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, stage: 'test' }));
+  const withAnswers = await fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId }));
+  assert.equal(withAnswers.review.solutionsHeld, undefined);
+  assert.ok(withAnswers.review.items[0].solution?.answers?.[0]?.display, 'the worked answer is released with the teacher\'s release');
   const plan = await readCorrectionPlan(CERT_ASSIGNMENT_ID, COURSE_STUDENT);
   assert.ok(plan?.plan?.targets?.length > 0, 'Corrections are planned from the per-question results');
 
@@ -418,6 +451,87 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   const reopened = await fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId }));
   assert.ok(reopened.review.items.length > 0, 'and opens again once the Retest is submitted');
   await recordRef.set(stored2);
+});
+
+test("a teacher's reset closes the earlier attempt's answers until the new attempt is submitted", async () => {
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
+  await db.collection('grades').doc(RESET_STUDENT).set({
+    gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  }, { merge: true });
+  const first = (await readRecord(CERT_ASSIGNMENT_ID, RESET_STUDENT)).test.examSessionId;
+  created.push(first);
+  await fns.startSecureExamSession.run(student(RESET_STUDENT, { examSessionId: first }));
+  const opened = await issue(RESET_STUDENT, first, { position: 0 });
+  await save(RESET_STUDENT, { examSessionId: first, questionInstanceId: opened.questionInstance.questionInstanceId, responsePayload: { responses: { answer: certAnswerFromPrompt(opened.questionInstance.prompt) } } });
+  await fns.finalizeSecureExam.run(student(RESET_STUDENT, { examSessionId: first }));
+  await fns.proctorExamAction.run(teacherRequest({ examSessionId: first, action: 'releaseFeedback' }));
+  const released = await fns.getStudentSecureExamReview.run(student(RESET_STUDENT, { examSessionId: first }));
+  assert.ok(released.review.items.length > 0, 'the released Test opens');
+
+  // The teacher resets the Test: the old session keeps its release, a new attempt is assigned.
+  await fns.teacherTestCycleAction.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, studentId: RESET_STUDENT, action: 'resetSecureSession', stage: 'test' }));
+  const second = (await readRecord(CERT_ASSIGNMENT_ID, RESET_STUDENT)).test.examSessionId;
+  created.push(second);
+  assert.ok(second && second !== first, 'a new attempt is assigned');
+  const whileAssigned = await refusal(fns.getStudentSecureExamReview.run(student(RESET_STUDENT, { examSessionId: first })));
+  assert.equal(whileAssigned?.code, 'failed-precondition', 'the earlier answers are closed while the new attempt is assigned');
+  await fns.startSecureExamSession.run(student(RESET_STUDENT, { examSessionId: second }));
+  const whileTaking = await refusal(fns.getStudentSecureExamReview.run(student(RESET_STUDENT, { examSessionId: first })));
+  assert.equal(whileTaking?.code, 'failed-precondition', 'and while it is under way');
+  assert.match(whileTaking.message, /finish the test you are taking now/i);
+
+  await fns.finalizeSecureExam.run(student(RESET_STUDENT, { examSessionId: second }));
+  const after = await fns.getStudentSecureExamReview.run(student(RESET_STUDENT, { examSessionId: first }));
+  assert.ok(after.review.items.length > 0, 'they open again once the new attempt is submitted');
+});
+
+test('a course Test the teacher paused takes no edits and no Submit; time running out finishes it with what was saved while open', async () => {
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
+  await db.collection('grades').doc(PAUSE_STUDENT).set({
+    gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  }, { merge: true });
+  const examSessionId = (await readRecord(CERT_ASSIGNMENT_ID, PAUSE_STUDENT)).test.examSessionId;
+  created.push(examSessionId);
+  await fns.startSecureExamSession.run(student(PAUSE_STUDENT, { examSessionId }));
+  const opened = await issue(PAUSE_STUDENT, examSessionId, { position: 0 });
+  const questionInstanceId = opened.questionInstance.questionInstanceId;
+  const right = certAnswerFromPrompt(opened.questionInstance.prompt);
+  await save(PAUSE_STUDENT, { examSessionId, questionInstanceId, responsePayload: { responses: { answer: right } } });
+
+  const assignmentRef = db.collection('assignments').doc(CERT_ASSIGNMENT_ID);
+  await assignmentRef.set({ unpublished: true }, { merge: true });
+  try {
+    const edit = await refusal(save(PAUSE_STUDENT, { examSessionId, questionInstanceId, responsePayload: { responses: { answer: CERT_WRONG_ANSWER } } }));
+    assert.equal(edit?.code, 'failed-precondition', 'no edits while the teacher has it paused');
+    const submit = await refusal(fns.finalizeSecureExam.run(student(PAUSE_STUDENT, { examSessionId })));
+    assert.equal(submit?.code, 'failed-precondition', 'and no Submit');
+    assert.equal((await readSession(examSessionId)).status, 'in_progress', 'not locked: a pause is temporary');
+
+    // Time runs out while it is paused: the test finishes, graded on what was saved while open.
+    await db.collection('examSessions').doc(examSessionId).set({ startedAt: Date.now() - 10 * 60 * 60 * 1000 }, { merge: true });
+    await fns.finalizeSecureExam.run(student(PAUSE_STUDENT, { examSessionId, reason: 'timeExpired' }));
+    const stored = await readSession(examSessionId);
+    assert.equal(stored.status, 'time_expired');
+    assert.equal(stored.responses[questionInstanceId].grading.isCorrect, true, 'the answer saved before the pause is the one graded');
+  } finally {
+    await assignmentRef.set({ unpublished: false }, { merge: true });
+  }
+});
+
+test('a draft sent after time is up is refused, and the test is graded on the last draft saved in time', async () => {
+  const { examSessionId } = await createSimulation(PAUSE_STUDENT, 'tsia2', 1);
+  await fns.startSecureExamSession.run(student(PAUSE_STUDENT, { examSessionId }));
+  const opened = await issue(PAUSE_STUDENT, examSessionId, { position: 0 });
+  const questionInstanceId = opened.questionInstance.questionInstanceId;
+  const key = await keyFor(examSessionId, questionInstanceId);
+  await save(PAUSE_STUDENT, { examSessionId, questionInstanceId, responsePayload: { responses: { [key.fieldId]: key.value } } });
+  // TSIA2 is untimed; this one is given ten minutes, started ten hours ago.
+  await db.collection('examSessions').doc(examSessionId).set({ timeLimitSeconds: 600, startedAt: Date.now() - 10 * 60 * 60 * 1000 }, { merge: true });
+  const late = await refusal(save(PAUSE_STUDENT, { examSessionId, questionInstanceId, responsePayload: { responses: { [key.fieldId]: CERT_WRONG_ANSWER } } }));
+  assert.equal(late?.code, 'deadline-exceeded', 'a save after the deadline is refused');
+  await fns.finalizeSecureExam.run(student(PAUSE_STUDENT, { examSessionId, reason: 'timeExpired' }));
+  const stored = await readSession(examSessionId);
+  assert.equal(stored.responses[questionInstanceId].grading.isCorrect, true, 'the draft saved in time is the one graded');
 });
 
 test('a session written by the old linear runtime is upgraded without reopening recorded answers', async () => {

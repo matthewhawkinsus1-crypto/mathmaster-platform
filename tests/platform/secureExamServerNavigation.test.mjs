@@ -251,3 +251,54 @@ test('a draft save that arrives late from the same page is not written; a new pa
   assert.match(save, /return \{ next: upgrade\.session, stale: true, answeredChanged: false \};/);
   assert.match(save, /draftResponse: \{ \.\.\.draft, \.\.\.\(stamp \|\| \{\}\) \}/);
 });
+
+test('a released course review stays closed while another attempt of the cycle is open', () => {
+  const record = (test, retest) => ({ test, retest });
+  const blocked = (rec, session) => secureExam.courseReviewBlockedBy(rec, session);
+  // A teacher reset the Test: the new attempt assigned, then under way.
+  for (const state of ['assigned', 'inProgress']) {
+    assert.equal(blocked(record({ state, examSessionId: 'test-2' }, { state: 'none' }), { examSessionId: 'test-1', cycleStage: 'test' })?.reason, 'attempt_open');
+  }
+  // A teacher reset the Retest: Retest 1's review while Retest 2 is open.
+  assert.equal(blocked(record({ state: 'released', examSessionId: 'test-1' }, { state: 'inProgress', examSessionId: 'retest-2' }), { examSessionId: 'retest-1', cycleStage: 'retest' })?.reason, 'attempt_open');
+  // The Retest open: the Test's review, in the words the card uses.
+  const retestOpen = blocked(record({ state: 'released', examSessionId: 'test-1' }, { state: 'assigned', examSessionId: 'retest-1' }), { examSessionId: 'test-1', cycleStage: 'test' });
+  assert.deepEqual(retestOpen, { reason: 'retest_open', message: 'Your Test review opens again when you finish your Retest.' });
+  // Nothing open: submitted or released attempts, or only this session itself.
+  assert.equal(blocked(record({ state: 'released', examSessionId: 'test-1' }, { state: 'submitted', examSessionId: 'retest-1' }), { examSessionId: 'test-1', cycleStage: 'test' }), null);
+  assert.equal(blocked(record({ state: 'inProgress', examSessionId: 'test-1' }, { state: 'none' }), { examSessionId: 'test-1', cycleStage: 'test' }), null);
+  assert.equal(blocked(record({ state: 'released', examSessionId: 'test-1' }, { state: 'released', examSessionId: 'retest-1' }), { examSessionId: 'retest-1', cycleStage: 'retest' }), null);
+  // The callable asks it for EVERY course session — a Retest's review too.
+  const review = region(functionsIndex, 'exports.getStudentSecureExamReview = onCall(', '\n});', 'review');
+  assert.match(review, /if \(secureExam\.isCourseTestSession\(session\) && session\.courseTest\?\.assignmentId\) \{/);
+  assert.doesNotMatch(executableSource(review), /cycleStage \|\| ""\) !== "retest"/);
+  assert.match(review, /const blocked = secureExam\.courseReviewBlockedBy\(record, \{ examSessionId, cycleStage: session\.courseTest\.cycleStage \}\);/);
+});
+
+test('a course review can hold back the correct answers and worked solutions, and says so', () => {
+  const session = {
+    status: 'submitted', feedbackReleased: true, examType: 'act', requiredQuestions: 1,
+    responses: { q1: {
+      questionInstanceId: 'q1', grading: { score: 1, isCorrect: true },
+      responsePayload: { responses: { answer: '5' } },
+      releasedSolution: { answers: [{ display: '5' }], review: { headline: 'Subtract 3' } },
+    } },
+  };
+  const open = secureExam.publicReview(session);
+  assert.equal(open.items[0].solution.answers[0].display, '5');
+  assert.equal('solutionsHeld' in open, false);
+  const held = secureExam.publicReview(session, { withSolutions: false });
+  assert.equal(held.items[0].solution, null, 'no correct answer or worked solution');
+  assert.equal(held.solutionsHeld, true, 'and the review says they are held');
+  assert.deepEqual(held.items[0].grading, { score: 1, isCorrect: true }, 'the score and right/wrong still release');
+  assert.deepEqual(held.items[0].responsePayload, { responses: { answer: '5' } }, "and the student's own answer");
+  // The callable holds them for a course session until the class is done or the teacher releases them.
+  const review = region(functionsIndex, 'exports.getStudentSecureExamReview = onCall(', '\n});', 'review');
+  assert.match(review, /withSolutions = \(await courseAnswersRelease\(getFirestore\(\), shared, session\.courseTest\.assignmentId, stage\)\)\.released;/);
+  assert.match(review, /const review = secureExam\.publicReview\(session, \{ withSolutions \}\);/);
+  const release = region(functionsIndex, 'async function courseAnswersRelease(', '\n}', 'answers release');
+  assert.match(release, /const explicit = Boolean\(release\?\.releasedAt\);/);
+  assert.match(release, /released: explicit \|\| stillTesting\.length === 0/);
+  const action = region(functionsIndex, 'exports.releaseTestCycleAnswers = onCall(', '\n});', 'release answers');
+  assert.match(action, /await assertTeacherMayManageAssignment\(request, assignmentSnapshot\);/);
+});

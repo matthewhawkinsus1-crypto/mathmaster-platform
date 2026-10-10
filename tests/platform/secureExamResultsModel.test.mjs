@@ -432,3 +432,10 @@ test('an answer the math editor wrote as LaTeX is drawn as mathematics; typed te
   }
   assert.equal(answerIsLatex('2^{10}'), true);
 });
+
+test('a question whose answers are held says when they come, not that there is none', async () => {
+  const { reviewItemResult, SOLUTIONS_HELD_NOTE, NO_WORKED_SOLUTION } = await import('../../src/platform/assessment/secureExamResultsModel.js');
+  const item = { grading: { score: 0, isCorrect: false }, responsePayload: { responses: { answer: '4' } }, solution: null };
+  assert.equal(reviewItemResult(item, 0, { solutionsHeld: true }).solutionNote, SOLUTIONS_HELD_NOTE);
+  assert.equal(reviewItemResult(item, 0).solutionNote, NO_WORKED_SOLUTION);
+});

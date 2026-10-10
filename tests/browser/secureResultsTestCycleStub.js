@@ -131,6 +131,7 @@ export const listTeacherTestCycleRecords = async () => ({ success: true, rows: [
 export const getTeacherTestCyclePlans = async () => ({ success: true, record: null, corrections: null, retest: null });
 export const teacherTestCycleAction = async () => ({ success: true });
 export const releaseTestCycleResults = async () => ({ success: true });
+export const releaseTestCycleAnswers = async () => ({ success: true });
 export const updateTestCyclePolicy = async () => ({ success: true });
 export const previewTestCycleSecureItems = async () => ({ success: true, items: [] });
 export const gradeTestCyclePreviewItem = async () => ({ success: true });

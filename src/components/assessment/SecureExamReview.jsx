@@ -198,7 +198,9 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
             <div style={{ minWidth: 0, flex: '1 1 320px' }}>
               <div style={eyebrow}>Released feedback</div>
               <h1 ref={headingRef} tabIndex={-1} style={{ margin: '5px 0 4px', color: 'var(--mm-text-strong)', fontSize: 'clamp(21px, 5vw, 25px)', overflowWrap: 'anywhere' }}>{review.session?.title || `${frameworkLabel} results`}</h1>
-              <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>Your test is finished. The answers, the worked solutions and the skill each question tested are shown now, so you can learn from them.</p>
+              <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>{review.solutionsHeld === true
+                ? 'Your test is finished. Your score, your answers and the skill each question tested are shown now. The correct answers and worked solutions appear once everyone has finished this test, or when your teacher releases them.'
+                : 'Your test is finished. The answers, the worked solutions and the skill each question tested are shown now, so you can learn from them.'}</p>
             </div>
             <div data-results-score="" style={{ flex: '0 1 300px', minWidth: 0 }}>
               <div style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Score</div>
@@ -219,7 +221,7 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
             {unopened && <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{unopened}</p>}
           </div>
           {items.map((item, index) => {
-            const result = reviewItemResult(item, index);
+            const result = reviewItemResult(item, index, { solutionsHeld: review.solutionsHeld === true });
             const tone = STATUS_TONE[result.status];
             const answerRows = result.status === RESULT_STATUS.BLANK ? [] : responseRows(item);
             const code = teksKeyOf(item);

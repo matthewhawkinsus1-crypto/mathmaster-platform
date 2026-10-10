@@ -157,6 +157,35 @@ attempt per question.
   longer reads a capped, unordered slice of the student's history, which could
   miss the test under way.
 
+### Integrity review fixes (coordinator review of #461)
+
+- **A teacher's reset no longer leaves the earlier attempt's answers open.** A
+  released course Test's or Retest's review stays closed while the student has
+  any other attempt of the cycle assigned or under way: the Retest, or the new
+  Test or Retest a reset assigned (`secureExam.courseReviewBlockedBy`, now
+  checked for every course session, Retests included). It opens again once that
+  attempt is submitted, when its answers can no longer change.
+- **Pause, archive and closed retesting stop edits and Submit.** `saveSecureExamDraft`
+  and a student's own `finalizeSecureExam` on a course Test run the same gate as
+  start and issue (`assertCourseTestEntryAllowed`). Time running out still
+  finishes the test, graded on the drafts saved while it was open. The session
+  is not locked, because a pause is temporary. This replaces the earlier
+  conservative call that drafts kept saving through a pause.
+- **Extended time stays with the student's own teachers.** The proctor list
+  shows practice-test rows only to teachers of the student's class (or the
+  teacher who created the session), and strips `extendedTimeMultiplier` and
+  `baseTimeLimitSeconds` for anyone else.
+- **A course Test's answers and worked solutions wait for the class.** Scores
+  and the question review (each question with the student's own answer, right
+  or wrong) release as before. The correct answers and worked solutions are
+  held until every student assigned to that stage has submitted, or until the
+  teacher uses **Release answers and worked solutions**, whose confirm names
+  the students still testing (`releaseTestCycleAnswers`, recorded in the
+  server-only `testCycleAnswerReleases/{assignmentId}`). The release dialogs now
+  say exactly what is released, and a held review tells the student when the
+  answers will come.
+- **A draft sent after time is up is refused:** now covered by a test.
+
 ## Verification
 
 - **Unit / contract** (`tests/platform`, CI): new suites for the server
@@ -202,7 +231,7 @@ assignTestCycleSessions createSecureExamSession finalizeSecureExam
 getStudentSecureExamReview getStudentTestCycle issueSecureExamQuestion
 listProctorExamSessions listStudentSecureExamSessions listTeacherTestCycleRecords
 previewTestCycleSecureItems proctorExamAction recordSecureExamIntegrityEvent
-releaseTestCycleResults saveSecureExamDraft startSecureExamSession
+releaseTestCycleAnswers releaseTestCycleResults saveSecureExamDraft startSecureExamSession
 submitSecureExamResponse submitTestCycleCorrectionResponse teacherTestCycleAction
 ```
 
@@ -217,9 +246,9 @@ catch-all already denied it). No new indexes. Hosting via
   release. Teachers can opt out per session.
 - A blank question is zero in the score and in Corrections but writes no
   mastery evidence.
-- Drafts keep saving while a teacher closes retesting or pauses the
-  assignment (they are never graded until finalize, and the issue call
-  re-checks the gate); gating every autosave would cost reads per keystroke.
+- (Superseded by the integrity review: drafts no longer save while a teacher
+  has a course Test paused, archived or closed. Each debounced save now reads
+  the assignment, the grade document and the Test Cycle record to check.)
 - Digital SAT modules are not adaptive and share one timer (the real test
   times each module and adapts module 2).
 - A legacy session's already-recorded answers stay locked after the upgrade.
@@ -233,6 +262,11 @@ catch-all already denied it). No new indexes. Hosting via
   `aria-modal="false"` went, for F's no-hand-rolled-modal rule.
 
 ## Follow-ups (outside this lane, or later)
+
+- **Grader (pre-existing, not this PR):** an interval answer with fraction
+  endpoints is rejected even when typed exactly as the key
+  (`functions/shared/answerEquivalence.mjs:131`). Found in the coordinator's
+  integrity review.
 
 - **Job A (QuestionEngine):** in navigation mode Rich Tool items still show
   "1 of 1 try left" — saving never spends the try. A `hideAttemptStrip` host
