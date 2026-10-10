@@ -85,6 +85,9 @@ const answerOnce = async (context, device, { kind, seat }, answer) => {
     const card = document.querySelector('.mathmaster-question-prompt');
     if (!card) return '';
     const copy = card.cloneNode(true);
+    // What the eye reads: MathDisplay's visually hidden spoken copy ("9 over
+    // 18", for screen readers) is not on the screen.
+    copy.querySelectorAll('.mm-math-spoken').forEach((node) => node.remove());
     copy.querySelectorAll('math-span, math-div').forEach((node) => node.replaceWith(`⟨${node.textContent.trim()}⟩`));
     return copy.textContent.replace(/\s+/g, ' ').trim();
   });

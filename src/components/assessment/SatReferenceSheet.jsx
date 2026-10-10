@@ -282,7 +282,6 @@ export function SatReferenceSheetDialog({ open, onClose, id = undefined, toolbar
       ref={panelRef}
       id={id}
       role="dialog"
-      aria-modal="false"
       aria-labelledby={titleId}
       tabIndex={-1}
       data-sat-reference-sheet={narrow ? 'sheet' : 'drawer'}

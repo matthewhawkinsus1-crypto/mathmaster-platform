@@ -10,6 +10,7 @@ import { AssignmentLessonRows } from './ClassLessonControls.jsx';
 import AssignmentSupportLayer from './AssignmentSupportLayer.jsx';
 import { useClassPracticePasses } from '../../platform/rewards/useClassPracticePasses.js';
 import { isTestCycleAssignment } from '../../platform/assessment/testCycle.js';
+import Dialog from '../../ui/Dialog.jsx';
 import './teacherWorkspace.css';
 
 /*
@@ -163,21 +164,15 @@ export default function AssignmentHub({
     if (open) closeRef.current?.focus();
   }, [open, assignment?.id]);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    // Escape closes only the top layer: a student opened from this hub, or a
-    // "Close the DOL now?" confirmation, sits above it and handles its own.
-    // (The confirmation handles Escape on `document` — before this listener —
-    // and marks it handled.)
-    const onKey = (event) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
-      const modals = [...document.querySelectorAll('[aria-modal="true"]')];
-      if (modals.length && modals[modals.length - 1] !== panelRef.current) return;
-      onCloseRef.current?.();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  // Escape (via Dialog) closes only the top layer: a student opened from this
+  // hub, or a "Close the DOL now?" confirmation, sits above it and handles its
+  // own. Dialog orders the Dialogs; the confirmation is not one, so DOM order
+  // (it renders after the hub) decides.
+  const closeIfTopLayer = () => {
+    const modals = [...document.querySelectorAll('[aria-modal="true"]')];
+    if (modals.length && modals[modals.length - 1] !== panelRef.current) return;
+    onCloseRef.current?.();
+  };
 
   // A student excused from Practice by a Practice Pass is not "not finished".
   // Called before the early return below: hooks run on every render.
@@ -240,7 +235,7 @@ export default function AssignmentHub({
 
   return (
     <div className="tw-drawer-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
-      <aside ref={panelRef} className="tw-drawer" role="dialog" aria-modal="true" aria-labelledby="assignment-hub-title" data-assignment-hub={assignment.id}>
+      <Dialog as="aside" ref={panelRef} className="tw-drawer" onClose={closeIfTopLayer} initialFocusRef={closeRef} aria-labelledby="assignment-hub-title" data-assignment-hub={assignment.id}>
         <header className="tw-drawer__header">
           <div className="tw-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ minWidth: 0, flex: '1 1 auto' }}>
@@ -384,7 +379,7 @@ export default function AssignmentHub({
               : <>{controls}{liveSection}{progressSection}{supportsSection}</>;
           })()}
         </div>
-      </aside>
+      </Dialog>
     </div>
   );
 }

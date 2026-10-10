@@ -19,6 +19,7 @@ export function SearchField({ value, onChange, placeholder = 'Search…', label,
         placeholder={placeholder}
         aria-label={label || placeholder}
         autoComplete="off"
+        data-focus-ring="container"
       />
       {value && (
         <button type="button" className="mm-search__clear" onClick={() => onChange('')} aria-label="Clear search">

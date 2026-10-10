@@ -45,7 +45,10 @@ export const supportToolsForItem = ({ entitlement, prompt = '', question = null,
   const text = String(prompt ?? '');
   const tools = entitlement.tools.map((tool) => {
     const supportId = TOOL_SUPPORT_ID[tool];
-    const base = { tool, supportId, label: studentFacingLabel(supportId) || supportId };
+    // Offered by universal design, not by the student's plan: shown, never
+    // reported as support evidence (supportToolsEntitlement.js).
+    const universal = Array.isArray(entitlement.universal) && entitlement.universal.includes(tool);
+    const base = { tool, supportId, label: studentFacingLabel(supportId) || supportId, ...(universal ? { universal: true } : {}) };
     if (tool === SUPPORT_TOOL.TRANSLATE) return { ...base, state: TOOL_STATE.PENDING, language: entitlement.language };
     if (tool === SUPPORT_TOOL.VOCABULARY) {
       const termIds = vocabularyForContext({ text, toolType });
@@ -97,7 +100,8 @@ export const visibleTools = (model) => (model?.tools || []).filter((tool) => (
  * Pending (unresolved translation) records nothing.
  */
 export const toolEvidence = (tool, { surface = 'assignment', toolType = null } = {}) => {
-  if (!tool || tool.state === TOOL_STATE.PENDING) return null;
+  // A universal-design tool is not the student's plan support: no evidence.
+  if (!tool || tool.state === TOOL_STATE.PENDING || tool.universal) return null;
   const common = { surface, ...(toolType ? { toolType: String(toolType).slice(0, 40) } : {}) };
   const language = tool.tool === SUPPORT_TOOL.TRANSLATE ? { language: tool.language || null } : {};
   if (tool.state === TOOL_STATE.AVAILABLE) {
@@ -127,6 +131,6 @@ export const toolEvidenceRecords = (model, options = {}) => (model?.tools || [])
  * which the Path server intersects with what it authorized.
  */
 export const pathDeliveryOf = (model, used = []) => ({
-  presented: visibleTools(model).map((tool) => SUPPORT_FOR_CATALOG_ID[tool.supportId]).filter(Boolean),
+  presented: visibleTools(model).filter((tool) => !tool.universal).map((tool) => SUPPORT_FOR_CATALOG_ID[tool.supportId]).filter(Boolean),
   used: (Array.isArray(used) ? used : []).map((supportId) => SUPPORT_FOR_CATALOG_ID[supportId]).filter(Boolean),
 });

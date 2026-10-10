@@ -73,6 +73,24 @@ test('integrity monitoring, timers, autosave and proctor lock are not duplicated
   assert.doesNotMatch(executableSource(card), /ExamIntegrityLogger|recordSecureExamIntegrityEvent/);
 });
 
+test('a secure exam modal never closes on Escape — the proctor lock above all', () => {
+  // The pause — a teacher's pause or the integrity lock — is the shared modal
+  // Dialog (focus kept inside, so Tab cannot reach the exam behind it), but it
+  // is not dismissable from the keyboard: the student has no close at all.
+  // Submitting goes through the review screen, a page of the test rather than
+  // a modal, so the pause is the only one.
+  const code = executableSource(container);
+  const dialogs = [...code.matchAll(/<Dialog\b[^>]*>/g)].map((match) => match[0]);
+  assert.equal(dialogs.length, 1, 'the pause');
+  for (const dialog of dialogs) {
+    assert.match(dialog, /closeOnEscape=\{false\}/, `${dialog} must not close on Escape`);
+    assert.doesNotMatch(dialog, /onClose=/, `${dialog} must not be given a close handler`);
+  }
+  assert.match(code, /\{pause && \(\s*<Dialog ref=\{pauseRef\} role="alertdialog" closeOnEscape=\{false\}/);
+  // No modal outside the primitive.
+  assert.doesNotMatch(code, /aria-modal=/);
+});
+
 test('a course test is a plain exam session, so integrity and proctor actions apply unchanged', () => {
   const integrity = region(
     functionsIndex,

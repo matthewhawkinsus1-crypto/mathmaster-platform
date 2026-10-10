@@ -3,6 +3,7 @@ import ExamPrepHeader, { EXAM_HEADER_CONTROL } from './ExamPrepHeader.jsx';
 import GraphingCalculatorPanel from './GraphingCalculatorPanel.jsx';
 import SatReferenceSheet from './SatReferenceSheet.jsx';
 import SecureExamNavigator from './SecureExamNavigator.jsx';
+import Dialog from '../../ui/Dialog.jsx';
 import SecureExamQuestionPlayer from './SecureExamQuestionPlayer.jsx';
 import SecureExamSubmitReview from './SecureExamSubmitReview.jsx';
 import ExamIntegrityLogger from '../../platform/assessment/examIntegrityLogger.js';
@@ -737,7 +738,10 @@ export const SecureExamContainer = ({
 
   // The pause screen takes focus (everything behind it is inert, so typing
   // cannot reach an answer box under it), and gives it back afterwards to
-  // where the student was working.
+  // where the student was working. It is the shared Dialog, but with the
+  // Dialog's own focus return off: by the time it opens, the surface going
+  // inert has already dropped focus to <body>, so only the record kept here
+  // knows which answer the student was in.
   const paused = pauseKind(session?.status);
   useEffect(() => {
     if (!paused) return undefined;
@@ -1024,7 +1028,7 @@ export const SecureExamContainer = ({
       </div>
     </div>
     {pause && (
-      <div ref={pauseRef} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby="secure-pause-title" aria-describedby="secure-pause-detail" data-secure-pause={pause} style={{ position: 'fixed', inset: 0, zIndex: PAUSE_LAYER, background: 'rgba(32,33,36,.94)', color: '#fff', display: 'grid', placeItems: 'center', padding: 24, outline: 'none' }}>
+      <Dialog ref={pauseRef} role="alertdialog" closeOnEscape={false} returnFocus={false} aria-labelledby="secure-pause-title" aria-describedby="secure-pause-detail" data-secure-pause={pause} style={{ position: 'fixed', inset: 0, zIndex: PAUSE_LAYER, background: 'rgba(32,33,36,.94)', color: '#fff', display: 'grid', placeItems: 'center', padding: 24, outline: 'none' }}>
         <div style={{ maxWidth: 520, textAlign: 'center' }}>
           {pause === 'teacher' ? (
             <>
@@ -1039,7 +1043,7 @@ export const SecureExamContainer = ({
           )}
           <p style={{ color: '#bdc1c6', fontSize: 14 }}>This screen continues on its own when your teacher lets you back in.</p>
         </div>
-      </div>
+      </Dialog>
     )}
     <span tabIndex={0} data-secure-focus-guard="end" onFocus={() => focusEdge('first')} style={focusGuardStyle} />
   </div>;

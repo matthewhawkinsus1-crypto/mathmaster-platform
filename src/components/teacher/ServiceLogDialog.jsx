@@ -6,6 +6,7 @@ import {
 } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
 import { fetchServiceLog, recordServiceLogEntry } from '../../platform/supportEvidence/supportEvidenceStore.js';
+import Dialog from '../../ui/Dialog.jsx';
 import './teacherWorkspace.css';
 import './supportEvidence.css';
 
@@ -68,14 +69,6 @@ export default function ServiceLogDialog({
       .catch((error) => { if (!cancelled) setLoadState({ loading: false, error: error?.message || 'Could not load the service log.' }); });
     return () => { cancelled = true; };
   }, [open, student?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!open) return undefined;
-    firstFieldRef.current?.focus();
-    const onKey = (event) => { if (event.key === 'Escape') { event.preventDefault(); onClose?.(); } };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open || !student || !form) return null;
 
@@ -146,7 +139,7 @@ export default function ServiceLogDialog({
 
   return (
     <div className="tw-review" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
-      <section className="tw-review__panel" role="dialog" aria-modal="true" aria-labelledby="service-log-title" data-service-log={student.id}>
+      <Dialog as="section" className="tw-review__panel" onClose={onClose} initialFocusRef={firstFieldRef} aria-labelledby="service-log-title" data-service-log={student.id}>
         <div className="tw-row" style={{ justifyContent: 'space-between' }}>
           <h2 id="service-log-title" style={{ margin: 0, fontSize: 18 }}>Service / support log · {student.name}</h2>
           <button type="button" className="tw-btn tw-btn--sm" onClick={onClose}>Close</button>
@@ -262,7 +255,7 @@ export default function ServiceLogDialog({
             ) : !loadState.loading && <div className="tw-small tw-muted">No service time recorded in the last 8 weeks.</div>}
           </div>
         </details>
-      </section>
+      </Dialog>
     </div>
   );
 }

@@ -203,7 +203,7 @@ test('a pause covers everything, takes focus, leaves nothing to type into, and r
   assert.doesNotMatch(executableSource(resume), /!question\b|\bquestion\s*(\?|&&|\|\|)|\(question\b/, 'not only when no question was showing');
   assert.match(container, /if \(status === EXAM_RUNTIME_STATES\.IN_PROGRESS && locked\.has\(previous\)\) resumeAfterPause\(\);/);
 
-  const overlay = region(container, '{pause && (', '</div>\n    )}', 'pause overlay');
+  const overlay = region(container, '{pause && (', '</Dialog>\n    )}', 'pause overlay');
   const teacher = region(overlay, "{pause === 'teacher' ? (", ') : (', 'teacher pause');
   assert.match(teacher, /<h1 id="secure-pause-title" style=\{pauseTitle\}>Your teacher paused the test<\/h1>/);
   assert.match(teacher, /Your answers are saved\. Wait here — it will continue when your teacher resumes it\./);
@@ -226,8 +226,12 @@ test('a pause covers everything, takes focus, leaves nothing to type into, and r
   assert.match(overlay, /zIndex: PAUSE_LAYER/);
 
   // It takes focus; the test behind it (Work View included) is inert; the
-  // answer boxes are read-only while it shows.
-  assert.match(overlay, /<div ref=\{pauseRef\} tabIndex=\{-1\} role="alertdialog"/);
+  // answer boxes are read-only while it shows. It is the shared Dialog (job F)
+  // with Escape off, and its own focus return off: the container's record of
+  // where the student was (lastFocusRef) gives focus back.
+  assert.match(container, /^import Dialog from '\.\.\/\.\.\/ui\/Dialog\.jsx';$/m);
+  assert.match(overlay, /<Dialog ref=\{pauseRef\} role="alertdialog" closeOnEscape=\{false\} returnFocus=\{false\} aria-labelledby="secure-pause-title"/);
+  assert.match(region(container, 'const paused = pauseKind(session?.status);', '}, [paused]);', 'pause focus return'), /const last = lastFocusRef\.current;\s*if \(last\?\.isConnected && typeof last\.focus === 'function' && !last\.closest\('\[inert\]'\)\) last\.focus\(\);/);
   assert.match(region(container, 'const paused = pauseKind(session?.status);', '}, [paused]);', 'pause focus'), /if \(!paused\) return undefined;\s*pauseRef\.current\?\.focus\(\);/);
   // Only a pause makes the test inert. The question list is a panel on the
   // page (not a modal), so nothing has to be shut off behind it.

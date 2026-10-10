@@ -256,8 +256,8 @@ const simplifyProducts = async (page, host, products) => {
       await settle(page, 250);
     }
     const term = host.locator(`[aria-label$="${PRODUCT}"]`).filter({ hasText: '' });
-    const labels = await term.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
-    const index = labels.findIndex((label) => match.test(label.replace(/, select to multiply its numbers$/, '')));
+    const labels = await term.evaluateAll((elements) => elements.map((element) => element.dataset.termText));
+    const index = labels.findIndex((label) => match.test(label));
     if (index < 0) continue;
     await term.nth(index).click();
     await settle(page, 250);

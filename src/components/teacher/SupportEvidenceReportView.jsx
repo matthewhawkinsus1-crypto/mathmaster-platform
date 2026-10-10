@@ -10,6 +10,7 @@ import { fetchStudentGradeRecord, loadStudentSupportRecords } from '../../platfo
 import {
   buildSupportEvidenceReport, selectReportAssignments, supportHeadline, supportReportCsv, supportReportFileName, supportReportJson,
 } from '../../platform/supportEvidence/supportEvidenceReport.js';
+import Dialog from '../../ui/Dialog.jsx';
 import { SupportClassificationTag } from './SupportProfileEditor.jsx';
 import { acceptStudentName, formatStudentName } from '../../platform/studentName.js';
 import './teacherWorkspace.css';
@@ -172,11 +173,10 @@ export default function SupportEvidenceReportView({
 
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (event) => { if (event.key === 'Escape') { event.preventDefault(); onCloseRef.current?.(); } };
-    document.addEventListener('keydown', onKey);
+    // Escape is Dialog's (top layer only).
     const afterPrint = () => setExpanded(false);
     window.addEventListener('afterprint', afterPrint);
-    return () => { document.removeEventListener('keydown', onKey); window.removeEventListener('afterprint', afterPrint); };
+    return () => { window.removeEventListener('afterprint', afterPrint); };
   }, [open]);
 
   if (!open || !student?.id) return null;
@@ -234,7 +234,7 @@ export default function SupportEvidenceReportView({
   const { report } = state;
   return (
     <div className="se-report-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
-      <article className="se-report" role="dialog" aria-modal="true" aria-labelledby="support-report-title" data-support-report={student.id}>
+      <Dialog as="article" className="se-report" onClose={() => onCloseRef.current?.()} initialFocusRef={closeRef} aria-labelledby="support-report-title" data-support-report={student.id}>
         <header className="tw-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 id="support-report-title">Student Support Evidence Report</h1>
@@ -407,7 +407,7 @@ export default function SupportEvidenceReportView({
             </section>
           </>
         )}
-      </article>
+      </Dialog>
     </div>
   );
 }

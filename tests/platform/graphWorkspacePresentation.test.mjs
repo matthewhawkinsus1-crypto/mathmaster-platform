@@ -114,7 +114,9 @@ test('opening a figure by itself never removes a way out of it', () => {
   // A panel a student did not ask for has to be at least as easy to leave as
   // one they opened.
   const source = codeOf('src/components/common/EnlargeableFigure.jsx');
-  assert.match(source, /event\.key === 'Escape'/);
+  // Escape (and the Tab trap) are the shared modal dialog's, wired to close
+  // only while the panel is open (src/ui/Dialog.jsx useModalDialog).
+  assert.match(source, /useModalDialog\(hostRef, \{ onClose: close, [^}]*active: enlarged \}\)/);
   assert.match(source, /event\.target === event\.currentTarget/);
   assert.match(source, /role=\{enlarged \? 'dialog' : undefined\}/);
   // And the way out is named in full rather than shown as a bare glyph.

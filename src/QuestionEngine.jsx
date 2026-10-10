@@ -81,6 +81,7 @@ import { useRenderPerformance } from './platform/performance/useRenderPerformanc
 import { useActiveWorkTab } from './platform/persistence/activeWorkTab.js';
 import { StudentSupportTray } from './components/student/StudentSupportTools.jsx';
 import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
+import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
 
 const WorkViewReadySignal = ({ span }) => {
@@ -187,6 +188,9 @@ function QuestionEngineBody({
   replacementWarning = '',
   dolMode = false,
   activityRole = 'practice',
+  // The role exactly as the host passed it (null when omitted): universal
+  // support tools are granted only on an explicit warm-up/classwork/practice.
+  explicitActivityRole = null,
   activityPolicy = null,
   feedbackReleased = false,
   assessmentContext = null,
@@ -406,6 +410,8 @@ function QuestionEngineBody({
   const toolOutcomeSequenceRef = useRef(0);
   const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState(() => record.lastResponseKey || '');
   const [submitting, setSubmitting] = useState(false);
+  // Keyboard focus survives the Check lock (src/components/common/useFocusReturnAfterLock.js).
+  useFocusReturnAfterLock(submitting);
   const submissionInFlightRef = useRef(false);
   const [requesting, setRequesting] = useState(false);
   const [baseUndoController, setBaseUndoController] = useState(null);
@@ -513,8 +519,8 @@ function QuestionEngineBody({
   // My Math Path passes the server's own list instead (`supportEntitlement`):
   // the Path client never decides from a profile it read itself.
   const languageTools = useMemo(
-    () => supportEntitlement || toolsEntitlementFromProfile(stableStudentProfile, { activityRole }),
-    [supportEntitlement, stableStudentProfile, activityRole],
+    () => supportEntitlement || toolsEntitlementFromProfile(stableStudentProfile, { activityRole, universalDesignRole: explicitActivityRole }),
+    [supportEntitlement, stableStudentProfile, activityRole, explicitActivityRole],
   );
   const supportItemKey = `${processedQuestion?.questionId ?? processedQuestion?.id ?? ''}|${record.variantIndex ?? 0}`;
   const reportToolEvidence = useCallback((evidence) => onSupportEvidenceRef.current?.(evidence), []);
@@ -527,7 +533,8 @@ function QuestionEngineBody({
       surface={surface}
       itemKey={supportItemKey}
       // The work bar already carries Read aloud on the question; Work View does not.
-      includeReadAloud={surface === 'enlarged' && readAloudOffered}
+      // Without the plan support the bar has none: the tray offers it (universal design).
+      includeReadAloud={supportPresentation.textToSpeech ? surface === 'enlarged' && readAloudOffered : true}
       onEvidence={reportToolEvidence}
     />
   ) : null);
@@ -2052,6 +2059,7 @@ function QuestionEngineBody({
         taskContextPanel={questionReferencePanel}
         contextPanel={solverWorkspaceActive ? null : questionContextPanel}
         supportTray={supportTrayFor('assignment')}
+        supportTrayAfterWork={languageTools.tools.length > 0 && (languageTools.universal?.length || 0) === languageTools.tools.length}
         workspaceMode={solverWorkspaceMode}
         workBar={questionWorkBar}
         toolWorkspace={(
@@ -2421,7 +2429,7 @@ export default function QuestionEngine(props) {
       technicalDetails={props.resolutionTechnicalDetails !== false}
       draftKey={props.draftKey || null}
     >
-      <QuestionEngineBody key={resolutionAttempt} {...props} onResolutionRetry={retry} />
+      <QuestionEngineBody key={resolutionAttempt} {...props} explicitActivityRole={activityRole ?? null} onResolutionRetry={retry} />
     </QuestionResolutionBoundary>
   );
 }

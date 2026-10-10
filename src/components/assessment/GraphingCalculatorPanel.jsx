@@ -481,7 +481,6 @@ export default function GraphingCalculatorPanel({
           ref={panelRef}
           id={`${baseId}-panel`}
           role="dialog"
-          aria-modal="false"
           aria-labelledby={`${baseId}-title`}
           tabIndex={-1}
           data-graphing-calculator={narrow ? 'sheet' : 'drawer'}

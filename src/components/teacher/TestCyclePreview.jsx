@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Dialog from '../../ui/Dialog.jsx';
 import TestCycleCard from '../student/TestCycleCard.jsx';
 import ExamPrepHeader from '../assessment/ExamPrepHeader.jsx';
 import SecureExamQuestionPlayer from '../assessment/SecureExamQuestionPlayer.jsx';
@@ -288,7 +289,7 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, 
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`Student preview of ${title}`} style={{ position: 'fixed', inset: 0, zIndex: 11000, background: 'var(--mm-page-bg)', color: 'var(--mm-text)', overflow: 'auto' }}>
+    <Dialog onClose={onClose} aria-label={`Student preview of ${title}`} style={{ position: 'fixed', inset: 0, zIndex: 11000, background: 'var(--mm-page-bg)', color: 'var(--mm-text)', overflow: 'auto' }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', borderBottom: '1px solid var(--mm-warning-border)', padding: '10px 16px', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <strong>Student preview · {title}{candidate ? ' (not saved yet)' : ''} — nothing here is saved. No attempt, grade or student record is created.</strong>
         <button type="button" onClick={onClose} style={quietButton}>Close preview</button>
@@ -350,7 +351,7 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, 
           </div>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };
 
