@@ -212,9 +212,11 @@ test('a pause covers everything, takes focus, leaves nothing to type into, and r
   assert.match(integrity, /\{integrityPauseText\(threshold\)\}/);
   assert.doesNotMatch(integrity, /Wait here/);
   // A title that wraps on a phone has a line height of its own, and on the
-  // dark pause screen a colour of its own (the page's heading colour is dark).
+  // dark pause screen the screen's own light colour rather than the page's
+  // (dark) heading colour.
   assert.match(region(container, 'const screenTitle = {', '};', 'screen title'), /lineHeight: 1\.2/);
-  assert.match(container, /const pauseTitle = \{ \.\.\.screenTitle, color: '#fff' \};/);
+  assert.match(container, /const pauseTitle = \{ \.\.\.screenTitle, color: 'inherit' \};/);
+  assert.match(overlay, /data-secure-pause=\{pause\} style=\{\{[^}]*color: '#fff'/);
 
   // Above Work View ("Enlarge question"), a fixed modal layer, and its tools.
   const pauseLayer = Number(container.match(/const PAUSE_LAYER = (\d+);/)?.[1]);

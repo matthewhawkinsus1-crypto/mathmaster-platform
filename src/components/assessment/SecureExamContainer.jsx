@@ -207,10 +207,10 @@ const bannerStyle = (tone) => ({
 // start screen's, with a line height of their own (the root's is a fixed
 // pixel value, and two lines of a large title overlapped under it).
 const screenTitle = { marginTop: 0, fontSize: 'clamp(24px, 6vw, 32px)', lineHeight: 1.2 };
-// On the dark pause screen the title is white: a bare <h1> takes the page's
-// heading colour (index.css), which in the light theme is near-black on the
-// pause screen's near-black — a title nobody could read.
-const pauseTitle = { ...screenTitle, color: '#fff' };
+// On the dark pause screen the title takes the screen's own white: a bare <h1>
+// takes the page's heading colour (index.css), which in the light theme is
+// near-black on the pause screen's near-black — a title nobody could read.
+const pauseTitle = { ...screenTitle, color: 'inherit' };
 
 /*
  * KEYBOARD FOCUS STAYS IN THE TEST.

@@ -687,7 +687,11 @@ const backtrackJourney = async (context, device) => {
   await page.evaluate(() => window.__secureHarness.proctor('unlock'));
   await page.waitForSelector('[data-secure-pause]', { state: 'detached', timeout: 15000 });
   await page.waitForFunction(() => !document.querySelector('[data-secure-exam-surface][inert]'));
-  check(await page.evaluate(() => Boolean(document.activeElement?.closest('fieldset')?.querySelector('legend')?.textContent.includes('Slope'))), label('after the pause, focus is back on the answer'), await page.evaluate(() => document.activeElement?.tagName));
+  // MathLive moves focus into a math field 60 ms after it is asked to
+  // (MathfieldPrivate.onFocus defers keyboardDelegate.focus()), so wait for it
+  // to land rather than sample the instant the pause is gone.
+  const focusBack = await page.waitForFunction(() => Boolean(document.activeElement?.closest('fieldset')?.querySelector('legend')?.textContent.includes('Slope')), null, { timeout: 2000 }).then(() => true).catch(() => false);
+  check(focusBack, label('after the pause, focus is back on the answer'), await page.evaluate(() => document.activeElement?.tagName));
   check(await slope().inputValue() === '5', label('the answer is unchanged by the pause'));
 
   // Submit; the record the teacher releases has every part.

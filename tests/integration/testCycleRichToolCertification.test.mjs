@@ -59,6 +59,15 @@ const UNCERTIFIED_ASSIGNMENT_ID = `${PREFIX}uncertified`;
 const STUDENT = 'RICHCERT_STUDENT';
 const TOOLS = Object.keys(BANK_FAMILY_BY_TOOL);
 
+/**
+ * The server-only document an open secure item and its draft live in (the
+ * session's `items` subcollection, so every open item keeps its own draft) —
+ * read here to check what was stored, never by a browser.
+ */
+const readOpenItem = async (examSessionId, questionInstanceId) => (
+  (await db.collection('examSessions').doc(examSessionId).collection('items').doc(questionInstanceId).get()).data()
+);
+
 const PRIVATE_KEYS = new Set([
   'expected', 'accepted', 'acceptedAnswers', 'answer', 'answerKey', 'correctAnswer', 'solution',
   'privateGrading', 'generatorParameters', 'gradingDefinition', 'definition', 'expectedIntervals',
@@ -244,7 +253,7 @@ test('the secure Test delivers each Rich Tool, persists its construction, refuse
         supportUsage: {},
       }));
       // eslint-disable-next-line no-await-in-loop
-      const stored = (await readSession(testSessionId)).currentQuestion.draftResponse.responsePayload;
+      const stored = (await readOpenItem(testSessionId, instance.questionInstanceId)).draftResponse.responsePayload;
       assert.equal(typeof stored.rawJson, 'string', 'the construction is stored as one canonical string');
       assert.doesNotMatch(stored.rawJson, /isCorrect/, 'a claimed verdict is stripped');
       assert.deepEqual(JSON.parse(stored.workspaceDraftsJson).map((entry) => entry.key), [`${draftKey}:work:tool`]);
@@ -265,7 +274,9 @@ test('the secure Test delivers each Rich Tool, persists its construction, refuse
       })));
       assert.equal(unfinished?.code, 'invalid-argument');
       // eslint-disable-next-line no-await-in-loop
-      assert.equal((await readSession(testSessionId)).currentQuestion.questionInstanceId, instance.questionInstanceId);
+      const { navigation } = await readSession(testSessionId);
+      assert.equal(navigation.items[instance.questionInstanceId].state, 'open', 'the refused item is not spent');
+      assert.equal(navigation.itemOrder[navigation.cursor], instance.questionInstanceId, 'and is still the one in front of the student');
     }
 
     if (index === TOOLS.length - 1) {
