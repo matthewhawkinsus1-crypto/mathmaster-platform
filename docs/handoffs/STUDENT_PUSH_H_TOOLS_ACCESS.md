@@ -31,8 +31,22 @@ FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting
 | 7 | **Large text** | The root was **18px flat** (16px ≤1024px), so the browser text-size setting did nothing anywhere. It is now `112.5%` / `100%` (identical at default) and `--mm-px` is one CSS pixel at the default size. `scripts/codemods/px-to-rem.mjs` (re-runnable, idempotent; skips job G's files unless `--include-app-shell`; skips SVG-text objects; pragmas) rewrites px font sizes to `calc(N * var(--mm-px))`. Two real 200% clipping bugs fixed now: the phone action bar's last row was cut (it now scrolls past 40dvh) and Live Challenge's answer card inherited a screen-tall clipped frame. **The sweep itself is not in this PR** (coordinator: it becomes its own PR after the other wave-2 PRs merge). | `pxToRemCodemod.test.mjs` (idempotence, ternary operands untouched, clamp, CSS, exclusions, the `--mm-px` root). `studentShellLargeText.mjs --check=text` (100% vs 200% browser text at both viewports, 320px reflow, 1.4.12 text spacing): before the sweep hundreds of text boxes do not grow; a trial sweep (incl. G's files) passed **55/55** scene-settings with 0 clipped, 0 off-screen, 0 unscaled; at default size the swept pages were pixel-identical except where a harness font 404'd (symlinked node_modules), not the sweep. `largeTextPhoneFrame.test.mjs`. |
 | 8 | **Path universal tools / descriptions** | `pathUniversalDesignRole`: Vocabulary and Read aloud in an ordinary Path practice session only — never a retention check, exam-framework practice, a diagnostic item or a non-practice role (fails closed). Passed to the engine's tray and `PathSupportBar`, which now renders a universal-only tray. Never evidence. The session recap (asks nothing) passes `describeFeatures`; the live question keeps the kinds-only description. | `universalSupportTools.test.mjs` (mutation-checked); `hostAccessibility.mjs` (practice: both tools; retention/TSIA/test role: none; recap names the crossing, the live question does not). |
 
-QA minors from the coordinator (m4, m7, m8, m11, m13, R2-m3, R2-m4): see the
-section below for what landed.
+## QA findings from the release-candidate rounds
+
+Each was implemented, then independently reviewed (one adversarial verifier,
+which reproduced the bug on the parent commit); m11 needed one follow-up fix.
+
+| Finding | Fix | Proof |
+| --- | --- | --- |
+| **m4** Live Challenge choices: ArrowDown then Space locked in choice 1; focus fell to `<body>` after Lock In | A real radiogroup (named by its legend, roving tabindex, arrows move and select, Home/End, **no key ever locks in**); after Lock In focus moves to a "Your answer is locked in." note (no verdict), or back to Lock In if the round refused. Pure rules in `src/platform/interaction/radioGroupKeys.js`. `LiveChallengeFieldQuestion.jsx` is job I's file (two hunks). | `liveChallengeChoiceRadioGroup.test.mjs`; `tests/browser/liveChallengeChoiceKeyboard.mjs` (real round: choice 2 is what is submitted). |
+| **m6** "values have not changed" dialog | Item 3 above. | — |
+| **m7** closed-question verdict chip overlapped "Enlarge question" and headings | In the flow above the work, still shown only when it was before. | `closedVerdictChipPlacement.test.mjs`; `tests/browser/closedVerdictChip.mjs` (no intersection with any control or heading, both viewports). |
+| **m8** phone work bar "Sub…" / "Next quest…" | Primary action never shrinks below its label; the tools give up room first. | `workBarPrimaryLabel.test.mjs`; `tests/browser/workBarPrimaryLabel.mjs` (344 and 390 px). Measured with headless fonts; see Left. |
+| **m11** My Math Path landmarks | One `h1` (the header title, same look); the skip link lands on content (`skipTarget.js`); the nav label passed as "MathMaster navigation" removed (now "Student navigation" like everywhere); "Start session 1 of 4" named once. | `myMathPathLandmarks.test.mjs`; `tests/browser/myMathPathLandmarks.mjs`. |
+| **m13** Home "Finished 3" button contained a heading; "🙈 Hide grade" had the emoji in its name | Heading outside the button; emoji `aria-hidden`. | `studentAccessibleNames.test.mjs`; `tests/browser/studentAccessibleNames.mjs` (Chromium accessibility tree). |
+| **R2-m3** a stale tab showed its own unsubmitted DOL answer under the other tab's "✓ CORRECT" | When a paused tab's record gains a new attempt (`recordAttemptRevision`), the engine drops the held answer and re-reads the saved work — never writes it. `src/platform/persistence/pausedWorkRefresh.js` + one effect in `QuestionEngine.jsx`. | `pausedWorkRefresh.test.mjs` (8 mutations, each red); `tests/browser/staleTabRecord.mjs` (QA steps: tab 2 shows 5, storage never held 7, grade unchanged). |
+| **R2-m4** "The DOL timer has ended" above "will be submitted automatically when time ends" after a teacher Close now | `src/platform/assessment/dolCloseCopy.js` `describeDolClose({status, teacherClosed, outcome})`: teacher-closed vs time-up wording, and the "when time ends" line only while the DOL is open. **Both strings live in `src/App.jsx`, so students see the fix once job G wires it** (below). | `dolCloseCopy.test.mjs`; `tests/browser/dolCloseCopy.mjs`. |
+
 
 ## Files outside job H's lane
 
@@ -48,6 +62,9 @@ section below for what landed.
 | `package.json` | shared | `review:contrast` script. |
 | `.github/workflows/accessibility-certification.yml` | shared | Steps for the new browser drivers. |
 | `.gitignore` | shared | `.claude/worktrees/`. |
+| `src/components/liveChallenge/LiveChallengeFieldQuestion.jsx` | I | m4 radio group and focus after Lock In. |
+| `src/components/student/MyMathPathApp.jsx`, `WeeklyPathGoalPanel.jsx`, `AssignmentGroup.jsx` | D / C (shared) | m11 landmarks, m13 names. |
+| `src/QuestionEngine.jsx` | A (H's lane this wave) | dialogs, m7 chip, m8 label, R2-m3 refresh effect. |
 
 ## For other jobs
 
@@ -56,6 +73,19 @@ section below for what landed.
   `node scripts/codemods/px-to-rem.mjs --write --include-app-shell src/App.jsx src/App.css src/app`
   (a trial including those files passed every large-text check). Then add
   `--check=text` to the `studentShellLargeText` CI step.
+- **G — R2-m4 wiring in `src/App.jsx`** (the copy is ready in
+  `src/platform/assessment/dolCloseCopy.js`): (1) import
+  `{ describeDolClose }`; (2) after `currentCheckpointOutcome` (~line 10932):
+  `const currentDolCopy = currentIsDOL && !preview ? describeDolClose({ status: dolState.status, teacherClosed: dolState.teacherClosed, outcome: currentCheckpointOutcome }) : null;`
+  (3) ~11687: replace the literal "The DOL timer has ended…" lock message with
+  `currentDolCopy.lockMessage` (condition unchanged); (4) ~11768: for a DOL,
+  render `currentDolCopy?.openNotice` only when non-empty (Warm-Up has the same
+  contradiction after a teacher close; limit its notice to
+  `warmupState.status === 'active'`); (5) ~11774: for a DOL render
+  `currentDolCopy.closeReceipt` whenever set. Assert the import next to the call.
+- **I — Live Challenge:** `LiveChallengeStudent.jsx` still announces "Answer
+  locked in · checking it…" while focus moves to the new note; harmless, but
+  one announcement would be cleaner.
 - **The sweep PR** (after the other wave-2 PRs merge, on the coordinator's
   word): `node scripts/codemods/px-to-rem.mjs --write`, review the diff
   (~2,600 values in ~260 files; 10 SVG-text sites reported for review),
@@ -84,7 +114,15 @@ section below for what landed.
 - **Screen-reader user testing** (NVDA, JAWS, VoiceOver, ChromeVox) and other
   browsers — needs people; everything here was measured in Chromium.
 - **Real-device font metrics** for the phone work bar (m8) — headless Linux
-  lacks Roboto/Segoe; see the m8 note below.
+  lacks Roboto/Segoe, so the fix was proven with the fonts Chromium had.
+- **"Continue here" throws a MathLive page error** at 1366×768 (`Cannot read
+  properties of undefined (reading 'options')` in `atomToString` from
+  blur/focus) — pre-existing, found while proving R2-m3; likely the old math
+  field is blurred after its model is gone. Not fixed (usage freeze).
+- **Grades: hidden-grade disclosure names** read the "••" mask aloud ("Period
+  1 •• · 3 assignments") — found during m13, not fixed.
+- **Phone, closed question:** the question container is ~264px tall once a
+  question is closed at 390×844 (found during m7), not fixed.
 
 ## Running the checks
 

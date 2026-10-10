@@ -23,6 +23,13 @@ on:
       - "tests/browser/studentShellLargeText*"
       - "tests/browser/contrastReview*"
       - "tests/browser/toolKeyboard*"
+      - "tests/browser/liveChallengeChoiceKeyboard*"
+      - "tests/browser/closedVerdictChip*"
+      - "tests/browser/workBarPrimaryLabel*"
+      - "tests/browser/myMathPathLandmarks*"
+      - "tests/browser/studentAccessibleNames*"
+      - "tests/browser/staleTabRecord*"
+      - "tests/browser/dolCloseCopy*"
       - "tests/browser/keyboardSweep*"
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/emulator/**"
@@ -161,6 +168,55 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolKeyboardDataModelingAndSystemsCss.mjs
+      - name: Live Challenge choices are a radio group; focus after Lock In (QA m4)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/liveChallengeChoiceKeyboard.mjs
+      - name: Closed-question verdict chip overlaps nothing (QA m7)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/closedVerdictChip.mjs
+      - name: Phone work bar primary label never truncated (QA m8)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/workBarPrimaryLabel.mjs
+      - name: My Math Path landmarks (QA m11)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/myMathPathLandmarks.mjs
+      - name: Home and Grades accessible names (QA m13)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/studentAccessibleNames.mjs
+      - name: A stale tab shows the recorded response once closed elsewhere (QA R2-m3)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/staleTabRecord.mjs
+      - name: Closed-DOL copy never contradicts itself (QA R2-m4)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/dolCloseCopy.mjs
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@v4
