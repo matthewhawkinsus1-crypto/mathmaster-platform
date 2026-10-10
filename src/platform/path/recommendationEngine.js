@@ -90,7 +90,7 @@ const evidenceStrengthFor = (masteryBySkill, prerequisites = []) => {
   (prerequisites || []).forEach((entry) => {
     const entryWeight = STRENGTH_WEIGHT[entry.strength] ?? 0;
     if (!entryWeight) return;
-    const state = masteryFor(masteryBySkill, entry.skillId);
+    const state = gatingStateFor(masteryBySkill, entry.skillId);
     if (!state) return;
     weighted += state.evidenceStrength * entryWeight;
     weight += entryWeight;
@@ -111,7 +111,16 @@ const masteryFor = (masteryBySkill, skillId) => {
     // unified profiles. Absent only for hand-built records (tests, legacy).
     mastered: typeof entry.mastered === 'boolean' ? entry.mastered : null,
     status: typeof entry.status === 'string' ? entry.status : null,
+    // False for evidence main's engine never saw (Path only, not Mastered):
+    // it may credit a skill but never lock one (masteryAdapter.js).
+    gate: entry.gate !== false,
   };
+};
+
+// Evidence that may gate: absent and ungated records are both "unproven".
+const gatingStateFor = (masteryBySkill, skillId) => {
+  const state = masteryFor(masteryBySkill, skillId);
+  return state && state.gate ? state : null;
 };
 
 // Mastered is the shared rule's verdict (functions/shared/masteryRule.mjs:
@@ -141,7 +150,7 @@ export const evaluatePrerequisites = (skill, masteryBySkill) => {
   const unmet = [];
   const severe = [];
   gating.forEach((entry) => {
-    const state = masteryFor(masteryBySkill, entry.skillId);
+    const state = gatingStateFor(masteryBySkill, entry.skillId);
     const mastery = state?.mastery ?? 0;
     // No evidence at all is not a gap. A student who has never touched a
     // prerequisite is unproven, not deficient, and locking on that would stop
@@ -152,7 +161,7 @@ export const evaluatePrerequisites = (skill, masteryBySkill) => {
   });
 
   const supportiveShortfall = supportive.filter((entry) => {
-    const state = masteryFor(masteryBySkill, entry.skillId);
+    const state = gatingStateFor(masteryBySkill, entry.skillId);
     return state && state.mastery < entry.minimumMastery;
   }).map((entry) => entry.skillId);
 
@@ -171,7 +180,7 @@ export const evaluatePrerequisites = (skill, masteryBySkill) => {
   let weighted = 0;
   let weight = 0;
   [...gating, ...supportive].forEach((entry) => {
-    const state = masteryFor(masteryBySkill, entry.skillId);
+    const state = gatingStateFor(masteryBySkill, entry.skillId);
     if (!state) return;
     const entryWeight = STRENGTH_WEIGHT[entry.strength] ?? 0;
     if (!entryWeight) return;
@@ -180,7 +189,7 @@ export const evaluatePrerequisites = (skill, masteryBySkill) => {
   });
   const readiness = weight ? weighted / weight : 1;
 
-  const gatingEvidence = gating.some((entry) => masteryFor(masteryBySkill, entry.skillId));
+  const gatingEvidence = gating.some((entry) => gatingStateFor(masteryBySkill, entry.skillId));
 
   return {
     readiness: clamp01(readiness),
@@ -508,17 +517,27 @@ const adjustedAnswers = (row, profile) => Math.max(0, Number(
 
 const scoreFacts = (row, profile) => {
   const adjusted = adjustedAnswers(row, profile);
+  const fromRow = row?.mastery == null || !Number.isFinite(Number(row.mastery)) ? null : {
+    percent: Math.round(clamp01(row.mastery) * 100),
+    count: Math.max(0, Number(row.evidenceCount) || 0) || null,
+    status: row.masteryStatus || null,
+    adjusted,
+  };
   if (profile && typeof profile === 'object') {
     const facts = masteryFactsFromProfile(profile);
     if (facts.eligibleEvents > 0 && facts.estimate != null && Number.isFinite(Number(facts.estimate))) {
-      return { percent: Math.round(Number(facts.estimate)), count: facts.eligibleEvents, status: classifyMasteryStatus(facts), adjusted };
+      const fromProfile = { percent: Math.round(Number(facts.estimate)), count: facts.eligibleEvents, status: classifyMasteryStatus(facts), adjusted };
+      // The engine reads the more favourable of the assignment record and the
+      // profile (masteryAdapter.js). When the row's number or verdict is the
+      // better one, that is what decided the card, so that is what it names.
+      const rowMastered = row?.masteryStatus === MASTERY_STATUS.MASTERED || row?.status === STATUS.MASTERED;
+      const rowLeads = fromRow && (fromRow.percent > fromProfile.percent
+        || (rowMastered && fromProfile.status !== MASTERY_STATUS.MASTERED));
+      return rowLeads ? fromRow : fromProfile;
     }
   }
-  if (row?.mastery == null || !Number.isFinite(Number(row.mastery))) {
-    return adjusted > 0 ? { percent: null, count: 0, status: null, adjusted } : null;
-  }
-  const count = Math.max(0, Number(row.evidenceCount) || 0);
-  return { percent: Math.round(clamp01(row.mastery) * 100), count: count || null, status: row.masteryStatus || null, adjusted };
+  if (!fromRow) return adjusted > 0 ? { percent: null, count: 0, status: null, adjusted } : null;
+  return fromRow;
 };
 
 const scoreSentence = (row, facts) => {

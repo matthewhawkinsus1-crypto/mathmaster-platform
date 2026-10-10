@@ -63,6 +63,19 @@ export const masteryStatusForProfile = (profile) => (
     : MASTERY_STATUS.NOT_ENOUGH_EVIDENCE
 );
 
+const STATUS_RANK = [
+  MASTERY_STATUS.NOT_ENOUGH_EVIDENCE, MASTERY_STATUS.NEEDS_ATTENTION,
+  MASTERY_STATUS.DEVELOPING, MASTERY_STATUS.SECURE, MASTERY_STATUS.MASTERED,
+];
+
+// The engine row carries the more favourable of the assignment record and the
+// profile (masteryAdapter.js); the browser shows the better of the two, so a
+// skill the map lists as mastered is mastered here too.
+const favourableStatus = (profileStatus, row) => {
+  const fromRow = row?.status === STATUS.MASTERED ? MASTERY_STATUS.MASTERED : row?.masteryStatus;
+  return STATUS_RANK.indexOf(fromRow) > STATUS_RANK.indexOf(profileStatus) ? fromRow : profileStatus;
+};
+
 const normalizeText = (value) => String(value || '')
   .toLowerCase()
   .normalize('NFD')
@@ -104,7 +117,7 @@ const buildSkill = ({ skillId, strand, strandNumber }, context) => {
   const profile = code ? (masteryProfilesByTEKS?.[code] || null) : null;
   const node = row ? pathNodeForRow(row, { isCovered, profile }) : null;
   const unit = districtUnitForSkill(skillId, course);
-  const masteryStatus = masteryStatusForProfile(profile);
+  const masteryStatus = favourableStatus(masteryStatusForProfile(profile), row);
   const pathStatus = row?.status || null;
   const launchable = Boolean(node?.selectable);
   const pass = describeCoursePathPass(skillProgressByTEKS?.[code] || {}, { mastered: pathStatus === STATUS.MASTERED });

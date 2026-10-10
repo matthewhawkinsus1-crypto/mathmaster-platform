@@ -74,9 +74,10 @@ test('a real student document flows through to a path-engine mastery map', () =>
   assert.equal(map[SKILL].attempts, 6);
   // Cross-check against the engine the adapter reads from.
   const profile = buildStudentMasteryProfile({ student, assignments });
-  // The path engine reads the unified profile (platform/mastery/unifiedMastery.js),
-  // whose estimate is the whole-percent score the mastery wheel shows.
-  assert.equal(map[SKILL].mastery, Math.round(profile.teks[CODE].score) / 100);
+  // The path engine reads the more favourable of main's assignment record and
+  // the unified profile (masteryAdapter.js favourableMasteryBySkill): here the
+  // record's exact score, a hair above the wheel's whole percent.
+  assert.equal(map[SKILL].mastery, profile.teks[CODE].score / 100);
 });
 
 test('assignment skill ids are collected for current-work weighting', () => {

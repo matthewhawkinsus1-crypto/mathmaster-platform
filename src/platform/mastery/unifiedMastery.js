@@ -6,10 +6,15 @@
 // used to read the assignment-only fallback alone, with its own 0.9 cut-off —
 // so the same skill could be "Mastered" on one screen and "Secure" on the next.
 //
-// Every screen now reads the profiles built here, and every status comes from
-// the shared rule (functions/shared/masteryRule.mjs) the server trigger uses.
-// Pure apart from its inputs: the live app passes the server document, the
-// Teacher Path Simulator passes none, and both go through the same code.
+// The wheel, the skill card and the weekly planner read the profiles built
+// here, and every status comes from the shared rule
+// (functions/shared/masteryRule.mjs) the server trigger uses. The Path engine
+// (map, locks, Challenge, topic browser, Recommended) reads the MORE
+// FAVOURABLE of these and main's assignment record until the server scores
+// each question once (src/platform/path/masteryAdapter.js
+// favourableMasteryBySkill). Pure apart from its inputs: the live app passes
+// the server document, the Teacher Path Simulator passes none, and both go
+// through the same code.
 
 import { buildStudentMasteryProfile, collectStudentEvidence } from '../../masteryEngine.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';

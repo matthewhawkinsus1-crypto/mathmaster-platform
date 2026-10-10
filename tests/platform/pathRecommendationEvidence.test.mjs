@@ -20,6 +20,7 @@ import { teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedMastery.js';
 import { getMasteryStrands } from '../../src/platform/mastery/strandConfig.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { studentWithAssignmentWork } from './helpers/assignmentWork.mjs';
 
 const NOW = Date.parse('2026-10-07T15:00:00Z');
 const texts = (items) => items.map((item) => item.text);
@@ -160,7 +161,9 @@ test('Recommended cards and map cards carry the named evidence', () => {
 
 test('a Strengthen card for a severe gap names what it opens', () => {
   const server = { 'A.5A': { mastery: { estimate: 15 }, accumulator: { eligibleEvents: 6, effectiveWeight: 6, independentSuccesses: 0 }, dimensions: { dokRepresented: [1] } } };
-  const options = buildStudentPathOptions({ student: { id: 's' }, assignments: [], courseId: 'algebra1', serverMasteryProfiles: server, nowValue: NOW });
+  // The gap is in the assignment record too: Path evidence alone never locks.
+  const work = studentWithAssignmentWork({ 'A.5A': [0, 0, 0, 0, 0, 0] });
+  const options = buildStudentPathOptions({ ...work, courseId: 'algebra1', serverMasteryProfiles: server, nowValue: NOW });
   const panel = curateStudentPanel({ ...options, remediation: [] });
   assert.ok(panel.strengthen, 'a severe gap must produce a repair card');
   assert.equal(panel.strengthen.skillId, teksSkillId('A.5A'));

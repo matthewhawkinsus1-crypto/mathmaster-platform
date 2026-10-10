@@ -19,6 +19,7 @@ import { getStudentPathOptions, STATUS } from '../../src/platform/path/recommend
 import { buildPathMap, explainLock, explainPacing, statusForSkill } from '../../src/platform/path/pathMap.js';
 import { getSkillGraph, teksCodeFromSkillId, teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedMastery.js';
+import { studentWithAssignmentWork } from './helpers/assignmentWork.mjs';
 import { MASTERY_STATUS } from '../../functions/shared/masteryRule.mjs';
 
 // A fixed school day, so the calendar's answer cannot drift with the clock:
@@ -33,9 +34,12 @@ const server = {
   // A severe gap: locks what depends on it.
   'A.5A': { mastery: { estimate: 20 }, accumulator: { eligibleEvents: 6, effectiveWeight: 6, independentSuccesses: 0 }, dimensions: { dokRepresented: [1] } },
 };
-const profiles = buildUnifiedMasteryProfiles({ student: { id: 's' }, assignments: [], serverProfiles: server });
+// The same gaps in the assignment record main's engine read: Path evidence
+// alone never locks a skill (masteryAdapter.js favourableMasteryBySkill).
+const work = studentWithAssignmentWork({ 'A.3A': [1, 1, 1, 0, 0, 0], 'A.5A': [0, 0, 0, 0, 0, 0] });
+const profiles = buildUnifiedMasteryProfiles({ ...work, serverProfiles: server });
 const optionsFor = (courseId = 'algebra1', serverProfiles = server) => buildStudentPathOptions({
-  student: { id: 's' }, assignments: [], courseId, serverMasteryProfiles: serverProfiles, nowValue: NOW,
+  ...work, courseId, serverMasteryProfiles: serverProfiles, nowValue: NOW,
 });
 const allSkills = (browser) => browser.groups.flatMap((group) => group.skills);
 
