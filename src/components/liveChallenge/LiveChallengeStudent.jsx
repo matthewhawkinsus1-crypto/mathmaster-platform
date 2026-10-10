@@ -430,9 +430,9 @@ export function ChallengeRound({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.18)', fontWeight: 900, fontSize: 13 }}>{alias}</span>
+            <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(0,0,0,.2)', fontWeight: 900, fontSize: 13 }}>{alias}</span>
             <span style={{ fontWeight: 900, fontSize: 15 }}>{room.secondChanceOf != null ? `FINAL ROUND ${roundIndex - Number(room.scheduledRoundCount || room.roundCount) + 1}` : `Round ${roundIndex + 1} of ${room.roundCount}`}</span>
-            <span style={{ opacity: .82, fontSize: 13 }}>{question?.teksCode || 'Mixed review'}</span>
+            <span style={{ fontSize: 13 }}>{question?.teksCode || 'Mixed review'}</span>
             {/* Only once the question is on screen: reading it during the
                 countdown would hand this student a head start. */}
             {readAloud && roundStarted && promptText && (
@@ -440,7 +440,7 @@ export function ChallengeRound({
                 type="button"
                 data-mm-read-aloud="1"
                 onClick={() => speakAloud(promptText)}
-                style={{ minHeight: 44, padding: '6px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.45)', background: 'rgba(255,255,255,.14)', color: '#fff', fontWeight: 900, cursor: 'pointer' }}
+                style={{ minHeight: 44, padding: '6px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.45)', background: 'rgba(0,0,0,.2)', color: '#fff', fontWeight: 900, cursor: 'pointer' }}
               >
                 <span aria-hidden="true">🔊 </span>Read aloud
               </button>
