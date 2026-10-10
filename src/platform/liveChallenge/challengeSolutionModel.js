@@ -57,3 +57,13 @@ export const solutionStateMessage = (state) => {
       return '';
   }
 };
+
+/*
+ * What to call a solution's closing line. Authored reviews put either the
+ * answer there ("x = 4") or a generic check ("Check that the selected answer
+ * is consistent with the stated geometry"). Labelling the second "Answer:"
+ * tells a class the check is the answer (release-candidate QA m9), so an
+ * instruction to check or verify is labelled as one.
+ */
+const CHECK_INSTRUCTION = /^\s*(check|verify|confirm|make sure|be sure)\b/i;
+export const answerSummaryLabel = (summary) => (CHECK_INSTRUCTION.test(String(summary || '')) ? 'Check' : 'Answer');
