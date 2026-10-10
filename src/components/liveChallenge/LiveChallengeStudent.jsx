@@ -447,6 +447,7 @@ export function ChallengeRound({
             )}
           </div>
           <div
+            role="timer"
             aria-label={roundStarted ? `${Math.ceil(remainingMs / 1000)} seconds left` : `Round starts in ${Math.ceil(startsInMs / 1000)} seconds`}
             style={{
               fontSize: 40,
