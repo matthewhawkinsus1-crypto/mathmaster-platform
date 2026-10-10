@@ -19,6 +19,12 @@ miss, a hint offered on the second miss, and a worked review once the question c
 | 30fe3cc, 7142e91, 57b97bc, 3384630, 10c807a | Question families: linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition. Each gives hints built from the problem's own numbers, a worked sibling problem, and a question-specific back-up check. |
 | 217d9be | Systems Workspace. A 2×2 back-substitution must end on the student's computed value: `y = −4(5) + 12` is no longer accepted as solved. A multi-term value substituted for an added variable keeps its visible group, written `1(…)` like the existing `−1(…)` rule. |
 | d4e427c | Calculator: the exact fraction beside the decimal (`Exact: 1/2`). |
+| 89cc82b | Codex review: the partial-credit breakdown follows `feedbackOpen`; a raised hand comes down when its question closes. |
+| 6464ca5 | Coordinator review B1, m8: a worked solution on a DOL, quiz or test only after the assignment-level release; "closed" is the question closing, not a lock; an unknown role fails closed. |
+| 1ef711c | Coordinator review B2, B3, M6c: help kept across a remount (`supportUseMemory.js`); a problem-specific back-up step and a miss message shown before the attempt count as help. |
+| 8f425f2 | Coordinator review M6a, M6b: no generic message on a choice field; no move named while attempts are left. |
+| ef18c7a | Coordinator review M4, M5, m7, m9: a hand comes down on lock; raised hands in the Room view and Walkthrough; presence key allowlist and help-time bound; the ask-only panel's copy. |
+| bd3b82f | Coordinator review test gaps: a worked sibling with the same value written another way; an unknown role in the browser. |
 
 All 17 builders are implemented and flagged: dataModelingLab, regressionCalculator, inverseCompositionLab,
 functionOperationsLab, systemsWorkspace, parabolaGeometryLab, polynomialWorkshop, signSolutionAnalyzer,
@@ -31,8 +37,14 @@ stated answer with the tool's shared grader before returning it.
 
 - **Nothing beyond right/wrong while an assessment item can be answered.** `feedbackOpenForItem` in
   `src/platform/supports/feedback/attemptFeedbackPlan.js` requires outcome feedback to be open and the host not to be
-  server-graded. On anything other than immediate-feedback practice it also requires the item to be closed. The outcome
-  box is additionally gated on `showOutcomeFeedback`, so there are two layers.
+  server-graded. On anything other than immediate-feedback practice it also requires the QUESTION to be closed (correct
+  or out of attempts, never a section lock) AND the teacher's assignment-level release (`assessmentReviewReleased`,
+  fed from `assignmentFeedbackWasReleased` only). A DOL's per-item right/wrong release is not enough: "Grant one more
+  DOL attempt" reopens the same item. An unknown activity role fails closed. The outcome box is additionally gated on
+  `showOutcomeFeedback`, so there are two layers.
+- **A miss message never hands over the answer.** While attempts are left a generic check is worded without the move
+  that yields the answer (`GENERIC_MISS_MESSAGES_OPEN`); the named error only once the item has closed. A choice field
+  gets no diagnosis at all (`partIsChoice`). The partial-credit breakdown follows `feedbackOpen` too.
 - **Grading is unchanged.** The miss message is computed after the attempt was handed to the recorder, from a copy of
   the grader's result held in state the recorder never reads (`gradedForDisplay`). The registry-tool forwarder region
   still contains no diagnosis (`misconceptionCodePassThrough.test.mjs`). The recorded evidence is still only the
@@ -40,20 +52,31 @@ stated answer with the tool's shared grader before returning it.
 - **A hint is never a smaller answer.** `buildQuestionHints` drops any hint, authored or generated, that
   `hintRevealsAnswer` finds containing one of the question's answers. `similarExampleIsSafe` rejects a sibling problem
   with the same answer or prompt, or with a step that names this question's answer.
-- **Help is recorded.** Revealing a hint sets `hintUsed`; opening a worked sibling sets `workedExampleUsed` (the first
-  thing to set it). Both make the attempt dependent. The back-up step is recorded but does not.
+- **Help is recorded, and survives a remount.** A hint (`hintUsed`), a worked sibling (`workedExampleUsed`), a back-up
+  step written for THIS problem (authored or family: `scaffoldUsed`) and a miss message shown before the attempt
+  (`feedbackAssisted`) each make the attempt a supported one. Only the platform's generic back-up step is recorded
+  (`backUpStepUsed`) without that. `src/platform/supports/supportUseMemory.js` keeps help per draft key and merges the
+  record's last attempt, so leaving and returning cannot forget it.
 - **Hints and help are withheld on DOL, quiz and test** (`hintsAllowed: false`), on a server-graded host (Path, Test
   Cycle, Live Challenge) and on a closed question.
 
 ## Verification
 
-- Node: `tests/platform/feedbackThatTeaches.test.mjs` (17 tests). Every key rule was mutation-checked: gate, leak
-  guard, release rule, back-up record, the "review below" wording, the classifier path and the compiler copy. Also 17
+- Node: `tests/platform/feedbackThatTeaches.test.mjs` (24 tests). Every key rule was mutation-checked: gate, leak
+  guard, release rule, back-up record, the "review below" wording, the classifier path and the compiler copy; and, for
+  the coordinator review, the assignment-release gate, the remount restore, the back-up source rule, the
+  feedback-assisted flag, the choice-field skip, the open wording, the lock effect, both teacher views and the
+  numeric same-answer check. Also 17
   `tests/tools/*SolutionReview.test.mjs`, 7 `tests/platform/supportFamily_*.test.mjs`,
   `systemsBackSubstitutionSimplified`, `systemsSubstitutionParentheses` and `calculatorExactFractions`. All new
   defect tests fail on the old code.
-- Rules: `npm run test:rules` passes 154 of 154, including a new "Ask my teacher" case. It was mutation-checked by
-  removing the constraint.
+- Rules: `npm run test:rules` passes 155 of 155, including the "Ask my teacher" case and a presence case built from a
+  real `buildLiveStatus` heartbeat with each forged field. Mutation-checked: without the key allowlist, and without the
+  time bound.
+- `tests/browser/assessmentLeakGates.mjs` (run in CI) `feedback-ladder` surface, 50 checks: also a closed DOL / quiz /
+  test item with per-item release on and assignment release off/on, the partial-credit breakdown, a hint recorded with
+  the attempt (same page and after a remount), the feedback-assisted next attempt, an unknown role, and a locked
+  question lowering its raised hand.
 - Browser (Chromium, real QuestionEngine):
   - `tests/browser/feedbackTeaches.mjs` at 1366×768 and 390×844 covers the Hint control and its release rule, a
     sign-flip message, the server classifier's message on a Question Family instance, the hint offer, the worked
@@ -88,18 +111,22 @@ stated answer with the tool's shared grader before returning it.
 
 ## Calls I made (conservative, recorded here)
 
-- **When the review shows.** It shows when the question is closed by a correct answer or by running out of attempts,
-  and outcome feedback is open. It does not show when the section is merely locked, because Recovery may still ask the
-  item. After a correct answer it sits collapsed under "See why it works".
+- **When the review shows.** In practice: when the question is closed by a correct answer or by running out of
+  attempts. On a DOL, quiz or test: only after the teacher releases the assignment's feedback, and then only on a
+  closed question. It does not show when the section is merely locked, because Recovery may still ask the item. After
+  a correct answer it sits collapsed under "See why it works".
 - **Hint release.** The first hint is available on request. Each further hint needs one more attempt on record
   (Path's rule). From the second miss the outcome box offers a hint; it never auto-reveals one.
-- **The back-up step.** Recorded as a new `supportUsage.backUpStepUsed` field (`functions/shared/attemptPolicy.mjs`),
-  not as `scaffoldUsed`, so it no longer makes the attempt dependent. Where the family has nothing specific, the
-  platform's fallback question for Step Algebra is one that is true of every equation.
+- **The back-up step.** Every step is recorded as `supportUsage.backUpStepUsed`. An authored or family step names the
+  problem's first move, so it is also `scaffoldUsed` and the attempt is supported (coordinator review B3). Only the
+  platform's generic step, true of every problem of the type, leaves the attempt independent.
 - **Ask my teacher.** It rides the presence heartbeat as `helpRequestedAt` / `helpQuestionIndex`. A separate write
   would be erased by the next 20-second beat. It is offered wherever the host passes `onAskTeacher`, which is student
   assignment work (not preview and not post-due practice), and that includes a DOL. On a DOL it is a raised hand, not
-  math help, and it is not recorded as help. Only the student can clear it; the teacher monitor has no clear action.
+  math help, and it is not recorded as help. The hand belongs to the question it was raised on. It comes down when the
+  student cancels, when that question closes, when it locks (DOL timer, closed section, Warm-Up window), when the
+  assignment turns into post-due practice, or when the student leaves the assignment. The teacher sees it in the Room
+  view (a red "Asked for help" tile, sorted first, counted in the header) and first in Walkthrough's Visit Next.
 - **The `1(…)` notation.** Used for a substituted group after `+`, mirroring the existing `−1(…)` rule. Removing the
   group is the student's step.
 - **Generic miss messages** are display text only, never registry codes.
@@ -113,9 +140,16 @@ rung. Show the worked solution on question close, not on section lock.
 
 - `src/App.jsx`: the Ask-my-teacher state, the presence payload field, an immediate publish after the stale document
   is deleted, and two QuestionEngine props. The import is asserted next to its use in `feedbackThatTeaches.test.mjs`.
-- `firestore.rules`: `presenceHelpRequestValid` on `presence/{studentId}` (an int time and position only; no text).
-- `functions/shared/attemptPolicy.mjs`: `backUpStepUsed` kept in the three supportUsage normalizers. It is not part of
-  `isMathematicallyIndependent`.
+- `firestore.rules`: on `presence/{studentId}`, `presenceKeysKnown` (exactly the heartbeat's keys, a known activity
+  role) and `presenceHelpRequestValid` (an int time within the last day of `request.time`, and a position).
+- `src/livePresence.js`, `src/components/teacher/LiveClassMonitor.jsx`, `src/platform/teacher/walkthroughMonitor.js`:
+  raised hands in the Room view and first in Walkthrough.
+- `functions/shared/attemptEvidenceEvent.mjs`, `sectionRecoveryService.mjs`, `responseCheckpointSchema.mjs`,
+  `misconceptionCodes.mjs` (comment) and `src/platform/mastery/evidenceClassification.js`: `backUpStepUsed` and
+  `feedbackAssisted` reach the evidence, the Recovery gate and mastery.
+- `tests/platform/graphSelfCheck.test.mjs`: its independence pin now reads the shared usage builder.
+- `functions/shared/attemptPolicy.mjs`: `backUpStepUsed` and `feedbackAssisted` kept in the supportUsage normalizers;
+  `feedbackAssisted` is part of `isMathematicallyIndependent`.
 - `src/platform/contract/authoringIntentV5Core.js`: `hints` and `hint` added to `copyCommon`.
 - `src/problemGenerator.js`: exports `parseFamilyGenerationKey`.
 - `src/tools/toolCapabilities.js`: `supportsSolutionReview: true` for the 17 tools.
@@ -135,11 +169,15 @@ review. Path and secure runtimes can switch to `SolutionReviewPanel` later. It a
 ## Deploy targets
 
 1. **Hosting**, through the resilient wrapper: almost everything here is client code.
-2. **`firestore:rules`**: the presence help fields are validated. The student client sends them, so deploy the rules
-   with or before Hosting.
+2. **`firestore:rules`**: the presence document is now an allowlist. The keys are the ones today's heartbeat already
+   writes, so the rules are safe before or after Hosting; deploy them with or before Hosting so the help fields are
+   validated from the start.
 3. **Functions (recommended, not required).** `functions/shared/attemptPolicy.mjs` (keeps `backUpStepUsed`) and
-   `algebraicSystemsEngine.mjs` (the `1(…)` text) are server code. Until they are deployed, server ingestion drops
-   `backUpStepUsed` from the stored record. Nothing breaks and no grade changes. The systems reducer compares by
+   `algebraicSystemsEngine.mjs` (the `1(…)` text), `attemptEvidenceEvent.mjs`, `sectionRecoveryService.mjs` and
+   `responseCheckpointSchema.mjs` are server code. Until they are deployed, server ingestion drops the
+   `backUpStepUsed` and `feedbackAssisted` flags from the stored record, but keeps the client's
+   `isMathematicallyIndependent: false`, so a supported attempt is still recorded as supported. Nothing breaks and no
+   grade changes. The systems reducer compares by
    linear form, so old and new substitution text grade the same. Let `node scripts/release-firebase.mjs` (plan only)
    list the exact functions that bundle these modules. Expect at least `ingestStudentSubmissions`,
    `sweepStudentResponseCheckpoints` and `expediteCheckpointsOnSectionClose`, plus `platformBuildInfo` as the release
