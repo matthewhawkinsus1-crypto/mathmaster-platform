@@ -93,7 +93,16 @@ export const ExamPrepHeader = ({
         <strong style={{ overflowWrap: 'anywhere' }}>{title || policy.title}</strong>
         {onOpenNavigator
           ? (
-            <button type="button" onClick={onOpenNavigator} aria-expanded={navigatorOpen} aria-controls={navigatorOpen && navigatorId ? navigatorId : undefined} data-secure-navigator-toggle="" style={{ ...control, padding: '6px 11px', fontSize: 14 }}>
+            <button
+              type="button"
+              onClick={onOpenNavigator}
+              // Escape on the button closes the list it opened, as Escape inside the list does.
+              onKeyDown={(event) => { if (event.key === 'Escape' && navigatorOpen) { event.preventDefault(); onOpenNavigator(); } }}
+              aria-expanded={navigatorOpen}
+              aria-controls={navigatorOpen && navigatorId ? navigatorId : undefined}
+              data-secure-navigator-toggle=""
+              style={{ ...control, padding: '6px 11px', fontSize: 14 }}
+            >
               {position} <span aria-hidden="true">▾</span>
             </button>
           )

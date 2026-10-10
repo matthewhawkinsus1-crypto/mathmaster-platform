@@ -304,6 +304,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
             assignmentId={assignmentId}
             corrections={card.corrections}
             reviewExamSessionId={testReviewId}
+            testAnswersHeld={card.testAnswersHeld === true}
             onReviewTest={() => openTestReview('corrections')}
             onProgress={load}
             onComplete={backToCard}
@@ -351,6 +352,9 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   const review = card.reviewProgress || null;
   // An external-original cycle's one secure session is the retest.
   const noun = card.policy?.external ? 'Retest' : 'Test';
+  // How the secure sitting runs is only news while one is ahead: not in
+  // Corrections, not after submitting, not once the cycle is finished.
+  const sittingAhead = [TEST_CYCLE_STAGE.REVIEW, TEST_CYCLE_STAGE.TEST, TEST_CYCLE_STAGE.RETEST_READY, TEST_CYCLE_STAGE.RETEST].includes(card.stage);
   const reviewSkills = card.stage === TEST_CYCLE_STAGE.REVIEW ? reviewSkillRows(card.reviewBySkill) : [];
   const testSkills = testSkillsSection(card);
 
@@ -414,8 +418,8 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
 
       {/* The facts a student would otherwise have to ask about. */}
       <div style={{ display: 'grid', gap: 4 }}>
-        {card.delivery && (
-          <p style={factStyle}>
+        {card.delivery && sittingAhead && (
+          <p data-test-cycle-delivery="" style={factStyle}>
             {/* The minutes are this student's own, extended time included
                 (testCycleDeliveryFacts). Answers stay changeable until Submit:
                 every secure item is a draft until the session is finalized. */}

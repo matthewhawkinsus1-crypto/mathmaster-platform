@@ -18292,6 +18292,18 @@ exports.getStudentTestCycle = onCall(async (request) => {
     const plan = planSnapshot.exists ? planSnapshot.data()?.plan : null;
     corrections = plan ? studentVisibleCorrectionPlan(plan) : null;
   }
+  // Whether the Test review, when it is offered, would hold its answers and
+  // worked solutions (courseAnswersRelease), so the card says what it opens.
+  const testReviewOffered = record.test.state === shared.record.SESSION_STATE.RELEASED
+    && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" });
+  let testAnswersHeld = null;
+  if (testReviewOffered) {
+    try {
+      testAnswersHeld = !(await courseAnswersRelease(db, shared, assignmentId, "test", { assignment, cacheRoster: true })).released;
+    } catch {
+      testAnswersHeld = true;
+    }
+  }
 
   return {
     success: true,
@@ -18324,10 +18336,8 @@ exports.getStudentTestCycle = onCall(async (request) => {
     // stage alone ("retestClosed") cannot say the review would open.
     // Offered exactly when getStudentSecureExamReview would open it: the same
     // rule (secureExam.courseReviewBlockedBy) decides both.
-    testReviewExamSessionId: record.test.state === shared.record.SESSION_STATE.RELEASED
-      && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" })
-      ? record.test.examSessionId
-      : null,
+    testReviewExamSessionId: testReviewOffered ? record.test.examSessionId : null,
+    testAnswersHeld,
     grade: shared.record.testCycleGradeBreakdown(record, policy),
     corrections,
     // Everything below is question-free and score-free: what a student needs

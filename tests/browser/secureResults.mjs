@@ -510,6 +510,30 @@ for (const device of DEVICES) {
     await page.close();
   }
 
+  // How the secure sitting runs is said only while one is ahead (QA m3).
+  for (const [stage, shownAs, expected] of [['review', 'review', true], ['test', 'test', true], ['corrections', 'corrections', false], ['retest', 'retest', true], ['passed', 'passed', false], ['complete', 'complete', false]]) {
+    const { page, errors } = await openCard(stage, shownAs);
+    const shown = await page.locator('[data-test-cycle-delivery]').count() > 0;
+    check(shown === expected, at(`${stage}: Test-taking facts ${expected ? 'shown' : 'not shown'}`));
+    noErrors(errors, at(`${stage} delivery facts`));
+    await page.close();
+  }
+
+  // Corrections says what "Review my Test" opens; with the answers held, it says so (QA m1).
+  for (const held of [false, true]) {
+    const { page, errors } = await openPage(context, `scene=card&stage=corrections${held ? '&answersHeld=1' : ''}`);
+    await page.waitForSelector('[data-test-cycle-stage="corrections"]', { timeout: 15000 });
+    await cardButton(page, 'Continue Corrections').click();
+    const note = page.locator('[data-corrections-review-note]');
+    await note.waitFor({ state: 'visible', timeout: 15000 });
+    const noteText = await note.innerText();
+    check(held
+      ? /open once everyone has finished the Test/.test(noteText) && !/answers and the worked solutions\./.test(noteText)
+      : /See your Test answers and the worked solutions\./.test(noteText), at(`corrections: the review note ${held ? 'says the solutions are held' : 'offers the worked solutions'}`), noteText);
+    noErrors(errors, at('corrections review note'));
+    await page.close();
+  }
+
   /* --- the teacher's practice-test form ---------------------------------- */
   {
     const { page, errors } = await openPage(context, 'scene=teacher');

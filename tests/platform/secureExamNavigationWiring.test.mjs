@@ -156,7 +156,8 @@ test('the header numbers the question on screen, marks it for review, and opens 
   assert.match(headerProps, /navigatorId="secure-question-list"/);
   assert.match(header, /const position = `Question \$\{questionOrdinal\} of \$\{total\}`;/);
   const toggle = region(header, '{onOpenNavigator', ': <div', 'navigator toggle');
-  assert.match(toggle, /<button type="button" onClick=\{onOpenNavigator\} aria-expanded=\{navigatorOpen\} aria-controls=\{navigatorOpen && navigatorId \? navigatorId : undefined\}/);
+  assert.match(toggle, /<button\s+type="button"\s+onClick=\{onOpenNavigator\}/);
+  assert.match(toggle, /\s+aria-expanded=\{navigatorOpen\}\s+aria-controls=\{navigatorOpen && navigatorId \? navigatorId : undefined\}/);
   assert.doesNotMatch(toggle, /aria-haspopup/, 'it expands a panel on the page; it does not open a dialog');
   assert.match(region(header, '{onToggleReviewFlag && (', ')}', 'flag button'), /aria-pressed=\{reviewFlagged\}/);
 
@@ -191,7 +192,10 @@ test('every call that can meet a pause or the end of time hands its failure to h
   // What it does with each.
   const locked = region(handlers.handleProblem, "if (problem.kind === 'locked') {", 'return true;', 'locked');
   assert.match(locked, /setSession\(\(current\) => \(current \? \{ \.\.\.current, status: pausedStatusAfterRefusal\(problem\.status, current\.status\) \} : current\)\);/);
-  assert.match(locked, /\n\s*if \(!problem\.status\) refreshSession\(\);/, 'a refusal that does not say which pause asks the server');
+  // Every refusal asks the server where the test stands: which pause, when the
+  // refusal does not say, and whether the clock is stopped (a teacher's pause).
+  assert.match(locked, /\n\s*refreshSession\(\);/, 'a refusal asks the server');
+  assert.doesNotMatch(executableSource(locked), /if \(!problem\.status\) refreshSession/, 'not only when the refusal does not say which pause');
   assert.match(region(handlers.handleProblem, "if (problem.kind === 'expired') {", 'return true;', 'expired'), /finishRef\.current\?\.\('timeExpired'\)/);
   const navigationRefusal = region(handlers.handleProblem, "if (problem.kind === 'navigation') {", 'return true;', 'navigation refusal');
   assert.match(navigationRefusal, /const moduleEnd = problem\.reason === 'module_end' \? pendingModuleEnd\(readNavigation\(sessionRef\.current\)\) : null;/);
@@ -316,7 +320,7 @@ test('the start screen states the new rules and the student\'s own time, and non
   assert.match(startScreen, /\{rules\.map\(\(rule\) => <li key=\{rule\}>\{rule\}<\/li>\)\}/);
   // The session as the list knows it — passed in, or asked for when it was not.
   assert.match(container, /const startPreview = sessionPreview && typeof sessionPreview === 'object' \? sessionPreview : loadedPreview;/);
-  const ask = region(container, 'if (sessionPreview || !examSessionId || session) return undefined;', '}, [sessionPreview, examSessionId, session]);', 'preview request');
+  const ask = region(container, 'if (sessionPreview || !examSessionId || session) { setPreviewPending(false); return undefined; }', '}, [sessionPreview, examSessionId, session]);', 'preview request');
   assert.match(ask, /listStudentSecureExamSessions\(\)/);
   assert.match(ask, /\.find\(\(entry\) => entry\?\.examSessionId === examSessionId\)/);
   assert.match(ask, /if \(!cancelled && found\) setLoadedPreview\(found\);/);

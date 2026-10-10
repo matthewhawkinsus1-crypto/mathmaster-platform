@@ -84,7 +84,8 @@ test('the student card carries reviewBySkill and the Test\'s own released sessio
   // Released only: an unreleased Test never names a reviewable session — and
   // neither does a released one while its Retest is assigned or under way
   // (tests/platform/testCycleSkillNames.test.mjs holds that to the review guard).
-  assert.match(payload, /testReviewExamSessionId: record\.test\.state === shared\.record\.SESSION_STATE\.RELEASED\s*&&/);
+  assert.match(payload, /const testReviewOffered = record\.test\.state === shared\.record\.SESSION_STATE\.RELEASED\s*&&/);
+  assert.match(payload, /testReviewExamSessionId: testReviewOffered \? record\.test\.examSessionId : null,/);
   // What's on the test stays, from the blueprint.
   assert.match(payload, /testSkills: await testCycleSkillList\(blueprint\)/);
 });

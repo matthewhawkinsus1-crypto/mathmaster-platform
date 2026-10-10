@@ -134,9 +134,12 @@ test('the card holds "Review my Test" back exactly when the review itself is ref
   const card = region(functionsIndex, 'exports.getStudentTestCycle = onCall(', 'function testCycleSkillList(', 'getStudentTestCycle');
   const guard = region(functionsIndex, 'exports.getStudentSecureExamReview = onCall(', 'const review = secureExam.publicReview(session, { withSolutions });', 'review guard');
   assert.match(guard, /const blocked = secureExam\.courseReviewBlockedBy\(record, \{ examSessionId, cycleStage: session\.courseTest\.cycleStage \}\);\s*if \(blocked\) throw/, 'the review guard (precondition)');
+  const offered = region(card, 'const testReviewOffered = ', ';', 'testReviewOffered');
+  assert.match(offered, /record\.test\.state === shared\.record\.SESSION_STATE\.RELEASED\s*&& !secureExam\.courseReviewBlockedBy\(record, \{ examSessionId: record\.test\.examSessionId, cycleStage: "test" \}\)/);
   const field = region(card, 'testReviewExamSessionId:', 'grade:', 'testReviewExamSessionId');
-  assert.match(field, /record\.test\.state === shared\.record\.SESSION_STATE\.RELEASED\s*&& !secureExam\.courseReviewBlockedBy\(record, \{ examSessionId: record\.test\.examSessionId, cycleStage: "test" \}\)/);
-  assert.match(field, /\? record\.test\.examSessionId\s*: null,/);
+  assert.match(field, /testReviewOffered \? record\.test\.examSessionId : null,/);
+  // And the card is told whether that review would hold its answers (QA m1).
+  assert.match(card, /testAnswersHeld = !\(await courseAnswersRelease\(db, shared, assignmentId, "test", \{ assignment, cacheRoster: true \}\)\)\.released;/);
 });
 
 test('the card\'s skill list is the tested one', () => {

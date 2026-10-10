@@ -63,6 +63,10 @@ const WARNING_LAYER = 2147483550;
 // paused it, added time or turned it in (see the status check below).
 const STATUS_CHECK_MS = 30 * 1000;
 
+// How long a start screen waits for the student's list before the card's
+// facts stand in: a slow list never keeps a student from starting or resuming.
+const START_PREVIEW_WAIT_MS = 5 * 1000;
+
 /*
  * A SECURE TEST THE STUDENT MOVES AROUND IN.
  *
@@ -264,6 +268,9 @@ export const SecureExamContainer = ({
   // The session as the student's list knows it, read for the start screen when
   // the screen was opened without one (a course Test, from its card).
   const [loadedPreview, setLoadedPreview] = useState(null);
+  // A start screen opened without the session waits for the list's answer
+  // before it states any time (a resumed test has less than the full limit).
+  const [previewPending, setPreviewPending] = useState(() => !sessionPreview && Boolean(examSessionId));
   const loggerRef = useRef(null);
   const draftTimerRef = useRef(null);
   const pendingDraftRef = useRef(null);
@@ -788,18 +795,22 @@ export const SecureExamContainer = ({
 
   // A start screen opened without the session asks the student's list for it
   // (read-only), so it can say whether the test is new or resumed and how
-  // much time it has. Until it answers, or if it cannot, the card's delivery
-  // facts stand in.
+  // much time it has. Until it answers the screen says it is loading, not the
+  // full time; if it cannot answer, or is slow to, the card's delivery facts
+  // stand in.
   useEffect(() => {
-    if (sessionPreview || !examSessionId || session) return undefined;
+    if (sessionPreview || !examSessionId || session) { setPreviewPending(false); return undefined; }
     let cancelled = false;
+    setPreviewPending(true);
+    const stopWaiting = setTimeout(() => { if (!cancelled) setPreviewPending(false); }, START_PREVIEW_WAIT_MS);
     listStudentSecureExamSessions()
       .then((result) => {
         const found = (Array.isArray(result?.sessions) ? result.sessions : []).find((entry) => entry?.examSessionId === examSessionId);
         if (!cancelled && found) setLoadedPreview(found);
       })
-      .catch(() => { /* the delivery facts stand in */ });
-    return () => { cancelled = true; };
+      .catch(() => { /* the delivery facts stand in */ })
+      .finally(() => { clearTimeout(stopWaiting); if (!cancelled) setPreviewPending(false); });
+    return () => { cancelled = true; clearTimeout(stopWaiting); };
   }, [sessionPreview, examSessionId, session]);
 
   // Once the finished view is committed, clear again: finishing clears the
@@ -884,11 +895,15 @@ export const SecureExamContainer = ({
         <section style={{ width: 'min(600px,100%)', textAlign: 'left', padding: 'clamp(18px, 5vw, 30px)', border: '1px solid var(--mm-border)', borderRadius: 14, background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
           <h1 style={{ marginTop: 0, fontSize: 'clamp(20px, 5vw, 26px)', lineHeight: 1.25, color: 'var(--mm-text-strong)' }}>{examTitle}</h1>
           <h2 style={{ margin: '0 0 8px', fontSize: 16, color: 'var(--mm-text-strong)' }}>How this test works</h2>
-          <ul data-secure-start-rules="" style={{ margin: '0 0 16px', paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6 }}>
-            {rules.map((rule) => <li key={rule}>{rule}</li>)}
-          </ul>
+          {previewPending && !loadedPreview ? (
+            <p role="status" data-secure-start-loading="" style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>Checking where your test stands…</p>
+          ) : (
+            <ul data-secure-start-rules="" style={{ margin: '0 0 16px', paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6 }}>
+              {rules.map((rule) => <li key={rule}>{rule}</li>)}
+            </ul>
+          )}
           {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
-          <button type="button" disabled={busy} onClick={start} style={primaryButton(!busy)}>{busy ? 'Opening…' : (startLabel || (resuming ? 'Resume test' : 'Start test'))}</button>
+          <button type="button" disabled={busy || (previewPending && !loadedPreview)} onClick={start} style={primaryButton(!busy && !(previewPending && !loadedPreview))}>{busy ? 'Opening…' : (startLabel || (resuming ? 'Resume test' : 'Start test'))}</button>
         </section>
       </div>
     );

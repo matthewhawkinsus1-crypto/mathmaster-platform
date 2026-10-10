@@ -538,6 +538,8 @@ test('the answers wait for everyone the Test is assigned to: a period with no se
 
   // B3, in period 3, has no session and no record yet: the answers wait for them.
   assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'held while a period-3 student with no record can still sit the Test');
+  const cardOf = async (studentId) => fns.getStudentTestCycle.run(student(studentId, { assignmentId: ROSTER_ASSIGNMENT_ID }));
+  assert.equal((await cardOf(ROSTER_A1)).testAnswersHeld, true, 'and the card is told the Test review holds its answers');
   let release = await answersRelease();
   assert.equal(release.test.released, false);
   assert.deepEqual(release.test.stillTestingIds, [ROSTER_B3], 'the teacher is shown exactly who is still testing');
@@ -549,6 +551,7 @@ test('the answers wait for everyone the Test is assigned to: a period with no se
   assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'and nothing was released');
   await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: release.test.confirmKeys }));
   assert.ok((await reviewOf(ROSTER_A1, a1Test)).items.every((item) => item.solution), 'the named release opens the answers');
+  assert.equal((await cardOf(ROSTER_A1)).testAnswersHeld, false, 'and the card says so');
 
   // C3 joins period 3 after the release. Nobody confirmed them: the answers wait again.
   await enroll(ROSTER_C3, ROSTER_P3);

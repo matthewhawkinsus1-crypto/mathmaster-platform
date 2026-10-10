@@ -359,6 +359,9 @@ export const createSecureExamSession = async (payload) => {
 
 export const listStudentSecureExamSessions = async () => {
   if (isMock()) {
+    // Sandbox only: a harness can slow the list to watch a screen wait for it.
+    const delay = Number(globalThis.__secureSandboxDelays?.list) || 0;
+    if (delay > 0) await new Promise((resolve) => { setTimeout(resolve, delay); });
     return {
       sessions: [...mockSessions.values()]
         .sort((a, b) => b.createdAt - a.createdAt)

@@ -250,6 +250,9 @@ test('the card states the student\'s own time and that answers can change until 
   assert.doesNotMatch(executableSource(card), /one attempt/i);
   assert.match(facts, /questions\. You can change your answers until you submit\./);
   assert.match(facts, /Number\(card\.delivery\.extendedTimeMultiplier\) > 1 \? ', including your extended time' : ''/);
+  // Only while a sitting is ahead: not in Corrections, after a submit, or once the cycle is done (QA m3).
+  assert.match(facts, /\{card\.delivery && sittingAhead && \(/);
+  assert.match(card, /const sittingAhead = \[TEST_CYCLE_STAGE\.REVIEW, TEST_CYCLE_STAGE\.TEST, TEST_CYCLE_STAGE\.RETEST_READY, TEST_CYCLE_STAGE\.RETEST\]\.includes\(card\.stage\);/);
 });
 
 test('the card shows the retest rule only while it is relevant', () => {
@@ -410,4 +413,25 @@ test('every open review asks the server again, and a refusal closes it (coordina
   // A refusal drops the review's data and shows the server's reason; a network failure does not.
   assert.match(recheck, /if \(!active \|\| !reviewRefused\(recheckError\)\) return;\s+setReview\(null\);\s+setError\(recheckError\.message/);
   assert.match(review, /const reviewRefused = \(error\) => \/failed-precondition\|permission-denied\|not-found\/\.test\(String\(error\?\.code \|\| ''\)\);/);
+});
+
+test('QA minors: Corrections says when the answers are held, the start screen waits for the real time, Escape closes the question list', () => {
+  // m1: the note beside "Review my Test" reads whether the review would hold its answers.
+  const corrections = componentSource('src/components/student/TestCycleCorrections.jsx');
+  const note = region(corrections, '<span data-corrections-review-note=""', '</span>', 'review note');
+  assert.match(note, /\{testAnswersHeld\s*\? 'See your Test answers\. The correct answers and worked solutions open once everyone has finished the Test\.'\s*: 'See your Test answers and the worked solutions\.'\}/);
+  assert.match(card, /testAnswersHeld=\{card\.testAnswersHeld === true\}/);
+  // m2: opened without the session, the start screen says it is loading until the list answers.
+  const container = componentSource('src/components/assessment/SecureExamContainer.jsx');
+  assert.match(container, /const \[previewPending, setPreviewPending\] = useState\(\(\) => !sessionPreview && Boolean\(examSessionId\)\);/);
+  assert.match(container, /\.finally\(\(\) => \{ clearTimeout\(stopWaiting\); if \(!cancelled\) setPreviewPending\(false\); \}\);/);
+  // …but never for long: a slow list does not keep the student from starting or resuming.
+  assert.match(container, /const START_PREVIEW_WAIT_MS = 5 \* 1000;/);
+  assert.match(container, /const stopWaiting = setTimeout\(\(\) => \{ if \(!cancelled\) setPreviewPending\(false\); \}, START_PREVIEW_WAIT_MS\);/);
+  assert.match(container, /\{previewPending && !loadedPreview \? \(\s*<p role="status" data-secure-start-loading=""/);
+  assert.match(container, /disabled=\{busy \|\| \(previewPending && !loadedPreview\)\}/);
+  // m5: Escape on the "Question N of M" button closes the list it opened.
+  const header = componentSource('src/components/assessment/ExamPrepHeader.jsx');
+  assert.match(header, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape' && navigatorOpen\) \{ event\.preventDefault\(\); onOpenNavigator\(\); \} \}\}/);
+  assert.match(header, /aria-label=\{timerLabel\}/);
 });

@@ -97,6 +97,8 @@ export const getStudentTestCycle = async ({ assignmentId }) => {
     phases: buildTestCyclePhaseStatus({ state: { ...card, policy: { ...POLICY, passingScore: 70 } }, record: cycleRecord }),
     grade: testCycleGradeBreakdown(cycleRecord, POLICY),
     corrections: card.corrections || null,
+    // Whether the Test review would hold its answers: ?answersHeld=1.
+    testAnswersHeld: card.testReviewExamSessionId ? new URLSearchParams(window.location.search).get('answersHeld') === '1' : null,
     availability: { open: true, reason: 'open', opensAt: null },
     dueAt: null,
     policy: POLICY_FIELDS,
