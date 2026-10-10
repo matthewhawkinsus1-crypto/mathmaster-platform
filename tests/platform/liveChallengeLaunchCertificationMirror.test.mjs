@@ -71,6 +71,38 @@ test('both resend a locked answer with its own submission id, never a new one', 
   assert.match(region(mirror, 'const retryPending = () => {', 'const answerRound'), /sendAnswer\(capture, 'resend'\)/);
 });
 
+// The certification failed on CI because the device mirrored a screen that
+// threw away an answer refused before GO. Both now keep it and resend it at
+// GO, through the one rule (challengeAnswerRefusal.js) — the device no
+// better than the screen, and no worse.
+test('both resend an answer refused before GO, at GO, by the same rule, as the same envelope', () => {
+  const rule = /import \{ REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs \} from '[./]+(?:src\/)?platform\/liveChallenge\/challengeAnswerRefusal\.js';/;
+  assert.match(screen, rule);
+  assert.match(mirror, rule);
+  // A refusal before GO goes to the resend, not to the closed-round path.
+  assert.match(region(screen, 'const retryPending = async () => {', 'useEffect('), /else if \(outcome === REFUSAL_OUTCOME\.RETRY_AT_GO\) holdForGo\(\);/);
+  assert.match(region(screen, 'const submit = async', 'const retryPending'), /else if \(outcome === REFUSAL_OUTCOME\.RETRY_AT_GO\) holdForGo\(\);/);
+  const refused = region(mirror, '    } catch (error) {\n      if (timing && timing.ok === null)', 'const resendAtGo = async', 'the device\'s refusal');
+  const toResend = refused.indexOf("classifyAnswerRefusal(error) === REFUSAL_OUTCOME.RETRY_AT_GO) return resendAtGo(capture);");
+  assert.ok(toResend > -1, 'the device sends a refusal before GO to its resend');
+  assert.ok(toResend < refused.indexOf('storage.delete(pendingKey('), '...before any refusal settles the envelope');
+  // When: the rule's delay, from this device's server time, the round's GO
+  // and its deadline, counting the resends so far. Neither has a margin,
+  // bound or deadline check of its own.
+  const hold = region(screen, 'const holdForGo = () => {', '\n  };');
+  const mirrorHold = region(mirror, 'const resendAtGo = async (capture) => {', '\n  };');
+  assert.match(hold, /resendAtGoDelayMs\(\{\s*serverNowMs: [^,]+,\s*startsAtMs,\s*endsAtMs,\s*resendsSoFar: resendsAtGoRef\.current,\s*\}\)/);
+  assert.match(mirrorHold, /resendAtGoDelayMs\(\{\s*serverNowMs: Date\.now\(\) \+ device\.clock\.offsetMs,\s*startsAtMs: [^,]+,\s*endsAtMs: [^,]+,\s*resendsSoFar,\s*\}\)/);
+  for (const source of [hold, mirrorHold]) assert.doesNotMatch(source, /\b\d{3,}\b|RESEND_AT_GO_(?:MARGIN_MS|MAX)/, 'the margin and the bound are the rule\'s');
+  // What: the same envelope again, never a new answer; kept while it waits.
+  assert.match(mirrorHold, /return sendAnswer\(capture, 'resend'\);/);
+  assert.doesNotMatch(mirrorHold, /storage\.delete|randomUUID/);
+  assert.match(mirrorHold, /resendsAtGo\.set\(capture\.submissionId, resendsSoFar \+ 1\);/);
+  // On the page's own timer, which dies with the page, as the screen's does.
+  assert.match(mirrorHold, /await pageTimer\(delayMs\)/);
+  assert.match(region(mirror, 'async shutdown() {', '\n    },'), /pageWaits\.forEach\(\(resolve\) => resolve\(false\)\);/);
+});
+
 // THE STANDINGS. A screen hears the class through two single documents — its
 // own public row and the room's standings snapshot — never every classmate's
 // row (each answer used to reach every screen: N x N per round). The
