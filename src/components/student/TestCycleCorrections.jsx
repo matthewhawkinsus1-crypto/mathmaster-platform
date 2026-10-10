@@ -5,7 +5,7 @@ import {
   issueTestCycleCorrectionQuestion,
   submitTestCycleCorrectionResponse,
 } from '../../services/testCycleService.js';
-import { describeCorrectionTargetForStudent } from '../../platform/student/testCycleDiscovery.js';
+import { correctionTargetTitle, describeCorrectionTargetForStudent } from '../../platform/student/testCycleDiscovery.js';
 
 /*
  * CORRECTIONS ARE TEACHING. THIS SCREEN IS NOT A SECURE EXAM.
@@ -30,7 +30,33 @@ import { describeCorrectionTargetForStudent } from '../../platform/student/testC
  *
  * Finishing corrections cannot change a recorded grade. It unlocks a secure
  * retest the student then has to actually sit.
+ *
+ * THE TEST ITSELF IS ONE TAP AWAY. Corrections only exist once the Test's
+ * results are released, and its review — the student's answers, the correct
+ * answers, the worked solutions — is the best study material they have. When
+ * the card hands over the released session (`reviewExamSessionId`), a "Review
+ * my Test" button asks the card to open it (`onReviewTest`) and come back here.
+ * This screen never loads the review itself: it stays free of every secure
+ * module, exactly as above. The card keeps this screen mounted (hidden) while
+ * the review is open, so an answer typed and not yet checked is still in the
+ * box on the way back, and focus returns to the heading marked
+ * `data-corrections-heading`.
+ *
+ * The heading names the skill in a student's words (`correctionTargetTitle`):
+ * the plan copies the blueprint label, which is the standard's code whenever
+ * the teacher did not write one.
  */
+
+const reviewTestButton = {
+  minHeight: 44,
+  padding: '9px 15px',
+  borderRadius: 8,
+  border: '1px solid var(--mm-primary-border)',
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-primary-text)',
+  fontWeight: 800,
+  cursor: 'pointer',
+};
 
 const card = {
   background: 'var(--mm-surface)',
@@ -39,9 +65,15 @@ const card = {
   padding: 'clamp(16px, 4vw, 26px)',
 };
 
-export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, onComplete, onExit }) => {
+export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, onComplete, onExit, reviewExamSessionId = null, onReviewTest = null }) => {
   const targets = corrections?.targets || [];
+  const reviewTest = reviewExamSessionId && onReviewTest ? (
+    <button type="button" onClick={() => onReviewTest(reviewExamSessionId)} style={reviewTestButton}>
+      Review my Test
+    </button>
+  ) : null;
   const activeTarget = targets.find((target) => target.complete !== true) || null;
+  const activeTitle = activeTarget ? correctionTargetTitle(activeTarget) : '';
   const [question, setQuestion] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [attemptsUsed, setAttemptsUsed] = useState(0);
@@ -73,15 +105,18 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
 
   if (!activeTarget) {
     return (
-      <section style={{ ...card, textAlign: 'center' }}>
-        <h2 style={{ marginTop: 0 }}>Corrections complete</h2>
+      <section data-test-cycle-corrections="complete" style={{ ...card, textAlign: 'center' }}>
+        <h2 tabIndex={-1} data-corrections-heading="" style={{ marginTop: 0 }}>Corrections complete</h2>
         <p style={{ color: 'var(--mm-text)', lineHeight: 1.55 }}>
           You have shown you can do every skill you missed. Your secure retest is being opened.
           Your recorded grade has not changed yet — the retest is what can raise it.
         </p>
-        <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '9px 16px', border: 0, borderRadius: 8, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
-          Back to my assignment
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '9px 16px', border: 0, borderRadius: 8, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
+            Back to my assignment
+          </button>
+          {reviewTest}
+        </div>
       </section>
     );
   }
@@ -109,7 +144,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
       });
       setAttemptsUsed(Number(result.attemptsUsed || 0));
       const before = targets.filter((target) => target.complete === true).length;
-      if (Number(result.progress?.complete || 0) > before) setAnnouncement(`${activeTarget.label} — corrected.`);
+      if (Number(result.progress?.complete || 0) > before) setAnnouncement(`${activeTitle} — corrected.`);
       onProgress?.(result);
       if (result.correctionsComplete) onComplete?.(result);
       return {
@@ -136,12 +171,12 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
   return (
     // A Rich Tool needs the room a coordinate plane needs; a field item keeps
     // the reading measure.
-    <div style={{ display: 'grid', gap: 16, width: question?.pathToolId ? 'min(1180px, 100%)' : 'min(820px, 100%)', margin: '0 auto', minWidth: 0 }}>
+    <div data-test-cycle-corrections="working" style={{ display: 'grid', gap: 16, width: question?.pathToolId ? 'min(1180px, 100%)' : 'min(820px, 100%)', margin: '0 auto', minWidth: 0 }}>
       <section style={{ ...card, background: 'var(--mm-primary-soft)', border: '1px solid var(--mm-primary-border)' }}>
         <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
           Corrections · {doneCount} of {targets.length} complete
         </div>
-        <h1 style={{ margin: '8px 0 6px', fontSize: 'clamp(19px, 4vw, 25px)' }}>{activeTarget.label}</h1>
+        <h1 tabIndex={-1} data-corrections-heading="" style={{ margin: '8px 0 6px', fontSize: 'clamp(19px, 4vw, 25px)', overflowWrap: 'anywhere' }}>{activeTitle}</h1>
         {/* Why this student is here, from the evidence, in a student's words
             (the plan's diagnosisDetail is the teacher's version, with standard
             codes). A mistake pattern is mentioned only when one was recorded:
@@ -152,6 +187,12 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
           {activeTarget.requiredCorrectResponses === 1 ? '' : 's'} to finish this correction
           ({activeTarget.correctResponses} so far). Corrections do not change your recorded grade.
         </p>
+        {reviewTest && (
+          <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            {reviewTest}
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>See your Test answers and the worked solutions.</span>
+          </div>
+        )}
       </section>
 
       {announcement && <p role="status" style={{ margin: 0, color: 'var(--mm-success-text)', fontWeight: 800 }}>{announcement}</p>}
@@ -194,9 +235,12 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
         )}
       </section>
 
-      <button type="button" onClick={onExit} style={{ justifySelf: 'start', minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', cursor: 'pointer' }}>
-        Back to my assignment
-      </button>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', cursor: 'pointer' }}>
+          Back to my assignment
+        </button>
+        {reviewTest}
+      </div>
     </div>
   );
 };

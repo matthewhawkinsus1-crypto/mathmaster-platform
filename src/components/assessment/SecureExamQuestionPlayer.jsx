@@ -27,6 +27,10 @@ export const SecureExamQuestionPlayer = ({
   busy = false,
   draftKey = null,
   executionScope = 'student',
+  // A secure test the student moves around freely: answers are drafts saved
+  // as they work, nothing is recorded per item, and the item has no
+  // "record & continue" button (RichQuestionRuntime, NAVIGATION MODE).
+  navigationMode = false,
   onSubmit,
   onDraftChange,
 }) => (
@@ -43,6 +47,7 @@ export const SecureExamQuestionPlayer = ({
     accommodationConfirmed={accommodationConfirmed}
     studentSupportProfile={studentSupportProfile}
     executionScope={executionScope}
+    navigationMode={navigationMode}
     onSubmit={onSubmit}
     onDraftChange={onDraftChange}
   />
