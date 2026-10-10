@@ -129,10 +129,13 @@ test('a tool response keeps its work, never a key smuggled into that work', () =
   assert.ok(projected, 'the work is kept');
   assert.ok(!JSON.stringify(projected).includes(SECRET));
   assert.ok(JSON.parse(projected.value).explanation === 'slope 2', 'a field the student wrote is theirs');
-  // A forged tool response whose serialized work still names a key is refused.
+  // A forged tool response whose serialized work still names a key: the tool
+  // contract drops its own non-work keys, and anything else the draft guard
+  // forbids refuses the whole answer rather than storing it.
   const forged = { ...tool, value: JSON.stringify({ points: [], gradingContract: { expected: SECRET } }) };
-  const reRead = projectRecoveryAnswer(forged);
-  assert.ok(!reRead || !JSON.stringify(reRead).includes(SECRET), 'the bounded work drops it or the answer is refused');
+  assert.ok(!JSON.stringify(projectRecoveryAnswer(forged)).includes(SECRET), 'the bounded work drops a contract key');
+  const smuggled = { ...tool, value: JSON.stringify({ points: [], workedSolution: SECRET }) };
+  assert.equal(projectRecoveryAnswer(smuggled), null, 'work naming a worked solution is never stored');
   assert.equal(forbiddenRecoveryDraftPath({ a: [{ b: { solution: 1 } }] }), 'a[0].b.solution');
   assert.equal(projectRecoveryAnswer({ kind: 'mystery', value: SECRET }), null, 'an unknown shape is never stored');
 });
@@ -291,6 +294,29 @@ test('an answer a build before this one kept only on this device is backed up, b
   const stored = Object.fromEntries(readRecoveryDraftEntries(server.get()).map((entry) => [entry.key, entry.value.response.value]));
   assert.deepEqual(stored, { [key('r1')]: '8', [key('r2')]: '2' });
   assert.equal(device.entry(key('r1')).value.response.value, '8', 'the device takes the server\'s newer answer');
+});
+
+test('a copy handed in on open is on this device\'s own fallback at once, even offline', async () => {
+  let persisted = {};
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    const sync = createRecoveryAnswerSync({
+      studentId: STUDENT,
+      assignmentId: ASSIGNMENT,
+      writer: 'page',
+      scheduler: manualTimers(),
+      persist: (snapshot) => { persisted = snapshot; },
+      flush: () => Promise.reject(new Error('offline')),
+    });
+    sync.hydrate({ [key('r1')]: { key: key('r1'), value: answer('r1', '3'), savedAt: 1, writer: 'legacy-device', revision: 1, synced: false } });
+    assert.equal(persisted[key('r1')]?.value.response.value, '3', 'persisted before any save is attempted');
+    await sync.whenIdle();
+    assert.equal(persisted[key('r1')].synced, false);
+    sync.stop();
+  } finally {
+    console.warn = warn;
+  }
 });
 
 test('tries used up travel as a bare flag, with the answer dropped', async () => {

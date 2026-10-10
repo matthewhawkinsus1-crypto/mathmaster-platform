@@ -433,7 +433,10 @@ export const createRecoveryAnswerSync = ({
         // A copy this device already had acknowledged was on the server then.
         if (entry?.synced === true && savedAt > (serverSavedAt.get(entry.key) || 0)) serverSavedAt.set(entry.key, savedAt);
       });
-      onChange();
+      // Persisted at once: a copy handed in from elsewhere (an older build's
+      // key, which the caller then retires) must be on this device's own
+      // fallback before anything else can go wrong.
+      changed();
       if (pendingKeys().length) kick();
     },
     /** The server's copy has been read: take what is newer, send what it lacks. */
