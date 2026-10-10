@@ -24,7 +24,11 @@
 // src/platform/supports/feedback/missDiagnosis.js). That display code is never
 // stored, never sent with the attempt and never read by the attempt policy:
 // the evidence is still only what the server classifies at ingestion. Nothing
-// is shown while an assessment item can still be answered.
+// is shown while an assessment item can still be answered. The one trace the
+// display leaves is a support fact, not a code: the NEXT attempt records
+// feedbackAssisted (a specific message was on screen before it), exactly as a
+// revealed hint records hintUsed — help received, not a diagnosis
+// (src/platform/supports/supportUseMemory.js; PR #462 review M6c).
 //
 // WHERE A CODE IS STORED, AND THE ONLY PLACE IT IS READ FROM:
 //

@@ -13,8 +13,12 @@
  *               first move (src/platform/supports/families)
  *   platform    a generic re-orientation question for the type
  *
- * It never asks for the answer, and it is not counted as help: QuestionEngine
- * records it as backUpStepUsed, which does not mark the attempt dependent.
+ * It never asks for the answer. Every step is recorded as backUpStepUsed. An
+ * authored or family step names THIS problem's first move (and a wrong pick
+ * leaves only the other choice), so it is help with the mathematics: it is
+ * also recorded as scaffoldUsed and the next attempt is a supported one. Only
+ * the platform's generic step, true of every problem of the type, is not
+ * (supportUseMemory.js attemptSupportUsageFrom; PR #462 review B3).
  */
 import { familyFor } from '../families/index.js';
 

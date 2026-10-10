@@ -11,6 +11,7 @@ import {
 import graphWorkspaceGrader from '../../functions/shared/serverGrading/tools/graphWorkspace.mjs';
 import { boundSketchStrokes, buildGraphWorkspaceModel, graphToViewBox } from '../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
+import { attemptSupportUsageFrom } from '../../src/platform/supports/supportUseMemory.js';
 
 const codeOf = (path) => readFileSync(path, 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -123,7 +124,10 @@ test('using the check is recorded like a hint, so mastery weight is discounted',
   // in the evidence, which is the whole reason hint usage is tracked at all.
   const engine = codeOf('src/QuestionEngine.jsx');
   assert.match(engine, /onSelfCheck: \(\) => setHintUsed\(true\)/);
-  assert.match(engine, /isMathematicallyIndependent: !hintUsed/);
+  // The attempt's usage is built from hintUsed (supportUseMemory.js), and a
+  // hint makes the attempt a supported one.
+  assert.match(engine, /const attemptSupportUsage = \(\) => attemptSupportUsageFrom\(\{[\s\S]*?\bhintUsed,/);
+  assert.equal(attemptSupportUsageFrom({ hintUsed: true }).isMathematicallyIndependent, false);
 
   const workspace = codeOf('src/InteractiveGraphWorkspace.jsx');
   assert.match(workspace, /if \(report\.checked > 0\) onSelfCheck\?\.\(report\)/);

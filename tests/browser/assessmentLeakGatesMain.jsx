@@ -10,8 +10,9 @@
 //                                  out of attempts
 //   ?review=1                      the teacher has released the assignment's feedback
 //
-// What the engine hands its host lands on window: every graded submission in
-// __mmGraded, every step-credit report in __mmStepGrades.
+// What the engine hands its host lands on window: every graded submission
+// (with the support use it recorded) in __mmGraded, every step-credit report
+// in __mmStepGrades. The same ?run reopens the same draft key — a remount.
 import React from 'react';
 import { MathfieldElement } from 'mathlive';
 import { createRoot } from 'react-dom/client';
@@ -240,7 +241,7 @@ function Harness() {
         studentProfile={{}}
         onStepGrade={(payload) => { window.__mmStepGrades.push(JSON.parse(JSON.stringify(payload ?? null))); return null; }}
         onGrade={async (isCorrect, details, parts, supportUsage, responseKey, extra) => {
-          window.__mmGraded.push({ isCorrect, details, parts, responseKey, partialCreditPercent: extra?.partialCreditPercent ?? null });
+          window.__mmGraded.push({ isCorrect, details, parts, responseKey, partialCreditPercent: extra?.partialCreditPercent ?? null, supportUsage: JSON.parse(JSON.stringify(supportUsage ?? null)) });
           return { isCorrect, status: isCorrect ? 'correct' : 'attempted', attemptCount: 1, remainingAttempts: 2 };
         }}
       />

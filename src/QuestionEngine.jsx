@@ -27,6 +27,7 @@ import { buildQuestionHints, hintRelease } from './platform/supports/hints/quest
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
 import { closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
+import { attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse } from './platform/supports/supportUseMemory.js';
 import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
 import { backUpStepFor } from './platform/supports/feedback/backUpStep.js';
 import { partialCreditBreakdown } from './platform/supports/feedback/partialCreditBreakdown.js';
@@ -486,18 +487,24 @@ function QuestionEngineBody({
   const [scratchpadDataUrl, setScratchpadDataUrl] = useState('');
   const [scratchpadPages, setScratchpadPages] = useState(null);
   const [unchangedConfirmOpen, setUnchangedConfirmOpen] = useState(false);
-  const [scaffoldComplete, setScaffoldComplete] = useState(false);
+  // HELP ALREADY HAD ON THIS VERSION OF THE QUESTION SURVIVES A REMOUNT
+  // (supportUseMemory.js): App remounts the question per index, and a hint
+  // revealed before leaving must still mark the next attempt as supported.
+  const [restoredSupport] = useState(() => restoredSupportUse({ draftKey, record }));
+  const [scaffoldComplete, setScaffoldComplete] = useState(restoredSupport.backUpStepUsed);
+  const [specificStepUsed, setSpecificStepUsed] = useState(restoredSupport.scaffoldUsed);
+  const [feedbackAssisted, setFeedbackAssisted] = useState(restoredSupport.feedbackAssisted);
   const [scaffoldMessage, setScaffoldMessage] = useState('');
   const [contextScaffoldComplete, setContextScaffoldComplete] = useState(false);
   const [contextScaffoldUsed, setContextScaffoldUsed] = useState(false);
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
-  const [hintUsed, setHintUsed] = useState(false);
+  const [hintUsed, setHintUsed] = useState(restoredSupport.hintUsed);
   // The platform Hint control: how many of this question's hints the student
   // has revealed, whether the panel is open, and the worked sibling problem.
-  const [hintsRevealed, setHintsRevealed] = useState(0);
+  const [hintsRevealed, setHintsRevealed] = useState(restoredSupport.hintsRevealed);
   const [hintPanelOpen, setHintPanelOpen] = useState(false);
-  const [workedExampleUsed, setWorkedExampleUsed] = useState(false);
+  const [workedExampleUsed, setWorkedExampleUsed] = useState(restoredSupport.workedExampleUsed);
   const [similarOpen, setSimilarOpen] = useState(false);
   // The graded work behind the feedback on screen, kept beside it for the
   // display-only miss message (missDiagnosis.js). Never sent anywhere.
@@ -603,16 +610,21 @@ function QuestionEngineBody({
     setScratchpadDataUrl('');
     setScratchpadPages(null);
     setUnchangedConfirmOpen(false);
-    setScaffoldComplete(false);
+    // A new question (or a replacement version: a new draft key) starts with
+    // the help already recorded for IT — normally none.
+    const restored = restoredSupportUse({ draftKey, record });
+    setScaffoldComplete(restored.backUpStepUsed);
+    setSpecificStepUsed(restored.scaffoldUsed);
+    setFeedbackAssisted(restored.feedbackAssisted);
     setScaffoldMessage('');
     setContextScaffoldComplete(false);
     setContextScaffoldUsed(false);
     setCalculatorUsed(false);
     setCalculatorOpen(false);
-    setHintUsed(false);
-    setHintsRevealed(0);
+    setHintUsed(restored.hintUsed);
+    setHintsRevealed(restored.hintsRevealed);
     setHintPanelOpen(false);
-    setWorkedExampleUsed(false);
+    setWorkedExampleUsed(restored.workedExampleUsed);
     setSimilarOpen(false);
     setGradedForDisplay(null);
     setWorkflowSubmissionReview(null);
@@ -887,20 +899,29 @@ function QuestionEngineBody({
   // platform's generic re-orientation question (backUpStep.js).
   const scaffold = useMemo(() => backUpStepFor(processedQuestion), [processedQuestion]);
 
-  // THE BACK-UP STEP IS A RE-ORIENTATION CHECK, NOT HELP WITH THE ANSWER.
-  // It is recorded (backUpStepUsed) but no longer marks the next attempt as
-  // not independent: an inclusion student was penalised for a step the
-  // platform imposed. A hint or a worked example still is mathematical help.
-  const attemptSupportUsage = () => ({
-    ...supportUsage,
-    hintUsed: Boolean(hintUsed),
-    scaffoldUsed: false,
-    backUpStepUsed: Boolean(scaffoldComplete),
-    contextScaffoldUsed: Boolean(contextScaffoldUsed),
-    workedExampleUsed: Boolean(workedExampleUsed),
-    calculatorUsed: Boolean(calculatorUsed),
-    isMathematicallyIndependent: !hintUsed && !workedExampleUsed,
+  // WHAT AN ATTEMPT RECORDS (supportUseMemory.js). A hint, a worked example,
+  // a back-up step written for THIS problem (authored or family: it names the
+  // first move) and a miss message shown after an earlier attempt are help
+  // with the mathematics; the platform's generic back-up step, true of every
+  // problem of the type, is recorded (backUpStepUsed) but is not.
+  const attemptSupportUsage = () => attemptSupportUsageFrom({
+    supportUsage,
+    hintUsed,
+    workedExampleUsed,
+    backUpStepDone: scaffoldComplete,
+    backUpStepSource: scaffold.source,
+    scaffoldUsed: specificStepUsed,
+    feedbackAssisted,
+    contextScaffoldUsed,
+    calculatorUsed,
   });
+  // Kept per draft key, so leaving and coming back does not forget it. Only
+  // help actually had is written; memory never shrinks.
+  useEffect(() => {
+    const backUpSpecific = specificStepUsed || (scaffoldComplete && scaffold.source !== 'platform');
+    if (!hintUsed && !hintsRevealed && !workedExampleUsed && !scaffoldComplete && !feedbackAssisted) return;
+    rememberSupportUse(draftKey, { hintUsed, hintsRevealed, workedExampleUsed, backUpStepUsed: scaffoldComplete, scaffoldUsed: backUpSpecific, feedbackAssisted });
+  }, [draftKey, hintUsed, hintsRevealed, workedExampleUsed, scaffoldComplete, specificStepUsed, scaffold.source, feedbackAssisted]);
 
   // Secure callers sometimes need to finalize the work already on screen
   // (for example, at a synchronized round deadline). Publish only the same
@@ -1561,6 +1582,11 @@ function QuestionEngineBody({
     const diagnosis = diagnoseMiss({ question: processedQuestion, grading: gradedForDisplay.grading, response: gradedForDisplay.response, familyValues });
     return missFeedback({ question: processedQuestion, attemptNumber: Number(feedback.attemptCount) || record.attemptCount, diagnosis, parts: gradedForDisplay.grading?.parts });
   }, [feedback, feedbackOpen, gradedForDisplay, runtimeQuestion, processedQuestion, familyAssignmentId, familyStorageIndex, record.attemptCount]);
+  // An attempt made after a specific miss message was shown is feedback-
+  // assisted, not independent (PR #462 review M6c).
+  useEffect(() => {
+    if (missDetail?.message) setFeedbackAssisted(true);
+  }, [missDetail]);
 
   // THE ATTEMPT OUTCOME, WORDED ONCE. The box below the question and a
   // registry tool's result area show exactly the same words. A closed

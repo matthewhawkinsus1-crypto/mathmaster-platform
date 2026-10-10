@@ -23,7 +23,11 @@ import { readFileSync } from 'node:fs';
 import { MISCONCEPTION_REGISTRY } from '../../functions/shared/misconceptionCodes.mjs';
 import { MISCONCEPTION_STUDENT_MESSAGES, codesWithoutStudentMessage, studentMisconceptionMessage } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
-import { recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
+import { recordQuestionAttempt, requestReplacementQuestion } from '../../functions/shared/attemptPolicy.mjs';
+import { buildAttemptEvidenceEvent } from '../../functions/shared/attemptEvidenceEvent.mjs';
+import { attemptWasIndependent } from '../../functions/shared/sectionRecoveryService.mjs';
+import { classifyAttemptEvidence } from '../../src/platform/mastery/evidenceClassification.js';
+import { attemptSupportUsageFrom, readSupportUse, rememberSupportUse, restoredSupportUse } from '../../src/platform/supports/supportUseMemory.js';
 import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
 import { genericMissCheck, GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { diagnoseMiss, displayFamilyValues, expectedForPart } from '../../src/platform/supports/feedback/missDiagnosis.js';
@@ -148,8 +152,10 @@ test('2. the grade and the recorded evidence are identical with and without the 
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   const handler = region(engine, 'const handleMissingToolAction = async', 'const handleModelingLabGrade', 'registry tool forwarder');
   assert.doesNotMatch(handler, /misconception|diagnos/i);
-  const usage = region(engine, 'const attemptSupportUsage = () => ({', '});', 'the attempt support usage');
-  assert.doesNotMatch(usage, /diagnos|missDetail|gradedForDisplay/);
+  const usage = region(engine, 'const attemptSupportUsage = () => attemptSupportUsageFrom({', '});', 'the attempt support usage');
+  assert.doesNotMatch(usage, /diagnos|missDetail|gradedForDisplay|misconception/i);
+  // What the display leaves on the NEXT attempt is a support fact, never a code.
+  assert.doesNotMatch(read('src/platform/supports/supportUseMemory.js'), /misconception[A-Z]|diagnos|\bcode\b/);
   (engine.match(/onGrade\??\.?\(([\s\S]*?)\);/g) || []).forEach((call) => assert.doesNotMatch(call, /diagnos|missDetail|gradedForDisplay/));
   const detail = region(engine, 'const missDetail = useMemo(() => {', '}, [', 'the display-only miss detail');
   assert.match(detail, /if \(!feedback \|\| feedback\.isCorrect \|\| feedback\.blocked \|\| !feedbackOpen\) return null;/);
@@ -286,24 +292,125 @@ test('4. a worked sibling is never this question in disguise', () => {
 
 /* ------------------------------------------------- 5. what counts as help */
 
-test('5. the back-up step is recorded and not counted as help; a hint or a worked example is', () => {
+const memoryStorage = () => {
+  const map = new Map();
+  return { getItem: (key) => (map.has(key) ? map.get(key) : null), setItem: (key, value) => map.set(key, String(value)), size: () => map.size };
+};
+const evidenceFor = (record, supportUsage, attemptNumber) => buildAttemptEvidenceEvent({
+  studentId: 's1',
+  assignment: { id: 'a1', standards: ['A.5A'] },
+  question: { questionId: 'q1', type: 'multiAnswer', standards: ['A.5A'] },
+  questionIndex: 0,
+  activityRole: 'practice',
+  attemptRecord: record,
+  attemptResult: { isCorrect: true, attemptNumber, partialCredit: 100 },
+  supportUsage,
+});
+
+test('5. what counts as help: a hint, a worked example, a problem-specific back-up step, a miss message — not the generic step (PR #462 review B3, M6c)', () => {
   const base = { record: null, isCorrect: true, maximumAttempts: 3, parts: [] };
-  const backUp = recordQuestionAttempt({ ...base, supportUsage: { backUpStepUsed: true, scaffoldUsed: false, isMathematicallyIndependent: true } });
-  assert.equal(backUp.record.supportUsage.backUpStepUsed, true, 'recorded');
-  assert.equal(backUp.record.supportUsage.isMathematicallyIndependent, true, 'not a penalty');
-  const example = recordQuestionAttempt({ ...base, supportUsage: { workedExampleUsed: true } });
-  assert.equal(example.record.supportUsage.workedExampleUsed, true);
-  assert.equal(example.record.supportUsage.isMathematicallyIndependent, false);
+  // The platform's generic back-up step: recorded, not help.
+  const generic = attemptSupportUsageFrom({ backUpStepDone: true, backUpStepSource: 'platform' });
+  assert.equal(generic.backUpStepUsed, true);
+  assert.equal(generic.scaffoldUsed, false);
+  assert.equal(generic.isMathematicallyIndependent, true);
+  const genericRecord = recordQuestionAttempt({ ...base, supportUsage: generic }).record;
+  assert.equal(genericRecord.supportUsage.backUpStepUsed, true, 'recorded');
+  assert.equal(genericRecord.supportUsage.isMathematicallyIndependent, true, 'not a penalty');
+  assert.equal(attemptWasIndependent(genericRecord.supportUsage), true);
+  // A step written for THIS problem names its first move: help.
+  for (const source of ['family', 'authored']) {
+    const usage = attemptSupportUsageFrom({ backUpStepDone: true, backUpStepSource: source });
+    assert.equal(usage.scaffoldUsed, true, source);
+    assert.equal(usage.isMathematicallyIndependent, false, source);
+    const record = recordQuestionAttempt({ ...base, supportUsage: usage }).record;
+    assert.equal(record.supportUsage.scaffoldUsed, true, `${source}: recorded as a scaffold`);
+    assert.equal(record.supportUsage.isMathematicallyIndependent, false, `${source}: not independent`);
+    assert.equal(attemptWasIndependent(record.supportUsage), false, `${source}: the Recovery gate does not count it`);
+    const event = evidenceFor(record, usage, 2);
+    assert.equal(event.supportUsage.backUpStepUsed, true, `${source}: the evidence event carries the step`);
+    assert.equal(classifyAttemptEvidence(event).key, 'supported', `${source}: mastery sees a supported attempt`);
+  }
+  // A specific miss message shown before this attempt: feedback-assisted.
+  const assisted = attemptSupportUsageFrom({ feedbackAssisted: true });
+  assert.equal(assisted.feedbackAssisted, true);
+  assert.equal(assisted.isMathematicallyIndependent, false);
+  const assistedRecord = recordQuestionAttempt({ ...base, supportUsage: { ...assisted, isMathematicallyIndependent: undefined } }).record;
+  assert.equal(assistedRecord.supportUsage.feedbackAssisted, true, 'recorded even without the summary flag');
+  assert.equal(assistedRecord.supportUsage.isMathematicallyIndependent, false);
+  assert.equal(attemptWasIndependent({ feedbackAssisted: true }), false);
+  const assistedEvent = evidenceFor(assistedRecord, assisted, 2);
+  assert.equal(assistedEvent.supportUsage.feedbackAssisted, true);
+  assert.ok(assistedEvent.supportTelemetry.some((entry) => entry.supportType === 'missFeedback' && entry.reducesMathematicalIndependence === true));
+  assert.equal(classifyAttemptEvidence({ supportUsage: { feedbackAssisted: true }, performance: { attemptNumber: 2 } }).key, 'supported');
+  // A hint or a worked example still is help; a host's own "not independent" stands.
+  assert.equal(attemptSupportUsageFrom({ hintUsed: true }).isMathematicallyIndependent, false);
+  assert.equal(attemptSupportUsageFrom({ workedExampleUsed: true }).isMathematicallyIndependent, false);
+  assert.equal(attemptSupportUsageFrom({ supportUsage: { isMathematicallyIndependent: false } }).isMathematicallyIndependent, false);
+  assert.equal(attemptSupportUsageFrom({ calculatorUsed: true, contextScaffoldUsed: true }).isMathematicallyIndependent, true);
+
   const engine = executableSource(read('src/QuestionEngine.jsx'));
-  const usage = region(engine, 'const attemptSupportUsage = () => ({', '});', 'the attempt support usage');
-  assert.match(usage, /backUpStepUsed: Boolean\(scaffoldComplete\),/);
-  assert.match(usage, /scaffoldUsed: false,/);
-  assert.match(usage, /workedExampleUsed: Boolean\(workedExampleUsed\),/);
-  assert.match(usage, /isMathematicallyIndependent: !hintUsed && !workedExampleUsed,/);
+  const usage = region(engine, 'const attemptSupportUsage = () => attemptSupportUsageFrom({', '});', 'the attempt support usage');
+  assert.match(usage, /backUpStepDone: scaffoldComplete,/);
+  assert.match(usage, /backUpStepSource: scaffold\.source,/);
+  assert.match(usage, /feedbackAssisted,/);
+  assert.match(usage, /hintUsed,/);
+  assert.match(usage, /workedExampleUsed,/);
+  // A miss message on screen makes the next attempt feedback-assisted.
+  assert.match(engine, /useEffect\(\(\) => \{\s*if \(missDetail\?\.message\) setFeedbackAssisted\(true\);\s*\}, \[missDetail\]\);/);
   const reveal = region(engine, 'const revealNextHint = () => {', '};', 'revealing a hint');
   assert.match(reveal, /recordHintUse\(\);/, 'every hint revealed is recorded');
+  assert.match(engine, /const recordHintUse = \(\) => setHintUsed\(true\);/);
   const similar = region(engine, 'const openSimilarExample = () => {', '};', 'opening a worked example');
   assert.match(similar, /setWorkedExampleUsed\(true\);/);
+});
+
+test('5. help had on a question survives leaving it and coming back (PR #462 review B2)', () => {
+  const storage = memoryStorage();
+  const draftKey = 'student-1|assignment-1|q0|v0|graded';
+  const base = { isCorrect: false, maximumAttempts: 3, parts: [] };
+  // Attempt 1: a hint revealed and a worked example opened, as the engine
+  // remembers them at reveal time.
+  rememberSupportUse(draftKey, { hintUsed: true, hintsRevealed: 1, workedExampleUsed: true }, storage);
+  const first = recordQuestionAttempt({ ...base, record: null, supportUsage: attemptSupportUsageFrom({ hintUsed: true, workedExampleUsed: true }) }).record;
+  // Leave and come back: the question remounts with fresh state.
+  const restored = restoredSupportUse({ draftKey, record: first, storage });
+  assert.equal(restored.hintUsed, true);
+  assert.equal(restored.hintsRevealed, 1);
+  assert.equal(restored.workedExampleUsed, true);
+  const secondUsage = attemptSupportUsageFrom({ hintUsed: restored.hintUsed, workedExampleUsed: restored.workedExampleUsed });
+  const second = recordQuestionAttempt({ ...base, isCorrect: true, record: first, supportUsage: secondUsage }).record;
+  assert.equal(second.supportUsage.isMathematicallyIndependent, false, 'the correct second attempt is a supported one');
+  assert.notEqual(classifyAttemptEvidence(evidenceFor(second, secondUsage, 2)).key, 'independentRetry');
+  assert.equal(attemptWasIndependent(secondUsage), false, 'and does not count toward the Recovery gate');
+
+  // Another device (no local memory): the record's last attempt still says so.
+  assert.equal(restoredSupportUse({ draftKey, record: first, storage: memoryStorage() }).hintUsed, true);
+  // A hint revealed before any attempt, then a remount: local memory says so.
+  const early = memoryStorage();
+  rememberSupportUse(draftKey, { hintUsed: true, hintsRevealed: 1 }, early);
+  assert.equal(restoredSupportUse({ draftKey, record: { status: 'unattempted', attemptCount: 0 }, storage: early }).hintUsed, true);
+  // Memory only grows: an empty write never erases help already had.
+  rememberSupportUse(draftKey, { hintUsed: false, hintsRevealed: 0, workedExampleUsed: false }, storage);
+  assert.equal(readSupportUse(draftKey, storage).hintUsed, true);
+  // A replacement version is a new question: a new draft key, and a record
+  // whose attempt count starts again.
+  const replaced = requestReplacementQuestion({ ...second, status: 'expired', attemptCount: 3 });
+  assert.equal(restoredSupportUse({ draftKey: 'student-1|assignment-1|q0|v1|graded', record: replaced, storage }).hintUsed, false);
+  // A blocked storage never throws.
+  const blocked = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
+  assert.doesNotThrow(() => rememberSupportUse(draftKey, { hintUsed: true }, blocked));
+  assert.equal(restoredSupportUse({ draftKey, record: first, storage: blocked }).hintUsed, true, 'the record still carries it');
+
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(engine, /const \[restoredSupport\] = useState\(\(\) => restoredSupportUse\(\{ draftKey, record \}\)\);/);
+  assert.match(engine, /const \[hintUsed, setHintUsed\] = useState\(restoredSupport\.hintUsed\);/);
+  assert.match(engine, /const \[hintsRevealed, setHintsRevealed\] = useState\(restoredSupport\.hintsRevealed\);/);
+  assert.match(engine, /const \[workedExampleUsed, setWorkedExampleUsed\] = useState\(restoredSupport\.workedExampleUsed\);/);
+  assert.match(engine, /const \[scaffoldComplete, setScaffoldComplete\] = useState\(restoredSupport\.backUpStepUsed\);/);
+  assert.match(engine, /const \[feedbackAssisted, setFeedbackAssisted\] = useState\(restoredSupport\.feedbackAssisted\);/);
+  assert.match(engine, /rememberSupportUse\(draftKey, \{ hintUsed, hintsRevealed, workedExampleUsed, backUpStepUsed: scaffoldComplete, scaffoldUsed: backUpSpecific, feedbackAssisted \}\);/);
+  assert.match(engine, /import \{ attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse \} from '\.\/platform\/supports\/supportUseMemory\.js';/);
 });
 
 test('5. the back-up question is authored, else the family\'s, else one that is true of every item', () => {

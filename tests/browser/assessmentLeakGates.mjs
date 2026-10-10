@@ -78,14 +78,14 @@ const check = (ok, label, detail = '') => {
 const run = Date.now();
 let pageCount = 0;
 const pages = [];
-const open = async (role, q, extra = '') => {
+const open = async (role, q, extra = '', runId = null) => {
   pageCount += 1;
   const page = await context.newPage();
   pages.push(page);
   // A control that never appears is a finding, not a 30-second wait.
   page.setDefaultTimeout(8000);
   page.on('pageerror', (error) => check(false, `${role} ${q}: page error`, error.message));
-  await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=${q}&run=${run}-${pageCount}${extra}`, { waitUntil: 'networkidle' });
+  await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=${q}&run=${runId || `${run}-${pageCount}`}${extra}`, { waitUntil: 'networkidle' });
   await page.locator('[data-leak-fixture]').waitFor();
   await settle(page, 900);
   return page;
@@ -739,10 +739,17 @@ const feedbackLadder = async () => {
       if (role === 'practice') check(hintControl === 1, 'practice feedback-ladder: the Hint control is offered');
       else check(hintControl === 0, `${role} feedback-ladder: no Hint control`);
       if (role !== 'practice') check((await ladderLeaks(page)).length === 0, `${role} feedback-ladder: nothing from the ladder in the document before Submit`, (await ladderLeaks(page)).join(' | '));
+      if (role === 'practice') {
+        await page.locator('[data-hint-control]').click();
+        await page.locator('.mathmaster-hint-panel button', { hasText: 'Show a hint' }).click();
+        await settle(page, 200);
+      }
       await typeAnswer(page, '-\\frac{3}{4}');
       await submitAnswer(page);
       const grade = await lastGrade(page);
       check(grade?.isCorrect === false, `${role} feedback-ladder: a wrong answer is graded wrong`, brief(grade));
+      // Every hint revealed is recorded with the attempt (recordHintUse).
+      if (role === 'practice') check(grade?.supportUsage?.hintUsed === true && grade?.supportUsage?.isMathematicallyIndependent === false, 'practice feedback-ladder: the hint revealed is recorded with the attempt', JSON.stringify(grade?.supportUsage));
       const miss = page.locator('[data-miss-feedback]');
       if (role === 'practice') {
         check(await miss.count() === 1 && /LEAKCHECK-MISCONCEPTION/.test(await miss.textContent()), 'practice feedback-ladder: the authored wrong-answer message is shown');
@@ -752,6 +759,27 @@ const feedbackLadder = async () => {
       }
     });
   }
+  // PR #462 review B2 / M6c: help had on a question is recorded with the
+  // attempts that follow it — across a remount (the same draft key), and a
+  // miss message on screen makes the next attempt feedback-assisted.
+  await scenario('practice feedback-ladder support use', async () => {
+    const runId = `${run}-support-use`;
+    const first = await open('practice', 'feedback-ladder', '', runId);
+    await first.locator('[data-hint-control]').click();
+    await first.locator('.mathmaster-hint-panel button', { hasText: 'Show a hint' }).click();
+    await settle(first, 300);
+    await first.close();
+    const page = await open('practice', 'feedback-ladder', '', runId);
+    await typeAnswer(page, '-\\frac{3}{4}');
+    await submitAnswer(page);
+    const remounted = (await lastGrade(page))?.supportUsage || {};
+    check(remounted.hintUsed === true && remounted.isMathematicallyIndependent === false, 'practice feedback-ladder: a hint revealed before leaving is recorded after coming back', JSON.stringify(remounted));
+    check(remounted.feedbackAssisted === false, 'practice feedback-ladder: the first attempt saw no miss message', JSON.stringify(remounted));
+    await typeAnswer(page, '5');
+    await submitAnswer(page);
+    const next = (await lastGrade(page))?.supportUsage || {};
+    check(next.feedbackAssisted === true && next.isMathematicallyIndependent === false, 'practice feedback-ladder: the attempt after a miss message is feedback-assisted', JSON.stringify(next));
+  });
   // PR #462 review: the partial-credit breakdown names the parts still wrong,
   // which steers the remaining attempts. Released feedback on a DOL, quiz or
   // test item that can still be answered keeps the percentage only.
