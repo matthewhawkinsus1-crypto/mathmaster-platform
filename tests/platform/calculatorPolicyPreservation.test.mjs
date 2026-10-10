@@ -9,5 +9,9 @@ test('draggable MathLive calculator keeps the current calculator-policy contract
   // The drawer title comes from the policy module for the current mode (a
   // graphing policy titles the drawer SCIENTIFIC: it computes, it never graphs).
   assert.match(source, /getCalculator(?:Mode|Drawer)Label\(policy\.mode\)/);
-  assert.match(source, /evaluateCalculatorExpression\(expression,\s*policy\.mode\)/);
+  // Every evaluation runs under the current mode's policy (the exact-fraction
+  // evaluator wraps the same policy-checked evaluator).
+  const evaluations = [...source.matchAll(/evaluateCalculatorExpression\w*\(expression,\s*([^)]*)\)/g)];
+  assert.ok(evaluations.length >= 2, 'Enter and the = key both evaluate');
+  evaluations.forEach(([, mode]) => assert.equal(mode.trim(), 'policy.mode'));
 });
