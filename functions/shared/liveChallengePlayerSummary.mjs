@@ -32,7 +32,7 @@
  * them with the same module.
  */
 
-import { roundTableRows } from './liveChallengePrivacy.mjs';
+import { finalPlaceIsHeadline, roundTableRows } from './liveChallengePrivacy.mjs';
 
 export const PLAYER_SUMMARY_COLLECTION = 'playerSummaries';
 export const PLAYER_SUMMARY_SCHEMA_VERSION = 1;
@@ -114,11 +114,15 @@ export const roundSummaryEntries = ({ roundResult = {}, summary = {}, standingsA
 export const finalSummaryEntries = ({ standings = [] } = {}) => {
   const ranked = (Array.isArray(standings) ? standings : [])
     .filter((standing) => standing?.studentId && standing.playerKey && standing.joined !== false && rankOrNull(standing.rank) !== null);
+  // The class's last place, which only this whole list knows: a place tied
+  // with it is never a headline (finalPlaceIsHeadline). Each player is told
+  // only their own answer.
+  const lastRank = ranked.reduce((last, standing) => Math.max(last, rankOrNull(standing.rank)), 0) || null;
   return ranked.map((standing) => ({
     studentId: String(standing.studentId),
     playerKey: String(standing.playerKey),
     alias: String(standing.alias || 'Player'),
-    entry: standingEntry(standing, ranked.length),
+    entry: { ...standingEntry(standing, ranked.length), headline: finalPlaceIsHeadline(standing.rank, { lastRank }) },
   }));
 };
 

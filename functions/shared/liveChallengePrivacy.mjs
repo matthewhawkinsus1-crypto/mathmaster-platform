@@ -46,10 +46,22 @@ export const publicStandingsLimit = (room = {}, spaceForRows = PUBLIC_TOP_COUNT)
   return roomShowsFullStandings(room) ? space : Math.min(space, PUBLIC_TOP_COUNT);
 };
 
-/** Whether a final place is one a card may lead with (a podium finish). */
-export const finalPlaceIsHeadline = (rank) => {
+/**
+ * Whether a final place is one a card may lead with (a podium finish), and
+ * the confetti with it. Never a place that ties the class's LAST place: when
+ * 2 of 6 answer and 4 score nothing, the four are tied for 3rd — and tied for
+ * last. They get the effort card with their place as a quiet line, never
+ * "T-3rd" in lights. `lastRank` is the whole class's last rank, which only
+ * the server knows; it decides and stores the answer in each player's own
+ * summary (liveChallengePlayerSummary.mjs), so no classmate's rank reaches a
+ * student's screen. Without `lastRank` the answer is no.
+ */
+export const finalPlaceIsHeadline = (rank, { lastRank = null } = {}) => {
   const place = Number(rank);
-  return Number.isInteger(place) && place >= 1 && place <= PODIUM_PLACES;
+  const last = Number(lastRank);
+  if (!Number.isInteger(place) || place < 1 || place > PODIUM_PLACES) return false;
+  if (!Number.isInteger(last) || last < 1) return false;
+  return place < last;
 };
 
 /*

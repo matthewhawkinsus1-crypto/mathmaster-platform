@@ -179,10 +179,15 @@ test('the projector shows the top few unless the teacher opted into full standin
   assert.equal(publicStandingsLimit({}, 10), PUBLIC_TOP_COUNT);
   assert.equal(publicStandingsLimit({ standingsDisplay: 'full' }, 10), 10);
   assert.equal(publicStandingsLimit({}, 3), 3, 'never more rows than fit');
-  assert.equal(finalPlaceIsHeadline(1), true);
-  assert.equal(finalPlaceIsHeadline(3), true);
-  assert.equal(finalPlaceIsHeadline(4), false);
-  assert.equal(finalPlaceIsHeadline(null), false);
+  assert.equal(finalPlaceIsHeadline(1, { lastRank: 5 }), true);
+  assert.equal(finalPlaceIsHeadline(3, { lastRank: 5 }), true);
+  assert.equal(finalPlaceIsHeadline(4, { lastRank: 5 }), false);
+  assert.equal(finalPlaceIsHeadline(null, { lastRank: 5 }), false);
+  // Never a place that ties the class's last place, and never without
+  // knowing where last place is (QA M2: 4 of 6 on 0 points saw "T-3rd").
+  assert.equal(finalPlaceIsHeadline(3, { lastRank: 3 }), false);
+  assert.equal(finalPlaceIsHeadline(1, { lastRank: 1 }), false, 'everyone tied: everyone is last');
+  assert.equal(finalPlaceIsHeadline(1), false);
   const create = regionOf(server, 'exports.createLiveChallenge = onCall', '\nexports.');
   assert.match(create, /standingsDisplay: engine\.privacy\.normalizeStandingsDisplay\(request\.data\?\.standingsDisplay\)/);
 });

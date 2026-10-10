@@ -42,7 +42,11 @@ test('the header shows the student\'s own score and never their place', () => {
 });
 
 test('the final card leads with the place only for a podium finish', () => {
-  assert.match(finalCard, /const podium = Boolean\(selfRow\) && finalPlaceIsHeadline\(selfRow\.rank\);/);
+  // The server decides (it alone sees the class's last place): the card and
+  // the confetti read the student's own summary's word, never a rank test.
+  assert.match(finalCard, /const podium = Boolean\(selfRow\) && headline === true;/);
+  assert.match(main, /const finalHeadline = ownFinal\?\.headline === true;/);
+  assert.match(finished, /headline=\{finalHeadline\}/);
   // The big place is drawn only inside the podium branch.
   const podiumBranch = region(finalCard, '{selfRow && podium && (', '\n        )}', 'podium headline');
   const effortBranch = region(finalCard, '{selfRow && !podium && (', '\n        )}', 'effort headline');
@@ -58,7 +62,7 @@ test('the final card leads with the place only for a podium finish', () => {
   assert.match(effortBranch, /highlights\.map\(/, 'what they earned and beat');
   assert.doesNotMatch(executableSource(effortBranch), /place\.ordinal|fontSize: 'clamp\(40px/, 'never the big place');
   // Confetti is podium-only, by the same rule.
-  assert.match(finished, /\{finalSelf && finalPlaceIsHeadline\(finalSelf\.rank\) && <Confetti /);
+  assert.match(finished, /\{finalSelf && finalHeadline && <Confetti /);
   assert.match(finished, /highlights=\{recapHighlights\(recap\)\}/);
 });
 

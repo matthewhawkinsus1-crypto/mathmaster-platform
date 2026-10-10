@@ -13,7 +13,7 @@ import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/langua
 import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
 import { normalizeMatchRecap, recapHighlights } from '../../platform/liveChallenge/challengeRecapModel.js';
-import { finalPlaceIsHeadline, roomShowsFullStandings } from '../../../functions/shared/liveChallengePrivacy.mjs';
+import { roomShowsFullStandings } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { roomFullRoundMs, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import { resolveSupportEntitlements } from '../../../functions/shared/supportEntitlements.mjs';
 import { useChallengeClock, usePreviousRoundSummary, useRoundSolution, useRoundSummary } from '../../platform/liveChallenge/challengeHooks.js';
@@ -1111,6 +1111,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const finalLastRank = finalStandings ? finalStandings.lastRank : null;
   // Their correct answers are the match result's, as their summary records them.
   const finalSelf = finalSelfRow ? { ...finalSelfRow, correctCount: Math.max(0, Math.round(Number(ownFinal?.correctCount ?? selfRow?.correctCount) || 0)) } : null;
+  // A podium headline and its confetti only on the server's word for this
+  // student (their own summary): it alone saw the whole class's last place,
+  // and a place tied with it is never a headline (finalPlaceIsHeadline).
+  const finalHeadline = ownFinal?.headline === true;
   // Still waiting: the snapshot, the summary, or — for a student who played —
   // their own final place (the repair above writes it).
   const finalLoading = !finalStandings || !summaryFresh || (selfRow?.joined === true && !ownFinal);
@@ -1201,9 +1205,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
 
         {room.status === 'finished' && (
           <div style={{ display: 'grid', gap: 16 }}>
-            {finalSelf && finalPlaceIsHeadline(finalSelf.rank) && <Confetti pieces={28} />}
+            {finalSelf && finalHeadline && <Confetti pieces={28} />}
             <StudentFinalCard
               selfRow={finalSelf}
+              headline={finalHeadline}
               presentation={presentation}
               totalPlayers={finalStandings?.count || 0}
               rows={finalRows}

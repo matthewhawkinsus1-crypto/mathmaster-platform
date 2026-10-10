@@ -1,6 +1,5 @@
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { amountText, ordinal, rewardSummaryLines, roundPlacementSentence } from '../../platform/liveChallenge/challengeStandingsModel.js';
-import { finalPlaceIsHeadline } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { finalPlaceIsPrivate, gameGradeSentence, recapHasContent, RESULT_TONE } from '../../platform/liveChallenge/challengeRecapModel.js';
 import { publicStandingsRows } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
@@ -173,8 +172,11 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
 // `rows` are the snapshot's top of the class and this student; `lastRank` is
 // the class's last place (the snapshot's every-seat rank list) and
 // `totalPlayers` how many played, so the rule sees the whole class.
-export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false, loading = false, warmup = false, highlights = [], fullStandings = false, room = null, lastRank = null }) {
-  const podium = Boolean(selfRow) && finalPlaceIsHeadline(selfRow.rank);
+// `headline` is the server's word, from this student's own summary, that
+// their place may lead the card (finalPlaceIsHeadline: a podium finish that
+// does not tie the class's last place). Absent means no.
+export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false, loading = false, warmup = false, highlights = [], fullStandings = false, room = null, lastRank = null, headline = false }) {
+  const podium = Boolean(selfRow) && headline === true;
   // "Only you see this" is said only when no class-wide board shows the row.
   const placeIsPrivate = Boolean(selfRow) && finalPlaceIsPrivate({ rank: selfRow.rank, fullStandings });
   const placeWords = selfRow && selfRow.rank !== null
