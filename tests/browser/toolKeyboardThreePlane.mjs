@@ -60,6 +60,18 @@ const VIEW_STATUS = /^View turned −?\d+ degrees, tilted −?\d+ degrees\.$/;
 const browser = await chromium.launch(launch);
 let failed = false;
 
+// Wait for an outcome, not a clock (review of #463: CI runners are slower
+// than this machine). Polls an async predicate until it holds or 10 s pass;
+// the assertion that follows then reports what was actually seen.
+const until = async (predicate, timeout = 10000) => {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    if (await predicate()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return false;
+};
+
 const run = async (width, height) => {
   const at = `${width}x${height}`;
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
@@ -131,31 +143,31 @@ const run = async (width, height) => {
   await page.waitForTimeout(400);
   assert.notEqual(await modelDrawing(), idleBefore, `${at}: the idle orbit is running before any key (otherwise the next check proves nothing)`);
   await page.keyboard.press('ArrowRight');
-  await page.waitForTimeout(80);
+  await until(async () => VIEW_STATUS.test(await viewStatus()));
   const afterArrow = await modelDrawing();
   assert.match(await viewStatus(), VIEW_STATUS, `${at}: an arrow key announces the view angle and nothing else`);
   await page.waitForTimeout(500);
   assert.equal(await modelDrawing(), afterArrow, `${at}: after an arrow key, the idle orbit has stopped`);
 
   await page.keyboard.press('Home');
-  await page.waitForTimeout(100);
+  await until(async () => /^Opening view\./.test(await viewStatus()));
   const opening = await modelDrawing();
   assert.match(await viewStatus(), /^Opening view\. View turned −?\d+ degrees, tilted −?\d+ degrees\.$/, `${at}: Home announces the opening view`);
   await page.waitForTimeout(400);
   assert.equal(await modelDrawing(), opening, `${at}: after Home, the model stays at the opening view`);
   await page.keyboard.press('ArrowRight');
-  await page.waitForTimeout(80);
+  await until(async () => (await modelDrawing()) !== opening);
   const turned = await modelDrawing();
   assert.notEqual(turned, opening, `${at}: ArrowRight redraws the model`);
   for (let i = 0; i < 8; i += 1) await page.keyboard.press('Shift+ArrowUp');
-  await page.waitForTimeout(80);
+  await until(async () => /tilted 74 degrees\.$/.test(await viewStatus()));
   assert.match(await viewStatus(), /^View turned −?\d+ degrees, tilted 74 degrees\.$/, `${at}: Shift+ArrowUp held pins the tilt at the drag's clamp`);
   for (let i = 0; i < 40; i += 1) await page.keyboard.press('ArrowDown');
-  await page.waitForTimeout(80);
+  await until(async () => /tilted −74 degrees\.$/.test(await viewStatus()));
   assert.match(await viewStatus(), /^View turned −?\d+ degrees, tilted −74 degrees\.$/, `${at}: ArrowDown held pins the tilt at the other clamp`);
   assert.equal((await active()).tag, 'svg', `${at}: arrows keep focus on the model (no page scroll steals it)`);
   await page.keyboard.press('Home');
-  await page.waitForTimeout(80);
+  await until(async () => (await modelDrawing()) === opening);
   assert.equal(await modelDrawing(), opening, `${at}: Home restores the opening drawing exactly`);
 
   // ---- T7: radiogroups, one Tab stop each
@@ -189,7 +201,7 @@ const run = async (width, height) => {
   const check = await tabUntil((s) => s.tag === 'button' && /^Check my answer$/.test(s.text), 'Check my answer');
   assert.ok(check.focusVisible);
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(400);
+  await until(async () => (await grades()).length >= 1);
   let log = await grades();
   assert.ok(log.length >= 1, `${at}: Check by Enter graded the tool`);
   assert.equal(log[log.length - 1].isCorrect, false, `${at}: "Three intercepts." grades as incorrect`);
@@ -209,14 +221,14 @@ const run = async (width, height) => {
   // Rotate: view-only. Back to the model by Shift+Tab, turn it, nothing chosen changes.
   await tabUntil((s) => s.tag === 'svg', 'the model again', 'Shift+Tab');
   for (const key of ['ArrowLeft', 'Shift+ArrowLeft', 'ArrowUp', 'Shift+ArrowDown']) await page.keyboard.press(key);
-  await page.waitForTimeout(80);
+  await until(async () => (await modelDrawing()) !== opening);
   assert.notEqual(await modelDrawing(), opening, `${at}: the model turned`);
   assert.deepEqual({ meaning: await choices(meaningLabel), count: await choices(countLabel) }, chosen, `${at}: rotating changes no choice`);
   assert.equal((await grades()).length, gradedOnce, `${at}: rotating grades nothing`);
 
   await tabUntil((s) => s.tag === 'button' && /^Check my answer$/.test(s.text), 'Check my answer again');
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(400);
+  await until(async () => (await grades()).length >= gradedOnce + 1);
   log = await grades();
   assert.equal(log.length, gradedOnce + 1, `${at}: the second Check graded once`);
   assert.equal(log[log.length - 1].isCorrect, true, `${at}: the keyed choices grade as correct`);

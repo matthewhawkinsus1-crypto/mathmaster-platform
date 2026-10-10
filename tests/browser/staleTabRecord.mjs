@@ -82,7 +82,7 @@ const runViewport = async (viewport) => {
   const tab1 = await open();
   const tab2 = await open();
   await tab1.bringToFront();
-  await tab1.waitForTimeout(300);
+  await tab1.locator('[data-active-work-paused]').waitFor({ timeout: 10000 }).catch(() => {});
   check(await paused(tab1), `[${tag}] tab 1 pauses when tab 2 opens the question`);
   check(!(await paused(tab2)), `[${tag}] tab 2 works on it`);
 
@@ -107,15 +107,19 @@ const runViewport = async (viewport) => {
   check(graded.length === 1 && graded[0].isCorrect === true, `[${tag}] exactly one attempt was graded, correct`, JSON.stringify(graded.map((g) => g.isCorrect)));
 
   // Tab 2 receives the closed record while still paused with 7 on screen.
+  // Wait for the outcome, not a clock (review of #463): the closed view and a
+  // settled math field, or the 10 s budget.
   await tab2.bringToFront();
-  await tab2.waitForTimeout(1500);
+  await tab2.waitForFunction(() => /question complete|correct/i.test(document.body.innerText)
+    && document.querySelector('math-field')?.value === '5', null, { timeout: 10000 }).catch(() => {});
   const tab2Text = await bodyText(tab2);
   check(/question complete|correct/i.test(tab2Text), `[${tag}] tab 2 shows the question closed`);
   check(await value(tab2) === '5', `[${tag}] tab 2's closed view shows the RECORDED answer, 5`, await value(tab2));
   check(await value(tab2) !== '7', `[${tag}] tab 2 no longer shows its unsubmitted 7 under the verdict`, await value(tab2));
 
   // Storage: nothing written after the submit carries 7, and what is stored now is 5.
-  await tab2.waitForTimeout(500);
+  // Give a late draft write (debounced) its chance to happen before reading.
+  await tab2.waitForTimeout(800);
   const later = (await draftLog(tab2)).slice(logBefore);
   const rewrites = later.filter((entry) => draftHolds(entry.value, '7'));
   check(rewrites.length === 0, `[${tag}] storage is never rewritten with 7 after the submit`, rewrites.map((entry) => entry.key).join(', '));
