@@ -12,7 +12,13 @@ import { WARMUP_CHALLENGE_ROUTE } from '../../platform/liveChallenge/warmupChall
 export default function WarmupChallengeGate({
   decision = null,
   invite = null,
+  // The student's whole profile (their support plan included), so a Warm-Up
+  // game gives the same Read aloud a standalone game does. Extended time comes
+  // from the server, on the invite.
   studentProfile = {},
+  // What the finished game put in the wallet (the app's ChallengeRewardsEarned),
+  // the same slot a standalone game has.
+  renderMatchRewards = null,
   onExitToAssignment,
 }) {
   const route = decision?.route;
@@ -25,6 +31,7 @@ export default function WarmupChallengeGate({
           key={decision.roomId}
           invite={{ ...(invite || {}), roomId: decision.roomId }}
           studentProfile={studentProfile}
+          renderMatchRewards={renderMatchRewards}
           onExit={onExitToAssignment}
           exitLabel="Back to Warm-Up"
         />

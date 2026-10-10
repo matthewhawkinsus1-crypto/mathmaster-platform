@@ -190,7 +190,8 @@ test('the teacher sends one lifecycle command at a time', () => {
   }
   assert.match(region(teacher, 'const confirmDialog = (', '\n  );', 'confirmation'), /busy=\{controlBusy\}/);
   const strip = region(projector, 'function HostStrip(', '\nexport const formatArenaClock', 'projector strip');
-  const lifecycleButtons = strip.split('\n').filter((text) => /<button/.test(text) && !/onNewChallenge\}/.test(text));
+  // "Hide solution" changes only what this screen draws; it sends no command.
+  const lifecycleButtons = strip.split('\n').filter((text) => /<button/.test(text) && !/onNewChallenge\}/.test(text) && !/onClick=\{solutionToggle\.onToggle\}/.test(text));
   assert.ok(lifecycleButtons.length >= 3);
   lifecycleButtons.forEach((text) => assert.match(text, /disabled=\{[^}]*controlBusy/, `projector control must respect the lock: ${text.trim().slice(0, 80)}`));
 });
@@ -255,7 +256,10 @@ test('the podium labels each step by its player\'s rank, not by the step', () =>
   assert.match(place, /const \{ medal, accent \} = PODIUM_RANKS\[rank\];/);
   assert.match(place, /row\.tied \? ' · Tied' : ''/);
   const finale = region(arena, 'function FinalPodium(', '\nfunction LobbyView(', 'final podium');
-  assert.match(finale, /const remaining = belowPodiumRows\(leaderboard\)\.slice\(0, 9\);/);
+  // The rows under the podium come from the projector model, which bounds
+  // them (top few by default, at most nine with full standings —
+  // liveChallengeProjectorStandings.test.mjs) and keeps the standing order.
+  assert.match(finale, /const board = finalBoardRows\(room, leaderboard, rows\);\s*const remaining = board\.rows;/);
 });
 
 /* ---------- host audio forgets the last game ---------- */

@@ -1,5 +1,7 @@
 import { HOST_COMMAND } from '../../platform/liveChallenge/challengeShellModel.js';
 import { PRESENCE } from '../../platform/liveChallenge/challengePresenceModel.js';
+import { SOLUTION_STATE, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import MathText from '../common/MathText.jsx';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
 
 /*
@@ -189,5 +191,33 @@ export function HostRoundResultsPanel({ view, presentation, roundNumber, fallbac
           : <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Tallying the round…</p>}
       </section>
     </div>
+  );
+}
+
+/**
+ * A closed round's worked solution on the console, so the teacher can talk it
+ * through. The console reads it (useRoundSolution) only once the server has
+ * published it, and renders this only on the results screen; a held round
+ * says it comes after the Second Chance rounds.
+ */
+export function HostSolutionPanel({ solution = null, state = SOLUTION_STATE.NONE }) {
+  if (!state || state === SOLUTION_STATE.NONE) return null;
+  const review = state === SOLUTION_STATE.READY ? solution?.solutionReview || {} : null;
+  const steps = review && Array.isArray(review.reasoning) ? review.reasoning.filter(Boolean) : [];
+  return (
+    <section aria-label="Worked solution" data-mm-host-solution={state} style={card}>
+      <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 8 }}>Worked solution</div>
+      {!review && <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{solutionStateMessage(state)}</p>}
+      {review && (
+        <div style={{ display: 'grid', gap: 8, lineHeight: 1.5 }}>
+          {solution?.prompt && <MathText as="div" style={{ whiteSpace: 'pre-wrap', color: 'var(--mm-text-muted)' }}>{solution.prompt}</MathText>}
+          {review.headline && <MathText as="div" style={{ fontWeight: 900, fontSize: 17 }}>{review.headline}</MathText>}
+          {steps.length > 0 && <ol style={{ margin: 0, paddingLeft: 22 }}>{steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}</ol>}
+          {review.answerSummary && <div><strong>Answer:</strong> <MathText>{review.answerSummary}</MathText></div>}
+          {review.commonError && <div><strong>Watch out:</strong> <MathText>{review.commonError}</MathText></div>}
+          {review.connection && <div style={{ color: 'var(--mm-text-muted)' }}><MathText>{review.connection}</MathText></div>}
+        </div>
+      )}
+    </section>
   );
 }

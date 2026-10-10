@@ -5,6 +5,9 @@ import {
   effectiveGrantStatus,
   pickGrantToSpend,
 } from '../../../functions/shared/rewardGrants.mjs';
+// Read as a namespace so a catalog the growth rules add later (BADGE_CATALOG)
+// is used when present and simply absent otherwise — never a build error.
+import * as rewardGrantDefinitions from '../../../functions/shared/rewardGrants.mjs';
 
 /*
  * THE STUDENT'S REWARD WALLET, AS DATA.
@@ -73,13 +76,83 @@ export const describeGrantSource = (grant = {}) => {
   if (type === REWARD_SOURCE.LIVE_CHALLENGE) return 'Earned in a Live Challenge';
   if (type === REWARD_SOURCE.RESTORED) return 'Given back by your teacher';
   if (type === REWARD_SOURCE.TEACHER) return 'From your teacher';
+  // Growth rules (functions/shared/growthRewardRules.mjs): a better retest,
+  // finished corrections, a run of weekly goals, skills mastered.
+  if (type === GROWTH_SOURCE) return 'Earned for your growth';
   return 'Reward';
 };
+
+/*
+ * BADGES BY WHAT THEY RECOGNIZE.
+ *
+ * A badge stores a `badgeCode`. Growth and mastery badges come from the growth
+ * rules (their copy is rewardGrants.mjs BADGE_CATALOG when present); the
+ * Live Challenge recognitions (`lc-<id>`, liveChallengeRewardRules.mjs) are
+ * named here. Any code this list does not know — a teacher's own badge, a
+ * code added after this build — keeps the grant's own label, so a new badge
+ * is never shown as a blank or a code.
+ */
+const GROWTH_SOURCE = 'growth';
+
+export const BADGE_GROUP = Object.freeze({
+  GROWTH: 'growth',
+  MASTERY: 'mastery',
+  CHALLENGE: 'challenge',
+  TEACHER: 'teacher',
+});
+
+export const BADGE_GROUP_HEADING = Object.freeze({
+  [BADGE_GROUP.GROWTH]: 'Growth and effort',
+  [BADGE_GROUP.MASTERY]: 'Mastery',
+  [BADGE_GROUP.CHALLENGE]: 'Live Challenge',
+  [BADGE_GROUP.TEACHER]: 'From your teacher',
+});
+
+const KNOWN_BADGES = Object.freeze({
+  'growth-retest': { label: 'Comeback on the retest', icon: '📈', description: 'You came back and did better on a retest.' },
+  'growth-corrections': { label: 'Fixed my mistakes', icon: '🛠️', description: 'You finished every correction on a test.' },
+  'growth-path-streak': { label: 'Three weeks on track', icon: '🔥', description: 'You met your My Math Path goal on time three weeks in a row.' },
+  'mastery-5': { label: '5 skills mastered', icon: '🌟', description: 'Five skills reached Mastered.' },
+  'mastery-10': { label: '10 skills mastered', icon: '🏆', description: 'Ten skills reached Mastered.' },
+  'lc-mostImproved': { label: 'Most improved', icon: '🚀', description: 'Your second half of a Live Challenge beat your first.' },
+  'lc-steadiest': { label: 'Steadiest', icon: '🎯', description: 'You answered every round and kept a run of right answers going.' },
+  'lc-bestComeback': { label: 'Best comeback', icon: '💪', description: 'After a miss, you came back and got it right.' },
+  'lc-firstToAnswer': { label: 'First to answer', icon: '⚡', description: 'You gave the first right answer in a round.' },
+  champion: { label: 'Live Challenge Champion', icon: '🏆', description: 'You finished first in a Live Challenge.' },
+});
+
+const badgeGroupFor = (code, sourceType) => {
+  if (code.startsWith('mastery-')) return BADGE_GROUP.MASTERY;
+  if (code.startsWith('growth-') || sourceType === GROWTH_SOURCE) return BADGE_GROUP.GROWTH;
+  if (code.startsWith('lc-') || code === 'champion' || sourceType === REWARD_SOURCE.LIVE_CHALLENGE) return BADGE_GROUP.CHALLENGE;
+  return BADGE_GROUP.TEACHER;
+};
+
+/** { label, icon, description, group } for one badge grant. */
+export const badgeView = (grant = {}) => {
+  const code = String(grant?.badgeCode || '').trim();
+  const shared = rewardGrantDefinitions.BADGE_CATALOG?.[code] || null;
+  const known = KNOWN_BADGES[code] || null;
+  const ownLabel = String(grant?.label || '').trim();
+  return {
+    // A teacher's badge keeps the name the teacher typed, even if its code
+    // happens to collide with a platform one.
+    label: (grant?.source?.type === REWARD_SOURCE.TEACHER && ownLabel) || shared?.label || known?.label || ownLabel || BADGE.label || 'Badge',
+    icon: shared?.icon || known?.icon || BADGE.icon || '🏅',
+    description: shared?.studentDescription || known?.description || null,
+    group: badgeGroupFor(code, grant?.source?.type),
+  };
+};
+
+/** Badges grouped for display, groups in a fixed order, empty groups left out. */
+export const groupBadges = (badges = []) => Object.values(BADGE_GROUP)
+  .map((group) => ({ group, heading: BADGE_GROUP_HEADING[group], badges: (badges || []).filter((grant) => badgeView(grant).group === group) }))
+  .filter((entry) => entry.badges.length > 0);
 
 /** The name to show for one grant: a badge's own name, otherwise its reward's. */
 export const grantDisplayName = (grant = {}) => {
   const definition = REWARD_DEFINITIONS[grant?.rewardCode];
-  if (grant?.rewardCode === 'badge') return String(grant.label || definition?.label || 'Badge');
+  if (grant?.rewardCode === 'badge') return badgeView(grant).label;
   return definition?.label || String(grant.label || 'Reward');
 };
 
@@ -144,6 +217,9 @@ export const buildRewardWallet = ({
       grants: [...usablePasses].sort((a, b) => (toMillis(a.expiresAt) ?? Infinity) - (toMillis(b.expiresAt) ?? Infinity)),
     },
     badges,
+    // The same badges, grouped by what they recognize (growth, mastery, Live
+    // Challenge, teacher) so effort and improvement are not buried under wins.
+    badgeGroups: groupBadges(badges),
     classPoints: {
       balance,
       lifetimeEarned: Number(account?.lifetimeEarned) || 0,
@@ -347,8 +423,10 @@ export const celebrationMessage = (grant) => {
   // A badge has its own name ("Great explainer"), which does not read as
   // "You earned a Great explainer": say it is a badge first.
   if (grant?.rewardCode === 'badge') {
-    const from = type === REWARD_SOURCE.LIVE_CHALLENGE ? 'earned in a Live Challenge' : 'from your teacher';
-    return `${definition?.icon || '🏅'} New badge: ${name} — ${from}!`;
+    const from = type === REWARD_SOURCE.LIVE_CHALLENGE ? 'earned in a Live Challenge'
+      : type === GROWTH_SOURCE ? 'earned for your growth'
+        : 'from your teacher';
+    return `${badgeView(grant).icon || definition?.icon || '🏅'} New badge: ${name} — ${from}!`;
   }
   const source = type === REWARD_SOURCE.LIVE_CHALLENGE ? ' in a Live Challenge'
     : type === REWARD_SOURCE.RESTORED ? ' back from your teacher'

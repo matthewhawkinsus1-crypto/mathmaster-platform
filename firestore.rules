@@ -48,6 +48,17 @@ service cloud.firestore {
     // because they are still accountable for it, and the student's current
     // teacher, who needs the history to teach them. See the policy note in
     // functions/shared/authorizationContext.mjs.
+    // The student a Class Points account id names, for an account that does
+    // not exist yet. A student id containing ':' never matches: fail closed.
+    function missingClassPointAccountIsOwn(accountId) {
+      return signedIn()
+        && request.auth.token.get('role', '') == 'student'
+        && request.auth.token.get('studentId', '') != ''
+        && accountId.split(':').size() >= 3
+        && accountId.split(':')[0] == string(request.auth.token.get('studentId', '').size())
+        && accountId.split(':')[1] == request.auth.token.get('studentId', '');
+    }
+
     function authorizedTeacher() {
       // hasAny works for both a stored list on a single-document get and the
       // LIST_CONTAINS constraint Firestore exposes while proving an
@@ -935,7 +946,16 @@ service cloud.firestore {
     // same roster reassignment logic instead of a second, parallel notion of
     // "this teacher's student."
     match /classPointAccounts/{accountId} {
-      allow read: if rootAdmin() || ownsStudent(resource.data.studentId) || authorizedTeacher();
+      // A student who was never awarded anything has no account document, and
+      // the wallet listens to it anyway. With no document there is no
+      // resource.data to check, so the id names the owner instead:
+      // `${studentId.length}:${studentId}:${classId}` (classPoints.mjs
+      // accountId) — the same pattern studentWorkspaceDrafts uses. A missing
+      // account read is an empty wallet, never "Temporarily unavailable".
+      allow read: if rootAdmin()
+        || (resource == null
+          ? missingClassPointAccountIsOwn(accountId)
+          : (ownsStudent(resource.data.studentId) || authorizedTeacher()));
       allow create, update, delete: if false;
     }
 
@@ -976,6 +996,49 @@ service cloud.firestore {
     // may issue, spend, revoke or erase one.
     match /rewardGrants/{grantId} {
       allow read: if rootAdmin() || ownsStudent(resource.data.studentId) || authorizedTeacher();
+      allow create, update, delete: if false;
+    }
+
+    // Class rewards: a teacher's own NON-ACADEMIC redeemables ("Choose your
+    // seat for a day", 50 Class Points) and the requests students make with
+    // them (functions/shared/classRewardCatalog.mjs). Every write goes through
+    // the callables in functions/lib/classRewardStore.js on the Admin SDK — a
+    // client that could write a request could skip paying for it, and one
+    // that could write the catalog could put a grade effect on it — so no
+    // client writes either collection, not even the root administrator.
+    //
+    // The catalog is one document per class, keyed by classId. A student
+    // reads only their OWN class's (their grade record names it); a teacher
+    // reads only a class they are teacher of record for.
+    function classRewardClassTeacher(classId) {
+      return teacher()
+        && get(/databases/$(database)/documents/classes/$(classId)).data.get('teacherOfRecord', null)
+          == request.auth.token.email;
+    }
+
+    function classRewardClassStudent(classId) {
+      return signedIn()
+        && request.auth.token.get('role', '') == 'student'
+        && request.auth.token.get('studentId', '') != ''
+        && get(/databases/$(database)/documents/grades/$(request.auth.token.studentId)).data.get('classId', null)
+          == classId;
+    }
+
+    match /classRewardCatalogs/{classId} {
+      allow get: if rootAdmin() || classRewardClassTeacher(classId) || classRewardClassStudent(classId);
+      allow list: if rootAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // A request is private to the student who made it and the class's
+    // teachers: `authorizedTeacherEmails` (the ledger's own field, so a
+    // pending-requests query is provable), or the class's CURRENT teacher of
+    // record for a single read after the class changed hands.
+    match /classRewardRequests/{requestDocId} {
+      allow read: if rootAdmin()
+        || ownsStudent(resource.data.studentId)
+        || authorizedTeacher()
+        || classRewardClassTeacher(resource.data.classId);
       allow create, update, delete: if false;
     }
 
@@ -1193,6 +1256,19 @@ service cloud.firestore {
       // written once when a round closes. Readable by exactly the audience of
       // the standings above; they carry no student id.
       match /rounds/{roundIndex} {
+        allow read: if rootAdmin()
+          || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
+          || (signedIn()
+            && request.auth.token.role == 'student'
+            && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId);
+        allow create, update, delete: if false;
+      }
+
+      // A closed round's worked solution (liveChallengeSolutionReveal.mjs):
+      // the prompt, its standard and the authored review — no student. Written
+      // by the server only after nobody can answer the round (and any Second
+      // Chance replay of it has closed); read by exactly the room's audience.
+      match /solutions/{roundIndex} {
         allow read: if rootAdmin()
           || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
           || (signedIn()
@@ -1788,9 +1864,19 @@ service cloud.firestore {
 
     // Students can read their derived Phase 5 state but cannot forge it, and a
     // teacher reads it only for a student they are authorized for.
+    //
+    // Nobody writes it from a client — not the student, not a teacher, not
+    // the root administrator. It is derived state: the evidence trigger
+    // (updateMyMathPathMasteryFromEvidence) writes it from server-only
+    // evidenceEvents, and the roster/backfill/reset paths maintain it, all on
+    // the Admin SDK. It pays growth rewards (5 Class Points per newly Mastered
+    // skill, functions/shared/growthRewardRules.mjs), and authorizedTeacherEmails
+    // keeps FORMER teachers, so a teacher write here let anyone who ever had
+    // the student mint points and badges by writing made-up Mastered skills.
+    // No client wrote it (the browser only reads it, masteryStateService.js).
     match /studentMasteryProfiles/{studentId} {
       allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
-      allow write: if rootAdmin() || authorizedTeacher();
+      allow write: if false;
     }
 
     // Weekly growth snapshots of the profile above, written only by the mastery
