@@ -5,9 +5,17 @@
 //   ?role=practice|dol|quiz|test   the activity policy (default practice)
 //   ?q=<fixture>                   one of FIXTURES below
 //   ?run=<id>                      a fresh draft namespace for this run
+//   ?released=1                    the teacher has released outcome feedback
+//   ?record=partial|expired        the item's record: one half-right attempt, or
+//                                  out of attempts
+//   ?review=1                      the teacher has released the assignment's feedback
+//   ?ask=1&hand=1&locked=1         an "Ask my teacher" host, a hand already raised on
+//                                  this question, the section locked (every call the
+//                                  engine makes lands in __mmHelp)
 //
-// What the engine hands its host lands on window: every graded submission in
-// __mmGraded, every step-credit report in __mmStepGrades.
+// What the engine hands its host lands on window: every graded submission
+// (with the support use it recorded) in __mmGraded, every step-credit report
+// in __mmStepGrades. The same ?run reopens the same draft key — a remount.
 import React from 'react';
 import { MathfieldElement } from 'mathlive';
 import { createRoot } from 'react-dom/client';
@@ -25,6 +33,11 @@ const params = new URLSearchParams(window.location.search);
 const role = params.get('role') || 'practice';
 const which = params.get('q') || 'systems-3x3';
 const run = params.get('run') || 'manual';
+const released = params.get('released') === '1';
+const reviewReleased = params.get('review') === '1';
+const asking = params.get('ask') === '1';
+const handRaised = params.get('hand') === '1';
+const sectionLocked = params.get('locked') === '1';
 
 const day2Question = (id) => day2.sections.flatMap((section) => section.questions).find((question) => question.questionId === id);
 
@@ -119,6 +132,47 @@ const FIXTURES = {
       { id: 'explain', kind: 'shortResponse', prompt: 'What does your value of x make true?' },
     ],
   }),
+  // Feedback that teaches (Student push, Job A): a plain multi-answer key
+  // carrying every authored support the classroom ladder shows — hints, a
+  // wrong-answer message, attempt feedback and a worked solution.
+  'feedback-ladder': () => ({
+    questionId: 'leak-gates-feedback-ladder',
+    type: 'multiAnswer',
+    prompt: 'A line passes through (1, 2) and (5, 5). Find its slope.',
+    answerFields: [{ id: 'slope', label: 'Slope', answer: '3/4', inputProfile: 'text' }],
+    supportHints: ['LEAKCHECK-HINT: the change in y over the change in x.'],
+    hints: ['LEAKCHECK-HINT-2: subtract in the same order.'],
+    attemptFeedback: ['LEAKCHECK-FEEDBACK: check the order of subtraction.'],
+    misconceptions: [{ match: ['-3/4', '-\\frac{3}{4}'], message: 'LEAKCHECK-MISCONCEPTION: a sign was dropped.' }],
+    solutionReview: { headline: 'LEAKCHECK-REVIEW headline', reasoning: ['LEAKCHECK-REVIEW: change in y is 3.'], answerSummary: 'LEAKCHECK-REVIEW: the slope is 3/4.' },
+  }),
+  // A Question Family instance: the server's classifier would name the miss.
+  'feedback-family': () => ({
+    questionId: 'leak-gates-feedback-family',
+    type: 'multiAnswer',
+    activityRole: 'classwork',
+    questionFamily: { id: 'linear.twoStepEquation', version: 1, tool: 'multiAnswer' },
+  }),
+  // A registry tool with a review builder and a classifier.
+  'feedback-tool': () => ({
+    questionId: 'leak-gates-feedback-tool',
+    type: 'relationMapping',
+    toolId: 'relationMapping',
+    prompt: 'Draw the mapping for the relation, then give its domain and range.',
+    pairs: [[1, 4], [2, 5], [3, 6]],
+    supportHints: ['LEAKCHECK-HINT: inputs are on the left.'],
+  }),
+  // Two graded parts, for the partial-credit breakdown (PR #462 review): the
+  // record (?record=partial) has the slope right and the y-intercept wrong.
+  'feedback-partial': () => ({
+    questionId: 'leak-gates-feedback-partial',
+    type: 'multiAnswer',
+    prompt: 'A line passes through (0, 1) and (2, 5). Find its slope and its y-intercept.',
+    answerFields: [
+      { id: 'slope', label: 'LEAKCHECK-PART Slope', answer: '2', inputProfile: 'text' },
+      { id: 'intercept', label: 'LEAKCHECK-PART y-intercept', answer: '1', inputProfile: 'text' },
+    ],
+  }),
   // A graph-READING item like District DOL #2 q03 (PR #454 review B1/B2): the
   // answer is the intercepts, read off a given line. `read=0` is the same graph
   // without readCoordinates.
@@ -155,7 +209,22 @@ const FIXTURES = {
 const question = FIXTURES[which]?.();
 window.__mmGraded = [];
 window.__mmStepGrades = [];
+window.__mmHelp = [];
 window.__mmFixture = { role, which, questionId: question?.questionId || null };
+
+const RECORDS = {
+  partial: {
+    status: 'attempted',
+    attemptCount: 1,
+    bestPartialCredit: 50,
+    partGrades: [
+      { id: 'slope', label: 'LEAKCHECK-PART Slope', isCorrect: true },
+      { id: 'intercept', label: 'LEAKCHECK-PART y-intercept', isCorrect: false },
+    ],
+  },
+};
+RECORDS.expired = { status: 'expired', attemptCount: 3 };
+const questionRecord = RECORDS[params.get('record')] || { status: 'unattempted', attemptCount: 0 };
 
 const assignmentId = `leak-gates-${run}`;
 const draftKey = buildQuestionDraftKey({ studentId: 'leak-gates-student', assignmentId, questionIndex: 0, variantIndex: 0, sessionMode: 'graded' });
@@ -167,9 +236,14 @@ function Harness() {
       <QuestionEngine
         key={`${which}-${role}-${run}`}
         question={question}
-        questionRecord={{ status: 'unattempted', attemptCount: 0 }}
+        questionRecord={questionRecord}
         generationKey={`${assignmentId}|${which}`}
         activityRole={role}
+        feedbackReleased={released}
+        assessmentReviewReleased={reviewReleased}
+        assignmentLocked={sectionLocked}
+        onAskTeacher={asking ? (requested) => { window.__mmHelp.push(requested); } : null}
+        helpRequested={handRaised}
         maximumAttempts={3}
         draftKey={draftKey}
         assignmentId={assignmentId}
@@ -177,7 +251,7 @@ function Harness() {
         studentProfile={{}}
         onStepGrade={(payload) => { window.__mmStepGrades.push(JSON.parse(JSON.stringify(payload ?? null))); return null; }}
         onGrade={async (isCorrect, details, parts, supportUsage, responseKey, extra) => {
-          window.__mmGraded.push({ isCorrect, details, parts, responseKey, partialCreditPercent: extra?.partialCreditPercent ?? null });
+          window.__mmGraded.push({ isCorrect, details, parts, responseKey, partialCreditPercent: extra?.partialCreditPercent ?? null, supportUsage: JSON.parse(JSON.stringify(supportUsage ?? null)) });
           return { isCorrect, status: isCorrect ? 'correct' : 'attempted', attemptCount: 1, remainingAttempts: 2 };
         }}
       />

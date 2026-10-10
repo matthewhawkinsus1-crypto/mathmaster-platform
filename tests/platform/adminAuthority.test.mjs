@@ -87,12 +87,17 @@ test('student erasure policy spans every server-owned Phase 5/6 student data fam
     'studentPathInterventionAudit',
     'liveSpotlightRequests',
     'liveSpotlightFrames',
+    // Class reward requests carry the student's label; a pending one left
+    // behind could be declined into a re-created wallet for an erased student.
+    'classRewardRequests',
   ]) {
     assert.equal(queried.has(collectionName), true, `${collectionName} must be erased by studentId`);
   }
   assert.equal(direct.has('studentMasteryProfiles'), true);
   assert.equal(direct.has('studentRetentionSchedules'), true);
   assert.equal(direct.has('studentPathInterventions'), true);
+  // growthRewardState/{studentId}: written for every student who opens the app.
+  assert.equal(direct.has('growthRewardState'), true);
 });
 
 test('permanent deletion erases only the selected student Spotlight records', () => {

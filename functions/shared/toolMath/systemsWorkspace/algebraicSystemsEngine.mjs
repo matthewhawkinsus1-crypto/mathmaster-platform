@@ -330,6 +330,15 @@ export const substituteVariable = (text, variable, replacementExpression) => {
     if (groupedReplacement && n.type === 'OperatorNode' && n.fn === 'subtract' && n.args.length === 2 && isVariable(n.args[1])) {
       return new OperatorNode('-', 'subtract', [n.args[0].transform(substitute), parse(`1 * (${replacementText})`)]);
     }
+    // The same for a variable ADDED as a bare term (x + y, y + 2x, 5 + y).
+    // Step Algebra's term renderer flattens a parenthesised group inside a
+    // sum, so x + (-2x + 1) reached the student as x - 2x + 1: the
+    // parentheses they had just substituted into were gone. As the product
+    // 1(-2x + 1) the group stays one visible term, removed by the student.
+    if (groupedReplacement && n.type === 'OperatorNode' && n.fn === 'add' && n.args.length === 2 && (isVariable(n.args[0]) || isVariable(n.args[1]))) {
+      const side = (arg) => (isVariable(arg) ? parse(`1 * (${replacementText})`) : arg.transform(substitute));
+      return new OperatorNode('+', 'add', [side(n.args[0]), side(n.args[1])]);
+    }
     return isVariable(n) ? replacement : n;
   };
   const transformed = node.transform(substitute);

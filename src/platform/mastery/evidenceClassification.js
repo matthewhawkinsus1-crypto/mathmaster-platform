@@ -4,6 +4,7 @@ const MATH_SUPPORT_FLAGS = [
   'scaffoldUsed',
   'remediationUsed',
   'workedExampleUsed',
+  'feedbackAssisted',
 ];
 
 export const classifyAttemptEvidence = (event = {}) => {
@@ -12,7 +13,7 @@ export const classifyAttemptEvidence = (event = {}) => {
   const telemetryMathHelp = telemetry.some((entry) => (
     entry?.stage === 'used'
     && entry?.reducesMathematicalIndependence !== false
-    && ['hint', 'teacherAssistance', 'mathScaffold', 'remediation', 'workedExample'].includes(entry?.supportType)
+    && ['hint', 'teacherAssistance', 'mathScaffold', 'remediation', 'workedExample', 'missFeedback'].includes(entry?.supportType)
   ));
   const mathHelpUsed = usage.isMathematicallyIndependent === false
     || MATH_SUPPORT_FLAGS.some((key) => Boolean(usage[key]))

@@ -1,6 +1,10 @@
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { amountText, ordinal, rewardSummaryLines, roundPlacementSentence } from '../../platform/liveChallenge/challengeStandingsModel.js';
+import { finalPlaceIsHeadline } from '../../../functions/shared/liveChallengePrivacy.mjs';
+import { finalPlaceIsPrivate, gameGradeSentence, recapHasContent, RESULT_TONE } from '../../platform/liveChallenge/challengeRecapModel.js';
+import { publicStandingsRows } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
+import { RoundSolutionCard } from './ChallengeSolutionParts.jsx';
 
 /*
  * A STUDENT'S LIVE CHALLENGE, AROUND THE GAME ITSELF.
@@ -75,8 +79,16 @@ export function StudentLobbyCard({ room, alias, joining = false, playerCount = 0
  * The results moment on a student's device: their place in the round, what
  * they did, the points it earned, and where they stand now — then what comes
  * next. Read from the round's result document (`view`).
+ *
+ * `solutionSlot` is the round's worked solution (ChallengeSolutionParts), which
+ * the caller renders only for this closed round; it sits between how the round
+ * went and the standings, where the class talks the question through.
  */
-export function StudentRoundResultsCard({ view, presentation, guidance, rushRound = false }) {
+// Classmates' rows follow the projector's rule for `room`
+// (liveChallengeProjectorModel.publicStandingsRows): the top few, never a
+// place tied with the class's last, never one classmate left unnamed. A
+// student's own row is always shown.
+export function StudentRoundResultsCard({ view, presentation, guidance, rushRound = false, solutionSlot = null, room = null }) {
   if (!view) {
     return (
       <section aria-live="polite" style={card}>
@@ -127,39 +139,83 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
         {self && !participated && rushRound && <p style={{ margin: '12px 0 0', color: '#c3d2ea' }}>Tap the features on your graphs to earn points.</p>}
         {guidance?.detail && <p style={{ margin: '14px 0 0', color: '#c3d2ea' }}>{guidance.detail}</p>}
       </section>
+      {solutionSlot}
       <section style={quietPanel}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
           <strong>{presentation.placementPoints ? 'Championship' : 'Standings'}</strong>
           <span style={{ color: '#9fb0cc', fontSize: 13 }}>{presentation.total.long}</span>
         </div>
         {view.standings
-          ? <StandingsBoard rows={view.standings} presentation={presentation} look="student" limit={5} selfKey={standing?.playerKey || null} label="Standings after this round" />
-          : <RoundResultsTable view={view} presentation={presentation} look="student" limit={5} selfKey={self?.playerKey || null} />}
+          ? <StandingsBoard board={publicStandingsRows(room, view.standings, { selfKey: standing?.playerKey || null })} presentation={presentation} look="student" label="Standings after this round" />
+          : <RoundResultsTable view={view} board={publicStandingsRows(room, view.rows, { selfKey: self?.playerKey || null })} presentation={presentation} look="student" />}
       </section>
     </div>
   );
 }
 
-/** The end: how you finished, your game, what reached your wallet, and the top of the class. */
-export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false, loading = false }) {
+/**
+ * The end: how you finished, what reached your wallet, then the top of the
+ * class (with your own row when you are outside it).
+ *
+ * NOBODY IS PUBLICLY LAST (liveChallengePrivacy.mjs). The card leads with the
+ * place only for a podium finish. Any other finish leads with what the student
+ * did — their points, their correct answers, what they earned or beat — and
+ * their place is one quiet line that says it is theirs alone. Being 18th of 24
+ * is information; making it the headline is a verdict.
+ *
+ * What the game counts for is said truthfully: a Warm-Up game's accuracy is
+ * the student's Warm-Up grade (warmupChallengeGrade.mjs) and its points are
+ * not; a standalone game changes no grade.
+ */
+// `rows` are the snapshot's top of the class and this student; `lastRank` is
+// the class's last place (the snapshot's every-seat rank list) and
+// `totalPlayers` how many played, so the rule sees the whole class.
+export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false, loading = false, warmup = false, highlights = [], fullStandings = false, room = null, lastRank = null }) {
+  const podium = Boolean(selfRow) && finalPlaceIsHeadline(selfRow.rank);
+  // "Only you see this" is said only when no class-wide board shows the row.
+  const placeIsPrivate = Boolean(selfRow) && finalPlaceIsPrivate({ rank: selfRow.rank, fullStandings });
+  const placeWords = selfRow && selfRow.rank !== null
+    ? `${selfRow.tied ? `tied for ${ordinal(selfRow.rank)}` : ordinal(selfRow.rank)} of ${totalPlayers}`
+    : null;
+  const didLine = selfRow
+    ? `${amountText(selfRow.score, presentation.total)}${presentation.placementPoints || presentation.strategyId !== 'correctCount'
+      ? ` · ${selfRow.correctCount} ${rush ? (selfRow.correctCount === 1 ? 'graph' : 'graphs') : 'correct'}`
+      : ''}`
+    : '';
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <section data-mm-student-final="1" style={{ ...card, background: 'linear-gradient(135deg,#14532d,#1c7a44)', border: '1px solid rgba(129,201,149,.4)' }}>
+      <section data-mm-student-final={podium ? 'podium' : '1'} style={{ ...card, background: 'linear-gradient(135deg,#14532d,#1c7a44)', border: '1px solid rgba(129,201,149,.4)' }}>
         <div style={{ ...eyebrow, color: '#b7e4c7' }}>Challenge complete</div>
-        {selfRow ? (
-          <div style={{ margin: '10px 0 4px' }}>
+        {selfRow && podium && (
+          <div data-mm-final-headline="place" style={{ margin: '10px 0 4px' }}>
             <div style={{ fontSize: 'clamp(40px, 12vw, 56px)', fontWeight: 1000, color: '#fff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{selfRow.place.ordinal}</div>
             <div style={{ marginTop: 4, color: '#d7f5e1', fontWeight: 800 }}>
               {selfRow.tied ? `tied for ${ordinal(selfRow.rank)} ` : ''}of {totalPlayers} {totalPlayers === 1 ? 'player' : 'players'}
             </div>
-            <div style={{ marginTop: 10, fontSize: 19, fontWeight: 900, color: '#fdd663' }}>
-              {amountText(selfRow.score, presentation.total)}
-              {presentation.placementPoints || presentation.strategyId !== 'correctCount'
-                ? ` · ${selfRow.correctCount} ${rush ? (selfRow.correctCount === 1 ? 'graph' : 'graphs') : 'correct'}`
-                : ''}
-            </div>
+            <div style={{ marginTop: 10, fontSize: 19, fontWeight: 900, color: '#fdd663' }}>{didLine}</div>
           </div>
-        ) : (
+        )}
+        {selfRow && !podium && (
+          <div data-mm-final-headline="effort" style={{ margin: '10px 0 4px' }}>
+            <div style={{ fontSize: 'clamp(30px, 9vw, 44px)', fontWeight: 1000, color: '#fff', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{didLine}</div>
+            {highlights.length > 0 && (
+              <ul data-mm-final-highlights="1" style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 6 }}>
+                {highlights.map((line) => (
+                  <li key={`${line.kind}-${line.id}`} style={{ color: '#fdd663', fontWeight: 900 }}>
+                    {line.kind === 'recognition' ? '🏅 ' : '⭐ '}{line.label}
+                    {line.detail && <span style={{ display: 'block', color: '#d7f5e1', fontWeight: 700 }}>{line.detail}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {placeWords && (
+              <p data-mm-final-private-place="1" style={{ margin: '12px 0 0', color: '#c9e7d4', fontSize: 14 }}>
+                Your place: {placeWords}{placeIsPrivate ? ' — only you see this' : ''}
+              </p>
+            )}
+          </div>
+        )}
+        {!selfRow && (
           // Until the standings arrive (a refresh on the podium) there is no
           // row to find yet — not a student who missed the game.
           <p data-mm-final-loading={loading ? '1' : undefined} style={{ margin: '10px 0 0', color: '#d7f5e1' }}>
@@ -167,13 +223,79 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
           </p>
         )}
         <h2 style={{ margin: '12px 0 6px', fontSize: 22, color: '#fff' }}>Final Standings</h2>
-        <p style={{ margin: 0, color: '#c9e7d4' }}>Your game score is practice feedback. It does not change your assignment grade.</p>
+        <p data-mm-final-grade-note={warmup ? 'warmup' : 'game'} style={{ margin: 0, color: '#c9e7d4' }}>{gameGradeSentence({ warmup })}</p>
       </section>
       {rewardsSlot}
       <section style={quietPanel}>
-        <StandingsBoard rows={rows} presentation={presentation} look="student" limit={5} selfKey={selfKey} showMovement={false} label="Final standings" totalCount={totalPlayers || null} />
+        <StandingsBoard board={publicStandingsRows(room, rows, { selfKey, lastRank, totalCount: totalPlayers || null })} presentation={presentation} look="student" showMovement={false} label="Final standings" />
       </section>
     </div>
   );
 }
 
+const RESULT_COLOURS = {
+  [RESULT_TONE.CORRECT]: { background: 'rgba(129,201,149,.18)', color: '#b7f0c8' },
+  [RESULT_TONE.PARTIAL]: { background: 'rgba(253,214,99,.16)', color: '#fde49b' },
+  [RESULT_TONE.MISSED]: { background: 'rgba(255,255,255,.08)', color: '#dbe6f7' },
+  [RESULT_TONE.NONE]: { background: 'rgba(255,255,255,.08)', color: '#c3d2ea' },
+};
+
+/**
+ * THE STUDENT'S OWN RECAP of a finished game (challengeRecapModel.js): what
+ * they beat of their own record, what they earned, and each round they could
+ * play — how their answer went and the worked solution, now that no round can
+ * be answered. Only their own facts; nothing here names anyone else. With no
+ * recap (the server has not answered, or cannot) it shows nothing at all.
+ */
+export function StudentMatchRecap({ recap = null }) {
+  if (!recapHasContent(recap)) return null;
+  return (
+    <section data-mm-student-recap="1" aria-label="Your game recap" style={{ ...quietPanel, display: 'grid', gap: 14 }}>
+      <div>
+        <strong style={{ fontSize: 19, color: '#fff' }}>Your game</strong>
+        <span style={{ display: 'block', marginTop: 2, color: '#9fb0cc', fontSize: 13 }}>Only you see this.</span>
+      </div>
+      {recap.personalBests.length > 0 && (
+        <div data-mm-recap-personal-bests="1">
+          <div style={{ ...eyebrow, textAlign: 'left' }}>Your best yet</div>
+          <ul style={{ margin: '6px 0 0', paddingLeft: 20, display: 'grid', gap: 4 }}>
+            {recap.personalBests.map((line) => (
+              <li key={line.id}><strong>{line.label}</strong>{line.detail ? ` — ${line.detail}` : ''}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {recap.recognitions.length > 0 && (
+        <div data-mm-recap-recognitions="1">
+          <div style={{ ...eyebrow, textAlign: 'left' }}>You earned</div>
+          <ul style={{ margin: '6px 0 0', paddingLeft: 20, display: 'grid', gap: 4 }}>
+            {recap.recognitions.map((line) => (
+              <li key={line.id}><strong>{line.label}</strong>{line.detail ? ` — ${line.detail}` : ''}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {recap.solutionsWithheld && (
+        <p data-mm-recap-solutions-withheld="1" style={{ margin: 0, color: '#c3d2ea' }}>
+          The worked solutions come back when the game you are in now ends.
+        </p>
+      )}
+      {recap.rounds.length > 0 && (
+        <ol data-mm-recap-rounds="1" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 10 }}>
+          {recap.rounds.map((round) => (
+            <li key={round.roundIndex} data-mm-recap-round={round.result.tone} style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <strong>
+                  {round.label}
+                  {round.replayOf && <span style={{ marginLeft: 6, color: '#9fb0cc', fontWeight: 700 }}>({round.replayOf})</span>}
+                </strong>
+                <span style={{ padding: '3px 10px', borderRadius: 999, fontWeight: 900, ...RESULT_COLOURS[round.result.tone] }}>{round.result.text}</span>
+              </div>
+              {round.solutionReview && <RoundSolutionCard compact review={round.solutionReview} prompt={round.prompt} />}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}

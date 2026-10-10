@@ -658,7 +658,7 @@ const buildPlatformQuestionError = (question, error) => {
  * host that does not (a demo, a repair preview) still gets a valid instance
  * from a provisional seat derived from its generation key.
  */
-const parseFamilyGenerationKey = (generationKey) => {
+export const parseFamilyGenerationKey = (generationKey) => {
   const text = String(generationKey ?? '');
   const variantMatch = text.match(/\|variant:(\d+)$/);
   const base = variantMatch ? text.slice(0, variantMatch.index) : text;

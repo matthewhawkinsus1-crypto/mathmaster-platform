@@ -52,7 +52,7 @@ export const RECOVERY_ACTION = Object.freeze({
   SUBMIT: 'submit',
 });
 
-const MATH_SUPPORT_KEYS = ['hintUsed', 'teacherAssisted', 'scaffoldUsed', 'remediationUsed', 'workedExampleUsed', 'modified'];
+const MATH_SUPPORT_KEYS = ['hintUsed', 'teacherAssisted', 'scaffoldUsed', 'remediationUsed', 'workedExampleUsed', 'feedbackAssisted', 'modified'];
 
 /** Did this attempt use help that makes it something other than independent? */
 export const attemptWasIndependent = (supportUsage = {}) => (

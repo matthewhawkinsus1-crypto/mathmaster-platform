@@ -1880,7 +1880,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   onSolved={handleSecondSolved}
                   onUndoStateChange={setEmbeddedUndoController}
                   workspaceDifficulty={questionData.workspaceDifficulty}
-                  requireSimplifiedFinalForm={Boolean(subsystem)}
+                  // Back-substitution ends on the student's own number on a
+                  // 2×2 too: y = −4(5) + 12 has y isolated but nothing
+                  // computed, and used to count as solved (student push A).
+                  requireSimplifiedFinalForm
                   // Opened with its equation behind the action bar (board top
                   // at 700 of 900, live QA): bring it up like the reduce solver.
                   autoReveal

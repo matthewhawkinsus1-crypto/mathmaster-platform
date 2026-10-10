@@ -360,7 +360,12 @@ const buildGraphAnalysisSummary = (question) => {
   });
 };
 
-export default function SolutionReview({ question, incorrectParts = [] }) {
+/*
+ * WHAT THE LEGACY REVIEW CAN SHOW FOR A QUESTION — computed once, so the
+ * review panel (SolutionReviewPanel.jsx) knows whether there is anything
+ * below before it says so.
+ */
+export const legacySolutionReviewContent = (question) => {
   if (!question) return null;
   const workflowSolution = buildWorkflowSolution(question);
   const representations = workflowSolution ? [] : buildRepresentations(question);
@@ -387,11 +392,29 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
   const graph = workflowSolution?.graph || legacyGraph;
   const analysisSummary = workflowSolution ? [] : buildGraphAnalysisSummary(question);
   const completeAnswerDetails = workflowSolution ? [] : buildCompleteAnswerDetails(question);
+  const hasContent = Boolean(
+    workflowSolution?.entries?.length || question.equationLatex || representations.length
+      || completeAnswerDetails.length || graph || analysisSummary.length,
+  );
+  return { workflowSolution, representations, graph, analysisSummary, completeAnswerDetails, hasContent };
+};
+
+/*
+ * The legacy worked solution. `embedded` drops its own frame and heading:
+ * SolutionReviewPanel puts it under one heading with the authored review. The
+ * intro line promises another problem only when one can be requested
+ * (`allowReplacement`).
+ */
+export default function SolutionReview({ question, incorrectParts = [], embedded = false, allowReplacement = false }) {
+  const content = legacySolutionReviewContent(question);
+  if (!content) return null;
+  if (embedded && !content.hasContent) return null;
+  const { workflowSolution, representations, graph, analysisSummary, completeAnswerDetails } = content;
 
   return (
     <section
       aria-label="Solution review"
-      style={{
+      style={embedded ? { textAlign: 'left' } : {
         margin: '18px auto 0',
         maxWidth: '860px',
         padding: '20px',
@@ -401,10 +424,14 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
         textAlign: 'left',
       }}
     >
-      <h3 style={{ margin: '0 0 8px', color: 'var(--mm-text-strong)' }}>Solution review</h3>
-      <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
-        This problem version is closed. Review the solution before requesting another problem at the same difficulty.
-      </p>
+      {!embedded && <h3 style={{ margin: '0 0 8px', color: 'var(--mm-text-strong)' }}>Solution review</h3>}
+      {!embedded && (
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
+          {allowReplacement
+            ? 'This problem version is closed. Review the solution before requesting another problem at the same difficulty.'
+            : 'This problem version is closed. Compare your work with the solution.'}
+        </p>
+      )}
       {workflowSolution?.entries?.length > 0 && (
         <div style={{ display: 'grid', gap: '10px', marginBottom: '14px' }}>
           {workflowSolution.entries.map((entry) => {

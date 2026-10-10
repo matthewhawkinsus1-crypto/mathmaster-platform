@@ -8,6 +8,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { accountId as classPointsAccountId } from '../../functions/shared/classPoints.mjs';
+import { buildLiveStatus } from '../../src/livePresence.js';
 import {
   activeStudentSpotlightQuery,
   activeTeacherSpotlightQuery,
@@ -376,6 +377,55 @@ test('live presence is scoped to the teacher roster and owned by the student hea
   await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), {
     assignmentId: 'forged-by-teacher',
   }, { merge: true }));
+});
+
+test('"Ask my teacher" rides the student\'s own presence heartbeat: a time and a question position only', async () => {
+  const heartbeat = { studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'A1', updatedAt: Date.now() };
+  // The heartbeat rewrites the whole document (no merge), carrying the request.
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpQuestionIndex: 2 }));
+  // The teacher's monitor reads it.
+  const seen = await getDoc(doc(teacherA(), 'presence/STUDENT_A'));
+  assert.ok(seen.data().helpRequestedAt > 0);
+  // Cancelling is the next heartbeat without it.
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), heartbeat));
+  // Never a message, never a malformed value, never on another student.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpMessage: 'come here' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: 'now' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpQuestionIndex: -1 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_B'), { studentId: 'STUDENT_B', helpRequestedAt: Date.now() }));
+  // A teacher cannot raise or clear it for a student.
+  await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now() }));
+});
+
+test('presence holds exactly the heartbeat\'s keys, a known role and a recent help time (PR #462 review m7)', async () => {
+  // The real heartbeat, built the way App.jsx builds it, is accepted whole.
+  const now = Date.now();
+  const real = {
+    studentId: 'STUDENT_A',
+    name: 'Student A',
+    classId: 'class-a',
+    classPeriod: '2',
+    currentTeksCode: 'A.5A',
+    ...buildLiveStatus({ assignmentId: 'A1', assignmentTitle: 'Two-step equations', activityRole: 'dol', questionIndex: 2, questionCount: 8, questionStates: 'cxa.....', nowValue: now }),
+    helpRequestedAt: now,
+    helpQuestionIndex: 2,
+    pageVisible: true,
+    updatedAt: now,
+  };
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), real));
+  // No free text under another name.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequested: '<b>come here</b>' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpComment: 'come here' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpMessage: 'come here' }));
+  // The monitor prints the role ("in <role>"): only a role the platform knows.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, activityRole: 'detention — see me' }));
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, activityRole: 'classwork' }));
+  // A help time from this day, not the epoch's first millisecond or the year 287,000.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: 1 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: 9000000000000000 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: now + 3 * 3600000 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: now - 2 * 86400000 }));
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: now - 60000 }));
 });
 
 test('Spotlight requires fresh affirmative consent and isolates the active frame', async () => {
@@ -1288,6 +1338,27 @@ test('a student reads their own Class Points wallet and history, never another s
   await assertFails(getDoc(doc(studentB(), 'classPointTransactions/cp-tx-1')));
 });
 
+// A student who was never awarded anything has no account yet, and their
+// wallet listens to it anyway. That read must succeed (an empty wallet), not be
+// denied (which the screen showed as "Temporarily unavailable"); it must still
+// be denied to anyone the id does not name.
+test('a student reads their own MISSING Class Points account as empty; nobody else can', async () => {
+  const missing = classPointsAccountId('STUDENT_A', 'class-never-awarded');
+  const snapshot = await assertSucceeds(getDoc(doc(studentA(), `classPointAccounts/${missing}`)));
+  assert.equal(snapshot.exists(), false);
+  await assertFails(getDoc(doc(studentB(), `classPointAccounts/${missing}`)));
+  await assertFails(getDoc(doc(teacherB(), `classPointAccounts/${missing}`)));
+  // The length prefix is part of the name: a forged prefix names nobody.
+  await assertFails(getDoc(doc(studentA(), 'classPointAccounts/99:STUDENT_A:class-a-x')));
+  await assertFails(getDoc(doc(studentA(), 'classPointAccounts/STUDENT_A')));
+  // And the history query on an empty ledger is allowed for its owner.
+  await assertSucceeds(getDocs(query(
+    collection(studentA(), 'classPointTransactions'),
+    where('studentId', '==', 'STUDENT_A'),
+    where('classId', '==', 'class-never-awarded'),
+  )));
+});
+
 test('no client can write a Class Points account, forged or otherwise — not even the root administrator', async () => {
   await assertFails(setDoc(doc(studentA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
   await assertFails(setDoc(doc(teacherA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
@@ -1431,6 +1502,9 @@ const seedLiveChallengeEngine = async () => env.withSecurityRulesDisabled(async 
   await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/rounds/0'), {
     roundIndex: 0, standings: [{ playerKey: 'pk-a', alias: 'Nova Fox', rank: 1, matchPointsAwarded: 15 }],
   });
+  await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/solutions/0'), {
+    roundIndex: 0, available: true, prompt: 'Solve 2x = 8.', solutionReview: { headline: 'Divide by 2.', reasoning: ['x = 4'] },
+  });
   await setDoc(doc(db, 'liveChallengeInvites/STUDENT_A'), { roomId: 'lc-room-a', playerKey: 'pk-a' });
   await setDoc(doc(db, 'liveChallengeInvites/STUDENT_B'), { roomId: 'lc-room-elsewhere', playerKey: 'pk-b' });
   // Two public player rows in the room, and its standings snapshot.
@@ -1506,6 +1580,22 @@ test('a closed round\'s result is read by the room\'s audience only, and written
   for (const client of [studentA(), teacherA(), admin()]) {
     await assertFails(setDoc(doc(client, 'liveChallengeRooms/lc-room-a/rounds/1'), { standings: [] }));
     await assertFails(updateDoc(doc(client, round), { standings: [] }));
+  }
+});
+
+test('a revealed round solution is read by the room\'s audience only, and written by no client', async () => {
+  await seedLiveChallengeEngine();
+  const solution = 'liveChallengeRooms/lc-room-a/solutions/0';
+  await assertSucceeds(getDoc(doc(teacherA(), solution)));
+  await assertFails(getDoc(doc(teacherB(), solution)));
+  await assertSucceeds(getDoc(doc(studentA(), solution)), 'a student invited to the room');
+  await assertFails(getDoc(doc(studentB(), solution)), 'a student invited to another room');
+  await assertSucceeds(getDoc(doc(admin(), solution)));
+  await assertFails(getDoc(doc(stranger(), solution)));
+  for (const client of [studentA(), teacherA(), admin()]) {
+    // Nobody can publish (or pre-publish) a solution from a browser.
+    await assertFails(setDoc(doc(client, 'liveChallengeRooms/lc-room-a/solutions/1'), { available: true }));
+    await assertFails(updateDoc(doc(client, solution), { available: false }));
   }
 });
 

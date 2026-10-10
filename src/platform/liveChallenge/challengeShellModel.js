@@ -27,6 +27,7 @@
 import { MATCH_STATE, deriveMatchState, roomRoundState } from '../../../functions/shared/liveChallengeLifecycle.mjs';
 import { timerElapsedMs, timerFromRoom } from '../../../functions/shared/liveChallengeTimer.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { personalRoundTimer, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 
 export const CHALLENGE_STAGE = MATCH_STATE;
 
@@ -340,4 +341,32 @@ export const studentGuidance = ({
 export const formatChallengeClock = (milliseconds) => {
   const total = Math.max(0, Math.ceil((Number(milliseconds) || 0) / 1000));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+};
+
+/*
+ * A STUDENT'S OWN ROUND CLOCK. A student with extended time on their plan
+ * (liveChallengeAccommodations.mjs) answers against their own deadline: the
+ * same start, the round's length times their multiplier. The server judges
+ * their answer against exactly that deadline and keeps the round open for
+ * them, so their screen must count down to it — not to the class's — and its
+ * buzzer must fire there. Everyone else's clock is the room's, unchanged.
+ *
+ * `timeMultiplier` is the student's own (their invite), never the room's
+ * largest: the room only knows that someone has more time, not who.
+ */
+export const personalRoundClock = ({ startsAtMs = 0, endsAtMs = 0, timeMultiplier = 1, fullDurationMs = 0 } = {}) => {
+  const start = Number(startsAtMs) || 0;
+  const end = Number(endsAtMs) || 0;
+  // From the round's full length (the server's rule): a class that answered
+  // quickly shortens the class's deadline, never this student's extra time.
+  const personal = personalRoundTimer({ startsAtMs: start, endsAtMs: end }, storedTimeMultiplier(timeMultiplier), { fullDurationMs });
+  const personalEndsAtMs = Number(personal?.endsAtMs) || end;
+  return Object.freeze({
+    startsAtMs: start,
+    classEndsAtMs: end,
+    endsAtMs: personalEndsAtMs,
+    // How long this student's round lasts, from GO. 0: an open-ended round.
+    durationMs: end > start ? personalEndsAtMs - start : 0,
+    extended: personalEndsAtMs > end && end > start,
+  });
 };

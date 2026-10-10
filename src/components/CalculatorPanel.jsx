@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { bindMathFieldFocusHandoff } from '../platform/interaction/mathFieldFocusHandoff.js';
 import '../platform/math/mathliveRuntime.js';
 import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
-import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
+import { evaluateCalculatorExpressionExact } from '../platform/policies/calculatorExpression';
 import { clampCalculatorPosition, settleCalculatorPosition } from './calculatorPanelGeometry.js';
 import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
@@ -67,6 +67,10 @@ export const CalculatorPanel = ({
   const [estimate, setEstimate] = useState('');
   const [estimateUnlocked, setEstimateUnlocked] = useState(!estimationRequired);
   const [display, setDisplay] = useState('0');
+  // The exact fraction for the result on screen (calculatorExpression.js
+  // evaluateCalculatorExpressionExact). Shown only while the display still
+  // holds that result, so any further typing hides it.
+  const [exactResult, setExactResult] = useState(null);
   const [panelPosition, setPanelPosition] = useState(null);
   const mathFieldRef = useRef(null);
   const panelRef = useRef(null);
@@ -129,9 +133,11 @@ export const CalculatorPanel = ({
       divisionPendingRef.current = false;
       try {
         const expression = expressionFromMathField(mathField, mathField.value || display);
-        const result = String(evaluateCalculatorExpression(expression, policy.mode));
+        const evaluated = evaluateCalculatorExpressionExact(expression, policy.mode);
+        const result = evaluated.decimal;
         mathField.value = result;
         setDisplay(result);
+        setExactResult(evaluated.fraction ? { decimal: result, fraction: evaluated.fraction } : null);
       } catch {
         mathField.value = 'Error';
         setDisplay('Error');
@@ -305,7 +311,9 @@ export const CalculatorPanel = ({
     if (button.action === 'equals') {
       try {
         const expression = expressionFromMathField(mathFieldRef.current, display);
-        setCalculatorValue(String(evaluateCalculatorExpression(expression, policy.mode)));
+        const evaluated = evaluateCalculatorExpressionExact(expression, policy.mode);
+        setCalculatorValue(evaluated.decimal);
+        setExactResult(evaluated.fraction ? { decimal: evaluated.decimal, fraction: evaluated.fraction } : null);
       } catch {
         setCalculatorValue('Error');
       }
@@ -469,6 +477,11 @@ export const CalculatorPanel = ({
                 inputmode="none"
                 style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: 'var(--mm-surface-control)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--mm-border)', textAlign: 'right', fontSize: '24px', marginBottom: '12px' }}
               />
+              {exactResult && exactResult.decimal === display ? (
+                <p data-calculator-exact="" role="status" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-text)', fontSize: '15px', fontWeight: 700 }}>
+                  Exact: {exactResult.fraction}
+                </p>
+              ) : null}
               {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: '11px' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (

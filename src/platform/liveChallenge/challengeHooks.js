@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { challengeClock, nextClockBoundaryMs } from './challengeShellModel.js';
-import { readLiveChallengeRound, watchLiveChallengeRound } from './liveChallengeService.js';
+import { readLiveChallengeRound, readLiveChallengeSolution, watchLiveChallengeRound } from './liveChallengeService.js';
 import { createStandingsPublishPacer, hostStandingsSignature, roomPublishesLiveStandings } from './standingsPublishPacer.js';
 
 /**
@@ -92,6 +92,33 @@ export const useRoundSummary = (roomId, roundIndex, active = true) => {
     return watchLiveChallengeRound(roomId, roundIndex, (summary) => setState({ key, summary }), () => setState({ key, summary: null }));
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return state.key === key ? state.summary : null;
+};
+
+// A published solution never changes, so one read per round per page.
+const solutionReads = new Map();
+const SOLUTION_MEMORY = 40;
+
+/**
+ * One round's worked solution, read only once the room lists it as revealed
+ * (challengeSolutionModel). Returns undefined until read, null when missing.
+ */
+export const useRoundSolution = (roomId, roundIndex, revealed = false) => {
+  const key = revealed && roomId && Number.isInteger(roundIndex) && roundIndex >= 0 ? `${roomId}:${roundIndex}` : null;
+  const [state, setState] = useState(() => ({ key, solution: key && solutionReads.has(key) ? solutionReads.get(key) : undefined }));
+  useEffect(() => {
+    if (!key) return undefined;
+    if (solutionReads.has(key)) { setState({ key, solution: solutionReads.get(key) }); return undefined; }
+    let cancelled = false;
+    readLiveChallengeSolution(roomId, roundIndex)
+      .then((solution) => {
+        solutionReads.set(key, solution);
+        if (solutionReads.size > SOLUTION_MEMORY) solutionReads.delete(solutionReads.keys().next().value);
+        if (!cancelled) setState({ key, solution });
+      })
+      .catch(() => { if (!cancelled) setState({ key, solution: null }); });
+    return () => { cancelled = true; };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return state.key === key ? state.solution : undefined;
 };
 
 // A round's result never changes once written, so one read serves every

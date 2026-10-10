@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { region } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 import { CHALLENGE_STAGE, HOST_COMMAND, hostPrimaryAction } from '../../src/platform/liveChallenge/challengeShellModel.js';
 
 const modelPath = path.resolve('src/platform/liveChallenge/liveChallengeProjectorModel.js');
@@ -96,7 +96,8 @@ test('teacher projector is wired to the arena component and the arena has a real
 });
 
 test('arena remains presentation-only: no Firebase writes, callable submits, or scoring mutation', () => {
-  const arena = readFileSync('src/components/liveChallenge/LiveChallengeArenaProjector.jsx', 'utf8');
+  // Code only: the header's comment says the projector reads no Firebase.
+  const arena = executableSource(readFileSync('src/components/liveChallenge/LiveChallengeArenaProjector.jsx', 'utf8'));
   assert.doesNotMatch(arena, /firebase|httpsCallable|setDoc|updateDoc|runTransaction|submitLiveChallengeResponse|score\s*=/i);
 });
 
