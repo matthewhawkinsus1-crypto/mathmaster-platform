@@ -50,7 +50,7 @@ test('the server trigger classifies with the shared rule, not its own thresholds
   assert.match(trigger, /masteryScoring\.applyMasteryEvent\(/);
   const scorer = executableSource(read('functions/shared/masteryScoring.mjs'));
   assert.match(scorer, /import \{[^}]*\bclassifyMasteryStatus\b[^}]*\} from '\.\/masteryRule\.mjs';/);
-  assert.match(scorer, /const status = classifyMasteryStatus\(\{ \.\.\.ruleFacts, floor \}\);/);
+  assert.match(scorer, /const status = classifyMasteryStatus\(ruleFacts\);/);
   for (const body of [trigger, scorer]) {
     assert.doesNotMatch(body, /estimate >= 85/, 'a second copy of the thresholds is how the screens drifted apart');
   }

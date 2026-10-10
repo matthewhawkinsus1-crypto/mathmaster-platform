@@ -102,11 +102,11 @@ test('through the backfill: a Path-only learner\'s four right answers become Mas
   assert.equal(plan.document.masteryScoring.pathReviewEventsReclassified, 4);
 });
 
-test('a document rescored before the reclassification is planned once more; after it, skipped', () => {
+test('the rescored document records the reclassification, and a second run skips it', () => {
   const events = ['a', 'b'].map((instance, index) => pathAnswer({ instance, at: 1000 + index }));
-  const firstPass = { studentId: 's', profiles: {}, masteryScoring: { version: 2, rescoredAt: 1 } };
-  const plan = planStudentMasteryBackfill({ studentId: 's', stored: firstPass, events, student: { id: 's', gradesByAssignment: {} }, assignments: [], helpers: mathPath, now: NOW });
+  const plan = planStudentMasteryBackfill({ studentId: 's', stored: null, events, student: { id: 's', gradesByAssignment: {} }, assignments: [], helpers: mathPath, now: NOW });
   assert.equal(plan.action, 'write');
+  assert.equal(plan.document.masteryScoring.pathReviewEventsReclassified, 2);
   const again = planStudentMasteryBackfill({ studentId: 's', stored: plan.document, events, student: { id: 's', gradesByAssignment: {} }, assignments: [], helpers: mathPath, now: NOW + 1 });
   assert.equal(again.action, 'skip');
 });

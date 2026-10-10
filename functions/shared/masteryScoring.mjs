@@ -25,37 +25,35 @@
  *   otherwise   — the delivered instance (a Path item, a lab, a secure item);
  *                 failing that the event itself, which is one event as before.
  *
- * Bounded: an entry keeps at most MAX_QUESTIONS_PER_SKILL question rows. When
- * it would hold more, the oldest rows are dropped and their contribution stays
- * folded into the sums for good; a later attempt at a dropped question then
- * counts as a new question (the old behaviour, for that one question).
+ * Bounded, so the document never nears Firestore's 1 MiB limit (where the
+ * trigger's write would fail and the student's mastery would stop updating)
+ * and the live listener does not re-download a growing document after every
+ * answer: a skill keeps at most MAX_QUESTIONS_PER_SKILL question rows and the
+ * whole document at most MAX_QUESTION_ROWS (compactQuestionRows). The oldest
+ * rows go first; their contribution stays folded into the sums for good, and
+ * a later attempt at a dropped question counts as a new question (the old
+ * behaviour, for that one question).
  *
  * Entries the old trigger wrote have sums but no `questions`. Their sums are
  * kept as the folded base; new questions are scored once from here on, and
  * the owner-run backfill (scripts/backfill-mastery-scoring.mjs) rescores the
  * whole history once.
  *
- * A FLOOR NEVER LETS DEPLOY DAY COST A STUDENT ANYTHING (product decision 8).
- * The backfill writes `floor` (status, estimate, effective weight) wherever
- * rescoring, or main's Path map, gave a student more than the new rule does.
- * The shared rule honours it (masteryRule.mjs), and it is cleared here as soon
- * as the student's own evidence reaches it, or once they have answered
- * FLOOR_FRESH_QUESTIONS new questions on the skill since it was set.
+ * Nothing here protects deploy day: the browser reads the more favourable of
+ * this record and the assignment record for every screen (product decision 8,
+ * src/platform/mastery/unifiedMastery.js), and the backfill refuses to write
+ * any student whose screens would show less.
  *
  * Pure: no Firestore. The helpers the trigger already uses (functions/lib/
  * mathPath.js) are passed in, so the trigger and the backfill share one path.
  */
-import {
-  classifyMasteryStatus,
-  masteryStatusRank,
-} from './masteryRule.mjs';
+import { classifyMasteryStatus } from './masteryRule.mjs';
 
 export const MASTERY_SCORING_VERSION = 2;
-export const MAX_QUESTIONS_PER_SKILL = 200;
-// A floor protects deploy day, not every day after it: once the student has
-// answered this many NEW questions on the skill, their own evidence speaks
-// for itself and the floor goes even if it was not reached.
-export const FLOOR_FRESH_QUESTIONS = 8;
+// About 100 bytes a row stored: 1,500 rows is roughly 150 KB of a 1 MiB
+// document, whatever the number of skills.
+export const MAX_QUESTIONS_PER_SKILL = 60;
+export const MAX_QUESTION_ROWS = 1500;
 
 // How much each kind of work counts as evidence (unchanged from the trigger).
 // liveChallenge sits below practice on purpose. The answer is real and the
@@ -141,21 +139,12 @@ const confidenceFor = ({ eligibleEvents, effectiveWeight, dokRepresented }) => (
     : eligibleEvents >= 4 && effectiveWeight >= 2.4 ? 'Medium' : 'Low'
 );
 
-/** True while a floor still lifts this evidence above what it earns itself. */
-const floorStillNeeded = (floor, { status, estimate, effectiveWeight }) => {
-  if (!floor || typeof floor !== 'object') return false;
-  if (num(floor.questionsSince) >= FLOOR_FRESH_QUESTIONS) return false;
-  if (masteryStatusRank(status) < masteryStatusRank(floor.status)) return true;
-  if (floor.estimate != null && (estimate == null || estimate < num(floor.estimate))) return true;
-  return num(effectiveWeight) < num(floor.effectiveWeight);
-};
-
 /**
  * The entry after one event. `previous` is the stored entry for the skill (or
  * undefined); `code` its display code. Returns { entry, changed }: changed is
  * false when the event was an older attempt than the one already counted.
  */
-export const applyMasteryEvent = (previous = {}, facts, code, { now = Date.now(), markScored = false } = {}) => {
+export const applyMasteryEvent = (previous = {}, facts, code, { now = Date.now() } = {}) => {
   const prior = previous && typeof previous === 'object' ? previous : {};
   const accumulator = prior.accumulator || {};
   const questions = { ...(prior.questions || {}) };
@@ -192,24 +181,21 @@ export const applyMasteryEvent = (previous = {}, facts, code, { now = Date.now()
     independentSuccesses: sums.independentSuccesses,
     dokRepresented,
   };
-  // The student's own evidence, without any floor: once it reaches the floor
-  // the floor has done its job and goes.
-  const earned = classifyMasteryStatus(ruleFacts);
-  const counted = prior.floor && typeof prior.floor === 'object'
-    ? { ...prior.floor, questionsSince: num(prior.floor.questionsSince) + (before ? 0 : 1) }
-    : null;
-  const floor = floorStillNeeded(counted, { status: earned, estimate, effectiveWeight: sums.effectiveWeight }) ? counted : null;
-  const status = classifyMasteryStatus({ ...ruleFacts, floor });
-  const shownEstimate = floor?.estimate != null && (estimate == null || estimate < num(floor.estimate)) ? num(floor.estimate) : estimate;
+  const status = classifyMasteryStatus(ruleFacts);
+  // The evidence at the moment the skill first reached Mastered, kept: a later
+  // attempt replaces an earlier one and rescoring rebuilds the sums, so the
+  // live counts can fall below the thresholds a Mastered skill once met
+  // (growthRewardRules.mjs reachedMasteredEvidence reads this).
+  const masteredEvidence = prior.masteredEvidence
+    || (status === 'Mastered' ? snapshotOf(sums, dokRepresented, facts.occurredAt || now) : null);
   const lastIndependentSuccessAt = facts.isCorrect && facts.independent
     ? Math.max(num(prior.dimensions?.lastIndependentSuccessAt), facts.occurredAt)
     : prior.dimensions?.lastIndependentSuccessAt || null;
 
-  const { floor: _dropped, ...rest } = prior;
   const entry = {
-    ...rest,
+    ...prior,
     teksCode: code,
-    mastery: { estimate: shownEstimate, observedPerformance: estimate, status, confidence: confidenceFor({ ...sums, dokRepresented }) },
+    mastery: { estimate, observedPerformance: estimate, status, confidence: confidenceFor({ ...sums, dokRepresented }) },
     signals: { ...(prior.signals || {}), breadth: dokRepresented.length >= 2 ? 'broad' : 'developing', retention: prior.signals?.retention || 'stable' },
     dimensions: {
       eligibleGradeLevelEvents: sums.eligibleEvents,
@@ -223,10 +209,56 @@ export const applyMasteryEvent = (previous = {}, facts, code, { now = Date.now()
     questions,
     recommendation: { reason: status === 'Needs Attention' ? 'Rebuild this skill with targeted grade-level support.' : 'Continue building independent accuracy and breadth.' },
     updatedAt: now,
-    ...(floor ? { floor } : {}),
-    ...(markScored || prior.scoringVersion >= MASTERY_SCORING_VERSION ? { scoringVersion: MASTERY_SCORING_VERSION } : {}),
+    ...(masteredEvidence ? { masteredEvidence } : {}),
   };
   return { entry, changed: true };
+};
+
+const snapshotOf = (sums, dokRepresented, at) => ({
+  eligibleEvents: sums.eligibleEvents,
+  independentSuccesses: sums.independentSuccesses,
+  effectiveWeight: sums.effectiveWeight,
+  weightedScoreSum: sums.weightedScoreSum,
+  dokRepresented: [...dokRepresented],
+  at: num(at),
+});
+
+/**
+ * The mastered-evidence snapshot an entry already earns from its own sums
+ * (an entry the old trigger wrote has none), or null when the sums are not
+ * Mastered by the shared rule.
+ */
+export const masteredEvidenceSnapshot = (entry = {}) => {
+  if (entry?.masteredEvidence) return entry.masteredEvidence;
+  const sums = entry?.accumulator || {};
+  const dokRepresented = Array.isArray(entry?.dimensions?.dokRepresented) ? entry.dimensions.dokRepresented : [];
+  const effectiveWeight = num(sums.effectiveWeight);
+  const estimate = effectiveWeight > 0 ? Math.round((num(sums.weightedScoreSum) / effectiveWeight) * 100) : null;
+  const status = classifyMasteryStatus({
+    estimate, eligibleEvents: num(sums.eligibleEvents), effectiveWeight, independentSuccesses: num(sums.independentSuccesses), dokRepresented,
+  });
+  return status === 'Mastered'
+    ? snapshotOf({ eligibleEvents: num(sums.eligibleEvents), independentSuccesses: num(sums.independentSuccesses), effectiveWeight, weightedScoreSum: num(sums.weightedScoreSum) }, dokRepresented, entry?.updatedAt)
+    : null;
+};
+
+/**
+ * The whole document's question rows held to MAX_QUESTION_ROWS, oldest first
+ * across every skill. Mutates and returns `profiles`; sums are untouched.
+ */
+export const compactQuestionRows = (profiles = {}, { maxRows = MAX_QUESTION_ROWS } = {}) => {
+  const rows = [];
+  Object.entries(profiles).forEach(([code, entry]) => {
+    Object.entries(entry?.questions || {}).forEach(([id, row]) => rows.push({ code, id, t: num(row?.t) }));
+  });
+  if (rows.length <= maxRows) return profiles;
+  rows.sort((a, b) => a.t - b.t || a.id.localeCompare(b.id));
+  rows.slice(0, rows.length - maxRows).forEach(({ code, id }) => {
+    const questions = { ...profiles[code].questions };
+    delete questions[id];
+    profiles[code] = { ...profiles[code], questions };
+  });
+  return profiles;
 };
 
 /**
@@ -240,8 +272,9 @@ export const rescoreProfilesFromEvidence = (events = [], helpers, { now = Date.n
   ordered.forEach(({ id, evidence }) => {
     const facts = masteryEventFacts(evidence || {}, helpers, { eventId: id });
     facts.codes.forEach((code) => {
-      profiles[code] = applyMasteryEvent(profiles[code], facts, code, { now, markScored: true }).entry;
+      profiles[code] = applyMasteryEvent(profiles[code], facts, code, { now }).entry;
     });
+    compactQuestionRows(profiles);
   });
   return profiles;
 };

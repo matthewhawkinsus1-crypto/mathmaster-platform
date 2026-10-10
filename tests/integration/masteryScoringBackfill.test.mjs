@@ -4,8 +4,8 @@
  * scripts/backfill-mastery-scoring.mjs runMasteryBackfill with the Admin SDK:
  * the dry run reports and writes nothing; --execute rescores each question
  * once, reads My Math Path's post-answer reviews as they should have been
- * written (QA round 2, R2-M2), floors what would be lost, and a second run
- * writes nothing. Run through npm run test:challenge-finish (CI: full platform
+ * written (QA round 2, R2-M2), refuses a student whose screens would show
+ * less, re-reads grades inside the write, and a second run writes nothing. Run through npm run test:challenge-finish (CI: full platform
  * suite).
  */
 import test from 'node:test';
@@ -52,7 +52,7 @@ const seed = async () => {
     profiles: { 'A.5A': { teksCode: 'A.5A', mastery: { estimate: 75, status: MASTERY_STATUS.SECURE }, accumulator: { effectiveWeight: 4, weightedScoreSum: 3, eligibleEvents: 4, modifiedEvents: 0, independentSuccesses: 0 }, dimensions: { eligibleGradeLevelEvents: 4, independentSuccesses: 0, dokRepresented: [3] } } },
   });
   // A student whose stored profile says more than their evidence supports:
-  // the floor must hold it.
+  // refused, left exactly as it is.
   const held = `${PREFIX}held`;
   batch.set(db.collection('grades').doc(held), { gradesByAssignment: {}, classId: 'c1' });
   batch.set(db.collection('grades').doc(held).collection('evidenceEvents').doc('e-x'), pathEvent(held, `${held}-x`, { correct: false, at: NOW - 1000 }));
@@ -64,7 +64,7 @@ const seed = async () => {
   return { pathOnly, held };
 };
 
-test('dry run reports and writes nothing; execute rescores and floors; a second run writes nothing', async () => {
+test('dry run reports and writes nothing; execute rescores, refuses a loss; a second run writes nothing', async () => {
   const { pathOnly, held } = await seed();
   const before = (await db.collection('studentMasteryProfiles').doc(pathOnly).get()).data();
 
@@ -84,15 +84,31 @@ test('dry run reports and writes nothing; execute rescores and floors; a second 
   const event = (await db.collection('grades').doc(pathOnly).collection('evidenceEvents').doc('e-a').get()).data();
   assert.equal(event.supportUsage.workedExampleUsed, true);
 
+  const heldBefore = (await db.collection('studentMasteryProfiles').doc(held).get()).data();
   const heldRun = await runMasteryBackfill({ db, now: NOW, student: held, execute: true });
-  assert.equal(heldRun.counts.written, 1);
-  assert.equal(heldRun.counts.refused, 0);
-  const heldEntry = (await db.collection('studentMasteryProfiles').doc(held).get()).data().profiles['A.5A'];
-  assert.equal(heldEntry.mastery.status, MASTERY_STATUS.MASTERED, 'a floor holds what the student had');
-  assert.equal(heldEntry.floor.status, MASTERY_STATUS.MASTERED);
+  assert.equal(heldRun.counts.written, 0);
+  assert.equal(heldRun.counts.refused, 1);
+  assert.deepEqual((await db.collection('studentMasteryProfiles').doc(held).get()).data(), heldBefore, 'a refused student is left exactly as they were');
 
   const rerun = await runMasteryBackfill({ db, now: NOW + 1, student: pathOnly, execute: true });
   assert.equal(rerun.counts.skippedAlreadyRescored, 1);
   assert.equal(rerun.counts.written, 0);
   assert.deepEqual((await db.collection('studentMasteryProfiles').doc(pathOnly).get()).data(), after, 'idempotent');
+});
+
+test('the student is read again inside the write: a change after the dry plan is what decides', async () => {
+  const studentId = `${PREFIX}fresh`;
+  await db.collection('grades').doc(studentId).set({ gradesByAssignment: {}, classId: 'c1' });
+  await db.collection('grades').doc(studentId).collection('evidenceEvents').doc('e-1').set(pathEvent(studentId, `${studentId}-1`, { at: NOW - 1000, code: 'A.7A' }));
+  const report = await runMasteryBackfill({
+    db, now: NOW, student: studentId, execute: true,
+    // Between the dry plan and the write, the student's record goes away
+    // (erased). Planned on the stale read, the run would still write a
+    // profile for them; read again inside the transaction, it writes nothing.
+    confirm: async () => { await db.collection('grades').doc(studentId).delete(); return true; },
+  });
+  assert.equal(report.counts.wouldWrite, 1);
+  assert.equal(report.counts.written, 0);
+  assert.equal(report.counts.failed, 0);
+  assert.equal((await db.collection('studentMasteryProfiles').doc(studentId).get()).exists, false);
 });

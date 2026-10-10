@@ -14,47 +14,64 @@
  *     assignment record (src/platform/path/masteryAdapter.js) —
  *
  * with what the rescored document would give, through the very same client
- * code. Wherever the rescored skill would show a lower status, a lower score
- * or less evidence on either, it gets a FLOOR that holds what they had
- * (masteryRule.mjs), and the plan re-checks the result through the same code
- * before it is accepted. A skill only main's assignment record knows (work the
- * server never saw) gets a floor-only entry, so the map and the wheel can read
- * one record for it too.
+ * code. Both views read each skill by the favourable rule (the higher of the
+ * server's number and the assignment record's, Mastered when either says so),
+ * so a skill the server never saw keeps what the assignment record gives it.
+ * Wherever the rescored document would still show a lower status, a lower
+ * score or less evidence anywhere, or could newly lock a skill, the student
+ * is REFUSED: nothing is written for them and the report says why.
  *
  * Before rescoring, My Math Path answers whose only "support" was their own
  * post-answer review are read as independent (pathReviewReclassification.mjs,
- * QA round 2 R2-M2). That can only raise a skill; floors still hold the rest.
+ * QA round 2 R2-M2). That can only raise a skill.
  *
- * Idempotent: a document already rescored and reclassified
- * (masteryScoring.version ≥ 2 and pathReviewReclassified) is skipped, so
- * running twice changes nothing the second time; one rescored before the
- * reclassification existed is planned once more from what it is now.
+ * Idempotent: a document already rescored (masteryScoring.version ≥ 2) is
+ * skipped, so running twice changes nothing the second time.
  */
 import { buildStudentMasteryProfile } from '../../src/masteryEngine.js';
-import { buildMasteryBySkill, favourableMasteryBySkill, CONFIDENT_EVIDENCE } from '../../src/platform/path/masteryAdapter.js';
+import { buildMasteryBySkill, favourableMasteryBySkill } from '../../src/platform/path/masteryAdapter.js';
 import { buildUnifiedMasteryProfiles, masteryBySkillFromProfiles } from '../../src/platform/mastery/unifiedMastery.js';
-import { teksSkillId } from '../../src/platform/path/skillGraph.js';
+import { getSkillGraph, teksCodeFromSkillId, teksSkillId } from '../../src/platform/path/skillGraph.js';
+import { STATUS, getStudentPathOptions } from '../../src/platform/path/recommendationEngine.js';
+import { sequenceProvider } from '../../src/platform/path/curriculumPacing.js';
+import { getTexasStandard } from '../../functions/shared/texasStandards.mjs';
 import { toDisplayCode } from '../../src/utils/teksUtils.js';
-import { MASTERY_STATUS, masteryStatusRank } from '../../functions/shared/masteryRule.mjs';
-import { MASTERY_SCORING_VERSION, rescoreProfilesFromEvidence } from '../../functions/shared/masteryScoring.mjs';
+import { masteryStatusRank } from '../../functions/shared/masteryRule.mjs';
+import { MASTERY_SCORING_VERSION, masteredEvidenceSnapshot, rescoreProfilesFromEvidence } from '../../functions/shared/masteryScoring.mjs';
 import { reclassifyPathReviewEvidence } from '../../functions/shared/pathReviewReclassification.mjs';
-
-export const FLOOR_REASON = 'scoring-v2-deploy';
 
 const num = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 const rank = (status) => masteryStatusRank(status);
-const higherStatus = (a, b) => (rank(a) >= rank(b) ? a : b);
 
 // Fields the old trigger owned; everything else on a stored entry is kept.
-const SCORING_FIELDS = ['mastery', 'accumulator', 'dimensions', 'questions', 'floor', 'confidence', 'scoringVersion'];
+const SCORING_FIELDS = ['mastery', 'accumulator', 'dimensions', 'questions', 'confidence'];
 const withoutScoring = (entry = {}) => Object.fromEntries(Object.entries(entry || {}).filter(([key]) => !SCORING_FIELDS.includes(key)));
+
+// Which skills the Path engine closes (locked, or behind a repair) for this
+// mastery, in every course the student's skills belong to. Pacing is a plain
+// sequence: a lock is a prerequisite decision, not a calendar one.
+const closedSkills = (map) => {
+  const courses = new Set(Object.keys(map).map((skillId) => getTexasStandard(teksCodeFromSkillId(skillId))?.courseId).filter(Boolean));
+  const closed = new Set();
+  courses.forEach((courseId) => {
+    const skills = getSkillGraph(courseId);
+    if (!skills.length) return;
+    const options = getStudentPathOptions({
+      courseId, masteryBySkill: map,
+      pacing: { windowIndex: 3, windowCount: 8, accelerationRadius: 1 },
+      pacingProvider: sequenceProvider({ skills, windowCount: 8 }),
+    });
+    [STATUS.LOCKED, STATUS.REMEDIATION].forEach((key) => (options[key] || []).forEach((row) => closed.add(row.skillId)));
+  });
+  return closed;
+};
 
 /** What a student sees for every skill, from one server document, through the client's own code. */
 export const studentView = ({ student, assignments, serverProfiles }) => {
   const unified = buildUnifiedMasteryProfiles({ student, assignments, serverProfiles });
   const legacy = buildMasteryBySkill(buildStudentMasteryProfile({ student, assignments }));
   const map = favourableMasteryBySkill({ legacy, unified: masteryBySkillFromProfiles(unified) });
-  return { unified, map, legacy };
+  return { unified, map, legacy, closed: closedSkills(map) };
 };
 
 /**
@@ -78,43 +95,22 @@ export const lossesFor = (code, before, after) => {
   if (mapBefore) {
     if (!mapAfter) losses.push('map: skill gone');
     else {
-      if (mapBefore.mastered === true && mapAfter.mastered !== true) losses.push('map: Mastered lost');
+      // The engine's own reading: a verdict when the record carries one,
+      // otherwise main's 0.9 cut-off (recommendationEngine.js).
+      const masteredOnMap = (record) => (typeof record.mastered === 'boolean' ? record.mastered : num(record.mastery) >= 0.9);
+      if (masteredOnMap(mapBefore) && !masteredOnMap(mapAfter)) losses.push('map: Mastered lost');
       if (num(mapAfter.mastery) + 1e-9 < num(mapBefore.mastery)) losses.push(`map score ${mapBefore.mastery} → ${mapAfter.mastery}`);
-      if (num(mapAfter.evidenceStrength) + 1e-9 < num(mapBefore.evidenceStrength)) losses.push('map: evidence strength lower');
+      // Evidence strength is NOT a loss by itself: counting each question once
+      // removes the per-attempt inflation it carried. What it can cost — a
+      // skill the engine now closes — is checked below (newlyClosed).
       if (mapBefore.gate === false && mapAfter.gate !== false && mapAfter.mastered !== true) losses.push('map: Path-only skill could now lock');
     }
   }
   return losses;
 };
 
-/** True when the Path map shows a skill above what the wheel shows for it. */
-export const mapCreditsMore = (code, view) => {
-  const map = view.map[teksSkillId(code)];
-  const wheel = view.unified[code];
-  if (!map) return false;
-  if (map.mastered === true && wheel?.mastery?.status !== MASTERY_STATUS.MASTERED) return true;
-  return num(map.mastery) * 100 > num(wheel?.mastery?.estimate) + 1e-6;
-};
-
-/** The floor that holds what a skill had, from the two views before rescoring. */
-const floorFrom = (code, before, now) => {
-  const wheel = before.unified[code];
-  const map = before.map[teksSkillId(code)];
-  const status = higherStatus(
-    wheel?.mastery?.status || MASTERY_STATUS.NOT_ENOUGH_EVIDENCE,
-    map?.mastered ? MASTERY_STATUS.MASTERED : (map?.status || MASTERY_STATUS.NOT_ENOUGH_EVIDENCE),
-  );
-  // Rounded UP to a thousandth, so the floor never sits a hair below.
-  const estimate = Math.max(
-    wheel?.mastery?.estimate == null ? 0 : num(wheel.mastery.estimate),
-    map ? Math.ceil(num(map.mastery) * 100 * 1000 - 1e-6) / 1000 : 0,
-  );
-  const effectiveWeight = Math.max(
-    num(wheel?.accumulator?.effectiveWeight ?? wheel?.dimensions?.effectiveWeight),
-    map ? num(map.evidenceStrength) * CONFIDENT_EVIDENCE : 0,
-  );
-  return { status, estimate, effectiveWeight: Math.round(effectiveWeight * 1000) / 1000, reason: FLOOR_REASON, setAt: now, questionsSince: 0 };
-};
+/** Skills the Path engine closes after that it did not close before. */
+export const newlyClosed = (before, after) => [...after.closed].filter((skillId) => !before.closed.has(skillId));
 
 /**
  * One student's plan.
@@ -123,14 +119,10 @@ const floorFrom = (code, before, now) => {
  *   student     { id, gradesByAssignment, supportUsageByAssignment } as the app builds it
  *   assignments the student's assignments as the app holds them
  *   helpers     functions/lib/mathPath.js
- * Returns { action: 'skip'|'write', reason?, document?, changes, violations }.
+ * Returns { action: 'skip'|'write'|'refuse', reason?, document?, changes, violations, pathReview }.
  */
 export const planStudentMasteryBackfill = ({ studentId, stored = null, events = [], student = {}, assignments = [], helpers, now = Date.now() }) => {
-  // Rescored AND with My Math Path's post-answer reviews read as they should
-  // have been written (pathReviewReclassification.mjs). A document rescored by
-  // the first release of this script lacks the second mark and is planned
-  // again from what it is now, so the second pass also never lowers anything.
-  if (Number(stored?.masteryScoring?.version) >= MASTERY_SCORING_VERSION && stored?.masteryScoring?.pathReviewReclassified === true) {
+  if (Number(stored?.masteryScoring?.version) >= MASTERY_SCORING_VERSION) {
     return { action: 'skip', reason: 'already-rescored', changes: [], violations: [], pathReview: null };
   }
   const storedProfiles = stored?.profiles && typeof stored.profiles === 'object' ? stored.profiles : {};
@@ -146,40 +138,32 @@ export const planStudentMasteryBackfill = ({ studentId, stored = null, events = 
   ].filter(Boolean));
   codes.forEach((code) => {
     const storedEntry = storedProfiles[code] || storedProfiles[`texas:${code}`] || null;
-    if (rescored[code]) profiles[code] = { ...withoutScoring(storedEntry), ...rescored[code], scoringVersion: MASTERY_SCORING_VERSION };
-    else if (storedEntry) {
-      // A stored skill with no evidence left to rescore keeps its sums as they
-      // are (they are the only record of it) and is marked rescored.
-      profiles[code] = { ...storedEntry, scoringVersion: MASTERY_SCORING_VERSION };
+    if (rescored[code]) {
+      // A skill Mastered by the old counts keeps the evidence it reached
+      // Mastered with (a growth reward earned but not yet paid still pays).
+      const earlier = storedEntry ? masteredEvidenceSnapshot(storedEntry) : null;
+      profiles[code] = { ...withoutScoring(storedEntry), ...rescored[code], ...(earlier ? { masteredEvidence: earlier } : {}) };
     }
+    // A stored skill with no evidence left to rescore keeps its sums as they
+    // are: they are the only record of it.
+    else if (storedEntry) profiles[code] = storedEntry;
   });
 
-  // Floor every skill that would otherwise lose something, and every skill
-  // only the assignment record knows where the map credits more than the
-  // wheel (so that both read one record from now on); then re-check.
-  let after = studentView({ student, assignments, serverProfiles: profiles });
+  // Through the client's own code, every screen after against every screen
+  // now. Anything lower and the student is refused: their document stays as
+  // it is (the favourable rule still reads their assignment record), and the
+  // report names the skill and what would drop.
+  const after = studentView({ student, assignments, serverProfiles: profiles });
   const changes = [];
-  codes.forEach((code) => {
-    const losses = lossesFor(code, before, after);
-    if (!losses.length && !profiles[code] && mapCreditsMore(code, after)) losses.push('map credits more than the wheel');
-    if (!losses.length) return;
-    const floor = floorFrom(code, before, now);
-    profiles[code] = profiles[code]
-      ? { ...profiles[code], floor, mastery: { ...profiles[code].mastery, status: higherStatus(profiles[code].mastery?.status, floor.status), estimate: Math.max(num(profiles[code].mastery?.estimate), floor.estimate) } }
-      // Work only main's assignment record holds: a floor-only entry, with no
-      // sums of its own, so the record's own counts still show beneath it.
-      : { teksCode: code, mastery: { estimate: floor.estimate, status: floor.status }, floor, scoringVersion: MASTERY_SCORING_VERSION, updatedAt: now };
-    changes.push({ code, floored: true, losses });
-  });
-  after = studentView({ student, assignments, serverProfiles: profiles });
   const violations = [];
+  newlyClosed(before, after).forEach((skillId) => violations.push({ code: teksCodeFromSkillId(skillId), losses: ['map: skill now locked'] }));
   codes.forEach((code) => {
     const losses = lossesFor(code, before, after);
     if (losses.length) violations.push({ code, losses });
     const was = before.unified[code];
     const is = after.unified[code];
-    if (!changes.some((change) => change.code === code) && (was?.mastery?.estimate !== is?.mastery?.estimate || was?.mastery?.status !== is?.mastery?.status)) {
-      changes.push({ code, floored: false, from: { estimate: was?.mastery?.estimate ?? null, status: was?.mastery?.status || null }, to: { estimate: is?.mastery?.estimate ?? null, status: is?.mastery?.status || null } });
+    if (was?.mastery?.estimate !== is?.mastery?.estimate || was?.mastery?.status !== is?.mastery?.status) {
+      changes.push({ code, from: { estimate: was?.mastery?.estimate ?? null, status: was?.mastery?.status || null }, to: { estimate: is?.mastery?.estimate ?? null, status: is?.mastery?.status || null } });
     }
   });
 

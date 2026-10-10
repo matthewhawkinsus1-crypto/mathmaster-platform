@@ -6,9 +6,9 @@
  * (functions/shared/masteryScoring.mjs). Profiles written before that counted
  * every attempt. This tool rebuilds each student's studentMasteryProfiles
  * document from their whole evidence history (grades/{id}/evidenceEvents) the
- * new way and floors every skill at what the student has today on the wheel
- * and on the Path map, so nobody loses a Mastered status, an unlock or
- * progress (product decision 8). The decisions are made by
+ * new way, and writes it only when no screen would show the student less than
+ * it does today — no Mastered status, unlock or progress lost (product
+ * decision 8); any other student is refused and reported. The decisions are made by
  * planStudentMasteryBackfill (scripts/lib/masteryScoringBackfill.mjs), unit-
  * tested without Firebase in tests/platform/masteryScoringBackfill.test.mjs.
  * This file only reads, re-plans inside a transaction, and writes.
@@ -22,15 +22,18 @@
  * (functions/shared/pathReviewReclassification.mjs); the dry run reports how
  * many Path answers that reclassifies.
  *
- * Idempotent: a document already rescored and reclassified
- * (masteryScoring.version ≥ 2, pathReviewReclassified) is skipped. A plan that would still lower anything after flooring is REFUSED
- * for that student and reported, never written. Grades, evidence, assignments
+ * Idempotent: a document already rescored (masteryScoring.version ≥ 2) is
+ * skipped. A plan that would lower anything is REFUSED for that student and
+ * reported, never written; expect some (a modified final attempt carries no
+ * weight under the new scoring). Grades, evidence, assignments
  * and history are only read; the one document written per student is
  * studentMasteryProfiles/{studentId}.
  *
- * Run it after the functions deploy that ships the new trigger, so evidence
- * arriving during the run is already scored the new way; a student's evidence
- * is read inside the same transaction that writes their document.
+ * Run it after hours, after the functions deploy that ships the new trigger
+ * and well after Hosting (an open tab on the old bundle reads the server's
+ * number alone until it reloads). A student's grades, assignments and evidence
+ * are read again inside the transaction that writes their document, and one
+ * student's failure is reported without stopping the run.
  *
  * PRIVACY. Standard output is counts only; the JSON report (release-reports/,
  * gitignored) lists student ids and skill codes, never names.
@@ -89,17 +92,19 @@ export const parseBackfillArgs = (argv = []) => {
 const STUDENT_FIELDS = ['gradesByAssignment', 'supportUsageByAssignment', 'classId', 'classPeriod'];
 
 /** The student and their assignments exactly as the student's app builds them. */
-const loadStudentInputs = async (db, studentId, studentData, assignmentCache) => {
+// `getAll` is db.getAll or a transaction's getAll; inside a transaction the
+// assignments are read fresh, never from an earlier pass.
+const loadStudentInputs = async (db, studentId, studentData, getAll) => {
   const gradesByAssignment = studentData.gradesByAssignment || {};
   const ids = Object.keys(gradesByAssignment);
-  const missing = ids.filter((id) => !assignmentCache.has(id));
-  for (let start = 0; start < missing.length; start += 100) {
+  const byId = new Map();
+  for (let start = 0; start < ids.length; start += 100) {
     // eslint-disable-next-line no-await-in-loop
-    const snapshots = await db.getAll(...missing.slice(start, start + 100).map((id) => db.collection('assignments').doc(id)));
-    snapshots.forEach((snapshot) => assignmentCache.set(snapshot.id, snapshot.exists ? snapshot.data() : null));
+    const snapshots = await getAll(...ids.slice(start, start + 100).map((id) => db.collection('assignments').doc(id)));
+    snapshots.forEach((snapshot) => byId.set(snapshot.id, snapshot.exists ? snapshot.data() : null));
   }
   const assignments = ids
-    .map((id) => (assignmentCache.get(id) ? studentScopedAssignment(id, assignmentCache.get(id), studentId) : null))
+    .map((id) => (byId.get(id) ? studentScopedAssignment(id, byId.get(id), studentId) : null))
     .filter(Boolean)
     // App.jsx studentPathAssignments: the Path reads the student's class's work.
     .filter((assignment) => assignmentIsForStudent(assignment, { classId: studentData.classId || null, classPeriod: studentData.classPeriod }));
@@ -118,10 +123,9 @@ export const runMasteryBackfill = async ({ db, execute = false, student = null, 
   const report = {
     startedAt: new Date(now).toISOString(),
     mode: execute ? 'execute' : 'dry-run',
-    counts: { students: 0, skippedAlreadyRescored: 0, unchanged: 0, wouldWrite: 0, written: 0, refused: 0, flooredSkills: 0, changedSkills: 0, pathEvents: 0, pathReviewsReclassified: 0, pathReviewAnomalies: 0 },
+    counts: { students: 0, skippedAlreadyRescored: 0, unchanged: 0, wouldWrite: 0, written: 0, refused: 0, failed: 0, changedSkills: 0, pathEvents: 0, pathReviewsReclassified: 0, pathReviewAnomalies: 0 },
     students: [],
   };
-  const assignmentCache = new Map();
   const gradeRefs = student
     ? [db.collection('grades').doc(student)]
     : (await db.collection('grades').select().get()).docs.map((doc) => doc.ref);
@@ -136,7 +140,7 @@ export const runMasteryBackfill = async ({ db, execute = false, student = null, 
     if (!gradeSnapshot.exists) continue;
     report.counts.students += 1;
     // eslint-disable-next-line no-await-in-loop
-    const inputs = await loadStudentInputs(db, gradeRef.id, gradeSnapshot.data() || {}, assignmentCache);
+    const inputs = await loadStudentInputs(db, gradeRef.id, gradeSnapshot.data() || {}, (...refs) => db.getAll(...refs));
     const plan = planStudentMasteryBackfill({
       studentId: gradeRef.id, stored: profileSnapshot.exists ? profileSnapshot.data() : null, events, helpers: mathPath, now, ...inputs,
     });
@@ -145,38 +149,45 @@ export const runMasteryBackfill = async ({ db, execute = false, student = null, 
     report.counts.pathReviewsReclassified += plan.pathReview?.reclassified || 0;
     report.counts.pathReviewAnomalies += plan.pathReview?.anomalies || 0;
     if (!events.length && !profileSnapshot.exists && !plan.changes.length) { report.counts.unchanged += 1; continue; }
-    const floored = plan.changes.filter((change) => change.floored).length;
-    report.counts.flooredSkills += floored;
-    report.counts.changedSkills += plan.changes.length - floored;
+    report.counts.changedSkills += plan.changes.length;
     report.students.push({ studentId: gradeRef.id, action: plan.action, changes: plan.changes, violations: plan.violations, pathReview: plan.pathReview });
     if (plan.action === 'refuse') { report.counts.refused += 1; continue; }
     report.counts.wouldWrite += 1;
-    plans.push({ gradeRef, inputs });
+    plans.push({ gradeRef });
   }
   log(`${report.counts.students} students read; ${report.counts.wouldWrite} documents to write, ${report.counts.refused} refused, ${report.counts.skippedAlreadyRescored} already rescored.`);
   if (!execute || !plans.length) return report;
   if (confirm && !(await confirm(report.counts))) { report.aborted = true; return report; }
 
-  for (const { gradeRef, inputs } of plans) {
+  for (const { gradeRef } of plans) {
     const profileRef = db.collection('studentMasteryProfiles').doc(gradeRef.id);
-    // eslint-disable-next-line no-await-in-loop
-    const outcome = await db.runTransaction(async (transaction) => {
-      // Re-read and re-plan inside the transaction: evidence that arrived
-      // since the dry plan is included, and a document the trigger rewrote
-      // meanwhile is planned from what it is now.
-      const [profileSnapshot, events] = await Promise.all([
-        transaction.get(profileRef),
-        readEvents((query) => transaction.get(query), gradeRef),
-      ]);
-      const plan = planStudentMasteryBackfill({
-        studentId: gradeRef.id, stored: profileSnapshot.exists ? profileSnapshot.data() : null, events, helpers: mathPath, now, ...inputs,
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const outcome = await db.runTransaction(async (transaction) => {
+        // Everything re-read and re-planned inside the transaction: grades and
+        // assignments as they are now, evidence that arrived since the dry
+        // plan, and a document the trigger rewrote meanwhile.
+        const [[gradeSnapshot], profileSnapshot, events] = await Promise.all([
+          transaction.getAll(gradeRef, { fieldMask: STUDENT_FIELDS }),
+          transaction.get(profileRef),
+          readEvents((query) => transaction.get(query), gradeRef),
+        ]);
+        if (!gradeSnapshot.exists) return 'missing';
+        const inputs = await loadStudentInputs(db, gradeRef.id, gradeSnapshot.data() || {}, (...refs) => transaction.getAll(...refs));
+        const plan = planStudentMasteryBackfill({
+          studentId: gradeRef.id, stored: profileSnapshot.exists ? profileSnapshot.data() : null, events, helpers: mathPath, now, ...inputs,
+        });
+        if (plan.action !== 'write') return plan.action;
+        transaction.set(profileRef, plan.document);
+        return 'written';
       });
-      if (plan.action !== 'write') return plan.action;
-      transaction.set(profileRef, plan.document);
-      return 'written';
-    });
-    if (outcome === 'written') report.counts.written += 1;
-    else if (outcome === 'refuse') report.counts.refused += 1;
+      if (outcome === 'written') report.counts.written += 1;
+      else if (outcome === 'refuse') report.counts.refused += 1;
+    } catch (error) {
+      // One student never stops the run, and the report is still written.
+      report.counts.failed += 1;
+      report.students.push({ studentId: gradeRef.id, action: 'failed', message: String(error?.message || error).slice(0, 300) });
+    }
   }
   return report;
 };
@@ -207,7 +218,7 @@ const main = async () => {
   console.log(`  project: ${options.project}${emulator ? `  (Firestore emulator ${emulator})` : ''}`);
   const confirm = options.execute && !options.yes
     ? async (counts) => {
-      console.log(`\n  ${counts.wouldWrite} documents will be written (${counts.flooredSkills} skills floored, ${counts.refused} students refused).`);
+      console.log(`\n  ${counts.wouldWrite} documents will be written (${counts.refused} students refused, left as they are).`);
       const answer = await askLine(`Type the project id to write to ${options.project}: `);
       return answer.trim() === options.project;
     }

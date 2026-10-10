@@ -19618,24 +19618,23 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
       if (application.exists) return;
       const stored = profileSnapshot.exists ? (profileSnapshot.data() || {}) : {};
       const profiles = { ...(stored.profiles || {}) };
-      // A document the backfill has rescored marks every entry it touches, so
-      // the browser knows this skill's number is the server's whole truth
-      // (src/platform/path/masteryAdapter.js).
-      const markScored = Number(stored.masteryScoring?.version) >= masteryScoring.MASTERY_SCORING_VERSION;
 
       // ONE definition of Mastered (functions/shared/masteryRule.mjs), read
       // by the wheel, the Path map, Recommended and the prerequisite locks.
       facts.codes.forEach((code) => {
-        profiles[code] = masteryScoring.applyMasteryEvent(profiles[code], facts, code, { now: Date.now(), markScored }).entry;
+        profiles[code] = masteryScoring.applyMasteryEvent(profiles[code], facts, code, { now: Date.now() }).entry;
       });
+      // Held well under Firestore's 1 MiB document limit, however long the
+      // history (masteryScoring.mjs compactQuestionRows).
+      masteryScoring.compactQuestionRows(profiles);
 
       // The mastery profile inherits the evidence's authorization context, so
       // a derived record is never readable by anyone the source was not. The
       // history below inherits the very same context object.
       const authorization = masteryHistory.derivedMasteryAuthorization(evidence);
-      // Whole, not merged: a merge would keep a floor the student has reached
-      // and question rows dropped from the bounded list. `stored` was read in
-      // this transaction, so nothing else on the document is lost.
+      // Whole, not merged: a merge would keep question rows dropped from the
+      // bounded lists. `stored` was read in this transaction, so nothing else
+      // on the document is lost.
       transaction.set(profileRef, {
         ...stored,
         profiles,

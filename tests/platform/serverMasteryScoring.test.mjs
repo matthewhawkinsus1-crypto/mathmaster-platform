@@ -13,8 +13,9 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import {
-  FLOOR_FRESH_QUESTIONS,
+  MAX_QUESTION_ROWS,
   MAX_QUESTIONS_PER_SKILL,
+  compactQuestionRows,
   applyMasteryEvent,
   masteryEventFacts,
   questionKeyFor,
@@ -99,48 +100,65 @@ test('the per-question list is bounded; dropped rows stay folded into the sums',
   assert.equal(entry.accumulator.eligibleEvents, MAX_QUESTIONS_PER_SKILL + 5);
 });
 
-test('a floor holds the status and score until the student reaches it, then goes', () => {
-  const floored = { floor: { status: MASTERY_STATUS.MASTERED, estimate: 95, effectiveWeight: 4, questionsSince: 0 } };
-  let entry = apply(floored, assignmentAttempt({ question: 'a', correct: false, at: 1000 }));
-  assert.equal(entry.mastery.status, MASTERY_STATUS.MASTERED, 'a wrong answer right after deploy costs nothing');
-  assert.equal(entry.mastery.estimate, 95);
-  assert.equal(entry.mastery.observedPerformance, 0, 'the earned number is still recorded');
-  assert.ok(entry.floor);
-  // Reached: four questions right (DOK 3, unaided) — the student earns it.
-  let reached = apply(floored, assignmentAttempt({ question: 'a', at: 1000 }));
-  ['b', 'c', 'd'].forEach((question, index) => { reached = apply(reached, assignmentAttempt({ question, at: 2000 + index })); });
-  assert.equal(reached.mastery.status, MASTERY_STATUS.MASTERED);
-  assert.equal(reached.floor, undefined, 'the floor goes once the evidence reaches it');
-});
-
-test('a floor expires after enough new questions, so it protects deploy day, not every day after', () => {
-  let entry = { floor: { status: MASTERY_STATUS.MASTERED, estimate: 95, effectiveWeight: 4, questionsSince: 0 } };
-  for (let index = 0; index < FLOOR_FRESH_QUESTIONS - 1; index += 1) {
-    entry = apply(entry, assignmentAttempt({ question: `q${index}`, correct: false, at: 1000 + index }));
-  }
-  assert.equal(entry.mastery.status, MASTERY_STATUS.MASTERED);
-  // Another attempt at a question already counted is not a new question.
-  entry = apply(entry, assignmentAttempt({ question: 'q0', attempt: 2, correct: false, at: 5000 }));
-  assert.ok(entry.floor);
-  entry = apply(entry, assignmentAttempt({ question: 'last', correct: false, at: 6000 }));
-  assert.equal(entry.floor, undefined);
-  assert.equal(entry.mastery.status, MASTERY_STATUS.NEEDS_ATTENTION);
-});
-
-test('every reader that classifies through the shared rule honours a floor', () => {
+test('the more favourable record lifts every reader that classifies through the shared rule', () => {
   const profile = {
     mastery: { estimate: 40 },
     accumulator: { eligibleEvents: 5, effectiveWeight: 5, independentSuccesses: 1 },
     dimensions: { dokRepresented: [2] },
-    floor: { status: MASTERY_STATUS.MASTERED, estimate: 92, effectiveWeight: 6 },
+    favourableRecord: { status: MASTERY_STATUS.MASTERED, estimate: 92, effectiveWeight: 6, items: 3 },
   };
   const facts = masteryFactsFromProfile(profile);
   assert.equal(facts.estimate, 92);
   assert.equal(facts.effectiveWeight, 6);
+  assert.equal(facts.eligibleEvents, 3, 'the questions the shown number rests on');
   assert.equal(classifyMasteryStatus(facts), MASTERY_STATUS.MASTERED);
-  // A floor never lowers, and never sets "Not Enough Evidence".
-  assert.equal(classifyMasteryStatus({ ...facts, estimate: 40, floor: { status: MASTERY_STATUS.NOT_ENOUGH_EVIDENCE } }), MASTERY_STATUS.NEEDS_ATTENTION);
-  assert.equal(classifyMasteryStatus({ estimate: 100, eligibleEvents: 6, effectiveWeight: 6, independentSuccesses: 6, dokRepresented: [3], floor: { status: MASTERY_STATUS.SECURE } }), MASTERY_STATUS.MASTERED);
+  // It never lowers, and never sets "Not Enough Evidence".
+  assert.equal(classifyMasteryStatus({ ...facts, estimate: 40, eligibleEvents: 5, favourableRecord: { status: MASTERY_STATUS.NOT_ENOUGH_EVIDENCE } }), MASTERY_STATUS.NEEDS_ATTENTION);
+  assert.equal(classifyMasteryStatus({ estimate: 100, eligibleEvents: 6, effectiveWeight: 6, independentSuccesses: 6, dokRepresented: [3], favourableRecord: { status: MASTERY_STATUS.SECURE } }), MASTERY_STATUS.MASTERED);
+  // The server never stores one: a scored entry carries none.
+  assert.equal(apply(undefined, assignmentAttempt({})).favourableRecord, undefined);
+});
+
+test('the document stays far below Firestore\'s 1 MiB limit however long the history', () => {
+  // 52 skills × 200 questions each: the review measured 1,066 KiB before the budget.
+  const profiles = {};
+  for (let skill = 0; skill < 52; skill += 1) {
+    const code = `A.${skill}Z`;
+    for (let question = 0; question < 200; question += 1) {
+      const evidence = { ...assignmentAttempt({ question: `q${skill}-${question}`, at: 1000 + skill * 1000 + question }), masteryEvidenceKeys: [`texas:${code}`] };
+      profiles[code] = applyMasteryEvent(profiles[code], masteryEventFacts(evidence, mathPath), code, { now: 5 }).entry;
+      compactQuestionRows(profiles);
+    }
+  }
+  const rows = Object.values(profiles).reduce((sum, entry) => sum + Object.keys(entry.questions || {}).length, 0);
+  assert.ok(rows <= MAX_QUESTION_ROWS, `${rows} rows`);
+  Object.values(profiles).forEach((entry) => assert.ok(Object.keys(entry.questions).length <= MAX_QUESTIONS_PER_SKILL));
+  const bytes = Buffer.byteLength(JSON.stringify({ profiles }));
+  assert.ok(bytes < 400 * 1024, `${Math.round(bytes / 1024)} KiB`);
+  // Every question still counted once in the sums.
+  Object.values(profiles).forEach((entry) => assert.equal(entry.accumulator.eligibleEvents, 200));
+  // The trigger compacts after every answer.
+  const trigger = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  assert.match(region(trigger, 'exports.updateMyMathPathMasteryFromEvidence', '\nexports.', 'trigger'), /masteryScoring\.compactQuestionRows\(profiles\);/);
+});
+
+test('the evidence a skill first reached Mastered with is kept, so a rescored or slipped skill still pays its growth reward', async () => {
+  const { reachedMasteredEvidence } = await import('../../functions/shared/growthRewardRules.mjs');
+  let entry;
+  ['a', 'b', 'c', 'd'].forEach((question, index) => { entry = apply(entry, assignmentAttempt({ question, at: 1000 + index })); });
+  assert.equal(entry.mastery.status, MASTERY_STATUS.MASTERED);
+  assert.equal(entry.masteredEvidence.eligibleEvents, 4);
+  assert.equal(entry.masteredEvidence.at, 1003);
+  // A later attempt replaces one right answer with a wrong one: the live counts
+  // fall below the thresholds, the snapshot does not.
+  const slipped = apply(entry, assignmentAttempt({ question: 'a', attempt: 2, correct: false, at: 5000 }));
+  assert.equal(slipped.accumulator.independentSuccesses, 3);
+  const rebuilt = { ...slipped, accumulator: { ...slipped.accumulator, eligibleEvents: 3, independentSuccesses: 1 }, dimensions: { ...slipped.dimensions, eligibleGradeLevelEvents: 3, independentSuccesses: 1 } };
+  assert.equal(reachedMasteredEvidence('A.5A', rebuilt), true, 'paid on the snapshot');
+  const { masteredEvidence: _kept, ...noSnapshot } = rebuilt;
+  assert.equal(reachedMasteredEvidence('A.5A', noSnapshot), false);
+  // A snapshot below the thresholds is not mastery.
+  assert.equal(reachedMasteredEvidence('A.5A', { ...noSnapshot, masteredEvidence: { ...entry.masteredEvidence, independentSuccesses: 1 } }), false);
 });
 
 test('rescoring a whole history gives the same profile in any order', () => {
@@ -164,7 +182,7 @@ test('the trigger scores through the shared scorer and writes the whole document
     'mastery trigger',
   );
   assert.match(trigger, /const facts = masteryScoring\.masteryEventFacts\(evidence, mathPath, \{ eventId: event\.params\.eventId \}\);/);
-  assert.match(trigger, /profiles\[code\] = masteryScoring\.applyMasteryEvent\(profiles\[code\], facts, code, \{ now: Date\.now\(\), markScored \}\)\.entry;/);
+  assert.match(trigger, /profiles\[code\] = masteryScoring\.applyMasteryEvent\(profiles\[code\], facts, code, \{ now: Date\.now\(\) \}\)\.entry;/);
   // A merge would keep a floor the student reached and dropped question rows.
   const write = region(trigger, 'transaction.set(profileRef, {', '\n      });', 'profile write');
   assert.match(write, /\.\.\.stored,/);
@@ -173,15 +191,20 @@ test('the trigger scores through the shared scorer and writes the whole document
   assert.doesNotMatch(trigger, /Number\(accumulator\.eligibleEvents \|\| 0\) \+/);
 });
 
-test('a Mastered held only by a deploy-day floor is not paid as growth; earned Mastered is', async () => {
-  const { reachedMasteredEvidence, serverDerivedMastered } = await import('../../functions/shared/growthRewardRules.mjs');
-  // Five DOK-3 questions, two right: the floor holds Mastered and 95.
-  let held = { floor: { status: MASTERY_STATUS.MASTERED, estimate: 95, effectiveWeight: 4, questionsSince: 0 } };
-  ['a', 'b', 'c', 'd', 'e'].forEach((question, index) => { held = apply(held, assignmentAttempt({ question, correct: index < 2, at: 1000 + index })); });
-  assert.equal(held.mastery.status, MASTERY_STATUS.MASTERED);
-  assert.equal(reachedMasteredEvidence('A.5A', held), false, 'the shown score is the floor\'s, not the evidence\'s');
-  assert.equal(serverDerivedMastered('A.5A', held), false);
-  let earned;
-  ['a', 'b', 'c', 'd'].forEach((question, index) => { earned = apply(earned, assignmentAttempt({ question, at: 1000 + index })); });
-  assert.equal(serverDerivedMastered('A.5A', earned), true);
+test('the skill card never says "You have mastered this" above unmet counts', async () => {
+  const { masteryChecklist } = await import('../../functions/shared/masteryRule.mjs');
+  // Mastered on the assignment record (1 question right), evidence checklist unmet.
+  const byRecord = masteryChecklist({
+    mastery: { estimate: 100 }, accumulator: { eligibleEvents: 1, effectiveWeight: 1, independentSuccesses: 1 }, dimensions: { dokRepresented: [2] },
+    favourableRecord: { status: MASTERY_STATUS.MASTERED, estimate: 100, effectiveWeight: 1, items: 1 },
+  });
+  assert.equal(byRecord.mastered, true);
+  assert.equal(byRecord.masteredBy, 'assignmentRecord');
+  assert.equal(byRecord.remaining, 0);
+  assert.deepEqual(byRecord.items.map((item) => item.met), [true]);
+  // Not mastered: the full checklist, as before.
+  const open = masteryChecklist({ mastery: { estimate: 60 }, accumulator: { eligibleEvents: 2, effectiveWeight: 2, independentSuccesses: 1 }, dimensions: { dokRepresented: [2] } });
+  assert.equal(open.mastered, false);
+  assert.equal(open.items.length, 4);
+  assert.ok(open.remaining > 0);
 });

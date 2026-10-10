@@ -41,7 +41,7 @@ const num = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 const doks = (value) => (Array.isArray(value) ? value.map(Number).filter(Number.isFinite) : []);
 
 // Lowest to highest. "Not Enough Evidence" sits lowest: it is never a reason
-// to keep a floor up, and a floor never sets it.
+// to raise a status, and the more favourable record never sets it.
 const STATUS_ORDER = [
   MASTERY_STATUS.NOT_ENOUGH_EVIDENCE,
   MASTERY_STATUS.NEEDS_ATTENTION,
@@ -54,18 +54,18 @@ const STATUS_ORDER = [
 export const masteryStatusRank = (status) => STATUS_ORDER.indexOf(status);
 
 /*
- * A FLOOR: what deploy day guaranteed this student (product decision 8).
- *
- * When the server began scoring each question once, a one-off backfill
- * (scripts/backfill-mastery-scoring.mjs) wrote, per skill, the status and
- * score the student already had — on the server's profile or on main's Path
- * map — wherever the new scoring gives less. Every reader classifies through
- * this rule, so the map, the wheel, its card and the planner all honour it,
- * and the trigger removes it once the student's own evidence reaches it
- * (masteryScoring.mjs). A floor only ever raises a status.
+ * THE MORE FAVOURABLE RECORD (product decision 8, coordinator decision on
+ * PR #467): every screen reads a skill as "the higher number, and Mastered
+ * when either record says so" — the server's evidence profile or the student's
+ * assignment record (one score per question; Mastered at 0.9, the cut-off main's
+ * Path engine applied). The browser attaches the assignment record's side to a
+ * profile as `favourableRecord` (src/platform/mastery/unifiedMastery.js), and
+ * because every reader classifies through this rule, the wheel, its card, the
+ * weekly planner, the Path map, locks and the topic browser all agree. It only
+ * ever raises: a status, the score and the evidence weight. The server never
+ * stores it.
  */
-const validFloor = (floor) => (floor && typeof floor === 'object' && !Array.isArray(floor) ? floor : null);
-
+const validRecord = (record) => (record && typeof record === 'object' && !Array.isArray(record) ? record : null);
 /**
  * The status for one skill's evidence. Inputs are the accumulator facts the
  * server keeps: estimate (0–100), eligible events, effective weight,
@@ -77,12 +77,12 @@ export const classifyMasteryStatus = ({
   effectiveWeight = 0,
   independentSuccesses = 0,
   dokRepresented = [],
-  floor = null,
+  favourableRecord = null,
 } = {}) => {
   const earned = classifyEarnedStatus({ estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented });
-  const kept = validFloor(floor);
-  // Only a real status raises one: a floor never sets "Not Enough Evidence".
-  return kept && masteryStatusRank(kept.status) > Math.max(0, masteryStatusRank(earned)) ? kept.status : earned;
+  const record = validRecord(favourableRecord);
+  // Only a real status raises one: a record never sets "Not Enough Evidence".
+  return record && masteryStatusRank(record.status) > Math.max(0, masteryStatusRank(earned)) ? record.status : earned;
 };
 
 const classifyEarnedStatus = ({ estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented }) => {
@@ -103,23 +103,30 @@ const classifyEarnedStatus = ({ estimate, eligibleEvents, effectiveWeight, indep
 };
 
 /**
- * The facts the rule reads, from a stored Phase 5 mastery profile. A floor
- * lifts the score and the evidence weight to what it guarantees, so a screen
- * that shows either number agrees with the status.
+ * The facts the rule reads, from a Phase 5 mastery profile. The more
+ * favourable record lifts the score and the evidence weight to its own, so a
+ * screen that shows either number agrees with the status.
  */
 export const masteryFactsFromProfile = (profile = {}) => {
-  const floor = validFloor(profile?.floor);
+  const record = validRecord(profile?.favourableRecord);
   const stored = profile?.mastery?.estimate ?? null;
   const weight = num(profile?.accumulator?.effectiveWeight ?? profile?.dimensions?.effectiveWeight
     ?? profile?.dimensions?.eligibleGradeLevelEvents);
-  const floorEstimate = floor && floor.estimate != null && Number.isFinite(Number(floor.estimate)) ? Number(floor.estimate) : null;
+  const recordEstimate = record && record.estimate != null && Number.isFinite(Number(record.estimate)) ? Number(record.estimate) : null;
+  // At or above the stored number: a merged profile already shows the
+  // record's number as its own (unifiedMastery.js), and it is still the
+  // record's number.
+  const recordLeads = recordEstimate != null && (stored == null || Number(stored) <= recordEstimate);
+  const events = num(profile?.accumulator?.eligibleEvents ?? profile?.dimensions?.eligibleGradeLevelEvents);
   return {
-    estimate: floorEstimate != null && (stored == null || Number(stored) < floorEstimate) ? floorEstimate : stored,
-    eligibleEvents: num(profile?.accumulator?.eligibleEvents ?? profile?.dimensions?.eligibleGradeLevelEvents),
-    effectiveWeight: floor ? Math.max(weight, num(floor.effectiveWeight)) : weight,
+    estimate: recordLeads ? recordEstimate : stored,
+    // The questions the shown number rests on: the record's when its number
+    // is the one shown (as the Path map has always counted them).
+    eligibleEvents: recordLeads && Number(record.items) > 0 ? num(record.items) : events,
+    effectiveWeight: record ? Math.max(weight, num(record.effectiveWeight)) : weight,
     independentSuccesses: num(profile?.accumulator?.independentSuccesses ?? profile?.dimensions?.independentSuccesses),
     dokRepresented: doks(profile?.dimensions?.dokRepresented),
-    floor,
+    favourableRecord: record,
   };
 };
 
@@ -163,10 +170,19 @@ export const masteryChecklist = (profile = {}) => {
     },
   ];
   const status = classifyMasteryStatus(facts);
+  const mastered = status === MASTERY_STATUS.MASTERED;
+  // Mastered on the more favourable record (the assignment work) while the
+  // evidence checklist is not all met: the card says so in one line instead
+  // of "You have mastered this skill" above unmet counts.
+  const byRecord = mastered && classifyMasteryStatus({ ...facts, favourableRecord: null }) !== MASTERY_STATUS.MASTERED
+    && items.some((item) => !item.met);
   return {
     status,
-    mastered: status === MASTERY_STATUS.MASTERED,
-    items,
-    remaining: items.filter((item) => !item.met).length,
+    mastered,
+    masteredBy: mastered ? (byRecord ? 'assignmentRecord' : 'evidence') : null,
+    items: byRecord
+      ? [{ key: 'assignmentRecord', label: 'Mastered in your assignment work', met: true, progress: estimate == null ? 'Mastered' : `${estimate}%` }]
+      : items,
+    remaining: byRecord ? 0 : items.filter((item) => !item.met).length,
   };
 };

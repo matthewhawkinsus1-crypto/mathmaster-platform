@@ -6,16 +6,19 @@
 // used to read the assignment-only fallback alone, with its own 0.9 cut-off —
 // so the same skill could be "Mastered" on one screen and "Secure" on the next.
 //
-// The wheel, the skill card and the weekly planner read the profiles built
-// here, and every status comes from the shared rule
-// (functions/shared/masteryRule.mjs) the server trigger uses. The server now
-// scores each question once (functions/shared/masteryScoring.mjs). For a skill
-// the backfill has rescored, the Path engine (map, locks, Challenge, topic
-// browser, Recommended) reads these very records; for any other it still reads
-// the MORE FAVOURABLE of these and main's assignment record
-// (src/platform/path/masteryAdapter.js favourableMasteryBySkill). Pure apart from its inputs: the live app passes
-// the server document, the Teacher Path Simulator passes none, and both go
-// through the same code.
+// Every screen — the wheel, the skill card, the weekly planner, and the Path
+// engine (map, locks, Challenge, topic browser, Recommended) — reads the
+// profiles built here, and reads each skill by ONE rule (product decision 8,
+// coordinator decision on PR #467): the more favourable of the server's
+// evidence profile and the student's assignment record — the higher number,
+// and Mastered when either says so (main's Path engine called an assignment
+// record Mastered at 0.9). The assignment record's side travels on the profile
+// as `favourableRecord`, and the shared rule (functions/shared/masteryRule.mjs)
+// honours it, so every status re-derived anywhere agrees. The server scores
+// each question once (functions/shared/masteryScoring.mjs), so its own number
+// no longer reads 50% for a question right on the second try. Pure apart from
+// its inputs: the live app passes the server document, the Teacher Path
+// Simulator passes none, and both go through the same code.
 
 import { buildStudentMasteryProfile, collectStudentEvidence } from '../../masteryEngine.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
@@ -26,7 +29,6 @@ import {
   classifyMasteryStatus,
   masteryFactsFromProfile,
 } from '../../../functions/shared/masteryRule.mjs';
-import { MASTERY_SCORING_VERSION } from '../../../functions/shared/masteryScoring.mjs';
 
 // Weighted evidence at which the path engine treats mastery as trustworthy.
 // Matches CONFIDENT_ATTEMPTS in the recommendation engine.
@@ -34,8 +36,34 @@ export const CONFIDENT_EVIDENCE = 6;
 
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
 
-/** Server fields win over the fallback; the status is re-derived from the rule. */
-export const mergeMasteryProfile = (fallback = {}, server = {}, schedule = {}) => {
+// The cut-off main's Path engine applied to an assignment record
+// (recommendationEngine.js MASTERED_THRESHOLD), on its 0–100 scale.
+const LEGACY_MASTERED_SCORE = 90;
+
+/**
+ * The assignment record's side of the favourable rule, from one legacy TEKS
+ * summary (masteryEngine.js): its score, its evidence weight, and Mastered at
+ * 90 — otherwise the shared rule's band for its own score and item count.
+ */
+export const assignmentRecordFor = (summary) => {
+  const items = Number(summary?.itemCount) || 0;
+  if (!summary || items <= 0 || !Number.isFinite(Number(summary.score))) return null;
+  const score = Number(summary.score);
+  return {
+    estimate: score,
+    effectiveWeight: Number(summary.effectiveEvidence) || 0,
+    status: score >= LEGACY_MASTERED_SCORE
+      ? MASTERY_STATUS.MASTERED
+      : classifyMasteryStatus({ estimate: score, eligibleEvents: items, effectiveWeight: items }),
+    items,
+  };
+};
+
+/**
+ * Server fields win over the fallback; the status is re-derived from the rule,
+ * with the assignment record's side (`record`) as the more favourable record.
+ */
+export const mergeMasteryProfile = (fallback = {}, server = {}, schedule = {}, record = null) => {
   const merged = {
     ...fallback,
     ...server,
@@ -48,9 +76,11 @@ export const mergeMasteryProfile = (fallback = {}, server = {}, schedule = {}) =
       retention: retentionSignal(schedule || {}),
     },
   };
+  if (record) merged.favourableRecord = record;
+  else delete merged.favourableRecord;
   const facts = masteryFactsFromProfile(merged);
-  // A floor (masteryRule.mjs) lifts the number shown with the status it keeps.
-  if (facts.floor && facts.estimate != null) merged.mastery.estimate = facts.estimate;
+  // The number shown is the more favourable one, with the status it earns.
+  if (facts.estimate != null) merged.mastery.estimate = facts.estimate;
   merged.mastery.status = classifyMasteryStatus(facts);
   return merged;
 };
@@ -89,12 +119,18 @@ export const buildUnifiedMasteryProfiles = ({
   });
   const server = serverProfiles && typeof serverProfiles === 'object' ? serverProfiles : {};
   const codes = new Set([...Object.keys(fallbackProfiles), ...Object.keys(server)].map(toDisplayCode).filter(Boolean));
+  const recordByCode = {};
+  Object.entries(legacyProfile?.teks || {}).forEach(([rawCode, summary]) => {
+    const record = assignmentRecordFor(summary);
+    if (record) recordByCode[toDisplayCode(rawCode)] = record;
+  });
   const result = {};
   codes.forEach((code) => {
     result[code] = mergeMasteryProfile(
       fallbackProfiles[code],
       server[code] || server[`texas:${code}`],
       retentionSchedulesByTEKS?.[code] || retentionSchedulesByTEKS?.[`texas:${code}`],
+      recordByCode[code] || null,
     );
   });
   return result;
@@ -117,11 +153,6 @@ export const toPathSkillMastery = (profile) => {
     evidenceStrength: clamp01(facts.effectiveWeight / CONFIDENT_EVIDENCE),
     mastered: status === MASTERY_STATUS.MASTERED,
     status,
-    // The server has rescored this skill's whole history, each question once,
-    // and floored it at what the student had on deploy day
-    // (scripts/backfill-mastery-scoring.mjs): its number is the whole truth,
-    // and the Path map reads it as the wheel does (masteryAdapter.js).
-    serverScored: Number(profile?.scoringVersion) >= MASTERY_SCORING_VERSION,
   };
 };
 

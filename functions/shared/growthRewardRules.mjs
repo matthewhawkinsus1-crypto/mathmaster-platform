@@ -585,14 +585,31 @@ const nonNegative = (value) => typeof value === 'number' && Number.isFinite(valu
  * skill that has REACHED Mastered, whatever it reads now: a canonical code
  * that is also the entry's own teksCode, and the evidence counts the trigger
  * writes (accumulator + dimensions, which it keeps equal), at or above the
- * Mastered thresholds, with the estimate the accumulator implies. Every one
- * of those counts only grows (the trigger adds to them, never subtracts), so
- * a skill that was Mastered and has since slipped still meets them; a skill
- * that never was does not. Only the estimate can fall, so it is checked for
- * consistency here and against the Mastered threshold only while the entry
- * is labelled Mastered. A label alone — `{ mastery: { status: 'Mastered' } }`
- * — is not mastery.
+ * Mastered thresholds, with the estimate the accumulator implies — checked
+ * against the Mastered threshold only while the entry is labelled Mastered.
+ * The live counts do not only grow: the trigger scores each question once
+ * (masteryScoring.mjs), so a later attempt replaces an earlier one, and the
+ * rescoring backfill rebuilds them. So the same checks also pass on the
+ * `masteredEvidence` snapshot the trigger keeps from the moment the skill
+ * first reached Mastered — a skill that slipped, or was rescored, still meets
+ * them; one that never was does not. A label alone — `{ mastery: { status:
+ * 'Mastered' } }` — is not mastery.
  */
+const meetsMasteredThresholds = ({ effectiveWeight, weightedScoreSum, eligibleEvents, independentSuccesses, dokRepresented }) => {
+  if (!nonNegative(effectiveWeight) || !nonNegative(weightedScoreSum)) return false;
+  if (!nonNegativeInteger(eligibleEvents) || !nonNegativeInteger(independentSuccesses)) return false;
+  if (eligibleEvents < MASTERED_MIN_ELIGIBLE_EVENTS || independentSuccesses < MASTERED_MIN_INDEPENDENT_SUCCESSES) return false;
+  if (independentSuccesses > eligibleEvents) return false;
+  if (effectiveWeight < MASTERED_MIN_EFFECTIVE_WEIGHT || weightedScoreSum > effectiveWeight) return false;
+  return list(dokRepresented).some((value) => Number(value) >= MASTERED_MIN_DOK);
+};
+
+const snapshotShowsMastered = (snapshot) => Boolean(snapshot)
+  && typeof snapshot === 'object'
+  && meetsMasteredThresholds(snapshot)
+  && Math.round((snapshot.weightedScoreSum / snapshot.effectiveWeight) * 100) >= MASTERED_MIN_ESTIMATE
+  && finite(snapshot.at) !== null;
+
 export const reachedMasteredEvidence = (code, entry) => {
   if (!CANONICAL_SKILL_CODE.test(String(code || ''))) return false;
   if (!entry || typeof entry !== 'object' || entry.teksCode !== code) return false;
@@ -602,14 +619,13 @@ export const reachedMasteredEvidence = (code, entry) => {
   if (!nonNegative(effectiveWeight) || !nonNegative(weightedScoreSum)) return false;
   if (!nonNegativeInteger(eligibleEvents) || !nonNegativeInteger(independentSuccesses)) return false;
   if (dimensions.eligibleGradeLevelEvents !== eligibleEvents || dimensions.independentSuccesses !== independentSuccesses) return false;
-  if (eligibleEvents < MASTERED_MIN_ELIGIBLE_EVENTS || independentSuccesses < MASTERED_MIN_INDEPENDENT_SUCCESSES) return false;
-  if (independentSuccesses > eligibleEvents) return false;
-  if (effectiveWeight < MASTERED_MIN_EFFECTIVE_WEIGHT || weightedScoreSum > effectiveWeight) return false;
-  if (!list(dimensions.dokRepresented).some((value) => Number(value) >= MASTERED_MIN_DOK)) return false;
-  const estimate = Math.round((weightedScoreSum / effectiveWeight) * 100);
+  if (independentSuccesses > eligibleEvents || weightedScoreSum > effectiveWeight) return false;
+  const estimate = effectiveWeight > 0 ? Math.round((weightedScoreSum / effectiveWeight) * 100) : null;
   if (entry.mastery?.estimate !== estimate) return false;
   if (entry.mastery.status === MASTERED_STATUS && estimate < MASTERED_MIN_ESTIMATE) return false;
-  return finite(entry.updatedAt) !== null;
+  if (finite(entry.updatedAt) === null) return false;
+  return meetsMasteredThresholds({ ...accumulator, dokRepresented: dimensions.dokRepresented })
+    || snapshotShowsMastered(entry.masteredEvidence);
 };
 
 /**
