@@ -197,8 +197,22 @@ lives, each with its behaviour re-asserted (and mutation-checked):
   confusing-browser-globals list, both done.
 
 ## Left for later, and why
-- **Student Home is still ~1.4 MB gzip**: see section 5. Needs the teacher
-  workspace out of App's static graph.
+- **Student Home is still ~1.4 MB gzip** — the next performance step,
+  deferred by the coordinator (usage limit). Measured from App.jsx's static
+  graph: 44 of its 227 direct imports are teacher-only and reach 139 modules
+  nothing student-side reaches (~442 KB gzip as source; roughly 200–250 KB
+  once minified), plus the teacher half of App.jsx itself (the 1,403-line
+  teacher render block and its handlers, perhaps 60–90 KB). Estimate: Home
+  1.42 MB → about 1.1 MB. What remains is mathjs (174 KB), Firebase (171 KB)
+  and the shared tool graders (jobs H/K). Plan, slice by slice with the
+  ratchet lowered after each: (1) turn the teacher-only components App
+  imports statically into `lazyScreens.js` entries (low risk, most of the
+  gain); (2) move the teacher render block into a lazily loaded
+  `src/app/teacher/TeacherWorkspace.jsx`. Measured with
+  `/tmp`-style script: walk App.jsx's static imports, split them by path
+  (components/teacher|admin|analytics, Teacher*, AssignmentIntake/Library/
+  QuestionEditor, Classroom*, platform/teacher|preflight|authoring|repair…),
+  and count modules reachable only through the teacher half.
 - **An arrival on a page that loaded signed out** (a restored tab, an
   expired lease at load) still opens for whoever signs in next. The address
   carries ids only and every gate applies, so it shows that account its own
