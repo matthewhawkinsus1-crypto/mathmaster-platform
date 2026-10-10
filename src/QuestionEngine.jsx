@@ -508,6 +508,7 @@ function QuestionEngineBody({
   // Go Back (the safe choice), Escape = Go Back, focus returns to Submit.
   const unchangedConfirmTitleId = useId();
   const unchangedGoBackRef = useRef(null);
+  const scaffoldRef = useRef(null);
   // HELP ALREADY HAD ON THIS VERSION OF THE QUESTION SURVIVES A REMOUNT
   // (supportUseMemory.js): App remounts the question per index, and a hint
   // revealed before leaving must still mark the next attempt as supported.
@@ -825,6 +826,12 @@ function QuestionEngineBody({
 
   const isMultipart = MULTIPART_TYPES.has(processedQuestion?.type) || (answerState.parts || []).length > 1;
   const scaffoldRequired = Boolean(resolvedActivityPolicy?.remediationAllowed !== false && supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
+  // The scaffold appears in place of the work: take the student to it.
+  useEffect(() => {
+    if (!scaffoldRequired) return undefined;
+    const frame = window.requestAnimationFrame(() => scaffoldRef.current?.querySelector('button')?.focus({ preventScroll: false }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [scaffoldRequired]);
   const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
   const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
@@ -2474,9 +2481,13 @@ function QuestionEngineBody({
         )}
 
         {scaffoldRequired && (
-          // No onClose: the scaffold closes only by choosing the right step
-          // (it costs no attempt), so Escape does nothing — as before.
-          <Dialog aria-label="Productive struggle scaffold" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
+          // Not a page-wide modal (review of #463): it covers only the work
+          // area, which is already disabled and inert beneath it, so Tab still
+          // reaches the support tray (Read aloud, Translate), the calculator
+          // and navigation — the tools the inclusion students who see it rely
+          // on. Focus moves to its first choice when it appears; it closes
+          // only by choosing the right step (no attempt spent).
+          <section ref={scaffoldRef} role="region" aria-label="Productive struggle scaffold" data-scaffold="" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
             <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
               <div style={{ fontSize: '12px', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
               <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}>{scaffold.prompt}</h2>
@@ -2487,7 +2498,7 @@ function QuestionEngineBody({
               </div>
               {scaffoldMessage && <p style={{ margin: '14px 0 0', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>{scaffoldMessage}</p>}
             </div>
-          </Dialog>
+          </section>
         )}
 
         {isCorrect && showOutcomeFeedback && (

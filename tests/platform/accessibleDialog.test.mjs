@@ -184,13 +184,12 @@ test('Work View, the LMR graph, the badge and the Scratchpad still close on Esca
   assert.match(pad, /closeOnEscape=\{!saving\}/, 'and only a save in flight holds Escape');
 });
 
-// Wave 2 (job H): QuestionEngine's two modals keep their behaviour on the
-// primitive. The "values have not changed" confirm had no accessible name, no
-// Escape and no initial focus; it is named by its heading, Escape = Go Back,
-// and it opens on Go Back (submitting again spends an attempt). The
-// productive-struggle scaffold closes only by answering it — no onClose, so
-// Escape does nothing, as before.
-test('QuestionEngine: the unchanged-values confirm and the scaffold are Dialogs', () => {
+// Wave 2 (job H): the "values have not changed" confirm had no accessible
+// name, no Escape and no initial focus; on the primitive it is named by its
+// heading, Escape = Go Back, and it opens on Go Back (submitting again spends
+// an attempt). The productive-struggle scaffold covers only the work area and
+// is a focused region, not a page-wide modal (see below).
+test('QuestionEngine: the unchanged-values confirm is a Dialog; the scaffold a focused region', () => {
   const code = executableSource(read('src/QuestionEngine.jsx'));
   assert.match(code, /^import Dialog from '\.\/ui\/Dialog\.jsx';$/m, 'imported next to its use');
   const confirm = dialogTags(code).find((tag) => tag.includes('aria-labelledby={unchangedConfirmTitleId}')) || '';
@@ -200,9 +199,14 @@ test('QuestionEngine: the unchanged-values confirm and the scaffold are Dialogs'
   assert.doesNotMatch(confirm, /closeOnEscape/);
   assert.match(confirm, /initialFocusRef=\{unchangedGoBackRef\}/);
   assert.match(code, /<button ref=\{unchangedGoBackRef\} type="button" onClick=\{\(\) => setUnchangedConfirmOpen\(false\)\}[^>]*>Go Back<\/button>/, 'initial focus is the safe choice');
-  const scaffold = dialogTags(code).find((tag) => tag.includes('aria-label="Productive struggle scaffold"')) || '';
-  assert.ok(scaffold, 'the scaffold is a Dialog');
-  assert.doesNotMatch(scaffold, /onClose=/, 'the scaffold cannot be dismissed without answering');
+  // The scaffold (review of #463): not a page-wide modal — it covers only the
+  // work area, already disabled and inert beneath it — so the support tray,
+  // calculator and navigation stay reachable by Tab. It is a named region that
+  // takes focus when it appears, and closes only by answering.
+  assert.equal(dialogTags(code).some((tag) => tag.includes('Productive struggle scaffold')), false, 'not a Dialog: it must not trap the page');
+  assert.match(code, /<section ref=\{scaffoldRef\} role="region" aria-label="Productive struggle scaffold" data-scaffold=""/);
+  assert.match(code, /if \(!scaffoldRequired\) return undefined;\s*const frame = window\.requestAnimationFrame\(\(\) => scaffoldRef\.current\?\.querySelector\('button'\)\?\.focus\(/, 'focus moves to its first choice');
+  assert.match(code, /inert=\{locked \|\| scaffoldRequired/, 'the work beneath it is inert while it shows');
   // Review of #463: it opens from Work View's own Submit too, so it is drawn
   // above Work View (2147483000) and its calculator (2147483400).
   const z = Number(code.match(/const UNCHANGED_CONFIRM_Z_INDEX = (\d+);/)?.[1]);
