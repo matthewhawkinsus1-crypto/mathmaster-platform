@@ -4,11 +4,11 @@
 // HOW TO RUN:
 //   npx firebase emulators:exec --only firestore --project mathmaster-path-choice-report \
 //     --config tests/browser/emulator/firebase.json \
-//     "node --import ./tests/integration/support/emulatorTransactions.mjs --test tests/integration/pathChoiceIdRegradeReport.test.mjs"
-// or `npm run test:path-choice-report:emulator`. `npm run test:challenge-finish`
-// globs tests/integration/*.test.mjs and picks this file up too; the report
-// reads every submission in its window, so every assertion here is scoped to
-// this suite's own students.
+//     "node --import ./tests/integration/support/emulatorTransactions.mjs --test tests/integration/pathChoiceReport/*.test.mjs"
+// or `npm run test:path-choice-report:emulator` (a CI step of its own). It
+// lives outside tests/integration/*.test.mjs on purpose: the report reads
+// EVERY submission in its window, so another suite's Path answers recorded in
+// the same emulator at the same time change what it finds.
 //
 // THE FIXTURES. Each answer goes through the real submitPathResponse, which
 // records exactly what production records:
@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const repo = path.resolve(here, '../..');
+const repo = path.resolve(here, '../../..');
 const require = createRequire(import.meta.url);
 
 assert.ok(
@@ -60,8 +60,8 @@ const secureItems = require(path.join(repo, 'functions/lib/secureItems.js'));
 const db = admin.firestore();
 const { FieldValue } = admin.firestore;
 
-const { runPathChoiceIdRegradeReport } = await import('../../scripts/report-path-choice-id-regrade.mjs');
-const { PATH_CHOICE_ID_BASIS, PATH_CHOICE_ID_CLASS, preFixServedChoiceIds } = await import('../../scripts/lib/pathChoiceIdRegradePlan.mjs');
+const { runPathChoiceIdRegradeReport } = await import('../../../scripts/report-path-choice-id-regrade.mjs');
+const { PATH_CHOICE_ID_BASIS, PATH_CHOICE_ID_CLASS, preFixServedChoiceIds } = await import('../../../scripts/lib/pathChoiceIdRegradePlan.mjs');
 
 const CLASS_ID = 'path-choice-report-class';
 const PREFIX = 'choice-regrade-fixture';
