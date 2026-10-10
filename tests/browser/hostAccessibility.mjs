@@ -6,8 +6,9 @@
  *   node tests/browser/hostAccessibility.mjs
  *
  * S5 (Focus Not Obscured): Tab from the start sentinel to the end one on My
- * Math Path (five tool questions the bare harness found covered) and on a DOL
- * Recovery assessment. No focused control may sit under the sticky action
+ * Math Path (five tool questions the bare harness found covered), on a DOL
+ * Recovery assessment and in the rich runtime (the secure exam / Test Cycle
+ * host, secureTest mode). No focused control may sit under the sticky action
  * bar, and a control that was already in view must not move the page.
  * Universal tools: Vocabulary and Read aloud in an ordinary Path practice
  * session, none in a retention check or exam-framework practice.
@@ -81,6 +82,7 @@ const walk = async (page, at) => {
 const S5_SCENES = [
   ...['dataModelingLab', 'functionOperationsLab', 'linearTableWorkbench', 'expressionMeaning', 'stepAlgebra2'].map((tool) => `scene=path-tool&tool=${tool}`),
   'scene=recovery',
+  ...['dataModelingLab', 'functionOperationsLab'].map((tool) => `scene=rich-tool&tool=${tool}`),
 ];
 
 for (const viewport of VIEWPORTS) {

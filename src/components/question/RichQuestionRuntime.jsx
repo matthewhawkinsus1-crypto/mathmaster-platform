@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import CalculatorPanel from '../CalculatorPanel.jsx';
 import MathText from '../common/MathText.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
@@ -241,6 +242,11 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
   onDraftChangeRef.current = onDraftChange;
   const supportUsageRef = useRef({});
   const busyRef = useRef(busy);
+  // The secure exam / Test Cycle host has the sticky action bar but not the
+  // assignment screen's scroll-padding: Tab must not park a control under
+  // it (S5, job H).
+  const hostRef = useRef(null);
+  useActionBarFocusReveal(hostRef);
   busyRef.current = busy || closed;
 
   // Server-held drafts go back onto this device BEFORE the engine mounts and
@@ -352,7 +358,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
   }), [calculatorPolicy?.available, calculatorPolicy?.mode, calculatorPolicy?.source]);
 
   return (
-    <main data-rich-question-runtime={policy.mode} data-path-tool={question.pathToolId} style={{ width: 'min(1180px, 100%)', margin: '0 auto', padding: '18px 14px 64px', boxSizing: 'border-box', minWidth: 0, overflowX: 'clip' }}>
+    <main ref={hostRef} data-rich-question-runtime={policy.mode} data-path-tool={question.pathToolId} style={{ width: 'min(1180px, 100%)', margin: '0 auto', padding: '18px 14px 64px', boxSizing: 'border-box', minWidth: 0, overflowX: 'clip' }}>
       {policy.secure && <div style={{ ...sectionLabelStyle, margin: '0 4px 8px' }}>Secure exam question</div>}
       <Suspense fallback={<p role="status" style={{ padding: 30, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Opening the math workspace…</p>}>
         <QuestionEngine

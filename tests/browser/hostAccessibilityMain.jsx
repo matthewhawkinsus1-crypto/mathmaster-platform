@@ -13,6 +13,9 @@
  *   ?scene=recap                    MyMathPathSessionRecap with a graph stimulus
  *   ?scene=recovery                 SectionRecoveryRunner, a DOL Recovery
  *                                   assessment of six-field items
+ *   ?scene=rich-tool&tool=<id>      RichQuestionRuntime (the secure exam and
+ *                                   Test Cycle host) in secureTest mode, a
+ *                                   registry tool from its public payload
  *
  * Driven by tests/browser/hostAccessibility.mjs.
  */
@@ -24,6 +27,7 @@ import '../../src/App.css';
 import PathSessionPlayer from '../../src/components/student/PathSessionPlayer.jsx';
 import MyMathPathSessionRecap from '../../src/components/student/MyMathPathSessionRecap.jsx';
 import SectionRecoveryRunner from '../../src/components/student/SectionRecoveryRunner.jsx';
+import RichQuestionRuntime from '../../src/components/question/RichQuestionRuntime.jsx';
 import { SAMPLE_SPECS } from '../../src/dev/MathToolsLab.jsx';
 import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
 import { normalizeDeliveryPin } from '../../functions/shared/questionGenerationIdentity.mjs';
@@ -134,7 +138,25 @@ function Recovery() {
   );
 }
 
-const SCENES = { 'path-tool': PathTool, 'path-generic': PathGeneric, recap: Recap, recovery: Recovery };
+function RichTool() {
+  const toolId = params.get('tool') || 'dataModelingLab';
+  const question = {
+    questionInstanceId: `rich-${toolId}`, pathToolId: toolId, runtimeMode: 'secureTest',
+    prompt: `Complete the ${toolId} activity.`, tool: { prompt: `Complete the ${toolId} activity.`, ...SAMPLE_SPECS[toolId] },
+  };
+  return (
+    <RichQuestionRuntime
+      question={question}
+      mode="secureTest"
+      draftKey={`rich-host-${toolId}`}
+      attempt={{ used: 0, allowed: 1 }}
+      onSubmit={async () => null}
+      onDraftChange={() => {}}
+    />
+  );
+}
+
+const SCENES = { 'path-tool': PathTool, 'path-generic': PathGeneric, recap: Recap, recovery: Recovery, 'rich-tool': RichTool };
 const Scene = SCENES[SCENE] || PathTool;
 createRoot(document.getElementById('root')).render(
   <div data-host-scene={SCENE}>

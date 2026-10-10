@@ -59,3 +59,10 @@ test('Live Challenge binds it around its stable engine (job I\'s file: one small
   assert.match(wrapper, /return <div ref=\{hostRef\} data-live-challenge-engine="" style=\{\{ display: 'contents' \}\}>\{engine\}<\/div>;/, 'the memoised engine element is unchanged inside it');
 });
 
+test('the rich runtime (secure exam, Test Cycle) binds it on its <main>', () => {
+  const rich = executableSource(readFileSync(new URL('../../src/components/question/RichQuestionRuntime.jsx', import.meta.url), 'utf8'));
+  assert.match(rich, /^import useActionBarFocusReveal from '\.\.\/common\/useActionBarFocusReveal\.js';$/m);
+  assert.match(rich, /const hostRef = useRef\(null\);\s*useActionBarFocusReveal\(hostRef\);/);
+  assert.match(rich, /<main ref=\{hostRef\} data-rich-question-runtime=/);
+});
+
