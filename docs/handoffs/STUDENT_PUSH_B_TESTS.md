@@ -1,7 +1,8 @@
 # Student push, Job B — real test-taking (2026-10-07/08)
 
 Branch `claude/student-push-b-tests` (draft PR #461), from `main` @ `2453643`,
-with `main` merged back in (hotfix #456) before the final push.
+with `main` merged back in before the final push (hotfix #456, then #457
+Recoveries and #458 tool-workspace drafts).
 
 Goal: tests that work like real tests, full access for every student, and
 results that teach. Product decisions 2 (skip / flag / go back) and 3 (worked
@@ -231,6 +232,11 @@ catch-all already denied it). No new indexes. Hosting via
   Test Cycle sync/release helpers.
 - `firestore.rules` — one explicit deny line. `package.json` — the
   `test:secure-exam-navigation` script.
+- `tests/integration/testCycleRichToolCertification.test.mjs` — its two reads
+  of a secure item's stored draft now look where navigation v2 keeps it (the
+  session's server-only `items` subcollection, not `currentQuestion`), and
+  "the refused item stays open" reads the navigation entry and cursor. Same
+  behaviour certified.
 - `functions/shared/testCycleStages.mjs`, `src/components/teacher/TestCyclePreview.jsx`
   — copy only ("one attempt per question" → the new rules).
 - Tests in other areas rewritten against behaviour: `studentJourneyUi`,
