@@ -24,8 +24,12 @@ const STUDENT_QUERY_COLLECTIONS = Object.freeze([
 
 const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
   "studentMasteryProfiles",
+  // Weekly growth snapshots of the profile above (shared/masteryHistory.mjs).
+  "studentMasteryHistory",
   "studentRetentionSchedules",
   "studentPathInterventions",
+  // The student's CCMR plan, keyed by studentId (shared/ccmrPlan.mjs).
+  "studentCcmrPlans",
 ]);
 
 const PREPRODUCTION_RESET_CONFIRMATION = "RESET TEST DATA";
@@ -69,7 +73,9 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "studentPathInterventionAudit",
   "studentPathInterventions",
   "studentMasteryProfiles",
+  "studentMasteryHistory",
   "studentRetentionSchedules",
+  "studentCcmrPlans",
   // Class Points runtime state. `classPointAnnouncements` is deliberately NOT
   // here -- it is nested under the preserved `classes/{classId}` documents,
   // so the reset clears that subcollection separately (collection-group

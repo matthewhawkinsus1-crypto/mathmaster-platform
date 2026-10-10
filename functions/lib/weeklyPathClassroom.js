@@ -59,12 +59,15 @@ function weeklyPathMarker({ classId, weekKey } = {}) {
  * reads something stricter than the app would reasonably believe the app was
  * lying to them.
  */
-function weeklyPathDescription({ classId, weekKey, goalSessions, launchUrl } = {}) {
+function weeklyPathDescription({ classId, weekKey, goalSessions, launchUrl, shortWeeks = false } = {}) {
   const marker = weeklyPathMarker({ classId, weekKey });
   if (!marker) return null;
   const sessions = Math.max(0, Number(goalSessions) || 0);
   return [
     `Your Math Path for this week: ${sessions} practice ${sessions === 1 ? "session" : "sessions"}.`,
+    // One post serves the class, so it names no one: a student whose week
+    // held fewer sessions is graded on the sessions they were given.
+    shortWeeks ? "If your week had fewer sessions than this, it is graded on the sessions it had." : null,
     "",
     "MathMaster picks what will help you most and tells you why. You can do them in any order,",
     "and on each one you can swap in a different skill if you would rather work on that.",
@@ -154,13 +157,14 @@ function weeklyPathCourseWork({
   dueDate = null,
   maxPoints = 100,
   topicId = null,
+  shortWeeks = false,
 } = {}) {
   const marker = weeklyPathMarker({ classId, weekKey });
   if (!marker) return null;
   return {
     marker,
     title: weeklyPathTitle({ weekLabel, weekKey }),
-    description: weeklyPathDescription({ classId, weekKey, goalSessions, launchUrl }),
+    description: weeklyPathDescription({ classId, weekKey, goalSessions, launchUrl, shortWeeks }),
     dueDate: dueDate || null,
     maxPoints: Math.max(1, Number(maxPoints) || 100),
     topicId: topicId || null,

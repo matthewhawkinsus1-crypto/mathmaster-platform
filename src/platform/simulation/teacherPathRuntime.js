@@ -30,6 +30,7 @@ import {
 } from '../../../functions/shared/pathToolContracts.mjs';
 import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
+import { buildPathRecapEntry, buildPathSessionRecap } from '../../../functions/shared/pathSessionRecap.mjs';
 import * as answerEquivalence from '../../../functions/shared/answerEquivalence.mjs';
 import { selectNextFamily, recordFamilyUse } from '../../../functions/shared/pathQuestionSelection.mjs';
 import { generatePathInstanceWithRetries, hasPathGenerator } from '../../../functions/shared/pathQuestionGeneration.mjs';
@@ -41,6 +42,19 @@ import {
 } from '../path/pathSessionRouting.js';
 import { recordQuestionAttempt, resolveQuestionMaximumAttempts } from '../../attemptPolicy.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
+import {
+  authorizeWeeklySlotLaunch, freezeWeeklyPathGoalProposal, openWeeklySlotSession,
+} from '../../../functions/shared/weeklyPathSlotAuthority.mjs';
+import {
+  RETENTION_PROBE,
+  RETENTION_PROBE_QUESTIONS,
+  canResumeOpenSession,
+  resolveWeeklySlotSessionKind,
+  retentionCheckOutcome,
+} from '../../../functions/shared/pathRetentionCheck.mjs';
+
+// The simulated learner has no real class; the frozen week still needs one.
+const SIMULATED_CLASS_ID = 'teacher-path-simulator';
 
 const uid = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 
@@ -219,24 +233,38 @@ export const createTeacherPathRuntime = ({
   // so a teacher can check that an accommodation actually reaches the screen —
   // which is the only way to discover a tool that cannot honour one.
   supportEntitlements = null,
+  // The simulated student's retention schedules (display TEKS -> schedule).
+  // A finished retention check moves them exactly as submitPathResponse moves
+  // a real student's, and the new schedules are published through `onChange`.
+  retentionSchedulesByTEKS = {},
 } = {}) => {
   const usingSecureBank = Array.isArray(pathBankQuestions);
   const bank = usingSecureBank
     ? buildSimulationQuestionBankFromPathBank(pathBankQuestions)
     : buildSimulationQuestionBank(assignments);
   let learner = initialLearner || { id: 'simulated', gradesByAssignment: {} };
+  let retentionSchedules = retentionSchedulesByTEKS && typeof retentionSchedulesByTEKS === 'object'
+    ? retentionSchedulesByTEKS
+    : {};
   const sessions = new Map();
+  // The simulated student's frozen weeks, by weekKey. Production freezes a
+  // week once on the server; the simulator re-freezes whenever the teacher's
+  // forced evidence rebuilds the proposal, but always by the server's rule.
+  const weeklyGoals = new Map();
 
   const masteryNow = (session) => buildMasteryBySkillForStudent({
     student: learner,
     assignments: [...assignments, sessionAssignment(session.sessionId, session.issued)],
   });
 
-  const publish = (session) => {
+  // `retentionChanged` only when a finished check moved the schedules, so a
+  // routine publish can never overwrite a schedule the teacher just forced.
+  const publish = (session, { retentionChanged = false } = {}) => {
     onChange?.({
       learner,
       sessionAssignment: sessionAssignment(session.sessionId, session.issued),
       session: publicSession(session),
+      ...(retentionChanged ? { retentionSchedulesByTEKS: retentionSchedules } : {}),
     });
   };
 
@@ -252,6 +280,8 @@ export const createTeacherPathRuntime = ({
     weeklyPurpose: session.weeklyPurpose || null,
     intendedDok: session.preferredDok || null,
     intendedDifficultyBand: session.preferredBand || null,
+    swappedFromTeks: session.swappedFromTeks || null,
+    chosenAlternative: session.chosenAlternative || null,
     requiredQuestions: session.requiredQuestions,
     target: { alignmentKey: session.targetAlignmentKey },
     summary: { ...session.summary },
@@ -261,6 +291,8 @@ export const createTeacherPathRuntime = ({
     lastDecision: session.lastDecision,
     currentSkillCode: teksCodeFromSkillId(session.currentSkillId) || null,
     teacherMessage: session.teacherMessage || null,
+    // The verdict of a finished retention check, as production records it.
+    retentionOutcome: session.retentionOutcome || null,
     // The whole route so far, in the order it happened. This is what makes
     // "why am I on A.5A?" answerable rather than assertable.
     route: session.route.map((entry) => ({ ...entry })),
@@ -323,12 +355,17 @@ export const createTeacherPathRuntime = ({
       return null;
     }
     const issuedQuestion = generated.question;
+    // One attempt for a diagnostic and for a retention check, as on the server
+    // (issueNextQuestion): both measure what the student can do now.
+    const singleAttempt = role === PATH_ACTION.DIAGNOSE || session.sessionKind === RETENTION_PROBE;
     // The secure payload if this tool has a contract, and nothing at all if it
     // does not — the same allowlist the server applies.
     const toolPayload = buildPublicToolPayload(issuedQuestion);
     const fieldGraded = !toolPayload && hasFieldGradableDefinition(issuedQuestion);
     const instance = {
       questionInstanceId,
+      // The bank template, so the recap applies the server's withheld list.
+      templateId: chosen.question?.id || null,
       ...(toolPayload ? {
         pathToolId: toolPayload.pathToolId,
         serverGradingVersion: toolPayload.serverGradingVersion,
@@ -353,8 +390,8 @@ export const createTeacherPathRuntime = ({
       pathRole: role,
       attemptsAllowed: resolveQuestionMaximumAttempts({
         question: issuedQuestion,
-        maximumAttempts: role === PATH_ACTION.DIAGNOSE ? 1 : 3,
-        activityPolicy: { attempts: role === PATH_ACTION.DIAGNOSE ? 1 : 3 },
+        maximumAttempts: singleAttempt ? 1 : 3,
+        activityPolicy: { attempts: singleAttempt ? 1 : 3 },
       }),
       attemptsUsed: 0,
       sourceAssignmentId: chosen.sourceAssignmentId,
@@ -422,17 +459,40 @@ export const createTeacherPathRuntime = ({
     return outcome;
   };
 
+  // --- The weekly commitment -------------------------------------------------
+
+  /**
+   * Freeze the simulated student's week by the server's rule
+   * (resolveWeeklyPathGoalSnapshot runs the same freezeWeeklyPathGoalProposal),
+   * so the swaps the simulated panel offers are exactly the ones a real
+   * student's frozen week would carry, and weekly launches can be checked the
+   * way the server checks them. Synchronous: the runtime is local.
+   */
+  const freezeWeeklyPathGoal = (goal) => {
+    const frozen = freezeWeeklyPathGoalProposal(goal, {
+      studentId: learner?.id || 'simulated',
+      classId: SIMULATED_CLASS_ID,
+      courseId,
+      canonicalTeks: toCanonicalKey,
+      displayTeks: toDisplayCode,
+    });
+    const assigned = { ...frozen, assignmentState: 'simulation' };
+    weeklyGoals.set(frozen.weekKey, assigned);
+    return assigned;
+  };
+
   // --- The three calls the container makes -----------------------------------
 
   const startOrResumePathSession = async ({
     targetAlignmentKey,
-    sessionKind = 'practice',
+    sessionKind: requestedSessionKind = 'practice',
     requiredQuestions: required = requiredQuestions,
     assessmentFramework = null,
     coursePracticeIntent = null,
     weekKey = null,
     weeklySlotKey = null,
     weeklySlot = null,
+    chosenSkillId = null,
     intendedDok = null,
     intendedDifficultyBand = null,
     weeklyPurpose = null,
@@ -440,18 +500,67 @@ export const createTeacherPathRuntime = ({
     const code = toDisplayCode(targetAlignmentKey);
     const skillId = teksSkillId(code);
 
+    // A weekly launch is checked against the frozen week exactly as
+    // startMyMathPathSession checks it: the slot's own TEKS or one of its
+    // frozen alternatives, in the slot's framework, at the slot's DOK and band.
+    // A direct caller that never froze a week (tests, tools) still supplies the
+    // slot's rigor itself, as before.
+    let launchFramework = assessmentFramework || null;
+    let launchDok = intendedDok;
+    let launchBand = intendedDifficultyBand;
+    let launchPurpose = weeklyPurpose;
+    let weeklySwap = null;
+    if (weekKey || weeklySlotKey) {
+      if (!weekKey || !weeklySlotKey) {
+        throw new Error('weekKey and weeklySlotKey are both required for an assigned weekly session.');
+      }
+      const frozenWeek = weeklyGoals.get(weekKey) || null;
+      if (frozenWeek) {
+        const authorization = authorizeWeeklySlotLaunch({
+          goal: frozenWeek,
+          weeklySlotKey,
+          targetAlignmentKey: code,
+          requestedFramework: assessmentFramework,
+          chosenSkillId,
+          canonicalTeks: toCanonicalKey,
+          displayTeks: toDisplayCode,
+        });
+        if (!authorization.ok) throw new Error(authorization.message);
+        launchFramework = authorization.assessmentFramework;
+        launchDok = authorization.intendedDok;
+        launchBand = authorization.intendedDifficultyBand;
+        launchPurpose = authorization.weeklyPurpose;
+        weeklySwap = authorization.swapped
+          ? { swappedFromTeks: authorization.swappedFromTeks, chosenAlternative: authorization.chosenAlternative }
+          : null;
+      }
+    }
+
+    // The weekly slot decides the session kind, by the server's own rule
+    // (startMyMathPathSession): a Retention slot is a retention check, and a
+    // retention check on any other slot is refused. The purpose is the frozen
+    // week's when the simulator froze one (launchPurpose), otherwise the one
+    // that arrived with the launch.
+    let sessionKind = requestedSessionKind === RETENTION_PROBE ? RETENTION_PROBE : 'practice';
+    if (weeklySlotKey) {
+      const weeklyKind = resolveWeeklySlotSessionKind({ slotPurpose: launchPurpose, requestedSessionKind: sessionKind });
+      if (!weeklyKind.ok) throw new Error(weeklyKind.message);
+      sessionKind = weeklyKind.sessionKind;
+    }
+
     // RESUME, as production does. The server keeps an `activePathLocks` entry
     // per student and target and hands back the open session rather than
     // starting a second one — that is what makes a refresh mid-question return
     // the student to the question they were on. This runtime always minted a
     // new session, so a teacher testing "what happens if a student refreshes"
     // watched behaviour no student would get, and the current question silently
-    // became unreachable.
+    // became unreachable. A weekly slot's open session is resumed whatever kind
+    // it was opened as, by the same rule the server applies.
     const existing = [...sessions.values()].find((candidate) => (
       candidate.status === 'active'
       && candidate.targetAlignmentKey === toCanonicalKey(code)
-      && candidate.sessionKind === sessionKind
-      && (candidate.assessmentFramework || null) === (assessmentFramework || null)
+      && canResumeOpenSession({ existingSessionKind: candidate.sessionKind, sessionKind, weeklySlotKey })
+      && (candidate.assessmentFramework || null) === (launchFramework || null)
       && (candidate.coursePracticeIntent || null) === (coursePracticeIntent === 'challenge' ? 'challenge' : null)
       && (candidate.weeklySlotKey || null) === (weeklySlotKey || null)
     ));
@@ -460,17 +569,50 @@ export const createTeacherPathRuntime = ({
       return { success: true, session: publicSession(existing), resumed: true };
     }
 
+    // ONE OPEN SESSION PER WEEKLY SLOT, as startMyMathPathSession enforces it
+    // (openWeeklySlotSession). A swapped slot can be launched on more than one
+    // standard, so a launch for a slot that already has an open session on
+    // another of them resumes that session — on the standard it was opened
+    // with — and is refused, with the server's words, if it is a different
+    // kind of session.
+    const openOnSlot = weeklySlotKey
+      ? openWeeklySlotSession({
+        sessions: [...sessions.values()].map((candidate) => ({ id: candidate.sessionId, data: candidate })),
+        weekKey,
+        weeklySlotKey,
+      })
+      : null;
+    const slotSession = openOnSlot ? sessions.get(openOnSlot.id) : null;
+    if (slotSession) {
+      if (slotSession.sessionKind !== sessionKind) {
+        throw new Error('Finish the active session for this TEKS before starting a different check.');
+      }
+      if ((slotSession.assessmentFramework || null) !== (launchFramework || null)) {
+        throw new Error('Finish the active session before changing assessment format.');
+      }
+      publish(slotSession);
+      return { success: true, session: publicSession(slotSession), resumed: true };
+    }
+
     const session = {
       sessionId: uid('sim_path'),
       status: 'active',
       sessionKind,
-      assessmentFramework: assessmentFramework || null,
+      assessmentFramework: launchFramework || null,
       coursePracticeIntent: coursePracticeIntent === 'challenge' ? 'challenge' : null,
       weekKey: weekKey || null,
       weeklySlotKey: weeklySlotKey || null,
       weeklySlot: weeklySlot || null,
-      weeklyPurpose: weeklyPurpose || null,
-      requiredQuestions: Math.max(1, Math.min(10, Number(required) || 5)),
+      weeklyPurpose: launchPurpose || null,
+      // Recorded as the server records it: what the slot named, and what the
+      // student practised instead. The slot key is unchanged.
+      swappedFromTeks: weeklySwap?.swappedFromTeks || null,
+      chosenAlternative: weeklySwap?.chosenAlternative || null,
+      // A retention check is always two questions, whatever was asked for
+      // (pathSessionRequiredQuestions on the server).
+      requiredQuestions: sessionKind === RETENTION_PROBE
+        ? RETENTION_PROBE_QUESTIONS
+        : Math.max(1, Math.min(10, Number(required) || 5)),
       targetAlignmentKey: toCanonicalKey(code),
       originSkillId: skillId,
       currentSkillId: skillId,
@@ -486,13 +628,13 @@ export const createTeacherPathRuntime = ({
       // audit supplies a stronger target.
       preferredBand: coursePracticeIntent === 'challenge' && !weeklySlotKey
         ? 4
-        : (intendedDifficultyBand != null && Number.isFinite(Number(intendedDifficultyBand))
-          ? Number(intendedDifficultyBand)
+        : (launchBand != null && Number.isFinite(Number(launchBand))
+          ? Number(launchBand)
           : 3),
       preferredDok: coursePracticeIntent === 'challenge' && !weeklySlotKey
         ? 3
-        : (intendedDok != null && Number.isFinite(Number(intendedDok))
-          ? Number(intendedDok)
+        : (launchDok != null && Number.isFinite(Number(launchDok))
+          ? Number(launchDok)
           : 2),
       familyUsage: {},
       usedRepresentations: [],
@@ -645,6 +787,65 @@ export const createTeacherPathRuntime = ({
     if (isCorrect && supportUsage.isMathematicallyIndependent !== false && !supportUsage.hintUsed && !supportUsage.scaffoldUsed) {
       session.summary.independentSuccesses += 1;
     }
+    // The end-of-session recap entry, built by the module the server uses, from
+    // what this question looked like to the student and what they gave.
+    // Released only once the session is completed (fetchPathSessionRecap).
+    if (!session.closedItems) session.closedItems = [];
+    session.closedItems.push(buildPathRecapEntry({
+      sessionId: session.sessionId,
+      templateId: instance.templateId || null,
+      questionInstanceId: instance.questionInstanceId,
+      questionNumber: session.summary.completedQuestions,
+      skillCode: instance.teksCode || null,
+      closedAt: Date.now(),
+      publicQuestion: instance,
+      privateGrading: session.privateGrading,
+      responsePayload,
+      grading: {
+        isCorrect: isCorrect === true,
+        score: graded?.score ?? (isCorrect ? 1 : 0),
+        attemptNumber: instance.attemptsUsed,
+        attemptsAllowed: instance.attemptsAllowed,
+      },
+      solutionReview: attemptSupport.solutionReview,
+    }));
+
+    // A RETENTION CHECK IS NEVER ROUTED, as on the server (submitPathResponse):
+    // it counts its two questions and finishes. A miss is a verdict about
+    // retention, not the start of a repair excursion, and the verdict moves the
+    // simulated student's retention schedule by the shared rule.
+    if (session.sessionKind === RETENTION_PROBE) {
+      let retentionChanged = false;
+      if (session.summary.completedQuestions >= session.requiredQuestions) {
+        session.status = 'completed';
+        session.completedAt = Date.now();
+        const teksCode = toDisplayCode(session.targetAlignmentKey);
+        const verdict = retentionCheckOutcome({
+          teksCode,
+          summary: session.summary,
+          currentSchedule: retentionSchedules[teksCode] || {},
+          now: session.completedAt,
+        });
+        retentionSchedules = { ...retentionSchedules, [teksCode]: verdict.schedule };
+        session.retentionOutcome = verdict.outcome;
+        retentionChanged = true;
+      }
+      session.currentQuestion = null;
+      session.privateGrading = null;
+      session.privateGradingMode = null;
+      session.privateSupport = null;
+      publish(session, { retentionChanged });
+      return remember({
+        success: true,
+        grading: { isCorrect: isCorrect === true, score: graded?.score ?? (isCorrect ? 1 : 0), parts: graded?.parts || [], attemptNumber: instance.attemptsUsed, attemptsRemaining: 0, questionFinalized: true },
+        feedback: attemptSupport.feedback,
+        support: attemptSupport.support,
+        solutionReview: attemptSupport.solutionReview,
+        session: publicSession(session),
+        decision: null,
+        needsNextQuestion: session.status === 'active',
+      });
+    }
 
     const masteryBySkill = masteryNow(session);
 
@@ -697,6 +898,7 @@ export const createTeacherPathRuntime = ({
       session.teacherMessage = decision.explanation;
     } else if (decision.action === PATH_ACTION.COMPLETE) {
       session.status = 'completed';
+      session.completedAt = Date.now();
     } else {
       // BRIDGE and RETURN_TO_ORIGIN both end the excursion: the bridging
       // question is asked on the origin skill, which is where the student is
@@ -833,11 +1035,21 @@ export const createTeacherPathRuntime = ({
     };
   };
 
+  // The same gate the callable applies: a recap exists only for a completed
+  // session, so a teacher previewing one sees exactly what a student would.
+  const fetchPathSessionRecap = async ({ sessionId }) => {
+    const session = sessions.get(sessionId);
+    if (!session) throw new Error('That simulated session no longer exists.');
+    return buildPathSessionRecap({ session: publicSession(session), entries: session.closedItems || [] });
+  };
+
   return {
     startOrResumePathSession,
     fetchNextSanitizedQuestion,
     submitStudentResponse,
     forceCurrentQuestionOutcome,
+    freezeWeeklyPathGoal,
+    fetchPathSessionRecap,
     getLearner: () => learner,
     /**
      * Take an updated synthetic learner WITHOUT tearing the runtime down.
@@ -859,6 +1071,23 @@ export const createTeacherPathRuntime = ({
       learner = nextLearner;
       return true;
     },
+    /**
+     * Take retention schedules the teacher forced (Make Retention Due) without
+     * tearing the runtime down. An echo of the runtime's own object is ignored.
+     */
+    syncRetentionSchedules: (next) => {
+      if (!next || typeof next !== 'object' || next === retentionSchedules) return false;
+      retentionSchedules = next;
+      return true;
+    },
+    getRetentionSchedules: () => retentionSchedules,
+    // The session documents, in the shape the production `pathSessions`
+    // collection has, so the student's weekly panel counts simulated sessions
+    // with the same rule (weeklyPathCompletion.mjs) it uses for a real student.
+    listPathSessions: () => [...sessions.values()].map((session) => ({
+      id: session.sessionId,
+      data: { ...publicSession(session), completedAt: session.completedAt || null, updatedAt: session.completedAt || null },
+    })),
     getSessionAssignments: () => [...sessions.values()].map((session) => sessionAssignment(session.sessionId, session.issued)),
     hasQuestionsFor: (skillId) => bankHasSkill(bank, skillId),
     alignedSkillIds: () => [...bank.keys()],

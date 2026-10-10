@@ -11,8 +11,10 @@
 // pure, so the simulated learner and a real student go through the same
 // conversion — the simulator only differs in which document it reads.
 
-import { buildStudentMasteryProfile } from '../../masteryEngine.js';
 import { teksSkillId } from './skillGraph.js';
+import { buildStudentMasteryProfile } from '../../masteryEngine.js';
+import { buildUnifiedMasteryProfiles, masteryBySkillFromProfiles } from '../mastery/unifiedMastery.js';
+import { MASTERY_STATUS, classifyMasteryStatus } from '../../../functions/shared/masteryRule.mjs';
 
 // Weighted evidence at which the path engine treats mastery as trustworthy.
 // Matches CONFIDENT_ATTEMPTS in the recommendation engine.
@@ -58,12 +60,68 @@ export const buildMasteryBySkill = (profile) => {
   return map;
 };
 
+// The cut-off the Path engine applied to a record with no verdict (main's
+// assignment record): recommendationEngine.js MASTERED_THRESHOLD.
+const LEGACY_MASTERED = 0.9;
+const better = (a, b) => (a == null ? b : (b == null ? a : Math.max(a, b)));
+
 /**
- * One call from a student (or simulated) document to path-engine input.
+ * NO STUDENT LOSES, ON DEPLOY DAY, WHAT MAIN GAVE THEM.
+ *
+ * The server profile counts EVERY attempt as an event, so a question right on
+ * the second try reads 50% where the assignment record (one score per
+ * question, right on any try = 100%) reads 100%. Fed alone to the Path engine
+ * it took a student's Mastered status away overnight and locked the skills
+ * built on it. Until the server scores each question once (a wave-2 change to
+ * server mastery everywhere), the Path engine — map, locks, readiness,
+ * Challenge, topic browser, Recommended — reads the MORE FAVOURABLE of the two
+ * per skill: the higher number and the better verdict.
+ *
+ * A skill only Path evidence knows was unproven to main's engine, which never
+ * locks on unproven. So such a record adds its Mastered verdict but never a
+ * lock and never a lower readiness (`gate: false`).
+ *
+ * The wheel and the weekly planner keep the server rule (unifiedMastery.js).
  */
-export const buildMasteryBySkillForStudent = ({ student, assignments = [] }) => (
-  buildMasteryBySkill(buildStudentMasteryProfile({ student, assignments }))
-);
+export const favourableMasteryBySkill = ({ legacy = {}, unified = {} } = {}) => {
+  const result = {};
+  new Set([...Object.keys(legacy || {}), ...Object.keys(unified || {})]).forEach((skillId) => {
+    const old = legacy?.[skillId] || null;
+    const now = unified?.[skillId] || null;
+    if (!now) { result[skillId] = old; return; }
+    if (!old) { result[skillId] = now.mastered ? now : { ...now, gate: false }; return; }
+    const mastered = now.mastered === true || Number(old.mastery) >= LEGACY_MASTERED;
+    const oldLeads = Number(old.mastery) > Number(now.mastery);
+    result[skillId] = {
+      ...now,
+      mastery: Math.max(Number(old.mastery) || 0, Number(now.mastery) || 0),
+      // The questions the shown number rests on.
+      attempts: oldLeads ? old.attempts : now.attempts,
+      recentAccuracy: better(old.recentAccuracy, now.recentAccuracy),
+      evidenceStrength: better(old.evidenceStrength, now.evidenceStrength),
+      mastered,
+      // The shared rule's band for the number shown; only the verdict above
+      // may say Mastered.
+      status: mastered ? MASTERY_STATUS.MASTERED : (oldLeads ? classifyMasteryStatus({
+        estimate: Number(old.mastery) * 100,
+        eligibleEvents: Number(old.attempts) || 0,
+        effectiveWeight: Number(old.attempts) || 0,
+      }) : now.status),
+    };
+  });
+  return result;
+};
+
+/**
+ * One call from a student (or simulated) document to path-engine input: the
+ * more favourable of main's assignment record and the unified profile the
+ * wheel reads (favourableMasteryBySkill). `serverProfiles` is the student's
+ * studentMasteryProfiles map; a simulated learner has none and passes nothing.
+ */
+export const buildMasteryBySkillForStudent = ({ student, assignments = [], serverProfiles = {} }) => favourableMasteryBySkill({
+  legacy: buildMasteryBySkill(buildStudentMasteryProfile({ student, assignments })),
+  unified: masteryBySkillFromProfiles(buildUnifiedMasteryProfiles({ student, assignments, serverProfiles })),
+});
 
 /**
  * Which skills a set of assignments actually targets, so the engine can weight

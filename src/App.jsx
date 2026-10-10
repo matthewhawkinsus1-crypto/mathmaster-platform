@@ -312,6 +312,8 @@ import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 import RecommendedSkills from './components/student/RecommendedSkills.jsx';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
+import { resolveAssignmentPathLaunch } from './platform/path/assignmentPathLaunch.js';
+import { subscribeStudentServerMasteryProfiles } from './platform/mastery/serverMasteryProfiles.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
 import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor, projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
@@ -423,7 +425,7 @@ import {
   normalizeGradingPeriodSettings,
 } from './platform/student/gradingPeriods.js';
 import {
-  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot, fetchMyWeeklyPathCompletions,
   interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
   setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
   subscribeStudentPathIntervention,
@@ -431,7 +433,7 @@ import {
 import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
 import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
-import { buildTeacherWeeklyView, buildWeeklyGoal, deriveCompletionsFromEvidence, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor } from './platform/path/weeklyPathGoal.js';
+import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
 import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
 import PreproductionReset from './components/admin/PreproductionReset.jsx';
@@ -969,6 +971,9 @@ function App() {
   const [pacingByClass, setPacingByClass] = useState({});
   const [skillOverrides, setSkillOverrides] = useState([]);
   const [studentPathIntervention, setStudentPathInterventionState] = useState(null);
+  // The server mastery profile: the one mastery source the Path map, Recommended
+  // and the wheel all read (platform/mastery/unifiedMastery.js).
+  const [studentServerMasteryProfiles, setStudentServerMasteryProfiles] = useState(null);
   const [pathInterventionBusyStudentId, setPathInterventionBusyStudentId] = useState(null);
   const [pacingBusy, setPacingBusy] = useState(false);
   // Weekly Path goal settings, per class. Stored beside pacing and read the
@@ -1774,8 +1779,7 @@ function App() {
         options: pathOptions,
         courseId,
         profile: teacherLearningProfiles[student.id] || null,
-        sessions: config.sessions || (honors ? 5 : 4),
-        honors,
+        ...weeklyPlanClassInputs({ config, honors }),
         now,
       });
       const proposedGoal = buildWeeklyGoal({
@@ -2321,8 +2325,9 @@ function App() {
 
     Promise.all([
       fetchStudentWeeklyPathGoalSnapshot({ weekKey: currentWeekKey }),
-      fetchStudentEvidenceEvents(user.id),
-    ]).then(([goal, evidenceEvents]) => {
+      // Server-counted completions: the rule the teacher table and Classroom use.
+      fetchMyWeeklyPathCompletions({ weekKey: currentWeekKey }),
+    ]).then(([goal, weeklyFacts]) => {
       if (!active) return;
       if (!goal) {
         const required = Number(settings.sessions) || 0;
@@ -2336,12 +2341,7 @@ function App() {
         return;
       }
 
-      const completions = deriveCompletionsFromEvidence({
-        evidenceEvents,
-        weekKey: goal.weekKey,
-        weekStartsOn: goal?.settings?.weekStartsOn || settings.weekStartsOn || 1,
-        now,
-      });
+      const completions = weeklyFacts?.completions || [];
       setStudentWeeklyPathProgress(evaluateWeeklyGoalProgress({ goal, completions, now }));
     }).catch((error) => {
       if (!active) return;
@@ -2354,6 +2354,18 @@ function App() {
     user?.role, user?.id, user?.profile?.courseLevel, studentWeeklyGoalConfig,
     studentDashboardMode, Math.floor(now / 3_600_000),
   ]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
+      setStudentServerMasteryProfiles(null);
+      return undefined;
+    }
+    return subscribeStudentServerMasteryProfiles({
+      studentId: user.id,
+      onChange: setStudentServerMasteryProfiles,
+      onError: (error) => console.error('Server mastery profile failed to load:', error),
+    });
+  }, [user?.role, user?.id]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
@@ -2401,7 +2413,8 @@ function App() {
     courseId: studentCourseId,
     pacing: studentStoredPacing,
     teacherOverrides: studentOverrides,
-  }), [studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides]);
+    serverMasteryProfiles: studentServerMasteryProfiles,
+  }), [studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides, studentServerMasteryProfiles]);
 
   // Downstream presentation may want to say whether timing is automatic or
   // teacher-set. The engine has already resolved that distinction for us.
@@ -8582,10 +8595,14 @@ function App() {
       options,
       courseId: context.courseId,
       profile: profileDrawerLearningProfile,
-      sessions: context.courseLevel === 'honors' ? 5 : 4,
-      honors: context.courseLevel === 'honors',
+      ...weeklyPlanClassInputs({
+        config: storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
+          classId: profileDrawerStudent.classId, classPeriod: profileDrawerStudent.classPeriod,
+        }) || {},
+        honors: context.courseLevel === 'honors',
+      }),
     });
-  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, profileDrawerLearningProfile]);
+  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, profileDrawerLearningProfile, weeklyGoalsByClass]);
 
   // A view that cannot answer anything across five classes gets one chosen for
   // it rather than being left on an option its own bar does not offer. Weekly
@@ -13219,6 +13236,7 @@ function App() {
           weeklyGoalConfig={studentWeeklyGoalConfig}
           courseId={studentCourseId}
           studentRecord={studentRecord}
+          serverMasteryProfiles={studentServerMasteryProfiles}
           onNavigate={navigateStudent}
           onExit={() => { setPathLaunchTeks(null); setPathLaunchTab(null); setStudentDashboardMode('assignments'); }}
           />
@@ -13475,13 +13493,29 @@ function App() {
           sectionLabel={resultSectionLabel}
           supportPresentation={getStudentSupportPresentation(user.profile)}
           onReviewWork={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, { returnToResult: true })}
-          onPractice={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
-            // A split Classroom post practises its own section; a whole-assignment
-            // post practises the whole assignment. Keep the result route so the
-            // visible Back control returns here after practice.
-            sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
-            returnToResult: true,
-          })}
+          onPractice={(assignmentId) => {
+            // "Practice This Skill" practises the skill: My Math Path opens on
+            // the TEKS this assignment teaches (assignmentPathLaunch.js). A
+            // split Classroom post's section practice, a Test Cycle and an
+            // assignment with no Path skill reopen the assignment as before.
+            const pathLaunch = resolveAssignmentPathLaunch({
+              assignment: assignments.find((item) => item.id === assignmentId),
+              questionIndex: assignmentResultRoute.questionIndex,
+              sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+            });
+            if (pathLaunch) {
+              setPathLaunchTeks(pathLaunch.teksCode);
+              openStudentDashboardMode('mathPath');
+              return;
+            }
+            startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
+              // A split Classroom post practises its own section; a whole-assignment
+              // post practises the whole assignment. Keep the result route so the
+              // visible Back control returns here after practice.
+              sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+              returnToResult: true,
+            });
+          }}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
           // Decision 3: once the work is closed for this student and feedback
