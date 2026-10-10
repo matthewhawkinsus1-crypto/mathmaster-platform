@@ -1991,11 +1991,17 @@ function App() {
    * each lesson's `studentOverrides` by teacherAssignmentView, never into the
    * `dol`, `warmup` or `sectionAccess` that teacher actions write back.
    */
+  // App now mounts after an account is signed in (app/shell/AppShell.jsx), so
+  // the student is known at mount. The listener still opens on the account's
+  // arrival, one commit after mount, exactly as when App mounted before
+  // sign-in: one subscription, never one per mount pass.
+  const [accountListenersReady, setAccountListenersReady] = useState(false);
+  useEffect(() => { setAccountListenersReady(true); }, []);
   const studentAssignmentControls = useStudentAssignmentControls({
     db,
     // The SESSION's student, so the listener opens beside sign-in hydration
     // rather than after it; owner-checked on every projection.
-    studentId: auth.status === 'ready' && auth.session?.role === 'student' ? auth.session.studentId : null,
+    studentId: accountListenersReady && auth.status === 'ready' && auth.session?.role === 'student' ? auth.session.studentId : null,
   });
   const studentClassAssignmentsRef = useRef([]);
   const studentPriorWorkAssignmentsRef = useRef([]);
