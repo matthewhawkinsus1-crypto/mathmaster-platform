@@ -10,7 +10,9 @@
 //
 //   sum / difference / product / composition  the expanded polynomial;
 //   quotient   the polynomial quotient when g(x) divides f(x) exactly,
-//              otherwise the fraction f(x)/g(x) as given;
+//              otherwise the fraction f(x)/g(x) as given — and the grader
+//              accepts any equal fraction with no extra zero in its
+//              denominator, so the review states it in lowest terms;
 //   excluded   the real zeros of the ORIGINAL denominator g(x), plus any the
 //              author listed (a denominator above degree 2 has only those).
 //
@@ -27,9 +29,7 @@
 //     so no honest short answer exists to state;
 //   - the excluded values are not exactly the real zeros of g(x) (an authored
 //     value where g(x) ≠ 0, or a factor of g(x) the review cannot solve);
-//   - the quotient does not divide exactly but f(x) and g(x) still share a
-//     factor: the grader's key is then the UNREDUCED fraction, and a worked
-//     solution that says "simplify" would be marked wrong by it.
+//   - f(x) = 0 over a nonconstant g(x).
 import {
   addPolynomials,
   deriveFunctionOperations,
@@ -43,6 +43,8 @@ import {
 export const implemented = true;
 
 const EPSILON = 1e-9;
+// How far a printed number may be from the value it stands for: float noise.
+const EXACT_PRINT = 1e-12;
 const nearlyZero = (value) => Math.abs(Number(value) || 0) <= EPSILON;
 
 // The grader's labels for each operation box.
@@ -117,7 +119,9 @@ const makeWriter = () => {
       return '0';
     }
     const rounded = Math.abs(number - Math.round(number)) <= EPSILON ? Math.round(number) : Number(number.toFixed(8));
-    if (Math.abs(rounded - number) > EPSILON * Math.max(1, Math.abs(number))) exact = false;
+    // Only floating-point noise may be rounded away. A 1e-9 allowance let an
+    // 8-place rounding through as "exact": −3 ± √(5/6) printed as −3.91287093.
+    if (Math.abs(rounded - number) > EXACT_PRINT * Math.max(1, Math.abs(number))) exact = false;
     const text = String(Object.is(rounded, -0) ? 0 : rounded);
     if (/e/i.test(text)) exact = false;
     return text;
@@ -210,6 +214,83 @@ const exclusionStep = (writer, gCoefficients, factorization, excludedValues) => 
   return `Excluded values come from the original denominator. Set it equal to 0 and factor: $${gText} = ${factoredText(writer, factorization)} = 0$, so ${valuesText}.${irreducible} Every real zero of $g(x)$ is excluded.`;
 };
 
+/*
+ * What f(x) and g(x) share when g(x) does not divide f(x) exactly: the linear
+ * factor of each excluded value where f(x) is also 0 (as often as both contain
+ * it) and g(x)'s factor with no real zeros when f(x) contains it too. Every
+ * other factor of the reduced denominator is one of these, so cancelling them
+ * — and any common whole-number factor of the coefficients — leaves the
+ * fraction in lowest terms. The grader accepts it: equal to f(x)/g(x) as a
+ * rational function, with no zero outside the excluded values.
+ *
+ * null: nothing is shared. false: the cancelling did not check out.
+ */
+const cancelCommonFactor = (fCoefficients, gCoefficients, factorization, excludedValues, writer) => {
+  let numerator = trim(fCoefficients);
+  let denominator = trim(gCoefficients);
+  let commonPolynomial = [1];
+  const pieces = [];
+  const cancelled = [];
+  const cancel = (factor) => {
+    numerator = divide(numerator, factor).quotient;
+    denominator = divide(denominator, factor).quotient;
+    commonPolynomial = multiplyPolynomials(commonPolynomial, factor);
+  };
+  for (const value of excludedValues) {
+    let times = 0;
+    while (degreeOf(numerator) >= 1 && dividesExactly(numerator, [1, -value]) && dividesExactly(denominator, [1, -value])) {
+      cancel([1, -value]);
+      times += 1;
+    }
+    if (!times) continue;
+    pieces.push(`(${linearFactor(writer, value)})${times > 1 ? `^{${times}}` : ''}`);
+    cancelled.push(value);
+  }
+  const { rest } = factorization;
+  if (degreeOf(rest) >= 1 && degreeOf(numerator) >= degreeOf(rest) && dividesExactly(numerator, rest) && dividesExactly(denominator, rest)) {
+    cancel(trim(rest));
+    pieces.push(`(${writer.poly(rest)})`);
+  }
+  if (!pieces.length) return null;
+  if (degreeOf(denominator) === 0) return false;
+  if (!samePolynomial(multiplyPolynomials(commonPolynomial, numerator), fCoefficients)) return false;
+  if (!samePolynomial(multiplyPolynomials(commonPolynomial, denominator), gCoefficients)) return false;
+  // A common whole-number factor, and a positive leading coefficient below.
+  let reducedNumerator = numerator;
+  let reducedDenominator = denominator;
+  const all = [...numerator, ...denominator];
+  if (all.every((value) => Math.abs(value - Math.round(value)) <= EPSILON)) {
+    const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+    const divisor = all.map((value) => Math.abs(Math.round(value))).reduce(gcd, 0) || 1;
+    reducedNumerator = scale(numerator, 1 / divisor);
+    reducedDenominator = scale(denominator, 1 / divisor);
+  }
+  if (reducedDenominator[0] < 0) {
+    reducedNumerator = scale(reducedNumerator, -1);
+    reducedDenominator = scale(reducedDenominator, -1);
+  }
+  return {
+    common: pieces.join(''),
+    numerator,
+    denominator,
+    reduced: { numerator: reducedNumerator, denominator: reducedDenominator },
+    cancelled,
+  };
+};
+
+// common · cofactor, the way the factored step writes it.
+const productText = (writer, common, cofactor) => {
+  // A one-term cofactor such as x or 2x² goes in front, unbracketed.
+  if (degreeOf(cofactor) >= 1 && trim(cofactor).filter((value) => !nearlyZero(value)).length === 1) {
+    return `${writer.poly(cofactor)}${common}`;
+  }
+  if (degreeOf(cofactor) >= 1) return `${common}(${writer.poly(cofactor)})`;
+  const value = trim(cofactor)[0];
+  if (Math.abs(value - 1) <= EPSILON) return common;
+  if (Math.abs(value + 1) <= EPSILON) return `-${common}`;
+  return `${writer.num(value)}${common}`;
+};
+
 const buildQuotient = (writer, fCoefficients, gCoefficients, answer) => {
   const excludedValues = answer.excludedValues || [];
   const factorization = factorDenominator(gCoefficients, excludedValues);
@@ -220,14 +301,23 @@ const buildQuotient = (writer, fCoefficients, gCoefficients, answer) => {
   const steps = [];
   let response;
   let simplifiedAt = null;
+  const shared = answer.simplified ? null : cancelCommonFactor(fCoefficients, gCoefficients, factorization, excludedValues, writer);
+  if (shared === false) return null;
   if (answer.simplified) {
     const { quotient } = divide(fCoefficients, gCoefficients);
     if (!samePolynomial(multiplyPolynomials(gCoefficients, quotient), fCoefficients)) return null;
     response = writer.poly(quotient);
     simplifiedAt = quotient;
     steps.push(`$${operationLatex('quotient')} = ${fraction}$. Since $(${gText})(${response}) = ${fText}$, $g(x)$ divides $f(x)$ with no remainder, so $${operationLatex('quotient')} = ${response}$.`);
+  } else if (shared) {
+    const { common, numerator, denominator, reduced } = shared;
+    response = `\\frac{${writer.poly(reduced.numerator)}}{${writer.poly(reduced.denominator)}}`;
+    const cancelledText = `\\frac{${productText(writer, common, numerator)}}{${productText(writer, common, denominator)}}`;
+    const unscaled = `\\frac{${writer.poly(numerator)}}{${writer.poly(denominator)}}`;
+    const work = unscaled === response ? response : `${unscaled} = ${response}`;
+    steps.push(`$${operationLatex('quotient')} = ${fraction}$. Factor the numerator and the denominator: $${fraction} = ${cancelledText}$. Cancel the common factor $${common}$: $${operationLatex('quotient')} = ${work}$.`);
   } else {
-    // A shared factor would make the grader's key the unreduced fraction.
+    // Nothing cancelled, so nothing may be shared (f(x) = 0 shares everything).
     if (excludedValues.some((value) => nearlyZero(evaluate(fCoefficients, value)))) return null;
     if (degreeOf(factorization.rest) >= 1 && dividesExactly(fCoefficients, factorization.rest)) return null;
     response = fraction;
@@ -239,6 +329,14 @@ const buildQuotient = (writer, fCoefficients, gCoefficients, answer) => {
   let exclusions = exclusionStep(writer, gCoefficients, factorization, excludedValues);
   if (answer.simplified && excludedValues.length) {
     exclusions += ` They stay excluded even though the factor cancelled: $${fraction}$ is undefined there, while $${response}$ is not.`;
+  } else if (shared) {
+    // Only the values the reduced fraction is defined at: with g(x) = (x − 1)²
+    // one (x − 1) cancels and the answer is still undefined at x = 1.
+    const holes = shared.cancelled.filter((value) => !nearlyZero(evaluate(shared.reduced.denominator, value)));
+    if (holes.length) {
+      const cancelled = holes.map((value) => `$x = ${writer.num(value)}$`).join(' and ');
+      exclusions += ` ${cancelled} ${holes.length > 1 ? 'stay' : 'stays'} excluded even though the factor cancelled: $${fraction}$ is undefined there, while $${response}$ is not.`;
+    }
   }
   steps.push(exclusions);
   const restrictions = excludedValues.map((value) => writer.num(value)).join(', ');

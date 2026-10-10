@@ -1,4 +1,5 @@
-import { sameRationalExpression, sameValue } from '../../answerEquivalence.mjs';
+import { sameValue } from '../../answerEquivalence.mjs';
+import { normalizeAlgebraicText, parsePolynomial } from '../../algebraicForm.mjs';
 
 const EPSILON = 1e-9;
 
@@ -235,8 +236,210 @@ export const deriveFunctionOperations = ({
   return out;
 };
 
-export const functionOperationAnswerMatches = (operation, submitted, expected) => {
-  if (operation === 'quotient') return sameRationalExpression(submitted, expected);
+/*
+ * A quotient answer is graded as a RATIONAL FUNCTION, not as a spelling.
+ *
+ * The key for (x² − 1)/(x² + x) is the unreduced fraction (g does not divide f
+ * exactly), and the lab asks the student to simplify. The old comparison
+ * (sameRationalExpression) also required the numerator and denominator
+ * degrees to match the key's, so the simplified (x − 1)/x was marked wrong.
+ *
+ * The comparison is symbolic — no sampling: each side is read as one
+ * numerator over one denominator (the same top-level split
+ * sameRationalExpression makes), and the answer is equal to the key as a
+ * rational function exactly when the cross-products are the same polynomial.
+ * That alone would also accept an answer with an EXTRA hole — (x − 1)(x − 5) /
+ * (x(x − 5)) is undefined at 5, where the quotient is defined — so every real
+ * zero of the answer's denominator must be a zero of the key's denominator or
+ * one of the quotient's excluded values. Reduced or not, an answer is then
+ * equal to f/g at every x in the quotient's domain. The excluded values
+ * themselves are still graded separately (restrictionsMatch).
+ *
+ * Without the degree check two old guards had to be rebuilt: the answer is
+ * rescaled before the absolute 1e-6 comparison (else 0/0.00000001 matched
+ * every key), and a newly accepted shape must not lean on the slash split
+ * against precedence (x − 1/x is x − (1/x), not (x − 1)/x).
+ */
+const MAX_RATIONAL_DEGREE = 6;
+const CROSS_PRODUCT_TOLERANCE = 1e-6;
+
+const stripOuterParens = (value) => {
+  let text = String(value ?? '').trim();
+  for (let pass = 0; pass < 8; pass += 1) {
+    if (!(text.startsWith('(') && text.endsWith(')'))) break;
+    let depth = 0;
+    let closesAtEnd = false;
+    for (let index = 0; index < text.length; index += 1) {
+      if (text[index] === '(') depth += 1;
+      else if (text[index] === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          closesAtEnd = index === text.length - 1;
+          break;
+        }
+      }
+    }
+    if (!closesAtEnd) break;
+    text = text.slice(1, -1).trim();
+  }
+  return text;
+};
+
+// One polynomial in x as coefficients (highest power first), or null when the
+// text is not one (another variable, a division by x, unreadable).
+const polynomialInX = (text) => {
+  const poly = parsePolynomial(text);
+  if (!poly) return null;
+  const byPower = [];
+  for (const [key, value] of poly) {
+    const match = /^(?:x(?:\^(\d+))?)?$/.exec(key);
+    if (!match) return null;
+    const power = key === '' ? 0 : Number(match[1] || 1);
+    if (power > MAX_RATIONAL_DEGREE) return null;
+    byPower[power] = (byPower[power] || 0) + value;
+  }
+  const coefficients = Array.from({ length: Math.max(1, byPower.length) }, (_, index) => byPower[index] || 0).reverse();
+  return trimLeadingZeros(coefficients);
+};
+
+// A + or − joining two terms outside any brackets (not a sign after ^ * / ( or
+// another sign, nor a 1e−7 exponent), with the side not bracketed as a whole.
+const hasBareSum = (side) => {
+  const text = String(side).trim();
+  if (stripOuterParens(text) !== text) return false;
+  let depth = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === '(') depth += 1;
+    else if (char === ')') depth = Math.max(0, depth - 1);
+    else if ((char === '+' || char === '-') && depth === 0) {
+      const before = text.slice(0, index).trimEnd();
+      if (!before || /[\^*/(+-]$/.test(before) || /\de$/i.test(before)) continue;
+      return true;
+    }
+  }
+  return false;
+};
+
+// numerator/denominator at the single top-level slash, as
+// sameRationalExpression splits them; no slash means a denominator of 1.
+const rationalInX = (value) => {
+  const normalized = normalizeAlgebraicText(value);
+  if (!normalized || normalized.includes('=')) return null;
+  const text = stripOuterParens(normalized);
+  let depth = 0;
+  let slash = -1;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === '(') depth += 1;
+    else if (char === ')') depth = Math.max(0, depth - 1);
+    else if (char === '/' && depth === 0) {
+      if (slash >= 0) return null;
+      slash = index;
+    }
+  }
+  const numeratorText = slash < 0 ? text : stripOuterParens(text.slice(0, slash));
+  const denominatorText = slash < 0 ? '1' : stripOuterParens(text.slice(slash + 1));
+  if (!numeratorText || !denominatorText) return null;
+  const numerator = polynomialInX(numeratorText);
+  const denominator = polynomialInX(denominatorText);
+  if (!numerator || !denominator) return null;
+  if (denominator.length === 1 && nearlyZero(denominator[0])) return null;
+  // The split reads x − 1/x as (x − 1)/x; by precedence it is x − (1/x).
+  const bracketed = slash < 0 || ![text.slice(0, slash), text.slice(slash + 1)].some(hasBareSum);
+  return { numerator, denominator, bracketed };
+};
+
+const evaluatePolynomial = (coefficients, x) => coefficients.reduce((total, coefficient) => total * x + coefficient, 0);
+// "Close to zero" is measured against the size of the terms summed at x, and
+// never against less than the largest coefficient (a zero found at 1e-60
+// instead of exactly 0 still counts).
+const evaluationScale = (coefficients, x) => Math.max(
+  ...coefficients.map(Math.abs),
+  coefficients.reduce((total, coefficient) => total * Math.abs(x) + Math.abs(coefficient), 0),
+);
+const vanishesAt = (coefficients, x) => Math.abs(evaluatePolynomial(coefficients, x)) <= EPSILON * evaluationScale(coefficients, x);
+
+/*
+ * Every real zero of a polynomial, repeated ones included. Between two
+ * neighbouring zeros of p′ the polynomial is monotonic, so it has at most one
+ * zero there, found by bisection; a zero where p only touches the axis is a
+ * zero of p′ too, and is caught where p vanishes at that critical point. All
+ * zeros lie strictly inside the Cauchy bound.
+ */
+const realZeros = (coefficients) => {
+  const p = trimLeadingZeros(coefficients);
+  const degree = p.length - 1;
+  if (degree < 1) return [];
+  if (degree === 1) return [-p[1] / p[0]];
+  const derivative = p.slice(0, -1).map((coefficient, index) => coefficient * (degree - index));
+  const bound = 1 + Math.max(...p.slice(1).map((coefficient) => Math.abs(coefficient / p[0])));
+  const points = [-bound, ...realZeros(derivative).filter((x) => x > -bound && x < bound), bound];
+  const zeros = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const right = points[index];
+    if (vanishesAt(p, right)) {
+      zeros.push(right);
+      continue;
+    }
+    if (index === 0 || vanishesAt(p, points[index - 1])) continue;
+    let low = points[index - 1];
+    let high = right;
+    if (Math.sign(evaluatePolynomial(p, low)) === Math.sign(evaluatePolynomial(p, high))) continue;
+    for (let step = 0; step < 200 && low < high; step += 1) {
+      const middle = (low + high) / 2;
+      if (middle <= low || middle >= high) break;
+      if (Math.sign(evaluatePolynomial(p, middle)) === Math.sign(evaluatePolynomial(p, low))) low = middle;
+      else high = middle;
+    }
+    zeros.push((low + high) / 2);
+  }
+  return uniqueSortedNumbers(zeros);
+};
+
+// A pole is "the same x" only within 8-decimal rounding of it: x − 1.0000001
+// is not x − 1, even where (x − 1)² is too flat for vanishesAt to tell them apart.
+const POLE_TOLERANCE = 1e-8;
+const samePole = (left, right) => Math.abs(left - right) <= POLE_TOLERANCE * Math.max(1, Math.abs(left), Math.abs(right));
+
+const sameRationalFunctionOnDomain = (submitted, expected, excludedValues = []) => {
+  const parsedAnswer = rationalInX(submitted);
+  const key = rationalInX(expected);
+  if (!parsedAnswer || !key) return false;
+  // Shapes the old degree check refused are newly accepted; they must read
+  // the same under ordinary precedence (x − 1/x is not (x − 1)/x). Shapes it
+  // allowed keep their old verdict.
+  const keyShape = parsedAnswer.numerator.length === key.numerator.length
+    && parsedAnswer.denominator.length === key.denominator.length;
+  if (!keyShape && !parsedAnswer.bracketed) return false;
+  // The answer is rescaled to the key's leading denominator coefficient, so
+  // the absolute tolerance means the same at any scale: 0 over 0.00000001
+  // must not cross-multiply to "0 = 0.00000001·f within 1e-6".
+  const rescale = key.denominator[0] / parsedAnswer.denominator[0];
+  const answer = {
+    numerator: parsedAnswer.numerator.map((value) => value * rescale),
+    denominator: parsedAnswer.denominator.map((value) => value * rescale),
+  };
+  const left = multiplyPolynomials(answer.numerator, key.denominator);
+  const right = multiplyPolynomials(key.numerator, answer.denominator);
+  const [a, b] = align(left, right);
+  if (!a.every((value, index) => Math.abs(value - b[index]) <= CROSS_PRODUCT_TOLERANCE)) return false;
+  const allowed = [
+    ...realZeros(key.denominator),
+    ...(Array.isArray(excludedValues) ? excludedValues : []).map(Number).filter(Number.isFinite),
+  ];
+  return realZeros(answer.denominator).every((zero) => allowed.some((value) => samePole(value, zero)));
+};
+
+/*
+ * `excludedValues` (optional) are the quotient's excluded values. Without them
+ * the zeros of the key's denominator are the only poles an answer may have —
+ * enough whenever the key is the unreduced f/g; when g divides f exactly the
+ * key is a polynomial, and an unreduced answer such as (x² − 1)/(x − 1) is
+ * accepted only when they are passed.
+ */
+export const functionOperationAnswerMatches = (operation, submitted, expected, { excludedValues } = {}) => {
+  if (operation === 'quotient') return sameRationalFunctionOnDomain(submitted, expected, excludedValues);
   return sameValue(submitted, expected);
 };
 
