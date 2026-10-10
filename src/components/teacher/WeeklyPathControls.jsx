@@ -285,6 +285,11 @@ export default function WeeklyPathControls({
                           {row.swaps.map((swap) => swap.sentence).join(' · ')}
                         </div>
                       )}
+                      {row.shortWeekNote && (
+                        <div data-short-week style={{ marginTop: 3, fontSize: 11.5, fontWeight: 700, color: 'var(--mm-warning-text)' }}>
+                          {row.shortWeekNote}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: 10, textAlign: 'right' }}>{row.goal}</td>
                     <td style={{ padding: 10, textAlign: 'right', fontWeight: 900, color: row.overdue ? 'var(--mm-warning-text)' : 'var(--mm-text-strong)' }}>

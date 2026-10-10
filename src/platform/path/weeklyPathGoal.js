@@ -413,6 +413,14 @@ export const deriveCompletionsFromEvidence = ({
  * and never recomputed here — a fifth status vocabulary is precisely what this
  * work was meant to stop producing.
  */
+/** "Graded on 3 of 4 requested sessions", or null for a full week. */
+export const describeShortWeek = (goal = null, graded = null) => {
+  const requested = Math.round(Number(goal?.requestedSessions) || 0);
+  const count = Math.round(Number(graded ?? goal?.goalSessions) || 0);
+  if (!requested || !count || count >= requested) return null;
+  return `Graded on ${count} of ${requested} requested sessions`;
+};
+
 export const buildTeacherWeeklyView = (entries = [], { now = Date.now() } = {}) => (
   list(entries).map(({ studentId, studentName, goal, completions = [] }) => {
     // Graded as the Classroom publisher grades it: the frozen goal, without
@@ -436,6 +444,9 @@ export const buildTeacherWeeklyView = (entries = [], { now = Date.now() } = {}) 
       // "Chose X instead of Y" for each slot a swapped session filled, so the
       // teacher can see the student made a choice, not only that it counted.
       swaps: describeWeeklySlotSwaps({ goal, completions }),
+      // A week frozen with fewer sessions than the class asks for (the server
+      // accepts one only when the teacher's own selection explains it).
+      shortWeekNote: describeShortWeek(goal, grade.progress.required),
     };
   })
 );

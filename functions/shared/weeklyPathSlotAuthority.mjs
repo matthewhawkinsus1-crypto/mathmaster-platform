@@ -191,6 +191,26 @@ export const WEEKLY_DUE_WINDOW_MS = 8 * 24 * 60 * 60 * 1000;
 // eight-day window closes.
 export const WEEKLY_FREEZE_LEAD_MS = 24 * 60 * 60 * 1000;
 
+// The teacher's weekly count, as the client's normalizeWeeklyGoalConfig reads
+// it (src/platform/path/weeklyPathGoal.js WEEKLY_GOAL; pinned equal by test).
+export const WEEKLY_SESSION_COUNT = Object.freeze({ MINIMUM: 3, MAXIMUM: 6, REGULAR_DEFAULT: 4, HONORS_DEFAULT: 5 });
+export const TEACHER_SELECTED_MODE = 'teacherSelected';
+
+/**
+ * How many sessions a class's week is graded on, from the teacher's stored
+ * settings (settings/weeklyPathGoals, by class) — never from the browser.
+ */
+export const weeklySessionsForClass = ({ config = null, honors = false } = {}) => {
+  const requested = Number(config?.sessions);
+  return Number.isFinite(requested)
+    ? Math.max(WEEKLY_SESSION_COUNT.MINIMUM, Math.min(WEEKLY_SESSION_COUNT.MAXIMUM, Math.round(requested)))
+    : (honors ? WEEKLY_SESSION_COUNT.HONORS_DEFAULT : WEEKLY_SESSION_COUNT.REGULAR_DEFAULT);
+};
+
+// What a Retention slot the server cannot confirm is due becomes: a full
+// review session on a skill the student knows, never a two-question check.
+const UNCONFIRMED_RETENTION = Object.freeze({ purpose: 'responsiveReview', purposeLabel: 'Review' });
+
 /**
  * The server's frozen copy of a proposed week.
  *
@@ -206,6 +226,13 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
   // The server's clock. The callable always passes it; the Teacher Path
   // Simulator, which runs its own synthetic weeks, does not.
   now = null,
+  // The callable's own facts (functions/lib/weeklyPathFreezeInputs.js): the
+  // count the class's settings give, whether those settings explain a week
+  // with fewer sessions, and which skills the server's records say are due a
+  // retention check. The simulator passes none of them.
+  requestedSessions: serverRequestedSessions = null,
+  shortWeekReason = null,
+  retentionDue = null,
   ...toolOptions
 } = {}) => {
   const tools = toolsFrom(toolOptions);
@@ -241,12 +268,29 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
   if (goal?.courseId && String(goal.courseId) !== cleanCourseId) {
     throw new WeeklyPathGoalError('failed-precondition', 'This weekly Path proposal belongs to a different course.');
   }
-  // The teacher's count: a current client sends it as requestedSessions (its
-  // goalSessions is already the number of sessions it could fill).
-  const requested = Math.max(3, Math.min(6, Number(goal?.requestedSessions) || Number(goal?.goalSessions) || 4));
+  // The teacher's count. On the server it comes from the class's settings and
+  // nothing the browser sends can lower it; only the simulator still reads the
+  // proposal's (a current client sends it as requestedSessions).
+  const serverCount = Number(serverRequestedSessions);
+  const fromServer = Number.isFinite(serverCount) && serverCount > 0;
+  const requested = fromServer
+    ? Math.max(WEEKLY_SESSION_COUNT.MINIMUM, Math.min(WEEKLY_SESSION_COUNT.MAXIMUM, Math.round(serverCount)))
+    : Math.max(3, Math.min(6, Number(goal?.requestedSessions) || Number(goal?.goalSessions) || 4));
   const proposed = Array.isArray(goal?.sessions) ? goal.sessions.slice(0, requested) : [];
   if (!proposed.length) {
     throw new WeeklyPathGoalError('failed-precondition', 'MathMaster could not build any weekly Path sessions for this week.');
+  }
+  // A week with fewer sessions than the class asks for is graded on the
+  // sessions it holds, so the server accepts one only when its own records
+  // explain it (the teacher selects every session and selected fewer). A
+  // browser that sent one easy slot would otherwise be graded 100 for one
+  // session.
+  const shortBy = requested - proposed.length;
+  if (fromServer && shortBy > 0 && !shortWeekReason) {
+    throw new WeeklyPathGoalError(
+      'failed-precondition',
+      `This week's Path needs ${requested} sessions and only ${proposed.length} could be planned. Reload My Math Path to try again.`,
+    );
   }
 
   const slots = proposed.map((session, index) => {
@@ -267,17 +311,25 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
       difficultyBand,
     ].join('|');
     if (weeklySlotKey.length > 300) throw new WeeklyPathGoalError('invalid-argument', `Weekly Path slot ${slot} key is too long.`);
+    // A Retention slot launches a two-question check (pathRetentionCheck.mjs),
+    // so it is accepted only for a skill the server's records say is due one.
+    const proposedPurpose = String(session?.purpose || 'practice').slice(0, 60);
+    const unconfirmedRetention = typeof retentionDue === 'function'
+      && proposedPurpose === 'retention'
+      && !retentionDue(displayCode);
     return {
       slot,
       weeklySlotKey,
       skillId: String(session?.skillId || '').slice(0, 180) || null,
       teksCode: displayCode,
-      purpose: String(session?.purpose || 'practice').slice(0, 60),
+      purpose: unconfirmedRetention ? UNCONFIRMED_RETENTION.purpose : proposedPurpose,
       context,
       dok,
       difficultyBand,
       studentLabel: session?.studentLabel ? String(session.studentLabel).slice(0, 180) : null,
-      purposeLabel: session?.purposeLabel ? String(session.purposeLabel).slice(0, 120) : null,
+      purposeLabel: unconfirmedRetention
+        ? UNCONFIRMED_RETENTION.purposeLabel
+        : (session?.purposeLabel ? String(session.purposeLabel).slice(0, 120) : null),
       studentExplanation: session?.studentExplanation ? String(session.studentExplanation).slice(0, 400) : null,
       targetReason: session?.targetReason ? String(session.targetReason).slice(0, 180) : null,
       status: 'notStarted',
@@ -300,6 +352,9 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
     // when all three are done. The teacher's count is kept beside it.
     goalSessions: sessions.length,
     requestedSessions: requested,
+    // Why this week holds fewer sessions than the class asks for, when it does
+    // (the teacher table and the Classroom post say "graded on N of M").
+    shortWeekReason: sessions.length < requested ? (text(shortWeekReason) || 'plannerShortfall') : null,
     sessions,
     ccmr: goal?.ccmr && typeof goal.ccmr === 'object' ? {
       expectation: String(goal.ccmr.expectation || 'none').slice(0, 40),

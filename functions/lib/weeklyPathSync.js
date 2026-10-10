@@ -75,6 +75,9 @@ async function syncWeeklyPathClassWeek({
   const work = weeklyPathCourseWork({
     classId, weekKey, weekLabel, launchUrl, maxPoints,
     goalSessions: firstGoal?.requestedSessions || firstGoal?.goalSessions || 0,
+    shortWeeks: Object.values(goalsByStudentId).some((goal) => (
+      Number(goal?.requestedSessions) > 0 && Number(goal?.goalSessions) < Number(goal.requestedSessions)
+    )),
   });
   if (!work) {
     return { ok: false, reason: "incomplete_class_week_identity", results: [] };

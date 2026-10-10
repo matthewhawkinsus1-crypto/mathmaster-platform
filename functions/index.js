@@ -13994,7 +13994,7 @@ const WEEKLY_SLOT_TEKS_TOOLS = Object.freeze({
 // alternatives — lives in shared/weeklyPathSlotAuthority.mjs, so the Teacher
 // Path Simulator freezes a week by the same rule. Its errors already carry the
 // HttpsError code to answer with.
-async function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord }) {
+async function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord, freezeInputs = {} }) {
   const slotAuthority = await import("./shared/weeklyPathSlotAuthority.mjs");
   try {
     return slotAuthority.freezeWeeklyPathGoalProposal(goal, {
@@ -14002,6 +14002,9 @@ async function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecor
       classId: classRecord?.classId,
       courseId: classRecord?.course,
       now: Date.now(),
+      // The graded count, the short-week reason and the retention checks
+      // come from the server's records, never the proposal.
+      ...freezeInputs,
       ...WEEKLY_SLOT_TEKS_TOOLS,
     });
   } catch (error) {
@@ -14018,7 +14021,16 @@ exports.resolveWeeklyPathGoalSnapshot = onCall(async (request) => {
   if (!studentSnapshot.exists) throw new HttpsError("not-found", "Your MathMaster student record is unavailable.");
   const classRecord = await loadStudentClass(db, studentSnapshot.data());
   if (!classRecord) throw new HttpsError("failed-precondition", "Your MathMaster class has not been assigned yet.");
-  const proposed = await sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord });
+  // A week already frozen is returned as it is: the checks below decide only
+  // what a NEW snapshot may hold.
+  const requestedWeekKey = String(request.data?.goal?.weekKey || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(requestedWeekKey)) {
+    const frozen = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${requestedWeekKey}`).get();
+    if (frozen.exists) return { success: true, goal: frozen.data() };
+  }
+  const { loadWeeklyFreezeInputs } = require("./lib/weeklyPathFreezeInputs");
+  const freezeInputs = await loadWeeklyFreezeInputs({ db, studentId, studentData: studentSnapshot.data(), classRecord, now: Date.now() });
+  const proposed = await sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord, freezeInputs });
   const ref = db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${proposed.weekKey}`);
   const assigned = await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(ref);

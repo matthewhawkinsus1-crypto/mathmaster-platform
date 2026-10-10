@@ -21,6 +21,8 @@
  * Pure: no Firestore, no clock of its own.
  */
 
+import { MASTERY_STATUS, classifyMasteryStatus, masteryFactsFromProfile } from './masteryRule.mjs';
+
 export const RETENTION_PROBE = 'retentionProbe';
 export const PRACTICE_SESSION = 'practice';
 
@@ -99,6 +101,43 @@ export const retentionHorizonDays = (successfulCheckCount = 0) => {
 export const nextRetentionCheckDueAt = (now, successfulCheckCount = 0) => (
   Number(now) + retentionHorizonDays(successfulCheckCount) * DAY
 );
+
+const millisOf = (value) => {
+  if (value == null || value === '') return null;
+  if (typeof value?.toMillis === 'function') return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+/**
+ * Is a retention check due for this skill, by the SERVER's own records (its
+ * mastery profile and stored retention schedule)? The rule the retention
+ * scheduler applies on the student's screens
+ * (src/platform/retention/retentionScheduler.js): only a skill the shared rule
+ * calls Mastered; due when its stored schedule says so, or when its check date
+ * — 14, 30, then 60 days after it was last shown — has passed.
+ *
+ * The freeze accepts a weekly Retention slot only for such a skill: a
+ * Retention slot launches a two-question, one-attempt check, and a browser
+ * that could name any skill one would trade a week's practice for easy checks.
+ */
+export const retentionCheckIsDue = ({ profile = null, schedule = null, now = Date.now() } = {}) => {
+  if (!profile || typeof profile !== 'object') return false;
+  if (classifyMasteryStatus(masteryFactsFromProfile(profile)) !== MASTERY_STATUS.MASTERED) return false;
+  const status = String(schedule?.status || '');
+  // A confirmed loss is relearning, not a check (the scheduler offers none).
+  if (status === 'confirmedLoss' || profile?.signals?.retention === 'confirmedLoss') return false;
+  if (['due', 'overdue', 'concern'].includes(status) || profile?.signals?.retention === 'concern') return true;
+  const clock = Number(now);
+  const nextDue = millisOf(schedule?.nextCheckDueAt);
+  if (nextDue !== null) return nextDue <= clock;
+  const lastShown = millisOf(schedule?.lastVerifiedAt) ?? millisOf(profile?.dimensions?.lastIndependentSuccessAt);
+  if (lastShown === null) return false;
+  return nextRetentionCheckDueAt(lastShown, schedule?.successfulCheckCount) <= clock;
+};
 
 /** Passed means every question of the check right, on the student's own. */
 export const retentionCheckPassed = (summary = {}) => (
