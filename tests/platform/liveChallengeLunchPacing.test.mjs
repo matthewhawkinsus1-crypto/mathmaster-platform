@@ -128,7 +128,10 @@ test('advanceLiveChallenge has an authoritative readiness guard', () => {
   // The counts reach the planner — extended time included, so a student still
   // inside their own deadline holds the round open (liveChallengeAccommodations.mjs).
   assert.match(transaction, /planLifecycleCommand\(\{\s*command: lifecycle\.LIFECYCLE_COMMAND\.ADVANCE,[\s\S]{0,120}joinedCount: counts\.joinedCount,\s*completedCount: counts\.completedCount,\s*extendedPendingCount: counts\.extendedPendingCount,\s*nowMs,\s*\}\)/);
-  assert.match(transaction, /if \(plan\.outcome === lifecycle\.LIFECYCLE_OUTCOME\.REJECT\) throw lifecycleHttpsError\(plan\)/);
+  // A refusal is thrown once the transaction ends (a hold for extended time
+  // first records extendedTimeInPlay; refuseLiveChallengeRoundCommand).
+  assert.match(transaction, /if \(plan\.outcome === lifecycle\.LIFECYCLE_OUTCOME\.REJECT\) return refuseLiveChallengeRoundCommand\(transaction, \{ roomRef, room: currentRoom, plan \}\)/);
+  assert.match(transaction, /\}\);\s*if \(outcome\.refused\) throw lifecycleHttpsError\(outcome\.refused\);/);
   // Only the cheap early check outside the transaction skips readiness.
   assert.equal((block.match(/force: true/g) || []).length, 1);
   assert.ok(block.indexOf('force: true') < block.indexOf('db.runTransaction'));

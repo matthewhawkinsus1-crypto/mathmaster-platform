@@ -49,10 +49,10 @@ Growth rewards are delivered exactly once by `syncStudentGrowthRewards`, which t
 | Lane 3, m3–m7: focus; kept drafts; Warm-Up second exit; StrictMode; strict regions | 69c78a0 |
 | Lane 3: `classRewardRequests` composite index | 69c78a0 |
 | CI: theme-contract baseline; private-controls/teacher harness fake | 59731c4, 3e5d898 |
-| CI `browser` job: stale held-solution expectation; round table empty when every answer tied (no-answer rows now sit below ranked rows that scored); console reopening a cancelled room; boards read after an auto-close; Playwright import portable | COMMIT_CI |
-| Codex P2: personal bests read only the last 25 results (absent invitations included) → whole history, paged | COMMIT_CI |
-| Codex P2: Test Cycle records cut at 200 by document id → every record, paged by id | COMMIT_CI |
-| Codex P2: `extendedTimeInPlay` stale after a mid-round join → set by the host's close that the hold refuses | COMMIT_CI |
+| CI `browser` job: stale held-solution expectation; round table empty when every answer tied (no-answer rows now sit below ranked rows that scored); console reopening a cancelled room; boards read after an auto-close; Playwright import portable | 5a616f3 |
+| Codex P2: personal bests read only the last 25 results (absent invitations included) → whole history, paged | 5a616f3 |
+| Codex P2: Test Cycle records cut at 200 by document id → every record, paged by id | 5a616f3 |
+| Codex P2: `extendedTimeInPlay` stale after a mid-round join → set by the host's close that the hold refuses | 5a616f3 |
 
 ## 3. How it was verified
 

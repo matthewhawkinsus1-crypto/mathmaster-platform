@@ -26,12 +26,13 @@ const fakeDb = (documents) => {
     collection: (name) => collectionRef(`${path}/${name}`),
   });
   const collectionRef = (path) => {
-    const query = (filters = [], order = null, limitTo = Infinity) => ({
-      where: (field, op, value) => query([...filters, [field, op, value]], order, limitTo),
-      orderBy: (field, direction) => query(filters, [field, direction], limitTo),
-      limit: (count) => query(filters, order, count),
+    const query = (filters = [], order = null, limitTo = Infinity, after = null) => ({
+      where: (field, op, value) => query([...filters, [field, op, value]], order, limitTo, after),
+      orderBy: (field, direction) => query(filters, [field, direction], limitTo, after),
+      limit: (count) => query(filters, order, count, after),
+      startAfter: (doc) => query(filters, order, limitTo, doc),
       get: async () => {
-        queries.push({ path, filters, order, limitTo });
+        queries.push({ path, filters, order, limitTo, after });
         let rows = Object.entries(documents)
           .filter(([key]) => key.startsWith(`${path}/`) && !key.slice(path.length + 1).includes('/'))
           .map(([key, data]) => ({ id: key.split('/').pop(), data: () => data, raw: data }));
@@ -41,7 +42,9 @@ const fakeDb = (documents) => {
               : row.raw[field] === value));
         });
         if (order) rows.sort((a, b) => (order[1] === 'desc' ? b.raw[order[0]] - a.raw[order[0]] : a.raw[order[0]] - b.raw[order[0]]));
-        return { docs: rows.slice(0, limitTo) };
+        if (after) rows = rows.slice(rows.findIndex((row) => row.id === after.id) + 1);
+        const docs = rows.slice(0, limitTo);
+        return { docs, size: docs.length };
       },
     });
     return { doc: (id) => docRef(`${path}/${id}`), ...query() };
@@ -181,7 +184,9 @@ test('the recap gives a student their own rounds, solutions, bests and recogniti
   const history = db.queries.find((query) => query.path === 'liveChallengeMatchResults');
   assert.deepEqual(history.filters, [['studentIds', 'array-contains', ME], ['finalizedAtMs', '<', 50_000]]);
   assert.deepEqual(history.order, ['finalizedAtMs', 'desc']);
-  assert.equal(history.limitTo, 25);
+  // A page at a time, until a short page: the whole history, never a cut-off.
+  assert.equal(history.limitTo, 100);
+  assert.equal(history.after, null);
 });
 
 test('a first game says so and claims no bests', async () => {
