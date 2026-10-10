@@ -256,7 +256,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
             <button type="button" disabled={index >= items.length - 1} onClick={() => setIndex((value) => Math.min(items.length - 1, value + 1))} style={quietButton}>Next item</button>
           </div>
           <p style={{ margin: '0 16px 16px', fontSize: 12, color: 'var(--mm-text-muted)' }}>
-            Preview navigation only: students answer one item at a time and cannot go back.
+            Students can skip, flag and go back to any question they have opened until they submit; each answer is graded once, when they submit.
           </p>
         </div>
       )}

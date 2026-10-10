@@ -1,9 +1,11 @@
 import {
+  TEST_CYCLE_STAGE,
   isTestCycleAssignment,
   normalizeTestCyclePolicy,
   resolveAssessmentAvailability,
 } from '../assessment/testCycle.js';
 import { normalizeQuestionRecord } from '../../../functions/shared/attemptPolicy.mjs';
+import { studentSkillName } from '../assessment/secureExamResultsModel.js';
 
 /*
  * WHERE IS THIS STUDENT IN THIS TEST CYCLE — AS A LIST CAN SAY IT.
@@ -297,3 +299,167 @@ export const describeCorrectionTargetForStudent = (target = {}) => {
     : '';
   return `${what}${why} Practise it here on new questions — never the Test questions themselves.`;
 };
+
+/**
+ * The skill a correction target names, as a heading. The plan copies the
+ * blueprint label, which normalizeTestBlueprint fills with the standard's code
+ * when the teacher wrote none — "texas:A.3B" is not a heading for a student.
+ */
+export const correctionTargetTitle = (target = {}) => (
+  studentSkillName({ label: target?.label, alignmentKey: target?.alignmentKey }, 'This skill')
+);
+
+/*
+ * WHAT THE CARD SAYS AROUND THE ACTION — DESCRIPTIONS, NEVER GATES.
+ *
+ * Everything below shapes server fields for the student's card. None of it
+ * decides what a student may enter: the stage, `canEnter` and every session id
+ * still come from `getStudentTestCycle`, and the server re-checks entry.
+ */
+
+const S = TEST_CYCLE_STAGE;
+const skillLabel = (label, alignmentKey, fallback) => studentSkillName({ label, alignmentKey }, fallback);
+const count = (value) => Math.max(0, Math.floor(Number(value) || 0));
+
+/** The secure session the list describes has started: the card says "Resume", or the server marks its phase in progress. */
+const secureSessionUnderWay = (card = {}) => /^resume\b/i.test(clean(card?.actionLabel))
+  || (Array.isArray(card?.phases) && card.phases.some((phase) => ['test', 'retest'].includes(phase?.id) && phase?.status === 'inProgress'));
+
+/**
+ * "What's on this test": the blueprint's skills (card.testSkills) before the
+ * student sits the secure session they describe.
+ *
+ * The Test — or an external cycle's one secure Retest — is issued from that
+ * blueprint, so its skills and question counts are exactly what the student
+ * will meet. An ordinary Retest is NOT: it is rebuilt from what this student
+ * missed (testCycleRetest.mjs: shorter than the Test, mostly the missed
+ * skills, some anchors from the rest), so before a Retest the card lists the
+ * skills without counts and says how the Retest leans — not that every skill
+ * will be on it.
+ *
+ * A STUDY GUIDE, NOT A KEY. Questions are issued target by target, so skills
+ * listed in blueprint order with their counts would say which questions test
+ * which standard — the cue each secure question is stripped of. The rows are
+ * sorted by name, and the list is shown only BEFORE the session starts: once a
+ * Test or Retest is under way there is nothing left to prepare for, and the
+ * list beside it would only be a map of it. Afterwards it goes for good.
+ */
+export const testSkillsSection = (card = {}) => {
+  const skills = Array.isArray(card?.testSkills) ? card.testSkills : [];
+  if (!skills.length || secureSessionUnderWay(card)) return null;
+  const external = Boolean(card?.policy?.external);
+  const stage = clean(card?.stage);
+  const rows = skills.map((skill, index) => ({
+    key: clean(skill?.alignmentKey) || clean(skill?.label) || `skill-${index}`,
+    label: skillLabel(skill?.label, skill?.alignmentKey, 'Other questions'),
+    questionCount: count(skill?.questionCount),
+  })).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true, sensitivity: 'base' })
+    || left.key.localeCompare(right.key));
+  if ([S.REVIEW, S.TEST].includes(stage)) {
+    return { title: `What's on your ${external ? 'Retest' : 'Test'}`, note: null, showCounts: true, rows };
+  }
+  if (!external && [S.CORRECTIONS, S.RETEST_READY, S.RETEST].includes(stage)) {
+    return {
+      title: 'What\'s on your Retest',
+      note: 'Your Retest is drawn from these Test skills — mostly the ones you missed.',
+      showCounts: false,
+      rows,
+    };
+  }
+  return null;
+};
+
+/**
+ * Whether the retest rule ("If you retest, your retest can raise your grade up
+ * to 70%…") still means anything to this student. A student who passed, or
+ * whose cycle is finished or closed, is not going to retest, and reading about
+ * a cap reads as being told they failed. That includes a student whose
+ * recorded grade is already passing when a teacher has opened a retest for
+ * them anyway: a cap below their grade cannot raise it.
+ */
+export const retestPolicyRelevant = (card = {}) => {
+  const stage = clean(card?.stage);
+  if ([S.PASSED, S.COMPLETE, S.RETEST_CLOSED].includes(stage)) return false;
+  const recorded = percent(card?.grade?.recordedGrade);
+  const passing = percent(card?.policy?.passingScore);
+  return !(Number.isFinite(recorded) && Number.isFinite(passing) && recorded >= passing);
+};
+
+/*
+ * "REVIEW MY TEST" — THE RELEASED TEST, REACHABLE WHILE IT CAN STILL TEACH.
+ *
+ * Once a Test's results are released its review (answers, worked solutions)
+ * belongs to the student, and Corrections is exactly when they need it. It is
+ * offered only at stages where NO secure item can be answered: never during a
+ * Retest that is assigned or in progress, because the Test's worked solutions
+ * would then sit one tap away from a parallel secure question.
+ *
+ * `testReviewExamSessionId` names the original Test's released session, and a
+ * server that sends the field decides alone: it sends null while a Retest is
+ * assigned or under way — even at "retestClosed", since closing retesting does
+ * not end a Retest already issued — exactly when getStudentSecureExamReview
+ * would refuse the review. Only an older server, which never sent the field,
+ * falls back to `reviewExamSessionId` (the Test's session at every one of
+ * these stages except a completed retest). In Passed and Complete the main
+ * action already opens `reviewExamSessionId`, so a button that would open the
+ * same session is not drawn — which also keeps an older server's Retest
+ * session from being labelled "my Test".
+ */
+const TEST_REVIEW_STAGES = new Set([S.CORRECTIONS, S.RETEST_READY, S.RETEST_SUBMITTED, S.RETEST_CLOSED, S.PASSED, S.COMPLETE]);
+
+export const testReviewSessionIdFor = (card = {}) => {
+  const stage = clean(card?.stage);
+  if (!TEST_REVIEW_STAGES.has(stage)) return null;
+  const primary = clean(card?.reviewExamSessionId);
+  const sentByServer = Boolean(card) && Object.prototype.hasOwnProperty.call(card, 'testReviewExamSessionId');
+  const id = sentByServer ? clean(card.testReviewExamSessionId) : primary;
+  if (!id) return null;
+  if ([S.PASSED, S.COMPLETE].includes(stage) && id === primary) return null;
+  return id;
+};
+
+/** An external cycle's one secure session is the student's Retest, and the button says so. */
+export const testReviewLabel = (card = {}) => (card?.policy?.external ? 'Review my Retest' : 'Review my Test');
+
+/**
+ * The Review, skill by skill (card.reviewBySkill), for the Review stage.
+ *
+ * What unlocks the Test is still the teacher's Review rule (answer every
+ * question, or reach the mastery bar). This is what the student can USE: how
+ * they are doing on each skill so far, weakest first, so the practise link next
+ * to a weak skill is the obvious next tap. Skills they have not started go
+ * last, and get no practise link (`canPractise`): there is nothing to call
+ * weak yet, and the Review questions themselves — what unlocks the Test — are
+ * the next thing to do there.
+ */
+export const reviewSkillRows = (reviewBySkill) => (Array.isArray(reviewBySkill) ? reviewBySkill : [])
+  .map((skill, index) => {
+    const total = count(skill?.total);
+    const attempted = Math.min(total, count(skill?.attempted));
+    const correct = Math.min(attempted, count(skill?.correct));
+    const left = total - attempted;
+    const alignmentKey = clean(skill?.alignmentKey) || null;
+    return {
+      key: alignmentKey || `other-${index}`,
+      alignmentKey,
+      label: skillLabel(skill?.label, skill?.alignmentKey, 'Other Review questions'),
+      attempted,
+      correct,
+      total,
+      order: index,
+      canPractise: Boolean(alignmentKey) && attempted > 0,
+      summary: attempted === 0
+        ? `Not started · ${total} ${total === 1 ? 'question' : 'questions'}`
+        : left > 0
+          ? `${correct} of ${attempted} correct so far · ${left} still to answer`
+          : `${correct} of ${total} correct`,
+    };
+  })
+  .filter((row) => row.total > 0)
+  .sort((left, right) => {
+    if ((left.attempted > 0) !== (right.attempted > 0)) return left.attempted > 0 ? -1 : 1;
+    if (!left.attempted) return left.order - right.order;
+    return (left.correct / left.attempted) - (right.correct / right.attempted)
+      || (right.attempted - right.correct) - (left.attempted - left.correct)
+      || left.order - right.order;
+  });

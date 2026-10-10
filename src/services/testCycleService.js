@@ -112,6 +112,16 @@ export const releaseTestCycleResults = async ({ assignmentId, stage = 'test', st
   return call('releaseTestCycleResults', { assignmentId, stage, studentIds });
 };
 
+// Open the correct answers and worked solutions of a released Test or Retest
+// before every student assigned to it has submitted (they open on their own
+// once everyone has).
+// `studentIds`: the students the confirm named as still testing. The release
+// covers exactly them, and is refused if anyone else is still testing.
+export const releaseTestCycleAnswers = async ({ assignmentId, stage = 'test', studentIds = [] }) => {
+  if (isSandbox()) return sandboxRefusal('Releasing answers')();
+  return call('releaseTestCycleAnswers', { assignmentId, stage, studentIds });
+};
+
 export const updateTestCyclePolicy = async ({ assignmentId, policy }) => {
   if (isSandbox()) return sandboxRefusal('Changing the retest policy')();
   return call('updateTestCyclePolicy', { assignmentId, policy });
