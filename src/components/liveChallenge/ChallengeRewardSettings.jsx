@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 import {
   PASS_EXPIRY_OPTIONS,
   PASS_PLACE_OPTIONS,
+  RECOGNITIONS_LABEL,
   describeChallengeRewardChoice,
 } from '../../platform/rewards/challengeRewardPolicy.js';
 
@@ -38,6 +39,11 @@ export default function ChallengeRewardSettings({ choice, onChange }) {
         <label style={{ fontWeight: 800, display: 'flex', gap: 10, alignItems: 'center', minHeight: 44 }}>
           <input type="checkbox" checked={choice.championBadge} onChange={(event) => set({ championBadge: event.target.checked })} style={{ width: 20, height: 20 }} />
           Champion badge for 1st place
+        </label>
+        {/* Growth, effort and comeback, not only placement: on by default. */}
+        <label style={{ fontWeight: 800, display: 'flex', gap: 10, alignItems: 'center', minHeight: 44, gridColumn: '1 / -1' }}>
+          <input type="checkbox" data-mm-recognitions-toggle="1" checked={choice.recognitions !== false} onChange={(event) => set({ recognitions: event.target.checked })} style={{ width: 20, height: 20, flex: '0 0 auto' }} />
+          {RECOGNITIONS_LABEL}
         </label>
       </div>
       <ul style={{ margin: '10px 0 0', paddingLeft: 18, color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>

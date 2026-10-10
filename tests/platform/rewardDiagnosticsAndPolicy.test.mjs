@@ -53,7 +53,7 @@ test('tied students both earn the place-based pass; placement is never broken by
 });
 
 test('a teacher choice is clamped to the offered options', () => {
-  assert.deepEqual(normalizeChallengeRewardChoice({ passPlaces: 9, passExpiryDays: 3, championBadge: 'yes' }), { passPlaces: 0, passExpiryDays: 14, championBadge: false });
+  assert.deepEqual(normalizeChallengeRewardChoice({ passPlaces: 9, passExpiryDays: 3, championBadge: 'yes' }), { passPlaces: 0, passExpiryDays: 14, championBadge: false, recognitions: true });
   assert.ok(describeChallengeRewardChoice({ passPlaces: 2, passExpiryDays: 7 }).some((line) => /Top 2 earn a Practice Pass \(expires after 7 days\)/.test(line)));
 });
 

@@ -17,11 +17,16 @@ import {
  *   Practice Pass for   nobody | 1st place | top 2 | top 3   (ties share a place)
  *   Pass expires after  7 | 14 | 30 days | never
  *   Champion badge      for 1st place, or not
+ *   Recognition awards  on (default) or off — most improved, steadiest, best
+ *                       comeback, first to answer, team effort: named on the
+ *                       final podium and rewarded by the server
+ *                       (liveChallengeRecognitions.mjs). Off sends
+ *                       `recognitions: false` in the policy.
  *
  * The default achievements (Finisher, Strong Accuracy, Comeback) are always
  * kept under their original rule ids, so choosing a pass never takes Class
- * Points away. Choosing nothing sends no policy at all: the server's default
- * is exactly the original behaviour.
+ * Points away. Choosing nothing (no pass, no badge, recognitions left on)
+ * sends no policy at all: the server's default is exactly that.
  *
  * Placement comes from the match's final ranking; nothing here touches how a
  * match is scored or ranked.
@@ -41,7 +46,9 @@ export const PASS_EXPIRY_OPTIONS = Object.freeze([
   { value: 0, label: 'Never' },
 ]);
 
-export const DEFAULT_CHALLENGE_REWARD_CHOICE = Object.freeze({ passPlaces: 0, passExpiryDays: 14, championBadge: false });
+export const DEFAULT_CHALLENGE_REWARD_CHOICE = Object.freeze({ passPlaces: 0, passExpiryDays: 14, championBadge: false, recognitions: true });
+
+export const RECOGNITIONS_LABEL = 'Recognition awards (most improved, steadiest, best comeback, first to answer, team effort)';
 
 // Stable within a room: the award identity hashes room + student + rule id.
 export const PASS_RULE_ID = 'placementPracticePass';
@@ -52,6 +59,9 @@ const clampChoice = (choice = {}) => ({
   passPlaces: [0, 1, 2, 3].includes(Number(choice.passPlaces)) ? Number(choice.passPlaces) : 0,
   passExpiryDays: [0, 7, 14, 30].includes(Number(choice.passExpiryDays)) ? Number(choice.passExpiryDays) : 14,
   championBadge: choice.championBadge === true,
+  // On unless explicitly turned off: a choice saved before this setting
+  // existed keeps the server's default (on).
+  recognitions: choice.recognitions !== false,
 });
 
 export const normalizeChallengeRewardChoice = clampChoice;
@@ -61,7 +71,7 @@ const placeLabel = (places) => (places === 1 ? '1st place' : `Top ${places}`);
 /** The policy to send with createLiveChallenge, or null for the server default. */
 export const buildChallengeRewardPolicy = (rawChoice = DEFAULT_CHALLENGE_REWARD_CHOICE) => {
   const choice = clampChoice(rawChoice);
-  if (!choice.passPlaces && !choice.championBadge) return null;
+  if (!choice.passPlaces && !choice.championBadge && choice.recognitions) return null;
   const rules = DEFAULT_LIVE_CHALLENGE_REWARD_RULES.map((rule) => ({
     ruleId: rule.ruleId,
     ruleVersion: rule.ruleVersion,
@@ -87,9 +97,11 @@ export const buildChallengeRewardPolicy = (rawChoice = DEFAULT_CHALLENGE_REWARD_
       reward: { kind: REWARD_KIND.GRANT, rewardCode: 'badge', badgeCode: 'champion', label: CHAMPION_BADGE_LABEL },
     });
   }
+  // Only an explicit off is sent; absent means on (recognitionsEnabled).
+  const policy = choice.recognitions ? { rules } : { rules, recognitions: false };
   // The same validation the server runs, so a bad choice fails here first.
-  normalizeRewardPolicy({ rules });
-  return { rules };
+  normalizeRewardPolicy(policy);
+  return policy;
 };
 
 /** What the teacher's choice will do, in sentences for the create panel. */
@@ -100,6 +112,9 @@ export const describeChallengeRewardChoice = (rawChoice = DEFAULT_CHALLENGE_REWA
     lines.push(`${placeLabel(choice.passPlaces)} earn${choice.passPlaces === 1 ? 's' : ''} a Practice Pass${choice.passExpiryDays ? ` (expires after ${choice.passExpiryDays} days)` : ''}. Ties share a place, so tied players all earn it.`);
   }
   if (choice.championBadge) lines.push(`1st place earns the “${CHAMPION_BADGE_LABEL}” badge.`);
+  lines.push(choice.recognitions
+    ? 'Recognition awards name the most improved, steadiest, best comeback and first to answer on the final podium (game names only), plus a team effort award when almost the whole class answers almost every round.'
+    : 'Recognition awards are off: the final podium shows places only.');
   lines.push('Rewards are given once, after the match ends. Game points decide placement; they are not a grade.');
   return lines;
 };

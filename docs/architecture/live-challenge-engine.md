@@ -727,3 +727,23 @@ support. Rules: the room's audience reads it; no client writes it.
   explicitly.
 - Reports written before `studentIds` existed are not reachable by permanent
   student deletion.
+
+---
+
+## 16. Teaching and including (student push E, 2026-10)
+
+| Piece | Module | Rule |
+| --- | --- | --- |
+| Worked solution between rounds | `liveChallengeSolutionReveal.mjs` | Captured privately when a round opens (`liveChallengePrivate.roundSolutions`), published to `liveChallengeRooms/{room}/solutions/{round}` only after the round closes; while Second Chance may replay a question its solution is held until the replay plan is known and, for a replayed question, until the replay closes. A finished match publishes everything; a cancelled one nothing. `room.revealedSolutionRounds` lists what is public. |
+| Extended time | `liveChallengeAccommodations.mjs` | `joinLiveChallenge` reads the student's support profile; the multiplier (≤ 2) is private (player record, own invite); the room carries only `maxTimeMultiplier`. Submissions are judged against the student's own deadline, stretched from the round's full length (`activeRoundSeconds`) so a closing threshold never takes it away; a round past the class deadline is not ready to close while an unfinished student is inside theirs (`extendedPendingCount`, readiness `extended_time`). Synchronized question rounds only. |
+| Difficulty targeting | `liveChallengeDifficulty.mjs` | No DOK 3 under 90 s, no DOK 4 in a timed round; Pace Race takes anything. A pool it empties is refused at create with the reason. |
+| Public top few | `liveChallengePrivacy.mjs` | `room.standingsDisplay` (`topFew` default, `full` opt-in). |
+| Recognitions | `liveChallengeRecognitions.mjs` | Most improved, steadiest, best comeback, first to answer, team effort — from the match result, written to `room.recognitions` (aliases and player keys only) in the finishing transaction; rewarded under reserved rule ids `recognition.*` (3 Class Points + badge; team effort 2). Policy flag `recognitions: false` turns them off. |
+| Personal bests | `liveChallengePersonalBests.mjs` | Most correct, best accuracy, longest streak, fastest correct, against the student's earlier finished matches in the class; private; rule `personalBest` pays 3 Class Points once per match. |
+| Recap | `functions/lib/liveChallengeRecap.js` | `getLiveChallengeMatchRecap`: a student's own rounds with worked solutions, personal bests and recognitions, from the match result. |
+
+Every match still credits at most `MAX_CLASS_POINTS_PER_MATCH` (20) Class Points
+to one student; recognition and personal-best points beyond it are dropped in a
+fixed order (badges are kept). Existing rule ids and award identities are
+unchanged.
+

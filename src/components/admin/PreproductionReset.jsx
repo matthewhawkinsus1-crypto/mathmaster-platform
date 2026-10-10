@@ -42,6 +42,9 @@ const labelForCollection = (name) => ({
   examIntegrityEvents: 'Exam integrity events',
   studentMasteryProfiles: 'Student mastery profiles',
   studentRetentionSchedules: 'Student retention schedules',
+  classRewardCatalogs: 'Class reward lists',
+  classRewardRequests: 'Class reward requests',
+  growthRewardState: 'Growth reward baselines',
 }[name] || name);
 
 const preservedLabel = (name) => ({
