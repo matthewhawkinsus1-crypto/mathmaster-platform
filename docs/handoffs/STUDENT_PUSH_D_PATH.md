@@ -1,6 +1,6 @@
 # Student push — Job D: My Math Path progress that adds up
 
-**Branch:** `claude/student-push-d-path` (base `main` @ 2453643; `main` @ 2b46154 merged in).
+**Branch:** `claude/student-push-d-path` (base `main` @ 2453643; `main` @ 02ec13b merged in).
 **Date:** 2026-10-10. **Status:** the coordinator's review of #459 is addressed
 (one blocker, one major, two minors); ready for review; nothing deployed.
 
@@ -436,11 +436,11 @@ does). Functions before Hosting matters: the new client calls new callables.
 
 ## Verification
 
-Local gates on the final head (this branch with `main` @ 2b46154 merged in):
+Local gates on the final head (this branch with `main` @ 02ec13b merged in, job C's #455 included):
 
 | Gate | Result |
 | --- | --- |
-| `npm run test:platform` | 9552 / 9552 pass (#454's new `axe-core` needed an `npm install`; that file's 3 tests then pass) |
+| `npm run test:platform` | 9787 / 9787 pass |
 | `npm run test:authoring-v5` | 686 / 686 pass |
 | `npm run lint` | 0 errors (warnings only) |
 | `npm run build`, `npm run build:firebase` | both pass |
@@ -479,5 +479,6 @@ failed.
 
 Browser: each part's harness ran at 1366×768 and 390×844 when it was built.
 Since then the PR's CI journeys have covered the screens: student,
-student-runtime, teacher, certify on seven devices, browser-accessibility
-(axe) and browser-readability. CI runs on #459 at every push; the final head's results are in the PR's checks.
+student-runtime, teacher, certify on eight devices, browser-accessibility
+(axe) and browser-readability. CI runs on #459 at every push; the final
+head's results are in the PR's checks.

@@ -36,9 +36,11 @@ test('the identity bar is one line on a phone and keeps every piece of identity'
   // label, and the Log Out button.
   const bar = region(identity, '<aside', '</aside>', 'the identity bar');
   assert.match(bar, /className="mm-identity-name"[^>]*>\s*\{name\}\{context \? ` • \$\{context\}` : ''\}/);
-  assert.match(bar, /aria-label=\{`\$\{classPointsBalance\} Class Points`\} className="mm-identity-points"/);
+  // The chip is named "N Class Points" (the word is only visually hidden on a
+  // phone). The name needs a role: axe rejects aria-label on a role-less span.
+  assert.match(bar, /<span role="img" aria-label=\{`\$\{classPointsBalance\} Class Points`\} className="mm-identity-points"/);
   assert.match(bar, /\{classPointsBalance\}<span className="mm-identity-points-word"> Class Points<\/span>/);
-  assert.match(bar, /onClick=\{onLogout\}[\s\S]*>\s*Log Out\s*</);
+  assert.match(bar, /onClick=\{handleLogoutPress\}[\s\S]*?>\s*Log Out\s*</);
   // What used to wrap is in the stylesheet, where a media query can undo it.
   assert.doesNotMatch(bar, /flexWrap: 'wrap'|overflowWrap: 'anywhere'/);
 });

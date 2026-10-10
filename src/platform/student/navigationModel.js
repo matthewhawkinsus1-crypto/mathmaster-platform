@@ -219,6 +219,10 @@ export const resolveBack = (level, { origin = null } = {}) => {
     // goes before they press it.
     label: `Back to ${LEVEL_LABEL[parent]}`,
     shortLabel: LEVEL_LABEL[parent],
+    // The signpost form for a compact Back control — "← Assignments",
+    // "← Grades" — matching the global nav's name for the same place, so the
+    // Back button and the nav never call one destination two things.
+    navLabel: STUDENT_DESTINATION_LABEL[parent] || LEVEL_LABEL[parent],
   };
 };
 

@@ -187,11 +187,16 @@ const touchTargets = async (where, page, selector) => {
 
 /* ------------------------------------------------------------- student */
 
-// From the dashboard its Grades tab; from an assignment's result screen (which
-// has no dashboard tabs) its "View All Grades".
+// The way a student reaches Grades from where they are. From the dashboard:
+// the student nav's Grades. From an assignment's result screen (no student
+// nav): its Back control when it leads to Grades ("← Grades", because the
+// student came from Grades), else its "View All Grades" (the screen only
+// offers the list the student did NOT come from).
 const openStudentGrades = async (page) => {
-  const fromResult = page.getByRole('button', { name: 'View All Grades' });
-  if (await fromResult.count()) await fromResult.first().click();
+  const backToGrades = page.getByRole('button', { name: /^←\s*Grades$/ });
+  const viewAllGrades = page.getByRole('button', { name: 'View All Grades' });
+  if (await backToGrades.count()) await backToGrades.first().click();
+  else if (await viewAllGrades.count()) await viewAllGrades.first().click();
   else await page.getByRole('button', { name: /^Grades$/ }).first().click();
   await page.waitForTimeout(500 * SLOW_FACTOR);
 };

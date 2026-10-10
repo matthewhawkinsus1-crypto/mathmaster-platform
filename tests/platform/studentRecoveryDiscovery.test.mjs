@@ -512,7 +512,9 @@ test('Home, the Assignments Center and the assignment header all render the list
   const view = componentSource('src/components/student/StudentDashboardView.jsx');
   assert.match(view, /^import \{ RecoveryHomeSection \} from '\.\/RecoveryOpportunities\.jsx';$/m);
   const section = region(view, '<RecoveryHomeSection', '/>', 'Home Recovery section');
-  assert.match(section, /opportunities=\{recoveryOpportunities\}/);
+  // Every opportunity, except one already offered as Home's single "Do this
+  // next" action (job C: each action appears once).
+  assert.match(section, /opportunities=\{\(recoveryOpportunities \|\| \[\]\)\.filter\(\(opportunity\) => !\(\s*nextAction\?\.opensResult && opportunity\.assignmentId === nextAction\.assignment\?\.id/);
   assert.match(section, /onOpen=\{onOpenRecovery\}/);
   // Below the live, timed Warm-Up and DOL cards; above the Resume card and the lists.
   const at = view.indexOf('<RecoveryHomeSection');

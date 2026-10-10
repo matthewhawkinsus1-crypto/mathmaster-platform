@@ -7,7 +7,7 @@ import { buildStudentPathOptions } from '../../platform/path/studentPathOptions.
 import { buildUnifiedMasteryProfiles } from '../../platform/mastery/unifiedMastery.js';
 import {
   assignmentIsForStudent, getAssignmentLifecycle, getDOLState, getIncludedQuestionIndices,
-  prerequisiteAccess, questionIsIncluded,
+  getSectionAccessState, getWarmupState, prerequisiteAccess, questionIsIncluded,
 } from '../../assignmentLifecycle';
 import { normalizeQuestionRecord } from '../../attemptPolicy';
 import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
@@ -234,7 +234,14 @@ export default function SimulatedStudentExperience({
       getAssignmentLifecycle,
       prerequisiteAccess,
       calculateGrade,
-      getDOLState,
+      // A simulation has no bell schedule, so a Warm-Up/DOL window cannot be
+      // placed in a class period. Read without one, the real windows say
+      // "locked" on their day and "closed" (Finished) afterwards. The
+      // simulated student instead sees timed sections as untimed — open
+      // whenever the lesson is, the same as a window switched off.
+      getDOLState: (args) => ({ ...getDOLState(args), enabled: false, status: 'unavailable' }),
+      getWarmupState: (args) => ({ ...getWarmupState(args), enabled: false, status: 'unavailable' }),
+      getSectionAccessState,
       getIncludedQuestionIndices,
       normalizeQuestionRecord,
       questionIsIncluded,

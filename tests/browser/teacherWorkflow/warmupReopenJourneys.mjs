@@ -591,6 +591,29 @@ const failurePanel = (page) => page.evaluate(() => {
 const reviewShown = async (page) => /Card-sort solution/.test(await stageText(page));
 const promptOf = async (page) => (await stageText(page)).match(/Two different lines are hiding in these cards[^.]*\./)?.[0] || null;
 
+// Home's Continue / Resume lands on the FIRST UNFINISHED question the student can
+// do now. Once Q1 is closed (finished), that is Q2 — not the closed Q1. A closed
+// Q1 is still on the assignment; the student reaches it from the question picker.
+const Q2_PROMPT = /One situation grows and one shrinks/;
+const questionPicker = (page) => page.locator('select[aria-label="Choose a question"]:visible').first();
+const pickedQuestion = (page) => questionPicker(page).evaluate((select) => ({ value: select.value, label: select.selectedOptions[0]?.textContent?.trim() || '' }));
+const expectContinueLandsOnQ2 = async (device, where) => {
+  const picked = await pickedQuestion(device.page);
+  const text = await stageText(device.page);
+  check(Q2_PROMPT.test(text) && picked.value !== '0' && !(await promptOf(device.page)),
+    `${device.label}: Continue lands on Q2, the first unfinished question, while Q1 is closed ${where}`,
+    { picked, stage: text.slice(0, 160) });
+};
+// Explicitly to Q1 (storage index 0) through the question picker, and wait for
+// its board: the closed Q1's state is then read from Q1 itself.
+const goToQ1 = async (device) => {
+  const picker = questionPicker(device.page);
+  if ((await picker.inputValue()) !== '0') await picker.selectOption('0');
+  await device.page.waitForFunction(() => /Two different lines are hiding in these cards/.test(document.querySelector('.mathmaster-question-stage')?.innerText || '')
+    && !document.body.textContent.includes('Opening Work View…'), null, { timeout: 30000 * SLOW_FACTOR });
+  await device.page.waitForTimeout(800 * SLOW_FACTOR);
+};
+
 // One look at Q1 as a closed (finished) question: rendered, locked, solved, the sort kept.
 const expectClosedQ1 = async (device, where, { prompt, sorted }) => {
   const failed = await failurePanel(device.page);
@@ -643,6 +666,8 @@ const journeyServerExpired = async () => {
   await b.refresh();
   await openTodayWarmup(b.page);
   await b.page.waitForTimeout(1500 * SLOW_FACTOR);
+  await expectContinueLandsOnQ2(b, 'after a refresh');
+  await goToQ1(b);
   await expectClosedQ1(b, 'after a refresh', { prompt, sorted: total });
 
   // Another Chromebook: no local draft, no device pin — the server's copy only.
@@ -651,7 +676,11 @@ const journeyServerExpired = async () => {
   const other = await openDevice('B (second Chromebook)', { studentId: STUDENT_B, server, startMs: await b.page.evaluate(() => Date.now()), ingestion: true });
   await openTodayWarmup(other.page);
   await other.page.waitForTimeout(2500 * SLOW_FACTOR);
+  await expectContinueLandsOnQ2(other, 'on another Chromebook');
+  await goToQ1(other);
   await expectClosedQ1(other, 'on another Chromebook', { prompt, sorted: total });
+  // From Q1 (where the picker just put us), Next goes to Q2.
+  check((await pickedQuestion(other.page)).value === '0', 'B2: Next question starts from Q1', await pickedQuestion(other.page));
   await other.page.getByRole('button', { name: 'Next question' }).first().click();
   await other.page.waitForTimeout(1200 * SLOW_FACTOR);
   check(!(await failurePanel(other.page)) && /situation/i.test(await stageText(other.page)), 'B2: Q2 is reachable');
@@ -703,6 +732,8 @@ const journeyServerAttempted = async () => {
   await b.refresh();
   await openTodayWarmup(b.page);
   await b.page.waitForTimeout(1500 * SLOW_FACTOR);
+  await expectContinueLandsOnQ2(b, 'after a refresh');
+  await goToQ1(b);
   const failed = await failurePanel(b.page);
   check(!failed && (await lockedNow(b.page)) && (await reviewShown(b.page)), 'B: the closed Q1 renders, locked, with its solution, after a refresh', failed || '');
   check((await sortedOnScreen(b.page)) === total, 'B: with the sort of the third Check', String(await sortedOnScreen(b.page)));
@@ -731,7 +762,10 @@ const journeyServerCorrect = async () => {
   await a.refresh();
   await openTodayWarmup(a.page);
   await a.page.waitForTimeout(1500 * SLOW_FACTOR);
+  await expectContinueLandsOnQ2(a, 'after a refresh');
+  await goToQ1(a);
   check(!(await failurePanel(a.page)) && (await lockedNow(a.page)), 'A: still rendered and locked after a refresh');
+  check(/Correct|Question complete/i.test(await stageText(a.page)), 'A: and still says it is complete after a refresh');
   noErrors(a, 'on a correct Q1');
   await a.context.close();
 };

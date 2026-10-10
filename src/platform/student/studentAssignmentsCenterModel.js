@@ -3,6 +3,7 @@ import { studentDueDates } from '../../assignmentLifecycle.js';
 import { isTestCycleAssignment } from '../assessment/testCycle.js';
 import { findGradeCenterEntry } from './studentGradeCenterModel.js';
 import { normalizeGradingPeriodSettings } from './gradingPeriods.js';
+import { TRY_AGAIN_LABEL } from './studentResultNextStep.js';
 
 /*
  * THE ASSIGNMENTS CENTER — WHERE IS ALL MY WORK?
@@ -54,14 +55,20 @@ export const ASSIGNMENT_CATEGORY_LABEL = Object.freeze({
   [ASSIGNMENT_CATEGORY.ACTIVE]: 'Active',
   [ASSIGNMENT_CATEGORY.UPCOMING]: 'Upcoming',
   [ASSIGNMENT_CATEGORY.COMPLETED]: 'Completed',
-  [ASSIGNMENT_CATEGORY.PRACTICE]: 'Practice',
+  /*
+   * The id stays 'practice' (routes, saved tabs and tests key on it), but the
+   * WORD is not "Practice": in student copy "Practice" means only the lesson's
+   * Practice section. Closed work is something a student can try again for no
+   * credit, and the tab says exactly that.
+   */
+  [ASSIGNMENT_CATEGORY.PRACTICE]: 'Closed — try again',
 });
 
 export const ASSIGNMENT_CATEGORY_HINT = Object.freeze({
   [ASSIGNMENT_CATEGORY.ACTIVE]: 'Started, due today, past due, or with a Recovery open — all still open and still counting.',
   [ASSIGNMENT_CATEGORY.UPCOMING]: 'Assigned and due later, or not open to you yet.',
   [ASSIGNMENT_CATEGORY.COMPLETED]: 'Work you finished, and closed work with a recorded result.',
-  [ASSIGNMENT_CATEGORY.PRACTICE]: 'Past the final deadline. You can still practise these; they no longer change your grade.',
+  [ASSIGNMENT_CATEGORY.PRACTICE]: 'Past the final deadline. You can try these again; they no longer change your grade.',
 });
 
 // The marking-period filter's "show me everything" option. Not a real period —
@@ -122,27 +129,60 @@ export const matchesAssignmentSearch = (row, query) => {
   return terms.every((term) => haystack.includes(term));
 };
 
+// The no-credit retry of closed work is TRY_AGAIN_LABEL (one wording, shared
+// with the result page). Never "Practice" — that word belongs to the lesson's
+// Practice section.
+export { TRY_AGAIN_LABEL };
+export const RECOVERY_LABEL = 'Open Recovery';
+
 /**
  * What this assignment offers a student right now.
  *
- * Every flag is read from lifecycle/grade state that already exists; none of it
- * re-decides whether an assignment is open.
+ * THE ONE "TODAY" RULE DECIDES, NOT THIS FILE.
+ *
+ * The dashboard entry already says whether the button would land on work the
+ * student can do this minute (`actionable`), where it lands
+ * (`nextQuestionIndex`), whether the remaining work is a Recovery taken from
+ * the result page (`action: 'recovery'`), what a waiting lesson is waiting for
+ * (`waitText`), and whether the work is finished or excused. A row that
+ * re-derived any of those from `entry.disabled` or the lifecycle offered
+ * "Start" on a lesson whose only open part was locked — the student pressed it
+ * and landed on "Nothing open right now".
  */
-const resolveActions = ({ entry, gradeEntry }) => {
+export const resolveActions = ({ entry = {}, gradeEntry = null } = {}) => {
   const lifecycle = entry.lifecycle || {};
   const attempted = Number(gradeEntry?.overall?.attempted) || Number(entry.questionsAttempted) || 0;
-  const practiceAvailable = lifecycle.isPracticeOnly === true;
+  const closed = lifecycle.isPracticeOnly === true;
+  const excused = entry.excused === true || gradeEntry?.status === 'excused';
+  const finished = entry.finished === true;
+  const actionable = entry.actionable === true && !excused && !closed;
+  const recovery = actionable && entry.action === 'recovery';
+  const canContinue = actionable && !recovery;
+  // Waiting: unfinished, still open, and nothing in it can be done this
+  // minute. The row says what it is waiting for instead of offering a button.
+  const waiting = !finished && !excused && !closed && !actionable;
 
   return {
-    practiceAvailable,
-    // Locked work offers nothing to open; saying so is better than a button
-    // that explains itself only after it is pressed.
-    canContinue: !practiceAvailable && entry.disabled !== true,
+    excused,
+    finished,
+    // "Closed — try again": past the final deadline. Excused work is not
+    // offered as a retry; it asks nothing of the student.
+    practiceAvailable: closed && !excused,
+    canContinue,
     continueLabel: attempted > 0 ? 'Continue' : 'Start',
-    // The result screen is worth offering whenever there is something recorded
-    // to look at, or the assignment is closed and its result is the record.
-    canViewResults: attempted > 0 || practiceAvailable,
-    canPractice: practiceAvailable,
+    // Start/Continue lands here — the first unfinished question open now.
+    continueQuestionIndex: canContinue && Number.isInteger(entry.nextQuestionIndex) ? entry.nextQuestionIndex : null,
+    // A Recovery lives on the result page, so its button opens the result.
+    canRecover: recovery,
+    recoveryLabel: RECOVERY_LABEL,
+    waitText: waiting ? (entry.waitText || null) : null,
+    // Results are worth offering only when there is something recorded to
+    // look at: evidence, a closed record, an excusal, or a finished lesson.
+    // A not-started open row has nothing to show yet. The Recovery button
+    // already opens the result page, so it is not offered twice.
+    canViewResults: !recovery && (attempted > 0 || closed || excused || finished),
+    canPractice: closed && !excused,
+    practiceLabel: TRY_AGAIN_LABEL,
   };
 };
 
@@ -193,8 +233,8 @@ export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
     // Status, grade and section scores come from the Grade Center entry and are
     // never recomputed. A closed assignment with no grade entry (removed from
     // the roster, say) still renders — it simply has no status word to show.
-    status: gradeEntry?.status || null,
-    statusLabel: gradeEntry?.statusLabel || null,
+    status: gradeEntry?.status || (actions.excused ? 'excused' : null),
+    statusLabel: gradeEntry?.statusLabel || (actions.excused ? 'Excused' : null),
     displayGrade: gradeEntry?.displayGrade ?? null,
     sections: gradeEntry?.sections || null,
     frozen: gradeEntry?.frozen === true,
@@ -213,6 +253,10 @@ export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
     ...(testCycle ? {
       canContinue: entry.testCycle ? entry.testCycle.key !== 'opensLater' : actions.canContinue,
       canPractice: false,
+      canRecover: false,
+      waitText: null,
+      // The card asks the server which stage is open; no question index.
+      continueQuestionIndex: null,
       continueLabel: entry.testCycle?.actionLabel || 'Open assessment',
       ...(entry.testCycle ? {
         statusLabel: entry.testCycle.label,
@@ -228,7 +272,42 @@ export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
   };
 };
 
-const byMostRecentDue = (a, b) => String(b.dueAt || '').localeCompare(String(a.dueAt || ''));
+const dueTime = (row) => {
+  const time = Date.parse(row?.dueAt || '');
+  return Number.isFinite(time) ? time : null;
+};
+// Rows with no due date sort last in either direction.
+const byDue = (direction) => (a, b) => {
+  const left = dueTime(a);
+  const right = dueTime(b);
+  if (left === null && right === null) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return direction * (left - right);
+};
+const byMostRecentDue = byDue(-1);
+const bySoonestDue = byDue(1);
+
+/*
+ * EACH TAB IS ORDERED FOR WHAT A STUDENT DOES WITH IT.
+ *
+ * Upcoming is a to-do list: soonest due first, or the thing due tomorrow sits
+ * under the thing due next month. Active puts late work first (it is open,
+ * still counts, and gets worse every day), then soonest due. Completed and
+ * Closed are records a student searches backwards through: most recent first.
+ */
+export const sortRowsForCategory = (categoryId, rows = []) => {
+  const sorted = [...list(rows)];
+  if (categoryId === ASSIGNMENT_CATEGORY.UPCOMING) return sorted.sort(bySoonestDue);
+  if (categoryId === ASSIGNMENT_CATEGORY.ACTIVE) {
+    return sorted.sort((a, b) => {
+      const lateA = a?.lifecycle?.isLate === true ? 0 : 1;
+      const lateB = b?.lifecycle?.isLate === true ? 0 : 1;
+      return (lateA - lateB) || bySoonestDue(a, b);
+    });
+  }
+  return sorted.sort(byMostRecentDue);
+};
 
 /**
  * Everything the Assignments Center renders.
@@ -287,7 +366,7 @@ export const buildStudentAssignmentsCenter = ({
     id,
     label: ASSIGNMENT_CATEGORY_LABEL[id],
     hint: ASSIGNMENT_CATEGORY_HINT[id],
-    entries: periodRows.filter((row) => row.categories.includes(id)),
+    entries: sortRowsForCategory(id, periodRows.filter((row) => row.categories.includes(id))),
   })).map((group) => ({ ...group, count: group.entries.length }));
 
   const requestedCategory = clean(category);
