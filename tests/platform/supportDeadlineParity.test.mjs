@@ -123,7 +123,7 @@ test('the student client injects its own dates wherever assignments are loaded, 
   // goes through it: the live class listener and the prior-work fetch
   // (publishStudentAssignments), sign-in hydration, and a changed control or
   // profile (the re-projection effect).
-  assert.match(app, /import \{ EMPTY_STUDENT_CONTROLS, projectStudentAssignments \} from '\.\/platform\/assignments\/studentAssignmentControls\.js';/);
+  assert.match(app, /import \{[^}]*\bEMPTY_STUDENT_CONTROLS\b[^}]*\bprojectStudentAssignments\b[^}]*\} from '\.\/platform\/assignments\/studentAssignmentControls\.js';/);
   const publish = region(app, 'const publishStudentAssignments = () => {', '\n  };', 'publishStudentAssignments');
   assert.match(publish, /setAssignments\(projectStudentAssignments\(\{[\s\S]*studentId,[\s\S]*profile,[\s\S]*controls: studentControlsRef\.current/);
   const listener = executableSource(region(app, "if (user.role === 'student') {\n      return subscribeStudentClassAssignments({", '(error) =>', 'student assignment listener'));

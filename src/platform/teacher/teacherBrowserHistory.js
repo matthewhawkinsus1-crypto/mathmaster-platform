@@ -13,6 +13,8 @@
 // module only decides what an entry is, what makes two entries the same place,
 // and how to read and write them.
 
+import { ROUTE_OWNER_STATE_KEY } from '../student/browserHistory.js';
+
 export const TEACHER_ROUTE_STATE_KEY = '__mathmasterTeacherRoute';
 
 // One per page load. Entries are stamped with it so App can tell an entry this
@@ -189,10 +191,14 @@ const currentStateObject = () => (
 
 // `url` is the address of the screen (app/routes/browserUrl.js); without one
 // the entry keeps the current address.
-export const writeTeacherRouteState = (route, { replace = false, fromKey = null, documentId = null, url = null } = {}) => {
+export const writeTeacherRouteState = (route, {
+  replace = false, fromKey = null, documentId = null, url = null, owner = null, fresh = false,
+} = {}) => {
   if (typeof window === 'undefined' || !window.history) return;
   const next = {
-    ...currentStateObject(),
+    ...(fresh ? {} : currentStateObject()),
+    // Whose entry this is (platform/student/browserHistory.js).
+    ...(owner ? { [ROUTE_OWNER_STATE_KEY]: owner } : {}),
     [TEACHER_ROUTE_STATE_KEY]: {
       route: normalizeTeacherRoute(route),
       fromKey: fromKey || null,

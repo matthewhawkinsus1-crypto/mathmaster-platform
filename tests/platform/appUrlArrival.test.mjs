@@ -135,8 +135,10 @@ const appCode = executableSource(app);
 
 test('an arrival opens once, with the calls a click makes (app/routes/useUrlArrival.js)', () => {
   const hook = executableSource(readFileSync(new URL('../../src/app/routes/useUrlArrival.js', import.meta.url), 'utf8'));
-  const effect = region(hook, 'useEffect(() => {', '}, [urlArrival, user?.id, user?.role]);', 'arrival effect');
-  assert.match(effect, /if \(!urlArrival \|\| !user\?\.id\) return;/, 'only once an account has loaded');
+  const effect = region(hook, 'useEffect(() => {\n    if (!urlArrival || !user?.id || !(ready || waitedOut)) return;', '}, [urlArrival, user?.id, user?.role, ready, waitedOut]);', 'arrival effect');
+  // Only once an account has loaded and its lessons carry its own controls
+  // (or the wait has run out).
+  assert.match(hook, /setTimeout\(\(\) => setWaitedOut\(true\), ARRIVAL_SETTLE_TIMEOUT_MS\)/);
   assert.match(effect, /setUrlArrival\(null\);/, 'an arrival opens once');
   assert.match(effect, /if \(openedRef\.current === arrival\) return;\s*openedRef\.current = arrival;/, 'once, even when the effect runs twice');
   assert.match(effect, /student\.startAssignment\(plan\.assignmentId, plan\.storageIndex \?\? 0, plan\.exact \? \{ keepRequestedQuestion: true \} : \{\}\)/);
@@ -146,7 +148,7 @@ test('an arrival opens once, with the calls a click makes (app/routes/useUrlArri
   assert.match(effect, /teacher\.startTeacherPreview\(teacherPlan\.assignmentId\)/);
   assert.match(effect, /if \(plan\.message\) toastInfo\(plan\.message\.title, plan\.message\.body\);/);
   assert.match(hook, /^import \{ planStudentArrival, planTeacherArrival \} from '\.\/urlArrival\.js';$/m);
-  assert.match(hook, /^import \{ readMathPathRouteState, readStudentRouteState \} from '\.\.\/\.\.\/platform\/student\/browserHistory\.js';$/m);
+  assert.match(hook, /^import \{ readMathPathRouteState, readRouteOwner, readStudentRouteState \} from '\.\.\/\.\.\/platform\/student\/browserHistory\.js';$/m);
   assert.match(hook, /^import \{ readTeacherRouteState \} from '\.\.\/\.\.\/platform\/teacher\/teacherBrowserHistory\.js';$/m);
 });
 
@@ -185,8 +187,29 @@ test('the history writers wait for the arrival, write the screen\'s address, and
   assert.match(writer, /if \(urlArrival\) return;/);
   assert.match(writer, /const url = studentUrlFor\(studentBrowserRoute, \{/);
   assert.match(writer, /questionAddressFor\(\s*studentQuestionEntriesFor\(/);
-  assert.match(writer, /writeStudentRouteState\(studentBrowserRoute, \{ replace: true, url \}\)/);
-  assert.match(writer, /writeStudentRouteState\(studentBrowserRoute, \{ url \}\)/);
+  assert.match(writer, /writeStudentRouteState\(studentBrowserRoute, \{ replace: true, url, owner: user\?\.uid, fresh: !ownEntry \}\)/);
+  assert.match(writer, /writeStudentRouteState\(studentBrowserRoute, \{ url, owner: user\?\.uid \}\)/);
   const logout = region(appCode, 'const handleLogout = async () => {', 'await auth.signOut();', 'Log Out');
   assert.match(logout, /resetAddressToHome\(\);/);
+});
+
+test('Back never restores an entry another account wrote (the previous student on a shared Chromebook)', () => {
+  const studentRestore = region(appCode, 'const restoreFromBrowserHistory = (event) => {', "window.addEventListener('popstate', restoreFromBrowserHistory)", 'student popstate');
+  const foreign = studentRestore.indexOf('if (readRouteOwner(event.state) !== historyAccountRef.current) {');
+  assert.ok(foreign > 0, 'the student handler checks the entry\'s account');
+  assert.ok(foreign < studentRestore.indexOf("if (route.surface === 'assignment')"), 'before anything is restored');
+  assert.match(studentRestore.slice(foreign), /^[^]*?fresh: true,[^]*?return;/);
+  const teacherRestore = region(appCode, 'teacherHistoryRestoreRef.current = (event) => {', "window.addEventListener('popstate', restoreTeacherFromBrowserHistory)", 'teacher popstate');
+  const teacherForeign = teacherRestore.indexOf('if (readRouteOwner(event.state) !== user?.uid) {');
+  assert.ok(teacherForeign > 0 && teacherForeign < teacherRestore.indexOf('setTeacherTab(route.tab)'), 'the teacher handler checks the entry\'s account first');
+  assert.match(app, /\breadRouteOwner,\n[\s\S]*?\} from '\.\/platform\/student\/browserHistory\.js';/);
+});
+
+test('excused work opens its result page, never the graded workspace, whatever door it came through', () => {
+  const start = region(appCode, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', "setActiveView('assignment');", 'startAssignment');
+  const gate = start.indexOf("resolveStudentOverride({ assignment: assignmentData, studentId: user.id })?.excused === true");
+  assert.ok(gate > 0, 'startAssignment checks the student\'s excusal');
+  assert.ok(gate < start.indexOf('setActiveAssignmentId(assignmentId)'), 'before the workspace opens');
+  assert.match(start.slice(gate, gate + 400), /openStudentAssignmentResult\(assignmentId, \{ origin: 'assignments' \}\);\s*return;/);
+  assert.match(app, /^import \{ resolveStudentOverride \} from '\.\.\/functions\/shared\/studentAssignmentOverrides\.mjs';$/m);
 });

@@ -271,10 +271,15 @@ export const teacherPathFor = (route = {}) => {
   return `${tab === 'home' ? '/teacher/home' : base}/assignments/${encodeId(hubAssignmentId)}`;
 };
 
-// Classroom launch parameters are consumed once, on arrival. Carrying them on
-// into every later screen would make a refresh re-run the launch and throw
-// the student back into that assignment from wherever they had gone.
-const CONSUMED_LAUNCH_PARAMS = ['launch', 'classroomSection', 'classroomCourse', 'classroomPublication'];
+// One-shot parameters are consumed once, on arrival. Carrying a Classroom
+// launch on into every later screen would make a refresh re-run it and throw
+// the student back into that assignment; the stale-build reload marker and a
+// launch error are the same kind. (classroomConnected / classroomError stay:
+// the Google Classroom OAuth callback lands on Home and ClassroomManagerV2
+// reads them when the teacher next opens the Classroom tab.)
+const CONSUMED_LAUNCH_PARAMS = [
+  'launch', 'classroomSection', 'classroomCourse', 'classroomPublication', 'launchError', '_mm_reload',
+];
 
 export const searchWithoutLaunch = (search = '') => {
   const params = new URLSearchParams(String(search || '').replace(/^\?/, ''));

@@ -52,3 +52,14 @@ export const resetAddressToHome = () => {
   if (location.pathname === '/') return;
   window.history.replaceState(null, '', withSearch('/', location));
 };
+
+/**
+ * Replace the current entry's address, keeping its state: an arrival that
+ * could not open what its address named (a My Math Path session link that
+ * has not started) must not leave the bar naming it.
+ */
+export const replaceAddressPath = (pathname) => {
+  const location = browserLocation();
+  if (!location || !pathRoutesEnabled(location.pathname) || typeof window.history?.replaceState !== 'function') return;
+  window.history.replaceState(window.history.state, '', withSearch(pathname, location));
+};

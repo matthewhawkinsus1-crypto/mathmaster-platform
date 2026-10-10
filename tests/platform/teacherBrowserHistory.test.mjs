@@ -239,7 +239,9 @@ test('App describes every teacher screen and panel as a route and follows the wr
   }
   assert.match(routeBlock, /planTeacherHistoryWrite\(/);
   assert.match(routeBlock, /window\.history\.back\(\)/);
-  assert.match(routeBlock, /writeTeacherRouteState\(teacherBrowserRoute, \{ replace: true/);
+  assert.match(routeBlock, /writeTeacherRouteState\(teacherBrowserRoute, \{\s*replace: true/);
+  // Every entry names the account that wrote it (never restored for another).
+  assert.match(routeBlock, /owner: user\?\.uid/);
   // Each entry carries the screen's address (app/routes/browserUrl.js), and
   // nothing is written while the address the page opened at waits to open.
   assert.match(routeBlock, /const url = teacherUrlFor\(teacherBrowserRoute\);/);

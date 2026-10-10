@@ -85,7 +85,8 @@ import {
   subscribeStudentClassAssignments,
   workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
-import { EMPTY_STUDENT_CONTROLS, projectStudentAssignments } from './platform/assignments/studentAssignmentControls.js';
+import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments } from './platform/assignments/studentAssignmentControls.js';
+import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 import useStudentAssignmentControls from './platform/assignments/useStudentAssignmentControls.js';
 import {
   EMPTY_TEACHER_CONTROLS,
@@ -333,6 +334,7 @@ import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import {
+  readRouteOwner,
   readStudentRouteState,
   studentRouteKey,
   writeStudentRouteState,
@@ -756,6 +758,17 @@ function App() {
   // My Math Path's tab or session from an arrival, handed to MyMathPathApp
   // when it mounts; cleared once the student leaves My Math Path.
   const [mathPathArrival, setMathPathArrival] = useState(null);
+  // An account was signed in on this page. If it goes — Log Out, an expired
+  // Classroom lease, another tab — the address it left is not the next
+  // person's deep link.
+  const signedInOnThisPageRef = useRef(false);
+  useEffect(() => {
+    if (auth.status === 'ready') signedInOnThisPageRef.current = true;
+    if (auth.status === 'signedOut' && signedInOnThisPageRef.current) {
+      setUrlArrival(null);
+      resetAddressToHome();
+    }
+  }, [auth.status]);
   // The student Assignment Result route: which assignment is on screen and,
   // when the student arrived through a split Google Classroom post, which
   // section that post covered. Launch context only — the grade itself always
@@ -1115,6 +1128,10 @@ function App() {
   const studentBrowserRouteRef = useRef(null);
   // The address last written for the student's screen, to put back with it.
   const studentBrowserUrlRef = useRef(null);
+  // The account signed in now, for the history handlers: an entry another
+  // account wrote is never restored (platform/student/browserHistory.js).
+  const historyAccountRef = useRef(null);
+  historyAccountRef.current = user?.uid || null;
   // The teacher's counterpart (teacherBrowserRoute, near Live Teaching below).
   const teacherBrowserHistoryReadyRef = useRef(false);
   const teacherHistoryStepBackAtRef = useRef(0);
@@ -1176,8 +1193,9 @@ function App() {
     if (!studentBrowserHistoryReadyRef.current) {
       studentBrowserHistoryReadyRef.current = true;
       const currentUrl = `${window.location.pathname}${window.location.search}`;
-      if (currentKey !== targetKey || (url && url !== currentUrl)) {
-        writeStudentRouteState(studentBrowserRoute, { replace: true, url });
+      const ownEntry = readRouteOwner(window.history.state) === user?.uid;
+      if (currentKey !== targetKey || (url && url !== currentUrl) || !ownEntry) {
+        writeStudentRouteState(studentBrowserRoute, { replace: true, url, owner: user?.uid, fresh: !ownEntry });
       }
       studentBrowserUrlRef.current = url;
       return;
@@ -1187,7 +1205,7 @@ function App() {
     // moved to the matching history entry. Seeing the same key here prevents
     // that restoration from immediately pushing a duplicate entry.
     if (currentKey !== targetKey) {
-      writeStudentRouteState(studentBrowserRoute, { url });
+      writeStudentRouteState(studentBrowserRoute, { url, owner: user?.uid });
     }
     studentBrowserUrlRef.current = url;
     // Only the route decides when to write; the rest is read for its address.
@@ -1208,12 +1226,22 @@ function App() {
        * exam's own exit after it is submitted, is the way out.
        */
       if (isSecureExamActive()) {
-        if (studentBrowserRouteRef.current) writeStudentRouteState(studentBrowserRouteRef.current, { url: studentBrowserUrlRef.current });
+        if (studentBrowserRouteRef.current) writeStudentRouteState(studentBrowserRouteRef.current, { url: studentBrowserUrlRef.current, owner: historyAccountRef.current });
         toastInfo('Your test is still open', 'Use Submit test when you are finished. Your answers are saved as you type.');
         return;
       }
       const route = readStudentRouteState(event.state);
       if (!route) return;
+      // An entry another account wrote (the previous student on this
+      // Chromebook): never restored. This screen's entry takes its place.
+      if (readRouteOwner(event.state) !== historyAccountRef.current) {
+        if (studentBrowserRouteRef.current) {
+          writeStudentRouteState(studentBrowserRouteRef.current, {
+            replace: true, url: studentBrowserUrlRef.current, owner: historyAccountRef.current, fresh: true,
+          });
+        }
+        return;
+      }
 
       if (route.surface === 'assignment') {
         setStudentDashboardMode('assignments');
@@ -5658,6 +5686,16 @@ function App() {
       toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
       return;
     }
+    // EXCUSED WORK IS NOT OPENED AS GRADED WORK. Home and Assignments leave
+    // it out; a typed address, a bookmark or a Classroom link lands on its
+    // result page instead. Voluntary practice and the result page's own
+    // Review/Practice buttons (returnToResult) are unchanged.
+    if (user?.role === 'student' && !cycleStage && !lifecycle.isPracticeOnly && !options?.returnToResult
+      && resolveStudentOverride({ assignment: assignmentData, studentId: user.id })?.excused === true) {
+      toastInfo('You are excused from this assignment', 'Your teacher excused you, so there is nothing to turn in. Its page has the details.');
+      openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
+      return;
+    }
 
     const currentContent = projectCurrentAssignmentContent(assignmentData);
     const requestedSectionKey = String(options?.sectionKey || '').trim().toLowerCase();
@@ -5788,6 +5826,10 @@ function App() {
             : 'There is no student-actionable section in this assignment right now.',
         );
         return;
+      }
+      if (options?.keepRequestedQuestion && actionableIndex !== safeQuestionIndex) {
+        // A question's address names a question whose section is not open now.
+        toastInfo('That question is not open right now', 'It opened where you can work now.');
       }
       safeQuestionIndex = actionableIndex;
     }
@@ -6164,7 +6206,10 @@ function App() {
     // this screen. Later screens are pushed after it.
     if (!teacherBrowserHistoryReadyRef.current) {
       teacherBrowserHistoryReadyRef.current = true;
-      writeTeacherRouteState(teacherBrowserRoute, { replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID, url });
+      writeTeacherRouteState(teacherBrowserRoute, {
+        replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID, url, owner: user?.uid,
+        fresh: readRouteOwner(window.history.state) !== user?.uid,
+      });
       return;
     }
 
@@ -6188,6 +6233,7 @@ function App() {
         fromKey: plan.fromKey,
         documentId: plan.documentId,
         url,
+        owner: user?.uid,
       });
     }
   }, [teacherBrowserRoute, urlArrival]);
@@ -6210,6 +6256,16 @@ function App() {
     const entry = readTeacherHistoryEntry(event.state);
     if (!entry) return;
     const route = entry.route;
+    // An entry another account wrote (platform/student/browserHistory.js):
+    // never restored; this screen's entry takes its place.
+    if (readRouteOwner(event.state) !== user?.uid) {
+      if (teacherBrowserRoute) {
+        writeTeacherRouteState(teacherBrowserRoute, {
+          replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid, fresh: true,
+        });
+      }
+      return;
+    }
 
     // The popstate from closing a panel: the screen already shows this entry
     // (that is why App stepped back to it). Nothing to restore — and a dialog
@@ -6217,7 +6273,7 @@ function App() {
     // as the teacher pressing Back.
     if (ownStepBack) {
       if (teacherBrowserRoute && teacherRouteSignature(route) !== teacherRouteSignature(teacherBrowserRoute)) {
-        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute) });
+        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid });
       }
       return;
     }
@@ -6225,7 +6281,7 @@ function App() {
     if (teacherDialogOpen) {
       // The browser has already moved; put this screen's entry back and stay.
       if (teacherBrowserRoute) {
-        writeTeacherRouteState(teacherBrowserRoute, { fromKey: teacherRouteKey(route), documentId: TEACHER_HISTORY_DOCUMENT_ID, url: teacherUrlFor(teacherBrowserRoute) });
+        writeTeacherRouteState(teacherBrowserRoute, { fromKey: teacherRouteKey(route), documentId: TEACHER_HISTORY_DOCUMENT_ID, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid });
       }
       toastInfo('Close the open window first', 'Save or close what is open, then use Back. Nothing was changed.');
       return;
@@ -6257,7 +6313,7 @@ function App() {
       // The assignment is gone. Stay on the current screen and make this entry
       // say so, rather than leave Back pointing at a preview that cannot open.
       if (teacherBrowserRoute) {
-        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute) });
+        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid });
       }
       return;
     }
@@ -11755,6 +11811,13 @@ function App() {
     urlArrival,
     setUrlArrival,
     user,
+    // A student's lessons carry their own controls (an extension, an
+    // excusal, a reopen): the address opens once the lessons on screen were
+    // projected with the controls the listener answered, not before.
+    ready: user?.role !== 'student' || (
+      [STUDENT_CONTROLS_STATUS.READY, STUDENT_CONTROLS_STATUS.UNAVAILABLE].includes(studentAssignmentControls.status)
+      && lastPublishedRef.current?.[4] === studentAssignmentControls
+    ),
     assignments,
     toastInfo,
     student: {
@@ -11789,7 +11852,7 @@ function App() {
         hydrationError={sessionHydrationError}
         hydrating={sessionHydrating}
         launchAssignment={launchAssignment}
-        onSignOut={() => auth.signOut()}
+        onSignOut={() => { resetAddressToHome(); auth.signOut(); }}
       />
     );
   }

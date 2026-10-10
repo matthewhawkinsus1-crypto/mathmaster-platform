@@ -34,6 +34,9 @@ test('ordinary teacher tabs do not keep the whole grade corpus subscribed', () =
     ']);',
     'full student data tab list',
   );
+  // App reads this one table, imported, never a second copy of its own.
+  assert.match(app, /\bTEACHER_FULL_STUDENT_DATA_TABS,\n[\s\S]*?\} from '\.\/app\/screenScopes\.js';/);
+  assert.doesNotMatch(app, /const TEACHER_FULL_STUDENT_DATA_TABS\b/);
   for (const detailTab of ['students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer', 'standards', 'analytics', 'exams']) {
     assert.match(tabs, new RegExp("'" + detailTab + "'"));
   }

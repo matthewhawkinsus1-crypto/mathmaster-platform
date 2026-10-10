@@ -35,10 +35,6 @@ export const ARRIVAL_MESSAGES = Object.freeze({
     title: 'That page is for teachers',
     body: 'You are signed in as a student, so you are on your Home screen.',
   },
-  pathSessionAgain: {
-    title: 'Pick your practice again',
-    body: 'Your My Math Path session did not carry over. Choose it again to keep practising.',
-  },
   teacherStale: {
     title: 'That assignment is not available',
     body: 'It may have been deleted, or it is not one of your classes\' assignments.',
