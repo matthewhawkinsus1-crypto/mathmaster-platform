@@ -434,6 +434,37 @@ const solveLinear = (lhs, relation, rhs) => {
   return { a1, b1, a2, b2, A, boundary, solvedRelation, varSide, interval: ray(rval(boundary), solvedRelation) };
 };
 
+// The variable sits inside brackets (3(x - 2) > 9, (x + 3)/2 > 4): the
+// expanded a·x + c is not what the student sees, and dividing by the number
+// outside is as good a first move as undoing the constant. Read as
+//   null     no bracket holds the variable
+//   mixed    the variable is also outside every bracket: 2(x + 1) + 3x > 7
+//   bare     nothing multiplies, divides or negates the brackets: (x + 3) > 5
+//   applied  something is done to a whole bracket: -2(x + 1) > 4
+const variableInGroup = (tokens, variable) => {
+  const groups = [];
+  let depth = 0;
+  let start = -1;
+  let outside = false;
+  tokens.forEach((token, index) => {
+    if (token.t === 'op' && token.v === '(') {
+      if (depth === 0) start = index;
+      depth += 1;
+    } else if (token.t === 'op' && token.v === ')') {
+      depth -= 1;
+      if (depth === 0) groups.push([start, index]);
+    } else if (depth === 0 && token.t === 'var' && token.v === variable) outside = true;
+  });
+  const holding = groups.filter(([from, to]) => tokens.slice(from, to).some((token) => token.t === 'var' && token.v === variable));
+  if (!holding.length) return null;
+  if (outside) return 'mixed';
+  const added = (token) => !token || token.t === 'rel' || (token.t === 'op' && token.v === '+');
+  const bare = holding.every(([from, to]) => added(tokens[from - 1])
+    && (added(tokens[to + 1]) || (tokens[to + 1].t === 'op' && tokens[to + 1].v === '-'))
+    && !tokens.slice(from + 1, to).some((token) => token.t === 'op' && token.v === '('));
+  return bare ? 'bare' : 'applied';
+};
+
 // Every inequality the source states, each read as one of:
 //   bare      x > 2, -4 ≤ x < 3, 5 ≥ x
 //   linear    3x - 10 > -13, 2x + 1 ≤ x + 7
@@ -477,7 +508,7 @@ const relationRuns = (source, variable) => mathRuns(source).map((tokens) => {
     if (isBare(rhsNode, variable) && isConstant(lhs)) return { kind: 'bare', display, intervals: [ray(rval(lhs[0]), FLIP[relation])] };
     if (Math.max(lhs.length, rhs.length) === 2) {
       const solved = solveLinear(lhs, relation, rhs);
-      return solved ? { kind: 'linear', display, relation, ...solved } : null;
+      return solved ? { kind: 'linear', display, relation, grouped: variableInGroup(tokens, variable), ...solved } : null;
     }
     const zeroSide = (poly) => isConstant(poly) && poly[0].n === 0;
     if (zeroSide(rhs) || zeroSide(lhs)) {
@@ -708,6 +739,11 @@ const readableInterval = (raw) => isObject(raw)
   && readableEnd(raw.min ?? raw.from ?? raw.lower)
   && readableEnd(raw.max ?? raw.to ?? raw.upper);
 
+const piecesSeparate = (pieces) => pieces.every((piece, index) => {
+  const next = pieces[index + 1];
+  return !next || piece.max < next.min || (piece.max === next.min && !piece.maxClosed && !next.minClosed);
+});
+
 const intervalModel = (question) => {
   const raw = list(question.intervals).length ? question.intervals : question.expectedIntervals;
   if (!Array.isArray(raw) || !raw.length || !raw.every(readableInterval)) return null;
@@ -716,6 +752,9 @@ const intervalModel = (question) => {
   const variable = singleLetter(question.variable) || 'x';
   const prompt = promptOf(question);
   const base = { kind: 'interval', key, variable, ask: askOf(question), prompt };
+  // Pieces that overlap or touch at a kept end (x ≤ 2 or x > 2) graph as ONE
+  // piece: "separate pieces" would be false, so only the generic help fits.
+  if (!piecesSeparate(key)) return { ...base, sub: 'unknown' };
   const runs = relationRuns(prompt, variable);
   const bare = runs.filter((run) => run.kind === 'bare');
   if (bare.length) {
@@ -1100,9 +1139,27 @@ const solveHints = (run, variable, closing) => {
     `Solve the inequality the way you would solve an equation: undo what is done to ${v}, one step at a time, doing the same thing to both sides.`,
   ]];
   let net = rval(run.A);
-  if (run.varSide === 'both') {
+  if (run.grouped) {
+    // Only the move the brackets allow is named, never the expanded numbers.
+    rungs.push({
+      mixed: [
+        `In ${O}, ${v} is both inside and outside brackets. Distribute first to clear the brackets, then combine the ${v}-terms and solve, one step at a time, on both sides.`,
+        `When ${v} is both inside and outside brackets, distribute first to clear the brackets, then combine the ${v}-terms and solve, one step at a time, on both sides.`,
+      ],
+      bare: [
+        `In ${O}, nothing multiplies, divides or negates the brackets, so you can drop them and solve as usual, one step at a time, on both sides.`,
+        'When nothing multiplies, divides or negates a bracket, you can drop the brackets and solve as usual, one step at a time, on both sides.',
+      ],
+      applied: [
+        `In ${O}, ${v} is inside brackets. Either distribute first, or undo what is done to the whole bracket, one step at a time, on both sides.`,
+        `When ${v} is inside brackets, either distribute first, or undo what is done to the whole bracket, one step at a time, on both sides.`,
+      ],
+    }[run.grouped]);
+    if (run.varSide !== 'both') net = rval(run.varSide === 'left' ? run.a1 : run.a2);
+  } else if (run.varSide === 'both') {
+    const a2 = rval(run.a2);
     rungs.push([
-      `First gather the ${v}-terms on one side of ${O}: subtract ${termText(rval(run.a2), v)} from both sides.`,
+      `First gather the ${v}-terms on one side of ${O}: ${a2 < 0 ? `add ${termText(-a2, v)} to` : `subtract ${termText(a2, v)} from`} both sides.`,
       `First gather the ${v}-terms on one side, doing the same thing to both sides.`,
     ]);
   } else {
@@ -1342,14 +1399,18 @@ const backUpCandidates = (model) => {
 function solveBackUps(run, variable) {
   const O = run.display;
   const v = variable;
+  const a = rval(run.varSide === 'left' ? run.a1 : run.a2);
+  const c = rval(run.varSide === 'left' ? run.b1 : run.b2);
+  // Brackets: either order works, so no move is "first". Only the sign of
+  // the coefficient, which decides the symbol whatever the order, is asked.
+  // A coefficient of 1 needs no dividing, so the flip question is moot.
+  if (run.grouped) return run.varSide === 'both' || a === 1 ? [] : flipBackUps(O, v, a);
   if (run.varSide === 'both') {
     return [
       backUp(`Let's back up. What comes first in ${O}?`, [`Gather the ${v}-terms on one side`, `Divide both sides by ${fmt(rval(run.a1))}`], `Gather the ${v}-terms on one side`),
       backUp('Let\'s back up. What comes first when both sides have a variable term?', [`Gather the ${v}-terms on one side`, `Divide both sides by the coefficient of ${v}`], `Gather the ${v}-terms on one side`),
     ];
   }
-  const a = rval(run.varSide === 'left' ? run.a1 : run.a2);
-  const c = rval(run.varSide === 'left' ? run.b1 : run.b2);
   const undo = `${c > 0 ? 'Subtract' : 'Add'} ${fmt(Math.abs(c))} on both sides`;
   if (c !== 0 && a !== 1) {
     return [
@@ -1364,6 +1425,12 @@ function solveBackUps(run, variable) {
       backUp(`Let's back up. What gets ${v} alone when a number is added to or subtracted from it?`, ['Do the opposite operation on both sides', 'Do the same operation again'], 'Do the opposite operation on both sides'),
     ];
   }
+  // x alone already, after the arithmetic on one side: nothing to divide by.
+  if (a === 1) return [];
+  return flipBackUps(O, v, a);
+}
+
+function flipBackUps(O, v, a) {
   const flips = a < 0;
   const correct = flips ? 'It flips' : 'It stays the same';
   return [

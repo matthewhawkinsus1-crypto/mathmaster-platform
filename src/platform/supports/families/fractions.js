@@ -28,8 +28,9 @@
 //               or "the product of 2/3 and 3/4" — and whose authored key is
 //               worth exactly that result.
 //   simplify    an authored `fraction` question that says simplify / lowest terms /
-//               simplest form / reduce about exactly one fraction, and whose key is
-//               worth that fraction ("Simplify 9/18.", a Question Family version).
+//               simplest form / reduce about exactly one fraction that is not
+//               already in lowest terms, and whose key is worth that fraction
+//               ("Simplify 9/18.", a Question Family version).
 //   form        any other `fraction` question ("Write the part shaded.",
 //               "Simplify." with no numbers, a drill before generation): owned,
 //               so the guard learns every spelling of its key, but helped only
@@ -275,7 +276,12 @@ const readingsOf = (raw) => {
   }
   const fractions = runs.map((run) => run.operands[0]).filter(isFraction);
   const words = source.replace(/\$[^$]*\$/g, ' ');
-  if (fractions.length === 1 && SIMPLIFY_WORDS.test(words)) return [{ kind: 'simplify', fraction: fractions[0] }];
+  if (fractions.length === 1 && SIMPLIFY_WORDS.test(words)) {
+    // A fraction already in lowest terms has no common factor to find: every
+    // simplify hint would start from a false premise, so it is helped as a form.
+    const [fraction] = fractions;
+    return gcdInt(fraction.n, fraction.d) === 1 ? [] : [{ kind: 'simplify', fraction }];
+  }
   const operands = runs.map((run) => run.operands[0]);
   if (operands.length !== 2 || !operands.some(isFraction)) return [];
   const named = KEYWORD_OPERATIONS.filter(([, pattern]) => pattern.test(words));
@@ -793,10 +799,24 @@ const answerValueOf = (raw) => {
 // (similarProblem.js) reads one: those may appear in a sibling's prompt.
 const isPlainNumber = (value) => /^-?\d+(?:\.\d+)?$|^-?\d+\/-?\d+$/.test(text(value).replace(/−/g, '-').replace(/\s+/g, ''));
 
+// Every fraction a line writes out (\frac{20}{24}, -\frac{3}{4}, 10/12), as a value.
+const WRITTEN_FRACTION = /(-?)\\frac\{(\d+)\}\{(\d+)\}|(-?\d+)\/(\d+)(?!\d)/g;
+const writtenFractions = (line) => [...String(line).matchAll(WRITTEN_FRACTION)].flatMap((match) => {
+  const n = match[2] !== undefined ? Number(match[2]) * (match[1] ? -1 : 1) : Number(match[4]);
+  const d = Number(match[2] !== undefined ? match[3] : match[5]);
+  return d && usableInteger(n) && usableInteger(d) ? [rational(n, d)] : [];
+});
+const sameSize = (left, right) => Math.abs(left.n) === Math.abs(right.n) && left.d === right.d;
+
 /** The platform's sibling checks, run here first so a failing draw is replaced rather than withheld. */
 const siblingIsSafe = (question, model, sibling, answers) => {
   if (!sibling || sameOperands(model, sibling)) return false;
-  if ([model.value, ...list(model.values)].filter(Boolean).some((value) => equals(value, sibling.value))) return false;
+  const values = [model.value, ...list(model.values)].filter(Boolean);
+  if (values.some((value) => equals(value, sibling.value))) return false;
+  // The guard reads spellings; an unreduced fraction worth this question's
+  // answer (10/12 beside the answer 5/6, as an operand or a step) is the
+  // answer all the same, as is its size alone.
+  if ([sibling.prompt, ...sibling.steps].some((line) => writtenFractions(line).some((shown) => values.some((value) => sameSize(shown, value))))) return false;
   if (answers.map(answerValueOf).some((value) => value && value.n === sibling.value.n && value.d === sibling.value.d)) return false;
   if (sibling.prompt === text(question.prompt)) return false;
   if (sibling.steps.some((step) => hintRevealsAnswer(step, answers))) return false;
