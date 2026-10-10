@@ -38,8 +38,9 @@
 // SAFETY. Every hint and back-up text is built in two spellings: one quoting
 // this problem's numbers, and a plain one that names the move without them.
 // The numbered spelling is used unless it contains one of this question's
-// answers (hintRevealsAnswer, the same guard the platform runs) — 3x + 5 = 20
-// has the answer 5 in it, so "subtract 5" becomes "subtract the constant".
+// answers (hintRevealsAnswer, the same guard the platform runs, also read with
+// "- 5" closed up to "-5") — 3x + 5 = 20 has the answer 5 in it, so
+// "subtract 5" becomes "subtract the constant"; 3x - 5 = -20 likewise.
 // No text ever states the solution, the value of an intermediate equation, or
 // the slope/intercept of a line form. On a question that can be a special case
 // (relation workspace), the hints are the same sentences whichever case the
@@ -501,7 +502,10 @@ const nodeLatex = (node) => {
         const body = nodeLatex(factor.node);
         return index > 0 && /^[\d.-]/.test(body) ? `\\cdot ${body}` : body;
       }).join('');
-      const top = node.factors.filter((factor) => !factor.inverse);
+      // A legacy draw's "1 * x + 10" reads "x + 10", never "1x + 10".
+      const unitLead = (factors) => (factors.length > 1 && factors[0].node.type === 'num' && equals(factors[0].node.value, ONE)
+        && factors[1].node.type !== 'num' ? factors.slice(1) : factors);
+      const top = unitLead(node.factors.filter((factor) => !factor.inverse));
       const bottom = node.factors.filter((factor) => factor.inverse);
       if (!bottom.length) return join(top);
       const unwrap = (factors) => (factors.length === 1 && factors[0].node.type === 'paren' ? nodeLatex(factors[0].node.node) : join(factors));
@@ -1017,8 +1021,17 @@ export const numericMoves = (leftTerms, rightTerms, { style = 'fraction' } = {})
  * Hints.
  * ------------------------------------------------------------------------- */
 
+/**
+ * hintRevealsAnswer, also on the spelling with every "- 5" closed up to "-5".
+ * A term is written with a space after its sign ("3x - 5", "Undo the $- 5$"),
+ * which the platform guard does not read as −5: 3x + 5 = 20 (answer 5) lost
+ * its numbered spellings while 3x - 5 = -20 (answer −5) kept them.
+ */
+const revealsAnswer = (value, answers) => hintRevealsAnswer(value, answers)
+  || hintRevealsAnswer(String(value ?? '').replace(/[-−]\s+(?=[\d.]|\\frac)/g, '-'), answers);
+
 /** The first spelling that does not contain one of the answers; null when none is safe. */
-const firstSafe = (variants, answers) => variants.map(text).find((variant) => variant && !hintRevealsAnswer(variant, answers)) || null;
+const firstSafe = (variants, answers) => variants.map(text).find((variant) => variant && !revealsAnswer(variant, answers)) || null;
 
 const originalMagnitudes = (terms) => terms.flatMap((term) => [
   rationalText(absolute(termValue(term))),
@@ -1056,6 +1069,11 @@ const numericMoveHint = (move, model, { own, first }) => {
       if (move.groups.length === 1 && equals(group.mult, MINUS_ONE)) {
         const plain = `${lead('Distribute the negative sign')}: change the sign of every term inside the parentheses.`;
         return insideVisible(group.inner) ? [`${lead('Distribute the negative sign')}: change the sign of every term inside ${inside(group.inner)}.`, plain] : [plain];
+      }
+      // (x + 3) + 2, or 1·(6x − 24) once 7 has cleared (6x − 24)/7: there is
+      // no number in front to multiply by.
+      if (move.groups.every((term) => equals(term.mult, ONE))) {
+        return [`${lead('Remove the parentheses')}: with no number in front of them, every term inside keeps its sign.`];
       }
       const plain = `${lead('Distribute')}: multiply the number in front of the parentheses by each term inside them.`;
       if (move.groups.length === 1 && visible(group.mult) && insideVisible(group.inner)) {
@@ -1279,6 +1297,12 @@ const numericBackUp = (model) => {
           plain: ['Change the sign of every term inside the parentheses', 'Change the sign of only the first term inside the parentheses'],
         };
       }
+      // Nothing in front: "distribute 1" is no move, and undoing the constant
+      // inside is a correct first move here, so it cannot be the wrong choice.
+      if (first.groups.every((term) => equals(term.mult, ONE))) {
+        const choices = ['Remove the parentheses: every term inside keeps its sign', 'Change the sign of every term inside the parentheses'];
+        return { rich: choices, plain: choices };
+      }
       const innerConstant = group.inner.find((term) => term.kind === 'c');
       const wrongRich = innerConstant
         ? capitalized(addOrSubtract(innerConstant.value, show(innerConstant.value)))
@@ -1367,8 +1391,11 @@ const literalBackUp = (model) => {
     };
   }
   const by = first.by.size > 1 ? `\\left(${latex(first.by)}\\right)` : latex(first.by);
+  // The wrong move is named by the coefficient's size: "Subtract $3$", never "Subtract $-3$".
+  const [single] = first.by.size === 1 ? [...first.by.values()] : [];
+  const wrong = single && single.coef.n < 0 ? `Subtract $${latex(polyScale(first.by, MINUS_ONE))}$ from both sides` : `Subtract $${by}$ from both sides`;
   return {
-    rich: [`Divide both sides by $${by}$`, `Subtract $${by}$ from both sides`],
+    rich: [`Divide both sides by $${by}$`, wrong],
     plain: [`Divide both sides by the coefficient of $${t}$`, `Subtract the coefficient of $${t}$ from both sides`],
   };
 };
@@ -1384,7 +1411,7 @@ export const backUpQuestion = (question) => {
     const subject = model.kind === 'numeric' ? 'equation' : model.lineForm ? 'equation' : 'formula';
     const richPrompt = `Let’s back up. In $${model.display}$, which move comes first?`;
     const plainPrompt = `Let’s back up. In this ${subject}, which move comes first?`;
-    const safe = (texts) => texts.every((value) => !hintRevealsAnswer(value, answers));
+    const safe = (texts) => texts.every((value) => !revealsAnswer(value, answers));
     let options;
     if (safe(step.rich)) options = step.rich;
     else if (safe(step.plain)) options = step.plain;
@@ -1423,8 +1450,8 @@ const siblingIsSafe = (example, question, answers, originalValue) => {
   const answerText = text(example.answer).replace(/\$/g, '');
   if (text(example.prompt) === text(question.prompt)) return false;
   if (answers.some((value) => value.toLowerCase() === answerText.toLowerCase())) return false;
-  if (example.steps.some((step) => hintRevealsAnswer(step, answers))) return false;
-  if (hintRevealsAnswer(example.answer, answers)) return false;
+  if (example.steps.some((step) => revealsAnswer(step, answers))) return false;
+  if (revealsAnswer(example.answer, answers)) return false;
   const nonNumeric = answers.filter((value) => numericKey(value) === null);
   if (hintRevealsAnswer(example.prompt, nonNumeric)) return false;
   if (originalValue && example.value && equals(originalValue, example.value)) return false;
@@ -1594,13 +1621,24 @@ const literalSibling = (model, random, accept) => {
     const [restMonomial] = [...R.values()];
     const restMagnitude = restMonomial ? show(polyOf([[restMonomial.symbols, absolute(restMonomial.coef)]])) : '';
     const numeratorText = restMonomial ? `${D} ${restMonomial.coef.n > 0 ? '-' : '+'} ${restMagnitude}` : D;
-    const answerBody = unitK ? numeratorText : `\\frac{${numeratorText}}{${show(K)}}`;
+    // A negative coefficient (T = 11 - 3k) is divided out with the signs
+    // turned over: (11 - P)/3, never (P - 11)/(-3) or (P - 11)/(-1).
+    const [kMonomial] = [...K.values()];
+    const negativeK = kMonomial.coef.n < 0;
+    const positiveK = polyScale(K, MINUS_ONE);
+    const unitPositiveK = negativeK && kConstant !== null && equals(kConstant, MINUS_ONE);
+    const flippedText = restMonomial ? `${show(R)} - ${D}` : `-${D}`;
+    const answerBody = unitK ? numeratorText
+      : !negativeK ? `\\frac{${numeratorText}}{${show(K)}}`
+        : unitPositiveK ? flippedText : `\\frac{${flippedText}}{${show(positiveK)}}`;
     const steps = [];
     if (restMonomial) {
       const kt = show(polyMul(K, polyOf([[[t], ONE]])));
       steps.push(`${capitalize(addOrSubtract(restMonomial.coef, restMagnitude))}: $${model.side === 'left' ? `${kt} = ${numeratorText}` : `${numeratorText} = ${kt}`}$.`);
     }
-    if (!unitK) steps.push(`Divide both sides by $${show(K)}$: $${t} = ${answerBody}$.`);
+    if (!unitK && !negativeK) steps.push(`Divide both sides by $${show(K)}$: $${t} = ${answerBody}$.`);
+    if (unitPositiveK) steps.push(`Divide both sides by $-1$, which changes the sign of every term: $${t} = ${answerBody}$.`);
+    if (negativeK && !unitPositiveK) steps.push(`Divide both sides by $${show(K)}$: $${t} = \\frac{${numeratorText}}{${show(K)}} = ${answerBody}$.`);
     const undo = restMonomial ? `, then ${restMonomial.coef.n > 0 ? 'adding' : 'subtracting'} $${restMagnitude}$` : '';
     steps.push(`Check: ${unitK ? `starting from $${answerBody}$` : `multiplying $${answerBody}$ by $${show(K)}$`}${undo} gives back $${D}$, so the formula holds.`);
     const example = {

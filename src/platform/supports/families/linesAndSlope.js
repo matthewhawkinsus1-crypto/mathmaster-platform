@@ -55,8 +55,9 @@
 //     problem's own numbers (the equation, the points, the table's x-values)
 //     and a plain spelling that names the move without them. The numbered
 //     spelling is used unless it contains one of this question's answers
-//     (hintRevealsAnswer — the platform's own guard — against expectedValues
-//     plus every plain key the question carries); a text that fails both is
+//     (hintRevealsAnswer — the platform's own guard, also read with "- 3"
+//     closed up to "-3" — against expectedValues plus every plain key the
+//     question carries); a text that fails both is
 //     dropped. No hint states a slope, an intercept, a point to plot, an
 //     equation the student must write, a classification, or a corrected value.
 //   - expectedValues lists what the student must FIND, in every spelling a
@@ -669,10 +670,19 @@ const rawKeyTexts = (question = {}) => {
 
 const guardFor = (question, model) => unique([...expectedFor(model), ...rawKeyTexts(question)]);
 
+/**
+ * hintRevealsAnswer, also on the spelling with every "- 3" closed up to "-3":
+ * an equation writes a term's sign with a space (y = (x - 3)), which the
+ * platform guard does not read as −3, while a hidden 3 already sent "x - 3"
+ * to the plain spelling.
+ */
+const revealsAnswer = (value, guard) => hintRevealsAnswer(value, guard)
+  || hintRevealsAnswer(String(value ?? '').replace(/[-−]\s+(?=[\d.])/g, '-'), guard);
+
 /** The numbered spelling unless it leaks, else the plain one, else nothing. */
 const choose = (guard) => ([specific, plain]) => {
-  if (specific && !hintRevealsAnswer(specific, guard)) return specific;
-  if (plain && !hintRevealsAnswer(plain, guard)) return plain;
+  if (specific && !revealsAnswer(specific, guard)) return specific;
+  if (plain && !revealsAnswer(plain, guard)) return plain;
   return null;
 };
 
@@ -718,6 +728,13 @@ const lineFeaturesHints = (model) => {
   ];
 };
 
+// y = (x − 3) and y = −(x − 3) have no number written in front of the
+// parentheses: the slope is 1 or −1, said as such.
+const unitFactorLead = (a) => (equals(a, ONE) ? 'Nothing is written in front of the parentheses, so the slope is' : 'Only a minus sign is written in front of the parentheses, so the slope is');
+const unitFactorHint = (a) => (equals(absolute(a), ONE)
+  ? [`${unitFactorLead(a)} ${show(a)}: ${riseRunText(a)}.`, `${unitFactorLead(a)} ${equals(a, ONE) ? 'one' : 'negative one'}: use it as rise over run from the x-axis point.`]
+  : [`The number in front of the parentheses is the slope: ${riseRunText(a)}.`, 'The number in front of the parentheses is the slope: use it as rise over run from the x-axis point.']);
+
 const graphLineHints = (model) => {
   const { mode, line, display } = model;
   if (mode === 'slopeIntercept' && !line.vertical) {
@@ -761,7 +778,7 @@ const graphLineHints = (model) => {
   if (mode === 'factoredLinear') {
     return [
       [`Start from ${display}: which value of x makes y equal zero? That point is on the x-axis.`, 'In y = a(x − c), y is zero when the factor in parentheses is zero. That point is on the x-axis.'],
-      [`The number in front of the parentheses is the slope: ${riseRunText(model.a)}.`, 'The number in front of the parentheses is the slope: use it as rise over run from the x-axis point.'],
+      unitFactorHint(model.a),
       [null, 'Check: substitute the x-value of your second point into the equation. The y-value should match your point.'],
     ];
   }
@@ -911,6 +928,14 @@ const backUpFor = (model) => {
         ];
       }
       if (mode === 'standardForm') {
+        // 2y = -6 has no x to replace: the question is the one its hints ask.
+        if (isZero(model.A) || isZero(model.B)) {
+          const correct = isZero(model.B) ? 'The x-coordinate' : 'The y-coordinate';
+          return [
+            step(`Let’s back up. On the line ${display}, which coordinate is the same at every point?`, ['The x-coordinate', 'The y-coordinate'], correct),
+            step(`Let’s back up. On a line whose equation has only ${isZero(model.B) ? 'x' : 'y'} in it, which coordinate is the same at every point?`, ['The x-coordinate', 'The y-coordinate'], correct),
+          ];
+        }
         const options = ['Replace x or y with zero to find an intercept', 'Set x and y equal to each other'];
         return [step(`Let’s back up. What is a quick first move for graphing ${display}?`, options, options[0]), step('Let’s back up. What is a quick first move for graphing an equation in standard form?', options, options[0])];
       }
@@ -958,7 +983,7 @@ export const backUpQuestion = (question) => {
   if (!model) return null;
   try {
     const guard = guardFor(question, model);
-    const step = backUpFor(model).find((entry) => ![entry.prompt, ...entry.options].some((part) => hintRevealsAnswer(part, guard)));
+    const step = backUpFor(model).find((entry) => ![entry.prompt, ...entry.options].some((part) => revealsAnswer(part, guard)));
     if (!step) return null;
     // The right answer is not always the first button.
     const options = hash(`${model.kind}|${step.prompt}`) % 2 ? [...step.options].reverse() : [...step.options];
@@ -992,8 +1017,8 @@ const exampleIsSafe = (question, example, guard) => {
   if (guard.some((value) => value.toLowerCase() === answer.toLowerCase())) return false;
   const value = exact(answer);
   if (value && guard.some((entry) => exact(entry) && equals(exact(entry), value))) return false;
-  if (hintRevealsAnswer(answer, guard)) return false;
-  if (steps.some((step) => hintRevealsAnswer(step, guard))) return false;
+  if (revealsAnswer(answer, guard)) return false;
+  if (steps.some((step) => revealsAnswer(step, guard))) return false;
   return !hintRevealsAnswer(prompt, guard.filter((entry) => exact(entry) === null));
 };
 
@@ -1171,7 +1196,7 @@ const siblingGraphLine = (question, model, seed) => {
         prompt: `Graph ${factoredText(a, c)}.`,
         steps: [
           `y is zero when ${factor} = 0, that is when x = ${show(c)}. Plot the x-intercept ${pt(start)}.`,
-          `The number in front of the parentheses, ${show(a)}, is the slope: ${riseRunText(a)}. From ${pt(start)} move ${moveText(a)} to ${pt(second)}.`,
+          `${equals(absolute(a), ONE) ? `${unitFactorLead(a)} ${show(a)}` : `The number in front of the parentheses, ${show(a)}, is the slope`}: ${riseRunText(a)}. From ${pt(start)} move ${moveText(a)} to ${pt(second)}.`,
           `Draw the line through ${pt(start)} and ${pt(second)}.`,
         ],
         answer: `The line through ${pt(start)} and ${pt(second)}`,

@@ -151,7 +151,8 @@ const formatter = ({ latex = true } = {}) => {
   // c·(value) as a student writes it: 3(-2), -(4), (5).
   const times = (coefficient, value) => {
     const c = tidy(coefficient);
-    if (c === 1) return tidy(value) < 0 ? paren(value) : num(value);
+    // A zero keeps its parentheses: "x - (0)" and "-(0) + 4(-6)", never "-0".
+    if (c === 1) return tidy(value) <= 0 ? paren(value) : num(value);
     if (c === -1) return `-${paren(value)}`;
     return `${num(c)}${paren(value)}`;
   };
@@ -367,6 +368,15 @@ const keyOf = (question, variables = ['x', 'y']) => {
   }
   return null;
 };
+
+/**
+ * hintRevealsAnswer, also on the spelling with every "- 2" closed up to "-2".
+ * An equation writes a term's sign with a space ("-5x - 2y = 8"), which the
+ * platform guard does not read as −2: a coordinate of 2 already turned
+ * "2y" into the plain wording while a coordinate of −2 kept "- 2y".
+ */
+const revealsAnswer = (value, guard) => hintRevealsAnswer(value, guard)
+  || hintRevealsAnswer(String(value ?? '').replace(/[-−]\s+(?=[\d.]|\\frac)/g, '-'), guard);
 
 const satisfies = (equation, point) => Math.abs(equation.a * point.x + equation.b * point.y - equation.c) <= 1e-6 * Math.max(1, Math.abs(equation.c));
 
@@ -744,7 +754,7 @@ export const hints = (question) => {
     const plan = planFor(question, system);
     const guard = expectedValues(question);
     return ladderFor(question, system, plan)
-      .map((candidates) => candidates.find((candidate) => candidate && !hintRevealsAnswer(candidate, guard)) || null)
+      .map((candidates) => candidates.find((candidate) => candidate && !revealsAnswer(candidate, guard)) || null)
       .filter(Boolean)
       .slice(0, 4);
   } catch {
@@ -987,7 +997,7 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
       if (!candidate) continue;
       if (candidate.printed.some((value) => forbidden.some((bad) => Math.abs(value - bad) < 1e-9))) continue;
       const pieces = [candidate.prompt, ...candidate.steps, candidate.answer];
-      if (pieces.some((piece) => hintRevealsAnswer(piece, guard))) continue;
+      if (pieces.some((piece) => revealsAnswer(piece, guard))) continue;
       if (text(candidate.prompt) === text(question?.prompt)) continue;
       return { prompt: candidate.prompt, steps: candidate.steps, answer: candidate.answer };
     }
@@ -1096,7 +1106,7 @@ export const backUpQuestion = (question) => {
       && candidate.options.length === 2
       && candidate.options[0] !== candidate.options[1]
       && candidate.options.includes(candidate.correct)
-      && ![candidate.prompt, ...candidate.options].some((piece) => hintRevealsAnswer(piece, guard));
+      && ![candidate.prompt, ...candidate.options].some((piece) => revealsAnswer(piece, guard));
     const step = steps.find(safe);
     if (step) return step;
     return { ...GENERIC_BACK_UP, options: [...GENERIC_BACK_UP.options] };
