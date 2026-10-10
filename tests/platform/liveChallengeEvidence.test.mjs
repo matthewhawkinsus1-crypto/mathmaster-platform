@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { ROLE_WEIGHT, masteryEventFacts } from '../../functions/shared/masteryScoring.mjs';
 import { readFileSync } from 'node:fs';
 
 import {
@@ -136,9 +137,14 @@ test('junk input never throws', () => {
 /* ---------- the server wiring ---------- */
 
 test('a timed round is weighted below untimed practice', () => {
-  const match = code.match(/liveChallenge: ([0-9.]+) \}\[evidence\.source\?\.activityRole\]/);
-  assert.ok(match, 'liveChallenge must have a role weight');
-  assert.ok(Number(match[1]) < 1, 'a timed single attempt is noisier evidence than practice');
+  // The role weights live in the shared scorer the trigger calls
+  // (functions/shared/masteryScoring.mjs); a Live Challenge event is scored there.
+  assert.match(code, /masteryScoring\.masteryEventFacts\(evidence, mathPath,/);
+  assert.ok(Number(ROLE_WEIGHT.liveChallenge) > 0, 'liveChallenge must have a role weight');
+  assert.ok(ROLE_WEIGHT.liveChallenge < ROLE_WEIGHT.practice, 'a timed single attempt is noisier evidence than practice');
+  const helpers = { canonicalAlignmentKey: (key) => key, displayAlignmentKey: (key) => key.replace('texas:', ''), mathematicalIndependence: () => true, opaqueId: (...parts) => parts.join('|') };
+  const facts = masteryEventFacts({ eventKey: 'e', masteryEvidenceKeys: ['texas:A.5A'], source: { kind: 'liveChallenge', activityRole: 'liveChallenge' }, performance: { score: 1 } }, helpers);
+  assert.equal(facts.weight, ROLE_WEIGHT.liveChallenge);
 });
 
 /*
