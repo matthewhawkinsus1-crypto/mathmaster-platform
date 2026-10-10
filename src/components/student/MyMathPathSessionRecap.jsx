@@ -66,11 +66,14 @@ const AnswerList = ({ entries }) => (
 
 function RecapItem({ item }) {
   const skill = item.skillCode ? (studentLabelForTeks(item.skillCode) || item.skillCode) : null;
-  const review = item.solutionReview || null;
+  // A question that comes back in practice keeps its answer and steps out of
+  // the recap (functions/shared/pathRecapWithheld.mjs).
+  const withheld = item.answerWithheld === true;
+  const review = withheld ? null : (item.solutionReview || null);
   const answer = item.response?.entries || [];
   // The authored review leads with its own answer line; the key is shown only
   // where the author did not write one, so the answer is never said twice.
-  const correct = review?.answerSummary ? [] : (item.correctAnswer || []);
+  const correct = withheld || review?.answerSummary ? [] : (item.correctAnswer || []);
   const partial = item.outcome === 'partial';
 
   return (
@@ -127,13 +130,19 @@ function RecapItem({ item }) {
           )}
         </div>
 
-        {review
-          ? <PathSolutionReview review={review} wasCorrect={false} />
-          : correct.length === 0 && (
-            <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 13.5, lineHeight: 1.55 }}>
-              This question does not have a worked solution yet. Your teacher can go over it with you.
+        {withheld
+          ? (
+            <p data-recap-withheld style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 13.5, lineHeight: 1.55 }}>
+              This question comes back in practice, so its answer and steps stay out of your review. Your teacher can go over it with you.
             </p>
-          )}
+          )
+          : review
+            ? <PathSolutionReview review={review} wasCorrect={false} />
+            : correct.length === 0 && (
+              <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 13.5, lineHeight: 1.55 }}>
+                This question does not have a worked solution yet. Your teacher can go over it with you.
+              </p>
+            )}
       </article>
     </li>
   );

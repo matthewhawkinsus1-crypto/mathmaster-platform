@@ -65,7 +65,7 @@ test('mastery is frozen when the session opens and compared with the live profil
 test('the review shows the answer once: the key only where the worked solution has no answer line', () => {
   const recap = executableSource(read('src/components/student/MyMathPathSessionRecap.jsx'));
   const item = region(recap, 'function RecapItem(', '\n}\n', 'recap item');
-  assert.match(item, /const correct = review\?\.answerSummary \? \[\] : \(item\.correctAnswer \|\| \[\]\);/);
+  assert.match(item, /const correct = withheld \|\| review\?\.answerSummary \? \[\] : \(item\.correctAnswer \|\| \[\]\);/);
   assert.match(item, /<PathSolutionReview review=\{review\} wasCorrect=\{false\} \/>/);
   assert.match(item, /<PathQuestionStimulus stimulus=\{item\.question\?\.stimulus \|\| null\} \/>/);
 });

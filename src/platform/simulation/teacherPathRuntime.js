@@ -364,6 +364,8 @@ export const createTeacherPathRuntime = ({
     const fieldGraded = !toolPayload && hasFieldGradableDefinition(issuedQuestion);
     const instance = {
       questionInstanceId,
+      // The bank template, so the recap applies the server's withheld list.
+      templateId: chosen.question?.id || null,
       ...(toolPayload ? {
         pathToolId: toolPayload.pathToolId,
         serverGradingVersion: toolPayload.serverGradingVersion,
@@ -791,6 +793,7 @@ export const createTeacherPathRuntime = ({
     if (!session.closedItems) session.closedItems = [];
     session.closedItems.push(buildPathRecapEntry({
       sessionId: session.sessionId,
+      templateId: instance.templateId || null,
       questionInstanceId: instance.questionInstanceId,
       questionNumber: session.summary.completedQuestions,
       skillCode: instance.teksCode || null,

@@ -35,6 +35,10 @@
  * Simulator's runtime, and the tests.
  */
 
+import { recapWithholdsAnswer } from './pathRecapWithheld.mjs';
+
+export { recapWithholdsAnswer };
+
 export const PATH_RECAP_ENTRY_VERSION = 1;
 
 // An entry is one question's display copy. Graph stimuli are the heaviest part
@@ -205,10 +209,14 @@ export const buildPathRecapEntry = ({
   responsePayload = null,
   grading = {},
   solutionReview = null,
+  // The bank template the item was drawn from. A template that repeats its
+  // questions (pathRecapWithheld.mjs) keeps its answer out of the recap.
+  templateId = null,
 } = {}) => {
   const question = recapQuestionView(publicQuestion);
   const answerKeyView = answerKeyQuestion ? recapQuestionView(answerKeyQuestion) : question;
   const isCorrect = grading?.isCorrect === true;
+  const answerWithheld = recapWithholdsAnswer(templateId);
   return {
     v: PATH_RECAP_ENTRY_VERSION,
     sessionId: clampText(sessionId, 180),
@@ -218,14 +226,15 @@ export const buildPathRecapEntry = ({
     closedAt: Number.isFinite(Number(closedAt)) ? Number(closedAt) : null,
     question,
     response: describeRecapResponse(question, responsePayload),
-    correctAnswer: describeRecapCorrectAnswer(answerKeyView, privateGrading),
+    correctAnswer: answerWithheld ? [] : describeRecapCorrectAnswer(answerKeyView, privateGrading),
+    answerWithheld,
     grading: {
       isCorrect,
       score: isCorrect ? 1 : unit(grading?.score),
       attemptNumber: wholeNumber(grading?.attemptNumber),
       attemptsAllowed: wholeNumber(grading?.attemptsAllowed),
     },
-    solutionReview: reviewView(solutionReview),
+    solutionReview: answerWithheld ? null : reviewView(solutionReview),
   };
 };
 
@@ -306,8 +315,9 @@ const recapItem = (entry) => ({
     kind: entry.response?.kind || 'none',
     entries: list(entry.response?.entries),
   },
-  correctAnswer: list(entry.correctAnswer),
-  solutionReview: reviewView(entry.solutionReview),
+  correctAnswer: entry.answerWithheld === true ? [] : list(entry.correctAnswer),
+  solutionReview: entry.answerWithheld === true ? null : reviewView(entry.solutionReview),
+  answerWithheld: entry.answerWithheld === true,
 });
 
 /**

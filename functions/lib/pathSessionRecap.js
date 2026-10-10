@@ -66,6 +66,7 @@ function closedQuestionRecapJson(rules, {
       responsePayload,
       grading: { ...grading, attemptsAllowed: currentQuestion.attemptsAllowed },
       solutionReview,
+      templateId: currentQuestion.bankQuestionId || null,
     });
     return rules.serializePathRecapEntry(entry);
   } catch (error) {
