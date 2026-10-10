@@ -99,7 +99,7 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
           {/* The star is drawn: ⭐ was a box on devices without an emoji font
               (PQ-030). On a phone the words "Class Points" are visually hidden,
               not removed, so the chip still reads "120 Class Points". */}
-          {!preview && Number.isFinite(classPointsBalance) && <span className="mm-identity-points" style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}><StarIcon /> {classPointsBalance}<span className="mm-identity-points-word"> Class Points</span></span>}
+          {!preview && Number.isFinite(classPointsBalance) && <span role="img" aria-label={`${classPointsBalance} Class Points`} className="mm-identity-points" style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}><StarIcon /> {classPointsBalance}<span className="mm-identity-points-word"> Class Points</span></span>}
         </div>
         {!preview && onLogout && (
           <span className="mm-identity-logout" style={{ flexShrink: 0 }}>
