@@ -163,8 +163,9 @@ const applyEvidence = async (studentId, docs) => {
   for (const snapshot of docs) {
     await functionsIndex.updateMyMathPathMasteryFromEvidence.run({ data: snapshot, params: { studentId, eventId: snapshot.id } });
   }
-  const profile = (await db.collection('studentMasteryProfiles').doc(studentId).get()).data()?.profiles?.[SKILL];
-  assert.ok(profile, `a mastery profile for ${SKILL}`);
+  const stored = (await db.collection('studentMasteryProfiles').doc(studentId).get()).data();
+  const profile = stored?.profiles?.[SKILL];
+  assert.ok(profile, `a mastery profile for ${SKILL} (stored: ${JSON.stringify(Object.keys(stored?.profiles || {}))}; evidence keys: ${JSON.stringify(docs.map((doc) => doc.data().masteryEvidenceKeys || doc.data().alignmentKeys))})`);
   return profile;
 };
 
