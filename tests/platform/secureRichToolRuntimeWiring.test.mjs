@@ -323,7 +323,7 @@ test('a reload sends the server the device\'s answer WITH the Rich Tool drafts i
   // Opening (or reopening) a question is where the device copy goes back up.
   const refresh = region(container, 'const openPosition = useCallback(', 'const move = useCallback(', 'open a question');
   assert.match(refresh, /setQuestion\(\{ \.\.\.instance, _draftResponse: restored \}\);/);
-  assert.match(refresh, /request: \{ examSessionId: activeSessionId, questionInstanceId: instance\.questionInstanceId, responsePayload: restored, supportUsage: \{\} \}/);
+  assert.match(refresh, /request: \{ examSessionId: activeSessionId, questionInstanceId: instance\.questionInstanceId, responsePayload: restored, supportUsage: \{\}, \.\.\.nextDraftStamp\(\) \}/);
   assert.match(refresh, /pendingDraftRef\.current = resend;\s*runAutosave\(\);/);
   assert.doesNotMatch(refresh, /responsePayload: local\b/);
 });

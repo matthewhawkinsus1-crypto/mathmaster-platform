@@ -401,6 +401,30 @@ for (const device of DEVICES) {
     await page.close();
   }
 
+  // An open Test review closes the moment the server stops offering it: the
+  // teacher opens the Retest while the answers and solutions are on screen.
+  // (The card asks again on coming back to the tab, on focus, on a grade
+  // change and every 30 seconds; coming back to the tab is driven here.)
+  for (const from of ['card', 'corrections']) {
+    const { page, errors } = await openCard('corrections');
+    if (from === 'card') {
+      await cardButton(page, 'Review my Test').click();
+    } else {
+      await cardButton(page, 'Continue Corrections').click();
+      const link = page.locator('button', { hasText: 'Review my Test' }).last();
+      await link.waitFor({ state: 'visible', timeout: 15000 });
+      await link.click();
+    }
+    await page.waitForSelector('[data-results-score]', { timeout: 15000 });
+    await page.evaluate(() => { window.__stageOverride = 'retest'; document.dispatchEvent(new Event('visibilitychange')); });
+    const closed = await page.waitForSelector('[data-results-score]', { state: 'detached', timeout: 10000 }).then(() => true).catch(() => false);
+    check(closed, at(`a Test review opened from ${from} closes when the Retest opens`));
+    const stage = await page.locator('[data-test-cycle-stage]').first().getAttribute('data-test-cycle-stage').catch(() => null);
+    check(stage === 'retest', at(`a Test review opened from ${from}: back on the card, at the Retest`), String(stage));
+    noErrors(errors, at(`revoked Test review from ${from}`));
+    await page.close();
+  }
+
   {
     const { page, errors } = await openCard('retest');
     check(await cardButton(page, 'Review my Test').count() === 0, at('retest: no Test review while a Retest can be answered'));

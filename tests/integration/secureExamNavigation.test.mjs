@@ -39,7 +39,9 @@ const EXTRA_TIME_STUDENT = 'NAV_STUDENT_EXTRA_TIME';
 const SAT_STUDENT = 'NAV_STUDENT_SAT';
 const COURSE_STUDENT = 'NAV_STUDENT_COURSE';
 const LEGACY_STUDENT = 'NAV_STUDENT_LEGACY';
-const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT];
+const HISTORY_STUDENT = 'NAV_STUDENT_LONG_HISTORY';
+const LATE_SAVE_STUDENT = 'NAV_STUDENT_LATE_SAVE';
+const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT, HISTORY_STUDENT, LATE_SAVE_STUDENT];
 const created = [];
 
 const student = (studentId, data) => studentRequest(studentId, data);
@@ -62,6 +64,8 @@ const VERDICT_KEYS = /"(isCorrect|correctAnswer|expected|accepted|privateGrading
 const assertNoVerdict = (payload, where) => {
   assert.doesNotMatch(JSON.stringify(payload), VERDICT_KEYS, `${where} must carry no verdict, key or solution`);
 };
+
+const index0 = (id) => 1_600_000_000_000 + Number(id.slice(-2));
 
 const createSimulation = async (studentId, examType, questionCount, extra = {}) => {
   const result = await fns.createSecureExamSession.run(teacherRequest({ studentId, examType, questionCount, ...extra }));
@@ -216,6 +220,64 @@ test('skip, flag, go back and change an answer — graded once, on the server, a
   await fns.finalizeSecureExam.run(student(SIM_STUDENT, { examSessionId: second2.examSessionId }));
   const reopened = await fns.getStudentSecureExamReview.run(student(SIM_STUDENT, { examSessionId }));
   assert.ok(reopened.review.items.length === 3, 'and opens again once that test is submitted');
+});
+
+test('an older draft save that lands after a newer one is not written: finalize grades what the student typed last', async () => {
+  const { examSessionId } = await createSimulation(LATE_SAVE_STUDENT, 'tsia2', 1);
+  await fns.startSecureExamSession.run(student(LATE_SAVE_STUDENT, { examSessionId }));
+  const opened = await issue(LATE_SAVE_STUDENT, examSessionId, { position: 0 });
+  const questionInstanceId = opened.questionInstance.questionInstanceId;
+  const key = await keyFor(examSessionId, questionInstanceId);
+  const answer = (value) => ({ examSessionId, questionInstanceId, responsePayload: { responses: { [key.fieldId]: value } } });
+  const page = 'page_latesave01';
+
+  // Revision 2 (the right answer) lands first; revision 1 (typed before it) arrives late.
+  await save(LATE_SAVE_STUDENT, { ...answer(key.value), draftWriter: page, draftRevision: 2 });
+  const late = await save(LATE_SAVE_STUDENT, { ...answer(CERT_WRONG_ANSWER), draftWriter: page, draftRevision: 1 });
+  assert.equal(late.stale, true, 'the late save is reported as not written');
+  assert.equal((await readItem(examSessionId, questionInstanceId)).draftResponse.responsePayload.responses[key.fieldId], key.value);
+
+  await fns.finalizeSecureExam.run(student(LATE_SAVE_STUDENT, { examSessionId }));
+  const stored = (await db.collection('examSessions').doc(examSessionId).get()).data();
+  assert.equal(stored.responses[questionInstanceId].grading.isCorrect, true, 'the newest answer is the one graded');
+});
+
+test('a draft from another page (a reload, another device) is still written over this one', async () => {
+  const { examSessionId } = await createSimulation(LATE_SAVE_STUDENT, 'tsia2', 1);
+  await fns.startSecureExamSession.run(student(LATE_SAVE_STUDENT, { examSessionId }));
+  const opened = await issue(LATE_SAVE_STUDENT, examSessionId, { position: 0 });
+  const questionInstanceId = opened.questionInstance.questionInstanceId;
+  const key = await keyFor(examSessionId, questionInstanceId);
+  const answer = (value) => ({ examSessionId, questionInstanceId, responsePayload: { responses: { [key.fieldId]: value } } });
+  await save(LATE_SAVE_STUDENT, { ...answer(CERT_WRONG_ANSWER), draftWriter: 'page_firstdevice', draftRevision: 9 });
+  const other = await save(LATE_SAVE_STUDENT, { ...answer(key.value), draftWriter: 'page_seconddevice', draftRevision: 1 });
+  assert.notEqual(other.stale, true);
+  assert.equal((await readItem(examSessionId, questionInstanceId)).draftResponse.responsePayload.responses[key.fieldId], key.value);
+  // And a save with no stamp at all (an older client) is written as before.
+  await save(LATE_SAVE_STUDENT, answer(CERT_WRONG_ANSWER));
+  assert.equal((await readItem(examSessionId, questionInstanceId)).draftResponse.responsePayload.responses[key.fieldId], CERT_WRONG_ANSWER);
+});
+
+test('the practice-test open-book gate sees every session of that exam, however long the history', async () => {
+  // Fifty-five old sessions of another exam whose ids sort before any
+  // generated id: a query capped at 50 reads only these, never the TSIA2
+  // test under way, and would hand out the released answers beside it.
+  const history = Array.from({ length: 55 }, (_, index) => `0000navhistory${String(index).padStart(2, '0')}`);
+  await Promise.all(history.map((id) => db.collection('examSessions').doc(id).set({
+    studentId: HISTORY_STUDENT, examType: 'act', status: 'submitted', createdAt: index0(id),
+  })));
+  created.push(...history);
+
+  const released = await createSimulation(HISTORY_STUDENT, 'tsia2', 1);
+  await fns.startSecureExamSession.run(student(HISTORY_STUDENT, { examSessionId: released.examSessionId }));
+  await fns.finalizeSecureExam.run(student(HISTORY_STUDENT, { examSessionId: released.examSessionId }));
+  assert.ok((await fns.getStudentSecureExamReview.run(student(HISTORY_STUDENT, { examSessionId: released.examSessionId }))).review, 'released automatically');
+
+  const underWay = await createSimulation(HISTORY_STUDENT, 'tsia2', 1);
+  await fns.startSecureExamSession.run(student(HISTORY_STUDENT, { examSessionId: underWay.examSessionId }));
+  const closed = await refusal(fns.getStudentSecureExamReview.run(student(HISTORY_STUDENT, { examSessionId: released.examSessionId })));
+  assert.equal(closed?.code, 'failed-precondition', 'the test under way closes the released answers, wherever its id sorts');
+  assert.match(closed.message, /practice test you have started/i);
 });
 
 test('a held practice test reveals nothing until the teacher releases it', async () => {

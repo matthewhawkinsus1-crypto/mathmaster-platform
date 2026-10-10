@@ -59,7 +59,8 @@ const indexIn = (source, pattern, label) => {
 
 // The handlers, by the statement that starts each one.
 const handlers = {
-  saveDraftNow: region(container, 'const saveDraftNow = useCallback(', 'const refreshSession = useCallback(', 'saveDraftNow'),
+  // The send itself; saveDraftNow queues it one save at a time (serialDraftSaves.test.mjs).
+  saveDraftNow: region(container, 'const sendPendingDraft = useCallback(', 'const refreshSession = useCallback(', 'sendPendingDraft'),
   handleProblem: region(container, 'const handleProblem = useCallback(', 'const runAutosave = useCallback(', 'handleProblem'),
   runAutosave: region(container, 'const runAutosave = useCallback(', 'const openPosition = useCallback(', 'runAutosave'),
   openPosition: region(container, 'const openPosition = useCallback(', 'const move = useCallback(', 'openPosition'),
@@ -337,7 +338,7 @@ test('the device copy of each answer survives moving around, and outranks the se
   assert.match(open, /const local = readLocalDraft\(activeSessionId, instance\.questionInstanceId\);/);
   assert.match(open, /const deviceWins = Boolean\(local && !local\.synced\);/);
   // `restored` keeps the server's workspace drafts; it is what is re-sent.
-  assert.match(open, /request: \{ examSessionId: activeSessionId, questionInstanceId: instance\.questionInstanceId, responsePayload: restored, supportUsage: \{\} \}/);
+  assert.match(open, /request: \{ examSessionId: activeSessionId, questionInstanceId: instance\.questionInstanceId, responsePayload: restored, supportUsage: \{\}, \.\.\.nextDraftStamp\(\) \}/);
   const savedAt = indexIn(handlers.saveDraftNow, /await saveSecureExamDraft\(pending\.request\);/, 'saves');
   assert.ok(savedAt < indexIn(handlers.saveDraftNow, /markLocalDraftSynced\(pending\.request\.examSessionId, pending\.request\.questionInstanceId, pending\.localAt\);/, 'marks the copy synced only after the save'));
   assert.match(handlers.autosave, /const localAt = writeLocalDraft\(active\.examSessionId, question\.questionInstanceId, responsePayload\);/);

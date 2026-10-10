@@ -352,3 +352,24 @@ test('an empty question count creates nothing', () => {
   assert.match(create, /if \(!canCreate\) return;/);
   assert.match(teacher, /<input type="number" required min="1"/);
 });
+
+test('an open Test review keeps asking whether it may still be shown, and closes when the server stops offering it', () => {
+  // The check: only a review the server no longer offers changes anything.
+  const recheck = region(card, 'const recheckTestReview = useCallback(async () => {', '}, [assignmentId, previewing]);', 'recheck');
+  assert.match(recheck, /if \(previewing \|\| modeRef\.current !== 'testReview'\) return;/);
+  assert.match(recheck, /const next = await getStudentTestCycle\(\{ assignmentId \}\);/);
+  assert.match(recheck, /if \(testReviewSessionIdFor\(next\) === openTestReviewIdRef\.current\) return;/);
+  assert.match(recheck, /setCard\(next\);[\s\S]*setMode\('card'\);/);
+  // Asked while the review is open: every 30 seconds, on coming back to the tab or window…
+  const watch = region(card, "if (mode !== 'testReview') return undefined;", '}, [mode, recheckTestReview]);', 'review watch');
+  assert.match(card, /const TEST_REVIEW_RECHECK_MS = 30000;/);
+  assert.match(watch, /window\.setInterval\(recheckTestReview, TEST_REVIEW_RECHECK_MS\)/);
+  assert.match(watch, /document\.addEventListener\('visibilitychange', onVisible\)/);
+  assert.match(watch, /window\.addEventListener\('focus', recheckTestReview\)/);
+  assert.match(watch, /window\.clearInterval\(interval\)/);
+  // …and when the student's grade document says something moved.
+  const refresh = region(card, 'if (refreshKey === null || refreshKey === undefined) return;', '}, [refreshKey, load, recheckTestReview]);', 'refresh');
+  assert.match(refresh, /else if \(modeRef\.current === 'testReview'\) recheckTestReview\(\);/);
+  // The review being checked is the one the student opened.
+  assert.match(card, /const openTestReview = \(from\) => \{ openTestReviewIdRef\.current = testReviewId;/);
+});

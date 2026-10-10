@@ -187,6 +187,30 @@ async function buildResponseRecord(storedItem, { session, responsePayload, suppo
   };
 }
 
+/*
+ * A DRAFT SAVE THAT ARRIVES LATE DOES NOT WIN.
+ *
+ * A page sends its saves with its own `draftWriter` id and a `draftRevision`
+ * that rises with every edit. A save from the same page whose revision is no
+ * newer than the stored draft's is an older request arriving (or retried)
+ * late: it is not written, so the draft finalize grades is the last one the
+ * student typed. A different writer — the page reloaded, another device — is
+ * a new page, and is written as before. A save with no stamp (an older
+ * client) is written as before too.
+ */
+const DRAFT_WRITER_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+function draftStampOf(data = {}) {
+  const writer = typeof data?.draftWriter === "string" && DRAFT_WRITER_PATTERN.test(data.draftWriter) ? data.draftWriter : null;
+  const revision = Number.isSafeInteger(data?.draftRevision) && data.draftRevision > 0 ? data.draftRevision : null;
+  return writer && revision ? { draftWriter: writer, draftRevision: revision } : null;
+}
+function staleDraftWrite(stored, stamp) {
+  if (!stamp || !isObject(stored)) return false;
+  return stored.draftWriter === stamp.draftWriter
+    && Number.isSafeInteger(stored.draftRevision)
+    && stored.draftRevision >= stamp.draftRevision;
+}
+
 /** The recordable part of a stored draft. */
 function recordedPayloadOf(draftResponse) {
   const payload = isObject(draftResponse?.responsePayload) ? draftResponse.responsePayload : {};
@@ -261,6 +285,7 @@ async function finalizeOpenItems(session, openItems, now) {
 module.exports = {
   buildResponseRecord,
   correctAnswerDisplay,
+  draftStampOf,
   finalizeOpenItems,
   itemRef,
   navigationEntryFor,
@@ -269,5 +294,6 @@ module.exports = {
   releasedSolutionFor,
   reviewSnapshotOf,
   safeSupportUsage,
+  staleDraftWrite,
   upgradeSession,
 };

@@ -78,6 +78,9 @@ const STAGES = {
 };
 
 const requestedStage = () => {
+  // The harness can move the cycle on while a screen is open — a teacher
+  // opening the Retest under an open Test review.
+  if (window.__stageOverride && STAGES[window.__stageOverride]) return window.__stageOverride;
   const stage = new URLSearchParams(window.location.search).get('stage') || 'review';
   return STAGES[stage] ? stage : 'review';
 };

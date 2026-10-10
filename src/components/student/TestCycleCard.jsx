@@ -126,6 +126,9 @@ const quietButtonStyle = {
 
 const factStyle = { margin: 0, fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.5 };
 
+// How often an open Test review asks whether it may still be shown.
+const TEST_REVIEW_RECHECK_MS = 30000;
+
 export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
   /*
    * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
@@ -183,6 +186,26 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   }, [assignmentId, studentId, previewing]);
 
   useEffect(() => { load(); }, [load]);
+
+  // The review the student opened, and the check that it is still theirs to
+  // see (below). Only a review the server no longer offers changes anything:
+  // while it holds, the card (and the corrections behind the review) stay as
+  // they are.
+  const openTestReviewIdRef = useRef(null);
+  const recheckTestReview = useCallback(async () => {
+    if (previewing || modeRef.current !== 'testReview') return;
+    try {
+      const next = await getStudentTestCycle({ assignmentId });
+      if (modeRef.current !== 'testReview') return;
+      if (testReviewSessionIdFor(next) === openTestReviewIdRef.current) return;
+      openTestReviewIdRef.current = null;
+      setCard(next);
+      returnFocusRef.current = 'card';
+      setMode('card');
+    } catch {
+      // A check that fails says nothing about permission; the next one asks again.
+    }
+  }, [assignmentId, previewing]);
   useEffect(() => { if (previewCard) setCard(previewCard); }, [previewCard]);
 
   // The server's answer can change while the card is open. Ask again when the
@@ -191,12 +214,33 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   useEffect(() => {
     if (refreshKey === null || refreshKey === undefined) return;
     if (modeRef.current === 'card') load();
-  }, [refreshKey, load]);
+    else if (modeRef.current === 'testReview') recheckTestReview();
+  }, [refreshKey, load, recheckTestReview]);
   useEffect(() => {
     const onVisible = () => { if (document.visibilityState === 'visible' && modeRef.current === 'card') load(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [load]);
+
+  // THE TEST REVIEW CLOSES WHEN ITS PERMISSION DOES. While the released Test
+  // (every answer and worked solution) is open, the card keeps asking the
+  // server whether it may still be shown: when the student's grade document
+  // changes, when they come back to the tab or window, and every 30 seconds.
+  // The moment the server stops offering it (a Retest opened, Corrections
+  // waived) the review closes, its data with it. The server already refuses a
+  // new review then; this stops an open one outliving that.
+  useEffect(() => {
+    if (mode !== 'testReview') return undefined;
+    const onVisible = () => { if (document.visibilityState === 'visible') recheckTestReview(); };
+    const interval = window.setInterval(recheckTestReview, TEST_REVIEW_RECHECK_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', recheckTestReview);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', recheckTestReview);
+    };
+  }, [mode, recheckTestReview]);
 
   if (loading && !card) return <section style={shell}><p role="status" style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Loading your assessment…</p></section>;
   if (error && !card) {
@@ -212,7 +256,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // The released original Test, when this stage may show it (see the helper).
   // A teacher preview has no student session to open, so it never offers one.
   const testReviewId = previewing ? null : testReviewSessionIdFor(card);
-  const openTestReview = (from) => { setTestReviewReturn(from); setMode('testReview'); };
+  const openTestReview = (from) => { openTestReviewIdRef.current = testReviewId; setTestReviewReturn(from); setMode('testReview'); };
   const backToCard = () => { returnFocusRef.current = 'card'; setMode('card'); load(); };
 
   // Secure delivery owns the whole screen while it runs, and there is no exit

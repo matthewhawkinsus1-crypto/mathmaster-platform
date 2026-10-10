@@ -12,6 +12,7 @@ import { clearSecureExamActive, setSecureExamActive } from '../../platform/asses
 import { COURSE_TEST_EXAM_TYPE, getExamPolicy } from '../../platform/policies/examPolicyResolver.js';
 import { SECURE_ITEM_DRAFT_PREFIX, secureItemDraftKey } from '../../platform/assessment/questionRuntimePolicy.js';
 import { resolveSecureExamTools } from '../../platform/assessment/secureExamTools.js';
+import { createSerialSaver, newDraftWriterId } from '../../platform/assessment/serialDraftSaves.js';
 import { useExamToolRoom } from './examToolDrawerHooks.js';
 import { assessmentSupportProfile } from '../../studentSupport.js';
 import {
@@ -266,6 +267,16 @@ export const SecureExamContainer = ({
   const loggerRef = useRef(null);
   const draftTimerRef = useRef(null);
   const pendingDraftRef = useRef(null);
+  // This page's stamp on its draft saves (serialDraftSaves.js): its own writer
+  // id and a revision that rises with every edit, so the server never lets an
+  // older save land over a newer one.
+  const draftWriterRef = useRef(null);
+  if (!draftWriterRef.current) draftWriterRef.current = newDraftWriterId();
+  const draftRevisionRef = useRef(0);
+  const nextDraftStamp = useCallback(() => {
+    draftRevisionRef.current += 1;
+    return { draftWriter: draftWriterRef.current, draftRevision: draftRevisionRef.current };
+  }, []);
   /*
    * WHAT THIS SCREEN LAST HAD FOR EACH QUESTION: the copy it opened with, then
    * every change the student made to it. The review before Submit (and before
@@ -354,7 +365,7 @@ export const SecureExamContainer = ({
    * every move and before Submit — the server grades the last SAVED draft, so
    * nothing typed is left behind on a question the student moves away from.
    */
-  const saveDraftNow = useCallback(async () => {
+  const sendPendingDraft = useCallback(async () => {
     const pending = pendingDraftRef.current;
     if (!pending) return { ok: true };
     if (draftTimerRef.current) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
@@ -379,6 +390,14 @@ export const SecureExamContainer = ({
       return { ok: false, problem };
     }
   }, [mergeSaveResult]);
+  // One save at a time (serialDraftSaves.js): a save, a move or Submit waits
+  // for the save already on its way, then sends the newest draft — two saves
+  // of one answer never race, and the last edit is saved before a move.
+  const sendPendingDraftRef = useRef(sendPendingDraft);
+  sendPendingDraftRef.current = sendPendingDraft;
+  const serialSaveRef = useRef(null);
+  if (!serialSaveRef.current) serialSaveRef.current = createSerialSaver(() => sendPendingDraftRef.current());
+  const saveDraftNow = useCallback(() => serialSaveRef.current(), []);
 
   // The session as the server has it now (a teacher's pause, resume, added
   // time or submit). Start returns a paused or finished session unchanged.
@@ -465,7 +484,7 @@ export const SecureExamContainer = ({
       // alone deleted the construction the server held for another device.
       if (deviceWins) {
         resend = {
-          request: { examSessionId: activeSessionId, questionInstanceId: instance.questionInstanceId, responsePayload: restored, supportUsage: {} },
+          request: { examSessionId: activeSessionId, questionInstanceId: instance.questionInstanceId, responsePayload: restored, supportUsage: {}, ...nextDraftStamp() },
           localAt: local.at,
         };
       }
@@ -482,7 +501,7 @@ export const SecureExamContainer = ({
       pendingDraftRef.current = resend;
       runAutosave();
     }
-  }, [runAutosave]);
+  }, [runAutosave, nextDraftStamp]);
 
   /*
    * MOVE: to a question, to the review before Submit, or to a module's end.
@@ -653,13 +672,13 @@ export const SecureExamContainer = ({
       ? { ...supportUsage, calculatorUsed: true }
       : supportUsage;
     pendingDraftRef.current = {
-      request: { examSessionId: active.examSessionId, questionInstanceId: question.questionInstanceId, responsePayload, supportUsage: usage },
+      request: { examSessionId: active.examSessionId, questionInstanceId: question.questionInstanceId, responsePayload, supportUsage: usage, ...nextDraftStamp() },
       localAt,
     };
     setSaveState('saving');
     if (draftTimerRef.current) window.clearTimeout(draftTimerRef.current);
     draftTimerRef.current = window.setTimeout(() => { draftTimerRef.current = null; runAutosave(); }, 500);
-  }, [question?.questionInstanceId, runAutosave]);
+  }, [question?.questionInstanceId, runAutosave, nextDraftStamp]);
 
   /*
    * A RICH TOOL'S "SAVE ANSWER" (navigation mode): save this work as the

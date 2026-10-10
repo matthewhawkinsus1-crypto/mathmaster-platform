@@ -437,9 +437,12 @@ export const issueSecureExamQuestion = async ({ examSessionId, position = undefi
  * flag. `flagged` alone leaves the saved answer untouched. Nothing is graded.
  *   → { success, recorded, navigation, answeredQuestions }
  */
-export const saveSecureExamDraft = async ({ examSessionId, questionInstanceId, responsePayload = undefined, supportUsage = {}, flagged = undefined } = {}) => {
+export const saveSecureExamDraft = async ({ examSessionId, questionInstanceId, responsePayload = undefined, supportUsage = {}, flagged = undefined, draftWriter = undefined, draftRevision = undefined } = {}) => {
   const hasPayload = responsePayload !== undefined && responsePayload !== null;
   const flag = typeof flagged === 'boolean' ? { flagged } : {};
+  // This page's stamp on an answer draft: the server writes no older revision
+  // from the same page over a newer one (SecureExamContainer, serialDraftSaves.js).
+  const stamp = hasPayload && typeof draftWriter === 'string' && Number.isSafeInteger(draftRevision) ? { draftWriter, draftRevision } : {};
   if (isMock()) {
     const session = mockSessionFor(examSessionId);
     assertMockInProgress(session);
@@ -455,7 +458,7 @@ export const saveSecureExamDraft = async ({ examSessionId, questionInstanceId, r
     if ('flagged' in flag) entry.flagged = flag.flagged;
     return { success: true, recorded: true, navigation: mockPublicNavigation(session), answeredQuestions: mockAnsweredCount(session) };
   }
-  return call('saveSecureExamDraft', { examSessionId, questionInstanceId, ...(hasPayload ? { responsePayload, supportUsage } : {}), ...flag });
+  return call('saveSecureExamDraft', { examSessionId, questionInstanceId, ...(hasPayload ? { responsePayload, supportUsage } : {}), ...stamp, ...flag });
 };
 
 /*

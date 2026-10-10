@@ -16048,7 +16048,11 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
    * submitted. A practice test that has not been started does not close it.
    */
   if (!secureExam.isCourseTestSession(session)) {
-    const others = await getFirestore().collection("examSessions").where("studentId", "==", studentId).limit(50).get();
+    // Every session of this exam, with no cap: a capped, unordered read of the
+    // student's whole history could miss the one under way.
+    const examType = String(session.examType || "");
+    const sessions = getFirestore().collection("examSessions").where("studentId", "==", studentId);
+    const others = await (examType ? sessions.where("examType", "==", examType) : sessions).get();
     const openSameExam = others.docs.some((docSnapshot) => {
       const other = docSnapshot.data() || {};
       return docSnapshot.id !== examSessionId
@@ -16323,6 +16327,8 @@ exports.saveSecureExamDraft = onCall(async (request) => {
     })
     : null;
   const hasWork = draft ? await secureItems.payloadHasWork(secureExamItems.recordedPayloadOf(draft)) : undefined;
+  // Which page sent this save and how new it is (secureExamItems.staleDraftWrite).
+  const stamp = draft ? secureExamItems.draftStampOf(request.data) : null;
   const db = getFirestore();
   const ref = db.collection("examSessions").doc(examSessionId);
   const outcome = await db.runTransaction(async (transaction) => {
@@ -16331,6 +16337,10 @@ exports.saveSecureExamDraft = onCall(async (request) => {
     assertExamInProgress(session);
     const upgrade = await secureExamItems.upgradeSession(ref, session);
     const { navigationState, entry, itemData } = await readWritableExamItem(transaction, ref, upgrade, questionInstanceId);
+    // An older save from this page, arriving after a newer one: write nothing.
+    if (draft && secureExamItems.staleDraftWrite(itemData?.draftResponse, stamp)) {
+      return { next: upgrade.session, stale: true, answeredChanged: false };
+    }
     const now = Date.now();
     const nextEntry = {
       ...entry,
@@ -16343,14 +16353,14 @@ exports.saveSecureExamDraft = onCall(async (request) => {
     upgrade.writes.forEach((write) => {
       if (write.ref.id !== questionInstanceId || !draft) transaction.set(write.ref, write.data);
     });
-    if (draft) transaction.set(secureExamItems.itemRef(ref, questionInstanceId), { ...itemData, draftResponse: draft, updatedAt: now });
+    if (draft) transaction.set(secureExamItems.itemRef(ref, questionInstanceId), { ...itemData, draftResponse: { ...draft, ...(stamp || {}) }, updatedAt: now });
     transaction.set(ref, next);
     return { next, answeredChanged: hasWork !== undefined && hasWork !== (entry.hasWork === true) };
   });
   // The teacher's table reads "in progress, 12 of 25" — kept current only
   // when the answered count actually moved, not on every keystroke.
   if (outcome.answeredChanged && secureExam.isCourseTestSession(outcome.next)) await syncTestCycleSessionState(db, outcome.next);
-  return { success: true, recorded: true, navigation: secureExam.publicSession(outcome.next).navigation, answeredQuestions: secureExamNavigation.answeredCount(outcome.next) };
+  return { success: true, recorded: outcome.stale !== true, ...(outcome.stale ? { stale: true } : {}), navigation: secureExam.publicSession(outcome.next).navigation, answeredQuestions: secureExamNavigation.answeredCount(outcome.next) };
 });
 
 /*

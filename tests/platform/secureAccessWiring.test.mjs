@@ -80,7 +80,7 @@ test('opening the graphing calculator on a question is recorded on that question
   assert.match(launchers, /onOpened=\{\(\) => \{ if \(question\?\.questionInstanceId\) calculatorUsedRef\.current\.add\(question\.questionInstanceId\); \}\}/);
   const autosave = region(container, 'const autosaveDraft = useCallback(', '}, [', 'autosave');
   assert.match(autosave, /calculatorUsedRef\.current\.has\(question\.questionInstanceId\)\s*\?\s*\{ \.\.\.supportUsage, calculatorUsed: true \}/);
-  assert.match(autosave, /supportUsage: usage \}/);
+  assert.match(autosave, /supportUsage: usage, \.\.\.nextDraftStamp\(\) \}/);
 });
 
 test("the Tests & Exams list passes Practise this skill through to the review", () => {

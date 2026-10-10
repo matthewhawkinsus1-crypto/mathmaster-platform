@@ -225,3 +225,29 @@ test('only a practice test releases itself, never a course Test', () => {
 test('the open items subcollection is closed to every client', () => {
   assert.match(rules, /match \/examSessions\/\{docId\}\/items\/\{itemId\} \{ allow read, write: if false; \}/);
 });
+
+test('a draft save that arrives late from the same page is not written; a new page or an old client still is', () => {
+  const stamp = secureExamItems.draftStampOf({ draftWriter: 'page_0123abcd', draftRevision: 4 });
+  assert.deepEqual(stamp, { draftWriter: 'page_0123abcd', draftRevision: 4 });
+  // Same page: an older or equal revision is late; a newer one is not.
+  assert.equal(secureExamItems.staleDraftWrite({ draftWriter: 'page_0123abcd', draftRevision: 5 }, stamp), true);
+  assert.equal(secureExamItems.staleDraftWrite({ draftWriter: 'page_0123abcd', draftRevision: 4 }, stamp), true);
+  assert.equal(secureExamItems.staleDraftWrite({ draftWriter: 'page_0123abcd', draftRevision: 3 }, stamp), false);
+  // Another page (a reload, another device), no stored draft, or an unstamped save: written.
+  assert.equal(secureExamItems.staleDraftWrite({ draftWriter: 'page_ffffffff', draftRevision: 99 }, stamp), false);
+  assert.equal(secureExamItems.staleDraftWrite(null, stamp), false);
+  assert.equal(secureExamItems.staleDraftWrite({ draftWriter: 'page_0123abcd', draftRevision: 5 }, null), false);
+  // Only a well-formed stamp counts.
+  assert.equal(secureExamItems.draftStampOf({ draftWriter: 'x', draftRevision: 4 }), null);
+  assert.equal(secureExamItems.draftStampOf({ draftWriter: 'page_0123abcd', draftRevision: 0 }), null);
+  assert.equal(secureExamItems.draftStampOf({ draftWriter: 'page_0123abcd', draftRevision: '4' }), null);
+
+  // The callable checks inside its transaction, before any write, and stores the stamp with the draft.
+  const save = region(functionsIndex, 'exports.saveSecureExamDraft = onCall(', '\n});', 'saveSecureExamDraft');
+  assert.match(save, /const stamp = draft \? secureExamItems\.draftStampOf\(request\.data\) : null;/);
+  const guardAt = save.indexOf('if (draft && secureExamItems.staleDraftWrite(itemData?.draftResponse, stamp)) {');
+  assert.ok(guardAt > save.indexOf('await readWritableExamItem(transaction'), 'checked against the stored draft read in the transaction');
+  assert.ok(guardAt < save.indexOf('transaction.set('), 'before anything is written');
+  assert.match(save, /return \{ next: upgrade\.session, stale: true, answeredChanged: false \};/);
+  assert.match(save, /draftResponse: \{ \.\.\.draft, \.\.\.\(stamp \|\| \{\}\) \}/);
+});

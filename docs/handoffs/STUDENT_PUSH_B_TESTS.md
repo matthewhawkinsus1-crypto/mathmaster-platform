@@ -138,6 +138,25 @@ list; the retest-cap sentence is hidden for a passing student; start-screen
 jargon removed; Test Cycle card and teacher preview copy no longer promise one
 attempt per question.
 
+### Review fixes (Codex, PR #461)
+
+- **Draft saves cannot land out of order.** Saves go one at a time
+  (`src/platform/assessment/serialDraftSaves.js`), so a move or Submit waits for
+  the save on its way and then sends the newest draft. Every answer draft also
+  carries the page's `draftWriter` and a rising `draftRevision`, and
+  `saveSecureExamDraft` writes no older revision from the same page over a
+  newer one (`staleDraftWrite`). Finalize therefore grades the last answer the
+  student typed. A reload or another device is a new writer and saves as
+  before.
+- **An open Test review closes when its permission does.** While "Review my
+  Test" is open, the card re-checks with the server on a grade change, on
+  return to the tab or window, and every 30 seconds. It closes the review, and
+  drops its data, the moment the server stops offering it (a Retest opened,
+  Corrections waived).
+- **The practice-test open-book gate reads every session of that exam.** It no
+  longer reads a capped, unordered slice of the student's history, which could
+  miss the test under way.
+
 ## Verification
 
 - **Unit / contract** (`tests/platform`, CI): new suites for the server
