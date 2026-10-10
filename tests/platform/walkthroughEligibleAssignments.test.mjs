@@ -167,13 +167,21 @@ test('no active work: the list is empty — there is no fallback to other classe
 });
 
 test('Walkthrough agrees with what a Period 1 student can actually open (single source of truth)', () => {
+  // Stored as V5 lessons, the only shape a student's device can open: the
+  // dashboard (rightly) never offers Start on an assignment with no question
+  // to land on, and the flat pre-V5 `questions` array has none for a student.
+  const v5 = (assignment) => ({
+    ...assignment,
+    schemaVersion: 5,
+    sections: [{ id: 'classwork', role: 'classwork', questions: [{ type: 'algebra', prompt: 'x', equationLatex: 'x=1', activityRole: 'classwork' }] }],
+  });
   const assignments = [
     lesson('A'),
     lesson('other-class', { assignedClassIds: [P2] }),
     lesson('future', { releaseAt: iso(NOW + DAY) }),
     lesson('overdue', { dueAt: iso(NOW - DAY), lateDueAt: iso(NOW + 3 * DAY) }),
     lesson('closed', { dueAt: iso(NOW - 5 * DAY), lateDueAt: iso(NOW - DAY) }),
-  ];
+  ].map(v5);
   const dashboard = buildStudentDashboardModel({
     assignments,
     classId: P1,

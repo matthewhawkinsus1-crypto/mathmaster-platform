@@ -60,11 +60,9 @@ const assignments = [
     sections: [section('classwork', 'classwork', [{ id: 'c1' }, { id: 'c2' }])],
   },
   {
-    // A pure practice-type assignment, fully answered: the Completed tab must
-    // have something in it. (An assignment containing a classwork section
-    // projects to notesClasswork, whose completion is the daily classwork
-    // grade rather than the question tracker — a real rule, and one that would
-    // otherwise leave this screen's Completed tab empty in the harness.)
+    // A pure practice-type assignment, fully answered. (Lessons with a
+    // classwork section count as Completed too once every section is done at
+    // any accuracy — the one "Today" rule in lessonSections.js.)
     id: 'lesson-3',
     title: 'Exponent Rules',
     schemaVersion: 5,

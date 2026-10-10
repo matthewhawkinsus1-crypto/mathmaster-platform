@@ -74,7 +74,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
       <main style={{ maxWidth: 820, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}><h1 style={{ margin: '0 0 4px', fontSize: 'clamp(26px, 6vw, 34px)', lineHeight: 1.2, color: 'var(--mm-text-strong)' }}>Tests &amp; Exams</h1><p style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Your secure course tests and your college &amp; career practice tests</p></div>
-          <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>Back to dashboard</button>
+          <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>← Home</button>
         </header>
         {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
         {loading ? <p>Loading…</p> : (

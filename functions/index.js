@@ -2026,6 +2026,13 @@ exports.inspectStudentResponse = onCall(async (request) => {
   });
 });
 
+// Review My Work (student, read-only): the caller's OWN answers beside the
+// worked solutions once the assignment is closed for them and feedback is
+// released. Every gate and projection is in functions/lib/reviewMyWork.js.
+exports.loadMyReviewWork = onCall((request) => require("./lib/reviewMyWork").loadMyReviewWorkHandler({
+  db: getFirestore(), auth: requireStudent(request), data: request.data, now: Date.now(),
+}));
+
 /**
  * Student Case Review (teacher, read-only): the records a case review needs
  * that no teacher browser may read under firestore.rules — one event per

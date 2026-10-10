@@ -469,7 +469,9 @@ if (wanted('practice')) {
   const openPractice = async (page) => {
     await page.getByRole('button', { name: /^Grades$/ }).first().click();
     await page.waitForTimeout(800);
-    await page.getByRole('button', { name: /^Practice$/ }).first().click();
+    // A closed row's voluntary-practice button — "Try it again — no credit"
+    // (student copy keeps "Practice" for the lesson's Practice section).
+    await page.getByRole('button', { name: /^(Try it again — no credit|Practice)$/ }).first().click();
     await page.locator('.mathmaster-question-stage math-field').first().waitFor({ timeout: 60000 });
     await page.waitForTimeout(600);
   };

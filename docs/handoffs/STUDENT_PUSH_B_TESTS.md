@@ -2,7 +2,8 @@
 
 Branch `claude/student-push-b-tests` (draft PR #461), from `main` @ `2453643`,
 with `main` merged back in before the final push (hotfix #456, then #457
-Recoveries and #458 tool-workspace drafts, then job F's accessibility #454).
+Recoveries and #458 tool-workspace drafts, then job F's accessibility #454,
+then job C's Home and Grades #455).
 
 Goal: tests that work like real tests, full access for every student, and
 results that teach. Product decisions 2 (skip / flag / go back) and 3 (worked
@@ -76,7 +77,8 @@ and flagged questions, drafts until submit/time-up graded server-side, items
 issued as reached, Digital SAT within-module navigation. The question list is
 a panel on the page (a disclosure), not a modal: job F is moving the secure
 dialogs to the shared `Dialog`; no new `aria-modal` was hand-rolled. The pause
-overlay is the one modal (F's swap target).
+overlay is the one modal, and since the #454 merge it is F's shared `Dialog`
+(`role="alertdialog"`, Escape off, no close handler).
 
 ### 2. Access parity — shipped, with two grader limits
 - **Math editor** for typed answers (`SecureMathAnswerField`), with the answer
