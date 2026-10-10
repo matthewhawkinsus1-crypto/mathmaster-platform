@@ -101,11 +101,7 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
 
 ## 2. How it was verified
 
-- **Gate on the final head:**
-  - `npm run test:platform`: see the PR checks and §6.
-  - `npm run test:rules`: 236/236 and 194/194.
-  - `npm run lint`: 0 errors.
-  - `npm run build` passes.
+- **Gate on the final head:** see §6.
 - **Process:** each lane had one implementer and one adversarial verifier, in isolated worktrees, followed by a fixer only where a blocking finding stood. Only item 5 had one: the server planned without the student's assignment grades, so a tampered browser could drop a session. It was fixed in 2f8fb41.
 - **Mutation checks:** every new assertion was checked by breaking the behaviour, seeing it go red, and restoring the code.
 - **Item 1 tests:**
@@ -165,6 +161,14 @@ Order: functions → rules → Hosting → scripts. Run the release planner firs
 - `tests/browser/*` harness fakes and drivers, `tests/integration/*`.
 - `functions/index.js` hunks: the mastery trigger, Live Challenge regions, `overrideStudentAssignmentGrade`, the freeze's input call, student deletion. The secure-exam and Test Cycle callables (#461) are not touched.
 
-## 6. Final gate
+## 6. Final gate (merged head aa0e775, main @ 990faff with #461)
 
-See the PR checks on the head that carries this file.
+| Gate | Result |
+| --- | --- |
+| `npm run test:platform` | 10,375 pass, 0 fail |
+| `npm run test:rules` | 236/236 rules cases, 196/196 rules tests |
+| `npm run test:authoring-v5` | 686/686 |
+| `npm run lint` | 0 errors (warnings only) |
+| `npm run build`, `npm run build:firebase` | pass |
+
+CI on #467 runs the browser suites.
