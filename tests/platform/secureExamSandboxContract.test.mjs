@@ -188,12 +188,23 @@ test('a teacher pause and resume, an extension that moves the deadline, and a te
   const id = session.examSessionId;
   const startedAt = (await service.startSecureExamSession({ examSessionId: id })).session;
   await service.issueSecureExamQuestion({ examSessionId: id, position: 0 });
-  await service.proctorExamAction({ examSessionId: id, action: 'lock' });
-  const paused = await refusal(service.saveSecureExamDraft({ examSessionId: id, questionInstanceId: 'anything', flagged: true }));
-  assert.equal(paused.details.status, 'locked_proctor');
-  await service.proctorExamAction({ examSessionId: id, action: 'unlock' });
-  const extended = (await service.proctorExamAction({ examSessionId: id, action: 'extendTime', minutes: 5 })).session;
-  assert.equal(extended.expiresAt - startedAt.expiresAt, 5 * 60 * 1000, 'added time moves the deadline; it does not restart the clock');
+  // The clock is held still, then moved exactly 90 seconds between the pause
+  // and the resume, so the paused time is exact (not a millisecond tick).
+  const realNow = Date.now;
+  const pausedAt = realNow();
+  Date.now = () => pausedAt;
+  try {
+    await service.proctorExamAction({ examSessionId: id, action: 'lock' });
+    const paused = await refusal(service.saveSecureExamDraft({ examSessionId: id, questionInstanceId: 'anything', flagged: true }));
+    assert.equal(paused.details.status, 'locked_proctor');
+    Date.now = () => pausedAt + 90 * 1000;
+    const unlocked = (await service.proctorExamAction({ examSessionId: id, action: 'unlock' })).session;
+    assert.equal(unlocked.expiresAt - startedAt.expiresAt, 90 * 1000, 'a teacher\'s pause moves the deadline by exactly the time paused');
+    const extended = (await service.proctorExamAction({ examSessionId: id, action: 'extendTime', minutes: 5 })).session;
+    assert.equal(extended.expiresAt - unlocked.expiresAt, 5 * 60 * 1000, 'added time moves the deadline; it does not restart the clock');
+  } finally {
+    Date.now = realNow;
+  }
   const submitted = (await service.proctorExamAction({ examSessionId: id, action: 'forceSubmit' })).session;
   assert.deepEqual([submitted.status, submitted.feedbackReleased], ['force_submitted', true]);
 });
