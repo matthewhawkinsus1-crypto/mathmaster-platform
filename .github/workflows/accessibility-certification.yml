@@ -22,6 +22,7 @@ on:
       - "tests/browser/hostAccessibility*"
       - "tests/browser/studentShellLargeText*"
       - "tests/browser/contrastReview*"
+      - "tests/browser/toolKeyboard*"
       - "tests/browser/keyboardSweep*"
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/emulator/**"
@@ -130,6 +131,36 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: npm run review:contrast
+      - name: Mapping Diagram plot by keyboard (T1, T4)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardRelationMapping.mjs
+      - name: Three-plane model and choices by keyboard (T2, T7)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardThreePlane.mjs
+      - name: Number Line endpoints by keyboard (T3, T4)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardNumberLine.mjs
+      - name: Regression Add Item menu by keyboard (T5)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardRegression.mjs
+      - name: Residual table name and tool focus rings (T6, T8)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardDataModelingAndSystemsCss.mjs
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@v4
