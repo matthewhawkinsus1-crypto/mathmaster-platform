@@ -3,14 +3,15 @@
  *
  * A real, interactive 3D representation of three linear equations in x, y,
  * z, built on plain SVG and vector math (threePlaneGeometry.js) rather than
- * a 3D rendering dependency. The student can rotate the model by drag/touch,
+ * a 3D rendering dependency. The student can rotate the model by drag/touch
+ * or, with the model focused, by the arrow keys (threePlaneControls.js),
  * reset the view, show or hide each plane independently, and — only when
  * the authored question allows it — reveal the common point (or the fact
  * that the planes have no common point, or infinitely many). Nothing about
  * the classification is computed for the student to state; the model only
  * shows the geometry they ask it to show.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
@@ -25,13 +26,12 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
+import { choiceKeyTarget, choiceTabStop, dragCamera, keyRotateCamera, keyRotationDrag, recordChoice, viewAngleText } from './threePlaneControls.js';
 import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
 const PLANE_COLORS = ['#1a73e8', '#ea4335', '#34a853'];
 const DEFAULT_CAMERA = { azimuth: -0.7, elevation: 0.5 };
-const MIN_ELEVATION = -1.3;
-const MAX_ELEVATION = 1.3;
 const VIEW_SIZE = 560;
 const AXIS_LABEL_OFFSET = 18;
 const PLANE_LABEL_OFFSETS = [[-16, -12], [0, 12], [16, -12]];
@@ -200,15 +200,33 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
     if (!dragRef.current) return;
     const dx = event.clientX - dragRef.current.x;
     const dy = event.clientY - dragRef.current.y;
-    setCamera({
-      azimuth: dragRef.current.camera.azimuth + dx * 0.01,
-      elevation: Math.max(MIN_ELEVATION, Math.min(MAX_ELEVATION, dragRef.current.camera.elevation - dy * 0.01)),
-    });
+    setCamera(dragCamera(dragRef.current.camera, dx, dy));
   }, []);
   const handlePointerUp = useCallback((event) => {
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     dragRef.current = null;
   }, []);
+
+  // The keyboard route (KEYBOARD_SWEEP T2): an arrow key is the drag it stands
+  // for, through the same dragCamera — so it clamps exactly as a drag does —
+  // and Home is Reset view. View state only: nothing here touches responses.
+  const instructionId = useId();
+  const [viewAnnouncement, setViewAnnouncement] = useState('');
+  const handleModelKeyDown = useCallback((event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === 'Home') {
+      event.preventDefault();
+      resetView();
+      setViewAnnouncement(`Opening view. ${viewAngleText(openingCamera)}`);
+      return;
+    }
+    if (!keyRotationDrag(event.key, event.shiftKey)) return;
+    event.preventDefault();
+    markInteracted();
+    const next = keyRotateCamera(camera, event.key, event.shiftKey);
+    setCamera(next);
+    setViewAnnouncement(viewAngleText(next));
+  }, [camera, markInteracted, openingCamera, resetView]);
 
   const scale = (VIEW_SIZE * 0.42) / R;
 
@@ -272,8 +290,22 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   const orderedPolygons = useMemo(() => [...planePolygons].sort((a, b) => a.depth - b.depth), [planePolygons]);
 
   const fieldResponses = useCallback((fieldId, value) => {
-    setResponses((current) => ({ ...current, [fieldId]: value }));
+    setResponses((current) => recordChoice(current, fieldId, value));
   }, [setResponses]);
+
+  // Radiogroup keys (KEYBOARD_SWEEP T7): selection follows focus, recorded
+  // through fieldResponses exactly as a click records it. An arrow press
+  // stores a choice the student can still change before Check — the same as
+  // a native radio group — and nothing is graded or announced until Check.
+  const choiceRefs = useRef({});
+  const handleChoiceKeyDown = (field, index) => (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    const target = choiceKeyTarget(event.key, index, field.options.length);
+    if (target === null) return;
+    event.preventDefault();
+    fieldResponses(field.id, field.options[target]);
+    choiceRefs.current[`${field.id}::${target}`]?.focus();
+  };
 
   // The student's interpretation — one { id, value } per answer field, the
   // work Check grades and a deadline would submit. Reported only when this
@@ -328,13 +360,20 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             <span className="mathmaster-threeplane-motion-dot" aria-hidden="true" />
             {orbitPending
               ? 'Auto-rotating to show depth — drag the model to take control.'
-              : 'Drag the model to rotate it. Use Reset view to return to the opening angle.'}
+              : 'Drag the model to rotate it. When it has focus, the arrow keys rotate it too. Reset view (or Home) returns to the opening angle.'}
           </div>
+          <span id={instructionId} className="mathmaster-threeplane-sr-only">
+            Arrow keys rotate the model: Left and Right turn it, Up and Down tilt it. Hold Shift for larger steps. Home returns to the opening view.
+          </span>
+          <span className="mathmaster-threeplane-sr-only" role="status" aria-live="polite">{viewAnnouncement}</span>
           <svg
             ref={modelRef}
             viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
-            role="img"
-            aria-label="Interactive 3D view of the three planes. Drag to rotate."
+            role="application"
+            tabIndex={0}
+            aria-label="Three planes in 3D. Drag or use the arrow keys to rotate."
+            aria-describedby={instructionId}
+            onKeyDown={handleModelKeyDown}
             style={{ touchAction: 'none', background: 'var(--mm-surface-sunken)', borderRadius: 12, border: '1px solid var(--mm-border)', cursor: 'grab', width: '100%', height: 'auto', maxWidth: 560, aspectRatio: '1 / 1' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -483,14 +522,17 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             <fieldset key={field.id} className="mathmaster-threeplane-choice-field">
               <legend>{field.label}</legend>
               <div className="mathmaster-threeplane-choices" role="radiogroup" aria-label={field.label}>
-                {field.options.map((option) => {
+                {field.options.map((option, index) => {
                   const selected = responses[field.id] === option;
                   return (
                     <button
                       key={String(option)}
+                      ref={(node) => { choiceRefs.current[`${field.id}::${index}`] = node; }}
                       type="button"
                       role="radio"
                       aria-checked={selected}
+                      tabIndex={index === choiceTabStop(field.options, responses[field.id]) ? 0 : -1}
+                      onKeyDown={handleChoiceKeyDown(field, index)}
                       onClick={() => fieldResponses(field.id, option)}
                       className={`mathmaster-threeplane-choice${selected ? ' is-selected' : ''}`}
                     >
@@ -532,7 +574,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
 
       <HintPanel
         hints={[
-          'Drag anywhere on the model to rotate it.',
+          'Drag anywhere on the model to rotate it, or focus it and use the arrow keys.',
           'Hide a plane to see the other two more clearly, then show it again.',
           'Two planes that are not parallel always meet in a line — shown as a dashed line wherever two visible planes cross.',
         ]}
