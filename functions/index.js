@@ -1338,6 +1338,22 @@ async function sectionRecoveryService() {
 
 const RECOVERY_SECTION_KEYS = new Set(["warmup", "dol"]);
 const RECOVERY_ACTIONS_WITH_ATTENDANCE = new Set(["status", "unlock", "start"]);
+// The actions that deal a Practice item, and so read the student's evidence.
+const RECOVERY_ACTIONS_WITH_TARGETING = new Set(["status", "practice"]);
+async function readRecoveryMisconceptionRecords(gradeRef, assignmentId, recoveryEvidenceCollection) {
+  try {
+    const [attemptEvents, recoveryEvidence] = await Promise.all([
+      gradeRef.collection("evidenceEvents").where("source.assignmentId", "==", assignmentId)
+        .select("source", "performance", "occurredAt").get(),
+      gradeRef.collection(recoveryEvidenceCollection).where("source.assignmentId", "==", assignmentId)
+        .select("source", "performance", "occurredAt").get(),
+    ]);
+    return [...attemptEvents.docs, ...recoveryEvidence.docs].map((doc) => doc.data() || {});
+  } catch (error) {
+    logger.warn("Recovery misconception evidence unavailable; Practice is untargeted", { assignmentId, message: error?.message });
+    return null;
+  }
+}
 
 function serverSectionVariantMode(assignment = {}, role = "") {
   const policy = assignment?.variantPolicy && typeof assignment.variantPolicy === "object" ? assignment.variantPolicy : {};
@@ -1395,6 +1411,13 @@ exports.advanceSectionRecovery = onCall(async (request) => {
     }
   }
 
+  // Targeted Recovery Practice: the student's own trusted misconception
+  // evidence on this assignment (job J). Read outside the transaction; a
+  // failed read deals untargeted Practice and never blocks Recovery.
+  const misconceptionRecords = RECOVERY_ACTIONS_WITH_TARGETING.has(action)
+    ? await readRecoveryMisconceptionRecords(gradeRef, assignmentId, service.MISCONCEPTION_EVIDENCE_COLLECTION)
+    : null;
+
   try {
     return await db.runTransaction(async (transaction) => {
       const [assignmentSnapshot, gradeSnapshot, overrideSnapshot] = await Promise.all([
@@ -1439,6 +1462,7 @@ exports.advanceSectionRecovery = onCall(async (request) => {
         // The Recovery end date is the student's own final cutoff, their
         // private extension included — read above, never from the request.
         privateOverride: privateOverrideFrom(overrideSnapshot),
+        misconceptionRecords,
         sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
         nowValue: Date.now(),
       });

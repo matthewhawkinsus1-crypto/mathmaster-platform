@@ -28,6 +28,7 @@ import {
   resolveOriginalOpportunity,
 } from './sectionRecoveryEligibility.mjs';
 import { buildRecoveryPracticeItem } from './sectionRecoveryPlan.mjs';
+import { recoveryMisconceptionFocus } from './recoveryMisconceptionTargeting.mjs';
 import {
   normalizeRecoveryRecord,
   recoveryRecordFingerprints,
@@ -127,6 +128,11 @@ export const buildSectionRecoveryContext = ({
   // The student's private override record, read by the caller with its own
   // authority (studentAssignmentOverrides.mjs). Undefined where it was not read.
   privateOverride = undefined,
+  // The student's stored evidence for this assignment (attempt evidence events
+  // and Recovery misconception evidence records), read by the server only.
+  // Null (the browser) deals untargeted Practice; the server's dealt item is
+  // what the runner shows (recoveryMisconceptionTargeting.mjs).
+  misconceptionRecords = null,
   sectionModeFor = () => 'personalized',
   nowValue = Date.now(),
 } = {}) => {
@@ -192,6 +198,14 @@ export const buildSectionRecoveryContext = ({
     questionsByIndex,
     seenFingerprints: [...new Set(seen)],
     sectionOriginal,
+    misconceptionFocus: Array.isArray(misconceptionRecords)
+      ? recoveryMisconceptionFocus({
+        records: misconceptionRecords,
+        assignmentId: assignment?.id || '',
+        section,
+        sectionStorageIndices: list(sectionEntries).map((entry) => entry.storageIndex),
+      })
+      : {},
   };
 };
 
@@ -207,6 +221,7 @@ export const nextRecoveryPracticeItem = (context) => {
     practiceIndex: context.record?.practice?.nextIndex || 0,
     seatInfo: context.seatInfo,
     seenFingerprints: context.seenFingerprints,
+    misconceptionFocus: context.misconceptionFocus || null,
   });
   if (item.error) return null;
   const { question: _question, ...withoutQuestion } = item;
