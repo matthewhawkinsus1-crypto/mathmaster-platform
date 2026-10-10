@@ -32,8 +32,8 @@
  * correction can sit anywhere in the set, so none is skipped), one
  * assignment per record, at most WEEK_LOOKBACK snapshot ids and their streak
  * award documents, the completed Path sessions of those weeks, one mastery
- * profile with the ledger documents of its newly Mastered skills, and one
- * state document.
+ * history and one mastery profile with the ledger documents of the skills
+ * they could pay, and one state document.
  */
 
 const { FieldPath, FieldValue } = require("firebase-admin/firestore");
@@ -43,6 +43,10 @@ const TEST_CYCLE_RECORDS = "testCycleRecords";
 const WEEKLY_PATH_GOAL_SNAPSHOTS = "weeklyPathGoalSnapshots";
 const PATH_SESSIONS = "pathSessions";
 const MASTERY_PROFILES = "studentMasteryProfiles";
+// Job D's weekly mastery snapshots (functions/shared/masteryHistory.mjs
+// MASTERY_HISTORY_COLLECTION): when each skill became Mastered. Written only
+// by the mastery trigger, in the same transaction as the profile.
+const MASTERY_HISTORY = "studentMasteryHistory";
 const LEDGER = "classPointTransactions";
 const ACCOUNTS = "classPointAccounts";
 // growthRewardState/{studentId}: server-only (no client rule matches it, so
@@ -340,27 +344,41 @@ async function loadPaidStreakWeeks(db, modules, { studentId, goals }) {
 }
 
 /**
- * The mastery profile and its baseline, creating the baseline on the first
- * sync (see masteryBaselineFor), and which payable skills are already paid —
- * evaluateMasteryGrowth pays at most MASTERY_SKILLS_PER_SYNC new ones per sync
- * and needs to know which those are.
+ * The mastery history (when each skill became Mastered), the mastery profile
+ * (the evidence behind it) and the baseline, creating the baseline on the
+ * first sync exactly as before the switch to the history (see
+ * masteryBaselineFor), and which of the skills they could pay are already
+ * paid — evaluateMasteryGrowth pays at most MASTERY_SKILLS_PER_SYNC new ones
+ * per sync and needs to know which those are. The two documents are read in
+ * one transaction because the trigger writes them in one: they always
+ * describe the same moment.
  */
 async function loadMastery(db, modules, studentId, nowMs) {
   const { rules } = modules;
   const profileRef = db.collection(MASTERY_PROFILES).doc(studentId);
+  const historyRef = db.collection(MASTERY_HISTORY).doc(studentId);
   const stateRef = db.collection(GROWTH_STATE).doc(studentId);
   const loaded = await db.runTransaction(async (transaction) => {
-    const [profileSnap, stateSnap] = await Promise.all([transaction.get(profileRef), transaction.get(stateRef)]);
+    const [profileSnap, historySnap, stateSnap] = await Promise.all([
+      transaction.get(profileRef), transaction.get(historyRef), transaction.get(stateRef),
+    ]);
     const masteryProfile = profileSnap.exists ? (profileSnap.data() || {}) : null;
+    const masteryHistory = historySnap.exists ? (historySnap.data() || {}) : null;
     const stored = stateSnap.exists ? stateSnap.data()?.masteryBaseline : null;
-    if (stored && Array.isArray(stored.skills)) return { masteryProfile, masteryBaseline: stored };
+    if (stored && Array.isArray(stored.skills)) return { masteryProfile, masteryHistory, masteryBaseline: stored };
     const masteryBaseline = rules.masteryBaselineFor(masteryProfile || {}, nowMs);
     transaction.set(stateRef, { studentId, masteryBaseline, updatedAt: nowMs }, { merge: true });
-    return { masteryProfile, masteryBaseline };
+    return { masteryProfile, masteryHistory, masteryBaseline };
   });
 
+  // Every skill that could pay or count: first Mastered on record in the
+  // history, or Mastered now. A skill paid before the switch is found under
+  // the same ledger id either way.
   const baseline = new Set(loaded.masteryBaseline.skills || []);
-  const candidates = rules.payableMasteredSkills(loaded.masteryProfile || {}).filter((code) => !baseline.has(code));
+  const candidates = [...new Set([
+    ...rules.masteryMilestones(loaded.masteryHistory, { studentId }).map(({ code }) => code),
+    ...rules.payableMasteredSkills(loaded.masteryProfile || {}),
+  ])].filter((code) => !baseline.has(code)).sort();
   const paidMasterySkills = [];
   for (const codes of chunk(candidates, 100)) {
     // eslint-disable-next-line no-await-in-loop
@@ -419,6 +437,7 @@ async function syncStudentGrowthRewards(db, { studentId, nowMs = Date.now() } = 
     completions: weekly.completions,
     windowStartWeekKey: weekly.windowStartWeekKey,
     paidStreakWeeks: weekly.paidStreakWeeks,
+    masteryHistory: mastery.masteryHistory,
     masteryProfile: mastery.masteryProfile,
     masteryBaseline: mastery.masteryBaseline,
     paidMasterySkills: mastery.paidMasterySkills,

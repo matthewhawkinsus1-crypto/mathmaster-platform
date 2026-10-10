@@ -6,6 +6,8 @@ import { normalizeTestCycleRecord, SESSION_STATE } from './testCycleRecord.mjs';
 import { normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
 import { evaluateWeeklyGoalProgress, weekKeyFor } from './weeklyPathGrade.mjs';
 import { MASTERY_RULE } from './masteryRule.mjs';
+import { masteryHistoryWeekKeys, masteryStatusFromCode } from './masteryHistory.mjs';
+import { skillMasteredEvents, skillMasteredEventsFromHistory } from './pathGrowthEvents.mjs';
 
 /*
  * GROWTH, EFFORT AND MASTERY REWARDS (pure).
@@ -22,19 +24,22 @@ import { MASTERY_RULE } from './masteryRule.mjs';
  *   corrections    testCycleRecords.corrections
  *   weekly Path    weeklyPathGoalSnapshots (frozen by the server) + the
  *                  student's completed pathSessions (server-only)
- *   mastery        studentMasteryProfiles, written ONLY by the evidence
- *                  trigger updateMyMathPathMasteryFromEvidence (Admin SDK)
- *                  from server-only evidenceEvents. No client — student,
- *                  teacher or root administrator — may write it
- *                  (firestore.rules). It used to be teacher-writable, and
- *                  `authorizedTeacherEmails` keeps former teachers, so a
+ *   mastery        studentMasteryHistory (WHEN a skill became Mastered:
+ *                  Job D's weekly snapshots) checked against
+ *                  studentMasteryProfiles (the evidence behind it). Both are
+ *                  written ONLY by the evidence trigger
+ *                  updateMyMathPathMasteryFromEvidence (Admin SDK), in one
+ *                  transaction, from server-only evidenceEvents. No client —
+ *                  student, teacher or root administrator — may write either
+ *                  (firestore.rules). The profile used to be teacher-writable,
+ *                  and `authorizedTeacherEmails` keeps former teachers, so a
  *                  teacher who once had the student could write 200 made-up
  *                  Mastered keys and mint 1,000 points. Defence in depth on
  *                  top of the rule: a skill pays only when its key is a
- *                  canonical skill code and it carries the evidence counts
- *                  the trigger writes, consistent with Mastered
- *                  (serverDerivedMastered), and at most
- *                  MASTERY_SKILLS_PER_SYNC skills pay per sync.
+ *                  canonical skill code and its profile entry carries the
+ *                  evidence counts the trigger writes, consistent with
+ *                  Mastered (serverDerivedMastered / reachedMasteredEvidence),
+ *                  and at most MASTERY_SKILLS_PER_SYNC skills pay per sync.
  *
  * Read but never trusted to mint: the assignment (teacher-writable) supplies
  * only the policy (server-owned fields in firestore.rules) and, when the
@@ -45,11 +50,11 @@ import { MASTERY_RULE } from './masteryRule.mjs';
  * the disabled flag (which can only refuse). The ledger and rewardGrants,
  * read to find streak blocks already paid, are client-unwritable.
  *
- * DEPENDENCY. My Math Path (Job D) is exposing better weekly-goal and mastery
- * data. Until that merges, this reads the existing weeklyPathGoalSnapshots +
- * pathSessions and studentMasteryProfiles shapes; when it lands, the weekly and
- * mastery evaluators are the two places to switch over, and the award
- * identities below must not change so nothing is paid twice.
+ * DEPENDENCY. My Math Path (Job D) exposes better weekly-goal and mastery
+ * data. Mastery has switched over to its mastered-at history
+ * (evaluateMasteryGrowth); the weekly rules still read weeklyPathGoalSnapshots
+ * + pathSessions. The award identities below did not change in the switch and
+ * must not, so nothing already paid is paid twice.
  *
  * AWARD IDENTITY. Every award is named by
  *
@@ -138,6 +143,7 @@ export const SKIP_REASON = Object.freeze({
   GOAL_SET_AFTER_WEEK: 'goal_set_after_week',
   RUN_START_UNKNOWN: 'run_start_unknown',
   SYNC_LIMIT: 'sync_limit',
+  BEFORE_BASELINE: 'before_baseline',
 });
 
 export const MASTERED_STATUS = 'Mastered';
@@ -575,17 +581,21 @@ const nonNegativeInteger = (value) => Number.isInteger(value) && value >= 0;
 const nonNegative = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 /**
- * Whether one profile entry is a Mastered skill AS THE SERVER DERIVES IT: a
- * canonical code that is also the entry's own teksCode, and the evidence
- * counts the trigger writes (accumulator + dimensions, which it keeps equal),
- * consistent with the Mastered thresholds and with the estimate the
- * accumulator implies. A label alone — `{ mastery: { status: 'Mastered' } }` —
- * is not mastery.
+ * Whether one profile entry carries the evidence the trigger writes for a
+ * skill that has REACHED Mastered, whatever it reads now: a canonical code
+ * that is also the entry's own teksCode, and the evidence counts the trigger
+ * writes (accumulator + dimensions, which it keeps equal), at or above the
+ * Mastered thresholds, with the estimate the accumulator implies. Every one
+ * of those counts only grows (the trigger adds to them, never subtracts), so
+ * a skill that was Mastered and has since slipped still meets them; a skill
+ * that never was does not. Only the estimate can fall, so it is checked for
+ * consistency here and against the Mastered threshold only while the entry
+ * is labelled Mastered. A label alone — `{ mastery: { status: 'Mastered' } }`
+ * — is not mastery.
  */
-export const serverDerivedMastered = (code, entry) => {
+export const reachedMasteredEvidence = (code, entry) => {
   if (!CANONICAL_SKILL_CODE.test(String(code || ''))) return false;
   if (!entry || typeof entry !== 'object' || entry.teksCode !== code) return false;
-  if (entry.mastery?.status !== MASTERED_STATUS) return false;
   const accumulator = entry.accumulator || {};
   const dimensions = entry.dimensions || {};
   const { effectiveWeight, weightedScoreSum, eligibleEvents, independentSuccesses } = accumulator;
@@ -597,11 +607,22 @@ export const serverDerivedMastered = (code, entry) => {
   if (effectiveWeight < MASTERED_MIN_EFFECTIVE_WEIGHT || weightedScoreSum > effectiveWeight) return false;
   if (!list(dimensions.dokRepresented).some((value) => Number(value) >= MASTERED_MIN_DOK)) return false;
   const estimate = Math.round((weightedScoreSum / effectiveWeight) * 100);
-  if (entry.mastery.estimate !== estimate || estimate < MASTERED_MIN_ESTIMATE) return false;
+  if (entry.mastery?.estimate !== estimate) return false;
+  if (entry.mastery.status === MASTERED_STATUS && estimate < MASTERED_MIN_ESTIMATE) return false;
   return finite(entry.updatedAt) !== null;
 };
 
-/** The skills that can pay: Mastered as the server derives it (serverDerivedMastered), sorted. */
+/**
+ * Whether one profile entry is a Mastered skill AS THE SERVER DERIVES IT
+ * right now: the evidence above, labelled Mastered, at a Mastered estimate.
+ */
+export const serverDerivedMastered = (code, entry) => (
+  reachedMasteredEvidence(code, entry)
+  && entry.mastery.status === MASTERED_STATUS
+  && entry.mastery.estimate >= MASTERED_MIN_ESTIMATE
+);
+
+/** The skills that are Mastered now, as the server derives it (serverDerivedMastered), sorted. */
 export const payableMasteredSkills = (masteryProfile = {}) => Object.entries(
   masteryProfile?.profiles && typeof masteryProfile.profiles === 'object' ? masteryProfile.profiles : {},
 )
@@ -612,80 +633,170 @@ export const payableMasteredSkills = (masteryProfile = {}) => Object.entries(
 /**
  * The starting line for mastery rewards.
  *
- * A mastery profile records a status, not WHEN a skill became Mastered, so the
- * start date cannot be applied skill by skill. Instead the first sync freezes
- * whatever is already Mastered as the baseline and pays only for skills that
- * reach Mastered after it. The first sync runs when the student opens
- * MathMaster (useGrowthRewardSync), before that visit's practice can add new
- * evidence, so in practice nothing earned after the start is missed.
+ * The first sync freezes whatever is already Mastered as the baseline and
+ * pays only for skills that reach Mastered after it. This predates the
+ * mastered-at history and is kept unchanged across the switch to it: the
+ * history begins with Job D's deploy, and its oldest week cannot say when a
+ * skill already Mastered in it got there, so the baseline is still what keeps
+ * a long-time student's earlier mastery from paying out as a backlog. The
+ * first sync runs when the student opens MathMaster (useGrowthRewardSync),
+ * before that visit's practice can add new evidence, so in practice nothing
+ * earned after the start is missed.
  */
 export const masteryBaselineFor = (masteryProfile = {}, nowMs = Date.now()) => ({
   skills: masteredSkills(masteryProfile),
   baselineAtMs: Number(nowMs) || null,
 });
 
+const historySkillStatus = ([, code] = []) => masteryStatusFromCode(code);
+
+/**
+ * WHEN EACH SKILL WAS FIRST MASTERED, from studentMasteryHistory (Job D,
+ * functions/shared/masteryHistory.mjs): one entry per skill, its FIRST move
+ * to Mastered on record, oldest first (pathGrowthEvents.mjs
+ * skillMasteredEventsFromHistory, so Mastered means what the one Mastered rule
+ * says it means). A skill that slips and comes back has the same first move,
+ * so it can only ever be paid once.
+ *
+ *   { code, atMs, timeKnown }
+ *
+ * `timeKnown` is false for a skill already Mastered in the oldest week on
+ * record: it got there at some unknown earlier time (before the history
+ * began, or in a week since pruned), and `atMs` is only when that week was
+ * written. Otherwise `atMs` is the time of the first snapshot that shows it
+ * Mastered — the last update of the week it was mastered in, never before the
+ * moment itself. Only canonical skill codes are returned.
+ */
+export const masteryMilestones = (masteryHistory = null, { studentId = null } = {}) => {
+  const weekKeys = masteryHistoryWeekKeys(masteryHistory);
+  if (!weekKeys.length) return [];
+  const student = clean(studentId || masteryHistory?.studentId, 64) || 'student';
+  const snapshots = weekKeys.map((weekKey) => ({
+    at: finite(masteryHistory.weeks[weekKey]?.updatedAt),
+    skills: masteryHistory.weeks[weekKey]?.skills,
+  }));
+  // Read with the same reader, so two spellings of one skill agree with it.
+  const fromTheStart = new Set(skillMasteredEvents({
+    studentId: student, before: {}, after: snapshots[0].skills, statusOf: historySkillStatus,
+  }).map((event) => event.teksCode));
+  return skillMasteredEventsFromHistory({
+    studentId: student, history: snapshots, statusOf: historySkillStatus, assumeEmptyBaseline: true,
+  })
+    .filter((event) => CANONICAL_SKILL_CODE.test(event.teksCode))
+    .map((event) => ({
+      code: event.teksCode,
+      atMs: fromTheStart.has(event.teksCode) ? snapshots[0].at : event.at,
+      timeKnown: !fromTheStart.has(event.teksCode),
+    }));
+};
+
 /**
  * Each skill newly Mastered since the baseline pays once ever — its identity
- * names the skill, so falling back to Secure and returning to Mastered pays
- * nothing new. Reaching 5 and 10 Mastered skills earns a badge, but only when
- * that count was crossed after the baseline.
+ * names the skill (`masterySkill` + the TEKS code: the same identity as
+ * before the switch to the history, so a skill paid then is already paid
+ * now). Reaching 5 and 10 Mastered skills earns a badge, but only when that
+ * count was crossed after the baseline.
  *
- * Only skills Mastered as the server derives it count (serverDerivedMastered).
+ * WHICH SKILLS. The history says when (masteryMilestones); the profile says
+ * the evidence is real. A skill outside the baseline pays when
+ *
+ *   - its first mastery on record is a move the history saw (timeKnown) on or
+ *     after the start date AND on or after the moment the baseline was frozen
+ *     (a skill mastered before the baseline and lost again by then was not
+ *     frozen, but it was not mastered after the baseline either), and its
+ *     profile entry shows the evidence of a Mastered skill
+ *     (reachedMasteredEvidence). It need not still be Mastered: mastered,
+ *     then slipped, pays that once.
+ *   - or the history found it already Mastered (time unknown): then exactly
+ *     the rule from before the switch — Mastered now as the server derives it
+ *     (serverDerivedMastered), with a profile entry updated on or after the
+ *     start date.
+ *
+ * No history yet (no mastery update since Job D's deploy) pays nothing; the
+ * next update writes one and the skill pays then.
+ *
  * At most MASTERY_SKILLS_PER_SYNC skills that have not been paid yet pay per
- * call, in code order; `paidSkills` names the skills whose award is already
- * delivered (the reader checks their ledger documents), so the next sync
- * moves on to the next ones. Already-paid skills are still returned, under
- * the same identity, so the delivery reports them as already delivered. A
- * count badge counts only the skills paid by now (baseline + paid + this
- * sync's), so it never runs ahead of the points.
+ * call, oldest mastery first; `paidSkills` names the skills whose award is
+ * already delivered (the reader checks their ledger documents), so the next
+ * sync moves on to the next ones. Already-paid skills are still returned,
+ * under the same identity, so the delivery reports them as already
+ * delivered. A count badge counts only the skills credited by now (baseline
+ * skills still Mastered + paid + this sync's), so it never runs ahead of the
+ * points.
  */
 export const evaluateMasteryGrowth = ({
-  studentId, classId, masteryProfile = null, baseline = null, paidSkills = [], maxSkillsPerSync = MASTERY_SKILLS_PER_SYNC,
+  studentId,
+  classId,
+  masteryHistory = null,
+  masteryProfile = null,
+  baseline = null,
+  paidSkills = [],
+  maxSkillsPerSync = MASTERY_SKILLS_PER_SYNC,
 } = {}) => {
-  if (!masteryProfile || !baseline) return { awards: [], skipped: [] };
-  const profileClass = clean(masteryProfile.classId, 120);
-  const mastered = payableMasteredSkills(masteryProfile);
+  const none = { awards: [], skipped: [] };
+  if (!masteryHistory || !baseline) return none;
+  const historyStudent = clean(masteryHistory.studentId, 64);
+  if (historyStudent && historyStudent !== clean(studentId, 64)) return none;
   const baselineSkills = new Set(list(baseline.skills).map((code) => clean(code, 120)));
-  const fresh = mastered.filter((code) => !baselineSkills.has(code));
-  if (!fresh.length) return { awards: [], skipped: [] };
-  // The profile names the class of the evidence that last changed it. Mastery
-  // shown in a class the student has left is not paid into the new class, and
-  // a profile whose last evidence carried no class (a Modeling Lab event, for
-  // one) is not guessed into the current one — the same as the Test Cycle
-  // rules. Neither is settled: the skills stay out of the baseline and pay
-  // once the profile next changes under the class of record. (A profile has
-  // one class for every skill, not one per skill; Job D's per-skill data is
-  // where that can be tightened.)
-  if (!profileClass) {
-    return { awards: [], skipped: [skip(GROWTH_RULE_IDS.MASTERY_SKILL, fresh.join(','), SKIP_REASON.CLASS_UNKNOWN)] };
-  }
-  if (profileClass !== classId) {
+  const fresh = masteryMilestones(masteryHistory, { studentId }).filter(({ code }) => !baselineSkills.has(code));
+  if (!fresh.length) return none;
+  // The history names the class of the evidence that last changed it (the
+  // profile's, from the same transaction). Mastery shown in a class the
+  // student has left is not paid into the new class, and a history whose last
+  // evidence carried no class (a Modeling Lab event, for one) is not guessed
+  // into the current one — the same as the Test Cycle rules. Neither is
+  // settled: the skills stay out of the baseline and pay once the history
+  // next changes under the class of record. (One class for every skill, not
+  // one per skill.)
+  const historyClass = clean(masteryHistory.classId, 120);
+  const freshCodes = fresh.map(({ code }) => code).join(',');
+  if (!historyClass) return { awards: [], skipped: [skip(GROWTH_RULE_IDS.MASTERY_SKILL, freshCodes, SKIP_REASON.CLASS_UNKNOWN)] };
+  if (historyClass !== classId) {
     return {
       awards: [],
-      skipped: [skip(GROWTH_RULE_IDS.MASTERY_SKILL, fresh.join(','), SKIP_REASON.DIFFERENT_CLASS, { eventClassId: profileClass })],
+      skipped: [skip(GROWTH_RULE_IDS.MASTERY_SKILL, freshCodes, SKIP_REASON.DIFFERENT_CLASS, { eventClassId: historyClass })],
     };
   }
 
   const awards = [];
   const skipped = [];
-  const profiles = masteryProfile.profiles || {};
-  const paid = new Set(list(paidSkills).map((code) => clean(code, 120)));
+  const profiles = masteryProfile?.profiles && typeof masteryProfile.profiles === 'object' ? masteryProfile.profiles : {};
+  const paid = new Set(list(paidSkills).map((code) => clean(code, 120)).filter((code) => code && !baselineSkills.has(code)));
+  const baselineAtMs = finite(baseline.baselineAtMs);
   const limit = Math.max(0, Math.floor(Number(maxSkillsPerSync) || 0));
   let paying = 0;
-  let paidCount = 0;
-  fresh.forEach((code) => {
-    const updatedAt = finite(profiles[code]?.updatedAt);
-    if (updatedAt < GROWTH_REWARDS_START_MS) {
-      skipped.push(skip(GROWTH_RULE_IDS.MASTERY_SKILL, code, SKIP_REASON.BEFORE_START));
-      return;
-    }
-    if (paid.has(code)) {
-      paidCount += 1;
-    } else if (paying < limit) {
-      paying += 1;
+  fresh.forEach(({ code, atMs, timeKnown }) => {
+    const entry = profiles[code];
+    let eventAtMs;
+    if (timeKnown) {
+      if (!reachedMasteredEvidence(code, entry)) return;
+      if (atMs === null) {
+        skipped.push(skip(GROWTH_RULE_IDS.MASTERY_SKILL, code, SKIP_REASON.UNDATED));
+        return;
+      }
+      if (atMs < GROWTH_REWARDS_START_MS) {
+        skipped.push(skip(GROWTH_RULE_IDS.MASTERY_SKILL, code, SKIP_REASON.BEFORE_START));
+        return;
+      }
+      if (baselineAtMs !== null && atMs < baselineAtMs) {
+        skipped.push(skip(GROWTH_RULE_IDS.MASTERY_SKILL, code, SKIP_REASON.BEFORE_BASELINE));
+        return;
+      }
+      eventAtMs = atMs;
     } else {
-      skipped.push(skip(GROWTH_RULE_IDS.MASTERY_SKILL, code, SKIP_REASON.SYNC_LIMIT));
-      return;
+      if (!serverDerivedMastered(code, entry)) return;
+      eventAtMs = finite(entry.updatedAt);
+      if (eventAtMs < GROWTH_REWARDS_START_MS) {
+        skipped.push(skip(GROWTH_RULE_IDS.MASTERY_SKILL, code, SKIP_REASON.BEFORE_START));
+        return;
+      }
+    }
+    if (!paid.has(code)) {
+      if (paying >= limit) {
+        skipped.push(skip(GROWTH_RULE_IDS.MASTERY_SKILL, code, SKIP_REASON.SYNC_LIMIT));
+        return;
+      }
+      paying += 1;
     }
     awards.push(...eventAwards({
       studentId,
@@ -694,12 +805,13 @@ export const evaluateMasteryGrowth = ({
       sourceId: code,
       points: GROWTH_REWARD_AMOUNTS.masterySkill,
       reasonLabel: `Mastered ${code}`,
-      eventAtMs: updatedAt,
+      eventAtMs,
     }));
   });
 
   const baselineCount = baselineSkills.size;
-  const creditedCount = (mastered.length - fresh.length) + paidCount + paying;
+  const baselineStillMastered = payableMasteredSkills(masteryProfile || {}).filter((code) => baselineSkills.has(code)).length;
+  const creditedCount = baselineStillMastered + paid.size + paying;
   MASTERY_COUNT_BADGES.forEach(({ count, badgeCode }) => {
     if (creditedCount >= count && baselineCount < count) {
       awards.push(...eventAwards({
@@ -724,7 +836,7 @@ export const evaluateMasteryGrowth = ({
  *
  *   testCycles  [{ record, assignment }]  the student's Test Cycle records
  *   goals, completions, windowStartWeekKey, paidStreakWeeks, nowMs   (see evaluateWeeklyPathGrowth)
- *   masteryProfile, masteryBaseline, paidMasterySkills   (see evaluateMasteryGrowth)
+ *   masteryHistory, masteryProfile, masteryBaseline, paidMasterySkills   (see evaluateMasteryGrowth)
  *
  * Returns { awards, skipped }. Awards are de-duplicated by document id, so a
  * caller can deliver the list as-is.
@@ -737,6 +849,7 @@ export const evaluateGrowthRewards = ({
   completions = [],
   windowStartWeekKey = null,
   paidStreakWeeks = [],
+  masteryHistory = null,
   masteryProfile = null,
   masteryBaseline = null,
   paidMasterySkills = [],
@@ -753,7 +866,7 @@ export const evaluateGrowthRewards = ({
     ]),
     evaluateWeeklyPathGrowth({ studentId: student, classId: cls, goals, completions, nowMs, windowStartWeekKey, paidStreakWeeks }),
     evaluateMasteryGrowth({
-      studentId: student, classId: cls, masteryProfile, baseline: masteryBaseline, paidSkills: paidMasterySkills,
+      studentId: student, classId: cls, masteryHistory, masteryProfile, baseline: masteryBaseline, paidSkills: paidMasterySkills,
     }),
   ];
 
