@@ -5,7 +5,7 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
 
 ## 1. What shipped
 
-### Item 1 — the server scores each question once (85ab9d8)
+### Item 1 — the server scores each question once; one favourable rule everywhere (85ab9d8, 5c4e274)
 
 - **Each question is one event, scored by its final attempt.** `functions/shared/masteryScoring.mjs` is used by the trigger `updateMyMathPathMasteryFromEvidence` and by the backfill.
   - It keeps each question's last contribution and replaces it when a later attempt arrives. "Right on the second try" now reads 100%, as the assignment record does.
@@ -14,23 +14,24 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
     - anything else: the delivered instance;
     - with neither: the event itself.
   - An older attempt that arrives late changes nothing.
-  - Each skill keeps at most 200 question rows. When a row is dropped, its contribution stays folded into the sums.
-  - The trigger now writes the whole document instead of merging, so a floor the student has reached, and dropped rows, really go.
-- **Deploy-day floors (decision 8).** A profile entry can carry `floor: { status, estimate, effectiveWeight, questionsSince }`.
-  - The shared rule (`masteryRule.mjs`) honours it in `classifyMasteryStatus` and `masteryFactsFromProfile`, so every reader honours it: wheel, card, planner, Path map, history and retention.
-  - A floor only ever raises a status, and it never sets "Not Enough Evidence".
-  - The trigger removes a floor once the student's own evidence reaches it, or after 8 new questions on the skill. It protects deploy day, not every day after.
+  - **Bounded document:** at most 60 question rows per skill and 1,500 per document (`compactQuestionRows`, run after every answer). A dropped row's contribution stays folded into the sums. 52 skills × 200 questions stays under 400 KB, where the unbounded rows measured 1,066 KiB.
+  - The trigger writes the whole document rather than merging, so dropped rows really go.
+  - It keeps `masteredEvidence`: the evidence a skill first reached Mastered with. Growth rewards read it, so a skill that later slipped, or was rescored, still pays a reward it earned.
+- **One status rule for every screen (coordinator decision, review of #467).**
+  - Every screen reads each skill as the more favourable of the server profile and the assignment record: the higher number, and Mastered when either says so (main's 0.9 cut-off).
+  - That covers the wheel, its card and the weekly planner as well as the Path map, locks, readiness, Challenge, topic browser and Recommended.
+  - `buildUnifiedMasteryProfiles` attaches the record's side as `favourableRecord`, and the shared rule (`masteryRule.mjs`) honours it, so every re-derived status agrees.
+  - The record never lowers anything and is never stored by the server.
+  - `favourableMasteryBySkill` is D's rule unchanged, and Path-only skills still never lock (`gate: false`).
+  - The skill card says "Mastered in your assignment work" when the record, not the evidence checklist, decides Mastered.
+  - Server-side floors are gone.
 - **Backfill: `scripts/backfill-mastery-scoring.mjs`.** The plan itself is `scripts/lib/masteryScoringBackfill.mjs`.
   - Dry run by default; `--execute` asks for the project id to be typed.
   - Idempotent: a document already rescored (`masteryScoring.version ≥ 2`) is skipped.
-  - It rebuilds each student's profiles from all of `grades/{id}/evidenceEvents`, inside the transaction that writes them.
-  - It compares what the student sees today with what they would see after, through the client's own code: the wheel (`buildUnifiedMasteryProfiles`) and the map (`favourableMasteryBySkill`).
-  - It floors every skill that would show a lower status, score or evidence strength, or that could newly lock.
-  - It writes a floor-only entry for a skill that only the assignment record knows, wherever the map gives more than the wheel. After that, map and wheel read one record.
-  - A plan that would still lower something after flooring is refused for that student and reported, never written.
-- **The bridge is narrowed.** `favourableMasteryBySkill` now gives the unified record unchanged for a skill the backfill rescored (`serverScored`, i.e. `scoringVersion` 2). So map, wheel, card and planner read the same number and the same verdict.
-  - Any other skill keeps the more favourable of the two records. That covers students the backfill hasn't reached and the Teacher Path Simulator, which has no server document.
-  - Path-only skills still never lock (`gate: false`).
+  - It rebuilds each student's profiles from all of `grades/{id}/evidenceEvents`, first reading My Math Path answers as they should have been written (QA round 2 R2-M2: an answer's own post-answer review is not support for it, `functions/shared/pathReviewReclassification.mjs`).
+  - It compares every screen today with every screen after, through the client's own code. Any lower status, score or verdict, or a skill the Path engine newly closes, means the student is **refused**: nothing is written for them, and the report names the skill.
+  - Lower evidence strength alone is not a loss. Counting each question once removes per-attempt inflation; what that could cost, a newly closed skill, is checked directly.
+  - Grades, assignments and evidence are read again inside each student's transaction. One student's failure is reported and the run goes on.
 
 ### Item 2 — growth rewards from mastered-at data (lane `wip/i-growth`, c6eac87)
 
@@ -41,7 +42,7 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
   - the class check;
   - the cap of 5 per sync.
 - Mastered, lost, then mastered again pays once.
-- A Mastered held only by a deploy-day floor is not paid: its stored score is the floor's, so the evidence check refuses it. It pays once the student's own evidence earns it.
+- Earned but not yet paid survives rescoring: the evidence check also passes on the entry's `masteredEvidence` snapshot (live counts can now fall: a later attempt replaces an earlier one).
 - Verifier minors fixed: the time-unknown branch's start-date check now has a test, and the re-mastery doc is corrected.
 
 ### Item 3 — Live Challenge ranks nobody else can read (lane `wip/i-live`)
@@ -90,6 +91,8 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
 - **Migration: `scripts/migrate-integrity-override-notes.mjs`.**
   - Dry run by default and idempotent; never changes a grade value.
   - It moves the fields to the incident, creating a linked teacher-only incident when one is missing, and strips them from the grade doc.
+  - **Integrity entries only** (review M4): `__assignment`, `__sectionIntegrity_*` and the section-zero copies, with their saved previous overrides. Any other entry carrying a note, actor or role, for example a per-question teacher correction, is reported as `not-an-integrity-override` and left untouched. No incident is created for it.
+  - A saved previous override inside a section's restore state still moves its note to that section's own incident, as a kept grade copy (it was on the student-readable doc).
   - A malformed document is reported and skipped.
 
 ### Coordinator QA findings (release candidate)
@@ -110,7 +113,10 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
     - D's four reproduced profiles, plus a seeded sweep of 400 real-shaped students (assignment record, the evidence the server wrote, and the profile the old trigger built);
     - no plan lowers anything on the wheel or the map, and no skill becomes newly locked;
     - after the backfill, map and wheel agree on every skill's verdict and number.
-  - Mutations: no floors, no `serverScored` branch, additive (old) scoring, and a rule that ignores floors. All four go red.
+    - the review's (a), (b) and (c) profiles keep main's outcome after ordinary use. (a): 3/3 first-try classwork, then 12 Path items with 2 right, gives Mastered with A.2B open. (b): assignment work the server never saw keeps 70%. (c): 8 correct new questions without DOK 3 keep Mastered;
+    - 300 students after the backfill plus ten new questions never read below main, and no skill is closed that main had open;
+    - an emulator fixture (`tests/integration/masteryScoringBackfill.test.mjs`) covers dry run, execute, refusal, idempotency and the in-transaction re-read.
+  - Mutations: no record on the unified profiles, additive (old) scoring, no compaction, the checklist line, no in-transaction re-read. All go red.
 - **Browser runs (Chromium):**
   - class-rewards journey, including the new reprice-while-open check: 22/22, phone and Chromebook;
   - topic-browser harness: `recommendedCards` passes. Its `browseLockedAndLaunch` scene fails identically on base 3a70944 (not this branch).
@@ -128,12 +134,13 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
   - With 5 players the public rule can leave exactly two unshown, so the 4th-place student can name the 5th from the lobby list. Product rule, not a leak.
   - Student summaries in rooms with no match result (retired or stale rooms) are not erased by permanent deletion. This matches the existing gap for private player docs.
   - An old bundle mid-game during the deploy reads no standings: deploy when no rooms are live.
-- **Item 1:** the floor freezes deploy-day values as a minimum until the student earns them or answers 8 new questions on the skill. Assignment evidence older than the trigger exists only in floors.
+- **Item 1:** a skill main's assignment record called Mastered (0.9, possibly from one question) reads Mastered on every screen, the wheel included, for as long as that record says so. That is the coordinator's decision, the price of one rule. Refused students keep their per-attempt server record; the favourable rule still protects them.
+- **Not driven in Chromium:** QA round 2's R2-m1 and R2-m2 (Path UI) are queued for the follow-up PR.
 - **Not in scope (owner decisions):** UTC week keys; re-grading historical Path multiple-choice answers.
 
 ## 4. Deploy (owner, Cloud Shell; dry runs first)
 
-Order: functions → rules → Hosting → scripts. Run the release planner first: `node scripts/release-firebase.mjs --since 3a70944`. It plans every default-codebase function, because `functions/index.js` changed.
+Order: functions → rules → Hosting → scripts. Run the release planner first, `node scripts/release-firebase.mjs`, with its default `--since` (the live build). It plans every default-codebase function, because `functions/index.js` changed.
 
 - **Functions (exact names):**
   - mastery: `updateMyMathPathMasteryFromEvidence`
@@ -147,9 +154,12 @@ Order: functions → rules → Hosting → scripts. Run the release planner firs
 - **Indexes:** none new.
 - **Hosting** via `npm run deploy:hosting`. Deploy when no Live Challenge rooms are live.
 - **One-off scripts, after everything above is live (dry run first, then `--execute`):**
-  1. `node scripts/backfill-mastery-scoring.mjs --project <id>`. Check the report: `refused` should be 0.
-  2. `node scripts/migrate-integrity-override-notes.mjs --project <id>`
-  3. `node scripts/scrub-live-challenge-public-ranks.mjs --project <id>`
+  1. `node scripts/backfill-mastery-scoring.mjs --project <id>`.
+     - Run it after hours, and well after Hosting: an open tab on the old bundle reads the server number alone until it reloads.
+     - Expect `refused` > 0 (a modified final attempt carries no weight under the new scoring); refused students are left as they are.
+     - The report also gives `pathReviewsReclassified` (R2-M2) and `failed`.
+  2. `node scripts/migrate-integrity-override-notes.mjs --project <id>`. Entries reported `not-an-integrity-override` are left untouched by design.
+  3. `node scripts/scrub-live-challenge-public-ranks.mjs --project <id>`, when no Live Challenge room is live.
 
 ## 5. Files outside lane I
 
