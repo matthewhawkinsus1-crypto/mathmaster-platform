@@ -2353,6 +2353,46 @@ function QuestionEngineBody({
         data-algebra-engine={algebraWorkspaceRoute.engine || undefined}
         style={{ position: 'relative' }}
       >
+        {/* THE CLOSED QUESTION'S VERDICT SITS IN THE FLOW, BESIDE THE OPENER.
+            It used to float over the top-right corner (absolute, top 12 right
+            12) — on "⤢ Enlarge question" and on the "Complete Each Part"
+            heading at 1366x768 and 390x844 (release-candidate QA m7). Now it is
+            the first row of the work: it stops short of the opener
+            (--mm-work-view-opener-space, published by EnlargeableFigure) and
+            the row is at least as tall as the opener's bottom edge, so nothing
+            below it starts under the button either. Still shown only once the
+            question is closed and outcome feedback is allowed. */}
+        {isExpired && showOutcomeFeedback && (
+          <div
+            className="mathmaster-closed-verdict-row"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              minHeight: 'var(--mm-work-view-opener-bottom, 0px)',
+              marginRight: 'var(--mm-work-view-opener-space, 0px)',
+              marginBottom: '8px',
+            }}
+          >
+            <div
+              aria-label={expiredAlmost ? 'Almost' : 'Incorrect'}
+              role="status"
+              className="mathmaster-closed-verdict"
+              style={{
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                padding: '8px 12px',
+                borderRadius: '999px',
+                border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`,
+                background: expiredAlmost ? 'rgba(255,248,225,0.96)' : 'rgba(252,232,230,0.96)',
+                color: expiredAlmost ? 'var(--mm-warning-text)' : 'var(--mm-error-text)',
+                fontWeight: 900,
+                boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
+              }}
+            >
+              {expiredAlmost ? 'Almost' : 'Incorrect'}{reviewAvailable && feedbackOpen ? ' — review below' : ''}
+            </div>
+          </div>
+        )}
         {!solverWorkspaceActive && guidedCoach}
         {/* Inside the work area, not after the question container: on a
             phone that container is a fixed full-height box and anything after
@@ -2444,28 +2484,6 @@ function QuestionEngineBody({
           </div>
         )}
 
-        {isExpired && showOutcomeFeedback && (
-          <div
-            aria-label={expiredAlmost ? 'Almost' : 'Incorrect'}
-            role="status"
-            style={{
-              position: 'absolute',
-              top: '12px',
-              right: '12px',
-              zIndex: 30,
-              pointerEvents: 'none',
-              padding: '8px 12px',
-              borderRadius: '999px',
-              border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`,
-              background: expiredAlmost ? 'rgba(255,248,225,0.96)' : 'rgba(252,232,230,0.96)',
-              color: expiredAlmost ? 'var(--mm-warning-text)' : 'var(--mm-error-text)',
-              fontWeight: 900,
-              boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
-            }}
-          >
-            {expiredAlmost ? 'Almost' : 'Incorrect'}{reviewAvailable && feedbackOpen ? ' — review below' : ''}
-          </div>
-        )}
       </div>
       </EnlargeableFigure>
       </WorkViewCapabilityProvider>
