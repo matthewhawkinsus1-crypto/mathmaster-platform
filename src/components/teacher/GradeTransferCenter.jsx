@@ -22,6 +22,7 @@ import {
   districtIdSavedMessage,
   validateDistrictIdDraft,
 } from '../../platform/teacher/studentDistrictIdModel.js';
+import Dialog from '../../ui/Dialog.jsx';
 import DistrictIdEditor from './DistrictIdEditor.jsx';
 import { buildGradebookZip } from '../../platform/gradeTransfer/gradeTransferPackage.js';
 import {
@@ -723,7 +724,7 @@ export default function GradeTransferCenter({
     )}
 
     {plan && (
-      <div className="tw-review" role="dialog" aria-modal="true" aria-labelledby="grade-export-review-title" onKeyDown={(event) => { if (event.key === 'Escape' && !busy) setPlan(null); }}>
+      <Dialog className="tw-review" onClose={() => setPlan(null)} closeOnEscape={!busy} aria-labelledby="grade-export-review-title">
         <div className="tw-review__panel">
           <h3 id="grade-export-review-title" style={{ margin: 0 }}>{plan.title}</h3>
           <dl>
@@ -761,7 +762,7 @@ export default function GradeTransferCenter({
             <button type="button" className="tw-btn tw-btn--primary" disabled={busy} onClick={runExport} autoFocus>{busy ? 'Saving…' : 'Download ZIP'}</button>
           </div>
         </div>
-      </div>
+      </Dialog>
     )}
 
     <p className="tw-small tw-muted" style={{ margin: 0 }}>TEAMS files contain only the verified numeric district student ID and grade. Student names and MathMaster account keys stay on this screen and never appear in a CSV.</p>

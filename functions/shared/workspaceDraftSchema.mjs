@@ -192,6 +192,99 @@ export const readWorkspaceDraftEntries = (document) => (
   })
 );
 
+/*
+ * A WORKSPACE A DEVICE STARTED FROM NOTHING IS MERGED, NOT SWAPPED IN.
+ *
+ * `${draftKey}:work:${scope}` (src/tools/shared/usePersistentToolState.js) is
+ * one record holding every answerable value of a tool — the Multiple
+ * Representations board keeps twenty fields and its collapsed panels in one.
+ * A field is in it only once a device has set it: initial values are never
+ * written, and no field is ever removed (a reset tombstones the whole record
+ * with null).
+ *
+ * The question opens before the server's copy is read (PQ-044). On a
+ * Chromebook that has never seen this work the record therefore starts empty,
+ * and the student's first edit — a typed box, a collapsed panel, "Find the
+ * slope" — saved `{ thatField }` as the newest copy of the whole workspace.
+ * Newest-wins per key kept that on the server and restored it over every
+ * other device: the whole board, gone everywhere.
+ *
+ * So a record a device starts from NOTHING — no copy of any kind on that
+ * device, not even a reset's tombstone — says so: `__fresh` lists the fields
+ * its student has edited. Laid over a copy it never saw, a fresh record
+ * contributes those fields, and any field only it holds; everything else
+ * comes from that copy, and the result is no longer fresh. Every other
+ * record replaces as before, newest whole — which is what keeps "Start over"
+ * stuck: a record begun on a reset is not fresh, even when the reset itself
+ * never reached the server (the sync sends only a key's newest copy).
+ *
+ * A draft key's segments are URI-encoded (buildQuestionDraftKey), so the five
+ * after the prefix — student, assignment, question, variant, bucket — hold no
+ * ':'. The device-local Undo history (`…:work:<scope>:undo:<owner>`) never
+ * reaches the server and is not a workspace record.
+ */
+const TOOL_WORKSPACE_KEY = /^mathmaster:draft:v2::(?:[^:]*:){5}work:/;
+
+export const isToolWorkspaceDraftKey = (key) => {
+  const text = String(key || '');
+  return TOOL_WORKSPACE_KEY.test(text) && !text.includes(':undo:');
+};
+
+export const TOOL_WORKSPACE_FRESH_FIELD = '__fresh';
+
+const isFieldRecord = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/** The fields a fresh workspace record's student edited, or null for a record that is not fresh. */
+export const freshToolWorkspaceEdits = (value) => {
+  const marker = isFieldRecord(value) ? value[TOOL_WORKSPACE_FRESH_FIELD] : undefined;
+  return Array.isArray(marker) ? marker.filter((field) => typeof field === 'string') : null;
+};
+
+/** A workspace record's own fields, without the fresh marker. Anything else is returned as it is. */
+export const toolWorkspaceFields = (value) => {
+  if (!isFieldRecord(value)) return value;
+  const { [TOOL_WORKSPACE_FRESH_FIELD]: _fresh, ...fields } = value;
+  return fields;
+};
+
+/**
+ * A fresh workspace record laid over a copy it never saw: the fields its
+ * student edited and any field only it holds, every other field from `seen`.
+ * The result is no longer fresh.
+ */
+export const mergeFreshToolWorkspace = (seen, fresh) => {
+  const edited = new Set(freshToolWorkspaceEdits(fresh) || []);
+  const merged = { ...toolWorkspaceFields(isFieldRecord(seen) ? seen : {}) };
+  Object.entries(toolWorkspaceFields(fresh)).forEach(([field, value]) => {
+    if (edited.has(field) || !Object.hasOwn(merged, field)) merged[field] = value;
+  });
+  return merged;
+};
+
+/**
+ * The stored entry two copies of one tool workspace become when the newer is
+ * fresh, or null to apply the ordinary rule (the newer copy, whole). Equal
+ * times are one device re-sending, which the ordinary rule already handles.
+ */
+const mergeToolWorkspaceEntries = (current, incoming) => {
+  if (current.savedAt === incoming.savedAt) return null;
+  const [older, newer] = current.savedAt > incoming.savedAt ? [incoming, current] : [current, incoming];
+  let olderValue;
+  let newerValue;
+  try {
+    olderValue = JSON.parse(older.valueJson);
+    newerValue = JSON.parse(newer.valueJson);
+  } catch {
+    return null;
+  }
+  if (!freshToolWorkspaceEdits(newerValue)) return null;
+  // Over a record, merged; over a reset or a value an older build stored,
+  // there is nothing to keep, and the fresh record simply stops being fresh.
+  const value = isFieldRecord(olderValue) ? mergeFreshToolWorkspace(olderValue, newerValue) : toolWorkspaceFields(newerValue);
+  if (!sanitizeWorkspaceDraftValue(value).ok) return null;
+  return storableEntry({ ...newer, value });
+};
+
 /** Preview, secure Test Cycle and private Path work never reach this collection. */
 export const isSyncableDraftKey = (key) => {
   const text = String(key || '');
@@ -307,6 +400,12 @@ export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => 
   });
   patch.entries.forEach((entry) => {
     const current = byKey.get(entry.key);
+    // A tool workspace a device started from nothing is merged (above).
+    const merged = current && isToolWorkspaceDraftKey(entry.key) ? mergeToolWorkspaceEntries(current, entry) : null;
+    if (merged) {
+      byKey.set(entry.key, merged);
+      return;
+    }
     // Ties go to the incoming write: it is the same device re-sending.
     if (current && current.savedAt > entry.savedAt) return;
     byKey.set(entry.key, entry);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Dialog from '../../ui/Dialog.jsx';
 import { describeAuthError, teacherAdmin } from '../../auth/authService.js';
 
 const LABELS = {
@@ -137,9 +138,10 @@ export default function AssignmentContentUpgradeModal({
         padding: 20,
       }}
     >
-      <section
-        role="dialog"
-        aria-modal="true"
+      <Dialog
+        as="section"
+        onClose={onClose}
+        closeOnEscape={!committing}
         aria-label="Upgrade assignment content"
         style={{
           width: 'min(900px, 100%)',
@@ -281,7 +283,7 @@ export default function AssignmentContentUpgradeModal({
             )}
           </div>
         </div>
-      </section>
+      </Dialog>
     </div>
   );
 }

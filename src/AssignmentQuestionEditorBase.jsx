@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
 import { useToast } from './ui/Toast';
+import Dialog from './ui/Dialog.jsx';
 import { buildQuestionRepairRequest, parseQuestionRepairResponse } from './platform/contract/questionRepairRequest.js';
 import { buildSafeLiveRepairPackRequest } from './platform/contract/safeLiveRepairPackContract.js';
 import {
@@ -29,7 +30,8 @@ import {
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
-import { normalizeQuestionWeight, suggestedQuestionWeight } from './platform/grading/questionWeights.js';
+import { normalizeQuestionWeight, questionWeightShares, suggestedQuestionWeight } from './platform/grading/questionWeights.js';
+import { V5_SECTION_TITLES } from './platform/contract/assignmentSchemaV5.js';
 import {
   carryQuestionValue,
   describeQuestionValue,
@@ -110,6 +112,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       .reduce((total, question) => total + normalizeQuestionWeight(question), 0),
     [questions],
   );
+  // Each section is graded and exported on its own, so a weight is shown as
+  // its share of its section's grade as well as of the whole assignment's.
+  const weightShares = useMemo(() => questionWeightShares(questions), [questions]);
 
   const copyAiWeightReview = async () => {
     setWeightReviewBusy(true);
@@ -595,7 +600,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     if (hasLiveProtection && changedWeights.length > 0) {
       const proceed = await confirmAction({
         title: `Recalculate live grades using ${changedWeights.length} new question weight${changedWeights.length === 1 ? '' : 's'}?`,
-        message: 'Student answers, attempts, and partial-credit history will stay exactly as recorded. Their current assignment percentages will be recalculated from those same records using the new weights, and MathMaster will queue Google Classroom to reconcile its grade.',
+        message: 'Student answers, attempts, and partial-credit history will stay exactly as recorded. Their assignment grade, and the grade of each section a re-weighted question is in, will be recalculated from those same records using the new weights. MathMaster will queue Google Classroom to reconcile those grades, and Grade Transfer will mark anything already exported whose grades change as Changed since export.',
         confirmLabel: 'Recalculate Grades',
       });
       if (!proceed) return;
@@ -614,7 +619,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
 
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 15000, background: 'rgba(32,33,36,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px' }}>
-      <section role="dialog" aria-modal="true" aria-label="Edit assignment questions" style={{ width: 'min(1080px, 97vw)', maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--mm-surface)', borderRadius: '16px', boxShadow: '0 28px 80px rgba(0,0,0,.4)' }}>
+      <Dialog as="section" aria-label="Edit assignment questions" onClose={onClose} closeOnEscape={false} style={{ width: 'min(1080px, 97vw)', maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--mm-surface)', borderRadius: '16px', boxShadow: '0 28px 80px rgba(0,0,0,.4)' }}>
         <header style={{ padding: '20px 24px', borderBottom: '1px solid var(--mm-border-soft)', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center' }}>
           <div><h2 style={{ margin: 0 }}>Assignment Question Editor</h2><p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)' }}>{hasLiveProtection ? 'This assignment is live or has student history. Existing question IDs and indexes are protected. Safe live response-entry repairs are allowed; real rewrites are still blocked.' : 'No student records exist. Questions may be removed and reordered permanently.'}</p></div>
           <button type="button" onClick={onClose} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 800 }}>Close</button>
@@ -705,7 +710,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                         <span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: '10px', fontWeight: 900 }}>{metadataSummary.difficultyLabel}</span>
                         <span title={describeQuestionValue(question).sentence} data-question-value-source={describeQuestionValue(question).source || 'legacy'} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '10px', fontWeight: 900 }}>
                           GRADE ×{normalizeQuestionWeight(question)}
-                          {excluded || totalGradeWeight <= 0 ? '' : ` · ${((normalizeQuestionWeight(question) / totalGradeWeight) * 100).toFixed(1)}%`}
+                          {!weightShares[index] ? '' : weightShares[index].sectionCount > 1
+                            ? ` · ${weightShares[index].sectionShare.toFixed(1)}% of ${V5_SECTION_TITLES[weightShares[index].role] || 'its section'} · ${weightShares[index].assignmentShare.toFixed(1)}% of assignment`
+                            : ` · ${weightShares[index].assignmentShare.toFixed(1)}%`}
                         </span>
                         {weightReviewReasons[String(question.questionId)] && (
                           <span
@@ -853,7 +860,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
           {error && <div style={{ marginTop: '15px', padding: '12px', borderRadius: '8px', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontWeight: 800 }}>{error}</div>}
         </div>
         <footer style={{ padding: '16px 24px', borderTop: '1px solid var(--mm-border-soft)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}><button type="button" onClick={onClose} style={{ padding: '10px 16px', border: '1px solid var(--mm-border)', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 800 }}>Cancel</button><button type="button" onClick={save} disabled={saving} style={{ padding: '10px 18px', border: 0, borderRadius: '8px', background: saving ? '#9aa0a6' : '#1a73e8', color: '#fff', fontWeight: 900 }}>{saving ? 'Saving…' : 'Save Assignment Questions'}</button></footer>
-      </section>
+      </Dialog>
     </div>
   );
 }

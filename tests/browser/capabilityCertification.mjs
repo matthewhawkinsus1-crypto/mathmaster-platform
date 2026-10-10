@@ -40,7 +40,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { balancedMove, cancelFactor, cancellationLabels, combineLikeTerms, distribute, setMathField, settle, simplifySide } from './stepAlgebraDriver.mjs';
+import { balancedMove, cancelFactor, cancellationLabels, termSelector, combineLikeTerms, distribute, setMathField, settle, simplifySide } from './stepAlgebraDriver.mjs';
 import { expressionsEquivalent, latexToExpression } from '../../src/algebraAstEngine.js';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -199,9 +199,9 @@ const subtractSeven = async (page, step) => {
   await settle(page, 600);
   step('cancel +7 with −7');
   const labels = await cancellationLabels(host);
-  const plusSeven = labels.find((label) => /^\+\s*7,/.test(label));
+  const plusSeven = labels.find((label) => /^\+\s*7$/.test(label));
   check(Boolean(plusSeven), `a +7 to cancel: ${JSON.stringify(labels)}`);
-  await page.locator(`[aria-label="${plusSeven}"]:visible`).first().click();
+  await page.locator(`${termSelector(plusSeven, 'select to cancel')}:visible`).first().click();
   await settle(page, 1200);
   if (await page.locator('.algebra-optional-simplification').count()) {
     step('simplify the right side to 16');
@@ -371,8 +371,9 @@ await journey('inequality-like-terms', 'inequality-like-terms', async (page, ste
   step('open Combine like terms and choose 2x and 3x');
   await visibleButton(page, /^Combine like terms$/).click();
   await settle(page, 300);
-  await visibleLabelled(page, '2 x, select as a term to combine').click();
-  await visibleLabelled(page, '3 x, select as a term to combine').click();
+  // By source text: the chips' accessible names are spoken math.
+  await page.locator('button[data-term-text="2 x"][aria-label$="select as a term to combine"]:visible').first().click();
+  await page.locator('button[data-term-text="3 x"][aria-label$="select as a term to combine"]:visible').first().click();
   await settle(page, 300);
   const field = page.locator('math-field[aria-label^="Enter the single term these selected terms combine to"]:visible').first();
   const focused = await page.evaluate(() => document.activeElement?.tagName?.toLowerCase());

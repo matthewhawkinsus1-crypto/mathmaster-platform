@@ -201,7 +201,8 @@ async function recoveryPracticeEmptyJourney() {
   const { context, page } = await open('mode=recovery-practice');
   await page.waitForSelector('[data-recovery-runner="practice"]', { timeout: 120000 });
   await settle(page);
-  expect(/no practice question to show/i.test(await page.locator('body').innerText()), 'the runner says so (on main: resolveQuestionMaximumAttempts(null) threw and replaced the app)');
+  const empty = page.locator('[data-recovery-practice-empty]');
+  expect(await empty.count() === 1 && /no new practice questions left/i.test(await empty.innerText()), 'the runner says so (on main: resolveQuestionMaximumAttempts(null) threw and replaced the app)');
   expect(!(await uncaught(page)).length, 'no uncaught error');
   await context.close();
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import { splitAdditiveTerms } from './algebraAstEngine';
+import { spokenMathLabel } from './platform/language/mathSpeechLabel.js';
 import {
   armFactor,
   initDistributionState,
@@ -176,7 +177,10 @@ export function RelationLikeTermsPanel({ state, branchIndex = 0, onCommit, onClo
             <button
               key={`${term.text}-${index}`}
               type="button"
-              aria-label={`${term.text.replace(/^\+\s*/, '')}, select as a term to combine`}
+              // Spoken, not program syntax ("-6 * x"); the source text stays on
+              // data-term-text for code that must find a term.
+              aria-label={`${spokenMathLabel(term.text.replace(/^\+\s*/, ''))}, select as a term to combine`}
+              data-term-text={term.text.replace(/^\+\s*/, '')}
               aria-pressed={isSelected}
               onClick={() => setSelected((current) => (isSelected ? current.filter((entry) => entry !== index) : [...current, index]))}
               style={chip(isSelected)}

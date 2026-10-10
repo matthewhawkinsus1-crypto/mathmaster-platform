@@ -10,6 +10,7 @@ import CoordinatePlane from '../shared/CoordinatePlane';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
+import Dialog from '../../ui/Dialog.jsx';
 import { isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import './LinearMultipleRepresentationsBoard.css';
@@ -499,27 +500,21 @@ function GivenRepresentation({ description, graphBounds }) {
 function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
   const titleId = useId();
   const closeRef = useRef(null);
+  // Dialog opens on the close button and answers Escape; focus goes back to
+  // this graph's own Enlarge button, which a click does not focus in Safari.
   useEffect(() => {
     if (!open) return undefined;
     const focusTarget = returnFocusRef?.current || null;
-    closeRef.current?.focus({ preventScroll: true });
-    const onKey = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('keydown', onKey);
       focusTarget?.focus?.({ preventScroll: true });
     };
-  }, [open, onClose, returnFocusRef]);
+  }, [open, returnFocusRef]);
   if (!open) return null;
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      onClose={onClose}
+      initialFocusRef={closeRef}
+      returnFocus={false}
       aria-labelledby={titleId}
       data-lmr-dialog={graph.key}
       style={{
@@ -559,7 +554,7 @@ function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
         </div>
         {children}
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -711,13 +706,17 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     const next = typeof updater === 'function' ? updater(current) : updater;
     return readProcessDraft({ ...next, bind: processBinding }, processBinding);
   }), [setRawProcessDraft, processBinding]);
-  // Work recorded for another question — another version of a Question Family
-  // slot — establishes nothing here, so it is cleared rather than kept.
-  useEffect(() => {
-    if (!processMode) return;
-    if (processState?.stale) setProcessLog(null);
-    if (rawProcessDraft && rawProcessDraft.bind !== processBinding) setRawProcessDraft(null);
-  }, [processMode, processState?.stale, rawProcessDraft, processBinding, setProcessLog, setRawProcessDraft]);
+  // Work recorded for another version of this Question Family slot
+  // establishes nothing here — resolveLmrProcess ignores a log bound to
+  // another version, and readProcessDraft opens an empty workspace for one —
+  // but it is never erased just because it was seen. Until the first Submit
+  // pins the version on the server, another Chromebook can be dealt a
+  // different version under this same draft key, and a question that cannot
+  // be read for a moment binds as 'lmr1-invalid'. Erasing on sight made either
+  // permanent: the next keystroke synced the erased log to every device, and
+  // the device still showing the original version came back to locked cards.
+  // The first work recorded on this version replaces it (appendProcessEntry
+  // starts a log bound to this version; setProcessDraft rebinds the draft).
   const processRelevant = useMemo(() => (processMode ? lmrRelevantFacts(questionData) : []), [processMode, questionData]);
   const processSnapStep = useMemo(() => (processMode ? lmrProcessSnapStep(questionData, canonicalFacts) : 1), [processMode, questionData, canonicalFacts]);
   // The embedded algebra workspaces keep their drafts beside this question's,

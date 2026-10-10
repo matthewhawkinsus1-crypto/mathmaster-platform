@@ -20,6 +20,7 @@ const student = read('src/components/liveChallenge/LiveChallengeStudent.jsx');
 const teacher = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');
 const projector = read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx');
 const parts = read('src/components/liveChallenge/ChallengeShellParts.jsx');
+const dialogSource = read('src/ui/Dialog.jsx');
 const studentShell = read('src/components/liveChallenge/ChallengeStudentShell.jsx');
 const rushRound = read('src/components/liveChallenge/GraphFeatureRushRound.jsx');
 const studentMain = region(student, 'export default function LiveChallengeStudent(', null, 'student screen');
@@ -158,15 +159,20 @@ test('destructive host actions are confirmed once; harmless ones never ask', () 
 
 test('a confirmation keeps keyboard focus where the teacher put it, and Tab inside it', () => {
   const dialog = region(parts, 'export function ConfirmDialog(', '\nconst CONFETTI_COLORS', 'confirm dialog');
-  // The console hands a new onCancel every time a student's progress arrives:
-  // read through a ref, it can never re-run the focus effect (which put focus
-  // back on "Keep playing" under a teacher tabbing to the red button).
-  assert.match(dialog, /const onCancelRef = useLatest\(onCancel\);/);
-  assert.match(dialog, /\}, \[open, onCancelRef\]\);/);
-  assert.doesNotMatch(dialog, /\[open, onCancel\]/);
+  // The console hands a new onCancel every time a student's progress arrives.
+  // It must never re-run the focus step (which put focus back on "Keep
+  // playing" under a teacher tabbing to the red button). The confirm is the
+  // shared Dialog, opening on "Keep playing" and cancelling on Escape, with no
+  // focus effect of its own keyed on onCancel...
+  assert.match(dialog, /<Dialog role="alertdialog" onClose=\{onCancel\} initialFocusRef=\{cancelRef\}/);
+  assert.doesNotMatch(executableSource(dialog), /useEffect|\[open, onCancel\]/);
+  // ...and the Dialog reads onClose through a ref and focuses once per opening.
+  const modal = region(dialogSource, 'export function useModalDialog(', '\nconst Dialog = ', 'useModalDialog');
+  assert.match(modal, /onCloseRef\.current = onClose;/);
+  assert.match(modal, /\n {2}\}, \[active\]\);\n\}\s*$/);
   // aria-modal is kept: Tab and Shift+Tab wrap inside the dialog.
-  assert.match(dialog, /if \(event\.key !== 'Tab'\) return;/);
-  assert.match(dialog, /\(event\.shiftKey \? last : first\)\.focus\(\);/);
+  assert.match(modal, /if \(event\.key !== 'Tab'\) return;/);
+  assert.match(modal, /nextFocusIndex\(\{ count: items\.length, activeIndex: items\.indexOf\(doc\.activeElement\), shift: event\.shiftKey \}\)/);
 });
 
 test('Play Again is a fresh match with the same settings; its name settings are secured or it is cancelled', () => {

@@ -275,10 +275,15 @@ test('the enlarged graph keeps its task, the Graph 3 anchor, and its own Check',
   assert.match(dialog, /graph3Guide/);
   assert.match(dialog, /data-card-check="true"/);
   assert.match(dialog, /graphControls\(graph\)/);
+  // The enlarged graph is a modal dialog that Escape closes: it is the shared
+  // Dialog (role="dialog", aria-modal, focus trap, Escape -> onClose), opening
+  // on its close button and named by its visible title.
   const shell = region(source, 'function GraphDialog(', '\n}\n', 'GraphDialog');
-  assert.match(shell, /role="dialog"/);
-  assert.match(shell, /aria-modal="true"/);
-  assert.match(shell, /event\.key === 'Escape'/);
+  assert.match(source, /^import Dialog from '\.\.\/\.\.\/ui\/Dialog\.jsx';$/m);
+  assert.match(shell, /<Dialog\s[^>]*onClose=\{onClose\}/);
+  assert.match(shell, /<Dialog\s[^>]*initialFocusRef=\{closeRef\}/);
+  assert.match(shell, /<Dialog\s[^>]*aria-labelledby=\{titleId\}/);
+  assert.match(shell, /<\/Dialog>/);
 });
 
 test('the comparison overlay appears only after all three graphs are verified, and prints no equation', () => {

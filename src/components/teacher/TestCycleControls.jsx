@@ -292,7 +292,14 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
     </p>
   );
   const confirmBox = (pending) => (
-    <div role="alertdialog" aria-modal="true" aria-labelledby="test-cycle-confirm-title" style={{ margin: '12px 0', padding: 14, borderRadius: 10, border: '2px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
+    // Inline, not modal (no backdrop): the page stays reachable, so no
+    // aria-modal. Escape cancels this confirm before it can reach a dialog
+    // around it (the assignment hub), which ignores a handled Escape.
+    <div
+      role="alertdialog"
+      aria-labelledby="test-cycle-confirm-title"
+      onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); setPendingConfirm(null); } }}
+      style={{ margin: '12px 0', padding: 14, borderRadius: 10, border: '2px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
       <strong id="test-cycle-confirm-title">{pending.title}</strong>
       <p style={{ margin: '6px 0 10px', lineHeight: 1.5 }}>{pending.body}</p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
