@@ -106,7 +106,10 @@ export const masteryChecklist = (profile = {}) => {
     },
     {
       key: 'independent',
-      label: `Get ${rule.masteredIndependentSuccesses} right on your own — no hints, worked steps or read-aloud of the math`,
+      // What actually counts as help (mathematicalIndependence): hints and
+      // worked steps. Read-aloud and other accommodations do not, and saying
+      // they do would steer a student off an accommodation (QA M5).
+      label: `Get ${rule.masteredIndependentSuccesses} right on your own — no hints or worked steps`,
       met: facts.independentSuccesses >= rule.masteredIndependentSuccesses,
       progress: `${Math.min(facts.independentSuccesses, rule.masteredIndependentSuccesses)} of ${rule.masteredIndependentSuccesses}`,
     },

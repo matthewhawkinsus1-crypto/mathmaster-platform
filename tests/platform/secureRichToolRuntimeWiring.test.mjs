@@ -68,7 +68,9 @@ test('a tool item runs the real engine server-graded, under the server-stamped m
   assert.match(toolItem, /activityPolicy=\{activityPolicy\}/);
   assert.match(toolItem, /engineActivityPolicyForMode\(policy\.mode\)/);
   assert.match(toolItem, /onResponseStateChange=\{handleRawWork\}/);
-  assert.match(toolItem, /submitLabel=\{policy\.secure \? 'Record answer' : null\}/);
+  // A secure item's final action never says "Check": it records the answer —
+  // or, in a test the student moves around in, saves it as a draft.
+  assert.match(toolItem, /submitLabel=\{policy\.secure \? \(navigationMode \? 'Save answer' : 'Record answer'\) : null\}/);
   assert.match(toolItem, /showStandardBadge=\{false\}/);
   assert.match(toolItem, /assessmentContext=\{assessmentContext\}/);
   // The submit carries the raw construction, never a verdict.
@@ -91,11 +93,13 @@ test('Rich Tool work survives: device drafts restored before mount, and sent wit
   assert.match(toolItem, /if \(!edit \|\| !belongsToDraft\(key, draftKey\)\) return;/);
 });
 
-test('the secure container gives each item its draft key and cleans up after recording', () => {
+test('the secure container gives each item its draft key and cleans up when the test is finished', () => {
   assert.match(container, /secureItemDraftKey\(\{ surface: 'exam', sessionId: examSessionId, questionInstanceId \}\)/);
   assert.match(container, /draftKey=\{itemDraftKey\(session\.examSessionId, question\?\.questionInstanceId\)\}/);
-  const submit = region(container, 'const submitResponse = async (', 'const autosaveDraft = useCallback(', 'submit');
-  assert.match(submit, /removeQuestionDraftFamily\(itemDraftKey\(session\.examSessionId, question\.questionInstanceId\)\)/);
+  // Nothing is recorded question by question any more: every item's work stays
+  // until the test is finished, and finishing removes the whole session's.
+  const finish = region(container, 'const finish = useCallback(', 'finishRef.current = finish;', 'finish');
+  assert.match(finish, /await finalizeSecureExam\(\{ examSessionId: active\.examSessionId, reason \}\);[\s\S]{0,200}\n\s*clearLocalDrafts\(active\.examSessionId\);/);
   const clear = region(container, 'const clearLocalDrafts = (', 'const SAVE_LABEL', 'session cleanup');
   assert.match(clear, /removeQuestionDraftFamily\(sessionDraftFamily\(examSessionId\)\)/);
 });
@@ -316,9 +320,11 @@ test('the tool-work gate: a starting state is not work, the student\'s input is,
 test('a reload sends the server the device\'s answer WITH the Rich Tool drafts it restored', () => {
   // A save replaces the server's draft whole: the bare device mirror has no
   // workspace drafts, so sending it deleted another device's construction.
-  const refresh = region(container, 'const refreshQuestion = useCallback(async (activeSessionId) => {', 'const start = async () => {', 'refresh');
+  // Opening (or reopening) a question is where the device copy goes back up.
+  const refresh = region(container, 'const openPosition = useCallback(', 'const move = useCallback(', 'open a question');
   assert.match(refresh, /setQuestion\(\{ \.\.\.instance, _draftResponse: restored \}\);/);
-  assert.match(refresh, /saveSecureExamDraft\(\{ examSessionId: activeSessionId, questionInstanceId: instance\.questionInstanceId, responsePayload: restored, supportUsage: \{\} \}\)/);
+  assert.match(refresh, /request: \{ examSessionId: activeSessionId, questionInstanceId: instance\.questionInstanceId, responsePayload: restored, supportUsage: \{\}, \.\.\.nextDraftStamp\(\) \}/);
+  assert.match(refresh, /pendingDraftRef\.current = resend;\s*runAutosave\(\);/);
   assert.doesNotMatch(refresh, /responsePayload: local\b/);
 });
 
@@ -393,8 +399,13 @@ test('Step Algebra: cue toggle and a draft-borne support level both follow the h
 test('every secure callable grades through secureItems; the field grader is not called directly', () => {
   assert.doesNotMatch(executableSource(functionsIndex), /mathPath\.gradeResponse\(/, 'a secure path still calls the field grader directly');
   const submit = region(functionsIndex, 'exports.submitSecureExamResponse = onCall(', 'exports.recordSecureExamIntegrityEvent', 'submit');
-  assert.match(submit, /const grading = await secureItems\.gradeIssuedItem\(current, request\.data\?\.responsePayload \|\| \{\}\);\s*\/\/[\s\S]{0,400}if \(grading\.rejected\) \{\s*throw new HttpsError\("invalid-argument"/);
-  assert.match(region(functionsIndex, 'async function applyOpenSecureExamDraft(', 'exports.finalizeSecureExam', 'finalize'), /secureItems\.gradeIssuedItem\(current, recordedPayload\)/);
+  assert.match(submit, /const grading = await secureItems\.gradeIssuedItem\(itemData\.item, request\.data\?\.responsePayload \|\| \{\}\);\s*\/\/[\s\S]{0,400}if \(grading\.rejected\) \{\s*throw new HttpsError\("invalid-argument"/);
+  // Finalize (student submit, timer, proctor force-submit) grades every open
+  // draft through the same authority, in secureExamItems.buildResponseRecord.
+  assert.match(region(functionsIndex, 'async function finalizeSecureSessionInTransaction(', 'exports.finalizeSecureExam', 'finalize'), /secureExamItems\.finalizeOpenItems\(/);
+  const items = read('functions/lib/secureExamItems.js');
+  assert.match(region(items, 'async function buildResponseRecord(', 'function recordedPayloadOf(', 'response record'), /: await secureItems\.gradeIssuedItem\(storedItem, responsePayload \|\| \{\}\);/);
+  assert.doesNotMatch(executableSource(items), /mathPath\.gradeResponse\(/);
   assert.match(region(functionsIndex, 'exports.submitTestCycleCorrectionResponse = onCall(', 'async function ensureRetestSession', 'corrections submit'), /secureItems\.gradeIssuedItem\(openForGrading,/);
   assert.match(region(functionsIndex, 'exports.gradeTestCyclePreviewItem = onCall(', 'const ASSIGNMENT_EVIDENCE_GRADE_MAPS', 'preview grade'), /secureItems\.gradeItem\(issuePlan\.privateGrading/);
 });
@@ -411,14 +422,15 @@ test('an issued Rich Tool item is stored with its tool fields encoded (Firestore
   assert.deepEqual(storage.readStoredItem(stored), item);
   assert.deepEqual(storage.readStoredItem(item), item, 'a document written before the encoding reads back unchanged');
   // Every write of an issued item goes through it.
-  assert.match(region(functionsIndex, 'async function issueCourseTestQuestion(', 'exports.updateMyMathPathMasteryFromEvidence', 'course test issue'), /const currentQuestion = secureItems\.storableItem\(\{/);
+  assert.match(region(functionsIndex, 'async function buildCourseTestExamItem(', 'exports.updateMyMathPathMasteryFromEvidence', 'course test issue'), /const storedItem = secureItems\.storableItem\(\{/);
+  assert.match(region(functionsIndex, 'async function buildSimulationExamItem(', 'exports.issueSecureExamQuestion = onCall(', 'simulation issue'), /storedItem: secureItems\.storableItem\(\{/);
   assert.match(region(functionsIndex, 'exports.issueTestCycleCorrectionQuestion = onCall(', 'exports.submitTestCycleCorrectionResponse', 'correction issue'), /issued = secureItems\.storableItem\(\{/);
-  const submit = region(functionsIndex, 'exports.submitSecureExamResponse = onCall(', 'exports.recordSecureExamIntegrityEvent', 'submit');
-  assert.match(submit, /questionSnapshot: secureItems\.storableItem\(await reviewSnapshotOf\(current, session\)\)/);
+  // Every recorded response's snapshot too (secureExamItems.buildResponseRecord).
+  assert.match(region(read('functions/lib/secureExamItems.js'), 'async function buildResponseRecord(', 'function recordedPayloadOf(', 'response record'), /questionSnapshot: secureItems\.storableItem\(snapshot\)/);
 });
 
 test('every secure issue path checks the item\'s certification and sends the mode-aware payload', () => {
-  assert.match(region(functionsIndex, 'async function issueCourseTestQuestion(', 'exports.updateMyMathPathMasteryFromEvidence', 'course test issue'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: runtimeMode \}\)[\s\S]{0,120}if \(!certification\.compatible\)/);
+  assert.match(region(functionsIndex, 'async function buildCourseTestExamItem(', 'exports.updateMyMathPathMasteryFromEvidence', 'course test issue'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: runtimeMode \}\)[\s\S]{0,120}if \(!certification\.compatible\)/);
   assert.match(region(functionsIndex, 'exports.issueTestCycleCorrectionQuestion = onCall(', 'exports.submitTestCycleCorrectionResponse', 'correction issue'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: "corrections" \}\);\s*if \(!certification\.compatible\) continue;/);
   assert.match(region(functionsIndex, 'exports.previewTestCycleSecureItems = onCall(', 'exports.gradeTestCyclePreviewItem', 'preview issue'), /secureItems\.certifyItem\(instantiated\.question, \{ mode: runtimeMode \}\)/);
   assert.match(region(functionsIndex, 'async function secureExamPublicQuestion(', 'function assertStudentExamSession', 'public question'), /secureItems\.publicItem\(question, \{ mode: mode \|\| "secureTest" \}\)/);

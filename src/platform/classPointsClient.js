@@ -262,6 +262,9 @@ export const sourceTypeLabel = (transaction = {}) => {
     case 'liveChallengeAchievement': return 'Live Challenge';
     case 'rewardRedemption': return 'Reward redeemed';
     case 'rewardRefund': return 'Reward returned';
+    // Paid by the server's growth rules (functions/shared/growthRewardRules.mjs),
+    // not by a teacher: it must not read as "Teacher award".
+    case 'growthReward': return 'Growth reward';
     default: return 'Teacher award';
   }
 };
@@ -322,6 +325,8 @@ export const describeClassPointTransaction = (transaction = {}) => {
         ? 'refund'
       : transaction.sourceType === 'liveChallengeAchievement'
         ? 'challenge'
+      : transaction.sourceType === 'growthReward'
+        ? 'growth'
         : 'earned';
   return {
     amount,
@@ -331,10 +336,14 @@ export const describeClassPointTransaction = (transaction = {}) => {
       : kind === 'spent' ? 'Reward used'
         : kind === 'refund' ? 'Points returned'
         : kind === 'challenge' ? 'Live Challenge reward'
+        : kind === 'growth' ? 'Growth reward'
           : 'Earned',
     reasonLabel: String(transaction.reasonLabel || '').trim(),
   };
 };
+
+/** A refusal to read the student's own account, which only a missing document causes. */
+export const accountReadRefusedAsMissing = (error) => /permission-denied/.test(String(error?.code || ''));
 
 /**
  * Subscribe only to one authenticated student's wallet in one real class.
@@ -365,7 +374,16 @@ export const subscribeToStudentClassPoints = ({
     (snapshot) => onAccount(
       snapshot.exists() ? normalizeClassPointAccount(snapshot.data()) : emptyClassPointAccount(),
     ),
-    onError,
+    (error) => {
+      // A student never awarded anything has no account document. The rules
+      // that let them read their own missing account (firestore.rules
+      // classPointAccounts) refused it before they were deployed, and the
+      // wallet said "Temporarily unavailable" to every such student. The id is
+      // this student's own, so a refusal here means "no account yet": an
+      // empty wallet. Any other failure is still an error.
+      if (accountReadRefusedAsMissing(error)) onAccount(emptyClassPointAccount());
+      else onError?.(error);
+    },
   );
   const unsubHistory = onSnapshot(
     historyQuery,

@@ -151,7 +151,9 @@ test('the class\'s taps do not wake every student\'s screen during a rush round'
   assert.doesNotMatch(executableSource(results), /players|leaderboard/, 'never the standings listener');
   assert.match(student, /\{stage === CHALLENGE_STAGE\.ROUND_RESULTS && \(\s*<StudentRoundResults /);
   assert.match(student, /const headerRow = selfEntry && room\.status === 'running' && selfFresh \? selfEntry : null;/);
-  assert.match(student, /const headerPlace = headerRow && projectionFresh && standings\?\.self \? shortPlaceText\(standings\.self\) : null;/);
+  // The header holds no place at all (a rank in the corner of every round is a
+  // rank under the question); its score is the student's own fresh row only.
+  assert.doesNotMatch(executableSource(region(student, 'data-mm-student-score="1"', '</header>', 'score header')), /standings|projection/);
   // With the listener paused, a successful join must not be asked again.
   const join = region(student, 'if (joinRefusedForRef.current === roomId', '.finally(', 'automatic join');
   assert.match(join, /joinedRoomRef\.current === roomId\) return;/);

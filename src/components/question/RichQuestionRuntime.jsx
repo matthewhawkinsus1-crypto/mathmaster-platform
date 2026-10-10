@@ -5,6 +5,10 @@ import MathDisplay from '../../MathDisplay.jsx';
 import PathQuestionStimulus from '../student/PathQuestionStimulus.jsx';
 import PathSolutionReview from '../student/PathSolutionReview.jsx';
 import LinearRegressionPanel from '../assessment/LinearRegressionPanel.jsx';
+import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx';
+import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
+import { SUPPORT_TOOL } from '../../platform/language/supportToolsEntitlement.js';
+import { secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
 import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyResolver.js';
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
@@ -48,11 +52,20 @@ import { assessmentSupportProfile } from '../../studentSupport.js';
  * refresh, a Chromebook sleep, a dropped connection, a proctor lock), and its
  * raw construction plus those drafts go up with every autosave through
  * `onDraftChange`, so the item reopens on another device as it was left.
+ *
+ * NAVIGATION MODE (`navigationMode`). A secure test the student moves around
+ * in — Previous, Next, a question list, change any answer until Submit — has
+ * no per-question "record" step: every answer is a draft the server grades
+ * once, when the whole test is submitted. So in this mode nothing here
+ * records, gates or continues. A field item has no button of its own (the
+ * container's Previous/Next move on, and autosave keeps the answer); a Rich
+ * Tool's final action is "Save answer", which hands the work to `onSubmit` to
+ * be saved as a draft and always comes back with no result — so the engine
+ * shows no verdict and leaves the tool open for more changes.
  */
 
 const QuestionEngine = lazy(() => import('../../QuestionEngine.jsx'));
 
-const isNumericProfile = (profile) => ['number', 'numeric', 'decimal'].includes(String(profile || '').toLowerCase());
 const belongsToDraft = (key, draftKey) => Boolean(draftKey) && (key === draftKey || String(key || '').startsWith(`${draftKey}:`));
 
 const card = {
@@ -92,12 +105,18 @@ const InstructionalSupport = ({ policy, feedback, isToolItem }) => {
 };
 
 /*
- * A FIELD ITEM. The secure response renderer, unchanged in what it collects:
- * radio cards for choices, a TEXT input for every typed answer (an HTML number
- * input refuses 3/4), the regression calculator panel where the item permits
- * it. Nothing here reads or computes correctness.
+ * A FIELD ITEM. The secure response renderer: radio cards for choices; for a
+ * typed answer, the math editor students use everywhere else, or a plain text
+ * box where the server grader reads typed text and not the editor's LaTeX
+ * (SecureMathAnswerField / secureAnswerEntry.js, which pins every case
+ * against the real grader — 3/4 typed in the editor is accepted); the
+ * regression calculator panel where the item permits it. On a secure item,
+ * Read aloud / Translate / Vocabulary for the PROMPT ONLY, for a student
+ * whose own support plan grants them on a test (SecureItemAccessSupports —
+ * given the raw profile, because the flattened assessment profile loses the
+ * plan's per-activity limits). Nothing here reads or computes correctness.
  */
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, initialResponsePayload, busy, closed, feedback, onSubmit, onDraftChange }) => {
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, initialResponsePayload, busy, closed, feedback, navigationMode = false, onSubmit, onDraftChange }) => {
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
@@ -112,7 +131,9 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!complete || locked) return;
+    // Navigation mode: Enter in an answer box records nothing and moves
+    // nowhere. The answer is already autosaving as a draft.
+    if (navigationMode || !complete || locked) return;
     await onSubmit?.({ responses, toolState: { linearRegression: regressionState } }, supportUsage());
   };
   const updateResponse = (id, value) => {
@@ -139,6 +160,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
         {/* Secure mode deliberately hides TEKS/domain labels while answering,
             but the mathematics itself must still render exactly as authored. */}
         <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(20px, 4vw, 27px)', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
+        {policy.secure && <SecureItemAccessSupports question={question} studentSupportProfile={rawStudentSupportProfile} />}
         {question.formulaLatex && <div style={{ background: 'var(--mm-surface-sunken)', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
         <PathQuestionStimulus stimulus={question.stimulus} />
         {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel value={regressionState} onUsed={() => setCalculatorUsed(true)} onChange={(next) => {
@@ -164,19 +186,13 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                       </label>
                     );
                   }) : (
-                    <input
-                      autoComplete="off"
-                      autoFocus={fieldIndex === 0}
-                      // Keep this a text input even for numeric SPR items. HTML
-                      // number inputs reject valid assessment responses such as
-                      // 3/4; inputMode still gives a numeric-friendly keyboard.
-                      type="text"
-                      inputMode={isNumericProfile(field.inputProfile) ? 'decimal' : undefined}
+                    <SecureMathAnswerField
+                      field={field}
                       value={responses[field.id] ?? ''}
+                      onChange={(next) => updateResponse(field.id, next)}
                       readOnly={locked}
-                      onChange={(event) => updateResponse(field.id, event.target.value)}
-                      aria-label={field.label || `Response ${fieldIndex + 1}`}
-                      style={{ width: '100%', minHeight: 48, padding: '10px 12px', border: '2px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box', fontSize: 17 }}
+                      autoFocus={fieldIndex === 0}
+                      ariaLabel={field.label || `Response ${fieldIndex + 1}`}
                     />
                   )}
                 </fieldset>
@@ -185,8 +201,10 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
           </div>
           {/* Disabled is a token pair, not white on light grey: that read at
               about 1.4:1 in both themes, so "why can't I continue?" had no
-              visible answer. */}
-          <button type="submit" disabled={!enabled} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !enabled ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !enabled ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !enabled ? 'not-allowed' : 'pointer' }}>{actionLabel}</button>
+              visible answer. In navigation mode there is no per-question
+              action at all: nothing is gated on answering, and moving on is
+              the container's Previous/Next. */}
+          {!navigationMode && <button type="submit" disabled={!enabled} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !enabled ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !enabled ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !enabled ? 'not-allowed' : 'pointer' }}>{actionLabel}</button>}
         </form>
         <InstructionalSupport policy={policy} feedback={feedback} isToolItem={false} />
       </section>
@@ -199,10 +217,26 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
  * A RICH TOOL ITEM. QuestionEngine and the authentic registry tool, in
  * server-grading mode, under the mode's activity policy.
  */
-const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, onSubmit, onDraftChange }) => {
+/*
+ * On a secure Rich Tool item the engine's own support tray offers what a
+ * secure item allows — Read aloud and Translate, from the student's own plan
+ * for a test — and nothing else: no Break it down, no Help me say it, and no
+ * Vocabulary, whose glossary entries carry worked examples (the engine's tray
+ * has no way to leave them out yet). A practice surface keeps its tray.
+ */
+const secureToolTrayEntitlement = (rawStudentSupportProfile) => {
+  const entitlement = secureAccessEntitlement(rawStudentSupportProfile);
+  const tools = entitlement.tools.filter((tool) => tool !== SUPPORT_TOOL.VOCABULARY);
+  return { tools, language: tools.includes(SUPPORT_TOOL.TRANSLATE) ? entitlement.language : null };
+};
+
+const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, onSubmit, onDraftChange }) => {
   const latestRawRef = useRef(initialResponsePayload?.raw || null);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
+  // Read at press time: the grader below is built once per item.
+  const navigationModeRef = useRef(navigationMode);
+  navigationModeRef.current = navigationMode;
   const onDraftChangeRef = useRef(onDraftChange);
   onDraftChangeRef.current = onDraftChange;
   const supportUsageRef = useRef({});
@@ -258,11 +292,34 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, draftKey
     submit: async (rawWork, engineSupportUsage) => {
       supportUsageRef.current = engineSupportUsage || {};
       const raw = rawWork && typeof rawWork === 'object' ? rawWork : latestRawRef.current;
-      return (await onSubmitRef.current?.({ responses: {}, raw }, {
+      const supportUsage = {
         calculatorUsed: Boolean(engineSupportUsage?.calculatorUsed),
         accommodations: supportProfile?.accommodations || [],
         modifications: supportProfile?.modifications || [],
-      })) || null;
+      };
+      if (navigationModeRef.current) {
+        /*
+         * "SAVE ANSWER" SAVES A DRAFT AND HANDS THE ENGINE NOTHING BACK.
+         *
+         * Whatever this resolves to becomes QuestionEngine's `feedback`, and
+         * null is the one value that shows nothing and closes nothing: a
+         * result box needs a feedback object, "question complete" needs
+         * status 'correct', a closed question needs `expired` with no tries
+         * left, and `blocked` prints its message as an alert. So the save's
+         * own outcome never comes back through here — the container shows
+         * whether it saved — and the tool stays open to be changed.
+         */
+        if (raw) latestRawRef.current = raw;
+        try {
+          await onSubmitRef.current?.({
+            responses: {},
+            ...(raw ? { raw } : {}),
+            workspaceDrafts: draftKey ? readQuestionDraftFamily(draftKey) : [],
+          }, supportUsage);
+        } catch { /* the container reports a save that did not land */ }
+        return null;
+      }
+      return (await onSubmitRef.current?.({ responses: {}, raw }, supportUsage)) || null;
     },
   // The grader is chosen by the server from what it stored; the tool id only
   // selects how the engine serializes work. Stable per item.
@@ -280,6 +337,11 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, draftKey
   }), [question.questionInstanceId, question.pathToolId]);
 
   const activityPolicy = useMemo(() => engineActivityPolicyForMode(policy.mode), [policy.mode]);
+  // Stable per profile: the engine re-reads its tray when this object changes.
+  const trayEntitlement = useMemo(
+    () => (policy.secure ? secureToolTrayEntitlement(rawStudentSupportProfile) : null),
+    [policy.secure, rawStudentSupportProfile],
+  );
   // The calculator is the assessment's, not the tool's: a course Test's
   // blueprint setting, an item's own, or the student's documented
   // accommodation — exactly as for a field item.
@@ -303,12 +365,14 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, draftKey
           activityRole={activityPolicy.role}
           activityPolicy={activityPolicy}
           studentProfile={supportProfile}
+          supportEntitlement={trayEntitlement}
           showStandardBadge={false}
           draftKey={draftKey}
           assessmentContext={assessmentContext}
           // On a secure item the final action records the one answer and the
-          // verdict is withheld: it is called that, not "Check".
-          submitLabel={policy.secure ? 'Record answer' : null}
+          // verdict is withheld: it is called that, not "Check". In a test the
+          // student moves around in, it saves a draft, and says so.
+          submitLabel={policy.secure ? (navigationMode ? 'Save answer' : 'Record answer') : null}
           serverGrading={serverGrading}
           onResponseStateChange={handleRawWork}
           assignmentLocked={Boolean(closed)}
@@ -341,6 +405,9 @@ export default function RichQuestionRuntime({
   accommodationConfirmed = false,
   studentSupportProfile = null,
   executionScope = 'student',
+  // A secure test the student moves around in (see the header): no
+  // per-question record step, and `onSubmit` only saves a draft.
+  navigationMode = false,
   onSubmit,
   onDraftChange,
 }) {
@@ -380,6 +447,7 @@ export default function RichQuestionRuntime({
         policy={policy}
         calculatorPolicy={calculatorPolicy}
         supportProfile={supportProfile}
+        rawStudentSupportProfile={studentSupportProfile}
         draftKey={draftKey}
         initialResponsePayload={initialResponsePayload}
         busy={busy}
@@ -388,6 +456,7 @@ export default function RichQuestionRuntime({
         feedback={feedback}
         attempt={attempt}
         executionScope={executionScope}
+        navigationMode={navigationMode}
         onSubmit={onSubmit}
         onDraftChange={onDraftChange}
       />
@@ -399,10 +468,12 @@ export default function RichQuestionRuntime({
       policy={policy}
       calculatorPolicy={calculatorPolicy}
       studentSupportProfile={supportProfile}
+      rawStudentSupportProfile={studentSupportProfile}
       initialResponsePayload={initialResponsePayload}
       busy={busy}
       closed={closed}
       feedback={feedback}
+      navigationMode={navigationMode}
       onSubmit={onSubmit}
       onDraftChange={onDraftChange}
     />

@@ -19,6 +19,7 @@ import * as service from '../../../src/platform/liveChallenge/liveChallengeServi
 
 export {
   readLiveChallengeRound,
+  readLiveChallengeSolution,
   readChallengeReport,
   timestampMillis,
   setWarmupChallengeDelivery,
@@ -134,6 +135,7 @@ export const joinLiveChallenge = call('joinLiveChallenge');
 export const startLiveChallenge = call('startLiveChallenge');
 export const closeLiveChallengeRound = call('closeLiveChallengeRound');
 export const advanceLiveChallenge = call('advanceLiveChallenge');
+export const getLiveChallengeMatchRecap = call('getLiveChallengeMatchRecap');
 export const finishLiveChallenge = call('finishLiveChallenge');
 export const cancelLiveChallenge = call('cancelLiveChallenge');
 export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');

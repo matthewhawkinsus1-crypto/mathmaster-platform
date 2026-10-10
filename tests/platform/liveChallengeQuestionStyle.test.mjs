@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { region } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 import { shortPlaceText } from '../../src/platform/liveChallenge/challengeStandingsModel.js';
 
 import {
@@ -59,7 +59,9 @@ test('each style keeps exactly the questions it names', () => {
 /* ---------- it has to reach every draw, not just the first ---------- */
 
 test('the style filters candidates on the server, not in the browser', () => {
-  assert.match(functionsIndex, /async function loadChallengeCandidates\(db, \{ courseId, standardCode, questionStyle = "any" \}\)/);
+  // The style defaults to "any"; the signature also carries the round's timing
+  // for difficulty targeting (liveChallengeDifficulty.mjs).
+  assert.match(functionsIndex, /async function loadChallengeCandidates\(db, \{ courseId, standardCode, questionStyle = "any"[^}]*\}\)/);
   assert.match(functionsIndex, /\.filter\(\(question\) => challenge\.matchesQuestionStyle\(question, style\)\)/);
 });
 
@@ -94,7 +96,7 @@ test('every callable that draws questions honours the style', () => {
 
   // The planner that draws from the bank applies it to every draw.
   const planners = region(functionsIndex, 'const LIVE_CHALLENGE_QUESTION_PLANNERS', 'function liveChallengeQuestionPlanner(', 'question planners');
-  assert.match(planners, /loadChallengeCandidates\(db, \{ courseId, standardCode, questionStyle: modeConfig\.questionStyle \}\)/);
+  assert.match(planners, /loadChallengeCandidates\(db, \{\s*courseId, standardCode, questionStyle: modeConfig\.questionStyle,[^}]*\}\)/);
   // Inside the swap's own argument object, not merely somewhere after it.
   assert.match(planners, /loadChallengeCandidates\(db, \{[^}]*questionStyle: dryRun\.questionStyle,[^}]*\}\)/);
 
@@ -201,23 +203,23 @@ test('the question card follows the semantic surface so its tools keep contrast 
   assert.doesNotMatch(questionCard, /colorScheme: 'light'/);
 });
 
-test('a student can see where they stand without waiting for the round to end', () => {
+test('a student sees their own score during the game, and their place only once a round has closed', () => {
   // The header shows the live score — banked points plus this round's working
-  // points, from the student's own row — and the student's place on the
-  // class's board, the standings snapshot everyone's screen holds.
+  // points, from the student's own row. It never shows their place: nobody is
+  // publicly (or constantly) last, so a place arrives with each round's
+  // results and on the final card, on the student's own screen.
   const header = region(student, 'data-mm-student-score="1"', '</header>', 'score header');
   assert.match(header, /Your score/);
   assert.match(header, /\(headerRow\.liveScore \?\? headerRow\.score\)\.toLocaleString\(\)/);
-  assert.match(header, /\{headerPlace\} of \{standings\.count\}/);
-  assert.match(student, /const headerPlace = headerRow && projectionFresh && standings\?\.self \? shortPlaceText\(standings\.self\) : null;/);
+  assert.doesNotMatch(executableSource(header), /headerPlace|standings|shortPlaceText|\bof \{/, 'no place in the header');
   assert.match(student, /publicLeaderboard\(\[selfRow\], \{ activeRound, \.\.\.leaderboardOptionsFor\(scoringStrategyId\) \}\)/, 'their live score is read as the engine reads a row');
   assert.equal(shortPlaceText({ rank: 2, tied: true }), 'T-2nd', 'a shared place says so');
   assert.equal(shortPlaceText({ rank: 11 }), '11th');
   assert.equal(shortPlaceText({ rank: null }), null, 'no place before there is one');
   // And the finish screen leads with their own result, not with the list.
   const finalCard = region(read('../../src/components/liveChallenge/ChallengeStudentShell.jsx'), 'export function StudentFinalCard(', '\n}\n', 'final card');
-  const ownPlace = finalCard.indexOf('{selfRow.place.ordinal}');
-  assert.ok(ownPlace > -1 && ownPlace < finalCard.indexOf('<StandingsBoard'), 'their own place comes before the list');
+  const ownResult = finalCard.indexOf('data-mm-final-headline=');
+  assert.ok(ownResult > -1 && ownResult < finalCard.indexOf('<StandingsBoard'), 'their own result comes before the list');
 });
 
 test('every exit route out of the game still exists', () => {

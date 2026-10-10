@@ -10,10 +10,13 @@
  *      (functions/shared/misconceptionClassifiers.mjs) — the same code the
  *      server would record at ingestion, here only to choose a message
  *      (misconceptionStudentMessages.mjs);
- *   2. where no classifier fires, the cheap generic checks
- *      (genericMissChecks.js) on each wrong part against its key — worded
- *      without the move that yields the answer while attempts are left
- *      (`attemptsLeft`, the default).
+ *   2. where no classifier fires and the item has closed
+ *      (`attemptsLeft: false`), the cheap generic checks (genericMissChecks.js)
+ *      on each wrong part against its key. While attempts are left
+ *      (`attemptsLeft`, the default) they say nothing: each relates the
+ *      student's answer to the key by one move, so any wording that differs by
+ *      check — or by whether one fired — hands over the move (QA M1). The miss
+ *      then reads exactly like one no check explains.
  *
  * A CHOICE FIELD GETS NO DIAGNOSIS. With options {5, 0, −5}, "the opposite
  * sign" after −5 leaves one option: any message about how a picked option

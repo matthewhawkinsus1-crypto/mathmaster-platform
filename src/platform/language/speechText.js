@@ -119,49 +119,55 @@ const latexToSpeech = (raw, w) => {
     .replace(/~/g, ' ')
     .replace(/\\\{/g, ` ${w.setOpen} `)
     .replace(/\\\}/g, ` ${w.setClose} `);
-  text = rewriteCommand(text, String.raw`\\(?:text|mathrm|textbf|mathbf|operatorname)\s*`, 1, (body) => ` ${body} `);
+  text = rewriteCommand(text, String.raw`\\(?:text|mathrm|textbf|mathbf|operatorname)(?![A-Za-z])\s*`, 1, (body) => ` ${body} `);
   // 0.\overline{3}: a repeating decimal; \overline{AB}: segment AB.
-  text = rewriteCommand(text, String.raw`(\d\.?\d*)?\\overline\s*`, 1, (body, match) => (
+  text = rewriteCommand(text, String.raw`(\d\.?\d*)?\\overline(?![A-Za-z])\s*`, 1, (body, match) => (
     match[1] ? ` ${match[1]}${body} ${w.repeating} ` : ` ${w.segment} ${body} `
   ));
-  text = rewriteCommand(text, String.raw`\\overrightarrow\s*`, 1, (body) => ` ${w.ray} ${body} `);
+  text = rewriteCommand(text, String.raw`\\overrightarrow(?![A-Za-z])\s*`, 1, (body) => ` ${w.ray} ${body} `);
   for (let pass = 0; pass < 4 && /\\[dt]?frac|\\sqrt/.test(text); pass += 1) {
-    text = rewriteCommand(text, String.raw`\\[dt]?frac\s*`, 2, (top, bottom) => (isSimplePart(top) && isSimplePart(bottom)
+    text = rewriteCommand(text, String.raw`\\[dt]?frac(?![A-Za-z])\s*`, 2, (top, bottom) => (isSimplePart(top) && isSimplePart(bottom)
       ? ` ${top} ${w.over} ${bottom} `
       : ` ${w.fraction} ${top} ${w.over} ${bottom} ${w.endFraction} `));
-    text = rewriteCommand(text, String.raw`\\sqrt\s*\[\s*3\s*\]\s*`, 1, (body) => ` ${w.cubeRoot} ${body} `);
-    text = rewriteCommand(text, String.raw`\\sqrt\s*\[\s*([^\]]+)\]\s*`, 1, (body, match) => ` ${w.root(match[1])} ${body} `);
-    text = rewriteCommand(text, String.raw`\\sqrt\s*`, 1, (body) => (isSimplePart(body)
+    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*3\s*\]\s*`, 1, (body) => ` ${w.cubeRoot} ${body} `);
+    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*([^\]]+)\]\s*`, 1, (body, match) => ` ${w.root(match[1])} ${body} `);
+    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*`, 1, (body) => (isSimplePart(body)
       ? ` ${w.squareRoot} ${body} `
       : ` ${w.squareRoot} ${body} ${w.endRoot} `));
   }
+  // A command ends at the first non-letter, never at `\b`: there is no word
+  // boundary between a letter and a digit, so `\ge15`, `\pi2` and `\ne4`
+  // fell through to the catch-all below and their words were lost (QA M4).
+  // The lookahead also keeps a short name off a longer one (`\ln` / `\lnot`).
   return text
     // log base b of (x): the bracket is the argument, not a product.
     .replace(/\\log_\{?(\w+)\}?\s*\(([^()]*)\)/g, ` ${w.logBase} $1 ${w.of} $2 `)
     .replace(/\\log_\{?(\w+)\}?/g, ` ${w.logBase} $1 ${w.of} `)
     .replace(/\\(sin|cos|tan|ln|log)\s*\(([^()]*)\)/g, ' $1 $2 ')
     .replace(/\^\s*\{?\s*\\circ\s*\}?/g, ` ${w.degrees} `)
-    .replace(/\\circ\b/g, ` ${w.degrees} `)
+    .replace(/\\circ(?![A-Za-z])/g, ` ${w.degrees} `)
     .replace(/°/g, ` ${w.degrees} `)
-    .replace(/\\le(q)?\b/g, ' ≤ ')
-    .replace(/\\ge(q)?\b/g, ' ≥ ')
-    .replace(/\\ne(q)?\b/g, ' ≠ ')
-    .replace(/\\approx\b/g, ` ${w.approx} `)
-    .replace(/\\cong\b/g, ` ${w.cong} `)
-    .replace(/\\sim\b/g, ` ${w.sim} `)
-    .replace(/\\parallel\b/g, ` ${w.parallel} `)
-    .replace(/\\perp\b/g, ` ${w.perp} `)
-    .replace(/\\angle\b/g, ` ${w.angle} `)
-    .replace(/\\triangle\b/g, ` ${w.triangle} `)
-    .replace(/\\in\b/g, ` ${w.in} `)
-    .replace(/\\pm\b/g, ' ± ')
-    .replace(/\\infty/g, ' ∞ ')
-    .replace(/\\cdot|\\times/g, ' × ')
-    .replace(/\\div/g, ' ÷ ')
-    .replace(/\\pi\b/g, ' π ')
-    .replace(/\\theta\b/g, ` ${w.theta} `)
+    .replace(/\\le(q)?(?![A-Za-z])/g, ' ≤ ')
+    .replace(/\\ge(q)?(?![A-Za-z])/g, ' ≥ ')
+    .replace(/\\ne(q)?(?![A-Za-z])/g, ' ≠ ')
+    .replace(/\\lt(?![A-Za-z])/g, ' < ')
+    .replace(/\\gt(?![A-Za-z])/g, ' > ')
+    .replace(/\\approx(?![A-Za-z])/g, ` ${w.approx} `)
+    .replace(/\\cong(?![A-Za-z])/g, ` ${w.cong} `)
+    .replace(/\\sim(?![A-Za-z])/g, ` ${w.sim} `)
+    .replace(/\\parallel(?![A-Za-z])/g, ` ${w.parallel} `)
+    .replace(/\\perp(?![A-Za-z])/g, ` ${w.perp} `)
+    .replace(/\\angle(?![A-Za-z])/g, ` ${w.angle} `)
+    .replace(/\\triangle(?![A-Za-z])/g, ` ${w.triangle} `)
+    .replace(/\\in(?![A-Za-z])/g, ` ${w.in} `)
+    .replace(/\\pm(?![A-Za-z])/g, ' ± ')
+    .replace(/\\infty(?![A-Za-z])/g, ' ∞ ')
+    .replace(/\\(?:cdot|times)(?![A-Za-z])/g, ' × ')
+    .replace(/\\div(?![A-Za-z])/g, ' ÷ ')
+    .replace(/\\pi(?![A-Za-z])/g, ' π ')
+    .replace(/\\theta(?![A-Za-z])/g, ` ${w.theta} `)
     .replace(/\\%/g, '%')
-    .replace(/\\(sin|cos|tan|ln|log)\b/g, ' $1 ')
+    .replace(/\\(sin|cos|tan|ln|log)(?![A-Za-z])/g, ' $1 ')
     .replace(/\\[a-zA-Z]+/g, ' ')
     // Subscripts: x_1 is "x sub 1", a_{n-1} is "a sub n minus 1".
     .replace(/_\{([^{}]+)\}/g, ` ${w.sub} $1 ${w.endSub} `)
