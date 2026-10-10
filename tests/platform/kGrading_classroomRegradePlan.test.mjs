@@ -20,17 +20,22 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { all, create } from 'mathjs';
 
+import Fraction from 'fraction.js';
 import {
+  DEFAULT_TOOL_SCOPE,
   DEFECT,
   NEEDS_TEACHER_REASON,
   REGRADE_CLASS,
   defectsOf,
+  graphing2HasNoGridAnswer,
   indexV5Sources,
+  legacyQuadraticRegression,
   parseToolScope,
   planClassroomAttempt,
   questionSurface,
 } from '../../scripts/lib/classroomRegradePlan.mjs';
 import {
+  REPORT_NOTES,
   loadV5Sources,
   parseReportArgs,
   runClassroomRegradeReport,
@@ -40,6 +45,8 @@ import {
   INTENT_2A_NO_SOURCE,
   INTENT_2B_NO_SOURCE,
   INTENT_2C_BRANCH,
+  INTENT_SIGN_RATIONAL_NO_SOURCE,
+  REGRESSION_SOURCE,
   PRE_K_COMMIT,
   PRE_K_STORED,
   STORED,
@@ -51,6 +58,10 @@ import {
 } from './helpers/classroomRegradeFixtures.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
 import { gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
+import { deliveredQuestionForGrading } from '../../functions/shared/serverGrading/deliveredQuestion.mjs';
+import { deriveLinearBridge, graphQuestionFor } from '../../functions/shared/toolMath/representationBridge/representationBridgeMath.mjs';
+import { evaluateConstructionDetail } from '../../functions/shared/toolMath/graphing2/constructionPolicy.mjs';
+import { targetLineFromQuestion } from '../../functions/shared/toolMath/graphing2/graphingMath.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const math = create(all);
@@ -82,6 +93,8 @@ const plan = (fixture, index, extra = {}) => {
   });
 };
 const byTag = Object.fromEntries(FIXTURES.map((fixture, index) => [fixture.tag, { fixture, index }]));
+const inDefaultScope = (question) => DEFAULT_TOOL_SCOPE.flatMap((entry) => parseToolScope(entry))
+  .some((entry) => entry.tool === questionSurface(question).tool && (entry.mode === null || entry.mode === questionSurface(question).mode));
 
 /* --- the expected values, re-derived without the module under test ------------ */
 
@@ -114,6 +127,86 @@ test('the hand-derived expectations hold under an independent evaluation (mathjs
   assert.equal(math.evaluate('7 + (8 - 1) * 1'), 14);
 });
 
+test('the later fixtures\' expectations hold under an independent evaluation (mathjs, fraction.js)', () => {
+  // Sign '≥': (x + 2)(x − 3) at a point inside each chart interval.
+  const product = (x) => math.evaluate('(x + 2) * (x - 3)', { x });
+  assert.deepEqual([-5, 0, 7].map((x) => product(x) > 0), [true, false, true], 'positive on intervals 0 and 2');
+  // 0x + 0y = 5: no (x, y) satisfies it; 0x + 0y = 0: every one does.
+  for (const [x, y] of [[0, 0], [3, -2], [1e6, 7]]) {
+    assert.notEqual(math.evaluate('0 * x + 0 * y', { x, y }), 5);
+    assert.equal(math.evaluate('0 * x + 0 * y', { x, y }), 0);
+  }
+  // The least-squares quadratic, exactly (normal equations in fractions).
+  const exactFit = (points) => {
+    const sum = (fn) => points.reduce((total, [x, y]) => total.add(fn(new Fraction(x), new Fraction(y))), new Fraction(0));
+    const A = [[sum((x) => x.pow(4)), sum((x) => x.pow(3)), sum((x) => x.pow(2))],
+      [sum((x) => x.pow(3)), sum((x) => x.pow(2)), sum((x) => x)],
+      [sum((x) => x.pow(2)), sum((x) => x), new Fraction(points.length)]];
+    const v = [sum((x, y) => x.pow(2).mul(y)), sum((x, y) => x.mul(y)), sum((x, y) => y)];
+    // Gauss–Jordan in exact arithmetic.
+    const m = A.map((row, i) => [...row, v[i]]);
+    for (let c = 0; c < 3; c += 1) {
+      const p = m.findIndex((row, r) => r >= c && !row[c].equals(0));
+      [m[c], m[p]] = [m[p], m[c]];
+      const d = m[c][c];
+      m[c] = m[c].map((value) => value.div(d));
+      for (let r = 0; r < 3; r += 1) if (r !== c) { const f = m[r][c]; m[r] = m[r].map((value, j) => value.sub(f.mul(m[c][j]))); }
+    }
+    return m.map((row) => row[3]);
+  };
+  const pairs = (points) => points.map(({ x, y }) => [x, y]);
+  const years = exactFit(pairs(STORED.quadraticYears.points));
+  assert.deepEqual(years.map((value) => value.toFraction()), ['13/14', '-25868/7', '36766681/10']);
+  const small = exactFit(pairs(STORED.quadraticSmall.points));
+  assert.deepEqual(small.map((value) => value.toFraction()), ['13/14', '2/7', '67/70']);
+  for (const [tag, fit] of [['quadratic-right', years], ['quadratic-control', small]]) {
+    const work = byTag[tag].fixture.work;
+    ['a', 'b', 'c'].forEach((key, i) => assert.ok(Math.abs(Number(work[key]) - fit[i].valueOf()) < 1e-6, `${tag} ${key}`));
+  }
+  // The pre-1dabf19 fit found no quadratic on the years, and agrees on 0..4.
+  assert.equal(legacyQuadraticRegression(pairs(STORED.quadraticYears.points)), null);
+  const legacySmall = legacyQuadraticRegression(pairs(STORED.quadraticSmall.points));
+  [legacySmall.a, legacySmall.b, legacySmall.c].forEach((value, i) => assert.ok(Math.abs(value - small[i].valueOf()) < 1e-9));
+  // (x² − 1)/(x − 1) is x + 1 off x = 1.
+  for (const x of [-3.5, 0, 2.25, 7]) assert.ok(Math.abs(math.evaluate('(x^2 - 1) / (x - 1)', { x }) - (x + 1)) < 1e-12);
+  // 5x + 6y = −7: m = −5/6, b = −7/6. (1, −2) and (−5, 3) are on it;
+  // (−5, 3.5) is 1/2 off; (1, −2) with (−5, 3.5) has m = −11/12, b = −13/12,
+  // 1/12 from the target's m and b.
+  const m = new Fraction(-5, 6);
+  const b = new Fraction(-7, 6);
+  const at = (x) => m.mul(x).add(b);
+  assert.deepEqual([at(1).valueOf(), at(-5).valueOf()], [-2, 3]);
+  assert.equal(new Fraction(3.5).sub(at(-5)).valueOf(), 0.5);
+  const near = new Fraction(3.5 + 2).div(-5 - 1);
+  const nearB = new Fraction(-2).sub(near);
+  assert.deepEqual([near.toFraction(), nearB.toFraction()], ['-11/12', '-13/12']);
+  assert.deepEqual([near.sub(m).abs().toFraction(), nearB.sub(b).abs().toFraction()], ['1/12', '1/12']);
+  // y = 2.3: the nearest 0.5-grid heights are 2 and 2.5, 0.3 and 0.2 away.
+  assert.deepEqual([2, 2.5].map((y) => Math.abs(y - 2.3) > 0.12), [true, true]);
+  // (2 + 3i)(−1 + 2i) = −8 + i; (2 + 3i) + (−1 + 2i) = 1 + 5i.
+  assert.equal(math.format(math.evaluate('(2 + 3i) * (-1 + 2i)')), '-8 + i');
+  assert.equal(math.format(math.evaluate('(2 + 3i) + (-1 + 2i)')), '1 + 5i');
+  // The bridge rows are y = x − 4.
+  for (const { x, y } of STORED.bridgeGeneral.source.rows) assert.equal(x - 4, y);
+  // The regression of the source table, by the textbook formulas.
+  const xs = REGRESSION_SOURCE.map(([x]) => x);
+  const ys = REGRESSION_SOURCE.map(([, y]) => y);
+  const sxy = math.sum(xs.map((x, i) => (x - math.mean(xs)) * (ys[i] - math.mean(ys))));
+  const sxx = math.sum(xs.map((x) => (x - math.mean(xs)) ** 2));
+  const syy = math.sum(ys.map((y) => (y - math.mean(ys)) ** 2));
+  const slope = sxy / sxx;
+  assert.ok(Math.abs(slope - 1.85) < 1e-12);
+  assert.ok(Math.abs(math.mean(ys) - slope * math.mean(xs) - 0.25) < 1e-12);
+  assert.ok(Math.abs(sxy / Math.sqrt(sxx * syy) - byTag['regression-control'].fixture.work.regressionRun.r) < 1e-12);
+  // x² = 8y: focus (0, 2), directrix y = −2. P(2, 0.5) is 2.5 from both;
+  // the offset-4 point (4, 2) is 4 from both.
+  const distance = ([x, y]) => [math.distance([x, y], [0, 2]), y + 2];
+  assert.deepEqual(distance([2, 0.5]), [2.5, 2.5]);
+  assert.deepEqual(distance([4, 2]), [4, 4]);
+  // P(x) = x² − 9: P(3) = 0, P(2) = −5.
+  assert.deepEqual([3, 2].map((x) => math.evaluate('x^2 - 9', { x })), [0, -5]);
+});
+
 /* --- every fixture, planned ------------------------------------------------------ */
 
 for (const [index, fixture] of FIXTURES.entries()) {
@@ -123,6 +216,7 @@ for (const [index, fixture] of FIXTURES.entries()) {
     assert.equal(result.classification, fixture.expect.classification);
     if (fixture.expect.reason) assert.equal(result.reason, fixture.expect.reason);
     if (fixture.expect.defect) assert.ok(result.defects.includes(fixture.expect.defect), JSON.stringify(result.defects));
+    if (fixture.expect.defects) assert.deepEqual(result.defects, fixture.expect.defects, 'a negative control no K defect claims');
     if (fixture.expect.oldScore !== undefined) assert.equal(result.old.score, fixture.expect.oldScore, 'the recorded attempt score');
     if (fixture.expect.newScore !== undefined) {
       assert.equal(result.new.score, fixture.expect.newScore, 'the current attempt score');
@@ -250,6 +344,64 @@ test('a 2f alias question outside DOL1 whose verdict changes goes to the teacher
   assert.equal(result.reason, NEEDS_TEACHER_REASON.DOL1_ITEM_MUST_BE_REPLACED);
 });
 
+test('a compiler drop no V5 source confirms is counted, never attributed; one the source clears is not counted', async () => {
+  // The '≥' chart has no numeratorFactors (like almost every chart) and no
+  // source: suspected, not K's.
+  const ge = plan(byTag['sign-ge-right'].fixture, byTag['sign-ge-right'].index);
+  assert.deepEqual(ge.unconfirmedDefects, [DEFECT.SIGN_NUMERATOR_DROPPED]);
+  assert.ok(!ge.defects.includes(DEFECT.SIGN_NUMERATOR_DROPPED));
+  // The authored-'polynomial' chart: the source compiles it exactly as stored.
+  const authored = plan(byTag['drop-sign-authored-polynomial'].fixture, byTag['drop-sign-authored-polynomial'].index);
+  assert.deepEqual([authored.defects, authored.unconfirmedDefects], [[], [DEFECT.SIGN_RATIONAL_MODE_DROPPED, DEFECT.SIGN_NUMERATOR_DROPPED]]);
+  // The parabola without its source is suspected only.
+  const bare = plan(byTag['drop-parabola'].fixture, byTag['drop-parabola'].index, { v5Index: indexV5Sources([]) });
+  assert.equal(bare.classification, REGRADE_CLASS.UNCHANGED);
+  assert.deepEqual([bare.defects, bare.unconfirmedDefects], [[], [DEFECT.PARABOLA_POINT_DROPPED]]);
+  // A confirmed drop names its source and shows the authored question's verdict.
+  const drop = plan(byTag['drop-polynomial'].fixture, byTag['drop-polynomial'].index);
+  assert.equal(drop.questionSource, 'rebuilt-from-v5-source');
+  assert.deepEqual(drop.rebuilt.sourcePaths, ['k-regrade-source.json']);
+  assert.deepEqual([drop.old.isCorrect, drop.new.isCorrect], [false, true]);
+});
+
+test('K changes the classroom report cannot see are explained, and their claims hold', () => {
+  // Step Algebra 2's slope-intercept rewrite is graded as stepAlgebra.
+  const rewrite = { type: 'stepAlgebra2', questionId: 'k-rewrite', mode: 'rewriteLinearForm', equation: 'y = x*2 - 6' };
+  assert.equal(questionSurface(deliveredQuestionForGrading(rewrite)).tool, 'stepAlgebra');
+  assert.equal(inDefaultScope(deliveredQuestionForGrading(rewrite)), false);
+  // The bridge's graph stage is a form-aware factored-linear construction:
+  // the both-points rule (the legacy path) never grades it.
+  const derived = deriveLinearBridge(STORED.bridgeGeneral);
+  const graphQuestion = graphQuestionFor(STORED.bridgeGeneral, derived);
+  const detail = evaluateConstructionDetail([[4, 0], [6, 2]], graphQuestion, targetLineFromQuestion(graphQuestion), 0.12);
+  assert.equal(detail.legacy, false);
+  assert.ok(REPORT_NOTES.some((note) => /My Math Path is not read/.test(note)));
+  assert.ok(REPORT_NOTES.some((note) => /consolidateStepAlgebra2Question/.test(note)));
+});
+
+test('a set field compiled from a template placeholder is recognised; braces the author wrote are not', () => {
+  const field = (answer, extra = {}) => ({ type: 'multiAnswer', questionId: 'k-set', answerFields: [{ id: 'answer', type: 'set', toolProfile: 'set', answer, ...extra }] });
+  const of = (question) => defectsOf({ question, surface: questionSurface(question) });
+  assert.deepEqual(of(field('{{a}}')), [DEFECT.SET_FIELD_FROM_PLACEHOLDER]);
+  assert.deepEqual(of(field('{{union}}/{{total}}')), [DEFECT.SET_FIELD_FROM_PLACEHOLDER]);
+  assert.deepEqual(of(field('{ {{a}}, {{b}} }')), [], 'the author wrote set braces');
+  assert.deepEqual(of(field('{-4, -3}')), []);
+  assert.deepEqual(of({ ...field('{{a}}'), answerFields: [{ id: 'answer', inputProfile: 'number', answer: '{{a}}' }] }), [], 'not compiled as a set');
+  // A family instance holds the substituted answer; its template is the stored question.
+  const instance = field('7');
+  assert.deepEqual(defectsOf({ question: instance, surface: questionSurface(instance), storedQuestion: field('{{a}}') }), [DEFECT.SET_FIELD_FROM_PLACEHOLDER]);
+});
+
+test('graphing2: a target is void only when no two snap-grid points reach it', () => {
+  assert.equal(graphing2HasNoGridAnswer(STORED.horizontalOffGrid), true);
+  assert.equal(graphing2HasNoGridAnswer({ ...STORED.horizontalOffGrid, value: 2.5 }), false);
+  assert.equal(graphing2HasNoGridAnswer({ ...STORED.horizontalOffGrid, snapStep: 0.1 }), false, 'an authored snapStep reaches 2.3');
+  // y = 3x + 0.2 on the 0.5 grid: 3x is a multiple of 1.5, so y is 0.2 off
+  // a half-unit at best (0.3 or 0.2 away): no grid point within 0.12.
+  assert.equal(graphing2HasNoGridAnswer({ type: 'graphing2', mode: 'slopeIntercept', line: { m: 3, b: 0.2 } }), true);
+  assert.equal(graphing2HasNoGridAnswer(STORED.standardLine), false);
+});
+
 /* --- scope, evidence and records that cannot be replayed ------------------------- */
 
 test('2c: an x outside a domain f declares itself is not the off-branch defect', () => {
@@ -262,19 +414,37 @@ test('2c: an x outside a domain f declares itself is not the off-branch defect',
   assert.deepEqual(defectsOf({ question: STORED.inverseMirror, surface: questionSurface(STORED.inverseMirror) }), [DEFECT.INVERSE_OFF_BRANCH_INPUT]);
 });
 
-test('the default scope: graphing2 only in standard form; --tools narrows or widens it', () => {
+test('the default scope: every graphing2 mode (the both-points rule); a tool K never touched is out; --tools narrows or widens it', () => {
+  // A right slope-intercept line: (0, 1) and (1, 3) are on y = 2x + 1.
   const slope = { type: 'graphing2', questionId: 'k-slope', mode: 'slopeIntercept', line: { m: 2, b: 1 } };
   const attempt = storedAttempt({
     assignmentId: ASSIGNMENT.id, questionIndex: 0, question: slope, submissionId: 's', at: AT,
     response: toolResponseFor({ tool: 'graphing2', question: 'graphing2', work: { points: [[0, 1], [1, 3]] } }),
-    grading: { graded: true, isCorrect: true, score: 1, parts: [] },
+    grading: gradeToolWork({ toolId: 'graphing2', question: slope, work: { points: [[0, 1], [1, 3]] } }),
   });
   const input = { assignment: ASSIGNMENT, question: slope, questionIndex: 0, record: attempt.record, evidenceDocument: attempt.evidenceDocument, v5Index };
-  assert.equal(planClassroomAttempt(input), null, 'slope-intercept graphing2 is not in the default scope');
-  assert.ok(planClassroomAttempt({ ...input, scope: parseToolScope('graphing2') }), 'graphing2 with every mode');
+  const inScope = planClassroomAttempt(input);
+  assert.equal(inScope.classification, REGRADE_CLASS.UNCHANGED, 'slope-intercept graphing2 is in the default scope, and a right line stays right');
+  assert.deepEqual(inScope.defects, []);
+  assert.equal(planClassroomAttempt({ ...input, scope: parseToolScope('graphing2:standardForm') }), null, '--tools narrows it');
+  // complexPlaneLab's division mode: K changed only the Operations view.
+  const division = { type: 'complexPlaneLab', questionId: 'k-division', mode: 'division', z: { re: 4, im: 2 }, w: { re: 1, im: -1 } };
+  const divisionAttempt = storedAttempt({
+    assignmentId: ASSIGNMENT.id, questionIndex: 0, question: division, submissionId: 's', at: AT,
+    response: gradeToolWork({ toolId: 'complexPlaneLab', question: division, work: {} }).toolResponse,
+    grading: gradeToolWork({ toolId: 'complexPlaneLab', question: division, work: {} }),
+  });
+  const divisionInput = { assignment: ASSIGNMENT, question: division, questionIndex: 0, record: divisionAttempt.record, evidenceDocument: divisionAttempt.evidenceDocument, v5Index };
+  assert.equal(planClassroomAttempt(divisionInput), null, 'complexPlaneLab division is not in the default scope');
+  assert.ok(planClassroomAttempt({ ...divisionInput, scope: parseToolScope('complexPlaneLab') }), '--tools widens it');
   const { fixture, index } = byTag['d-right'];
   assert.equal(plan(fixture, index, { scope: parseToolScope('inverseCompositionLab,transformationsLab:identify') }), null);
   assert.ok(plan(byTag['e-right'].fixture, byTag['e-right'].index, { scope: parseToolScope('transformationsLab:identify') }));
+  // Every tool:mode entry names a surface and mode the registry resolves.
+  for (const fixture of FIXTURES) {
+    assert.ok(DEFAULT_TOOL_SCOPE.flatMap((entry) => parseToolScope(entry))
+      .some((entry) => entry.tool === fixture.tool && (entry.mode === null || entry.mode === questionSurface(STORED[fixture.question]).mode)), fixture.tag);
+  }
   assert.throws(() => parseToolScope(''), /at least one tool/);
   assert.throws(() => parseToolScope('graphing2:standard form'), /not tool or tool:mode/);
 });
@@ -354,6 +524,10 @@ test('the stored shapes and the old verdicts are the pre-K code\'s own', { skip:
     assert.deepEqual(PRE_K_STORED.inverseBranch, compiled(INTENT_2C_BRANCH));
     // DOL1 as the pre-K tree held it: the term items as first authored.
     const dol1 = oldCompile(JSON.parse(readFileSync(path.join(dir, DOL1_PATH), 'utf8'))).package.sections.flatMap((section) => section.questions);
+    // The compiler drops, imported from the same source, and the lone one.
+    ['parabola', 'parabolaOffset4', 'polynomial', 'signRational', 'signNumerator', 'signAuthoredPolynomial']
+      .forEach((key, offset) => assert.deepEqual(PRE_K_STORED[key], imported[2 + offset], key));
+    assert.deepEqual(PRE_K_STORED.signRationalNoSource, compiled(INTENT_SIGN_RATIONAL_NO_SOURCE));
     const dol1Item = (text) => dol1.find((question) => String(question.prompt).includes(text));
     assert.deepEqual(PRE_K_STORED.dol1, dol1Item('starts at 7 and each term is 4 more'));
     assert.deepEqual(PRE_K_STORED.dol1Geometric, dol1Item('starts at 3 and each term is twice'));
@@ -480,6 +654,8 @@ test('the report: by assignment, question and student id; counts; never a write;
   });
   assert.deepEqual(attempts, []);
   assert.equal(report.readOnly, true);
+  // What the list cannot show (My Math Path, the consolidated rewrite) rides in the detail.
+  for (const note of REPORT_NOTES) assert.ok(report.notes.includes(note), note.slice(0, 40));
   assert.equal(report.counts.assignmentsRead, 4);
   assert.equal(report.counts.assignmentsSkippedTestCycle, 1);
   assert.equal(report.counts.assignmentsInScope, 2);
@@ -505,6 +681,18 @@ test('the report: by assignment, question and student id; counts; never a write;
   assert.doesNotMatch(JSON.stringify(report), /never read/, 'no name is read');
   assert.deepEqual(report.counts.byDefect[DEFECT.QUOTIENT], {
     [REGRADE_CLASS.CANDIDATE]: 1, [REGRADE_CLASS.NOW_LOWER]: 1, [REGRADE_CLASS.NEEDS_TEACHER]: 0, [REGRADE_CLASS.CHANGED_OUTSIDE_K]: 0,
+  });
+  assert.deepEqual(report.counts.byDefect[DEFECT.QUOTIENT_EXACT], {
+    [REGRADE_CLASS.CANDIDATE]: 1, [REGRADE_CLASS.NOW_LOWER]: 0, [REGRADE_CLASS.NEEDS_TEACHER]: 0, [REGRADE_CLASS.CHANGED_OUTSIDE_K]: 0,
+  });
+  // Suspected drops no source settles, by hand: every chart without
+  // numeratorFactors and no source for them (the three '≥' attempts, the
+  // rational one with or without a source, the authored-'polynomial' one);
+  // the authored-'polynomial' mode; the parabola whose offset IS the default.
+  assert.deepEqual(report.counts.unconfirmedCompilerDefects, {
+    [DEFECT.SIGN_NUMERATOR_DROPPED]: 6,
+    [DEFECT.SIGN_RATIONAL_MODE_DROPPED]: 1,
+    [DEFECT.PARABOLA_POINT_DROPPED]: 1,
   });
 });
 
@@ -550,7 +738,7 @@ test('the script and the plan have no write mode and no Firestore write call', (
   const parsed = parseReportArgs(['--project', 'p', '--tools', 'graphing2:standardForm,sequenceExplorer', '--assignment', 'a', '--assignment', 'a', '--v5-sources', 'x']);
   assert.deepEqual(parsed.scope, [{ tool: 'graphing2', mode: 'standardForm' }, { tool: 'sequenceExplorer', mode: null }]);
   assert.deepEqual([parsed.assignmentIds, parsed.v5Sources], [['a'], ['x']]);
-  assert.equal(parseReportArgs(['--project', 'p']).scope.length, 6);
+  assert.equal(parseReportArgs(['--project', 'p']).scope.length, DEFAULT_TOOL_SCOPE.length);
   assert.throws(() => parseReportArgs(['--project', 'p', '--page-size', '0']), /--page-size/);
 });
 

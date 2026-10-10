@@ -1,5 +1,6 @@
-// The Job K classroom re-grade report (2a–2f), against a real Firestore (the
-// emulator), over attempts the real ingestStudentSubmissions callable recorded.
+// The Job K classroom re-grade report (2a–2f, the later grader changes and the
+// compiler drops), against a real Firestore (the emulator), over attempts the
+// real ingestStudentSubmissions callable recorded.
 //
 // HOW TO RUN:
 //   npx firebase emulators:exec --only firestore --project mathmaster-classroom-regrade \
@@ -17,14 +18,19 @@
 // exactly as production does.
 //   - 2a, 2b: the assignment stores the pre-K compile, so the server's verdict
 //     at ingestion IS the old outcome (those graders never changed).
-//   - 2c, 2d, 2e, 2f: the server grades with today's (fixed) code, so what it
-//     records is the NEW outcome. That is phase 1: the report must find
+//   - the compiler drops: likewise (their graders never changed), and the
+//     report lists them for the teacher whatever the verdict.
+//   - 2c, 2d, 2e, 2f and the later grader changes: the server grades with
+//     today's (fixed) code, so what it records is the NEW outcome. That is phase 1: the report must find
 //     nothing to re-grade there. Phase 2 lays the verdict the pre-K grader
 //     returned (pinned in the fixtures and checked against the pre-K code by
 //     tests/platform/kGrading_classroomRegradePlan.test.mjs) over those
 //     records, the old outcome, and the report must list each one.
-// Negative controls (a truly wrong answer, an unaffected sequence) stay out
-// in both phases. The report runs on a database handle that throws on every
+//   - A question today's grader refuses (complexPlaneLab 'divide') cannot be
+//     ingested at all now; its pre-K record and evidence are written as
+//     ingestion wrote them then (storedAttempt), the old outcome from the start.
+// Negative controls (a truly wrong answer, an unaffected sequence, a drop
+// whose source poses the same problem) stay out in both phases. The report runs on a database handle that throws on every
 // write method, and as the CLI.
 
 import test from 'node:test';
@@ -55,7 +61,7 @@ const { FieldPath } = admin.firestore;
 const { runClassroomRegradeReport } = await import('../../../scripts/report-classroom-regrade-candidates.mjs');
 const { REGRADE_CLASS } = await import('../../../scripts/lib/classroomRegradePlan.mjs');
 const {
-  FIXTURES, STORED, V5_SOURCE, agedToOldGrading, oldGradingFor, toolResponseFor,
+  FIXTURES, STORED, V5_SOURCE, agedToOldGrading, oldGradingFor, storedAttempt, toolResponseFor,
 } = await import('../../platform/helpers/classroomRegradeFixtures.mjs');
 
 const PREFIX = 'k-regrade-fixture';
@@ -173,6 +179,25 @@ test.before(async () => {
     const receipts = await db.collection('studentSubmissionReceipts').where('studentId', '==', studentOf(fixture)).get();
     // eslint-disable-next-line no-await-in-loop
     await Promise.all(receipts.docs.map((doc) => doc.ref.delete()));
+    if (fixture.ingestBlocked) {
+      // Today's server refuses the question, so the record is the pre-K one.
+      const old = storedAttempt({
+        assignmentId: ASSIGNMENT_ID,
+        questionIndex: questionIndexOf(fixture),
+        question: STORED[fixture.question],
+        response: JSON.parse(JSON.stringify(toolResponseFor(fixture))),
+        grading: oldGradingFor(fixture),
+        submissionId: `${PREFIX}-${fixture.tag}-submit`,
+        at: Date.now(),
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await gradeRef(fixture).update(new FieldPath('gradesByAssignment', ASSIGNMENT_ID, String(questionIndexOf(fixture))), old.record);
+      // eslint-disable-next-line no-await-in-loop
+      await gradeRef(fixture).collection('responseInspectionEvidence').doc(old.evidenceDocumentId).set(old.evidenceDocument);
+      // eslint-disable-next-line no-await-in-loop
+      ingested[fixture.tag] = await readStored(fixture);
+      continue;
+    }
     // eslint-disable-next-line no-await-in-loop
     const result = await fns.ingestStudentSubmissions.run(studentRequest(studentOf(fixture), { submissions: [envelopeFor(fixture)] }));
     assert.equal(result.receipts[0].disposition, 'accepted', `${fixture.tag}: ${result.receipts[0].reason}`);
@@ -228,6 +253,14 @@ test('phase 1 — records the fixed grader wrote: nothing to re-grade; the store
     'c-branch': REGRADE_CLASS.NEEDS_TEACHER,
     'f-dol1-new-right': REGRADE_CLASS.NEEDS_TEACHER,
     'f-dol1-old-right': REGRADE_CLASS.NEEDS_TEACHER,
+    // Never graded now (and recorded under the old code).
+    'complex-divide': REGRADE_CLASS.NEEDS_TEACHER,
+    // The screen showed the default problem: listed whatever the verdict.
+    'drop-parabola': REGRADE_CLASS.NEEDS_TEACHER,
+    'drop-polynomial': REGRADE_CLASS.NEEDS_TEACHER,
+    'drop-sign-rational': REGRADE_CLASS.NEEDS_TEACHER,
+    'drop-sign-rational-no-source': REGRADE_CLASS.NEEDS_TEACHER,
+    'drop-sign-numerator': REGRADE_CLASS.NEEDS_TEACHER,
   };
   assert.deepEqual(Object.fromEntries(Object.entries(listed).map(([tag, attempt]) => [tag, attempt.classification])), expected);
 });
@@ -290,9 +323,10 @@ test('as the CLI: counts on stdout, student ids only in the JSON detail', async 
       '--out', path.join(out, 'detail'),
     ], { cwd: repo, env: process.env });
     assert.match(stdout, /READ ONLY/);
-    assert.match(stdout, /re-grade-candidate\s+5\b/);
-    assert.match(stdout, /now-lower\s+3\b/);
-    assert.match(stdout, /needs-teacher\s+5\b/);
+    const expectedCount = (name) => FIXTURES.filter((fixture) => fixture.expect.classification === name).length;
+    for (const name of [REGRADE_CLASS.CANDIDATE, REGRADE_CLASS.NOW_LOWER, REGRADE_CLASS.NEEDS_TEACHER]) {
+      assert.match(stdout, new RegExp(`^\\s+${name}\\s+${expectedCount(name)}$`, 'm'), name);
+    }
     assert.doesNotMatch(stdout, new RegExp(PREFIX), 'no student or assignment id on stdout');
     const [file] = readdirSync(path.join(out, 'detail'));
     const detail = JSON.parse(readFileSync(path.join(out, 'detail', file), 'utf8'));

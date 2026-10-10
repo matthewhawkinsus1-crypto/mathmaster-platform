@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * CLASSROOM ATTEMPTS WHOSE VERDICT CHANGES UNDER JOB K'S GRADER FIXES (2a–2f).
+ * CLASSROOM ATTEMPTS WHOSE VERDICT CHANGES UNDER JOB K'S GRADING FIXES.
  * A READ-ONLY REPORT. It has no write mode: no --execute, no re-grade, and no
  * Firestore write anywhere in this file (tests/platform/
  * kGrading_classroomRegradePlan.test.mjs runs it against a database that
@@ -9,18 +9,29 @@
  *
  *   node scripts/report-classroom-regrade-candidates.mjs --project <id> [--tools <list>] [--assignment <id>]... [--v5-sources <path>]... [--out <dir>]
  *
- * Every stored attempt on an assignment question of the affected tools is
- * replayed with the platform's own replay (responseInspector replayResponse,
+ * K's defects: the first round (2a–2f), the later grader changes (sign
+ * analyzer '≥', systems with no variable left, the data-modeling quadratic on
+ * calendar-year data, the exact quotient, graphing2's both-points rule,
+ * complexPlaneLab's unknown operation, the Representation Bridge's
+ * general-form check, the regression calculator's run) and the compiler drops
+ * (parabola P, polynomial workshop values, a sign chart's rational mode and
+ * numerator). Every stored attempt on an assignment question of the affected
+ * tools is replayed with the platform's own replay (responseInspector replayResponse,
  * the registry "Apply Corrected Grade" uses) and classified by
  * scripts/lib/classroomRegradePlan.mjs, whose header explains each outcome:
  * re-grade candidates, now-lower (listed apart; the owner decides),
  * needs-teacher (cannot be re-graded), and changes outside K. The owner
  * decides what to do with each; this report changes nothing.
  *
- * V5 SOURCES (2a, 2b). The stored question lost the coefficients or the
- * exponential, and assignments keep no authoring source. --v5-sources names
- * V5 JSON files or folders to rebuild them from (default: the repository's
- * teacher-import-jsons/); a question with no matching source is needs-teacher.
+ * V5 SOURCES (2a, 2b and the compiler drops). The stored question lost the
+ * authored values, and assignments keep no authoring source. --v5-sources
+ * names V5 JSON files or folders to rebuild them from (default: the
+ * repository's teacher-import-jsons/). For 2a/2b a question with no matching
+ * source is needs-teacher; a drop no source confirms is only counted
+ * (unconfirmedCompilerDefects), except a sign chart stored 'polynomial' with
+ * denominator factors, which the stored shape alone shows.
+ *
+ * NOT IN THIS REPORT: My Math Path (see REPORT_NOTES).
  *
  * PRIVACY. Standard output is COUNTS ONLY. The JSON detail lists students by
  * id, never by name (no name is read), with their submitted work, and goes to
@@ -54,7 +65,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const functionsRequire = createRequire(new URL('../functions/package.json', import.meta.url));
 const { runtimeQuestionsFromAssignment } = functionsRequire('./lib/assignmentRuntime.js');
 
-export const REPORT_VERSION = 1;
+export const REPORT_VERSION = 2;
 export const DEFAULT_OUT_DIR = 'classroom-regrade-reports';
 export const DEFAULT_V5_SOURCES = Object.freeze(['teacher-import-jsons']);
 export const PAGE_SIZE = 100;
@@ -66,15 +77,28 @@ export const EVIDENCE_FIELDS = Object.freeze([
   'evidence.deliveredInstanceAuthority', 'evidence.submittedAt', 'evidence.graderVersion', 'evidence.gradingAuthority',
 ]);
 
+/*
+ * What the owner must know beside the list: the K changes this report cannot
+ * see in a classroom record, and why.
+ */
+export const REPORT_NOTES = Object.freeze([
+  'Step Algebra 2 rewriteLinearForm (slope-intercept): the grader now refuses "-(x + 1)" and "x*2 - 6", but every stored slope-intercept rewrite is graded as stepAlgebra (assignmentRuntimeRepair consolidateStepAlgebra2Question), whose engine did not change: no classroom verdict moves. The Representation Bridge general-form stage is listed.',
+  'The LMR board\'s graph cards and the Representation Bridge graph stage are form-aware constructions; the graphing2 both-points rule changes only equivalentLine (and form-aware throughPoints / verticalHorizontal), so they do not move.',
+  'Set fields compiled from a template answer ("{{a}}", "{{union}}/{{total}}"): the server grader does not read type "set", so no server verdict moves; only a client-recorded verdict can (out of the default scope: add --tools multiAnswer to list them).',
+  'My Math Path is not read: the Path quadratic fit and model-choice tie apply only to questions issued after deploy (stored privateGrading keeps its expectedModelId and model, and has no tiedModelIds), and Digital SAT union-overlap changes only sessions issued from the regenerated seed (wrong -> right only). Re-grade those from pathSessions privateGrading, not from this report.',
+  'Prompt-only edits (A2.4G, TSIA2 leei_4) change no key, so no verdict.',
+]);
+
 const USAGE = `Usage: node scripts/report-classroom-regrade-candidates.mjs --project <id> [options]
 
 Read-only. Lists stored classroom attempts whose verdict changes under Job K's
-grader fixes (2a–2f), for the owner to decide on re-grading.
+grading fixes (2a–2f, the later grader changes and the compiler drops), for
+the owner to decide on re-grading. My Math Path sessions are not read.
 
   --project <id>        Firebase project (Application Default Credentials; a viewer role is enough)
   --tools <list>        tool or tool:mode, comma separated (default ${DEFAULT_TOOL_SCOPE.join(',')})
   --assignment <id>     only this assignment (repeatable; default every assignment)
-  --v5-sources <path>   V5 JSON file or folder to rebuild 2a/2b questions from
+  --v5-sources <path>   V5 JSON file or folder to rebuild compiled questions from
                         (repeatable; default ${DEFAULT_V5_SOURCES.join(', ')}/)
   --out <dir>           where the JSON detail goes (default ${DEFAULT_OUT_DIR}/, gitignored)
   --page-size <n>       documents per read (default ${PAGE_SIZE})`;
@@ -199,6 +223,7 @@ export const runClassroomRegradeReport = async ({
     byDefect: {},
     notReplayableByReason: {},
     needsTeacherByReason: {},
+    unconfirmedCompilerDefects: {},
     studentsListed: 0,
   };
   const v5Index = indexV5Sources(list(v5Sources).filter((source) => source.payload));
@@ -271,6 +296,9 @@ export const runClassroomRegradeReport = async ({
         if (plan.classification === REGRADE_CLASS.NEEDS_TEACHER) {
           counts.needsTeacherByReason[plan.reason] = (counts.needsTeacherByReason[plan.reason] || 0) + 1;
         }
+        for (const defect of plan.unconfirmedDefects || []) {
+          counts.unconfirmedCompilerDefects[defect] = (counts.unconfirmedCompilerDefects[defect] || 0) + 1;
+        }
         if (!LISTED_CLASSES.includes(plan.classification)) return;
         for (const defect of plan.defects.length ? plan.defects : ['none']) {
           counts.byDefect[defect] ??= Object.fromEntries(LISTED_CLASSES.map((value) => [value, 0]));
@@ -320,6 +348,7 @@ export const runClassroomRegradeReport = async ({
       'old is the recorded attempt (responseInspectionEvidence automaticResult), new is the current shared grader on the same response; scores are per attempt, 0-100.',
       'An active teacher override is shown as override; the student sees that score, not the automatic one.',
       'needs-teacher attempts must not be re-graded automatically: see each reason in scripts/lib/classroomRegradePlan.mjs.',
+      ...REPORT_NOTES,
     ],
     assignments,
   };
@@ -338,6 +367,7 @@ const printCounts = (report) => {
   Object.entries(counts.byClass).forEach(([name, value]) => add(`  ${name}`, value));
   Object.entries(counts.needsTeacherByReason).forEach(([name, value]) => add(`    needs-teacher: ${name}`, value));
   Object.entries(counts.notReplayableByReason).forEach(([name, value]) => add(`    not-replayable: ${name}`, value));
+  Object.entries(counts.unconfirmedCompilerDefects).forEach(([name, value]) => add(`    suspected, no V5 source: ${name}`, value));
   Object.entries(counts.byDefect).forEach(([defect, byClass]) => add(`  ${defect}`, LISTED_CLASSES.map((name) => `${name} ${byClass[name]}`).join(', ')));
   add('students with a listed attempt', counts.studentsListed);
   console.log(lines.join('\n'));
@@ -375,7 +405,7 @@ const main = async () => {
   // Application Default Credentials; under FIRESTORE_EMULATOR_HOST the Admin
   // SDK talks to the emulator instead.
   const app = admin.initializeApp({ projectId: options.project }, 'report-classroom-regrade-candidates');
-  console.log('Classroom re-grade candidates (Job K 2a-2f) — READ ONLY (nothing is written)');
+  console.log('Classroom re-grade candidates (Job K) — READ ONLY (nothing is written)');
   console.log(`  project: ${options.project}${emulator ? `  (Firestore emulator ${emulator})` : ''}`);
   console.log(`  tools:   ${options.scope.map((entry) => (entry.mode ? `${entry.tool}:${entry.mode}` : entry.tool)).join(', ')}`);
   console.log(`  V5 sources: ${v5Sources.length} file(s)${options.assignmentIds.length ? `; ${options.assignmentIds.length} assignment(s) named` : ''}`);
