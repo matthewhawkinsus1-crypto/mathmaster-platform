@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import SolutionReview from '../../SolutionReview.jsx';
+import SolutionReview, { legacySolutionReviewContent } from '../../SolutionReview.jsx';
 import ToolSolutionReview from '../../tools/shared/ToolSolutionReview.jsx';
 import { buildToolSolutionReviewModel } from '../../tools/shared/toolSolutionReview.js';
 import QuestionSupplementBoundary from '../../QuestionSupplementBoundary.jsx';
@@ -74,6 +74,15 @@ function WorkedSolution({ item }) {
   }
   const question = item.solutionQuestion;
   const usesToolReview = Boolean(buildToolSolutionReviewModel(question));
+  // A question type whose review has nothing to show says so, rather than an
+  // empty frame (QA round 2). A question the check cannot read falls through to
+  // the renderer inside the boundary, whose own fallback then shows.
+  const legacyHasNothing = (() => {
+    try { return !legacySolutionReviewContent(question)?.hasContent; } catch { return false; }
+  })();
+  if (!usesToolReview && legacyHasNothing) {
+    return <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 14 }}>{SOLUTION_UNAVAILABLE_TEXT}</p>;
+  }
   return (
     <QuestionSupplementBoundary
       stage="review-my-work-solution"

@@ -12,7 +12,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.4E:v2-quadratic-regression-table",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -23,7 +23,7 @@
       "taskType": "procedural",
       "type": "dataModelingLab",
       "mode": "quadraticFitPrediction",
-      "prompt": "Use quadratic regression technology on the full five-row table to formulate the model $y=ax^2+bx+c$. Enter all three regression coefficients, then use that fitted model to predict y when $x=3$.",
+      "prompt": "The table gives the observations $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$ and $(2,{{y2}})$. Use quadratic regression technology on the full five-row table to formulate the model $y=ax^2+bx+c$. Enter all three regression coefficients, then use that fitted model to predict y when $x={{xp}}$.",
       "points": [
         [
           -2,
@@ -46,7 +46,7 @@
           "{{y2}}"
         ]
       ],
-      "predictionX": 3,
+      "predictionX": "{{xp}}",
       "quadraticATolerance": 0.015,
       "quadraticBTolerance": 0.03,
       "quadraticCTolerance": 0.05,
@@ -60,7 +60,7 @@
         "reasoning": [
           "Running quadratic regression on all five rows returns the coefficients a={{a}}, b={{b}}, and c={{c}}.",
           "The fitted model is $y={{a}}x^2+({{b}})x+({{c}})$.",
-          "Evaluating the fitted model at x=3 gives {{pred}}."
+          "Evaluating the fitted model at x={{xp}} gives {{pred}}."
         ],
         "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; prediction {{pred}}."
       },
@@ -89,6 +89,13 @@
             "type": "int",
             "min": -8,
             "max": 8
+          },
+          "xp": {
+            "type": "choice",
+            "values": [
+              3,
+              -3
+            ]
           }
         },
         "derived": {
@@ -97,7 +104,7 @@
           "y0": "c",
           "y1": "a+b+c",
           "y2": "4*a+2*b+c",
-          "pred": "9*a+3*b+c"
+          "pred": "a*xp^2+b*xp+c"
         }
       },
       "variants": [
@@ -112,7 +119,7 @@
           "difficultyBand": 2,
           "taskType": "procedural",
           "representation": "table",
-          "prompt": "Use quadratic regression technology on all five symmetric observations to formulate $y=ax^2+c$ (the fitted x-term is 0). Enter a, b, and c from technology, then predict y at x=3.",
+          "prompt": "The table gives the observations $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$ and $(2,{{y2}})$. Use quadratic regression technology on all five symmetric observations to formulate $y=ax^2+c$ (the fitted x-term is 0). Enter a, b, and c from technology, then predict y at $x={{xp}}$.",
           "context": {
             "title": "Accessible quadratic regression",
             "note": "The table is symmetric about x=0, but you must still use the regression tool and enter all three reported coefficients."
@@ -132,6 +139,13 @@
                 "type": "int",
                 "min": -5,
                 "max": 5
+              },
+              "xp": {
+                "type": "choice",
+                "values": [
+                  3,
+                  -3
+                ]
               }
             },
             "derived": {
@@ -155,7 +169,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.4E:v2-quadratic-context-interpolation",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -166,7 +180,7 @@
       "taskType": "modeling",
       "type": "dataModelingLab",
       "mode": "quadraticFitPrediction",
-      "prompt": "A lab records five measurements of a curved response. Use quadratic regression technology to formulate the model $y=ax^2+bx+c$ from the complete table, then interpolate the response at $x=1$.",
+      "prompt": "A lab records five measurements of a curved response: $(-3,{{ym3}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(2,{{y2}})$ and $(4,{{y4}})$. Use quadratic regression technology to formulate the model $y=ax^2+bx+c$ from the complete table, then interpolate the response at $x={{xp}}$.",
       "points": [
         [
           -3,
@@ -189,29 +203,29 @@
           "{{y4}}"
         ]
       ],
-      "predictionX": 1,
+      "predictionX": "{{xp}}",
       "quadraticATolerance": 0.015,
       "quadraticBTolerance": 0.03,
       "quadraticCTolerance": 0.05,
       "predictionTolerance": 0.08,
       "context": {
         "title": "Five-measurement response model",
-        "note": "The requested x=1 lies inside the observed x-range but is not one of the measured rows."
+        "note": "The requested x={{xp}} lies inside the observed x-range but is not one of the measured rows."
       },
       "solutionReview": {
         "headline": "Technology formulates the model; interpolation uses that fitted equation inside the observed range.",
         "reasoning": [
           "Quadratic regression on all five measurements returns a={{a}}, b={{b}}, c={{c}}.",
           "The model is $y={{a}}x^2+({{b}})x+({{c}})$.",
-          "At x=1 the model predicts {{pred}}, an interpolation because 1 lies inside the measured x-range."
+          "At x={{xp}} the model predicts {{pred}}, an interpolation because {{xp}} lies inside the measured x-range."
         ],
-        "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; $y(1)={{pred}}$."
+        "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; $y({{xp}})={{pred}}$."
       },
       "attemptFeedback": [
-        "Do not label the prediction as extrapolation; x=1 is between observed inputs."
+        "Do not label the prediction as extrapolation; x={{xp}} is between observed inputs."
       ],
       "supportHints": [
-        "Run regression first, then evaluate the fitted model at the fixed target x=1."
+        "Run regression first, then evaluate the fitted model at the fixed target x={{xp}}."
       ],
       "generator": {
         "parameters": {
@@ -232,6 +246,14 @@
             "type": "int",
             "min": -7,
             "max": 7
+          },
+          "xp": {
+            "type": "choice",
+            "values": [
+              -2,
+              1,
+              3
+            ]
           }
         },
         "derived": {
@@ -240,7 +262,7 @@
           "y0": "c",
           "y2": "4*a+2*b+c",
           "y4": "16*a+4*b+c",
-          "pred": "a+b+c"
+          "pred": "a*xp^2+b*xp+c"
         }
       }
     },
@@ -408,7 +430,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.4E:v2-square-root-context-interpolation",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -419,7 +441,7 @@
       "taskType": "modeling",
       "type": "dataModelingLab",
       "mode": "squareRootFitPrediction",
-      "prompt": "A sensor response follows a square-root pattern. Use the regression technology on all five observations to formulate $y=a\\sqrt{x-h}+k$, then interpolate the response at $x={{x625}}$.",
+      "prompt": "A sensor response follows a square-root pattern. Use the regression technology on all five observations to formulate $y=a\\sqrt{x-h}+k$, then interpolate the response at $x={{xt}}$.",
       "points": [
         [
           "{{h}}",
@@ -442,7 +464,7 @@
           "{{y16}}"
         ]
       ],
-      "predictionX": "{{x625}}",
+      "predictionX": "{{xt}}",
       "squareRootATolerance": 0.02,
       "squareRootHTolerance": 0.02,
       "squareRootKTolerance": 0.03,
@@ -455,7 +477,7 @@
         "headline": "The fitted square-root equation supports interpolation inside the table's input range.",
         "reasoning": [
           "Technology identifies h={{h}}, k={{k}}, and fits a={{a}} from the full table.",
-          "At x={{x625}}, the radicand is 6.25 and its square root is 2.5.",
+          "At x={{xt}}, the radicand is {{rad}} and its square root is {{s}}.",
           "The fitted model predicts {{pred}}; the target is inside the observed range."
         ],
         "answerSummary": "$y={{a}}\\sqrt{x-({{h}})}+({{k}})$; interpolation {{pred}}."
@@ -484,6 +506,14 @@
             "type": "int",
             "min": -5,
             "max": 5
+          },
+          "s": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5
+            ]
           }
         },
         "derived": {
@@ -491,12 +521,13 @@
           "x4": "h+4",
           "x9": "h+9",
           "x16": "h+16",
-          "x625": "h+6.25",
+          "rad": "s*s",
+          "xt": "h+rad",
           "y1": "a+k",
           "y4": "2*a+k",
           "y9": "3*a+k",
           "y16": "4*a+k",
-          "pred": "2.5*a+k"
+          "pred": "a*s+k"
         }
       }
     },

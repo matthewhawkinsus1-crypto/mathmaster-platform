@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { questionCountText } from '../../platform/student/countText.js';
 import * as liveSessionService from '../../services/pathSessionService.js';
 import { generateRuntimeUUID } from '../../utils/idUtils.js';
 import PathSessionPlayer from './PathSessionPlayer.jsx';
@@ -766,8 +767,8 @@ export const MyMathPathProductionContainer = ({
           {paused
             ? (session.teacherMessage || 'Your progress is saved. Check in with your teacher before continuing this skill.')
             : coursePassLevel
-              ? `You completed ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions in this practice round.`
-              : `You worked through ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}
+              ? `You completed ${questionCountText(session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0)} in this practice round.`
+              : `You worked through ${questionCountText(session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0)}.`}
         </p>
         {!paused && (
           <div style={{ margin: '18px 0', padding: 13, borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', lineHeight: 1.6 }}>

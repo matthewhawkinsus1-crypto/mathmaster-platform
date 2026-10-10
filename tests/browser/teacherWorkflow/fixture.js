@@ -13,7 +13,7 @@
  *   - Period 1 has a lesson ready to export that was never exported;
  *   - Period 5 has a student whose account key is not a numeric SIS id.
  */
-import { addRecoveryHoldScenario } from './recoveryFixture.js';
+import { addRecoveryHoldScenario, addTargetedRecoveryScenario } from './recoveryFixture.js';
 import { projectGradeTransferUnits } from '../../../src/platform/gradeTransfer/gradeTransferProjection.js';
 import { createExportSnapshot, transferSnapshotId } from '../../../src/platform/gradeTransfer/gradeTransferModel.js';
 import { buildRevisionDocument, buildSupportProjection, normalizeSupportRevisionInput } from '../../../functions/shared/supportProfileModel.mjs';
@@ -445,6 +445,8 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   // Opt-in (`&recovery=p0`): Recoveries MathMaster could not fully grade
   // (recoveryHoldJourneys.mjs), built by the real shared server code.
   if (params?.get?.('recovery') === 'p0') addRecoveryHoldScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
+  // Opt-in (`&recovery=targeted`): Practice targeted at a stored misconception.
+  if (params?.get?.('recovery') === 'targeted') addTargetedRecoveryScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
   const controls = params?.get?.('controls');
   if (controls === 'mirror' || controls === 'retired') addPrivateControlsScenario({ fixture, now, mode: controls, classRecord: byId['c-alg2-p3'] });
   return fixture;

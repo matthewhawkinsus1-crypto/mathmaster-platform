@@ -58,10 +58,13 @@ const buildRepresentations = (question) => {
   switch (question.type) {
     case 'algebra': {
       const answer = question.generatedAnswer ?? question.answer;
+      // The solution of an equation in x, and its decimal value when that
+      // says something new. Never a point on y = x: that is not what "solve
+      // 2x + 1 = 7" asked (release-candidate QA m9).
+      const decimal = Number.isFinite(Number(answer)) ? Number(answer).toFixed(2).replace(/\.?0+$/, '') : '';
       return unique([
         `x = ${answer}`,
-        Number.isFinite(Number(answer)) ? `Ordered pair on y = x: (${answer}, ${answer})` : '',
-        Number.isFinite(Number(answer)) ? `Decimal form: ${Number(answer).toFixed(2).replace(/\.00$/, '')}` : '',
+        decimal && decimal !== String(answer).trim() ? `Decimal form: ${decimal}` : '',
       ]).slice(0, 3);
     }
     case 'numberLine':
@@ -392,9 +395,16 @@ export const legacySolutionReviewContent = (question) => {
   const graph = workflowSolution?.graph || legacyGraph;
   const analysisSummary = workflowSolution ? [] : buildGraphAnalysisSummary(question);
   const completeAnswerDetails = workflowSolution ? [] : buildCompleteAnswerDetails(question);
+  // A graph counts as a solution only when it shows one: a solved function,
+  // a workflow's graph, or a system / ordered pair with its answer marked.
+  // The problem's own lines with nothing marked are not a solution (QA round
+  // 2: "Compare your work with the solution." over no solution).
+  const pairShown = ['system', 'orderedPair'].includes(question.type)
+    && (Array.isArray(question.solution) || Array.isArray(question.answer));
+  const graphShowsSolution = Boolean(workflowSolution?.graph || graphSpec || (legacyGraph && (question.type === 'graphing' || pairShown)));
   const hasContent = Boolean(
     workflowSolution?.entries?.length || question.equationLatex || representations.length
-      || completeAnswerDetails.length || graph || analysisSummary.length,
+      || completeAnswerDetails.length || graphShowsSolution || analysisSummary.length,
   );
   return { workflowSolution, representations, graph, analysisSummary, completeAnswerDetails, hasContent };
 };
@@ -407,8 +417,8 @@ export const legacySolutionReviewContent = (question) => {
  */
 export default function SolutionReview({ question, incorrectParts = [], embedded = false, allowReplacement = false }) {
   const content = legacySolutionReviewContent(question);
-  if (!content) return null;
-  if (embedded && !content.hasContent) return null;
+  // Nothing to show: no frame, no "Compare your work with the solution."
+  if (!content || !content.hasContent) return null;
   const { workflowSolution, representations, graph, analysisSummary, completeAnswerDetails } = content;
 
   return (
@@ -428,8 +438,8 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
       {!embedded && (
         <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
           {allowReplacement
-            ? 'This problem version is closed. Review the solution before requesting another problem at the same difficulty.'
-            : 'This problem version is closed. Compare your work with the solution.'}
+            ? 'This question is closed. Review the solution, then you can request a new question at the same difficulty.'
+            : 'This question is closed. Compare your work with the solution.'}
         </p>
       )}
       {workflowSolution?.entries?.length > 0 && (
@@ -479,7 +489,7 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
             const prose = isProseRepresentation(representation);
             return (
               <div key={`${representation}-${index}`} style={{ padding: '10px 12px', borderRadius: '8px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)' }}>
-                <strong style={{ color: 'var(--mm-text-muted)', marginRight: '8px' }}>{prose ? 'Solution note' : `Representation ${index + 1}`}:</strong>
+                <strong style={{ color: 'var(--mm-text-muted)', marginRight: '8px' }}>{prose ? 'Solution note' : representations.length === 1 ? 'Answer' : `Form ${index + 1}`}:</strong>
                 {prose
                   ? <span style={{ color: 'var(--mm-text-strong)' }}>{representation}</span>
                   : <MathDisplay value={representation} format={representation.includes('\\') ? 'latex' : 'ascii-math'} inline />}

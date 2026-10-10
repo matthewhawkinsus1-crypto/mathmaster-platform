@@ -67,6 +67,7 @@ function closedQuestionRecapJson(rules, {
       grading: { ...grading, attemptsAllowed: currentQuestion.attemptsAllowed },
       solutionReview,
       templateId: currentQuestion.bankQuestionId || null,
+      templateFamilyVersion: currentQuestion.familyVersion ?? null,
     });
     return rules.serializePathRecapEntry(entry);
   } catch (error) {

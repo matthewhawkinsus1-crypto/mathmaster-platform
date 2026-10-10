@@ -12,7 +12,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.2A:v2-root-family-graph",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -25,7 +25,7 @@
       "prompt": "Construct the parent-function graph shown in the task. Plot every required point, sketch the full curve, then state its domain and range.",
       "variants": [
         {
-          "prompt": "Construct the parent square-root graph $f(x)=\\sqrt{x}$. Plot the required points, sketch the curve, then state its domain and range.",
+          "prompt": "Construct the parent square-root graph $f(x)=\\sqrt{x}$. Plot the endpoint and the points at $x={{xa}}$, $x={{xb}}$, and $x={{xc}}$, sketch the curve, then state its domain and range.",
           "functionSpec": {
             "type": "squareRoot",
             "a": 1,
@@ -34,10 +34,10 @@
           },
           "graph": {
             "xMin": -3,
-            "xMax": 11,
+            "xMax": "{{xMax}}",
             "yMin": -3,
             "yMax": 6,
-            "xStep": 1,
+            "xStep": "{{xStep}}",
             "yStep": 1,
             "snapStep": 0.5
           },
@@ -53,29 +53,29 @@
             },
             {
               "id": "p1",
-              "label": "Plot x = 1",
-              "x": 1,
+              "label": "Plot x = {{xa}}",
+              "x": "{{xa}}",
               "expected": [
-                1,
-                1
+                "{{xa}}",
+                "{{ra}}"
               ]
             },
             {
               "id": "p4",
-              "label": "Plot x = 4",
-              "x": 4,
+              "label": "Plot x = {{xb}}",
+              "x": "{{xb}}",
               "expected": [
-                4,
-                2
+                "{{xb}}",
+                "{{rb}}"
               ]
             },
             {
               "id": "p9",
-              "label": "Plot x = 9",
-              "x": 9,
+              "label": "Plot x = {{xc}}",
+              "x": "{{xc}}",
               "expected": [
-                9,
-                3
+                "{{xc}}",
+                "{{rc}}"
               ]
             }
           ],
@@ -111,16 +111,38 @@
           },
           "generator": {
             "parameters": {
-              "scale": {
+              "ra": {
                 "type": "int",
                 "min": 1,
+                "max": 3
+              },
+              "rb": {
+                "type": "int",
+                "min": 2,
                 "max": 4
+              },
+              "rc": {
+                "type": "int",
+                "min": 3,
+                "max": 5
               }
-            }
+            },
+            "derived": {
+              "xa": "ra^2",
+              "xb": "rb^2",
+              "xc": "rc^2",
+              "xMax": "xStep*ceil(max(11, xc + 2)/xStep)",
+              "xStep": "1 + (xc > 9) + 3*(xc > 16)"
+            },
+            "constraints": [
+              "ra < rb",
+              "rb < rc"
+            ],
+            "attempts": 400
           }
         },
         {
-          "prompt": "Construct the parent cube-root graph $f(x)=\\sqrt[3]{x}$. Plot the required points, sketch the curve through both sides of the origin, then state its domain and range.",
+          "prompt": "Construct the parent cube-root graph $f(x)=\\sqrt[3]{x}$. Plot the points at $x={{xnl}}$, $x={{xns}}$, $x=0$, $x={{xps}}$, and $x={{xpl}}$, sketch the curve through both sides of the origin, then state its domain and range.",
           "functionSpec": {
             "type": "cubeRoot",
             "a": 1,
@@ -128,31 +150,31 @@
             "k": 0
           },
           "graph": {
-            "xMin": -10,
-            "xMax": 10,
+            "xMin": "{{xMin}}",
+            "xMax": "{{xMax}}",
             "yMin": -4,
             "yMax": 4,
-            "xStep": 2,
+            "xStep": "{{xStep}}",
             "yStep": 1,
             "snapStep": 0.5
           },
           "pointTasks": [
             {
               "id": "pm8",
-              "label": "Plot x = -8",
-              "x": -8,
+              "label": "Plot x = {{xnl}}",
+              "x": "{{xnl}}",
               "expected": [
-                -8,
-                -2
+                "{{xnl}}",
+                "{{ynl}}"
               ]
             },
             {
               "id": "pm1",
-              "label": "Plot x = -1",
-              "x": -1,
+              "label": "Plot x = {{xns}}",
+              "x": "{{xns}}",
               "expected": [
-                -1,
-                -1
+                "{{xns}}",
+                "{{yns}}"
               ]
             },
             {
@@ -166,20 +188,20 @@
             },
             {
               "id": "p1",
-              "label": "Plot x = 1",
-              "x": 1,
+              "label": "Plot x = {{xps}}",
+              "x": "{{xps}}",
               "expected": [
-                1,
-                1
+                "{{xps}}",
+                "{{ps}}"
               ]
             },
             {
               "id": "p8",
-              "label": "Plot x = 8",
-              "x": 8,
+              "label": "Plot x = {{xpl}}",
+              "x": "{{xpl}}",
               "expected": [
-                8,
-                2
+                "{{xpl}}",
+                "{{pl}}"
               ]
             }
           ],
@@ -217,11 +239,31 @@
           },
           "generator": {
             "parameters": {
-              "scale": {
+              "omitNeg": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 3
+              },
+              "omitPos": {
+                "type": "int",
+                "min": 1,
+                "max": 3
               }
+            },
+            "derived": {
+              "ns": "1 + (omitNeg == 1)",
+              "nl": "3 - (omitNeg == 3)",
+              "ps": "1 + (omitPos == 1)",
+              "pl": "3 - (omitPos == 3)",
+              "xnl": "-(nl^3)",
+              "xns": "-(ns^3)",
+              "xps": "ps^3",
+              "xpl": "pl^3",
+              "ynl": "-nl",
+              "yns": "-ns",
+              "xMin": "-xStep*ceil((nl^3 + 2)/xStep)",
+              "xMax": "xStep*ceil((pl^3 + 2)/xStep)",
+              "xStep": "2 + 3*(max(nl, pl) == 3)"
             }
           }
         }
@@ -241,7 +283,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.2A:v2-symmetry-family-graph",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -254,7 +296,7 @@
       "prompt": "Construct the required parent graph, then identify its range and symmetry.",
       "variants": [
         {
-          "prompt": "Construct the parent absolute-value graph $f(x)=|x|$. Plot the five points, sketch the V-shape, then state the range and line of symmetry.",
+          "prompt": "Construct the parent absolute-value graph $f(x)=|x|$. Plot the vertex and the points at $x=\\pm{{a}}$ and $x=\\pm{{b}}$, sketch the V-shape, then state the range and line of symmetry.",
           "functionSpec": {
             "type": "absolute",
             "a": 1,
@@ -262,10 +304,10 @@
             "k": 0
           },
           "graph": {
-            "xMin": -6,
-            "xMax": 6,
+            "xMin": "{{xMin}}",
+            "xMax": "{{xMax}}",
             "yMin": -2,
-            "yMax": 7,
+            "yMax": "{{yMax}}",
             "xStep": 1,
             "yStep": 1,
             "snapStep": 0.5
@@ -273,20 +315,20 @@
           "pointTasks": [
             {
               "id": "pm2",
-              "label": "Plot x = -2",
-              "x": -2,
+              "label": "Plot x = {{nb}}",
+              "x": "{{nb}}",
               "expected": [
-                -2,
-                2
+                "{{nb}}",
+                "{{b}}"
               ]
             },
             {
               "id": "pm1",
-              "label": "Plot x = -1",
-              "x": -1,
+              "label": "Plot x = {{na}}",
+              "x": "{{na}}",
               "expected": [
-                -1,
-                1
+                "{{na}}",
+                "{{a}}"
               ]
             },
             {
@@ -300,20 +342,20 @@
             },
             {
               "id": "p1",
-              "label": "Plot x = 1",
-              "x": 1,
+              "label": "Plot x = {{a}}",
+              "x": "{{a}}",
               "expected": [
-                1,
-                1
+                "{{a}}",
+                "{{a}}"
               ]
             },
             {
               "id": "p2",
-              "label": "Plot x = 2",
-              "x": 2,
+              "label": "Plot x = {{b}}",
+              "x": "{{b}}",
               "expected": [
-                2,
-                2
+                "{{b}}",
+                "{{b}}"
               ]
             }
           ],
@@ -350,16 +392,32 @@
           },
           "generator": {
             "parameters": {
-              "scale": {
+              "a": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 5
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 6
               }
-            }
+            },
+            "derived": {
+              "na": "-a",
+              "nb": "-b",
+              "xMax": "max(6, b + 1)",
+              "xMin": "-max(6, b + 1)",
+              "yMax": "max(7, b + 1)"
+            },
+            "constraints": [
+              "a < b"
+            ],
+            "attempts": 400
           }
         },
         {
-          "prompt": "Construct the parent cubic graph $f(x)=x^3$. Plot the five points, sketch the S-shaped curve, then state the range and center of rotational symmetry.",
+          "prompt": "Construct the parent cubic graph $f(x)=x^3$. Plot the points at $x=0$, $x=\\pm{{a}}$, and $x=\\pm{{b}}$, sketch the S-shaped curve, then state the range and center of rotational symmetry.",
           "functionSpec": {
             "type": "cubic",
             "a": 1,
@@ -369,29 +427,29 @@
           "graph": {
             "xMin": -4,
             "xMax": 4,
-            "yMin": -10,
-            "yMax": 10,
+            "yMin": "{{yMin}}",
+            "yMax": "{{yMax}}",
             "xStep": 1,
-            "yStep": 2,
+            "yStep": "{{yStep}}",
             "snapStep": 0.5
           },
           "pointTasks": [
             {
               "id": "pm2",
-              "label": "Plot x = -2",
-              "x": -2,
+              "label": "Plot x = {{nb}}",
+              "x": "{{nb}}",
               "expected": [
-                -2,
-                -8
+                "{{nb}}",
+                "{{ncb}}"
               ]
             },
             {
               "id": "pm1",
-              "label": "Plot x = -1",
-              "x": -1,
+              "label": "Plot x = {{na}}",
+              "x": "{{na}}",
               "expected": [
-                -1,
-                -1
+                "{{na}}",
+                "{{nca}}"
               ]
             },
             {
@@ -405,20 +463,20 @@
             },
             {
               "id": "p1",
-              "label": "Plot x = 1",
-              "x": 1,
+              "label": "Plot x = {{a}}",
+              "x": "{{a}}",
               "expected": [
-                1,
-                1
+                "{{a}}",
+                "{{ca}}"
               ]
             },
             {
               "id": "p2",
-              "label": "Plot x = 2",
-              "x": 2,
+              "label": "Plot x = {{b}}",
+              "x": "{{b}}",
               "expected": [
-                2,
-                8
+                "{{b}}",
+                "{{cb}}"
               ]
             }
           ],
@@ -459,12 +517,32 @@
           },
           "generator": {
             "parameters": {
-              "scale": {
+              "a": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 2
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 3
               }
-            }
+            },
+            "derived": {
+              "na": "-a",
+              "nb": "-b",
+              "ca": "a^3",
+              "cb": "b^3",
+              "nca": "-(a^3)",
+              "ncb": "-(b^3)",
+              "yMax": "yStep*ceil((b^3 + 2)/yStep)",
+              "yMin": "-yStep*ceil((b^3 + 2)/yStep)",
+              "yStep": "2 + 3*(b == 3)"
+            },
+            "constraints": [
+              "a < b"
+            ],
+            "attempts": 400
           }
         }
       ],
@@ -472,7 +550,7 @@
         "Do not decide symmetry from one side of the graph; compare opposite inputs."
       ],
       "supportHints": [
-        "Absolute value has y-axis symmetry; the cubic parent has origin symmetry."
+        "Compare the outputs at a pair of opposite inputs: equal outputs point to a mirror line, opposite outputs point to a half-turn about a point."
       ]
     },
     {
@@ -483,7 +561,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.2A:v2-reciprocal-graph-attributes",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -493,7 +571,7 @@
       "difficultyBand": 3,
       "dok": 2,
       "taskType": "interpretation",
-      "prompt": "Construct the parent reciprocal graph $f(x)=\\frac1x$ with both branches. Then state its vertical asymptote, horizontal asymptote, domain, and range.",
+      "prompt": "Construct the parent reciprocal graph $f(x)=\\frac1x$ with both branches, plotting the points at $x={{x1}}$, $x={{x2}}$, $x={{x3}}$, and $x={{x4}}$. Then state its vertical asymptote, horizontal asymptote, domain, and range.",
       "functionSpec": {
         "type": "rational",
         "a": 1,
@@ -512,38 +590,38 @@
       "pointTasks": [
         {
           "id": "pm2",
-          "label": "Plot x = -2",
-          "x": -2,
+          "label": "Plot x = {{x1}}",
+          "x": "{{x1}}",
           "expected": [
-            -2,
-            -0.5
+            "{{x1}}",
+            "{{y1}}"
           ]
         },
         {
           "id": "pm1",
-          "label": "Plot x = -1",
-          "x": -1,
+          "label": "Plot x = {{x2}}",
+          "x": "{{x2}}",
           "expected": [
-            -1,
-            -1
+            "{{x2}}",
+            "{{y2}}"
           ]
         },
         {
           "id": "p1",
-          "label": "Plot x = 1",
-          "x": 1,
+          "label": "Plot x = {{x3}}",
+          "x": "{{x3}}",
           "expected": [
-            1,
-            1
+            "{{x3}}",
+            "{{y3}}"
           ]
         },
         {
           "id": "p2",
-          "label": "Plot x = 2",
-          "x": 2,
+          "label": "Plot x = {{x4}}",
+          "x": "{{x4}}",
           "expected": [
-            2,
-            0.5
+            "{{x4}}",
+            "{{y4}}"
           ]
         }
       ],
@@ -599,16 +677,39 @@
         "Make sure both branches are present and do not cross an asymptote."
       ],
       "supportHints": [
-        "A denominator of zero is undefined; $1/x$ approaches zero without reaching it."
+        "Ask which input makes the denominator zero, and whether a fraction with a nonzero numerator can ever equal zero."
       ],
       "generator": {
         "parameters": {
-          "scale": {
+          "o1": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 6
+          },
+          "o2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
           }
-        }
+        },
+        "derived": {
+          "r1": "1 + (o1 <= 1) + (o2 <= 1 + (o1 <= 1))",
+          "x1": "-2*(r1 == 1) - (r1 == 2) - 0.5*(r1 == 3) + 0.5*(r1 == 4) + (r1 == 5) + 2*(r1 == 6)",
+          "y1": "1/x1",
+          "r2": "2 + (o1 <= 2) + (o2 <= 2 + (o1 <= 2))",
+          "x2": "-2*(r2 == 1) - (r2 == 2) - 0.5*(r2 == 3) + 0.5*(r2 == 4) + (r2 == 5) + 2*(r2 == 6)",
+          "y2": "1/x2",
+          "r3": "3 + (o1 <= 3) + (o2 <= 3 + (o1 <= 3))",
+          "x3": "-2*(r3 == 1) - (r3 == 2) - 0.5*(r3 == 3) + 0.5*(r3 == 4) + (r3 == 5) + 2*(r3 == 6)",
+          "y3": "1/x3",
+          "r4": "4 + (o1 <= 4) + (o2 <= 4 + (o1 <= 4))",
+          "x4": "-2*(r4 == 1) - (r4 == 2) - 0.5*(r4 == 3) + 0.5*(r4 == 4) + (r4 == 5) + 2*(r4 == 6)",
+          "y4": "1/x4"
+        },
+        "constraints": [
+          "o1 < o2"
+        ],
+        "attempts": 400
       },
       "variants": [
         {
@@ -762,10 +863,10 @@
             "answerSummary": "Asymptotes x=0 and y=0; domain and range both exclude 0."
           },
           "attemptFeedback": [
-            "Use each fractional input exactly; the points near x=0 should move farther from the x-axis."
+            "Use each fractional input exactly; an input closer to zero in size should give a point farther from the horizontal axis."
           ],
           "supportHints": [
-            "For x=1/4, the reciprocal is 4; for x=-1/4, it is -4."
+            "Dividing by a number smaller than one in size makes the output larger than one in size, and a negative input gives a negative output."
           ]
         }
       ]
@@ -778,7 +879,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.2A:v2-exponential-graph-attributes",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -788,7 +889,7 @@
       "difficultyBand": 3,
       "dok": 2,
       "taskType": "representationTranslation",
-      "prompt": "Construct the parent exponential graph $f(x)={{base}}^x$. Plot the requested points, sketch the curve, then state the y-intercept, horizontal asymptote, domain, and range.",
+      "prompt": "Construct the parent exponential graph $f(x)={{base}}^x$. Plot the y-intercept and the points at $x=-1$, $x={{xc}}$, and $x={{xd}}$, sketch the curve, then state the y-intercept, horizontal asymptote, domain, and range.",
       "functionSpec": {
         "type": "exponential",
         "a": 1,
@@ -797,12 +898,12 @@
         "base": "{{base}}"
       },
       "graph": {
-        "xMin": -4,
-        "xMax": 4,
+        "xMin": -5,
+        "xMax": 5,
         "yMin": -2,
-        "yMax": 12,
+        "yMax": "{{yMax}}",
         "xStep": 1,
-        "yStep": 1,
+        "yStep": "{{yStep}}",
         "snapStep": 0.25
       },
       "pointTasks": [
@@ -826,20 +927,20 @@
         },
         {
           "id": "p1",
-          "label": "Plot x = 1",
-          "x": 1,
+          "label": "Plot x = {{xc}}",
+          "x": "{{xc}}",
           "expected": [
-            1,
-            "{{base}}"
+            "{{xc}}",
+            "{{yc}}"
           ]
         },
         {
           "id": "p2",
-          "label": "Plot x = 2",
-          "x": 2,
+          "label": "Plot x = {{xd}}",
+          "x": "{{xd}}",
           "expected": [
-            2,
-            "{{base2}}"
+            "{{xd}}",
+            "{{yd}}"
           ]
         }
       ],
@@ -896,7 +997,7 @@
         "Check the multiplicative pattern in the plotted points before sketching the curve."
       ],
       "supportHints": [
-        "At x = 0 the output is 1; positive exponential outputs never equal 0."
+        "To find where the graph crosses the y-axis, evaluate the function at the input where that happens. Then ask whether a power of a positive base can ever be zero or negative."
       ],
       "generator": {
         "parameters": {
@@ -906,13 +1007,133 @@
               2,
               3
             ]
+          },
+          "xc": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "xd": {
+            "type": "int",
+            "min": 2,
+            "max": 4
           }
         },
         "derived": {
           "invBase": "1/base",
-          "base2": "base^2"
+          "yc": "base^xc",
+          "yd": "base^xd",
+          "yMax": "yStep*ceil(max(12, yd + 3)/yStep)",
+          "yStep": "1 + (yd > 12) + 3*(yd > 16)"
+        },
+        "constraints": [
+          "xc < xd",
+          "yd <= 27"
+        ],
+        "attempts": 400
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3-exponential-growth",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "core-d2b3-exponential-decay",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Construct the parent exponential graph $f(x)=\\left(\\frac{1}{{{den}}}\\right)^x$. Plot the y-intercept and the points at $x={{xa}}$, $x={{xb}}$, and $x=1$, sketch the curve, then state the y-intercept, horizontal asymptote, domain, and range.",
+          "functionSpec": {
+            "type": "exponential",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "base": "{{base}}"
+          },
+          "graph": {
+            "xMin": -5,
+            "xMax": 5,
+            "yMin": -2,
+            "yMax": "{{yMax}}",
+            "xStep": 1,
+            "yStep": "{{yStep}}",
+            "snapStep": 0.25
+          },
+          "pointTasks": [
+            {
+              "id": "pm1",
+              "label": "Plot x = {{xa}}",
+              "x": "{{xa}}",
+              "expected": [
+                "{{xa}}",
+                "{{ya}}"
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = {{xb}}",
+              "x": "{{xb}}",
+              "expected": [
+                "{{xb}}",
+                "{{yb}}"
+              ]
+            },
+            {
+              "id": "p0",
+              "label": "Plot the y-intercept",
+              "x": 0,
+              "expected": [
+                0,
+                1
+              ]
+            },
+            {
+              "id": "p2",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                "{{base}}"
+              ]
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "den": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3
+                ]
+              },
+              "na": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "nb": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "base": "1/den",
+              "xa": "-nb",
+              "xb": "-na",
+              "ya": "den^nb",
+              "yb": "den^na",
+              "yMax": "yStep*ceil(max(12, ya + 3)/yStep)",
+              "yStep": "1 + (ya > 12) + 3*(ya > 16)"
+            },
+            "constraints": [
+              "na < nb",
+              "ya <= 27"
+            ],
+            "attempts": 400
+          }
         }
-      }
+      ]
     },
     {
       "id": "mm_A2_2A_v2_logarithmic-graph-attributes",
@@ -922,7 +1143,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.2A:v2-logarithmic-graph-attributes",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -1028,14 +1249,14 @@
         "answerSummary": "Domain $(0,\\infty)$; range $(-\\infty,\\infty)$; x-intercept $1$; vertical asymptote $x=0$."
       },
       "attemptFeedback": [
-        "The graph approaches the y-axis but never crosses it; that behavior determines the domain."
+        "Check which inputs actually have points on your graph; that set of inputs is the domain."
       ],
       "supportHints": [
-        "For any valid logarithm base, $\\log_b(1)=0$ and $\\log_b(b)=1$."
+        "Rewrite $y=\\log_b(x)$ as $b^y=x$. Ask which inputs $x$ can be produced by a power of a positive base, and which outputs $y$ can be used."
       ],
       "variants": [
         {
-          "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_2(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+          "prompt": "{{who}} claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_2(x)$ to test the claim: plot $x=\\frac12$, the x-intercept, and $x={{xr}}$. Then state the domain, range, x-intercept, and vertical asymptote.",
           "functionSpec": {
             "type": "logarithmic",
             "a": 1,
@@ -1064,21 +1285,37 @@
             },
             {
               "id": "pbase",
-              "label": "Plot x = 2",
-              "x": 2,
+              "label": "Plot x = {{xr}}",
+              "x": "{{xr}}",
               "expected": [
-                2,
-                1
+                "{{xr}}",
+                "{{k}}"
               ]
             }
           ],
           "generator": {
             "parameters": {
-              "n": {
+              "who": {
+                "type": "choice",
+                "values": [
+                  "A student",
+                  "Jordan",
+                  "Priya",
+                  "Marcus",
+                  "Elena",
+                  "Wei",
+                  "Aaliyah",
+                  "Diego"
+                ]
+              },
+              "k": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 3
               }
+            },
+            "derived": {
+              "xr": "2^k"
             }
           },
           "coverageKey": "core-d3b4-log-base2",
@@ -1086,7 +1323,7 @@
           "difficultyBand": 4
         },
         {
-          "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_{10}(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+          "prompt": "{{who}} claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_{10}(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
           "functionSpec": {
             "type": "logarithmic",
             "a": 1,
@@ -1125,10 +1362,18 @@
           ],
           "generator": {
             "parameters": {
-              "n": {
-                "type": "int",
-                "min": 1,
-                "max": 4
+              "who": {
+                "type": "choice",
+                "values": [
+                  "A student",
+                  "Jordan",
+                  "Priya",
+                  "Marcus",
+                  "Elena",
+                  "Wei",
+                  "Aaliyah",
+                  "Diego"
+                ]
               }
             }
           },
@@ -1137,7 +1382,7 @@
           "difficultyBand": 4
         },
         {
-          "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\ln(x)$ (log base $e$) to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+          "prompt": "{{who}} claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\ln(x)$ (log base $e$) to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
           "functionSpec": {
             "type": "logarithmic",
             "a": 1,
@@ -1176,10 +1421,18 @@
           ],
           "generator": {
             "parameters": {
-              "n": {
-                "type": "int",
-                "min": 1,
-                "max": 4
+              "who": {
+                "type": "choice",
+                "values": [
+                  "A student",
+                  "Jordan",
+                  "Priya",
+                  "Marcus",
+                  "Elena",
+                  "Wei",
+                  "Aaliyah",
+                  "Diego"
+                ]
               }
             }
           },
@@ -1188,7 +1441,7 @@
           "difficultyBand": 4
         },
         {
-          "prompt": "A student says the parent logarithm $f(x)=\\log_2(x)$ has domain all real numbers because its inverse exponential has domain all real numbers. Construct the base-2 log graph, use the vertical asymptote and plotted points to test the claim, then state the correct domain and range.",
+          "prompt": "{{who}} says the parent logarithm $f(x)=\\log_2(x)$ has domain all real numbers because its inverse exponential has domain all real numbers. Construct the base-2 log graph, plotting $x=\\frac12$, the x-intercept, and $x={{xr}}$; use the vertical asymptote and plotted points to test the claim, then state the correct domain and range.",
           "functionSpec": {
             "type": "logarithmic",
             "a": 1,
@@ -1217,21 +1470,37 @@
             },
             {
               "id": "pbase",
-              "label": "Plot x = 2",
-              "x": 2,
+              "label": "Plot x = {{xr}}",
+              "x": "{{xr}}",
               "expected": [
-                2,
-                1
+                "{{xr}}",
+                "{{k}}"
               ]
             }
           ],
           "generator": {
             "parameters": {
-              "n": {
+              "who": {
+                "type": "choice",
+                "values": [
+                  "A student",
+                  "Jordan",
+                  "Priya",
+                  "Marcus",
+                  "Elena",
+                  "Wei",
+                  "Aaliyah",
+                  "Diego"
+                ]
+              },
+              "k": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 3
               }
+            },
+            "derived": {
+              "xr": "2^k"
             }
           },
           "coverageKey": "adaptive-d3b3-log-domain-claim-fixed-base2",
@@ -2565,7 +2834,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.2C:v2-exponential-log-features",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -2574,13 +2843,13 @@
       "difficultyBand": 4,
       "dok": 3,
       "taskType": "comparison",
-      "prompt": "Compare $f(x)={{b}}^x$ with $g(x)=\\log_{{b}}x$. Analyze which graph transformation connects them and how a key intercept and asymptote are exchanged.",
+      "prompt": "Compare $f(x)={{b}}^x$ with $g(x)=\\log_{{{b}}}x$. Analyze which graph transformation connects them and how a key intercept and asymptote are exchanged.",
       "stimulus": {
         "kind": "expressions",
         "title": "Inverse pair",
         "expressions": [
           "$f(x)={{b}}^x$",
-          "$g(x)=\\log_{{b}}x$",
+          "$g(x)=\\log_{{{b}}}x$",
           "$f(0)=1$"
         ]
       },
@@ -2647,7 +2916,7 @@
         "answerSummary": "Reflection across $y=x$ swaps $(0,1)$ with $(1,0)$ and swaps the horizontal/vertical asymptotes."
       },
       "attemptFeedback": [
-        "Track what reflection across $y=x$ does to both coordinates and to horizontal versus vertical lines."
+        "Pick a point on $f$, swap its two coordinates, and check whether the swapped point lies on $g$. Then ask what that swap does to a horizontal line and to a vertical line."
       ],
       "supportHints": [
         "Track how input-output coordinates exchange roles, then compare corresponding points and the orientation of key graph features."
@@ -2657,7 +2926,7 @@
           "b": {
             "type": "int",
             "min": 2,
-            "max": 6
+            "max": 10
           }
         }
       },
@@ -2673,13 +2942,13 @@
           "difficultyBand": 3,
           "taskType": "errorAnalysis",
           "representation": "multipleRepresentation",
-          "prompt": "For the inverse pair $f(x)=2^x$ and $g(x)=\\log_2x$, a student says the horizontal asymptote $y=0$ of $f$ stays horizontal on $g$. Use the geometry of inverse graphs to evaluate the claim, identify the corresponding intercepts, and give the correct asymptote relationship.",
+          "prompt": "For the inverse pair $f(x)={{b}}^x$ and $g(x)=\\log_{{{b}}}x$, a student says the horizontal asymptote $y=0$ of $f$ stays horizontal on $g$. Use the geometry of inverse graphs to evaluate the claim, identify the corresponding intercepts, and give the correct asymptote relationship.",
           "stimulus": {
             "kind": "expressions",
             "title": "Fixed inverse pair",
             "expressions": [
-              "$f(x)=2^x$",
-              "$g(x)=\\log_2x$",
+              "$f(x)={{b}}^x$",
+              "$g(x)=\\log_{{{b}}}x$",
               "$f(0)=1$"
             ]
           },
@@ -2738,7 +3007,7 @@
             "answerSummary": "Exponential y=0 asymptote ↔ logarithmic x=0 asymptote."
           },
           "attemptFeedback": [
-            "Reflect a few points on the asymptote line across y=x to see its new orientation."
+            "Take two points on the asymptote of $f$, swap the coordinates of each, and check what kind of line the new points lie on."
           ],
           "supportHints": [
             "Track what happens to horizontal and vertical features when the input-output coordinates of an inverse pair trade roles."
@@ -4822,7 +5091,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.3B:v2-matrix-technology-rref",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -4835,7 +5104,7 @@
       "type": "systemsWorkspace",
       "mode": "matrix3",
       "requireTechnology": true,
-      "prompt": "Use matrix technology to compute the RREF of this 3×3 augmented matrix. Then interpret the RREF, classify the system, and report $x,y,z$.",
+      "prompt": "Use matrix technology to compute the RREF of this 3×3 augmented matrix, which represents the system $x+y+z={{c1}}$, $2x-y+z={{c2}}$, $x+2y-z={{c3}}$. Then interpret the RREF, classify the system, and report $x,y,z$.",
       "matrix": {
         "rows": [
           [
@@ -11595,7 +11864,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.4E:v2-quadratic-regression-table",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -11606,7 +11875,7 @@
       "taskType": "procedural",
       "type": "dataModelingLab",
       "mode": "quadraticFitPrediction",
-      "prompt": "Use quadratic regression technology on the full five-row table to formulate the model $y=ax^2+bx+c$. Enter all three regression coefficients, then use that fitted model to predict y when $x=3$.",
+      "prompt": "The table gives the observations $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$ and $(2,{{y2}})$. Use quadratic regression technology on the full five-row table to formulate the model $y=ax^2+bx+c$. Enter all three regression coefficients, then use that fitted model to predict y when $x={{xp}}$.",
       "points": [
         [
           -2,
@@ -11629,7 +11898,7 @@
           "{{y2}}"
         ]
       ],
-      "predictionX": 3,
+      "predictionX": "{{xp}}",
       "quadraticATolerance": 0.015,
       "quadraticBTolerance": 0.03,
       "quadraticCTolerance": 0.05,
@@ -11643,7 +11912,7 @@
         "reasoning": [
           "Running quadratic regression on all five rows returns the coefficients a={{a}}, b={{b}}, and c={{c}}.",
           "The fitted model is $y={{a}}x^2+({{b}})x+({{c}})$.",
-          "Evaluating the fitted model at x=3 gives {{pred}}."
+          "Evaluating the fitted model at x={{xp}} gives {{pred}}."
         ],
         "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; prediction {{pred}}."
       },
@@ -11672,6 +11941,13 @@
             "type": "int",
             "min": -8,
             "max": 8
+          },
+          "xp": {
+            "type": "choice",
+            "values": [
+              3,
+              -3
+            ]
           }
         },
         "derived": {
@@ -11680,7 +11956,7 @@
           "y0": "c",
           "y1": "a+b+c",
           "y2": "4*a+2*b+c",
-          "pred": "9*a+3*b+c"
+          "pred": "a*xp^2+b*xp+c"
         }
       },
       "variants": [
@@ -11695,7 +11971,7 @@
           "difficultyBand": 2,
           "taskType": "procedural",
           "representation": "table",
-          "prompt": "Use quadratic regression technology on all five symmetric observations to formulate $y=ax^2+c$ (the fitted x-term is 0). Enter a, b, and c from technology, then predict y at x=3.",
+          "prompt": "The table gives the observations $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$ and $(2,{{y2}})$. Use quadratic regression technology on all five symmetric observations to formulate $y=ax^2+c$ (the fitted x-term is 0). Enter a, b, and c from technology, then predict y at $x={{xp}}$.",
           "context": {
             "title": "Accessible quadratic regression",
             "note": "The table is symmetric about x=0, but you must still use the regression tool and enter all three reported coefficients."
@@ -11715,6 +11991,13 @@
                 "type": "int",
                 "min": -5,
                 "max": 5
+              },
+              "xp": {
+                "type": "choice",
+                "values": [
+                  3,
+                  -3
+                ]
               }
             },
             "derived": {
@@ -11738,7 +12021,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.4E:v2-quadratic-context-interpolation",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -11749,7 +12032,7 @@
       "taskType": "modeling",
       "type": "dataModelingLab",
       "mode": "quadraticFitPrediction",
-      "prompt": "A lab records five measurements of a curved response. Use quadratic regression technology to formulate the model $y=ax^2+bx+c$ from the complete table, then interpolate the response at $x=1$.",
+      "prompt": "A lab records five measurements of a curved response: $(-3,{{ym3}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(2,{{y2}})$ and $(4,{{y4}})$. Use quadratic regression technology to formulate the model $y=ax^2+bx+c$ from the complete table, then interpolate the response at $x={{xp}}$.",
       "points": [
         [
           -3,
@@ -11772,29 +12055,29 @@
           "{{y4}}"
         ]
       ],
-      "predictionX": 1,
+      "predictionX": "{{xp}}",
       "quadraticATolerance": 0.015,
       "quadraticBTolerance": 0.03,
       "quadraticCTolerance": 0.05,
       "predictionTolerance": 0.08,
       "context": {
         "title": "Five-measurement response model",
-        "note": "The requested x=1 lies inside the observed x-range but is not one of the measured rows."
+        "note": "The requested x={{xp}} lies inside the observed x-range but is not one of the measured rows."
       },
       "solutionReview": {
         "headline": "Technology formulates the model; interpolation uses that fitted equation inside the observed range.",
         "reasoning": [
           "Quadratic regression on all five measurements returns a={{a}}, b={{b}}, c={{c}}.",
           "The model is $y={{a}}x^2+({{b}})x+({{c}})$.",
-          "At x=1 the model predicts {{pred}}, an interpolation because 1 lies inside the measured x-range."
+          "At x={{xp}} the model predicts {{pred}}, an interpolation because {{xp}} lies inside the measured x-range."
         ],
-        "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; $y(1)={{pred}}$."
+        "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; $y({{xp}})={{pred}}$."
       },
       "attemptFeedback": [
-        "Do not label the prediction as extrapolation; x=1 is between observed inputs."
+        "Do not label the prediction as extrapolation; x={{xp}} is between observed inputs."
       ],
       "supportHints": [
-        "Run regression first, then evaluate the fitted model at the fixed target x=1."
+        "Run regression first, then evaluate the fitted model at the fixed target x={{xp}}."
       ],
       "generator": {
         "parameters": {
@@ -11815,6 +12098,14 @@
             "type": "int",
             "min": -7,
             "max": 7
+          },
+          "xp": {
+            "type": "choice",
+            "values": [
+              -2,
+              1,
+              3
+            ]
           }
         },
         "derived": {
@@ -11823,7 +12114,7 @@
           "y0": "c",
           "y2": "4*a+2*b+c",
           "y4": "16*a+4*b+c",
-          "pred": "a+b+c"
+          "pred": "a*xp^2+b*xp+c"
         }
       }
     },
@@ -11991,7 +12282,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.4E:v2-square-root-context-interpolation",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -12002,7 +12293,7 @@
       "taskType": "modeling",
       "type": "dataModelingLab",
       "mode": "squareRootFitPrediction",
-      "prompt": "A sensor response follows a square-root pattern. Use the regression technology on all five observations to formulate $y=a\\sqrt{x-h}+k$, then interpolate the response at $x={{x625}}$.",
+      "prompt": "A sensor response follows a square-root pattern. Use the regression technology on all five observations to formulate $y=a\\sqrt{x-h}+k$, then interpolate the response at $x={{xt}}$.",
       "points": [
         [
           "{{h}}",
@@ -12025,7 +12316,7 @@
           "{{y16}}"
         ]
       ],
-      "predictionX": "{{x625}}",
+      "predictionX": "{{xt}}",
       "squareRootATolerance": 0.02,
       "squareRootHTolerance": 0.02,
       "squareRootKTolerance": 0.03,
@@ -12038,7 +12329,7 @@
         "headline": "The fitted square-root equation supports interpolation inside the table's input range.",
         "reasoning": [
           "Technology identifies h={{h}}, k={{k}}, and fits a={{a}} from the full table.",
-          "At x={{x625}}, the radicand is 6.25 and its square root is 2.5.",
+          "At x={{xt}}, the radicand is {{rad}} and its square root is {{s}}.",
           "The fitted model predicts {{pred}}; the target is inside the observed range."
         ],
         "answerSummary": "$y={{a}}\\sqrt{x-({{h}})}+({{k}})$; interpolation {{pred}}."
@@ -12067,6 +12358,14 @@
             "type": "int",
             "min": -5,
             "max": 5
+          },
+          "s": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5
+            ]
           }
         },
         "derived": {
@@ -12074,12 +12373,13 @@
           "x4": "h+4",
           "x9": "h+9",
           "x16": "h+16",
-          "x625": "h+6.25",
+          "rad": "s*s",
+          "xt": "h+rad",
           "y1": "a+k",
           "y4": "2*a+k",
           "y9": "3*a+k",
           "y16": "4*a+k",
-          "pred": "2.5*a+k"
+          "pred": "a*s+k"
         }
       }
     },
@@ -15758,7 +16058,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.5B:v2-logarithmic-ratio-scale-model",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -15803,7 +16103,11 @@
           "id": "model",
           "label": "Logarithmic model",
           "inputProfile": "equation",
-          "expected": "L=10log_10(I/{{ref}})"
+          "expected": "L=10log_10(I/{{ref}})",
+          "accepted": [
+            "L=10log_{10}(I/{{ref}})",
+            "L=10\\log_{10}(I/{{ref}})"
+          ]
         },
         {
           "id": "domain",
@@ -15848,8 +16152,20 @@
             "values": [
               1,
               2,
+              3,
+              4,
               5,
-              10
+              6,
+              8,
+              10,
+              12,
+              15,
+              20,
+              25,
+              30,
+              40,
+              50,
+              100
             ]
           }
         }
@@ -34172,7 +34488,7 @@
         "texas:A2.8B"
       ],
       "courseId": "algebra2",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -34185,7 +34501,7 @@
       "dok": 2,
       "taskType": "procedural",
       "mode": "linearFit",
-      "prompt": "Use linear regression technology on all five observations to write the line of best fit $y=mx+b$. Enter the regression slope and intercept reported by the technology.",
+      "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, to write the line of best fit $y=mx+b$. Enter the regression slope and intercept reported by the technology.",
       "points": [
         [
           -2,
@@ -34269,7 +34585,7 @@
           "difficultyBand": 2,
           "taskType": "procedural",
           "representation": "table",
-          "prompt": "Use linear regression technology on all five observations to write the line of best fit $y=mx+b$. The coefficients and noise are intentionally small; enter the fitted slope and intercept reported by the technology.",
+          "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, to write the line of best fit $y=mx+b$. The coefficients and noise are intentionally small; enter the fitted slope and intercept reported by the technology.",
           "generator": {
             "parameters": {
               "m": {
@@ -34312,7 +34628,7 @@
         "texas:A2.8B"
       ],
       "courseId": "algebra2",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -34325,7 +34641,7 @@
       "dok": 2,
       "taskType": "procedural",
       "mode": "quadraticFit",
-      "prompt": "Use quadratic regression technology on the complete five-row data set to write $y=ax^2+bx+c$. Enter all three fitted coefficients.",
+      "prompt": "Use quadratic regression technology on the complete five-row data set, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, to write $y=ax^2+bx+c$. Enter all three fitted coefficients.",
       "points": [
         [
           -2,
@@ -34410,7 +34726,7 @@
         "texas:A2.8B"
       ],
       "courseId": "algebra2",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -34423,7 +34739,7 @@
       "dok": 2,
       "taskType": "procedural",
       "mode": "exponentialFit",
-      "prompt": "Use exponential regression technology on all five positive observations to write the fitted function $y=a(b)^x$. Enter the fitted initial factor a and base b.",
+      "prompt": "{{scenario}} Use exponential regression technology on all five positive observations to write the fitted function $y=a(b)^x$. Enter the fitted initial factor a and base b.",
       "points": [
         [
           -2,
@@ -34488,6 +34804,27 @@
               1.1,
               1.2
             ]
+          },
+          "scenario": {
+            "type": "choice",
+            "values": [
+              "The table tracks the area, in square meters, covered by an algae bloom; x is days from the reference survey at x=0.",
+              "The table tracks a bacteria culture, in thousands of cells; x is hours from the reference count at x=0.",
+              "The table tracks the mass, in grams, of a yeast culture; x is hours from the reference weighing at x=0.",
+              "The table tracks downloads of a new app, in thousands; x is weeks from the reference week at x=0.",
+              "The table tracks views of a viral video, in thousands; x is days from the reference day at x=0.",
+              "The table tracks the area, in square kilometers, covered by an invasive vine; x is years from the reference survey at x=0.",
+              "The table tracks followers of a new social media account, in thousands; x is months from the reference month at x=0.",
+              "The table tracks a fruit fly population in a lab jar, in hundreds of flies; x is weeks from the reference count at x=0.",
+              "The table tracks the area, in square centimeters, of a mold colony on bread; x is days from the reference photo at x=0.",
+              "The table tracks the area, in square meters, of duckweed covering a pond; x is days from the reference survey at x=0.",
+              "The table tracks shares of a popular post, in thousands; x is hours from the reference check at x=0.",
+              "The table tracks new flu cases per week in the early weeks of an outbreak, in hundreds; x is weeks from the reference week at x=0.",
+              "The table tracks a rabbit population on an island, in hundreds of rabbits; x is years from the reference census at x=0.",
+              "The table tracks subscribers to a new streaming channel, in thousands; x is months from the reference month at x=0.",
+              "The table tracks daily rides on a new scooter-share service, in hundreds; x is months from the reference month at x=0.",
+              "The table tracks the area, in square meters, covered by a floating water hyacinth mat on a lake; x is weeks from the reference survey at x=0."
+            ]
           }
         },
         "derived": {
@@ -34505,7 +34842,7 @@
         "texas:A2.8B"
       ],
       "courseId": "algebra2",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -34518,7 +34855,7 @@
       "dok": 2,
       "taskType": "application",
       "mode": "exponentialFit",
-      "prompt": "A quantity is decaying but the measurements are not perfectly exponential. Use exponential regression technology on all five observations to write the fitted function $y=a(b)^x$. Enter a and b.",
+      "prompt": "{{scenario}} The quantity is decaying, but the measurements are not perfectly exponential. Use exponential regression technology on all five observations to write the fitted function $y=a(b)^x$. Enter a and b.",
       "points": [
         [
           -2,
@@ -34583,6 +34920,27 @@
             "values": [
               1.1,
               1.2
+            ]
+          },
+          "scenario": {
+            "type": "choice",
+            "values": [
+              "The table records the mass, in milligrams, of a radioactive sample; x is days from the reference measurement at x=0.",
+              "The table records the amount, in milligrams, of a medication in a patient's bloodstream after a single dose given before the first reading; x counts 4-hour periods from the reference reading at x=0.",
+              "The table records the concentration, in parts per billion, of a pollutant in a pond being treated; x is weeks from the reference test at x=0.",
+              "The table records the number of bacteria on a surface, in thousands, after a disinfectant was applied before the first swab; x is minutes from the reference swab at x=0.",
+              "The table records light intensity, in hundreds of lux, in a murky lake; x is meters below the reference depth of 3 m, so x=-2 is 1 m below the surface.",
+              "The table records the charge, in microcoulombs, on a discharging capacitor; x is milliseconds from the reference reading at x=0.",
+              "The table records monthly active players of an older video game, in thousands; x is months from the reference month at x=0.",
+              "The table records the amount of chlorine, in grams, in a backyard pool; x is days from the reference test at x=0.",
+              "The table records the sound intensity of a fading bell, in microwatts per square meter; x is seconds from the reference reading at x=0.",
+              "The table records the concentration, in milligrams per liter, of dye in a tank being flushed with clean water; x is minutes from the reference sample at x=0.",
+              "The table records the carbon monoxide level, in parts per million, in a garage being ventilated; x is minutes from the reference reading at x=0.",
+              "The table records weekly sales of a discontinued phone model, in hundreds; x is weeks from the reference week at x=0.",
+              "The table records a declining fish stock in a lake, in thousands of fish; x is years from the reference survey at x=0.",
+              "The table records the amount of a pesticide residue, in grams per hectare, remaining on a field; x is weeks from the reference test at x=0.",
+              "The table records the concentration, in micrograms per liter, of an antibiotic in a fish tank; x is days from the reference test at x=0.",
+              "The table records the amount, in milligrams, of caffeine in a test sample being broken down by enzymes; x is hours from the reference measurement at x=0."
             ]
           }
         },
@@ -34764,7 +35122,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.8C:v2-prediction-model-variants",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -34805,10 +35163,10 @@
           "slopeTolerance": 0.02,
           "interceptTolerance": 0.03,
           "predictionTolerance": 0.08,
-          "prompt": "Use linear regression technology on all five observations, then predict y when x=4. Enter the fitted m and b as supporting work and the model prediction at x=4.",
+          "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, then predict y when x=4. Enter the fitted m and b as supporting work and the model prediction at x=4.",
           "context": {
             "title": "Linear prediction from noisy data",
-            "note": "x=4 lies beyond the observed range -2 through 2, so the prediction is an extrapolation."
+            "note": "Fit the complete data set first, then compare x=4 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
             "headline": "Fit first, then use the fitted linear model at the requested input.",
@@ -34881,10 +35239,10 @@
           "quadraticBTolerance": 0.03,
           "quadraticCTolerance": 0.04,
           "predictionTolerance": 0.08,
-          "prompt": "Use quadratic regression technology on all five observations, then predict y when x=0.5. Enter a, b, and c as supporting work and the model prediction.",
+          "prompt": "Use quadratic regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, then predict y when x=0.5. Enter a, b, and c as supporting work and the model prediction.",
           "context": {
-            "title": "Quadratic interpolation",
-            "note": "x=0.5 lies inside the observed x-range -2 through 2."
+            "title": "Quadratic prediction from noisy data",
+            "note": "Fit the complete data set first, then compare x=0.5 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
             "headline": "A fitted quadratic can interpolate between observed inputs.",
@@ -34961,7 +35319,7 @@
           "exponentialATolerance": 0.03,
           "exponentialBaseTolerance": 0.015,
           "predictionTolerance": 0.12,
-          "prompt": "Use exponential regression technology on all five positive observations, then predict y when x=3. Enter the fitted a and base as supporting work and the prediction.",
+          "prompt": "{{scenario}} Use exponential regression technology on all five positive observations, then predict y when x=3. Enter the fitted a and base as supporting work and the prediction.",
           "context": {
             "title": "Exponential prediction",
             "note": "The data contain multiplicative noise; use the full exponential regression before predicting."
@@ -34997,6 +35355,27 @@
                   1.1,
                   1.2
                 ]
+              },
+              "scenario": {
+                "type": "choice",
+                "values": [
+                  "The table tracks the area, in square meters, covered by an algae bloom; x is days from the reference survey at x=0.",
+                  "The table tracks a bacteria culture, in thousands of cells; x is hours from the reference count at x=0.",
+                  "The table tracks the mass, in grams, of a yeast culture; x is hours from the reference weighing at x=0.",
+                  "The table tracks downloads of a new app, in thousands; x is weeks from the reference week at x=0.",
+                  "The table tracks views of a viral video, in thousands; x is days from the reference day at x=0.",
+                  "The table tracks the area, in square kilometers, covered by an invasive vine; x is years from the reference survey at x=0.",
+                  "The table tracks followers of a new social media account, in thousands; x is months from the reference month at x=0.",
+                  "The table tracks a fruit fly population in a lab jar, in hundreds of flies; x is weeks from the reference count at x=0.",
+                  "The table tracks the area, in square centimeters, of a mold colony on bread; x is days from the reference photo at x=0.",
+                  "The table tracks the area, in square meters, of duckweed covering a pond; x is days from the reference survey at x=0.",
+                  "The table tracks shares of a popular post, in thousands; x is hours from the reference check at x=0.",
+                  "The table tracks new flu cases per week in the early weeks of an outbreak, in hundreds; x is weeks from the reference week at x=0.",
+                  "The table tracks a rabbit population on an island, in hundreds of rabbits; x is years from the reference census at x=0.",
+                  "The table tracks subscribers to a new streaming channel, in thousands; x is months from the reference month at x=0.",
+                  "The table tracks daily rides on a new scooter-share service, in hundreds; x is months from the reference month at x=0.",
+                  "The table tracks the area, in square meters, covered by a floating water hyacinth mat on a lake; x is weeks from the reference survey at x=0."
+                ]
               }
             },
             "derived": {
@@ -35005,7 +35384,7 @@
               "y0": "a",
               "y1": "a*base/q",
               "y2": "a*base*base*q",
-              "pred": "a*pow(base,3)"
+              "pred": "round(a*pow(base,3)*1000)/1000"
             }
           },
           "difficultyBand": 4
