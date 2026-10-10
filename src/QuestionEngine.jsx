@@ -90,6 +90,7 @@ import CalculatorIcon from './components/common/CalculatorIcon.jsx';
 import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { useRenderPerformance } from './platform/performance/useRenderPerformance.js';
 import { useActiveWorkTab } from './platform/persistence/activeWorkTab.js';
+import { pausedWorkNeedsRefresh, recordAttemptRevision } from './platform/persistence/pausedWorkRefresh.js';
 import { StudentSupportTray } from './components/student/StudentSupportTools.jsx';
 import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
@@ -697,6 +698,21 @@ function QuestionEngineBody({
   // until the student chooses to continue here, which reloads the latest work.
   const activeWorkTab = useActiveWorkTab(executionScope === 'student' && draftKey ? draftKey : null);
   const pausedByAnotherTab = activeWorkTab.paused;
+  // A new attempt on the record while this tab is paused came from the tab in
+  // charge (pausedWorkRefresh.js). Drop the work held here — it is never
+  // saved — and re-read the saved work, as "Continue here" does, so a verdict
+  // that arrives is shown over the answer it was recorded for and never over
+  // this tab's unsubmitted one. The question stays paused.
+  const recordRevision = recordAttemptRevision(record);
+  const seenRecordRevisionRef = useRef({ scope: draftKey, revision: recordRevision });
+  useEffect(() => {
+    const previous = seenRecordRevisionRef.current;
+    const next = { scope: draftKey, revision: recordRevision };
+    seenRecordRevisionRef.current = next;
+    if (!pausedWorkNeedsRefresh({ paused: pausedByAnotherTab, previous, next })) return;
+    setAnswerState(EMPTY_ANSWER_STATE);
+    setQuestionResetVersion((current) => current + 1);
+  }, [draftKey, recordRevision, pausedByAnotherTab]);
   const responseAlreadySubmitted = Boolean(answerState.responseKey)
     && (answerState.responseKey === lastSubmittedResponseKey
       || answerState.responseKey === record.lastResponseKey);
