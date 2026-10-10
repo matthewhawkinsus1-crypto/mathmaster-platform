@@ -47,3 +47,7 @@ functions-path-admin/deploy-provenance.json
 # adds student names: never commit them. Runbook:
 # docs/handoffs/STUDENT_IDENTITY_REPAIR_RUNBOOK.md
 identity-reports/
+
+# My Math Path choice-id report detail (scripts/report-path-choice-id-regrade.mjs).
+# Lists student ids (never names): never commit it.
+path-choice-reports/
