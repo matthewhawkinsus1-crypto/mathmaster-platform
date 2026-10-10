@@ -110,6 +110,20 @@ export const readLiveChallengeRound = async (roomId, roundIndex) => {
   return snapshot.exists() ? snapshot.data() : null;
 };
 
+// A closed round's worked solution (functions/shared/liveChallengeSolutionReveal.mjs).
+// Published once, after nobody can answer the round, and never changed: one
+// read, asked for only once the room lists the round in revealedSolutionRounds.
+export const readLiveChallengeSolution = async (roomId, roundIndex) => {
+  if (!roomId || !Number.isInteger(Number(roundIndex)) || Number(roundIndex) < 0) return null;
+  const snapshot = await getDoc(doc(db, 'liveChallengeRooms', String(roomId), 'solutions', String(Number(roundIndex))));
+  return snapshot.exists() ? snapshot.data() : null;
+};
+
+// A student's own end-of-game recap: their rounds with the worked solutions,
+// private personal bests and recognitions. Served by the server from the match
+// result, which no client can read.
+export const getLiveChallengeMatchRecap = call('getLiveChallengeMatchRecap');
+
 // Every public player row: the HOST's board (who has answered, who is racing).
 // One device per room listens to this. A student's screen never does — every
 // answer would be delivered to every screen, N × N per round — it listens to

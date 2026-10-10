@@ -98,6 +98,18 @@ test('the reset also clears Class Points runtime state, without putting classes 
   assert.equal(deleted.has('classes'), false);
 });
 
+test('the reset clears class reward lists, requests and growth-reward baselines, and the panel names them', () => {
+  const deleted = new Set(admin.PREPRODUCTION_RESET_COLLECTIONS);
+  for (const [name, label] of [
+    ['classRewardCatalogs', 'Class reward lists'],
+    ['classRewardRequests', 'Class reward requests'],
+    ['growthRewardState', 'Growth reward baselines'],
+  ]) {
+    assert.equal(deleted.has(name), true, `${name} should be cleared by the pre-production reset`);
+    assert.match(panel, new RegExp(`${name}: '${label}'`), `${name} has a readable label in the reset panel`);
+  }
+});
+
 
 
 test('production lock is root-admin only, one-way in the app, and reset refuses destructive execution after locking', () => {

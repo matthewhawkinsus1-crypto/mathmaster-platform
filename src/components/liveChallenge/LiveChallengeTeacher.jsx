@@ -4,7 +4,7 @@ import ChallengeQuestionLibrary from './ChallengeQuestionLibrary.jsx';
 import { RushHostStatus, RushRaceBoard, RushReport, rushSettingsLine } from './GraphFeatureRushHost.jsx';
 import LiveChallengeArenaProjector from './LiveChallengeArenaProjector.jsx';
 import { ChallengeClockText, ChallengeCountdown, ChallengeShellStyles, ConfirmDialog, StandingsBoard, useLowTime } from './ChallengeShellParts.jsx';
-import { HostControlBar, HostRosterPanel, HostRoundResultsPanel, NotJoinedLine, StagePill } from './ChallengeHostConsole.jsx';
+import { HostControlBar, HostRosterPanel, HostRoundResultsPanel, HostSolutionPanel, NotJoinedLine, StagePill } from './ChallengeHostConsole.jsx';
 import MathText from '../common/MathText.jsx';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
@@ -16,7 +16,14 @@ import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeSc
 import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
-import { projectorGameLabel } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
+import {
+  EXTENDED_TIME_HOST_HINT,
+  EXTENDED_TIME_MESSAGE,
+  projectorGameLabel,
+  roundWaitingOnExtendedTime,
+} from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
+import { roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { STANDINGS_DISPLAY, normalizeStandingsDisplay } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
 import {
   CHALLENGE_STAGE,
@@ -36,7 +43,7 @@ import {
 } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { hostRoster } from '../../platform/liveChallenge/challengePresenceModel.js';
 import { replayExperienceFromRoom, replayRequestFromRoom, replaySummary } from '../../platform/liveChallenge/challengeReplayModel.js';
-import { useChallengeClock, useLatest, usePreviousRoundSummary, useRoundSummary, useStandingsPublisher } from '../../platform/liveChallenge/challengeHooks.js';
+import { useChallengeClock, useLatest, usePreviousRoundSummary, useRoundSolution, useRoundSummary, useStandingsPublisher } from '../../platform/liveChallenge/challengeHooks.js';
 import ChallengeRewardSettings from './ChallengeRewardSettings.jsx';
 import { DEFAULT_CHALLENGE_REWARD_CHOICE, buildChallengeRewardPolicy, normalizeChallengeRewardChoice } from '../../platform/rewards/challengeRewardPolicy.js';
 import {
@@ -199,7 +206,10 @@ export function ChallengeLiveStatus({ room, clockOffsetMs = 0, answeredCount = 0
   const paceOpen = clock.openEnded;
   const counting = clock.stage === CHALLENGE_STAGE.COUNTDOWN;
   const locked = clock.stage === CHALLENGE_STAGE.ROUND_LOCKED;
-  const timerLabel = counting ? 'Starts in' : locked ? 'Time!' : paceOpen ? 'Elapsed' : 'Time left';
+  // The class's time is up, but a student with extended time is still working
+  // (the room says only that someone is, never who): not a frozen "Time!".
+  const extendedTime = roundWaitingOnExtendedTime({ room, locked, joinedCount, answeredCount });
+  const timerLabel = counting ? 'Starts in' : extendedTime ? 'Still finishing' : locked ? 'Time!' : paceOpen ? 'Elapsed' : 'Time left';
   return (
     <section data-mm-live-status={clock.stage} style={{ ...panel, border: '2px solid #1a73e8' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
@@ -209,9 +219,13 @@ export function ChallengeLiveStatus({ room, clockOffsetMs = 0, answeredCount = 0
         </div>
         <div style={{ minWidth: 150, textAlign: 'center', padding: 12, borderRadius: 12, background: low || locked ? 'var(--mm-error-bg)' : 'var(--mm-primary-soft)', color: low || locked ? 'var(--mm-error-text)' : 'var(--mm-primary-text)' }}>
           <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{timerLabel}</div>
-          <div style={{ fontSize: 38, fontWeight: 1000 }}>
-            {counting ? clock.countdownStep : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}
-          </div>
+          {extendedTime
+            ? <div data-mm-extended-time="1" style={{ marginTop: 4, maxWidth: 220, fontSize: 15, fontWeight: 900, lineHeight: 1.3 }}>{EXTENDED_TIME_MESSAGE}</div>
+            : (
+              <div style={{ fontSize: 38, fontWeight: 1000 }}>
+                {counting ? clock.countdownStep : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}
+              </div>
+            )}
           {room?.timingMode === 'pace' && !paceOpen && !counting && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 900 }}>Closing countdown</div>}
         </div>
       </div>
@@ -219,6 +233,8 @@ export function ChallengeLiveStatus({ room, clockOffsetMs = 0, answeredCount = 0
     </section>
   );
 }
+
+const STANDINGS_DISPLAY_KEY = 'mathmaster.liveChallenge.standingsDisplay';
 
 export function ChallengeProjector(props) {
   return <LiveChallengeArenaProjector {...props} />;
@@ -297,6 +313,17 @@ export default function LiveChallengeTeacher({
     const normalized = normalizeChallengeRewardChoice(next);
     setRewardChoiceState(normalized);
     try { window.localStorage.setItem('mathmaster.liveChallenge.rewardChoice', JSON.stringify(normalized)); } catch { /* private mode: not remembered */ }
+  };
+  // What the projector shows (functions/shared/liveChallengePrivacy.mjs): the
+  // top few by default — nobody is publicly last — or, by choice, the full
+  // standings. Remembered in this browser like the Rewards choice.
+  const [standingsDisplay, setStandingsDisplayState] = useState(() => {
+    try { return normalizeStandingsDisplay(window.localStorage.getItem(STANDINGS_DISPLAY_KEY)); } catch { return STANDINGS_DISPLAY.TOP_FEW; }
+  });
+  const setStandingsDisplay = (next) => {
+    const normalized = normalizeStandingsDisplay(next);
+    setStandingsDisplayState(normalized);
+    try { window.localStorage.setItem(STANDINGS_DISPLAY_KEY, normalized); } catch { /* private mode: not remembered */ }
   };
   const [warmupAssignmentId, setWarmupAssignmentId] = useState('');
   const [warmupDeliveryMode, setWarmupDeliveryMode] = useState('liveChallenge');
@@ -504,6 +531,13 @@ export default function LiveChallengeTeacher({
   const roundSummary = useRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults);
   const previousSummary = usePreviousRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults);
   const roundView = useMemo(() => (showingResults ? roundResultsView({ summary: roundSummary, previousSummary }) : null), [showingResults, roundSummary, previousSummary]);
+  // THE WORKED SOLUTION, between rounds only. Read only once the server lists
+  // the round as published (never while it can be answered, nor while a
+  // Second Chance replay of it may come), and handed to the projector as a
+  // prop: the projector itself never reads Firebase.
+  const solutionRound = showingResults && Number.isInteger(currentRound) ? currentRound : null;
+  const roundSolution = useRoundSolution(roomId, solutionRound, solutionRound !== null && solutionRevealed(room, solutionRound));
+  const solutionState = solutionRound === null ? null : roundSolutionState({ room, roundIndex: solutionRound, solution: roundSolution, roundClosed: true });
   const finalRewards = useMemo(() => (stage === CHALLENGE_STAGE.COMPLETED ? placementRewardsFor(standingsRows(leaderboard), room?.rewardSummary) : null), [stage, leaderboard, room?.rewardSummary]);
   // THE STUDENTS' LIVE STANDINGS. Students no longer listen to every player's
   // row; this console, which does, asks for a fresh standings snapshot when the
@@ -601,6 +635,7 @@ export default function LiveChallengeTeacher({
             courseId,
             // The same Rewards choice as every Live Challenge.
             ...rushCreateRequest(rushSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) }),
+            standingsDisplay,
             title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Graph Feature Rush`,
           });
         } catch (error) {
@@ -648,6 +683,7 @@ export default function LiveChallengeTeacher({
           title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
           // Null keeps the server's default (Class Points achievements only).
           rewardPolicy: buildChallengeRewardPolicy(rewardChoice),
+          standingsDisplay,
         });
       } catch (error) {
         const activeRoomId = error?.details?.roomId;
@@ -1046,6 +1082,15 @@ export default function LiveChallengeTeacher({
                 </select>
                 <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Only the selected display name is sent to the public leaderboard.</span>
               </label>
+              <label style={{ fontWeight: 800 }}>Projector shows
+                <select data-mm-standings-display="1" value={standingsDisplay} onChange={(event) => setStandingsDisplay(event.target.value)} style={field}>
+                  <option value={STANDINGS_DISPLAY.TOP_FEW}>Top 5 only (recommended)</option>
+                  <option value={STANDINGS_DISPLAY.FULL}>Full standings</option>
+                </select>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>{standingsDisplay === STANDINGS_DISPLAY.FULL
+                  ? 'Every player the screen has room for, last place included. Each student still sees their own place on their device.'
+                  : 'Nobody is shown in last place: the class sees the top 5, and each student sees their own place on their device.'}</span>
+              </label>
               {!rushMode && <label style={{ fontWeight: 800 }}>Speed influence
                 <select value={speedPreset(speedInfluencePercent)} onChange={(event) => {
                   const value = event.target.value;
@@ -1096,6 +1141,8 @@ export default function LiveChallengeTeacher({
       answeredCount={answeredCount}
       clockOffsetMs={clockOffsetMs}
       roundView={roundView}
+      solution={solutionState ? roundSolution : null}
+      solutionState={solutionState || undefined}
       presentation={presentation}
       rewardsByKey={finalRewards}
       primaryAction={primaryAction}
@@ -1126,11 +1173,15 @@ export default function LiveChallengeTeacher({
   const standingTitle = presentation.placementPoints ? 'Championship' : 'Standings';
   // Ending a round early is for a round in play: not one still counting down,
   // and not one past its buzzer, which closes itself in a moment.
+  // Past the class's deadline while students with extended time finish, the
+  // round waits for them; the teacher may still end it.
+  const extendedTime = roundWaitingOnExtendedTime({ room, locked: stage === CHALLENGE_STAGE.ROUND_LOCKED, joinedCount, answeredCount });
   const secondaryControls = [
-    stage === CHALLENGE_STAGE.ROUND_ACTIVE || stage === CHALLENGE_STAGE.ROUND_PAUSED
+    stage === CHALLENGE_STAGE.ROUND_ACTIVE || stage === CHALLENGE_STAGE.ROUND_PAUSED || extendedTime
       ? { key: 'close', label: 'End Round Now', busyLabel: 'Closing…', onClick: () => setConfirming('close') }
       : null,
   ];
+  const roundAction = extendedTime && primaryAction ? { ...primaryAction, hint: EXTENDED_TIME_HOST_HINT } : primaryAction;
 
   return (
     <div style={{ display: 'grid', gap: 16 }} data-mm-host-console={stage || 'loading'}>
@@ -1199,10 +1250,13 @@ export default function LiveChallengeTeacher({
             ? <RushHostStatus room={room} players={players} clockOffsetMs={clockOffsetMs} joinedCount={joinedCount} closing={busy === 'close'} />
             : <ChallengeLiveStatus room={room} clockOffsetMs={clockOffsetMs} answeredCount={answeredCount} joinedCount={joinedCount} />)}
           {stage === CHALLENGE_STAGE.ROUND_RESULTS && (
-            <HostRoundResultsPanel view={roundView} presentation={presentation} roundNumber={clock.roundNumber} fallbackRows={standingsRows(leaderboard)} />
+            <>
+              {solutionState && <HostSolutionPanel solution={roundSolution} state={solutionState} />}
+              <HostRoundResultsPanel view={roundView} presentation={presentation} roundNumber={clock.roundNumber} fallbackRows={standingsRows(leaderboard)} />
+            </>
           )}
           <section style={{ ...panel, padding: 14 }}>
-            <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} secondary={secondaryControls} />
+            <HostControlBar action={roundAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} secondary={secondaryControls} />
           </section>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 16, alignItems: 'start' }}>
             {stage !== CHALLENGE_STAGE.ROUND_RESULTS && (

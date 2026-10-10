@@ -267,6 +267,19 @@ places, from the room's reward summary). Host controls run along the bottom.
 - **Legible from the back of a room**: sizes scale with the viewport
   (`clamp(…vh/vw…)`); at 1366×768 and at 125% / 150% browser zoom nothing
   scrolls sideways and the standings stay readable (QA harness).
+- **Nobody is publicly last** (`functions/shared/liveChallengePrivacy.mjs`,
+  `liveChallengeProjectorModel.projectorBoardLimit`): every class-wide board —
+  live, round results, standings after a round, under the podium — shows the
+  top five at most and stops before the last player in a small class, then
+  "and N more players · everyone sees their own place on their device". A
+  teacher may choose "Full standings" at create (`room.standingsDisplay`,
+  kept by Play Again). Students' own cards apply the same limit.
+- **Worked solution** at the results moment, handed to the projector by the
+  console (`useRoundSolution`), never during a countdown or an open round.
+- **Recognitions** under the podium (`room.recognitions`, aliases only).
+- **Extended time**: after the class deadline, while a round waits for a
+  student with extended time, "A few students are still finishing — results in
+  a moment" (never who).
 - **Large classes**: the top of the board, then "and N more players" — never
   the bottom of the class singled out. The lobby lists every alias that fits
   (chips shrink before anyone is hidden). Under the final podium the standings
@@ -295,7 +308,11 @@ places, from the room's reward summary). Host controls run along the bottom.
 - **Results**: their place in the round, what they did, the points it earned,
   their overall place and movement, the top five (and their own row when they
   are outside it), and what comes next.
-- **Final**: their place ("T-2nd of 24"), their total, then what reached their
+- **Final**: a podium finish leads with the place ("T-2nd of 24"); any other
+  finish leads with what the student did (points, correct answers, personal
+  bests, recognitions), and the place is a quiet line ("Your place: 18th of
+  24 — only you see this" when no class-wide board shows it). Then their
+  total and what reached their
   wallet (`renderMatchRewards(roomId, { offered })` — the app's
   `ChallengeRewardsEarned`, read from the wallet, never computed here; with
   nothing earned it says what the game offered, and a game that offered
@@ -303,7 +320,27 @@ places, from the room's reward summary). Host controls run along the bottom.
   standings arrive (a refresh on the podium) the card says "Loading your
   final place…", never "You joined after the last round". A podium finish
   gets confetti, which reduced motion turns off.
-- **Header**: their live score in the room's unit and their place.
+- **Header**: their live score in the room's unit — never their place.
+- **No board under the question.** While a round can be answered there is no
+  standings board, no rank and no "Rank #" on the answer feedback. A student
+  sees their own place only on the results and final cards, which list the top
+  few (the projector's rule, below) and their own row.
+- **The worked solution** at the results moment, once the server has published
+  it (`room.revealedSolutionRounds`; held while a Second Chance replay may come
+  — "The worked solution is shown after the Second Chance rounds").
+- **Missed rounds**: back from a reconnect, a reload or a sleep, rounds that
+  closed meanwhile without their answer get one notice
+  (`challengeMissedRounds.js`).
+- **Recap**: a finished game lists the student's own rounds — result and worked
+  solution — with private personal bests and their recognitions
+  (`getLiveChallengeMatchRecap`, `challengeRecapModel.js`).
+- **Honest about grades**: a Warm-Up game says "Your accuracy counts as your
+  Warm-Up; game points don't."; a standalone game says game points change no
+  grade.
+- **Accommodations**: extended time counts down to the student's own deadline
+  (invite `timeMultiplier`, `personalRoundClock`); a student whose plan grants
+  text-to-speech gets Read aloud on the round prompt. A Warm-Up game receives
+  the whole support profile and the rewards card a standalone game has.
 
 **Plain words.** What a student reads never carries the server's vocabulary:
 an answer sent before GO is told "This round has not started yet. Wait for

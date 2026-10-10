@@ -210,3 +210,42 @@ New index: `liveChallengeMatchResults (studentIds CONTAINS, finalizedAtMs DESC)`
 | `tests/integration/rewardActions.test.mjs` (emulator) | award once, use atomically, double click / two tabs / one pass for two assignments, expired never spent, refused without spending, another student's pass, points purchase, undo both ways, take back, Challenge award taken back never re-issued, teacher read across three matches |
 | `tests/rules/securityRules.test.mjs` | wallet queries scoped to self; no client issues, edits or self-excuses |
 | `tests/browser/rewardsQa.mjs` (`npm run test:rewards-browser`) | the whole flow in Chromium at phone, tablet and Chromebook sizes: 26 checks covering both roles, plus screenshots |
+
+## 12. Growth rewards and class rewards (student push E, 2026-10)
+
+### Growth, effort and mastery (`functions/shared/growthRewardRules.mjs`, `functions/lib/growthRewards.js`)
+
+`syncStudentGrowthRewards` (student; called once per session by
+`useGrowthRewardSync`) re-derives awards from the student's own authoritative
+records and delivers each exactly once (deterministic `gra_` ledger / `grg_`
+grant ids, existence check and roster re-check in the delivering transaction):
+
+| Rule | Source | Award |
+| --- | --- | --- |
+| Retest improved by ≥ 10 points | `testCycleRecords` (raw released scores) | 15 Class Points + badge `growth-retest` |
+| Retest passed after a failing test | same (either-or with the above, one identity per cycle) | 20 Class Points + badge `growth-retest` |
+| Corrections completed (required, not waived, non-empty) | `testCycleRecords.corrections` | 10 + badge `growth-corrections` |
+| Weekly My Math Path goal met on time | `weeklyPathGoalSnapshots` + `pathSessions` | 10; three weeks running: 15 + badge `growth-path-streak` |
+| A skill reaches Mastered | `studentMasteryProfiles` | 5 per skill, once ever; badges `mastery-5`, `mastery-10` |
+
+Only events on or after 2026-10-07 count (no retroactive flood); the first sync
+freezes skills already Mastered as a baseline. Ledger source type
+`growthReward` ("Growth reward" in the wallet). Dependency: My Math Path (Job D)
+is exposing better weekly-goal and mastered-at data; `evaluateMasteryGrowth`
+and the weekly evaluator are the places to switch over, keeping award ids.
+
+### Class rewards (`functions/shared/classRewardCatalog.mjs`, `functions/lib/classRewardStore.js`)
+
+The Practice Pass is no longer the only thing to spend points on. A teacher of
+record keeps a non-academic catalog per class (`classRewardCatalogs/{classId}`,
+up to 12 items, 10–500 Class Points, optional weekly limit; wording that
+promises an academic effect is refused). A student redeems with
+`redeemClassReward` (one transaction: ledger debit `rewardRedemption` +
+`classRewardRequests/{id}` pending; a retry is the same request); the teacher
+fulfils or declines with a reason (`resolveClassRewardRequest`; a decline
+refunds once via `rewardRefund`). Rules: catalog read by the class's students
+and teachers, requests by their student and authorized teachers, no client
+writes. Screens: the student's rewards center (class rewards shelf, Practice
+Pass first) and the teacher's Classes workspace (`ClassRewardRequestsPanel`,
+`ClassRewardCatalogEditor`).
+

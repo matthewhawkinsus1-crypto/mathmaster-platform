@@ -38,7 +38,7 @@ test('deadline finalization shares the manual secure submit path and has a synch
 test('auto-finalized work gets deadline timing while retaining the bounded arrival policy', () => {
   const submitStart = server.indexOf('exports.submitLiveChallengeResponse');
   const submit = server.slice(submitStart, server.indexOf('// Phase 5D', submitStart));
-  assert.match(submit, /const activeRoundMs = challenge\.normalizeRoundSeconds\([\s\S]*activeRoundSeconds/);
+  assert.match(submit, /const activeRoundMs = (?:Math\.round\()?challenge\.normalizeRoundSeconds\([\s\S]*activeRoundSeconds/);
   assert.match(submit, /autoFinalizedAtRoundEnd === true[\s\S]*\? activeRoundMs/);
   // Arrival is judged inside the transaction by the room's own timer…
   assert.match(submit, /const latestTimer = roundTimer\.timerFromRoom\(latestRoom\);/);

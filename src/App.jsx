@@ -412,6 +412,9 @@ import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.
 import { useClassPracticePasses } from './platform/rewards/useClassPracticePasses.js';
 import StudentRewardsCenter from './components/student/rewards/StudentRewardsCenter.jsx';
 import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
+import ClassRewardCatalogEditor from './components/rewards/ClassRewardCatalogEditor.jsx';
+import ClassRewardRequestsPanel from './components/rewards/ClassRewardRequestsPanel.jsx';
+import { useGrowthRewardSync } from './platform/rewards/useGrowthRewardSync.js';
 
 import {
   assignmentIsExcusedForStudent,
@@ -824,6 +827,11 @@ function App() {
     });
     return () => { unsubscribeWallet(); unsubscribeAnnouncements(); unsubscribeRedemptions(); unsubscribeInventory(); };
   }, [user?.role, user?.id, user?.classId]);
+
+  // Growth, effort and mastery rewards (Retest improvement, Corrections,
+  // weekly Path goal, mastery milestones) are re-derived by the server from
+  // the student's own records, once per session (functions/lib/growthRewards.js).
+  useGrowthRewardSync(user?.id, { uid: user?.uid, enabled: user?.role === 'student' && Boolean(user?.classId) });
 
   // A new reward gets one toast and a "New" mark (useRewardCelebrations).
   const celebratingStudentId = user?.role === 'student' ? user.id : null;
@@ -11167,7 +11175,22 @@ function App() {
           <WarmupChallengeGate
             decision={warmupChallengeDecision}
             invite={liveChallengeInvite}
-            studentProfile={{ studentId: user?.studentId, name: user?.name }}
+            // The whole support profile, so the game gives the same Read aloud
+            // a standalone game does (extended time travels on the invite).
+            studentProfile={{ ...(user?.profile || {}), studentId: user?.id, name: user?.name }}
+            // The same rewards card a standalone game shows when it ends —
+            // without its "Open My Rewards" link: mid-Warm-Up the one way on
+            // is Back to Warm-Up, which records the game and keeps the
+            // assignment's own exit and flush.
+            renderMatchRewards={(roomId, match = {}) => (
+              <ChallengeRewardsEarned
+                roomId={roomId}
+                offered={match.offered}
+                grants={studentClassPoints.grants}
+                transactions={studentClassPoints.transactions}
+                onOpenRewards={null}
+              />
+            )}
             onExitToAssignment={() => setWarmupChallengePlayedRoomIds((previous) => (
               previous.includes(warmupChallengeDecision.roomId)
                 ? previous
@@ -12822,6 +12845,28 @@ function App() {
                 rigorLoading={classEvidenceLoading}
                 academicDataLoaded={teacherStudentDataMode === 'full'}
               />
+            )}
+
+            {/* CLASS REWARDS: what students can spend Class Points on besides a
+                Practice Pass — the teacher's own non-academic list — and the
+                requests waiting to be handed out. */}
+            {teacherTab === 'classesWorkspace' && activeClass.classId && (
+              <section aria-label="Class rewards" style={{ marginTop: 24, display: 'grid', gap: 16 }}>
+                <ClassRewardRequestsPanel
+                  classId={activeClass.classId}
+                  teacherEmail={user.email}
+                  studentNames={Object.fromEntries(
+                    studentsInClass({ students: allStudents, classes, classId: activeClass.classId })
+                      .map((student) => [student.id, formatStudentName(student)]),
+                  )}
+                  nowMs={now}
+                />
+                <ClassRewardCatalogEditor
+                  classId={activeClass.classId}
+                  ownerUid={user.uid}
+                  className={classes.find((entry) => entry.classId === activeClass.classId)?.name}
+                />
+              </section>
             )}
 
             {teacherTab === 'classes' && (

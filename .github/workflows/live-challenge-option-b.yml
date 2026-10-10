@@ -8,6 +8,13 @@ on:
       - 'src/platform/liveChallenge/**'
       - 'tests/platform/liveChallenge*.test.mjs'
       - 'tests/platform/warmupChallengeOptionB.test.mjs'
+      - 'src/components/rewards/**'
+      - 'src/components/student/rewards/**'
+      - 'src/platform/rewards/**'
+      - 'tests/browser/classRewardsQa*'
+      - 'tests/browser/liveChallengeTeachingQa*'
+      - 'tests/browser/liveChallengeProjectorPrivacyQa.mjs'
+      - 'tests/browser/emulator/**'
       - '.github/workflows/live-challenge-option-b.yml'
   workflow_dispatch:
 
@@ -30,3 +37,39 @@ jobs:
           tests/platform/liveChallengeQuestionLibrary.test.mjs
           tests/platform/liveChallengeOptionBWiring.test.mjs
           tests/platform/warmupChallengeOptionB.test.mjs
+
+  # Real games and real reward flows in Chromium, against the Firestore
+  # emulator and the real callable handlers (each driver starts the emulator,
+  # a callable bridge and Vite itself): a student's teaching screens (worked
+  # solution, held solution, missed round, recap, nobody publicly last), the
+  # projector's privacy (top few, never a last place, no word about extended
+  # time), and class rewards for a student and a teacher at 1366x768 and
+  # 390x844. Each exits 1 on any failed check.
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix functions ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Class rewards (student and teacher)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: npm run test:class-rewards-browser
+      - name: Live Challenge teaching journeys (student)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: npm run test:live-challenge-teaching-browser
+      - name: Live Challenge projector privacy
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: npm run test:live-challenge-projector-privacy-browser
+

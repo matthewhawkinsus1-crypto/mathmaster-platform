@@ -14,7 +14,7 @@ import {
   LEGACY_ACHIEVEMENT_RULE_ID,
   REWARD_KIND,
   criterionMet,
-  evaluateRewardPolicy,
+  evaluateMatchAwards,
   storedRewardPolicy,
 } from './liveChallengeRewardRules.mjs';
 import { buildMatchResult, standingFromPlayer } from './liveChallengeResults.mjs';
@@ -181,10 +181,15 @@ async function classDeliveryPrecondition(db, classId) {
   return { ok: true, classRecord };
 }
 
-/** The award records a match result produces under a policy. Pure apart from hashing. */
-export function planLiveChallengeAwards({ matchResult, policy = DEFAULT_LIVE_CHALLENGE_REWARD_POLICY }) {
+/**
+ * The award records a match result produces under a policy — its rules, the
+ * match's recognitions, and a personal best for each of
+ * `personalBestStudentIds` (evaluateMatchAwards, capped per student). Pure
+ * apart from hashing.
+ */
+export function planLiveChallengeAwards({ matchResult, policy = DEFAULT_LIVE_CHALLENGE_REWARD_POLICY, personalBestStudentIds = [] }) {
   const classId = matchResult?.classId || null;
-  return evaluateRewardPolicy({ matchResult, policy: storedRewardPolicy(policy) }).map((award) => {
+  return evaluateMatchAwards({ matchResult, policy: storedRewardPolicy(policy), personalBestStudentIds }).map((award) => {
     const isPoints = award.reward.kind === REWARD_KIND.CLASS_POINTS;
     return {
       id: isPoints
@@ -264,14 +269,14 @@ export const jobStatusFor = (awards = []) => {
  * Record the planned awards for a finished match. Idempotent and safe to run
  * concurrently: the job is read and merged inside one transaction.
  */
-export async function stageLiveChallengeRewards(db, { matchResult, policy }) {
+export async function stageLiveChallengeRewards(db, { matchResult, policy, personalBestStudentIds = [] }) {
   const roomId = String(matchResult?.roomId || '');
   if (!roomId) return { status: 'skipped', reason: 'missing_room_id', awards: [] };
   if (matchResult.status !== 'finished') return { status: 'skipped', reason: 'not_finished', awards: [] };
   const precondition = await classDeliveryPrecondition(db, matchResult.classId);
   if (!precondition.ok) return { status: 'skipped', reason: precondition.reason, awards: [] };
 
-  const planned = planLiveChallengeAwards({ matchResult, policy });
+  const planned = planLiveChallengeAwards({ matchResult, policy, personalBestStudentIds });
   const jobRef = db.collection(JOBS_COLLECTION).doc(roomId);
   const awards = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(jobRef);
@@ -485,8 +490,8 @@ export async function executeLiveChallengeAchievementAwards(db, roomId, { maxAtt
  * Deliver a finished match's rewards: stage from the durable match result,
  * then execute. The only entry point new code should call.
  */
-export async function processLiveChallengeMatchRewards(db, { matchResult, policy = null } = {}) {
-  const staged = await stageLiveChallengeRewards(db, { matchResult, policy });
+export async function processLiveChallengeMatchRewards(db, { matchResult, policy = null, personalBestStudentIds = [] } = {}) {
+  const staged = await stageLiveChallengeRewards(db, { matchResult, policy, personalBestStudentIds });
   if (staged.status === 'skipped') return { status: 'skipped', reason: staged.reason, awardsCount: 0 };
   if (!staged.awards.length) return { status: 'completed', awardsCount: 0 };
   const executed = await executeLiveChallengeAchievementAwards(db, matchResult.roomId);
