@@ -76,21 +76,34 @@ const solve3x3 = (matrix, vector) => {
   return [a[0][3], a[1][3], a[2][3]];
 };
 
+// Least-squares quadratic y = ax² + bx + c, solved in u = (x − x̄) ÷ s
+// (s = the largest |x − x̄|) and expanded back to x — the same method as the
+// lab's quadraticRegression (dataModelingMath.mjs). In raw x the normal
+// equations hold Σx⁴ ≈ 2e14 for calendar-year data, so the absolute pivot
+// cut-off returned a wrong fit, or none, and rejected the exact
+// least-squares answer. Centred and scaled, every entry lies in [0, n].
 export const pathQuadraticRegression = (points = []) => {
   const clean = cleanPathDataPoints(points);
   if (clean.length < 3) return null;
-  const sx = clean.reduce((sum, [x]) => sum + x, 0);
-  const sx2 = clean.reduce((sum, [x]) => sum + x ** 2, 0);
-  const sx3 = clean.reduce((sum, [x]) => sum + x ** 3, 0);
-  const sx4 = clean.reduce((sum, [x]) => sum + x ** 4, 0);
-  const sy = clean.reduce((sum, [, y]) => sum + y, 0);
-  const sxy = clean.reduce((sum, [x, y]) => sum + x * y, 0);
-  const sx2y = clean.reduce((sum, [x, y]) => sum + x ** 2 * y, 0);
+  const center = mean(clean.map(([x]) => x));
+  const spread = Math.max(...clean.map(([x]) => Math.abs(x - center)));
+  if (!(spread > 0)) return null;
+  const scaled = clean.map(([x, y]) => [(x - center) / spread, y]);
+  const su = scaled.reduce((sum, [u]) => sum + u, 0);
+  const su2 = scaled.reduce((sum, [u]) => sum + u ** 2, 0);
+  const su3 = scaled.reduce((sum, [u]) => sum + u ** 3, 0);
+  const su4 = scaled.reduce((sum, [u]) => sum + u ** 4, 0);
+  const sy = scaled.reduce((sum, [, y]) => sum + y, 0);
+  const suy = scaled.reduce((sum, [u, y]) => sum + u * y, 0);
+  const su2y = scaled.reduce((sum, [u, y]) => sum + u ** 2 * y, 0);
   const coeffs = solve3x3(
-    [[sx4, sx3, sx2], [sx3, sx2, sx], [sx2, sx, clean.length]],
-    [sx2y, sxy, sy],
+    [[su4, su3, su2], [su3, su2, su], [su2, su, clean.length]],
+    [su2y, suy, sy],
   );
-  return coeffs ? { a: coeffs[0], b: coeffs[1], c: coeffs[2] } : null;
+  if (!coeffs) return null;
+  const a = coeffs[0] / spread ** 2;
+  const slope = coeffs[1] / spread;
+  return { a, b: slope - 2 * a * center, c: a * center ** 2 - slope * center + coeffs[2] };
 };
 
 export const pathExponentialRegression = (points = []) => {
@@ -184,6 +197,19 @@ export const choosePathBestModel = (models = [], metric = 'rmse') => {
   const valid = list(models).filter((entry) => Number.isFinite(entry.metrics?.[metric]));
   if (!valid.length) return null;
   return valid.reduce((best, current) => current.metrics[metric] < best.metrics[metric] ? current : best);
+};
+
+const tiedPathModelIds = (models, best, metric, points) => {
+  const bestValue = Number(best?.metrics?.[metric]);
+  if (!Number.isFinite(bestValue)) return [];
+  const yScale = Math.max(0, ...points.map(([, y]) => Math.abs(y)));
+  const scale = metric === 'sse' ? yScale * yScale * points.length : yScale;
+  const tolerance = 1e-9 * Math.max(scale, Math.abs(bestValue));
+  return list(models)
+    .filter((entry) => entry.id !== best.id
+      && Number.isFinite(entry.metrics?.[metric])
+      && Math.abs(entry.metrics[metric] - bestValue) <= tolerance)
+    .map((entry) => entry.id);
 };
 
 export const pathCorrelationDescriptor = (r) => {
@@ -280,11 +306,19 @@ export const buildDataModelingPrivateDefinition = (question = {}) => {
   // stronger than "pick the best model": A.4C, A.8B and A.9E each name the
   // model family in the standard itself.
   const forcedModelId = FORCED_FIT_MODES[mode] || null;
-  const expectedModelId = forcedModelId
-    || (['linear', 'quadratic', 'exponential', 'squareRoot'].includes(String(question.expectedModel))
-      ? String(question.expectedModel)
-      : bestModel?.id || 'linear');
+  const authoredModelId = ['linear', 'quadratic', 'exponential', 'squareRoot'].includes(String(question.expectedModel))
+    ? String(question.expectedModel)
+    : null;
+  const expectedModelId = forcedModelId || authoredModelId || bestModel?.id || 'linear';
   const expectedModel = candidateModels.find((entry) => entry.id === expectedModelId) || null;
+  // When "best" decides the expected family, a family whose error equals the
+  // best one's (to rounding) is an equally correct choice. The common case is
+  // data whose least-squares quadratic is the regression line itself (a = 0):
+  // linear and quadratic then share the smallest error, and the strict `<` in
+  // choosePathBestModel picks between them on floating-point noise alone.
+  const tiedModelIds = (!forcedModelId && !authoredModelId && bestModel)
+    ? tiedPathModelIds(candidateModels, bestModel, metric, points)
+    : [];
   const r = pathCorrelation(points);
   const descriptor = pathCorrelationDescriptor(r);
   const predictionX = finite(question.predictionX) ? Number(question.predictionX) : null;
@@ -301,6 +335,7 @@ export const buildDataModelingPrivateDefinition = (question = {}) => {
     causationExpected: question.causationSupported === true ? 'causation' : 'association',
     expectedModelId,
     expectedModel: expectedModel ? { id: expectedModel.id, model: expectedModel.model } : null,
+    ...(tiedModelIds.length ? { tiedModelIds } : {}),
     requiredParts: requiredPartsForMode(mode),
     predictionX,
     slopeTolerance: exploratoryFitTolerance?.slope ?? coefficientTolerance(regression.m, question.slopeTolerance, 0.2, 0.12),
@@ -387,7 +422,8 @@ export const gradeDataModelingResponse = (definition = {}, raw = {}) => {
   results.correlation = Number.isFinite(enteredR)
     && Math.abs(enteredR - definition.r) <= definition.correlationTolerance;
 
-  results.modelChoice = String(raw.modelChoice) === definition.expectedModelId;
+  results.modelChoice = String(raw.modelChoice) === definition.expectedModelId
+    || list(definition.tiedModelIds).includes(String(raw.modelChoice));
 
   const rawPredictionX = Number(raw.predictionX);
   // If the author supplied a target x, it is part of the question and cannot
