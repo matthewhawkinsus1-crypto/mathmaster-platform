@@ -15,6 +15,7 @@ import {
 } from './assignmentSchemaV5.js';
 import { normalizeQuestionFamilyReference } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { hasLocalFamilyTemplate, lostTemplatePlaceholders } from '../../../functions/shared/questionFamilyTemplate.mjs';
+import { isValidLogBase } from '../../../functions/shared/toolMath/exponentialLog/exponentialLogMath.mjs';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -160,9 +161,25 @@ const copyCommon = (source, target = {}) => {
   // allocator fills only the questions that have none.
   if (source.questionWeight != null && source.questionWeight !== '') target.questionWeight = source.questionWeight;
   if (isObject(source.questionWeightBasis)) target.questionWeightBasis = source.questionWeightBasis;
-  if (source.standard) target.standard = source.standard;
+  // `standard` has two meanings. On most questions it is the curriculum code
+  // ('A.3C'); graphing2 standard form keeps the line's { A, B, C } there, and
+  // its branch has already put that object on the target. Overwriting it with
+  // the code left the tool drawing "undefinedx + undefinedy" with no answer
+  // that could ever be right. The coefficients stay where the tool reads them
+  // and the code travels as primaryStandard, the shorthand the blueprint
+  // compiles into alignments (or as a secondary standard when a different
+  // primary was authored), so neither meaning is lost.
+  const curriculumStandard = source.standard && !isObject(source.standard) ? source.standard : null;
+  const toolOwnsStandard = curriculumStandard != null && isObject(target.standard);
+  if (source.standard && !toolOwnsStandard) target.standard = source.standard;
   if (source.primaryStandard) target.primaryStandard = source.primaryStandard;
   if (source.secondaryStandards) target.secondaryStandards = source.secondaryStandards;
+  if (toolOwnsStandard) {
+    if (!target.primaryStandard) target.primaryStandard = curriculumStandard;
+    else if (target.primaryStandard !== curriculumStandard && !asArray(target.secondaryStandards).includes(curriculumStandard)) {
+      target.secondaryStandards = [...asArray(target.secondaryStandards), curriculumStandard];
+    }
+  }
   if (source.prerequisiteStandards) target.prerequisiteStandards = source.prerequisiteStandards;
   if (source.alignments) target.alignments = source.alignments;
   return target;
@@ -235,6 +252,41 @@ const toolFunctionSpec = (raw = {}) => {
   const core = coreFunctionSpec(raw);
   if (core.type !== 'linear') return core;
   return { type: 'linear', a: core.m, h: 0, k: core.b, ...(core.domain ? { domain: core.domain } : {}) };
+};
+
+// The exponential/log bridge draws and grades one function only,
+// a·base^(x − h) + k (its logarithm is that function's inverse). A `function`
+// authored there without a type is that exponential: read as the default
+// linear spec it became { type: 'linear', a, k }, dropping h and the base (and
+// taking an a·b^x author's b as the intercept), so the bridge graded a
+// different function from the prompt. A typed spec, or one written with a
+// line's m / slope / intercept, compiles exactly as before.
+const exponentialLogFunctionSpec = (raw = {}) => {
+  if (!hasFunctionIntent(raw) || raw.type || raw.family || ['m', 'slope', 'intercept'].some((key) => raw[key] != null)) {
+    return toolFunctionSpec(raw);
+  }
+  const base = raw.base ?? raw.b;
+  return coreFunctionSpec({ ...raw, type: 'exponential', base, b: raw.base == null ? undefined : raw.b });
+};
+
+// The bridge grades its function with `base` (default 2) and never reads `b`.
+// A base that is not positive and ≠ 1 leaves every attempt ungraded, and a
+// typed exponential written with `b` grades base 2, not the b the prompt
+// shows. Neither changes how the question compiles or grades; the warning
+// tells the teacher at import instead of at grade time. A non-numeric value
+// (a template token) is left to the family instance to fill.
+const exponentialLogFunctionWarnings = (question = {}, label = 'question') => {
+  const fn = question.type === 'exponentialLogBridge' && isObject(question.function) ? question.function : null;
+  if (!fn || fn.type !== 'exponential') return [];
+  const warnings = [];
+  const base = fn.base ?? 2;
+  if (Number.isFinite(Number(base)) && !isValidLogBase(base)) {
+    warnings.push(`${label}: exponentialLogBridge function base ${base} must be positive and not 1; the bridge cannot grade this question.`);
+  }
+  if (fn.base == null && fn.b != null) {
+    warnings.push(`${label}: exponentialLogBridge function has b = ${fn.b} but no base; the bridge grades it with base 2. Write the base as \`base\`.`);
+  }
+  return warnings;
 };
 
 const staticFunctionSpec = (raw = {}) => {
@@ -1868,7 +1920,7 @@ const compileOne = (q, index, repairs) => {
     }
     case 'exponentialLogBridge': {
       const e = q.exponentialLog || q.logarithm || {};
-      out = copyCommon(q, { type, mode: q.mode || e.mode || (actions.includes('solveLogarithmic') ? 'solveLogarithmic' : actions.includes('solveExponential') ? 'solveExponential' : 'equivalentForms'), base: q.base ?? e.base, exponent: q.exponent ?? e.exponent, equation: q.equation || e.equation, function: q.function ? toolFunctionSpec(q.function) : e.function, x: q.x ?? e.x, y: q.y ?? e.y });
+      out = copyCommon(q, { type, mode: q.mode || e.mode || (actions.includes('solveLogarithmic') ? 'solveLogarithmic' : actions.includes('solveExponential') ? 'solveExponential' : 'equivalentForms'), base: q.base ?? e.base, exponent: q.exponent ?? e.exponent, equation: q.equation || e.equation, function: q.function ? exponentialLogFunctionSpec(q.function) : e.function, x: q.x ?? e.x, y: q.y ?? e.y });
       break;
     }
     case 'transformationsLab': {
@@ -2004,6 +2056,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
 
   const repairs = [];
   const decisions = [];
+  const compileWarnings = [];
   const assignment = { ...(input.assignment || {}) };
 
   const compileQuestions = (questions = [], role = null, sectionId = null, sectionTitle = null) => asArray(questions).map((question, index) => {
@@ -2019,6 +2072,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
     const compiled = compileOne(source, index, repairs);
     const interactionSafe = normalizeQuestionInteractionContracts(compiled);
     assertFamilyTemplateCompiled(source, interactionSafe, index);
+    compileWarnings.push(...exponentialLogFunctionWarnings(interactionSafe, `${sectionTitle || sectionId || 'Section'} question ${index + 1}`));
     decisions.push({
       index,
       sectionId,
@@ -2072,7 +2126,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
     package: packageOut,
     repairs,
     decisions,
-    warnings: validation.warnings,
+    warnings: [...validation.warnings, ...compileWarnings],
   };
 };
 
