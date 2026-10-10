@@ -144,7 +144,10 @@ for (const device of DEVICES) {
   /* ------------------------------------- practice, a Question Family instance */
   {
     const { page, context } = await open(device, 'q=family&role=practice');
-    const prompt = await page.locator('.mathmaster-question-engine').first().textContent();
+    // The instance's plain prompt (the page text also holds each formula's
+    // spoken form, "5x plus 15 equals 40", run into the visual one).
+    await page.waitForFunction(() => Boolean(window.__mmFamilyPrompt));
+    const prompt = await page.evaluate(() => window.__mmFamilyPrompt);
     // Read the instance's own equation off the screen: ax + b = c.
     const match = prompt.match(/(−|-)?\s*(\d+)x\s*([+−-])\s*(\d+)\s*=\s*(−|-)?\s*(\d+)/);
     check(Boolean(match), `${device.name}: the family instance renders`, prompt.slice(0, 160));

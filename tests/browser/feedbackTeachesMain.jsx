@@ -100,6 +100,9 @@ function Harness() {
           studentProfile={studentProfile}
           onGrade={onGrade}
           serverGrading={serverGrading}
+          // The delivered family instance's own prompt, as plain text: the page
+          // text also carries each formula's spoken form.
+          onFamilyDelivery={(delivery, delivered) => { window.__mmFamilyPrompt = String(delivered?.prompt || ''); }}
           onAskTeacher={(requested) => { window.__mmHelp.push(requested); setHelp(requested); }}
           helpRequested={help}
         />
