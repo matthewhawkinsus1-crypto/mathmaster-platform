@@ -5,10 +5,10 @@
 //
 // At 1366×768 and 390×844, through rendered controls only:
 //
-//   practice  Hint control → a hint; a miss gets a specific message (a
-//             generic check worded without the move that yields the answer,
-//             or the server's own classifier on a Question Family instance)
-//             and never the answer; the second miss offers a hint;
+//   practice  Hint control → a hint; while attempts are left a miss a generic
+//             check explains shows exactly what an ordinary miss shows; the
+//             server's own classifier on a Question Family instance names the
+//             error, and never the answer; the second miss offers a hint;
 //             the third closes the question, says "the worked solution is
 //             below" and shows it; a correct answer offers "See why it works";
 //             "Ask my teacher" reaches the host; every hint reveal is recorded
@@ -94,12 +94,9 @@ for (const device of DEVICES) {
     const box = outcome(page);
     const text = await box.textContent();
     check(/Not quite\. You have 2 attempts remaining/.test(text), `${device.name}: the attempt outcome is unchanged`, text);
-    const miss = box.locator('[data-miss-feedback]');
-    // Attempts left: where to look and how to check, never the move that
-    // yields the answer (PR #462 review M6b).
-    check(await miss.isVisible() && /compares with the equation/.test(await miss.textContent()), `${device.name}: the miss gets a specific check (sign)`, await miss.textContent().catch(() => ''));
-    check(!/3\/4|\\frac|0\.75|sign|negative|opposite/.test(await miss.textContent()), `${device.name}: and never the answer or the move`);
-    check(await reachable(page, miss), `${device.name}: the miss message is on screen`);
+    // Attempts left: a miss a generic check explains (here a sign flip)
+    // shows nothing an ordinary miss does not (PR #462 review M6b; QA M1).
+    check(await box.locator('[data-miss-feedback]').count() === 0, `${device.name}: no check-specific message while attempts are left`, await box.textContent());
     const graded = await page.evaluate(() => window.__mmGrades);
     check(graded[0]?.supportUsage?.hintUsed === true && graded[0]?.supportUsage?.isMathematicallyIndependent === false, `${device.name}: the hint is recorded with the attempt`);
 
@@ -121,6 +118,26 @@ for (const device of DEVICES) {
     check(!(await page.locator('[data-hint-control]').isVisible().catch(() => false)), `${device.name}: no Hint control on a closed question`);
     await page.screenshot({ path: path.join(ARTIFACTS, `${device.name}-closed.png`), fullPage: true });
     await context.close();
+  }
+
+  /* ------------------- practice, a checked miss looks like an ordinary one */
+  {
+    // The whole outcome box — text, aria and live region — after a first
+    // miss each generic check explains, and after one none does.
+    const shown = {};
+    for (const [kind, value] of [['none', '5'], ['sign-flipped', '-\\frac{3}{4}'], ['reciprocal', '\\frac{4}{3}']]) {
+      const { page, context } = await open(device, 'q=multi&role=practice');
+      await answer(page, value);
+      await submit(page);
+      const graded = await page.evaluate(() => window.__mmGrades);
+      check(graded.length === 1 && graded[0].isCorrect === false, `${device.name}: ${kind} miss is graded wrong`, JSON.stringify(graded[0]?.isCorrect));
+      shown[kind] = await page.locator('[role="status"], [aria-live]').evaluateAll((nodes) => nodes.map((node) => node.outerHTML).join('\n'));
+      await context.close();
+    }
+    check(/Not quite\. You have 2 attempts remaining/.test(shown.none), `${device.name}: the ordinary miss is the plain outcome`, shown.none);
+    for (const kind of ['sign-flipped', 'reciprocal']) {
+      check(shown[kind] === shown.none, `${device.name}: a ${kind} miss shows exactly what an ordinary miss shows`, shown[kind]);
+    }
   }
 
   /* -------------------------------------------- practice, correct, ask teacher */

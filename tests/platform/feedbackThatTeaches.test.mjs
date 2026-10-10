@@ -29,7 +29,7 @@ import { attemptWasIndependent } from '../../functions/shared/sectionRecoverySer
 import { classifyAttemptEvidence } from '../../src/platform/mastery/evidenceClassification.js';
 import { attemptSupportUsageFrom, readSupportUse, rememberSupportUse, restoredSupportUse } from '../../src/platform/supports/supportUseMemory.js';
 import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
-import { genericMissCheck, GENERIC_MISS_MESSAGES, GENERIC_MISS_MESSAGES_OPEN } from '../../src/platform/supports/feedback/genericMissChecks.js';
+import { genericMissCheck, GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { diagnoseMiss, displayFamilyValues, expectedForPart, partIsChoice } from '../../src/platform/supports/feedback/missDiagnosis.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
 import { partialCreditBreakdown } from '../../src/platform/supports/feedback/partialCreditBreakdown.js';
@@ -61,29 +61,31 @@ test('1. every registry code has a student message: names the error, carries no 
     assert.ok(message.length > 40 && message.length < 260, `${id}: a sentence or two`);
   });
   Object.values(GENERIC_MISS_MESSAGES).forEach((message) => assert.doesNotMatch(message, /\d/));
-  Object.values(GENERIC_MISS_MESSAGES_OPEN).forEach((message) => assert.doesNotMatch(message, /\d/));
   assert.equal(studentMisconceptionMessage('constructor'), null, 'own keys only');
 });
 
 /* ------------------------------------------------------ generic checks */
 
+// The checks themselves, as asked once the item has closed.
+const closedCheck = (args) => genericMissCheck({ ...args, open: false });
+
 test('the generic checks name a sign flip, a swapped pair, a reciprocal and an unsimplified fraction — and nothing else', () => {
-  assert.equal(genericMissCheck({ student: '-4', expected: '4' })?.check, 'sign-flipped');
-  assert.equal(genericMissCheck({ student: '(3, 2)', expected: [2, 3] })?.check, 'coordinates-swapped');
-  assert.equal(genericMissCheck({ student: '(-2, -3)', expected: '(2, 3)' })?.check, 'sign-flipped');
-  assert.equal(genericMissCheck({ student: '1/4', expected: '4' })?.check, 'reciprocal');
-  assert.equal(genericMissCheck({ student: '\\frac{2}{3}', expected: '3/2' })?.check, 'reciprocal');
-  assert.equal(genericMissCheck({ student: '6/8', expected: '3/4' })?.check, 'not-simplified');
+  assert.equal(closedCheck({ student: '-4', expected: '4' })?.check, 'sign-flipped');
+  assert.equal(closedCheck({ student: '(3, 2)', expected: [2, 3] })?.check, 'coordinates-swapped');
+  assert.equal(closedCheck({ student: '(-2, -3)', expected: '(2, 3)' })?.check, 'sign-flipped');
+  assert.equal(closedCheck({ student: '1/4', expected: '4' })?.check, 'reciprocal');
+  assert.equal(closedCheck({ student: '\\frac{2}{3}', expected: '3/2' })?.check, 'reciprocal');
+  assert.equal(closedCheck({ student: '6/8', expected: '3/4' })?.check, 'not-simplified');
   // Not explained, so nothing is claimed.
-  assert.equal(genericMissCheck({ student: '5', expected: '4' }), null);
-  assert.equal(genericMissCheck({ student: '1', expected: '1' }), null, 'a correct value is never a miss');
-  assert.equal(genericMissCheck({ student: '3/4', expected: '0.75' }), null, 'a reduced fraction is not "unsimplified"');
-  assert.equal(genericMissCheck({ student: '1', expected: '-1' })?.check, 'sign-flipped');
-  assert.equal(genericMissCheck({ student: '1', expected: '1' }), null);
-  assert.equal(genericMissCheck({ student: '0', expected: '0' }), null);
-  assert.equal(genericMissCheck({ student: '(2, 2)', expected: '(2, 2)' }), null);
-  assert.equal(genericMissCheck({ student: '-1', expected: '1' })?.check, 'sign-flipped', 'not a reciprocal: ±1 is its own');
-  assert.equal(genericMissCheck({}), null);
+  assert.equal(closedCheck({ student: '5', expected: '4' }), null);
+  assert.equal(closedCheck({ student: '1', expected: '1' }), null, 'a correct value is never a miss');
+  assert.equal(closedCheck({ student: '3/4', expected: '0.75' }), null, 'a reduced fraction is not "unsimplified"');
+  assert.equal(closedCheck({ student: '1', expected: '-1' })?.check, 'sign-flipped');
+  assert.equal(closedCheck({ student: '1', expected: '1' }), null);
+  assert.equal(closedCheck({ student: '0', expected: '0' }), null);
+  assert.equal(closedCheck({ student: '(2, 2)', expected: '(2, 2)' }), null);
+  assert.equal(closedCheck({ student: '-1', expected: '1' })?.check, 'sign-flipped', 'not a reciprocal: ±1 is its own');
+  assert.equal(closedCheck({}), null);
 });
 
 /* --------------------------------------------- 2. display only, not a grade */
@@ -127,35 +129,30 @@ test('2. the miss message comes from the server\'s own classifier, on values the
   assert.equal(diagnoseMiss({ question: onScreen, grading: right, response: null, familyValues: values }), null);
   // Two explanations for one value is no explanation: on −2x − 14 = 0 the
   // kept-sign value is also the sign-flipped answer, so the classifier
-  // abstains and only the plainer generic check speaks.
+  // abstains and only the plainer generic check speaks — once the item has
+  // closed; with attempts left it says nothing either.
   const ambiguous = resolveFamilyQuestionInstance({ question: twoStepSlot, assignmentId: 'a-feedback-synthetic', storageIndex: 0, allocation: { seat: 3, variant: 0, stride: 40, index: 3, basis: 'seated' } });
   const av = ambiguous.instance.values;
   assert.equal((av.c + av.b) / av.a, -av.x, 'the fixture is the ambiguous one');
-  const both = diagnoseMiss({ question: ambiguous.question, grading: browserGrading(ambiguous.question, { solution: String((av.c + av.b) / av.a) }), familyValues: av });
+  const both = diagnoseMiss({ question: ambiguous.question, grading: browserGrading(ambiguous.question, { solution: String((av.c + av.b) / av.a) }), familyValues: av, attemptsLeft: false });
   assert.deepEqual([both?.source, both?.code], ['generic', 'sign-flipped']);
+  assert.equal(diagnoseMiss({ question: ambiguous.question, grading: browserGrading(ambiguous.question, { solution: String((av.c + av.b) / av.a) }), familyValues: av }), null);
   // Another pin is not this instance.
   assert.equal(displayFamilyValues({ template: twoStepSlot, delivered: { familyDelivery: { ...delivered.delivery, fingerprint: 'other' } }, assignmentId: ASSIGNMENT_ID, storageIndex: 0 }), null);
 });
 
-test('2. a generic message never hands over the answer: no move named while attempts are left, nothing on a choice field (PR #462 review M6a, M6b)', () => {
-  // Each open message says where to look and how to check — never the move
-  // (negate, invert, swap, reduce) that turns the student's answer into the key.
-  const MOVES = /sign|negative|opposite|upside|numerator|denominator|top|order|swap|first|simplest|factor|reduc|divid|flip|invert|traded/i;
-  Object.entries(GENERIC_MISS_MESSAGES_OPEN).forEach(([check, message]) => assert.doesNotMatch(message, MOVES, `${check}: ${message}`));
-  assert.deepEqual(Object.keys(GENERIC_MISS_MESSAGES_OPEN).sort(), Object.keys(GENERIC_MISS_MESSAGES).sort());
-
-  // −4x + 8 = 36, key −7.
+test('2. a generic check never hands over the answer: silent while attempts are left, nothing on a choice field (PR #462 review M6a, M6b; QA M1)', () => {
+  // −4x + 8 = 36, key −7. Each check relates the student's answer to the key
+  // by one move, so while attempts are left none of them may say anything —
+  // not even a neutral sentence that differs by check.
   const question = { type: 'multiAnswer', prompt: 'Solve −4x + 8 = 36.', answerFields: [{ id: 'x', label: 'x', answer: '-7' }] };
-  const signed = diagnoseMiss({ question, grading: browserGrading(question, { x: '7' }) });
-  assert.equal(signed?.code, 'sign-flipped');
-  assert.equal(signed.message, GENERIC_MISS_MESSAGES_OPEN['sign-flipped'], 'attempts left (the default): no move named');
-  assert.doesNotMatch(signed.message, MOVES);
-  const inverted = diagnoseMiss({ question, grading: browserGrading(question, { x: '-1/7' }) });
-  assert.equal(inverted?.code, 'reciprocal');
-  assert.doesNotMatch(inverted.message, MOVES);
+  assert.equal(diagnoseMiss({ question, grading: browserGrading(question, { x: '7' }) }), null, 'attempts left (the default): a sign flip says nothing');
+  assert.equal(diagnoseMiss({ question, grading: browserGrading(question, { x: '-1/7' }) }), null, 'nor a reciprocal');
+  assert.equal(genericMissCheck({ student: '7', expected: '-7' }), null, 'the default is open, and open is silent');
   // Once the item has closed, the error may be named.
-  assert.equal(diagnoseMiss({ question, grading: browserGrading(question, { x: '7' }), attemptsLeft: false }).message, GENERIC_MISS_MESSAGES['sign-flipped']);
-  assert.equal(genericMissCheck({ student: '7', expected: '-7' }).message, GENERIC_MISS_MESSAGES_OPEN['sign-flipped'], 'the default is the open wording');
+  const closed = diagnoseMiss({ question, grading: browserGrading(question, { x: '7' }), attemptsLeft: false });
+  assert.deepEqual([closed?.source, closed?.code, closed?.message], ['generic', 'sign-flipped', GENERIC_MISS_MESSAGES['sign-flipped']]);
+  assert.equal(diagnoseMiss({ question, grading: browserGrading(question, { x: '-1/7' }), attemptsLeft: false })?.code, 'reciprocal');
 
   // A choice field: with options {5, 0, −5}, "the opposite sign" after −5 leaves one option.
   const choice = { type: 'multiAnswer', answerFields: [{ id: 'x', label: 'x', answer: '5', options: ['5', '0', '-5'] }] };
@@ -167,21 +164,56 @@ test('2. a generic message never hands over the answer: no move named while atte
   // A free-response field beside a choice field still gets its message.
   const mixed = { type: 'multiAnswer', answerFields: [{ id: 'x', label: 'x', answer: '-7' }, { id: 'kind', label: 'Kind', answer: '5', options: ['5', '0', '-5'] }] };
   assert.equal(partIsChoice(mixed, { id: 'x' }), false);
-  assert.equal(diagnoseMiss({ question: mixed, grading: browserGrading(mixed, { x: '7', kind: '-5' }) })?.code, 'sign-flipped');
+  assert.equal(diagnoseMiss({ question: mixed, grading: browserGrading(mixed, { x: '7', kind: '-5' }), attemptsLeft: false })?.code, 'sign-flipped');
 
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   assert.match(engine, /diagnoseMiss\(\{ question: processedQuestion, grading: gradedForDisplay\.grading, response: gradedForDisplay\.response, familyValues, attemptsLeft: !isExpired \}\)/);
 });
 
-test('2. where no classifier fires, a generic check speaks for a plain multi-answer key', () => {
+test('2. while attempts are left, a miss a generic check explains looks exactly like one nothing explains (QA M1)', () => {
+  // One wrong answer per check, and one no check explains, on the same keys.
+  // What reaches the screen is missFeedback's output (the text, its
+  // data-miss-feedback source, and through it the feedback-assisted flag), so
+  // it must be identical across all of them — with and without authored
+  // attempt feedback to fall back on. The grader's verdict is given, not
+  // computed: 6/8 is wrong only where lowest terms were asked for.
+  const missed = (response) => ({ graded: true, isCorrect: false, parts: [{ id: 'a', response, graded: true, isComplete: true, isCorrect: false }] });
+  const keys = [
+    { answer: '-7', misses: { 'sign-flipped': '7', reciprocal: '-1/7', none: '5' } },
+    { answer: '3/4', misses: { 'not-simplified': '6/8', 'sign-flipped': '-3/4', reciprocal: '4/3', none: '2' } },
+    { answer: '(2, 5)', misses: { 'coordinates-swapped': '(5, 2)', 'sign-flipped': '(-2, -5)', none: '(1, 1)' } },
+  ];
+  const fired = new Set();
+  for (const attemptFeedback of [undefined, ['Look again at your work.', 'Try a different approach.']]) {
+    for (const { answer, misses } of keys) {
+      const question = { type: 'multiAnswer', prompt: 'Solve it.', answerFields: [{ id: 'a', label: 'a', answer }], ...(attemptFeedback ? { attemptFeedback } : {}) };
+      for (const attemptNumber of [1, 2]) {
+        const shown = Object.entries(misses).map(([check, response]) => {
+          const grading = missed(response);
+          // The fixture is meaningful only if the check really fires once closed.
+          const closed = diagnoseMiss({ question, grading, attemptsLeft: false });
+          assert.equal(closed?.code ?? 'none', check, `${response} for ${answer}`);
+          if (closed) fired.add(check);
+          const diagnosis = diagnoseMiss({ question, grading, attemptsLeft: true });
+          return [check, JSON.stringify({ diagnosis, shown: missFeedback({ question, attemptNumber, diagnosis, parts: grading.parts }) })];
+        });
+        const ordinary = shown.find(([check]) => check === 'none')[1];
+        shown.forEach(([check, output]) => assert.equal(output, ordinary, `${answer}, attempt ${attemptNumber}, ${attemptFeedback ? 'authored' : 'no authored'} feedback: ${check} shows what an ordinary miss shows`));
+      }
+    }
+  }
+  assert.deepEqual([...fired].sort(), Object.keys(GENERIC_MISS_MESSAGES).sort(), 'every check was exercised');
+});
+
+test('2. where no classifier fires, a generic check speaks for a plain multi-answer key once the item has closed', () => {
   const question = { type: 'multiAnswer', answerFields: [{ id: 'slope', label: 'Slope', answer: '3/4' }, { id: 'point', label: 'Point', answer: '(2, 5)' }] };
   assert.equal(expectedForPart(question, { id: 'slope' }), '3/4');
   const grading = browserGrading(question, { slope: '-3/4', point: '(2, 5)' });
-  assert.equal(diagnoseMiss({ question, grading })?.code, 'sign-flipped');
+  assert.equal(diagnoseMiss({ question, grading, attemptsLeft: false })?.code, 'sign-flipped');
   const swapped = browserGrading(question, { slope: '3/4', point: '(5, 2)' });
-  assert.equal(diagnoseMiss({ question, grading: swapped })?.code, 'coordinates-swapped');
+  assert.equal(diagnoseMiss({ question, grading: swapped, attemptsLeft: false })?.code, 'coordinates-swapped');
   const unexplained = browserGrading(question, { slope: '7', point: '(2, 5)' });
-  assert.equal(diagnoseMiss({ question, grading: unexplained }), null, 'an unmodelled miss gets no invented reason');
+  assert.equal(diagnoseMiss({ question, grading: unexplained, attemptsLeft: false }), null, 'an unmodelled miss gets no invented reason');
   assert.equal(diagnoseMiss({ question: null, grading }), null);
   assert.equal(diagnoseMiss({ question, grading: { graded: false, parts: [] } }), null);
 });
