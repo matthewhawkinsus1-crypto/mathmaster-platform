@@ -36,7 +36,7 @@ import {
   inverseLabInitialX,
   inverseLabInputLocked,
   inverseLabRequiredParts,
-  inverseValue,
+  inverseLabRoundTrip,
 } from '../../toolMath/inverseComposition/inverseCompositionMath.mjs';
 import {
   createLinearInverseDerivation,
@@ -78,14 +78,15 @@ const gradeLab = (question, work) => {
   const fx = evaluateSpecWithDomain(f, x);
   const fog = composeValue(f, g, x);
   const gof = composeValue(g, f, x);
-  const inverseAtFx = canInvert ? inverseValue(f, fx) : Number.NaN;
+  // f⁻¹(f(x)) on f's kept branch: x, or 2h − x for an input off a parabola's kept branch.
+  const inverseAtFx = inverseLabRoundTrip(f, x);
   const restrictionChoice = INVERSE_RESTRICTION_CHOICES.includes(work.restrictionChoice) ? work.restrictionChoice : null;
 
   const results = {
     fog: Number.isFinite(fog) && matchesNumericAnswer(typed(work.fogAnswer), fog, TOLERANCE),
     gof: Number.isFinite(gof) && matchesNumericAnswer(typed(work.gofAnswer), gof, TOLERANCE),
-    // f⁻¹ must undo f: the answer is the x the student started from.
-    inverse: canInvert && Number.isFinite(inverseAtFx) && matchesNumericAnswer(typed(work.inverseAnswer), x, TOLERANCE),
+    // f⁻¹(f(x)): the x the student started from when it is on f's kept branch.
+    inverse: canInvert && Number.isFinite(inverseAtFx) && matchesNumericAnswer(typed(work.inverseAnswer), inverseAtFx, TOLERANCE),
     restriction: restrictionChoice !== null && restrictionChoice === expectedInverseRestriction(f),
   };
   // A part is complete when its input holds a value — or when the screen shows
