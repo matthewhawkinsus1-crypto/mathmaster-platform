@@ -49,6 +49,7 @@ import {
   readMathPathRouteState,
   writeMathPathRouteState,
 } from '../../platform/student/browserHistory.js';
+import { mathPathUrlFor } from '../../app/routes/browserUrl.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -150,6 +151,9 @@ export const MyMathPathExperience = ({
   onSimulationEvent = null,
   readOnly = false,
   initialTab = 'path',
+  // A reload of a session (app/routes/urlArrival.js): the session this tab's
+  // history entry recorded, restored exactly as browser Forward restores it.
+  initialSessionConfig = null,
   loading = false,
   error = null,
   historyError = null,
@@ -163,8 +167,8 @@ export const MyMathPathExperience = ({
 }) => {
   // The live student opens on Path. A teacher inspecting an actual student can
   // choose Mastery Overview first, but the same component stays the source of truth.
-  const [activeTab, setActiveTab] = useState(() => initialTab);
-  const [sessionConfig, setSessionConfig] = useState(null);
+  const [activeTab, setActiveTab] = useState(() => (initialTab === 'session' && !initialSessionConfig ? 'path' : initialTab));
+  const [sessionConfig, setSessionConfig] = useState(() => (initialTab === 'session' ? initialSessionConfig : null));
   // Which alternative the student put in each slot, keyed by the slot's frozen
   // key. Deliberately session-scoped: a swap is a decision about what to work on
   // right now, not a setting worth persisting. Once the swapped session is
@@ -202,9 +206,13 @@ export const MyMathPathExperience = ({
     }
 
     if (currentKey !== targetKey) {
-      writeMathPathRouteState(mathPathBrowserRoute);
+      // A real student's new tab or session is a new address (/path/progress,
+      // /path/session/<skill>); the first entry above keeps the address the
+      // outer App gave it. The teacher's Path Simulator (a sessionProvider)
+      // keeps the teacher's address.
+      writeMathPathRouteState(mathPathBrowserRoute, { url: sessionProvider ? null : mathPathUrlFor(mathPathBrowserRoute) });
     }
-  }, [mathPathBrowserRoute, readOnly]);
+  }, [mathPathBrowserRoute, readOnly, sessionProvider]);
 
   useEffect(() => {
     if (readOnly) return undefined;

@@ -127,14 +127,16 @@ const currentStateObject = () => (
     : {}
 );
 
-const writeState = (key, route, { replace = false } = {}) => {
+// `url` is the address of the screen this entry records (app/routes/
+// browserUrl.js); without one the entry keeps the current address.
+const writeState = (key, route, { replace = false, url = null } = {}) => {
   if (typeof window === 'undefined' || !window.history) return;
   const next = {
     ...currentStateObject(),
     [key]: route,
   };
   const method = replace ? 'replaceState' : 'pushState';
-  window.history[method](next, '', window.location.href);
+  window.history[method](next, '', url || window.location.href);
 };
 
 export const writeStudentRouteState = (route, options = {}) => {

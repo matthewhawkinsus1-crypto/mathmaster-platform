@@ -333,14 +333,19 @@ import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import {
+  readMathPathRouteState,
   readStudentRouteState,
   studentRouteKey,
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
+import { mathPathUrlFor, resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
+import { planStudentArrival, planTeacherArrival, readUrlArrival } from './app/routes/urlArrival.js';
+import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
 import {
   TEACHER_HISTORY_DOCUMENT_ID,
   planTeacherHistoryWrite,
   readTeacherHistoryEntry,
+  readTeacherRouteState,
   teacherRouteKey,
   teacherRouteSignature,
   writeTeacherRouteState,
@@ -893,6 +898,18 @@ function App() {
   // links still parse as sectionKey="whole" and follow the original behavior.
   const [launchAssignment, setLaunchAssignment] = useState(null);
   const [pendingClassroomLaunch, setPendingClassroomLaunch] = useState(null);
+  // The address the page was opened at — a reload, a bookmark, a shared link
+  // or a deep link waiting through sign-in (app/routes/urlArrival.js). Held
+  // until an account has loaded, then opened through the same functions a
+  // click calls; until then the history writers leave the address alone.
+  const [urlArrival, setUrlArrival] = useState(() => (
+    typeof window === 'undefined'
+      ? null
+      : readUrlArrival({ pathname: window.location.pathname, search: window.location.search })
+  ));
+  // My Math Path's tab or session from an arrival, handed to MyMathPathApp
+  // when it mounts; cleared once the student leaves My Math Path.
+  const [mathPathArrival, setMathPathArrival] = useState(null);
   // The student Assignment Result route: which assignment is on screen and,
   // when the student arrived through a split Google Classroom post, which
   // section that post covered. Launch context only — the grade itself always
@@ -1250,6 +1267,8 @@ function App() {
   // therefore leave MathMaster altogether.
   const studentBrowserHistoryReadyRef = useRef(false);
   const studentBrowserRouteRef = useRef(null);
+  // The address last written for the student's screen, to put back with it.
+  const studentBrowserUrlRef = useRef(null);
   // The teacher's counterpart (teacherBrowserRoute, near Live Teaching below).
   const teacherBrowserHistoryReadyRef = useRef(false);
   const teacherHistoryStepBackAtRef = useRef(0);
@@ -1287,18 +1306,34 @@ function App() {
       studentBrowserHistoryReadyRef.current = false;
       return;
     }
+    // The address the page opened at has not been opened yet: writing this
+    // screen now would replace it with Home before sign-in finishes.
+    if (urlArrival) return;
 
     const current = readStudentRouteState(window.history.state);
     const currentKey = current ? studentRouteKey(current) : null;
     const targetKey = studentRouteKey(studentBrowserRoute);
+    // The screen's address: ids and the question's number in its section,
+    // nothing about the work (app/routes/appUrl.js).
+    const url = studentUrlFor(studentBrowserRoute, {
+      question: studentBrowserRoute.surface === 'assignment'
+        ? questionAddressFor(
+          studentQuestionEntriesFor(assignments.find((assignment) => assignment.id === studentBrowserRoute.assignmentId)),
+          studentBrowserRoute.questionIndex,
+        )
+        : null,
+      testCycleAssignmentId: studentBrowserRoute.dashboardMode === 'testCycle' ? activeTestCycleAssignmentId : null,
+    });
 
-    // Mark the document entry the student arrived on as MathMaster Home. From
+    // Mark the document entry the student arrived on as this screen. From
     // this point onward internal navigation pushes same-document entries.
     if (!studentBrowserHistoryReadyRef.current) {
       studentBrowserHistoryReadyRef.current = true;
-      if (currentKey !== targetKey) {
-        writeStudentRouteState(studentBrowserRoute, { replace: true });
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      if (currentKey !== targetKey || (url && url !== currentUrl)) {
+        writeStudentRouteState(studentBrowserRoute, { replace: true, url });
       }
+      studentBrowserUrlRef.current = url;
       return;
     }
 
@@ -1306,9 +1341,12 @@ function App() {
     // moved to the matching history entry. Seeing the same key here prevents
     // that restoration from immediately pushing a duplicate entry.
     if (currentKey !== targetKey) {
-      writeStudentRouteState(studentBrowserRoute);
+      writeStudentRouteState(studentBrowserRoute, { url });
     }
-  }, [studentBrowserRoute]);
+    studentBrowserUrlRef.current = url;
+    // Only the route decides when to write; the rest is read for its address.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentBrowserRoute, urlArrival]);
   useEffect(() => { studentBrowserRouteRef.current = studentBrowserRoute; }, [studentBrowserRoute]);
 
   useEffect(() => {
@@ -1324,7 +1362,7 @@ function App() {
        * exam's own exit after it is submitted, is the way out.
        */
       if (isSecureExamActive()) {
-        if (studentBrowserRouteRef.current) writeStudentRouteState(studentBrowserRouteRef.current);
+        if (studentBrowserRouteRef.current) writeStudentRouteState(studentBrowserRouteRef.current, { url: studentBrowserUrlRef.current });
         toastInfo('Your test is still open', 'Use Submit test when you are finished. Your answers are saved as you type.');
         return;
       }
@@ -3565,6 +3603,9 @@ function App() {
     classroomSyncNoticeRef.current = {};
     setGradebookFilter({ classId: '', classPeriod: '', assignmentId: null, student: null });
     setStudentDashboardMode('assignments');
+    // The next person on this Chromebook starts at their own Home, not at
+    // the address this account left in the bar.
+    resetAddressToHome();
     await auth.signOut();
   };
 
@@ -5865,10 +5906,12 @@ function App() {
         roleIsActionable,
         restrictToRole: scopedSectionKey,
         // Start/Continue lands on the first unfinished question open now;
-        // Review My Work (returnToResult) keeps the question it asked for.
+        // Review My Work (returnToResult) keeps the question it asked for, and
+        // so does a question's own address (a reload, a link): the student
+        // returns to the question they were on, if its section is open now.
         // Finished means what Home means: correct, or out of tries (a
         // teacher-granted extra DOL try reopens an expired DOL question).
-        isFinished: options?.returnToResult
+        isFinished: options?.returnToResult || options?.keepRequestedQuestion
           ? null
           : (index) => questionIsTerminal({
             record: tracker?.[assignmentId]?.[index],
@@ -6004,6 +6047,99 @@ function App() {
     setActiveAssignmentId(id);
     setActiveView('assignmentResult');
   };
+
+  /*
+   * A QUESTION'S ADDRESS (app/routes/questionAddress.js).
+   *
+   * The student's questions in the order and numbering the workspace uses:
+   * less the items a reduced-item-count accommodation omits (never in
+   * voluntary practice), exactly as renderAssignmentWorkspace builds
+   * `projectedEntries`. The address bar, Home's Resume and the workspace
+   * header therefore name the same "Classwork Question 2".
+   */
+  const studentQuestionEntriesFor = (assignmentData) => {
+    if (!assignmentData) return [];
+    const lifecycle = getAssignmentLifecycle(assignmentData, Date.now(), {
+      studentId: user?.role === 'student' ? user.id : undefined,
+    });
+    const required = user?.role === 'student' && !lifecycle.isPracticeOnly
+      ? studentRequiredFor(assignmentData, { hasPracticePass: hasPracticePassFor(assignmentData.id) })
+      : null;
+    return studentQuestionEntries(assignmentData, { omittedIndices: required?.omitted || [] });
+  };
+
+  /*
+   * OPENING THE ADDRESS THE PAGE ARRIVED AT.
+   *
+   * Once the account has loaded, the address is turned into a plan
+   * (app/routes/urlArrival.js) and the plan into the call a click makes:
+   * startAssignment, openStudentAssignmentResult, openStudentDashboardMode,
+   * the Test Cycle card, startTeacherPreview. So a typed or reloaded URL meets
+   * every gate a click meets — class membership, release and prerequisite,
+   * section windows, the Test Cycle card's server check, the secure-exam
+   * dashboard — and the server's authority is unchanged.
+   */
+  useEffect(() => {
+    if (!urlArrival || !user?.id) return;
+    const arrival = urlArrival;
+    setUrlArrival(null);
+    if (user.role === 'student') {
+      const plan = planStudentArrival({
+        arrival,
+        assignments,
+        isTestCycle: isTestCycleAssignment,
+        questionEntriesFor: studentQuestionEntriesFor,
+        historyRoute: readStudentRouteState(window.history.state),
+        mathPathRoute: readMathPathRouteState(window.history.state),
+      });
+      if (!plan) return;
+      if (plan.message) toastInfo(plan.message.title, plan.message.body);
+      if (plan.action === 'assignment') {
+        startAssignment(plan.assignmentId, plan.storageIndex ?? 0, plan.exact ? { keepRequestedQuestion: true } : {});
+      } else if (plan.action === 'result') {
+        openStudentAssignmentResult(plan.assignmentId, { sectionKey: plan.sectionKey, origin: plan.origin });
+      } else if (plan.action === 'testCycle') {
+        setActiveTestCycleAssignmentId(plan.assignmentId);
+        openStudentDashboardMode('testCycle');
+      } else if (plan.action === 'mathPath') {
+        openStudentDashboardMode('mathPath');
+        setMathPathArrival({ tab: plan.tab, sessionConfig: plan.sessionConfig });
+        if (plan.launchTeks) setPathLaunchTeks(plan.launchTeks);
+      } else if (plan.action === 'dashboard') {
+        openStudentDashboardMode(plan.mode);
+      } else {
+        openStudentDashboardMode('assignments');
+      }
+      return;
+    }
+    if (user.role === 'teacher') {
+      const plan = planTeacherArrival({
+        arrival,
+        assignments,
+        canAdminister: user.isRootAdmin === true || isRootAdminEmail(user.email),
+        historyRoute: readTeacherRouteState(window.history.state),
+      });
+      if (!plan) return;
+      if (plan.message) toastInfo(plan.message.title, plan.message.body);
+      if (plan.action === 'preview') {
+        startTeacherPreview(plan.assignmentId);
+      } else if (plan.action === 'administration') {
+        setTeacherWorkspaceMode('administration');
+        setAdminTab(plan.adminTab);
+      } else {
+        setTeacherWorkspaceMode('teacher');
+        setTeacherTab(plan.tab);
+        if (plan.hubAssignmentId) setAssignmentHubTarget({ assignmentId: plan.hubAssignmentId, classId: plan.hubClassId || null });
+      }
+    }
+    // The arrival is opened once, with the state as it is when the account
+    // has loaded; startAssignment and the rest read the latest state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlArrival, user?.id, user?.role]);
+  // A session or tab from an arrival applies to the My Math Path it opened.
+  useEffect(() => {
+    if (mathPathArrival && (studentDashboardMode !== 'mathPath' || activeView !== 'dashboard')) setMathPathArrival(null);
+  }, [mathPathArrival, studentDashboardMode, activeView]);
 
   // Starting a Recovery is the server's decision: it re-checks eligibility,
   // builds the fresh questions and pins them before anything is shown.
@@ -6230,11 +6366,16 @@ function App() {
       teacherBrowserHistoryReadyRef.current = false;
       return;
     }
+    // The address the page opened at has not been opened yet (urlArrival).
+    if (urlArrival) return;
+    // The screen's address: the tab and an open assignment monitor only —
+    // never a student's drawer, case review or report (app/routes/appUrl.js).
+    const url = teacherUrlFor(teacherBrowserRoute);
     // The entry the teacher arrived on (sign-in, a reload, a bookmark) becomes
     // this screen. Later screens are pushed after it.
     if (!teacherBrowserHistoryReadyRef.current) {
       teacherBrowserHistoryReadyRef.current = true;
-      writeTeacherRouteState(teacherBrowserRoute, { replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID });
+      writeTeacherRouteState(teacherBrowserRoute, { replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID, url });
       return;
     }
 
@@ -6257,9 +6398,10 @@ function App() {
         replace: plan.action === 'replace',
         fromKey: plan.fromKey,
         documentId: plan.documentId,
+        url,
       });
     }
-  }, [teacherBrowserRoute]);
+  }, [teacherBrowserRoute, urlArrival]);
 
   // A dialog that can hold work or a decision. Back never acts underneath one:
   // the page it would reveal is not the page the dialog belongs to, and an
@@ -6286,7 +6428,7 @@ function App() {
     // as the teacher pressing Back.
     if (ownStepBack) {
       if (teacherBrowserRoute && teacherRouteSignature(route) !== teacherRouteSignature(teacherBrowserRoute)) {
-        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId });
+        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute) });
       }
       return;
     }
@@ -6294,7 +6436,7 @@ function App() {
     if (teacherDialogOpen) {
       // The browser has already moved; put this screen's entry back and stay.
       if (teacherBrowserRoute) {
-        writeTeacherRouteState(teacherBrowserRoute, { fromKey: teacherRouteKey(route), documentId: TEACHER_HISTORY_DOCUMENT_ID });
+        writeTeacherRouteState(teacherBrowserRoute, { fromKey: teacherRouteKey(route), documentId: TEACHER_HISTORY_DOCUMENT_ID, url: teacherUrlFor(teacherBrowserRoute) });
       }
       toastInfo('Close the open window first', 'Save or close what is open, then use Back. Nothing was changed.');
       return;
@@ -6326,7 +6468,7 @@ function App() {
       // The assignment is gone. Stay on the current screen and make this entry
       // say so, rather than leave Back pointing at a preview that cannot open.
       if (teacherBrowserRoute) {
-        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId });
+        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute) });
       }
       return;
     }
@@ -13286,6 +13428,9 @@ function App() {
           studentProfile={adaptiveStudentProfile || user.profile}
           assignments={studentPathAssignments}
           launchTeksCode={pathLaunchTeks}
+          // A reload of a My Math Path tab or session (app/routes/urlArrival.js).
+          initialTab={mathPathArrival?.tab || 'path'}
+          initialSessionConfig={mathPathArrival?.sessionConfig || null}
           pathOptions={studentPathOptions}
           weeklyGoalConfig={studentWeeklyGoalConfig}
           courseId={studentCourseId}

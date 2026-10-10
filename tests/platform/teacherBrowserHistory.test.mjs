@@ -230,7 +230,7 @@ test('App imports the teacher history module it calls', () => {
 });
 
 test('App describes every teacher screen and panel as a route and follows the write plan', () => {
-  const routeBlock = region(appSource, 'const teacherBrowserRoute = useMemo(', '}, [teacherBrowserRoute]);', 'teacher route + writer');
+  const routeBlock = region(appSource, 'const teacherBrowserRoute = useMemo(', '}, [teacherBrowserRoute, urlArrival]);', 'teacher route + writer');
   assert.match(routeBlock, /user\?\.role !== 'teacher'/);
   assert.match(routeBlock, /activeView === 'teacherPreview'/);
   assert.match(routeBlock, /surface: 'administration'/);
@@ -240,6 +240,11 @@ test('App describes every teacher screen and panel as a route and follows the wr
   assert.match(routeBlock, /planTeacherHistoryWrite\(/);
   assert.match(routeBlock, /window\.history\.back\(\)/);
   assert.match(routeBlock, /writeTeacherRouteState\(teacherBrowserRoute, \{ replace: true/);
+  // Each entry carries the screen's address (app/routes/browserUrl.js), and
+  // nothing is written while the address the page opened at waits to open.
+  assert.match(routeBlock, /const url = teacherUrlFor\(teacherBrowserRoute\);/);
+  assert.match(routeBlock, /if \(urlArrival\) return;/);
+  assert.match(appSource, /import \{[^}]*\bteacherUrlFor\b[^}]*\} from '\.\/app\/routes\/browserUrl\.js';/);
 });
 
 test('App restores the teacher screen on popstate and never acts underneath an open dialog', () => {
