@@ -61,7 +61,8 @@
     "deploy:content-v2": "firebase deploy --only functions:previewAssignmentContentUpgrade,functions:commitAssignmentContentUpgrade --project mathmaster-aleks",
     "audit:theme-colors": "node scripts/audit-theme-colors.mjs",
     "certify:dark-mode": "node tests/browser/darkModeCertification.mjs",
-    "certify:accessibility": "node tests/browser/accessibilityCertification.mjs"
+    "certify:accessibility": "node tests/browser/accessibilityCertification.mjs",
+    "review:contrast": "node tests/browser/contrastReview.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",
