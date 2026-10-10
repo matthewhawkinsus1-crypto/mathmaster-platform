@@ -375,7 +375,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
     : stepRecord;
   return (
     <div style={shellStyle} data-recovery-runner="practice" data-recovery-section={entry.section}>
-      <RecoveryHeader label={`${entry.label} — Practice`} subtitle="Show what you know. Each fresh question counts once." onExit={onExit} />
+      <RecoveryHeader label={`${entry.label} practice`} subtitle="Show what you know. Each fresh question counts once." onExit={onExit} />
       <div style={{ ...panelStyle, display: 'grid', gap: 8 }}>
         <RecoveryMasteryMeter percent={entry.masteryPercent} />
         <p aria-live="polite" style={{ margin: 0, fontSize: 13.5 }}>

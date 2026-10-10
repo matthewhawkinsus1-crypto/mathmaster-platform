@@ -32,11 +32,11 @@ const STATE_COPY = Object.freeze({
   // The message is replaced by lockedRecoveryMessage, which names the bar.
   [RECOVERY_STATE.LOCKED]: {
     badge: 'Locked',
-    message: 'Continue Practice to show what you know. Recovery unlocks when your recent Practice shows mastery.',
+    message: 'Keep answering Recovery practice questions to show what you know. Recovery unlocks when your recent Recovery practice shows mastery.',
   },
   [RECOVERY_STATE.UNLOCKED]: {
     badge: 'Unlocked',
-    message: 'Your recent Practice shows mastery. You can try again now.',
+    message: 'Your recent Recovery practice shows mastery. You can try again now.',
   },
   [RECOVERY_STATE.IN_PROGRESS]: {
     badge: 'In progress',
@@ -44,7 +44,7 @@ const STATE_COPY = Object.freeze({
   },
   [RECOVERY_STATE.COMPLETED]: {
     badge: 'Complete',
-    message: 'Your Recovery is finished. Practice stays open whenever you want more.',
+    message: 'Your Recovery is finished. Recovery practice stays open whenever you want more.',
   },
   // Submitted, but MathMaster could not grade enough of it to score it. The
   // brief's words: what happened, that the work is safe, and who decides —

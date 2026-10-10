@@ -428,8 +428,8 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
       {!embedded && (
         <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
           {allowReplacement
-            ? 'This problem version is closed. Review the solution before requesting another problem at the same difficulty.'
-            : 'This problem version is closed. Compare your work with the solution.'}
+            ? 'This question is closed. Review the solution, then you can request a new question at the same difficulty.'
+            : 'This question is closed. Compare your work with the solution.'}
         </p>
       )}
       {workflowSolution?.entries?.length > 0 && (
