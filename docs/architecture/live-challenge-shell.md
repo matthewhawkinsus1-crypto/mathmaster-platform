@@ -173,10 +173,15 @@ longer keeps phantom points until the next round opens.
 
 ## 6. The results moment
 
-A closed round's anonymous result (`liveChallengeRooms/{room}/rounds/{n}`) now
-carries `standingsAfterRound`: the match standings the closing transaction
-just produced (`matchStandingsAfterRound`, the final result's own ranking). So
-the results moment reads ONE document written in ONE commit:
+A closed round's anonymous result carries `standingsAfterRound`: the match
+standings the closing transaction just produced (`matchStandingsAfterRound`,
+the final result's own ranking). It is written in three copies, by reader, in
+ONE commit: the teacher's whole table (`…/hostRounds/{n}`, the console and
+projector), the class's copy (`…/rounds/{n}`: only the public rule's rows of
+both lists) and each student's own entry (`…/playerSummaries/{studentId}`:
+their place in the round and the match after it — `roundResultsView` adds it
+to the class's rows as `ownRound`, and movement comes from their previous
+round's entry). So the results moment reads documents of ONE commit:
 
 - the round's own table (place / what each player did / championship points),
 - the standings it left, with movement since the round before,
@@ -273,7 +278,12 @@ places, from the room's reward summary). Host controls run along the bottom.
   top five at most and stops before the last player in a small class, then
   "and N more players · everyone sees their own place on their device". A
   teacher may choose "Full standings" at create (`room.standingsDisplay`,
-  kept by Play Again). Students' own cards apply the same limit.
+  kept by Play Again). Students' own cards apply the same limit. The server
+  applies it too: every document a student can read (`standings/current`,
+  `rounds/{n}`) holds only the default rule's rows — whatever the projector
+  shows — and a student reads their own place from their own summary
+  (`playerSummaries/{studentId}`); the projector, a teacher session, reads
+  the whole table (`hostRounds/{n}`, the class's player rows).
 - **Worked solution** at the results moment, handed to the projector by the
   console (`useRoundSolution`), never during a countdown or an open round.
 - **Recognitions** under the podium (`room.recognitions`, aliases only).
@@ -434,14 +444,14 @@ the registry).
 
 | Screen | Listeners | Timers |
 | --- | --- | --- |
-| student | invite (app), room (with metadata), the standings snapshot and their own public row (both paused during a rush round), the current round's result (results stage only), one read of the round before — never a classmate's row | clock calibration (30 s, live games only); boundary timeouts; the classic round's quarter-second tick; one final-standings repair request if a finished room has no final snapshot after 2.5 s |
-| console | room, players, diagnostics, active-room pointer, the current round's result (results stage only), one read of the round before; the roster callable once per room | calibration (30 s, live games only); boundary timeouts; the close schedule; audio cues (250 ms, running only); the standings pacer (≤ 1 request/s while its board changes) |
+| student | invite (app), room (with metadata), the standings snapshot and their own public row (both paused during a rush round), their own summary (their own place: changes only at a close and the finish), the current round's class copy (results stage only), one read of the round before — never a classmate's row (the rules refuse it) | clock calibration (30 s, live games only); boundary timeouts; the classic round's quarter-second tick; one final-standings repair request if a finished room has no final snapshot after 2.5 s |
+| console | room, players, diagnostics, active-room pointer, the current round's whole result (`hostRounds`, results stage only), one read of the round before; the roster callable once per room | calibration (30 s, live games only); boundary timeouts; the close schedule; audio cues (250 ms, running only); the standings pacer (≤ 1 request/s while its board changes) |
 | projector | none of its own (the console's data) | the clock digits' own ticker |
 
 **Standings on a student's screen** come from one document,
-`…/standings/current` (engine doc §12a), never from the class's rows: the top
-five, the class's size, and the student's own place and score found by their
-seat. The header's place and the in-round board are the latest live snapshot
+`…/standings/current` (engine doc §12a), never from the class's rows: the
+public rule's rows and the class's size — and from their own summary, the
+student's own place and score. The header's place and the in-round board are the latest live snapshot
 (at most about a second old while answers arrive); the results moment reads
 the round's result document as before; the final card waits for the FINAL
 snapshot, which the finishing transaction writes from the match result, so the

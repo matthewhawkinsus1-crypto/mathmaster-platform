@@ -372,10 +372,24 @@ Written once, in the transaction that closes the round:
 - `liveChallengePrivate/{roomId}/rounds/{round}` — named standings with each
   player's round metrics, rank, round points and the match points the strategy
   awarded.
-- `liveChallengeRooms/{roomId}/rounds/{round}` — the **anonymous** copy
-  (`publicRoundSummary`: player key, alias, rank, points — no student id; for
-  a question-set round also `completed` and `accuracyPercent`), read by the
-  room's audience. It also carries `standingsAfterRound`
+- `liveChallengeRooms/{roomId}/hostRounds/{round}` — the **anonymous** whole
+  table (`publicRoundSummary`: player key, alias, rank, points — no student
+  id; for a question-set round also `completed` and `accuracyPercent`), read
+  by the room's teacher only (the console and the projector it drives).
+- `liveChallengeRooms/{roomId}/rounds/{round}` — the **class's** copy
+  (`classRoundSummary`, `visibility: 'class'`), read by the room's audience:
+  only the rows the public rule shows everyone
+  (`liveChallengePrivacy.classStandingsRows`) of the round's table — ranked
+  for display (`roundTableRows`) — and of the standings after it, with how
+  many played and where each list's last group starts (`tableLastRank`,
+  `standingsLastRank`). Nobody else's place.
+- `liveChallengeRooms/{roomId}/playerSummaries/{studentId}` — each joined
+  student's **own** entry for the round (`liveChallengePlayerSummary.mjs`):
+  their place on the table, what they did, and their standing in the match
+  after it; at the finish, their final place. Read by that student and the
+  room's teacher.
+
+The whole copy also carries `standingsAfterRound`
   (`matchStandingsAfterRound`): the match standings ranked from the totals the
   same transaction wrote — the final result's own ranking — so a results
   screen reads the round and the standings it left from one document, and
@@ -564,7 +578,8 @@ late join and Play Again. The rules below are the engine-facing ones.
   step with its player's (possibly shared) rank.
 - **Standings reach a student as one snapshot** (§12a), never as the class's
   rows: a screen listens to the room, the standings snapshot, its own public
-  row and its invite — four listeners whatever the class size.
+  row, its own summary (its own place) and its invite — five listeners
+  whatever the class size.
 - **The host console paces live standings** (`useStandingsPublisher`): it
   already ranks every row, and when its board changes it asks
   `publishLiveChallengeStandings` for a fresh snapshot, at most once a second.
@@ -583,9 +598,11 @@ late join and Play Again. The rules below are the engine-facing ones.
 | Path | Holds | Client access |
 | --- | --- | --- |
 | `liveChallengeRooms/{roomId}` | status, round identity and state, clock, current question, mode/strategy ids, speed setting, `rewardSummary` (what placements earn; no student) | room audience reads |
-| `…/players/{playerKey}` | alias, seat (`slot`), scores, answeredRound; for a rush also `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, `lastRound` — no student id | room audience reads (a student's screen listens to its own row only; own-row-only rules are a later deploy) |
-| `…/standings/current` | the class's standings snapshot (§12a): top rows, every seat's rank and score, the moment it is from — no student id | room audience reads; no client writes |
-| `…/rounds/{round}` | anonymous round result, with `standingsAfterRound` | room audience reads |
+| `…/players/{playerKey}` | alias, seat (`slot`), scores, answeredRound; for a rush also `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, `lastRound` — no student id | room's teacher reads every row; a student reads only the row their invite names (a score is a place once you can read everyone's) |
+| `…/standings/current` | the class's standings snapshot (§12a): the public rule's rows, how many play, where the last group starts, the moment it is from — no student id, nobody else's place | room audience reads; no client writes |
+| `…/rounds/{round}` | the class's copy of a closed round (`classRoundSummary`): the public rule's rows of its table and of `standingsAfterRound` | room audience reads |
+| `…/hostRounds/{round}` | the whole anonymous round result, with `standingsAfterRound` | room's teacher reads |
+| `…/playerSummaries/{studentId}` | the student's own place: per closed round (`rounds.{n}`), and `final` | that student gets; room's teacher gets and lists; no client writes |
 | `…/diagnostics/{playerKey}` | device health: connection quality, recent `sessions` (per-tab ids → last heard), `reconnectedAt` | room owner reads |
 | `liveChallengePrivate/{roomId}` (+ `players`, `rounds`) | question ids, roster, receipts, reward policy, scoring config | none |
 | `liveChallengeInvites/{studentId}` | which room a student is in | own student |
@@ -597,8 +614,10 @@ late join and Play Again. The rules below are the engine-facing ones.
 | `rewardGrants/{grantId}` | item rewards | student own; authorized teachers; no client writes |
 
 Permanent student deletion (`permanentlyDeleteStudent`) removes the student's
-grants and award-job references and scrubs their rows from match results and
-reports (by the `studentIds` key both carry). Reports written before that key
+grants and award-job references, deletes their own summary in every match
+they played (found through the match results that list them), and scrubs
+their rows from match results and reports (by the `studentIds` key both
+carry). Reports written before that key
 existed are not reachable by query — a known gap. The pre-production reset
 clears every collection above.
 
@@ -610,10 +629,22 @@ delivered to every screen — N × N per round, 4,096 at 64 students, each one
 re-ranking the class on a Chromebook. Now one small document,
 `liveChallengeRooms/{roomId}/standings/current`
 (`functions/shared/liveChallengeStandingsProjection.mjs`), carries what a
-student's screen shows: the top five rows, and every joined player's rank and
-score as two compact lists indexed by seat (`slot`, fixed at room creation; a
-room from before seats is seated by player key, `slotKeys`). It is replaced
-whole, never patched, so a screen that missed one loses nothing.
+student's screen shows of the class: the rows the public rule shows everyone
+(`classStandingsRows`: at most five, never a row tied with the last, never
+exactly one player unshown — so two players project none and three only
+first place), how many play (`count`) and where the last group starts
+(`lastRank`, which the screen hands back to `publicStandingsRows` with its own
+row). It is replaced whole, never patched, so a screen that missed one loses
+nothing.
+
+Every student in the room can read it, so it carries **nobody else's place**
+(schema 2; schema 1 also listed every seat's rank and score, which let any
+student read the whole class's ranking). A student's own place comes from
+their own summary (`playerSummaries/{studentId}`), written in the commit that
+closes a round or finishes the match; there is no own live place, because a
+student never sees a rank under the question. `ensureLiveChallengeFinalStandings`
+rewrites a schema-1 final snapshot, and writes the own final places of a room
+finished before summaries existed.
 
 | Kind | Written by | From |
 | --- | --- | --- |

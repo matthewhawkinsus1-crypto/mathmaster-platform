@@ -23,6 +23,7 @@
  */
 
 import { getScoringStrategy, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
+import { roundTableRows } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { roomRunsQuestionSets } from './challengeShellModel.js';
 
 const integerOr = (value, fallback) => {
@@ -203,23 +204,25 @@ export const standingsWindow = (rows = [], { limit = 8, selfKey = null, total = 
 /*
  * A STUDENT'S BOARD FROM THE CLASS'S STANDINGS SNAPSHOT
  * (functions/shared/liveChallengeStandingsProjection.mjs, decoded by
- * standingsFromProjection): the top rows the snapshot carries and — when the
- * student is not among them — their own row, with their rank and score from
- * the same snapshot, so a place and the score beside it are always one moment.
- * Engine-shaped rows, for standingsRows.
+ * standingsFromProjection): the public rows the snapshot carries and — when
+ * the student is not among them — their own row, from their own summary's
+ * place (`own`: { rank, tied, score }, liveChallengePlayerSummary.summaryFinal),
+ * which the server wrote in the same commit as the snapshot. Engine-shaped
+ * rows, for standingsRows.
  */
-export const projectionBoardRows = (standings = null, { selfKey = null, alias = null } = {}) => {
+export const projectionBoardRows = (standings = null, { selfKey = null, alias = null, own = null } = {}) => {
   if (!standings || !Array.isArray(standings.top)) return [];
   const rows = standings.top.map((row) => ({ ...row }));
-  if (standings.self && selfKey && !rows.some((row) => row.playerKey === String(selfKey))) {
+  const ownRank = integerOr(own?.rank, null);
+  if (ownRank !== null && ownRank >= 1 && selfKey && !rows.some((row) => row.playerKey === String(selfKey))) {
     rows.push({
       playerKey: String(selfKey),
       alias: String(alias || 'You'),
-      rank: standings.self.rank,
-      tied: standings.self.tied === true,
+      rank: ownRank,
+      tied: own.tied === true,
       position: Number.MAX_SAFE_INTEGER,
-      score: standings.self.score,
-      liveScore: standings.self.score,
+      score: nonNegativeInt(own.score),
+      liveScore: nonNegativeInt(own.score),
     });
   }
   return rows;
@@ -242,46 +245,73 @@ export const roundRankedByPoints = (summary = null) => (
 );
 
 /**
- * One closed round, from its anonymous result document
- * (liveChallengeRooms/{room}/rounds/{round}): every player's place in the
- * round, what they did in it, and the match points their place earned.
+ * One closed round, from a result document: each listed player's place in
+ * the round, what they did in it, and the match points their place earned.
  * Non-participants sort last and have no place.
+ *
+ * The teacher's copy (hostRounds/{n}) lists every player in the engine's
+ * order, ranked here for display (roundTableRows). The class's copy
+ * (rounds/{n}, `visibility: 'class'`) lists only the public rows, already
+ * ranked for display by the server with the same function — so they are
+ * drawn as they are: re-ranking a top-few list would call a shared place
+ * unshared.
  */
 export const roundResultRows = (summary = null, { selfKey = null } = {}) => {
   if (!summary || !Array.isArray(summary.standings)) return [];
-  const byPoints = roundRankedByPoints(summary);
-  const rows = summary.standings.map((row, index) => {
-    const participated = row.participated === true;
-    return {
-      playerKey: row.playerKey ? String(row.playerKey) : null,
-      alias: String(row.alias || 'Player'),
-      participated,
-      rank: participated ? integerOr(row.rank, null) : null,
-      tied: participated && row.tied === true,
-      position: integerOr(row.position, index),
-      roundPoints: nonNegativeInt(row.roundPoints),
-      matchPointsAwarded: nonNegativeInt(row.matchPointsAwarded),
-      completed: row.completed === undefined ? null : nonNegativeInt(row.completed),
-      accuracyPercent: Number.isFinite(Number(row.accuracyPercent)) && row.accuracyPercent !== null ? Math.round(Number(row.accuracyPercent)) : null,
-      isSelf: Boolean(selfKey) && String(row.playerKey) === String(selfKey),
-    };
-  });
-  if (byPoints) {
-    // Most points first; equal points share a place (competition ranking);
-    // the engine's own order breaks the display tie.
-    const earners = rows.filter((row) => row.participated)
-      .sort((left, right) => right.roundPoints - left.roundPoints || (left.rank ?? 0) - (right.rank ?? 0) || left.position - right.position);
-    earners.forEach((row, index) => {
-      const first = earners.findIndex((other) => other.roundPoints === row.roundPoints);
-      row.rank = first + 1;
-      row.tied = earners.filter((other) => other.roundPoints === row.roundPoints).length > 1;
-      row.position = index;
-    });
-    rows.filter((row) => !row.participated).forEach((row, index) => { row.position = earners.length + index; });
+  const ranked = summary.visibility === 'class'
+    ? roundTableRows(summary.standings, { byPoints: false })
+    : roundTableRows(summary.standings, { byPoints: roundRankedByPoints(summary) });
+  return ranked.map((row) => Object.freeze({
+    ...row,
+    place: placeLabel({ rank: row.rank, tied: row.tied }),
+    isSelf: Boolean(selfKey) && String(row.playerKey) === String(selfKey),
+  }));
+};
+
+const integerOrNull = (value) => integerOr(value, null);
+
+/*
+ * A STUDENT'S OWN ROWS, FROM THEIR OWN SUMMARY
+ * (functions/shared/liveChallengePlayerSummary.mjs). The class's copy of a
+ * round lists only the public rows, so a student outside them is not on it:
+ * their row for the round's table and for the standings comes from their
+ * summary's entry for the round, which the server wrote in the same commit.
+ */
+const ownRoundRow = (entry, { selfKey, alias }) => Object.freeze({
+  playerKey: String(selfKey),
+  alias: String(alias || 'You'),
+  participated: entry.participated === true,
+  rank: entry.participated === true ? integerOrNull(entry.rank) : null,
+  tied: entry.participated === true && entry.tied === true,
+  position: Number.MAX_SAFE_INTEGER,
+  roundPoints: nonNegativeInt(entry.roundPoints),
+  matchPointsAwarded: nonNegativeInt(entry.matchPointsAwarded),
+  completed: entry.completed === undefined || entry.completed === null ? null : nonNegativeInt(entry.completed),
+  accuracyPercent: Number.isFinite(Number(entry.accuracyPercent)) && entry.accuracyPercent !== null ? Math.round(Number(entry.accuracyPercent)) : null,
+  place: placeLabel({ rank: entry.participated === true ? entry.rank : null, tied: entry.participated === true && entry.tied === true }),
+  isSelf: true,
+});
+const ownStanding = (entry, { selfKey, alias }) => (entry?.standing && integerOrNull(entry.standing.rank) !== null
+  ? {
+    playerKey: String(selfKey),
+    alias: String(alias || 'You'),
+    rank: integerOrNull(entry.standing.rank),
+    tied: entry.standing.tied === true,
+    position: Number.MAX_SAFE_INTEGER,
+    score: nonNegativeInt(entry.standing.score),
+    correctCount: nonNegativeInt(entry.standing.correctCount),
+    roundsAnswered: nonNegativeInt(entry.standing.roundsAnswered),
   }
-  return rows
-    .map((row) => Object.freeze({ ...row, place: placeLabel({ rank: row.rank, tied: row.tied }) }))
-    .sort((left, right) => (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER) || left.position - right.position);
+  : null);
+
+/** `rows` with the viewer's own row in place of any copy of it (theirs is the authority). */
+const withOwnRow = (rows, own, selfKey) => {
+  if (!own) return rows;
+  const index = rows.findIndex((row) => String(row?.playerKey) === String(selfKey));
+  if (index < 0) return [...rows, own];
+  const next = [...rows];
+  next[index] = { ...own, position: rows[index].position };
+  return next;
 };
 
 /**
@@ -290,14 +320,35 @@ export const roundResultRows = (summary = null, { selfKey = null } = {}) => {
  * each. `previousSummary` is the round before's result document, when there
  * is one. Rooms closed before standingsAfterRound existed return null
  * standings; a screen then falls back to the live board without movement.
+ *
+ * A STUDENT'S SCREEN reads the class's copy and passes their own summary's
+ * entries for this round and the one before (`ownRound`, `ownPreviousRound`)
+ * and their alias: their own row joins each list (or replaces the class's
+ * copy of it), and its movement is from their own two standings. The view
+ * also says where each class list's last group starts and how many it is out
+ * of (`tableBoard`, `standingsBoard`), for the public rule
+ * (publicStandingsRows) to place the viewer's row without naming anyone else.
  */
-export const roundResultsView = ({ summary = null, previousSummary = null, selfKey = null } = {}) => {
+export const roundResultsView = ({
+  summary = null,
+  previousSummary = null,
+  selfKey = null,
+  ownRound = null,
+  ownPreviousRound = null,
+  alias = null,
+} = {}) => {
   if (!summary) return null;
-  const rows = roundResultRows(summary, { selfKey });
-  const after = Array.isArray(summary.standingsAfterRound) ? summary.standingsAfterRound : null;
-  const before = Array.isArray(previousSummary?.standingsAfterRound) ? previousSummary.standingsAfterRound : null;
+  const own = selfKey && ownRound ? ownRoundRow(ownRound, { selfKey, alias }) : null;
+  const rows = withOwnRow(roundResultRows(summary, { selfKey }), own, selfKey);
+  const afterRows = Array.isArray(summary.standingsAfterRound) ? summary.standingsAfterRound : null;
+  const ownAfter = selfKey && ownRound ? ownStanding(ownRound, { selfKey, alias }) : null;
+  const after = afterRows ? withOwnRow(afterRows, ownAfter, selfKey) : null;
+  const beforeRows = Array.isArray(previousSummary?.standingsAfterRound) ? previousSummary.standingsAfterRound : null;
+  const ownBefore = selfKey && ownPreviousRound ? ownStanding(ownPreviousRound, { selfKey, alias }) : null;
+  const before = beforeRows || ownBefore ? withOwnRow(beforeRows || [], ownBefore, selfKey) : null;
   const standings = after ? standingsRows(after, { movement: before ? movementBetween(before, after) : null, selfKey }) : null;
   const fieldSize = integerOr(summary.fieldSize, rows.filter((row) => row.participated).length);
+  const classCopy = summary.visibility === 'class';
   return Object.freeze({
     roundIndex: integerOr(summary.roundIndex, null),
     isSecondChance: summary.isSecondChance === true,
@@ -305,11 +356,16 @@ export const roundResultsView = ({ summary = null, previousSummary = null, selfK
     // strategy); 'place': the engine's round placement (see roundRankedByPoints).
     rankedBy: roundRankedByPoints(summary) ? 'points' : 'place',
     fieldSize,
-    participantCount: rows.length,
+    participantCount: classCopy ? nonNegativeInt(summary.participantCount) : rows.length,
     rows,
     self: selfKey ? rows.find((row) => row.isSelf) || null : null,
     standings,
     selfStanding: selfKey && standings ? standings.find((row) => row.isSelf) || null : null,
+    // For publicStandingsRows over `rows` / `standings`: the class's last
+    // group and size, when the lists are the class's copy (else the rows are
+    // every player, and the rule reads both from them).
+    tableBoard: classCopy ? Object.freeze({ lastRank: integerOrNull(summary.tableLastRank), totalCount: nonNegativeInt(summary.participantCount) }) : null,
+    standingsBoard: classCopy && afterRows ? Object.freeze({ lastRank: integerOrNull(summary.standingsLastRank), totalCount: nonNegativeInt(summary.standingsCount) }) : null,
   });
 };
 

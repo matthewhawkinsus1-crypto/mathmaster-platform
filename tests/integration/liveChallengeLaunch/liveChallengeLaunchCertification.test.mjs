@@ -66,7 +66,8 @@ const { leaderboardOptionsFor, getScoringStrategy, SCORE_ACCUMULATION } = await 
 const { CHALLENGE_STAGE } = await import(path.join(repo, 'src/platform/liveChallenge/challengeShellModel.js'));
 const { createDeviceFarm } = await import('../support/deviceFarm.mjs');
 const { createSimHost } = await import('../support/liveChallengeSimHost.mjs');
-const { projectionRankTable, STANDINGS_MIN_PUBLISH_INTERVAL_MS, STANDINGS_TOP_ROWS } = await import(path.join(repo, 'functions/shared/liveChallengeStandingsProjection.mjs'));
+const { STANDINGS_MIN_PUBLISH_INTERVAL_MS, STANDINGS_TOP_ROWS } = await import(path.join(repo, 'functions/shared/liveChallengeStandingsProjection.mjs'));
+const { classStandingsRows } = await import(path.join(repo, 'functions/shared/liveChallengePrivacy.mjs'));
 const db = admin.firestore();
 
 const SIZES = (process.env.LAUNCH_CERT_SIZES || '5,15,25,35,45,64').split(',').map(Number).filter((size) => size >= 5);
@@ -322,25 +323,26 @@ const assertMatchIntegrity = async (farm, roomId, entry, views, label, privateRo
   board.forEach((row) => assert.equal(finalRank.get(row.playerKey), row.rank, `${label}: ${row.alias} is ranked the same on the board and in the match result`));
   for (let index = 1; index < board.length; index += 1) assert.ok(board[index - 1].rank <= board[index].rank, `${label}: the board is in rank order`);
   // THE FINAL STANDINGS AND PODIUM every screen shows ARE the match result's:
-  // one final snapshot, written from it in the finishing commit, and every
-  // screen holding exactly that snapshot — every seat, the top rows, its own place.
+  // one final snapshot, written from it in the finishing commit, holding only
+  // the public rule's rows (nobody else's place is in a document a classmate
+  // can read) — and every screen holding exactly that snapshot, plus its own
+  // final place from its own summary, written in the same commit.
   const ranked = (result?.standings || []).filter((row) => row.rank !== null);
-  const slotOf = new Map(privateRows.map((row) => [row.playerKey, row.slot]));
-  const bySlot = (left, right) => left[0] - right[0];
-  const expectedTable = ranked.map((row) => [slotOf.get(row.playerKey), row.rank, row.score]).sort(bySlot);
-  const expectedTop = ranked.slice(0, STANDINGS_TOP_ROWS).map((row) => [row.playerKey, row.rank, row.tied, row.score]);
+  const expectedPublic = classStandingsRows(ranked.map((row) => ({ ...row })), { totalCount: ranked.length });
+  const expectedTop = expectedPublic.rows.slice(0, STANDINGS_TOP_ROWS).map((row) => [row.playerKey, row.rank, row.tied, row.score]);
   const final = await standingsSnapshot(roomId);
   assert.equal(final?.kind, 'final', `${label}: the room's standings snapshot is the final one`);
   assert.equal(final.exact, true);
-  assert.deepEqual(projectionRankTable(final).map((seat) => [seat.slot, seat.rank, seat.score]).sort(bySlot), expectedTable, `${label}: the final snapshot is the match result, seat by seat`);
-  assert.deepEqual(final.top.map((row) => [row.playerKey, row.rank, row.tied, row.score]), expectedTop, `${label}: the podium is the match result's`);
+  assert.equal(final.count, ranked.length, `${label}: the final snapshot counts everyone who played`);
+  for (const field of ['ranks', 'scores', 'slotKeys']) assert.equal(field in final, false, `${label}: the final snapshot lists no every-seat ${field}`);
+  assert.deepEqual(final.top.map((row) => [row.playerKey, row.rank, row.tied, row.score]), expectedTop, `${label}: the podium is the match result's public rows`);
+  assert.equal(final.lastRank, expectedPublic.lastRank, `${label}: where the class's last group starts`);
   for (const view of views.values()) {
     assert.equal(view.standings?.kind, 'final', `${label}: ${view.studentId}'s screen holds the final standings (${JSON.stringify(view.standings && { kind: view.standings.kind, phase: view.standings.phase })})`);
     assert.equal(view.standings.count, ranked.length, `${label}: ${view.studentId} counts everyone who played`);
-    assert.deepEqual([...view.standings.table].sort(bySlot), expectedTable, `${label}: ${view.studentId}'s screen holds every final place`);
     assert.deepEqual(view.standings.top, expectedTop, `${label}: ${view.studentId}'s screen shows the podium`);
     const own = ranked.find((row) => row.playerKey === view.invite.playerKey);
-    assert.deepEqual([view.standings.self?.rank, view.standings.self?.tied, view.standings.self?.score], [own.rank, own.tied, own.score], `${label}: ${view.studentId}'s own final place`);
+    assert.deepEqual([view.standings.self?.rank, view.standings.self?.tied, view.standings.self?.score], [own.rank, own.tied, own.score], `${label}: ${view.studentId}'s own final place (their own summary)`);
   }
   return totals;
 };
@@ -363,6 +365,10 @@ const assertBoundedStandings = (views, { label, gameMs, host, size }) => {
   const own = [...views.values()].map((view) => view.stats.standings.selfCallbacks || 0);
   // Its own row: the join, one answer a round, and a re-attach or two.
   own.forEach((count, index) => assert.ok(count <= 2 + ROUNDS * 2 + 4, `${label}: ${[...views.values()][index].studentId} received its own row ${count} times`));
+  // Its own summary (its own place): written only at each round's close and
+  // at the finish — never by a classmate's answer — plus a re-attach or two.
+  const summaries = [...views.values()].map((view) => view.stats.standings.summaryCallbacks || 0);
+  summaries.forEach((count, index) => assert.ok(count <= 1 + ROUNDS + 1 + 3, `${label}: ${[...views.values()][index].studentId} received its own summary ${count} times`));
   const publishes = host.replies.filter((reply) => reply.published === true).length;
   assert.ok(publishes <= live, `${label}: ${publishes} live snapshots in ${Math.round(gameMs / 1000)} s`);
   // The pacer reached the screens: a live snapshot arrived on ordinary screens while a round was open.

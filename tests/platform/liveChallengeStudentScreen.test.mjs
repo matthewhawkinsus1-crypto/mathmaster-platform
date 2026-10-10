@@ -136,8 +136,11 @@ test('a device that comes back is told which rounds closed without its answer', 
   assert.match(effect, /roomFromCache \|\| !everInSync\) return;/);
   assert.match(effect, /const lastSeen = readLastSeenRound\(storage, roomId\);\s*writeLastSeenRound\(storage, roomId, now\);/);
   assert.match(effect, /roundsClosedWhileAway\(\{ lastSeen, now, joinedAtRound, finished: room\.status === 'finished' \}\)/);
-  assert.match(effect, /readLiveChallengeRound\(roomId, roundIndex\)/);
-  assert.match(effect, /unansweredRounds\(results, playerKey\)/);
+  // From the student's OWN summary: the class's copy of a round lists only
+  // its top rows, so it cannot say whether this student answered.
+  assert.match(effect, /readLiveChallengePlayerSummary\(roomId, studentId\)/);
+  assert.match(effect, /summaryUnansweredRounds\(summary, rounds, \{ roomId \}\)/);
+  assert.doesNotMatch(effect, /readLiveChallengeRound\(/);
   // Shown once, dismissible.
   const notice = region(main, '{missedNotice && (', '\n        )}', 'missed notice');
   assert.match(notice, /onClick=\{\(\) => setMissedNotice\(''\)\}/);

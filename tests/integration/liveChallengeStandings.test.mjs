@@ -7,7 +7,9 @@
 //   - EXACT AT EVERY MILESTONE: a round's close writes the standings the round
 //     left behind (the round result's own standingsAfterRound), the finish
 //     writes the match result's standings — for Accuracy First, Correct Count
-//     and Grand Prix, ties included;
+//     and Grand Prix, ties included. The snapshot holds the public rule's rows
+//     of them (nobody else's place: any classmate can read it); every
+//     player's own place is in their own summary, written in the same commit;
 //   - LIVE IS THE BOARD: a live snapshot ranks the public rows exactly as the
 //     host's board does, and is refused when too soon, unchanged, from an
 //     earlier moment, after the end, or asked for by anyone but the room's
@@ -20,8 +22,9 @@
 //   - PRIVATE STAYS PRIVATE: no snapshot ever carries a student id, an email,
 //     an answer or a per-player time;
 //   - A RUSH ROUND publishes nothing while it is open; a room from before seats
-//     is still decoded by every player; a finished room whose final snapshot is
-//     missing is repaired from its match result.
+//     still ranks and places every player; a finished room whose final
+//     snapshot or own final places are missing is repaired from its match
+//     result.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,6 +47,7 @@ const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
 const challenge = await import(path.join(repo, 'functions/shared/liveChallenge.mjs'));
 const { leaderboardOptionsFor } = await import(path.join(repo, 'functions/shared/liveChallengeScoring.mjs'));
 const projectionRules = await import(path.join(repo, 'functions/shared/liveChallengeStandingsProjection.mjs'));
+const { classStandingsRows } = await import(path.join(repo, 'functions/shared/liveChallengePrivacy.mjs'));
 const db = admin.firestore();
 
 const SUITE_STANDARD = 'STANDINGSSUITE1';
@@ -102,7 +106,10 @@ const roomOf = async (roomId) => (await roomRef(roomId).get()).data() || {};
 const standingsOf = async (roomId) => (await roomRef(roomId).collection('standings').doc('current').get()).data() || null;
 const publicRows = async (roomId) => (await roomRef(roomId).collection('players').get()).docs.map((doc) => ({ playerKey: doc.id, ...doc.data() }));
 const privatePlayers = async (roomId) => (await db.collection('liveChallengePrivate').doc(roomId).collection('players').get()).docs.map((doc) => ({ studentId: doc.id, ...doc.data() }));
-const roundSummary = async (roomId, roundIndex) => (await roomRef(roomId).collection('rounds').doc(String(roundIndex)).get()).data() || null;
+// The teacher's whole copy of a closed round (hostRounds), and the class's (rounds).
+const roundSummary = async (roomId, roundIndex) => (await roomRef(roomId).collection('hostRounds').doc(String(roundIndex)).get()).data() || null;
+const classRoundOf = async (roomId, roundIndex) => (await roomRef(roomId).collection('rounds').doc(String(roundIndex)).get()).data() || null;
+const summariesOf = async (roomId) => (await roomRef(roomId).collection('playerSummaries').get()).docs.map((doc) => ({ studentId: doc.id, ...doc.data() }));
 const resultOf = async (roomId) => (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data() || null;
 
 const createRoom = async (entry, extra = {}) => (await teacherCall(entry, 'createLiveChallenge', {
@@ -151,18 +158,30 @@ const advance = async (entry, roomId) => {
 
 /* ------------------------------- comparisons ------------------------------- */
 
-// Every ranked seat in a snapshot, as [playerKey, rank, score], in rank order.
-const tableOf = (projection, players) => {
-  const keyOfSlot = new Map(players.map((player) => [player.slot, player.playerKey]));
-  const keys = projection.slotKeys ? projection.slotKeys.split(',') : null;
-  return projectionRules.projectionRankTable(projection)
-    .map((seat) => [keys ? keys[seat.slot] : keyOfSlot.get(seat.slot), seat.rank, seat.score])
-    .sort((left, right) => left[1] - right[1] || String(left[0]).localeCompare(String(right[0])));
+const byRank = (left, right) => left[1] - right[1] || String(left[0]).localeCompare(String(right[0]));
+// Every player's OWN place, as [playerKey, rank, score] in rank order, from
+// their own summaries: after round `roundIndex`, or final.
+const ownTable = async (roomId, roundIndex = 'final') => (await summariesOf(roomId))
+  .map((summary) => [summary.playerKey, roundIndex === 'final' ? summary.final : summary.rounds?.[String(roundIndex)]?.standing])
+  .filter(([, place]) => place && place.rank !== null && place.rank !== undefined)
+  .map(([playerKey, place]) => [playerKey, place.rank, place.score])
+  .sort(byRank);
+// A snapshot's rows, and the rows the public rule shows the class of an
+// engine ranking (`score` read as a live board reads it).
+const topOf = (projection) => projection.top.map((row) => [row.playerKey, row.rank, row.tied, row.score]);
+const publicTopOf = (ranked) => {
+  const rows = ranked.filter((row) => row.rank !== null && row.rank !== undefined && row.joined !== false);
+  return classStandingsRows(rows, { totalCount: rows.length }).rows.slice(0, projectionRules.STANDINGS_TOP_ROWS)
+    .map((row) => [row.playerKey, row.rank, row.tied === true, Math.round(Number(row.liveScore ?? row.score) || 0)]);
+};
+const assertNoSeatLists = (projection, label) => {
+  for (const field of ['ranks', 'scores', 'slotKeys']) assert.equal(field in projection, false, `${label}: the snapshot lists every seat's ${field}`);
 };
 const tableOfStandings = (standings) => standings.filter((row) => row.rank !== null && row.rank !== undefined && row.joined !== false)
   .map((row) => [row.playerKey, row.rank, row.score])
   .sort((left, right) => left[1] - right[1] || String(left[0]).localeCompare(String(right[0])));
 const assertNothingPrivate = (projection, label) => {
+  assertNoSeatLists(projection, label);
   const text = JSON.stringify(projection);
   for (const forbidden of ['studentId', 'standings-suite-st', '@example.com', 'answeredRound', 'provisional', 'submission', 'Receipt', 'updatedAt', 'responses', 'diagnostic', 'launchMilestones', 'Kid1 ', 'Standings Kid']) {
     assert.equal(text.includes(forbidden), false, `${label}: the snapshot carries "${forbidden}"`);
@@ -206,22 +225,28 @@ for (const scoringStrategyId of ['accuracyFirst', 'correctCount', 'grandPrix']) 
       const reply = await publish(entry, roomId);
       assert.equal(reply.published, true, `round ${roundIndex + 1}: ${JSON.stringify(reply)}`);
       // eslint-disable-next-line no-await-in-loop
-      const [live, rows, room, players] = await Promise.all([standingsOf(roomId), publicRows(roomId), roomOf(roomId), privatePlayers(roomId)]);
+      const [live, rows, room] = await Promise.all([standingsOf(roomId), publicRows(roomId), roomOf(roomId)]);
       const board = challenge.publicLeaderboard(rows, { activeRound: projectionRules.liveProjectionActiveRound(room, live.sourceReadMs), ...leaderboardOptionsFor(scoringStrategyId) });
       assert.equal(live.kind, 'live');
-      assert.deepEqual(tableOf(live, players), board.map((row) => [row.playerKey, row.rank, row.liveScore]).sort((left, right) => left[1] - right[1] || String(left[0]).localeCompare(String(right[0]))), `round ${roundIndex + 1}: the live snapshot is the host's board`);
+      assert.equal(live.count, board.length);
+      assert.deepEqual(topOf(live), publicTopOf(board), `round ${roundIndex + 1}: the live snapshot is the public rows of the host's board`);
       assertNothingPrivate(live, `round ${roundIndex + 1} live`);
       if (roundIndex < 2) {
         // ROUND CLOSE: the standings the round result records.
         // eslint-disable-next-line no-await-in-loop
         await closeRound(entry, roomId);
         // eslint-disable-next-line no-await-in-loop
-        const [closed, summary] = await Promise.all([standingsOf(roomId), roundSummary(roomId, roundIndex)]);
+        const [closed, summary, classCopy] = await Promise.all([standingsOf(roomId), roundSummary(roomId, roundIndex), classRoundOf(roomId, roundIndex)]);
         assert.equal(closed.kind, 'roundClosed');
         assert.equal(closed.exact, true);
-        assert.deepEqual(tableOf(closed, players), tableOfStandings(summary.standingsAfterRound), `round ${roundIndex + 1}: the closed snapshot is the round's standingsAfterRound`);
-        assert.deepEqual(closed.top.map((row) => [row.playerKey, row.rank, row.tied]), summary.standingsAfterRound.slice(0, 5).map((row) => [row.playerKey, row.rank, row.tied]));
+        assert.deepEqual(topOf(closed), publicTopOf(summary.standingsAfterRound), `round ${roundIndex + 1}: the closed snapshot is the public rows of the round's standingsAfterRound`);
+        assert.deepEqual(await ownTable(roomId, roundIndex), tableOfStandings(summary.standingsAfterRound), `round ${roundIndex + 1}: every player's own summary holds their place after the round`);
         assertNothingPrivate(closed, `round ${roundIndex + 1} closed`);
+        // The class's copy of the round: the public rows only, of both lists.
+        assert.equal(summary.standingsAfterRound.length, entry.students.length, 'the teacher\'s copy is the whole class');
+        assert.deepEqual(classCopy.standingsAfterRound.map((row) => [row.playerKey, row.rank]), publicTopOf(summary.standingsAfterRound).map(([playerKey, rank]) => [playerKey, rank]));
+        assert.ok(classCopy.standings.length <= 5);
+        assert.equal(classCopy.visibility, 'class');
         // A live publish after the close, with nothing new: no write, no delivery.
         // eslint-disable-next-line no-await-in-loop
         const again = await publish(entry, roomId);
@@ -234,8 +259,9 @@ for (const scoringStrategyId of ['accuracyFirst', 'correctCount', 'grandPrix']) 
     assert.equal(final.kind, 'final');
     assert.equal(final.exact, true);
     assert.equal(final.status, 'finished');
-    assert.deepEqual(tableOf(final, playersAtEnd), tableOfStandings(result.standings), 'the final snapshot IS the match result');
-    assert.deepEqual(final.top.map((row) => [row.playerKey, row.rank, row.tied, row.score]), result.standings.filter((row) => row.rank !== null).slice(0, 5).map((row) => [row.playerKey, row.rank, row.tied, row.score]), 'the podium is the match result\'s');
+    assert.deepEqual(await ownTable(roomId), tableOfStandings(result.standings), 'every player\'s own final place IS the match result');
+    assert.deepEqual(topOf(final), publicTopOf(result.standings), 'the podium is the match result\'s public rows');
+    assert.equal(playersAtEnd.length, entry.students.length);
     assert.equal(final.count, result.standings.filter((row) => row.joined).length);
     assertNothingPrivate(final, 'final');
     // Nothing replaces the final: a publish now is refused and writes nothing.
@@ -294,13 +320,16 @@ test('the answer path never reads or writes the snapshot, and a missing or corru
   await closeRound(entry, roomId);
   const [closed, summary, players] = await Promise.all([standingsOf(roomId), roundSummary(roomId, 0), privatePlayers(roomId)]);
   assert.equal(closed.kind, 'roundClosed', 'the close wrote the exact standings over whatever was there');
-  assert.deepEqual(tableOf(closed, players), tableOfStandings(summary.standingsAfterRound));
+  assert.deepEqual(topOf(closed), publicTopOf(summary.standingsAfterRound));
+  assert.deepEqual(await ownTable(roomId, 0), tableOfStandings(summary.standingsAfterRound));
   // Corrupt it again, then finish: the final is the match result.
   await roomRef(roomId).collection('standings').doc('current').set({ schemaVersion: 1, roomId, kind: 'live', phase: 'open', roundVersion: 99, ranks: '1,1,1,1,1', scores: '5,5,5,5,5', top: [], count: 5 });
   await teacherCall(entry, 'finishLiveChallenge', { roomId });
   const [final, result] = await Promise.all([standingsOf(roomId), resultOf(roomId)]);
   assert.equal(final.kind, 'final');
-  assert.deepEqual(tableOf(final, players), tableOfStandings(result.standings), 'the final is the match result, whatever the snapshot said before');
+  assert.deepEqual(topOf(final), publicTopOf(result.standings), 'the final is the match result, whatever the snapshot said before');
+  assert.deepEqual(await ownTable(roomId), tableOfStandings(result.standings));
+  assertNoSeatLists(final, 'final');
   // Scores come from the answers alone: the lying snapshot changed nothing.
   for (const player of players) {
     const standing = result.standings.find((row) => row.studentId === player.studentId);
@@ -309,7 +338,8 @@ test('the answer path never reads or writes the snapshot, and a missing or corru
 });
 
 test('work in progress reaches the live board while the round takes answers, and never an exact snapshot', { timeout: 90_000 }, async () => {
-  const entry = await seedClass(3);
+  // Four players: the two who did nothing tie for last, so the other two are shown.
+  const entry = await seedClass(4);
   const roomId = await createRoom(entry);
   await joinAll(entry, roomId);
   await teacherCall(entry, 'startLiveChallenge', { roomId });
@@ -322,20 +352,23 @@ test('work in progress reaches the live board while the round takes answers, and
   assert.equal(progress.recorded, true);
   assert.equal((await publish(entry, roomId)).published, true);
   const players = await privatePlayers(roomId);
-  const seatOf = (studentId) => players.find((player) => player.studentId === studentId).slot;
+  const keyOf = (studentId) => players.find((player) => player.studentId === studentId).playerKey;
   const live = await standingsOf(roomId);
   assert.equal(live.includesWorkInProgress, true);
-  assert.equal(projectionRules.projectionRankTable(live).find((seat) => seat.slot === seatOf(working)).score, 400, 'the work in progress is on the live board');
+  assert.equal(live.top.find((row) => row.playerKey === keyOf(working))?.score, 400, 'the work in progress is on the live board');
   // The close banks what was answered; the exact snapshot carries nothing else.
   await closeRound(entry, roomId);
   const closed = await standingsOf(roomId);
   assert.equal(closed.includesWorkInProgress, false);
-  assert.equal(projectionRules.projectionRankTable(closed).find((seat) => seat.slot === seatOf(working)).score, 0, 'an exact snapshot holds banked points only');
+  assert.equal(closed.top.some((row) => row.playerKey === keyOf(working)), false, 'banked nothing: tied with the last, so not on the class\'s list');
+  const own = new Map((await ownTable(roomId, 0)).map(([playerKey, rank, score]) => [playerKey, { rank, score }]));
+  assert.equal(own.get(keyOf(working)).score, 0, 'an exact place holds banked points only');
   const banked = (await privatePlayers(roomId)).find((player) => player.studentId === answered);
-  assert.equal(projectionRules.projectionRankTable(closed).find((seat) => seat.slot === seatOf(answered)).score, banked.score);
+  assert.equal(own.get(keyOf(answered)).score, banked.score);
+  assert.equal(closed.top.find((row) => row.playerKey === keyOf(answered))?.score, banked.score);
   await teacherCall(entry, 'finishLiveChallenge', { roomId });
-  const [final, result] = await Promise.all([standingsOf(roomId), resultOf(roomId)]);
-  assert.deepEqual(tableOf(final, players), tableOfStandings(result.standings));
+  const result = await resultOf(roomId);
+  assert.deepEqual(await ownTable(roomId), tableOfStandings(result.standings));
 });
 
 test('a publish that fails — the database refuses its read — blocks no answer and changes no score', { timeout: 90_000 }, async () => {
@@ -377,10 +410,12 @@ test('a publish that fails — the database refuses its read — blocks no answe
   assert.equal((await publish(entry, roomId)).published, true);
   const [live, rows, room] = await Promise.all([standingsOf(roomId), publicRows(roomId), roomOf(roomId)]);
   const board = challenge.publicLeaderboard(rows, { activeRound: projectionRules.liveProjectionActiveRound(room, live.sourceReadMs), ...leaderboardOptionsFor(null) });
-  assert.deepEqual(tableOf(live, players), board.map((row) => [row.playerKey, row.rank, row.liveScore]).sort((left, right) => left[1] - right[1] || String(left[0]).localeCompare(String(right[0]))));
+  assert.deepEqual(topOf(live), publicTopOf(board));
+  assert.equal(live.count, players.length);
   await teacherCall(entry, 'finishLiveChallenge', { roomId });
   const [final, result] = await Promise.all([standingsOf(roomId), resultOf(roomId)]);
-  assert.deepEqual(tableOf(final, players), tableOfStandings(result.standings));
+  assert.deepEqual(topOf(final), publicTopOf(result.standings));
+  assert.deepEqual(await ownTable(roomId), tableOfStandings(result.standings));
 });
 
 test('a host that never publishes leaves the live board stale and nothing else', { timeout: 90_000 }, async () => {
@@ -412,14 +447,14 @@ test('an open Graph Feature Rush round publishes nothing; its close and its fini
   const during = await teacherCall(entry, 'publishLiveChallengeStandings', { roomId });
   assert.equal(during.published, false, 'nobody is listening during an open rush round');
   assert.equal(during.reason, 'not-live');
-  const players = await privatePlayers(roomId);
   await teacherCall(entry, 'finishLiveChallenge', { roomId });
   const [final, result] = await Promise.all([standingsOf(roomId), resultOf(roomId)]);
   assert.equal(final.kind, 'final');
-  assert.deepEqual(tableOf(final, players), tableOfStandings(result.standings));
+  assert.deepEqual(topOf(final), publicTopOf(result.standings));
+  assert.deepEqual(await ownTable(roomId), tableOfStandings(result.standings));
 });
 
-test('a room from before seats: every player still finds their own place', async () => {
+test('a room from before seats: the class still sees its public rows, and every player their own place', async () => {
   const entry = await seedClass(4);
   const roomId = await createRoom(entry);
   await joinAll(entry, roomId);
@@ -435,18 +470,16 @@ test('a room from before seats: every player still finds their own place', async
   for (const [index, studentId] of entry.students.entries()) await answer(roomId, studentId, { correct: index % 2 === 0 }); // eslint-disable-line no-await-in-loop
   assert.equal((await publish(entry, roomId)).published, true);
   const live = await standingsOf(roomId);
-  assert.equal(typeof live.slotKeys, 'string', 'seated by player key');
+  assertNoSeatLists(live, 'live');
   const rows = await publicRows(roomId);
   const board = challenge.publicLeaderboard(rows, { activeRound: projectionRules.liveProjectionActiveRound(await roomOf(roomId), live.sourceReadMs), ...leaderboardOptionsFor(null) });
-  for (const row of board) {
-    const view = projectionRules.standingsFromProjection(live, { roomId, slot: null, playerKey: row.playerKey });
-    assert.equal(view.self.rank, row.rank, `${row.alias} finds its rank`);
-    assert.equal(view.self.score, row.liveScore);
-  }
+  assert.deepEqual(topOf(live), publicTopOf(board));
   await teacherCall(entry, 'finishLiveChallenge', { roomId });
+  // Own places are keyed by student, so a room without seats loses nothing.
+  assert.deepEqual(await ownTable(roomId), tableOfStandings((await resultOf(roomId)).standings));
 });
 
-test('a finished room whose final snapshot is missing is repaired from its match result, for its own audience only', { timeout: 90_000 }, async () => {
+test('a finished room whose final snapshot or own final places are missing is repaired from its match result, for its own audience only', { timeout: 90_000 }, async () => {
   const entry = await seedClass(4);
   const roomId = await createRoom(entry);
   await joinAll(entry, roomId);
@@ -461,7 +494,9 @@ test('a finished room whose final snapshot is missing is repaired from its match
   assert.notEqual((await standingsOf(roomId))?.kind, 'final', 'no final snapshot while the match runs');
   await teacherCall(entry, 'finishLiveChallenge', { roomId });
   const result = await resultOf(roomId);
+  // A room finished before own summaries: no snapshot and no final places.
   await roomRef(roomId).collection('standings').doc('current').delete();
+  for (const summary of await summariesOf(roomId)) await roomRef(roomId).collection('playerSummaries').doc(summary.studentId).delete(); // eslint-disable-line no-await-in-loop
   const outsider = await seedClass(1);
   const refused = await failureOf(call('ensureLiveChallengeFinalStandings', asStudent(outsider.students[0], { roomId })));
   assert.match(String(refused?.code), /permission-denied/);
@@ -469,15 +504,18 @@ test('a finished room whose final snapshot is missing is repaired from its match
   assert.equal(repaired.ensured, true);
   const final = await standingsOf(roomId);
   assert.equal(final.kind, 'final');
-  // The private records are gone (finalization cleaned them up): the seats come from the match result.
-  assert.deepEqual(projectionRules.projectionRankTable(final).map((seat) => seat.rank).sort(), result.standings.filter((row) => row.rank !== null).map((row) => row.rank).sort());
-  for (const standing of result.standings.filter((row) => row.rank !== null)) {
-    const view = projectionRules.standingsFromProjection(final, { roomId, slot: standing.slot, playerKey: standing.playerKey });
-    assert.equal(view.self.rank, standing.rank);
-    assert.equal(view.self.score, standing.score);
-  }
+  assertNoSeatLists(final, 'repaired final');
+  // The private records are gone (finalization cleaned them up): the places come from the match result.
+  assert.deepEqual(topOf(final), publicTopOf(result.standings));
+  assert.deepEqual(await ownTable(roomId), tableOfStandings(result.standings), 'every player\'s own final place, rebuilt');
   // Asking again changes nothing.
   const before = await roomRef(roomId).collection('standings').doc('current').get();
   assert.equal((await call('ensureLiveChallengeFinalStandings', asStudent(entry.students[1], { roomId }))).ensured, true);
   assert.equal((await roomRef(roomId).collection('standings').doc('current').get()).updateTime.toMillis(), before.updateTime.toMillis());
+  // A final snapshot of the version that listed every seat is rewritten.
+  await roomRef(roomId).collection('standings').doc('current').set({ ...final, schemaVersion: 1, ranks: '1,2,3,4', scores: '4,3,2,1' });
+  assert.equal((await call('ensureLiveChallengeFinalStandings', asStudent(entry.students[2], { roomId }))).repaired, true);
+  const rewritten = await standingsOf(roomId);
+  assert.equal(rewritten.schemaVersion, projectionRules.STANDINGS_PROJECTION_SCHEMA_VERSION);
+  assertNoSeatLists(rewritten, 'rewritten final');
 });

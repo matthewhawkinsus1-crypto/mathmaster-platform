@@ -1590,15 +1590,15 @@ test('a revealed round solution is read by the room\'s audience only, and writte
   }
 });
 
-test('player rows are read by the room\'s audience (a student\'s own row included) and written by no client', async () => {
+test('player rows: a student reads their own row only, the room\'s teacher every row, and no client writes one', async () => {
   await seedLiveChallengeEngine();
   const own = 'liveChallengeRooms/lc-room-a/players/pk-a';
   const classmate = 'liveChallengeRooms/lc-room-a/players/pk-classmate';
   await assertSucceeds(getDoc(doc(studentA(), own)), 'the row their invite names: the screen\'s own-row listener');
-  // Still readable in this release, for screens loaded before it (they list
-  // every row until they reload); the own-row-only tightening is a later deploy.
-  await assertSucceeds(getDoc(doc(studentA(), classmate)));
-  await assertSucceeds(getDocs(collection(studentA(), 'liveChallengeRooms/lc-room-a/players')));
+  // A classmate's row carries their score, and every score is every place
+  // (tests/rules/liveChallengeRankPrivacyRules.test.mjs).
+  await assertFails(getDoc(doc(studentA(), classmate)), "a classmate's row");
+  await assertFails(getDocs(collection(studentA(), 'liveChallengeRooms/lc-room-a/players')), 'listing every row');
   await assertFails(getDoc(doc(studentB(), own)), 'a student of another room');
   await assertFails(getDocs(collection(studentB(), 'liveChallengeRooms/lc-room-a/players')), 'a student of another room');
   await assertSucceeds(getDocs(collection(teacherA(), 'liveChallengeRooms/lc-room-a/players')), "the console's board");

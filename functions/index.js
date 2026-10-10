@@ -6978,6 +6978,18 @@ async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
   }
   if (grantsSnapshot.size) deleted.rewardGrants = grantsSnapshot.size;
 
+  // Their own place in each match they played (liveChallengeRooms/{room}/
+  // playerSummaries/{studentId}, keyed by their id): found through the match
+  // results that list them, before the scrub below takes them off the list.
+  const playedSnapshot = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).where("studentIds", "array-contains", studentId).get();
+  let summariesDeleted = 0;
+  for (const resultDoc of playedSnapshot.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection(LIVE_CHALLENGE_ROOMS).doc(resultDoc.id).collection("playerSummaries").doc(studentId).delete();
+    summariesDeleted += 1;
+  }
+  if (summariesDeleted) deleted.liveChallengePlayerSummaries = summariesDeleted;
+
   const scrub = async (collectionName, rowFields) => {
     const snapshot = await db.collection(collectionName).where("studentIds", "array-contains", studentId).get();
     for (const recordDoc of snapshot.docs) {
@@ -10547,7 +10559,7 @@ async function graphFeatureRushRules() {
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10562,9 +10574,10 @@ async function liveChallengeEngine() {
       import("./shared/liveChallengeDifficulty.mjs"),
       import("./shared/liveChallengePrivacy.mjs"),
       import("./shared/liveChallengeRecognitions.mjs"),
+      import("./shared/liveChallengePlayerSummary.mjs"),
     ]);
     liveChallengeEngineModules = {
-      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions,
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary,
     };
   }
   return liveChallengeEngineModules;
@@ -10590,6 +10603,9 @@ const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
 const LIVE_CHALLENGE_INVITES = "liveChallengeInvites";
 const LIVE_CHALLENGE_TEACHER_ACTIVE = "liveChallengeTeacherActive";
+// A closed round's whole anonymous table, for the room's teacher only
+// (liveChallengeRooms/{room}/hostRounds/{n}); the class reads rounds/{n}.
+const LIVE_CHALLENGE_HOST_ROUNDS = "hostRounds";
 // The durable final result of a finished or cancelled match. Server-only: it
 // names students. Reports, Warm-Up credit, evidence and rewards are all
 // derived from it, so each can be re-run safely after a crash.
@@ -11921,14 +11937,70 @@ function applyLiveChallengeRoundClose(transaction, {
   const standingsAfterRound = engine.results.matchStandingsAfterRound({
     players: updatedPlayers, modeId: room.challengeMode, scoringStrategyId,
   });
-  transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
-    ...engine.results.publicRoundSummary(roundResult, { standingsAfterRound }),
+  // NOBODY IS PUBLICLY LAST, ALSO IN FIRESTORE. Three copies, by who reads
+  // them: the class's (rounds/{n}) holds only the rows the public rule shows
+  // everyone; the teacher's (hostRounds/{n}) the whole anonymous table, for
+  // the console and the projector it drives; and each student's own summary
+  // their own place in the round and the match (liveChallengePlayerSummary).
+  const hostSummary = engine.results.publicRoundSummary(roundResult, { standingsAfterRound });
+  transaction.set(roomRef.collection(LIVE_CHALLENGE_HOST_ROUNDS).doc(String(roundIndex)), {
+    ...hostSummary,
     closedAt: FieldValue.serverTimestamp(),
   });
+  transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
+    ...engine.results.classRoundSummary(roundResult, { standingsAfterRound }),
+    closedAt: FieldValue.serverTimestamp(),
+  });
+  writeLiveChallengeRoundSummaries(transaction, { engine, roomRef, roundResult, summary: hostSummary, standingsAfterRound });
   // The caller writes the class's standings snapshot from these same
   // standings (writeExactStandingsProjection), or the final one when the
   // match ends in the same transaction.
   return { roundResult, players: updatedPlayers, standingsAfterRound };
+}
+
+/*
+ * EACH STUDENT'S OWN SUMMARY (functions/shared/liveChallengePlayerSummary.mjs):
+ * liveChallengeRooms/{room}/playerSummaries/{studentId}, readable by that
+ * student and the room's teacher only. Written in the commit that closes a
+ * round (their place in it, and in the match after it) and in the commit that
+ * finishes the match (their final place), beside the class's documents for the
+ * same moment — so a student's own place and the class's top rows are always
+ * one moment.
+ */
+const liveChallengePlayerSummaryRef = (roomRef, engine, studentId) => roomRef
+  .collection(engine.playerSummary.PLAYER_SUMMARY_COLLECTION)
+  .doc(String(studentId));
+
+function writeLiveChallengeRoundSummaries(transaction, { engine, roomRef, roundResult, summary, standingsAfterRound }) {
+  const entries = engine.playerSummary.roundSummaryEntries({
+    roundResult, summary, standingsAfterRound, byPoints: engine.results.roundTableByPoints(summary),
+  });
+  entries.forEach((item) => {
+    transaction.set(liveChallengePlayerSummaryRef(roomRef, engine, item.studentId), {
+      schemaVersion: engine.playerSummary.PLAYER_SUMMARY_SCHEMA_VERSION,
+      roomId: roomRef.id,
+      playerKey: item.playerKey,
+      alias: item.alias,
+      // Merged: one entry per closed round, kept for the whole match.
+      rounds: { [String(item.roundIndex)]: item.entry },
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+}
+
+/** Each placed player's final place, from the match result's standings (a finished match only). */
+function writeLiveChallengeFinalSummaries(transaction, { engine, roomRef, standings, status }) {
+  engine.playerSummary.finalSummaryEntries({ standings }).forEach((item) => {
+    transaction.set(liveChallengePlayerSummaryRef(roomRef, engine, item.studentId), {
+      schemaVersion: engine.playerSummary.PLAYER_SUMMARY_SCHEMA_VERSION,
+      roomId: roomRef.id,
+      playerKey: item.playerKey,
+      alias: item.alias,
+      status,
+      final: item.entry,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
 }
 
 /** The public row an answer updates: anonymous counters only (alias, never a student id). */
@@ -11965,11 +12037,11 @@ function liveChallengePublicAnswerRow(player, finalPlayer, roundIndex) {
 const standingsProjectionRef = (roomRef, standings) => roomRef.collection(standings.STANDINGS_COLLECTION).doc(standings.STANDINGS_DOC_ID);
 
 function writeExactStandingsProjection(transaction, {
-  engine, roomRef, room, kind, standings, players, status = null, nowMs, source,
+  engine, roomRef, room, kind, standings, status = null, nowMs, source,
 }) {
   try {
     const projection = engine.standings.exactProjectionFromStandings({
-      roomId: roomRef.id, room, kind, standings, players, status,
+      roomId: roomRef.id, room, kind, standings, status,
     });
     transaction.set(standingsProjectionRef(roomRef, engine.standings), {
       ...projection,
@@ -12257,11 +12329,13 @@ function applyLiveChallengeMatchFinalization(transaction, {
     room: { ...room, status },
     kind: engine.standings.PROJECTION_KIND.FINAL,
     standings: matchResult.standings,
-    players,
     status,
     nowMs,
     source: "finish",
   });
+  // And each student's own final place, from the same standings. A cancelled
+  // match records nothing, so it places nobody.
+  if (finished) writeLiveChallengeFinalSummaries(transaction, { engine, roomRef, standings: matchResult.standings, status });
   return matchResult;
 }
 
@@ -12925,7 +12999,6 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
       room: { ...currentRoom, roundState: lifecycle.ROUND_STATE.CLOSED },
       kind: engine.standings.PROJECTION_KIND.ROUND_CLOSED,
       standings: standingsAfterRound,
-      players: roundPlayers,
       nowMs,
       source: "roundClose",
     });
@@ -13035,7 +13108,6 @@ exports.advanceLiveChallenge = onCall(async (request) => {
         room: { ...currentRoom, roundState: lifecycle.ROUND_STATE.CLOSED },
         kind: engine.standings.PROJECTION_KIND.ROUND_CLOSED,
         standings: closedStandings,
-        players: roundPlayers,
         nowMs,
         source: "roundClose",
       });
@@ -13232,54 +13304,64 @@ exports.getLiveChallengeMatchRecap = onCall(async (request) => {
 /*
  * A FINISHED ROOM'S FINAL STANDINGS, REBUILT FROM ITS MATCH RESULT IF MISSING.
  *
- * The finishing transaction writes the final snapshot. A room that finished
- * before snapshots existed — or one whose final snapshot could not be built —
- * has none, and a screen opened on it would wait for its final place forever.
- * Its own students and teacher may ask for it: the server rebuilds it from the
- * durable match result (the same standings the podium and rewards use) and
- * writes it once. Asking again changes nothing.
+ * The finishing transaction writes the final snapshot and each student's own
+ * final place. A room that finished before either existed — or one whose
+ * final snapshot could not be built, or is of a version the screens no longer
+ * read (one that listed every seat's rank) — would leave a screen waiting for
+ * its final place forever. Its own students and teacher may ask for it: the
+ * server rebuilds what is missing from the durable match result (the same
+ * standings the podium and rewards use) and writes it once. Asking again
+ * changes nothing.
  */
 exports.ensureLiveChallengeFinalStandings = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  let studentId = null;
   if (request.auth?.token?.role === "teacher") {
     await requireOwnedChallenge(db, request, roomId);
   } else {
-    const { studentId } = requireStudent(request);
+    ({ studentId } = requireStudent(request));
     const invite = await db.collection(LIVE_CHALLENGE_INVITES).doc(studentId).get();
     if (!invite.exists || invite.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   }
   const engine = await liveChallengeEngine();
-  const { standings } = engine;
+  const { standings, playerSummary } = engine;
   const roomSnapshot = await roomRef.get();
   if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
   const room = roomSnapshot.data() || {};
   if (!["finished", "cancelled"].includes(room.status)) return { ensured: false, reason: "not-finished" };
   const ref = standingsProjectionRef(roomRef, standings);
-  const existing = await ref.get();
-  if (existing.exists && existing.data()?.kind === standings.PROJECTION_KIND.FINAL) return { ensured: true, existing: true };
+  const finalIsCurrent = (snapshot) => snapshot.exists
+    && snapshot.data()?.kind === standings.PROJECTION_KIND.FINAL
+    && Number(snapshot.data()?.schemaVersion) === standings.STANDINGS_PROJECTION_SCHEMA_VERSION;
+  // A student of a finished match also needs their own final place.
+  const summaryRef = studentId && room.status === "finished" ? liveChallengePlayerSummaryRef(roomRef, engine, studentId) : null;
+  const summaryIsCurrent = (snapshot) => !snapshot || Boolean(playerSummary.summaryFinal(snapshot.exists ? snapshot.data() : null, { roomId }));
+  const [existing, existingSummary] = await Promise.all([ref.get(), summaryRef ? summaryRef.get() : Promise.resolve(null)]);
+  if (finalIsCurrent(existing) && summaryIsCurrent(existingSummary)) return { ensured: true, existing: true };
   const resultSnapshot = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomId).get();
   if (!resultSnapshot.exists) return { ensured: false, reason: "no-result" };
   const result = resultSnapshot.data() || {};
   const resultStandings = Array.isArray(result.standings) ? result.standings : [];
   return db.runTransaction(async (transaction) => {
-    const latest = await transaction.get(ref);
-    if (latest.exists && latest.data()?.kind === standings.PROJECTION_KIND.FINAL) return { ensured: true, existing: true };
-    const written = writeExactStandingsProjection(transaction, {
+    const [latest, latestSummary] = await Promise.all([transaction.get(ref), summaryRef ? transaction.get(summaryRef) : Promise.resolve(null)]);
+    const projectionDone = finalIsCurrent(latest);
+    const summariesDone = summaryIsCurrent(latestSummary);
+    if (projectionDone && summariesDone) return { ensured: true, existing: true };
+    const written = projectionDone || writeExactStandingsProjection(transaction, {
       engine,
       roomRef,
       room,
       kind: standings.PROJECTION_KIND.FINAL,
-      // The match result's standings carry each player's seat; a result from
-      // before seats is seated by player key instead.
       standings: resultStandings,
-      players: resultStandings,
       status: room.status,
       nowMs: Date.now(),
       source: "repair",
     });
+    // Every player's own final place, from the same standings, in one commit.
+    if (!summariesDone) writeLiveChallengeFinalSummaries(transaction, { engine, roomRef, standings: resultStandings, status: room.status });
     return written ? { ensured: true, repaired: true } : { ensured: false, reason: "unbuildable" };
   });
 });
