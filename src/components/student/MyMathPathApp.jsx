@@ -807,7 +807,7 @@ export const MyMathPathExperience = ({
             ? 'The simulator keeps no weekly mastery snapshots. A real student sees their growth here.'
             : undefined}
           weeklyUnavailableMessage={readOnly
-            ? 'The student sees their past weekly goals and grades here. Your Weekly Path table has each class week.'
+            ? 'The student sees their past weekly goals and grades here. Past weekly grades go to Google Classroom when publishing is on.'
             : undefined}
           onOpenPath={readOnly ? null : () => setActiveTab('path')}
         />

@@ -204,6 +204,18 @@ test('this week against four weeks ago: mastered count, like-for-like average, t
   assert.equal(growth.noRecentPractice, false);
 });
 
+test('like for like: a skill scored then but missing now is left out of the "before" average', () => {
+  // A teacher-edited profile, or a skill no longer in the snapshot: A.9D was
+  // scored four weeks ago and is gone from the latest week.
+  const record = history({
+    '2026-09-07': { 'A.5A': [60, 2], 'A.9D': [20, 3] },
+    [THIS_WEEK]: { 'A.5A': [80, 4] },
+  });
+  const growth = compareMasteryGrowth({ history: record, now: NOW });
+  assert.deepEqual(growth.sameSkills, { count: 1, before: 60, after: 80, change: 20 });
+  assert.equal(growth.baseline.averageScore, 40, 'the all-skills average then is not what is compared');
+});
+
 test('a history younger than four weeks compares from its first week, and says so', () => {
   const record = history({ '2026-09-21': { 'A.5A': [50, 2] }, [THIS_WEEK]: { 'A.5A': [70, 3] } });
   const growth = compareMasteryGrowth({ history: record, now: NOW });

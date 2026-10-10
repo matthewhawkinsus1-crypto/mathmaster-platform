@@ -157,7 +157,7 @@ const SCENES = {
       now={NOW}
       loadMasteryHistory={loaders.history}
       loadWeeklyHistory={null}
-      weeklyUnavailableMessage="The student sees their past weekly goals and grades here. Your Weekly Path table has each class week."
+      weeklyUnavailableMessage="The student sees their past weekly goals and grades here. Past weekly grades go to Google Classroom when publishing is on."
     />
   ),
   progressOutage: () => <MyMathPathProgress now={NOW} loadMasteryHistory={loaders.failing} loadWeeklyHistory={loaders.weekly} />,

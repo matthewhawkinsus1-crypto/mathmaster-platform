@@ -102,13 +102,44 @@ test('past weeks: a grade only for a closed week, the deadline in the words, emp
   assert.equal(view.rows[2].progress, 'No weekly goal was set this week.');
   assert.deepEqual(view.streak, { count: 1, value: '1', label: 'week in a row', detail: 'Finish this week’s goal to make it one more.' });
   assert.equal(view.weeksHit, 1);
+  // An older server response without weeksCounted reads its weeksWithGoal.
+  assert.equal(view.weeksCounted, 3);
+  assert.equal(describeWeeklyHistoryForStudent({ weeks: [], weeksWithGoal: 3, weeksCounted: 2 }).weeksCounted, 2);
+});
+
+test('an open week shows no grade, even if a score arrives for it', () => {
+  const view = describeWeeklyHistoryForStudent({
+    weeks: [week('2026-10-05', { current: true, closed: false, completed: 2, completedOnTime: 2, grade: 80, score: 80, gradeSource: null })],
+    streak: { weeks: 0 },
+  });
+  assert.equal(view.rows[0].grade, null);
+  assert.equal(view.rows[0].gradeNote, null);
+});
+
+test('"N of M recent weeks hit" never counts the week in progress as a miss', () => {
+  const screen = executableSource(read('src/components/student/MyMathPathProgress.jsx'));
+  assert.match(screen, /\{weekly\.weeksHit\} of \{weekly\.weeksCounted\} recent/);
+  assert.doesNotMatch(screen, /of \{weekly\.weeksWithGoal\}/);
 });
 
 test('the streak in words: none yet, including this week, and "at least" past the window', () => {
   assert.match(describeWeeklyHistoryForStudent({ weeks: [], streak: { weeks: 0 } }).streak.detail, /to start a streak/);
-  const open = describeWeeklyHistoryForStudent({ weeks: [], streak: { weeks: 3, includesOpenWeek: true } }).streak;
+  const thisWeekHit = [week('2026-10-05', { current: true, closed: false, hit: true, completed: 4, completedOnTime: 4 })];
+  const open = describeWeeklyHistoryForStudent({ weeks: thisWeekHit, streak: { weeks: 3, includesOpenWeek: true } }).streak;
   assert.deepEqual([open.value, open.label], ['3', 'weeks in a row']);
   assert.match(open.detail, /Including this week/);
+  // Sunday evening: the new week has begun (not set yet) while last week,
+  // already hit, runs to its due day. The open week counted is LAST week.
+  const sundayEvening = describeWeeklyHistoryForStudent({
+    weeks: [
+      week('2026-10-12', { current: true, hasGoal: false, required: 0, closed: false }),
+      week('2026-10-05', { closed: false, hit: true, completed: 4, completedOnTime: 4 }),
+    ],
+    streak: { weeks: 2, includesOpenWeek: true },
+  });
+  assert.equal(sundayEvening.rows[0].status.label, 'Not set yet');
+  assert.match(sundayEvening.streak.detail, /^Including last week\./);
+  assert.doesNotMatch(sundayEvening.streak.detail, /this week\. Keep/);
   assert.equal(describeWeeklyHistoryForStudent({ weeks: [], streak: { weeks: 12, atLeast: true } }).streak.value, '12+');
   assert.equal(describeWeeklyHistoryForStudent(null).rows.length, 0);
 });

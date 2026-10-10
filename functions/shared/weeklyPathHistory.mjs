@@ -201,6 +201,10 @@ export const buildWeeklyPathHistory = ({
     streak: weeklyPathStreak(weeks),
     weeksHit: weeks.filter((week) => week.hit).length,
     weeksWithGoal: weeks.filter((week) => week.hasGoal).length,
+    // The weeks "N of M recent weeks hit" can judge: every closed week that
+    // had a goal, and an open one only once it is hit. The week in progress
+    // is not a miss, here as in the streak.
+    weeksCounted: weeks.filter((week) => week.hasGoal && (week.closed || week.hit)).length,
     // A partial read of the student's sessions would grade a week too low; the
     // screen has to be able to say so rather than present it as fact.
     truncated: Boolean(truncated),

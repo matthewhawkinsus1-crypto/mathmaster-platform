@@ -347,6 +347,7 @@ export const fetchMyWeeklyPathHistory = async () => {
     streak: data.streak || { weeks: 0, includesOpenWeek: false, atLeast: false, endedBy: null },
     weeksHit: Number(data.weeksHit) || 0,
     weeksWithGoal: Number(data.weeksWithGoal) || 0,
+    weeksCounted: Number(data.weeksCounted ?? data.weeksWithGoal) || 0,
     truncated: data.truncated === true,
   };
 };

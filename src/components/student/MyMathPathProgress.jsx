@@ -160,9 +160,9 @@ function WeeklyCard({ state, onRetry, unavailable, onOpenPath }) {
               <div><strong style={{ fontSize: 28, lineHeight: 1.1 }}>{streak.value}</strong> <span style={{ fontWeight: 850 }}>{streak.label}</span></div>
               <div style={{ ...MUTED, color: 'var(--mm-text)' }}>{streak.detail}</div>
             </div>
-            {weekly.weeksWithGoal > 0 && (
+            {weekly.weeksCounted > 0 && (
               <div style={{ ...MUTED, color: 'var(--mm-text)', fontWeight: 700 }}>
-                {weekly.weeksHit} of {weekly.weeksWithGoal} recent {weekly.weeksWithGoal === 1 ? 'week' : 'weeks'} hit
+                {weekly.weeksHit} of {weekly.weeksCounted} recent {weekly.weeksCounted === 1 ? 'week' : 'weeks'} hit
               </div>
             )}
           </div>

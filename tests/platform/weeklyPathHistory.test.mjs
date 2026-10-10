@@ -219,6 +219,27 @@ test('a past week stored with a due date far in its future still closes, and its
   assert.equal(open.closed, false);
 });
 
+test('weeks counted for "N of M hit": closed weeks with a goal, and the open week only once it is hit', () => {
+  const thisWeek = frozenGoal(THIS_WEEK, ['A.5A']);
+  const lastWeek = frozenGoal(LAST_WEEK, ['A.5A']);
+  const twoAgo = frozenGoal(TWO_AGO, ['A.5A']);
+  const base = {
+    weekKeys: [THIS_WEEK, LAST_WEEK, TWO_AGO],
+    goalsByWeekKey: { [THIS_WEEK]: thisWeek, [LAST_WEEK]: lastWeek, [TWO_AGO]: twoAgo },
+    now: NOW,
+    displayTeks: display,
+  };
+  // Last week hit, two weeks ago missed, this week open and not finished.
+  const midWeek = buildWeeklyPathHistory({ ...base, sessions: [completed(lastWeek, 1, monday(LAST_WEEK))] });
+  assert.equal(midWeek.weeksWithGoal, 3);
+  assert.equal(midWeek.weeksCounted, 2, 'the week in progress is not a miss');
+  assert.equal(midWeek.weeksHit, 1);
+  // Finishing this week counts it.
+  const finished = buildWeeklyPathHistory({ ...base, sessions: [completed(lastWeek, 1, monday(LAST_WEEK)), completed(thisWeek, 1, monday(THIS_WEEK))] });
+  assert.equal(finished.weeksCounted, 3);
+  assert.equal(finished.weeksHit, 2);
+});
+
 test('end to end: a week with no goal is a closed week not hit, and ends the streak', () => {
   const last = frozenGoal(LAST_WEEK, ['A.5A']);
   const three = frozenGoal(THREE_AGO, ['A.5A']);

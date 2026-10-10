@@ -159,6 +159,10 @@ export const describeWeeklyHistoryForStudent = (history = null) => {
 
   const streak = history?.streak || { weeks: 0, includesOpenWeek: false, atLeast: false };
   const count = Number(streak.weeks) || 0;
+  // The open week the streak counted may be LAST week: on Sunday evening the
+  // new week has begun while last week runs to its due day. Then "this week"
+  // would name a week the rows show as not set yet.
+  const currentHit = weeks.some((week) => week?.current && week?.hit);
   return {
     rows,
     streak: {
@@ -167,12 +171,17 @@ export const describeWeeklyHistoryForStudent = (history = null) => {
       label: count === 1 ? 'week in a row' : 'weeks in a row',
       detail: count === 0
         ? 'Finish every session in a week’s goal by its due day to start a streak.'
-        : streak.includesOpenWeek
+        : streak.includesOpenWeek && currentHit
           ? 'Including this week. Keep it going next week.'
-          : 'Finish this week’s goal to make it one more.',
+          : streak.includesOpenWeek
+            ? 'Including last week. Finish this week’s goal to make it one more.'
+            : 'Finish this week’s goal to make it one more.',
     },
     weeksHit: Number(history?.weeksHit) || 0,
     weeksWithGoal: Number(history?.weeksWithGoal) || 0,
+    // What "N of M recent weeks hit" divides by: the week in progress is not
+    // counted as a miss (weeklyPathHistory.mjs weeksCounted).
+    weeksCounted: Number(history?.weeksCounted ?? history?.weeksWithGoal) || 0,
     truncated: history?.truncated === true,
   };
 };
