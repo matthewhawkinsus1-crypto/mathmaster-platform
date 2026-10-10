@@ -7,12 +7,16 @@ export const normalizeSequenceSpec = (spec = {}, fallbackKind = 'arithmetic') =>
   if (!SEQUENCE_KINDS.includes(kind)) throw new Error(`Unsupported sequence kind: ${kind}.`);
   const first = Number(spec.first ?? 1);
   if (!Number.isFinite(first)) throw new Error('Sequence first term must be finite.');
+  // commonDifference / commonRatio are the names V5 authors reach for (District
+  // DOL1 used them). Read last, so a spec that also names difference, ratio or
+  // change keeps exactly the sequence it had; without this an authored
+  // commonDifference fell through to the unauthored default of 1.
   if (kind === 'arithmetic') {
-    const difference = Number(spec.difference ?? spec.change ?? 1);
+    const difference = Number(spec.difference ?? spec.change ?? spec.commonDifference ?? 1);
     if (!Number.isFinite(difference)) throw new Error('Arithmetic common difference must be finite.');
     return { kind, first, difference };
   }
-  const ratio = Number(spec.ratio ?? spec.change ?? 2);
+  const ratio = Number(spec.ratio ?? spec.change ?? spec.commonRatio ?? 2);
   if (!Number.isFinite(ratio)) throw new Error('Geometric common ratio must be finite.');
   return { kind, first, ratio };
 };
