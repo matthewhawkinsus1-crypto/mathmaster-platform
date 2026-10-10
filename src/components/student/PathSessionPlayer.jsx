@@ -20,7 +20,7 @@ import { questionAssessmentFramework } from '../../platform/student/questionAlig
 import { getAssessmentStandardReferences, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import { assessmentItemTypeLabel, describeChallengeTier, frameworkExperience } from '../../platform/ccmr/assessmentFidelity.js';
 import { ENTER_TO_CONTINUE_HINT, shouldAdvanceOnEnter } from '../../platform/interaction/answerEntryUx.js';
-import { gradingClosesQuestion, latestAttemptCount } from '../../platform/path/pathProgression.js';
+import { gradingClosesQuestion, latestAttemptCount, sessionHeaderQuestionNumber } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
@@ -100,10 +100,13 @@ const skillNameFor = (questionInstance, session) => {
  * on a practice session turns every question into a grade, which is the
  * opposite of what practice is for.
  */
-function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null, weeklyGoalRequired = null, onExit = null }) {
+function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null, weeklyGoalRequired = null, onExit = null, reviewing = false }) {
   const total = Number(session?.requiredQuestions) || 5;
   const done = Number(session?.summary?.completedQuestions) || 0;
-  const current = Math.min(total, done + 1);
+  // While a closed question and its review are on screen, the server has
+  // already counted it: the header names THAT question, not the next one
+  // (QA round 2, R2-m2: "Question 2 of 5" over Question 1's review).
+  const current = sessionHeaderQuestionNumber({ total, done, reviewing });
   const isRetention = session?.sessionKind === 'retentionProbe';
   // The standard THIS question is on, not the standard the session started on:
   // the routing engine can descend into a prerequisite mid-session, and when it
@@ -507,6 +510,7 @@ export const PathSessionPlayer = ({
           assessmentFramework={assessmentFramework}
           weeklyGoalRequired={weeklyGoalRequired}
           onExit={onExit}
+          reviewing={gradingClosesQuestion(lastGradingResult)}
         />
         <DecisionBanner notice={routeNotice} />
 
@@ -624,6 +628,7 @@ export const PathSessionPlayer = ({
         assessmentFramework={assessmentFramework}
         weeklyGoalRequired={weeklyGoalRequired}
         onExit={onExit}
+        reviewing={gradingClosesQuestion(lastGradingResult)}
       />
       <DecisionBanner notice={routeNotice} />
 

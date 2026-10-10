@@ -27,3 +27,13 @@ export const latestAttemptCount = (questionInstance = null, grading = null) => {
   const returned = Number(grading?.attemptNumber) || 0;
   return Math.max(stored, returned);
 };
+
+/**
+ * Which question a Path session's header names: the one on screen. While a
+ * closed question and its review are shown, the server has already counted it
+ * (summary.completedQuestions), so it is that number, not the next one
+ * (QA round 2, R2-m2: "Question 2 of 5" over Question 1's review).
+ */
+export const sessionHeaderQuestionNumber = ({ total = 5, done = 0, reviewing = false } = {}) => (
+  Math.min(total, reviewing ? Math.max(1, done) : done + 1)
+);
