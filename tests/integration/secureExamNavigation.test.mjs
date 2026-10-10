@@ -46,6 +46,27 @@ const PAUSE_STUDENT = 'NAV_STUDENT_PAUSE';
 const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT, HISTORY_STUDENT, LATE_SAVE_STUDENT, RESET_STUDENT, PAUSE_STUDENT];
 const created = [];
 
+// A second Test Cycle assigned to two periods, for who the answers wait for.
+const ROSTER_ASSIGNMENT_ID = 'nav_roster_test_cycle';
+const ROSTER_P1 = 'NAV_ROSTER_P1';
+const ROSTER_P3 = 'NAV_ROSTER_P3';
+const ROSTER_A1 = 'NAV_ROSTER_A1';
+const ROSTER_A2 = 'NAV_ROSTER_A2';
+const ROSTER_B3 = 'NAV_ROSTER_B3';
+const ROSTER_C3 = 'NAV_ROSTER_C3';
+const ROSTER_STUDENTS = [ROSTER_A1, ROSTER_A2, ROSTER_B3, ROSTER_C3];
+
+const roster = (data) => teacherRequest({ assignmentId: ROSTER_ASSIGNMENT_ID, ...data });
+const testSessionOf = async (studentId) => (await readRecord(ROSTER_ASSIGNMENT_ID, studentId)).test.examSessionId;
+const sit = async (studentId, examSessionId) => {
+  created.push(examSessionId);
+  await fns.startSecureExamSession.run(student(studentId, { examSessionId }));
+  await fns.finalizeSecureExam.run(student(studentId, { examSessionId }));
+};
+const reviewOf = async (studentId, examSessionId) => (await fns.getStudentSecureExamReview.run(student(studentId, { examSessionId }))).review;
+const held = (review) => review.solutionsHeld === true && !review.items.some((item) => item.solution);
+const answersRelease = async () => (await fns.listTeacherTestCycleRecords.run(roster({}))).answersRelease;
+
 const student = (studentId, data) => studentRequest(studentId, data);
 const issue = (studentId, examSessionId, extra = {}) => fns.issueSecureExamQuestion.run(student(studentId, { examSessionId, ...extra }));
 const save = (studentId, data) => fns.saveSecureExamDraft.run(student(studentId, data));
@@ -104,6 +125,13 @@ after(async () => {
     ...ALL.map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${CERT_ASSIGNMENT_ID}__${studentId}`).delete()),
     db.collection('testCycleAnswerReleases').doc(CERT_ASSIGNMENT_ID).delete(),
     ...created.map((id) => db.collection('examSessions').doc(id).delete()),
+    db.collection('assignments').doc(ROSTER_ASSIGNMENT_ID).delete(),
+    db.collection('testCycleAnswerReleases').doc(ROSTER_ASSIGNMENT_ID).delete(),
+    ...[ROSTER_P1, ROSTER_P3].map((classId) => db.collection('classes').doc(classId).delete()),
+    ...ROSTER_STUDENTS.map((studentId) => db.collection('grades').doc(studentId).delete()),
+    ...ROSTER_STUDENTS.map((studentId) => db.collection('testCycleRecords').doc(`${ROSTER_ASSIGNMENT_ID}__${studentId}`).delete()),
+    ...ROSTER_STUDENTS.map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${ROSTER_ASSIGNMENT_ID}__${studentId}`).delete()),
+    ...ROSTER_STUDENTS.map((studentId) => db.collection('testCycleRetestPlans').doc(`${ROSTER_ASSIGNMENT_ID}__${studentId}`).delete()),
   ];
   await Promise.allSettled(deletions);
 });
@@ -156,6 +184,22 @@ test("a practice test goes to the student's own teachers, and their extended tim
   assert.ok(createdRow, 'a teacher still sees a practice test they created');
   assert.equal('extendedTimeMultiplier' in createdRow, false, "but not the student's accommodation");
   assert.equal('baseTimeLimitSeconds' in createdRow, false);
+
+  // Proctoring follows the same line. OTHER_TEACHER neither set `theirs` nor teaches its student.
+  for (const action of ['lock', 'extendTime', 'forceSubmit']) {
+    // eslint-disable-next-line no-await-in-loop
+    const denied = await refusal(fns.proctorExamAction.run(teacherRequest({ examSessionId: theirs.examSessionId, action, minutes: 5 }, OTHER_TEACHER_EMAIL)));
+    assert.equal(denied?.code, 'permission-denied', `another teacher cannot ${action} this student's practice test`);
+  }
+  assert.equal((await readSession(theirs.examSessionId)).status, 'in_progress', 'nothing changed');
+  // The teacher who set `byOther` proctors it, and gets back the time a proctor needs, not the accommodation.
+  const locked = await fns.proctorExamAction.run(teacherRequest({ examSessionId: byOther.examSessionId, action: 'lock' }, OTHER_TEACHER_EMAIL));
+  assert.equal(locked.session.status, 'locked_proctor');
+  assert.equal('extendedTimeMultiplier' in locked.session, false, "the creator's proctor response carries no accommodation");
+  assert.equal('baseTimeLimitSeconds' in locked.session, false);
+  assert.ok(Number(locked.session.timeLimitSeconds) > 0 && Number(locked.session.expiresAt) > 0, 'the time limit and deadline stay');
+  const unlocked = await fns.proctorExamAction.run(teacherRequest({ examSessionId: byOther.examSessionId, action: 'unlock' }));
+  assert.equal(unlocked.session.extendedTimeMultiplier, 1.5, "the student's own teacher gets it");
 });
 
 test('skip, flag, go back and change an answer — graded once, on the server, at submit', async () => {
@@ -428,8 +472,8 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   const listing = await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID }));
   assert.equal(listing.answersRelease.test.released, false);
   assert.ok(listing.answersRelease.test.stillTesting > 0, 'the teacher is told how many are still testing');
-  // The teacher releases them explicitly; the review now carries them.
-  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, stage: 'test' }));
+  // The teacher releases them explicitly, for the students the confirm named; the review now carries them.
+  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, stage: 'test', studentIds: listing.answersRelease.test.stillTestingIds }));
   const withAnswers = await fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId }));
   assert.equal(withAnswers.review.solutionsHeld, undefined);
   assert.ok(withAnswers.review.items[0].solution?.answers?.[0]?.display, 'the worked answer is released with the teacher\'s release');
@@ -451,6 +495,114 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   const reopened = await fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId }));
   assert.ok(reopened.review.items.length > 0, 'and opens again once the Retest is submitted');
   await recordRef.set(stored2);
+});
+
+test('the answers wait for everyone the Test is assigned to: a period with no sessions open, a student who joins later, a reset', async () => {
+  await Promise.all([ROSTER_P1, ROSTER_P3].map((classId, index) => db.collection('classes').doc(classId).set({
+    name: `Roster Algebra I ${index ? 'P3' : 'P1'}`, course: 'algebra1', courseLevel: 'standard',
+    period: index ? 'Period 3' : 'Period 1', teacherOfRecord: TEACHER_EMAIL, status: 'active',
+  })));
+  const enroll = (studentId, classId) => db.collection('grades').doc(studentId).set({
+    displayName: studentId, classId, classPeriod: classId === ROSTER_P1 ? 'Period 1' : 'Period 3',
+    assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+    // Review done, so the Test can be started.
+    gradesByAssignment: { [ROSTER_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  });
+  await Promise.all([enroll(ROSTER_A1, ROSTER_P1), enroll(ROSTER_A2, ROSTER_P1), enroll(ROSTER_B3, ROSTER_P3)]);
+  await db.collection('assignments').doc(ROSTER_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [ROSTER_P1, ROSTER_P3] }), id: ROSTER_ASSIGNMENT_ID });
+
+  // Only period 1's sessions are open. Both period-1 students sit the Test and get their results.
+  await fns.assignTestCycleSessions.run(roster({ classId: ROSTER_P1 }));
+  const a1Test = await testSessionOf(ROSTER_A1);
+  await sit(ROSTER_A1, a1Test);
+  await sit(ROSTER_A2, await testSessionOf(ROSTER_A2));
+  await fns.releaseTestCycleResults.run(roster({ stage: 'test' }));
+
+  // B3, in period 3, has no session and no record yet: the answers wait for them.
+  assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'held while a period-3 student with no record can still sit the Test');
+  let release = await answersRelease();
+  assert.equal(release.test.released, false);
+  assert.deepEqual(release.test.stillTestingIds, [ROSTER_B3], 'the teacher is shown exactly who is still testing');
+
+  // A release that does not name everyone still testing opens nothing.
+  const unnamed = await refusal(fns.releaseTestCycleAnswers.run(roster({ stage: 'test', studentIds: [] })));
+  assert.equal(unnamed?.code, 'failed-precondition', 'a release must name every student still testing');
+  assert.match(unnamed.message, /not on the list you confirmed/);
+  assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'and nothing was released');
+  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', studentIds: release.test.stillTestingIds }));
+  assert.ok((await reviewOf(ROSTER_A1, a1Test)).items.every((item) => item.solution), 'the named release opens the answers');
+
+  // C3 joins period 3 after the release. Nobody confirmed them: the answers wait again.
+  await enroll(ROSTER_C3, ROSTER_P3);
+  assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'a student who joined after the release holds the answers again');
+  release = await answersRelease();
+  assert.deepEqual([...release.test.stillTestingIds].sort(), [ROSTER_B3, ROSTER_C3]);
+  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', studentIds: release.test.stillTestingIds }));
+  assert.ok(!held(await reviewOf(ROSTER_A1, a1Test)), 'released again once the teacher names them');
+
+  // Period 3's sessions open; B3 sits the Test. A reset gives B3 an attempt nobody confirmed.
+  await fns.assignTestCycleSessions.run(roster({ classId: ROSTER_P3 }));
+  await sit(ROSTER_B3, await testSessionOf(ROSTER_B3));
+  assert.ok(!held(await reviewOf(ROSTER_A1, a1Test)));
+  await fns.teacherTestCycleAction.run(roster({ studentId: ROSTER_B3, action: 'resetSecureSession', stage: 'test' }));
+  created.push(await testSessionOf(ROSTER_B3), await testSessionOf(ROSTER_C3));
+  assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), "a reset student's new attempt holds the answers again");
+  release = await answersRelease();
+  assert.deepEqual([...release.test.stillTestingIds].sort(), [ROSTER_B3, ROSTER_C3]);
+  assert.equal(release.test.heldFor, 1, 'C3 is still covered by the release; B3 is not');
+});
+
+test("Corrections close while the student's own Retest is open, and while the Test Cycle is paused", async () => {
+  // A1 and A2 both scored below passing: both are in Corrections.
+  const correctionOf = async (studentId) => (await readCorrectionPlan(ROSTER_ASSIGNMENT_ID, studentId)).plan.targets[0].correctionId;
+  const issueCorrection = (studentId, correctionId) => fns.issueTestCycleCorrectionQuestion.run(student(studentId, { assignmentId: ROSTER_ASSIGNMENT_ID, correctionId }));
+  const answerCorrection = (studentId, correctionId, questionInstanceId) => fns.submitTestCycleCorrectionResponse.run(student(studentId, {
+    assignmentId: ROSTER_ASSIGNMENT_ID, correctionId, questionInstanceId, responsePayload: { responses: { answer: CERT_WRONG_ANSWER } },
+  }));
+
+  // Paused: A2's open correction question takes no response.
+  const a2Correction = await correctionOf(ROSTER_A2);
+  const a2Question = (await issueCorrection(ROSTER_A2, a2Correction)).questionInstance;
+  const assignmentRef = db.collection('assignments').doc(ROSTER_ASSIGNMENT_ID);
+  await assignmentRef.set({ unpublished: true }, { merge: true });
+  try {
+    const paused = await refusal(answerCorrection(ROSTER_A2, a2Correction, a2Question.questionInstanceId));
+    assert.equal(paused?.code, 'failed-precondition', 'no correction responses while the teacher has the Test Cycle paused');
+  } finally {
+    await assignmentRef.set({ unpublished: false }, { merge: true });
+  }
+
+  // A1 has a correction question open when the teacher waives corrections and the Retest opens.
+  const a1Correction = await correctionOf(ROSTER_A1);
+  const a1Question = (await issueCorrection(ROSTER_A1, a1Correction)).questionInstance;
+  await fns.teacherTestCycleAction.run(roster({ studentId: ROSTER_A1, action: 'waiveCorrections' }));
+  const a1Retest = (await readRecord(ROSTER_ASSIGNMENT_ID, ROSTER_A1)).retest.examSessionId;
+  assert.ok(a1Retest, 'waiving corrections opens the retest');
+  created.push(a1Retest);
+  for (const when of ['assigned', 'under way']) {
+    // eslint-disable-next-line no-await-in-loop
+    if (when === 'under way') await fns.startSecureExamSession.run(student(ROSTER_A1, { examSessionId: a1Retest }));
+    // eslint-disable-next-line no-await-in-loop
+    const issued = await refusal(issueCorrection(ROSTER_A1, a1Correction));
+    assert.equal(issued?.code, 'failed-precondition', `no correction question while the Retest is ${when}`);
+    assert.match(issued.message, /closed while your Retest is open/);
+    // Three misses would hand over the worked solution: not one response is taken.
+    // eslint-disable-next-line no-await-in-loop
+    const answered = await refusal(answerCorrection(ROSTER_A1, a1Correction, a1Question.questionInstanceId));
+    assert.equal(answered?.code, 'failed-precondition', `no correction response while the Retest is ${when}`);
+  }
+  await fns.finalizeSecureExam.run(student(ROSTER_A1, { examSessionId: a1Retest }));
+});
+
+test('the Retest answers wait while anyone can still take a Retest: a student in Corrections, or yet to finish the Test', async () => {
+  const a1Retest = (await readRecord(ROSTER_ASSIGNMENT_ID, ROSTER_A1)).retest.examSessionId;
+  await fns.releaseTestCycleResults.run(roster({ stage: 'retest' }));
+  assert.equal((await readRecord(ROSTER_ASSIGNMENT_ID, ROSTER_A2)).corrections.required, true, 'A2 owes corrections');
+  assert.ok(held(await reviewOf(ROSTER_A1, a1Retest)), 'the retest answers wait while a student in Corrections can still retest');
+  const release = await answersRelease();
+  assert.equal(release.retest.released, false);
+  assert.deepEqual([...release.retest.stillTestingIds].sort(), [ROSTER_A2, ROSTER_B3, ROSTER_C3],
+    'in Corrections, or yet to finish the Test: all can still take a Retest');
 });
 
 test("a teacher's reset closes the earlier attempt's answers until the new attempt is submitted", async () => {
@@ -485,7 +637,7 @@ test("a teacher's reset closes the earlier attempt's answers until the new attem
   assert.ok(after.review.items.length > 0, 'they open again once the new attempt is submitted');
 });
 
-test('a course Test the teacher paused takes no edits and no Submit; time running out finishes it with what was saved while open', async () => {
+test('a course Test the teacher paused or archived takes no edits, no recorded answers and no Submit; time running out grades what was saved while open', async () => {
   await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
   await db.collection('grades').doc(PAUSE_STUDENT).set({
     gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
@@ -493,28 +645,50 @@ test('a course Test the teacher paused takes no edits and no Submit; time runnin
   const examSessionId = (await readRecord(CERT_ASSIGNMENT_ID, PAUSE_STUDENT)).test.examSessionId;
   created.push(examSessionId);
   await fns.startSecureExamSession.run(student(PAUSE_STUDENT, { examSessionId }));
-  const opened = await issue(PAUSE_STUDENT, examSessionId, { position: 0 });
-  const questionInstanceId = opened.questionInstance.questionInstanceId;
-  const right = certAnswerFromPrompt(opened.questionInstance.prompt);
-  await save(PAUSE_STUDENT, { examSessionId, questionInstanceId, responsePayload: { responses: { answer: right } } });
+  // Questions 1 and 2 are open; question 1 has a wrong draft when the teacher pauses the Test.
+  const first = (await issue(PAUSE_STUDENT, examSessionId, { position: 0 })).questionInstance;
+  const second = (await issue(PAUSE_STUDENT, examSessionId, { position: 1 })).questionInstance;
+  await save(PAUSE_STUDENT, { examSessionId, questionInstanceId: first.questionInstanceId, responsePayload: { responses: { answer: CERT_WRONG_ANSWER } } });
 
   const assignmentRef = db.collection('assignments').doc(CERT_ASSIGNMENT_ID);
-  await assignmentRef.set({ unpublished: true }, { merge: true });
+  const record = (question, index) => fns.submitSecureExamResponse.run(student(PAUSE_STUDENT, {
+    examSessionId,
+    questionInstanceId: question.questionInstanceId,
+    responsePayload: { responses: { answer: certAnswerFromPrompt(question.prompt) } },
+    submissionId: `nav-paused-${index}`,
+  }));
   try {
-    const edit = await refusal(save(PAUSE_STUDENT, { examSessionId, questionInstanceId, responsePayload: { responses: { answer: CERT_WRONG_ANSWER } } }));
-    assert.equal(edit?.code, 'failed-precondition', 'no edits while the teacher has it paused');
-    const submit = await refusal(fns.finalizeSecureExam.run(student(PAUSE_STUDENT, { examSessionId })));
-    assert.equal(submit?.code, 'failed-precondition', 'and no Submit');
-    assert.equal((await readSession(examSessionId)).status, 'in_progress', 'not locked: a pause is temporary');
+    for (const closed of [{ unpublished: true }, { unpublished: false, archived: true }]) {
+      // eslint-disable-next-line no-await-in-loop
+      await assignmentRef.set(closed, { merge: true });
+      const how = closed.archived ? 'archived' : 'paused';
+      // eslint-disable-next-line no-await-in-loop
+      const edit = await refusal(save(PAUSE_STUDENT, { examSessionId, questionInstanceId: first.questionInstanceId, responsePayload: { responses: { answer: certAnswerFromPrompt(first.prompt) } } }));
+      assert.equal(edit?.code, 'failed-precondition', `no edits while the teacher has it ${how}`);
+      // The older record-and-lock call is an edit too: the right answers are not recorded.
+      // eslint-disable-next-line no-await-in-loop
+      const recordFirst = await refusal(record(first, 1));
+      assert.equal(recordFirst?.code, 'failed-precondition', `no recorded answer while it is ${how}`);
+      // eslint-disable-next-line no-await-in-loop
+      const recordSecond = await refusal(record(second, 2));
+      assert.equal(recordSecond?.code, 'failed-precondition', `and none for an open question with no draft (${how})`);
+      // eslint-disable-next-line no-await-in-loop
+      const submit = await refusal(fns.finalizeSecureExam.run(student(PAUSE_STUDENT, { examSessionId })));
+      assert.equal(submit?.code, 'failed-precondition', `and no Submit (${how})`);
+      // eslint-disable-next-line no-await-in-loop
+      assert.equal((await readSession(examSessionId)).status, 'in_progress', 'not locked or finished: a pause is temporary');
+    }
+    assert.deepEqual((await readSession(examSessionId)).responses || {}, {}, 'nothing was recorded while it was closed');
 
-    // Time runs out while it is paused: the test finishes, graded on what was saved while open.
+    // Time runs out while it is closed: the test finishes, graded on what was saved while open.
     await db.collection('examSessions').doc(examSessionId).set({ startedAt: Date.now() - 10 * 60 * 60 * 1000 }, { merge: true });
     await fns.finalizeSecureExam.run(student(PAUSE_STUDENT, { examSessionId, reason: 'timeExpired' }));
     const stored = await readSession(examSessionId);
     assert.equal(stored.status, 'time_expired');
-    assert.equal(stored.responses[questionInstanceId].grading.isCorrect, true, 'the answer saved before the pause is the one graded');
+    assert.equal(stored.responses[first.questionInstanceId].grading.isCorrect, false, 'the wrong draft saved before the pause is the one graded');
+    assert.equal(stored.responses[second.questionInstanceId].unanswered, true, 'the question with nothing saved is unanswered');
   } finally {
-    await assignmentRef.set({ unpublished: false }, { merge: true });
+    await assignmentRef.set({ unpublished: false, archived: false }, { merge: true });
   }
 });
 

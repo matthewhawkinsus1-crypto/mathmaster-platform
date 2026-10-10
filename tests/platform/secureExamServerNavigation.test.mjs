@@ -296,9 +296,36 @@ test('a course review can hold back the correct answers and worked solutions, an
   const review = region(functionsIndex, 'exports.getStudentSecureExamReview = onCall(', '\n});', 'review');
   assert.match(review, /withSolutions = \(await courseAnswersRelease\(getFirestore\(\), shared, session\.courseTest\.assignmentId, stage\)\)\.released;/);
   assert.match(review, /const review = secureExam\.publicReview\(session, \{ withSolutions \}\);/);
+  // Everyone who can still sit the stage: the whole roster and every record holder
+  // (tests/integration/secureExamNavigation.test.mjs drives the cases).
   const release = region(functionsIndex, 'async function courseAnswersRelease(', '\n}', 'answers release');
-  assert.match(release, /const explicit = Boolean\(release\?\.releasedAt\);/);
-  assert.match(release, /released: explicit \|\| stillTesting\.length === 0/);
+  assert.match(release, /const rosterIds = known\.rosterIds \|\| await testCycleRosterIds\(db, assignment\);/);
+  assert.match(release, /const everyone = \[\.\.\.new Set\(\[\.\.\.rosterIds, \.\.\.records\.keys\(\)\]\)\]\.filter\(Boolean\);/);
+  // An explicit release covers only the students it named.
+  assert.match(release, /const heldFor = stillTesting\.filter\(\(studentId\) => !covered\.has\(studentId\)\);/);
+  assert.match(release, /return \{ released: heldFor\.length === 0,/);
   const action = region(functionsIndex, 'exports.releaseTestCycleAnswers = onCall(', '\n});', 'release answers');
   assert.match(action, /await assertTeacherMayManageAssignment\(request, assignmentSnapshot\);/);
+  assert.match(action, /\[stage\]: \{ releasedAt: Date\.now\(\), releasedBy: teacherUid, coveredStudentIds: stillTesting \},/);
+});
+
+test('a paused, archived or replaced course Test takes no edit, recorded answer or Submit: the gate runs inside each write (coordinator re-check, PR #461)', () => {
+  // Inside the transaction, its reads are the transaction's: a pause written
+  // while a save is in flight either lands first and is seen, or retries the
+  // save. Nothing is written after it.
+  for (const [name, end] of [
+    ['exports.saveSecureExamDraft = onCall(', '\n});'],
+    ['exports.submitSecureExamResponse = onCall(', '\n});'],
+    ['exports.finalizeSecureExam = onCall(', '\n});'],
+  ]) {
+    const callable = region(functionsIndex, name, end, name);
+    const inside = callable.slice(callable.indexOf('db.runTransaction(async (transaction) => {'));
+    assert.ok(callable.includes('db.runTransaction(async (transaction) => {'), `${name} writes in a transaction`);
+    assert.match(inside, /await assertCourseTestEntryAllowed\(db, session, studentId, \{ transaction \}\);/, `${name}: the gate reads through the transaction`);
+    assert.doesNotMatch(callable.slice(0, callable.indexOf('db.runTransaction(')), /assertCourseTestEntryAllowed\(/, `${name}: and not before it`);
+  }
+  const gate = region(functionsIndex, 'async function assertCourseTestEntryAllowed(', '\n}', 'gate');
+  assert.match(gate, /const read = \(ref\) => \(transaction \? transaction\.get\(ref\) : ref\.get\(\)\);/);
+  assert.match(gate, /await read\(db\.collection\("assignments"\)\.doc\(String\(courseTest\.assignmentId\)\)\)/);
+  assert.match(gate, /read\(db\.collection\("grades"\)\.doc\(studentId\)\),\s+read\(db\.collection\(TEST_CYCLE_RECORDS\)\.doc\(testCycleRecordKey\(courseTest\.assignmentId, studentId\)\)\),/);
 });

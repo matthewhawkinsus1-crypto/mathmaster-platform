@@ -16548,41 +16548,99 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
  *
  * Scores and the question review (each question with the student's own
  * answer, right or wrong) release as they always have. The correct answers
- * and worked solutions the review now adds are held while anyone assigned to
- * that stage — another period, extended time, an absent student's make-up —
- * can still sit it: they open once every one of them has submitted, or when
- * the teacher releases them explicitly (releaseTestCycleAnswers).
+ * and worked solutions the review now adds are held while anyone who can
+ * still sit that stage could be handed them: every active student in every
+ * class the assignment is assigned to (one with no record yet, in a period
+ * whose sessions are not open, included) and anyone holding a record. They
+ * open once none of them is left, or when the teacher releases them
+ * (releaseTestCycleAnswers) — and that release covers only the students its
+ * confirm named. One it did not name (a student who joined later, or whose
+ * attempt a teacher reset) holds them again until they finish.
  */
 const TEST_CYCLE_ANSWER_RELEASES = "testCycleAnswerReleases";
-async function courseAnswersRelease(db, shared, assignmentId, stage, records = null) {
-  const release = (await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(String(assignmentId)).get()).data()?.[stage] || null;
-  const docs = records || (await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", String(assignmentId)).get()).docs.map((doc) => doc.data());
-  const open = [shared.record.SESSION_STATE.ASSIGNED, shared.record.SESSION_STATE.IN_PROGRESS];
-  const stillTesting = docs
-    .map((data) => shared.record.normalizeTestCycleRecord(data))
-    .filter((record) => open.includes(record[stage].state))
-    .map((record) => record.studentId);
+
+/*
+ * Who can still sit a stage. The Test: anyone whose Test is not submitted,
+ * except where the stage machine says they never will (an external original
+ * that passed, a retest a teacher closed). The Retest: anyone who has not
+ * submitted one and is not done without one (passed, retest closed or
+ * released): before or in the Test, awaiting its release, in Corrections,
+ * waiting for or sitting the Retest.
+ */
+function stillToSitStage(shared, policy, stage, raw) {
+  const record = shared.record.normalizeTestCycleRecord(raw);
+  const finished = [shared.record.SESSION_STATE.SUBMITTED, shared.record.SESSION_STATE.RELEASED];
+  const STAGE = shared.stages.TEST_CYCLE_STAGE;
+  const state = shared.stages.resolveTestCycleStage({ policy, record });
+  if (stage === "test") {
+    if (finished.includes(record.test.state)) return false;
+    return !(state?.stage === STAGE.RETEST_CLOSED && (state.grade.originalTestGrade !== null || state.teacherControls.retestDisabled));
+  }
+  // An external original's one secure session lives in the Test slot.
+  if (policy?.externalAssessment) return false;
+  if (finished.includes(record.retest.state)) return false;
+  return ![STAGE.PASSED, STAGE.COMPLETE, STAGE.RETEST_CLOSED, STAGE.RETEST_SUBMITTED].includes(state?.stage);
+}
+
+/** Every active student in the assignment's classes, by id. */
+async function testCycleRosterIds(db, assignment) {
+  const ids = new Set();
+  for (const classId of assignmentAudience(assignment).classIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection("grades").where("classId", "==", classId).select("status").get();
+    snapshot.docs.forEach((doc) => {
+      if (doc.id !== "test_connection" && doc.data()?.status !== "inactive") ids.add(doc.id);
+    });
+  }
+  return ids;
+}
+
+async function courseAnswersRelease(db, shared, assignmentId, stage, known = {}) {
+  const id = String(assignmentId);
+  const release = (await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(id).get()).data()?.[stage] || null;
+  const assignment = known.assignment || (await db.collection("assignments").doc(id).get()).data() || {};
+  const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy) || shared.policy.defaultTestCyclePolicy();
+  const records = known.records || new Map((await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", id).get())
+    .docs.map((doc) => [String(doc.data()?.studentId || ""), doc.data()]));
+  const rosterIds = known.rosterIds || await testCycleRosterIds(db, assignment);
+  const everyone = [...new Set([...rosterIds, ...records.keys()])].filter(Boolean);
+  const stillTesting = everyone.filter((studentId) => stillToSitStage(shared, policy, stage, records.get(studentId) || { assignmentId: id, studentId }));
   const explicit = Boolean(release?.releasedAt);
-  return { released: explicit || stillTesting.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting };
+  const covered = new Set(explicit && Array.isArray(release.coveredStudentIds) ? release.coveredStudentIds.map(String) : []);
+  const heldFor = stillTesting.filter((studentId) => !covered.has(studentId));
+  return { released: heldFor.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting, heldFor };
 }
 
 /*
  * "RELEASE ANSWERS AND WORKED SOLUTIONS": the teacher opens them before every
- * student assigned to the stage has submitted. The screen's confirm names the
- * students still testing; this records who released them and when.
+ * student who can still sit the stage has submitted. The screen's confirm
+ * names those students and sends their ids; the release covers exactly them.
+ * If anyone still testing was not on that list (it changed since the page
+ * loaded), nothing is released: the teacher refreshes and confirms the new
+ * list, rather than opening the answers to a student nobody was told about.
  */
 exports.releaseTestCycleAnswers = onCall(async (request) => {
   const db = getFirestore();
   const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
   if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const { assignmentId, assignment, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
   const stage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
+  const named = new Set((Array.isArray(request.data?.studentIds) ? request.data.studentIds : []).slice(0, 5000).map(String));
+  const { stillTesting } = await courseAnswersRelease(db, shared, assignmentId, stage, { assignment });
+  const unnamed = stillTesting.filter((studentId) => !named.has(studentId));
+  if (unnamed.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      `${unnamed.length === 1 ? "1 student who is" : `${unnamed.length} students who are`} still testing ${unnamed.length === 1 ? "was" : "were"} not on the list you confirmed. Refresh, check the list and release again.`,
+      { reason: "still_testing_changed", unnamed: unnamed.length },
+    );
+  }
   await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(assignmentId).set({
     assignmentId,
-    [stage]: { releasedAt: Date.now(), releasedBy: teacherUid },
+    [stage]: { releasedAt: Date.now(), releasedBy: teacherUid, coveredStudentIds: stillTesting },
   }, { merge: true });
-  return { success: true, stage };
+  return { success: true, stage, covered: stillTesting.length };
 });
 
 /** Where a navigation request may go, or the student-facing refusal. */
@@ -16849,14 +16907,13 @@ exports.saveSecureExamDraft = onCall(async (request) => {
   const stamp = draft ? secureExamItems.draftStampOf(request.data) : null;
   const db = getFirestore();
   const ref = db.collection("examSessions").doc(examSessionId);
-  // A course Test the teacher has paused, archived or closed takes no edits,
-  // just as it issues no questions: what finalize grades is what was saved
-  // while it was open. Not a lock — the work resumes when it reopens.
-  const current = assertStudentExamSession(await ref.get(), studentId);
-  if (secureExam.isCourseTestSession(current)) await assertCourseTestEntryAllowed(db, current, studentId);
   const outcome = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
+    // A course Test the teacher has paused, archived or closed takes no edits,
+    // just as it issues no questions: what finalize grades is what was saved
+    // while it was open. Not a lock — the work resumes when it reopens.
+    if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId, { transaction });
     assertExamInProgress(session);
     const upgrade = await secureExamItems.upgradeSession(ref, session);
     const { navigationState, entry, itemData } = await readWritableExamItem(transaction, ref, upgrade, questionInstanceId);
@@ -16936,6 +16993,9 @@ exports.submitSecureExamResponse = onCall(async (request) => {
       if (String(marker.data()?.studentId || "") !== studentId) throw new HttpsError("not-found", "That secure exam session is not available.");
       return marker.data()?.result;
     }
+    // Recording an answer is an edit: a course Test the teacher has paused,
+    // archived or closed takes none, by this older call either.
+    if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId, { transaction });
     assertExamInProgress(session);
     const upgrade = await secureExamItems.upgradeSession(sessionRef, session);
     const { navigationState, entry, itemData } = await readWritableExamItem(transaction, sessionRef, upgrade, questionInstanceId);
@@ -17063,19 +17123,17 @@ exports.finalizeSecureExam = onCall(async (request) => {
     && !(await courseTestSessionIsCurrent(db, finalizeSession))) {
     throw new HttpsError("failed-precondition", "This secure session was replaced by your teacher. Reopen the assessment from Assignments.");
   }
-  // A student's own Submit waits while the teacher has the course Test paused,
-  // archived or closed, as saves and questions do. Time running out still
-  // finishes it (the deadline is checked below), grading the drafts saved
-  // while it was open.
-  if (reason !== "timeExpired"
-    && secureExam.isCourseTestSession(finalizeSession)
-    && !secureExam.TERMINAL_STATES.has(finalizeSession.status)) {
-    await assertCourseTestEntryAllowed(db, finalizeSession, studentId);
-  }
   const next = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
     if (secureExam.TERMINAL_STATES.has(session.status)) return session;
+    // A student's own Submit waits while the teacher has the course Test
+    // paused, archived or closed, as saves and questions do. Time running out
+    // still finishes it (the deadline is checked below), grading the drafts
+    // saved while it was open.
+    if (reason !== "timeExpired" && secureExam.isCourseTestSession(session)) {
+      await assertCourseTestEntryAllowed(db, session, studentId, { transaction });
+    }
     /*
      * AN EXAM THAT WAS NEVER STARTED HAS NOTHING TO SUBMIT.
      *
@@ -17168,9 +17226,7 @@ exports.listProctorExamSessions = onCall(async (request) => {
       .filter((session) => teachesStudent(session) || String(session.createdBy || "") === String(teacherUid))
       .map((session) => {
         const row = secureExam.publicSession(session, { teacher: true });
-        if (teachesStudent(session)) return row;
-        const { extendedTimeMultiplier: _multiplier, baseTimeLimitSeconds: _baseLimit, ...rest } = row;
-        return rest;
+        return teachesStudent(session) ? row : withoutExtendedTime(row);
       }),
   };
 });
@@ -17237,7 +17293,7 @@ exports.proctorExamAction = onCall(async (request) => {
   const proctorSnapshot = await ref.get();
   if (!proctorSnapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
   const proctorSession = proctorSnapshot.data() || {};
-  await assertMayProctorCourseTest(db, request, proctorSession);
+  const scope = await secureExamProctorScope(db, request, proctorSession, teacherUid);
   if (
     action === "releaseFeedback"
     && secureExam.isCourseTestSession(proctorSession)
@@ -17297,7 +17353,8 @@ exports.proctorExamAction = onCall(async (request) => {
   else await syncTestCycleSessionState(db, next);
   // A practice test a proctor submitted is released like one the student did.
   const settled = action === "forceSubmit" ? (await autoReleaseSecureSession(db, next)) || next : next;
-  return { success: true, session: secureExam.publicSession(settled, { teacher: true }) };
+  const row = secureExam.publicSession(settled, { teacher: true });
+  return { success: true, session: scope.teachesStudent ? row : withoutExtendedTime(row) };
 });
 
 // --- Test Cycle: one assignment, four stages, one recorded grade ------------
@@ -17700,21 +17757,28 @@ async function assertTestCycleAssessmentOpen(shared, assignment) {
  * not reached its release time — the assignment-level gate the stage machine
  * deliberately does not know about.
  */
-async function assertCourseTestEntryAllowed(db, session, studentId) {
+async function assertCourseTestEntryAllowed(db, session, studentId, { transaction = null } = {}) {
   const courseTest = session?.courseTest;
   if (!courseTest?.assignmentId) return;
+  // Inside a caller's transaction every read is the transaction's, so a pause,
+  // archive or reset written while the call is in flight either lands first
+  // and is seen here, or retries the call: nothing is written after it.
+  const read = (ref) => (transaction ? transaction.get(ref) : ref.get());
   const shared = await testCycleLib.shared();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(courseTest.assignmentId)).get();
+  const assignmentSnapshot = await read(db.collection("assignments").doc(String(courseTest.assignmentId)));
   if (!assignmentSnapshot.exists) throw new HttpsError("failed-precondition", "This assessment is no longer available.");
   const assignment = assignmentSnapshot.data() || {};
   const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy);
   if (!policy) throw new HttpsError("failed-precondition", "This assessment is no longer a Test Cycle.");
 
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
-  const [gradeSnapshot, record] = await Promise.all([
-    db.collection("grades").doc(studentId).get(),
-    readTestCycleRecord(db, courseTest.assignmentId, studentId, shared),
+  const [gradeSnapshot, recordSnapshot] = await Promise.all([
+    read(db.collection("grades").doc(studentId)),
+    read(db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(courseTest.assignmentId, studentId))),
   ]);
+  const record = shared.record.normalizeTestCycleRecord(
+    recordSnapshot.exists ? recordSnapshot.data() : { assignmentId: courseTest.assignmentId, studentId },
+  );
 
   /*
    * SUPERSESSION IS CHECKED BEFORE ANYTHING ELSE, TERMINAL STATE INCLUDED.
@@ -17770,25 +17834,42 @@ async function teacherOwnedClassIds(db, request) {
 }
 
 /**
- * May this teacher proctor this course-test session?
+ * May this teacher proctor this session, and do they teach its student?
  *
- * `proctorExamAction` has always accepted any authenticated teacher, which was
- * a defensible scope while the only thing it could do was unlock a simulation.
- * Releasing a COURSE test now writes a student's recorded assessment grade and
- * pushes it to Google Classroom, so the same call in the same shape is a much
- * larger action and needs the teacher of record for that student's class.
- *
- * Scoped to course tests on purpose: the simulation proctor scope is existing
- * behaviour this change has no business widening.
+ * `proctorExamAction` used to accept any authenticated teacher. Releasing a
+ * COURSE test writes a student's recorded assessment grade and pushes it to
+ * Google Classroom, so it needs the teacher of record for that student's
+ * class. A practice test is the student's own teachers' and its creator's.
  */
-async function assertMayProctorCourseTest(db, request, session) {
-  if (!secureExam.isCourseTestSession(session)) return;
+async function secureExamProctorScope(db, request, session, teacherUid) {
   const ownedClassIds = await teacherOwnedClassIds(db, request);
-  if (ownedClassIds === null) return;
-  const classId = String(session.classId || "");
-  if (!classId || !ownedClassIds.has(classId)) {
-    throw new HttpsError("permission-denied", "Only the teacher of record for this student's class can proctor their course test.");
+  if (ownedClassIds === null) return { teachesStudent: true };
+  if (secureExam.isCourseTestSession(session)) {
+    const classId = String(session.classId || "");
+    if (!classId || !ownedClassIds.has(classId)) {
+      throw new HttpsError("permission-denied", "Only the teacher of record for this student's class can proctor their course test.");
+    }
+    return { teachesStudent: true };
   }
+  /*
+   * A PRACTICE TEST: the teacher who set it, or a teacher of the student's
+   * class — the same teachers the live monitor lists it for. Another teacher
+   * holding its id could otherwise unlock, extend or submit it. A creator who
+   * does not teach the student proctors it without their extended time.
+   */
+  const studentId = String(session.studentId || "");
+  const studentClassId = studentId ? String((await db.collection("grades").doc(studentId).get()).data()?.classId || "") : "";
+  const teachesStudent = Boolean(studentClassId) && ownedClassIds.has(studentClassId);
+  if (!teachesStudent && String(session.createdBy || "") !== String(teacherUid)) {
+    throw new HttpsError("permission-denied", "Only the teacher who set this practice test, or a teacher of this student's class, can proctor it.");
+  }
+  return { teachesStudent };
+}
+
+/** Extended time is accommodation data: a session row without it, for a teacher who does not teach the student. */
+function withoutExtendedTime(row) {
+  const { extendedTimeMultiplier: _multiplier, baseTimeLimitSeconds: _baseLimit, ...rest } = row;
+  return rest;
 }
 
 /**
@@ -18251,6 +18332,23 @@ function studentVisibleCorrectionPlan(plan) {
 
 const CORRECTION_ATTEMPTS_PER_QUESTION = 3;
 
+/*
+ * CORRECTIONS CLOSE WHILE THE STUDENT'S OWN RETEST IS OPEN.
+ *
+ * Corrections hand out hints and, after a third miss, a worked solution, on
+ * parallel items from the same families the Retest draws on. Once the Retest
+ * is assigned or under way (a teacher can waive corrections or unlock the
+ * retest with the plan unfinished), that is an open book for it: no
+ * correction question is issued and no response is taken until the Retest is
+ * submitted.
+ */
+function assertCorrectionsOpenFor(shared, record) {
+  const { ASSIGNED, IN_PROGRESS } = shared.record.SESSION_STATE;
+  if (record.retest.state === ASSIGNED || record.retest.state === IN_PROGRESS) {
+    throw new HttpsError("failed-precondition", "Corrections are closed while your Retest is open. They open again once you submit it.", { reason: "retest_open" });
+  }
+}
+
 /**
  * Issue one CORRECTION question.
  *
@@ -18269,6 +18367,7 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
   const db = getFirestore();
   const { assignmentId, assignment, policy, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
   await assertTestCycleAssessmentOpen(shared, assignment);
+  assertCorrectionsOpenFor(shared, await readTestCycleRecord(db, assignmentId, studentId, shared));
   const recordId = testCycleRecordKey(assignmentId, studentId);
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(recordId);
   const planSnapshot = await planRef.get();
@@ -18399,8 +18498,11 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
   if (!correctionId || !questionInstanceId) throw new HttpsError("invalid-argument", "correctionId and questionInstanceId are required.");
   const db = getFirestore();
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  // Paused or archived: no responses, as no questions are issued.
+  await assertTestCycleAssessmentOpen(shared, assignment);
   const recordId = testCycleRecordKey(assignmentId, studentId);
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(recordId);
+  const recordRef = db.collection(TEST_CYCLE_RECORDS).doc(recordId);
   const preview = (await planRef.get()).data() || null;
   if (!preview) throw new HttpsError("not-found", "You have no corrections for this assessment.");
   if (String(preview.studentId || "") !== studentId) throw new HttpsError("not-found", "You have no corrections for this assessment.");
@@ -18420,7 +18522,10 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
   const now = Date.now();
 
   const applied = await db.runTransaction(async (transaction) => {
-    const stored = (await transaction.get(planRef)).data() || {};
+    const [planSnapshot, recordSnapshot] = await Promise.all([transaction.get(planRef), transaction.get(recordRef)]);
+    // Checked with the write, so a Retest opened meanwhile gets no worked solution.
+    assertCorrectionsOpenFor(shared, shared.record.normalizeTestCycleRecord(recordSnapshot.exists ? recordSnapshot.data() : { assignmentId, studentId }));
+    const stored = planSnapshot.data() || {};
     const open = stored.activeQuestions?.[correctionId];
     if (!open || open.questionInstanceId !== questionInstanceId) {
       throw new HttpsError("failed-precondition", "That correction question is no longer active.");
@@ -18650,7 +18755,7 @@ exports.teacherTestCycleAction = onCall(async (request) => {
     studentId,
     shared,
     policy,
-    mutate: (record, { transaction }) => {
+    mutate: async (record, { transaction }) => {
       const controls = shared.policy.applyTeacherControlAction(record.teacherControls, action);
       let next = { ...record, teacherControls: controls };
 
@@ -18672,6 +18777,22 @@ exports.teacherTestCycleAction = onCall(async (request) => {
           && current.state !== shared.record.SESSION_STATE.NONE
           && current.state !== shared.record.SESSION_STATE.ASSIGNED) {
           next = { ...next, review: { ...next.review, complete: true, completedAt: next.review.completedAt || Date.now() } };
+        }
+
+        /*
+         * An explicit answer release covers only the students its confirm
+         * named as still testing (courseAnswersRelease). This new attempt is
+         * one no teacher confirmed: if the student was on that list, take
+         * them off it, so the answers wait for this attempt too (a student
+         * who was not on it is held already). A new Test comes before any
+         * Retest, so a Test reset leaves both lists.
+         */
+        const releaseRef = db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(String(assignmentId));
+        const releaseData = (await transaction.get(releaseRef)).data() || {};
+        const reopen = (stage === "test" ? ["test", "retest"] : ["retest"])
+          .filter((name) => (Array.isArray(releaseData[name]?.coveredStudentIds) ? releaseData[name].coveredStudentIds : []).map(String).includes(String(studentId)));
+        if (reopen.length) {
+          transaction.set(releaseRef, Object.fromEntries(reopen.map((name) => [name, { coveredStudentIds: FieldValue.arrayRemove(String(studentId)) }])), { merge: true });
         }
 
         if (current.examSessionId) {
@@ -18959,10 +19080,19 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
       retest: rows.filter((row) => row.retest.state === "submitted").length,
     },
     // Whether the answers and worked solutions are open to students yet, and
-    // who is still testing (courseAnswersRelease).
+    // who can still sit each stage (courseAnswersRelease): the list a release
+    // confirm names and sends back.
     answersRelease: Object.fromEntries(await Promise.all(["test", "retest"].map(async (stage) => {
-      const release = await courseAnswersRelease(db, shared, assignmentId, stage, [...recordsByStudent.values()]);
-      return [stage, { released: release.released, explicit: release.explicit, stillTesting: release.stillTesting.length }];
+      const release = await courseAnswersRelease(db, shared, assignmentId, stage, {
+        assignment, records: recordsByStudent, rosterIds: [...gradeDataByStudent.keys()],
+      });
+      return [stage, {
+        released: release.released,
+        explicit: release.explicit,
+        stillTesting: release.stillTesting.length,
+        stillTestingIds: release.stillTesting,
+        heldFor: release.heldFor.length,
+      }];
     }))),
   };
 });
