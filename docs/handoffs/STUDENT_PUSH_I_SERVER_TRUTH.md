@@ -21,6 +21,8 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
   - Every screen reads each skill as the more favourable of the server profile and the assignment record: the higher number, and Mastered when either says so (main's 0.9 cut-off).
   - That covers the wheel, its card and the weekly planner as well as the Path map, locks, readiness, Challenge, topic browser and Recommended.
   - `buildUnifiedMasteryProfiles` attaches the record's side as `favourableRecord`, and the shared rule (`masteryRule.mjs`) honours it, so every re-derived status agrees.
+  - **Each side is classified on its own facts** (re-check BLOCKER 1, d5791ea): the server on its own number, weight, events, successes and DOK; the record on its own number and items (Mastered at 0.9, otherwise its band). Then the higher status and the higher number win. The merged profile keeps `mastery.serverEstimate`, so no later re-derivation mixes the two.
+  - Pinned: the reviewer's repro (server 88, Mastered, 10 events, beside a quiz at 88.1 from 2 items) stays Mastered on the wheel, card, map and Path; a record at 85.9 beside a Developing server is not promoted to Mastered.
   - The record never lowers anything and is never stored by the server.
   - `favourableMasteryBySkill` is D's rule unchanged, and Path-only skills still never lock (`gate: false`).
   - The skill card says "Mastered in your assignment work" when the record, not the evidence checklist, decides Mastered.
@@ -29,9 +31,11 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
   - Dry run by default; `--execute` asks for the project id to be typed.
   - Idempotent: a document already rescored (`masteryScoring.version ≥ 2`) is skipped.
   - It rebuilds each student's profiles from all of `grades/{id}/evidenceEvents`, first reading My Math Path answers as they should have been written (QA round 2 R2-M2: an answer's own post-answer review is not support for it, `functions/shared/pathReviewReclassification.mjs`).
-  - It compares every screen today with every screen after, through the client's own code. Any lower status, score or verdict, or a skill the Path engine newly closes, means the student is **refused**: nothing is written for them, and the report names the skill.
+  - It compares main's real screens today (the stored document, the server-rule wheel and D's favourable map) with this branch's screens after, through the client's own code. Any lower status, score or verdict, a skill the Path engine newly closes, or a lost Challenge (extension) card means the student is **refused**: nothing is written for them, and the report names the skill.
+  - A label dropping to Not Enough Evidence counts as a loss (conservative). Per-question scoring produces that often (one question answered three times was three events), so expect about 2% of students refused for it.
   - Lower evidence strength alone is not a loss. Counting each question once removes per-attempt inflation; what that could cost, a newly closed skill, is checked directly.
-  - Grades, assignments and evidence are read again inside each student's transaction. One student's failure is reported and the run goes on.
+  - Grades, assignments and evidence are read again inside each student's transaction. One student's failure, in planning or in writing, is reported and the run goes on.
+  - The trigger takes a question's final attempt as the later one in time, then by number, so attempts after a content-repair reset still count.
 
 ### Item 2 — growth rewards from mastered-at data (lane `wip/i-growth`, c6eac87)
 
@@ -91,8 +95,8 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
 - **Migration: `scripts/migrate-integrity-override-notes.mjs`.**
   - Dry run by default and idempotent; never changes a grade value.
   - It moves the fields to the incident, creating a linked teacher-only incident when one is missing, and strips them from the grade doc.
-  - **Integrity entries only** (review M4): `__assignment`, `__sectionIntegrity_*` and the section-zero copies, with their saved previous overrides. Any other entry carrying a note, actor or role, for example a per-question teacher correction, is reported as `not-an-integrity-override` and left untouched. No incident is created for it.
-  - A saved previous override inside a section's restore state still moves its note to that section's own incident, as a kept grade copy (it was on the student-readable doc).
+  - **Integrity entries only** (review M4): `__assignment`, `__sectionIntegrity_*` and the section-zero copies. Any other entry carrying a note, actor or role, for example a per-question teacher correction, is reported as `not-an-integrity-override` and left untouched. No incident is created for it.
+  - **Saved corrections in a section's restore state are left exactly as they are** (re-check MAJOR 3, 107ce0e). A lift puts them back verbatim, note and actor included. They are reported as `saved-previous-override`, never fill the incident's note and never become a grade copy. Pinned on the emulator (`tests/integration/integrityNoteMigration.test.mjs`).
   - A malformed document is reported and skipped.
 
 ### Coordinator QA findings (release candidate)
@@ -135,7 +139,9 @@ Nothing is deployed. Deployment is the owner's manual Cloud Shell step (§4).
   - Student summaries in rooms with no match result (retired or stale rooms) are not erased by permanent deletion. This matches the existing gap for private player docs.
   - An old bundle mid-game during the deploy reads no standings: deploy when no rooms are live.
 - **Item 1:** a skill main's assignment record called Mastered (0.9, possibly from one question) reads Mastered on every screen, the wheel included, for as long as that record says so. That is the coordinator's decision, the price of one rule. Refused students keep their per-attempt server record; the favourable rule still protects them.
-- **Not driven in Chromium:** QA round 2's R2-m1 and R2-m2 (Path UI) are queued for the follow-up PR.
+- **Not driven in Chromium:** QA round 2's R2-m1 and R2-m2 (Path UI) are queued for the follow-up PR (`claude/student-push-i2-followups`).
+- **Owner decision, Challenge cards (re-check MAJOR 2).** A Challenge (extension) card needs prerequisite evidence strength ≥ 0.5 (`recommendationEngine.js`). Per-question scoring removes the per-attempt inflation of that strength, so in ordinary use Challenge cards appear later than on main: 88 of 1,793 simulated students after 10 answers without the backfill. The backfill refuses anyone who would lose a card on deploy day (35 in the reviewer's sweep). Keep the 0.5 threshold, or recalibrate it for per-question strength.
+- **Pre-existing, listed only (they bypass the favourable rule):** the mastery history and My Progress tiles; `courseChallengeEarned` (functions/index.js); in-session routing; retention eligibility.
 - **Not in scope (owner decisions):** UTC week keys; re-grading historical Path multiple-choice answers.
 
 ## 4. Deploy (owner, Cloud Shell; dry runs first)
@@ -153,12 +159,13 @@ Order: functions → rules → Hosting → scripts. Run the release planner firs
 - **`firestore:rules`:** Live Challenge `playerSummaries`, `hostRounds` and `players` rows, plus the standings and rounds shapes.
 - **Indexes:** none new.
 - **Hosting** via `npm run deploy:hosting`. Deploy when no Live Challenge rooms are live.
-- **One-off scripts, after everything above is live (dry run first, then `--execute`):**
-  1. `node scripts/backfill-mastery-scoring.mjs --project <id>`.
-     - Run it after hours, and well after Hosting: an open tab on the old bundle reads the server number alone until it reloads.
-     - Expect `refused` > 0 (a modified final attempt carries no weight under the new scoring); refused students are left as they are.
+- **Job L's #472 (submitPathResponse no longer marks the post-answer review) must ship before or with the backfill**, or history and new answers are scored differently.
+- **One-off scripts, after functions, rules and Hosting are all live (dry run first, then `--execute`):**
+  1. `node scripts/backfill-mastery-scoring.mjs --project <id> --limit 50` first, then without `--limit`.
+     - Run it from the deployed commit (it imports `src/`), after hours, and well after Hosting: an open tab on the old bundle reads the server number alone until it reloads.
+     - Expect `refused` > 0 (a modified final attempt carries no weight under the new scoring, and a label dropping to Not Enough Evidence counts as a loss); refused students are left as they are.
      - The report also gives `pathReviewsReclassified` (R2-M2) and `failed`.
-  2. `node scripts/migrate-integrity-override-notes.mjs --project <id>`. Entries reported `not-an-integrity-override` are left untouched by design.
+  2. `node scripts/migrate-integrity-override-notes.mjs --project <id> --execute --actor <email>`. Entries reported `not-an-integrity-override` or `saved-previous-override` are left untouched by design.
   3. `node scripts/scrub-live-challenge-public-ranks.mjs --project <id>`, when no Live Challenge room is live.
 
 ## 5. Files outside lane I
