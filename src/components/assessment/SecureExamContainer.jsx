@@ -424,9 +424,16 @@ export const SecureExamContainer = ({
     if (problem.kind === 'locked') {
       setNavigatorOpen(false);
       setSession((current) => (current ? { ...current, status: pausedStatusAfterRefusal(problem.status, current.status) } : current));
-      // A refusal that does not say which pause it is: ask, so the pause
-      // screen shows the right words (and the poll below takes over).
-      if (!problem.status) refreshSession();
+      // Ask the server where the test stands now: which pause it is, when the
+      // refusal does not say, and the stopped clock (the poll below takes over).
+      refreshSession();
+      return true;
+    }
+    if (problem.kind === 'paused') {
+      // The whole assessment is paused: the server says where the test
+      // stands (the clock stopped), and the pause screen follows from it.
+      setNavigatorOpen(false);
+      refreshSession();
       return true;
     }
     if (problem.kind === 'expired') {
@@ -586,10 +593,10 @@ export const SecureExamContainer = ({
   // A paused client has no direct Firestore access. Poll the authenticated
   // callable only while paused so a teacher's resume appears without reloading.
   useEffect(() => {
-    if (!session?.examSessionId || !locked.has(session.status)) return undefined;
+    if (!session?.examSessionId || !(locked.has(session.status) || session.clockPaused === true)) return undefined;
     const id = window.setInterval(() => { refreshSession(); }, 5000);
     return () => window.clearInterval(id);
-  }, [session?.examSessionId, session?.status, refreshSession]);
+  }, [session?.examSessionId, session?.status, session?.clockPaused, refreshSession]);
 
   /*
    * A TEACHER'S PAUSE, ADDED TIME OR SUBMIT, NOTICED WHILE THE STUDENT READS.
@@ -611,7 +618,14 @@ export const SecureExamContainer = ({
       setSession((current) => {
         if (!current || current.examSessionId !== fresh.examSessionId) return current;
         if (fresh.status !== current.status) return fresh;
-        return { ...current, expiresAt: fresh.expiresAt, timeLimitSeconds: fresh.timeLimitSeconds, addedTimeSeconds: fresh.addedTimeSeconds };
+        return {
+          ...current,
+          expiresAt: fresh.expiresAt,
+          timeLimitSeconds: fresh.timeLimitSeconds,
+          addedTimeSeconds: fresh.addedTimeSeconds,
+          clockPaused: fresh.clockPaused,
+          pausedRemainingSeconds: fresh.pausedRemainingSeconds,
+        };
       });
     } catch { /* the next save, move or check will tell */ }
   }, []);
@@ -646,13 +660,14 @@ export const SecureExamContainer = ({
     } finally { setBusyState(false); }
   }, [handleProblem, openPosition, saveDraftNow, setBusyState]);
 
-  const previousStatusRef = useRef(null);
+  // Resumed from either pause: a lock lifted, or the assessment open again.
+  const pausedNow = Boolean(session && pauseKind(session.status, session.clockPaused === true));
+  const wasPausedRef = useRef(false);
   useEffect(() => {
-    const previous = previousStatusRef.current;
-    const status = session?.status || null;
-    previousStatusRef.current = status;
-    if (status === EXAM_RUNTIME_STATES.IN_PROGRESS && locked.has(previous)) resumeAfterPause();
-  }, [session?.status, resumeAfterPause]);
+    const wasPaused = wasPausedRef.current;
+    wasPausedRef.current = pausedNow;
+    if (wasPaused && !pausedNow && session?.status === EXAM_RUNTIME_STATES.IN_PROGRESS) resumeAfterPause();
+  }, [pausedNow, session?.status, resumeAfterPause]);
 
   // Back online: the answer that could not be saved is saved now, unprompted.
   useEffect(() => {
@@ -899,7 +914,7 @@ export const SecureExamContainer = ({
   const current = Number.isInteger(position) ? position : null;
   const next = current === null ? null : nextTarget(navigation, current);
   const previous = current === null ? null : previousTarget(navigation, current);
-  const pause = pauseKind(session.status);
+  const pause = pauseKind(session.status, session.clockPaused === true);
   const allowance = timeAllowance(session);
   const threshold = Number(session.integrityLockThreshold) || DEFAULT_INTEGRITY_LOCK_THRESHOLD;
   const fullscreenAvailable = typeof document !== 'undefined' && document.fullscreenEnabled !== false && typeof document.documentElement?.requestFullscreen === 'function';
@@ -956,6 +971,8 @@ export const SecureExamContainer = ({
         questionOrdinal={(current ?? navigation.cursor) + 1}
         totalQuestions={navigation.total || session.requiredQuestions}
         expiresAt={session.expiresAt}
+        clockPaused={session.clockPaused === true}
+        pausedRemainingSeconds={session.pausedRemainingSeconds}
         onTimeExpired={onTimeExpired}
         reviewFlagged={currentFlagged}
         onToggleReviewFlag={!reviewing && question && !pause ? toggleFlag : null}
@@ -1052,7 +1069,7 @@ export const SecureExamContainer = ({
           {pause === 'teacher' ? (
             <>
               <h1 id="secure-pause-title" style={pauseTitle}>Your teacher paused the test</h1>
-              <p id="secure-pause-detail" style={{ lineHeight: 1.55, color: '#e8eaed' }}>Your answers are saved. Wait here — it will continue when your teacher resumes it.</p>
+              <p id="secure-pause-detail" style={{ lineHeight: 1.55, color: '#e8eaed' }}>{session.timed ? 'Your answers are saved and your time is stopped.' : 'Your answers are saved.'} Wait here — it will continue when your teacher resumes it.</p>
             </>
           ) : (
             <>

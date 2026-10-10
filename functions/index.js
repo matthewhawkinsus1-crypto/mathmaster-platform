@@ -16434,7 +16434,18 @@ exports.startSecureExamSession = onCall(async (request) => {
   // `courseTest` block and this is a no-op for it.
   const entrySnapshot = await ref.get();
   const entrySession = assertStudentExamSession(entrySnapshot, studentId);
-  await assertCourseTestEntryAllowed(db, entrySession, studentId);
+  try {
+    await assertCourseTestEntryAllowed(db, entrySession, studentId);
+  } catch (error) {
+    // A Test under way that the teacher has paused or archived: the screen
+    // gets where it stands (states only, the clock stopped) and shows the
+    // pause, rather than an error. Nothing is issued, saved or submitted.
+    if (secureExam.pauseHoldsOf(entrySession).includes("assignment")
+      && (entrySession.status === "in_progress" || secureExam.LOCKED_STATES.has(entrySession.status))) {
+      return { success: true, session: secureExam.publicSession(entrySession) };
+    }
+    throw error;
+  }
   const timeMultiplier = entrySession.status === "not_started" ? await secureExamTimeMultiplier(db, studentId) : 1;
   const session = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
@@ -17335,8 +17346,9 @@ exports.proctorExamAction = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "This exam is untimed; there is no time limit to extend.");
     }
     let updated = { ...session, updatedAt: now, lastProctorActionBy: teacherUid };
-    if (action === "unlock") updated = { ...updated, status: "in_progress", lockReason: null, unlockedAt: now };
-    if (action === "lock") updated = { ...updated, status: "locked_proctor", lockReason: "Locked by proctor.", lockedAt: now };
+    // A proctor's pause stops the clock until the unlock (secureExam.withPauseHold).
+    if (action === "unlock") updated = { ...updated, status: "in_progress", lockReason: null, unlockedAt: now, ...secureExam.withoutPauseHold(session, "proctor", now) };
+    if (action === "lock") updated = { ...updated, status: "locked_proctor", lockReason: "Locked by proctor.", lockedAt: now, ...secureExam.withPauseHold(session, "proctor", now) };
     if (action === "extendTime") {
       const minutes = Math.max(1, Math.min(120, Math.round(Number(request.data?.minutes) || 5)));
       updated = { ...updated, addedTimeSeconds: Number(session.addedTimeSeconds || 0) + minutes * 60 };
@@ -23526,6 +23538,29 @@ exports.getAssignmentEvidenceSummary = onCall(async (request) => {
   return { success: true, assignmentId: snapshot.id, ...publicSummary };
 });
 
+/*
+ * A PAUSED OR ARCHIVED TEST CYCLE STOPS THE CLOCK OF EVERY TEST UNDER WAY.
+ *
+ * Students cannot work while the teacher has the assessment paused or
+ * archived, so their time does not run either: each course session that is
+ * started and not finished gets the "assignment" hold (secureExam.withPauseHold),
+ * and loses it when the assessment is open again, which extends its deadline
+ * by the time it was closed. Each session changes in its own transaction, so a
+ * proctor's pause or a save landing at the same moment is never lost.
+ */
+async function holdCourseTestClocks(db, assignmentId, { closed, now = Date.now() }) {
+  const snapshot = await db.collection("examSessions").where("courseTest.assignmentId", "==", String(assignmentId)).get();
+  const live = (session) => session.status === "in_progress" || secureExam.LOCKED_STATES.has(session.status);
+  await Promise.all(snapshot.docs
+    .filter((doc) => live(doc.data() || {}))
+    .map((doc) => db.runTransaction(async (transaction) => {
+      const session = (await transaction.get(doc.ref)).data() || {};
+      if (!live(session)) return;
+      const change = closed ? secureExam.withPauseHold(session, "assignment", now) : secureExam.withoutPauseHold(session, "assignment", now);
+      if (Object.keys(change).length) transaction.set(doc.ref, { ...change, updatedAt: now }, { merge: true });
+    })));
+}
+
 exports.manageAssignmentLifecycle = onCall(async (request) => {
   const db = getFirestore();
   const ref = db.collection("assignments").doc(String(request.data?.assignmentId || "").trim());
@@ -23548,6 +23583,7 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
       lifecycleHistory: audit(action),
       updatedAt: stamp,
     });
+    await holdCourseTestClocks(db, ref.id, { closed: archived || assignment.unpublished === true, now });
     return { success: true, assignmentId: ref.id, action, archived };
   }
   if (action === "unpublish" || action === "publish") {
@@ -23559,6 +23595,7 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
       lifecycleHistory: audit(action),
       updatedAt: stamp,
     });
+    await holdCourseTestClocks(db, ref.id, { closed: unpublished || assignment.archived === true, now });
     return { success: true, assignmentId: ref.id, action, unpublished };
   }
   if (action !== "delete") throw new HttpsError("invalid-argument", "Choose archive, unarchive, unpublish, publish or delete.");

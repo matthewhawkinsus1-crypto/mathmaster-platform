@@ -43,7 +43,8 @@ const HISTORY_STUDENT = 'NAV_STUDENT_LONG_HISTORY';
 const LATE_SAVE_STUDENT = 'NAV_STUDENT_LATE_SAVE';
 const RESET_STUDENT = 'NAV_STUDENT_RESET';
 const PAUSE_STUDENT = 'NAV_STUDENT_PAUSE';
-const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT, HISTORY_STUDENT, LATE_SAVE_STUDENT, RESET_STUDENT, PAUSE_STUDENT];
+const CLOCK_STUDENT = 'NAV_STUDENT_CLOCK';
+const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT, HISTORY_STUDENT, LATE_SAVE_STUDENT, RESET_STUDENT, PAUSE_STUDENT, CLOCK_STUDENT];
 const created = [];
 
 // A second Test Cycle assigned to two periods, for who the answers wait for.
@@ -718,6 +719,85 @@ test('a course Test the teacher paused or archived takes no edits, no recorded a
     assert.equal(stored.responses[second.questionInstanceId].unanswered, true, 'the question with nothing saved is unanswered');
   } finally {
     await assignmentRef.set({ unpublished: false, archived: false }, { merge: true });
+  }
+});
+
+test("a teacher's pause stops the clock: a pause spanning the original deadline extends it by the time paused", async () => {
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
+  await db.collection('grades').doc(CLOCK_STUDENT).set({
+    gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  }, { merge: true });
+  const examSessionId = (await readRecord(CERT_ASSIGNMENT_ID, CLOCK_STUDENT)).test.examSessionId;
+  created.push(examSessionId);
+  await fns.startSecureExamSession.run(student(CLOCK_STUDENT, { examSessionId }));
+  const opened = (await issue(CLOCK_STUDENT, examSessionId, { position: 0 })).questionInstance;
+  const draft = (answer) => save(CLOCK_STUDENT, { examSessionId, questionInstanceId: opened.questionInstanceId, responsePayload: { responses: { answer } } });
+  const timeUp = () => fns.finalizeSecureExam.run(student(CLOCK_STUDENT, { examSessionId, reason: 'timeExpired' }));
+  const where = async () => (await fns.startSecureExamSession.run(student(CLOCK_STUDENT, { examSessionId }))).session;
+  await draft(certAnswerFromPrompt(opened.prompt));
+  const sessionRef = db.collection('examSessions').doc(examSessionId);
+  const limitSeconds = Number((await readSession(examSessionId)).timeLimitSeconds);
+  assert.ok(limitSeconds > 0, 'the course Test is timed');
+  const lifecycle = (action) => fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, action }));
+
+  // The Test began so long ago that its original deadline passed ten minutes
+  // ago, but the teacher paused the Test Cycle eleven minutes ago, a minute
+  // before that deadline.
+  const now = Date.now();
+  await sessionRef.set({ startedAt: now - (limitSeconds + 10 * 60) * 1000 }, { merge: true });
+  try {
+    await lifecycle('unpublish');
+    assert.deepEqual((await readSession(examSessionId)).teacherPause?.holds, ['assignment'], 'pausing the Test Cycle holds the clock of a Test under way');
+    await sessionRef.set({ teacherPause: { since: now - 11 * 60 * 1000, holds: ['assignment'] } }, { merge: true });
+
+    // Paused: time has not run out, the student's screen sees the stopped clock, and nothing is edited.
+    const duringPause = await refusal(timeUp());
+    assert.equal(duringPause?.code, 'failed-precondition', 'no time-up during the pause, even past the original deadline');
+    const paused = await where();
+    assert.equal(paused.clockPaused, true);
+    assert.ok(Math.abs(paused.pausedRemainingSeconds - 60) <= 5, `a minute left, stopped (${paused.pausedRemainingSeconds})`);
+    assert.equal((await refusal(draft(CERT_WRONG_ANSWER)))?.code, 'failed-precondition', 'no edits while paused');
+
+    // Resumed: eleven minutes paused are banked, and the student has their minute.
+    await lifecycle('publish');
+    const resumed = await readSession(examSessionId);
+    assert.deepEqual(resumed.teacherPause.holds, []);
+    assert.ok(Math.abs(resumed.pausedSeconds - 11 * 60) <= 5, `eleven minutes banked (${resumed.pausedSeconds})`);
+    const running = await where();
+    assert.equal(running.clockPaused, false);
+    const left = running.expiresAt - Date.now();
+    assert.ok(left > 50 * 1000 && left <= 65 * 1000, `the deadline moved by the time paused (${left} ms left)`);
+    await draft(CERT_WRONG_ANSWER);
+    assert.equal((await refusal(timeUp()))?.code, 'failed-precondition', 'and time is not up yet');
+
+    // A proctor's pause holds the clock the same way.
+    await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'lock' }));
+    assert.deepEqual((await readSession(examSessionId)).teacherPause?.holds, ['proctor'], 'a proctor pause holds the clock');
+    await sessionRef.set({ teacherPause: { since: Date.now() - 5 * 60 * 1000, holds: ['proctor'] } }, { merge: true });
+    await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'unlock' }));
+    const unlocked = await readSession(examSessionId);
+    assert.ok(Math.abs(unlocked.pausedSeconds - 16 * 60) <= 5, `five more minutes banked (${unlocked.pausedSeconds})`);
+
+    // An integrity lock is not a teacher's pause: the clock keeps running through it.
+    for (const eventId of ['clock-e1', 'clock-e2', 'clock-e3']) {
+      // eslint-disable-next-line no-await-in-loop
+      await fns.recordSecureExamIntegrityEvent.run(student(CLOCK_STUDENT, { examSessionId, eventId, type: 'tab_switch' }));
+    }
+    const integrity = await readSession(examSessionId);
+    assert.equal(integrity.status, 'locked_integrity');
+    assert.deepEqual(integrity.teacherPause.holds, [], 'no hold for an integrity lock');
+    await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'unlock' }));
+    assert.equal((await readSession(examSessionId)).pausedSeconds, unlocked.pausedSeconds, 'and nothing banked for it');
+
+    // Then the extended deadline passes: graded on the last draft saved in time.
+    await sessionRef.set({ startedAt: unlocked.startedAt - 30 * 60 * 1000 }, { merge: true });
+    assert.equal((await refusal(draft(certAnswerFromPrompt(opened.prompt))))?.code, 'deadline-exceeded');
+    await timeUp();
+    const stored = await readSession(examSessionId);
+    assert.equal(stored.status, 'time_expired');
+    assert.equal(stored.responses[opened.questionInstanceId].grading.isCorrect, false, 'the draft saved after the resume is the one graded');
+  } finally {
+    await db.collection('assignments').doc(CERT_ASSIGNMENT_ID).set({ unpublished: false }, { merge: true });
   }
 });
 

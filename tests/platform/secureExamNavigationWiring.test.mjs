@@ -67,7 +67,7 @@ const handlers = {
   move: region(container, 'const move = useCallback(', 'const start = async () => {', 'move'),
   start: region(container, 'const start = async () => {', '  useEffect(() => {', 'start'),
   checkStatus: region(container, 'const checkStatus = useCallback(', 'const resumeAfterPause = useCallback(', 'status check'),
-  resume: region(container, 'const resumeAfterPause = useCallback(', 'const previousStatusRef', 'resumeAfterPause'),
+  resume: region(container, 'const resumeAfterPause = useCallback(', '// Resumed from either pause', 'resumeAfterPause'),
   autosave: region(container, 'const autosaveDraft = useCallback(', 'const saveItemNow', 'autosaveDraft'),
   toggleFlag: region(container, 'const toggleFlag = useCallback(', 'const openNavigator = useCallback(', 'toggleFlag'),
   backToQuestion: region(container, 'const backToQuestion = useCallback(', 'const returnToFullscreen', 'backToQuestion'),
@@ -202,12 +202,14 @@ test('a pause covers everything, takes focus, leaves nothing to type into, and r
   const resume = handlers.resume;
   assert.match(resume, /const target = Number\.isInteger\(positionRef\.current\) \? positionRef\.current : readNavigation\(active\)\.cursor;\s*await openPosition\(active\.examSessionId, target\);/);
   assert.doesNotMatch(executableSource(resume), /!question\b|\bquestion\s*(\?|&&|\|\|)|\(question\b/, 'not only when no question was showing');
-  assert.match(container, /if \(status === EXAM_RUNTIME_STATES\.IN_PROGRESS && locked\.has\(previous\)\) resumeAfterPause\(\);/);
+  // Either pause ends it: a lock lifted, or the assessment open again (the clock was stopped).
+  assert.match(container, /const pausedNow = Boolean\(session && pauseKind\(session\.status, session\.clockPaused === true\)\);/);
+  assert.match(container, /if \(wasPaused && !pausedNow && session\?\.status === EXAM_RUNTIME_STATES\.IN_PROGRESS\) resumeAfterPause\(\);/);
 
   const overlay = region(container, '{pause && (', '</Dialog>\n    )}', 'pause overlay');
   const teacher = region(overlay, "{pause === 'teacher' ? (", ') : (', 'teacher pause');
   assert.match(teacher, /<h1 id="secure-pause-title" style=\{pauseTitle\}>Your teacher paused the test<\/h1>/);
-  assert.match(teacher, /Your answers are saved\. Wait here — it will continue when your teacher resumes it\./);
+  assert.match(teacher, /\{session\.timed \? 'Your answers are saved and your time is stopped\.' : 'Your answers are saved\.'\} Wait here — it will continue when your teacher resumes it\./);
   const integrity = overlay.slice(overlay.indexOf(') : (', overlay.indexOf("{pause === 'teacher' ? (")));
   assert.match(integrity, /<h1 id="secure-pause-title" style=\{pauseTitle\}>Your test is paused<\/h1>/);
   assert.match(integrity, /\{integrityPauseText\(threshold\)\}/);
@@ -250,8 +252,11 @@ test('a teacher\'s pause reaches a student who is only reading', () => {
   assert.match(check, /await startSecureExamSession\(\{ examSessionId: active\.examSessionId, examType: active\.examType \}\)/);
   // A change of status is taken whole (the pause, the resume, the finished test)…
   assert.match(check, /\n\s*if \(fresh\.status !== current\.status\) return fresh;/);
-  // …otherwise only the clock, so a slow answer cannot undo a newer save or flag.
-  assert.match(check, /\n\s*return \{ \.\.\.current, expiresAt: fresh\.expiresAt, timeLimitSeconds: fresh\.timeLimitSeconds, addedTimeSeconds: fresh\.addedTimeSeconds \};/);
+  // …otherwise only the clock (stopped or running), so a slow answer cannot undo a newer save or flag.
+  const clockOnly = region(check, 'return {\n          ...current,', '};', 'clock only');
+  for (const field of ['expiresAt', 'timeLimitSeconds', 'addedTimeSeconds', 'clockPaused', 'pausedRemainingSeconds']) {
+    assert.match(clockOnly, new RegExp(`\\n\\s*${field}: fresh\\.${field},`), field);
+  }
   assert.doesNotMatch(executableSource(check), /navigation/);
   const poll = region(container, '  useEffect(() => {\n    if (!session?.examSessionId || session.status !== EXAM_RUNTIME_STATES.IN_PROGRESS) return undefined;\n    const id = window.setInterval(', '}, [session?.examSessionId, session?.status, checkStatus]);', 'status poll');
   assert.match(poll, /if \(busyRef\.current \|\| finishingRef\.current \|\| document\.visibilityState === 'hidden'\) return;\s*checkStatus\(\);/);

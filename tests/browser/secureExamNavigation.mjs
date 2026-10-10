@@ -463,13 +463,26 @@ const courseJourney = async (context, device) => {
   await next(page);
   await page.waitForSelector('[data-secure-pause="teacher"]', { timeout: 8000 });
   text = await bodyText(page);
-  check(/Your teacher paused the test/.test(text) && /Your answers are saved\. Wait here/.test(text), label('teacher pause has its own words'));
+  check(/Your teacher paused the test/.test(text) && /Your answers are saved and your time is stopped\. Wait here/.test(text), label('teacher pause has its own words, and says the time is stopped'));
   check(!/Preparing the next secure item/.test(text), label('a pause never strands the student on "Preparing…"'));
   check(await focusIn(page, '[data-secure-pause]'), label('the pause screen takes focus'));
   await titleFits(page, '[data-secure-pause] h1', label('teacher pause'));
   await shot(page, device, 'course-03-teacher-pause');
+  // The clock stops with the pause: the header's time left does not move, and
+  // the student gets back exactly what they had.
+  const timerName = () => page.locator('[data-secure-timer]').getAttribute('aria-label');
+  const secondsIn = (name) => { const match = /Time left (\d+):(\d{2})/.exec(name || ''); return match ? Number(match[1]) * 60 + Number(match[2]) : null; };
+  await page.waitForFunction(() => /stopped while your teacher/.test(document.querySelector('[data-secure-timer]')?.getAttribute('aria-label') || ''), null, { timeout: 8000 }).catch(() => {});
+  const pausedName = await timerName();
+  await page.waitForTimeout(2500);
+  check(/stopped while your teacher has the test paused/.test(pausedName || '') && (await timerName()) === pausedName, label('the clock stops while the teacher has the test paused'), pausedName);
+  // Paused for longer than the screen's 5-second check: none of it comes off
+  // the student's time (only the moments before the screen sees the resume).
+  await page.waitForTimeout(6000);
   await page.evaluate(() => window.__secureHarness.proctor('unlock'));
   await page.waitForSelector('[data-secure-pause]', { state: 'detached', timeout: 12000 });
+  const resumedLeft = secondsIn(await timerName());
+  check(resumedLeft !== null && secondsIn(pausedName) - resumedLeft <= 6, label('the time paused is not taken from the student'), `${secondsIn(pausedName)} → ${resumedLeft}`);
   await page.getByText('Write it in notation').waitFor({ timeout: 12000 });
   check(await headerPosition(page) === 'Question 2 of 5', label('resume reopens the same question'), await headerPosition(page));
   check(await toolValue() === '[-3,5)', label('the saved work is still there after the pause'), await toolValue());

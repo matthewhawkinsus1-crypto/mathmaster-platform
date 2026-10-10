@@ -94,13 +94,64 @@ function timeLimitSecondsOf(session) {
   return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
 }
 
-function deadlineFor(session, _now = Date.now()) {
+/*
+ * A TEACHER'S PAUSE STOPS THE CLOCK.
+ *
+ * A course Test the teacher has paused or archived (the "assignment" hold),
+ * or any test a proctor has paused (the "proctor" hold), does not spend the
+ * student's time. `teacherPause.since` is when the current pause began (null
+ * while the clock runs) and `pausedSeconds` is the paused time already over.
+ * The deadline is the time limit, plus added time, plus every paused second:
+ * while a hold is on, the deadline moves with the clock, and on resume it
+ * stands extended by exactly the time paused. An integrity lock is not a
+ * teacher's pause, and the clock runs through it as before.
+ */
+const PAUSE_HOLDS = new Set(['assignment', 'proctor']);
+
+function pauseHoldsOf(session) {
+  const holds = session?.teacherPause?.holds;
+  return Array.isArray(holds) ? holds.filter((hold) => PAUSE_HOLDS.has(hold)) : [];
+}
+
+function clockPausedSince(session) {
+  const since = Number(session?.teacherPause?.since);
+  return pauseHoldsOf(session).length && Number.isFinite(since) && since > 0 ? since : null;
+}
+
+function pausedSecondsOf(session) {
+  const seconds = Number(session?.pausedSeconds);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
+}
+
+/** The fields that put a hold on the clock (none if this hold is already on). */
+function withPauseHold(session, hold, now = Date.now()) {
+  const holds = pauseHoldsOf(session);
+  if (!PAUSE_HOLDS.has(hold) || holds.includes(hold)) return {};
+  return { teacherPause: { since: clockPausedSince(session) || now, holds: [...holds, hold] } };
+}
+
+/** The fields that lift a hold; the last one off banks the paused time. */
+function withoutPauseHold(session, hold, now = Date.now()) {
+  const holds = pauseHoldsOf(session);
+  if (!holds.includes(hold)) return {};
+  const rest = holds.filter((item) => item !== hold);
+  const since = clockPausedSince(session);
+  if (rest.length) return { teacherPause: { since, holds: rest } };
+  return {
+    teacherPause: { since: null, holds: [] },
+    pausedSeconds: pausedSecondsOf(session) + (since ? Math.max(0, now - since) / 1000 : 0),
+  };
+}
+
+function deadlineFor(session, now = Date.now()) {
   const limit = timeLimitSecondsOf(session);
   const startedAt = Number(session?.startedAt);
   if (limit === null || session?.startedAt === null || session?.startedAt === undefined) return null;
   if (!Number.isFinite(startedAt) || startedAt <= 0) return null;
   const added = Math.max(0, Number(session.addedTimeSeconds) || 0);
-  return startedAt + (limit + added) * 1000;
+  const pausedSince = clockPausedSince(session);
+  const pausing = pausedSince ? Math.max(0, now - pausedSince) : 0;
+  return startedAt + (limit + added + pausedSecondsOf(session)) * 1000 + pausing;
 }
 
 function isExpired(session, now = Date.now()) {
@@ -183,15 +234,21 @@ function publicSession(session = {}, { teacher = false } = {}) {
   // stripped from BOTH the student and the teacher payload — a proctor reads
   // the plan through the separate teacher-only Test Cycle callable, which is
   // authenticated for that purpose.
-  const { currentQuestion, responses, usedQuestionIds: _usedQuestionIds, issuancePlan: _issuancePlan, summary, createdBy: _createdBy, lastProctorActionBy: _lastProctorActionBy, feedbackReleasedBy: _feedbackReleasedBy, navigation: _navigation, ...safe } = session;
+  const { currentQuestion, responses, usedQuestionIds: _usedQuestionIds, issuancePlan: _issuancePlan, summary, createdBy: _createdBy, lastProctorActionBy: _lastProctorActionBy, feedbackReleasedBy: _feedbackReleasedBy, navigation: _navigation, teacherPause: _teacherPause, pausedSeconds: _pausedSeconds, ...safe } = session;
   const responseValues = responses && typeof responses === 'object' ? Object.values(responses) : [];
+  const now = Date.now();
+  const expiresAt = deadlineFor(session, now);
+  const clockPaused = clockPausedSince(session) !== null;
   return {
     ...safe,
     summary: {
       completedQuestions: Number(summary?.completedQuestions || 0),
       ...(teacher ? { correctQuestions: Number(summary?.correctQuestions || 0) } : {}),
     },
-    expiresAt: deadlineFor(session),
+    expiresAt,
+    // A teacher's pause: the clock is stopped, at this much time left.
+    clockPaused,
+    ...(clockPaused && expiresAt !== null ? { pausedRemainingSeconds: Math.max(0, Math.round((expiresAt - now) / 1000)) } : {}),
     // Said outright so no screen has to infer "untimed" from a null, which is
     // exactly the inference that went wrong in `deadlineFor`.
     timed: timeLimitSecondsOf(session) !== null,
@@ -372,4 +429,4 @@ function courseReviewBlockedBy(record, { examSessionId, cycleStage } = {}) {
   return { reason: "attempt_open", message: "This review opens again when you finish the test you are taking now." };
 }
 
-module.exports = { COURSE_TEST_EXAM_TYPE, courseReviewBlockedBy, EXAM_POLICIES, INTEGRITY_LOCK_THRESHOLD, releasedSolutionOf, scorePoints, LOCKED_STATES, TERMINAL_STATES, deadlineFor, isCourseTestSession, isExpired, nextDomainId, policyFor, publicQuestion, publicReview, publicSession, secureSessionScorePercent, sessionScorePercent, supportsExamType, timeLimitSecondsOf, weightedSessionScorePercent };
+module.exports = { COURSE_TEST_EXAM_TYPE, courseReviewBlockedBy, EXAM_POLICIES, INTEGRITY_LOCK_THRESHOLD, releasedSolutionOf, scorePoints, LOCKED_STATES, TERMINAL_STATES, clockPausedSince, deadlineFor, isCourseTestSession, isExpired, nextDomainId, pauseHoldsOf, policyFor, publicQuestion, publicReview, publicSession, secureSessionScorePercent, sessionScorePercent, supportsExamType, timeLimitSecondsOf, weightedSessionScorePercent, withPauseHold, withoutPauseHold };

@@ -22,6 +22,9 @@ export const ExamPrepHeader = ({
   questionOrdinal = 1,
   totalQuestions = null,
   expiresAt = null,
+  // A teacher's pause: the server stopped the clock at this much time left.
+  clockPaused = false,
+  pausedRemainingSeconds = null,
   onTimeExpired,
   reviewFlagged = false,
   onToggleReviewFlag,
@@ -59,6 +62,12 @@ export const ExamPrepHeader = ({
   useEffect(() => {
     firedRef.current = false;
     if (initialDeadline == null) { setSecondsRemaining(null); return undefined; }
+    // Stopped, not counting: the time left is the server's, and nothing ends the test.
+    if (clockPaused) {
+      const frozen = Number(pausedRemainingSeconds);
+      setSecondsRemaining(Number.isFinite(frozen) ? Math.max(0, frozen) : Math.max(0, (initialDeadline - Date.now()) / 1000));
+      return undefined;
+    }
     const tick = () => {
       const next = Math.max(0, (initialDeadline - Date.now()) / 1000);
       setSecondsRemaining(next);
@@ -67,9 +76,15 @@ export const ExamPrepHeader = ({
     tick();
     const id = window.setInterval(tick, 500);
     return () => window.clearInterval(id);
-  }, [initialDeadline]);
+  }, [initialDeadline, clockPaused, pausedRemainingSeconds]);
 
   const forceVisible = secondsRemaining != null && secondsRemaining <= 5 * 60;
+  // The timer button's name says what it shows and what pressing it does.
+  const timerLabel = secondsRemaining == null
+    ? 'Untimed test'
+    : timerHidden && !forceVisible
+      ? 'Show the timer'
+      : `Time left ${formatTime(secondsRemaining)}${clockPaused ? ', stopped while your teacher has the test paused' : ''}. ${forceVisible ? 'Shown for the last five minutes' : 'Hide the timer'}`;
   const total = totalQuestions || policy.totalQuestions;
   const position = `Question ${questionOrdinal} of ${total}`;
   return (
@@ -85,8 +100,8 @@ export const ExamPrepHeader = ({
           : <div style={{ fontSize: 12, color: '#bdc1c6' }}>{position}</div>}
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => setTimerHidden((value) => !value)} disabled={forceVisible || secondsRemaining == null} style={{ ...control, fontWeight: 700, cursor: forceVisible || secondsRemaining == null ? 'default' : 'pointer' }}>
-          {secondsRemaining == null ? 'Untimed' : timerHidden && !forceVisible ? 'Show timer' : formatTime(secondsRemaining)}
+        <button type="button" data-secure-timer="" aria-label={timerLabel} onClick={() => setTimerHidden((value) => !value)} disabled={forceVisible || secondsRemaining == null} style={{ ...control, fontWeight: 700, cursor: forceVisible || secondsRemaining == null ? 'default' : 'pointer' }}>
+          {secondsRemaining == null ? 'Untimed' : timerHidden && !forceVisible ? 'Show timer' : `${formatTime(secondsRemaining)}${clockPaused ? ' · stopped' : ''}`}
         </button>
         {extendedTime && secondsRemaining != null && <span style={{ padding: '7px 10px', borderRadius: 7, background: '#303134', color: '#e8eaed', fontSize: 12 }}>Includes your extended time</span>}
         {onToggleReviewFlag && (
