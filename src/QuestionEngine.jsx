@@ -167,6 +167,15 @@ const useDeepStableValue = (value) => {
 // True only when the browser actually spoke.
 const speakText = (text, language = 'en') => Boolean(text) && speakAloud(text, { language });
 
+// "Next question →" and "Continue to Unit 2 →" did not fit the phone's one-row
+// bar beside the icon tools: "Next quest…" at 390px (release-candidate QA m8).
+// The middle words sit in the span a phone hides, so the bar shows "Next →" /
+// "Continue →"; the button's aria-label keeps the whole label everywhere.
+const barActionLabel = (label) => {
+  const parts = /^(\S+)( .+)( →)$/.exec(label);
+  return parts ? <>{parts[1]}<span className="mathmaster-action-label-long">{parts[2]}</span>{parts[3]}</> : label;
+};
+
 function QuestionEngineBody({
   question,
   onGrade,
@@ -2473,9 +2482,10 @@ function QuestionEngineBody({
           type="button"
           className="mathmaster-bar-continue"
           onClick={barContinueAction.onClick}
+          aria-label={barContinueAction.label}
           style={{ minHeight: '44px', padding: '12px 20px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: '#1a73e8', color: 'white', cursor: 'pointer', boxShadow: '0 4px 6px rgba(26, 115, 232, 0.2)', whiteSpace: 'nowrap' }}
         >
-          {barContinueAction.label}
+          {barActionLabel(barContinueAction.label)}
         </button>
         ) : null}
       />
