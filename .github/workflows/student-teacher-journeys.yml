@@ -48,6 +48,10 @@ name: Student and Teacher Journeys
 #                          Grade; the teacher finalizes or issues a
 #                          replacement; Chromebook, iPad, phone; throttled
 #                          nightly)
+#   Recovery answers       tests/browser/teacherWorkflow/recoveryDraftCrossDeviceJourneys.mjs
+#   across Chromebooks     (answers saved on one Chromebook are on the next,
+#                          and graded on Submit there; offline says "this
+#                          device only" until it syncs; Chromebook, phone)
 #   family pin containment tests/browser/familyPinContainment.mjs
 #                          (a Question Family pin that will not replay is one
 #                          question's failure: never a substitute question,
@@ -144,6 +148,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
+      - name: Recovery answers saved on one Chromebook, submitted from another
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/recoveryDraftCrossDeviceJourneys.mjs
       - name: Held Recovery, throttled Chromebook (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:

@@ -21,6 +21,12 @@
  *   910974  COMPLETED UNDER THE OLD RULE on the second lesson: Q3 scored as 0
  *           with its weight counted (70%), exactly as main stored it — the
  *           record a teacher can now see and re-score.
+ *   910975  IN PROGRESS on a third lesson nobody edited
+ *           (RECOVERY_CROSS_DEVICE_ASSIGNMENT_ID): every pin replays, so all
+ *           three questions render. recoveryDraftCrossDeviceJourneys.mjs
+ *           answers two on one Chromebook, the third and Submit on another.
+ *           A lesson of its own, so every record above is byte for byte what
+ *           it was (seats, strides and pins are per lesson).
  *
  * All invented. Nothing here reaches a Firebase project.
  */
@@ -46,6 +52,9 @@ export const HELD_STUDENT_ID = '910971';
 export const SUBMITTING_STUDENT_ID = '910972';
 export const EXCLUDED_STUDENT_ID = '910973';
 export const LEGACY_STUDENT_ID = '910974';
+export const RECOVERY_CROSS_DEVICE_ASSIGNMENT_ID = 'a-recovery-c';
+export const RECOVERY_CROSS_DEVICE_ASSIGNMENT_TITLE = 'Zeros and Intercepts — DOL Recovery Check';
+export const CROSS_DEVICE_STUDENT_ID = '910975';
 
 const DAY = 86_400_000;
 const dateKey = (ms) => {
@@ -198,6 +207,7 @@ export const addRecoveryHoldScenario = ({ fixture, now, teacherEmail }) => {
     .filter(([path, data]) => path.startsWith('grades/') && path.split('/').length === 2 && data?.classId === RECOVERY_CLASS_ID)
     .map(([path]) => path.split('/')[1]);
   const studentIds = [...classmates, ...people.map((row) => row.id)];
+  const crossDeviceRow = { ...studentRow(CROSS_DEVICE_STUDENT_ID, 'Theo', 'Standin'), assignedTeacherEmail: teacherEmail };
 
   // Three skills: a two-step equation, zeros, intercepts.
   const distinct = lessonFor({
@@ -221,6 +231,19 @@ export const addRecoveryHoldScenario = ({ fixture, now, teacherEmail }) => {
       question('rs1', 'linear.twoStepEquation', 'Solve for x.', 4),
       question('rs2', 'functions.identifyZeros', 'Find the zeros.', 3),
       question('rs3', 'linear.twoStepEquation', 'Solve for x.', 3),
+    ],
+  });
+
+  // The same three skills, never edited: every pin replays.
+  const untouched = lessonFor({
+    id: RECOVERY_CROSS_DEVICE_ASSIGNMENT_ID,
+    title: RECOVERY_CROSS_DEVICE_ASSIGNMENT_TITLE,
+    now,
+    studentIds: [...studentIds, crossDeviceRow.id],
+    dol: [
+      question('rc1', 'linear.twoStepEquation', 'Solve for x.', 4),
+      question('rc2', 'functions.identifyZeros', 'Find the zeros.', 3),
+      question('rc3', 'functions.identifyIntercepts', 'Find both intercepts.', 3),
     ],
   });
 
@@ -260,10 +283,15 @@ export const addRecoveryHoldScenario = ({ fixture, now, teacherEmail }) => {
     },
   };
 
+  const crossDevice = { ...crossDeviceRow, gradesByAssignment: { [RECOVERY_CROSS_DEVICE_ASSIGNMENT_ID]: tracker } };
+  crossDevice.sectionRecoveryByAssignment = { [RECOVERY_CROSS_DEVICE_ASSIGNMENT_ID]: { dol: startedRecord({ assignment: untouched, gradeData: crossDevice, studentId: crossDevice.id, now }) } };
+
   const { id: _distinctId, ...distinctDoc } = distinctNow;
+  const { id: _untouchedId, ...untouchedDoc } = untouched;
   const { id: _sharedId, ...sharedDoc } = sharedNow;
   fixture[`assignments/${RECOVERY_ASSIGNMENT_ID}`] = distinctDoc;
   fixture[`assignments/${RECOVERY_SHARED_ASSIGNMENT_ID}`] = sharedDoc;
-  [held, submitting, excluded, legacyRow].forEach(({ id, ...data }) => { fixture[`grades/${id}`] = data; });
+  fixture[`assignments/${RECOVERY_CROSS_DEVICE_ASSIGNMENT_ID}`] = untouchedDoc;
+  [held, submitting, excluded, legacyRow, crossDevice].forEach(({ id, ...data }) => { fixture[`grades/${id}`] = data; });
   return fixture;
 };

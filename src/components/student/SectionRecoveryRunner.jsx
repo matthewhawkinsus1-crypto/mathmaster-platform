@@ -14,9 +14,12 @@
  *               evidence. The next item comes from the updated record.
  *
  *   ASSESSMENT  the plan the server pinned when the student started. Answers
- *               are saved locally and can be changed until the whole Recovery
+ *               are saved to the student's own server draft (this device's
+ *               copy is only the offline fallback), so they follow the student
+ *               to any Chromebook, and can be changed until the whole Recovery
  *               is submitted; nothing about correctness is shown before then,
- *               so a Recovery cannot be answered by trial and error.
+ *               so a Recovery cannot be answered by trial and error
+ *               (useRecoveryAnswerDrafts.js, recoveryAnswerDrafts.js).
  *
  * STEP TOOLS KEEP THEIR RULES. Step Algebra spends tries on rejected moves.
  * The runner keeps that bookkeeping with the same `recordQuestionStep` and the
@@ -46,6 +49,8 @@ import { RecoveryMasteryMeter } from './SectionRecoveryPanel.jsx';
 import { QuestionResolutionFailure } from '../../QuestionResolutionBoundary.jsx';
 import { QUESTION_RESOLUTION_FAILURE, recoveryForFailure } from '../../platform/generation/familyPinReplay.js';
 import { normalizeDeliveryPin } from '../../../functions/shared/questionGenerationIdentity.mjs';
+import { RECOVERY_ANSWER_SAVED_WHERE, describeSavedRecoveryAnswer } from '../../platform/recovery/recoveryAnswerDrafts.js';
+import useRecoveryAnswerDrafts from './useRecoveryAnswerDrafts.js';
 
 // Practice's own attempt policy for step tools; the final answer is still one
 // server-graded submission per item.
@@ -81,8 +86,9 @@ const writeSaved = (key, value) => {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // A convenience only: the answers are still on screen and in each tool's
-    // own draft, so losing this copy costs one more Submit per question.
+    // This device's bookkeeping only (tries used, questions it could not
+    // show). Saved answers are backed up to the server and do not depend on
+    // it (useRecoveryAnswerDrafts.js).
   }
 };
 
@@ -91,6 +97,24 @@ const clearSaved = (key) => {
 };
 
 const isOver = (record) => record?.status === 'expired';
+
+// Where an answer is saved, in the student's words. "Saved" alone is said only
+// once the server has it; until then it is on this device, and says so.
+export const RECOVERY_SAVED_COPY = Object.freeze({
+  [RECOVERY_ANSWER_SAVED_WHERE.ACCOUNT]: 'Answer saved to your MathMaster account — you can change it until you submit.',
+  [RECOVERY_ANSWER_SAVED_WHERE.SAVING]: 'Saving your answer to your MathMaster account…',
+  [RECOVERY_ANSWER_SAVED_WHERE.DEVICE]: 'Answer saved on this device only — it will sync to your MathMaster account when you are back online.',
+});
+const SAVED_LABEL = Object.freeze({
+  [RECOVERY_ANSWER_SAVED_WHERE.ACCOUNT]: ', answer saved to your account',
+  [RECOVERY_ANSWER_SAVED_WHERE.SAVING]: ', saving answer',
+  [RECOVERY_ANSWER_SAVED_WHERE.DEVICE]: ', answer saved on this device only',
+});
+const SAVED_STATE = Object.freeze({
+  [RECOVERY_ANSWER_SAVED_WHERE.ACCOUNT]: 'saved',
+  [RECOVERY_ANSWER_SAVED_WHERE.SAVING]: 'saving',
+  [RECOVERY_ANSWER_SAVED_WHERE.DEVICE]: 'device',
+});
 
 const shellStyle = { maxWidth: 980, margin: '0 auto', padding: '18px 16px 40px', boxSizing: 'border-box', display: 'grid', gap: 14 };
 const panelStyle = {
@@ -421,8 +445,22 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
   const responsesKey = storageKeyFor({ kind: 'responses', ...keyArgs });
   const stepsKey = storageKeyFor({ kind: 'steps', ...keyArgs });
   const unavailableKey = storageKeyFor({ kind: 'unavailable', ...keyArgs });
-  const [responses, setResponses] = useState(() => readSaved(responsesKey));
+  // The saved answers, on the server and on this device. `responsesKey` is
+  // where builds before this one kept them on this device only: read once,
+  // backed up, retired.
+  const drafts = useRecoveryAnswerDrafts({
+    studentId,
+    assignmentId: assignment.id,
+    section: entry.section,
+    opportunity: plan?.opportunity || 1,
+    items,
+    localKey: storageKeyFor({ kind: 'answer-drafts', ...keyArgs }),
+    legacyKey: responsesKey,
+  });
+  const { responses } = drafts;
   const [stepRecords, setStepRecords] = useState(() => readSaved(stepsKey));
+  // Tries used up here, or on another device (the draft's flag).
+  const itemOver = (itemId) => isOver(stepRecords[itemId]) || drafts.closed[itemId] === true;
   const [position, setPosition] = useState(() => Math.max(0, items.findIndex((item) => !submittedIds.has(item.itemId))));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -437,7 +475,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
   const currentQuestion = current ? entry.questionsByIndex?.[current.storageIndex] : null;
   const maximumAttempts = resolveQuestionMaximumAttempts({ question: currentQuestion, activityPolicy: policy });
   const openItems = items.filter((item) => !submittedIds.has(item.itemId));
-  const answeredCount = openItems.filter((item) => responses[item.itemId] && !isOver(stepRecords[item.itemId])).length;
+  const answeredCount = openItems.filter((item) => responses[item.itemId] && !itemOver(item.itemId)).length;
   const unavailableCount = openItems.filter((item) => unavailable[item.itemId] && !responses[item.itemId]).length;
 
   const currentItemId = current?.itemId || null;
@@ -460,20 +498,22 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
     });
   }, [unavailableKey]);
 
+  const { saveAnswer, closeItem } = drafts;
+  const currentClosed = Boolean(current && drafts.closed[current.itemId]);
   const handleGrade = useCallback(async (unusedLocalVerdict, unusedDetails, parts, unusedSupportUsage, responseKey, attemptMetadata = {}) => {
     if (!current) return null;
-    if (isOver(stepRecords[current.itemId])) return null;
+    if (isOver(stepRecords[current.itemId]) || currentClosed) return null;
     const rendered = renderedRef.current[current.pin.fingerprint];
     if (!rendered) return { blocked: true, message: 'This question is still loading. Try again in a moment.' };
     const response = normalizeCheckpointResponse(rendered, { parts, responseKey, isComplete: true, toolResponse: attemptMetadata?.toolResponse || null });
-    setResponses((previous) => {
-      const next = { ...previous, [current.itemId]: response };
-      writeSaved(responsesKey, next);
-      return next;
-    });
+    // Only the student's answer is saved (recoveryAnswerDrafts.js
+    // projectRecoveryAnswer): never the rendered question or its key.
+    if (!saveAnswer(current, response)) {
+      return { blocked: true, message: 'MathMaster could not save that answer. Check it and press Submit again.' };
+    }
     // Nothing about correctness: the Recovery is marked once, on submit.
     return { isCorrect: false, status: 'attempted', attemptCount: 0, remainingAttempts: maximumAttempts, expired: false };
-  }, [current, maximumAttempts, responsesKey, stepRecords]);
+  }, [current, currentClosed, maximumAttempts, saveAnswer, stepRecords]);
 
   // Rejected steps spend tries exactly as in the original section; an item
   // whose tries are used up is over and counts as incorrect.
@@ -485,22 +525,35 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
       writeSaved(stepsKey, updated);
       return updated;
     });
-    if (isOver(next.record)) {
-      setResponses((previous) => {
-        const { [current.itemId]: _dropped, ...rest } = previous;
-        writeSaved(responsesKey, rest);
-        return rest;
-      });
-    }
+    // Over on every device: the saved answer is dropped there too, and no
+    // other Chromebook offers fresh tries.
+    if (isOver(next.record)) closeItem(current);
     return next.result;
-  }, [current, maximumAttempts, responsesKey, stepRecords, stepsKey]);
+  }, [closeItem, current, maximumAttempts, stepRecords, stepsKey]);
 
   const submitAll = async () => {
     if (submitting) return;
+    setSubmitting(true);
+    // Every answer saved on any Chromebook: the save on its way lands, then
+    // the server's newest copy is read (useRecoveryAnswerDrafts.js).
+    const latest = await drafts.prepareSubmit();
+    setSubmitting(false);
+    // Never a silent partial submission: without the server copy, answers
+    // saved on another Chromebook could be missing (and count as unanswered).
+    if (!latest.checkedAccount) {
+      const anyway = await confirm({
+        title: 'We couldn\u2019t check your account',
+        message: 'We couldn\u2019t check your account for answers saved on another device. If you submit now, only the answers saved on this device will be sent.',
+        confirmLabel: 'Submit anyway',
+        cancelLabel: 'Try again',
+      });
+      if (!anyway) return submitAll();
+    }
+    const latestOver = (itemId) => isOver(stepRecords[itemId]) || latest.closed[itemId] === true;
     // Only the student's own unanswered questions "count as incorrect". A
     // question MathMaster could not show is never one of them.
     const unanswered = items.filter((item) => !submittedIds.has(item.itemId)
-      && !(responses[item.itemId] && !isOver(stepRecords[item.itemId]))
+      && !(latest.responses[item.itemId] && !latestOver(item.itemId))
       && !unavailable[item.itemId]).length;
     if (unanswered > 0) {
       const proceed = await confirm({
@@ -515,8 +568,8 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
     setSubmitting(true);
     setError('');
     try {
-      const sendable = Object.fromEntries(Object.entries(responses)
-        .filter(([itemId]) => !isOver(stepRecords[itemId]) && !submittedIds.has(itemId)));
+      const sendable = Object.fromEntries(Object.entries(latest.responses)
+        .filter(([itemId]) => !latestOver(itemId) && !submittedIds.has(itemId)));
       // The questions this device could not show travel with the submission:
       // the server re-checks each one and never counts it against the student.
       const unavailableItems = Object.fromEntries(Object.entries(unavailable)
@@ -524,6 +577,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
         .map(([itemId, classification]) => [itemId, { classification }]));
       const result = await submitSectionRecovery({ assignmentId: assignment.id, section: entry.section, responses: sendable, unavailableItems });
       if (result?.record) onRecord(entry.section, result.record);
+      drafts.clearLocal();
       clearSaved(responsesKey);
       clearSaved(stepsKey);
       clearSaved(unavailableKey);
@@ -535,7 +589,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
           ? 'The final submission date has passed, so this Recovery can no longer be submitted. Your original score stands.'
           : code === 'recovery-held'
             ? 'Your final submission date has passed, so your teacher will finish your Recovery. The answers you already submitted are kept.'
-            : 'Your Recovery could not be submitted right now. Your answers are saved here — try again.');
+            : 'Your Recovery could not be submitted right now. Your saved answers are kept — try again.');
     } finally {
       setSubmitting(false);
     }
@@ -600,7 +654,14 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
     );
   }
 
-  const currentOver = isOver(stepRecords[current.itemId]);
+  const currentOver = itemOver(current.itemId);
+  const currentSavedWhere = drafts.savedWhere[current.itemId] || null;
+  // An answer typed on another Chromebook: this device's inputs never saw
+  // it, so the student is shown what is saved (their own answer, nothing
+  // about whether it is right).
+  const savedElsewhere = !currentOver && drafts.fromAccount[current.itemId]
+    ? describeSavedRecoveryAnswer(drafts.fromAccount[current.itemId])
+    : null;
   const currentSubmitted = submittedIds.has(current.itemId);
   const currentUnavailable = Boolean(unavailable[current.itemId]) && !responses[current.itemId];
   return (
@@ -614,8 +675,9 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
       <nav aria-label="Recovery questions" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {items.map((item, index) => {
           const active = item.itemId === current.itemId;
-          const over = isOver(stepRecords[item.itemId]);
+          const over = itemOver(item.itemId);
           const saved = Boolean(responses[item.itemId]) && !over;
+          const where = saved ? drafts.savedWhere[item.itemId] || RECOVERY_ANSWER_SAVED_WHERE.SAVING : null;
           const submitted = submittedIds.has(item.itemId);
           const notShown = Boolean(unavailable[item.itemId]) && !saved;
           return (
@@ -623,9 +685,9 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
               key={item.itemId}
               type="button"
               data-recovery-item={item.itemId}
-              data-recovery-item-state={submitted ? 'submitted' : notShown ? 'unavailable' : saved ? 'saved' : over ? 'over' : 'open'}
+              data-recovery-item-state={submitted ? 'submitted' : notShown ? 'unavailable' : saved ? SAVED_STATE[where] : over ? 'over' : 'open'}
               aria-current={active ? 'step' : undefined}
-              aria-label={`Question ${index + 1}${submitted ? ', already submitted' : notShown ? ', MathMaster could not grade this question' : saved ? ', answer saved' : over ? ', no tries left' : ''}`}
+              aria-label={`Question ${index + 1}${submitted ? ', already submitted' : notShown ? ', MathMaster could not grade this question' : saved ? SAVED_LABEL[where] : over ? ', no tries left' : ''}`}
               onClick={() => setPosition(index)}
               style={{
                 minWidth: 40,
@@ -649,8 +711,24 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
           ? ' · Already submitted.'
           : currentOver
             ? ' · Every try on this question is used, so it will count as incorrect.'
-            : responses[current.itemId] ? ' · Answer saved — you can change it until you submit.' : ''}
+            : ''}
       </p>
+      {!currentSubmitted && !currentOver && responses[current.itemId] && currentSavedWhere && (
+        <p
+          role="status"
+          data-recovery-saved-where={currentSavedWhere}
+          style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: currentSavedWhere === RECOVERY_ANSWER_SAVED_WHERE.ACCOUNT ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}
+        >
+          {RECOVERY_SAVED_COPY[currentSavedWhere]}
+        </p>
+      )}
+      {!currentSubmitted && savedElsewhere !== null && (
+        <p data-recovery-saved-elsewhere={current.itemId} style={{ ...panelStyle, margin: 0 }}>
+          {savedElsewhere
+            ? `Your saved answer: ${savedElsewhere}. To change it, answer again below and save.`
+            : 'Your saved work for this question is kept with your account. To change it, answer again below and save.'}
+        </p>
+      )}
       {currentUnavailable && (
         <p role="status" data-recovery-unavailable={current.itemId} style={{ ...panelStyle, margin: 0, fontWeight: 700 }}>
           {UNAVAILABLE_QUESTION_NOTICE}
@@ -676,7 +754,8 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
           activityRole={entry.section}
           activityPolicy={policy}
           maximumAttempts={maximumAttempts}
-          questionRecord={stepRecords[current.itemId] || null}
+          // Tries used up on another device: over here too, never fresh tries.
+          questionRecord={stepRecords[current.itemId] || (currentClosed ? { status: 'expired', attemptCount: maximumAttempts } : null)}
           onRendered={(delivery, rendered) => {
             renderedRef.current[delivery.fingerprint] = rendered;
             markShown(current.itemId);

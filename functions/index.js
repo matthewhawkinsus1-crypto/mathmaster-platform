@@ -15874,9 +15874,13 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     const claimed = request.data?.supportUsage && typeof request.data.supportUsage === "object"
       ? request.data.supportUsage
       : {};
-    const priorSupport = currentQuestion.supportReleased || {};
-    const hintReleased = Boolean(priorSupport.hintReleased) || Boolean(attemptSupport.support?.hint);
-    const reviewReleased = Boolean(priorSupport.reviewReleased) || Boolean(attemptSupport.solutionReview);
+    // Only support shown BEFORE this answer marks it; what this response
+    // releases (the review of a closed item, a hint after a second miss) is
+    // carried to the next attempt (mathPath.pathAttemptSupport).
+    const { used: supportBeforeAttempt, released: supportReleased } = mathPath.pathAttemptSupport({
+      priorSupport: currentQuestion.supportReleased || {},
+      attemptSupport,
+    });
     // ACCOMMODATION DELIVERY, reconciled.
     //
     // Three different facts, from three different places, deliberately kept
@@ -15905,9 +15909,9 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
 
     const supportUsage = {
       // Server-observed. Not accepted from the request.
-      hintUsed: hintReleased,
-      workedExampleUsed: reviewReleased,
-      scaffoldUsed: hintReleased,
+      hintUsed: supportBeforeAttempt.hintUsed,
+      workedExampleUsed: supportBeforeAttempt.workedExampleUsed,
+      scaffoldUsed: supportBeforeAttempt.scaffoldUsed,
       // Client-reported, but about the room rather than about the mathematics.
       teacherAssisted: Boolean(claimed.teacherAssisted),
       calculatorUsed: Boolean(claimed.calculatorUsed),
@@ -15939,7 +15943,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     let nextCurrentQuestion = {
       ...currentQuestion,
       attemptsUsed: attemptNumber,
-      supportReleased: { hintReleased, reviewReleased },
+      supportReleased,
     };
 
     // The routing decision. Only a FINALIZED question is evidence — attempts
