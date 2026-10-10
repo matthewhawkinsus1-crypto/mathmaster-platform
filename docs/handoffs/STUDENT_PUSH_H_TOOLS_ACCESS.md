@@ -48,6 +48,22 @@ which reproduced the bug on the parent commit); m11 needed one follow-up fix.
 | **R2-m4** "The DOL timer has ended" above "will be submitted automatically when time ends" after a teacher Close now | `src/platform/assessment/dolCloseCopy.js` `describeDolClose({status, teacherClosed, outcome})`: teacher-closed vs time-up wording, and the "when time ends" line only while the DOL is open. **Both strings live in `src/App.jsx`, so students see the fix once job G wires it** (below). | `dolCloseCopy.test.mjs`; `tests/browser/dolCloseCopy.mjs`. |
 
 
+## Independent review of #463 (41d88b0) — fixed
+
+| Finding | Fix |
+| --- | --- |
+| MAJOR 1: diagnostic Path items got Vocabulary / Read aloud (the student payload has no `pathRole`) | `pathUniversalDesignRole` withholds them when `session.diagnosing`; tested against the real `buildSanitizedQuestion` output. |
+| MAJOR 2: the "values have not changed" confirm opened behind Work View and took focus there | It sits above Work View and its calculator; `tests/browser/unchangedConfirmWorkView.mjs` (red at the old z-index). |
+| 3: the S5 reveal scrolled the page under Work View | Skips while `html[data-work-view-open]`, and only reacts to a bar actually drawn over the control (hit test); `hostAccessibility.mjs` measures 30–33 scrolls of 40 Tabs without the guards, 0 with. |
+| 4: the productive-struggle scaffold trapped Tab for the whole page | A focused, named region (the work beneath is already inert): the support tray, calculator and navigation stay reachable. |
+| 5: browser proofs relied on fixed sleeps | `staleTabRecord` and `toolKeyboardThreePlane` wait for outcomes. |
+| 6: at 320px the work bar overflowed by ~12px | Tools narrow to 32px below 340px; `workBarPrimaryLabel.mjs` adds 320×640. |
+| 7: housekeeping | Orphaned `SolverWorkspaceFrame.css` deleted; KEYBOARD_SWEEP no longer cites it; the codemod never rewrites the PDF generators and skips a missing `src/app` with a note. |
+
+**Visible to everyone (intended):** Live Challenge's answer card is no longer
+a screen-tall frame at the default text size on a phone — the clipped,
+viewport-height frame now belongs to the phone question layout alone.
+
 ## Files outside job H's lane
 
 | File | Owner | Change |
