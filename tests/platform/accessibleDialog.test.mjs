@@ -82,13 +82,13 @@ test('Dialog wires the rules to the element and restores focus', () => {
   assert.match(region(source, 'const Dialog = forwardRef', 'export default', 'Dialog'), /<Tag ref=\{setRef\} role=\{role\} aria-modal="true" \{\.\.\.rest\}>/);
 });
 
-// Every aria-modal dialog goes through the primitive. QuestionEngine's is
-// job A's file this wave (handoff: docs/handoffs/STUDENT_PUSH_F_ACCESSIBILITY.md).
+// Every aria-modal dialog goes through the primitive (QuestionEngine's two
+// joined it in wave 2, job H — no allow-list beyond the primitive itself).
 test('no hand-rolled aria-modal outside the primitive', async () => {
   const { readdirSync, statSync } = await import('node:fs');
   const path = await import('node:path');
   const root = new URL('../../src/', import.meta.url).pathname;
-  const allowed = new Set(['ui/Dialog.jsx', 'QuestionEngine.jsx']);
+  const allowed = new Set(['ui/Dialog.jsx']);
   const offenders = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
@@ -182,4 +182,25 @@ test('Work View, the LMR graph, the badge and the Scratchpad still close on Esca
   const pad = tagOf('src/ScratchpadOverlay.jsx', 'aria-label="Full-screen scratchpad"');
   assert.match(pad, /\bonClose=\{requestClose\}/, 'the Scratchpad asks before Escape discards strokes');
   assert.match(pad, /closeOnEscape=\{!saving\}/, 'and only a save in flight holds Escape');
+});
+
+// Wave 2 (job H): QuestionEngine's two modals keep their behaviour on the
+// primitive. The "values have not changed" confirm had no accessible name, no
+// Escape and no initial focus; it is named by its heading, Escape = Go Back,
+// and it opens on Go Back (submitting again spends an attempt). The
+// productive-struggle scaffold closes only by answering it — no onClose, so
+// Escape does nothing, as before.
+test('QuestionEngine: the unchanged-values confirm and the scaffold are Dialogs', () => {
+  const code = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(code, /^import Dialog from '\.\/ui\/Dialog\.jsx';$/m, 'imported next to its use');
+  const confirm = dialogTags(code).find((tag) => tag.includes('aria-labelledby={unchangedConfirmTitleId}')) || '';
+  assert.ok(confirm, 'the confirm is a Dialog named by its heading');
+  assert.match(code, /<h2 id=\{unchangedConfirmTitleId\}[^>]*>Your values have not changed<\/h2>/);
+  assert.match(confirm, /onClose=\{\(\) => setUnchangedConfirmOpen\(false\)\}/, 'Escape = Go Back');
+  assert.doesNotMatch(confirm, /closeOnEscape/);
+  assert.match(confirm, /initialFocusRef=\{unchangedGoBackRef\}/);
+  assert.match(code, /<button ref=\{unchangedGoBackRef\} type="button" onClick=\{\(\) => setUnchangedConfirmOpen\(false\)\}[^>]*>Go Back<\/button>/, 'initial focus is the safe choice');
+  const scaffold = dialogTags(code).find((tag) => tag.includes('aria-label="Productive struggle scaffold"')) || '';
+  assert.ok(scaffold, 'the scaffold is a Dialog');
+  assert.doesNotMatch(scaffold, /onClose=/, 'the scaffold cannot be dismissed without answering');
 });

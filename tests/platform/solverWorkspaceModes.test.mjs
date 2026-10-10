@@ -5,19 +5,25 @@ import { readFile } from 'node:fs/promises';
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
-test('solver workspace offers normal, enlarged and focus modes without duplicating solver children', async () => {
-  const source = await read('src/components/common/SolverWorkspaceFrame.jsx');
-  assert.match(source, /useState\('normal'\)/);
-  assert.match(source, /openMode\('enlarged'/);
-  assert.match(source, /openMode\('focus'/);
-  assert.match(source, /event\.key === 'Escape'/);
-  assert.match(source, /closest\('\.mathmaster-question-engine'\)/);
-  assert.match(source, /dataset\.solverWorkspaceMode/);
-  assert.match(source, /document\.body\.style\.overflow/);
-  assert.match(source, /Return to assignment/);
-  assert.match(source, /Fit work/);
-  assert.equal((source.match(/\{children\}/g) || []).length, 1);
-  assert.doesNotMatch(source, /cloneElement|createPortal/);
+// The legacy SolverWorkspaceFrame (a fullscreen shell that set role="dialog"
+// and aria-modal on the engine by hand) was never rendered after Work View
+// replaced it, so wave 2 (job H) deleted it rather than re-plumb its modal.
+// Universal Work View (EnlargeableFigure on useModalDialog) is the one shell.
+test('the legacy solver frame is gone and nothing imports it', async () => {
+  const { existsSync, readdirSync, statSync, readFileSync } = await import('node:fs');
+  const path = await import('node:path');
+  assert.equal(existsSync(new URL('../../src/components/common/SolverWorkspaceFrame.jsx', import.meta.url)), false);
+  const root = new URL('../../src/', import.meta.url).pathname;
+  const importers = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const file = path.join(dir, name);
+      if (statSync(file).isDirectory()) { walk(file); continue; }
+      if (/\.jsx?$/.test(name) && /SolverWorkspaceFrame(?:\.jsx)?['"]/.test(readFileSync(file, 'utf8'))) importers.push(file);
+    }
+  };
+  walk(root);
+  assert.deepEqual(importers, []);
 });
 
 test('QuestionEngine owns the shared solver workspace state and resets it per question', async () => {
@@ -30,25 +36,6 @@ test('QuestionEngine owns the shared solver workspace state and resets it per qu
   assert.match(source, /onWorkspaceModeChange:\s*setSolverWorkspaceMode/);
   assert.match(source, /workspaceMode=\{solverWorkspaceMode\}/);
   assert.match(source, /!solverWorkspaceActive\s*&&\s*guidedCoach/);
-});
-
-test('the shared frame reports mode changes upward while remaining the one mounted solver shell', async () => {
-  const source = await read('src/components/common/SolverWorkspaceFrame.jsx');
-
-  assert.match(source, /onWorkspaceModeChange\s*=\s*null/);
-  assert.match(source, /onWorkspaceModeChange\?\.\(mode\)/);
-  assert.match(source, /onWorkspaceModeChange\?\.\('normal'\)/);
-  assert.equal((source.match(/\{children\}/g) || []).length, 1);
-});
-
-test('workspace Task access is temporary instead of occupying persistent top-bar space', async () => {
-  const frame = await read('src/components/common/SolverWorkspaceFrame.jsx');
-
-  assert.match(frame, /const \[taskOpen, setTaskOpen\] = useState\(false\)/);
-  assert.match(frame, /aria-controls="solver-workspace-task-panel"/);
-  assert.match(frame, /id="solver-workspace-task-panel"/);
-  assert.match(frame, /setTaskOpen\(false\)/);
-  assert.doesNotMatch(frame, /<span title=\{taskText\}>\{taskText\}<\/span>/);
 });
 
 test('Universal Work View reuses assignment Undo, Scratchpad, Help, and final Submit actions', async () => {

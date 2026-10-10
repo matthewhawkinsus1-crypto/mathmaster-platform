@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CHECKPOINT_DEBOUNCE_MS, responseSignature, studentChangedResponse } from './platform/performance/responseCheckpoint.js';
 import GraphLine from './GraphLine';
 import NumberLine from './NumberLine';
@@ -61,6 +61,7 @@ import { buildModelingLabResponse, gradeModelingLabEvaluation } from '../functio
 import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } from './tools/shared/usePersistentToolState.js';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
+import Dialog from './ui/Dialog.jsx';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
 import QuestionResolutionBoundary, { QuestionResolutionFailure, questionFailureContext, recordQuestionResolutionDiagnostic } from './QuestionResolutionBoundary';
 import QuestionSupplementBoundary from './QuestionSupplementBoundary';
@@ -487,6 +488,10 @@ function QuestionEngineBody({
   const [scratchpadDataUrl, setScratchpadDataUrl] = useState('');
   const [scratchpadPages, setScratchpadPages] = useState(null);
   const [unchangedConfirmOpen, setUnchangedConfirmOpen] = useState(false);
+  // The "values have not changed" confirm: named by its heading, opens on
+  // Go Back (the safe choice), Escape = Go Back, focus returns to Submit.
+  const unchangedConfirmTitleId = useId();
+  const unchangedGoBackRef = useRef(null);
   // HELP ALREADY HAD ON THIS VERSION OF THE QUESTION SURVIVES A REMOUNT
   // (supportUseMemory.js): App remounts the question per index, and a hint
   // revealed before leaving must still mark the next attempt as supported.
@@ -2398,7 +2403,9 @@ function QuestionEngineBody({
         )}
 
         {scaffoldRequired && (
-          <div role="dialog" aria-modal="true" aria-label="Productive struggle scaffold" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
+          // No onClose: the scaffold closes only by choosing the right step
+          // (it costs no attempt), so Escape does nothing — as before.
+          <Dialog aria-label="Productive struggle scaffold" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
             <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
               <div style={{ fontSize: '12px', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
               <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}>{scaffold.prompt}</h2>
@@ -2409,7 +2416,7 @@ function QuestionEngineBody({
               </div>
               {scaffoldMessage && <p style={{ margin: '14px 0 0', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>{scaffoldMessage}</p>}
             </div>
-          </div>
+          </Dialog>
         )}
 
         {isCorrect && showOutcomeFeedback && (
@@ -2629,14 +2636,14 @@ function QuestionEngineBody({
 
       {unchangedConfirmOpen && (
         <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 12000, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div role="dialog" aria-modal="true" style={{ width: 'min(520px, 94vw)', padding: '24px', borderRadius: '14px', background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', textAlign: 'left' }}>
-            <h2 style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Your values have not changed</h2>
+          <Dialog aria-labelledby={unchangedConfirmTitleId} onClose={() => setUnchangedConfirmOpen(false)} initialFocusRef={unchangedGoBackRef} style={{ width: 'min(520px, 94vw)', padding: '24px', borderRadius: '14px', background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', textAlign: 'left' }}>
+            <h2 id={unchangedConfirmTitleId} style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Your values have not changed</h2>
             <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>This multipart response is identical to the previous submission. You may still use another attempt with the same values. Continue submitting?</p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-              <button type="button" onClick={() => setUnchangedConfirmOpen(false)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 'bold' }}>Go Back</button>
+              <button ref={unchangedGoBackRef} type="button" onClick={() => setUnchangedConfirmOpen(false)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 'bold' }}>Go Back</button>
               <button type="button" onClick={performSubmit} style={{ padding: '10px 15px', borderRadius: '8px', border: 'none', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Submit Unchanged Values</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
