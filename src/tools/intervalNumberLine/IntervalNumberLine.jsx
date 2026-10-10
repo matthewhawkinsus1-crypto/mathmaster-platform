@@ -702,7 +702,12 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               background: 'var(--mm-surface)',
               cursor: dragging ? 'grabbing' : 'crosshair',
               touchAction: 'none',
-                        }}
+              // The line is a tab stop, so a mouse or touch press focuses it.
+              // Without this, the browser's default :focus ring would appear
+              // on every click. Keyboard focus still gets the ring: the
+              // global :focus-visible rule in index.css is !important.
+              outline: 'none',
+            }}
           >
             <line
               x1={PAD - 14}

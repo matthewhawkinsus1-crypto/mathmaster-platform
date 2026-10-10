@@ -109,6 +109,7 @@ test('Shift moves a bigger step; an off-grid typed endpoint moves to the next gr
   // An on-grid value moves exactly one step each way.
   assert.equal(pressOnEndpoint(start(), MIN, key('ArrowRight')).built[0].min, -1);
   assert.equal(pressOnEndpoint(start(), MIN, key('ArrowDown')).built[0].min, -3);
+  assert.equal(pressOnEndpoint(start(), MIN, key('ArrowUp')).built[0].min, -1);
 });
 
 test('the keyboard clamps exactly as the drag clamps: the ends of the line, and a piece one step wide', () => {

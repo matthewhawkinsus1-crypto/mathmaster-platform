@@ -62,6 +62,12 @@ const tabTo = async (page, want, what, { back = false, limit = 80 } = {}) => {
 const announcement = (page) => page.locator('[data-number-line-endpoint-announcement]').first().textContent();
 const endpointLabels = (page) => page.locator(`${LINE} g[role="button"]`).evaluateAll((els) => els.map((el) => el.getAttribute('aria-label').split('.')[0]));
 const grades = (page) => page.evaluate(() => window.__KB_GRADES__.filter((g) => g.kind === 'grade'));
+/* The focused element's computed outline, and whether it matches :focus-visible. */
+const focusRing = (page) => page.evaluate(() => {
+  const el = document.activeElement;
+  const cs = getComputedStyle(el);
+  return { tag: el.tagName.toLowerCase(), style: cs.outlineStyle, width: parseFloat(cs.outlineWidth) || 0, focusVisible: el.matches(':focus-visible') };
+});
 const graphText = (page) => page.locator('p[aria-live="polite"]', { hasText: 'Your graph' }).first().textContent();
 
 for (const [width, height] of [[1366, 768], [390, 844]]) {
@@ -76,6 +82,8 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     const line = await tabTo(page, (el) => el.tag === 'svg' && el.role === 'application', 'the number line');
     assert.match(line.label, /arrow keys/i, `${at}: the line says how to use it from the keyboard`);
     assert.equal(await page.locator('[data-number-line-marker]').count(), 1, `${at}: the placement marker shows on keyboard focus`);
+    const keyRing = await focusRing(page);
+    assert.ok(keyRing.focusVisible && keyRing.style !== 'none' && keyRing.width >= 2, `${at}: keyboard focus on the line draws a focus ring (${JSON.stringify(keyRing)})`);
     for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowLeft');
     assert.match(await announcement(page), /^Marker at −3\./, `${at}: the marker position is announced`);
     await page.keyboard.press('Enter');
@@ -147,7 +155,15 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
       const box = await svg.boundingBox();
       await mouse.mouse.click(box.x + (vbX(v) / 620) * box.width, box.y + box.height / 2);
     };
+    // A pointer press must look exactly as it did before the line became a tab
+    // stop: it focuses the svg, but draws no focus ring and no marker.
+    const beforeClick = await svg.evaluate((el) => getComputedStyle(el).outlineStyle);
     await clickAt(-3);
+    const clickRing = await focusRing(mouse);
+    assert.equal(clickRing.tag, 'svg', `${at}: the click focused the line (precondition for the ring check)`);
+    assert.equal(clickRing.focusVisible, false, `${at}: a click is not :focus-visible`);
+    assert.equal(clickRing.style, beforeClick, `${at}: a mouse click draws no focus ring on the line (${JSON.stringify(clickRing)})`);
+    assert.equal(clickRing.style, 'none', `${at}: the line has no outline after a click`);
     await mouse.getByRole('button', { name: '○ Open' }).click();
     await clickAt(5);
     assert.deepEqual(await endpointLabels(mouse), ['Closed endpoint at −3', 'Open endpoint at 5']);
