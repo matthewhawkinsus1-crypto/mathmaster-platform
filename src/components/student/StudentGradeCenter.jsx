@@ -95,7 +95,9 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
         }}
       >
         <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>{summary.graded} graded</li>
-        <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>{summary.missing} missing</li>
+        {/* Red only when something IS missing: "0 missing" is good news and
+            reads as neutral (job H). */}
+        <li data-missing-count={summary.missing} style={{ padding: '6px 10px', borderRadius: 999, ...(summary.missing > 0 ? { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' } : { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }) }}>{summary.missing} missing</li>
         <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{summary.pending} pending</li>
       </ul>
 
