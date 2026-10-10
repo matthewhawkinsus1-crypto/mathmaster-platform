@@ -73,25 +73,53 @@ const plainNumber = (value) => {
  * ({ typed }) — the bridge's boxes are read with Number(), so a fraction is
  * typed as its decimal:
  *   decimal   2.5     exact in at most 4 places
- *   fraction  7/3     exact; typed 2.3333
- *   approx    4.3219  rounded to 4 places (the grader allows 0.01)
+ *   fraction  7/3     exact; typed 2.3333 (1/216 too: 6⁻³)
+ *   approx    4.3219  rounded to 4 places, or to 4 significant figures
+ *                     below 0.1 (0.003162): either way within 0.05% of the
+ *                     value, so a logarithm of it is within 0.0005/ln(b) of
+ *                     the exponent; the grader allows 0.01
+ *
+ * "Exact" is to floating-point error — 16 ulps, or 1e-14 near 0 so that a
+ * difference that cancels (log₁₀(1000) − 3) is 0. Past 10⁶ only a whole
+ * number can be told apart from a nearby 4-place decimal at that scale:
+ * 10^7.5 ≈ 31622776.6017, not =. A value known to be nonzero (a power) whose
+ * 4 places are 0 is never written 0: 10⁻¹² gives null, not log₁₀(0).
  */
-const shown = (value) => {
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const nearValue = (candidate, value) => Math.abs(candidate - value) <= Math.max(1e-14, 16 * Number.EPSILON * Math.abs(value));
+const shown = (value, { nonzero = false } = {}) => {
   if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) >= LIMIT) return null;
-  const near = (candidate) => Math.abs(candidate - value) <= 1e-9 * Math.max(1, Math.abs(value));
+  const near = (candidate) => nearValue(candidate, value);
   const short = Number(value.toFixed(4));
   const shortText = plainNumber(short);
   if (shortText === null) return null;
-  if (near(short)) return { value: short, tex: shortText, typed: shortText, exact: true, kind: 'decimal' };
-  for (let denominator = 2; denominator <= 64; denominator += 1) {
-    const numerator = Math.round(value * denominator);
-    if (near(numerator / denominator)) {
-      return { value, tex: `${numerator < 0 ? '-' : ''}\\frac{${Math.abs(numerator)}}{${denominator}}`, typed: shortText, exact: true, kind: 'fraction' };
+  // A tiny nonzero value would be stated as "= 0" or "≈ 0": nothing honest
+  // to show. Only a difference that cancels to rounding error is 0.
+  if (short === 0 && (nonzero || !near(0))) return null;
+  const whole = Math.abs(value) < 1e6 ? short : Math.round(value);
+  if (near(whole)) return { value: whole, tex: plainNumber(whole), typed: plainNumber(whole), exact: true, kind: 'decimal' };
+  const fraction = (numerator, denominator) => ({
+    value, tex: `${numerator < 0 ? '-' : ''}\\frac{${Math.abs(numerator)}}{${denominator}}`, typed: shortText, exact: true, kind: 'fraction',
+  });
+  // Past 1000 a fraction is not an easier read, and a large value has many
+  // fractions within rounding error of it (10^5.5 is not 113525768/359).
+  if (Math.abs(value) < 1000) {
+    for (let denominator = 2; denominator <= 64; denominator += 1) {
+      const numerator = Math.round(value * denominator);
+      if (near(numerator / denominator)) return fraction(numerator, denominator);
+    }
+    // 1/d for an exact 4-place d: a negative power, 6⁻³ = 1/216, 1.5⁻⁴ = 16/81.
+    const reciprocal = Number((1 / value).toFixed(4));
+    if (reciprocal !== 0 && nearValue(reciprocal, 1 / value)) {
+      const top = 10000;
+      const bottom = Math.round(reciprocal * 10000);
+      const divisor = gcd(top, Math.abs(bottom));
+      if (Math.abs(bottom / divisor) <= 1e6) return fraction(Math.sign(bottom) * (top / divisor), Math.abs(bottom) / divisor);
     }
   }
-  // A tiny nonzero value would be stated as "≈ 0": nothing honest to show.
-  if (short === 0) return null;
-  return { value, tex: shortText, typed: shortText, exact: false, kind: 'approx' };
+  const roundedText = plainNumber(Math.abs(value) < 0.1 ? Number(value.toPrecision(4)) : short);
+  if (roundedText === null) return null;
+  return { value, tex: roundedText, typed: roundedText, exact: false, kind: 'approx' };
 };
 
 // An authored constant, written exactly as the question gives it.
@@ -179,7 +207,7 @@ const buildEquivalentForms = (question) => {
   const values = equivalentExpLogValues({ base: Number(question.base ?? 2), exponent: Number(question.exponent ?? 3) });
   const base = authored(values.base);
   const exponent = authored(values.exponent);
-  const result = shown(values.value);
+  const result = shown(values.value, { nonzero: true });
   if (!base || !exponent || !result) return null;
   const power = powerTex(base, exponent.tex);
   const log = logTex(base, result.tex);
@@ -268,7 +296,7 @@ const buildSolveLogarithmic = (question) => {
   const m = authored(spec.m);
   const c = authored(spec.c);
   const result = authored(spec.result);
-  const argument = shown(solution.argumentValue);
+  const argument = shown(solution.argumentValue, { nonzero: true });
   const x = shown(solution.x);
   if (!base || !m || !c || !result || !argument || !x) return null;
   const argumentTex = linearTex(m, c);
@@ -331,10 +359,13 @@ const unscaledTex = (fn, tex, bare) => {
   if (fn.a.value === -1) return bare ? `-${tex}` : `-(${tex})`;
   return `\\frac{${tex}}{${fn.a.tex}}`;
 };
-const inverseTex = (fn, inputTex) => {
+// (input − k)/a, the ratio the logarithm takes.
+const ratioOfTex = (fn, inputTex) => {
   const top = fn.k.value === 0 ? inputTex : `${inputTex} ${fn.k.value > 0 ? '-' : '+'} ${absTex(fn.k)}`;
-  const inside = unscaledTex(fn, top, top === 'x');
-  const log = logTex(fn.base, inside);
+  return unscaledTex(fn, top, top === 'x');
+};
+const inverseTex = (fn, inputTex) => {
+  const log = logTex(fn.base, ratioOfTex(fn, inputTex));
   return fn.h.value === 0 ? log : `${log} ${signedTerm(fn.h)}`;
 };
 const hTail = (fn) => (fn.h.value === 0 ? '' : ` ${signedTerm(fn.h)}`);
@@ -342,8 +373,9 @@ const hTail = (fn) => (fn.h.value === 0 ? '' : ` ${signedTerm(fn.h)}`);
 // "f(3) = 2 · 2^{3 − 1} − 3 = 2 · 2^{2} − 3 = 2 · 4 − 3 = 5"
 const evaluateForward = (fn, input) => {
   const exponent = shown(input.value - fn.h.value);
-  const powerValue = shown(fn.base.value ** (input.value - fn.h.value));
-  const output = shown(transformedExponentialValue(fn.spec, input.value));
+  const powerValue = shown(fn.base.value ** (input.value - fn.h.value), { nonzero: true });
+  // With no shift k, f(x₀) is a times a power: never 0.
+  const output = shown(transformedExponentialValue(fn.spec, input.value), { nonzero: fn.k.value === 0 });
   if (!exponent || !powerValue || !output) return null;
   const tex = chain(`f(${input.tex})`, [
     [fTex(fn, input.tex), true],
@@ -355,11 +387,14 @@ const evaluateForward = (fn, input) => {
 };
 
 // f⁻¹(f(x₀)) undone back to x₀: the ratio (f(x₀) − k)/a is b^(x₀ − h).
+// A rounded f(x₀) is written f(x₀): near the asymptote its 4 places can
+// move f⁻¹ of it off x₀ in the third place, so the chain would not hold.
 const inverseOfForward = (fn, input, forward) => {
   const ratioTex = forward.powerValue.exact ? forward.powerValue.tex : powerTex(fn.base, forward.exponent.tex);
-  return chain(`f^{-1}\\left(${forward.output.tex}\\right)`, [
-    [inverseTex(fn, forward.output.tex), true],
-    [`${logTex(fn.base, ratioTex)}${hTail(fn)}`, forward.output.exact],
+  const outputTex = forward.output.exact ? forward.output.tex : `f(${input.tex})`;
+  return chain(`f^{-1}\\left(${outputTex}\\right)`, [
+    [inverseTex(fn, outputTex), true],
+    [`${logTex(fn.base, ratioTex)}${hTail(fn)}`, true],
     [`${forward.exponent.tex}${hTail(fn)}`, forward.exponent.exact],
     [input.tex, true],
   ]);
@@ -417,7 +452,9 @@ const buildInverse = (question) => {
     ],
     steps: [
       `Evaluate f at the given input: $${forward.tex}$. So the point $(${input.tex}, ${pointY})$ is on the graph of f.`,
-      `An inverse sends every output back to the input it came from, so $f^{-1}(${y.tex}) ${relation(y)} ${input.tex}$, the input you started with.`,
+      y.exact
+        ? `An inverse sends every output back to the input it came from, so $f^{-1}(${y.tex}) = ${input.tex}$, the input you started with.`
+        : `An inverse sends every output back to the input it came from, so $f^{-1}(f(${input.tex})) = ${input.tex}$, the input you started with. The box writes $f(${input.tex})$ rounded, as ${label}.`,
       inverseDerivationStep(fn),
       `Substitute to confirm: $${inverseOfForward(fn, input, forward)}$.`,
       `The power $${powerX}$ is always positive and gets as close to 0 as you like without reaching it, so $f(x) = ${fTex(fn)}$ gets as close to $${k.tex}$ as you like but never equals it: f has the horizontal asymptote $y = ${k.tex}$. Reflecting the graph across $y = x$ turns that horizontal line into the vertical line $x = ${k.tex}$, the vertical asymptote of $f^{-1}$.`,
@@ -458,16 +495,20 @@ const buildComposition = (question) => {
   const back = shown(inverseLogValue(fn.spec, start.value));
   if (!logValue || !back) return null;
   const inverseStart = `f^{-1}\\left(${start.tex}\\right)`;
+  // A rounded ratio is never written: its logarithm would not be the next
+  // number to 4 places (log₂(0.0625) is −4, not −3.9992). The ratio stays
+  // (y − k)/a, exactly.
+  const ratioTex = ratio.exact ? ratio.tex : ratioOfTex(fn, start.tex);
   const inverseChain = chain(inverseStart, [
     [inverseTex(fn, start.tex), true],
-    [`${logTex(fn.base, ratio.tex)}${hTail(fn)}`, ratio.exact],
+    [`${logTex(fn.base, ratioTex)}${hTail(fn)}`, true],
     [`${logValue.tex}${hTail(fn)}`, logValue.exact],
     [back.tex, back.exact],
   ]);
   const forwardChain = chain(`f\\left(${inverseStart}\\right)`, [
     [fTex(fn, inverseStart), true],
-    [`${scaledTex(fn, powerTex(fn.base, logTex(fn.base, ratio.tex)))}${tailTex(fn)}`, ratio.exact],
-    [`${scaledTex(fn, ratio.tex)}${tailTex(fn)}`, true],
+    [`${scaledTex(fn, powerTex(fn.base, logTex(fn.base, ratioTex)))}${tailTex(fn)}`, true],
+    [`${scaledTex(fn, ratio.exact ? ratio.tex : paren(ratioTex))}${tailTex(fn)}`, true],
     [start.tex, true],
   ]);
   const shownY = fromScreen ? `$y = ${start.tex}$, the value on the screen` : `$y = ${start.tex}$`;

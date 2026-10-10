@@ -524,7 +524,10 @@ const buildGraphConnection = (question) => {
   const w = makeWriter();
   const t = w.num(root);
   const lead = sameValue(leading, 1) ? '' : sameValue(leading, -1) ? '-' : w.num(leading);
-  const P = `${lead}${w.product(entries.map((entry) => ({ root: entry.root, exponent: entry.multiplicity })))}`;
+  // A lone factor is written bare ("x - 2"); after a leading coefficient it
+  // needs its parentheses: 2(x + 1), not 2x + 1.
+  const factors = w.product(entries.map((entry) => ({ root: entry.root, exponent: entry.multiplicity })));
+  const P = `${lead}${lead && factors.includes(' ') && !factors.includes('(') ? `(${factors})` : factors}`;
   const targetFactor = w.factorPower(root, multiplicity);
   const even = multiplicity % 2 === 0;
   const degreeEven = degree % 2 === 0;
@@ -592,6 +595,7 @@ const groupRoots = (roots) => {
   return groups;
 };
 const valueAt = (groups, x) => groups.reduce((total, { root, exponent }) => total * (x - root) ** exponent, 1);
+const wholeGcd = (a, b) => (b ? wholeGcd(b, a % b) : Math.abs(a));
 const fractionText = (numerator, denominator) => (denominator === '1' ? numerator : `\\frac{${numerator}}{${denominator}}`);
 
 const buildRationalFeatures = (question) => {
@@ -681,7 +685,17 @@ const buildRationalFeatures = (question) => {
     const top = valueAt(numeratorGroups, target);
     const bottom = valueAt(denominatorGroups, target);
     if (isZero(top) || isZero(bottom)) return null;
-    const sentence = `Substituting $x = ${check.num(target)}$: $f(${check.num(target)}) = \\frac{${check.num(top)}}{${check.num(bottom)}}$, a defined number that is not 0.`;
+    // The quotient too, when it terminates: f(5) = 20/4 = 5, not 20/4 left as is.
+    // Else, between whole numbers, in lowest terms: 18/27 = 2/3.
+    const quotient = makeWriter();
+    const quotientText = quotient.num(top / bottom);
+    let value = quotient.exact() && !sameValue(bottom, 1) ? ` = ${quotientText}` : '';
+    if (!value && Number.isInteger(top) && Number.isInteger(bottom)) {
+      const divisor = wholeGcd(top, bottom);
+      const [n, d] = [Math.abs(top) / divisor, Math.abs(bottom) / divisor];
+      if (divisor !== 1 || bottom < 0) value = ` = ${top * bottom < 0 ? '-' : ''}\\frac{${n}}{${d}}`;
+    }
+    const sentence = `Substituting $x = ${check.num(target)}$: $f(${check.num(target)}) = \\frac{${check.num(top)}}{${check.num(bottom)}}${value}$, a defined number that is not 0.`;
     why = check.exact() ? sentence : `Substituting $x = ${t}$: neither the numerator nor the denominator is 0, so $f(${t})$ is a defined number that is not 0.`;
   }
 
