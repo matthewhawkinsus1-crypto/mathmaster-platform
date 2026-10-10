@@ -74,6 +74,11 @@ const reachable = async (page, locator) => {
   return Boolean(box) && box.y >= 0 && box.y < viewport.height && box.x >= -1 && box.x + Math.min(box.width, 40) <= viewport.width + 1;
 };
 
+const noSidewaysScroll = async (page, where) => {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check(overflow <= 1, `${where}: nothing scrolls sideways`, `${overflow}px`);
+};
+
 for (const device of DEVICES) {
   /* ------------------------------------------------ practice, a plain key */
   {
@@ -164,6 +169,31 @@ for (const device of DEVICES) {
       check((await miss.getAttribute('data-miss-feedback')) === 'classifier' && /moved a term/.test(await miss.textContent()), `${device.name}: the server's classifier names the error (kept the sign of a moved term)`, await miss.textContent().catch(() => ''));
     }
     await context.close();
+  }
+
+  /* ------------- the families job A left as stubs (student push J) */
+  for (const which of ['vertex', 'absval', 'transform']) {
+    const { page, context } = await open(device, `q=${which}&role=practice`);
+    await page.waitForFunction(() => Array.isArray(window.__mmAnswers) && window.__mmAnswers.length > 0);
+    const answers = (await page.evaluate(() => window.__mmAnswers)).map((value) => value.replace(/\s+/g, '')).filter((value) => value.length > 1 || /\d/.test(value));
+    const hint = page.locator('[data-hint-control]');
+    check(await hint.isVisible(), `${device.name} ${which}: a Hint control`);
+    await hint.click();
+    const panel = page.locator('.mathmaster-hint-panel');
+    await panel.locator('button', { hasText: 'Show a hint' }).click();
+    const family = panel.locator('li[data-hint-source="family"]').first();
+    check(await family.count() === 1, `${device.name} ${which}: the first hint comes from the question's family`);
+    const hintText = (await family.textContent().catch(() => '')).replace(/\s+/g, '');
+    check(hintText.length > 10 && answers.every((value) => !hintText.includes(value)), `${device.name} ${which}: the hint names no answer`, hintText.slice(0, 160));
+    check(await reachable(page, family), `${device.name} ${which}: the hint is on screen`);
+    await noSidewaysScroll(page, `${device.name} ${which}`);
+    await page.screenshot({ path: path.join(ARTIFACTS, `family-${which}-${device.name}.png`), fullPage: true });
+    await context.close();
+    const dol = await open(device, `q=${which}&role=dol`);
+    const dolHint = dol.page.locator('[data-hint-control]');
+    check(!(await dolHint.isVisible().catch(() => false)) || (await dolHint.getAttribute('aria-label')) === 'Ask my teacher', `${device.name} ${which} dol: no Hint control`);
+    check((await dol.page.locator('.mathmaster-hint-panel li').count()) === 0, `${device.name} ${which} dol: no hint in the document`);
+    await dol.context.close();
   }
 
   /* -------------------------------------------------------------- DOL */
