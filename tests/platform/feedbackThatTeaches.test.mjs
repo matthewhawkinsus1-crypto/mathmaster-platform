@@ -328,6 +328,16 @@ test('4. a worked sibling is never this question in disguise', () => {
   assert.equal(similarExampleIsSafe(question, { prompt: question.prompt, steps: ['…'], answer: '5' }), false, 'same prompt');
   assert.equal(similarExampleIsSafe(question, { prompt: 'Solve 2x = 10.', steps: ['Check: 4 is not it.'], answer: '5' }), false, 'a step that names this answer');
   assert.equal(similarExampleIsSafe(question, null), false);
+  // The same VALUE written another way is still this question's answer — the
+  // numeric comparison, not the text one, catches these (review test gap).
+  const steps = ['Subtract 1 from both sides.', 'Divide both sides by 2.'];
+  assert.equal(similarExampleIsSafe(question, { prompt: 'Solve 2x + 1 = 9.', steps, answer: '4.0' }), false, '4.0 is 4');
+  assert.equal(similarExampleIsSafe(question, { prompt: 'Solve 2x + 1 = 9.', steps, answer: '8/2' }), false, '8/2 is 4');
+  assert.equal(similarExampleIsSafe(question, { prompt: 'Solve 2x + 1 = 9.', steps, answer: '04' }), false, '04 is 4');
+  const fractionKey = { type: 'multiAnswer', prompt: 'Find the slope.', answerFields: [{ id: 'm', answer: '3/4' }] };
+  assert.equal(similarExampleIsSafe(fractionKey, { prompt: 'Find the slope through (0, 0) and (8, 6).', steps: ['Rise over run.'], answer: '6/8' }), false, '6/8 is 3/4');
+  assert.equal(similarExampleIsSafe(fractionKey, { prompt: 'Find the slope through (0, 0) and (8, 6).', steps: ['Rise over run.'], answer: '0.75' }), false, '0.75 is 3/4');
+  assert.equal(similarExampleIsSafe(fractionKey, { prompt: 'Find the slope through (0, 0) and (5, 2).', steps: ['Rise over run.'], answer: '2/5' }), true, 'a different value is fine');
 });
 
 /* ------------------------------------------------- 5. what counts as help */

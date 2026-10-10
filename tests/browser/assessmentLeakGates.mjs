@@ -780,6 +780,16 @@ const feedbackLadder = async () => {
     const next = (await lastGrade(page))?.supportUsage || {};
     check(next.feedbackAssisted === true && next.isMathematicallyIndependent === false, 'practice feedback-ladder: the attempt after a miss message is feedback-assisted', JSON.stringify(next));
   });
+  // PR #462 review m8: a role nobody recognises (which the policy table would
+  // read as classwork) fails closed — no Hint control, no miss message.
+  await scenario('unknown-role feedback-ladder', async () => {
+    const page = await open('homework', 'feedback-ladder');
+    check(await page.locator('[data-hint-control]').count() === 0, 'unknown-role feedback-ladder: no Hint control');
+    await typeAnswer(page, '-\\frac{3}{4}');
+    await submitAnswer(page);
+    check((await lastGrade(page))?.isCorrect === false, 'unknown-role feedback-ladder: still graded');
+    check(await page.locator('[data-miss-feedback]').count() === 0, 'unknown-role feedback-ladder: no miss message');
+  });
   // PR #462 review M4: a question locked without closing (DOL timer, a
   // section the teacher closed, the Warm-Up window) loses its Ask and Cancel
   // controls, so it lowers its own raised hand.
