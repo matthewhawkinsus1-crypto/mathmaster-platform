@@ -3,6 +3,7 @@ import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoun
 import { LOGOUT_RISK_MESSAGE } from '../../platform/student/logoutGuard.js';
 import { STUDENT_SELF_NEUTRAL_LABEL, formatStudentName } from '../../platform/studentName.js';
 import StarIcon from '../common/StarIcon.jsx';
+import Dialog from '../../ui/Dialog.jsx';
 import './StudentIdentityBar.css';
 
 export const STUDENT_IDENTITY_STACK_OFFSET = '--mm-student-identity-stack-offset';
@@ -52,9 +53,6 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
   useEffect(() => {
     if (!logoutRisk) setConfirmingLogout(false);
   }, [logoutRisk]);
-  useEffect(() => {
-    if (confirmingLogout) stayRef.current?.focus();
-  }, [confirmingLogout]);
   // The student's own name, or the neutral "Student" — never their id and
   // never the teacher-facing "Name unavailable".
   const name = preview
@@ -101,7 +99,7 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
           {/* The star is drawn: ⭐ was a box on devices without an emoji font
               (PQ-030). On a phone the words "Class Points" are visually hidden,
               not removed, so the chip still reads "120 Class Points". */}
-          {!preview && Number.isFinite(classPointsBalance) && <span aria-label={`${classPointsBalance} Class Points`} className="mm-identity-points" style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}><StarIcon /> {classPointsBalance}<span className="mm-identity-points-word"> Class Points</span></span>}
+          {!preview && Number.isFinite(classPointsBalance) && <span className="mm-identity-points" style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}><StarIcon /> {classPointsBalance}<span className="mm-identity-points-word"> Class Points</span></span>}
         </div>
         {!preview && onLogout && (
           <span className="mm-identity-logout" style={{ flexShrink: 0 }}>
@@ -119,12 +117,14 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
         )}
       </aside>
         {!preview && onLogout && confirmingLogout && logoutRisk && (
-          <div
+          // The shared Dialog (job F): focus starts on the safe action, Tab
+          // stays inside, Escape means "Stay", and focus returns to Log Out.
+          <Dialog
             role="alertdialog"
-            aria-modal="false"
+            onClose={stayLoggedIn}
+            initialFocusRef={stayRef}
             aria-labelledby="mm-logout-risk-message"
             data-logout-confirm="open"
-            onKeyDown={(event) => { if (event.key === 'Escape') stayLoggedIn(); }}
             // A popover under the pinned bar, outside it: the bar's own layout
             // (one line on a phone) is the stylesheet's, and this must not
             // change its measured height.
@@ -157,7 +157,7 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
                 Log out anyway
               </button>
             </div>
-          </div>
+          </Dialog>
         )}
     </>
   );

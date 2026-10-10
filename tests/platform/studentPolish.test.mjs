@@ -64,7 +64,10 @@ test('the identity bar asks before logging out when logoutRisk is set, and never
   // Stay (and Escape) close the question AND hand focus back to Log Out, so a
   // keyboard user is not dropped at the top of the page.
   assert.match(dialog, /onClick=\{stayLoggedIn\}[\s\S]*Stay and let it send/);
-  assert.match(dialog, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\) stayLoggedIn\(\); \}\}/);
+  // The shared Dialog (src/ui/Dialog.jsx): Escape calls onClose = Stay, focus
+  // starts on Stay, and the alertdialog is named by its message.
+  assert.match(dialog, /<Dialog\s+role="alertdialog"\s+onClose=\{stayLoggedIn\}\s+initialFocusRef=\{stayRef\}/);
+  assert.match(source, /import Dialog from '\.\.\/\.\.\/ui\/Dialog\.jsx';/);
   const stay = region(source, 'const stayLoggedIn = () => {', '};', 'Stay');
   assert.match(stay, /setConfirmingLogout\(false\);\s*logoutRef\.current\?\.focus\(\);/);
   assert.match(bar, /ref=\{logoutRef\}[\s\S]*?onClick=\{handleLogoutPress\}/);

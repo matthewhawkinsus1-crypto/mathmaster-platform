@@ -36,7 +36,9 @@ test('the identity bar is one line on a phone and keeps every piece of identity'
   // label, and the Log Out button.
   const bar = region(identity, '<aside', '</aside>', 'the identity bar');
   assert.match(bar, /className="mm-identity-name"[^>]*>\s*\{name\}\{context \? ` • \$\{context\}` : ''\}/);
-  assert.match(bar, /aria-label=\{`\$\{classPointsBalance\} Class Points`\} className="mm-identity-points"/);
+  // The chip reads "N Class Points" from its own text (the word is only
+  // visually hidden on a phone); no aria-label on a role-less span (axe).
+  assert.match(bar, /<span className="mm-identity-points"/);
   assert.match(bar, /\{classPointsBalance\}<span className="mm-identity-points-word"> Class Points<\/span>/);
   assert.match(bar, /onClick=\{handleLogoutPress\}[\s\S]*?>\s*Log Out\s*</);
   // What used to wrap is in the stylesheet, where a media query can undo it.
