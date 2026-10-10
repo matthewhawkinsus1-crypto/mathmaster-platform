@@ -192,13 +192,6 @@ const viewDump = (views, first = []) => {
 // server would rightly refuse the late one — and test nothing about the server.
 const answeredRound = (rows, studentId, roundIndex) => rows.some((row) => row.studentId === studentId && row.joined && Number(row.answeredRound) === roundIndex);
 const closeWhenAllAnswered = async (entry, farm, roomId, roundIndex, timeoutMs = 25_000) => {
-  // A student may answer until the round ends, so the wait lasts that long
-  // (plus a grace for the last answer in flight), never less than timeoutMs.
-  // A fixed 25 s was shorter than the round: on a loaded CI runner it gave up
-  // on a 64-student device that still had over 20 s of the round left. A
-  // device that never gets the round still fails, once the round is over.
-  const endsAtMs = millis((await roomOf(roomId)).endsAt);
-  const patienceMs = endsAtMs > 0 ? Math.max(timeoutMs, endsAtMs - Date.now() + 5_000) : timeoutMs;
   await waitUntil(async () => {
     const rows = await privatePlayers(roomId);
     const room = await roomOf(roomId);
@@ -207,7 +200,7 @@ const closeWhenAllAnswered = async (entry, farm, roomId, roundIndex, timeoutMs =
   }, async () => {
     const rows = await privatePlayers(roomId);
     return entry.students.every((studentId) => answeredRound(rows, studentId, roundIndex));
-  }, patienceMs, 250);
+  }, timeoutMs, 250);
   await waitUntil(async () => `round ${roundIndex + 1}: answers still in flight on ${[...(await farm.views()).values()].filter((view) => view.answering).map((view) => view.studentId).join(', ')}`,
     async () => [...(await farm.views()).values()].every((view) => !view.answering), 15_000, 100);
   const room = await roomOf(roomId);
