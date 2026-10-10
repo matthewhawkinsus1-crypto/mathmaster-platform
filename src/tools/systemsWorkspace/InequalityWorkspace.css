@@ -412,7 +412,10 @@
   line-height: 1.3;
 }
 
-.mm-ineq-step-heading:focus {
+/* The heading takes focus only programmatically (tabIndex -1, when a Check
+   opens the next step). After a pointer press no ring; after a keyboard
+   Check Chromium matches :focus-visible and the ring shows where focus went. */
+.mm-ineq-step-heading:focus:not(:focus-visible) {
   outline: none;
 }
 
