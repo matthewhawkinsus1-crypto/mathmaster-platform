@@ -60,6 +60,11 @@ const ROSTER_STUDENTS = [ROSTER_A1, ROSTER_A2, ROSTER_B3, ROSTER_C3];
 const CAP_ASSIGNMENT_ID = 'nav_cap_test_cycle';
 const CAP_FILLERS = Array.from({ length: 400 }, (_, index) => `NAV_CAP_A${String(index).padStart(3, '0')}`);
 const CAP_HOLDER = 'NAV_CAP_Z_MOVED';
+// A one-student class, for the roster the review re-check caches.
+const CACHE_ASSIGNMENT_ID = 'nav_cache_test_cycle';
+const CACHE_CLASS = 'NAV_CACHE_CLASS';
+const CACHE_FIRST = 'NAV_CACHE_S1';
+const CACHE_JOINER = 'NAV_CACHE_S2';
 
 const roster = (data) => teacherRequest({ assignmentId: ROSTER_ASSIGNMENT_ID, ...data });
 const testSessionOf = async (studentId) => (await readRecord(ROSTER_ASSIGNMENT_ID, studentId)).test.examSessionId;
@@ -140,6 +145,11 @@ after(async () => {
     db.collection('assignments').doc(CAP_ASSIGNMENT_ID).delete(),
     db.collection('testCycleAnswerReleases').doc(CAP_ASSIGNMENT_ID).delete(),
     ...[...CAP_FILLERS, CAP_HOLDER].map((studentId) => db.collection('testCycleRecords').doc(`${CAP_ASSIGNMENT_ID}__${studentId}`).delete()),
+    db.collection('assignments').doc(CACHE_ASSIGNMENT_ID).delete(),
+    db.collection('classes').doc(CACHE_CLASS).delete(),
+    ...[CACHE_FIRST, CACHE_JOINER].map((studentId) => db.collection('grades').doc(studentId).delete()),
+    ...[CACHE_FIRST, CACHE_JOINER].map((studentId) => db.collection('testCycleRecords').doc(`${CACHE_ASSIGNMENT_ID}__${studentId}`).delete()),
+    ...[CACHE_FIRST, CACHE_JOINER].map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${CACHE_ASSIGNMENT_ID}__${studentId}`).delete()),
   ];
   await Promise.allSettled(deletions);
 });
@@ -866,6 +876,33 @@ test('a record holder past the 400 the teacher\'s table reads is still on the li
   // So the release the teacher confirms goes through, rather than refusing forever.
   await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CAP_ASSIGNMENT_ID, stage: 'test', confirmed: listing.answersRelease.test.confirmKeys }));
   assert.equal((await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: CAP_ASSIGNMENT_ID }))).answersRelease.test.released, true);
+});
+
+test('the roster the review re-check caches only ever holds the answers: a student who joins closes them at once', async () => {
+  await db.collection('classes').doc(CACHE_CLASS).set({
+    name: 'Cache Algebra I', course: 'algebra1', courseLevel: 'standard', period: 'Period 5', teacherOfRecord: TEACHER_EMAIL, status: 'active',
+  });
+  const enroll = (studentId) => db.collection('grades').doc(studentId).set({
+    displayName: studentId, classId: CACHE_CLASS, classPeriod: 'Period 5', assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+    gradesByAssignment: { [CACHE_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  });
+  await enroll(CACHE_FIRST);
+  await db.collection('assignments').doc(CACHE_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [CACHE_CLASS] }), id: CACHE_ASSIGNMENT_ID });
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CACHE_ASSIGNMENT_ID, classId: CACHE_CLASS }));
+  const examSessionId = (await readRecord(CACHE_ASSIGNMENT_ID, CACHE_FIRST)).test.examSessionId;
+  created.push(examSessionId);
+  await fns.startSecureExamSession.run(student(CACHE_FIRST, { examSessionId }));
+  await fns.finalizeSecureExam.run(student(CACHE_FIRST, { examSessionId }));
+  await fns.releaseTestCycleResults.run(teacherRequest({ assignmentId: CACHE_ASSIGNMENT_ID, stage: 'test' }));
+  // The only student has finished: the answers are open (and the roster is now cached).
+  const open = (await fns.getStudentSecureExamReview.run(student(CACHE_FIRST, { examSessionId }))).review;
+  assert.ok(!held(open), 'with everyone finished, the answers are open');
+  // A student joins the class a moment later, well inside the cache's minute.
+  await enroll(CACHE_JOINER);
+  const again = (await fns.getStudentSecureExamReview.run(student(CACHE_FIRST, { examSessionId }))).review;
+  assert.ok(held(again), 'the new student holds the answers on the very next ask, cache or not');
+  // And while held, the next ask comes back held too.
+  assert.ok(held((await fns.getStudentSecureExamReview.run(student(CACHE_FIRST, { examSessionId }))).review));
 });
 
 test('a session written by the old linear runtime is upgraded without reopening recorded answers', async () => {

@@ -294,12 +294,17 @@ test('a course review can hold back the correct answers and worked solutions, an
   assert.deepEqual(held.items[0].responsePayload, { responses: { answer: '5' } }, "and the student's own answer");
   // The callable holds them for a course session until the class is done or the teacher releases them.
   const review = region(functionsIndex, 'exports.getStudentSecureExamReview = onCall(', '\n});', 'review');
-  assert.match(review, /withSolutions = \(await courseAnswersRelease\(getFirestore\(\), shared, session\.courseTest\.assignmentId, stage\)\)\.released;/);
+  assert.match(review, /withSolutions = \(await courseAnswersRelease\(getFirestore\(\), shared, session\.courseTest\.assignmentId, stage, \{ cacheRoster: true \}\)\)\.released;/);
+  // Fail closed: an error holds the answers rather than failing or opening the review.
+  assert.match(review, /\} catch \(error\) \{[\s\S]*?withSolutions = false;\s*\}/);
   assert.match(review, /const review = secureExam\.publicReview\(session, \{ withSolutions \}\);/);
   // Everyone who can still sit the stage: the whole roster and every record holder
   // (tests/integration/secureExamNavigation.test.mjs drives the cases).
   const release = region(functionsIndex, 'async function courseAnswersRelease(', '\n}', 'answers release');
-  assert.match(release, /const rosterIds = known\.rosterIds \|\| await testCycleRosterIds\(db, assignment\);/);
+  assert.match(release, /if \(!rosterIds && known\.cacheRoster\) \{/);
+  assert.match(release, /if \(!rosterIds\) rosterIds = await testCycleRosterIds\(db, assignment\);/);
+  // A cached roster only holds: released is recomputed from a fresh roster.
+  assert.match(release, /if \(rosterFromCache && heldFor\.length === 0\) \{\s*\/\/[^\n]*\n\s*const fresh = await cachedTestCycleRosterIds\(db, assignment, id, \{ fresh: true \}\);/);
   assert.match(release, /const everyone = \[\.\.\.new Set\(\[\.\.\.rosterIds, \.\.\.records\.keys\(\)\]\)\]\.filter\(Boolean\);/);
   // An explicit release covers only the students, at the attempts, it named.
   assert.match(release, /const heldFor = stillTestingRecords\.filter\(\(record\) => !covered\.has\(answerCoverageKey\(record\)\)\)\.map\(\(record\) => record\.studentId\);/);
