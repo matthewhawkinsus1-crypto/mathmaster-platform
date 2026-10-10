@@ -49,6 +49,7 @@ import {
   readMathPathRouteState,
   writeMathPathRouteState,
 } from '../../platform/student/browserHistory.js';
+import { pathContentIsMain, pathHeaderIsH1 } from './myMathPathLandmarks.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -696,11 +697,16 @@ export const MyMathPathExperience = ({
 
   if (loading && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--mm-primary-text)' }}>Loading My Math Path…</div>;
 
+  const embeddedInTeacherPage = Boolean(readOnly || sessionProvider);
+  const ScreenBody = pathContentIsMain({ activeTab, embedded: embeddedInTeacherPage }) ? 'main' : React.Fragment;
+
   return (
     <div style={{ minHeight: '100%', background: 'var(--mm-surface-sunken)' }}>
       {activeTab !== 'session' && (
         <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span><strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span>{pathHeaderIsH1({ activeTab, embedded: embeddedInTeacherPage })
+            ? <h1 style={{ margin: 0, fontSize: 'inherit', fontWeight: 700, lineHeight: 'inherit', color: 'inherit' }}>My Math Path</h1>
+            : <strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>}{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
           {/*
             TWO LEVELS, AND THEY ARE DIFFERENT KINDS OF THING.
             The global row moves between MathMaster's five destinations; the tab
@@ -717,7 +723,9 @@ export const MyMathPathExperience = ({
                 onNavigate={onNavigate}
                 showLogout={false}
                 dense
-                label="MathMaster navigation"
+                // The same name as on every other student screen ("Student
+                // navigation", the component's default): the skip link finds
+                // the nav by that name, and lands on the first heading after it.
                 style={{ justifyContent: 'flex-end', padding: '8px 0 0' }}
               />
             )}
@@ -729,6 +737,9 @@ export const MyMathPathExperience = ({
         </header>
       )}
 
+      {/* The screen's content is its main landmark, after the header and
+          both navs: the skip link lands on the first heading inside it. */}
+      <ScreenBody>
       {error && <div role="alert" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>{error}</div>}
       {/* A standard with no practice content says so plainly instead of opening
           a session that dies on the first question. */}
@@ -813,6 +824,7 @@ export const MyMathPathExperience = ({
         />
       )}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} eventLimit={PRACTICE_HISTORY_EVENT_LIMIT} />}
+      </ScreenBody>
       {/* Keyed per launch: "Start session N of M" from the end screen opens a
           fresh container instead of carrying the last review into it. */}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer

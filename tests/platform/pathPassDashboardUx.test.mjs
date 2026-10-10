@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 import {
   describeCoursePathPass,
@@ -97,8 +98,9 @@ test('weekly CCMR slots name the actual assessment framework while course Challe
   assert.match(weeklyPanel, /FRAMEWORK_LABELS/);
   assert.match(weeklyPanel, /weeklyPurposeLabel/);
   assert.match(weeklyPanel, /\$\{frameworkLabel\} transfer/);
-  assert.match(weeklyPanel, /weeklyPurposeLabel\(session\)/);
-  assert.match(weeklyPanel, /weeklyPurposeLabel\(next\)/);
+  // Every session card — the "Do this next" one included, since the next
+  // session is marked on its own card — names its purpose.
+  assert.match(region(weeklyPanel, 'function SessionCard(', '\n}\n', 'session card'), /\{weeklyPurposeLabel\(session\)\}/);
   assert.match(weeklyPanel, /PURPOSE\.EXTENSION/);
 });
 

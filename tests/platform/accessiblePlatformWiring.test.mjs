@@ -90,8 +90,13 @@ test('a student screen starts with a skip link past the navigation', () => {
   const shell = region(app, 'const renderStudentIdentityShell', '{content}', 'the student shell');
   assert.match(shell, /<div data-authenticated-student-shell=[^>]*>\s*<SkipToContent \/>/, 'first in the shell');
   assert.match(shell, /<div id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\} \/>/);
+  // Where it lands is skipTarget.js's (run on a fake DOM in
+  // tests/platform/myMathPathLandmarks.test.mjs); the link must call it.
   const chrome = executableSource(read('src/components/common/pageChrome.jsx'));
-  assert.match(region(chrome, 'export const skipTarget', '\n};', 'skipTarget'), /!nav\.contains\(element\)\s*&& \(nav\.compareDocumentPosition\(element\) & 4\)/, 'lands after the nav');
+  assert.match(chrome, /import \{ MAIN_CONTENT_ID, skipTarget \} from '\.\/skipTarget\.js';/);
+  assert.match(region(chrome, 'export function SkipToContent', '\n}\n', 'SkipToContent'), /const target = skipTarget\(/);
+  const target = executableSource(read('src/components/common/skipTarget.js'));
+  assert.match(region(target, 'export const skipTarget', '\n};', 'skipTarget'), /!nav\.contains\(element\)\s*&& \(nav\.compareDocumentPosition\(element\) & 4\)/, 'lands after the nav');
 });
 
 // Keyboard sweep S1: Check locked the question (disabled fieldset + inert),
