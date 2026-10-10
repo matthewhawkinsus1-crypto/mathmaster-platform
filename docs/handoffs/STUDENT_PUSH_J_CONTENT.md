@@ -209,7 +209,7 @@ oracle.
 The same item is never shown with its solution while it can still be asked. The `revealableRounds` hold from B1
 compares bank questions by template id, so a solution stays held while a later open round uses the same template.
 
-**Deploy.** Same steps as #464. Publish release **`course-path-v2-4d9681dfcc5dd150`** in place of #464's id. If #464
+**Deploy.** Same steps and order as #464 (functions → path-admin → Hosting → publish). Publish release **`course-path-v2-4d9681dfcc5dd150`** in place of #464's id. If #464
 ships alone first, publish its id then and this one after #469 merges.
 
 **What's left.** No classroom Live Challenge templates remain: the 79 were every standard-pool template that
