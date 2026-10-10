@@ -239,6 +239,24 @@ await check('the confirmation says the price, what is left, and that no grade ch
   await dialog.getByText('This does not change any grade or assignment.').waitFor();
 });
 await page.screenshot({ path: path.join(shots, '04-student-confirm-phone.png'), fullPage: true });
+// The teacher reprices the seat while the student's confirm is open (QA m12):
+// the dialog must not keep promising the old price beside the notice.
+const catalogRef = db.collection('classRewardCatalogs').doc(CLASS_ID);
+const catalogBefore = (await catalogRef.get()).data();
+await catalogRef.set({ ...catalogBefore, items: catalogBefore.items.map((item) => (item.itemId === 'starter-seat' ? { ...item, cost: 80 } : item)) });
+await check('repriced while open: only the change and Close, never the old price', async () => {
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('heading', { name: 'This reward changed' }).waitFor({ timeout: 10000 });
+  await dialog.getByText('The price changed to 80 points. Close this and look again. Nothing was spent.').waitFor();
+  assert.equal(await dialog.getByText('Uses 50 Class Points.').count(), 0);
+  assert.equal(await dialog.getByText(/You will have \d+ Class Points left/).count(), 0);
+  assert.equal(await dialog.getByRole('button', { name: /Use \d+ points/ }).count(), 0);
+  await dialog.getByRole('button', { name: 'Close' }).waitFor();
+  assert.equal(await balanceOf(STUDENT), 120, 'nothing was spent');
+});
+await page.screenshot({ path: path.join(shots, '04b-student-repriced-phone.png'), fullPage: true });
+await catalogRef.set(catalogBefore);
+await page.getByRole('dialog').getByText('Uses 50 Class Points.').waitFor({ timeout: 10000 });
 await page.getByRole('dialog').getByRole('button', { name: 'Use 50 points' }).dblclick();
 await check('a double click spends once: one request, 50 points, one call', async () => {
   await page.getByText(/Done! Your teacher will see your request/).waitFor({ timeout: 10000 });

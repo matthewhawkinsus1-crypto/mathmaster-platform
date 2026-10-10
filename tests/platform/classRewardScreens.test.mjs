@@ -68,6 +68,19 @@ test('the use dialog: an item that stops being usable while open blocks the conf
   assert.match(region(dialog, '{blockedReason && !busy', '</p>', 'blocked notice'), /Nothing was spent\./);
 });
 
+test('the use dialog: a repriced or removed reward never shows the old price beside the notice (QA m12)', () => {
+  // "Uses 50 Class Points. You will have 70 left" sat next to "The price
+  // changed to 80 points… Nothing was spent". The stale view says only what
+  // changed and offers Close; the promise lines render only when not stale.
+  assert.match(dialog, /const stale = \(priceChanged \|\| !liveItem\) && !error && !busy;/);
+  const staleView = region(dialog, "{step === 'confirm' && stale && (", "{step === 'confirm' && !stale && (", 'stale view');
+  assert.match(staleView, /\{blockedReason\} Nothing was spent\./);
+  assert.doesNotMatch(staleView, /plan\.(cost|remaining|confirmLabel|question)/);
+  assert.match(staleView, /onClick=\{onClose\}>Close<\/button>/);
+  const promise = region(dialog, "{step === 'confirm' && !stale && (", "{step === 'done' && (", 'confirm view');
+  assert.match(promise, /<strong>\{plan\.cost\}<\/strong> \{plan\.remaining\}/);
+});
+
 test('the catalog editor saves only a valid, changed draft, with the revision it started from', () => {
   const save = region(editor, 'const onSave = async', '};\n\n  return', 'save handler');
   assert.match(save, /if \(inFlight\.current \|\| problem \|\| !changed\) return;/);
