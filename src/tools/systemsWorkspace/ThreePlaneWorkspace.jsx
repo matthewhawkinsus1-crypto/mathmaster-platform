@@ -11,7 +11,7 @@
  * the classification is computed for the student to state; the model only
  * shows the geometry they ask it to show.
  */
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
@@ -81,6 +81,10 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   const [hasInteracted, setHasInteracted] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const dragRef = useRef(null);
+  // The camera a key press rotates from: the latest one, kept in step with
+  // every render (drag, idle orbit, Reset view) and advanced by each key.
+  const cameraRef = useRef(camera);
+  useLayoutEffect(() => { cameraRef.current = camera; }, [camera]);
   const modelRef = useRef(null);
   // The orbit's budget (threePlaneGeometry.js): the orbit time already shown,
   // and whether it is all spent.
@@ -223,10 +227,13 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
     if (!keyRotationDrag(event.key, event.shiftKey)) return;
     event.preventDefault();
     markInteracted();
-    const next = keyRotateCamera(camera, event.key, event.shiftKey);
+    // From the latest camera, not the last render's: two key presses that
+    // land before a re-render still both count.
+    const next = keyRotateCamera(cameraRef.current, event.key, event.shiftKey);
+    cameraRef.current = next;
     setCamera(next);
     setViewAnnouncement(viewAngleText(next));
-  }, [camera, markInteracted, openingCamera, resetView]);
+  }, [markInteracted, openingCamera, resetView]);
 
   const scale = (VIEW_SIZE * 0.42) / R;
 
@@ -380,6 +387,10 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
           >
+            {/* The drawing itself, named as the image it is (the name the
+                model has always had, which the browser gates find it by);
+                the svg around it is the focusable control. */}
+            <g role="img" aria-label="Interactive 3D view of the three planes. Drag to rotate.">
             <defs>
               <marker id="mathmaster-threeplane-axis-arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
                 <path d="M0,0 L7,3.5 L0,7 z" fill="#5f6368" />
@@ -474,6 +485,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                 </text>
               </g>
             ) : null}
+            </g>
           </svg>
           {intersectionLines.length ? (
             <p className="mathmaster-threeplane-legend">

@@ -14,8 +14,10 @@
 // only (Tab, Shift+Tab, arrows, Home, Enter, Space):
 //
 //   T2  Tab reaches the 3D model (role=application, named, described, with a
-//       visible focus ring). Home is Reset view; an arrow key redraws the
-//       model; Shift+ArrowUp held pins the tilt at the drag's +1.3 rad clamp
+//       visible focus ring), whose drawing keeps the role=img name the other
+//       browser gates find it by. An arrow key alone stops the idle orbit and
+//       announces only the view angle. Home is Reset view; an arrow key
+//       redraws the model; Shift+ArrowUp held pins the tilt at the drag's +1.3 rad clamp
 //       (74 degrees) and ArrowDown at −1.3; Home restores the opening drawing
 //       exactly. Rotating never changes a choice.
 //   T7  each choice group is one Tab stop (roving tabIndex); ArrowUp from the
@@ -50,6 +52,10 @@ const SPEC = {
     { id: 'count', label: 'How many points do all three planes share?', options: COUNT, answer: COUNT[1] },
   ],
 };
+
+// The whole of what the polite status may say after a rotation key: the view
+// angle, never a word about the planes or the answer.
+const VIEW_STATUS = /^View turned −?\d+ degrees, tilted −?\d+ degrees\.$/;
 
 const browser = await chromium.launch(launch);
 let failed = false;
@@ -113,22 +119,40 @@ const run = async (width, height) => {
   });
   assert.match(described, /Left and Right[\s\S]*Up and Down[\s\S]*Shift[\s\S]*Home/, `${at}: the model is described by its key instructions`);
 
+  // The drawing inside the control keeps the image role and name the model
+  // always had (assessmentLeakGates.mjs and day2NonuniqueJourneys.mjs find it so).
+  const drawing = page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' });
+  await drawing.waitFor({ state: 'visible' });
+  assert.equal(await drawing.evaluate((g) => g.closest('svg')?.getAttribute('role')), 'application', `${at}: the named drawing sits inside the model control`);
+
+  // An arrow key alone (no Home, which resets through Reset view) takes over
+  // from the idle orbit, as a pointerdown does: the drawing then stays put.
+  const idleBefore = await modelDrawing();
+  await page.waitForTimeout(400);
+  assert.notEqual(await modelDrawing(), idleBefore, `${at}: the idle orbit is running before any key (otherwise the next check proves nothing)`);
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(80);
+  const afterArrow = await modelDrawing();
+  assert.match(await viewStatus(), VIEW_STATUS, `${at}: an arrow key announces the view angle and nothing else`);
+  await page.waitForTimeout(500);
+  assert.equal(await modelDrawing(), afterArrow, `${at}: after an arrow key, the idle orbit has stopped`);
+
   await page.keyboard.press('Home');
   await page.waitForTimeout(100);
   const opening = await modelDrawing();
   assert.match(await viewStatus(), /^Opening view\. View turned −?\d+ degrees, tilted −?\d+ degrees\.$/, `${at}: Home announces the opening view`);
   await page.waitForTimeout(400);
-  assert.equal(await modelDrawing(), opening, `${at}: after a key, the idle orbit has stopped`);
+  assert.equal(await modelDrawing(), opening, `${at}: after Home, the model stays at the opening view`);
   await page.keyboard.press('ArrowRight');
   await page.waitForTimeout(80);
   const turned = await modelDrawing();
   assert.notEqual(turned, opening, `${at}: ArrowRight redraws the model`);
   for (let i = 0; i < 8; i += 1) await page.keyboard.press('Shift+ArrowUp');
   await page.waitForTimeout(80);
-  assert.match(await viewStatus(), /tilted 74 degrees\.$/, `${at}: Shift+ArrowUp held pins the tilt at the drag's clamp`);
+  assert.match(await viewStatus(), /^View turned −?\d+ degrees, tilted 74 degrees\.$/, `${at}: Shift+ArrowUp held pins the tilt at the drag's clamp`);
   for (let i = 0; i < 40; i += 1) await page.keyboard.press('ArrowDown');
   await page.waitForTimeout(80);
-  assert.match(await viewStatus(), /tilted −74 degrees\.$/, `${at}: ArrowDown held pins the tilt at the other clamp`);
+  assert.match(await viewStatus(), /^View turned −?\d+ degrees, tilted −74 degrees\.$/, `${at}: ArrowDown held pins the tilt at the other clamp`);
   assert.equal((await active()).tag, 'svg', `${at}: arrows keep focus on the model (no page scroll steals it)`);
   await page.keyboard.press('Home');
   await page.waitForTimeout(80);

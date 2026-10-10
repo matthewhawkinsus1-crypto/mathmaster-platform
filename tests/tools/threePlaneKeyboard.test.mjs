@@ -140,7 +140,11 @@ test('the view status names the view angle only', () => {
 
 test('rotation is view-only: the model keys and the drag never reach the graded work', () => {
   const keyHandler = region(component, 'const handleModelKeyDown = useCallback(', '  const scale =', 'model keydown');
-  assert.match(keyHandler, /const next = keyRotateCamera\(camera, event\.key, event\.shiftKey\);\s*setCamera\(next\);/);
+  // Each key rotates from the latest camera (a ref kept in step with every
+  // render and advanced by the key), so back-to-back presses compound, and
+  // a key press stops the idle orbit as a pointerdown does.
+  assert.match(keyHandler, /markInteracted\(\);[\s\S]*const next = keyRotateCamera\(cameraRef\.current, event\.key, event\.shiftKey\);\s*cameraRef\.current = next;\s*setCamera\(next\);/);
+  assert.match(component, /useLayoutEffect\(\(\) => \{ cameraRef\.current = camera; \}, \[camera\]\);/);
   assert.match(keyHandler, /if \(event\.key === 'Home'\) \{\s*event\.preventDefault\(\);\s*resetView\(\);/, 'Home is Reset view');
   const pointerMove = region(component, 'const handlePointerMove = useCallback(', 'const handlePointerUp', 'pointer move');
   assert.match(pointerMove, /setCamera\(dragCamera\(dragRef\.current\.camera, dx, dy\)\);/);
@@ -162,13 +166,16 @@ test('rotation is view-only: the model keys and the drag never reach the graded 
 });
 
 test('the model is a focusable, named application wired to the keys', () => {
-  const svg = region(component, '<svg\n            ref={modelRef}', '>\n            <defs>', 'model svg');
+  const svg = region(component, '<svg\n            ref={modelRef}', '>\n            { }', 'model svg');
   assert.match(svg, /role="application"/);
   assert.match(svg, /tabIndex=\{0\}/);
   assert.match(svg, /aria-label="[^"]*arrow keys[^"]*"/);
   assert.match(svg, /aria-describedby=\{instructionId\}/);
   assert.match(svg, /onKeyDown=\{handleModelKeyDown\}/);
   assert.match(svg, /onPointerDown=\{handlePointerDown\}\s*onPointerMove=\{handlePointerMove\}\s*onPointerUp=\{handlePointerUp\}/);
+  // Inside the control, the drawing keeps the image role and name the model
+  // always had (the assessment-leak and Day 2 browser gates find it by them).
+  assert.match(component, /onPointerLeave=\{handlePointerUp\}\s*>\s*\{ \}\s*<g role="img" aria-label="Interactive 3D view of the three planes\. Drag to rotate\.">/);
   assert.match(component, /<span id=\{instructionId\} className="mathmaster-threeplane-sr-only">\s*Arrow keys rotate/);
   const imports = component.match(/import \{([^}]*)\} from '\.\/threePlaneControls\.js';/);
   assert.ok(imports, 'the component imports its control helpers');
