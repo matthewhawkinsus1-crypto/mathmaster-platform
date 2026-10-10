@@ -5,6 +5,7 @@ import { BADGE_CATALOG } from './rewardGrants.mjs';
 import { normalizeTestCycleRecord, SESSION_STATE } from './testCycleRecord.mjs';
 import { normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
 import { evaluateWeeklyGoalProgress, weekKeyFor } from './weeklyPathGrade.mjs';
+import { MASTERY_RULE } from './masteryRule.mjs';
 
 /*
  * GROWTH, EFFORT AND MASTERY REWARDS (pure).
@@ -562,12 +563,13 @@ export const masteredSkills = (masteryProfile = {}) => Object.entries(
 export const CANONICAL_SKILL_CODE = /^[A-Z0-9]{1,4}\.\d{1,2}[A-Z]?$/;
 
 // The thresholds updateMyMathPathMasteryFromEvidence (functions/index.js)
-// requires before it writes Mastered.
-const MASTERED_MIN_ESTIMATE = 85;
-const MASTERED_MIN_ELIGIBLE_EVENTS = 4;
-const MASTERED_MIN_INDEPENDENT_SUCCESSES = 2;
-const MASTERED_MIN_EFFECTIVE_WEIGHT = 1.1;
-const MASTERED_MIN_DOK = 3;
+// requires before it writes Mastered: the one Mastered rule
+// (masteryRule.mjs classifyMasteryStatus), read here, never copied.
+const MASTERED_MIN_ESTIMATE = MASTERY_RULE.masteredEstimate;
+const MASTERED_MIN_ELIGIBLE_EVENTS = MASTERY_RULE.masteredEvents;
+const MASTERED_MIN_INDEPENDENT_SUCCESSES = MASTERY_RULE.masteredIndependentSuccesses;
+const MASTERED_MIN_EFFECTIVE_WEIGHT = MASTERY_RULE.minimumWeight;
+const MASTERED_MIN_DOK = MASTERY_RULE.masteredDok;
 
 const nonNegativeInteger = (value) => Number.isInteger(value) && value >= 0;
 const nonNegative = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;

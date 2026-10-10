@@ -99,11 +99,18 @@ test('the guard mirrors the trigger thresholds it re-checks (functions/index.js)
   const start = source.indexOf('exports.updateMyMathPathMasteryFromEvidence');
   assert.ok(start > 0, 'the mastery trigger exists');
   const body = source.slice(start, source.indexOf('\nexports.', start + 10));
-  assert.match(
-    body,
-    /if \(estimate >= 85 && eligibleEvents >= 4 && independentSuccesses >= 2 && dokRepresented\.some\(\(value\) => Number\(value\) >= 3\)\) status = "Mastered";/,
-  );
-  assert.match(body, /if \(eligibleEvents >= 2 && effectiveWeight >= 1\.1\)/);
+  // The trigger classifies with the one Mastered rule (masteryRule.mjs), from
+  // the same facts the guard re-checks; the guard reads that rule's numbers.
+  assert.match(body, /const masteryRule = await import\("\.\/shared\/masteryRule\.mjs"\);/);
+  assert.match(body, /const status = masteryRule\.classifyMasteryStatus\(\{\s*estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented,/);
+  const rules = readFileSync(new URL('../../functions/shared/growthRewardRules.mjs', import.meta.url), 'utf8');
+  for (const [constant, field] of [
+    ['MASTERED_MIN_ESTIMATE', 'masteredEstimate'],
+    ['MASTERED_MIN_ELIGIBLE_EVENTS', 'masteredEvents'],
+    ['MASTERED_MIN_INDEPENDENT_SUCCESSES', 'masteredIndependentSuccesses'],
+    ['MASTERED_MIN_EFFECTIVE_WEIGHT', 'minimumWeight'],
+    ['MASTERED_MIN_DOK', 'masteredDok'],
+  ]) assert.match(rules, new RegExp(`const ${constant} = MASTERY_RULE\\.${field};`), constant);
   assert.match(body, /const code = mathPath\.displayAlignmentKey\(alignmentKey\);/);
   assert.match(body, /teksCode: code,/);
 });
