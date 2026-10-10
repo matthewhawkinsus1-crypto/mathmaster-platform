@@ -212,11 +212,14 @@ export const buildPathRecapEntry = ({
   // The bank template the item was drawn from. A template that repeats its
   // questions (pathRecapWithheld.mjs) keeps its answer out of the recap.
   templateId = null,
+  // The served item's template version: a widened template's older draws
+  // stay withheld (pathRecapWithheld.mjs RECAP_WIDENED_TEMPLATE_VERSIONS).
+  templateFamilyVersion = null,
 } = {}) => {
   const question = recapQuestionView(publicQuestion);
   const answerKeyView = answerKeyQuestion ? recapQuestionView(answerKeyQuestion) : question;
   const isCorrect = grading?.isCorrect === true;
-  const answerWithheld = recapWithholdsAnswer(templateId);
+  const answerWithheld = recapWithholdsAnswer(templateId, templateFamilyVersion);
   return {
     v: PATH_RECAP_ENTRY_VERSION,
     sessionId: clampText(sessionId, 180),

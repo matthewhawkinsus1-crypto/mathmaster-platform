@@ -42,7 +42,55 @@ export const RECAP_WITHHELD_TEMPLATE_IDS = Object.freeze([
   ...RECAP_SAME_MATHEMATICS_TEMPLATE_IDS,
 ].sort());
 
+/*
+ * WIDENED TEMPLATES, BY THE VERSION THAT WIDENED THEM (coordinator review of
+ * #464, m1). The new content reaches students only when a root admin
+ * publishes the course Path release; the functions that read this list may be
+ * deployed before that. Until then the bank still serves the old, repeating
+ * draws of these templates. Their familyVersion was raised with the
+ * widening, so withholding follows the content actually served: an item drawn
+ * from an older version (or with no version) is withheld as before.
+ */
+export const RECAP_WIDENED_TEMPLATE_VERSIONS = Object.freeze({
+  'mm_A2_2A_v2_exponential-graph-attributes': 4,
+  'mm_A2_2A_v2_logarithmic-graph-attributes': 4,
+  'mm_A2_2A_v2_reciprocal-graph-attributes': 4,
+  'mm_A2_2A_v2_root-family-graph': 4,
+  'mm_A2_2A_v2_symmetry-family-graph': 4,
+  'mm_A2_2C_v2_exponential-log-features': 4,
+  'mm_A2_3B_v2_matrix-technology-rref': 4,
+  'mm_A2_4E_v2_quadratic-context-interpolation': 4,
+  'mm_A2_4E_v2_quadratic-regression-table': 4,
+  'mm_A2_4E_v2_square-root-context-interpolation': 4,
+  'mm_A2_5B_v2_logarithmic-ratio-scale-model': 4,
+  'mm_A2_8B_v2_exponential-regression-decay-noisy': 4,
+  'mm_A2_8B_v2_exponential-regression-growth-noisy': 4,
+  'mm_A2_8B_v2_linear-regression-noisy': 4,
+  'mm_A2_8B_v2_quadratic-regression-noisy': 4,
+  'mm_A2_8C_v2_prediction-model-variants': 4,
+  'mm_A_12D_v2_geometric-decay-terms-to-formula': 4,
+  'mm_A_12E_v2_solve-area-height': 4,
+  'mm_A_2A_v2_discrete-mapping-domain-range': 4,
+  'mm_A_3G_v2_error-read-intersection': 4,
+  'mm_A_3G_v2_graph-then-verify': 4,
+  'mm_A_3G_v2_pricing-estimate': 4,
+  'mm_A_3G_v2_savings-estimate': 4,
+  'mm_A_3G_v2_transport-estimate': 4,
+  'mm_A_9B_v2_growth-factor': 4,
+  'mm_A_9D_v2_context-decay-graph': 4,
+});
+
 const WITHHELD = new Set(RECAP_WITHHELD_TEMPLATE_IDS);
 
-/** True when a template's recap entries must not carry its answer or solution. */
-export const recapWithholdsAnswer = (templateId) => WITHHELD.has(String(templateId ?? '').trim());
+/**
+ * True when a template's recap entries must not carry its answer or solution.
+ * `familyVersion` is the served item's template version.
+ */
+export const recapWithholdsAnswer = (templateId, familyVersion = null) => {
+  const id = String(templateId ?? '').trim();
+  if (WITHHELD.has(id)) return true;
+  const widenedAt = RECAP_WIDENED_TEMPLATE_VERSIONS[id];
+  if (widenedAt === undefined) return false;
+  const served = Number(familyVersion);
+  return !(Number.isFinite(served) && served >= widenedAt);
+};

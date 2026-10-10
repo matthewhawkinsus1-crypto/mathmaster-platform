@@ -93,3 +93,18 @@ test('m13: no "DOL is open" reminder while the student is on that DOL', () => {
   assert.equal(shouldShowDolOpenReminder({ ...dol, activeView: 'dashboard', activeAssignmentId: 'a-1', currentQuestionIndex: 5 }), true);
   assert.equal(shouldShowDolOpenReminder({ ...dol, activeView: 'assignment', activeAssignmentId: 'a-2', currentQuestionIndex: 5 }), true);
 });
+
+test('QA round 2: no "Compare your work with the solution." over no solution', () => {
+  const legacy = executableSource(read('src/SolutionReview.jsx'));
+  // A system / ordered pair graph counts only with its answer marked.
+  assert.match(legacy, /const pairShown = \['system', 'orderedPair'\]\.includes\(question\.type\)\s*&& \(Array\.isArray\(question\.solution\) \|\| Array\.isArray\(question\.answer\)\);/);
+  assert.match(legacy, /\|\| completeAnswerDetails\.length \|\| graphShowsSolution \|\| analysisSummary\.length,/);
+  assert.doesNotMatch(legacy, /\|\| completeAnswerDetails\.length \|\| graph \|\|/);
+  // Nothing to show: the panel renders nothing, framed or embedded.
+  assert.match(legacy, /if \(!content \|\| !content\.hasContent\) return null;/);
+  // Review My Work says the solution is not available instead.
+  const page = executableSource(read('src/components/student/ReviewMyWork.jsx'));
+  assert.match(page, /import SolutionReview, \{ legacySolutionReviewContent \} from '\.\.\/\.\.\/SolutionReview\.jsx';/);
+  assert.match(page, /try \{ return !legacySolutionReviewContent\(question\)\?\.hasContent; \} catch \{ return false; \}/, 'a check that throws never breaks the page');
+  assert.match(page, /if \(!usesToolReview && legacyHasNothing\) \{\s*return <p[^>]*>\{SOLUTION_UNAVAILABLE_TEXT\}<\/p>;/);
+});

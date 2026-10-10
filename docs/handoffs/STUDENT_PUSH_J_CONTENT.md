@@ -22,6 +22,8 @@ pinned by a test that fails without the fix.
 | 3e43c11 | Families: transformations and quadraticsAbsoluteValue; feedbackTeaches driver extended and put in CI (item 1) |
 | 7e3d6fd | A2.2A/A2.2C templates widened; withheld by mathematics as well as by count (item 2) |
 | 3c75d23 | Family: dataAndModels; this handoff (item 1) |
+| 25755c1 | Release-candidate QA copy, m9 and m13 (coordinator's follow-up list) |
+| (review fixes) | Coordinator review of #464: B1 Solver Race repeats, M1 bare-log spellings, m1 deploy window, m2 and m3 |
 
 ## 1. The three families
 
@@ -154,13 +156,36 @@ Also fixed: the one-step inequality structure showed `3*x+0 <= 18`.
    opening/close code captures and publishes it unchanged). Plus `platformBuildInfo`, as every release does.
    Until deployed: the runner's status call returns an untargeted item (as today), and Solver Race keeps saying "no
    worked solution yet". Nothing breaks.
-2. **Path content (path-admin).** The Algebra I and II Path bank changed (26 templates) and the course release manifest
-   with it: the release script's path-admin step publishes it. Sessions already in progress keep their stored
-   instances.
+2. **Path content: a deploy and then an admin publish.** The Algebra I and II Path bank changed (26 templates) and so did
+   the course release manifest. The release script deploys the path-admin codebase, but it never publishes. The new
+   content reaches students only after a root admin publishes release **`course-path-v2-2d6d479a345c9162`**: open
+   Administration → My Math Path content coverage and publish it there (`publishCoursePathReleaseV2`). Until then
+   the bank keeps serving the old draws.
+   Order: (a) default-codebase functions; (b) `npm run deploy:path-admin` (the release script's path-admin step);
+   (c) the admin publish; (d) rules (none here) and Hosting.
+   The publish can happen any time after (b); the order of (a) and (c) is safe either way. The 26 widened templates'
+   `familyVersion` went from 3 to 4. Recap withholding follows the version actually served
+   (`RECAP_WIDENED_TEMPLATE_VERSIONS`), so a recap of an old draw stays withheld before and after the publish. A
+   session already in progress keeps its stored instances.
 3. **Hosting** through the resilient wrapper (families, Recovery runner and copy, print rendering, release identity).
 4. **No rules, no indexes, no migration.** The new reads (`grades/{sid}/evidenceEvents` and
    `grades/{sid}/misconceptionEvidence` where `source.assignmentId ==`) are single-field equality queries on the
    student's own subcollections (automatic indexes), made by the Admin SDK.
+
+## Coordinator review of #464: fixes
+
+- **B1, blocker. A published Solver Race solution could answer a later round** of the same match. Plans and dry-run
+  swaps now never repeat an equation. Literal equations are compared by structure, with the solved-for letter kept.
+  As a second guard, a round's solution is held while a later, unclosed round asks the same question (E's
+  `revealableRounds`, new `questionKeys`). Tests cover the four repros and a sweep of more than 3,000 plans; both
+  layers were mutation-checked. With literal focus and more rounds than literal structures, repeats cannot be
+  avoided; the hold covers that case.
+- **M1. Bare `log` spellings on the A2.5B log model removed.** The form-preserving grader reads `log` as a product,
+  so `L=10log(I)/100` and similar answers were marked correct. Only `log_{10}` and `\log_{10}` are accepted. The
+  reviewer's wrong answers are pinned as rejected.
+- **m1. Deploy window.** `familyVersion` was raised, and withholding is now version-aware (see Deploy, step 2).
+- **m2. "Never a copy" is now pinned.** A targeted candidate that skipped the history turns a test red.
+- **m3. A finished Recovery no longer promises Practice.**
 
 ## Conservative calls not listed above
 

@@ -10,7 +10,7 @@
         "texas:A2.8B"
       ],
       "courseId": "algebra2",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -150,7 +150,7 @@
         "texas:A2.8B"
       ],
       "courseId": "algebra2",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -248,7 +248,7 @@
         "texas:A2.8B"
       ],
       "courseId": "algebra2",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -364,7 +364,7 @@
         "texas:A2.8B"
       ],
       "courseId": "algebra2",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",

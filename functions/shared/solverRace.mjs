@@ -292,6 +292,53 @@ export const generateSolverRaceQuestion = (structure, seedKey) => {
   return { ...structure, equation, equationLatex: equation, expectedFinalRelation, solutionReview };
 };
 
+/*
+ * ONE EQUATION, ONE ROUND (coordinator review of #464, B1). Each round's
+ * worked solution is published when it closes, so a match must never ask the
+ * same equation twice: the earlier solution would answer the later round.
+ * Equations are compared by structure — spacing dropped, letters renamed in
+ * order of first appearance (the solved-for letter marked) — so "q = k*n + d"
+ * and "v = p*u + h" are the same question.
+ */
+export const solverRaceEquationKey = (question) => {
+  const equation = String(question?.equation ?? '').replace(/\s+/g, '');
+  if (!equation) return null;
+  // The letter solved for keeps its role: y = x - a and y = b - x differ.
+  const names = new Map([[String(question?.solveFor || question?.variable || 'x'), 's']]);
+  const canonical = equation.replace(/[A-Za-z]+/g, (token) => {
+    if (!names.has(token)) names.set(token, `v${names.size}`);
+    return names.get(token);
+  });
+  return `${question?.challengeFamily || ''}|${canonical}`;
+};
+
+const DISTINCT_RESEEDS = 24;
+
+/**
+ * A round whose equation is not in `usedKeys`: the structure re-seeded first
+ * (new numbers), then the family's other structures at the same stage, then
+ * any of the family's structures. Returns the question, or the first draw
+ * when every option collides (the reveal then holds the earlier solution —
+ * liveChallengeSolutionReveal.mjs `questionKeys`).
+ */
+export const generateDistinctSolverRaceQuestion = ({ structure, seedKey, usedKeys = new Set() }) => {
+  const first = generateSolverRaceQuestion(structure, seedKey);
+  if (!usedKeys.has(solverRaceEquationKey(first))) return first;
+  for (let attempt = 1; attempt <= DISTINCT_RESEEDS; attempt += 1) {
+    const candidate = generateSolverRaceQuestion(structure, `${seedKey}|distinct-${attempt}`);
+    if (!usedKeys.has(solverRaceEquationKey(candidate))) return candidate;
+  }
+  const family = SOLVER_RACE_CATALOG.filter((entry) => entry.challengeFamily === structure.challengeFamily && entry.id !== structure.id);
+  const sameStage = family.filter((entry) => entry.difficultyBand === structure.difficultyBand);
+  for (const alternative of [...sameStage, ...family.filter((entry) => !sameStage.includes(entry))]) {
+    for (let attempt = 0; attempt <= 3; attempt += 1) {
+      const candidate = generateSolverRaceQuestion(alternative, `${seedKey}|alternative-${alternative.id}-${attempt}`);
+      if (!usedKeys.has(solverRaceEquationKey(candidate))) return candidate;
+    }
+  }
+  return first;
+};
+
 const compressedSequence = (pool, count) => Array.from({ length: count }, (_, index) => {
   if (count === 1) return pool[pool.length - 1];
   return pool[Math.round(index * (pool.length - 1) / (count - 1))];
@@ -312,11 +359,14 @@ export const planSolverRace = ({ roundCount = 10, focus = 'mixed', difficulty = 
     const sequence = families.length === ordered.length
       ? ordered
       : compressedSequence(ordered, families.length);
+    const usedKeys = new Set();
     return sequence.map((entry, roundIndex) => {
-      const question = generateSolverRaceQuestion(entry, `${seed}|${entry.id}|${roundIndex}`);
-      return { ...question, id: `${entry.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: question.difficultyBand };
+      const question = generateDistinctSolverRaceQuestion({ structure: entry, seedKey: `${seed}|${entry.id}|${roundIndex}`, usedKeys });
+      usedKeys.add(solverRaceEquationKey(question));
+      return { ...question, id: `${question.familyId}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: question.difficultyBand };
     });
   }
+  const usedKeys = new Set();
   const used = new Map();
   return families.map((family, roundIndex) => {
     const desired = bands[roundIndex];
@@ -326,7 +376,8 @@ export const planSolverRace = ({ roundCount = 10, focus = 'mixed', difficulty = 
     const occurrence = used.get(family) || 0;
     used.set(family, occurrence + 1);
     const selected = pool[(hash(`${seed}|${family}|${roundIndex}`) + occurrence) % pool.length];
-    const question = generateSolverRaceQuestion(selected, `${seed}|${selected.id}|${roundIndex}`);
+    const question = generateDistinctSolverRaceQuestion({ structure: selected, seedKey: `${seed}|${selected.id}|${roundIndex}`, usedKeys });
+    usedKeys.add(solverRaceEquationKey(question));
     return { ...question, id: `${question.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: desired };
   });
 };
