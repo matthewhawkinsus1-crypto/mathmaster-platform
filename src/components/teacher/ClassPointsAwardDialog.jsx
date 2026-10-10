@@ -8,6 +8,7 @@ import {
   buildAwardPayload,
   createRequestIdController,
 } from '../../platform/classPointsClient.js';
+import Dialog from '../../ui/Dialog.jsx';
 import { STUDENT_NAME_UNAVAILABLE, acceptStudentName, studentIdLabel } from '../../platform/studentName.js';
 
 // Compact teacher-only award control: quick enough to use walking around the
@@ -120,7 +121,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
       onMouseDown={(event) => { if (event.target === event.currentTarget && !submitting) onClose?.(); }}
       style={overlayStyle}
     >
-      <section role="dialog" aria-modal="true" aria-labelledby="class-points-award-title" style={dialogStyle}>
+      <Dialog as="section" onClose={onClose} closeOnEscape={false} aria-labelledby="class-points-award-title" style={dialogStyle}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--mm-border-soft)' }}>
           <div style={{ color: 'var(--mm-warning-text)', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Class Points</div>
           <h2 id="class-points-award-title" style={{ margin: '4px 0 0', fontSize: 18, color: 'var(--mm-text-strong)' }}>Award {studentName || 'this student'}</h2>
@@ -219,7 +220,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
             <div style={{ fontSize: 11, color: 'var(--mm-text-subtle)' }}>Signed in as {teacherEmail || 'your teacher account'}</div>
           </div>
         )}
-      </section>
+      </Dialog>
     </div>
   );
 }

@@ -123,13 +123,14 @@ const cancelOn = async (page, host, side, variable, { variableTerms }, log) => {
   const box = side === 'left' ? leftBox(host) : rightBox(host);
   // The opposite terms become tappable a moment after the move lands.
   await box.locator('[aria-label$="select to cancel"]:visible').first().waitFor({ timeout: 4000 }).catch(() => {});
-  const labels = await box.locator('[aria-label$="select to cancel"]:visible').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
-  const wanted = labels.find((label) => new RegExp(variable).test(label.replace(/, select to cancel$/, '')) === variableTerms);
+  // Source text of each term (its accessible name is spoken words).
+  const labels = await box.locator('[aria-label$="select to cancel"]:visible').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
+  const wanted = labels.find((label) => new RegExp(variable).test(label) === variableTerms);
   if (!wanted) {
     log(`nothing to cancel on ${side}: ${JSON.stringify(labels)} | all: ${JSON.stringify(await host.locator('[aria-label$="select to cancel"]:visible').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label'))))}`);
     return false;
   }
-  await box.locator(`[aria-label="${wanted}"]:visible`).first().click();
+  await box.locator(`[data-term-text="${wanted}"][aria-label$="select to cancel"]:visible`).first().click();
   await settle(page, 800);
   log(`cancel on ${side} (${wanted}): ${(await stateNow(host)) ?? '(closed)'}`);
   return true;

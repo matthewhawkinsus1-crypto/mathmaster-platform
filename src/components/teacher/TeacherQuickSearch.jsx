@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Dialog from '../../ui/Dialog.jsx';
 import {
   RESULT_KIND, RESULT_KIND_LABEL, searchTeacherWorkspace,
 } from '../../platform/teacher/teacherSearch.js';
@@ -47,16 +48,10 @@ export default function TeacherQuickSearch({
   // The parent passes a fresh onClose on every render, and the workspace
   // re-renders about once a second while students are working (presence).
   // Keyed on it, this effect cleared whatever the teacher was typing. It now
-  // resets only when the palette opens; Escape reads the latest onClose.
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; });
+  // resets only when the palette opens. Focus on the box and Escape are
+  // Dialog's (which reads the latest onClose).
   useEffect(() => {
-    if (!open) return undefined;
-    setQuery('');
-    inputRef.current?.focus();
-    const onKey = (event) => { if (event.key === 'Escape') onCloseRef.current?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    if (open) setQuery('');
   }, [open]);
 
   if (!open) return null;
@@ -89,9 +84,9 @@ export default function TeacherQuickSearch({
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '10vh 20px 20px',
       }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
+      <Dialog
+        onClose={onClose}
+        initialFocusRef={inputRef}
         aria-label="Find a student, class, assignment or standard"
         style={{
           width: 'min(620px, 100%)', background: 'var(--mm-surface)', borderRadius: 14,
@@ -158,7 +153,7 @@ export default function TeacherQuickSearch({
             );
           })}
         </ul>
-      </div>
+      </Dialog>
     </div>
   );
 }

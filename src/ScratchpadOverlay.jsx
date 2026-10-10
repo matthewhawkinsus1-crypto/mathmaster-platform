@@ -3,6 +3,7 @@ import QuestionPrompt from './QuestionPrompt';
 import useUndoHistory from './useUndoHistory';
 import { useActiveUndoOwner } from './platform/workView/useMathUndoHistory.js';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
+import Dialog from './ui/Dialog.jsx';
 import {
   MAX_SCRATCHPAD_PAGES,
   canAddScratchpadPage,
@@ -403,9 +404,9 @@ export default function ScratchpadOverlay({
   if (!open) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      onClose={requestClose}
+      closeOnEscape={!saving}
       aria-label="Full-screen scratchpad"
       data-scratchpad-stroke-count={strokes.length}
       style={{
@@ -577,9 +578,10 @@ export default function ScratchpadOverlay({
       </footer>
 
       {confirmingClose && (
-        <div
+        <Dialog
           role="alertdialog"
-          aria-modal="true"
+          onClose={() => setConfirmingClose(false)}
+          closeOnEscape={!saving}
           aria-label="Unsaved scratchpad work"
           style={{ position: 'absolute', inset: 0, zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.45)', padding: '20px' }}
         >
@@ -594,7 +596,7 @@ export default function ScratchpadOverlay({
               <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: '#188038', color: '#fff', fontWeight: 'bold' }}>
                 {saving ? 'Saving…' : 'Save and close'}
               </button>
-              <button type="button" onClick={() => setConfirmingClose(false)} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>
+              <button type="button" data-autofocus onClick={() => setConfirmingClose(false)} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>
                 Keep working
               </button>
               <button type="button" onClick={() => { setConfirmingClose(false); onClose?.(); }} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>
@@ -602,8 +604,8 @@ export default function ScratchpadOverlay({
               </button>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
-    </div>
+    </Dialog>
   );
 }

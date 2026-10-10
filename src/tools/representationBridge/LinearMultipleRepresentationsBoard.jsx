@@ -10,6 +10,7 @@ import CoordinatePlane from '../shared/CoordinatePlane';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
+import Dialog from '../../ui/Dialog.jsx';
 import { isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import './LinearMultipleRepresentationsBoard.css';
@@ -499,27 +500,21 @@ function GivenRepresentation({ description, graphBounds }) {
 function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
   const titleId = useId();
   const closeRef = useRef(null);
+  // Dialog opens on the close button and answers Escape; focus goes back to
+  // this graph's own Enlarge button, which a click does not focus in Safari.
   useEffect(() => {
     if (!open) return undefined;
     const focusTarget = returnFocusRef?.current || null;
-    closeRef.current?.focus({ preventScroll: true });
-    const onKey = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('keydown', onKey);
       focusTarget?.focus?.({ preventScroll: true });
     };
-  }, [open, onClose, returnFocusRef]);
+  }, [open, returnFocusRef]);
   if (!open) return null;
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      onClose={onClose}
+      initialFocusRef={closeRef}
+      returnFocus={false}
       aria-labelledby={titleId}
       data-lmr-dialog={graph.key}
       style={{
@@ -559,7 +554,7 @@ function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
         </div>
         {children}
       </div>
-    </div>
+    </Dialog>
   );
 }
 

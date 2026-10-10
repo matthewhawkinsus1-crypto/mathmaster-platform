@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { PRINT_OUTPUT_MODES } from '../../platform/resources/assignmentWorksheetPdfModel.js';
+import Dialog from '../../ui/Dialog.jsx';
 import { compareStudentsByName, formatStudentLabel } from '../../platform/studentName.js';
 
 const MODE_OPTIONS = [
@@ -44,9 +45,10 @@ export default function TeacherAssignmentPdfDialog({
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
       }}
     >
-      <section
-        role="dialog"
-        aria-modal="true"
+      <Dialog
+        as="section"
+        onClose={() => onCancel?.()}
+        closeOnEscape={!busy}
         aria-labelledby="teacher-assignment-pdf-title"
         style={{ width: '100%', maxWidth: 620, background: 'var(--mm-surface)', borderRadius: 16, boxShadow: '0 24px 70px rgba(0,0,0,.28)', overflow: 'hidden', textAlign: 'left' }}
       >
@@ -122,7 +124,7 @@ export default function TeacherAssignmentPdfDialog({
             {busy ? 'Building PDF…' : 'Export ' + selectedMode.title}
           </button>
         </div>
-      </section>
+      </Dialog>
     </div>
   );
 }

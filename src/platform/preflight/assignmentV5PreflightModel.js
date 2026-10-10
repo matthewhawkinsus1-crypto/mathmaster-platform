@@ -11,6 +11,7 @@ import { auditAssignmentSupportDifferentiation } from './supportDifferentiationP
 import { auditAssignmentQuestionGeneration } from './questionGenerationPreflight.js';
 import { auditAssignmentQuestionValues } from './questionValuePreflight.js';
 import { auditAssignmentProcessMode } from './processModePreflight.js';
+import { auditAssignmentGraphAccessibility } from './graphAccessibilityPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -148,6 +149,8 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // be completed and is verified by the server on every version, and every
   // card the board asks for can be opened.
   const processMode = auditAssignmentProcessMode({ ...runtimeSource, sections }, questions);
+  // Graph-reading items a screen reader cannot answer from (warning only).
+  const graphAccessibility = auditAssignmentGraphAccessibility(questions, deliveredOnly);
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -205,6 +208,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     { source: 'questionGeneration', severity: 'warning', messages: questionGeneration.warnings },
     { source: 'questionValue', severity: 'warning', messages: questionValues.warnings },
     { source: 'processMode', severity: 'warning', messages: processMode.warnings },
+    { source: 'graphAccessibility', severity: 'warning', messages: graphAccessibility.warnings },
   ];
 
   const errors = diagnosticGroups

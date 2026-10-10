@@ -273,6 +273,17 @@ test('the shared confirm dialog stacks above Work View and its phone keypad', ()
   assert.ok(confirmZ > Math.max(...workViewLayers), `confirm ${confirmZ} must be above ${Math.max(...workViewLayers)}`);
 });
 
+test('the shared confirm opens on Cancel, and Escape cancels', () => {
+  // "Reset this question?" opened with focus on Reset, so Enter — or a second
+  // press of the key that opened it — reset the work. It opens on the least
+  // destructive choice, and Escape answers "cancel".
+  const toast = executableSource(source('src/ui/Toast.jsx'));
+  const dialog = region(toast, '<Dialog', '</Dialog>', 'the confirm dialog');
+  assert.match(dialog, /^<Dialog\s+role="alertdialog"\s+onClose=\{\(\) => closeConfirm\(false\)\}\s+initialFocusRef=\{cancelButtonRef\}/);
+  assert.match(dialog, /<button type="button" ref=\{cancelButtonRef\} className="mm-btn mm-btn--neutral" onClick=\{\(\) => closeConfirm\(false\)\}>/);
+  assert.doesNotMatch(toast, /confirmButtonRef\.current\?\.focus\(/);
+});
+
 test('the DOL "do this next" opens the first DOL question the student has not tried', () => {
   const dashboard = {
     activeDols: [{

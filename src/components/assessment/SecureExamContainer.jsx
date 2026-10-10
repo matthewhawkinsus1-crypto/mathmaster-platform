@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ExamPrepHeader from './ExamPrepHeader.jsx';
+import Dialog from '../../ui/Dialog.jsx';
 import SecureExamQuestionPlayer from './SecureExamQuestionPlayer.jsx';
 import ExamIntegrityLogger from '../../platform/assessment/examIntegrityLogger.js';
 import { EXAM_RUNTIME_STATES } from '../../platform/assessment/examRuntimeController.js';
@@ -351,7 +352,7 @@ export const SecureExamContainer = ({
     )}
     {!locked.has(session.status) && <div style={{ textAlign: 'center', padding: '0 16px 28px' }}><button type="button" disabled={busy} onClick={() => setConfirmingSubmit(true)} style={secondaryButton}>{courseTest ? 'Submit test' : 'Submit exam early'}</button></div>}
     {confirmingSubmit && (
-      <div role="alertdialog" aria-modal="true" aria-labelledby="secure-submit-title" style={{ position: 'fixed', inset: 0, zIndex: 12500, background: 'var(--mm-scrim)', display: 'grid', placeItems: 'center', padding: 16 }}>
+      <Dialog role="alertdialog" closeOnEscape={false} aria-labelledby="secure-submit-title" style={{ position: 'fixed', inset: 0, zIndex: 12500, background: 'var(--mm-scrim)', display: 'grid', placeItems: 'center', padding: 16 }}>
         <section style={{ width: 'min(480px, 100%)', boxSizing: 'border-box', background: 'var(--mm-surface)', color: 'var(--mm-text)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--mm-shadow-lg)' }}>
           <h2 id="secure-submit-title" style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Submit your {courseTest ? 'test' : 'exam'} now?</h2>
           <p style={{ lineHeight: 1.55 }}>
@@ -364,9 +365,9 @@ export const SecureExamContainer = ({
             <button type="button" disabled={busy} onClick={() => finish('studentSubmit')} style={{ ...primaryButton(!busy), background: busy ? 'var(--mm-surface-control-strong)' : 'var(--mm-danger)', color: busy ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)' }}>Submit {courseTest ? 'test' : 'exam'}</button>
           </div>
         </section>
-      </div>
+      </Dialog>
     )}
-    {locked.has(session.status) && <div role="alertdialog" aria-modal="true" style={{ position: 'fixed', inset: 0, zIndex: 12000, background: 'rgba(32,33,36,.94)', color: '#fff', display: 'grid', placeItems: 'center', padding: 24 }}><div style={{ maxWidth: 520, textAlign: 'center' }}><h1>Exam paused for proctor review</h1><p style={{ lineHeight: 1.55, color: '#e8eaed' }}>Your answers remain saved. Please raise your hand. Only an authenticated teacher can unlock this session from the proctor monitor.</p><p style={{ color: '#fdd663' }}>Recorded integrity events: {session.violationCount || 0}</p></div></div>}
+    {locked.has(session.status) && <Dialog role="alertdialog" closeOnEscape={false} aria-label="Exam paused for proctor review" style={{ position: 'fixed', inset: 0, zIndex: 12000, background: 'rgba(32,33,36,.94)', color: '#fff', display: 'grid', placeItems: 'center', padding: 24 }}><div style={{ maxWidth: 520, textAlign: 'center' }}><h1>Exam paused for proctor review</h1><p style={{ lineHeight: 1.55, color: '#e8eaed' }}>Your answers remain saved. Please raise your hand. Only an authenticated teacher can unlock this session from the proctor monitor.</p><p style={{ color: '#fdd663' }}>Recorded integrity events: {session.violationCount || 0}</p></div></Dialog>}
   </div>;
 };
 
