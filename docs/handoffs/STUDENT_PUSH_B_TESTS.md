@@ -152,16 +152,21 @@ attempt per question.
   release; held vs automatic release; integrity warning; Digital SAT modules;
   course Test over the plan with Corrections; extended time before and at
   start; Retest and practice-test open-book gates; legacy session upgrade.
-  Also green: `test:test-cycle-certification` (35), `test:grade-authority`
-  (14), `test:rules` (154).
+  Also green on the merged head: `test:challenge-finish` (every integration
+  suite on one emulator, as CI runs it — 353, including the Rich Tool
+  certification against the v2 storage), `test:test-cycle-certification`
+  (35), `test:grade-authority` (14), `test:rules` (154).
 - **Browser** (Chromium, 1366×768 and 390×844, sandboxed services, no network):
   `tests/browser/secureExamNavigation.mjs` (314 checks, includes the toolbar
   tools and the in-page list), `tests/browser/secureAccessParity.mjs` (26),
   `tests/browser/secureResults.mjs` (246), and the existing
   `npm run test:test-cycle-device`. Screenshots were reviewed by eye, light
   and dark.
-- **Gate**: `test:platform`, `test:authoring-v5`, `tests/tools`, lint, build,
-  build:firebase — green; GitHub CI on #461.
+- **Gate** (merged head): `test:platform` (9333), `test:authoring-v5` (686),
+  `tests/tools` (1176), lint, build, build:firebase, the theme contract
+  (`audit:theme-colors` and the theme architecture tests) and the strict
+  Algebra seed, authority and quality audits with `audit:answer-acceptance` —
+  green; GitHub CI on #461.
 
 ## Deploy targets (owner's Cloud Shell step)
 
