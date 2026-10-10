@@ -15,8 +15,9 @@
  *     {studentId} — which skills the server says are due a retention check;
  *   - for a proposal shorter than the count (and only then), the server's own
  *     plan for the week (weeklyPathServerPlan.js): how many sessions the same
- *     planner the browser runs can fill on these records. A short week is
- *     accepted only when the server's plan is at least as short.
+ *     planner the browser runs can fill on these records, the student's
+ *     grades document and the class's assignments. A short week is accepted
+ *     only when the server's plan is at least as short.
  *
  * Returns the options freezeWeeklyPathGoalProposal takes
  * (functions/shared/weeklyPathSlotAuthority.mjs).
@@ -58,7 +59,7 @@ async function loadWeeklyFreezeInputs({ db, studentId, studentData = null, class
   const proposedCount = Array.isArray(goal?.sessions) ? goal.sessions.length : 0;
   const plannedSessions = !shortWeekReason && proposedCount > 0 && proposedCount < requestedSessions
     ? await loadServerPlannedSessions({
-      db, studentId, classRecord, honors, requestedSessions, weeklyConfig: config,
+      db, studentId, classRecord, honors, requestedSessions, weeklyConfig: config, studentData,
       serverProfiles: profiles, retentionSchedules: schedules, now, plannerOptions,
     })
     : null;

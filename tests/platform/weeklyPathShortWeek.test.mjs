@@ -30,7 +30,10 @@ import { buildWeeklyPathPlan } from '../../src/platform/path/weeklyPathPlan.js';
 import { buildStudentPathOptions } from '../../src/platform/path/studentPathOptions.js';
 import { buildStudentLearningProfile } from '../../src/platform/profile/studentLearningProfile.js';
 import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedMastery.js';
-import { interventionAsOverride, normalizeOverrides, overridesForClassContext } from '../../src/platform/path/pathStore.js';
+import {
+  interventionAsOverride, normalizeOverrides, overridesForClassContext, storedPacingForClassContext,
+} from '../../src/platform/path/pathStore.js';
+import { studentWithAssignmentWork } from './helpers/assignmentWork.mjs';
 import { plannerClosure, plannerVendorDrift, syncFunctionsWeeklyPlanner } from '../../scripts/sync-functions-weekly-planner.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -77,12 +80,18 @@ const DATES = ['2026-08-26', '2026-09-09', '2026-09-23', '2026-10-07', '2026-11-
 const SESSIONS = [3, 4, 5, 6];
 
 // The week the student's browser proposes, assembled as App.jsx and
-// MyMathPathApp assemble it: the class's stored settings, the server mastery
-// profile, and the planner, then the goal.
-const clientProposal = ({ courseId, honors, settings, serverProfiles, now, pacing = null }) => {
+// MyMathPathApp assemble it: the class's stored settings, the student's
+// assignment record and class assignments, the teacher's overrides, the
+// server mastery profile, and the planner, then the goal.
+const clientProposal = ({
+  courseId, honors, settings, serverProfiles, now, pacing = null,
+  student = { id: STUDENT }, assignments = [], teacherOverrides = [],
+}) => {
   const config = normalizeWeeklyGoalConfig(settings, { honors: Boolean(settings.honors) });
-  const masteryProfilesByTeks = buildUnifiedMasteryProfiles({ student: { id: STUDENT }, assignments: [], serverProfiles, retentionSchedulesByTEKS: {} });
-  const options = buildStudentPathOptions({ student: { id: STUDENT }, assignments: [], courseId, pacing, serverMasteryProfiles: serverProfiles, nowValue: now });
+  const masteryProfilesByTeks = buildUnifiedMasteryProfiles({ student, assignments, serverProfiles, retentionSchedulesByTEKS: {} });
+  const options = buildStudentPathOptions({
+    student, assignments, courseId, pacing, teacherOverrides, serverMasteryProfiles: serverProfiles, nowValue: now,
+  });
   const profile = buildStudentLearningProfile({ courseId, masteryProfilesByTeks, evidenceEvents: [], retentionSchedules: {} });
   const plan = buildWeeklyPathPlan({
     options, courseId, profile, masteryProfilesByTeks, retentionSchedules: {}, evidenceEvents: [],
@@ -91,23 +100,36 @@ const clientProposal = ({ courseId, honors, settings, serverProfiles, now, pacin
   return buildWeeklyGoal({ plan, config, honors, studentId: STUDENT, courseId, now });
 };
 
+// Documents by path, and the one query the server's plan runs
+// (assignments whose assignedClassIds contain the class id).
 const fakeDb = (documents) => ({
-  collection: (name) => ({
-    doc: (id) => ({
-      get: async () => {
-        const data = documents[`${name}/${id}`];
-        return { exists: data !== undefined, data: () => data };
+  collection: (name) => {
+    const all = () => Object.entries(documents)
+      .filter(([key]) => key.startsWith(`${name}/`))
+      .map(([key, data]) => ({ id: key.slice(name.length + 1), data: () => data }));
+    return {
+      doc: (id) => ({
+        get: async () => {
+          const data = documents[`${name}/${id}`];
+          return { exists: data !== undefined, data: () => data };
+        },
+      }),
+      where: (field, op, value) => {
+        assert.equal(op, 'array-contains');
+        return { get: async () => ({ docs: all().filter((entry) => (entry.data()?.[field] || []).includes(value)) }) };
       },
-    }),
-  }),
+      get: async () => ({ docs: all() }),
+    };
+  },
 });
 
-// The callable's path: the server's facts, then the freeze.
-const serverFreeze = async ({ proposal, courseId, honors, documents, now, plannerOptions = {} }) => {
+// The callable's path: the server's facts, then the freeze. `studentData` is
+// grades/{studentId} as the callable reads it.
+const serverFreeze = async ({ proposal, courseId, honors, documents, now, plannerOptions = {}, studentData = {} }) => {
   const db = fakeDb(documents);
   const classRecord = { ...CLASS, course: courseId };
   const inputs = await loadWeeklyFreezeInputs({
-    db, studentId: STUDENT, studentData: { profile: { courseLevel: honors ? 'Honors' : 'Regular' } }, classRecord, goal: proposal, now, plannerOptions,
+    db, studentId: STUDENT, studentData: { ...studentData, profile: { courseLevel: honors ? 'Honors' : 'Regular' } }, classRecord, goal: proposal, now, plannerOptions,
   });
   const context = { studentId: STUDENT, classId: CLASS.classId, courseId, now };
   return { inputs, freeze: () => freezeWeeklyPathGoalProposal(proposal, { ...context, ...inputs }), context };
@@ -224,6 +246,99 @@ test('the server plans on its own records: a teacher\'s hidden skill shortens th
   assert.equal((await serverFreeze({ ...shortWeek, proposal: four, documents: elsewhere })).inputs.plannedSessions, 5);
 });
 
+// The August Algebra I week the honest planner holds five of six.
+const augustShortWeek = () => configurations().find((entry) => (
+  entry.courseId === 'algebra1' && entry.learner === 'new' && entry.sessions === 6 && entry.proposal.sessions.length === 5
+));
+const trimmedTo = (proposal, count) => ({ ...proposal, sessions: proposal.sessions.slice(0, count), goalSessions: count });
+
+test('the student\'s assignment grades reach the server\'s plan, so a week they fill cannot be shortened', async () => {
+  // One assignment question right on A.3F, a skill outside August's window:
+  // the planner takes the more favourable of the assignment record and the
+  // server profile, so A.3F is Mastered and fills the sixth slot as an
+  // Extension. A server that planned without assignments held five, and a
+  // browser that dropped one session was graded on five.
+  const shortWeek = augustShortWeek();
+  const work = studentWithAssignmentWork({ 'A.3F': [1] }, { studentId: STUDENT, assignmentId: 'diagnostic' });
+  const assignment = { ...work.assignments[0], assignedClassIds: [CLASS.classId] };
+  const honest = clientProposal({ ...shortWeek, student: work.student, assignments: [assignment] });
+  assert.equal(honest.sessions.length, 6, 'the honest browser fills the week');
+  const studentData = { gradesByAssignment: work.student.gradesByAssignment };
+  const documents = { ...shortWeek.documents, 'assignments/diagnostic': assignment };
+
+  const dropped = await serverFreeze({ ...shortWeek, proposal: trimmedTo(honest, 5), documents, studentData });
+  assert.equal(dropped.inputs.plannedSessions, 6, 'the server plans the same six');
+  assert.throws(dropped.freeze, (error) => error.code === 'failed-precondition' && /needs 6 sessions and only 5/.test(error.message));
+  // The honest week is full: the server never plans it, and it freezes.
+  const full = await serverFreeze({ ...shortWeek, proposal: honest, documents, studentData });
+  assert.equal(full.inputs.plannedSessions, null);
+  assert.equal(full.freeze().goalSessions, 6);
+
+  // The class's assignments, as the student client keeps them: one assigned
+  // to another class is not this student's Path, and the server's week is
+  // the short one again.
+  const elsewhere = { ...shortWeek.documents, 'assignments/diagnostic': { ...assignment, assignedClassIds: ['class-2'] } };
+  assert.equal(clientProposal({ ...shortWeek, student: work.student, assignments: [] }).sessions.length, 5);
+  assert.equal((await serverFreeze({ ...shortWeek, proposal: trimmedTo(honest, 5), documents: elsewhere, studentData })).inputs.plannedSessions, 5);
+});
+
+test('the student\'s live teacher recommendation reaches the server\'s plan', async () => {
+  // A recommendation opens a future skill for this student, so the August
+  // week is full in the browser. A server that dropped it would plan five
+  // and accept a five-session proposal.
+  const shortWeek = augustShortWeek();
+  // The engine expires overrides against the wall clock, so far in the future.
+  const intervention = { studentId: STUDENT, skillId: 'teks:A.3F', expiresAt: Date.parse('2099-01-01T00:00:00Z') };
+  const honest = clientProposal({ ...shortWeek, teacherOverrides: [interventionAsOverride(intervention, shortWeek.now)] });
+  assert.equal(honest.sessions.length, 6);
+  const documents = { ...shortWeek.documents, [`studentPathInterventions/${STUDENT}`]: intervention };
+  const dropped = await serverFreeze({ ...shortWeek, proposal: trimmedTo(honest, 5), documents });
+  assert.equal(dropped.inputs.plannedSessions, 6);
+  assert.throws(dropped.freeze, (error) => error.code === 'failed-precondition');
+  // An expired recommendation is not one.
+  const expired = { ...documents, [`studentPathInterventions/${STUDENT}`]: { ...intervention, expiresAt: shortWeek.now - 1 } };
+  assert.equal((await serverFreeze({ ...shortWeek, proposal: trimmedTo(honest, 5), documents: expired })).inputs.plannedSessions, 5);
+});
+
+test('the server reads the class\'s saved pacing as the student client does', async () => {
+  // A course on the provisional sequence is planned only on saved pacing, so
+  // the saved record has to reach the planner: by class id, then period.
+  const now = Date.parse('2026-10-07T15:00:00Z');
+  const settings = { sessions: 6 };
+  const base = { courseId: 'grade8', honors: false, now, settings, serverProfiles: {} };
+  const proposal = clientProposal({ ...base, pacing: { currentWindow: 3 } });
+  const short = trimmedTo(proposal, 1);
+  const plannedWith = async (pacingDoc) => (await serverFreeze({
+    ...base,
+    proposal: short,
+    documents: { 'settings/weeklyPathGoals': { byClass: { [CLASS.classId]: settings } }, ...(pacingDoc ? { 'settings/classPacing': pacingDoc } : {}) },
+  })).inputs.plannedSessions;
+  assert.equal(await plannedWith(null), null, 'no saved pacing, no plan');
+  assert.equal(await plannedWith({ byClass: { [CLASS.classId]: { currentWindow: 3 } } }), proposal.sessions.length);
+  assert.equal(await plannedWith({ byClass: { [CLASS.period]: { currentWindow: 3 } } }), proposal.sessions.length, 'the legacy period key');
+  assert.equal(await plannedWith({ byClass: { 'class-2': { currentWindow: 3 } } }), null, 'another class\'s pacing is not this class\'s');
+
+  // The lookup itself, against pathStore's, including entries it normalises.
+  const planner = await serverPlan.loadWeeklyPlanner();
+  const stored = [
+    { [CLASS.classId]: { currentWindow: 4 }, [CLASS.period]: { currentWindow: 2 } },
+    { [CLASS.classId]: 'junk', [CLASS.period]: { currentWindow: 2 } },
+    { [CLASS.period]: { currentWindow: 2, accelerationRadius: 3 } },
+    { '': { currentWindow: 5 } },
+    null,
+    [],
+  ];
+  for (const byClass of stored) {
+    for (const classRecord of [CLASS, { classId: 'other', period: CLASS.period }, { classId: 'other', period: '' }]) {
+      assert.deepEqual(
+        serverPlan.storedPacingForClassContext(planner, byClass, classRecord),
+        storedPacingForClassContext(byClass, { classId: classRecord.classId, classPeriod: classRecord.period }),
+        JSON.stringify({ byClass, classRecord }),
+      );
+    }
+  }
+});
+
 test('the server fails closed: no planner, or a course it cannot time, refuses a short week as before', async () => {
   const shortWeek = configurations().find((entry) => entry.proposal.sessions.length < entry.sessions);
   const missing = path.join(os.tmpdir(), 'mm-no-planner-here');
@@ -298,4 +413,11 @@ test('resolveWeeklyPathGoalSnapshot hands the proposal to the server\'s facts, a
   assert.match(callable, /await loadWeeklyFreezeInputs\(\{[^}]*\bgoal: request\.data\?\.goal \|\| \{\}/);
   const inputs = executableSource(read('functions/lib/weeklyPathFreezeInputs.js'));
   assert.match(inputs, /const plannedSessions = !shortWeekReason && proposedCount > 0 && proposedCount < requestedSessions\s*\? await loadServerPlannedSessions\(/);
+  // The mastery profiles (learning profile, retention) are built from the
+  // whole grades document and the class's assignments, as
+  // masteryStateService.fetchStudentMasteryState builds them. No sampled week
+  // changes length without it, so this one is pinned by source.
+  const plan = executableSource(read('functions/lib/weeklyPathServerPlan.js'));
+  const planner = region(plan, 'function planWeeklySessions(', '\n}\n', 'the server plan');
+  assert.match(planner, /buildUnifiedMasteryProfiles\(\{\s*student: \{ id: studentId, \.\.\.record \},\s*assignments: classAssignments,/);
 });

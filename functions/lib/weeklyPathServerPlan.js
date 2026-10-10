@@ -23,14 +23,24 @@
  *     recommendation), by class id then period, as the student client reads
  *     them;
  *   - the student's server mastery profile and retention schedule;
- *   - NO practice history. Its only effect on the count is a cooldown, which
- *     can only remove skills, so without it the server's week is never
- *     shorter than the browser's.
- *   - NO assignment grades. For a course timed by a district calendar they
- *     cannot move which skills are open (no evidence is never a gap). For a
- *     course on the provisional sequence they anchor the current window, so
- *     with no saved pacing the server does not plan at all and the short week
- *     is refused as before.
+ *   - the student's assignment record (grades/{studentId}) and the class's
+ *     assignments (assignedClassIds contains the class id), as App.jsx hands
+ *     them to the planner (studentRecord, studentPathAssignments). These must
+ *     be read: the planner takes the MORE favourable of the assignment record
+ *     and the server profile (masteryAdapter.js favourableMasteryBySkill), so
+ *     one assignment question right on a skill outside the open window puts it
+ *     in the Mastered bucket and it fills a slot as an Extension. A server
+ *     that ignored assignments planned five where the honest browser planned
+ *     six, and a browser that sent five was graded on five;
+ *   - NO practice history. Its main effect on the count is a cooldown, which
+ *     can only remove skills, so without it the server's week is longer. In
+ *     principle a transfer gap in the learning profile can also relabel a
+ *     bridge candidate as a transfer slot (outside the bridge cap), which
+ *     would make the browser's week the longer one; no sampled configuration
+ *     has shown it, and the floor is still the server's own plan.
+ *   - For a course on the provisional sequence with no saved pacing the open
+ *     assignments' dates anchor the current window. The server does not plan
+ *     that case at all, and the short week is refused as before.
  *
  * The planner lives in src/ (the browser bundle). Firebase uploads only
  * functions/, so scripts/sync-functions-weekly-planner.mjs copies the
@@ -60,6 +70,7 @@ const PLANNER_ENTRIES = Object.freeze({
   profile: "src/platform/profile/studentLearningProfile.js",
   mastery: "src/platform/mastery/unifiedMastery.js",
   districtUnits: "src/platform/path/districtUnits.js",
+  pacing: "src/platform/path/curriculumPacing.js",
 });
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
@@ -129,11 +140,18 @@ function interventionAsOverride(raw, now) {
   return { classId: "", skillId, action: "recommend", expiresAt: new Date(expiresAt).toISOString() };
 }
 
-const byClassContext = (byClass, classRecord) => (
-  (classRecord?.classId && byClass?.[classRecord.classId])
-  || (classRecord?.period && byClass?.[classRecord.period])
-  || null
-);
+// The client's saved-pacing lookup (pathStore.js normalizePacingByClass and
+// storedPacingForClassContext): every entry normalised first, then the class
+// id, then the legacy period key.
+const storedPacingForClassContext = (planner, byClass, classRecord) => {
+  const source = byClass && typeof byClass === "object" && !Array.isArray(byClass) ? byClass : {};
+  const normalized = Object.fromEntries(Object.entries(source)
+    .filter(([classId]) => classId)
+    .map(([classId, pacing]) => [classId, planner.pacing.normalizeClassPacing(pacing)]));
+  const classId = text(classRecord?.classId);
+  const classPeriod = text(classRecord?.period);
+  return (classId && normalized[classId]) || (classPeriod && normalized[classPeriod]) || null;
+};
 
 /**
  * How many sessions the server's own plan holds for this student this week,
@@ -148,6 +166,9 @@ function planWeeklySessions(planner, {
   weeklyConfig = null,
   pacing = null,
   teacherOverrides = [],
+  // grades/{studentId} as stored, and the class's assignments.
+  studentRecord = null,
+  assignments = [],
   serverProfiles = {},
   retentionSchedules = {},
   now,
@@ -164,14 +185,24 @@ function planWeeklySessions(planner, {
     ? normalizeWeeklyGoalConfig(weeklyConfig, { honors: Boolean(weeklyConfig.honors) })
     : {};
   const config = { ...stored, sessions: Number(requestedSessions) };
+  const record = studentRecord && typeof studentRecord === "object" ? studentRecord : {};
+  const classAssignments = Array.isArray(assignments) ? assignments : [];
+  // The two student shapes the client builds: the whole grades document for
+  // mastery (masteryStateService.fetchStudentMasteryState), and App.jsx's
+  // studentRecord for the Path options.
   const masteryProfilesByTeks = planner.mastery.buildUnifiedMasteryProfiles({
-    student: { id: studentId },
+    student: { id: studentId, ...record },
+    assignments: classAssignments,
     serverProfiles,
     retentionSchedulesByTEKS: retentionSchedules,
   });
   const options = planner.options.buildStudentPathOptions({
-    student: { id: studentId },
-    assignments: [],
+    student: {
+      id: studentId,
+      gradesByAssignment: record.gradesByAssignment || {},
+      supportUsageByAssignment: record.supportUsageByAssignment || {},
+    },
+    assignments: classAssignments,
     courseId: course,
     pacing,
     teacherOverrides,
@@ -210,6 +241,7 @@ async function loadServerPlannedSessions({
   honors = false,
   requestedSessions,
   weeklyConfig = null,
+  studentData = null,
   serverProfiles = {},
   retentionSchedules = {},
   now = Date.now(),
@@ -221,12 +253,17 @@ async function loadServerPlannedSessions({
       console.warn("weeklyPathServerPlan: the weekly planner is not deployed; a short week is refused.");
       return null;
     }
-    const [pacingSnapshot, overridesSnapshot, interventionSnapshot] = await Promise.all([
+    const classId = text(classRecord?.classId);
+    const [pacingSnapshot, overridesSnapshot, interventionSnapshot, assignmentsSnapshot] = await Promise.all([
       db.collection("settings").doc(PACING_DOC).get(),
       db.collection("settings").doc(OVERRIDES_DOC).get(),
       db.collection(STUDENT_PATH_INTERVENTION_COLLECTION).doc(studentId).get(),
+      // The student client's own class query (studentAssignmentScope.js), and
+      // App.jsx keeps exactly these for the Path (assignmentIsForStudent).
+      classId ? db.collection("assignments").where("assignedClassIds", "array-contains", classId).get() : null,
     ]);
-    const pacing = byClassContext(pacingSnapshot.exists ? pacingSnapshot.data()?.byClass : null, classRecord);
+    const pacing = storedPacingForClassContext(planner, pacingSnapshot.exists ? pacingSnapshot.data()?.byClass : null, classRecord);
+    const assignments = (assignmentsSnapshot?.docs || []).map((entry) => ({ id: entry.id, ...entry.data() }));
     const classOverrides = overridesForClassContext(
       overridesSnapshot.exists ? overridesSnapshot.data()?.overrides : [],
       { classId: classRecord?.classId || "", classPeriod: classRecord?.period || "" },
@@ -240,6 +277,8 @@ async function loadServerPlannedSessions({
       weeklyConfig,
       pacing,
       teacherOverrides: personal ? [...classOverrides, personal] : classOverrides,
+      studentRecord: studentData,
+      assignments,
       serverProfiles,
       retentionSchedules,
       now,
@@ -261,4 +300,5 @@ module.exports = {
   normalizeOverride,
   overridesForClassContext,
   interventionAsOverride,
+  storedPacingForClassContext,
 };
