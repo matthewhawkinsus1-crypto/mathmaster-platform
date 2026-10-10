@@ -355,6 +355,20 @@ attempt per question.
 - **Gate** (merged head, main 3a70944): `test:platform` (10289),
   `test:authoring-v5` (686), `tests/tools` (1392), lint, build, build:firebase,
   the theme audit (`audit:theme-colors`) — green; GitHub CI on #461.
+- **B2** (with main b027eb4 merged). Every fix was mutation-checked (revert it,
+  see the named assertion fail, restore). Emulator
+  `test:secure-exam-navigation`: 23 tests, 4 of them new (the paused clock
+  across the deadline, a reset racing a release, the 401-record cap, the cached
+  roster). Unit: new `secureExamPauseClock` (7) and the contracts in the
+  changed suites. Browser: `secureExamNavigation.mjs` (the clock stops while
+  paused, the loading start screen, a slow list, Escape on the question
+  button, the timer's name), `secureResults.mjs` (the Corrections note per
+  hold, the card's facts per stage), and the lifecycle driver (67 checks, 0
+  findings). Local gate on the merged head, green before the push:
+  `test:platform`, `test:authoring-v5`, lint, build, build:firebase. Per the coordinator's
+  usage notice, the remaining emulator and browser suites (`test:challenge-finish`,
+  `test:test-cycle-certification`, `test:grade-authority`, `test:rules`,
+  `test:test-cycle-device`, the browser workflows) run in CI on the PR.
 
 ## Deploy targets (owner's Cloud Shell step)
 
