@@ -244,7 +244,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.12E:v2-solve-area-height",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -253,14 +253,14 @@
       "assessedConstruct": "A.12E",
       "taskType": "errorAnalysis",
       "representation": "symbolic",
-      "prompt": "A student solves $A={{k}}bh$ for $h$ by dividing by {{k}} but forgets that $h$ is also multiplied by $b$. Correct the error and solve for $h$.",
+      "prompt": "A student solves $A={{k}}{{v}}h$ for $h$ by dividing by {{k}} but forgets that $h$ is also multiplied by ${{v}}$. Correct the error and solve for $h$.",
       "solutionReview": {
         "headline": "Divide by the complete factor multiplying the target variable.",
         "reasoning": [
-          "In $A={{k}}bh$, the target $h$ is multiplied by both {{k}} and $b$.",
-          "Divide by the entire product ${{k}}b$ to obtain $h=A/({{k}}b)$."
+          "In $A={{k}}{{v}}h$, the target $h$ is multiplied by both {{k}} and ${{v}}$.",
+          "Divide by the entire product ${{k}}{{v}}$ to obtain $h=A/({{k}}{{v}})$."
         ],
-        "answerSummary": "$h=A/({{k}}b)$"
+        "answerSummary": "$h=A/({{k}}{{v}})$"
       },
       "attemptFeedback": [
         "Isolate the requested variable symbolically while treating every other letter as a known quantity."
@@ -273,7 +273,14 @@
           "k": {
             "type": "int",
             "min": 2,
-            "max": 9
+            "max": 12
+          },
+          "v": {
+            "type": "choice",
+            "values": [
+              "b",
+              "w"
+            ]
           }
         }
       },
@@ -282,9 +289,13 @@
           "id": "answer",
           "label": "Answer",
           "inputProfile": "expression",
-          "expected": "A/({{k}}b)",
+          "expected": "A/({{k}}{{v}})",
           "accepted": [
-            "A/{{k}}/b"
+            "A/{{k}}/{{v}}",
+            "A/({{v}}*{{k}})",
+            "(A/{{k}})/{{v}}",
+            "A/{{v}}/{{k}}",
+            "(A/{{v}})/{{k}}"
           ]
         }
       ]

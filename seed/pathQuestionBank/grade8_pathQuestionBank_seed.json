@@ -1956,12 +1956,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Dilations preserve angle measure but scale lengths.",
+        "headline": "A dilation by factor {{k}} keeps every angle measure the same; only the lengths and the area change.",
         "reasoning": [
-          "Similar figures have congruent corresponding angles.",
-          "Side lengths change by the scale factor, and area changes by its square."
+          "A dilation by factor {{k}} multiplies every side length by {{k}}: a 3-unit side becomes $3 \\times {{k}} = {{s3}}$ units. Side lengths do not stay the same.",
+          "Area is multiplied by the square of the factor, ${{k}}^2 = {{k2}}$, so the image has {{k2}} times the original area. Area does not stay the same either.",
+          "The image is similar to the original triangle, and similar figures have congruent corresponding angles: a $50^\\circ$ angle is still $50^\\circ$ after the dilation.",
+          "So the attribute that must remain unchanged is the angle measures."
         ],
-        "answerSummary": "angles"
+        "commonError": "Treating a dilation like a rigid motion. Only a factor of 1 keeps lengths; factor {{k}} stretches every side by {{k}} and the area by {{k2}}.",
+        "answerSummary": "Angle measures"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -1976,6 +1979,10 @@
             "min": 2,
             "max": 10
           }
+        },
+        "derived": {
+          "k2": "k*k",
+          "s3": "3*k"
         }
       }
     },
@@ -4779,12 +4786,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "A linear conclusion should use the whole bivariate pattern.",
+        "headline": "Two equal differences of {{d}} check only 3 of the {{n}} points; a linear conclusion needs the whole pattern.",
         "reasoning": [
-          "A few matching local changes can occur by chance.",
-          "Check whether the overall points continue to follow a straight-line pattern."
+          "Two first differences come from just 3 consecutive points. With {{n}} points there are {{nd}} first differences, so {{rest}} more points have not been checked.",
+          "The data are linear only if every first difference (for equal input steps) is the same constant, so all {{nd}} differences would have to equal {{d}}.",
+          "Counterexample: outputs $0, {{d}}, {{d2}}, {{d4}}$ at inputs $0, 1, 2, 3$ have differences {{d}}, {{d}}, then {{d2}}. The pattern breaks right after the two matching differences.",
+          "So the best response is to check the full data pattern before declaring all {{n}} points linear."
         ],
-        "answerSummary": "needAllPattern"
+        "commonError": "Generalizing from a small part of the data: two matching differences of {{d}} say nothing yet about the other {{rest}} points.",
+        "answerSummary": "Check the full data pattern; two matching differences are not enough."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -4804,6 +4814,12 @@
             "min": 5,
             "max": 20
           }
+        },
+        "derived": {
+          "nd": "n-1",
+          "rest": "n-3",
+          "d2": "2*d",
+          "d4": "4*d"
         }
       }
     },
@@ -5623,12 +5639,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "A proportional situation has zero output when input is zero.",
+        "headline": "The machine making {{r}} units per hour from a start of zero is proportional; the {{fee}}-dollar fee makes the service non-proportional.",
         "reasoning": [
-          "The first situation starts from zero.",
-          "The fee in the second situation creates a nonzero starting value."
+          "Machine: $y = {{r}}x$. After 0 hours it has made 0 units, after 1 hour {{r}}, after 2 hours {{r2}}, so the ratio $y \\div x$ is always {{r}}.",
+          "Service: $y = {{r}}x + {{fee}}$. After 0 hours it already costs {{fee}} dollars, so its graph does not pass through the origin.",
+          "Its ratio is not constant: 1 hour costs {{c1}} dollars but 2 hours cost {{c2}} dollars, not $2 \\times {{c1}} = {{c1x2}}$.",
+          "A proportional situation gives 0 output for 0 input and has a constant ratio, so the machine with no starting amount is the proportional one."
         ],
-        "answerSummary": "noFee"
+        "commonError": "Choosing the service because its {{r}}-dollar hourly rate is constant. A constant rate makes it linear, but the {{fee}}-dollar starting fee makes it non-proportional.",
+        "answerSummary": "A machine produces {{r}} units per hour with no starting amount."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -5648,6 +5667,12 @@
             "min": 5,
             "max": 50
           }
+        },
+        "derived": {
+          "r2": "2*r",
+          "c1": "fee+r",
+          "c2": "fee+2*r",
+          "c1x2": "2*(fee+r)"
         }
       }
     },
@@ -6604,12 +6629,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Constant rate makes a relationship linear; zero intercept makes it proportional.",
+        "headline": "A constant rate of {{r}} dollars per unit makes the rule linear; the {{fee}}-dollar starting fee keeps it from being proportional.",
         "reasoning": [
-          "The fee gives nonzero output when input is zero.",
-          "So the relationship is linear but non-proportional."
+          "The rule is $y = {{r}}x + {{fee}}$. Buying 0 units still costs {{fee}} dollars, so the graph crosses the $y$-axis at {{fee}}, not at the origin.",
+          "Check the ratio: 1 unit costs {{c1}} dollars but 2 units cost {{c2}} dollars. Doubling the units does not double the cost ($2 \\times {{c1}} = {{c1x2}}$), so $y \\div x$ is not constant.",
+          "Proportional means $y = kx$: a constant rate AND a starting value of 0. The student checked only the rate.",
+          "What is missing: proportionality also requires a zero starting value."
         ],
-        "answerSummary": "startingValueMatters"
+        "commonError": "Treating every constant-rate rule as proportional. A rule that adds a starting fee of {{fee}} dollars is linear, but proportional rules start at 0.",
+        "answerSummary": "Proportionality also requires zero starting value."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -6629,6 +6657,11 @@
             "min": 5,
             "max": 50
           }
+        },
+        "derived": {
+          "c1": "fee+r",
+          "c2": "fee+2*r",
+          "c1x2": "2*(fee+r)"
         }
       }
     },
@@ -8058,12 +8091,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "The Pythagorean theorem relates squared lengths, not direct sums.",
+        "headline": "Legs {{a}} and {{b}} give a hypotenuse of {{c}}, not {{sum}}: square the legs, add, then take the square root.",
         "reasoning": [
-          "Leg lengths do not add to the hypotenuse.",
-          "Their square areas add to the hypotenuse square area."
+          "The Pythagorean theorem relates the squares of the sides: $a^2 + b^2 = c^2$, where $c$ is the hypotenuse.",
+          "Square the legs and add: ${{a}}^2 + {{b}}^2 = {{a2}} + {{b2}} = {{c2}}$.",
+          "Take the square root: $c = \\sqrt{ {{c2}} } = {{c}}$, because ${{c}}^2 = {{c2}}$.",
+          "The student's {{sum}} is too long: a side of a triangle is always shorter than the other two sides together, so the hypotenuse can never equal {{a}} + {{b}}."
         ],
-        "answerSummary": "squareRelationship"
+        "commonError": "Adding the leg lengths ({{a}} + {{b}} = {{sum}}). The theorem adds the squares of the legs, {{a2}} + {{b2}}, not the legs themselves.",
+        "answerSummary": "Square the side lengths: $a^2+b^2=c^2$."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -8088,7 +8124,10 @@
           "a": "m*m-n*n",
           "b": "2*m*n",
           "c": "m*m+n*n",
-          "sum": "a+b"
+          "sum": "a+b",
+          "a2": "a*a",
+          "b2": "b*b",
+          "c2": "c*c"
         },
         "constraints": [
           "m>n",
@@ -8724,12 +8763,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Lateral area excludes the bases; total area includes them.",
+        "headline": "For radius {{r}} and height {{h}}, the lateral area is ${{lat}}\\pi$ and the total area is ${{tot}}\\pi$: the total adds the two bases.",
         "reasoning": [
-          "The curved side is the lateral surface.",
-          "A closed cylinder adds both circular bases."
+          "Lateral area is the curved side only: $2\\pi rh = 2\\pi({{r}})({{h}}) = {{lat}}\\pi$ square units.",
+          "Each circular base has area $\\pi r^2 = \\pi({{r}})^2 = {{rr}}\\pi$. A closed cylinder has two bases, so they add ${{bases}}\\pi$.",
+          "Total surface area $= {{lat}}\\pi + {{bases}}\\pi = {{tot}}\\pi$ square units.",
+          "The two areas differ by the bases, ${{bases}}\\pi$, so they are never equal: total surface area equals lateral area plus the two circular bases."
         ],
-        "answerSummary": "addBases"
+        "commonError": "Using only $2\\pi rh = {{lat}}\\pi$ for a closed cylinder. That is the lateral area; the total must also include the two bases, ${{bases}}\\pi$.",
+        "answerSummary": "Total surface area equals lateral area plus the two circular bases."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -8749,6 +8791,12 @@
             "min": 2,
             "max": 15
           }
+        },
+        "derived": {
+          "lat": "2*r*h",
+          "rr": "r*r",
+          "bases": "2*r*r",
+          "tot": "2*r*h+2*r*r"
         }
       }
     },
@@ -10146,12 +10194,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "An equation with variables on both sides compares two changing quantities.",
+        "headline": "Company A is ${{a}} + {{r1}}m$ and Company B is ${{b}} + {{r2}}m$; asking when they are equal is a break-even question.",
         "reasoning": [
-          "Each row defines a linear expression in months.",
-          "Setting the expressions equal asks for the break-even time."
+          "From the table, after $m$ months Company A's total is ${{a}} + {{r1}}m$ and Company B's total is ${{b}} + {{r2}}m$.",
+          "B starts {{ds}} lower but changes {{dr}} more per month (${{r2}} - {{r1}} = {{dr}}$), so B catches up to A.",
+          "Setting the totals equal, ${{a}} + {{r1}}m = {{b}} + {{r2}}m$, gives ${{ds}} = {{dr}}m$, so $m = {{ds}} \\div {{dr}}$ months: the break-even time.",
+          "An equality comparison uses both rows, so the matching situation is determining when the two monthly totals become equal."
         ],
-        "answerSummary": "breakEven"
+        "commonError": "Using only one row, such as Company A after one month (${{a}} + {{r1}} = {{a1}}$). That evaluates one expression; it does not compare the two.",
+        "answerSummary": "Determine when the two monthly totals become equal."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -10181,6 +10232,11 @@
             "min": 11,
             "max": 20
           }
+        },
+        "derived": {
+          "ds": "a-b",
+          "dr": "r2-r1",
+          "a1": "a+r1"
         }
       }
     },
@@ -10963,12 +11019,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Two pairs of congruent angles establish triangle similarity.",
+        "headline": "Two pairs of equal angles, {{a}}° and {{b}}°, make the triangles similar by AA, but not necessarily congruent.",
         "reasoning": [
-          "Both triangles share two angle measures.",
-          "AA guarantees similarity, not necessarily equal size."
+          "In each triangle the third angle is $180^\\circ - {{a}}^\\circ - {{b}}^\\circ = {{t}}^\\circ$, so all three angles match: {{a}}°, {{b}}° and {{t}}°.",
+          "Two pairs of congruent corresponding angles are enough for the AA similarity criterion, so Triangle A is similar to Triangle B.",
+          "Angles fix the shape but not the size: Triangle B could have every side twice as long as Triangle A's and still have angles {{a}}°, {{b}}° and {{t}}°. So congruence is not guaranteed.",
+          "Conclusion: the triangles are similar by AA."
         ],
-        "answerSummary": "similarByAA"
+        "commonError": "Treating equal angles as proof of congruence. Angles of {{a}}° and {{b}}° fix the shape only; congruence also needs a pair of equal corresponding sides.",
+        "answerSummary": "The triangles are similar by AA."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -10988,6 +11047,9 @@
             "min": 20,
             "max": 70
           }
+        },
+        "derived": {
+          "t": "180-a-b"
         },
         "constraints": [
           "a+b<170"
@@ -11401,12 +11463,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Equal slopes with different intercepts produce parallel distinct lines.",
+        "headline": "Same slope {{m}} with different intercepts {{b1}} and {{b2}}: the lines are parallel and never intersect.",
         "reasoning": [
-          "The lines rise or fall at the same rate.",
-          "Different intercepts keep them separated everywhere."
+          "Both lines have the form $y = mx + b$ with the same slope $m = {{m}}$: the first has $b = {{b1}}$ and the second has $b = {{b2}}$.",
+          "To intersect they would need $mx {{b1|signed}} = mx {{b2|signed}}$ for some $x$. Subtracting $mx$ from both sides leaves ${{b1}} = {{b2}}$, which is false, so no $x$ works.",
+          "Both lines change by {{m}} for every 1-unit increase in $x$, so the vertical gap between them stays ${{b2}} - {{b1|paren}} = {{gap}}$ at every $x$.",
+          "So the lines are parallel and distinct: there is no intersection point."
         ],
-        "answerSummary": "noIntersection"
+        "commonError": "Assuming any two lines cross exactly once. Lines with the same slope, {{m}}, never meet unless their intercepts are also equal, and {{b1}} is not {{b2}}.",
+        "answerSummary": "No intersection; the lines are parallel."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -11434,6 +11499,9 @@
             "min": 1,
             "max": 15
           }
+        },
+        "derived": {
+          "gap": "b2-b1"
         }
       }
     },
@@ -11551,12 +11619,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Reflections preserve lengths and angles while reversing orientation.",
+        "headline": "After the reflection the {{n}}-unit side is still {{n}} units and the shape is unchanged, but the orientation reverses.",
         "reasoning": [
-          "A reflection is a rigid motion, so size and shape stay the same.",
-          "The vertex order reverses across the mirror line."
+          "A reflection is a rigid motion: every distance is preserved, so the image of the {{n}}-unit side is also {{n}} units long, and every angle keeps its measure.",
+          "Matching sides and angles mean the image is congruent to the original triangle; its size does not change.",
+          "Orientation reverses: if the vertices $A \\to B \\to C$ run clockwise on the original, the images $A' \\to B' \\to C'$ run counterclockwise, like a mirror image.",
+          "So the true statement is that the image is congruent, but its orientation reverses."
         ],
-        "answerSummary": "congruentReverseOrientation"
+        "commonError": "Thinking a reflection changes size. Only a dilation by a factor other than 1 changes lengths; the {{n}}-unit side stays {{n}} units.",
+        "answerSummary": "The image is congruent, but its orientation reverses."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -11844,12 +11915,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Translations are rigid motions.",
+        "headline": "Translating right by {{dx}} preserves congruence; dilating by factor {{k}} does not.",
         "reasoning": [
-          "A translation changes position without changing lengths or angles.",
-          "A non-unit dilation changes side lengths."
+          "A translation slides every point the same distance: $(x, y) \\to (x + {{dx}}, y)$. Every segment keeps its length and every angle its measure, so the image is congruent.",
+          "A dilation by factor {{k}} multiplies every length by {{k}}: a 4-unit side would become $4 \\times {{k}} = {{k4}}$ units. The angles stay the same, so the image is similar but not congruent.",
+          "Congruence needs equal lengths as well as equal angles, so only the translation right by {{dx}} preserves congruence."
         ],
-        "answerSummary": "translationRigid"
+        "commonError": "Calling the dilation rigid because its angles are unchanged. Factor {{k}} changes every length, so its image is only similar.",
+        "answerSummary": "Translate {{dx}} units right."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -11866,7 +11939,8 @@
           }
         },
         "derived": {
-          "k": "dx+1"
+          "k": "dx+1",
+          "k4": "4*k"
         }
       }
     },
@@ -11993,12 +12067,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Congruent images keep all corresponding lengths unchanged.",
+        "headline": "The translation row keeps lengths unchanged, so it preserves congruence; the dilation row multiplies lengths by {{k}}.",
         "reasoning": [
-          "The translation leaves lengths unchanged.",
-          "The dilation scales them."
+          "Translation by {{dx}} units: the table says lengths are unchanged. The figure only moves {{dx}} units, so every side and angle matches the original.",
+          "Dilation by {{k}}: lengths are multiplied by {{k}}, so a 5-unit side becomes $5 \\times {{k}} = {{k5}}$ units. The image is larger, so it is not congruent.",
+          "A congruence-preserving move must keep every length the same, so the row to choose is the translation by {{dx}} units."
         ],
-        "answerSummary": "translationRow"
+        "commonError": "Choosing the dilation because it keeps the shape. A dilation by {{k}} keeps angles but changes every length, so the image is similar, not congruent.",
+        "answerSummary": "Translation by {{dx}} units"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -12018,6 +12094,9 @@
             "min": 2,
             "max": 8
           }
+        },
+        "derived": {
+          "k5": "5*k"
         }
       }
     },
@@ -12062,12 +12141,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Preserving all distances and angles is the defining property of rigid motion.",
+        "headline": "The {{n}}-unit segment stays {{n}} units long with every angle preserved, so it was moved by a rigid motion.",
         "reasoning": [
-          "No length or angle changes.",
-          "Therefore the image remains congruent to the original."
+          "Compare the lengths: image $\\div$ original $= {{n}} \\div {{n}} = 1$, so the transformation neither stretches nor shrinks the segment.",
+          "A size-changing dilation would multiply the length by a factor other than 1; factor 2, for example, would give $2 \\times {{n}} = {{n2}}$ units. That did not happen here.",
+          "Lengths and angles are both preserved, so the image is congruent to the original: the transformation is a congruence-preserving rigid motion."
         ],
-        "answerSummary": "rigidMotion"
+        "commonError": "Calling it a dilation because the angles are preserved. Dilations preserve angles too; what decides it is the length, which stayed {{n}} units.",
+        "answerSummary": "Congruence-preserving rigid motion"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -12082,6 +12163,9 @@
             "min": 2,
             "max": 20
           }
+        },
+        "derived": {
+          "n2": "2*n"
         }
       }
     },
@@ -13115,12 +13199,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "No association is plausible when variables have no meaningful relationship.",
+        "headline": "Shoe size and first-name length for {{n}} students would show little or no association.",
         "reasoning": [
-          "Name length has no natural mechanism tied to shoe size.",
-          "Practice time and skill score have a plausible connection."
+          "Shoe size depends on how a student's feet grew; the number of letters in a first name was chosen by the parents. Nothing links one to the other.",
+          "Plotting the {{n}} students' (shoe size, letters in name) pairs would give a scattered cloud with no upward or downward trend.",
+          "Hours practiced and skill score are linked: more practice tends to raise the score, so those points would rise from left to right, a positive association.",
+          "So the situation that would most reasonably show little or no association is shoe size versus number of letters in a first name."
         ],
-        "answerSummary": "unrelatedVariables"
+        "commonError": "Expecting every pair of measurements to be related. Association needs a plausible link; practice time and skill have one, shoe size and name length do not.",
+        "answerSummary": "Shoe size versus number of letters in a first name for {{n}} students"
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -13179,12 +13266,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Scatterplots reveal association, not causal direction by themselves.",
+        "headline": "The scatterplot of {{n}} towns shows an association, but it cannot show that firefighters cause fire damage.",
         "reasoning": [
-          "A lurking variable such as fire size can influence both variables.",
-          "The graph alone cannot prove firefighters caused damage."
+          "The plot of {{n}} towns shows a positive association: towns with more firefighters also have more fire damage.",
+          "A lurking variable explains both: bigger fires bring more firefighters to the scene AND cause more damage, so fire size drives both quantities.",
+          "An observational scatterplot cannot separate cause from effect; showing causation would need a controlled comparison, not just {{n}} data points.",
+          "So the student's error is treating association as causation."
         ],
-        "answerSummary": "associationNotCausation"
+        "commonError": "Reading a positive association as \"more firefighters cause more damage.\" Here fire size most plausibly drives both variables.",
+        "answerSummary": "Association does not establish causation; larger fires can lead to both more damage and more firefighters."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -13584,12 +13674,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Random selection gives each population member a fair chance to be included.",
+        "headline": "Choosing {{n}} members at random from the whole population gives a sample likely to land near {{p}}%.",
         "reasoning": [
-          "A whole-population random process reduces selection bias.",
-          "Convenience sampling overrepresents whoever is easiest to reach."
+          "In a random sample every member of the population has the same chance to be chosen, so the sample tends to mirror the population's {{p}}% in favor.",
+          "With {{n}} people, about {{p}}% of {{n}}, or roughly {{e}} people, would be expected to favor the option; the actual count varies a little by chance.",
+          "The first {{n}} people entering one location share a place and a time, so their opinions can be far from {{p}}%. That is selection bias.",
+          "So the best method is to select {{n}} members using a random process from the whole population."
         ],
-        "answerSummary": "randomSelection"
+        "commonError": "Thinking any {{n}} people will do. A convenience sample from one location can systematically miss parts of the population.",
+        "answerSummary": "Select {{n}} members using a random process from the whole population."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -13609,6 +13702,9 @@
             "min": 20,
             "max": 100
           }
+        },
+        "derived": {
+          "e": "round(p*n/100)"
         }
       }
     },
@@ -13877,12 +13973,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Sampling variability is expected from random selection.",
+        "headline": "Different percentages from repeated random samples of {{n}} show sampling variability; the population did not change.",
         "reasoning": [
-          "Different random members can be selected each time.",
-          "Larger collections of samples reveal a distribution around the population characteristic."
+          "Each random sample of {{n}} picks a different set of members, so the count in favor, and therefore the percentage, changes from sample to sample.",
+          "In a sample of {{n}}, each person is $\\frac{1}{ {{n}} }$ of the sample, so swapping just a few people moves the percentage a little even though the population is the same.",
+          "The sample percentages cluster around the fixed population percentage, and larger samples vary less around it.",
+          "So the slightly different results show that random samples naturally vary, even when drawn from the same population."
         ],
-        "answerSummary": "samplingVariability"
+        "commonError": "Assuming the population changed between samples. The population percentage is fixed; only which {{n}} members were chosen changed.",
+        "answerSummary": "Random samples naturally vary, even when drawn from the same population."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -14009,12 +14108,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Holding principal and time fixed, a higher rate increases interest cost.",
+        "headline": "Same {{prin}}-dollar principal over the same {{t}}-year term: Loan B at {{r2}}% costs more interest than Loan A at {{r1}}%.",
         "reasoning": [
-          "Both loans borrow the same amount for the same time.",
-          "The only difference is rate, so the higher rate produces greater interest."
+          "Simple interest is $I = Prt$. Loan A: $I = {{prin}} \\times \\frac{ {{r1}} }{100} \\times {{t}} = {{iA}}$ dollars.",
+          "Loan B: $I = {{prin}} \\times \\frac{ {{r2}} }{100} \\times {{t}} = {{iB}}$ dollars.",
+          "The principal and time match, so the only difference is the rate: Loan B costs ${{iB}} - {{iA}} = {{dI}}$ dollars more.",
+          "With equal principal and time a higher rate always costs more interest (with compounding too), so Loan B costs more."
         ],
-        "answerSummary": "higherRateCostsMore"
+        "commonError": "Concluding the costs are equal because principal and time match. Interest also depends on the rate: {{r1}}% and {{r2}}% give {{iA}} and {{iB}} dollars.",
+        "answerSummary": "Loan B, because its interest rate is higher."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -14046,7 +14148,11 @@
           }
         },
         "derived": {
-          "r2": "r1+gap"
+          "r2": "r1+gap",
+          "prin": "100*P",
+          "iA": "P*r1*t",
+          "iB": "P*r2*t",
+          "dI": "P*r2*t-P*r1*t"
         }
       }
     },
@@ -14243,12 +14349,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Lower monthly payments can come with a higher total credit cost.",
+        "headline": "The {{years}}-year loan's lower monthly payment can hide more total interest, so compare the total repaid too.",
         "reasoning": [
-          "Stretching repayment over more time can add more interest.",
-          "Responsible comparison looks at both payment size and total repayment."
+          "Spreading a loan over {{years}} years ({{mo}} monthly payments) makes each payment smaller, but interest keeps building for the whole time.",
+          "Example with simple interest of 5% per year on 1,000 dollars: over {{years}} years the interest is $1000 \\times 0.05 \\times {{years}} = {{int}}$ dollars, and the total repaid is {{tot}} dollars.",
+          "The same loan over 3 years costs only $1000 \\times 0.05 \\times 3 = 150$ dollars in interest, even though its monthly payment is larger.",
+          "So besides the monthly payment, the borrower should compare the total interest and total amount repaid over the full loan."
         ],
-        "answerSummary": "totalInterest"
+        "commonError": "Judging a loan by its monthly payment alone. A smaller payment over {{years}} years can mean paying more interest in total.",
+        "answerSummary": "Total interest and total amount repaid over the full loan."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -14263,6 +14372,11 @@
             "min": 4,
             "max": 15
           }
+        },
+        "derived": {
+          "mo": "12*years",
+          "int": "50*years",
+          "tot": "1000+50*years"
         }
       }
     },
@@ -15286,12 +15400,15 @@
         }
       ],
       "solutionReview": {
-        "headline": "Compounding adds growth on prior growth.",
+        "headline": "At {{r}}% for 2 periods on 10,000 dollars, compound interest earns {{ct}} dollars and simple interest {{s2}}: compounding earns more.",
         "reasoning": [
-          "Simple interest repeats the same principal-based amount.",
-          "Compound interest uses an increasing balance after the first period."
+          "Simple interest: each period earns {{r}}% of the original 10,000 dollars, which is {{s1}} dollars, so 2 periods earn $2 \\times {{s1}} = {{s2}}$ dollars.",
+          "Compound interest: period 1 also earns {{s1}} dollars, making the balance {{b1}} dollars. Period 2 earns {{r}}% of {{b1}}, which is ${{s1}} + {{rr}}$ dollars.",
+          "Compound total: ${{s1}} + {{s1}} + {{rr}} = {{ct}}$ dollars, which beats {{s2}} by {{rr}} dollars, the interest earned on the first period's interest.",
+          "That gap grows with every additional period, so compound interest earns more because interest itself earns interest."
         ],
-        "answerSummary": "compoundMore"
+        "commonError": "Thinking simple interest earns more because it uses the original principal. Using only the original principal is exactly why it earns less: it never earns interest on interest.",
+        "answerSummary": "Compound interest, because interest itself can earn interest."
       },
       "attemptFeedback": [
         "Recheck the relationship and your operation before trying again."
@@ -15306,6 +15423,13 @@
             "min": 2,
             "max": 15
           }
+        },
+        "derived": {
+          "s1": "100*r",
+          "s2": "200*r",
+          "rr": "r*r",
+          "b1": "10000+100*r",
+          "ct": "200*r+r*r"
         }
       }
     },

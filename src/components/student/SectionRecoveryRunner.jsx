@@ -11,7 +11,10 @@
  *   PRACTICE    one item at a time. The raw response goes to the server, which
  *               marks it and updates the mastery gate. One answer per item:
  *               the gate counts unique questions, so a retry would not be new
- *               evidence. The next item comes from the updated record.
+ *               evidence. The next item is the one the server deals
+ *               (targeted at the student's own diagnosed errors —
+ *               functions/shared/recoveryMisconceptionTargeting.mjs); the
+ *               record's own next item is the fallback.
  *
  *   ASSESSMENT  the plan the server pinned when the student started. Answers
  *               are saved locally and can be changed until the whole Recovery
@@ -39,6 +42,7 @@ import { recordQuestionStep, resolveQuestionMaximumAttempts } from '../../attemp
 import { useToast } from '../../ui/Toast.jsx';
 import {
   recoveryErrorCode,
+  fetchSectionRecoveryStatus,
   submitRecoveryPracticeItem,
   submitSectionRecovery,
 } from '../../services/sectionRecoveryService.js';
@@ -207,20 +211,57 @@ function PinnedQuestion({
   );
 }
 
+// How long the first Practice question waits for the server's targeted deal
+// before the record's own next item is shown instead.
+export const SERVER_DEAL_TIMEOUT_MS = 4000;
+
+const dealtItem = (value) => (value && typeof value === 'object' && value.pin?.fingerprint ? value : null);
+
 function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, onRecord, onStartAssessment }) {
-  const [item, setItem] = useState(entry.nextPracticeItem || null);
+  const [item, setItem] = useState(null);
+  // The item the SERVER dealt (targeted Recovery). While one is in play the
+  // record's own next item does not replace it.
+  const [serverDealt, setServerDealt] = useState(false);
+  // Targeting only reorders and picks among unseen versions, so when the
+  // record has no next item the server has none either: no wait then.
+  const [dealing, setDealing] = useState(Boolean(entry.nextPracticeItem));
+  const nextDealtRef = useRef(null);
   const [outcome, setOutcome] = useState(null);
   const [notice, setNotice] = useState('');
   const [stepRecords, setStepRecords] = useState({});
   const [forfeiting, setForfeiting] = useState(false);
   const renderedRef = useRef({});
 
-  // Before the first answer, follow the record (another tab may have moved it).
+  // The first question: the server's deal, or the record's after a timeout or
+  // an error. Nothing is shown in between, so a question never swaps under
+  // the student's work.
   useEffect(() => {
-    if (!outcome && entry.nextPracticeItem?.pin?.fingerprint !== item?.pin?.fingerprint) {
+    let settled = false;
+    const settle = (server) => {
+      if (settled) return;
+      settled = true;
+      const dealt = dealtItem(server);
+      setServerDealt(Boolean(dealt));
+      setItem(dealt || entry.nextPracticeItem || null);
+      setDealing(false);
+    };
+    if (!entry.nextPracticeItem) { settle(null); return undefined; }
+    const timer = setTimeout(() => settle(null), SERVER_DEAL_TIMEOUT_MS);
+    fetchSectionRecoveryStatus({ assignmentId: assignment.id, section: entry.section })
+      .then((status) => settle(status?.nextPracticeItem))
+      .catch(() => settle(null));
+    return () => { settled = true; clearTimeout(timer); };
+    // Once per opening of Practice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignment.id, entry.section]);
+
+  // Before the first answer, follow the record (another tab may have moved
+  // it) — unless the server dealt this item.
+  useEffect(() => {
+    if (!dealing && !serverDealt && !outcome && entry.nextPracticeItem?.pin?.fingerprint !== item?.pin?.fingerprint) {
       setItem(entry.nextPracticeItem || null);
     }
-  }, [entry.nextPracticeItem, item, outcome]);
+  }, [dealing, serverDealt, entry.nextPracticeItem, item, outcome]);
 
   const question = item ? entry.questionsByIndex?.[item.storageIndex] : null;
   const fingerprint = item?.pin?.fingerprint || '';
@@ -228,6 +269,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
   const stepRecord = stepRecords[fingerprint] || null;
 
   const recordOutcome = useCallback((result) => {
+    nextDealtRef.current = dealtItem(result?.nextPracticeItem);
     if (result?.record) onRecord(entry.section, result.record);
     setOutcome({ isCorrect: result?.isCorrect === true, unlocked: result?.unlocked === true });
     setNotice('');
@@ -322,8 +364,11 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
   };
 
   const nextQuestion = () => {
+    const dealt = nextDealtRef.current;
+    nextDealtRef.current = null;
     setOutcome(null);
-    setItem(entry.nextPracticeItem || null);
+    setServerDealt(Boolean(dealt));
+    setItem(dealt || entry.nextPracticeItem || null);
   };
 
   const unlocked = entry.state === 'unlocked';
@@ -333,7 +378,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
     : stepRecord;
   return (
     <div style={shellStyle} data-recovery-runner="practice" data-recovery-section={entry.section}>
-      <RecoveryHeader label={`${entry.label} — Practice`} subtitle="Show what you know. Each fresh question counts once." onExit={onExit} />
+      <RecoveryHeader label={`${entry.label} practice`} subtitle="Show what you know. Each fresh question counts once." onExit={onExit} />
       <div style={{ ...panelStyle, display: 'grid', gap: 8 }}>
         <RecoveryMasteryMeter percent={entry.masteryPercent} />
         <p aria-live="polite" style={{ margin: 0, fontSize: 13.5 }}>
@@ -350,7 +395,9 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
         )}
       </div>
       {notice && <p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{notice}</p>}
-      {item && question ? (
+      {dealing ? (
+        <p role="status" data-recovery-practice-dealing="true" style={{ ...panelStyle, margin: 0 }}>Loading your practice question…</p>
+      ) : item && question ? (
         <PinnedQuestion
           item={item}
           question={question}
@@ -389,7 +436,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
       )}
       {outcome && (
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {entry.nextPracticeItem && (
+          {(entry.nextPracticeItem || nextDealtRef.current) && (
             <button type="button" onClick={nextQuestion} style={actionButton(!unlocked)}>Next practice question</button>
           )}
           {unlocked && (

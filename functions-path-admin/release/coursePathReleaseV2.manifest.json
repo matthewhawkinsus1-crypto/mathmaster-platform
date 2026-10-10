@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "compilerSchemaVersion": 2,
   "releaseLine": "course",
-  "releaseId": "course-path-v2-605951fe94fedd2b",
-  "contentHash": "605951fe94fedd2bf440b0deb2bc93a0e4608449dd729e6444586633adaf7b86",
+  "releaseId": "course-path-v2-485a9d98e2287892",
+  "contentHash": "485a9d98e228789206ef898c0829214a1c484d69ca3cc563199480a7afd745bf",
   "questionCount": 1161,
   "courses": [
     "grade6",
@@ -24,32 +24,32 @@
     {
       "courseId": "grade6",
       "file": "grade6_pathQuestionBank_seed.json",
-      "sha256": "b7cb5d6ab3312ee67fe7b4f07b437fd6bfa71fb6934c84dc2ddc6619b1461bc4",
-      "bytes": 463457
+      "sha256": "452d5ea5b867e3a910eaad343ef84267718a2eba83709c1748e00b91e7e823ad",
+      "bytes": 470375
     },
     {
       "courseId": "grade7",
       "file": "grade7_pathQuestionBank_seed.json",
-      "sha256": "46d774e69793cc4d16dcb1f0bb6f8b3144ac7830e65cc0ac11a9912d93a7b211",
-      "bytes": 417628
+      "sha256": "00194afd17ec92f7963919153d5abc53e1c9ebe62061b421846b47df3ce0c8ea",
+      "bytes": 429792
     },
     {
       "courseId": "grade8",
       "file": "grade8_pathQuestionBank_seed.json",
-      "sha256": "aab5b8ff75b972634062f0ed868cb3b977863397c671e78813c73b564129673b",
-      "bytes": 464380
+      "sha256": "3c8da782c163eea7c10cbd72e6fb3b0e0581c55b87e013f52d435dcc58bada15",
+      "bytes": 479411
     },
     {
       "courseId": "algebra1",
       "file": "algebra1_pathQuestionBank_seed.json",
-      "sha256": "2bb94a49c364f5ff4610db313a739a3530e6db3b57a43910c784140df587e8db",
-      "bytes": 915172
+      "sha256": "f81c486a989eeae5ee77a9e0b7146046be346a96a7f98d62cd52cdd39f288d2f",
+      "bytes": 936478
     },
     {
       "courseId": "algebra2",
       "file": "algebra2_pathQuestionBank_seed.json",
-      "sha256": "d27e2c4c3fb3a5ccc14eb2f82f293450b691e151f2c6c9fbe9feab1c9f4adb1f",
-      "bytes": 1093228
+      "sha256": "7a6212b21d0a3689858beff9671d21b2eea819b4d5121eca86373349db7919c6",
+      "bytes": 1132911
     }
   ],
   "documents": [
@@ -57,35 +57,35 @@
       "id": "mm_A2_2A_v2_exponential-graph-attributes",
       "familyId": "mathmaster:A2.2A:v2-exponential-graph-attributes",
       "courseId": "algebra2",
-      "contentHash": "0594e062cc884a0b8261ceb32dec066eeab1a8e50f9526bcafe2c4942737203e",
+      "contentHash": "5c0703ec5351d8ef2100e3248d1e44b1c5b149a2a3e13995df4705def5f65f68",
       "samples": 12
     },
     {
       "id": "mm_A2_2A_v2_logarithmic-graph-attributes",
       "familyId": "mathmaster:A2.2A:v2-logarithmic-graph-attributes",
       "courseId": "algebra2",
-      "contentHash": "4e45923328046e241b490b6f9deb1f7537ccf7cca3aa849bc5ddb956c7492b0a",
+      "contentHash": "d3fb40dfdc379cfae03bc3562e379cb298962875b0e6b5bcdc510e44a1a3247a",
       "samples": 12
     },
     {
       "id": "mm_A2_2A_v2_reciprocal-graph-attributes",
       "familyId": "mathmaster:A2.2A:v2-reciprocal-graph-attributes",
       "courseId": "algebra2",
-      "contentHash": "41ae909c5f4e0b3b4fc94b20992ef2a48c1a202efd5c4befc8afd9c59a9d51e1",
+      "contentHash": "bb3f3771090acc9b1d28f77442077be499ed1c54e6702aaac11adbdf5ea4aa6b",
       "samples": 12
     },
     {
       "id": "mm_A2_2A_v2_root-family-graph",
       "familyId": "mathmaster:A2.2A:v2-root-family-graph",
       "courseId": "algebra2",
-      "contentHash": "b4441ee43f819eed6f9e3085c71dfebe114531f0711d86473b6b435297dbbdf4",
+      "contentHash": "049fa4236310f93300177d9be6ae06c88b97cfa43b217782a67c12aab3697841",
       "samples": 12
     },
     {
       "id": "mm_A2_2A_v2_symmetry-family-graph",
       "familyId": "mathmaster:A2.2A:v2-symmetry-family-graph",
       "courseId": "algebra2",
-      "contentHash": "720f9063d457a6024cdc328e32d1043a53b535253639dd0c45fb6abdbe3bbdcb",
+      "contentHash": "1b3a4b87ad5e0372d8b402fb5b84cdfea413fcdf53a0108f2d87aa954483a0f9",
       "samples": 12
     },
     {
@@ -127,7 +127,7 @@
       "id": "mm_A2_2C_v2_exponential-log-features",
       "familyId": "mathmaster:A2.2C:v2-exponential-log-features",
       "courseId": "algebra2",
-      "contentHash": "d6e12ed504592145040788b16356dc6b2404342131c3f917e063006f5cd7a766",
+      "contentHash": "048c53b3f22902012b2058bd3094da9c80aa3cad25cbae485b0cddc5b72ef288",
       "samples": 12
     },
     {
@@ -253,7 +253,7 @@
       "id": "mm_A2_3B_v2_matrix-technology-rref",
       "familyId": "mathmaster:A2.3B:v2-matrix-technology-rref",
       "courseId": "algebra2",
-      "contentHash": "50d97a70ee383bcb53ddcc8cf00e87baddc153d0da6f54f9ee5c5c203591361a",
+      "contentHash": "0934e5e9c0d34d9c1809c99b5ef6cb57112b166935628cd1a2a3b00a0b4ad2b2",
       "samples": 12
     },
     {
@@ -379,7 +379,7 @@
       "id": "mm_A2_3F_v2_mixed-strict-overlap",
       "familyId": "mathmaster:A2.3F:v2-mixed-strict-overlap",
       "courseId": "algebra2",
-      "contentHash": "ff1d73d85e78f27f1cd7690c3469603b6e5733d7b18c33a2a8080e777413b44f",
+      "contentHash": "00bf88fd1db35960437ca70102062156e32c3e5733e3862b699643bd5ed691a0",
       "samples": 12
     },
     {
@@ -393,7 +393,7 @@
       "id": "mm_A2_3F_v2_two-inclusive-overlap",
       "familyId": "mathmaster:A2.3F:v2-two-inclusive-overlap",
       "courseId": "algebra2",
-      "contentHash": "118219b7706e0aca955f78cbc383c49ebf9311a20c3318304aba8d15b78b504c",
+      "contentHash": "b1f3eb8c0062f20b7a2fd9184f1b1d977ddf90c1935cb84de88bfe08ce2b1e43",
       "samples": 12
     },
     {
@@ -582,21 +582,21 @@
       "id": "mm_A2_4E_v2_quadratic-context-interpolation",
       "familyId": "mathmaster:A2.4E:v2-quadratic-context-interpolation",
       "courseId": "algebra2",
-      "contentHash": "ad34f2738e0507f2b9839513fd969b1b92a833592a628970d48dcc27639f095a",
+      "contentHash": "0adffd96502b602cdfa946c236ad7282649903a9e3d70e8eb85bb7f5f8cd186d",
       "samples": 12
     },
     {
       "id": "mm_A2_4E_v2_quadratic-regression-table",
       "familyId": "mathmaster:A2.4E:v2-quadratic-regression-table",
       "courseId": "algebra2",
-      "contentHash": "086da6e28c9be9927e90115fa348c250fc591732c08735aafec40b9e6b0d22a5",
+      "contentHash": "a99a80f96b1a9ac00e7fad70daf064d1cbec0c211221094f8bf1a06ed065ff3d",
       "samples": 12
     },
     {
       "id": "mm_A2_4E_v2_square-root-context-interpolation",
       "familyId": "mathmaster:A2.4E:v2-square-root-context-interpolation",
       "courseId": "algebra2",
-      "contentHash": "48dffeeea2e09b03b0fcaf6db3f7c84658a53156b06d5b0bd1cd5c7e05e5e839",
+      "contentHash": "5b20336c2344a077ff1b5787743136b1ba9acd198472e56c9694d392e29303fb",
       "samples": 12
     },
     {
@@ -778,7 +778,7 @@
       "id": "mm_A2_5B_v2_logarithmic-ratio-scale-model",
       "familyId": "mathmaster:A2.5B:v2-logarithmic-ratio-scale-model",
       "courseId": "algebra2",
-      "contentHash": "4d4c4f239ca95d9f4aca0263b096ce12caf13609a31d00eaae6093773e3ce906",
+      "contentHash": "fec587b086b55c095c4d805dbf2d2323c12258134cb54a4614df33ac9a644f12",
       "samples": 12
     },
     {
@@ -1492,21 +1492,21 @@
       "id": "mm_A2_7F_v2_difference-rational-degree-variants",
       "familyId": "mathmaster:A2.7F:v2-difference-rational-degree-variants",
       "courseId": "algebra2",
-      "contentHash": "ee7fd644e6301b85b085b66a57ec417d633ef2f1759621ae1fb9e47b82ced8d6",
+      "contentHash": "c4eda2e4be98b62db8f75833bad8b517030fe0c178a6bd89e92fab5ff4544b3a",
       "samples": 12
     },
     {
       "id": "mm_A2_7F_v2_product-rational-degree-variants",
       "familyId": "mathmaster:A2.7F:v2-product-rational-degree-variants",
       "courseId": "algebra2",
-      "contentHash": "438b3e42fbef5eca6192c2e92a0632197ec9d4d9ee05b30f37bc16d4c8a254c6",
+      "contentHash": "e7b868a4553c53446645a06c7e7647022514f3ea3573edaa4a94892ec0c01c3f",
       "samples": 12
     },
     {
       "id": "mm_A2_7F_v2_quotient-rational-degree-variants",
       "familyId": "mathmaster:A2.7F:v2-quotient-rational-degree-variants",
       "courseId": "algebra2",
-      "contentHash": "02fe4795986b70e6a21c3808ad765c7fbee1960fcf6956f5104bca6a51850ba7",
+      "contentHash": "ceab8715e6e06e38984b64f3649c3cd5fbe5eb7c3423aacc41962c6f0209584c",
       "samples": 12
     },
     {
@@ -1520,7 +1520,7 @@
       "id": "mm_A2_7F_v2_sum-rational-degree-variants",
       "familyId": "mathmaster:A2.7F:v2-sum-rational-degree-variants",
       "courseId": "algebra2",
-      "contentHash": "0f061ae3caf138b31d955d6d32072758cb9c46f0eaa7e13e7f0486e16d20f9c3",
+      "contentHash": "531a82277ae1da00c105f8fa1f6e27ff67a6664ac41343154d433bda2d251a88",
       "samples": 12
     },
     {
@@ -1632,7 +1632,7 @@
       "id": "mm_A2_8A_v2_exponential-growth-decay-ratios",
       "familyId": "mathmaster:A2.8A:v2-exponential-growth-decay-ratios",
       "courseId": "algebra2",
-      "contentHash": "09078284a7a34b1fc819c31e925c93e08fa5fe6107813c43d27ee98a76985e71",
+      "contentHash": "2b2bec385af97224144a5905b178a88cd3f42c380091e3b8c7e8555896ac4d5a",
       "samples": 12
     },
     {
@@ -1667,28 +1667,28 @@
       "id": "mm_A2_8B_v2_exponential-regression-decay-noisy",
       "familyId": "mathmaster:A2.8B:v2-exponential-regression-decay-noisy",
       "courseId": "algebra2",
-      "contentHash": "745ec89eb2871a9d33ac9b53b4f9f3f3c909052a5b65c8b869a300a4a8da5978",
+      "contentHash": "2aa034ce61fdf11a8353fac4449794f3435fa57b9f159204301aeb2c787b285b",
       "samples": 12
     },
     {
       "id": "mm_A2_8B_v2_exponential-regression-growth-noisy",
       "familyId": "mathmaster:A2.8B:v2-exponential-regression-growth-noisy",
       "courseId": "algebra2",
-      "contentHash": "9c410af65e16a5bab92beb32e78357d153013f61f4bffa528c0a4a1226bb855b",
+      "contentHash": "13d8c6c6946069f9c15564c4fa3ec5a76efadf3d6d9685d60662373c306c4d40",
       "samples": 12
     },
     {
       "id": "mm_A2_8B_v2_linear-regression-noisy",
       "familyId": "mathmaster:A2.8B:v2-linear-regression-noisy",
       "courseId": "algebra2",
-      "contentHash": "3eb25fd4f6a64f8c012526e29ea59a928a8bdd5568ec59fa96d2179dd5e6c808",
+      "contentHash": "5e5da309820ae766312418eb33291b1e58f2a8bb883fbc9f98767372854e7c7f",
       "samples": 12
     },
     {
       "id": "mm_A2_8B_v2_quadratic-regression-noisy",
       "familyId": "mathmaster:A2.8B:v2-quadratic-regression-noisy",
       "courseId": "algebra2",
-      "contentHash": "474bab9a41bb3d97ae17b3352b16127786cf5d0056a7425de167c1afe913272e",
+      "contentHash": "4e9ba0aeef7e2fabfdcac4a0c76033ee0bf376257b2671a8be018a6440f2ecf6",
       "samples": 12
     },
     {
@@ -1709,28 +1709,28 @@
       "id": "mm_A2_8C_v2_critical-judgment-model-variants",
       "familyId": "mathmaster:A2.8C:v2-critical-judgment-model-variants",
       "courseId": "algebra2",
-      "contentHash": "dfacfb978bdb05c9e9feeaf6cf9c27c74234ff68a3c4f67445bacc9f228c258b",
+      "contentHash": "323d8f35881a1b637e9be9a937118d915a481a63b6ba9d12d5df0ae05dd4d02b",
       "samples": 12
     },
     {
       "id": "mm_A2_8C_v2_decision-model-variants",
       "familyId": "mathmaster:A2.8C:v2-decision-model-variants",
       "courseId": "algebra2",
-      "contentHash": "2c45988999ac72b8a238de1280002ccfcfbaafb90ddf650927c1d3705a88d091",
+      "contentHash": "3898bc265f09e4012e0c050a20e486641c65fac4472de1106c80c337b0147791",
       "samples": 12
     },
     {
       "id": "mm_A2_8C_v2_interpolation-extrapolation-model-variants",
       "familyId": "mathmaster:A2.8C:v2-interpolation-extrapolation-model-variants",
       "courseId": "algebra2",
-      "contentHash": "9cdc975cc7ea01276df9a32560156387509c80852d317c550ac304aaa5538d99",
+      "contentHash": "919077c555e627e79878aa0ce10a1a6ba4e12a8d1c7e91695c1332f4087512d4",
       "samples": 12
     },
     {
       "id": "mm_A2_8C_v2_prediction-model-variants",
       "familyId": "mathmaster:A2.8C:v2-prediction-model-variants",
       "courseId": "algebra2",
-      "contentHash": "c95290149141f47082d5da7de81b681e9533daf13bfb5d7ffc2cb7054695a42f",
+      "contentHash": "c60a5146084685cdf52eeee242c1daff65a7a26fccc26cee4823689c9df7a662",
       "samples": 12
     },
     {
@@ -2045,7 +2045,7 @@
       "id": "mm_A_12A_v2_table-function",
       "familyId": "mathmaster:A.12A:v2-table-function",
       "courseId": "algebra1",
-      "contentHash": "65e29a7b6f65faed0b69f4092fa00cda40c0f5cb958d308335667f340a77402c",
+      "contentHash": "6da29c8d0a3be89cd26921d7deceb5b1d4669f553beeb2b2f29808dc755f1f92",
       "samples": 12
     },
     {
@@ -2136,7 +2136,7 @@
       "id": "mm_A_12D_v2_geometric-decay-terms-to-formula",
       "familyId": "mathmaster:A.12D:v2-geometric-decay-terms-to-formula",
       "courseId": "algebra1",
-      "contentHash": "40de881bbb88c7b7593eedc17fc5fba7a7c0fd78d1aa7110f854309ab2a7bcda",
+      "contentHash": "3b232b69f8f63bdd7504ba325ae7a48fed8d4ae537c459ca7d594b152b3d1aa7",
       "samples": 12
     },
     {
@@ -2164,7 +2164,7 @@
       "id": "mm_A_12E_v2_solve-area-height",
       "familyId": "mathmaster:A.12E:v2-solve-area-height",
       "courseId": "algebra1",
-      "contentHash": "e60f3d7af6897155dd6ef828be176b4a5d55b04045646bb01c396f2cd8ef6bea",
+      "contentHash": "a79aa91c76300c10f1767fa2506a86418fbde31f00d568266a0ed5cbb273c12c",
       "samples": 12
     },
     {
@@ -2213,7 +2213,7 @@
       "id": "mm_A_2A_v2_discrete-mapping-domain-range",
       "familyId": "mathmaster:A.2A:v2-discrete-mapping-domain-range",
       "courseId": "algebra1",
-      "contentHash": "53e6ee442b49812365e526255a0f1f0675886cf93c71f37b3fd8779b839bc179",
+      "contentHash": "babf915111616746411acfe42beaac75c32c3d234601f9470de98672254d9f70",
       "samples": 12
     },
     {
@@ -2619,28 +2619,28 @@
       "id": "mm_A_3D_v2_graph-dashed-above",
       "familyId": "mathmaster:A.3D:v2-graph-dashed-above",
       "courseId": "algebra1",
-      "contentHash": "5aa2954ff4d225cf6163ead85eb172ab23e0df9a11da0c72f53900fbb672f18d",
+      "contentHash": "3bcb1c0c27fbfdd62ff85fb6ef56a1015307dbbb774b8f6d49d383d0601115bd",
       "samples": 12
     },
     {
       "id": "mm_A_3D_v2_graph-dashed-below",
       "familyId": "mathmaster:A.3D:v2-graph-dashed-below",
       "courseId": "algebra1",
-      "contentHash": "d8392adba8ae6c82b60c8b0334859b3bd683c51d10a6510b8924b5baf6b510ee",
+      "contentHash": "65a1f278e29c4a51cccb0528a9ec4bb937295bdfdbe6a128bd661fcff9584abd",
       "samples": 12
     },
     {
       "id": "mm_A_3D_v2_graph-solid-above",
       "familyId": "mathmaster:A.3D:v2-graph-solid-above",
       "courseId": "algebra1",
-      "contentHash": "5b591d850ead37f0ebd63e89bb0c32c28cd84c7a82165c81044da161ff4a69f4",
+      "contentHash": "dd4bd46e6a0b57cfcfe6f30675c7f946e77673177b480410e4fe705357e8f776",
       "samples": 12
     },
     {
       "id": "mm_A_3D_v2_graph-solid-below",
       "familyId": "mathmaster:A.3D:v2-graph-solid-below",
       "courseId": "algebra1",
-      "contentHash": "1b1ea75a4ae6dda3bf06ce3aeec338f46e9875d7b4b9f5d0b09473356647ebe0",
+      "contentHash": "208e7d43c0c0d60c451b0ef56ba4e3298bb0a54a5723e4acc0d771c81b08fc1e",
       "samples": 12
     },
     {
@@ -2717,70 +2717,70 @@
       "id": "mm_A_3G_v2_error-read-intersection",
       "familyId": "mathmaster:A.3G:v2-error-read-intersection",
       "courseId": "algebra1",
-      "contentHash": "d2db8352fe5000db01e09d770613fb44727f04209ec944e37b34551d288fab72",
+      "contentHash": "2018152b118f3169ee2bc11454809cd4f462d6939e1a945c64a30feb19fbdb5c",
       "samples": 12
     },
     {
       "id": "mm_A_3G_v2_graph-then-verify",
       "familyId": "mathmaster:A.3G:v2-graph-then-verify",
       "courseId": "algebra1",
-      "contentHash": "e59b3ee8f437ab3b49052f9d4eb4b434f750547e9571f1d904c3edc95522b80c",
+      "contentHash": "2369ba83fe7311a38926976ebff157ea790dc9b886ea89f45ba9348deafd8de0",
       "samples": 12
     },
     {
       "id": "mm_A_3G_v2_pricing-estimate",
       "familyId": "mathmaster:A.3G:v2-pricing-estimate",
       "courseId": "algebra1",
-      "contentHash": "c4db5a767fe0d0049e6da8c66825168b0d34ed6056d0f48e03f5cf5fe67bfe90",
+      "contentHash": "11458f31b1418d61ef510df1116079f543489128167a788be528d501438a6c8e",
       "samples": 12
     },
     {
       "id": "mm_A_3G_v2_savings-estimate",
       "familyId": "mathmaster:A.3G:v2-savings-estimate",
       "courseId": "algebra1",
-      "contentHash": "6ccb6576a0aac50c9ad83554a6028d5a463be0b2e3c7aa1ec58dad125aa995c5",
+      "contentHash": "a498031c10a71dc36d884d84b6fd5675684310d8a174c4eaf162b6dbb520f05c",
       "samples": 12
     },
     {
       "id": "mm_A_3G_v2_transport-estimate",
       "familyId": "mathmaster:A.3G:v2-transport-estimate",
       "courseId": "algebra1",
-      "contentHash": "ec14532c0cd04e01edd3065e2128062a16b426c42b45d7c0e939a9d6be746b20",
+      "contentHash": "a82c3ec3b7866ac85ee37f1f597dd1b15cd4730b47caf57dc5204e0390df18ff",
       "samples": 12
     },
     {
       "id": "mm_A_3H_v2_system-context-feasible-region",
       "familyId": "mathmaster:A.3H:v2-system-context-feasible-region",
       "courseId": "algebra1",
-      "contentHash": "f69d0fe46248dca8d7d47fe924fc0b0ed32fa3a38e8d380b444e4fc542716714",
+      "contentHash": "2db32546f2cce2e3368a2c42076e0666d2a93d7a5b2ccaa507e7fc0806d26c0e",
       "samples": 12
     },
     {
       "id": "mm_A_3H_v2_system-dashed-overlap",
       "familyId": "mathmaster:A.3H:v2-system-dashed-overlap",
       "courseId": "algebra1",
-      "contentHash": "6f542f61541b7147e391c99d9958b590750b82414d031d43b86f5ec404040716",
+      "contentHash": "499ca47f2f2f24cec2da3c932e979d0e70e1b1bb1eaa3dae9bad5586ca77ac05",
       "samples": 12
     },
     {
       "id": "mm_A_3H_v2_system-error-no-overlap",
       "familyId": "mathmaster:A.3H:v2-system-error-no-overlap",
       "courseId": "algebra1",
-      "contentHash": "18a6cabb984bac3196b7e29b73cffc1fdebbb952d96bf166195916d85a0d182d",
+      "contentHash": "a946a908905824668c021b73e59b4b1d9b7d7db0fa3ca86b774320ada7c3e1f6",
       "samples": 12
     },
     {
       "id": "mm_A_3H_v2_system-mixed-boundaries",
       "familyId": "mathmaster:A.3H:v2-system-mixed-boundaries",
       "courseId": "algebra1",
-      "contentHash": "7f757292f0d6db1664b82f12d377ba84985a56d186ee70b10830635ef506bc1b",
+      "contentHash": "c41e41278e11316a5f18d90b206fc3b4f9474ed1cab7e62cea69bf7c10190a1f",
       "samples": 12
     },
     {
       "id": "mm_A_3H_v2_system-solid-overlap",
       "familyId": "mathmaster:A.3H:v2-system-solid-overlap",
       "courseId": "algebra1",
-      "contentHash": "4e45307e06532c50a792070831aa7db63057be1b7c66fe0f9e6ecee63c6c054e",
+      "contentHash": "c9e7a7e59db0f625d806bbfdc3ccfe60acf347f132001599b765c6e759294dd4",
       "samples": 12
     },
     {
@@ -2801,7 +2801,7 @@
       "id": "mm_A_4A_v2_correlation-negative-noisy",
       "familyId": "mathmaster:A.4A:v2-correlation-negative-noisy",
       "courseId": "algebra1",
-      "contentHash": "f5bc49238a10d3cb0be3bd5f38d2e3a60bc40bf35679d34fc535a9e0af1a5c73",
+      "contentHash": "16a7c42257643e3832fea3b3700df5751db9520f68378315cad0c05533f34379",
       "samples": 12
     },
     {
@@ -2822,35 +2822,35 @@
       "id": "mm_A_4B_v2_confounder-season",
       "familyId": "mathmaster:A.4B:v2-confounder-season",
       "courseId": "algebra1",
-      "contentHash": "cd617ea7dc17bda8f4f480dd8cfb4c91c5f92166deec45bab963e0934a119873",
+      "contentHash": "2b87d8a9985efdd02f436950be4f8311e1e622c6f8e65a03aeb171a1fcfb1612",
       "samples": 12
     },
     {
       "id": "mm_A_4B_v2_headline-error",
       "familyId": "mathmaster:A.4B:v2-headline-error",
       "courseId": "algebra1",
-      "contentHash": "d495b90485bd5f65ba3c2d93283541eaeffedfd3d5174884b02c82e68f6ad093",
+      "contentHash": "38866b7e007daecf222f32a218ba6e9b74933bdca69c081bd1ce9b24d431e804",
       "samples": 12
     },
     {
       "id": "mm_A_4B_v2_improve-evidence",
       "familyId": "mathmaster:A.4B:v2-improve-evidence",
       "courseId": "algebra1",
-      "contentHash": "7813f55fb3b8d6939d9103382b64c6c2871ad9eeca260b25d874a2508f3311be",
+      "contentHash": "91f9da5977029a6b88bcf59148540bb4c07585d1994f4f760c6cab867f080c25",
       "samples": 12
     },
     {
       "id": "mm_A_4B_v2_observational-limit",
       "familyId": "mathmaster:A.4B:v2-observational-limit",
       "courseId": "algebra1",
-      "contentHash": "d6fc045ef7261257534d946af3af91aa8600a115d84bb34bc54f1f42e433be37",
+      "contentHash": "efae29d05f4ef7f86fe99d32fea93f37d1f030019670e3693576b31621019bc0",
       "samples": 12
     },
     {
       "id": "mm_A_4B_v2_random-assignment",
       "familyId": "mathmaster:A.4B:v2-random-assignment",
       "courseId": "algebra1",
-      "contentHash": "67163f868eaa0cba2dbb62f7fe916027844d3ccddca751960b5a98feea260c7f",
+      "contentHash": "95831bb80de695a53d58eb3ae7dbff83c2d4c2f32c2dc097fd6284629f1fe054",
       "samples": 12
     },
     {
@@ -2962,7 +2962,7 @@
       "id": "mm_A_5C_v2_classify-identical",
       "familyId": "mathmaster:A.5C:v2-classify-identical",
       "courseId": "algebra1",
-      "contentHash": "b6e7f9883fad808bd0858846e79435ed299c1d129a9570c2e31667e10b01e4ac",
+      "contentHash": "a4f7bf4bc50c4320616ff010c369f3e9745cba9d9e1ec11775450166f848134a",
       "samples": 12
     },
     {
@@ -3319,7 +3319,7 @@
       "id": "mm_A_9B_v2_growth-factor",
       "familyId": "mathmaster:A.9B:v2-growth-factor",
       "courseId": "algebra1",
-      "contentHash": "18083dee88193d681952ddb3bba212598d5b2daaf9fc72016ad9592b3a1ae1c6",
+      "contentHash": "185d3c0b88efe6ded02f477db091e1bfe4219e9983eb95ede016087221b59388",
       "samples": 12
     },
     {
@@ -3396,7 +3396,7 @@
       "id": "mm_A_9D_v2_context-decay-graph",
       "familyId": "mathmaster:A.9D:v2-context-decay-graph",
       "courseId": "algebra1",
-      "contentHash": "2d9088bcbdc88f4b27ce47e443281700218792fb7ca4f6503fe18f309551649e",
+      "contentHash": "ec8e8a181841206dcb649c0360944de7de3eb832bf245b3a99d25f838b470a7a",
       "samples": 12
     },
     {
@@ -3571,7 +3571,7 @@
       "id": "mm_gen_6_6_12A_choose-display",
       "familyId": "mathmaster:6.12A:gen-choose-display",
       "courseId": "grade6",
-      "contentHash": "97a86e55c564336654c5e4bea644d02580ec7a939b75bbaf7a5f65f67a5e13af",
+      "contentHash": "9872b7039d644dbd085d4a104a14409c949ea05cc9fa74b908d331212b43918e",
       "samples": 12
     },
     {
@@ -3627,7 +3627,7 @@
       "id": "mm_gen_6_6_12B_shape-symmetric",
       "familyId": "mathmaster:6.12B:gen-shape-symmetric",
       "courseId": "grade6",
-      "contentHash": "8cd9f6098f1528735ac1e62387570750afa96962235182fd1d7b9a791809b23f",
+      "contentHash": "a50f7f371956f7de3648415c6f8f69722089bba3668f88fe03a5bf276f0aa91e",
       "samples": 12
     },
     {
@@ -3746,7 +3746,7 @@
       "id": "mm_gen_6_6_13B_compare-variability",
       "familyId": "mathmaster:6.13B:gen-compare-variability",
       "courseId": "grade6",
-      "contentHash": "a8be946cd40cf9b5e5232c6efe1a09b6b6198eac20d45a074aefc73b619053df",
+      "contentHash": "952e55f68bfbd22ba431a5a5fef72b39f24086b384cfe9f83a79a8d038f41e1c",
       "samples": 12
     },
     {
@@ -3767,14 +3767,14 @@
       "id": "mm_gen_6_6_13B_repeat-measurement",
       "familyId": "mathmaster:6.13B:gen-repeat-measurement",
       "courseId": "grade6",
-      "contentHash": "c222ab74718420cdf0e698b3d87177eaea1437330eebc1a2e4cfcf41c2a73ee0",
+      "contentHash": "9e9c97e07022f962373f0863ca7faccbc6f133f5e2b9564faebb75bdb6a505c8",
       "samples": 12
     },
     {
       "id": "mm_gen_6_6_13B_varying-data",
       "familyId": "mathmaster:6.13B:gen-varying-data",
       "courseId": "grade6",
-      "contentHash": "25e18765bd5912b5d72f540c8f0c8b41c15993f6dd0c8810c2b18b023091409d",
+      "contentHash": "a0d1eb381553b6c059dc1bf6a80734d935b0f62409740872f8f8a7813a865596",
       "samples": 12
     },
     {
@@ -4278,7 +4278,7 @@
       "id": "mm_gen_6_6_4C_same-attribute-check",
       "familyId": "mathmaster:6.4C:gen-same-attribute-check",
       "courseId": "grade6",
-      "contentHash": "6395773013949e7e742ae02cde10a63de478c2075ea723a85d9070825b593270",
+      "contentHash": "b9cb254bcbef901da1d1af4eaafdcbf050573aa9d6125b2053b0583670f6fbc5",
       "samples": 12
     },
     {
@@ -4586,7 +4586,7 @@
       "id": "mm_gen_6_6_6A_age-height",
       "familyId": "mathmaster:6.6A:gen-age-height",
       "courseId": "grade6",
-      "contentHash": "c90005a5e8d6341fa60e347d34fa68036a4afe671d9a97a37f6d0063f9f0a2a3",
+      "contentHash": "8c4fbb136be0418b3e953c383c1ce7cc3bfd9db3edfd6b34da471b0255fcf672",
       "samples": 12
     },
     {
@@ -4600,7 +4600,7 @@
       "id": "mm_gen_6_6_6A_items-cost",
       "familyId": "mathmaster:6.6A:gen-items-cost",
       "courseId": "grade6",
-      "contentHash": "2a509fea256d7b763ff5aed11ac98d8fc6d00200cfe0cc2b690cd0a6123a4956",
+      "contentHash": "56ca3e079117d320326267b724ddfbecbda56dd6f66fe0fd04c0d3cf9c1cc0b0",
       "samples": 12
     },
     {
@@ -4614,7 +4614,7 @@
       "id": "mm_gen_6_6_6A_time-distance",
       "familyId": "mathmaster:6.6A:gen-time-distance",
       "courseId": "grade6",
-      "contentHash": "3608f5c24b6c4140eb3688275cf51a10ec67839a4d71083da15e3c782f8ae6fc",
+      "contentHash": "d84949520fcc819dc7f5f666f5ed27f66bcc853cac8b3416d0c49be12d1b6a51",
       "samples": 12
     },
     {
@@ -4761,7 +4761,7 @@
       "id": "mm_gen_6_6_7B_repair-expression",
       "familyId": "mathmaster:6.7B:gen-repair-expression",
       "courseId": "grade6",
-      "contentHash": "73d5952708b8d547afe7f1fe5d8173765c771e8f11498b5887810437c2fb5e7c",
+      "contentHash": "323ff80fd5284f9532ddd12b99f0640cfbfb85e52a46729fe0e926dd3e3b9db5",
       "samples": 12
     },
     {
@@ -4817,14 +4817,14 @@
       "id": "mm_gen_6_6_7D_associative",
       "familyId": "mathmaster:6.7D:gen-associative",
       "courseId": "grade6",
-      "contentHash": "f296d6d951f6f099fe80e064593255f29cdd7a5645d14556f59ac38c955632a2",
+      "contentHash": "8d9d94a241387ba434911059bf250f49a7617aecfb92e7a01bb6d5e0cacfe80a",
       "samples": 12
     },
     {
       "id": "mm_gen_6_6_7D_commutative",
       "familyId": "mathmaster:6.7D:gen-commutative",
       "courseId": "grade6",
-      "contentHash": "fac0800ed2c7e36fd7251604c256a5c615148c79185f75c3c12c408938cb8ff4",
+      "contentHash": "ab68dee20724e2bc0e1a48855d2e34d72a78532262a6a42abea20f56d8df3695",
       "samples": 12
     },
     {
@@ -5356,7 +5356,7 @@
       "id": "mm_gen_7_7_12A_error-analysis",
       "familyId": "mathmaster:7.12A:gen-error-analysis",
       "courseId": "grade7",
-      "contentHash": "b511915f173c235c301beb5f337f498b71817de90d0dfd8bff52a600902dda12",
+      "contentHash": "c50dec07f0593772ff55ed5aa280e77debe187fb2f4af8d197d85b621729b042",
       "samples": 12
     },
     {
@@ -5377,7 +5377,7 @@
       "id": "mm_gen_7_7_12B_inference-caution",
       "familyId": "mathmaster:7.12B:gen-inference-caution",
       "courseId": "grade7",
-      "contentHash": "cfb3fa2196bf23281958cdee55aca2d93f15911af2ab2897b4efcdb69eae0dd2",
+      "contentHash": "578311e4dcc453ef0c7cca917f53ed334e7cf318ec0aa4781e36c395c2925549",
       "samples": 12
     },
     {
@@ -5405,7 +5405,7 @@
       "id": "mm_gen_7_7_12B_sample-method",
       "familyId": "mathmaster:7.12B:gen-sample-method",
       "courseId": "grade7",
-      "contentHash": "4a64d75a7c2e1353a4f21f6c1901f1c2b9fb09011393803b7ada3aa17d7a996b",
+      "contentHash": "2e08927259acf187e08bc40e9f367716ee354265dab6042b51e5cef1d61482a5",
       "samples": 12
     },
     {
@@ -5419,7 +5419,7 @@
       "id": "mm_gen_7_7_12C_claim-strength",
       "familyId": "mathmaster:7.12C:gen-claim-strength",
       "courseId": "grade7",
-      "contentHash": "47778af344f2d5043d6d276bbd020b9af4aea519134762462987ace777c81a38",
+      "contentHash": "5a0f0a8d10823ca44aa51753ab99c9a64b6907b0d5eb8dca02a1e6971c9b9b25",
       "samples": 12
     },
     {
@@ -5433,14 +5433,14 @@
       "id": "mm_gen_7_7_12C_overlap-interpretation",
       "familyId": "mathmaster:7.12C:gen-overlap-interpretation",
       "courseId": "grade7",
-      "contentHash": "d64389b80f241502f1836744033ebe447e20f320e12e07e8e01223d15e09b8d4",
+      "contentHash": "370840ee02a96d6bcc23ba5f846ea47c756f7d00be918dc6b1a5c6813d266076",
       "samples": 12
     },
     {
       "id": "mm_gen_7_7_12C_spread-comparison",
       "familyId": "mathmaster:7.12C:gen-spread-comparison",
       "courseId": "grade7",
-      "contentHash": "d7a1b0f9536cbcc21e7545b572b3334060a011db0cc69d613554f1ae9718d5c0",
+      "contentHash": "d8fe2ff0a2531d3944dde346d65a71cf943c647a89ec04fcb7f69e7bbdc04163",
       "samples": 12
     },
     {
@@ -5482,7 +5482,7 @@
       "id": "mm_gen_7_7_13E_compare-interest",
       "familyId": "mathmaster:7.13E:gen-compare-interest",
       "courseId": "grade7",
-      "contentHash": "20e6faf3ca086b3ab9b3066b4b365dab7d8b00b4bff86394ee4f9a191f4d8bcb",
+      "contentHash": "4047b58aaf3d9e81db70cbaadbeac79093288e27f26804195d32ec0c544c7800",
       "samples": 12
     },
     {
@@ -5951,7 +5951,7 @@
       "id": "mm_gen_7_7_5C_compare-scales",
       "familyId": "mathmaster:7.5C:gen-compare-scales",
       "courseId": "grade7",
-      "contentHash": "858df5fc96331d01b7686fb45f5722ab2faa806e2148f3c3ee25412f4e70b3f4",
+      "contentHash": "58724e1d8c19ae47cc85e5ed947463da5450bb4c1f4acc7e2a4606404926ca8f",
       "samples": 12
     },
     {
@@ -5993,7 +5993,7 @@
       "id": "mm_gen_7_7_6A_missing-outcome",
       "familyId": "mathmaster:7.6A:gen-missing-outcome",
       "courseId": "grade7",
-      "contentHash": "b12b36242778b07a67fb73e13301e09a04f4eb98971bd6e20c65c41d706926e5",
+      "contentHash": "b4c983d4c499ff583505ba8dedc7bd41e354bfa0c90cb400a11b7a386431c1b1",
       "samples": 12
     },
     {
@@ -6021,14 +6021,14 @@
       "id": "mm_gen_7_7_6B_compound-simulation",
       "familyId": "mathmaster:7.6B:gen-compound-simulation",
       "courseId": "grade7",
-      "contentHash": "0983ab3587d81a4628308927fb351c6b137d84ac331d54c7788faf57e0cf8a6e",
+      "contentHash": "f99a556a4a3a7ed29b63539a16c511728aeba464a079fa67421c06ee7eb48b02",
       "samples": 12
     },
     {
       "id": "mm_gen_7_7_6B_select-trials",
       "familyId": "mathmaster:7.6B:gen-select-trials",
       "courseId": "grade7",
-      "contentHash": "7b4fa8f3c9dd85be8e3f3654d1ce1bbc9268e6d1c075d6fc238f26613966bff6",
+      "contentHash": "b77b73b49589326f647d99a01039cedcb374732f9bb348d5ed406853dfa19ee1",
       "samples": 12
     },
     {
@@ -6042,7 +6042,7 @@
       "id": "mm_gen_7_7_6B_simulate-fair-coin",
       "familyId": "mathmaster:7.6B:gen-simulate-fair-coin",
       "courseId": "grade7",
-      "contentHash": "634f53e28bfd85d450dcdcc4b7f1bbe4d900f2a7fabbf50a60d6175d3fefaadf",
+      "contentHash": "1f38097bec56fe15052442eaeb3fe25be881b1c98513f2f6318bd2d897eb9bea",
       "samples": 12
     },
     {
@@ -6161,14 +6161,14 @@
       "id": "mm_gen_7_7_6F_compare-samples",
       "familyId": "mathmaster:7.6F:gen-compare-samples",
       "courseId": "grade7",
-      "contentHash": "70ced0c06f66f831eb4ad18b1fd0dbe209de9a4e37073060c4389f802a36f2f1",
+      "contentHash": "b468b2399c5c6a75196773c36144e27e322d58a75897df51abe33442b58e38d9",
       "samples": 12
     },
     {
       "id": "mm_gen_7_7_6F_random-vs-biased",
       "familyId": "mathmaster:7.6F:gen-random-vs-biased",
       "courseId": "grade7",
-      "contentHash": "b2e660b8088b5fcae6462703769692adc3d6b738a66b6fe0eb8d354f35565be5",
+      "contentHash": "5e94401883d450dc457f93634a2764b8a25b468e560c789b717c96d5dd6fb182",
       "samples": 12
     },
     {
@@ -6231,7 +6231,7 @@
       "id": "mm_gen_7_7_6H_compare-simulations",
       "familyId": "mathmaster:7.6H:gen-compare-simulations",
       "courseId": "grade7",
-      "contentHash": "7aa0335abe65df8849ed64db9919271ca09e989974648b464284d95d06b6c678",
+      "contentHash": "af1e2b2beeda64f79a67abed4de22477471d300cd85aaa172f6d04dd9fcecec2",
       "samples": 12
     },
     {
@@ -6294,7 +6294,7 @@
       "id": "mm_gen_7_7_6I_theory-vs-data-error",
       "familyId": "mathmaster:7.6I:gen-theory-vs-data-error",
       "courseId": "grade7",
-      "contentHash": "ec966b56a836b9ec5be05c01468df44664daddca4f748517e7879caac88701a1",
+      "contentHash": "dba533aad83b4c4b508601b24f0a04c494bc241a70b88354d4f6143a6a7cbd43",
       "samples": 12
     },
     {
@@ -6602,7 +6602,7 @@
       "id": "mm_gen_8_8_10A_reflection-orientation",
       "familyId": "mathmaster:8.10A:gen-reflection-orientation",
       "courseId": "grade8",
-      "contentHash": "4739c09f7200ebfb6d1f5a21abc03dd9345edc064326ea46fc92167f310441a6",
+      "contentHash": "feb6876c4276a9c6f2020515f03920ae27dbe3bc9820aa112b4c513d39713d45",
       "samples": 12
     },
     {
@@ -6644,21 +6644,21 @@
       "id": "mm_gen_8_8_10B_identify-rigid",
       "familyId": "mathmaster:8.10B:gen-identify-rigid",
       "courseId": "grade8",
-      "contentHash": "29ea9a597bf0901533214ceb7f92355c4f4e226843284a0ea7df5530cce6a397",
+      "contentHash": "cb77c6e1bc71859dca84a32d263e149832be8f8b2389074e1eca29b1647d71e7",
       "samples": 12
     },
     {
       "id": "mm_gen_8_8_10B_reverse-classify",
       "familyId": "mathmaster:8.10B:gen-reverse-classify",
       "courseId": "grade8",
-      "contentHash": "af44f22a778aa1c67198f2e49806aa5184ddbef6d05e6f8de4e48b8c9c1e0c7f",
+      "contentHash": "d760a3de87088a6c5d63acc45dd660838c7fdd7e738231e1bb9a1fcb5dca96c9",
       "samples": 12
     },
     {
       "id": "mm_gen_8_8_10B_table-sort",
       "familyId": "mathmaster:8.10B:gen-table-sort",
       "courseId": "grade8",
-      "contentHash": "3ad04128cf5755fe0b5993e93fd41ef44fb2a55ad7bd569996b0bf624f4429a1",
+      "contentHash": "3ca7c394fdf588d715d938c4e33ad85b0c8960afe8794963da47bf0ab2415b98",
       "samples": 12
     },
     {
@@ -6742,14 +6742,14 @@
       "id": "mm_gen_8_8_11A_causation-error",
       "familyId": "mathmaster:8.11A:gen-causation-error",
       "courseId": "grade8",
-      "contentHash": "67e7897f0b8abc651b31fb7e75f410aa634bf3bed746e5cc710f7c79922d1762",
+      "contentHash": "8e118c1d148a132ae62cc144535113b5550d9dc44c1b6dd2afe3cfb923279d37",
       "samples": 12
     },
     {
       "id": "mm_gen_8_8_11A_reverse-no-association",
       "familyId": "mathmaster:8.11A:gen-reverse-no-association",
       "courseId": "grade8",
-      "contentHash": "dd80251fb313fcf7324a6f1c6164e3d5b31d1bd18c09d1ebe1e895bd9bef440d",
+      "contentHash": "957a005aa266fa409d07ef9f8210ade3b51dc75eb8c3bfd63ee8a65445762c52",
       "samples": 12
     },
     {
@@ -6812,7 +6812,7 @@
       "id": "mm_gen_8_8_11C_random-sample",
       "familyId": "mathmaster:8.11C:gen-random-sample",
       "courseId": "grade8",
-      "contentHash": "6126a35335f23ab2c95515f5313e1f2627ba28ca8e6b843bb44f5bde477e8143",
+      "contentHash": "60fc59be71804f2376a2411fc5c2e1f477392d178fce6de5a71fd8807868d6fb",
       "samples": 12
     },
     {
@@ -6826,7 +6826,7 @@
       "id": "mm_gen_8_8_11C_simulation-variability",
       "familyId": "mathmaster:8.11C:gen-simulation-variability",
       "courseId": "grade8",
-      "contentHash": "158ed483b10c4b600bcefc0ea0fdf7e948ad0d3dbdc082f582461aab2aa64cc3",
+      "contentHash": "6d7e8a1afe720cad47a3f3e0acd86d74ae2e44bbb6b58aaa95b48313bb60df92",
       "samples": 12
     },
     {
@@ -6840,14 +6840,14 @@
       "id": "mm_gen_8_8_12A_error-payment-only",
       "familyId": "mathmaster:8.12A:gen-error-payment-only",
       "courseId": "grade8",
-      "contentHash": "16e2c5d4ea1debf410789d7ed56a99c87b4ccd18dedce3323ffbd49ffcce0e50",
+      "contentHash": "3e011cf6446d8652208d208a96b7bd9b1d6597f7820bed0fdf86970748d3a65a",
       "samples": 12
     },
     {
       "id": "mm_gen_8_8_12A_rate-compare",
       "familyId": "mathmaster:8.12A:gen-rate-compare",
       "courseId": "grade8",
-      "contentHash": "3fe389b307894d8d4b8f72a78c53f1072e7bbe7d6c66e888a28e02bbc5ac7c73",
+      "contentHash": "175465de5a321e0cd33ab79311878be7f37d45f6182e113e6a359429a2a60267",
       "samples": 12
     },
     {
@@ -6945,7 +6945,7 @@
       "id": "mm_gen_8_8_12D_compare-methods",
       "familyId": "mathmaster:8.12D:gen-compare-methods",
       "courseId": "grade8",
-      "contentHash": "6521b499bdf54aa07f26f234c4995da127b9c5effe27fedc678bdb8e07ae8e21",
+      "contentHash": "38e0edfd70561d62a5d4f858cfce20d1f89b1cab67d864f1be243bf10a3d39cb",
       "samples": 12
     },
     {
@@ -7204,7 +7204,7 @@
       "id": "mm_gen_8_8_3B_angle-preserved",
       "familyId": "mathmaster:8.3B:gen-angle-preserved",
       "courseId": "grade8",
-      "contentHash": "38140634e375a9d2a56aed2c92882ba9c554d2df06b6dd539835ad0edb28b712",
+      "contentHash": "b54dd638b6d5fb8fccdbcc22a5565461a5057ab232178920757097a434029bbd",
       "samples": 12
     },
     {
@@ -7491,7 +7491,7 @@
       "id": "mm_gen_8_8_5C_error-two-differences",
       "familyId": "mathmaster:8.5C:gen-error-two-differences",
       "courseId": "grade8",
-      "contentHash": "d29487d247bad64d117a126244104f7d1fe523ba374242d55f756a3b1fdf95c8",
+      "contentHash": "826c1f70e988cc23d826bcb6d530b3dad9e11e022f36789404bae972d0a916ea",
       "samples": 12
     },
     {
@@ -7596,7 +7596,7 @@
       "id": "mm_gen_8_8_5F_context-sort",
       "familyId": "mathmaster:8.5F:gen-context-sort",
       "courseId": "grade8",
-      "contentHash": "f3bcb34f77449656161a859e8f883473dfd447a03daedabd85c7beb892d7b124",
+      "contentHash": "c16a63aaa3706d340475f69658e49a8620fc170b6a4e17f0402afe3041aa0583",
       "samples": 12
     },
     {
@@ -7673,7 +7673,7 @@
       "id": "mm_gen_8_8_5H_error-fee",
       "familyId": "mathmaster:8.5H:gen-error-fee",
       "courseId": "grade8",
-      "contentHash": "1d03732d4c149fe46ca2da2317aa166ade02be43a494b717b9dd99596d56ac36",
+      "contentHash": "b4d8c7f9ae6d8ae3ab32b923634d479852715a5f76e10172768c8e03a36d396f",
       "samples": 12
     },
     {
@@ -7813,7 +7813,7 @@
       "id": "mm_gen_8_8_6C_error-lengths",
       "familyId": "mathmaster:8.6C:gen-error-lengths",
       "courseId": "grade8",
-      "contentHash": "0dcaf6a2e08018e35db470a6dbfd639b8013f10acac24d5a06e26dda4e71dbfd",
+      "contentHash": "e4f26fe8493f0c25db0c00ed57c552df5bd1fdbf1db9db60fcddef4dcd1a5f3b",
       "samples": 12
     },
     {
@@ -7883,7 +7883,7 @@
       "id": "mm_gen_8_8_7B_lateral-vs-total",
       "familyId": "mathmaster:8.7B:gen-lateral-vs-total",
       "courseId": "grade8",
-      "contentHash": "c07e3085e96d6c6c21ab4461cc7352097554979815ecb981b10a17133388a946",
+      "contentHash": "c995ad61e53572abb1a6335e274ae43b0494b5b7bdb50644319fd509fe5ef5c5",
       "samples": 12
     },
     {
@@ -8058,7 +8058,7 @@
       "id": "mm_gen_8_8_8B_table-to-story",
       "familyId": "mathmaster:8.8B:gen-table-to-story",
       "courseId": "grade8",
-      "contentHash": "7c5c19321a3f517f2db590022e53e8d623b58e09d563bd7cfefd0009769e6c7d",
+      "contentHash": "a21ee3e0af4693b5fb73692b71fbb253d13e6a19a993b2809881b953f7ddfbb1",
       "samples": 12
     },
     {
@@ -8107,7 +8107,7 @@
       "id": "mm_gen_8_8_8D_aa-similarity",
       "familyId": "mathmaster:8.8D:gen-aa-similarity",
       "courseId": "grade8",
-      "contentHash": "77e5cc4c3cf338c186a5c6402d2f959125a34171f90c1f89d20d72c4072af334",
+      "contentHash": "da5bfa5ceb2e89ecb93f82b332a5608f413e02e8cb411ead3d61e70edc7fa8ab",
       "samples": 12
     },
     {
@@ -8149,7 +8149,7 @@
       "id": "mm_gen_8_8_9_parallel-error",
       "familyId": "mathmaster:8.9:gen-parallel-error",
       "courseId": "grade8",
-      "contentHash": "5ebf06912aa4a405cb6cbd420b39404c3054462b9b9bdab5ddf8fab03cb8c5b2",
+      "contentHash": "5e442ca0e317237a8813ca6948c153880ac2ff348f97c5c60d1098b22f90cdf8",
       "samples": 12
     },
     {
@@ -8182,10 +8182,10 @@
     }
   ],
   "build": {
-    "builtAt": "2026-09-13T23:38:08.892Z",
+    "builtAt": "2026-10-10T20:33:46.085Z",
     "builtBy": "scripts/build-course-path-release-v2.mjs",
-    "gitCommit": "6bedfd2dfd93d8510df8d018b79bb0f46021a008",
-    "nodeVersion": "v22.22.2",
-    "certificationMs": 1344
+    "gitCommit": "1fe49bca878f6cb9cf8d477e3469a0b4f73f3136",
+    "nodeVersion": "v22.22.0",
+    "certificationMs": 1216
   }
 }

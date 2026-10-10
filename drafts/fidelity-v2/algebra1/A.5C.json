@@ -433,12 +433,14 @@
       "representation": "graph",
       "prompt": "A student says that because the same line is written twice, the system has exactly two solutions. Use the workspace to classify the system $y={{m}}x{{b|signed}}$ and $y={{m}}x{{b|signed}}$ and correct the claim.",
       "solutionReview": {
-        "headline": "Identical equations describe one line, so every point on that line solves the system.",
+        "headline": "The two equations are the same line, so every point on it solves the system: infinitely many solutions.",
         "reasoning": [
-          "Both equations have the same slope and the same intercept, so their graphs coincide.",
-          "A coincident pair of lines has infinitely many solutions, not two solutions."
+          "Both equations are $y={{m}}x{{b|signed}}$: the same slope ${{m}}$ and the same y-intercept ${{b}}$, so their graphs coincide.",
+          "Setting them equal gives ${{m}}x{{b|signed}}={{m}}x{{b|signed}}$, which is true for every $x$. For example $(0,{{b}})$, $(1,{{p1}})$ and $(2,{{p2}})$ all satisfy both equations.",
+          "Every point of the line is a solution, so the system has infinitely many solutions. Writing the same line twice does not create two intersection points, so the student’s claim of exactly two is wrong."
         ],
-        "answerSummary": "Infinitely many solutions."
+        "commonError": "Counting the equations instead of the intersection points. Two copies of $y={{m}}x{{b|signed}}$ overlap everywhere, not at two points.",
+        "answerSummary": "Infinitely many solutions: both equations are $y={{m}}x{{b|signed}}$, so every point on that line solves the system."
       },
       "attemptFeedback": [
         "Check whether the two equations describe distinct lines or exactly the same line."
@@ -461,6 +463,10 @@
             "min": -8,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m+b",
+          "p2": "2*m+b"
         }
       },
       "type": "systemsWorkspace",

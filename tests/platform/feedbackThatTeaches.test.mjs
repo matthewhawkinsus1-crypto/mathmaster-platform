@@ -291,9 +291,15 @@ test('3. a closed question points at a worked solution only when there is one', 
   assert.doesNotMatch(closedAttemptText({ maximumAttempts: 3, reviewAvailable: false, allowReplacement: true }), /below|review/i);
   assert.match(closedAttemptText({ maximumAttempts: 2, reviewAvailable: true, allowReplacement: true }), /request a new question/);
   assert.doesNotMatch(closedAttemptText({ maximumAttempts: 2, reviewAvailable: true, allowReplacement: false }), /new question|another problem/);
-  // The legacy intro no longer promises another problem it cannot give.
+  // The legacy intro no longer promises another problem it cannot give, and
+  // uses the panel's words for a closed question (student push J copy pass).
   const legacy = executableSource(read('src/SolutionReview.jsx'));
-  assert.match(legacy, /allowReplacement\s*\?\s*'This problem version is closed\. Review the solution before requesting another problem at the same difficulty\.'\s*:\s*'This problem version is closed\. Compare your work with the solution\.'/);
+  const intro = legacy.match(/allowReplacement\s*\?\s*'([^']*)'\s*:\s*'([^']*)'/);
+  assert.ok(intro, 'the intro depends on allowReplacement');
+  assert.match(intro[1], /^This question is closed\..*request a new question/);
+  assert.match(intro[2], /^This question is closed\./);
+  assert.doesNotMatch(intro[2], /new question|another problem|request/i);
+  assert.doesNotMatch(legacy, /problem version is closed/);
 });
 
 test('3. the review reads the authored solutionReview the compiler already copies', () => {

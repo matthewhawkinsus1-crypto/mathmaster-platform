@@ -503,7 +503,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2A:v2-discrete-mapping-domain-range",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -513,7 +513,7 @@
       "taskType": "representationTranslation",
       "representation": "orderedPairs",
       "type": "relationMapping",
-      "prompt": "This DISCRETE linear function is defined only by the displayed ordered pairs. Use the mapping to identify its domain and range.",
+      "prompt": "This DISCRETE linear function is defined only by the displayed ordered pairs $({{x0}}, {{y0}})$, $({{x1}}, {{y1}})$, $({{x2}}, {{y2}})$, and $({{x3}}, {{y3}})$. Use the mapping to identify its domain and range.",
       "pairs": [
         {
           "x": "{{x0}}",
@@ -538,11 +538,15 @@
         "isFunction"
       ],
       "solutionReview": {
-        "headline": "For a discrete function, the listed input values are the domain and the listed outputs are the range.",
+        "headline": "The domain is the set of the four listed inputs and the range is the set of the four listed outputs.",
         "reasoning": [
-          "Read the first coordinate of each ordered pair to build the domain.",
-          "Read the second coordinates for the range; each listed input has exactly one output, so this relation is a function."
-        ]
+          "The function is exactly the four pairs $({{x0}}, {{y0}})$, $({{x1}}, {{y1}})$, $({{x2}}, {{y2}})$ and $({{x3}}, {{y3}})$. It is discrete, so no input between them belongs to it.",
+          "Domain: collect the first coordinates, $\\{{{x0}}, {{x1}}, {{x2}}, {{x3}}\\}$.",
+          "Range: collect the second coordinates, $\\{{{y0}}, {{y1}}, {{y2}}, {{y3}}\\}$. Each output is {{m}} more than the one before while each input goes up by 1, so the pairs lie on one line.",
+          "Each input appears exactly once and has exactly one output, so the relation is a function."
+        ],
+        "commonError": "Writing the domain as the interval ${{x0}}\\le x\\le {{x3}}$. A discrete function contains only the listed inputs, so the domain is a set of four numbers, not every value between them.",
+        "answerSummary": "Domain $\\{{{x0}}, {{x1}}, {{x2}}, {{x3}}\\}$; range $\\{{{y0}}, {{y1}}, {{y2}}, {{y3}}\\}$; it is a function."
       },
       "attemptFeedback": [
         "Keep inputs and outputs separate: domain comes from x-values, range from y-values."
@@ -576,7 +580,10 @@
           "y1": "m*x1+b",
           "y2": "m*x2+b",
           "y3": "m*x3+b"
-        }
+        },
+        "constraints": [
+          "m != 1 || b != 0"
+        ]
       }
     },
     {
@@ -8060,11 +8067,14 @@
         "yMax": 10
       },
       "solutionReview": {
-        "headline": "A two-variable inequality graph has three decisions.",
+        "headline": "Graph the boundary $y={{m}}x{{b|signed}}$ as a solid line, then shade above it.",
         "reasoning": [
-          "Graph the boundary equation using two points.",
-          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
-        ]
+          "Boundary: graph $y={{m}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$ and use the slope ${{m}}$: one step right reaches $(1,{{p}})$. Draw the line through these two points.",
+          "Line style: $\\ge$ includes equality, so the points on the boundary are solutions and the line is solid.",
+          "Shading: $y\\ge {{m}}x{{b|signed}}$ keeps the points whose y-value is at or above the line, so shade above. Check $(0,{{t}})$: ${{t}}\\ge {{b}}$ is true, and that point lies above the line."
+        ],
+        "commonError": "Choosing the side from the slope instead of the symbol. Solved for $y$, $\\ge$ always means above the boundary, whether the slope ${{m}}$ is positive or negative.",
+        "answerSummary": "Solid line through $(0,{{b}})$ and $(1,{{p}})$, which is $y={{m}}x{{b|signed}}$, with the half-plane above it shaded."
       },
       "attemptFeedback": [
         "Check the boundary points first, then line style, then which side is shaded."
@@ -8087,6 +8097,10 @@
             "min": -5,
             "max": 5
           }
+        },
+        "derived": {
+          "p": "m+b",
+          "t": "b+1"
         }
       }
     },
@@ -8128,11 +8142,14 @@
         "yMax": 10
       },
       "solutionReview": {
-        "headline": "A two-variable inequality graph has three decisions.",
+        "headline": "Graph the boundary $y={{m}}x{{b|signed}}$ as a dashed line, then shade below it.",
         "reasoning": [
-          "Graph the boundary equation using two points.",
-          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
-        ]
+          "Boundary: graph $y={{m}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$ and use the slope ${{m}}$: one step right reaches $(1,{{p}})$. Draw the line through these two points.",
+          "Line style: $<$ is strict, so the points on the boundary are not solutions and the line is dashed.",
+          "Shading: $y<{{m}}x{{b|signed}}$ keeps the points whose y-value is below the line, so shade below. Check $(0,{{t}})$: ${{t}}<{{b}}$ is true, and that point lies below the line."
+        ],
+        "commonError": "Choosing the side from the slope instead of the symbol. Solved for $y$, $<$ always means below the boundary, whether the slope ${{m}}$ is positive or negative.",
+        "answerSummary": "Dashed line through $(0,{{b}})$ and $(1,{{p}})$, which is $y={{m}}x{{b|signed}}$, with the half-plane below it shaded."
       },
       "attemptFeedback": [
         "Check the boundary points first, then line style, then which side is shaded."
@@ -8155,6 +8172,10 @@
             "min": -5,
             "max": 5
           }
+        },
+        "derived": {
+          "p": "m+b",
+          "t": "b-1"
         }
       }
     },
@@ -8196,11 +8217,14 @@
         "yMax": 10
       },
       "solutionReview": {
-        "headline": "A two-variable inequality graph has three decisions.",
+        "headline": "Graph the boundary $y={{m}}x{{b|signed}}$ as a solid line, then shade below it.",
         "reasoning": [
-          "Graph the boundary equation using two points.",
-          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
-        ]
+          "Boundary: graph $y={{m}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$ and use the slope ${{m}}$: one step right reaches $(1,{{p}})$. Draw the line through these two points.",
+          "Line style: $\\le$ includes equality, so the points on the boundary are solutions and the line is solid.",
+          "Shading: $y\\le {{m}}x{{b|signed}}$ keeps the points whose y-value is at or below the line, so shade below. Check $(0,{{t}})$: ${{t}}\\le {{b}}$ is true, and that point lies below the line."
+        ],
+        "commonError": "Choosing the side from the slope instead of the symbol. Solved for $y$, $\\le$ always means below the boundary, whether the slope ${{m}}$ is positive or negative.",
+        "answerSummary": "Solid line through $(0,{{b}})$ and $(1,{{p}})$, which is $y={{m}}x{{b|signed}}$, with the half-plane below it shaded."
       },
       "attemptFeedback": [
         "Check the boundary points first, then line style, then which side is shaded."
@@ -8223,6 +8247,10 @@
             "min": -5,
             "max": 5
           }
+        },
+        "derived": {
+          "p": "m+b",
+          "t": "b-1"
         }
       },
       "variants": [
@@ -8244,13 +8272,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A fractional slope changes the boundary construction, not the logic of the inequality.",
+            "headline": "Build the boundary from a rise of {{rise}} over a run of {{run}}, draw it solid, and shade below.",
             "reasoning": [
-              "Use rise {{rise}} over run {{run}} to build two accurate boundary points.",
-              "Because ≤ includes equality, the boundary is solid.",
-              "Because y is less than or equal to the boundary expression, shade below."
+              "Boundary: $y=\\frac{{{rise}}}{{{run}}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$, then a rise of {{rise}} over a run of {{run}} reaches $({{run}},{{q}})$. Draw the line through both points.",
+              "Line style: $\\le$ includes equality, so the points on the boundary are solutions and the line is solid.",
+              "Shading: $y\\le$ the boundary keeps the points at or below the line, so shade below. Check $(0,{{t}})$: ${{t}}\\le {{b}}$ is true, and that point lies below the line."
             ],
-            "answerSummary": "Solid fractional-slope boundary with the region below shaded."
+            "commonError": "Rounding the slope to plot a point at $x=1$. The slope $\\frac{{{rise}}}{{{run}}}$ lands exactly on a grid point after a whole run of {{run}}, so use $(0,{{b}})$ and $({{run}},{{q}})$.",
+            "answerSummary": "Solid line through $(0,{{b}})$ and $({{run}},{{q}})$, with the half-plane below it shaded."
           },
           "attemptFeedback": [
             "Keep the rise/run exact while plotting the boundary; then apply the ≤ symbol."
@@ -8287,7 +8316,9 @@
               }
             },
             "derived": {
-              "m": "rise/run"
+              "m": "rise/run",
+              "q": "b+rise",
+              "t": "b-1"
             },
             "constraints": [
               "abs(rise)!=run"
@@ -8334,11 +8365,14 @@
         "yMax": 10
       },
       "solutionReview": {
-        "headline": "A two-variable inequality graph has three decisions.",
+        "headline": "Graph the boundary $y={{m}}x{{b|signed}}$ as a dashed line, then shade above it.",
         "reasoning": [
-          "Graph the boundary equation using two points.",
-          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
-        ]
+          "Boundary: graph $y={{m}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$ and use the slope ${{m}}$: one step right reaches $(1,{{p}})$. Draw the line through these two points.",
+          "Line style: $>$ is strict, so the points on the boundary are not solutions and the line is dashed.",
+          "Shading: $y>{{m}}x{{b|signed}}$ keeps the points whose y-value is above the line, so shade above. Check $(0,{{t}})$: ${{t}}>{{b}}$ is true, and that point lies above the line."
+        ],
+        "commonError": "Choosing the side from the slope instead of the symbol. Solved for $y$, $>$ always means above the boundary, whether the slope ${{m}}$ is positive or negative.",
+        "answerSummary": "Dashed line through $(0,{{b}})$ and $(1,{{p}})$, which is $y={{m}}x{{b|signed}}$, with the half-plane above it shaded."
       },
       "attemptFeedback": [
         "Check the boundary points first, then line style, then which side is shaded."
@@ -8361,6 +8395,10 @@
             "min": -5,
             "max": 5
           }
+        },
+        "derived": {
+          "p": "m+b",
+          "t": "b+1"
         }
       }
     },
@@ -9645,7 +9683,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-pricing-estimate",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 2,
@@ -9657,7 +9695,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.12,
-      "prompt": "Two pricing plans are modeled by the two lines in the workspace. Use the GRAPH to estimate the break-even point to about the nearest tenth; classify the system and enter the intersection coordinates.",
+      "prompt": "Two kayak-rental pricing plans are modeled by the two lines in the workspace, where x is the number of hours and y is the total cost in dollars. Plan A charges a fee of {{b1}} plus {{m1}} per hour; Plan B charges a fee of {{b2}} plus {{m2}} per hour (all amounts in dollars). Use the GRAPH to estimate the break-even point to about the nearest tenth; classify the system and enter the intersection coordinates.",
       "context": {
         "scenario": "Two pricing plans with different starting fees and rates"
       },
@@ -9719,7 +9757,7 @@
           "b2": "ystar-m2*xstar"
         },
         "constraints": [
-          "b2>=-10",
+          "b2>=1",
           "b2<=16",
           "ystar<=34"
         ]
@@ -9733,7 +9771,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-savings-estimate",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -9745,7 +9783,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.12,
-      "prompt": "The workspace graphs two savings models. Estimate graphically when the balances are equal and what that common balance is. Enter the intersection you read from the graph.",
+      "prompt": "The workspace graphs two savings models, where x is the number of weeks and y is the balance in dollars. Account A starts with a balance of {{b1}} and gets a deposit of {{m1}} each week; Account B starts with a balance of {{b2}} and gets a deposit of {{m2}} each week (all amounts in dollars). Estimate graphically when the balances are equal and what that common balance is. Enter the intersection you read from the graph.",
       "context": {
         "scenario": "Two savings strategies growing at different constant rates"
       },
@@ -9807,7 +9845,7 @@
           "b2": "ystar-m2*xstar"
         },
         "constraints": [
-          "b2>=-10",
+          "b2>=1",
           "b2<=16",
           "ystar<=34"
         ]
@@ -9822,7 +9860,7 @@
           "coverageKey": "adaptive-d2b4-fractional-graphical-intersection",
           "dok": 2,
           "difficultyBand": 4,
-          "prompt": "The workspace graphs two savings models with fractional rates. Use the GRAPH to estimate the break-even point to about the nearest tenth. Enter the intersection coordinates; do not solve the system algebraically first.",
+          "prompt": "The workspace graphs two savings models with fractional rates, where x is the number of weeks and y is the balance in dollars. Account A starts with a balance of {{b1}} and gets a deposit of {{m1}} each week; Account B starts with a balance of {{b2}} and gets a deposit of {{m2}} each week (all amounts in dollars). Use the GRAPH to estimate the break-even point to about the nearest tenth. Enter the intersection coordinates; do not solve the system algebraically first.",
           "context": {
             "scenario": "Two savings strategies with fractional constant rates",
             "note": "The intersection is intentionally non-integer, so accurate graphical reading matters."
@@ -9893,7 +9931,7 @@
             },
             "constraints": [
               "m1!=m2",
-              "b2>=-10",
+              "b2>=1",
               "b2<=16",
               "ystar<=34"
             ]
@@ -9909,7 +9947,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-transport-estimate",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -9921,7 +9959,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.12,
-      "prompt": "Two transportation options have different fixed costs and per-unit rates. Use their graphs—not algebra first—to estimate where the costs are equal.",
+      "prompt": "Two transportation options have different fixed costs and per-mile rates. Option A has a fixed fee of {{b1}} plus a charge of {{m1}} per mile; Option B has a fixed fee of {{b2}} plus a charge of {{m2}} per mile (all amounts in dollars). The workspace graphs total cost y in dollars against distance x in miles. Use their graphs—not algebra first—to estimate where the costs are equal.",
       "context": {
         "scenario": "Two transportation cost models"
       },
@@ -9983,7 +10021,7 @@
           "b2": "ystar-m2*xstar"
         },
         "constraints": [
-          "b2>=-10",
+          "b2>=1",
           "b2<=16",
           "ystar<=34"
         ]
@@ -9997,7 +10035,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-error-read-intersection",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 4,
@@ -10009,7 +10047,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.12,
-      "prompt": "A student reads an axis intercept instead of the crossing point when estimating where two real-world models are equal. Use the workspace graph to correct the error and enter the actual intersection estimate.",
+      "prompt": "Two real-world models are graphed in the workspace: Model 1 has slope {{m1}} and y-intercept {{b1}}, and Model 2 has slope {{m2}} and y-intercept {{b2}}. To estimate where the models are equal, a student reads where Model 1 crosses the y-axis and reports $(0,{{b1}})$ instead of the crossing point. Use the workspace graph to correct the error and enter the actual intersection estimate.",
       "context": {
         "scenario": "Checking a student's graphical system estimate"
       },
@@ -10085,7 +10123,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-graph-then-verify",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 4,
@@ -10097,7 +10135,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.15,
-      "prompt": "Estimate the solution of the two models from their graph to the nearest tenth. Then use the equations shown in the workspace to mentally verify that your estimated point is reasonable before submitting it.",
+      "prompt": "Model A has slope {{m1}} and y-intercept {{b1}}; Model B has slope {{m2}} and y-intercept {{b2}}. Estimate the solution of the two models from their graph to the nearest tenth. Then use the equations shown in the workspace to mentally verify that your estimated point is reasonable before submitting it.",
       "context": {
         "scenario": "Comparing two competing linear models"
       },
@@ -10174,7 +10212,7 @@
           "coverageKey": "adaptive-d3b3-graph-estimate-equation-cross-check",
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "Estimate the solution of the two models from their graph. Before submitting, cross-check the estimated point against BOTH displayed equations and decide whether the same ordered pair is reasonable for each model.",
+          "prompt": "Model A has slope {{m1}} and y-intercept {{b1}}; Model B has slope {{m2}} and y-intercept {{b2}}. Estimate the solution of the two models from their graph. Before submitting, cross-check the estimated point against BOTH displayed equations and decide whether the same ordered pair is reasonable for each model.",
           "context": {
             "scenario": "Graphical solution with algebraic reasonableness check",
             "note": "The numbers are kept moderate so the depth comes from cross-checking one point against both models, not from harder arithmetic."
@@ -10289,11 +10327,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "Graph each boundary with its own style and side, then keep only the region that satisfies both.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y\\ge {{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $\\ge$ includes equality, so the line is solid; shade above it.",
+          "Second inequality $y\\le {{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $\\le$ includes equality, so the line is solid; shade below it.",
+          "The solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}\\ge {{b1}}$ and ${{t}}\\le {{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}\\le {{b2}}$ is false, so it is not a solution.",
+        "answerSummary": "Solid $y={{m1}}x{{b1|signed}}$ shaded above, solid $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -10323,6 +10365,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       },
       "variants": [
@@ -10361,13 +10409,15 @@
             "yMax": 12
           },
           "solutionReview": {
-            "headline": "Two horizontal inequalities create a horizontal strip.",
+            "headline": "Two horizontal inequalities create a horizontal strip between $y={{lower}}$ and $y={{upper}}$.",
             "reasoning": [
-              "The boundary y={{lower}} is solid and shades above.",
-              "The boundary y={{upper}} is solid and shades below.",
-              "The common solution is the strip between the two boundaries, including both lines."
+              "$y\\ge {{lower}}$: the boundary is the horizontal line $y={{lower}}$, through $(0,{{lower}})$ and $(1,{{lower}})$. $\\ge$ includes equality, so it is solid; shade above it.",
+              "$y\\le {{upper}}$: the boundary is the horizontal line $y={{upper}}$, through $(0,{{upper}})$ and $(1,{{upper}})$. $\\le$ includes equality, so it is solid; shade below it.",
+              "Keep only the overlap: the strip ${{lower}}\\le y\\le {{upper}}$, which is {{gap}} units tall and includes both lines.",
+              "Check $(0,{{t}})$: ${{lower}}\\le {{t}}\\le {{upper}}$ is true, so it is in the strip."
             ],
-            "answerSummary": "Shade {{lower}}≤y≤{{upper}}."
+            "commonError": "Keeping the whole region above $y={{lower}}$. The point $(0,{{u}})$ satisfies $y\\ge {{lower}}$, but ${{u}}\\le {{upper}}$ is false, so it is not a solution.",
+            "answerSummary": "Solid lines $y={{lower}}$ and $y={{upper}}$, with only the strip ${{lower}}\\le y\\le {{upper}}$ shaded."
           },
           "attemptFeedback": [
             "Graph each horizontal boundary separately, then keep only the region satisfying both."
@@ -10389,7 +10439,9 @@
               }
             },
             "derived": {
-              "upper": "lower+gap"
+              "upper": "lower+gap",
+              "t": "lower+1",
+              "u": "upper+1"
             }
           }
         }
@@ -10438,11 +10490,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "Graph each boundary with its own style and side, then keep only the region that satisfies both.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y>{{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $>$ is strict, so the line is dashed; shade above it.",
+          "Second inequality $y<{{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $<$ is strict, so the line is dashed; shade below it.",
+          "The solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}>{{b1}}$ and ${{t}}<{{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}<{{b2}}$ is false, so it is not a solution.",
+        "answerSummary": "Dashed $y={{m1}}x{{b1|signed}}$ shaded above, dashed $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -10472,6 +10528,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       },
       "variants": [
@@ -10510,13 +10572,15 @@
             "yMax": 12
           },
           "solutionReview": {
-            "headline": "Higher structural difficulty can come from fractional slopes and mixed boundary styles without raising DOK.",
+            "headline": "Build each fractional-slope boundary from its rise and run, give each its own style and side, then keep the overlap.",
             "reasoning": [
-              "Construct the first boundary with slope {{rise1}}/{{run1}} and use a solid line because ≥ includes equality.",
-              "Construct the second boundary with slope {{rise2}}/{{run2}} and use a dashed line because < excludes equality.",
-              "Shade above the first and below the second, then keep only the overlap."
+              "First inequality $y\\ge \\frac{{{rise1}}}{{{run1}}}x{{b1|signed}}$: from $(0,{{b1}})$, a rise of {{rise1}} over a run of {{run1}} reaches $({{run1}},{{q1}})$. $\\ge$ includes equality, so the line is solid; shade above it.",
+              "Second inequality $y<\\frac{{{rise2}}}{{{run2}}}x{{b2|signed}}$: from $(0,{{b2}})$, a rise of {{rise2}} over a run of {{run2}} reaches $({{run2}},{{q2}})$. $<$ is strict, so the line is dashed; shade below it.",
+              "The solution is the overlap: above the first line AND below the second. The first line rises and the second falls, so the overlap is the wedge to the left of where they cross.",
+              "Check $(0,{{t}})$: ${{t}}\\ge {{b1}}$ and ${{t}}<{{b2}}$ are both true, so this point is in the overlap."
             ],
-            "answerSummary": "Mixed solid/dashed system with the common region only."
+            "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}<{{b2}}$ is false, so it is not a solution.",
+            "answerSummary": "Solid boundary through $(0,{{b1}})$ and $({{run1}},{{q1}})$ shaded above, dashed boundary through $(0,{{b2}})$ and $({{run2}},{{q2}})$ shaded below; only the overlap is the solution."
           },
           "attemptFeedback": [
             "Do not let the fractional slopes distract from the separate boundary-style and shading decisions."
@@ -10571,7 +10635,11 @@
             },
             "derived": {
               "m1": "rise1/run1",
-              "m2": "rise2/run2"
+              "m2": "rise2/run2",
+              "q1": "b1+rise1",
+              "q2": "b2+rise2",
+              "t": "b1+1",
+              "u": "b2+1"
             },
             "constraints": [
               "abs(rise1)!=run1",
@@ -10624,11 +10692,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "Graph each boundary with its own style and side, then keep only the region that satisfies both.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y\\ge {{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $\\ge$ includes equality, so the line is solid; shade above it.",
+          "Second inequality $y<{{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $<$ is strict, so the line is dashed; shade below it.",
+          "The solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}\\ge {{b1}}$ and ${{t}}<{{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}<{{b2}}$ is false, so it is not a solution.",
+        "answerSummary": "Solid $y={{m1}}x{{b1|signed}}$ shaded above, dashed $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -10658,6 +10730,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       }
     },
@@ -10704,11 +10782,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "Graph each boundary with its own style and side, then keep only the region that satisfies both constraints.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y\\ge {{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $\\ge$ includes equality, so the line is solid; shade above it.",
+          "Second inequality $y\\le {{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $\\le$ includes equality, so the line is solid; shade below it.",
+          "A feasible plan must meet both constraints, so the solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}\\ge {{b1}}$ and ${{t}}\\le {{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}\\le {{b2}}$ is false, so it is not a solution.",
+        "answerSummary": "Solid $y={{m1}}x{{b1|signed}}$ shaded above, solid $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -10738,6 +10820,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       }
     },
@@ -10784,11 +10872,16 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "A system is solved by the intersection of the two half-planes, not their union.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y>{{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $>$ is strict, so the line is dashed; shade above it.",
+          "Second inequality $y\\le {{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $\\le$ includes equality, so the line is solid; shade below it.",
+          "The student's union also shades points such as $(0,{{u}})$: it is above the first line, but ${{u}}\\le {{b2}}$ is false, so it fails the second inequality. A system keeps only points that satisfy both, so erase everything outside the overlap.",
+          "The solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}>{{b1}}$ and ${{t}}\\le {{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading the union, which also includes points that satisfy only one inequality. Test a point in each shaded piece: it must make both inequalities true.",
+        "answerSummary": "Dashed $y={{m1}}x{{b1|signed}}$ shaded above, solid $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -10818,6 +10911,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       }
     },
@@ -10943,11 +11042,15 @@
       ],
       "correlationTolerance": 0.025,
       "solutionReview": {
-        "headline": "Negative association still requires a numerical calculation.",
+        "headline": "The five points give $r\\approx {{r}}$: a strong negative linear association.",
         "reasoning": [
-          "Enter all five points and run the correlation calculation.",
-          "A negative sign means the variables move in opposite directions; use the magnitude to judge strength."
-        ]
+          "The points are $(0,{{y0}})$, $(1,{{y1}})$, $(2,{{y2}})$, $(3,{{y3}})$, $(4,{{y4}})$. Their means are $\\bar x=2$ and $\\bar y={{ybar}}$.",
+          "From the deviations: $S_{xy}=\\sum(x-\\bar x)(y-\\bar y)={{sxy}}$, $S_{xx}=\\sum(x-\\bar x)^2=10$ and $S_{yy}=\\sum(y-\\bar y)^2={{syy}}$.",
+          "Then $r=\\frac{S_{xy}}{\\sqrt{S_{xx}S_{yy}}}=\\frac{{{sxy}}}{\\sqrt{10\\cdot {{syy}}}}\\approx {{r}}$, the value technology reports.",
+          "Direction: $r$ is negative, so as $x$ increases $y$ tends to decrease (from {{y0}} down to {{y4}}). Strength: $|r|\\ge 0.8$, so the association is strong even though the points zig-zag."
+        ],
+        "commonError": "Dropping the negative sign, or calling the association weak because the points do not lie exactly on a line. The sign of $r$ gives the direction; $|r|$ close to 1 means strong.",
+        "answerSummary": "$r\\approx {{r}}$: a strong negative linear association."
       },
       "attemptFeedback": [
         "Check that you did not drop the negative direction when interpreting the coefficient."
@@ -10973,7 +11076,11 @@
           "y1": "b-m+1",
           "y2": "b-2*m-1",
           "y3": "b-3*m+1",
-          "y4": "b-4*m-1"
+          "y4": "b-4*m-1",
+          "ybar": "b-2*m",
+          "sxy": "-(10*m+2)",
+          "syy": "10*m*m+4*m+4",
+          "r": "round(-1000*(10*m+2)/sqrt(10*(10*m*m+4*m+4)))/1000"
         }
       }
     },
@@ -11339,12 +11446,15 @@
       "representation": "context",
       "prompt": "{{item1}} sales and {{item2}} incidents both rise during hot months. Which explanation best shows why correlation does not establish causation?",
       "solutionReview": {
-        "headline": "Connect the representation to the mathematics.",
+        "headline": "Hot weather drives both {{item1}} sales and {{item2}} incidents, so their correlation is not evidence of causation.",
         "reasoning": [
-          "Two variables can move together because a third variable affects both.",
-          "Seasonal temperature is a plausible lurking variable in this context."
+          "The data show a correlation: in hot months {{item1}} sales go up, and {{item2}} incidents go up too.",
+          "Hot weather is a third, lurking variable that affects each one directly: heat raises {{item1}} sales, and heat also leads to more {{item2}} incidents (more people outdoors, in the water, or exposed to the heat).",
+          "So the two can rise together even if {{item1}} sales have no effect at all on {{item2}} incidents. The correlation alone cannot show that either one causes the other.",
+          "That rules out “the first variable must cause the second” and its reverse, and correlated variables are not identical; they only change together."
         ],
-        "answerSummary": "Hot weather can influence both variables."
+        "commonError": "Reading “they rise together” as “one causes the other”. Both could simply be tracking the season.",
+        "answerSummary": "Hot weather can influence both variables: it raises {{item1}} sales and {{item2}} incidents, so their correlation does not show causation."
       },
       "attemptFeedback": [
         "Use the given information to identify the relationship before computing."
@@ -11420,12 +11530,15 @@
       "representation": "context",
       "prompt": "Researchers have {{group}} students and want to know whether a tutoring program CAUSES higher scores. Which design gives the strongest causal evidence?",
       "solutionReview": {
-        "headline": "Connect the representation to the mathematics.",
+        "headline": "Only random assignment of the {{group}} students makes the tutoring and no-tutoring groups comparable.",
         "reasoning": [
-          "Causal claims are strongest when subjects are randomly assigned to treatment and comparison groups.",
-          "Random assignment helps balance lurking variables between the groups."
+          "To show tutoring CAUSES higher scores, the two groups must differ only in tutoring. Randomly split the {{group}} students, for example {{g1}} to tutoring and {{g2}} to no tutoring, then compare their scores.",
+          "Random assignment spreads motivation, prior grades and other lurking variables evenly between the groups on average, so a score difference can be credited to tutoring. That is the Experiment row of the table.",
+          "Surveying students who already chose tutoring uses self-selected groups (the Observation row): students who sign up may already be more motivated.",
+          "Comparing with a different school last year changes the students and the year as well as the tutoring, and asking whether tutoring felt helpful measures opinions, not scores."
         ],
-        "answerSummary": "Randomly assign participants to tutoring and no-tutoring groups."
+        "commonError": "Trusting a comparison of students who chose tutoring. Their own choice, not the tutoring, could explain higher scores.",
+        "answerSummary": "Randomly assign participants to tutoring and no-tutoring groups, for example {{g1}} and {{g2}} of the {{group}} students, and compare their scores."
       },
       "attemptFeedback": [
         "Use the given information to identify the relationship before computing."
@@ -11440,6 +11553,10 @@
             "min": 40,
             "max": 160
           }
+        },
+        "derived": {
+          "g1": "floor(group/2)",
+          "g2": "group-floor(group/2)"
         }
       },
       "stimulus": {
@@ -11507,12 +11624,15 @@
       "representation": "context",
       "prompt": "A survey of {{n}} students finds that those who report {{habit}} also report higher grades. What can the survey establish by itself?",
       "solutionReview": {
-        "headline": "Connect the representation to the mathematics.",
+        "headline": "A survey of {{n}} students can show that {{habit}} and higher grades go together, not that one causes the other.",
         "reasoning": [
-          "An observational survey can reveal an association between measured variables.",
-          "Without random assignment or another strong causal design, it cannot by itself establish cause and effect."
+          "The researchers only recorded what the {{n}} students reported; nobody was assigned to {{habit}}. That makes it an observational study.",
+          "What it can establish: an association. Students who report {{habit}} tend to report higher grades.",
+          "What it cannot establish: causation. A lurking variable such as motivation or family support could lead to both {{habit}} and higher grades, or the direction could run the other way.",
+          "Surveying more than {{n}} students would not fix this, and nothing in a survey shows that no lurking variables exist. Only a design such as random assignment can rule them out."
         ],
-        "answerSummary": "It can establish an association, not causation."
+        "commonError": "Treating the pattern as proof: students who report {{habit}} having higher grades does not mean {{habit}} causes the higher grades.",
+        "answerSummary": "An association, not causation: the survey of {{n}} students links {{habit}} with higher grades but cannot show that {{habit}} causes them."
       },
       "attemptFeedback": [
         "Use the given information to identify the relationship before computing."
@@ -11585,12 +11705,15 @@
       "representation": "verbal",
       "prompt": "A headline incorrectly claims, “People who {{behavior}} have {{pct}}% better outcomes, so {{behavior}} causes improvement.” What is the main flaw if the data came only from an observational study?",
       "solutionReview": {
-        "headline": "Connect the representation to the mathematics.",
+        "headline": "The {{pct}}% gap from an observational study shows an association; the headline wrongly turns it into causation.",
         "reasoning": [
-          "Observed association alone does not control all alternative explanations.",
-          "The headline changes an association into a causal claim without sufficient design evidence."
+          "The study only observed people who {{behavior}} and people who do not, and found {{pct}}% better outcomes in the first group. That is an association.",
+          "People who choose to {{behavior}} may differ in other ways, such as motivation, health or free time, that also improve outcomes. Those confounders could produce the {{pct}}% gap by themselves.",
+          "So “{{behavior}} causes improvement” is not supported: the headline confuses association with causation. Showing causation needs a design such as random assignment.",
+          "The other options fail: comparing the percentages is fine, the study did show a pattern, and no rule requires exactly 100 people."
         ],
-        "answerSummary": "The conclusion confuses association with causation."
+        "commonError": "Accepting a large percentage as proof of a cause. Even a difference of {{pct}}% can come entirely from who chose to {{behavior}}.",
+        "answerSummary": "It confuses association with causation: the {{pct}}% gap shows that people who {{behavior}} do better, not that the behavior causes it."
       },
       "attemptFeedback": [
         "Use the given information to identify the relationship before computing."
@@ -11704,13 +11827,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Critical causal reasoning compares alternative explanations and asks what design evidence separates them.",
+            "headline": "The {{pct}}% result supports an association; only a design like random assignment can separate explanation A from B.",
             "reasoning": [
-              "The observational result supports association, not a unique causal mechanism.",
-              "Prior motivation could influence both {{behavior}} and the measured outcome, so the causal and confounding explanations are both compatible with the observation.",
-              "Random assignment, when ethical, helps balance pre-existing differences and strengthens causal inference."
+              "Establish: the study observed students who {{behavior}} reporting {{pct}}% better outcomes, so it shows an association between the behavior and the outcome, not that the behavior definitely caused it.",
+              "Why A cannot be chosen over B: prior motivation could lead students both to {{behavior}} and to better outcomes. Both explanations predict the same {{pct}}% gap, because the design does not rule out confounding or pre-existing differences.",
+              "Percentages are not the problem; observational studies use them all the time. The problem is that the students chose their own behavior.",
+              "Strengthen: randomly assign comparable participants to {{behavior}} or a control condition and compare outcomes. Random assignment balances motivation between the groups; a bigger survey with the same design would still leave B open."
             ],
-            "answerSummary": "Association is supported; causal certainty requires stronger design evidence."
+            "commonError": "Picking explanation A because it matches the headline. The {{pct}}% gap is equally consistent with B until the behavior is assigned at random.",
+            "answerSummary": "An association between the behavior and the outcome; the design does not rule out confounding or pre-existing differences; randomly assign comparable participants to the behavior or a control condition and compare outcomes."
           },
           "attemptFeedback": [
             "Ask what alternative explanation could produce the same observed association."
@@ -11758,12 +11883,15 @@
       "representation": "verbal",
       "prompt": "A strong association is found between {{x}} and {{y}}. Which follow-up most improves evidence for causation when an experiment is ethical?",
       "solutionReview": {
-        "headline": "Connect the representation to the mathematics.",
+        "headline": "To test whether {{x}} causes better {{y}}, assign it at random and compare.",
         "reasoning": [
-          "To investigate causation, deliberately vary the proposed cause and compare outcomes.",
-          "Random assignment reduces systematic differences between treatment and comparison groups."
+          "The strong association between {{x}} and {{y}} could come from who uses {{x}}: for example, more motivated students may both choose it and do better.",
+          "A randomized controlled experiment removes that problem: randomly assign comparable students either to use {{x}} or not, then measure {{y}} for both groups under the same conditions.",
+          "Random assignment balances motivation and other lurking variables between the groups on average, so a difference in {{y}} can be attributed to {{x}}.",
+          "The other options do not help: collecting the same correlation again repeats the same confounding, and choosing only high-outcome participants or removing low values biases the data."
         ],
-        "answerSummary": "Use a randomized controlled experiment."
+        "commonError": "Thinking more of the same observational data proves a cause. Repeating the correlation between {{x}} and {{y}} never separates {{x}} from the lurking variables.",
+        "answerSummary": "Use a randomized controlled experiment: randomly assign students to use {{x}} or not, and compare their {{y}}."
       },
       "attemptFeedback": [
         "Use the given information to identify the relationship before computing."
@@ -11897,13 +12025,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Correlation and causation depend on study design, not merely on the size of an association.",
+            "headline": "The observational study shows that {{x}} and higher {{y}} go together; the randomized study can carry a causal claim.",
             "reasoning": [
-              "The observational study can show that {{x}} and {{y}} vary together, but uncontrolled factors may explain the association.",
-              "Random assignment makes treatment groups comparable in expectation and reduces systematic confounding.",
-              "Therefore the randomized study provides the stronger basis for a causal claim when it is ethical and properly conducted."
+              "Observational study: students chose whether to use {{x}}, so it shows an association with higher {{y}} but not a causal conclusion by itself. The users may differ in motivation or prior skill.",
+              "Randomized study: comparable students were randomly assigned to {{x}} or the usual method, and both groups were measured on {{y}} under the same conditions. That reduces systematic confounding and provides much stronger evidence for causation.",
+              "So the randomized comparison study should carry the causal claim, provided it is ethical and well-run.",
+              "Why: random assignment helps separate the treatment effect from pre-existing differences and confounders. A bigger numerical difference in one study is not, by itself, a reason to infer a cause."
             ],
-            "answerSummary": "Observational evidence supports association; randomized experimental evidence supports the stronger causal inference."
+            "commonError": "Letting the study with the more impressive {{y}} difference carry the claim. What matters is how the groups were formed.",
+            "answerSummary": "Observational: an association, but not a causal conclusion by itself. Randomizing: it reduces systematic confounding and strengthens evidence. Claim: the randomized comparison study; it helps separate the treatment effect from confounders."
           },
           "attemptFeedback": [
             "Separate the numerical relationship from the design used to create the groups."
@@ -13978,12 +14108,14 @@
       "representation": "graph",
       "prompt": "A student says that because the same line is written twice, the system has exactly two solutions. Use the workspace to classify the system $y={{m}}x{{b|signed}}$ and $y={{m}}x{{b|signed}}$ and correct the claim.",
       "solutionReview": {
-        "headline": "Identical equations describe one line, so every point on that line solves the system.",
+        "headline": "The two equations are the same line, so every point on it solves the system: infinitely many solutions.",
         "reasoning": [
-          "Both equations have the same slope and the same intercept, so their graphs coincide.",
-          "A coincident pair of lines has infinitely many solutions, not two solutions."
+          "Both equations are $y={{m}}x{{b|signed}}$: the same slope ${{m}}$ and the same y-intercept ${{b}}$, so their graphs coincide.",
+          "Setting them equal gives ${{m}}x{{b|signed}}={{m}}x{{b|signed}}$, which is true for every $x$. For example $(0,{{b}})$, $(1,{{p1}})$ and $(2,{{p2}})$ all satisfy both equations.",
+          "Every point of the line is a solution, so the system has infinitely many solutions. Writing the same line twice does not create two intersection points, so the student’s claim of exactly two is wrong."
         ],
-        "answerSummary": "Infinitely many solutions."
+        "commonError": "Counting the equations instead of the intersection points. Two copies of $y={{m}}x{{b|signed}}$ overlap everywhere, not at two points.",
+        "answerSummary": "Infinitely many solutions: both equations are $y={{m}}x{{b|signed}}$, so every point on that line solves the system."
       },
       "attemptFeedback": [
         "Check whether the two equations describe distinct lines or exactly the same line."
@@ -14006,6 +14138,10 @@
             "min": -8,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m+b",
+          "p2": "2*m+b"
         }
       },
       "type": "systemsWorkspace",
@@ -19767,7 +19903,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.9B:v2-growth-factor",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -19776,11 +19912,11 @@
       "assessedConstruct": "A.9B",
       "taskType": "errorAnalysis",
       "representation": "verbal",
-      "prompt": "A student says a model that multiplies by {{b}} each period has a growth factor of {{b}}%. Correct the interpretation: what MULTIPLICATIVE growth factor belongs in the exponential model?",
+      "prompt": "A student says a model that multiplies by {{b}} each {{unit}} has a growth factor of {{b}}%. Correct the interpretation: what MULTIPLICATIVE growth factor belongs in the exponential model?",
       "solutionReview": {
         "headline": "A multiplicative factor and a percent rate are not the same parameter.",
         "reasoning": [
-          "The factor is the number multiplied by the previous value each period.",
+          "The factor is the number multiplied by the previous value each {{unit}}.",
           "Because the quantity is multiplied by {{b}}, the model's growth factor is {{b}}."
         ],
         "answerSummary": "Growth factor {{b}}."
@@ -19799,13 +19935,27 @@
               2,
               3,
               4,
-              5
+              5,
+              6,
+              7,
+              8
             ]
           },
           "a": {
             "type": "int",
             "min": 20,
             "max": 200
+          },
+          "unit": {
+            "type": "choice",
+            "values": [
+              "period",
+              "year",
+              "month",
+              "week",
+              "day",
+              "hour"
+            ]
           }
         }
       },
@@ -21119,7 +21269,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.9D:v2-context-decay-graph",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -21212,16 +21362,15 @@
       "generator": {
         "parameters": {
           "a": {
-            "type": "choice",
-            "values": [
-              20,
-              30,
-              40
-            ]
+            "type": "int",
+            "min": 20,
+            "max": 56,
+            "step": 4
           },
           "base": {
             "type": "choice",
             "values": [
+              0.25,
               0.5,
               0.75
             ]
@@ -26813,12 +26962,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Check inputs, not whether outputs repeat.",
+        "headline": "Check the input column: no input is paired with two different outputs.",
         "reasoning": [
-          "The four input values are all distinct.",
-          "Each input therefore has exactly one listed output, so the relation is a function even if some outputs repeat."
+          "The inputs are ${{x1}}$, ${{x2}}$, ${{x3}}$ and ${{x4}}$. They increase down the table, so all four are different.",
+          "Each input therefore has exactly one output: ${{x1}}\\to {{y1}}$, ${{x2}}\\to {{y2}}$, ${{x3}}\\to {{y3}}$ and ${{x4}}\\to {{y4}}$.",
+          "Repeated outputs would be allowed: a relation fails to be a function only when ONE input has two different outputs, and that never happens here."
         ],
-        "answerSummary": "FUNCTION"
+        "commonError": "Calling it NOT A FUNCTION because two inputs share an output. Different inputs may share an output; it is one input with two outputs that breaks a function.",
+        "answerSummary": "FUNCTION: each of the inputs {{x1}}, {{x2}}, {{x3}} and {{x4}} has exactly one output."
       },
       "attemptFeedback": [
         "Look down the input column for an input paired with two different outputs."
@@ -28994,7 +29145,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.12D:v2-geometric-decay-terms-to-formula",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -29011,7 +29162,8 @@
           "inputProfile": "expression",
           "expected": "{{a}}*(0.5)^(n-1)",
           "accepted": [
-            "{{a}}*(1/2)^(n-1)"
+            "{{a}}*(1/2)^(n-1)",
+            "{{a}}/2^(n-1)"
           ]
         }
       ],
@@ -29032,15 +29184,10 @@
       "generator": {
         "parameters": {
           "a": {
-            "type": "choice",
-            "values": [
-              32,
-              48,
-              64,
-              80,
-              96,
-              128
-            ]
+            "type": "int",
+            "min": 16,
+            "max": 200,
+            "step": 8
           }
         },
         "derived": {
@@ -29639,7 +29786,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.12E:v2-solve-area-height",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -29648,14 +29795,14 @@
       "assessedConstruct": "A.12E",
       "taskType": "errorAnalysis",
       "representation": "symbolic",
-      "prompt": "A student solves $A={{k}}bh$ for $h$ by dividing by {{k}} but forgets that $h$ is also multiplied by $b$. Correct the error and solve for $h$.",
+      "prompt": "A student solves $A={{k}}{{v}}h$ for $h$ by dividing by {{k}} but forgets that $h$ is also multiplied by ${{v}}$. Correct the error and solve for $h$.",
       "solutionReview": {
         "headline": "Divide by the complete factor multiplying the target variable.",
         "reasoning": [
-          "In $A={{k}}bh$, the target $h$ is multiplied by both {{k}} and $b$.",
-          "Divide by the entire product ${{k}}b$ to obtain $h=A/({{k}}b)$."
+          "In $A={{k}}{{v}}h$, the target $h$ is multiplied by both {{k}} and ${{v}}$.",
+          "Divide by the entire product ${{k}}{{v}}$ to obtain $h=A/({{k}}{{v}})$."
         ],
-        "answerSummary": "$h=A/({{k}}b)$"
+        "answerSummary": "$h=A/({{k}}{{v}})$"
       },
       "attemptFeedback": [
         "Isolate the requested variable symbolically while treating every other letter as a known quantity."
@@ -29668,7 +29815,14 @@
           "k": {
             "type": "int",
             "min": 2,
-            "max": 9
+            "max": 12
+          },
+          "v": {
+            "type": "choice",
+            "values": [
+              "b",
+              "w"
+            ]
           }
         }
       },
@@ -29677,9 +29831,13 @@
           "id": "answer",
           "label": "Answer",
           "inputProfile": "expression",
-          "expected": "A/({{k}}b)",
+          "expected": "A/({{k}}{{v}})",
           "accepted": [
-            "A/{{k}}/b"
+            "A/{{k}}/{{v}}",
+            "A/({{v}}*{{k}})",
+            "(A/{{k}})/{{v}}",
+            "A/{{v}}/{{k}}",
+            "(A/{{v}})/{{k}}"
           ]
         }
       ]

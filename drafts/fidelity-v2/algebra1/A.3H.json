@@ -46,11 +46,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "Graph each boundary with its own style and side, then keep only the region that satisfies both.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y\\ge {{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $\\ge$ includes equality, so the line is solid; shade above it.",
+          "Second inequality $y\\le {{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $\\le$ includes equality, so the line is solid; shade below it.",
+          "The solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}\\ge {{b1}}$ and ${{t}}\\le {{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}\\le {{b2}}$ is false, so it is not a solution.",
+        "answerSummary": "Solid $y={{m1}}x{{b1|signed}}$ shaded above, solid $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -80,6 +84,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       },
       "variants": [
@@ -118,13 +128,15 @@
             "yMax": 12
           },
           "solutionReview": {
-            "headline": "Two horizontal inequalities create a horizontal strip.",
+            "headline": "Two horizontal inequalities create a horizontal strip between $y={{lower}}$ and $y={{upper}}$.",
             "reasoning": [
-              "The boundary y={{lower}} is solid and shades above.",
-              "The boundary y={{upper}} is solid and shades below.",
-              "The common solution is the strip between the two boundaries, including both lines."
+              "$y\\ge {{lower}}$: the boundary is the horizontal line $y={{lower}}$, through $(0,{{lower}})$ and $(1,{{lower}})$. $\\ge$ includes equality, so it is solid; shade above it.",
+              "$y\\le {{upper}}$: the boundary is the horizontal line $y={{upper}}$, through $(0,{{upper}})$ and $(1,{{upper}})$. $\\le$ includes equality, so it is solid; shade below it.",
+              "Keep only the overlap: the strip ${{lower}}\\le y\\le {{upper}}$, which is {{gap}} units tall and includes both lines.",
+              "Check $(0,{{t}})$: ${{lower}}\\le {{t}}\\le {{upper}}$ is true, so it is in the strip."
             ],
-            "answerSummary": "Shade {{lower}}≤y≤{{upper}}."
+            "commonError": "Keeping the whole region above $y={{lower}}$. The point $(0,{{u}})$ satisfies $y\\ge {{lower}}$, but ${{u}}\\le {{upper}}$ is false, so it is not a solution.",
+            "answerSummary": "Solid lines $y={{lower}}$ and $y={{upper}}$, with only the strip ${{lower}}\\le y\\le {{upper}}$ shaded."
           },
           "attemptFeedback": [
             "Graph each horizontal boundary separately, then keep only the region satisfying both."
@@ -146,7 +158,9 @@
               }
             },
             "derived": {
-              "upper": "lower+gap"
+              "upper": "lower+gap",
+              "t": "lower+1",
+              "u": "upper+1"
             }
           }
         }
@@ -195,11 +209,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "Graph each boundary with its own style and side, then keep only the region that satisfies both.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y>{{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $>$ is strict, so the line is dashed; shade above it.",
+          "Second inequality $y<{{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $<$ is strict, so the line is dashed; shade below it.",
+          "The solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}>{{b1}}$ and ${{t}}<{{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}<{{b2}}$ is false, so it is not a solution.",
+        "answerSummary": "Dashed $y={{m1}}x{{b1|signed}}$ shaded above, dashed $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -229,6 +247,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       },
       "variants": [
@@ -267,13 +291,15 @@
             "yMax": 12
           },
           "solutionReview": {
-            "headline": "Higher structural difficulty can come from fractional slopes and mixed boundary styles without raising DOK.",
+            "headline": "Build each fractional-slope boundary from its rise and run, give each its own style and side, then keep the overlap.",
             "reasoning": [
-              "Construct the first boundary with slope {{rise1}}/{{run1}} and use a solid line because ≥ includes equality.",
-              "Construct the second boundary with slope {{rise2}}/{{run2}} and use a dashed line because < excludes equality.",
-              "Shade above the first and below the second, then keep only the overlap."
+              "First inequality $y\\ge \\frac{{{rise1}}}{{{run1}}}x{{b1|signed}}$: from $(0,{{b1}})$, a rise of {{rise1}} over a run of {{run1}} reaches $({{run1}},{{q1}})$. $\\ge$ includes equality, so the line is solid; shade above it.",
+              "Second inequality $y<\\frac{{{rise2}}}{{{run2}}}x{{b2|signed}}$: from $(0,{{b2}})$, a rise of {{rise2}} over a run of {{run2}} reaches $({{run2}},{{q2}})$. $<$ is strict, so the line is dashed; shade below it.",
+              "The solution is the overlap: above the first line AND below the second. The first line rises and the second falls, so the overlap is the wedge to the left of where they cross.",
+              "Check $(0,{{t}})$: ${{t}}\\ge {{b1}}$ and ${{t}}<{{b2}}$ are both true, so this point is in the overlap."
             ],
-            "answerSummary": "Mixed solid/dashed system with the common region only."
+            "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}<{{b2}}$ is false, so it is not a solution.",
+            "answerSummary": "Solid boundary through $(0,{{b1}})$ and $({{run1}},{{q1}})$ shaded above, dashed boundary through $(0,{{b2}})$ and $({{run2}},{{q2}})$ shaded below; only the overlap is the solution."
           },
           "attemptFeedback": [
             "Do not let the fractional slopes distract from the separate boundary-style and shading decisions."
@@ -328,7 +354,11 @@
             },
             "derived": {
               "m1": "rise1/run1",
-              "m2": "rise2/run2"
+              "m2": "rise2/run2",
+              "q1": "b1+rise1",
+              "q2": "b2+rise2",
+              "t": "b1+1",
+              "u": "b2+1"
             },
             "constraints": [
               "abs(rise1)!=run1",
@@ -381,11 +411,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "Graph each boundary with its own style and side, then keep only the region that satisfies both.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y\\ge {{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $\\ge$ includes equality, so the line is solid; shade above it.",
+          "Second inequality $y<{{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $<$ is strict, so the line is dashed; shade below it.",
+          "The solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}\\ge {{b1}}$ and ${{t}}<{{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}<{{b2}}$ is false, so it is not a solution.",
+        "answerSummary": "Solid $y={{m1}}x{{b1|signed}}$ shaded above, dashed $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -415,6 +449,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       }
     },
@@ -461,11 +501,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "Graph each boundary with its own style and side, then keep only the region that satisfies both constraints.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y\\ge {{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $\\ge$ includes equality, so the line is solid; shade above it.",
+          "Second inequality $y\\le {{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $\\le$ includes equality, so the line is solid; shade below it.",
+          "A feasible plan must meet both constraints, so the solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}\\ge {{b1}}$ and ${{t}}\\le {{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading everything that satisfies either inequality. The point $(0,{{u}})$ is above the first line, but ${{u}}\\le {{b2}}$ is false, so it is not a solution.",
+        "answerSummary": "Solid $y={{m1}}x{{b1|signed}}$ shaded above, solid $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -495,6 +539,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       }
     },
@@ -541,11 +591,16 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "A system keeps only points satisfying both inequalities.",
+        "headline": "A system is solved by the intersection of the two half-planes, not their union.",
         "reasoning": [
-          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
-          "The system solution is the overlap of the two shaded half-planes."
-        ]
+          "First inequality $y>{{m1}}x{{b1|signed}}$: the boundary passes through $(0,{{b1}})$ and $(1,{{p1}})$. $>$ is strict, so the line is dashed; shade above it.",
+          "Second inequality $y\\le {{m2}}x{{b2|signed}}$: the boundary passes through $(0,{{b2}})$ and $(1,{{p2}})$. $\\le$ includes equality, so the line is solid; shade below it.",
+          "The student's union also shades points such as $(0,{{u}})$: it is above the first line, but ${{u}}\\le {{b2}}$ is false, so it fails the second inequality. A system keeps only points that satisfy both, so erase everything outside the overlap.",
+          "The solution is the overlap: above the first line AND below the second. The first line rises (slope ${{m1}}$) and the second falls (slope ${{m2}}$), so the overlap is the wedge to the left of where they cross.",
+          "Check $(0,{{t}})$: ${{t}}>{{b1}}$ and ${{t}}\\le {{b2}}$ are both true, so this point is in the overlap."
+        ],
+        "commonError": "Shading the union, which also includes points that satisfy only one inequality. Test a point in each shaded piece: it must make both inequalities true.",
+        "answerSummary": "Dashed $y={{m1}}x{{b1|signed}}$ shaded above, solid $y={{m2}}x{{b2|signed}}$ shaded below; only the overlapping wedge, which contains $(0,{{t}})$, is the solution."
       },
       "attemptFeedback": [
         "Do not stop after one inequality; the final region must satisfy both at once."
@@ -575,6 +630,12 @@
             "min": 3,
             "max": 8
           }
+        },
+        "derived": {
+          "p1": "m1+b1",
+          "p2": "m2+b2",
+          "t": "b1+1",
+          "u": "b2+1"
         }
       }
     }

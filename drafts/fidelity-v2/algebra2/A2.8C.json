@@ -12,7 +12,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.8C:v2-prediction-model-variants",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -53,19 +53,21 @@
           "slopeTolerance": 0.02,
           "interceptTolerance": 0.03,
           "predictionTolerance": 0.08,
-          "prompt": "Use linear regression technology on all five observations, then predict y when x=4. Enter the fitted m and b as supporting work and the model prediction at x=4.",
+          "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, then predict y when x=4. Enter the fitted m and b as supporting work and the model prediction at x=4.",
           "context": {
             "title": "Linear prediction from noisy data",
-            "note": "x=4 lies beyond the observed range -2 through 2, so the prediction is an extrapolation."
+            "note": "Fit the complete data set first, then compare x=4 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
-            "headline": "Fit first, then use the fitted linear model at the requested input.",
+            "headline": "Fit the line to all five points, evaluate it at x=4, and note that x=4 is outside the data.",
             "reasoning": [
-              "The balanced noisy data fit y={{m}}x+({{b}}).",
-              "At x=4 the fitted model predicts {{pred}}.",
-              "Because 4 is beyond the observed maximum x=2, this is extrapolation."
+              "The x-values $-2,-1,0,1,2$ are centered at 0, so the intercept is the mean of the outputs: $b=\\frac{({{ym2}})+({{ym1}})+({{y0}})+({{y1}})+({{y2}})}{5}={{b}}$.",
+              "The slope is $m=\\frac{\\sum xy}{\\sum x^2}=\\frac{-2({{ym2}})-({{ym1}})+({{y1}})+2({{y2}})}{10}={{m}}$, so linear regression gives $y={{m|coef}}x{{b|term}}$.",
+              "Evaluate at x=4: $y={{m}}(4){{b|term}}={{pred}}$.",
+              "The observed inputs run from $x=-2$ to $x=2$. Since 4 is beyond the largest observed x, the prediction is an extrapolation."
             ],
-            "answerSummary": "Prediction {{pred}} at x=4."
+            "commonError": "Drawing a line through just two of the points: regression uses all five observations, and here it gives $m={{m}}$ and $b={{b}}$.",
+            "answerSummary": "$m={{m}}$, $b={{b}}$; Prediction {{pred}} at x=4 (extrapolation)."
           },
           "generator": {
             "parameters": {
@@ -129,19 +131,21 @@
           "quadraticBTolerance": 0.03,
           "quadraticCTolerance": 0.04,
           "predictionTolerance": 0.08,
-          "prompt": "Use quadratic regression technology on all five observations, then predict y when x=0.5. Enter a, b, and c as supporting work and the model prediction.",
+          "prompt": "Use quadratic regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, then predict y when x=0.5. Enter a, b, and c as supporting work and the model prediction.",
           "context": {
-            "title": "Quadratic interpolation",
-            "note": "x=0.5 lies inside the observed x-range -2 through 2."
+            "title": "Quadratic prediction from noisy data",
+            "note": "Fit the complete data set first, then compare x=0.5 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
-            "headline": "A fitted quadratic can interpolate between observed inputs.",
+            "headline": "Fit the quadratic to all five points, evaluate it at x=0.5, and note that x=0.5 lies inside the data.",
             "reasoning": [
-              "The full regression recovers the fitted quadratic coefficients.",
-              "At x=0.5 the model predicts {{pred}}.",
-              "Because 0.5 lies inside the observed range, this is interpolation."
+              "Quadratic regression on all five observations gives $a={{a}}$, $b={{b}}$ and $c={{c}}$, so the model is $y={{a|coef}}x^2{{b|xterm}}{{c|term}}$.",
+              "Check $b$ by hand: with x-values centered at 0, $b=\\frac{\\sum xy}{\\sum x^2}=\\frac{-2({{ym2}})-({{ym1}})+({{y1}})+2({{y2}})}{10}={{b}}$.",
+              "Evaluate at x=0.5: $y={{a}}(0.5)^2+({{b}})(0.5){{c|term}}={{pred}}$.",
+              "The observed inputs run from $x=-2$ to $x=2$, and 0.5 lies between them, so the prediction is an interpolation."
             ],
-            "answerSummary": "Prediction {{pred}} at x=0.5."
+            "commonError": "Calling the prediction extrapolation because x=0.5 is not one of the observed x-values: what matters is that it lies inside the observed range.",
+            "answerSummary": "$a={{a}}$, $b={{b}}$, $c={{c}}$; Prediction {{pred}} at x=0.5 (interpolation)."
           },
           "generator": {
             "parameters": {
@@ -209,19 +213,20 @@
           "exponentialATolerance": 0.03,
           "exponentialBaseTolerance": 0.015,
           "predictionTolerance": 0.12,
-          "prompt": "Use exponential regression technology on all five positive observations, then predict y when x=3. Enter the fitted a and base as supporting work and the prediction.",
+          "prompt": "{{scenario}} Use exponential regression technology on all five positive observations, then predict y when x=3. Enter the fitted a and base as supporting work and the prediction.",
           "context": {
             "title": "Exponential prediction",
             "note": "The data contain multiplicative noise; use the full exponential regression before predicting."
           },
           "solutionReview": {
-            "headline": "Exponential prediction uses the fitted multiplicative model.",
+            "headline": "Fit the exponential model to all five points, evaluate it at x=3, and note that x=3 is outside the data.",
             "reasoning": [
-              "The log-balanced noisy data recover a={{a}} and base {{base}}.",
-              "At x=3 the fitted model predicts {{pred}}.",
-              "x=3 is beyond the observed maximum x=2, so the prediction is extrapolation."
+              "Exponential regression fits a line to $(x,\\ln y)$. The multiplicative noise cancels in the logs, so the fit gives $a={{a}}$ and base {{base}}: $y={{a}}({{base}})^x$.",
+              "Evaluate at x=3: $y={{a}}({{base}})^3={{pred}}$.",
+              "The observed inputs run from $x=-2$ to $x=2$. Since 3 is beyond the largest observed x, the prediction is an extrapolation."
             ],
-            "answerSummary": "Prediction {{pred}} at x=3."
+            "commonError": "Fitting a line to the raw outputs: the task assigns exponential regression, which fits a line to $(x,\\ln y)$ through all five observations, so the model to report is $y={{a}}({{base}})^x$, not a linear one.",
+            "answerSummary": "$a={{a}}$, base {{base}}; Prediction {{pred}} at x=3 (extrapolation)."
           },
           "generator": {
             "parameters": {
@@ -245,6 +250,27 @@
                   1.1,
                   1.2
                 ]
+              },
+              "scenario": {
+                "type": "choice",
+                "values": [
+                  "The table tracks the area, in square meters, covered by an algae bloom; x is days from the reference survey at x=0.",
+                  "The table tracks a bacteria culture, in thousands of cells; x is hours from the reference count at x=0.",
+                  "The table tracks the mass, in grams, of a yeast culture; x is hours from the reference weighing at x=0.",
+                  "The table tracks downloads of a new app, in thousands; x is weeks from the reference week at x=0.",
+                  "The table tracks views of a viral video, in thousands; x is days from the reference day at x=0.",
+                  "The table tracks the area, in square kilometers, covered by an invasive vine; x is years from the reference survey at x=0.",
+                  "The table tracks followers of a new social media account, in thousands; x is months from the reference month at x=0.",
+                  "The table tracks a fruit fly population in a lab jar, in hundreds of flies; x is weeks from the reference count at x=0.",
+                  "The table tracks the area, in square centimeters, of a mold colony on bread; x is days from the reference photo at x=0.",
+                  "The table tracks the area, in square meters, of duckweed covering a pond; x is days from the reference survey at x=0.",
+                  "The table tracks shares of a popular post, in thousands; x is hours from the reference check at x=0.",
+                  "The table tracks new flu cases per week in the early weeks of an outbreak, in hundreds; x is weeks from the reference week at x=0.",
+                  "The table tracks a rabbit population on an island, in hundreds of rabbits; x is years from the reference census at x=0.",
+                  "The table tracks subscribers to a new streaming channel, in thousands; x is months from the reference month at x=0.",
+                  "The table tracks daily rides on a new scooter-share service, in hundreds; x is months from the reference month at x=0.",
+                  "The table tracks the area, in square meters, covered by a floating water hyacinth mat on a lake; x is weeks from the reference survey at x=0."
+                ]
               }
             },
             "derived": {
@@ -253,7 +279,7 @@
               "y0": "a",
               "y1": "a*base/q",
               "y2": "a*base*base*q",
-              "pred": "a*pow(base,3)"
+              "pred": "round(a*pow(base,3)*1000)/1000"
             }
           },
           "difficultyBand": 4
@@ -335,13 +361,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A decision should follow the model calculation.",
+            "headline": "Predict with the model first: $y(4)={{pred}}$ is above the capacity of {{threshold}}.",
             "reasoning": [
-              "The model gives y(4)={{pred}}.",
-              "Capacity is {{threshold}}.",
-              "Since {{pred}}>{{threshold}}, the model says capacity will be exceeded."
+              "The model matches the table: the observed values {{y0}}, {{y1}}, {{y2}}, {{y3}} rise by {{m}} each step, the slope of $y={{m}}x{{b|signed}}$.",
+              "Substitute x=4: $y(4)={{m}}(4)+{{b}}={{m4}}+{{b}}={{pred}}$.",
+              "Management can staff at most {{threshold}} units, and ${{pred}}>{{threshold}}$, so the prediction is {{margin}} units over capacity."
             ],
-            "answerSummary": "Exceed capacity."
+            "commonError": "Comparing the last observed value {{y3}} (at x=3) with the capacity instead of the model's prediction at x=4.",
+            "answerSummary": "$y(4)={{pred}}>{{threshold}}$, so: Yes. The predicted amount exceeds capacity."
           },
           "generator": {
             "parameters": {
@@ -367,7 +394,8 @@
               "y2": "2*m+b",
               "y3": "3*m+b",
               "pred": "4*m+b",
-              "threshold": "pred-margin"
+              "threshold": "pred-margin",
+              "m4": "4*m"
             }
           }
         },
@@ -427,13 +455,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Compare the model prediction with the stated decision threshold.",
+            "headline": "Predict with the model first: $y(4)={{pred}}$ falls short of the approval threshold {{threshold}}.",
             "reasoning": [
-              "The quadratic predicts {{pred}} at x=4.",
-              "The approval threshold is {{threshold}}.",
-              "Because {{pred}}<{{threshold}}, the model does not support approval."
+              "The model matches the table, for example $y(3)={{a}}(9)+({{b}})(3)+{{c}}={{y3}}$.",
+              "Substitute x=4: $y(4)={{a}}(16)+({{b}})(4)+{{c}}={{a16}}{{b4|term}}{{c|term}}={{pred}}$.",
+              "Approval needs at least {{threshold}}, but ${{pred}}<{{threshold}}$: the prediction is {{margin}} short, so the model does not support approval."
             ],
-            "answerSummary": "Do not approve."
+            "commonError": "Deciding from the observed table instead of the prediction: the rule is about predicted demand at x=4, and $y(4)={{pred}}$ is below the threshold {{threshold}}.",
+            "answerSummary": "$y(4)={{pred}}<{{threshold}}$, so: Do not approve; predicted demand is below the threshold."
           },
           "generator": {
             "parameters": {
@@ -464,7 +493,9 @@
               "y2": "4*a+2*b+c",
               "y3": "9*a+3*b+c",
               "pred": "16*a+4*b+c",
-              "threshold": "pred+margin"
+              "threshold": "pred+margin",
+              "a16": "16*a",
+              "b4": "4*b"
             }
           }
         },
@@ -524,13 +555,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Use the exponential prediction as the quantitative basis for the decision.",
+            "headline": "Predict with the model first: $y(5)={{pred}}$ is above the trigger of {{threshold}}.",
             "reasoning": [
-              "The model predicts {{pred}} at x=5.",
-              "The trigger is {{threshold}}.",
-              "Since {{pred}}>{{threshold}}, the model supports the upgrade."
+              "The model matches the table: each observation ({{y0}}, {{y1}}, {{y2}}, {{y3}}) is {{r}} times the one before it.",
+              "Substitute x=5: $y(5)={{a}}({{r}})^5={{a}}\\cdot{{r5}}={{pred}}$.",
+              "The upgrade triggers above {{threshold}}, and ${{pred}}>{{threshold}}$, so the model supports triggering it."
             ],
-            "answerSummary": "Trigger the upgrade."
+            "commonError": "Stopping one step early: $y(4)={{y4}}$ is the value at x=4, but the decision is about x=5, one more factor of {{r}}.",
+            "answerSummary": "$y(5)={{pred}}>{{threshold}}$, so: Trigger the upgrade; the prediction exceeds the threshold."
           },
           "generator": {
             "parameters": {
@@ -556,7 +588,9 @@
               "y2": "a*r*r",
               "y3": "a*r*r*r",
               "pred": "a*pow(r,5)",
-              "threshold": "pred-margin"
+              "threshold": "pred-margin",
+              "r5": "pow(r,5)",
+              "y4": "a*pow(r,4)"
             }
           }
         }
@@ -625,13 +659,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "A numerical extrapolation can be computed without being equally trustworthy.",
+            "headline": "The model can compute $y(80)={{pred}}$, but x=80 is far beyond the data, so the value is not automatically reliable.",
             "reasoning": [
-              "The model produces {{pred}} at x=80.",
-              "But 80 is far outside the observed range 0 to 10.",
-              "A strong in-range fit does not guarantee the same linear relationship that far beyond the data."
+              "Compute: $y(80)={{m}}(80){{b|term}}={{pred}}$.",
+              "The data cover only $0\\le x\\le10$. x=80 is 70 units past the largest observed input, 8 times as far out as the data reach.",
+              "A strong fit on 0 to 10 shows the line describes that interval only; nothing in the data tests whether y keeps rising by {{m}} per unit all the way to x=80.",
+              "So {{pred}} is a computed extrapolation that needs caution, not a guaranteed forecast."
             ],
-            "answerSummary": "Prediction {{pred}}, but treat it as a distant extrapolation."
+            "commonError": "Treating a strong fit on the observed interval as proof the line holds at x=80: fit quality says nothing about inputs the data never reached.",
+            "answerSummary": "$y(80)={{pred}}$. Use caution: x=80 is far outside the observed range, so the relationship may not remain linear."
           },
           "generator": {
             "parameters": {
@@ -704,13 +740,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Context can make a mathematically computed extrapolation unreasonable.",
+            "headline": "The model gives $y(10)={{pred}}$, a negative value for a measurement that cannot be negative.",
             "reasoning": [
-              "At x=10 the model gives {{pred}}, which is negative.",
-              "The measured quantity cannot be negative.",
-              "The model was fitted only through x=4, so this is evidence not to extend it blindly."
+              "Compute: $y(10)=-{{a}}(10)^2+{{c}}=-{{a100}}+{{c}}={{pred}}$.",
+              "The model values in the table go {{c}}, {{y2}}, {{y4}} at x=0, 2, 4: the $-{{a|coef}}x^2$ term makes them fall faster and faster as x grows, so by x=10 that term alone is $-{{a100}}$.",
+              "The measurement is nonnegative, so every negative model value, {{pred}} at x=10 and any negative value in the table, is impossible in context: the quadratic describes the situation only while its output stays at or above 0."
             ],
-            "answerSummary": "The numerical prediction is {{pred}}, but it is not physically credible."
+            "commonError": "Accepting {{pred}} because the formula produced it: a model is credible only where it agrees with the context, and it was fitted only for $0\\le x\\le4$.",
+            "answerSummary": "$y(10)={{pred}}$. The negative extrapolation is not physically credible for a nonnegative measurement; the model should not be extended blindly."
           },
           "generator": {
             "parameters": {
@@ -728,7 +765,8 @@
             "derived": {
               "y2": "-4*a+c",
               "y4": "-16*a+c",
-              "pred": "-100*a+c"
+              "pred": "-100*a+c",
+              "a100": "100*a"
             },
             "constraints": [
               "pred<0"
@@ -788,13 +826,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Exponential extrapolation can grow dramatically faster than the evidence supports.",
+            "headline": "The formula gives $y(15)={{pred}}$, but that assumes 11 more doublings than the data ever showed.",
             "reasoning": [
-              "The formula predicts {{pred}} at x=15.",
-              "The observed data cover only x=0 through 4.",
-              "The model does not prove that the same growth mechanism continues unchanged to x=15."
+              "Compute: $y(15)={{a}}(2)^{15}={{a}}\\cdot32768={{pred}}$.",
+              "The data stop at x=4, where the model value is {{y4}}. Reaching x=15 takes 11 more doublings: ${{y4}}\\cdot2^{11}={{y4}}\\cdot2048={{pred}}$.",
+              "Nothing observed for $0\\le x\\le4$ shows the population can keep doubling that long; limited food or space, or changing conditions, can stop the growth."
             ],
-            "answerSummary": "Prediction {{pred}}, with strong extrapolation caution."
+            "commonError": "Assuming that a good exponential fit on 0 to 4 guarantees the same doubling through x=15: the data never test that range.",
+            "answerSummary": "$y(15)={{pred}}$. No. This is a distant exponential extrapolation; resource limits or changing conditions may invalidate continued doubling."
           },
           "generator": {
             "parameters": {
@@ -878,12 +917,13 @@
             }
           ],
           "solutionReview": {
-            "headline": "A target inside the observed input range is interpolation.",
+            "headline": "x=2.5 lies inside the observed range 0 to 5, so the prediction $y(2.5)={{pred}}$ is an interpolation.",
             "reasoning": [
-              "The model gives {{pred}} at x=2.5.",
-              "2.5 lies between 0 and 5."
+              "Substitute: $y(2.5)={{m}}(2.5){{b|term}}={{pred}}$.",
+              "The data were observed for $0\\le x\\le5$, and $0\\le2.5\\le5$, so the input is inside the observed range: interpolation."
             ],
-            "answerSummary": "{{pred}}, interpolation."
+            "commonError": "Calling it extrapolation because x=2.5 is not a whole-number data value: interpolation only requires the input to lie within the observed range.",
+            "answerSummary": "$y(2.5)={{pred}}$; Interpolation."
           },
           "generator": {
             "parameters": {
@@ -950,12 +990,13 @@
             }
           ],
           "solutionReview": {
-            "headline": "A target beyond the observed range is extrapolation.",
+            "headline": "x=5 is beyond the observed range $-2\\le x\\le2$, so the prediction $y(5)={{pred}}$ is an extrapolation.",
             "reasoning": [
-              "The model gives {{pred}} at x=5.",
-              "5 is greater than the largest observed x=2."
+              "Substitute: $y(5)={{a}}(25)+({{b}})(5){{c|term}}={{a25}}{{b5|term}}{{c|term}}={{pred}}$.",
+              "The data were observed for $-2\\le x\\le2$. x=5 is 3 units beyond the largest observed x, so this is extrapolation."
             ],
-            "answerSummary": "{{pred}}, extrapolation."
+            "commonError": "Calling it interpolation because the formula still gives a number: the classification depends on where x=5 sits relative to the observed inputs, not on whether the model can be evaluated.",
+            "answerSummary": "$y(5)={{pred}}$; Extrapolation."
           },
           "generator": {
             "parameters": {
@@ -979,7 +1020,9 @@
               }
             },
             "derived": {
-              "pred": "25*a+5*b+c"
+              "pred": "25*a+5*b+c",
+              "a25": "25*a",
+              "b5": "5*b"
             }
           }
         },
@@ -1028,12 +1071,13 @@
             }
           ],
           "solutionReview": {
-            "headline": "Interpolation can occur at an input that was not itself observed.",
+            "headline": "x=1.5 lies inside the observed range 0 to 4, so the prediction $y(1.5)\\approx{{predR}}$ is an interpolation.",
             "reasoning": [
-              "The exponential model gives approximately {{pred}} at x=1.5.",
-              "1.5 lies inside the observed interval 0 to 4."
+              "Substitute: $y(1.5)={{a}}({{r}})^{1.5}={{a}}\\cdot{{r}}\\sqrt{{{r}}}\\approx{{predR}}$.",
+              "x=1.5 was not itself observed, but $0\\le1.5\\le4$: it lies inside the observed range, so this is interpolation."
             ],
-            "answerSummary": "{{pred}}, interpolation."
+            "commonError": "Calling it extrapolation because x=1.5 is not in the data table: interpolation only requires the input to lie within the observed range.",
+            "answerSummary": "$y(1.5)\\approx{{predR}}$; Interpolation."
           },
           "generator": {
             "parameters": {
@@ -1052,7 +1096,8 @@
               }
             },
             "derived": {
-              "pred": "a*pow(r,1.5)"
+              "pred": "a*pow(r,1.5)",
+              "predR": "round(a*pow(r,1.5)*1000)/1000"
             }
           }
         }

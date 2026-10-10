@@ -30,7 +30,34 @@
  * shows once a question closes (pathSolutionSupport.mjs).
  */
 
+import { solverRaceQuestionKeys } from './solverRace.mjs';
+
 export const SOLUTIONS_COLLECTION = 'solutions';
+
+/*
+ * THE SAME QUESTION LATER IN THE MATCH (coordinator review of #464, B1).
+ * Solver Race plans distinct equations (solverRace.mjs), but a round whose
+ * question comes back later in the schedule must not have its solution
+ * published before that later round closes — the same rule as a Second
+ * Chance replay. A Solver Race round's keys are its equation, compared by
+ * structure, and its answer (solverRaceQuestionKeys); a round with no
+ * generated question and no id has none.
+ */
+export const roundQuestionKeys = (roundQuestions = [], questionIds = []) => {
+  const generated = list(roundQuestions);
+  const ids = list(questionIds);
+  return Array.from({ length: Math.max(generated.length, ids.length) }, (_, round) => {
+    const question = generated[round];
+    const keys = question && typeof question === 'object' ? solverRaceQuestionKeys(question) : [];
+    if (keys.length) return keys;
+    // A bank round (standard Live Challenge): its draw is seeded per round, so
+    // the template is the question — a later round on the same template is
+    // held for, whatever its numbers (coordinator, #469 addendum).
+    const id = String(ids[round] ?? '').trim();
+    return id ? [`bank|${id}`] : null;
+  });
+};
+
 
 const text = (value, max) => String(value ?? '').trim().slice(0, max);
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -73,6 +100,9 @@ export const roundSolutionRecord = ({ question = {}, solutionReview = null, disp
  *                                           replays planned so far, or null when the plan is not
  *                                           known yet
  * @param {boolean} [input.finished]         the match finished: everything is public
+ * @param {Array<string|string[]|null>} [input.questionKeys] per scheduled round, its
+ *                                           question's keys (roundQuestionKeys); a round is held
+ *                                           while a later, unclosed round shares a key
  * @returns {number[]} ascending round indices
  */
 export const revealableRounds = ({
@@ -81,6 +111,7 @@ export const revealableRounds = ({
   secondChancePossible = false,
   replayOf = null,
   finished = false,
+  questionKeys = null,
 } = {}) => {
   const closed = Number.isInteger(Number(closedThrough)) ? Number(closedThrough) : -1;
   const scheduled = Math.max(0, Math.floor(Number(scheduledRoundCount) || 0));
@@ -104,7 +135,15 @@ export const revealableRounds = ({
     const lastReplay = replays.size ? Math.max(...replays.keys()) : -1;
     if (lastReplay <= closed) rounds.push(round);
   }
-  return rounds;
+  if (finished) return rounds;
+  // Held while a later round that has not closed asks the same question.
+  // A round's entry is one key or a list of them; any shared key holds it.
+  const keys = list(questionKeys).map((entry) => (Array.isArray(entry) ? entry : [entry]).filter(Boolean));
+  return rounds.filter((round) => {
+    const own = keys[round] || [];
+    if (!own.length) return true;
+    return !keys.some((other, later) => later > round && later > closed && other.some((key) => own.includes(key)));
+  });
 };
 
 /**

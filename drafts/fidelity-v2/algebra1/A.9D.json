@@ -509,7 +509,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.9D:v2-context-decay-graph",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -602,16 +602,15 @@
       "generator": {
         "parameters": {
           "a": {
-            "type": "choice",
-            "values": [
-              20,
-              30,
-              40
-            ]
+            "type": "int",
+            "min": 20,
+            "max": 56,
+            "step": 4
           },
           "base": {
             "type": "choice",
             "values": [
+              0.25,
               0.5,
               0.75
             ]

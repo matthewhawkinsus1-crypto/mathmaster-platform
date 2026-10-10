@@ -75,6 +75,8 @@ on:
       - "tests/browser/lmrProcess*"
       - "tests/browser/warmupReopenDraft*"
       - "tests/browser/familyPinContainment*"
+      - "tests/browser/feedbackTeaches*"
+      - "tests/browser/reviewMyWork*"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/student-teacher-journeys.yml"
@@ -280,6 +282,21 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/familyPinContainment.mjs
+      # Hints, miss messages and worked solutions in the real QuestionEngine,
+      # including the transformations / quadratics families (student push J).
+      - name: Feedback that teaches (hints, families, worked solutions)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/feedbackTeaches.mjs
+      # Review My Work on a closed assignment (answers, outcomes, worked solutions).
+      - name: Review My Work
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/reviewMyWork.mjs
       - name: Question Family pin containment, throttled Chromebook (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:

@@ -17,6 +17,9 @@ import { MathfieldElement } from 'mathlive';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
 import { emptyQuestionRecord, recordQuestionAttempt } from '../../src/attemptPolicy.js';
 import { getEffectiveActivityPolicy } from '../../src/platform/policies/activityPolicies.js';
+import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { familyFor } from '../../src/platform/supports/families/index.js';
+import day2Transformations from '../../teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -50,6 +53,24 @@ const QUESTIONS = {
     activityRole: 'classwork',
     questionFamily: { id: 'linear.twoStepEquation', version: 1, tool: 'multiAnswer' },
   },
+  // Student push J: the families job A left as stubs.
+  vertex: {
+    questionId: 'feedback-vertex',
+    type: 'multiAnswer',
+    activityRole: 'classwork',
+    questionFamily: { id: 'quadratics.identifyVertex', version: 1, tool: 'multiAnswer' },
+  },
+  absval: {
+    questionId: 'feedback-absval',
+    type: 'multiAnswer',
+    activityRole: 'classwork',
+    questionFamily: { id: 'absoluteValue.solveEquation', version: 1, tool: 'multiAnswer' },
+  },
+  // The first transformation description the transformations family claims
+  // in the Algebra II Day 2 lesson, compiled as a classroom receives it.
+  transform: compileAuthoringIntentV5(day2Transformations).package.sections
+    .flatMap((section) => section.questions)
+    .find((entry) => entry.type === 'multiAnswer' && familyFor(entry)?.family === 'transformations'),
   system: {
     questionId: 'feedback-system',
     type: 'system',
@@ -59,6 +80,9 @@ const QUESTIONS = {
   },
 };
 const question = QUESTIONS[which];
+const FAMILY_INSTANCES = new Set(['family', 'vertex', 'absval']);
+// The question's own answers, for the driver's leak check (never rendered).
+window.__mmAnswers = which === 'transform' ? (question?.answerFields || []).map((field) => String(field.answer ?? '')) : [];
 const studentProfile = params.get('support') === 'translate'
   ? { accommodations: ['text-to-speech', 'translation'], translationLanguage: 'es' }
   : {};
@@ -93,7 +117,7 @@ function Harness() {
           activityRole={role}
           dolMode={role === 'dol'}
           generationKey={`${assignmentId}|student-a|0|variant:0`}
-          familyContext={which === 'family' ? { assignmentId, storageIndex: 0, variant: 0, allocation: { seat: 3, variant: 0, stride: 40, index: 3, basis: 'seated' } } : null}
+          familyContext={FAMILY_INSTANCES.has(which) ? { assignmentId, storageIndex: 0, variant: 0, allocation: { seat: 3, variant: 0, stride: 40, index: 3, basis: 'seated' } } : null}
           draftKey={`feedback-teaches-${role}-${which}-${run}`}
           assignmentId={assignmentId}
           executionScope="student"
@@ -102,7 +126,10 @@ function Harness() {
           serverGrading={serverGrading}
           // The delivered family instance's own prompt, as plain text: the page
           // text also carries each formula's spoken form.
-          onFamilyDelivery={(delivery, delivered) => { window.__mmFamilyPrompt = String(delivered?.prompt || ''); }}
+          onFamilyDelivery={(delivery, delivered) => {
+            window.__mmFamilyPrompt = String(delivered?.prompt || '');
+            window.__mmAnswers = (delivered?.answerFields || []).map((field) => String(field.answer ?? ''));
+          }}
           onAskTeacher={(requested) => { window.__mmHelp.push(requested); setHelp(requested); }}
           helpRequested={help}
         />

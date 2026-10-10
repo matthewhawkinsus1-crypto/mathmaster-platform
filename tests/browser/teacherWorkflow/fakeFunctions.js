@@ -157,11 +157,18 @@ const writeRecoveryRecord = ({ studentId, assignmentId, section, record }) => {
   byAssignment[assignmentId] = { ...byAssignment[assignmentId], [section]: record };
   harnessStore.set(path, { ...grade, sectionRecoveryByAssignment: byAssignment });
 };
-const harnessRecoveryContext = ({ studentId, assignmentId, section }) => {
+// The student's stored evidence on this assignment, as advanceSectionRecovery
+// reads it for the actions that deal a Practice item (targeted Recovery).
+const harnessMisconceptionRecords = ({ studentId, assignmentId }) => ['evidenceEvents', 'misconceptionEvidence']
+  .flatMap((collection) => harnessStore.paths(`grades/${studentId}/${collection}/`))
+  .map((path) => harnessStore.get(path))
+  .filter((data) => data?.source?.assignmentId === assignmentId);
+const harnessRecoveryContext = ({ studentId, assignmentId, section, action = 'status' }) => {
   const stored = harnessStore.get(`assignments/${assignmentId}`);
   if (!stored) throw rejection('not-found', 'That assignment is no longer available.');
   const gradeData = harnessStore.get(`grades/${studentId}`) || {};
   return recoveryContextFor({
+    misconceptionRecords: ['status', 'practice'].includes(action) ? harnessMisconceptionRecords({ studentId, assignmentId }) : null,
     assignment: { id: assignmentId, ...stored },
     gradeData,
     studentId,
@@ -216,7 +223,7 @@ const MIGRATION_COUNTERS = [
 const handlers = {
   advanceSectionRecovery: ({ assignmentId, section, action = 'status', payload = {} } = {}) => {
     const studentId = requireStudent();
-    const context = harnessRecoveryContext({ studentId, assignmentId, section });
+    const context = harnessRecoveryContext({ studentId, assignmentId, section, action });
     let outcome;
     try {
       outcome = runSectionRecoveryAction({ context, action, payload: payload || {}, at: Date.now() });

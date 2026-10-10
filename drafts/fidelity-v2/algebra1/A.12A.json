@@ -141,12 +141,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Check inputs, not whether outputs repeat.",
+        "headline": "Check the input column: no input is paired with two different outputs.",
         "reasoning": [
-          "The four input values are all distinct.",
-          "Each input therefore has exactly one listed output, so the relation is a function even if some outputs repeat."
+          "The inputs are ${{x1}}$, ${{x2}}$, ${{x3}}$ and ${{x4}}$. They increase down the table, so all four are different.",
+          "Each input therefore has exactly one output: ${{x1}}\\to {{y1}}$, ${{x2}}\\to {{y2}}$, ${{x3}}\\to {{y3}}$ and ${{x4}}\\to {{y4}}$.",
+          "Repeated outputs would be allowed: a relation fails to be a function only when ONE input has two different outputs, and that never happens here."
         ],
-        "answerSummary": "FUNCTION"
+        "commonError": "Calling it NOT A FUNCTION because two inputs share an output. Different inputs may share an output; it is one input with two outputs that breaks a function.",
+        "answerSummary": "FUNCTION: each of the inputs {{x1}}, {{x2}}, {{x3}} and {{x4}} has exactly one output."
       },
       "attemptFeedback": [
         "Look down the input column for an input paired with two different outputs."

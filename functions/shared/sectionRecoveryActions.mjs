@@ -318,6 +318,14 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
         isCorrect: grading.isCorrect === true,
         mastery: applied.mastery,
         unlocked: nextRecord.status === 'unlocked',
+        // The next item as the server deals it — targeted at the student's
+        // own diagnosed errors where it can be (recoveryMisconceptionTargeting.mjs).
+        // A pin the server checks like any other when it comes back.
+        nextPracticeItem: nextRecoveryPracticeItem({
+          ...context,
+          record: nextRecord,
+          seenFingerprints: [...new Set([...context.seenFingerprints, pin.fingerprint])],
+        }),
       },
       misconceptionEvidence: practiceEvidence ? [practiceEvidence] : [],
     };
