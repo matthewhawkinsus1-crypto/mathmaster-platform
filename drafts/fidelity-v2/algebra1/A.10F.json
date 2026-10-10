@@ -301,13 +301,13 @@
           "responseFields": [
             {
               "id": "factor1",
-              "label": "First linear factor",
+              "label": "Subtracting factor",
               "inputProfile": "expression",
               "expected": "x-{{a}}"
             },
             {
               "id": "factor2",
-              "label": "Second linear factor",
+              "label": "Adding factor",
               "inputProfile": "expression",
               "expected": "x+{{a}}"
             },
@@ -315,7 +315,10 @@
               "id": "answer",
               "label": "Complete factorization",
               "inputProfile": "expression",
-              "expected": "(x-{{a}})*(x+{{a}})"
+              "expected": "(x-{{a}})*(x+{{a}})",
+              "accepted": [
+                "(x+{{a}})*(x-{{a}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -385,7 +388,10 @@
               "id": "answer",
               "label": "Correct factorization",
               "inputProfile": "expression",
-              "expected": "(x-{{a}})*(x+{{a}})"
+              "expected": "(x-{{a}})*(x+{{a}})",
+              "accepted": [
+                "(x+{{a}})*(x-{{a}})"
+              ]
             }
           ],
           "solutionReview": {

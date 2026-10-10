@@ -700,13 +700,13 @@
           "responseFields": [
             {
               "id": "cancelled-factor-1",
-              "label": "First canceled factor",
+              "label": "Canceled factor from the first numerator",
               "inputProfile": "expression",
               "expected": "x-({{a}})"
             },
             {
               "id": "cancelled-factor-2",
-              "label": "Second canceled factor",
+              "label": "Canceled factor from the first denominator",
               "inputProfile": "expression",
               "expected": "x-({{c}})"
             },

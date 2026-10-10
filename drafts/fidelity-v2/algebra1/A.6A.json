@@ -117,13 +117,19 @@
           "id": "domain",
           "label": "Reasonable time domain",
           "inputProfile": "inequality",
-          "expected": "0<=t and t<={{end}}"
+          "expected": "0<=t and t<={{end}}",
+          "accepted": [
+            "0<=t<={{end}}"
+          ]
         },
         {
           "id": "range",
           "label": "Height range",
           "inputProfile": "inequality",
-          "expected": "0<=h and h<={{maxh}}"
+          "expected": "0<=h and h<={{maxh}}",
+          "accepted": [
+            "0<=h<={{maxh}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -181,13 +187,19 @@
           "id": "domain",
           "label": "Domain inequality",
           "inputProfile": "inequality",
-          "expected": "{{h}}<=x and x<={{hi}}"
+          "expected": "{{h}}<=x and x<={{hi}}",
+          "accepted": [
+            "{{h}}<=x<={{hi}}"
+          ]
         },
         {
           "id": "range",
           "label": "Range inequality",
           "inputProfile": "inequality",
-          "expected": "{{k}}<=y and y<={{top}}"
+          "expected": "{{k}}<=y and y<={{top}}",
+          "accepted": [
+            "{{k}}<=y<={{top}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -247,7 +259,10 @@
               "id": "domain",
               "label": "Domain inequality",
               "inputProfile": "inequality",
-              "expected": "{{lo}}<=x and x<={{hi}}"
+              "expected": "{{lo}}<=x and x<={{hi}}",
+              "accepted": [
+                "{{lo}}<=x<={{hi}}"
+              ]
             },
             {
               "id": "left-output",
@@ -271,7 +286,10 @@
               "id": "range",
               "label": "Range inequality",
               "inputProfile": "inequality",
-              "expected": "{{k}}<=y and y<={{yleft}}"
+              "expected": "{{k}}<=y and y<={{yleft}}",
+              "accepted": [
+                "{{k}}<=y<={{yleft}}"
+              ]
             }
           ],
           "solutionReview": {

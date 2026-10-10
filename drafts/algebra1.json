@@ -23,7 +23,10 @@
           "id": "answer",
           "label": "Range inequality",
           "inputProfile": "inequality",
-          "expected": "{{ylo}}<=y and y<={{yhi}}"
+          "expected": "{{ylo}}<=y and y<={{yhi}}",
+          "accepted": [
+            "{{ylo}}<=y<={{yhi}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -93,13 +96,19 @@
           "id": "domain",
           "label": "Reasonable domain of h",
           "inputProfile": "inequality",
-          "expected": "0<=h and h<={{maxh}}"
+          "expected": "0<=h and h<={{maxh}}",
+          "accepted": [
+            "0<=h<={{maxh}}"
+          ]
         },
         {
           "id": "range",
           "label": "Corresponding range of C",
           "inputProfile": "inequality",
-          "expected": "{{fee}}<=C and C<={{maxcost}}"
+          "expected": "{{fee}}<=C and C<={{maxcost}}",
+          "accepted": [
+            "{{fee}}<=C<={{maxcost}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -153,7 +162,10 @@
               "id": "domain",
               "label": "Reasonable domain of h",
               "inputProfile": "inequality",
-              "expected": "0<=h and h<={{maxh}}"
+              "expected": "0<=h and h<={{maxh}}",
+              "accepted": [
+                "0<=h<={{maxh}}"
+              ]
             },
             {
               "id": "min-cost",
@@ -171,7 +183,10 @@
               "id": "range",
               "label": "Range of C",
               "inputProfile": "inequality",
-              "expected": "{{fee}}<=C and C<={{maxCost}}"
+              "expected": "{{fee}}<=C and C<={{maxCost}}",
+              "accepted": [
+                "{{fee}}<=C<={{maxCost}}"
+              ]
             }
           ],
           "generator": {
@@ -252,7 +267,10 @@
               "id": "inequality",
               "label": "Range inequality",
               "inputProfile": "inequality",
-              "expected": "{{yright}}<=y and y<={{yleft}}"
+              "expected": "{{yright}}<=y and y<={{yleft}}",
+              "accepted": [
+                "{{yright}}<=y<={{yleft}}"
+              ]
             }
           ],
           "generator": {
@@ -404,13 +422,19 @@
               "id": "domain",
               "label": "Reasonable domain",
               "inputProfile": "inequality",
-              "expected": "0<=t and t<={{maxT}}"
+              "expected": "0<=t and t<={{maxT}}",
+              "accepted": [
+                "0<=t<={{maxT}}"
+              ]
             },
             {
               "id": "range",
               "label": "Reasonable range",
               "inputProfile": "inequality",
-              "expected": "{{start}}<=V and V<={{maxV}}"
+              "expected": "{{start}}<=V and V<={{maxV}}",
+              "accepted": [
+                "{{start}}<=V<={{maxV}}"
+              ]
             },
             {
               "id": "continuity",
@@ -809,7 +833,10 @@
           "id": "answer",
           "label": "Correct range inequality",
           "inputProfile": "inequality",
-          "expected": "{{rlo}}<=y and y<={{rhi}}"
+          "expected": "{{rlo}}<=y and y<={{rhi}}",
+          "accepted": [
+            "{{rlo}}<=y<={{rhi}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -900,7 +927,10 @@
               "id": "range",
               "label": "Correct range inequality",
               "inputProfile": "inequality",
-              "expected": "{{yright}}<=y and y<={{yleft}}"
+              "expected": "{{yright}}<=y and y<={{yleft}}",
+              "accepted": [
+                "{{yright}}<=y<={{yleft}}"
+              ]
             }
           ]
         }
@@ -14197,13 +14227,19 @@
           "id": "domain",
           "label": "Reasonable time domain",
           "inputProfile": "inequality",
-          "expected": "0<=t and t<={{end}}"
+          "expected": "0<=t and t<={{end}}",
+          "accepted": [
+            "0<=t<={{end}}"
+          ]
         },
         {
           "id": "range",
           "label": "Height range",
           "inputProfile": "inequality",
-          "expected": "0<=h and h<={{maxh}}"
+          "expected": "0<=h and h<={{maxh}}",
+          "accepted": [
+            "0<=h<={{maxh}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -14261,13 +14297,19 @@
           "id": "domain",
           "label": "Domain inequality",
           "inputProfile": "inequality",
-          "expected": "{{h}}<=x and x<={{hi}}"
+          "expected": "{{h}}<=x and x<={{hi}}",
+          "accepted": [
+            "{{h}}<=x<={{hi}}"
+          ]
         },
         {
           "id": "range",
           "label": "Range inequality",
           "inputProfile": "inequality",
-          "expected": "{{k}}<=y and y<={{top}}"
+          "expected": "{{k}}<=y and y<={{top}}",
+          "accepted": [
+            "{{k}}<=y<={{top}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -14327,7 +14369,10 @@
               "id": "domain",
               "label": "Domain inequality",
               "inputProfile": "inequality",
-              "expected": "{{lo}}<=x and x<={{hi}}"
+              "expected": "{{lo}}<=x and x<={{hi}}",
+              "accepted": [
+                "{{lo}}<=x<={{hi}}"
+              ]
             },
             {
               "id": "left-output",
@@ -14351,7 +14396,10 @@
               "id": "range",
               "label": "Range inequality",
               "inputProfile": "inequality",
-              "expected": "{{k}}<=y and y<={{yleft}}"
+              "expected": "{{k}}<=y and y<={{yleft}}",
+              "accepted": [
+                "{{k}}<=y<={{yleft}}"
+              ]
             }
           ],
           "solutionReview": {
@@ -15351,7 +15399,10 @@
               "id": "answer",
               "label": "Complete factored equation",
               "inputProfile": "equation",
-              "expected": "y=2(x{{nr1|signed}})(x{{nr2|signed}})"
+              "expected": "y=2(x{{nr1|signed}})(x{{nr2|signed}})",
+              "accepted": [
+                "y=2(x{{nr2|signed}})(x{{nr1|signed}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -15540,7 +15591,10 @@
               "id": "answer",
               "label": "Complete factored quadratic equation",
               "inputProfile": "equation",
-              "expected": "y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})"
+              "expected": "y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})",
+              "accepted": [
+                "y={{a}}(x{{nr2|signed}})(x{{nr1|signed}})"
+              ]
             },
             {
               "id": "verify-zero-point",
@@ -17018,7 +17072,10 @@
               "id": "equation",
               "label": "Corresponding monic factored equation",
               "inputProfile": "equation",
-              "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})"
+              "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})",
+              "accepted": [
+                "y=(x{{nr2|signed}})(x{{nr1|signed}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -19092,7 +19149,10 @@
           "id": "answer",
           "label": "Contextual domain inequality",
           "inputProfile": "inequality",
-          "expected": "0<=t and t<={{years}}"
+          "expected": "0<=t and t<={{years}}",
+          "accepted": [
+            "0<=t<={{years}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -19166,7 +19226,10 @@
               "id": "contextual",
               "label": "Contextual domain inequality",
               "inputProfile": "inequality",
-              "expected": "0<=t and t<={{years}}"
+              "expected": "0<=t and t<={{years}}",
+              "accepted": [
+                "0<=t<={{years}}"
+              ]
             },
             {
               "id": "judgment",
@@ -24828,13 +24891,13 @@
           "responseFields": [
             {
               "id": "factor1",
-              "label": "First factor",
+              "label": "Factor with the smaller constant",
               "inputProfile": "expression",
               "expected": "x+{{p}}"
             },
             {
               "id": "factor2",
-              "label": "Second factor",
+              "label": "Factor with the larger constant",
               "inputProfile": "expression",
               "expected": "x+{{q}}"
             },
@@ -24842,7 +24905,10 @@
               "id": "answer",
               "label": "Complete factorization",
               "inputProfile": "expression",
-              "expected": "(x+{{p}})*(x+{{q}})"
+              "expected": "(x+{{p}})*(x+{{q}})",
+              "accepted": [
+                "(x+{{q}})*(x+{{p}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -24877,7 +24943,7 @@
               "prod": "p*q"
             },
             "constraints": [
-              "p!=q"
+              "p<q"
             ]
           }
         },
@@ -24921,7 +24987,10 @@
               "id": "answer",
               "label": "Correct factorization",
               "inputProfile": "expression",
-              "expected": "(x+{{p}})*(x+{{q}})"
+              "expected": "(x+{{p}})*(x+{{q}})",
+              "accepted": [
+                "(x+{{q}})*(x+{{p}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -25361,13 +25430,13 @@
           "responseFields": [
             {
               "id": "factor1",
-              "label": "First linear factor",
+              "label": "Subtracting factor",
               "inputProfile": "expression",
               "expected": "x-{{a}}"
             },
             {
               "id": "factor2",
-              "label": "Second linear factor",
+              "label": "Adding factor",
               "inputProfile": "expression",
               "expected": "x+{{a}}"
             },
@@ -25375,7 +25444,10 @@
               "id": "answer",
               "label": "Complete factorization",
               "inputProfile": "expression",
-              "expected": "(x-{{a}})*(x+{{a}})"
+              "expected": "(x-{{a}})*(x+{{a}})",
+              "accepted": [
+                "(x+{{a}})*(x-{{a}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -25445,7 +25517,10 @@
               "id": "answer",
               "label": "Correct factorization",
               "inputProfile": "expression",
-              "expected": "(x-{{a}})*(x+{{a}})"
+              "expected": "(x-{{a}})*(x+{{a}})",
+              "accepted": [
+                "(x+{{a}})*(x-{{a}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -28848,7 +28923,8 @@
           "inputProfile": "expression",
           "expected": "{{a}} {{d|signed}}(n-1)",
           "accepted": [
-            "{{d}}n {{b|signed}}"
+            "{{d}}n {{b|signed}}",
+            "{{d}}(n-1) {{a|signed}}"
           ]
         }
       ],
@@ -29098,7 +29174,8 @@
           "inputProfile": "expression",
           "expected": "{{a}} {{d|signed}}(n-1)",
           "accepted": [
-            "{{d}}n {{b|signed}}"
+            "{{d}}n {{b|signed}}",
+            "{{d}}(n-1) {{a|signed}}"
           ]
         }
       ],
@@ -29167,7 +29244,8 @@
           "inputProfile": "expression",
           "expected": "{{a}} {{d|signed}}(n-1)",
           "accepted": [
-            "{{d}}n {{b|signed}}"
+            "{{d}}n {{b|signed}}",
+            "{{d}}(n-1) {{a|signed}}"
           ]
         }
       ],
@@ -29274,7 +29352,10 @@
               "id": "formula",
               "label": "Correct right-hand side of f(n)",
               "inputProfile": "expression",
-              "expected": "{{a}}+({{d}})*(n-1)"
+              "expected": "{{a}}+({{d}})*(n-1)",
+              "accepted": [
+                "({{d}})*(n-1)+{{a}}"
+              ]
             },
             {
               "id": "check1",
@@ -29371,7 +29452,10 @@
               "id": "formula",
               "label": "Correct explicit formula: $f(n)=$",
               "inputProfile": "expression",
-              "expected": "{{a}} {{d|signed}}(n-1)"
+              "expected": "{{a}} {{d|signed}}(n-1)",
+              "accepted": [
+                "{{d}}(n-1) {{a|signed}}"
+              ]
             },
             {
               "id": "verify-nine",

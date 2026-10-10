@@ -43,7 +43,7 @@
         },
         {
           "id": "root-1",
-          "label": "Root 1",
+          "label": "Root 1 (least)",
           "inputProfile": "number",
           "expected": "{{r1}}"
         },
@@ -55,7 +55,7 @@
         },
         {
           "id": "root-2",
-          "label": "Root 2",
+          "label": "Root 2 (middle)",
           "inputProfile": "number",
           "expected": "{{r2}}"
         },
@@ -67,7 +67,7 @@
         },
         {
           "id": "root-3",
-          "label": "Root 3",
+          "label": "Root 3 (greatest)",
           "inputProfile": "number",
           "expected": "{{r3}}"
         },
@@ -238,7 +238,7 @@
         },
         {
           "id": "root-1",
-          "label": "Root 1",
+          "label": "Root 1 (least)",
           "inputProfile": "number",
           "expected": "{{r1}}"
         },
@@ -250,7 +250,7 @@
         },
         {
           "id": "root-2",
-          "label": "Root 2",
+          "label": "Root 2 (second least)",
           "inputProfile": "number",
           "expected": "{{r2}}"
         },
@@ -262,7 +262,7 @@
         },
         {
           "id": "root-3",
-          "label": "Root 3",
+          "label": "Root 3 (second greatest)",
           "inputProfile": "number",
           "expected": "{{r3}}"
         },
@@ -274,7 +274,7 @@
         },
         {
           "id": "root-4",
-          "label": "Root 4",
+          "label": "Root 4 (greatest)",
           "inputProfile": "number",
           "expected": "{{r4}}"
         },
@@ -625,7 +625,7 @@
         },
         {
           "id": "root-1",
-          "label": "Root 1",
+          "label": "Root 1 (least)",
           "inputProfile": "number",
           "expected": "{{r1}}"
         },
@@ -637,7 +637,7 @@
         },
         {
           "id": "root-2",
-          "label": "Root 2",
+          "label": "Root 2 (second least)",
           "inputProfile": "number",
           "expected": "{{r2}}"
         },
@@ -649,7 +649,7 @@
         },
         {
           "id": "root-3",
-          "label": "Root 3",
+          "label": "Root 3 (second greatest)",
           "inputProfile": "number",
           "expected": "{{r3}}"
         },
@@ -661,7 +661,7 @@
         },
         {
           "id": "root-4",
-          "label": "Root 4",
+          "label": "Root 4 (greatest)",
           "inputProfile": "number",
           "expected": "{{r4}}"
         },

@@ -27,7 +27,10 @@
           "id": "factored",
           "label": "Factored zero-product equation",
           "inputProfile": "equation",
-          "expected": "{{a}}(x-({{u}}))(x-({{v}}))=0"
+          "expected": "{{a}}(x-({{u}}))(x-({{v}}))=0",
+          "accepted": [
+            "{{a}}(x-({{v}}))(x-({{u}}))=0"
+          ]
         },
         {
           "id": "r1",

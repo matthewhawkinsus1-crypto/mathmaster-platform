@@ -26,7 +26,10 @@
           "id": "answer",
           "label": "Range inequality",
           "inputProfile": "inequality",
-          "expected": "{{ylo}}<=y and y<={{yhi}}"
+          "expected": "{{ylo}}<=y and y<={{yhi}}",
+          "accepted": [
+            "{{ylo}}<=y<={{yhi}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -96,13 +99,19 @@
           "id": "domain",
           "label": "Reasonable domain of h",
           "inputProfile": "inequality",
-          "expected": "0<=h and h<={{maxh}}"
+          "expected": "0<=h and h<={{maxh}}",
+          "accepted": [
+            "0<=h<={{maxh}}"
+          ]
         },
         {
           "id": "range",
           "label": "Corresponding range of C",
           "inputProfile": "inequality",
-          "expected": "{{fee}}<=C and C<={{maxcost}}"
+          "expected": "{{fee}}<=C and C<={{maxcost}}",
+          "accepted": [
+            "{{fee}}<=C<={{maxcost}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -156,7 +165,10 @@
               "id": "domain",
               "label": "Reasonable domain of h",
               "inputProfile": "inequality",
-              "expected": "0<=h and h<={{maxh}}"
+              "expected": "0<=h and h<={{maxh}}",
+              "accepted": [
+                "0<=h<={{maxh}}"
+              ]
             },
             {
               "id": "min-cost",
@@ -174,7 +186,10 @@
               "id": "range",
               "label": "Range of C",
               "inputProfile": "inequality",
-              "expected": "{{fee}}<=C and C<={{maxCost}}"
+              "expected": "{{fee}}<=C and C<={{maxCost}}",
+              "accepted": [
+                "{{fee}}<=C<={{maxCost}}"
+              ]
             }
           ],
           "generator": {
@@ -255,7 +270,10 @@
               "id": "inequality",
               "label": "Range inequality",
               "inputProfile": "inequality",
-              "expected": "{{yright}}<=y and y<={{yleft}}"
+              "expected": "{{yright}}<=y and y<={{yleft}}",
+              "accepted": [
+                "{{yright}}<=y<={{yleft}}"
+              ]
             }
           ],
           "generator": {
@@ -407,13 +425,19 @@
               "id": "domain",
               "label": "Reasonable domain",
               "inputProfile": "inequality",
-              "expected": "0<=t and t<={{maxT}}"
+              "expected": "0<=t and t<={{maxT}}",
+              "accepted": [
+                "0<=t<={{maxT}}"
+              ]
             },
             {
               "id": "range",
               "label": "Reasonable range",
               "inputProfile": "inequality",
-              "expected": "{{start}}<=V and V<={{maxV}}"
+              "expected": "{{start}}<=V and V<={{maxV}}",
+              "accepted": [
+                "{{start}}<=V<={{maxV}}"
+              ]
             },
             {
               "id": "continuity",
@@ -812,7 +836,10 @@
           "id": "answer",
           "label": "Correct range inequality",
           "inputProfile": "inequality",
-          "expected": "{{rlo}}<=y and y<={{rhi}}"
+          "expected": "{{rlo}}<=y and y<={{rhi}}",
+          "accepted": [
+            "{{rlo}}<=y<={{rhi}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -903,7 +930,10 @@
               "id": "range",
               "label": "Correct range inequality",
               "inputProfile": "inequality",
-              "expected": "{{yright}}<=y and y<={{yleft}}"
+              "expected": "{{yright}}<=y and y<={{yleft}}",
+              "accepted": [
+                "{{yright}}<=y<={{yleft}}"
+              ]
             }
           ]
         }
