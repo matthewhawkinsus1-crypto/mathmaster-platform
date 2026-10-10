@@ -50,6 +50,14 @@ The draft stores only what the student entered. Proven by
 - The field id `solution` survives only as a *value*, so the family's answers
   back up.
 
+### Found by the browser journey
+
+The hook first shared its in-flight server read across runs of its effect.
+Under React StrictMode's double effect (or any re-run while a read was in
+flight), that read resolved into the cancelled sync, so the live one showed
+"(0/3 saved)" until an online or visibility event. Each run now tracks its own
+read.
+
 ## Proof
 
 | Test | Runs in CI as |
@@ -69,7 +77,9 @@ sending the merged answers, and the restore on device 2 (emulator).
 - `src/platform/persistence/workspaceDraftStore.js`: one default value,
   `maxAssignments` 1 → 4.
 - `tests/browser/teacherWorkflow/recoveryFixture.js`: one added synthetic
-  student. Existing students and journeys are unchanged.
+  lesson (`a-recovery-c`, never edited) and student (910975), built with the
+  real `startedRecord`. A separate lesson keeps the existing students'
+  seats, pins and records byte-identical (diffed against main).
 - `.github/workflows/student-teacher-journeys.yml`: one added step.
 
 Not touched: `src/App.jsx` (Job G), `functions/**` and `firestore.rules`

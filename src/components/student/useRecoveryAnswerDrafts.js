@@ -52,7 +52,6 @@ export default function useRecoveryAnswerDrafts({ studentId, assignmentId, secti
   const [version, setVersion] = useState(0);
   const [serverRead, setServerRead] = useState(false);
   const syncRef = useRef(null);
-  const readingRef = useRef(null);
   const writer = useMemo(() => newWriterId(), []);
   const itemsById = useMemo(() => new Map((items || []).map((item) => [item.itemId, item])), [items]);
   const keyFor = useCallback((itemId) => recoveryAnswerKey({ section, opportunity, itemId }), [section, opportunity]);
@@ -86,10 +85,15 @@ export default function useRecoveryAnswerDrafts({ studentId, assignmentId, secti
     sync.hydrate(local);
     if (legacyKey) removeLocal(legacyKey);
 
+    // This sync's own read in flight. Never shared with a previous run of
+    // this effect (React StrictMode's remount, a changed key): that run's
+    // read resolves into its cancelled sync, so sharing it would leave this
+    // one without the server copy until the next online/visibility event.
+    let reading = null;
     const read = () => {
       if (cancelled) return Promise.resolve(false);
-      if (readingRef.current) return readingRef.current;
-      readingRef.current = readRecoveryAnswerDraft({ studentId, assignmentId })
+      if (reading) return reading;
+      reading = readRecoveryAnswerDraft({ studentId, assignmentId })
         .then((stored) => {
           if (cancelled) return false;
           sync.noteServerCopy(stored);
@@ -100,8 +104,8 @@ export default function useRecoveryAnswerDrafts({ studentId, assignmentId, secti
           console.warn('MathMaster could not read saved Recovery answers from the server yet:', error?.message || error);
           return false;
         })
-        .finally(() => { readingRef.current = null; });
-      return readingRef.current;
+        .finally(() => { reading = null; });
+      return reading;
     };
     sync.read = read;
     read();
