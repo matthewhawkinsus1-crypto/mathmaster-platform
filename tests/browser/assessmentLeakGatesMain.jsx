@@ -5,6 +5,8 @@
 //   ?role=practice|dol|quiz|test   the activity policy (default practice)
 //   ?q=<fixture>                   one of FIXTURES below
 //   ?run=<id>                      a fresh draft namespace for this run
+//   ?released=1                    the teacher has released outcome feedback
+//   ?record=partial                the item's record after one half-right attempt
 //
 // What the engine hands its host lands on window: every graded submission in
 // __mmGraded, every step-credit report in __mmStepGrades.
@@ -25,6 +27,7 @@ const params = new URLSearchParams(window.location.search);
 const role = params.get('role') || 'practice';
 const which = params.get('q') || 'systems-3x3';
 const run = params.get('run') || 'manual';
+const released = params.get('released') === '1';
 
 const day2Question = (id) => day2.sections.flatMap((section) => section.questions).find((question) => question.questionId === id);
 
@@ -149,6 +152,17 @@ const FIXTURES = {
     pairs: [[1, 4], [2, 5], [3, 6]],
     supportHints: ['LEAKCHECK-HINT: inputs are on the left.'],
   }),
+  // Two graded parts, for the partial-credit breakdown (PR #462 review): the
+  // record (?record=partial) has the slope right and the y-intercept wrong.
+  'feedback-partial': () => ({
+    questionId: 'leak-gates-feedback-partial',
+    type: 'multiAnswer',
+    prompt: 'A line passes through (0, 1) and (2, 5). Find its slope and its y-intercept.',
+    answerFields: [
+      { id: 'slope', label: 'LEAKCHECK-PART Slope', answer: '2', inputProfile: 'text' },
+      { id: 'intercept', label: 'LEAKCHECK-PART y-intercept', answer: '1', inputProfile: 'text' },
+    ],
+  }),
   // A graph-READING item like District DOL #2 q03 (PR #454 review B1/B2): the
   // answer is the intercepts, read off a given line. `read=0` is the same graph
   // without readCoordinates.
@@ -187,6 +201,19 @@ window.__mmGraded = [];
 window.__mmStepGrades = [];
 window.__mmFixture = { role, which, questionId: question?.questionId || null };
 
+const RECORDS = {
+  partial: {
+    status: 'attempted',
+    attemptCount: 1,
+    bestPartialCredit: 50,
+    partGrades: [
+      { id: 'slope', label: 'LEAKCHECK-PART Slope', isCorrect: true },
+      { id: 'intercept', label: 'LEAKCHECK-PART y-intercept', isCorrect: false },
+    ],
+  },
+};
+const questionRecord = RECORDS[params.get('record')] || { status: 'unattempted', attemptCount: 0 };
+
 const assignmentId = `leak-gates-${run}`;
 const draftKey = buildQuestionDraftKey({ studentId: 'leak-gates-student', assignmentId, questionIndex: 0, variantIndex: 0, sessionMode: 'graded' });
 
@@ -197,9 +224,10 @@ function Harness() {
       <QuestionEngine
         key={`${which}-${role}-${run}`}
         question={question}
-        questionRecord={{ status: 'unattempted', attemptCount: 0 }}
+        questionRecord={questionRecord}
         generationKey={`${assignmentId}|${which}`}
         activityRole={role}
+        feedbackReleased={released}
         maximumAttempts={3}
         draftKey={draftKey}
         assignmentId={assignmentId}

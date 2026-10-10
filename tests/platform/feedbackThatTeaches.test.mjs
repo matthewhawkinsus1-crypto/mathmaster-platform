@@ -33,7 +33,7 @@ import { backUpStepFor } from '../../src/platform/supports/feedback/backUpStep.j
 import { buildQuestionHints, hintRelease } from '../../src/platform/supports/hints/questionHints.js';
 import { similarExampleIsSafe } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
-import { helpRequestFields, nextHelpRequest } from '../../src/platform/supports/helpRequest.js';
+import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from '../../src/platform/supports/helpRequest.js';
 import { familyInstance } from './helpers/misconceptionFixtures.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -299,7 +299,10 @@ test('"40% partial credit so far" says which parts, never what the answers are',
   assert.equal(partialCreditBreakdown(record), 'last attempt: 1 of 3 parts right — still to fix: y-intercept, Equation');
   assert.equal(partialCreditBreakdown({ partGrades: [] }), '');
   const engine = executableSource(read('src/QuestionEngine.jsx'));
-  assert.match(engine, /\{showOutcomeFeedback && partialBreakdown \?/, 'only where outcomes are shown');
+  // Same gate as the miss message: a released quiz or test item that can
+  // still be answered gets the percentage, never which parts are wrong.
+  assert.match(engine, /\{feedbackOpen && partialBreakdown \?/);
+  assert.doesNotMatch(engine, /\{showOutcomeFeedback && partialBreakdown \?/);
 });
 
 /* ------------------------------------------------- 6. Ask my teacher */
@@ -310,11 +313,20 @@ test('6. "Ask my teacher" adds a time and a question position to the student\'s 
   assert.deepEqual(helpRequestFields(request, { assignmentId: 'A2' }), {}, 'another assignment');
   assert.equal(nextHelpRequest({ requested: false, assignmentId: 'A1' }), null, 'cancelled');
   assert.deepEqual(helpRequestFields(null, { assignmentId: 'A1' }), {});
+  // Closing the question it was raised on lowers the hand; other questions do not.
+  assert.equal(helpRequestAfterClose(request, { 2: { status: 'correct' } }), null);
+  assert.equal(helpRequestAfterClose(request, { 2: { status: 'expired' } }), null);
+  assert.equal(helpRequestAfterClose(request, { 2: { status: 'attempted' } }), request, 'still working: still raised (same object)');
+  assert.equal(helpRequestAfterClose(request, { 5: { status: 'correct' } }), request);
+  assert.equal(helpRequestAfterClose(null, { 2: { status: 'correct' } }), null);
 
   // Wired: imported where it is used (nothing imports App.jsx, so a missing
   // import passes every other gate).
   const app = read('src/App.jsx');
-  assert.match(app, /^import \{ helpRequestFields, nextHelpRequest \} from '\.\/platform\/supports\/helpRequest\.js';$/m);
+  assert.match(app, /^import \{ helpRequestAfterClose, helpRequestFields, nextHelpRequest \} from '\.\/platform\/supports\/helpRequest\.js';$/m);
+  // A raised hand comes down when its question closes (the toggle is gone
+  // from a closed question, so nothing else could lower it).
+  assert.match(app, /useEffect\(\(\) => \{ setHelpRequest\(\(current\) => helpRequestAfterClose\(current, activeWorkingTracker\)\); \}, \[activeWorkingTracker\]\);/);
   assert.match(app, /\.\.\.helpRequestFields\(helpRequest, \{ assignmentId: activeAssignmentId \}\),/);
   assert.match(app, /onAskTeacher=\{preview \|\| lifecycle\.isPracticeOnly \|\| user\?\.role !== 'student'\s*\? null\s*: \(requested\) => setHelpRequest\(nextHelpRequest\(\{ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex \}\)\)\}/);
   // Published only after the stale document is deleted (a write before it

@@ -38,7 +38,8 @@
 //                      hint offer, worked solution, similar problem, back-up step)
 //                      on a plain key, a Question Family instance and a registry
 //                      tool: none of its text anywhere in the document on a DOL
-//                      or test, before or after Submit
+//                      or test, before or after Submit; and the partial-credit
+//                      breakdown ("still to fix: …") only where feedback is open
 //   graph-reading      a given graph whose intercepts are the answer: no feature
 //                      value in its description and no data table, in any role
 //
@@ -748,6 +749,23 @@ const feedbackLadder = async () => {
       } else {
         check(await miss.count() === 0, `${role} feedback-ladder: no miss message after Submit`);
         check((await ladderLeaks(page)).length === 0, `${role} feedback-ladder: nothing from the ladder in the document after Submit`, (await ladderLeaks(page)).join(' | '));
+      }
+    });
+  }
+  // PR #462 review: the partial-credit breakdown names the parts still wrong,
+  // which steers the remaining attempts. Released feedback on a DOL, quiz or
+  // test item that can still be answered keeps the percentage only.
+  for (const role of ['practice', 'dol', 'quiz', 'test']) {
+    await scenario(`${role} feedback-partial (released)`, async () => {
+      const page = await open(role, 'feedback-partial', '&record=partial&released=1');
+      const strip = page.locator('.mathmaster-question-attempt-strip');
+      const stripText = await strip.textContent();
+      check(/50% partial credit so far/.test(stripText), `${role} feedback-partial: the percentage is shown`, stripText);
+      const breakdown = await strip.locator('.mathmaster-attempt-detail-breakdown').count();
+      if (role === 'practice') {
+        check(breakdown === 1 && /still to fix: LEAKCHECK-PART y-intercept/.test(stripText), 'practice feedback-partial: the breakdown names the part to fix', stripText);
+      } else {
+        check(breakdown === 0 && !/still to fix|parts right|LEAKCHECK-PART/.test(stripText), `${role} feedback-partial: no breakdown while the item can be answered`, stripText);
       }
     });
   }

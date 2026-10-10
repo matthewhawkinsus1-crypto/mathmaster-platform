@@ -30,3 +30,18 @@ export const helpRequestFields = (request, { assignmentId = null } = {}) => {
 export const nextHelpRequest = ({ requested, assignmentId, questionIndex, now = Date.now() } = {}) => (
   requested && assignmentId ? { assignmentId, questionIndex: Number.isInteger(questionIndex) ? questionIndex : null, at: now } : null
 );
+
+/*
+ * A raised hand comes down when its question closes. Once that question is
+ * answered correctly or out of attempts, QuestionEngine no longer offers the
+ * cancel toggle, so a request left standing would keep publishing a stale
+ * "Help requested" on every heartbeat (PR #462 review). Returns the request,
+ * or null once the question it was raised on is closed.
+ */
+export const helpRequestAfterClose = (request, tracker = {}) => {
+  if (!request || typeof request !== 'object') return null;
+  const index = Number(request.questionIndex);
+  if (!Number.isInteger(index)) return request;
+  const status = tracker?.[index]?.status;
+  return status === 'correct' || status === 'expired' ? null : request;
+};

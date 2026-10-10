@@ -161,7 +161,7 @@ import {
   studentRequiredQuestions,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
-import { helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
+import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
 import { describeWorkloadSummary } from '../functions/shared/reducedWorkload.mjs';
 import {
   SPOTLIGHT_FRAME_COLLECTION,
@@ -4310,6 +4310,8 @@ function App() {
 
   // A help request belongs to the assignment it was made in.
   useEffect(() => { setHelpRequest(null); }, [activeAssignmentId]);
+  // …and comes down when the question it was raised on closes.
+  useEffect(() => { setHelpRequest((current) => helpRequestAfterClose(current, activeWorkingTracker)); }, [activeWorkingTracker]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) return undefined;

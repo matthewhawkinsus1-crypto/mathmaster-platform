@@ -2118,7 +2118,11 @@ function QuestionEngineBody({
           {!terminalFeedbackHidden && record.bestPartialCredit > 0 && record.status !== 'correct' && (
             <span className="mathmaster-attempt-detail" data-partial-credit="">
               {record.bestPartialCredit}% partial credit so far
-              {showOutcomeFeedback && partialBreakdown ? <span className="mathmaster-attempt-detail-breakdown"> · {partialBreakdown}</span> : null}
+              {/* Which parts are still wrong steers the remaining attempts, so
+                  it follows the same gate as the miss message and the review:
+                  a released quiz or test item that can still be answered gets
+                  the percentage only (PR #462 review). */}
+              {feedbackOpen && partialBreakdown ? <span className="mathmaster-attempt-detail-breakdown"> · {partialBreakdown}</span> : null}
             </span>
           )}
         </div>
