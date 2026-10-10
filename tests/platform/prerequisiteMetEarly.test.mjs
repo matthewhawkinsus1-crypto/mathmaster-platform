@@ -305,3 +305,13 @@ test('server: the finalizer\'s close decision for the dependent lesson does not 
     assert.deepEqual(met, unmet);
   }
 });
+
+test('sectionAccessForStudent: one binding gives every call the student\'s own grades', async () => {
+  const { sectionAccessForStudent } = await import('../../src/assignmentLifecycle.js');
+  assert.equal(sectionAccessForStudent(undefined), getSectionAccessState, 'a teacher or preview gets the plain function');
+  const bound = sectionAccessForStudent(MET);
+  const args = { assignment: dependent(), activityRole: 'classwork', classId: CLASS_ID, classPeriod: CLASS_PERIOD, nowValue: NOW };
+  assert.equal(bound(args).isOpen, true, 'the met prerequisite reaches a call that passed no grades');
+  assert.equal(getSectionAccessState(args).isOpen, false, 'the plain call (no grades) still reads scheduled');
+  assert.equal(bound({ ...args, classworkGradesByAssignment: UNMET }).isOpen, false, 'a caller\'s own grades win');
+});

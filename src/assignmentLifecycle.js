@@ -373,6 +373,20 @@ export const getSectionAccessState = ({
   return openedByPrerequisite ? { ...state, openedByPrerequisite: true } : state;
 };
 
+/**
+ * getSectionAccessState for ONE signed-in student: every call made through it
+ * passes that student's own Classwork grades, so a lesson whose prerequisite
+ * they met opens early wherever the app asks (Home, entry, the workspace's
+ * locks and capture proofs) without threading the grades through each call.
+ * A caller that passes its own grades keeps them. With no grades (a teacher,
+ * a preview) it is getSectionAccessState itself.
+ */
+export const sectionAccessForStudent = (classworkGradesByAssignment) => (
+  classworkGradesByAssignment && typeof classworkGradesByAssignment === 'object'
+    ? (args = {}) => getSectionAccessState({ classworkGradesByAssignment, ...args })
+    : getSectionAccessState
+);
+
 export const normalizeSchedule = normalizeSharedSchedule;
 
 // Strings are parsed as instants first: `zonedDateKey` reads a string as
