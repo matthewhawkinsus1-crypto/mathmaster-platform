@@ -133,25 +133,39 @@ test('teacher arrivals: tab, monitor, preview, Administration only for an admini
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const appCode = executableSource(app);
 
-test('App opens an arrival with the calls a click makes, and imports what it calls', () => {
-  const effect = region(appCode, 'useEffect(() => {\n    if (!urlArrival || !user?.id) return;', '}, [urlArrival, user?.id, user?.role]);', 'arrival effect');
+test('an arrival opens once, with the calls a click makes (app/routes/useUrlArrival.js)', () => {
+  const hook = executableSource(readFileSync(new URL('../../src/app/routes/useUrlArrival.js', import.meta.url), 'utf8'));
+  const effect = region(hook, 'useEffect(() => {', '}, [urlArrival, user?.id, user?.role]);', 'arrival effect');
+  assert.match(effect, /if \(!urlArrival \|\| !user\?\.id\) return;/, 'only once an account has loaded');
   assert.match(effect, /setUrlArrival\(null\);/, 'an arrival opens once');
-  assert.match(effect, /if \(openedUrlArrivalRef\.current === arrival\) return;\s*openedUrlArrivalRef\.current = arrival;/, 'once, even when the effect runs twice');
-  assert.match(effect, /planStudentArrival\(\{/);
-  assert.match(effect, /startAssignment\(plan\.assignmentId, plan\.storageIndex \?\? 0, plan\.exact \? \{ keepRequestedQuestion: true \} : \{\}\)/);
-  assert.match(effect, /openStudentAssignmentResult\(plan\.assignmentId/);
-  assert.match(effect, /setActiveTestCycleAssignmentId\(plan\.assignmentId\);\s*openStudentDashboardMode\('testCycle'\)/);
-  assert.match(effect, /setPathLaunchTeks\(plan\.launchTeks\)/);
-  assert.match(effect, /planTeacherArrival\(\{/);
-  assert.match(effect, /startTeacherPreview\(teacherPlan\.assignmentId\)/);
+  assert.match(effect, /if \(openedRef\.current === arrival\) return;\s*openedRef\.current = arrival;/, 'once, even when the effect runs twice');
+  assert.match(effect, /student\.startAssignment\(plan\.assignmentId, plan\.storageIndex \?\? 0, plan\.exact \? \{ keepRequestedQuestion: true \} : \{\}\)/);
+  assert.match(effect, /student\.openStudentAssignmentResult\(plan\.assignmentId/);
+  assert.match(effect, /student\.setActiveTestCycleAssignmentId\(plan\.assignmentId\);\s*student\.openStudentDashboardMode\('testCycle'\)/);
+  assert.match(effect, /student\.setPathLaunchTeks\(plan\.launchTeks\)/);
+  assert.match(effect, /teacher\.startTeacherPreview\(teacherPlan\.assignmentId\)/);
   assert.match(effect, /if \(plan\.message\) toastInfo\(plan\.message\.title, plan\.message\.body\);/);
-  // Every call above is a module import (no-undef aside, the import is the
-  // contract a reader can check).
-  assert.match(app, /import \{ planStudentArrival, planTeacherArrival, readUrlArrival \} from '\.\/app\/routes\/urlArrival\.js';/);
+  assert.match(hook, /^import \{ planStudentArrival, planTeacherArrival \} from '\.\/urlArrival\.js';$/m);
+  assert.match(hook, /^import \{ readMathPathRouteState, readStudentRouteState \} from '\.\.\/\.\.\/platform\/student\/browserHistory\.js';$/m);
+  assert.match(hook, /^import \{ readTeacherRouteState \} from '\.\.\/\.\.\/platform\/teacher\/teacherBrowserHistory\.js';$/m);
+});
+
+test('App hands the arrival its real actions, each declared before the call (no temporal dead zone)', () => {
+  assert.match(app, /^import \{ useUrlArrival \} from '\.\/app\/routes\/useUrlArrival\.js';$/m);
+  assert.match(app, /^import \{ readUrlArrival \} from '\.\/app\/routes\/urlArrival\.js';$/m);
   assert.match(app, /import \{ questionAddressFor, studentQuestionEntries \} from '\.\/app\/routes\/questionAddress\.js';/);
   assert.match(app, /import \{ resetAddressToHome, studentUrlFor, teacherUrlFor \} from '\.\/app\/routes\/browserUrl\.js';/);
-  assert.match(app, /\breadMathPathRouteState,\n/);
-  assert.match(app, /\breadTeacherRouteState,\n/);
+  const callAt = appCode.indexOf('useUrlArrival({');
+  assert.ok(callAt > 0, 'App calls useUrlArrival');
+  const call = region(appCode, 'useUrlArrival({', '\n  });', 'useUrlArrival call');
+  // Passing a const before its declaration throws on every render (a ReferenceError
+  // lint and the build cannot see), so each action must be declared above.
+  for (const action of ['startAssignment', 'openStudentAssignmentResult', 'openStudentDashboardMode', 'startTeacherPreview', 'studentQuestionEntriesFor']) {
+    assert.match(call, new RegExp(`\\b${action}\\b`), `${action} is handed to the arrival`);
+    const declaredAt = appCode.indexOf(`const ${action} = `);
+    assert.ok(declaredAt > 0 && declaredAt < callAt, `${action} is declared after useUrlArrival is called`);
+  }
+  assert.ok(callAt < appCode.indexOf('if (!userIsSignedInAccount)'), 'a hook is called before the session guard returns');
 });
 
 test('startAssignment still redirects every Test Cycle to its card, before any requested question', () => {

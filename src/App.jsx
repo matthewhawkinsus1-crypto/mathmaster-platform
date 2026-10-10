@@ -333,13 +333,13 @@ import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import {
-  readMathPathRouteState,
   readStudentRouteState,
   studentRouteKey,
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
 import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
-import { planStudentArrival, planTeacherArrival, readUrlArrival } from './app/routes/urlArrival.js';
+import { readUrlArrival } from './app/routes/urlArrival.js';
+import { useUrlArrival } from './app/routes/useUrlArrival.js';
 import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
 import {
   DISPLAYED_CHECKPOINT_OUTCOMES,
@@ -411,7 +411,6 @@ import {
   TEACHER_HISTORY_DOCUMENT_ID,
   planTeacherHistoryWrite,
   readTeacherHistoryEntry,
-  readTeacherRouteState,
   teacherRouteKey,
   teacherRouteSignature,
   writeTeacherRouteState,
@@ -5926,66 +5925,6 @@ function App() {
    * section windows, the Test Cycle card's server check, the secure-exam
    * dashboard — and the server's authority is unchanged.
    */
-  const openedUrlArrivalRef = useRef(null);
-  useEffect(() => {
-    if (!urlArrival || !user?.id) return;
-    const arrival = urlArrival;
-    setUrlArrival(null);
-    // Once, even where an effect runs twice for the same state (StrictMode).
-    if (openedUrlArrivalRef.current === arrival) return;
-    openedUrlArrivalRef.current = arrival;
-    if (user.role === 'student') {
-      const plan = planStudentArrival({
-        arrival,
-        assignments,
-        isTestCycle: isTestCycleAssignment,
-        questionEntriesFor: studentQuestionEntriesFor,
-        historyRoute: readStudentRouteState(window.history.state),
-        mathPathRoute: readMathPathRouteState(window.history.state),
-      });
-      if (!plan) return;
-      if (plan.message) toastInfo(plan.message.title, plan.message.body);
-      if (plan.action === 'assignment') {
-        startAssignment(plan.assignmentId, plan.storageIndex ?? 0, plan.exact ? { keepRequestedQuestion: true } : {});
-      } else if (plan.action === 'result') {
-        openStudentAssignmentResult(plan.assignmentId, { sectionKey: plan.sectionKey, origin: plan.origin });
-      } else if (plan.action === 'testCycle') {
-        setActiveTestCycleAssignmentId(plan.assignmentId);
-        openStudentDashboardMode('testCycle');
-      } else if (plan.action === 'mathPath') {
-        openStudentDashboardMode('mathPath');
-        setMathPathArrival({ tab: plan.tab, sessionConfig: plan.sessionConfig });
-        if (plan.launchTeks) setPathLaunchTeks(plan.launchTeks);
-      } else if (plan.action === 'dashboard') {
-        openStudentDashboardMode(plan.mode);
-      } else {
-        openStudentDashboardMode('assignments');
-      }
-      return;
-    }
-    if (user.role !== 'teacher') return;
-    const teacherPlan = planTeacherArrival({
-      arrival,
-      assignments,
-      canAdminister: user.isRootAdmin === true || isRootAdminEmail(user.email),
-      historyRoute: readTeacherRouteState(window.history.state),
-    });
-    if (!teacherPlan) return;
-    if (teacherPlan.message) toastInfo(teacherPlan.message.title, teacherPlan.message.body);
-    if (teacherPlan.action === 'preview') {
-      startTeacherPreview(teacherPlan.assignmentId);
-    } else if (teacherPlan.action === 'administration') {
-      setTeacherWorkspaceMode('administration');
-      setAdminTab(teacherPlan.adminTab);
-    } else {
-      setTeacherWorkspaceMode('teacher');
-      setTeacherTab(teacherPlan.tab);
-      if (teacherPlan.hubAssignmentId) setAssignmentHubTarget({ assignmentId: teacherPlan.hubAssignmentId, classId: teacherPlan.hubClassId || null });
-    }
-    // The arrival is opened once, with the state as it is when the account
-    // has loaded; startAssignment and the rest read the latest state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlArrival, user?.id, user?.role]);
   // A session or tab from an arrival applies to the My Math Path it opened.
   useEffect(() => {
     if (mathPathArrival && (studentDashboardMode !== 'mathPath' || activeView !== 'dashboard')) setMathPathArrival(null);
@@ -11808,6 +11747,35 @@ function App() {
       {content}
     </div>
   );
+
+  // The address the page opened at, opened once the account has loaded
+  // (app/routes/useUrlArrival.js). Called after every action it hands on is
+  // declared, and before the session guard returns, as a hook must be.
+  useUrlArrival({
+    urlArrival,
+    setUrlArrival,
+    user,
+    assignments,
+    toastInfo,
+    student: {
+      isTestCycle: isTestCycleAssignment,
+      questionEntriesFor: studentQuestionEntriesFor,
+      startAssignment,
+      openStudentAssignmentResult,
+      openStudentDashboardMode,
+      setActiveTestCycleAssignmentId,
+      setMathPathArrival,
+      setPathLaunchTeks,
+    },
+    teacher: {
+      canAdminister: user?.isRootAdmin === true || isRootAdminEmail(user?.email),
+      startTeacherPreview,
+      setTeacherWorkspaceMode,
+      setAdminTab,
+      setTeacherTab,
+      setAssignmentHubTarget,
+    },
+  });
 
   // The screen belongs to the account signed in NOW. When auth has moved on —
   // signed out in another tab, the next student signing in on a shared
