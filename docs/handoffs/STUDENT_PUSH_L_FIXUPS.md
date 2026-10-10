@@ -78,6 +78,7 @@ Tests:
 - `functions/index.js` (R2-M2: `submitPathResponse` only, one hunk; job I owns functions/**)
 - `functions/lib/mathPath.js` (R2-M2: new `pathAttemptSupport`, exported)
 - `tests/platform/pathMasteryIndependence.test.mjs`
+- `tests/platform/pathAdversarial.test.mjs` (R2-M2: the "claimed hint" attack check now names the new server-derived flag)
 - `tests/integration/pathIndependentFirstTry.test.mjs` (new)
 - `tests/platform/feedbackThatTeaches.test.mjs`
 - `tests/platform/speechCommandBoundary.test.mjs` (new)
