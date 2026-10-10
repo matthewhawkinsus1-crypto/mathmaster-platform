@@ -76,10 +76,17 @@ export const mergeMasteryProfile = (fallback = {}, server = {}, schedule = {}, r
       retention: retentionSignal(schedule || {}),
     },
   };
-  if (record) merged.favourableRecord = record;
-  else delete merged.favourableRecord;
+  delete merged.favourableRecord;
+  delete merged.mastery.serverEstimate;
+  if (record) {
+    merged.favourableRecord = record;
+    // Kept, so every later re-derivation classifies the server on its own
+    // number, never on the record's (masteryRule.mjs).
+    merged.mastery.serverEstimate = merged.mastery.estimate ?? null;
+  }
   const facts = masteryFactsFromProfile(merged);
-  // The number shown is the more favourable one, with the status it earns.
+  // The number shown is the more favourable one; the status is the higher of
+  // each side's own.
   if (facts.estimate != null) merged.mastery.estimate = facts.estimate;
   merged.mastery.status = classifyMasteryStatus(facts);
   return merged;
@@ -95,6 +102,10 @@ export const buildUnifiedMasteryProfiles = ({
   assignments = [],
   serverProfiles = {},
   retentionSchedulesByTEKS = {},
+  // false gives the profiles main served (the server rule alone, no
+  // assignment record): what a student sees on deploy day, before the new
+  // Hosting loads. Only the rescoring backfill's baseline asks for it.
+  favourable = true,
 } = {}) => {
   const safeStudent = student && typeof student === 'object' ? student : {};
   const safeAssignments = Array.isArray(assignments) ? assignments : [];
@@ -130,7 +141,7 @@ export const buildUnifiedMasteryProfiles = ({
       fallbackProfiles[code],
       server[code] || server[`texas:${code}`],
       retentionSchedulesByTEKS?.[code] || retentionSchedulesByTEKS?.[`texas:${code}`],
-      recordByCode[code] || null,
+      favourable ? recordByCode[code] || null : null,
     );
   });
   return result;
@@ -148,7 +159,8 @@ export const toPathSkillMastery = (profile) => {
   const firstAttempt = profile?.dimensions?.firstAttemptCorrectRate;
   return {
     mastery: facts.estimate == null ? 0 : clamp01(Number(facts.estimate) / 100),
-    attempts: facts.eligibleEvents,
+    // The questions the shown number rests on.
+    attempts: facts.shownEvents ?? facts.eligibleEvents,
     recentAccuracy: firstAttempt == null ? null : clamp01(Number(firstAttempt) / 100),
     evidenceStrength: clamp01(facts.effectiveWeight / CONFIDENT_EVIDENCE),
     mastered: status === MASTERY_STATUS.MASTERED,

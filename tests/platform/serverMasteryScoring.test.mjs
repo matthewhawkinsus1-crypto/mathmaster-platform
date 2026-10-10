@@ -110,8 +110,24 @@ test('the more favourable record lifts every reader that classifies through the 
   const facts = masteryFactsFromProfile(profile);
   assert.equal(facts.estimate, 92);
   assert.equal(facts.effectiveWeight, 6);
-  assert.equal(facts.eligibleEvents, 3, 'the questions the shown number rests on');
-  assert.equal(classifyMasteryStatus(facts), MASTERY_STATUS.MASTERED);
+  assert.equal(facts.shownEvents, 3, 'the questions the shown number rests on');
+  assert.equal(facts.eligibleEvents, 5, 'the server keeps its own count');
+  assert.equal(classifyMasteryStatus(facts), MASTERY_STATUS.MASTERED, 'the record\'s own Mastered');
+  // Each side on its own facts (review BLOCKER 1): a record at 88.1 from 2
+  // items is not Mastered by itself, and a Mastered server profile stays
+  // Mastered beside it.
+  const serverMastered = {
+    mastery: { estimate: 88 }, accumulator: { eligibleEvents: 10, effectiveWeight: 10, independentSuccesses: 8 }, dimensions: { dokRepresented: [2, 3] },
+    favourableRecord: { status: MASTERY_STATUS.SECURE, estimate: 88.1, effectiveWeight: 2, items: 2 },
+  };
+  assert.equal(classifyMasteryStatus(masteryFactsFromProfile(serverMastered)), MASTERY_STATUS.MASTERED);
+  // And a record at 85.9 from 8 items beside a Developing server is not
+  // promoted to Mastered (neither side is).
+  const neither = {
+    mastery: { estimate: 54 }, accumulator: { eligibleEvents: 6, effectiveWeight: 6, independentSuccesses: 4 }, dimensions: { dokRepresented: [3] },
+    favourableRecord: { status: MASTERY_STATUS.SECURE, estimate: 85.9, effectiveWeight: 8, items: 8 },
+  };
+  assert.equal(classifyMasteryStatus(masteryFactsFromProfile(neither)), MASTERY_STATUS.SECURE);
   // It never lowers, and never sets "Not Enough Evidence".
   assert.equal(classifyMasteryStatus({ ...facts, estimate: 40, eligibleEvents: 5, favourableRecord: { status: MASTERY_STATUS.NOT_ENOUGH_EVIDENCE } }), MASTERY_STATUS.NEEDS_ATTENTION);
   assert.equal(classifyMasteryStatus({ estimate: 100, eligibleEvents: 6, effectiveWeight: 6, independentSuccesses: 6, dokRepresented: [3], favourableRecord: { status: MASTERY_STATUS.SECURE } }), MASTERY_STATUS.MASTERED);

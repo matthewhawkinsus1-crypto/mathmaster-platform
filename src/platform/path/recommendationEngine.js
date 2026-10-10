@@ -526,7 +526,7 @@ const scoreFacts = (row, profile) => {
   if (profile && typeof profile === 'object') {
     const facts = masteryFactsFromProfile(profile);
     if (facts.eligibleEvents > 0 && facts.estimate != null && Number.isFinite(Number(facts.estimate))) {
-      const fromProfile = { percent: Math.round(Number(facts.estimate)), count: facts.eligibleEvents, status: classifyMasteryStatus(facts), adjusted };
+      const fromProfile = { percent: Math.round(Number(facts.estimate)), count: facts.shownEvents ?? facts.eligibleEvents, status: classifyMasteryStatus(facts), adjusted };
       // The engine reads the more favourable of the assignment record and the
       // profile (masteryAdapter.js). When the row's number or verdict is the
       // better one, that is what decided the card, so that is what it names.

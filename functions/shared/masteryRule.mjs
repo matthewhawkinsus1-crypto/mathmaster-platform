@@ -78,10 +78,22 @@ export const classifyMasteryStatus = ({
   independentSuccesses = 0,
   dokRepresented = [],
   favourableRecord = null,
+  // When the facts carry the more favourable record, the server's own number
+  // and weight (masteryFactsFromProfile): each side is classified on its OWN
+  // facts — never the record's number with the server's counts.
+  serverEstimate = undefined,
+  serverEffectiveWeight = undefined,
 } = {}) => {
-  const earned = classifyEarnedStatus({ estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented });
+  const earned = classifyEarnedStatus({
+    estimate: serverEstimate === undefined ? estimate : serverEstimate,
+    eligibleEvents,
+    effectiveWeight: serverEffectiveWeight === undefined ? effectiveWeight : serverEffectiveWeight,
+    independentSuccesses,
+    dokRepresented,
+  });
   const record = validRecord(favourableRecord);
-  // Only a real status raises one: a record never sets "Not Enough Evidence".
+  // The higher of the two statuses. Only a real status raises one: a record
+  // never sets "Not Enough Evidence".
   return record && masteryStatusRank(record.status) > Math.max(0, masteryStatusRank(earned)) ? record.status : earned;
 };
 
@@ -109,24 +121,25 @@ const classifyEarnedStatus = ({ estimate, eligibleEvents, effectiveWeight, indep
  */
 export const masteryFactsFromProfile = (profile = {}) => {
   const record = validRecord(profile?.favourableRecord);
-  const stored = profile?.mastery?.estimate ?? null;
+  // The server's own number. A merged profile shows the more favourable
+  // number as `mastery.estimate` and keeps the server's as `serverEstimate`.
+  const own = profile?.mastery?.serverEstimate !== undefined ? profile.mastery.serverEstimate : (profile?.mastery?.estimate ?? null);
   const weight = num(profile?.accumulator?.effectiveWeight ?? profile?.dimensions?.effectiveWeight
     ?? profile?.dimensions?.eligibleGradeLevelEvents);
-  const recordEstimate = record && record.estimate != null && Number.isFinite(Number(record.estimate)) ? Number(record.estimate) : null;
-  // At or above the stored number: a merged profile already shows the
-  // record's number as its own (unifiedMastery.js), and it is still the
-  // record's number.
-  const recordLeads = recordEstimate != null && (stored == null || Number(stored) <= recordEstimate);
   const events = num(profile?.accumulator?.eligibleEvents ?? profile?.dimensions?.eligibleGradeLevelEvents);
+  const recordEstimate = record && record.estimate != null && Number.isFinite(Number(record.estimate)) ? Number(record.estimate) : null;
+  const recordLeads = recordEstimate != null && (own == null || Number(own) < recordEstimate);
   return {
-    estimate: recordLeads ? recordEstimate : stored,
-    // The questions the shown number rests on: the record's when its number
-    // is the one shown (as the Path map has always counted them).
-    eligibleEvents: recordLeads && Number(record.items) > 0 ? num(record.items) : events,
+    // Shown: the higher number, and the evidence weight of the stronger side.
+    estimate: recordLeads ? recordEstimate : own,
     effectiveWeight: record ? Math.max(weight, num(record.effectiveWeight)) : weight,
+    // The server's own facts, which its status is derived from.
+    eligibleEvents: events,
     independentSuccesses: num(profile?.accumulator?.independentSuccesses ?? profile?.dimensions?.independentSuccesses),
     dokRepresented: doks(profile?.dimensions?.dokRepresented),
-    favourableRecord: record,
+    // The questions the shown number rests on (the Path map's count).
+    shownEvents: recordLeads && Number(record.items) > 0 ? num(record.items) : events,
+    ...(record ? { favourableRecord: record, serverEstimate: own, serverEffectiveWeight: weight } : {}),
   };
 };
 
@@ -174,7 +187,8 @@ export const masteryChecklist = (profile = {}) => {
   // Mastered on the more favourable record (the assignment work) while the
   // evidence checklist is not all met: the card says so in one line instead
   // of "You have mastered this skill" above unmet counts.
-  const byRecord = mastered && classifyMasteryStatus({ ...facts, favourableRecord: null }) !== MASTERY_STATUS.MASTERED
+  const byRecord = mastered && Boolean(facts.favourableRecord)
+    && classifyMasteryStatus({ ...facts, estimate: facts.serverEstimate, effectiveWeight: facts.serverEffectiveWeight, favourableRecord: null, serverEstimate: undefined, serverEffectiveWeight: undefined }) !== MASTERY_STATUS.MASTERED
     && items.some((item) => !item.met);
   return {
     status,

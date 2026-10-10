@@ -15,7 +15,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-import { lossesFor, planStudentMasteryBackfill, studentView } from '../../scripts/lib/masteryScoringBackfill.mjs';
+import { lossesFor, lostChallenges, newlyClosed, planStudentMasteryBackfill, studentView } from '../../scripts/lib/masteryScoringBackfill.mjs';
 import { parseBackfillArgs } from '../../scripts/backfill-mastery-scoring.mjs';
 import { applyMasteryEvent, masteryEventFacts } from '../../functions/shared/masteryScoring.mjs';
 import { MASTERY_STATUS } from '../../functions/shared/masteryRule.mjs';
@@ -129,7 +129,8 @@ test('D\'s four reproduced profiles: nothing lost, and map and wheel read one nu
     const { built, stored, result } = plan(fixture);
     assert.equal(result.action, 'write', label);
     assert.deepEqual(result.violations, [], label);
-    const before = studentView({ student: built.student, assignments: built.assignments, serverProfiles: stored.profiles });
+    // The baseline is MAIN's real screens on the stored (per-attempt) document.
+    const before = studentView({ student: built.student, assignments: built.assignments, serverProfiles: stored.profiles, main: true });
     const after = studentView({ student: built.student, assignments: built.assignments, serverProfiles: result.document.profiles });
     assert.deepEqual(lossesFor('A.3A', before, after), [], label);
     assertAgree(after, label);
@@ -165,8 +166,7 @@ test('a sweep of 400 real-shaped students: nothing written lowers anything, map 
     const studentId = `sweep-${index}`;
     const { built, stored, result } = plan({ questionsByCode, pathOnly }, studentId);
     if (!stored) continue;
-    const before = studentView({ student: built.student, assignments: built.assignments, serverProfiles: stored.profiles });
-    assertAgree(before, `${studentId} (today)`);
+    const before = studentView({ student: built.student, assignments: built.assignments, serverProfiles: stored.profiles, main: true });
     if (result.action === 'refuse') {
       refused += 1;
       assert.ok(result.violations.length > 0);
@@ -177,17 +177,9 @@ test('a sweep of 400 real-shaped students: nothing written lowers anything, map 
     const after = studentView({ student: built.student, assignments: built.assignments, serverProfiles: result.document.profiles });
     Object.keys(before.unified).forEach((code) => assert.deepEqual(lossesFor(code, before, after), [], `${studentId} ${code}`));
     assertAgree(after, studentId);
-    // Locks and unlocks: no skill the student could open on main is closed.
-    const optionsOf = (masteryBySkill) => getStudentPathOptions({
-      courseId: 'algebra1', masteryBySkill,
-      pacing: { windowIndex: 3, windowCount: 8, accelerationRadius: 1 },
-      pacingProvider: sequenceProvider({ skills: getSkillGraph('algebra1'), windowCount: 8 }),
-    });
-    const lockedSet = (options) => new Set([...(options[STATUS.LOCKED] || []), ...(options[STATUS.REMEDIATION] || [])].map((row) => row.skillId));
-    const mainLocked = lockedSet(optionsOf(buildMasteryBySkill(buildStudentMasteryProfile(built))));
-    const beforeLocked = lockedSet(optionsOf(buildMasteryBySkillForStudent({ ...built, serverProfiles: stored.profiles })));
-    const afterLocked = lockedSet(optionsOf(buildMasteryBySkillForStudent({ ...built, serverProfiles: result.document.profiles })));
-    afterLocked.forEach((skillId) => assert.ok(beforeLocked.has(skillId) || mainLocked.has(skillId), `${studentId}: ${skillId} newly locked`));
+    // Locks and Challenge cards: nothing main opens or offers is taken away.
+    assert.deepEqual(newlyClosed(before, after), [], `${studentId}: newly locked`);
+    assert.deepEqual(lostChallenges(before, after), [], `${studentId}: Challenge lost`);
   }
   assert.ok(written > 300, `${written} written, ${refused} refused`);
 });
@@ -226,9 +218,13 @@ const afterOrdinaryUse = (fixture, newEvents) => {
     const facts = masteryEventFacts({ ...evidence, eventKey: `new-${index}` }, mathPath);
     facts.codes.forEach((code) => { profiles[code] = applyMasteryEvent(profiles[code], facts, code, { now: NOW + index }).entry; });
   });
-  const main = optionsFor(buildMasteryBySkill(buildStudentMasteryProfile(built)));
+  // Main after the same work: its per-attempt trigger over every event, and
+  // its own screens (server rule wheel, favourable map).
+  const all = [...built.events, ...newEvents.map((evidence, index) => ({ id: `new-${index}`, evidence: { ...evidence, eventKey: `new-${index}` } }))];
+  const mainView = studentView({ student: built.student, assignments: built.assignments, serverProfiles: oldTriggerDocument(all, 's').profiles, main: true });
+  const main = optionsFor(mainView.map);
   const now = optionsFor(buildMasteryBySkillForStudent({ ...built, serverProfiles: profiles }));
-  return { built, profiles, main, now, view: studentView({ student: built.student, assignments: built.assignments, serverProfiles: profiles }) };
+  return { built, profiles, main, now, mainView, view: studentView({ student: built.student, assignments: built.assignments, serverProfiles: profiles }) };
 };
 const pathAnswer = (code, index, { correct, dok = 2 }) => ({
   studentId: 's', occurredAt: NOW + index, masteryEvidenceKeys: [`texas:${code}`],
@@ -255,7 +251,8 @@ test('review (b): assignment work the server never saw is kept: A.3A at 70% with
     const facts = masteryEventFacts({ ...pathAnswer('A.3A', index, { correct: false }), eventKey: `w-${index}` }, mathPath);
     facts.codes.forEach((code) => { profiles[code] = applyMasteryEvent(profiles[code], facts, code, { now: NOW }).entry; });
   });
-  const main = optionsFor(buildMasteryBySkill(buildStudentMasteryProfile(built)));
+  const wrong = [0, 1].map((index) => ({ id: `w-${index}`, evidence: { ...pathAnswer('A.3A', index, { correct: false }), eventKey: `w-${index}` } }));
+  const main = optionsFor(studentView({ student: built.student, assignments: built.assignments, serverProfiles: oldTriggerDocument(wrong, 's').profiles, main: true }).map);
   const mastery = buildMasteryBySkillForStudent({ ...built, serverProfiles: profiles });
   assert.equal(Math.round(mastery[teksSkillId('A.3A')].mastery * 100), 70, 'the map keeps the assignment record\'s 70, not 0');
   assert.equal(statusOf(optionsFor(mastery), 'A.2B'), statusOf(main, 'A.2B'), 'A.2B is as open as on main');
@@ -270,7 +267,7 @@ test('review (c): eight correct new questions without a DOK 3 item keep a Master
   assert.equal(view.unified['A.3A'].mastery.status, MASTERY_STATUS.MASTERED);
 });
 
-test('after the backfill and ten ordinary new questions, no skill reads below main for 300 students', () => {
+test('after the backfill and ten ordinary new questions, no Mastered or unlock main gives is lost, for 300 students', () => {
   const random = lcg(4672026);
   for (let index = 0; index < 300; index += 1) {
     const questionsByCode = {};
@@ -283,21 +280,27 @@ test('after the backfill and ten ordinary new questions, no skill reads below ma
     const stored = oldTriggerDocument(built.events, studentId);
     const result = planStudentMasteryBackfill({ studentId, stored, events: built.events, student: built.student, assignments: built.assignments, helpers: mathPath, now: NOW });
     const profiles = { ...(result.action === 'write' ? result.document.profiles : stored.profiles) };
+    const newEvents = [];
     for (let question = 0; question < 10; question += 1) {
       const code = CODES[Math.floor(random() * CODES.length)];
-      const facts = masteryEventFacts({ ...pathAnswer(code, question, { correct: random() < 0.5, dok: 1 + Math.floor(random() * 3) }), eventKey: `${studentId}-n${question}` }, mathPath);
+      const evidence = { ...pathAnswer(code, question, { correct: random() < 0.5, dok: 1 + Math.floor(random() * 3) }), eventKey: `${studentId}-n${question}` };
+      newEvents.push({ id: evidence.eventKey, evidence });
+      const facts = masteryEventFacts(evidence, mathPath);
       facts.codes.forEach((key) => { profiles[key] = applyMasteryEvent(profiles[key], facts, key, { now: NOW }).entry; });
     }
-    const legacy = buildMasteryBySkill(buildStudentMasteryProfile(built));
+    // Main after the same ten answers: its per-attempt trigger, its own screens.
+    const mainView = studentView({ student: built.student, assignments: built.assignments, serverProfiles: oldTriggerDocument([...built.events, ...newEvents], studentId).profiles, main: true });
     const mastery = buildMasteryBySkillForStudent({ ...built, serverProfiles: profiles });
-    Object.entries(legacy).forEach(([skillId, record]) => {
-      assert.ok(Number(mastery[skillId].mastery) + 1e-9 >= Number(record.mastery), `${studentId} ${skillId}: number below main`);
-      if (Number(record.mastery) >= 0.9) assert.equal(mastery[skillId].mastered, true, `${studentId} ${skillId}: Mastered lost`);
+    Object.entries(mainView.map).forEach(([skillId, record]) => {
+      if (!record) return;
+      const mainMastered = typeof record.mastered === 'boolean' ? record.mastered : Number(record.mastery) >= 0.9;
+      if (mainMastered) assert.equal(mastery[skillId]?.mastered, true, `${studentId} ${skillId}: Mastered on main, not here`);
     });
-    const mainLocked = new Set(['locked', 'remediation'].flatMap((key) => (optionsFor(legacy)[key] || []).map((row) => row.skillId)));
-    const nowOptions = optionsFor(mastery);
-    ['locked', 'remediation'].flatMap((key) => (nowOptions[key] || []).map((row) => row.skillId))
-      .forEach((skillId) => assert.ok(mainLocked.has(skillId), `${studentId}: ${skillId} locked where main had it open`));
+    const branch = studentView({ student: built.student, assignments: built.assignments, serverProfiles: profiles });
+    Object.entries(mainView.unified).forEach(([code, profile]) => {
+      if (profile.mastery.status === MASTERY_STATUS.MASTERED) assert.equal(branch.unified[code].mastery.status, MASTERY_STATUS.MASTERED, `${studentId} ${code}: wheel Mastered on main`);
+    });
+    assert.deepEqual(newlyClosed(mainView, branch), [], `${studentId}: locked where main had it open`);
     assertAgree(studentView({ student: built.student, assignments: built.assignments, serverProfiles: profiles }), studentId);
   }
 });
@@ -307,4 +310,30 @@ test('the script is a dry run unless --execute, and needs a project', () => {
   assert.equal(parseBackfillArgs(['--project', 'p']).execute, false);
   assert.equal(parseBackfillArgs(['--project', 'p', '--execute']).execute, true);
   assert.throws(() => parseBackfillArgs(['--project', 'p', '--force']), /Unknown option/);
+});
+
+test('review BLOCKER 1: a Mastered server profile beside a short quiz stays Mastered on the wheel, card, map and Path', async () => {
+  const { mergeMasteryProfile, assignmentRecordFor, toPathSkillMastery } = await import('../../src/platform/mastery/unifiedMastery.js');
+  const { favourableMasteryBySkill } = await import('../../src/platform/path/masteryAdapter.js');
+  const { masteryChecklist } = await import('../../functions/shared/masteryRule.mjs');
+  // Server: 88, Mastered, 10 events (8 from a lesson in a previous class).
+  const server = {
+    teksCode: 'A.3A', mastery: { estimate: 88, status: MASTERY_STATUS.MASTERED },
+    accumulator: { eligibleEvents: 10, effectiveWeight: 10, weightedScoreSum: 8.8, independentSuccesses: 8 },
+    dimensions: { eligibleGradeLevelEvents: 10, independentSuccesses: 8, dokRepresented: [2, 3] },
+  };
+  // The current class's quiz: 88.1 from 2 items.
+  const record = assignmentRecordFor({ score: 88.1, itemCount: 2, effectiveEvidence: 2 });
+  const wheel = mergeMasteryProfile({}, server, {}, record);
+  assert.equal(wheel.mastery.status, MASTERY_STATUS.MASTERED, 'wheel');
+  const card = masteryChecklist(wheel);
+  assert.equal(card.mastered, true, 'card');
+  assert.equal(card.items.find((item) => item.key === 'questions').progress, '4 of 4', 'the card counts the server\'s questions');
+  const path = toPathSkillMastery(wheel);
+  assert.equal(path.mastered, true, 'map');
+  const map = favourableMasteryBySkill({ legacy: { [teksSkillId('A.3A')]: { mastery: 0.881, attempts: 2, evidenceStrength: 2 / 6 } }, unified: { [teksSkillId('A.3A')]: path } });
+  assert.equal(statusOf(optionsFor(map), 'A.3A'), STATUS.MASTERED, 'Path');
+  // And no over-promotion: record 85.9 from 8 items beside a Developing server.
+  const developing = { ...server, mastery: { estimate: 54, status: MASTERY_STATUS.DEVELOPING }, accumulator: { ...server.accumulator, weightedScoreSum: 5.4 } };
+  assert.equal(mergeMasteryProfile({}, developing, {}, assignmentRecordFor({ score: 85.9, itemCount: 8, effectiveEvidence: 8 })).mastery.status, MASTERY_STATUS.SECURE);
 });

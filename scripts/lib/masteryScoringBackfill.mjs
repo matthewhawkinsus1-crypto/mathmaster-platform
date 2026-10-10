@@ -47,12 +47,15 @@ const rank = (status) => masteryStatusRank(status);
 const SCORING_FIELDS = ['mastery', 'accumulator', 'dimensions', 'questions', 'confidence'];
 const withoutScoring = (entry = {}) => Object.fromEntries(Object.entries(entry || {}).filter(([key]) => !SCORING_FIELDS.includes(key)));
 
-// Which skills the Path engine closes (locked, or behind a repair) for this
-// mastery, in every course the student's skills belong to. Pacing is a plain
-// sequence: a lock is a prerequisite decision, not a calendar one.
-const closedSkills = (map) => {
+// What the Path engine does with each skill, in every course the student's
+// skills belong to: which it closes (locked, or behind a repair) and which it
+// offers as a Challenge (extension, which needs evidence strength). Pacing is
+// a plain sequence: these are prerequisite and readiness decisions, not
+// calendar ones.
+const pathDecisions = (map) => {
   const courses = new Set(Object.keys(map).map((skillId) => getTexasStandard(teksCodeFromSkillId(skillId))?.courseId).filter(Boolean));
   const closed = new Set();
+  const extension = new Set();
   courses.forEach((courseId) => {
     const skills = getSkillGraph(courseId);
     if (!skills.length) return;
@@ -62,17 +65,28 @@ const closedSkills = (map) => {
       pacingProvider: sequenceProvider({ skills, windowCount: 8 }),
     });
     [STATUS.LOCKED, STATUS.REMEDIATION].forEach((key) => (options[key] || []).forEach((row) => closed.add(row.skillId)));
+    (options[STATUS.EXTENSION] || []).forEach((row) => extension.add(row.skillId));
   });
-  return closed;
+  return { closed, extension };
 };
 
-/** What a student sees for every skill, from one server document, through the client's own code. */
-export const studentView = ({ student, assignments, serverProfiles }) => {
-  const unified = buildUnifiedMasteryProfiles({ student, assignments, serverProfiles });
+const viewOf = ({ student, assignments, serverProfiles, favourable }) => {
+  const unified = buildUnifiedMasteryProfiles({ student, assignments, serverProfiles, favourable });
   const legacy = buildMasteryBySkill(buildStudentMasteryProfile({ student, assignments }));
   const map = favourableMasteryBySkill({ legacy, unified: masteryBySkillFromProfiles(unified) });
-  return { unified, map, legacy, closed: closedSkills(map) };
+  return { unified, map, legacy, ...pathDecisions(map) };
 };
+
+/**
+ * What a student sees for every skill, through the client's own code: the
+ * wheel (unified profiles) and the Path map (favourableMasteryBySkill), with
+ * the engine's decisions. `main: true` is what main serves — the wheel on the
+ * server rule alone — which is the baseline nothing may fall below; otherwise
+ * this branch's screens, every one on the favourable rule.
+ */
+export const studentView = ({ student, assignments, serverProfiles, main = false }) => (
+  viewOf({ student, assignments, serverProfiles, favourable: !main })
+);
 
 /**
  * Every way `after` could be worse than `before` for one skill. Empty means
@@ -112,6 +126,9 @@ export const lossesFor = (code, before, after) => {
 /** Skills the Path engine closes after that it did not close before. */
 export const newlyClosed = (before, after) => [...after.closed].filter((skillId) => !before.closed.has(skillId));
 
+/** Challenge (extension) cards before that are gone after (review MAJOR 2). */
+export const lostChallenges = (before, after) => [...before.extension].filter((skillId) => !after.extension.has(skillId));
+
 /**
  * One student's plan.
  *   stored      the studentMasteryProfiles document (or null)
@@ -126,7 +143,9 @@ export const planStudentMasteryBackfill = ({ studentId, stored = null, events = 
     return { action: 'skip', reason: 'already-rescored', changes: [], violations: [], pathReview: null };
   }
   const storedProfiles = stored?.profiles && typeof stored.profiles === 'object' ? stored.profiles : {};
-  const before = studentView({ student, assignments, serverProfiles: storedProfiles });
+  // The baseline is what MAIN serves today, from the stored document — not
+  // this branch's screens on the same document (review BLOCKER 1).
+  const before = studentView({ student, assignments, serverProfiles: storedProfiles, main: true });
   const pathReview = reclassifyPathReviewEvidence(events, helpers);
   const rescored = rescoreProfilesFromEvidence(pathReview.events, helpers, { now });
 
@@ -157,6 +176,7 @@ export const planStudentMasteryBackfill = ({ studentId, stored = null, events = 
   const changes = [];
   const violations = [];
   newlyClosed(before, after).forEach((skillId) => violations.push({ code: teksCodeFromSkillId(skillId), losses: ['map: skill now locked'] }));
+  lostChallenges(before, after).forEach((skillId) => violations.push({ code: teksCodeFromSkillId(skillId), losses: ['map: Challenge card lost'] }));
   codes.forEach((code) => {
     const losses = lossesFor(code, before, after);
     if (losses.length) violations.push({ code, losses });
