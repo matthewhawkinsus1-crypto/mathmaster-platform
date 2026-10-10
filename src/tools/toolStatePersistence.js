@@ -120,6 +120,8 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     viewport: 'The camera. Presentation — panning must never look like an edit.',
     endpointError: 'Why a typed endpoint was rejected. Error text.',
     dragging: 'Which endpoint the finger is currently on. Gone at pointer-up.',
+    lineCursor: 'The keyboard placement marker on the focused line, the keyboard twin of the pointer position. Gone on blur; placing records the endpoint.',
+    endpointAnnouncement: 'The polite screen-reader read-out of the last keyboard edit. Speech, not work.',
   }),
   relationMapping: entry(['relationMapping/RelationMapping.jsx'], {
     hoverPoint: 'The cursor preview on the plane.',
