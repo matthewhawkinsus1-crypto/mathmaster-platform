@@ -56,16 +56,76 @@ const CHOICE_LABELS = Object.freeze({
 });
 
 const tidy = (value) => (Object.is(value, -0) ? 0 : value);
-const isExact = (rounded, value) => Math.abs(rounded - value) <= 1e-10 * Math.max(1, Math.abs(value));
 
-// A computed value as the review prints it — `places` decimal places (as many
+// A number as a student types it: its plain decimal digits, never exponent
+// notation (String(3.214e-7) is "3.214e-7").
+const plain = (value) => {
+  const text = String(tidy(value));
+  if (!/e/i.test(text)) return text;
+  return value.toLocaleString('en-US', { useGrouping: false, maximumSignificantDigits: 21 })
+    .replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+};
+
+/*
+ * EXACT ARITHMETIC. Every number in the hand computation (x̄, ȳ, Sxx, Syy,
+ * Sxy, m, b, R²) is a ratio of the source's decimals, so it is computed as an
+ * exact fraction of BigInts {n, d} (d > 0) and rounded from that. "=" then
+ * means the printed digits ARE the value. Judged in floating point to a
+ * relative 1e-10, "Syy = 1886666.6667" was written for 1886666.666… and
+ * "Sxx = 50000001000.0001" for …1000.000075; judged to an absolute 1e-12 at
+ * small scale, Syy = 6e-14 printed "Syy = 0" beside r ≈ 0.73.
+ */
+const gcd = (a, b) => {
+  let [x, y] = [a < 0n ? -a : a, b < 0n ? -b : b];
+  while (y) [x, y] = [y, x % y];
+  return x;
+};
+const frac = (n, d = 1n) => {
+  if (d < 0n) [n, d] = [-n, -d];
+  const g = gcd(n, d) || 1n;
+  return { n: n / g, d: d / g };
+};
+const add = (p, q) => frac(p.n * q.d + q.n * p.d, p.d * q.d);
+const sub = (p, q) => frac(p.n * q.d - q.n * p.d, p.d * q.d);
+const mul = (p, q) => frac(p.n * q.n, p.d * q.d);
+const div = (p, q) => frac(p.n * q.d, p.d * q.n);
+const same = (p, q) => p.n === q.n && p.d === q.d;
+// A source value as the decimal it is shown as (its plain digits).
+const exactOf = (value) => {
+  const [whole, part = ''] = plain(value).replace('-', '').split('.');
+  const n = BigInt(`${whole}${part}`) * (plain(value).startsWith('-') ? -1n : 1n);
+  return frac(n, 10n ** BigInt(part.length));
+};
+// p rounded to `places` decimals (half away from zero), as {text, value: fraction}.
+const roundTo = (p, places) => {
+  const scale = 10n ** BigInt(places);
+  const negative = p.n < 0n;
+  const size = (negative ? -p.n : p.n) * scale;
+  const units = (2n * size + p.d) / (2n * p.d);
+  const digits = units.toString().padStart(places + 1, '0');
+  const whole = digits.slice(0, digits.length - places);
+  const part = places ? digits.slice(-places).replace(/0+$/, '') : '';
+  const text = `${negative && units ? '-' : ''}${whole}${part ? `.${part}` : ''}`;
+  return { text, value: frac(negative ? -units : units, scale) };
+};
+// floor(log10 |p|) for p ≠ 0, exactly.
+const magnitude = (p) => {
+  const size = p.n < 0n ? -p.n : p.n;
+  let e = size.toString().length - p.d.toString().length;
+  const below = (k) => (k >= 0 ? size < p.d * 10n ** BigInt(k) : size * 10n ** BigInt(-k) < p.d);
+  while (below(e)) e -= 1;
+  while (!below(e + 1)) e += 1;
+  return e;
+};
+
+// A value as the review prints it — `places` decimal places (as many
 // significant figures below 0.1) — and whether the printed value is the value
-// itself. Below 1e-12 a value is floating-point noise around 0 and prints as 0.
-const shown = (value, places = 4) => {
-  const size = Math.abs(value);
-  const rounded = size < 1e-12 ? 0
-    : tidy(size >= 0.1 ? Number(value.toFixed(places)) : Number(value.toPrecision(places)));
-  return { text: String(rounded), value: rounded, exact: isExact(rounded, value) };
+// itself.
+const shown = (p, places = 4) => {
+  const digits = p.n === 0n ? places : Math.max(places, places - 1 - magnitude(p));
+  const small = p.n !== 0n && magnitude(p) < -1;
+  const rounded = roundTo(p, small ? digits : places);
+  return { text: rounded.text, value: Number(rounded.text), exact: same(rounded.value, p) };
 };
 
 // r as the calculator prints it (4 decimal places), with more places only when
@@ -77,7 +137,7 @@ const shownCorrelation = (r) => {
     const rounded = tidy(Number(r.toFixed(places)));
     const roundedReading = correlationReading(rounded);
     if (roundedReading.direction === reading.direction && roundedReading.strength === reading.strength) {
-      return { text: String(rounded), value: rounded, exact: isExact(rounded, r), size: String(Math.abs(rounded)) };
+      return { text: plain(rounded), value: rounded, size: plain(Math.abs(rounded)), rounded };
     }
   }
   return null;
@@ -88,7 +148,7 @@ const factor = (value) => (value.value < 0 ? `(${value.text})` : value.text);
 
 const lineText = (m, b) => {
   const slope = m.value === 0 ? '' : m.value === 1 ? 'x' : m.value === -1 ? '-x' : `${m.text}x`;
-  const intercept = b.value === 0 ? '' : String(Math.abs(b.value));
+  const intercept = b.value === 0 ? '' : plain(Math.abs(b.value));
   if (!slope) return `y ${relation(m, b)} ${b.text}`;
   if (!intercept) return `y ${relation(m, b)} ${slope}`;
   return `y ${relation(m, b)} ${slope} ${b.value < 0 ? '−' : '+'} ${intercept}`;
@@ -120,22 +180,37 @@ const buildReview = (question) => {
   const requireInterpretation = question.requireInterpretation !== false;
   const scatterplot = resolveRegressionCalculatorMode(question) === 'scatterplot';
 
-  // The hand computation behind the calculator's numbers (the same sums
-  // regressionCalculatorStats forms).
+  // The hand computation behind the calculator's numbers (the sums
+  // regressionCalculatorStats forms), in exact fractions.
   const n = source.length;
-  const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
-  const mx = mean(source.map(([x]) => x));
-  const my = mean(source.map(([, y]) => y));
-  const sxx = source.reduce((sum, [x]) => sum + (x - mx) ** 2, 0);
-  const syy = source.reduce((sum, [, y]) => sum + (y - my) ** 2, 0);
-  const sxy = source.reduce((sum, [x, y]) => sum + (x - mx) * (y - my), 0);
-  const [xBar, yBar, sXX, sYY, sXY] = [mx, my, sxx, syy, sxy].map((value) => shown(value));
+  const xs = source.map(([x]) => exactOf(x));
+  const ys = source.map(([, y]) => exactOf(y));
+  const total = (values) => values.reduce(add, frac(0n));
+  const mx = div(total(xs), frac(BigInt(n)));
+  const my = div(total(ys), frac(BigInt(n)));
+  const sxx = total(xs.map((x) => mul(sub(x, mx), sub(x, mx))));
+  const syy = total(ys.map((y) => mul(sub(y, my), sub(y, my))));
+  const sxy = total(xs.map((x, index) => mul(sub(x, mx), sub(ys[index], my))));
+  // Every x (or y) the same, exactly: there is no r, whatever floating point says.
+  if (sxx.n === 0n || syy.n === 0n) return null;
+  const xBar = shown(mx);
+  const yBar = shown(my);
+  const sXX = shown(sxx);
+  const sYY = shown(syy);
+  const sXY = shown(sxy);
   // The slope and intercept to the 5 places the calculator's equation shows.
-  const [m, b] = [stats.m, stats.b].map((value) => shown(value, 5));
-  const r2 = shown(stats.r ** 2);
+  const slope = div(sxy, sxx);
+  const m = shown(slope, 5);
+  const b = shown(sub(my, mul(slope, mx)), 5);
+  // R² = Sxy² ÷ (Sxx·Syy) is a fraction too; r is exact only when its
+  // printed value squares to R² with the sign of Sxy.
+  const rSquared = div(mul(sxy, sxy), mul(sxx, syy));
+  const r2 = shown(rSquared);
+  const printedR = exactOf(r.rounded);
+  r.exact = same(mul(printedR, printedR), rSquared) && (printedR.n < 0n) === (sxy.n < 0n);
   const line = lineText(m, b);
 
-  const pairs = source.map(([x, y]) => `(${tidy(x)}, ${tidy(y)})`).join(', ');
+  const pairs = source.map(([x, y]) => `(${plain(x)}, ${plain(y)})`).join(', ');
   const exactSubstitution = [xBar, yBar, sXX, sXY, m, b].every((value) => value.exact);
   const slopeWork = exactSubstitution
     ? `m = Sxy ÷ Sxx = ${sXY.text} ÷ ${sXX.text} = ${m.text}`
@@ -144,9 +219,9 @@ const buildReview = (question) => {
     ? `b = ȳ − m·x̄ = ${yBar.text} − ${factor(m)}(${xBar.text}) = ${b.text}`
     : `b = ȳ − m·x̄ ${relation(b)} ${b.text}`;
   const meanPointCheck = exactSubstitution
-    ? `substituting x = ${xBar.text} into ${line} gives ${factor(m)}(${xBar.text}) ${b.value < 0 ? '−' : '+'} ${String(Math.abs(b.value))} = ${yBar.text} = ȳ`
+    ? `substituting x = ${xBar.text} into ${line} gives ${factor(m)}(${xBar.text}) ${b.value < 0 ? '−' : '+'} ${plain(Math.abs(b.value))} = ${yBar.text} = ȳ`
     : 'substituting x = x̄ into y = mx + b gives back ȳ, because b = ȳ − m·x̄';
-  const sign = Math.abs(stats.r) < 1e-12 ? 'zero' : stats.r > 0 ? 'positive' : 'negative';
+  const sign = sxy.n === 0n ? 'zero' : sxy.n > 0n ? 'positive' : 'negative';
 
   const steps = [
     scatterplot

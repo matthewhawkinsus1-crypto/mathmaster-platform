@@ -34,25 +34,43 @@ const solve3x3 = (matrix, vector) => {
   return [a[0][3], a[1][3], a[2][3]];
 };
 
+/*
+ * Least-squares quadratic y = ax² + bx + c.
+ *
+ * The normal equations are solved in u = (x − x̄) ÷ s (s = the largest
+ * |x − x̄|), then expanded back to x. Solved in raw x they are hopeless in
+ * floating point for calendar-year data: Σx⁴ is about 2e14 when x is about
+ * 2000, so 2002…2035 data came back with c off by 0.085 (the grader then
+ * rejected the exact fit a calculator gives) and 1988…1998 data with no
+ * quadratic at all. Centred and scaled, the matrix entries are between 0 and
+ * n, so the singularity test (fewer than three distinct x) is a fixed size.
+ */
 export const quadraticRegression = (points = []) => {
   const clean = points
     .map(([x, y]) => [Number(x), Number(y)])
     .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
   if (clean.length < 3) return null;
 
-  const sx = clean.reduce((s, [x]) => s + x, 0);
-  const sx2 = clean.reduce((s, [x]) => s + x ** 2, 0);
-  const sx3 = clean.reduce((s, [x]) => s + x ** 3, 0);
-  const sx4 = clean.reduce((s, [x]) => s + x ** 4, 0);
-  const sy = clean.reduce((s, [, y]) => s + y, 0);
-  const sxy = clean.reduce((s, [x, y]) => s + x * y, 0);
-  const sx2y = clean.reduce((s, [x, y]) => s + x ** 2 * y, 0);
+  const center = mean(clean.map(([x]) => x));
+  const spread = Math.max(...clean.map(([x]) => Math.abs(x - center)));
+  if (!(spread > 0)) return null;
+  const scaled = clean.map(([x, y]) => [(x - center) / spread, y]);
+  const su = scaled.reduce((s, [u]) => s + u, 0);
+  const su2 = scaled.reduce((s, [u]) => s + u ** 2, 0);
+  const su3 = scaled.reduce((s, [u]) => s + u ** 3, 0);
+  const su4 = scaled.reduce((s, [u]) => s + u ** 4, 0);
+  const sy = scaled.reduce((s, [, y]) => s + y, 0);
+  const suy = scaled.reduce((s, [u, y]) => s + u * y, 0);
+  const su2y = scaled.reduce((s, [u, y]) => s + u ** 2 * y, 0);
   const coeffs = solve3x3(
-    [[sx4, sx3, sx2], [sx3, sx2, sx], [sx2, sx, clean.length]],
-    [sx2y, sxy, sy],
+    [[su4, su3, su2], [su3, su2, su], [su2, su, clean.length]],
+    [su2y, suy, sy],
   );
   if (!coeffs) return null;
-  return { a: coeffs[0], b: coeffs[1], c: coeffs[2] };
+  // y = A·u² + B·u + C with u = (x − x̄) ÷ s, expanded in x.
+  const a = coeffs[0] / spread ** 2;
+  const slope = coeffs[1] / spread;
+  return { a, b: slope - 2 * a * center, c: a * center ** 2 - slope * center + coeffs[2] };
 };
 
 export const exponentialRegression = (points = []) => {
