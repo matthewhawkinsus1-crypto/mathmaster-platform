@@ -325,3 +325,16 @@ test('graphing2: a target no snapped point reaches keeps the line rule, so the q
   // A reachable target keeps the both-points rule (the first test above).
   assert.equal(graph({ mode: 'throughPoints', givenPoints: [[-1, 6], [4, -2]] }, [[-1, 6], [4, -1.5]]).isCorrect, false);
 });
+
+test('graphing2: reachability is judged inside the question\'s own window, not beyond it', () => {
+  // y = 0.01x + 0.25 on the 0.5 grid, drawn on x, y in [-10, 10]: inside the window
+  // y stays in [0.15, 0.35], at least 0.15 from any half-unit, so no snapped point
+  // is on the line there (x = 20 would reach 0.45, but the student cannot plot it).
+  const question = { mode: 'slopeIntercept', line: { m: 0.01, b: 0.25 }, graphBounds: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 } };
+  for (let x = -10; x <= 10; x += 0.5) {
+    const y = 0.01 * x + 0.25;
+    assert.ok(Math.abs(Math.round(y / 0.5) * 0.5 - y) > 0.12, `x = ${x}`);
+  }
+  assert.equal(graph(question, [[-10, 0], [10, 0.5]]).isCorrect, true, 'the nearest constructible line is right, as on main');
+  assert.equal(graph(question, [[-10, 0], [10, 2]]).isCorrect, false, 'a different line is still wrong');
+});

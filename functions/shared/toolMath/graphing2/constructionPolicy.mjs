@@ -96,7 +96,7 @@ export const evaluateConstructionDetail = (points = [], question = {}, target, t
   // two points sharing the constant coordinate); form-aware adds nothing new
   // for either, so both strategies fall back to the legacy grader unchanged.
   if (policy.strategy !== 'formAware' || mode === 'throughPoints' || mode === 'verticalHorizontal') {
-    const requirePointsOnLine = targetReachableOnGrid(target, graphing2SnapStep(question, target), tolerance);
+    const requirePointsOnLine = targetReachableOnGrid(target, graphing2SnapStep(question, target), tolerance, question.graphBounds);
     const { evidence: legacy, coincident } = constructionEvidenceDetail(points, target, tolerance, { requirePointsOnLine });
     return {
       legacy: true,

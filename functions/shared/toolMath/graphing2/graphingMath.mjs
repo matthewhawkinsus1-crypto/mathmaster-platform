@@ -93,20 +93,29 @@ export const graphing2SnapStep = (question = {}, target) => {
   return Number.isInteger(m) && Number.isInteger(b) ? 1 : 0.5;
 };
 
+// The window Graphing2 draws (Graphing2.jsx): the question's graphBounds, else ±7.
+export const GRAPHING2_DEFAULT_BOUNDS = Object.freeze({ xMin: -7, xMax: 7, yMin: -7, yMax: 7 });
+
 /*
- * Whether two distinct snapped points lie ON the target line, at x within
- * ±span. When none do (y = 2.3 on a 0.5 grid), no construction can put both
- * points on the line, and requiring it would leave the question with no
- * correct answer at all.
+ * Whether two distinct snapped points INSIDE the drawn window lie ON the
+ * target line. When none do (y = 2.3 on a 0.5 grid, or y = 0.01x + 0.25 on a
+ * ±10 window), no construction the student can make puts both points on the
+ * line, and requiring it would leave the question with no correct answer.
  */
-export const targetReachableOnGrid = (target, step = 1, tolerance = 0.12, span = 20) => {
+export const targetReachableOnGrid = (target, step = 1, tolerance = 0.12, bounds = GRAPHING2_DEFAULT_BOUNDS) => {
   if (!target || !(step > 0)) return false;
-  if (target.kind === 'vertical') return Math.abs(Math.round(Number(target.x) / step) * step - Number(target.x)) <= tolerance;
+  const { xMin, xMax, yMin, yMax } = { ...GRAPHING2_DEFAULT_BOUNDS, ...(bounds || {}) };
+  const snaps = (value) => Math.abs(Math.round(value / step) * step - value) <= tolerance;
+  if (target.kind === 'vertical') {
+    const x = Number(target.x);
+    return x >= xMin - tolerance && x <= xMax + tolerance && snaps(x);
+  }
   let found = 0;
-  for (let i = Math.ceil(-span / step); i * step <= span; i += 1) {
+  for (let i = Math.ceil(xMin / step); i * step <= xMax; i += 1) {
     const x = i * step;
     const y = Number(target.m) * x + Number(target.b);
-    if (Math.abs(Math.round(y / step) * step - y) <= tolerance) found += 1;
+    const gridY = Math.round(y / step) * step;
+    if (gridY >= yMin && gridY <= yMax && snaps(y)) found += 1;
     if (found >= 2) return true;
   }
   return false;
