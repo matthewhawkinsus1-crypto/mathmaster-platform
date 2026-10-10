@@ -68,3 +68,29 @@ test('CalculatorPanel stores only settled positions when it re-clamps', async ()
   assert.ok(reclamps.length >= 2, 'both re-clamp sites are present');
   for (const site of reclamps) assert.match(site, /settleCalculatorPosition\(current,/);
 });
+
+// The keyboard route for moving the calculator (job H, KEYBOARD_SWEEP S7).
+test('arrow keys move the calculator by a step, Shift by a bigger one, clamped like a drag', async () => {
+  const { nudgeCalculatorPosition, CALCULATOR_KEY_STEP, CALCULATOR_KEY_BIG_STEP } = await import('../../src/components/calculatorPanelGeometry.js');
+  const dims = { panelWidth: 300, panelHeight: 400, viewportWidth: 1000, viewportHeight: 800 };
+  assert.deepEqual(nudgeCalculatorPosition({ x: 100, y: 100 }, { key: 'ArrowRight' }, dims), { x: 100 + CALCULATOR_KEY_STEP, y: 100 });
+  assert.deepEqual(nudgeCalculatorPosition({ x: 100, y: 100 }, { key: 'ArrowUp', shiftKey: true }, dims), { x: 100, y: 8 }, 'Shift+Up: 96px, stopped at the top margin');
+  assert.deepEqual(nudgeCalculatorPosition({ x: 100, y: 300 }, { key: 'ArrowUp', shiftKey: true }, dims), { x: 100, y: 300 - CALCULATOR_KEY_BIG_STEP });
+  assert.deepEqual(nudgeCalculatorPosition({ x: 100, y: 380 }, { key: 'ArrowDown', shiftKey: true }, dims), { x: 100, y: 392 }, 'never past the bottom margin');
+  assert.deepEqual(nudgeCalculatorPosition({ x: 10, y: 100 }, { key: 'ArrowLeft' }, dims), { x: 8, y: 100 }, 'never past the left margin');
+  assert.equal(nudgeCalculatorPosition({ x: 10, y: 100 }, { key: 'Enter' }, dims), null, 'other keys are not moves');
+});
+
+test('Enter on Move calculator visits the four corners in turn, inside the margins', async () => {
+  const { nextCalculatorCorner, calculatorCornerPosition } = await import('../../src/components/calculatorPanelGeometry.js');
+  const dims = { panelWidth: 300, panelHeight: 400, viewportWidth: 1000, viewportHeight: 800 };
+  const seen = [];
+  let corner = 'bottom-right';
+  for (let i = 0; i < 4; i += 1) { corner = nextCalculatorCorner(corner); seen.push([corner, calculatorCornerPosition(corner, dims)]); }
+  assert.deepEqual(seen, [
+    ['bottom-left', { x: 8, y: 392 }],
+    ['top-left', { x: 8, y: 8 }],
+    ['top-right', { x: 692, y: 8 }],
+    ['bottom-right', { x: 692, y: 392 }],
+  ]);
+});

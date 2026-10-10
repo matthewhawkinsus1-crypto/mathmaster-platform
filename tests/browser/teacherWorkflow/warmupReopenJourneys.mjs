@@ -529,9 +529,9 @@ const journeyBridgeCorrupt = async () => {
 
 // "Let's back up" after a wrong Check: the student answers and carries on.
 const answerScaffold = async (page) => {
-  const dialog = page.locator('[role="dialog"][aria-label="Productive struggle scaffold"]');
-  if (await dialog.count()) {
-    await dialog.locator('button', { hasText: 'Yes' }).click();
+  const scaffold = page.locator('[data-scaffold][aria-label="Productive struggle scaffold"]');
+  if (await scaffold.count()) {
+    await scaffold.locator('button', { hasText: 'Yes' }).click();
     await page.waitForTimeout(400 * SLOW_FACTOR);
   }
 };

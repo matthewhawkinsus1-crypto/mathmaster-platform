@@ -67,7 +67,8 @@ test('the review shows the answer once: the key only where the worked solution h
   const item = region(recap, 'function RecapItem(', '\n}\n', 'recap item');
   assert.match(item, /const correct = withheld \|\| review\?\.answerSummary \? \[\] : \(item\.correctAnswer \|\| \[\]\);/);
   assert.match(item, /<PathSolutionReview review=\{review\} wasCorrect=\{false\} \/>/);
-  assert.match(item, /<PathQuestionStimulus stimulus=\{item\.question\?\.stimulus \|\| null\} \/>/);
+  // The recap asks nothing, so its graphs are described in full (job H).
+  assert.match(item, /<PathQuestionStimulus stimulus=\{item\.question\?\.stimulus \|\| null\}(?: describeFeatures)? \/>/);
 });
 
 test('My Math Path keys the container per launch and hands it the week, the launcher and the live mastery', () => {

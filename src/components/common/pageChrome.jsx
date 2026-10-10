@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { MAIN_CONTENT_ID, skipTarget } from './skipTarget.js';
 
 /*
  * PAGE TITLE AND SKIP LINK (WCAG 2.4.2 Page Titled, 2.4.1 Bypass Blocks).
@@ -13,7 +14,9 @@ import React, { useEffect } from 'react';
  * keyboard student does not walk the whole nav on every screen.
  */
 
-export const MAIN_CONTENT_ID = 'mm-main-content';
+// Where the skip link lands is plain DOM logic, kept in a .js module so node
+// tests can run it (node cannot import this .jsx file).
+export { MAIN_CONTENT_ID, skipTarget };
 
 const STUDENT_MODE_TITLES = Object.freeze({
   home: 'Home',
@@ -52,25 +55,6 @@ export const useDocumentTitle = (title) => {
   useEffect(() => {
     if (typeof document !== 'undefined' && title) document.title = title;
   }, [title]);
-};
-
-// Each student screen renders its own navigation INSIDE its content, so the
-// shell's anchor sits before the nav. Land on the first main landmark or
-// heading AFTER the navigation; the anchor is the fallback.
-const NAVIGATION_SELECTOR = 'nav[aria-label="Student navigation"]';
-export const skipTarget = (doc, targetId = MAIN_CONTENT_ID) => {
-  if (!doc) return null;
-  const anchor = doc.getElementById(targetId);
-  const nav = [...doc.querySelectorAll(NAVIGATION_SELECTOR)].find((element) => element.getClientRects().length > 0);
-  if (nav) {
-    const after = [...doc.querySelectorAll('main, [role="main"], h1, h2')].find((element) => (
-      !nav.contains(element)
-      && (nav.compareDocumentPosition(element) & 4) // DOCUMENT_POSITION_FOLLOWING
-      && element.getClientRects().length > 0
-    ));
-    if (after) return after;
-  }
-  return anchor;
 };
 
 /** Visually hidden until focused; moves focus to the main content. */

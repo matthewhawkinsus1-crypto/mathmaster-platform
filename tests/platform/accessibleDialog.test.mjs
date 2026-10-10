@@ -82,13 +82,13 @@ test('Dialog wires the rules to the element and restores focus', () => {
   assert.match(region(source, 'const Dialog = forwardRef', 'export default', 'Dialog'), /<Tag ref=\{setRef\} role=\{role\} aria-modal="true" \{\.\.\.rest\}>/);
 });
 
-// Every aria-modal dialog goes through the primitive. QuestionEngine's is
-// job A's file this wave (handoff: docs/handoffs/STUDENT_PUSH_F_ACCESSIBILITY.md).
+// Every aria-modal dialog goes through the primitive (QuestionEngine's two
+// joined it in wave 2, job H — no allow-list beyond the primitive itself).
 test('no hand-rolled aria-modal outside the primitive', async () => {
   const { readdirSync, statSync } = await import('node:fs');
   const path = await import('node:path');
   const root = new URL('../../src/', import.meta.url).pathname;
-  const allowed = new Set(['ui/Dialog.jsx', 'QuestionEngine.jsx']);
+  const allowed = new Set(['ui/Dialog.jsx']);
   const offenders = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
@@ -182,4 +182,34 @@ test('Work View, the LMR graph, the badge and the Scratchpad still close on Esca
   const pad = tagOf('src/ScratchpadOverlay.jsx', 'aria-label="Full-screen scratchpad"');
   assert.match(pad, /\bonClose=\{requestClose\}/, 'the Scratchpad asks before Escape discards strokes');
   assert.match(pad, /closeOnEscape=\{!saving\}/, 'and only a save in flight holds Escape');
+});
+
+// Wave 2 (job H): the "values have not changed" confirm had no accessible
+// name, no Escape and no initial focus; on the primitive it is named by its
+// heading, Escape = Go Back, and it opens on Go Back (submitting again spends
+// an attempt). The productive-struggle scaffold covers only the work area and
+// is a focused region, not a page-wide modal (see below).
+test('QuestionEngine: the unchanged-values confirm is a Dialog; the scaffold a focused region', () => {
+  const code = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(code, /^import Dialog from '\.\/ui\/Dialog\.jsx';$/m, 'imported next to its use');
+  const confirm = dialogTags(code).find((tag) => tag.includes('aria-labelledby={unchangedConfirmTitleId}')) || '';
+  assert.ok(confirm, 'the confirm is a Dialog named by its heading');
+  assert.match(code, /<h2 id=\{unchangedConfirmTitleId\}[^>]*>Your values have not changed<\/h2>/);
+  assert.match(confirm, /onClose=\{\(\) => setUnchangedConfirmOpen\(false\)\}/, 'Escape = Go Back');
+  assert.doesNotMatch(confirm, /closeOnEscape/);
+  assert.match(confirm, /initialFocusRef=\{unchangedGoBackRef\}/);
+  assert.match(code, /<button ref=\{unchangedGoBackRef\} type="button" onClick=\{\(\) => setUnchangedConfirmOpen\(false\)\}[^>]*>Go Back<\/button>/, 'initial focus is the safe choice');
+  // The scaffold (review of #463): not a page-wide modal — it covers only the
+  // work area, already disabled and inert beneath it — so the support tray,
+  // calculator and navigation stay reachable by Tab. It is a named region that
+  // takes focus when it appears, and closes only by answering.
+  assert.equal(dialogTags(code).some((tag) => tag.includes('Productive struggle scaffold')), false, 'not a Dialog: it must not trap the page');
+  assert.match(code, /<section ref=\{scaffoldRef\} role="region" aria-label="Productive struggle scaffold" data-scaffold=""/);
+  assert.match(code, /if \(!scaffoldRequired\) return undefined;\s*const frame = window\.requestAnimationFrame\(\(\) => scaffoldRef\.current\?\.querySelector\('button'\)\?\.focus\(/, 'focus moves to its first choice');
+  assert.match(code, /inert=\{locked \|\| scaffoldRequired/, 'the work beneath it is inert while it shows');
+  // Review of #463: it opens from Work View's own Submit too, so it is drawn
+  // above Work View (2147483000) and its calculator (2147483400).
+  const z = Number(code.match(/const UNCHANGED_CONFIRM_Z_INDEX = (\d+);/)?.[1]);
+  assert.ok(z > 2147483400, `the confirm sits above Work View and its calculator (${z})`);
+  assert.match(code, /data-unchanged-confirm="" style=\{\{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX,/);
 });

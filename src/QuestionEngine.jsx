@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CHECKPOINT_DEBOUNCE_MS, responseSignature, studentChangedResponse } from './platform/performance/responseCheckpoint.js';
 import GraphLine from './GraphLine';
 import NumberLine from './NumberLine';
@@ -61,6 +61,13 @@ import { buildModelingLabResponse, gradeModelingLabEvaluation } from '../functio
 import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } from './tools/shared/usePersistentToolState.js';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
+import Dialog from './ui/Dialog.jsx';
+
+// The "values have not changed" confirm can open from Work View's own Submit,
+// so it must sit above Work View (2147483000, WorkViewShell.css) and its
+// floating calculator (2147483400): at 12000 it opened BEHIND Work View and
+// took focus there, invisible (review of #463).
+const UNCHANGED_CONFIRM_Z_INDEX = 2147483450;
 import QuestionModuleBoundary from './QuestionModuleBoundary';
 import QuestionResolutionBoundary, { QuestionResolutionFailure, questionFailureContext, recordQuestionResolutionDiagnostic } from './QuestionResolutionBoundary';
 import QuestionSupplementBoundary from './QuestionSupplementBoundary';
@@ -90,6 +97,7 @@ import CalculatorIcon from './components/common/CalculatorIcon.jsx';
 import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { useRenderPerformance } from './platform/performance/useRenderPerformance.js';
 import { useActiveWorkTab } from './platform/persistence/activeWorkTab.js';
+import { pausedWorkNeedsRefresh, recordAttemptRevision } from './platform/persistence/pausedWorkRefresh.js';
 import { StudentSupportTray } from './components/student/StudentSupportTools.jsx';
 import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
@@ -165,6 +173,15 @@ const useDeepStableValue = (value) => {
 // (platform/language/speechText.js — the same reader My Math Path uses).
 // True only when the browser actually spoke.
 const speakText = (text, language = 'en') => Boolean(text) && speakAloud(text, { language });
+
+// "Next question →" and "Continue to Unit 2 →" did not fit the phone's one-row
+// bar beside the icon tools: "Next quest…" at 390px (release-candidate QA m8).
+// The middle words sit in the span a phone hides, so the bar shows "Next →" /
+// "Continue →"; the button's aria-label keeps the whole label everywhere.
+const barActionLabel = (label) => {
+  const parts = /^(\S+)( .+)( →)$/.exec(label);
+  return parts ? <>{parts[1]}<span className="mathmaster-action-label-long">{parts[2]}</span>{parts[3]}</> : label;
+};
 
 function QuestionEngineBody({
   question,
@@ -487,6 +504,11 @@ function QuestionEngineBody({
   const [scratchpadDataUrl, setScratchpadDataUrl] = useState('');
   const [scratchpadPages, setScratchpadPages] = useState(null);
   const [unchangedConfirmOpen, setUnchangedConfirmOpen] = useState(false);
+  // The "values have not changed" confirm: named by its heading, opens on
+  // Go Back (the safe choice), Escape = Go Back, focus returns to Submit.
+  const unchangedConfirmTitleId = useId();
+  const unchangedGoBackRef = useRef(null);
+  const scaffoldRef = useRef(null);
   // HELP ALREADY HAD ON THIS VERSION OF THE QUESTION SURVIVES A REMOUNT
   // (supportUseMemory.js): App remounts the question per index, and a hint
   // revealed before leaving must still mark the next attempt as supported.
@@ -697,6 +719,21 @@ function QuestionEngineBody({
   // until the student chooses to continue here, which reloads the latest work.
   const activeWorkTab = useActiveWorkTab(executionScope === 'student' && draftKey ? draftKey : null);
   const pausedByAnotherTab = activeWorkTab.paused;
+  // A new attempt on the record while this tab is paused came from the tab in
+  // charge (pausedWorkRefresh.js). Drop the work held here — it is never
+  // saved — and re-read the saved work, as "Continue here" does, so a verdict
+  // that arrives is shown over the answer it was recorded for and never over
+  // this tab's unsubmitted one. The question stays paused.
+  const recordRevision = recordAttemptRevision(record);
+  const seenRecordRevisionRef = useRef({ scope: draftKey, revision: recordRevision });
+  useEffect(() => {
+    const previous = seenRecordRevisionRef.current;
+    const next = { scope: draftKey, revision: recordRevision };
+    seenRecordRevisionRef.current = next;
+    if (!pausedWorkNeedsRefresh({ paused: pausedByAnotherTab, previous, next })) return;
+    setAnswerState(EMPTY_ANSWER_STATE);
+    setQuestionResetVersion((current) => current + 1);
+  }, [draftKey, recordRevision, pausedByAnotherTab]);
   const responseAlreadySubmitted = Boolean(answerState.responseKey)
     && (answerState.responseKey === lastSubmittedResponseKey
       || answerState.responseKey === record.lastResponseKey);
@@ -789,6 +826,12 @@ function QuestionEngineBody({
 
   const isMultipart = MULTIPART_TYPES.has(processedQuestion?.type) || (answerState.parts || []).length > 1;
   const scaffoldRequired = Boolean(resolvedActivityPolicy?.remediationAllowed !== false && supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
+  // The scaffold appears in place of the work: take the student to it.
+  useEffect(() => {
+    if (!scaffoldRequired) return undefined;
+    const frame = window.requestAnimationFrame(() => scaffoldRef.current?.querySelector('button')?.focus({ preventScroll: false }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [scaffoldRequired]);
   const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
   const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
@@ -2332,6 +2375,46 @@ function QuestionEngineBody({
         data-algebra-engine={algebraWorkspaceRoute.engine || undefined}
         style={{ position: 'relative' }}
       >
+        {/* THE CLOSED QUESTION'S VERDICT SITS IN THE FLOW, BESIDE THE OPENER.
+            It used to float over the top-right corner (absolute, top 12 right
+            12) — on "⤢ Enlarge question" and on the "Complete Each Part"
+            heading at 1366x768 and 390x844 (release-candidate QA m7). Now it is
+            the first row of the work: it stops short of the opener
+            (--mm-work-view-opener-space, published by EnlargeableFigure) and
+            the row is at least as tall as the opener's bottom edge, so nothing
+            below it starts under the button either. Still shown only once the
+            question is closed and outcome feedback is allowed. */}
+        {isExpired && showOutcomeFeedback && (
+          <div
+            className="mathmaster-closed-verdict-row"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              minHeight: 'var(--mm-work-view-opener-bottom, 0px)',
+              marginRight: 'var(--mm-work-view-opener-space, 0px)',
+              marginBottom: '8px',
+            }}
+          >
+            <div
+              aria-label={expiredAlmost ? 'Almost' : 'Incorrect'}
+              role="status"
+              className="mathmaster-closed-verdict"
+              style={{
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                padding: '8px 12px',
+                borderRadius: '999px',
+                border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`,
+                background: expiredAlmost ? 'rgba(255,248,225,0.96)' : 'rgba(252,232,230,0.96)',
+                color: expiredAlmost ? 'var(--mm-warning-text)' : 'var(--mm-error-text)',
+                fontWeight: 900,
+                boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
+              }}
+            >
+              {expiredAlmost ? 'Almost' : 'Incorrect'}{reviewAvailable && feedbackOpen ? ' — review below' : ''}
+            </div>
+          </div>
+        )}
         {!solverWorkspaceActive && guidedCoach}
         {/* Inside the work area, not after the question container: on a
             phone that container is a fixed full-height box and anything after
@@ -2398,7 +2481,13 @@ function QuestionEngineBody({
         )}
 
         {scaffoldRequired && (
-          <div role="dialog" aria-modal="true" aria-label="Productive struggle scaffold" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
+          // Not a page-wide modal (review of #463): it covers only the work
+          // area, which is already disabled and inert beneath it, so Tab still
+          // reaches the support tray (Read aloud, Translate), the calculator
+          // and navigation — the tools the inclusion students who see it rely
+          // on. Focus moves to its first choice when it appears; it closes
+          // only by choosing the right step (no attempt spent).
+          <section ref={scaffoldRef} role="region" aria-label="Productive struggle scaffold" data-scaffold="" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
             <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
               <div style={{ fontSize: '12px', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
               <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}>{scaffold.prompt}</h2>
@@ -2409,7 +2498,7 @@ function QuestionEngineBody({
               </div>
               {scaffoldMessage && <p style={{ margin: '14px 0 0', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>{scaffoldMessage}</p>}
             </div>
-          </div>
+          </section>
         )}
 
         {isCorrect && showOutcomeFeedback && (
@@ -2421,28 +2510,6 @@ function QuestionEngineBody({
           </div>
         )}
 
-        {isExpired && showOutcomeFeedback && (
-          <div
-            aria-label={expiredAlmost ? 'Almost' : 'Incorrect'}
-            role="status"
-            style={{
-              position: 'absolute',
-              top: '12px',
-              right: '12px',
-              zIndex: 30,
-              pointerEvents: 'none',
-              padding: '8px 12px',
-              borderRadius: '999px',
-              border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`,
-              background: expiredAlmost ? 'rgba(255,248,225,0.96)' : 'rgba(252,232,230,0.96)',
-              color: expiredAlmost ? 'var(--mm-warning-text)' : 'var(--mm-error-text)',
-              fontWeight: 900,
-              boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
-            }}
-          >
-            {expiredAlmost ? 'Almost' : 'Incorrect'}{reviewAvailable && feedbackOpen ? ' — review below' : ''}
-          </div>
-        )}
       </div>
       </EnlargeableFigure>
       </WorkViewCapabilityProvider>
@@ -2466,9 +2533,10 @@ function QuestionEngineBody({
           type="button"
           className="mathmaster-bar-continue"
           onClick={barContinueAction.onClick}
+          aria-label={barContinueAction.label}
           style={{ minHeight: '44px', padding: '12px 20px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: '#1a73e8', color: 'white', cursor: 'pointer', boxShadow: '0 4px 6px rgba(26, 115, 232, 0.2)', whiteSpace: 'nowrap' }}
         >
-          {barContinueAction.label}
+          {barActionLabel(barContinueAction.label)}
         </button>
         ) : null}
       />
@@ -2628,15 +2696,15 @@ function QuestionEngineBody({
       )}
 
       {unchangedConfirmOpen && (
-        <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 12000, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div role="dialog" aria-modal="true" style={{ width: 'min(520px, 94vw)', padding: '24px', borderRadius: '14px', background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', textAlign: 'left' }}>
-            <h2 style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Your values have not changed</h2>
+        <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} data-unchanged-confirm="" style={{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <Dialog aria-labelledby={unchangedConfirmTitleId} onClose={() => setUnchangedConfirmOpen(false)} initialFocusRef={unchangedGoBackRef} style={{ width: 'min(520px, 94vw)', padding: '24px', borderRadius: '14px', background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', textAlign: 'left' }}>
+            <h2 id={unchangedConfirmTitleId} style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Your values have not changed</h2>
             <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>This multipart response is identical to the previous submission. You may still use another attempt with the same values. Continue submitting?</p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-              <button type="button" onClick={() => setUnchangedConfirmOpen(false)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 'bold' }}>Go Back</button>
+              <button ref={unchangedGoBackRef} type="button" onClick={() => setUnchangedConfirmOpen(false)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 'bold' }}>Go Back</button>
               <button type="button" onClick={performSubmit} style={{ padding: '10px 15px', borderRadius: '8px', border: 'none', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Submit Unchanged Values</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 

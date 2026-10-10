@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CalculatorPanel from '../CalculatorPanel.jsx';
 import ProblemUnderstandingPanel from '../ProblemUnderstandingPanel.jsx';
 import QuestionEngine from '../../QuestionEngine.jsx';
+import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import QuestionPrompt from '../../QuestionPrompt.jsx';
 import MathText from '../common/MathText.jsx';
 import PathResponseFields, { pathResponseComplete } from './PathResponseFields.jsx';
@@ -11,7 +12,7 @@ import { getEffectiveActivityPolicy } from '../../platform/policies/activityPoli
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
 import PathSupportBar, { speechTextFor, supportPresentationStyle } from './PathSupportBar.jsx';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
-import { foldPathDelivery, toolsEntitlementFromPath } from '../../platform/language/supportToolsEntitlement.js';
+import { foldPathDelivery, pathUniversalDesignRole, toolsEntitlementFromPath } from '../../platform/language/supportToolsEntitlement.js';
 import { describeSkill, teksSkillId } from '../../platform/path/skillGraph.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
 import StandardBadge from '../common/StandardBadge.jsx';
@@ -328,6 +329,9 @@ export const PathSessionPlayer = ({
   const [supportDelivery, setSupportDelivery] = useState({ presented: [], used: [] });
   const feedbackRef = useRef(null);
   const workspaceRef = useRef(null);
+  // The Path has the sticky action bar but not the assignment screen's
+  // scroll-padding: Tab must not park a control under it (S5, job H).
+  useActionBarFocusReveal(workspaceRef);
 
   const instanceId = questionInstance?.questionInstanceId || '';
   const activityRole = questionInstance?.activityRole || 'practice';
@@ -366,9 +370,13 @@ export const PathSessionPlayer = ({
   // keyed to this question instance, so one question's facts never ride on
   // the next.
   const supportLanguage = questionInstance?.supportLanguage || null;
+  // Vocabulary and Read aloud for every student in an ordinary practice
+  // session (universal design, as on assignments); null — nothing extra — on a
+  // retention check, exam-framework practice or a diagnostic item.
+  const universalDesignRole = pathUniversalDesignRole({ session, questionInstance, assessmentFramework });
   const engineSupportTools = useMemo(
-    () => toolsEntitlementFromPath({ applicableSupports, translationLanguage: supportLanguage }),
-    [applicableSupports, supportLanguage],
+    () => toolsEntitlementFromPath({ applicableSupports, translationLanguage: supportLanguage, activityRole: universalDesignRole }),
+    [applicableSupports, supportLanguage, universalDesignRole],
   );
   const [engineDelivery, setEngineDelivery] = useState({ key: '', presented: [], used: [] });
   const onEngineSupportEvidence = useCallback((record) => {
@@ -637,6 +645,7 @@ export const PathSessionPlayer = ({
           prompt={questionInstance?.prompt || ''}
           toolType={questionInstance?.pathToolId || questionInstance?.questionType || ''}
           supportLanguage={supportLanguage}
+          universalDesignRole={universalDesignRole}
         />
 
         {questionInstance.isDevelopmentSandbox && (

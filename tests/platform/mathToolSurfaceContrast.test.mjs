@@ -29,7 +29,6 @@ const declaration = (file, selector, property) => {
 const surfaces = [
   ['src/StepByStepAlgebra.css', '.algebra-live-math-preview.is-staged', '--mm-text-strong'],
   ['src/StepByStepAlgebra.css', '.algebra-structure-token-group', '--mm-text-strong'],
-  ['src/components/common/SolverWorkspaceFrame.css', '.solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-modebar', '--mm-text'],
   ['src/tools/systemsWorkspace/AlgebraicSystemMode.css', '.mathmaster-elim-round.is-complete', '--mm-text-strong'],
   ['src/tools/regressionCalculator/RegressionCalculator.css', '.regression-notice', '--mm-text'],
 ];

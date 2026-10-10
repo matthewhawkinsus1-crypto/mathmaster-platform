@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import QuestionEngineView from '../../QuestionEngine.jsx';
+import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { getScoringStrategy, leaderboardOptionsFor, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
@@ -98,7 +99,10 @@ function QuestionEngine(props) {
   const pathToolId = serverGrading?.pathToolId;
   const recordStatus = questionRecord?.status;
   const recordAttempts = questionRecord?.attemptCount;
-  return useMemo(() => (
+  // Tab must not park a control under the sticky action bar (S5, job H).
+  const hostRef = useRef(null);
+  useActionBarFocusReveal(hostRef);
+  const engine = useMemo(() => (
     <QuestionEngineView
       question={question}
       questionRecord={{ status: recordStatus, attemptCount: recordAttempts }}
@@ -114,6 +118,7 @@ function QuestionEngine(props) {
       onGrade={handlers.onGrade}
     />
   ), [question, recordStatus, recordAttempts, studentProfile, attemptsDoNotExpire, activityRole, assignmentLocked, assignmentLockedMessage, draftKey, pathToolId, handlers]);
+  return <div ref={hostRef} data-live-challenge-engine="" style={{ display: 'contents' }}>{engine}</div>;
 }
 
 /*
@@ -425,9 +430,9 @@ export function ChallengeRound({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.18)', fontWeight: 900, fontSize: 13 }}>{alias}</span>
+            <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(0,0,0,.2)', fontWeight: 900, fontSize: 13 }}>{alias}</span>
             <span style={{ fontWeight: 900, fontSize: 15 }}>{room.secondChanceOf != null ? `FINAL ROUND ${roundIndex - Number(room.scheduledRoundCount || room.roundCount) + 1}` : `Round ${roundIndex + 1} of ${room.roundCount}`}</span>
-            <span style={{ opacity: .82, fontSize: 13 }}>{question?.teksCode || 'Mixed review'}</span>
+            <span style={{ fontSize: 13 }}>{question?.teksCode || 'Mixed review'}</span>
             {/* Only once the question is on screen: reading it during the
                 countdown would hand this student a head start. */}
             {readAloud && roundStarted && promptText && (
@@ -435,13 +440,14 @@ export function ChallengeRound({
                 type="button"
                 data-mm-read-aloud="1"
                 onClick={() => speakAloud(promptText)}
-                style={{ minHeight: 44, padding: '6px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.45)', background: 'rgba(255,255,255,.14)', color: '#fff', fontWeight: 900, cursor: 'pointer' }}
+                style={{ minHeight: 44, padding: '6px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.45)', background: 'rgba(0,0,0,.2)', color: '#fff', fontWeight: 900, cursor: 'pointer' }}
               >
                 <span aria-hidden="true">🔊 </span>Read aloud
               </button>
             )}
           </div>
           <div
+            role="timer"
             aria-label={roundStarted ? `${Math.ceil(remainingMs / 1000)} seconds left` : `Round starts in ${Math.ceil(startsInMs / 1000)} seconds`}
             style={{
               fontSize: 40,
