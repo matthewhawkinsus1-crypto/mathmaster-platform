@@ -203,4 +203,9 @@ test('QuestionEngine: the unchanged-values confirm and the scaffold are Dialogs'
   const scaffold = dialogTags(code).find((tag) => tag.includes('aria-label="Productive struggle scaffold"')) || '';
   assert.ok(scaffold, 'the scaffold is a Dialog');
   assert.doesNotMatch(scaffold, /onClose=/, 'the scaffold cannot be dismissed without answering');
+  // Review of #463: it opens from Work View's own Submit too, so it is drawn
+  // above Work View (2147483000) and its calculator (2147483400).
+  const z = Number(code.match(/const UNCHANGED_CONFIRM_Z_INDEX = (\d+);/)?.[1]);
+  assert.ok(z > 2147483400, `the confirm sits above Work View and its calculator (${z})`);
+  assert.match(code, /data-unchanged-confirm="" style=\{\{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX,/);
 });

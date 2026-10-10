@@ -62,6 +62,12 @@ import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } fr
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
 import Dialog from './ui/Dialog.jsx';
+
+// The "values have not changed" confirm can open from Work View's own Submit,
+// so it must sit above Work View (2147483000, WorkViewShell.css) and its
+// floating calculator (2147483400): at 12000 it opened BEHIND Work View and
+// took focus there, invisible (review of #463).
+const UNCHANGED_CONFIRM_Z_INDEX = 2147483450;
 import QuestionModuleBoundary from './QuestionModuleBoundary';
 import QuestionResolutionBoundary, { QuestionResolutionFailure, questionFailureContext, recordQuestionResolutionDiagnostic } from './QuestionResolutionBoundary';
 import QuestionSupplementBoundary from './QuestionSupplementBoundary';
@@ -2679,7 +2685,7 @@ function QuestionEngineBody({
       )}
 
       {unchangedConfirmOpen && (
-        <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 12000, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} data-unchanged-confirm="" style={{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <Dialog aria-labelledby={unchangedConfirmTitleId} onClose={() => setUnchangedConfirmOpen(false)} initialFocusRef={unchangedGoBackRef} style={{ width: 'min(520px, 94vw)', padding: '24px', borderRadius: '14px', background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', textAlign: 'left' }}>
             <h2 id={unchangedConfirmTitleId} style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Your values have not changed</h2>
             <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>This multipart response is identical to the previous submission. You may still use another attempt with the same values. Continue submitting?</p>
