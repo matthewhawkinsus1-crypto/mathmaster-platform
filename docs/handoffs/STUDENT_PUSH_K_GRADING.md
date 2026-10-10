@@ -79,7 +79,7 @@ displayed step was parsed back out and recomputed, and the stated answer was gra
 | --- | --- | --- |
 | d18fc0e | V5 assignments: DOL1, Algebra 2 Honors module 1, DOL2 draft and secure seed, the demo bank, six docs/assignments lessons. About 13,900 spellings. | 15 demo "Solve ax + b = c" items re-drew a, b and c at runtime and graded an equation the student never saw. The DOL2 review's intercepts compared text, so `(-3.0, 0)` was wrong. |
 | 669ff02, 3ce25e0 | School Path banks: grade 6–8, Algebra I and II, 1,161 families | Generated choice items could serve two identical options, or a distractor worth exactly the key, so the right answer was graded wrong. The exhaustive parameter scan found 10 families. Commuted factors, chained compound inequalities and reordered formulas are now accepted alternates. The fixes went into the certified sources (`drafts/fidelity-v2`, `drafts/grade{6,7,8}.json`). The mirrors and the course Path release were regenerated with the repo's builders. |
-| 8de804c | CCMR: ACT, ASVAB, Digital SAT, TSIA2, 2,176 families | Six ASVAB families could draw a second right answer; each is now constrained out. |
+| 8de804c, ASVAB parity commit | CCMR: ACT, ASVAB, Digital SAT, TSIA2, 2,176 families | Six ASVAB families could draw a second right answer; each is now constrained out. The constraints live in `drafts/asvab-{ar,mk}.json`, the sources `scripts/build-asvab-bank.mjs` builds from. `--check` and `tests/platform/kSweep_asvabSourceParity.test.mjs` pin that the committed seeds are exactly what the drafts build. |
 
 ### Items 2 and 4: read-only reports
 
@@ -192,8 +192,41 @@ entry point. The targets this branch needs:
    (3ce25e0). `release-firebase.mjs` handles path-admin after functions. The new item constraints apply to newly
    issued items only.
 3. **Hosting**, through the resilient wrapper: the compiler, builders, families and calculator are client code.
-4. **No firestore:rules change, no indexes, no migration.** The two reports are one-off, read-only scripts for the
+   **Deploy functions and Hosting back to back, outside class hours.** The page never reloads itself
+   (`buildFreshness.js`), and the screen draws from the same code the server grades with. So a tab opened before the
+   deploy can be graded on a different problem than it shows:
+   - it draws a sequence with difference 1 while the server grades `commonDifference` 3;
+   - it hides the inverse box of a question-level-branch parabola while the server now requires it, and expects
+     restriction `right` where `required` was right before.
+4. **Admin actions after Hosting: these put the bank fixes in front of students.** My Math Path serves from the
+   Firestore `pathQuestionBank` collection, and bundled seeds reach it only through these root-admin actions. Without
+   them, students keep getting the old items; for example, the ASVAB item that can draw a second right answer keeps
+   marking that answer wrong.
+   - **School Path banks** (grades 6–8, Algebra I and II): "Publish certified course Path release" in the Path admin
+     (`publishCoursePathReleaseV2`, docs/PATH_RELEASE_V2.md step 6). Publish the release id that
+     `npm run release:path:build` reports on the merged commit. J's #469 publishes `course-path-v2-485a9d98e2287892`,
+     and K's content changes that id again once main is merged.
+   - **Digital SAT and TSIA2:** the union-overlap answers and the two prompt fixes need `refreshReleasedCcmrPathBanks`
+     (docs/ccmr-v2-1-release-runbook.md step 4).
+   - **ASVAB, the six second-right-answer families:** `refreshReleasedAsvabPathBank`, the "Refresh ASVAB release"
+     button in Path coverage.
+5. **No firestore:rules change, no indexes, no migration.** The two reports are one-off, read-only scripts for the
    owner (above).
+
+### What students and teachers will notice after deploy
+
+- **An already-graded '≥' sign-chart item.** Its closed review now shows the corrected solution, while the stored
+  verdict still says "You got this one", until a teacher re-grades. The classroom re-grade report lists those attempts.
+- **Representation Bridge general form.** It now rejects `y = x*2 - 4`, `y = (x)(2) - 4`, `y = -(x - 4)` and
+  `y = x*(-1) + 4`, which were accepted before, as stepAlgebra2's rewrite does. These are not written as mx + b. This
+  is deliberate, and the re-grade report covers it.
+- **Re-importing District DOL1.** The weight of its 3 sequence items changes from 1.5 to 1.75 (workload units
+  2.5 → 3), because they are now answer-field items.
+- **complexPlaneLab.** Legacy spellings of multiplication (`multiplication`, `product`, `Multiply`, `times`) grade as
+  multiplication, as the screen shows them. Any other unknown operation, such as `divide`, is an invalid question,
+  never a verdict.
+- **graphing2.** Both plotted points must be on the target line. The exception is a target that no snapped point
+  inside the question's own window reaches: there the line rule is kept, so the question still has a right answer.
 
 ## Files outside lane K (each a small, local edit)
 
