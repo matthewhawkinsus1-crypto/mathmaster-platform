@@ -21,7 +21,7 @@ pinned by a test that fails without the fix.
 | 6de1a12 | CI fix: Recovery practice shows "nothing left" at once (no wait on the server deal) |
 | 3e43c11 | Families: transformations and quadraticsAbsoluteValue; feedbackTeaches driver extended and put in CI (item 1) |
 | 7e3d6fd | A2.2A/A2.2C templates widened; withheld by mathematics as well as by count (item 2) |
-| (this commit) | Family: dataAndModels; this handoff (item 1) |
+| 3c75d23 | Family: dataAndModels; this handoff (item 1) |
 
 ## 1. The three families
 
