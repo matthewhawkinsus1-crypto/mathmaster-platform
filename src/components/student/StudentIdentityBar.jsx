@@ -109,9 +109,11 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
               type="button"
               onClick={handleLogoutPress}
               aria-haspopup={logoutRisk ? 'dialog' : undefined}
-              // A 44px-tall target (WCAG 2.5.5 / job H) that eats the bar's
-              // own 7px padding, so the bar stays one line, 44px tall.
-              style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, minWidth: 44, margin: '-7px 0', padding: '0 4px', border: 0, background: 'transparent', color: '#fff', font: 'inherit', fontWeight: 900, textDecoration: 'underline', cursor: 'pointer', whiteSpace: 'nowrap', boxSizing: 'border-box' }}
+              // A 44px-tall target (WCAG 2.5.5 / job H) whose negative
+              // margin takes no more layout height than the bar's 24px line:
+              // the bar stays 38px (PQ-021), and the target reaches 3px past
+              // its padding at top and bottom.
+              style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, minWidth: 44, margin: '-10px 0', padding: '0 4px', border: 0, background: 'transparent', color: '#fff', font: 'inherit', fontWeight: 900, textDecoration: 'underline', cursor: 'pointer', whiteSpace: 'nowrap', boxSizing: 'border-box' }}
             >
               Log Out
             </button>

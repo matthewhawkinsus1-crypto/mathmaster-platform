@@ -15,7 +15,7 @@ test('Log Out is a 44px target that keeps the bar one line', () => {
   assert.ok(button, 'the Log Out button');
   assert.match(button, /minHeight: 44/);
   assert.match(button, /minWidth: 44/);
-  assert.match(button, /margin: '-7px 0'/, 'it takes the bar\'s own 7px padding instead of growing the bar past 44px');
+  assert.match(button, /margin: '-10px 0'/, 'it takes no more layout height than the bar\'s 24px line, so the bar stays 38px (PQ-021)');
 });
 
 test('"0 missing" is neutral; only a real missing count is red', () => {

@@ -216,7 +216,7 @@ if (CHECKS.has('targets')) {
     const bar = await page.locator('aside.mm-identity-bar').first().boundingBox();
     console.log(`targets ${setting.id}: Log Out ${Math.round(box?.width)}×${Math.round(box?.height)}, identity bar ${Math.round(bar?.height)}px`);
     if (!box || box.height < 44 || box.width < 44) failures.push(`${setting.id}: Log Out is ${box?.width}×${box?.height}, under 44px`);
-    if (bar && bar.height > 46) failures.push(`${setting.id}: the identity bar grew to ${bar.height}px`);
+    if (bar && bar.height > 40) failures.push(`${setting.id}: the identity bar grew to ${bar.height}px (PQ-021: one line, at most 40px)`);
     await context.close();
   }
 }
