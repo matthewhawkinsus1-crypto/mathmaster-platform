@@ -16,8 +16,9 @@ import { isUnpublishedDraft } from '../assignments/assignmentAvailability.js';
  * It is NOT an inbox. Nothing here writes to the server, and nothing here can
  * carry a free-form teacher sentence: every line of text is built from a fixed
  * template, a title and a date. The override records on the student-readable
- * grades document are deliberately free of teacher identity, but an integrity
- * zero carries `note` and `actor` beside its fixed `reason` — this module reads
+ * grades document are deliberately free of teacher identity (an integrity
+ * zero's `note`, `actor` and `participantRole` live only on the teacher-only
+ * incident, functions/shared/integrityOverridePrivacy.mjs) — this module reads
  * the fields it names (`reason`, `at`, `updatedAt`, `score`, `active`,
  * `source`, `sectionRole`, `incidentId`) and never spreads a record, so a note
  * or a teacher's email cannot reach the student's screen through it.

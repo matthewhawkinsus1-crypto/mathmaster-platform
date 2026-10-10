@@ -196,9 +196,18 @@ export const runIntegrityOverrideNoteMigration = async ({
   counts.gradeDocsScanned = snapshot.size;
   for (const doc of snapshot.docs) {
     const gradeData = doc.data() || {};
-    // eslint-disable-next-line no-await-in-loop
-    const plan = await planStudent({ db, read: (refs) => db.getAll(...refs), studentId: doc.id, gradeData, nowIso });
-    assertPlanKeepsGrades(gradeData, plan);
+    // One malformed document is reported and left untouched; it never stops
+    // the run for every other student.
+    let plan;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      plan = await planStudent({ db, read: (refs) => db.getAll(...refs), studentId: doc.id, gradeData, nowIso });
+      assertPlanKeepsGrades(gradeData, plan);
+    } catch (error) {
+      counts.unresolved += 1;
+      unresolved.push({ studentId: doc.id, reason: 'plan-refused', message: String(error?.message || error).slice(0, 200) });
+      continue;
+    }
     if (plan.assignments.length) {
       counts.gradeDocsToChange += 1;
       planned.push(doc.id);
@@ -215,7 +224,7 @@ export const runIntegrityOverrideNoteMigration = async ({
     return report;
   }
 
-  const execution = { applied: 0, unchanged: 0, missing: 0 };
+  const execution = { applied: 0, unchanged: 0, missing: 0, refused: 0 };
   for (const studentId of planned) {
     const gradeRef = db.collection(GRADES_COLLECTION).doc(studentId);
     // eslint-disable-next-line no-await-in-loop
@@ -226,7 +235,11 @@ export const runIntegrityOverrideNoteMigration = async ({
       const plan = await planStudent({
         db, read: (refs) => transaction.getAll(...refs), studentId, gradeData, nowIso,
       });
-      assertPlanKeepsGrades(gradeData, plan);
+      try {
+        assertPlanKeepsGrades(gradeData, plan);
+      } catch {
+        return 'refused';
+      }
       if (!plan.assignments.length) return 'unchanged';
       // Teacher-only copy first, in the same transaction as the strip.
       plan.incidentWrites.forEach((write) => {

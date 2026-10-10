@@ -296,7 +296,7 @@ test('a dry run writes nothing; --execute strips the grade doc and fills the inc
 
   const live = fakeDb(docs);
   const executed = await runIntegrityOverrideNoteMigration({ db: live, FieldPath: FakeFieldPath, mode: 'execute', actor: 'ops@example.test', now: () => NOW });
-  assert.deepEqual(executed.execution, { applied: 1, unchanged: 0, missing: 0 });
+  assert.deepEqual(executed.execution, { applied: 1, unchanged: 0, missing: 0, refused: 0 });
   assert.deepEqual(teacherOnlyKeysIn(live.store['grades/S1']), []);
   assert.equal(live.store['grades/S1'].teacherGradeOverridesByAssignment.A1.__assignment.score, 0);
   assert.deepEqual(live.store['studentSupportEvents/inc-a'].actor, { uid: 'uid-teacher', email: 'teacher@example.test', name: 'Ms. Teacher' });
@@ -306,4 +306,20 @@ test('a dry run writes nothing; --execute strips the grade doc and fills the inc
   const rerun = await runIntegrityOverrideNoteMigration({ db: live, FieldPath: FakeFieldPath, mode: 'execute', actor: 'ops@example.test', now: () => NOW });
   assert.equal(rerun.counts.gradeDocsToChange, 0);
   assert.equal(live.writes.length, writesBefore, 'nothing is written the second time');
+});
+
+test('one malformed grade doc is reported and skipped; every other student is still migrated', async () => {
+  // Verify lane, integrity: a numeric incidentId made the grade guard throw
+  // and stopped the whole run.
+  const docs = {
+    'grades/S1': { teacherGradeOverridesByAssignment: { A1: { __assignment: legacyAssignmentZero() } } },
+    'grades/S0': { assignedTeacherEmail: 'teacher@example.test', teacherGradeOverridesByAssignment: { A1: { __assignment: { active: true, score: 0, note: 'n', incidentId: 123 } } } },
+    'studentSupportEvents/inc-a': incidentAsWritten(),
+  };
+  const live = fakeDb(docs);
+  const executed = await runIntegrityOverrideNoteMigration({ db: live, FieldPath: FakeFieldPath, mode: 'execute', actor: 'ops@example.test', listIds: true, now: () => NOW });
+  assert.equal(executed.execution.applied, 1);
+  assert.deepEqual(teacherOnlyKeysIn(live.store['grades/S1']), []);
+  assert.deepEqual(live.store['grades/S0'], docs['grades/S0'], 'the malformed doc is untouched');
+  assert.ok(executed.ids.unresolved.some((entry) => entry.studentId === 'S0' && entry.reason === 'plan-refused'));
 });
