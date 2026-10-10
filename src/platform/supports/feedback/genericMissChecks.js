@@ -1,7 +1,9 @@
 /*
  * CHEAP, GENERIC CHECKS FOR A MISS NO CLASSIFIER EXPLAINS.
  *
- *   genericMissCheck({ student, expected }) → { check, message } | null
+ *   genericMissCheck({ student, expected, open }) → { check, message } | null
+ *
+ * Null while `open` (the default): see below.
  *
  * `student` and `expected` are one answer each: a number (or numeric text,
  * fractions included) or an ordered pair. The checks, in order:
@@ -14,16 +16,18 @@
  * Each message names the likely error and NEVER the answer: they are fixed
  * text, and no number from the question reaches them.
  *
- * WHILE THE ITEM CAN STILL BE ANSWERED, THE MESSAGE NAMES NO TRANSFORMATION.
- * Every check here relates the student's own answer to the key by one move —
- * negate it, invert it, swap it, reduce it — so naming the move hands over the
- * answer: −4x + 8 = 36 with 7 typed, "the opposite sign" is −7 (PR #462
- * review M6b). With attempts left the student gets GENERIC_MISS_MESSAGES_OPEN,
- * which say where to look and how to check, never which move; the named
- * error (GENERIC_MISS_MESSAGES) only once the item has closed. DISPLAY ONLY — nothing
- * here is stored, sent with the attempt or read by grading, and a check can
- * only describe work the grader already marked wrong (the caller decides
- * that; a correct answer is never checked).
+ * ONLY ONCE THE ITEM HAS CLOSED. Every check here relates the student's own
+ * answer to the key by one move — negate it, invert it, swap it, reduce it —
+ * so naming the move hands over the answer: −4x + 8 = 36 with 7 typed, "the
+ * opposite sign" is −7 (PR #462 review M6b). A different sentence per check
+ * does the same thing more slowly: a student learns which sentence means
+ * "negate it" (release-candidate QA M1). So while attempts are left a check
+ * says nothing at all — the miss looks exactly like one no check explains —
+ * and the caller asks with `open: false` only once the item has closed
+ * (missDiagnosis.js). DISPLAY ONLY — nothing here is stored, sent with the
+ * attempt or read by grading, and a check can only describe work the grader
+ * already marked wrong (the caller decides that; a correct answer is never
+ * checked).
  */
 const EPSILON = 1e-9;
 const near = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= EPSILON * Math.max(1, Math.abs(a), Math.abs(b));
@@ -75,16 +79,11 @@ export const GENERIC_MISS_MESSAGES = Object.freeze({
   'not-simplified': 'Your value is right, but it is not in simplest form. Divide the numerator and denominator by their greatest common factor.',
 });
 
-export const GENERIC_MISS_MESSAGES_OPEN = Object.freeze({
-  'coordinates-swapped': 'Check your point against the problem: put it back in and see whether every condition is true.',
-  'sign-flipped': 'Check how your answer compares with the equation: substitute it back in and see whether both sides match.',
-  reciprocal: 'Check how your answer compares with the problem: substitute it back in and see whether it works.',
-  'not-simplified': 'Check that your answer is written the way the question asks for.',
-});
-
 export const genericMissCheck = ({ student, expected, open = true } = {}) => {
-  // Open (attempts left) unless the caller says the item has closed.
-  const result = (check) => ({ check, message: (open === false ? GENERIC_MISS_MESSAGES : GENERIC_MISS_MESSAGES_OPEN)[check] });
+  // Open (attempts left) unless the caller says the item has closed — and an
+  // open item gets nothing, whichever check would have fired.
+  if (open !== false) return null;
+  const result = (check) => ({ check, message: GENERIC_MISS_MESSAGES[check] });
   try {
     const studentPair = readPair(student);
     const expectedPair = readPair(expected);
