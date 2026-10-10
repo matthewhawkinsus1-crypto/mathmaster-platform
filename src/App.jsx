@@ -38,6 +38,7 @@ import SupportEvidenceReportView from './components/teacher/SupportEvidenceRepor
 import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
+import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import {
   classDolFieldPatch,
   controlsRequestKey,
@@ -1043,6 +1044,8 @@ function App() {
   // The skill a student picked from Recommended for You, consumed once by
   // My Math Path and cleared when they come back.
   const [pathLaunchTeks, setPathLaunchTeks] = useState(null);
+  // Which My Math Path tab a "Practise this skill" link from a test review opens.
+  const [pathLaunchTab, setPathLaunchTab] = useState(null);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
   const [studentOutboxDepth, setStudentOutboxDepth] = useState(0);
@@ -5962,9 +5965,21 @@ function App() {
     setActiveClassroomSectionKey(null);
     setActiveAssignmentId(null);
     if (mode !== 'mathPath') setPathLaunchTeks(null);
+    setPathLaunchTab(null);
     if (mode !== 'testCycle') setActiveTestCycleAssignmentId(null);
     setStudentDashboardMode(mode);
     setActiveView('dashboard');
+  };
+
+  // "Practise this skill" on a released test review or the Test Cycle card:
+  // a course standard opens Path practice on it; a practice test's exam
+  // domain opens the CCMR tab (practiceSkillLaunch).
+  const practiseSkillFromResults = (destination) => {
+    const launch = practiceSkillLaunch(destination);
+    if (!launch) return;
+    openStudentDashboardMode('mathPath');
+    setPathLaunchTeks(launch.teksCode);
+    setPathLaunchTab(launch.tab);
   };
 
   const openStudentGradeCenter = () => openStudentDashboardMode('grades');
@@ -13286,13 +13301,14 @@ function App() {
           studentProfile={adaptiveStudentProfile || user.profile}
           assignments={studentPathAssignments}
           launchTeksCode={pathLaunchTeks}
+          initialTab={pathLaunchTab || 'path'}
           pathOptions={studentPathOptions}
           weeklyGoalConfig={studentWeeklyGoalConfig}
           courseId={studentCourseId}
           studentRecord={studentRecord}
           serverMasteryProfiles={studentServerMasteryProfiles}
           onNavigate={navigateStudent}
-          onExit={() => { setPathLaunchTeks(null); setStudentDashboardMode('assignments'); }}
+          onExit={() => { setPathLaunchTeks(null); setPathLaunchTab(null); setStudentDashboardMode('assignments'); }}
           />
         </>,
       );
@@ -13394,6 +13410,7 @@ function App() {
                 // Review is ordinary MathMaster instruction, so it opens the
                 // ordinary runtime — restricted to the review questions.
                 onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
+                onPracticeSkill={practiseSkillFromResults}
                 onExit={openStudentAssignmentsCenter}
               />
             </Suspense>
@@ -13417,6 +13434,7 @@ function App() {
           // A course Test/Retest is entered through its assignment card, which
           // is the only thing that knows which stage is open.
           onOpenCourseTest={(assignmentId) => startAssignment(assignmentId)}
+          onPracticeSkill={practiseSkillFromResults}
           />
         </>,
       );

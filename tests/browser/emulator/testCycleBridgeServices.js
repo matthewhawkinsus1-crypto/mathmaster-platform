@@ -58,6 +58,7 @@ export const listTeacherTestCycleRecords = call('listTeacherTestCycleRecords');
 export const getTeacherTestCyclePlans = call('getTeacherTestCyclePlans');
 export const teacherTestCycleAction = call('teacherTestCycleAction');
 export const releaseTestCycleResults = call('releaseTestCycleResults');
+export const releaseTestCycleAnswers = call('releaseTestCycleAnswers');
 export const updateTestCyclePolicy = call('updateTestCyclePolicy');
 // The same argument mapping as src/services/testCycleService.js: an unsaved
 // Test Cycle (the review screen) is sent as `assignment`, never as an id.

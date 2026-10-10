@@ -58,7 +58,7 @@ const STAGES = {
   test: {
     stage: 'test', secure: true, hintsAllowed: false, canEnter: true,
     actionLabel: 'Start Test', statusLabel: 'Test',
-    detail: 'Secure test: one attempt per question, no hints or help, and your score is held until your teacher releases it.',
+    detail: 'Secure test: no hints or help. You can skip, flag and go back to any question until you submit, and your score is held until your teacher releases it.',
     examSessionId: 'cert-exam-session', reviewExamSessionId: null, corrections: null,
     grade: gradeFor({}),
   },
@@ -79,7 +79,7 @@ const STAGES = {
   retest: {
     stage: 'retest', secure: true, hintsAllowed: false, canEnter: true,
     actionLabel: 'Start Retest', statusLabel: 'Retest',
-    detail: 'Secure retest: one attempt per question, no hints. The highest grade retesting can record is 70%.',
+    detail: 'Secure retest: no hints. You can skip, flag and go back to any question until you submit. The highest grade retesting can record is 70%.',
     examSessionId: 'cert-retest-session', reviewExamSessionId: null, corrections: null,
     grade: gradeFor({ originalTestGrade: 52, correctionsComplete: true }),
   },
