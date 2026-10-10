@@ -3,7 +3,12 @@
 Branch `claude/student-push-j-content`, draft PR #464. Wave 2, built on main after #454, #455, #456, #459, #462 and,
 after it merged mid-job, #460 (merged in at 93cd58a).
 
-<!-- SECTIONS BELOW ARE FILLED IN AS EACH PIECE LANDS -->
+All five items shipped. How the work ran: the three families and five template groups were a multi-agent workflow,
+one implementer and one **independent adversarial verifier** per piece (recomputing with mathjs / exact arithmetic over
+many seeded draws and edge cases, hunting answer leaks), then a fix pass on every finding. Recovery, Solver Race,
+copy, integration and the gate were done directly. Wave 1's gap (A's verifiers never ran) does not repeat here: every
+family and template group below was independently verified, and every major finding was reproduced, fixed and
+pinned by a test that fails without the fix.
 
 ## What shipped
 
@@ -12,6 +17,66 @@ after it merged mid-job, #460 (merged in at 93cd58a).
 | ea7bdd8 | Targeted Recovery Practice (item 4) |
 | 0ccf552 | Copy: closed-question wording, print typesets math, one meaning of "Practice" on Recovery; browser journey P1 (item 5, item 4 in the real App) |
 | f2ab282 | Solver Race worked solutions between rounds (item 3) |
+| a58dbdb | 20 repeating Path templates widened; mirrors, withheld list and release manifest regenerated (item 2) |
+| 6de1a12 | CI fix: Recovery practice shows "nothing left" at once (no wait on the server deal) |
+| 3e43c11 | Families: transformations and quadraticsAbsoluteValue; feedbackTeaches driver extended and put in CI (item 1) |
+| 7e3d6fd | A2.2A/A2.2C templates widened; withheld by mathematics as well as by count (item 2) |
+| (this commit) | Family: dataAndModels; this handoff (item 1) |
+
+## 1. The three families
+
+Each now gives what the seven finished families give: hints from the problem's own numbers (numbered and plain
+spellings; the numbered one only when `hintRevealsAnswer` passes, so no rung ever disappears and the ladder length
+never depends on the answer), `expectedValues` in every spelling, a question-specific back-up check, and a worked
+sibling whose prompt, steps and answer avoid this item's answers. The release rule and the DOL/quiz/test/server-graded
+withholding are the runtime's, unchanged; the families add no export used elsewhere.
+
+| Family | Claims | Declines (and why) |
+| --- | --- | --- |
+| transformations | transformationsLab match, identify, describe, pointMap, plotTransform, anchor; authored multiAnswer transformation descriptions (all 14 corpus items) | identify/describe/pointMap where the graph does not fix the graded a, b, h, k (exponential, linear, b ≠ 1 or a b box); describe/pointMap/plotTransform whose prompt states no transformation. Verdict items get hints and a back-up but no sibling (a worked description would name an option). |
+| quadraticsAbsoluteValue | absoluteValue.solveEquation (2, 1, no solutions), quadratics.identifyVertex, functions.identifyZeros (repeated roots), polynomialWorkshop, parabolaGeometryLab, authored absolute-value items | fromGeometry with p = 0. |
+| dataAndModels | complexPlaneLab (6 modes), exponentialLogBridge (5 modes), regressionCalculator, dataModelingLab (11 modes, all 31 Path bank templates × 50 seeds) | expressionMeaning and representationMatch (authored words, nothing to derive or check); dataModelingLab full/association (causation is an authored flag); unsolvable or non-integer exponential/log items; the V5-compiled untyped exponentialLogBridge function (compiles to linear — job A's finding, asserted). |
+
+Verifier findings fixed (each reproduced, then pinned): transformations — describe/plotTransform claimed where the key
+was not fixed by what the student sees; a log hint read k off the vertical asymptote. quadraticsAbsoluteValue — whether
+a verdict view got the numbered or plain hint revealed the verdict; a zeros hint claimed every term shares the factor
+a; a parabola back-up told the opening direction; sibling prompts holding this item's numeric answers. dataAndModels —
+modelCompare/prediction graded by MAE (or SSE) while the hints said RMSE; signed imaginary parts and trailing-zero
+spellings missing from the guard; a solveLogarithmic rung stating the required argument as b^y; siblings whose answer
+fell within the grader's tolerance of this item's answer.
+
+Verified: `tests/platform/supportFamily_{transformations,quadraticsAbsoluteValue,dataAndModels}.test.mjs` (independent
+mathjs oracles, thousands of items, mutation-checked; headers list the mutations). `tests/browser/feedbackTeaches.mjs`
+now opens a vertex, an absolute-value and an authored transformation item at 1366×768 and 390×844: practice shows a
+family hint naming no answer, a DOL shows no Hint control and no hint in the document (110/110). That driver was in no
+CI workflow; it now runs in `student-teacher-journeys.yml`. `assessmentLeakGates` all surfaces pass (feedback-ladder
+50/50). dataAndModels is covered by node tests only in the browser (no tool item of its own in the driver).
+
+## 2. The 27 repeating templates
+
+26 of D's 27 now draw enough distinct questions (10–30 in the 30 recap probes; D's floor is 8). Skill, difficulty band,
+DOK, response fields and answer format are unchanged and pinned as literals per group
+(`tests/platform/pathTemplateWidening_*.test.mjs`); every widened draw is recomputed by an independent oracle, graded
+through the production graders, and certified with `buildTemplateIssuePlan`. Where the numbers already varied but
+the prompt did not show them (A.12A-style mapping, A2.3B, A2.4E), the prompt now restates the given data.
+
+Conservative calls:
+- **`mm_A_12A_v2_mapping-nonfunction` stays withheld.** Its only answer is "not a function" on every draw; widening the
+  wording would have released a recap that is the key to every future draw. Making it vary needs function variants
+  with their own solution texts (content design, not a numbers widening).
+- **`mm_A2_2A_v2_logarithmic-graph-attributes` stays withheld** although it reaches 24 distinct draws: they are mostly
+  the claimant's name (8 sets of points; base 10 and ln fixed). `pathRecapWithheld.mjs` now has two lists — repeating
+  (regenerated by the test) and same-mathematics (named) — and the test pins both calls.
+- The reciprocal template stops at 10 distinct: other inputs give outputs that are off the snap grid or within the 0.28
+  tolerance of an asymptote. Exponential bases 4, 5, 10 and log points near x = 0 are left out for the same reason.
+- Some templates gained `accepted` spellings (A.12E, A.12D, A2.5B log model) for equivalent forms the form-preserving
+  grader rejected; the expected key is unchanged.
+- Hints that stated point answers while the item was open were removed in the templates touched (one predates this
+  job: the reciprocal "for x = 1/4 …" hint).
+- A2.8B/A2.8C: new parameters are drawn last, so earlier seeds keep their numbers; several contexts were made realistic.
+
+Regenerated with the repo's tooling: the Fidelity V2 seed mirrors (`build-algebra-fidelity-v2-production-seeds.mjs`),
+`pathRecapWithheld`, and the course Path release (`npm run release:path:build`: manifest and browser identity).
 
 ## 4. Targeted Recovery
 
@@ -80,6 +145,31 @@ Also fixed: the one-step inequality structure showed `3*x+0 <= 18`.
   "Quick Practice" (D); `PracticeAsMenu` "Course Practice" (D); Test Cycle corrections "Practice question" (B); Grade
   Center "Practice Only" (C). These still use "Practice" for something other than the lesson section.
 
+## Deploy targets (owner, Cloud Shell; dry-run first: `node scripts/release-firebase.mjs` with no flag)
+
+1. **Functions.** `functions/index.js` changed (advanceSectionRecovery), so the planner will plan a full functions
+   deploy; the ones whose behaviour changes are `advanceSectionRecovery` (targeted Recovery; it now also returns
+   `nextPracticeItem` on a practice answer) and the three callables that generate Solver Race rounds (`createLiveChallenge`,
+   `createChallengeDryRun`, `swapChallengeDryRunRound`; the review is stored with the round there, and the existing
+   opening/close code captures and publishes it unchanged). Plus `platformBuildInfo`, as every release does.
+   Until deployed: the runner's status call returns an untargeted item (as today), and Solver Race keeps saying "no
+   worked solution yet". Nothing breaks.
+2. **Path content (path-admin).** The Algebra I and II Path bank changed (26 templates) and the course release manifest
+   with it: the release script's path-admin step publishes it. Sessions already in progress keep their stored
+   instances.
+3. **Hosting** through the resilient wrapper (families, Recovery runner and copy, print rendering, release identity).
+4. **No rules, no indexes, no migration.** The new reads (`grades/{sid}/evidenceEvents` and
+   `grades/{sid}/misconceptionEvidence` where `source.assignmentId ==`) are single-field equality queries on the
+   student's own subcollections (automatic indexes), made by the Admin SDK.
+
+## Conservative calls not listed above
+
+- Targeted Recovery does not change the Recovery **assessment** (one fresh instance of every DOL question): only
+  Practice is targeted, as the brief asks.
+- The runner waits up to 4 s for the server's deal before showing the first Practice question, and not at all when the
+  record has nothing left (CI on a58dbdb showed why).
+- The vocabulary for "Practice" was applied only on Recovery surfaces; other owners' screens are listed below.
+
 ## Files outside lane J
 
 - `functions/index.js` (I): `advanceSectionRecovery` reads the student's evidence and passes `misconceptionRecords`;
@@ -89,6 +179,12 @@ Also fixed: the one-step inequality structure showed `3*x+0 <= 18`.
 - `src/components/student/SectionRecoveryRunner.jsx`, `SectionRecoveryPanel.jsx`, `RecoveryOpportunities.jsx`,
   `src/platform/recovery/studentRecoveryModel.js`: the runner's server deal and the Recovery copy.
 - `src/platform/math/ensureMathElementRenders.js`: the print rendering.
+- `functions/shared/solverRace.mjs` (Solver Race content: parameters threaded to the solution; the "+0" fix).
+- `functions/shared/pathRecapWithheld.mjs` and its test (D's list, regenerated; two lists now).
+- `drafts/fidelity-v2/**`, the seed mirrors, `functions-path-admin/release/coursePathReleaseV2.manifest.json`,
+  `src/platform/path/pathReleaseManifest.generated.js` (generated by the repo's tools).
+- `tests/browser/feedbackTeaches{,Main}.{mjs,jsx}` (A's driver, extended) and `.github/workflows/student-teacher-journeys.yml`
+  (one step and one path filter, so that driver runs in CI).
 - `tests/browser/teacherWorkflow/{fakeFunctions,fixture,recoveryFixture,recoveryHoldJourneys}.js|mjs`,
   `tests/browser/recoveryDiscovery.mjs`, `tests/platform/feedbackThatTeaches.test.mjs` (assertion rewritten against
   the behaviour).
