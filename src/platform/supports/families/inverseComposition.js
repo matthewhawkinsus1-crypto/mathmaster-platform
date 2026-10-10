@@ -298,18 +298,11 @@ const polyForms = (p, variable = 'x') => spellings(polyText(p, variable));
 // A rule as the problem wrote it, with spaces around + and −.
 const spacedRule = (raw) => text(raw).replace(/\s+/g, '').replace(/\.$/, '')
   .replace(/([0-9A-Za-z²³)])([+\-−])/g, '$1 $2 ').replace(/-/g, MINUS);
-// A rule put in place of x: in parentheses unless nothing in it is added or
-// subtracted at the top level ((u + 6)/3 stays as it is).
-const wrap = (rule) => {
-  let depth = 0;
-  for (let index = 0; index < rule.length; index += 1) {
-    const character = rule[index];
-    if (character === '(') depth += 1;
-    else if (character === ')') depth -= 1;
-    else if (depth === 0 && index > 0 && /[+\-−]/.test(character)) return `(${rule})`;
-  }
-  return rule;
-};
+// A rule put in place of x: in parentheses unless it is a single letter or an
+// unsigned number. "Replace every x in x² with 3x" reads as 3x², and putting
+// (u + 6)/3 in place of u in u² reads as (u + 6)/3²; only (3x)² and
+// ((u + 6)/3)² are the substitution.
+const wrap = (rule) => (/^(?:[A-Za-z]|\d+(?:\.\d+)?)$/.test(text(rule)) ? rule : `(${rule})`);
 const withLetter = (rule, from, to) => rule.replace(new RegExp(`(?<![A-Za-z])${from}(?![A-Za-z])`, 'g'), to);
 
 /* The inverse of y = a·v + b, as the corpus and a student write it. */
@@ -344,7 +337,9 @@ const preferredInverse = (a, b, variable = 'x') => {
   return polyText([tidy(-b / a), tidy(1 / a)], variable);
 };
 // An expression in x with a number put in for x: (11 + 2)/5, 20·3450 − 44000.
-const plugIn = (expression, value) => expression.replace(/\(x/g, `(${numText(value)}`).replace(/(\d|\))x/g, `$1·${sub(value)}`).replace(/x/g, sub(value));
+// A leading −x at zero is −1·0, never "−0".
+const plugIn = (expression, value) => (tidy(value) === 0 ? expression.replace(/(^|[^\d)])−x/g, '$1−1·x') : expression)
+  .replace(/\(x/g, `(${numText(value)}`).replace(/(\d|\))x/g, `$1·${sub(value)}`).replace(/x/g, sub(value));
 
 /* ---------------------------------------- reading rules from the text */
 
@@ -1058,7 +1053,11 @@ const multiHints = (model) => {
       out.push(['(f ∘ g)(x) means f(g(x)): g acts first, so its whole rule goes inside f.']);
       out.push([`For (f ∘ g)(x), replace every x in ${f.rule} with ${wrap(g.rule)}, then expand and combine like terms.`, 'For (f ∘ g)(x), put all of g(x), in parentheses, in place of every x in f(x); then expand.']);
       out.push([`For (g ∘ f)(x), it is the other way around: replace every x in ${g.rule} with ${wrap(f.rule)}.`, 'For (g ∘ f)(x), it is the other way around: put all of f(x) in place of every x in g(x).']);
-      if (P.degree(f.poly) >= 2 && P.degree(g.poly) === 1) out.push([`Expand (${g.rule})² as (${g.rule})(${g.rule}): every term times every term.`]);
+      // The power to expand is f's own: a cubic f needs (g)³, not (g)².
+      const power = P.degree(f.poly);
+      if ((power === 2 || power === 3) && P.degree(g.poly) === 1) {
+        out.push([`Expand (${g.rule})${SUPERSCRIPT[power]} as ${`(${g.rule})`.repeat(power)}: every term times every term.`]);
+      }
       break;
     }
     case 'inverseVerification': {
@@ -1170,7 +1169,8 @@ const siblingIsSafe = (question, guard, example) => {
 const linear = (a, b, variable = 'x') => polyText([b, a], variable);
 // a·value + b written out for substitution: 3(4) − 1, 0.9 · 800, 750 − 50.
 const linearAt = (a, b, value) => {
-  const head = a === 1 ? sub(value) : a === -1 ? `${MINUS}${sub(value)}` : `${numText(a)}${tidy(value) < 0 ? '' : '·'}${sub(value)}`;
+  // −1 times 0 is written −1·0, never "−0".
+  const head = a === 1 ? sub(value) : a === -1 && tidy(value) !== 0 ? `${MINUS}${sub(value)}` : `${numText(a)}${tidy(value) < 0 ? '' : '·'}${sub(value)}`;
   return b === 0 ? head : `${head} ${b > 0 ? '+' : MINUS} ${numText(Math.abs(b))}`;
 };
 // Every term of a polynomial with x replaced by (inner): 3(2x − 1)² − (2x − 1) + 4.
@@ -1211,7 +1211,10 @@ const undoSibling = (random, type) => {
     const steps = [
       `f(${X}) = ${a === 1 ? '' : `${numText(a)}·`}${numText(base)}^(${X}${h === 0 ? '' : ` ${h > 0 ? MINUS : '+'} ${numText(Math.abs(h))}`}) ${k > 0 ? '+' : MINUS} ${numText(Math.abs(k))} = ${a === 1 ? '' : `${numText(a)}·`}${power} ${k > 0 ? '+' : MINUS} ${numText(Math.abs(k))} = ${numText(y0)}.`,
       `Undo f in reverse order: ${numText(y0)} ${k > 0 ? MINUS : '+'} ${numText(Math.abs(k))} = ${numText(y0 - k)}${a !== 1 ? `, then ${numText(y0 - k)} ÷ ${numText(a)} = ${numText((y0 - k) / a)}` : ''}.`,
-      `log_${numText(base)}(${numText((y0 - k) / a)}) = ${numText(n)}, and ${numText(n)} ${h < 0 ? MINUS : '+'} ${numText(Math.abs(h))} = ${X}.`,
+      // With no horizontal shift the logarithm IS the input: no "+ 0" step.
+      h === 0
+        ? `log_${numText(base)}(${numText((y0 - k) / a)}) = ${numText(n)}, and there is no shift to undo, so x = ${X}.`
+        : `log_${numText(base)}(${numText((y0 - k) / a)}) = ${numText(n)}, and ${numText(n)} ${h < 0 ? MINUS : '+'} ${numText(Math.abs(h))} = ${X}.`,
       `So f⁻¹(${numText(y0)}) = ${X}: f⁻¹ gives back the input ${X}.`,
     ];
     return { f, x0, y0, steps };
@@ -1455,6 +1458,26 @@ const operationsSibling = (random, { fDegree, gDegree, ops, composeOrder = 'fOfG
     worked.push(result);
   }
   const steps = worked.flatMap((entry) => entry.steps);
+  // One sum, difference, product or composition is a single line of work,
+  // and a sibling needs two steps: check the result at a number, so every
+  // one-operation item gets a worked example (it used to get none).
+  if (steps.length < 2 && ops.length === 1 && ops[0] !== 'quotient') {
+    const op = ops[0];
+    const c = pick(random, [1, 2, 3, -1, -2]);
+    const C = numText(c);
+    const [fc, gc] = [P.at(f, c), P.at(g, c)];
+    const result = op === 'composition'
+      ? (composeOrder === 'gOfF' ? P.compose(g, f) : P.compose(f, g))
+      : operate(op, f, g);
+    const at = P.at(result, c);
+    const label = worked[0].label.replace('(x)', `(${C})`);
+    const check = op === 'composition'
+      ? (composeOrder === 'gOfF'
+        ? `f(${C}) = ${numText(fc)} and g(${numText(fc)}) = ${numText(P.at(g, fc))}`
+        : `g(${C}) = ${numText(gc)} and f(${numText(gc)}) = ${numText(P.at(f, gc))}`)
+      : `f(${C}) = ${numText(fc)} and g(${C}) = ${numText(gc)}, so ${label} = ${numText(fc)} ${{ sum: '+', difference: MINUS, product: '·' }[op]} ${sub(gc)} = ${numText(operateNumbers(op, fc, gc))}`;
+    steps.push(`Check at x = ${C}: ${check}; the result ${worked[0].result} also gives ${numText(at)} at x = ${C}.`);
+  }
   const pieces = worked.map((entry) => `${entry.label} = ${entry.result}`);
   if (excluded && !ops.includes('quotient')) {
     const roots = realRoots(g);

@@ -168,6 +168,16 @@ const joinWords = (words) => {
   if (items.length <= 1) return items.join('');
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 };
+// "it is never increasing and decreasing on (-2, 5)" reads as one claim about
+// both words, and so does "never increasing, decreasing on …": once a "never …"
+// clause is in the list, every clause after the first gets its own "it is".
+const joinClauses = (clauses) => {
+  const items = clauses.filter(Boolean);
+  if (items.length <= 1 || !items.slice(0, -1).some((item) => item.startsWith('never'))) return joinWords(items);
+  const [first, ...rest] = items;
+  const owned = rest.map((item) => `it is ${item}`);
+  return `${[first, ...owned.slice(0, -1)].join(', ')}, and ${owned[owned.length - 1]}`;
+};
 
 const ORDINALS = ['zeroth', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth',
   'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth'];
@@ -1351,10 +1361,16 @@ const composedGroupHint = (model, group, guard) => {
       return firstSafe(guard,
         'The y-intercept is the point where the graph meets the y-axis, where x is zero; write it as an ordered pair with x-coordinate zero.');
     case 'extreme':
-      return 'Look for the turning point: the single highest or lowest point of the graph. Decide from the shape which one it is, then read its x-coordinate before its y-coordinate.';
+      // Worded so it holds for a graph that never turns (a cubic, an
+      // exponential) as well as for a parabola.
+      return 'Look for a turning point: a single highest or lowest point where the graph changes direction. Check first whether the graph ever changes direction; if it does, decide from the shape which kind of point it is, then read its x-coordinate before its y-coordinate.';
     case 'axis':
       return 'The axis of symmetry is the vertical line through the turning point: write it as an equation that starts with x =.';
     case 'asymptote':
+      // A logarithm's asymptote is vertical, not horizontal.
+      if (specType(model.spec) === 'logarithmic') {
+        return 'Follow the graph down (or up) along its left edge: the vertical line it gets closer and closer to without touching is the asymptote. Write it as an equation that starts with x =.';
+      }
       return 'Follow the graph far to one side: the horizontal line it gets closer and closer to without touching is the asymptote. Write it as an equation that starts with y =.';
     case 'behavior':
       return 'Trace the graph from left to right with your finger: are the y-values going up, going down, or changing direction partway? If it changes, note where.';
@@ -1784,6 +1800,10 @@ const rangeStep = (spec, shown) => {
     : `Range: the y-values the graph reaches are ${shown}.`;
 };
 
+/** The families whose (h, k) is the vertex, and those whose (h, k) is the center. */
+const VERTEX_TYPES = Object.freeze(['quadratic', 'absolute']);
+const CENTER_TYPES = Object.freeze(['cubic', 'cubeRoot', 'rational']);
+
 /** The worked steps of a graph sibling, one per kind of part: [[step, short answer], …]. */
 const workGraph = (spec, parts) => {
   const out = [];
@@ -1808,7 +1828,7 @@ const workGraph = (spec, parts) => {
     const lead = turning !== null
       ? `Reading left to right, the graph turns around at x = ${dec(turning)}, so it is`
       : `Reading left to right, the graph ${directionOf(spec, domainPieces(spec)[0]) > 0 ? 'rises' : 'falls'} the whole way, so it is`;
-    out.push([`${lead} ${joinWords(described.map(([step]) => step))}.`, described.map(([, answer]) => answer).join('; ')]);
+    out.push([`${lead} ${joinClauses(described.map(([step]) => step))}.`, described.map(([, answer]) => answer).join('; ')]);
   }
   const signs = ['positive', 'negative'].filter((kind) => kinds.has(kind));
   if (signs.length) {
@@ -1820,7 +1840,7 @@ const workGraph = (spec, parts) => {
       const intervals = signIntervals(spec, kind === 'positive' ? 1 : -1);
       return intervals.length ? [`${kind} on ${showIntervals(intervals)}`, `${kind} ${showIntervals(intervals)}`] : [`never ${kind}`, `${kind} never`];
     });
-    out.push([`${solve}; testing one x-value in each piece between them, the function is ${joinWords(described.map(([step]) => step))}.`, described.map(([, answer]) => answer).join('; ')]);
+    out.push([`${solve}; testing one x-value in each piece between them, the function is ${joinClauses(described.map(([step]) => step))}.`, described.map(([, answer]) => answer).join('; ')]);
   }
   parts.filter((part) => text(part.kind) === 'point').forEach((part) => {
     const feature = text(part.feature) || 'vertex';
@@ -1838,15 +1858,24 @@ const workGraph = (spec, parts) => {
       }
     } else if (feature === 'localMinimum' || feature === 'localMaximum') {
       const wantMin = feature === 'localMinimum';
-      const has = turningOf(spec) !== null && (paramA(spec) > 0) === wantMin;
+      const turns = turningOf(spec) !== null;
+      const has = turns && (paramA(spec) > 0) === wantMin;
       const word = wantMin ? 'local minimum' : 'local maximum';
+      // A line, cubic, root, exponential, logarithm or reciprocal never turns
+      // around: "its only turning point is a highest point" was false there.
+      const none = turns
+        ? `There is not a ${word}: the graph's only turning point is a ${wantMin ? 'highest' : 'lowest'} point.`
+        : `There is not a ${word}: reading left to right, the graph never turns around.`;
       out.push([has
         ? `The turning point ${showPoint(vertex)} is the ${wantMin ? 'lowest' : 'highest'} point nearby, so it is the ${word}.`
-        : `There is not a ${word}: the graph's only turning point is a ${wantMin ? 'highest' : 'lowest'} point.`, `${word} ${has ? showPoint(vertex) : 'never'}`]);
+        : none, `${word} ${has ? showPoint(vertex) : 'never'}`]);
     } else if (feature === 'center') {
-      out.push([`The center is (h, k) = ${showPoint(vertex)}.`, `center ${showPoint(vertex)}`]);
+      // (h, k) is a center only of a cubic, a cube root (its point of symmetry)
+      // or a reciprocal (where its asymptotes cross); a log's (h, k) is not
+      // even on its graph. Anything else is not explained here.
+      out.push(CENTER_TYPES.includes(specType(spec)) ? [`The center is (h, k) = ${showPoint(vertex)}.`, `center ${showPoint(vertex)}`] : null);
     } else {
-      out.push([`The vertex is (h, k) = ${showPoint(vertex)}.`, `vertex ${showPoint(vertex)}`]);
+      out.push(VERTEX_TYPES.includes(specType(spec)) ? [`The vertex is (h, k) = ${showPoint(vertex)}.`, `vertex ${showPoint(vertex)}`] : null);
     }
   });
   return out;
@@ -1882,12 +1911,15 @@ const graphSibling = (question, model, guard, seed) => {
     .filter((spec) => (!needsZeros || zerosOf(spec).some((zero) => zero > spec.domain.min && zero < spec.domain.max)))
     .filter((spec) => (!needsY || (xIsInFunctionDomain(spec, 0) && Number.isInteger(Math.round(valueAt(spec, 0) * 1e6) / 1e6))));
   const asked = model.parts.map((part) => (part.kind === 'point' ? FEATURE_WORDS[part.feature] || 'its key point' : ANALYSIS_WORDS[part.kind])).filter(Boolean);
-  const notation = model.parts.some((part) => part.notation === 'inequality') ? 'inequality' : 'interval';
+  // Only a part answered with an interval takes the notation note: "State its
+  // vertex (intervals in interval notation)" asked for no interval at all.
+  const intervalParts = model.parts.filter((part) => ANALYSIS_WORDS[part.kind]);
+  const notation = intervalParts.some((part) => part.notation === 'inequality') ? 'inequality' : 'interval';
   return fromCandidates(candidates, seed, salt, (spec) => {
     const worked = workGraph(spec, model.parts);
-    if (!worked.length) return null;
+    if (!worked.length || worked.some((entry) => !entry)) return null;
     const example = {
-      prompt: `Use the graph of ${renderEquation(spec)} for ${restrictionText(spec)}. State ${joinWords(unique(asked))}${notation === 'interval' ? ' (intervals in interval notation)' : ''}.`,
+      prompt: `Use the graph of ${renderEquation(spec)} for ${restrictionText(spec)}. State ${joinWords(unique(asked))}${intervalParts.length && notation === 'interval' ? ' (intervals in interval notation)' : ''}.`,
       steps: [featureSentence(spec), restrictionSentence(spec), ...worked.map(([step]) => step)].filter(Boolean),
       answer: worked.map(([, answer]) => answer).join('; '),
     };
@@ -1927,13 +1959,23 @@ const characteristicsWork = (spec, group, stage) => {
   }
   if (group === 'asymptote') {
     if (type !== 'exponential' && type !== 'rational') return null;
-    return [`Asymptote: far to one side the power term gets close to zero, so the outputs get close to ${dec(paramK(spec))}: the horizontal asymptote is y = ${dec(paramK(spec))}.`, `asymptote y = ${dec(paramK(spec))}`];
+    // A reciprocal has no power term: what shrinks toward zero is its fraction.
+    const shrinking = type === 'rational'
+      ? `as x moves far from ${dec(paramH(spec))}, the fraction ${renderRhs({ ...withoutRestriction(spec), k: 0 })} gets close to zero`
+      : 'far to one side the power term gets close to zero';
+    return [`Asymptote: ${shrinking}, so the outputs get close to ${dec(paramK(spec))}: the horizontal asymptote is y = ${dec(paramK(spec))}.`, `asymptote y = ${dec(paramK(spec))}`];
   }
   if (group === 'behavior') {
     if (turning !== null) {
       const first = paramA(spec) > 0 ? 'falls' : 'rises';
       const second = paramA(spec) > 0 ? 'rises' : 'falls';
       return [`Behavior: reading left to right, it ${first} until x = ${dec(paramH(spec))}, then ${second}.`, `${first}, then ${second}`];
+    }
+    if (domainPieces(spec).length > 1) {
+      // Two branches: each one falls (or rises), but the graph jumps at the
+      // asymptote, so it does not fall "the whole way".
+      const each = directionOf(spec, domainPieces(spec)[0]) > 0 ? 'rises' : 'falls';
+      return [`Behavior: each branch ${each} from left to right, on both sides of the vertical asymptote x = ${dec(paramH(spec))}; the graph jumps there.`, `each branch ${each}`];
     }
     const goes = directionOf(spec, domainPieces(spec)[0]) > 0 ? 'rises' : 'falls';
     const how = type === 'exponential' ? (goes === 'rises' ? ', more and more steeply' : ', leveling off toward its asymptote') : '';
@@ -1956,7 +1998,11 @@ const characteristicsSibling = (question, model, guard, seed) => {
   if (!groups.length || model.groups.some((group) => !CHARACTERISTIC_GROUPS.includes(group))) return null;
   const type = specType(model.spec);
   const restricted = groups.includes('domain') || groups.includes('range');
-  const candidates = siblingSpecs(type, { restricted, decay: baseOf(model.spec) < 1 }).filter((spec) => !sameShape(spec, model.spec));
+  // A y-intercept the sibling states must be exact: ∛(-2) + 1 is not
+  // "-0.259921", so a candidate whose f(0) is not whole is skipped.
+  const candidates = siblingSpecs(type, { restricted, decay: baseOf(model.spec) < 1 })
+    .filter((spec) => !sameShape(spec, model.spec))
+    .filter((spec) => !groups.includes('yIntercept') || !xIsInFunctionDomain(spec, 0) || Number.isInteger(Math.round(valueAt(spec, 0) * 1e6) / 1e6));
   const salt = `${typeOf(question)}|${text(question.prompt)}|${type}`;
   return fromCandidates(candidates, seed, salt, (spec) => {
     const worked = groups.map((group) => characteristicsWork(spec, group, model.stages.find((stage) => stageGroup(stage) === group)));
@@ -2157,8 +2203,17 @@ const relationSibling = (question, model, guard, seed) => {
         : `Function test: the input ${dec(repeated[0])} is paired with two different outputs, so the relation fails the function test.`);
       answers.push(passes ? 'passes the function test' : 'fails the function test');
     }
+    // The prompt asks for exactly what the answer gives: "{…} and range." (range
+    // without domain) and a plot answered under "Build the mapping" did not.
+    const shows = [ask.includes('mapping') && 'a mapping diagram', ask.includes('plot') && 'a coordinate plot'].filter(Boolean);
+    const states = [ask.includes('domain') && 'domain', ask.includes('range') && 'range'].filter(Boolean);
+    const tasks = [
+      shows.length ? `represent it with ${joinWords(shows)}` : 'read its pairs',
+      states.length && `state its ${joinWords(states)}`,
+      ask.includes('isFunction') && 'decide whether every input has exactly one output',
+    ].filter(Boolean);
     const example = {
-      prompt: `Build the mapping for the relation {${shown}}${ask.includes('domain') ? ', state its domain' : ''}${ask.includes('range') ? ' and range' : ''}${ask.includes('isFunction') ? ', and decide whether every input has exactly one output' : ''}.`,
+      prompt: `For the relation {${shown}}, ${joinWords(tasks)}.`,
       steps,
       answer: answers.join('; '),
     };
@@ -2255,14 +2310,20 @@ const sequenceSibling = (question, model, guard, seed) => {
       const value = sequenceTerm(spec, n);
       steps.push(arithmetic
         ? `From the first term to the ${ordinal(n)} there are ${n - 1} steps of ${dec(change)}: ${dec(spec.first)} + ${n - 1} · ${signed(change)} = ${dec(value)}.`
-        : `From the first term to the ${ordinal(n)} there are ${n - 1} steps of × ${dec(change)}: ${dec(spec.first)} · ${signed(change)}^${n - 1} = ${dec(value)}.`);
+        : `From the first term to the ${ordinal(n)} there are ${n - 1} steps of × ${signed(change)}: ${dec(spec.first)} · ${signed(change)}^${n - 1} = ${dec(value)}.`);
       prompt = `A sequence begins ${terms.map(dec).join(', ')}, … Describe how the terms change and find the ${ordinal(n)} term.`;
       answer = `${stepWord}; ${ordinal(n)} term ${dec(value)}`;
     } else if (model.mode === 'missingTerm') {
       const gap = 3;
       const shown = listTerms(spec, 5).map((value, index) => (index === gap - 1 ? '__' : dec(value)));
       const value = sequenceTerm(spec, gap);
+      const visible = listTerms(spec, 5);
       steps[0] = `The terms shown are ${shown.join(', ')}.`;
+      // The step is read from neighbours the student can SEE: the differences
+      // or ratios through the blank need the very term being asked for.
+      steps[1] = arithmetic
+        ? `Neighbours you can see: ${dec(visible[1])} - ${signed(visible[0])} = ${dec(change)} and ${dec(visible[4])} - ${signed(visible[3])} = ${dec(change)}, the same difference (their ratios differ), so the terms have ${stepWord}.`
+        : `Neighbours you can see: ${dec(visible[1])} ÷ ${signed(visible[0])} = ${dec(change)} and ${dec(visible[4])} ÷ ${signed(visible[3])} = ${dec(change)}, the same ratio (their differences differ), so the terms have ${stepWord}.`;
       steps.push(arithmetic
         ? `The missing ${ordinal(gap)} term is the second term plus the step: ${dec(terms[1])} + ${signed(change)} = ${dec(value)}.`
         : `The missing ${ordinal(gap)} term is the second term times the ratio: ${dec(terms[1])} · ${signed(change)} = ${dec(value)}.`);
@@ -2415,6 +2476,8 @@ const attributeStep = (spec, kind) => {
     return [`y-intercept: the output at x = 0 is ${dec(y)}, the point ${showPoint([0, y])}.`, `y-intercept ${showPoint([0, y])}`];
   }
   if (kind === 'continuity') {
+    // A reciprocal's two branches are not one connected piece.
+    if (domainOf(spec).length > 1) return null;
     return ['Every input in the interval makes sense, so the graph is one connected piece.', 'connected'];
   }
   return null;
