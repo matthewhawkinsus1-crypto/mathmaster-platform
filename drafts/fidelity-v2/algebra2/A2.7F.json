@@ -53,11 +53,11 @@
             "reasoning": [
               "The denominators $x-{{r}}$ and $x-{{s}}$ share no factor, so the LCD is their product $(x-{{r}})(x-{{s}})$.",
               "Give each numerator the factor its denominator is missing: $\\frac{{{A}}}{x-{{r}}}+\\frac{{{B}}}{x-{{s}}}=\\frac{{{A}}(x-{{s}})+{{B}}(x-{{r}})}{(x-{{r}})(x-{{s}})}$.",
-              "Expand and combine like terms: ${{A}}(x-{{s}})+{{B}}(x-{{r}})={{A}}x{{mAs|signed}}{{B|signed}}x{{mBr|signed}}={{N1}}x{{N0|signed}}$.",
+              "Expand and combine like terms: ${{A}}(x-{{s}})+{{B}}(x-{{r}})={{A|coef}}x{{mAs|term}}{{B|xterm}}{{mBr|term}}={{N1|coef}}x{{N0|term}}$.",
               "At $x={{r}}$ only ${{A}}(x-{{s}})$ survives, giving {{atR}}; at $x={{s}}$ only ${{B}}(x-{{r}})$ survives, giving {{atS}}. Neither is 0, so nothing cancels; the original denominators still give $x\\ne{{r}}$ and $x\\ne{{s}}$."
             ],
             "commonError": "Adding numerators and denominators straight across, or forgetting to multiply ${{B}}$ by $x-{{r}}$ before combining like terms.",
-            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
+            "answerSummary": "Numerator ${{N1|coef}}x{{N0|term}}$; answer $\\frac{{{N1|coef}}x{{N0|term}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Do not add denominators; rewrite both fractions over the LCD first."
@@ -145,11 +145,11 @@
             "reasoning": [
               "Both denominators contain $x-{{r}}$; the first also has $x-{{s}}$ and the second $x-{{t}}$. The LCD is $(x-{{r}})(x-{{s}})(x-{{t}})$.",
               "The first fraction is missing $x-{{t}}$ and the second is missing $x-{{s}}$, so the numerator over the LCD is ${{A}}(x-{{t}})+{{B}}(x-{{s}})$.",
-              "Expand and combine: ${{A}}(x-{{t}})+{{B}}(x-{{s}})={{A}}x{{mAt|signed}}{{B|signed}}x{{mBs|signed}}={{N1}}x{{N0|signed}}$.",
+              "Expand and combine: ${{A}}(x-{{t}})+{{B}}(x-{{s}})={{A|coef}}x{{mAt|term}}{{B|xterm}}{{mBs|term}}={{N1|coef}}x{{N0|term}}$.",
               "At $x={{r}}$ the numerator equals {{atR}}; at $x={{s}}$ only ${{A}}(x-{{t}})$ survives, giving {{atS}}; at $x={{t}}$ only ${{B}}(x-{{s}})$ survives, giving {{atT}}. None is 0, so no factor cancels. The original denominators exclude $x={{r}}$, $x={{s}}$ and $x={{t}}$."
             ],
             "commonError": "Using $(x-{{r}})^2(x-{{s}})(x-{{t}})$ as the denominator: the shared factor $x-{{r}}$ belongs in the LCD only once.",
-            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})(x-{{t}})}$ with $x\\ne{{r}}$, $x\\ne{{s}}$ and $x\\ne{{t}}$."
+            "answerSummary": "Numerator ${{N1|coef}}x{{N0|term}}$; answer $\\frac{{{N1|coef}}x{{N0|term}}}{(x-{{r}})(x-{{s}})(x-{{t}})}$ with $x\\ne{{r}}$, $x\\ne{{s}}$ and $x\\ne{{t}}$."
           },
           "attemptFeedback": [
             "The shared factor x-{{r}} appears only once in the LCD."
@@ -249,11 +249,11 @@
             "reasoning": [
               "The LCD is $(x-{{r}})(x-{{s}})$: it contains the first denominator $x-{{r}}$ and is the second denominator.",
               "Only the first fraction needs rewriting: $\\frac{{{A}}}{x-{{r}}}=\\frac{{{A}}(x-{{s}})}{(x-{{r}})(x-{{s}})}$. The second numerator ${{B}}$ stays as it is.",
-              "Add the numerators: ${{A}}(x-{{s}})+{{B}}={{A}}x{{mAs|signed}}{{B|signed}}={{A}}x{{N0|signed}}$.",
+              "Add the numerators: ${{A}}(x-{{s}})+{{B}}={{A|coef}}x{{mAs|term}}{{B|term}}={{A|coef}}x{{N0|term}}$.",
               "At $x={{r}}$ the numerator equals {{atR}} and at $x={{s}}$ only the constant ${{B}}$ survives; neither is 0, so nothing cancels. Keep $x\\ne{{r}}$ and $x\\ne{{s}}$ from the original denominators."
             ],
             "commonError": "Multiplying the second fraction by another $x-{{r}}$, which builds the denominator $(x-{{r}})^2(x-{{s}})$; that fraction is already over the LCD.",
-            "answerSummary": "Numerator ${{A}}x{{N0|signed}}$; answer $\\frac{{{A}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
+            "answerSummary": "Numerator ${{A|coef}}x{{N0|term}}$; answer $\\frac{{{A|coef}}x{{N0|term}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Do not multiply the second fraction by an extra x-{{r}}; its denominator is already the LCD."
@@ -357,12 +357,12 @@
             "headline": "Rewrite both fractions over $(x-{{r}})(x-{{s}})$, then subtract the WHOLE second numerator.",
             "reasoning": [
               "The expression is $\\frac{{{A}}}{x-{{r}}}-\\frac{{{B}}}{x-{{s}}}$. The denominators share no factor, so the LCD is $(x-{{r}})(x-{{s}})$.",
-              "Over the LCD the numerator is ${{A}}(x-{{s}})-{{B}}(x-{{r}})$: each numerator gets the factor its denominator is missing.",
-              "Distribute the subtraction to both terms: ${{A}}(x-{{s}})-{{B}}(x-{{r}})={{A}}x{{mAs|signed}}{{mB|signed}}x{{Br|signed}}={{N1}}x{{N0|signed}}$.",
-              "At $x={{r}}$ only ${{A}}(x-{{s}})$ survives, giving {{atR}}; at $x={{s}}$ only $-{{B}}(x-{{r}})$ survives, giving {{atS}}. Neither is 0, so nothing cancels; the original denominators still give $x\\ne{{r}}$ and $x\\ne{{s}}$."
+              "Over the LCD the numerator is ${{A}}(x-{{s}})-{{B|paren}}(x-{{r}})$: each numerator gets the factor its denominator is missing.",
+              "Distribute the subtraction to both terms: $-{{B|paren}}(x-{{r}})={{mB|paren}}(x-{{r}})={{mB|coef}}x{{Br|term}}$, so ${{A}}(x-{{s}})-{{B|paren}}(x-{{r}})={{A|coef}}x{{mAs|term}}{{mB|xterm}}{{Br|term}}={{N1|coef}}x{{N0|term}}$.",
+              "At $x={{r}}$ only ${{A}}(x-{{s}})$ survives, giving {{atR}}; at $x={{s}}$ only $-{{B|paren}}(x-{{r}})$ survives, giving {{atS}}. Neither is 0, so nothing cancels; the original denominators still give $x\\ne{{r}}$ and $x\\ne{{s}}$."
             ],
-            "commonError": "Subtracting only the first term of the second contribution: $-{{B}}(x-{{r}})$ is ${{mB}}x{{Br|signed}}$, so both of its terms change sign.",
-            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
+            "commonError": "Changing the sign of only the $x$-term: $-{{B|paren}}(x-{{r}})$ is ${{mB|coef}}x{{Br|term}}$, not ${{mB|coef}}x{{mBr|term}}$. The subtraction changes the sign of both terms of ${{B|paren}}(x-{{r}})$.",
+            "answerSummary": "Numerator ${{N1|coef}}x{{N0|term}}$; answer $\\frac{{{N1|coef}}x{{N0|term}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Keep parentheses around the second numerator contribution until the subtraction has been distributed."
@@ -412,7 +412,8 @@
               "mB": "-B",
               "Br": "B*r",
               "atR": "A*(r-s)",
-              "atS": "-B*(s-r)"
+              "atS": "-B*(s-r)",
+              "mBr": "-B*r"
             },
             "constraints": [
               "r!=s",
@@ -450,12 +451,12 @@
             "headline": "The denominators share $x-{{r}}$, so the LCD is $(x-{{r}})(x-{{s}})(x-{{t}})$; then subtract the whole second numerator.",
             "reasoning": [
               "Each distinct factor appears once in the LCD: $(x-{{r}})(x-{{s}})(x-{{t}})$. The first fraction is missing $x-{{t}}$, the second is missing $x-{{s}}$.",
-              "Over the LCD the numerator is ${{A}}(x-{{t}})-{{B}}(x-{{s}})$.",
-              "Distribute the subtraction: ${{A}}(x-{{t}})-{{B}}(x-{{s}})={{A}}x{{mAt|signed}}{{mB|signed}}x{{Bs|signed}}={{N1}}x{{N0|signed}}$.",
-              "At $x={{r}}$ the numerator equals {{atR}}; at $x={{s}}$ only ${{A}}(x-{{t}})$ survives, giving {{atS}}; at $x={{t}}$ only $-{{B}}(x-{{s}})$ survives, giving {{atT}}. None is 0, so nothing cancels. The original denominators exclude $x={{r}}$, $x={{s}}$ and $x={{t}}$."
+              "Over the LCD the numerator is ${{A}}(x-{{t}})-{{B|paren}}(x-{{s}})$.",
+              "Distribute the subtraction: $-{{B|paren}}(x-{{s}})={{mB|paren}}(x-{{s}})={{mB|coef}}x{{Bs|term}}$, so the numerator is ${{A|coef}}x{{mAt|term}}{{mB|xterm}}{{Bs|term}}={{N1|coef}}x{{N0|term}}$.",
+              "At $x={{r}}$ the numerator equals {{atR}}; at $x={{s}}$ only ${{A}}(x-{{t}})$ survives, giving {{atS}}; at $x={{t}}$ only $-{{B|paren}}(x-{{s}})$ survives, giving {{atT}}. None is 0, so nothing cancels. The original denominators exclude $x={{r}}$, $x={{s}}$ and $x={{t}}$."
             ],
-            "commonError": "Writing $-{{B}}(x-{{s}})$ as ${{mB}}x-{{Bs}}$: the subtraction changes the sign of BOTH terms, giving ${{mB}}x{{Bs|signed}}$.",
-            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})(x-{{t}})}$ with $x\\ne{{r}}$, $x\\ne{{s}}$ and $x\\ne{{t}}$."
+            "commonError": "Changing the sign of only the $x$-term: $-{{B|paren}}(x-{{s}})$ is ${{mB|coef}}x{{Bs|term}}$, not ${{mB|coef}}x{{mBs|term}}$. The subtraction changes the sign of BOTH terms of ${{B|paren}}(x-{{s}})$.",
+            "answerSummary": "Numerator ${{N1|coef}}x{{N0|term}}$; answer $\\frac{{{N1|coef}}x{{N0|term}}}{(x-{{r}})(x-{{s}})(x-{{t}})}$ with $x\\ne{{r}}$, $x\\ne{{s}}$ and $x\\ne{{t}}$."
           },
           "attemptFeedback": [
             "The negative sign applies to both terms produced by B(x-s)."
@@ -514,7 +515,8 @@
               "mB": "-B",
               "Bs": "B*s",
               "atS": "A*(s-t)",
-              "atT": "-B*(t-s)"
+              "atT": "-B*(t-s)",
+              "mBs": "-B*s"
             },
             "constraints": [
               "r!=s",
@@ -555,12 +557,12 @@
             "headline": "Only the degree-1 fraction needs rewriting over the LCD $(x-{{r}})(x-{{s}})$; then subtract ${{B}}$.",
             "reasoning": [
               "The second denominator $(x-{{r}})(x-{{s}})$ already contains $x-{{r}}$, so it is the LCD.",
-              "Rewrite the first fraction: $\\frac{{{A}}}{x-{{r}}}=\\frac{{{A}}(x-{{s}})}{(x-{{r}})(x-{{s}})}$, so the numerator is ${{A}}(x-{{s}})-{{B}}$.",
-              "Simplify: ${{A}}(x-{{s}})-{{B}}={{A}}x{{mAs|signed}}{{mB|signed}}={{A}}x{{N0|signed}}$.",
+              "Rewrite the first fraction: $\\frac{{{A}}}{x-{{r}}}=\\frac{{{A}}(x-{{s}})}{(x-{{r}})(x-{{s}})}$, so the numerator is ${{A}}(x-{{s}})-{{B|paren}}$.",
+              "Simplify: ${{A}}(x-{{s}})-{{B|paren}}={{A|coef}}x{{mAs|term}}{{mB|term}}={{A|coef}}x{{N0|term}}$.",
               "At $x={{r}}$ the numerator equals {{atR}} and at $x={{s}}$ only the constant ${{mB}}$ survives; neither is 0, so nothing cancels. Keep $x\\ne{{r}}$ and $x\\ne{{s}}$."
             ],
             "commonError": "Adding ${{B}}$ instead of subtracting it, or multiplying the second fraction by an extra $x-{{r}}$ although it is already over the LCD.",
-            "answerSummary": "Numerator ${{A}}x{{N0|signed}}$; answer $\\frac{{{A}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
+            "answerSummary": "Numerator ${{A|coef}}x{{N0|term}}$; answer $\\frac{{{A|coef}}x{{N0|term}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Subtract B after expanding A(x-s); do not change the denominator factors."

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "compilerSchemaVersion": 2,
   "releaseLine": "course",
-  "releaseId": "course-path-v2-4d9681dfcc5dd150",
-  "contentHash": "4d9681dfcc5dd150a6ab3a70977cb1acf234f1ade5f7f0b9eb5dee689a3e0557",
+  "releaseId": "course-path-v2-485a9d98e2287892",
+  "contentHash": "485a9d98e228789206ef898c0829214a1c484d69ca3cc563199480a7afd745bf",
   "questionCount": 1161,
   "courses": [
     "grade6",
@@ -36,20 +36,20 @@
     {
       "courseId": "grade8",
       "file": "grade8_pathQuestionBank_seed.json",
-      "sha256": "37d259705f84c712cc0f2d35977584e33a0f72a484c51cf630f0168b04904fe7",
-      "bytes": 479396
+      "sha256": "3c8da782c163eea7c10cbd72e6fb3b0e0581c55b87e013f52d435dcc58bada15",
+      "bytes": 479411
     },
     {
       "courseId": "algebra1",
       "file": "algebra1_pathQuestionBank_seed.json",
-      "sha256": "80076fe52f61c756d55f2ec1c89afcf01de033b5438ca39a33b2ccea4d401135",
-      "bytes": 936457
+      "sha256": "f81c486a989eeae5ee77a9e0b7146046be346a96a7f98d62cd52cdd39f288d2f",
+      "bytes": 936478
     },
     {
       "courseId": "algebra2",
       "file": "algebra2_pathQuestionBank_seed.json",
-      "sha256": "6287bcbfc8f0336734963786a722e5ead883f409f16bdcb4f15af5d5c7b7fff1",
-      "bytes": 1132603
+      "sha256": "7a6212b21d0a3689858beff9671d21b2eea819b4d5121eca86373349db7919c6",
+      "bytes": 1132911
     }
   ],
   "documents": [
@@ -1492,7 +1492,7 @@
       "id": "mm_A2_7F_v2_difference-rational-degree-variants",
       "familyId": "mathmaster:A2.7F:v2-difference-rational-degree-variants",
       "courseId": "algebra2",
-      "contentHash": "44143c602816310a4e43b5fbb519601d36adf660b378f3660f4c95d7f68d0af4",
+      "contentHash": "c4eda2e4be98b62db8f75833bad8b517030fe0c178a6bd89e92fab5ff4544b3a",
       "samples": 12
     },
     {
@@ -1520,7 +1520,7 @@
       "id": "mm_A2_7F_v2_sum-rational-degree-variants",
       "familyId": "mathmaster:A2.7F:v2-sum-rational-degree-variants",
       "courseId": "algebra2",
-      "contentHash": "31533058cb88e20205e898112bea975f1cfd0d7a6e879cc7719e755dfa8ef86c",
+      "contentHash": "531a82277ae1da00c105f8fa1f6e27ff67a6664ac41343154d433bda2d251a88",
       "samples": 12
     },
     {
@@ -1709,28 +1709,28 @@
       "id": "mm_A2_8C_v2_critical-judgment-model-variants",
       "familyId": "mathmaster:A2.8C:v2-critical-judgment-model-variants",
       "courseId": "algebra2",
-      "contentHash": "08e03b283c0dd205c0261cf08a5675e9f310b5dd9d0b07a76451f930843d0811",
+      "contentHash": "323d8f35881a1b637e9be9a937118d915a481a63b6ba9d12d5df0ae05dd4d02b",
       "samples": 12
     },
     {
       "id": "mm_A2_8C_v2_decision-model-variants",
       "familyId": "mathmaster:A2.8C:v2-decision-model-variants",
       "courseId": "algebra2",
-      "contentHash": "c09876775d42142fdd3b0581bcac543a92862ef4942578c59e252b5692de1f94",
+      "contentHash": "3898bc265f09e4012e0c050a20e486641c65fac4472de1106c80c337b0147791",
       "samples": 12
     },
     {
       "id": "mm_A2_8C_v2_interpolation-extrapolation-model-variants",
       "familyId": "mathmaster:A2.8C:v2-interpolation-extrapolation-model-variants",
       "courseId": "algebra2",
-      "contentHash": "249d502b89fe6156c8ed2bcbce61003d1ecd1e28cebe00cfdb2684ba4b7aa373",
+      "contentHash": "919077c555e627e79878aa0ce10a1a6ba4e12a8d1c7e91695c1332f4087512d4",
       "samples": 12
     },
     {
       "id": "mm_A2_8C_v2_prediction-model-variants",
       "familyId": "mathmaster:A2.8C:v2-prediction-model-variants",
       "courseId": "algebra2",
-      "contentHash": "da5045c361532a87518b5a55ffaa01ad1cb9f1398d6de5aa9ba3b8c415f6374c",
+      "contentHash": "c60a5146084685cdf52eeee242c1daff65a7a26fccc26cee4823689c9df7a662",
       "samples": 12
     },
     {
@@ -2829,14 +2829,14 @@
       "id": "mm_A_4B_v2_headline-error",
       "familyId": "mathmaster:A.4B:v2-headline-error",
       "courseId": "algebra1",
-      "contentHash": "840c3df05f1962f715a93b9fef267b424553be3f91950b8e7d428f78bb76b0b0",
+      "contentHash": "38866b7e007daecf222f32a218ba6e9b74933bdca69c081bd1ce9b24d431e804",
       "samples": 12
     },
     {
       "id": "mm_A_4B_v2_improve-evidence",
       "familyId": "mathmaster:A.4B:v2-improve-evidence",
       "courseId": "algebra1",
-      "contentHash": "ace8ac4c49413e79a93f61c5e6c1e49577e53e856bc3229c0ca84467bc2c44c1",
+      "contentHash": "91f9da5977029a6b88bcf59148540bb4c07585d1994f4f760c6cab867f080c25",
       "samples": 12
     },
     {
@@ -6644,14 +6644,14 @@
       "id": "mm_gen_8_8_10B_identify-rigid",
       "familyId": "mathmaster:8.10B:gen-identify-rigid",
       "courseId": "grade8",
-      "contentHash": "c13ccd69bb2cacc93b478e6e03906d3011113a29da2ecff7ab7fe5b37763711c",
+      "contentHash": "cb77c6e1bc71859dca84a32d263e149832be8f8b2389074e1eca29b1647d71e7",
       "samples": 12
     },
     {
       "id": "mm_gen_8_8_10B_reverse-classify",
       "familyId": "mathmaster:8.10B:gen-reverse-classify",
       "courseId": "grade8",
-      "contentHash": "c73b49e663a67841f40403e4dbfc039081f624473f55af203457df4b620d8474",
+      "contentHash": "d760a3de87088a6c5d63acc45dd660838c7fdd7e738231e1bb9a1fcb5dca96c9",
       "samples": 12
     },
     {
@@ -6840,14 +6840,14 @@
       "id": "mm_gen_8_8_12A_error-payment-only",
       "familyId": "mathmaster:8.12A:gen-error-payment-only",
       "courseId": "grade8",
-      "contentHash": "31917348c24c804cd77ecfd12ef2908cd486089dc013bc369012a7ada4989fc5",
+      "contentHash": "3e011cf6446d8652208d208a96b7bd9b1d6597f7820bed0fdf86970748d3a65a",
       "samples": 12
     },
     {
       "id": "mm_gen_8_8_12A_rate-compare",
       "familyId": "mathmaster:8.12A:gen-rate-compare",
       "courseId": "grade8",
-      "contentHash": "f624781061b03d64bb1c83611661bbaed0520509a166f84479e56576aa320ae5",
+      "contentHash": "175465de5a321e0cd33ab79311878be7f37d45f6182e113e6a359429a2a60267",
       "samples": 12
     },
     {
@@ -8182,10 +8182,10 @@
     }
   ],
   "build": {
-    "builtAt": "2026-10-10T19:37:19.836Z",
+    "builtAt": "2026-10-10T20:33:46.085Z",
     "builtBy": "scripts/build-course-path-release-v2.mjs",
-    "gitCommit": "03cb67e806e40e3ee1ebd0b29c95ad55f72ebeb4",
+    "gitCommit": "1fe49bca878f6cb9cf8d477e3469a0b4f73f3136",
     "nodeVersion": "v22.22.0",
-    "certificationMs": 1355
+    "certificationMs": 1216
   }
 }

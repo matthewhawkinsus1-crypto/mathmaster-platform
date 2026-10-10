@@ -62,8 +62,8 @@
             "headline": "Fit the line to all five points, evaluate it at x=4, and note that x=4 is outside the data.",
             "reasoning": [
               "The x-values $-2,-1,0,1,2$ are centered at 0, so the intercept is the mean of the outputs: $b=\\frac{({{ym2}})+({{ym1}})+({{y0}})+({{y1}})+({{y2}})}{5}={{b}}$.",
-              "The slope is $m=\\frac{\\sum xy}{\\sum x^2}=\\frac{-2({{ym2}})-({{ym1}})+({{y1}})+2({{y2}})}{10}={{m}}$, so linear regression gives $y={{m}}x+({{b}})$.",
-              "Evaluate at x=4: $y={{m}}(4)+({{b}})={{pred}}$.",
+              "The slope is $m=\\frac{\\sum xy}{\\sum x^2}=\\frac{-2({{ym2}})-({{ym1}})+({{y1}})+2({{y2}})}{10}={{m}}$, so linear regression gives $y={{m|coef}}x{{b|term}}$.",
+              "Evaluate at x=4: $y={{m}}(4){{b|term}}={{pred}}$.",
               "The observed inputs run from $x=-2$ to $x=2$. Since 4 is beyond the largest observed x, the prediction is an extrapolation."
             ],
             "commonError": "Drawing a line through just two of the points: regression uses all five observations, and here it gives $m={{m}}$ and $b={{b}}$.",
@@ -139,9 +139,9 @@
           "solutionReview": {
             "headline": "Fit the quadratic to all five points, evaluate it at x=0.5, and note that x=0.5 lies inside the data.",
             "reasoning": [
-              "Quadratic regression on all five observations gives $a={{a}}$, $b={{b}}$ and $c={{c}}$, so the model is $y={{a}}x^2+({{b}})x+({{c}})$.",
+              "Quadratic regression on all five observations gives $a={{a}}$, $b={{b}}$ and $c={{c}}$, so the model is $y={{a|coef}}x^2{{b|xterm}}{{c|term}}$.",
               "Check $b$ by hand: with x-values centered at 0, $b=\\frac{\\sum xy}{\\sum x^2}=\\frac{-2({{ym2}})-({{ym1}})+({{y1}})+2({{y2}})}{10}={{b}}$.",
-              "Evaluate at x=0.5: $y={{a}}(0.5)^2+({{b}})(0.5)+({{c}})={{pred}}$.",
+              "Evaluate at x=0.5: $y={{a}}(0.5)^2+({{b}})(0.5){{c|term}}={{pred}}$.",
               "The observed inputs run from $x=-2$ to $x=2$, and 0.5 lies between them, so the prediction is an interpolation."
             ],
             "commonError": "Calling the prediction extrapolation because x=0.5 is not one of the observed x-values: what matters is that it lies inside the observed range.",
@@ -363,7 +363,7 @@
           "solutionReview": {
             "headline": "Predict with the model first: $y(4)={{pred}}$ is above the capacity of {{threshold}}.",
             "reasoning": [
-              "The model matches the table: the observed values {{y0}}, {{y1}}, {{y2}}, {{y3}} rise by {{m}} each step, the slope of $y={{m}}x+({{b}})$.",
+              "The model matches the table: the observed values {{y0}}, {{y1}}, {{y2}}, {{y3}} rise by {{m}} each step, the slope of $y={{m}}x{{b|signed}}$.",
               "Substitute x=4: $y(4)={{m}}(4)+{{b}}={{m4}}+{{b}}={{pred}}$.",
               "Management can staff at most {{threshold}} units, and ${{pred}}>{{threshold}}$, so the prediction is {{margin}} units over capacity."
             ],
@@ -458,7 +458,7 @@
             "headline": "Predict with the model first: $y(4)={{pred}}$ falls short of the approval threshold {{threshold}}.",
             "reasoning": [
               "The model matches the table, for example $y(3)={{a}}(9)+({{b}})(3)+{{c}}={{y3}}$.",
-              "Substitute x=4: $y(4)={{a}}(16)+({{b}})(4)+{{c}}={{a16}}+({{b4}})+{{c}}={{pred}}$.",
+              "Substitute x=4: $y(4)={{a}}(16)+({{b}})(4)+{{c}}={{a16}}{{b4|term}}{{c|term}}={{pred}}$.",
               "Approval needs at least {{threshold}}, but ${{pred}}<{{threshold}}$: the prediction is {{margin}} short, so the model does not support approval."
             ],
             "commonError": "Deciding from the observed table instead of the prediction: the rule is about predicted demand at x=4, and $y(4)={{pred}}$ is below the threshold {{threshold}}.",
@@ -661,7 +661,7 @@
           "solutionReview": {
             "headline": "The model can compute $y(80)={{pred}}$, but x=80 is far beyond the data, so the value is not automatically reliable.",
             "reasoning": [
-              "Compute: $y(80)={{m}}(80)+{{b}}={{m80}}+{{b}}={{pred}}$.",
+              "Compute: $y(80)={{m}}(80){{b|term}}={{pred}}$.",
               "The data cover only $0\\le x\\le10$. x=80 is 70 units past the largest observed input, 8 times as far out as the data reach.",
               "A strong fit on 0 to 10 shows the line describes that interval only; nothing in the data tests whether y keeps rising by {{m}} per unit all the way to x=80.",
               "So {{pred}} is a computed extrapolation that needs caution, not a guaranteed forecast."
@@ -683,8 +683,7 @@
               }
             },
             "derived": {
-              "pred": "80*m+b",
-              "m80": "80*m"
+              "pred": "80*m+b"
             }
           },
           "difficultyBand": 3
@@ -744,7 +743,7 @@
             "headline": "The model gives $y(10)={{pred}}$, a negative value for a measurement that cannot be negative.",
             "reasoning": [
               "Compute: $y(10)=-{{a}}(10)^2+{{c}}=-{{a100}}+{{c}}={{pred}}$.",
-              "The model values in the table go {{c}}, {{y2}}, {{y4}} at x=0, 2, 4: the $-{{a}}x^2$ term makes them fall faster and faster as x grows, so by x=10 that term alone is $-{{a100}}$.",
+              "The model values in the table go {{c}}, {{y2}}, {{y4}} at x=0, 2, 4: the $-{{a|coef}}x^2$ term makes them fall faster and faster as x grows, so by x=10 that term alone is $-{{a100}}$.",
               "The measurement is nonnegative, so every negative model value, {{pred}} at x=10 and any negative value in the table, is impossible in context: the quadratic describes the situation only while its output stays at or above 0."
             ],
             "commonError": "Accepting {{pred}} because the formula produced it: a model is credible only where it agrees with the context, and it was fitted only for $0\\le x\\le4$.",
@@ -920,7 +919,7 @@
           "solutionReview": {
             "headline": "x=2.5 lies inside the observed range 0 to 5, so the prediction $y(2.5)={{pred}}$ is an interpolation.",
             "reasoning": [
-              "Substitute: $y(2.5)={{m}}(2.5)+({{b}})={{m25}}{{b|signed}}={{pred}}$.",
+              "Substitute: $y(2.5)={{m}}(2.5){{b|term}}={{pred}}$.",
               "The data were observed for $0\\le x\\le5$, and $0\\le2.5\\le5$, so the input is inside the observed range: interpolation."
             ],
             "commonError": "Calling it extrapolation because x=2.5 is not a whole-number data value: interpolation only requires the input to lie within the observed range.",
@@ -943,8 +942,7 @@
               }
             },
             "derived": {
-              "pred": "2.5*m+b",
-              "m25": "2.5*m"
+              "pred": "2.5*m+b"
             }
           }
         },
@@ -994,7 +992,7 @@
           "solutionReview": {
             "headline": "x=5 is beyond the observed range $-2\\le x\\le2$, so the prediction $y(5)={{pred}}$ is an extrapolation.",
             "reasoning": [
-              "Substitute: $y(5)={{a}}(25)+({{b}})(5)+{{c}}={{a25}}+({{b5}})+{{c}}={{pred}}$.",
+              "Substitute: $y(5)={{a}}(25)+({{b}})(5){{c|term}}={{a25}}{{b5|term}}{{c|term}}={{pred}}$.",
               "The data were observed for $-2\\le x\\le2$. x=5 is 3 units beyond the largest observed x, so this is extrapolation."
             ],
             "commonError": "Calling it interpolation because the formula still gives a number: the classification depends on where x=5 sits relative to the observed inputs, not on whether the model can be evaluated.",
@@ -1075,7 +1073,7 @@
           "solutionReview": {
             "headline": "x=1.5 lies inside the observed range 0 to 4, so the prediction $y(1.5)\\approx{{predR}}$ is an interpolation.",
             "reasoning": [
-              "Substitute: $y(1.5)={{a}}({{r}})^{1.5}={{a}}\\cdot{{r}}\\sqrt{{{r}}}\\approx{{a}}({{rr}})\\approx{{predR}}$.",
+              "Substitute: $y(1.5)={{a}}({{r}})^{1.5}={{a}}\\cdot{{r}}\\sqrt{{{r}}}\\approx{{predR}}$.",
               "x=1.5 was not itself observed, but $0\\le1.5\\le4$: it lies inside the observed range, so this is interpolation."
             ],
             "commonError": "Calling it extrapolation because x=1.5 is not in the data table: interpolation only requires the input to lie within the observed range.",
@@ -1099,7 +1097,6 @@
             },
             "derived": {
               "pred": "a*pow(r,1.5)",
-              "rr": "round(pow(r,1.5)*1000)/1000",
               "predR": "round(a*pow(r,1.5)*1000)/1000"
             }
           }

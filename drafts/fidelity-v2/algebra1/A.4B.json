@@ -281,14 +281,14 @@
       "representation": "verbal",
       "prompt": "A headline incorrectly claims, “People who {{behavior}} have {{pct}}% better outcomes, so {{behavior}} causes improvement.” What is the main flaw if the data came only from an observational study?",
       "solutionReview": {
-        "headline": "A {{pct}}% gap from an observational study shows an association; the headline wrongly turns it into causation.",
+        "headline": "The {{pct}}% gap from an observational study shows an association; the headline wrongly turns it into causation.",
         "reasoning": [
           "The study only observed people who {{behavior}} and people who do not, and found {{pct}}% better outcomes in the first group. That is an association.",
           "People who choose to {{behavior}} may differ in other ways, such as motivation, health or free time, that also improve outcomes. Those confounders could produce the {{pct}}% gap by themselves.",
           "So “{{behavior}} causes improvement” is not supported: the headline confuses association with causation. Showing causation needs a design such as random assignment.",
           "The other options fail: comparing the percentages is fine, the study did show a pattern, and no rule requires exactly 100 people."
         ],
-        "commonError": "Accepting a large percentage as proof of a cause. Even a {{pct}}% difference can come entirely from who chose to {{behavior}}.",
+        "commonError": "Accepting a large percentage as proof of a cause. Even a difference of {{pct}}% can come entirely from who chose to {{behavior}}.",
         "answerSummary": "It confuses association with causation: the {{pct}}% gap shows that people who {{behavior}} do better, not that the behavior causes it."
       },
       "attemptFeedback": [
@@ -604,7 +604,7 @@
             "headline": "The observational study shows that {{x}} and higher {{y}} go together; the randomized study can carry a causal claim.",
             "reasoning": [
               "Observational study: students chose whether to use {{x}}, so it shows an association with higher {{y}} but not a causal conclusion by itself. The users may differ in motivation or prior skill.",
-              "Randomized study: comparable students were randomly assigned to {{x}} or the usual method, and {{y}} was measured under the same conditions. That reduces systematic confounding and provides much stronger evidence for causation.",
+              "Randomized study: comparable students were randomly assigned to {{x}} or the usual method, and both groups were measured on {{y}} under the same conditions. That reduces systematic confounding and provides much stronger evidence for causation.",
               "So the randomized comparison study should carry the causal claim, provided it is ethical and well-run.",
               "Why: random assignment helps separate the treatment effect from pre-existing differences and confounders. A bigger numerical difference in one study is not, by itself, a reason to infer a cause."
             ],

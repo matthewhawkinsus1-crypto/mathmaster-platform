@@ -628,11 +628,51 @@ test('every draw\'s solution review is a worked solution of that draw, checked b
       // A coefficient of 1 or -1 is not written ("1x", "-1x").
       assert.doesNotMatch(text, /(?<![\w.,])-?1[a-z]\b/, `${where}: unit coefficient written out`);
 
+      const verdict = VERDICTS[id];
+      assert.match(review.headline, verdict.headline, `${where}: the headline reaches the verdict`);
+      assert.match(review.reasoning.at(-1), verdict.final, `${where}: the final step reaches the verdict`);
+      for (const wrong of verdict.contradicts) {
+        strings.forEach((entry) => assert.doesNotMatch(entry, wrong, `${where}: never concludes the losing option`));
+      }
+
       const body = numbersIn([review.headline, ...review.reasoning].join(' '));
       assert.ok(oracle.specific.some((value) => body.includes(value)), `${where}: the review names a number from its own prompt`);
     }
   }
   t.diagnostic(`${IDS.length} templates x ${DRAW_SEEDS.length} draws`);
+});
+
+// --- the verdict the worked steps reach (independent review of #469) ----------------
+//
+// `must` above pins claims the review states; it cannot see a final step that
+// flips the conclusion. As in the grade 6/7 file, the headline and the last step
+// must reach the keyed answer, and no entry may state the losing option as the
+// conclusion (the common error included: it names the mistake, never adopts it).
+const VERDICTS = {
+  'mm_gen_8_8_3B_angle-preserved': { headline: /keeps every angle measure the same/, final: /must remain unchanged is the angle measures/, contradicts: [/must remain unchanged is the (?:side lengths?|lengths|area|perimeter)/] },
+  'mm_gen_8_8_5C_error-two-differences': { headline: /a linear conclusion needs the whole pattern/, final: /check the full data pattern before declaring/, contradicts: [/(?:so|therefore) the (?:data|points) (?:are|is) linear/i] },
+  'mm_gen_8_8_5F_context-sort': { headline: /is proportional; the .*fee makes the service non-proportional/, final: /the machine with no starting amount is the proportional one/, contradicts: [/the service is (?:the )?proportional/, /the machine is (?:non|not )-?proportional/] },
+  'mm_gen_8_8_5H_error-fee': { headline: /keeps it from being proportional/, final: /proportionality also requires a zero starting value/, contradicts: [/(?:so|therefore) the rule is proportional/i] },
+  'mm_gen_8_8_6C_error-lengths': { headline: /give a hypotenuse of \d+, not \d+/, final: /can never equal/, contradicts: [/the hypotenuse (?:is|equals) the sum/] },
+  'mm_gen_8_8_7B_lateral-vs-total': { headline: /the total adds the two bases/, final: /total surface area equals lateral area plus the two circular bases/, contradicts: [/lateral area (?:equals|is) the total/, /total surface area equals (?:the )?lateral area\./] },
+  'mm_gen_8_8_8B_table-to-story': { headline: /break-even question/, final: /determining when the two monthly totals become equal/, contradicts: [] },
+  'mm_gen_8_8_8D_aa-similarity': { headline: /similar by AA, but not necessarily congruent/, final: /the triangles are similar by AA\./, contradicts: [/triangles are congruent/, /(?<!not necessarily )congruent by/] },
+  'mm_gen_8_8_9_parallel-error': { headline: /the lines are parallel and never intersect/, final: /there is no intersection point/, contradicts: [/(?:so|therefore) the lines intersect/i, /the intersection point is/] },
+  'mm_gen_8_8_10A_reflection-orientation': { headline: /the orientation reverses/, final: /congruent, but its orientation reverses/, contradicts: [/orientation (?:is|stays) (?:the same|unchanged|preserved)/, /image is not congruent/] },
+  'mm_gen_8_8_10B_identify-rigid': { headline: /preserves congruence; dilating by factor \d+ does not/, final: /only the translation .* preserves congruence/, contradicts: [/dilat\w+ (?:by factor \d+ )?preserves congruence/] },
+  'mm_gen_8_8_10B_table-sort': { headline: /translation row keeps lengths unchanged/, final: /the row to choose is the translation/, contradicts: [/the row to choose is the dilation/] },
+  'mm_gen_8_8_10B_reverse-classify': { headline: /moved by a rigid motion/, final: /congruence-preserving rigid motion/, contradicts: [/(?:it|the transformation) (?:is|was) a dilation/] },
+  'mm_gen_8_8_11A_reverse-no-association': { headline: /little or no association/, final: /shoe size versus number of letters in a first name/, contradicts: [] },
+  'mm_gen_8_8_11A_causation-error': { headline: /cannot show that firefighters cause/, final: /treating association as causation/, contradicts: [/(?:so|therefore|shows that|means that|proves that) (?:more )?firefighters cause/i] },
+  'mm_gen_8_8_11C_random-sample': { headline: /at random from the whole population/, final: /using a random process from the whole population/, contradicts: [] },
+  'mm_gen_8_8_11C_simulation-variability': { headline: /the population did not change/, final: /random samples naturally vary/, contradicts: [/(?:so|therefore|shows that) the population (?:has )?changed/i] },
+  'mm_gen_8_8_12A_rate-compare': { headline: /Loan B at \d+% costs more interest than Loan A/, final: /so Loan B costs more\./, contradicts: [/Loan A (?:at \d+% )?costs more/] },
+  'mm_gen_8_8_12A_error-payment-only': { headline: /compare the total repaid too/, final: /compare the total interest and total amount repaid/, contradicts: [] },
+  'mm_gen_8_8_12D_compare-methods': { headline: /compounding earns more/, final: /compound interest earns more/, contradicts: [/(?:so|therefore),? simple interest earns more/i] },
+};
+
+test('every template has a verdict check', () => {
+  assert.deepEqual(Object.keys(VERDICTS).sort(), [...IDS].sort());
 });
 
 test('a slope of 1 or -1 is never written as a coefficient ("y = 1x - 12")', () => {

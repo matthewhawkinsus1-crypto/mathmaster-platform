@@ -520,6 +520,16 @@ ORACLE['mm_A2_8C_v2_prediction-model-variants'] = (question) => {
 };
 
 // --- A2.8C response-field model items ---------------------------------------------------
+
+// Roles (independent review of #469): the number bag above says each number is
+// right for SOME quantity of the draw; these say which one. Each role is a
+// pattern and the value its captures must carry, recomputed from the prompt.
+const role = (pattern, ...values) => ({ pattern, values });
+// Every "$y(x)=...=v$" (or "\approx v") chain ends at the model's value at x.
+const chainRole = (model, tolerance = 1e-9) => ({
+  pattern: /\$y\((-?\d+(?:\.\d+)?)\)(?:=|\\approx)[^$]*?(?:=|\\approx)(-?\d+(?:\.\d+)?)\$/g,
+  check: (found) => near(Number(found[2]), atX(model, Number(found[1])), tolerance),
+});
 const modelFromPrompt = (question) => {
   const [model] = grab(question.prompt, /\$y=([^$]+)\$/, 'model');
   return fn(model);
@@ -564,6 +574,12 @@ ORACLE['mm_A2_8C_v2_decision-model-variants'] = (question) => {
   return {
     values: [prediction, threshold, Math.abs(prediction - threshold), x, x - 1, ...ys, ...deltas, ...ratiosList, ...coefficientTerms, ...numbersInModel, 3, 9, 16],
     specific: [threshold, ...ys],
+    roles: [
+      role(/(\d+) units over capacity/g, Math.abs(prediction - threshold)),
+      role(/the prediction is (\d+) short/g, Math.abs(prediction - threshold)),
+      role(/\$(-?\d+(?:\.\d+)?)[<>](-?\d+(?:\.\d+)?)\$/g, prediction, threshold),
+      chainRole(model),
+    ],
     keyCheck: predictionKeyCheck(question, x, prediction, verdict.label),
   };
 };
@@ -591,6 +607,12 @@ ORACLE['mm_A2_8C_v2_critical-judgment-model-variants'] = (question) => {
     values: [prediction, x, low, high, x - high, x / high, ...tableValues, ...numbersInModel, ...products, yHigh, 2 ** x,
       ...(Number.isInteger(doublings) ? [doublings, 2 ** doublings] : []), 2, 0, 4, 10],
     specific: [prediction, ...numbersInModel],
+    roles: [
+      role(/x=(\d+) is (\d+) units past the largest observed input/g, x, x - high),
+      role(/(\d+) times as far out/g, x / high),
+      role(/(\d+) more doublings/g, doublings),
+      chainRole(model),
+    ],
     keyCheck: predictionKeyCheck(question, x, prediction, verdict.label),
   };
 };
@@ -610,6 +632,10 @@ ORACLE['mm_A2_8C_v2_interpolation-extrapolation-model-variants'] = (question) =>
   return {
     values: [prediction, rounded, x, low, high, x - high, x * x, ...numbersInModel, ...products, 1.5],
     specific: [x === 1.5 ? rounded : prediction, ...numbersInModel],
+    roles: [
+      role(/x=(\d+) is (\d+) units beyond the largest observed x/g, x, x - high),
+      chainRole(model, 0.0005 + 1e-9),
+    ],
     keyCheck: predictionKeyCheck(question, x, prediction, verdict.label, approx),
   };
 };
@@ -695,6 +721,14 @@ const checkDraw = async (question, id, label) => {
   const relations = checkRelations(text, label);
   assert.ok(relations >= 1, `${label}: the review states no checkable relation`);
   checkNumbers(review, question, oracle.values, label);
+  for (const { pattern, values, check } of oracle.roles || []) {
+    for (const entry of [review.headline, ...review.reasoning, review.commonError, review.answerSummary]) {
+      for (const found of entry.matchAll(pattern)) {
+        if (check) assert.ok(check(found), `${label}: "${found[0]}" does not carry the value its role needs`);
+        else values.forEach((value, index) => assert.ok(near(Number(found[index + 1]), value, 1e-9), `${label}: "${found[0]}" must carry ${value}`));
+      }
+    }
+  }
 
   // Specific to its draw: a drawn number in the reasoning and in the summary.
   const specific = oracle.specific.map((value) => Math.abs(Number(value)));
@@ -938,3 +972,43 @@ const PINNED_DERIVED = {
     {"pred":"a*pow(r,1.5)"},
   ],
 };
+
+test('a subtracted negative numerator is shown as -(-B), never folded away (independent review of #469)', () => {
+  const id = 'mm_A2_7F_v2_difference-rational-degree-variants';
+  const doc = template(id);
+  // The reviewer's seed: B = -4, variant 0.
+  const pinned = generatePathInstance({ ...doc, variants: [doc.variants[0]] }, `challenge|room3|3|${id}`).question.solutionReview;
+  assert.ok(pinned.reasoning[1].includes('$6(x+3)-(-4)(x-3)$'), pinned.reasoning[1]);
+  assert.ok(pinned.reasoning[2].startsWith('Distribute the subtraction to both terms: $-(-4)(x-3)=4(x-3)=4x- 12$'), pinned.reasoning[2]);
+  assert.ok(pinned.commonError.includes('$-(-4)(x-3)$ is $4x- 12$, not $4x+ 12$'), pinned.commonError);
+  doc.variants.forEach((variant, index) => {
+    let negatives = 0;
+    for (let seed = 0; seed < 120; seed += 1) {
+      const generated = generatePathInstance({ ...doc, variants: [variant] }, `negative-b-${seed}`);
+      const { B } = generated.parameters;
+      if (B >= 0) continue;
+      negatives += 1;
+      const steps = generated.question.solutionReview.reasoning.join(' ');
+      assert.ok(steps.includes(`-(${B})`), `${id} v${index} B=${B}: the subtraction of ${B} is written out: ${steps}`);
+    }
+    assert.ok(negatives > 10, `${id} v${index}: the scan reached negative B`);
+  });
+});
+
+test('A2.7F and A2.8C reviews never write a unit coefficient or a "+ 0" term', () => {
+  const ids = ['mm_A2_7F_v2_sum-rational-degree-variants', 'mm_A2_7F_v2_difference-rational-degree-variants',
+    'mm_A2_8C_v2_prediction-model-variants', 'mm_A2_8C_v2_decision-model-variants',
+    'mm_A2_8C_v2_critical-judgment-model-variants', 'mm_A2_8C_v2_interpolation-extrapolation-model-variants'];
+  for (const id of ids) {
+    const doc = template(id);
+    doc.variants.forEach((variant, index) => {
+      for (let seed = 0; seed < 150; seed += 1) {
+        const review = generatePathInstance({ ...doc, variants: [variant] }, `unit-${seed}`).question.solutionReview;
+        for (const span of mathSpans(reviewText(review))) {
+          assert.doesNotMatch(span, /(?<![\w.,^])-?1x/, `${id} v${index}: unit coefficient in $${span}$`);
+          assert.doesNotMatch(span, /[+-]\s*0(?![\d.(])|\+\s*\(0\)(?=\s*(?:=|$))/, `${id} v${index}: a "+ 0" term in $${span}$`);
+        }
+      }
+    });
+  }
+});

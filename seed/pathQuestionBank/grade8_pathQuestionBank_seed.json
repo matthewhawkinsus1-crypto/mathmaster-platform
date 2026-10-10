@@ -11915,11 +11915,11 @@
         }
       ],
       "solutionReview": {
-        "headline": "Translating {{dx}} units right preserves congruence; dilating by factor {{k}} does not.",
+        "headline": "Translating right by {{dx}} preserves congruence; dilating by factor {{k}} does not.",
         "reasoning": [
           "A translation slides every point the same distance: $(x, y) \\to (x + {{dx}}, y)$. Every segment keeps its length and every angle its measure, so the image is congruent.",
           "A dilation by factor {{k}} multiplies every length by {{k}}: a 4-unit side would become $4 \\times {{k}} = {{k4}}$ units. The angles stay the same, so the image is similar but not congruent.",
-          "Congruence needs equal lengths as well as equal angles, so only the translation of {{dx}} units right preserves congruence."
+          "Congruence needs equal lengths as well as equal angles, so only the translation right by {{dx}} preserves congruence."
         ],
         "commonError": "Calling the dilation rigid because its angles are unchanged. Factor {{k}} changes every length, so its image is only similar.",
         "answerSummary": "Translate {{dx}} units right."
@@ -12141,7 +12141,7 @@
         }
       ],
       "solutionReview": {
-        "headline": "A {{n}}-unit segment that stays {{n}} units, with every angle preserved, is moved by a rigid motion.",
+        "headline": "The {{n}}-unit segment stays {{n}} units long with every angle preserved, so it was moved by a rigid motion.",
         "reasoning": [
           "Compare the lengths: image $\\div$ original $= {{n}} \\div {{n}} = 1$, so the transformation neither stretches nor shrinks the segment.",
           "A size-changing dilation would multiply the length by a factor other than 1; factor 2, for example, would give $2 \\times {{n}} = {{n2}}$ units. That did not happen here.",
@@ -14108,7 +14108,7 @@
         }
       ],
       "solutionReview": {
-        "headline": "Same {{prin}}-dollar principal for {{t}} years: Loan B at {{r2}}% costs more interest than Loan A at {{r1}}%.",
+        "headline": "Same {{prin}}-dollar principal over the same {{t}}-year term: Loan B at {{r2}}% costs more interest than Loan A at {{r1}}%.",
         "reasoning": [
           "Simple interest is $I = Prt$. Loan A: $I = {{prin}} \\times \\frac{ {{r1}} }{100} \\times {{t}} = {{iA}}$ dollars.",
           "Loan B: $I = {{prin}} \\times \\frac{ {{r2}} }{100} \\times {{t}} = {{iB}}$ dollars.",
@@ -14349,7 +14349,7 @@
         }
       ],
       "solutionReview": {
-        "headline": "A {{years}}-year loan's lower monthly payment can hide more total interest, so compare the total repaid too.",
+        "headline": "The {{years}}-year loan's lower monthly payment can hide more total interest, so compare the total repaid too.",
         "reasoning": [
           "Spreading a loan over {{years}} years ({{mo}} monthly payments) makes each payment smaller, but interest keeps building for the whole time.",
           "Example with simple interest of 5% per year on 1,000 dollars: over {{years}} years the interest is $1000 \\times 0.05 \\times {{years}} = {{int}}$ dollars, and the total repaid is {{tot}} dollars.",

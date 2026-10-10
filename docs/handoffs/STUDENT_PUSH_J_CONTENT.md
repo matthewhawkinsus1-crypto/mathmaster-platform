@@ -209,8 +209,23 @@ oracle.
 The same item is never shown with its solution while it can still be asked. The `revealableRounds` hold from B1
 compares bank questions by template id, so a solution stays held while a later open round uses the same template.
 
-**Deploy.** Same steps and order as #464 (functions → path-admin → Hosting → publish). Publish release **`course-path-v2-4d9681dfcc5dd150`** in place of #464's id. If #464
+**Deploy.** Same steps and order as #464 (functions → path-admin → Hosting → publish). Publish release **`course-path-v2-485a9d98e2287892`** in place of #464's id. If #464
 ships alone first, publish its id then and this one after #469 merges.
+
+**Independent review of #469: fixes.**
+- **A2.7F difference, all three variants.** A negative subtracted numerator was folded away: −(−4) became +4 with no
+  step shown. The review now writes `-{{B|paren}}` (renders −(−4)), shows −(−4)(x−3) = 4(x−3) = 4x − 12, and the
+  common error compares that with the sign-flip mistake. The reviewer's seed is pinned.
+- **Tests that missed a flipped conclusion.** Grade 8 now has a verdict check per template, as grades 6/7 do: the
+  headline and the final step must reach the keyed answer, and no entry may state the losing option. In Algebra II,
+  the A2.8C numbers are tied to their roles ("units over capacity", "short", comparisons, every `y(x)=…` chain).
+  The reviewer's two mutations now fail.
+- **Display.** New generator filters `coef`, `term` and `xterm`, used only by these reviews (no prompt changed).
+  They remove "1x", "−1x" and "+ 0" from A2.7F and A2.8C. A test bans those forms in both.
+- A2.8C interpolation no longer states 5(2.828) ≈ 14.142; it goes straight to the rounded value.
+- Grammar: "A 8% gap" and similar, "quiz scores was measured", "A 8-unit segment" and "A 8-year loan's" fixed. "1 units"
+  and "1 years" were fixed where the review words them itself. Where a review quotes a prompt's choice text
+  (e.g. "Translation by {{dx}} units"), it stays as the prompt has it.
 
 **What's left.** No classroom Live Challenge templates remain: the 79 were every standard-pool template that
 published only a generic solution (18 Algebra I, 13 Algebra II, 12 grade 6, 16 grade 7, 20 grade 8). The 768 test-prep
