@@ -109,6 +109,9 @@ const MEASURE = (rootSelector) => {
   const scrollable = (node) => /(auto|scroll)/.test(getComputedStyle(node).overflowY + getComputedStyle(node).overflowX);
   for (const element of root.querySelectorAll('*')) {
     if (exempt(element) || !visible(element) || srOnly(element) || !ownText(element)) continue;
+    // The skip link waits off screen until it is focused (accessiblePrimitives
+    // checks it on focus).
+    if (element.matches('.mm-skip-link:not(:focus)')) continue;
     const rect = element.getBoundingClientRect();
     for (let node = element.parentElement; node && node !== document.documentElement; node = node.parentElement) {
       if (scrollable(node)) break;

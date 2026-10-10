@@ -30,12 +30,20 @@
 
 .mathmaster-question-container {
   width: 100%;
-  height: var(--mm-visual-viewport-height, 100dvh);
-  max-height: var(--mm-visual-viewport-height, 100dvh);
-  overflow: hidden;
   box-sizing: border-box;
   background: var(--mm-surface);
   color: var(--mm-text-strong);
+}
+
+/* The screen-tall, clipped frame is the phone question layout's own
+   (MobileViewportContainer's interaction root). Live Challenge's field
+   question shares the class for its inner styles only: given this frame, it
+   stood a whole screen tall and, at 200% text, cut off its Lock In Answer
+   button (job H, WCAG 1.4.4). */
+.mathmaster-question-container.mathmaster-mobile-interaction-root {
+  height: var(--mm-visual-viewport-height, 100dvh);
+  max-height: var(--mm-visual-viewport-height, 100dvh);
+  overflow: hidden;
 }
 
 @media (max-width: 768px), (orientation: landscape) and (max-height: 500px) {
@@ -283,6 +291,12 @@
   .mathmaster-question-container.mode-portrait .portrait-action-bar {
     position: relative;
     z-index: 10;
+    /* At a large text size the bar wraps to more rows than the frame has
+       room for, and the frame clips: its last row (Calculator, Hint) was cut
+       off at 200% (job H, WCAG 1.4.4). Past 40% of the screen it scrolls. */
+    flex: 0 0 auto;
+    max-height: 40dvh;
+    overflow-y: auto;
     padding: 8px max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
     background: var(--mm-surface);
     border-top: 1px solid var(--mm-border);
