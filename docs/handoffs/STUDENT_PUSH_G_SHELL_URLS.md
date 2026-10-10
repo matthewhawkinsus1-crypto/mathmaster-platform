@@ -118,8 +118,22 @@ build) when either path grows more than 8 KB past
 `--write-baseline` only after a deliberate reduction. The static-graph
 boundary tests (`initialBundleBoundary`, `sharedGradersStayOutOfStartupBundle`)
 now walk main.jsx plus App.jsx, and a new test holds App off the sign-in path.
+Merging main (#461) grew student Home by 10.6 KB, past the 8 KB allowance;
+the baseline adopted it in the merge commit (main's code, nothing new on the
+critical path). Other jobs' merges will do the same: adopt growth in a merge
+deliberately, and investigate growth on a branch with `--report`.
 
-### 6. The App shell split (behaviour-preserving)
+### 6. Quiz/test feedback release names who is still working (QA M3)
+"Release Feedback to Students" is one flag for every class an assessment is
+assigned to, and once released, closed quiz/test items show worked
+solutions. The confirm now lists every assigned, non-excused student whose
+window is open and who has a required quiz/test item not finished (not
+started included), grouped by class, and asks for "Release anyway"
+(`src/app/teacher/feedbackReleaseHold.js`, `feedbackReleaseHold.test.mjs`).
+It reads the Gradebook's own student records (no server read); a student
+with no records loaded is listed, so it errs toward naming too many.
+
+### 7. The App shell split (behaviour-preserving)
 | Module | From App.jsx |
 | --- | --- |
 | `src/app/student/assignmentRuntimeHelpers.js` | trackers, held-feedback rule, date formats, Warm-Up capture, DOL score |
@@ -218,6 +232,12 @@ lives, each with its behaviour re-asserted (and mutation-checked):
   link gets that assignment's monitor; a teacher opening any other student
   address gets Home + "That link is a student page"; `/test-cycle` with no id
   opens Assignments.
+
+## Waiting on other PRs (relayed App.jsx wiring)
+- #464 (job J): the DOL-open toast rule (`shouldShowDolOpenReminder`).
+- #467 (job I): `sectionAccessForStudent` for "prerequisite met early".
+- #463 (job H): the px→rem codemod over App.jsx, App.css and src/app, as a
+  final separate commit.
 
 ## Files outside my lane
 - `src/components/student/StudentDashboardView.jsx`, `WhatShouldIDoNow.jsx`,
