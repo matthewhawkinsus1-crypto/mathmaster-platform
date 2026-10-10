@@ -2,7 +2,7 @@
 
 Branch `claude/student-push-b-tests` (draft PR #461), from `main` @ `2453643`,
 with `main` merged back in before the final push (hotfix #456, then #457
-Recoveries and #458 tool-workspace drafts).
+Recoveries and #458 tool-workspace drafts, then job F's accessibility #454).
 
 Goal: tests that work like real tests, full access for every student, and
 results that teach. Product decisions 2 (skip / flag / go back) and 3 (worked
@@ -202,6 +202,14 @@ catch-all already denied it). No new indexes. Hosting via
 - Digital SAT modules are not adaptive and share one timer (the real test
   times each module and adapts module 2).
 - A legacy session's already-recorded answers stay locked after the upgrade.
+- The pause screen (teacher pause and integrity lock) is job F's shared
+  `Dialog` — `role="alertdialog"`, Escape off, no close handler — with the
+  Dialog's own focus return off: the surface going inert has already dropped
+  focus to `<body>` when it opens, so the container's record of where the
+  student was gives focus back. The SAT reference sheet and the graphing
+  calculator stay non-modal drawers (the question is usable beside them, as on
+  test day), so they are not `Dialog`s; only their redundant
+  `aria-modal="false"` went, for F's no-hand-rolled-modal rule.
 
 ## Follow-ups (outside this lane, or later)
 
@@ -216,9 +224,9 @@ catch-all already denied it). No new indexes. Hosting via
 - **Job D:** `MyMathPathApp` `launchFramework` so a practice-test domain link
   starts that exam's practice directly (today it opens the CCMR tab);
   `PathSolutionReview` heading-level prop.
-- **Job F:** swap the pause overlay to the shared `Dialog` on merge;
-  `MathInput` leaves MathLive's keyboard sink unnamed platform-wide (the secure
-  field names its own); a `showExamples` switch on the support tray.
+- **Job F:** `MathInput` leaves MathLive's keyboard sink unnamed platform-wide
+  (the secure field names its own); a `showExamples` switch on the support
+  tray. (The pause overlay is now the shared `Dialog` — done at the merge.)
 - An expired-and-abandoned session stays in progress until the student returns
   or a teacher force-submits (as before); a scheduled finalizer would need a
   stored deadline.
@@ -246,6 +254,9 @@ catch-all already denied it). No new indexes. Hosting via
   — copy only ("one attempt per question" → the new rules).
 - Tests in other areas rewritten against behaviour: `studentJourneyUi`,
   `secureRichToolRuntimeWiring`, `secureToolDraftCleanup`,
-  `testCycleSecureRuntimeUnification`, `testCycleAccessControl`,
+  `testCycleSecureRuntimeUnification` (including F's "a secure exam modal
+  never closes on Escape", which now counts the one Dialog the navigation
+  design has, with F's invariants), `testCycleAccessControl`,
   `testCycleServerWiring`; `tests/browser/testCycleDevice.mjs` and its
-  emulator stub (copy).
+  emulator stub (copy); F's `tests/browser/accessibilityCertification.mjs`
+  waits for the new start-screen rule instead of "One attempt per question".
