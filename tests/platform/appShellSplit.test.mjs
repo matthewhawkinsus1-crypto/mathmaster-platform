@@ -103,3 +103,12 @@ test('the app shell shows sign-in itself, names it, prefetches App, and keeps Ap
   // The launch preview reads only ?launch=, never the lifecycle-heavy route module.
   assert.doesNotMatch(executableSource(read('src/app/shell/useClassroomLaunchPreview.js')), /from '[^']*classroomLaunchRoute/);
 });
+
+test('student Home prefetches the question runtime at idle, the chunk an assignment opens with', () => {
+  const effect = appCode.slice(appCode.indexOf('const questionEnginePrefetchedRef = useRef(false);'), appCode.indexOf('}, [user?.role, activeView]);'));
+  assert.ok(effect.length > 0, 'the prefetch effect');
+  assert.match(effect, /user\?\.role !== 'student' \|\| activeView !== 'dashboard'/);
+  assert.match(effect, /import\('\.\/QuestionEngine\.jsx'\)/, 'the same module app/lazyScreens.js loads lazily');
+  assert.match(effect, /requestIdleCallback\(prefetch/);
+  assert.match(read('src/app/lazyScreens.js'), /export const QuestionEngine = lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\);/);
+});

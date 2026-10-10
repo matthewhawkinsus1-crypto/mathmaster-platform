@@ -48,7 +48,7 @@ The URL, Home's Resume ("Continue at Classwork Question 2",
 `studentDashboardModel.js` `resumeQuestionAddress`) and the workspace header
 now agree. Before, Resume said storage order ("Question 5").
 
-### 3. Refresh, deep links, unknown addresses
+### 3. Refresh, deep links, unknown addresses, shared Chromebooks
 - History writers (`App.jsx`, student and teacher) give each entry its
   screen's URL (`src/app/routes/browserUrl.js`); `browserHistory.js` and
   `teacherBrowserHistory.js` gained a `url` option.
@@ -83,7 +83,43 @@ rewrites. **New:** a `regex` header rule gives every app address the same
 without it a reload of `/grades` after a deploy could keep the old shell whose
 bundles are gone. `vercel.json` (new): SPA fallback + the same caching.
 
-### 5. The App shell split (behaviour-preserving)
+### 5. A smaller first load (coordinator's item 7)
+`src/main.jsx` renders `src/app/shell/AppShell.jsx`: it shows sign-in itself
+(SessionGate, with the "Sign in – MathMaster" title) and loads `App.jsx`
+lazily once an account is signed in. App is prefetched while the sign-in
+screen is idle, and stays mounted after its first load, so every later Log
+Out / next student / account switch runs exactly as before inside App. The
+Classroom launch preview on the sign-in screen reads only `?launch=`
+(`useClassroomLaunchPreview.js`); App still opens the launch through its
+own gates. Student Home prefetches the question runtime (QuestionEngine +
+MathLive) at idle, so the first assignment does not wait on it.
+
+Measured with the production build (`node scripts/check-first-load-budget.mjs
+--report`, gzip, every chunk and stylesheet on the static path):
+
+| Path | Before | After |
+| --- | --- | --- |
+| Sign-in screen | 1,406 KB, 194 files | **288 KB, 20 files** (firebase 171 KB, the shell 73 KB, auth/toast/theme) |
+| Student Home | 1,406 KB, 194 files | 1,423 KB, 213 files (App is its own chunk: 225 KB + mathjs 174 KB + the tool graders) |
+
+What moved: App.jsx, the teacher and student screens' static imports, mathjs,
+the grading/tool modules and every lazily-declared screen left the sign-in
+path. Student Home is unchanged in size: App.jsx still imports the teacher
+workspace's modules statically, and the tool graders (job H/K internals) are
+reached from App. Splitting the teacher half out of App is the next lever and
+needs the render-block extractions listed under "Left for later".
+
+The budget: `scripts/check-first-load-budget.mjs` (pure half
+`scripts/lib/firstLoadBudget.mjs`, tests `firstLoadBudget.test.mjs`) reads
+`dist/.vite/manifest.json` (`vite.config.js` `build.manifest`; Hosting
+ignores dot-directories) and fails CI (`full-platform-suite.yml`, after the
+build) when either path grows more than 8 KB past
+`scripts/first-load-baseline.json`. Lower the baseline with
+`--write-baseline` only after a deliberate reduction. The static-graph
+boundary tests (`initialBundleBoundary`, `sharedGradersStayOutOfStartupBundle`)
+now walk main.jsx plus App.jsx, and a new test holds App off the sign-in path.
+
+### 6. The App shell split (behaviour-preserving)
 | Module | From App.jsx |
 | --- | --- |
 | `src/app/student/assignmentRuntimeHelpers.js` | trackers, held-feedback rule, date formats, Warm-Up capture, DOL score |
@@ -125,12 +161,41 @@ lives, each with its behaviour re-asserted (and mutation-checked):
   monitor. Mutation: disabling the arrival turns it red.
 - Existing journeys run locally: teacher workflow journeys (all), private
   controls (shared Chromebook). The rest run in CI.
-- Adversarial verification workflow (one verifier per piece: URL safety,
-  extraction) — see the PR for its findings and what was done about them.
+- Adversarial verification (a workflow, one verifier per piece). URL
+  safety found, and `03b7c8d` fixed (each with a journey or test that fails
+  without it):
+  - **Shared Chromebook Back**: after Log Out, the next student's Back walked
+    into the previous student's entries, restored without startAssignment's
+    gates. Every entry now carries its account; a foreign entry is never
+    restored, on the same page or across a reload (journey U9).
+  - **Excused deep link** (also through `?launch=`): opened graded work Home
+    never offers. startAssignment now sends an excused student to the result
+    page with a message (U10).
+  - My Math Path Back onto `/path/<tab>` showed the Path tab (U8); a session
+    link that cannot start left `/path/session/<skill>` in the bar.
+  - Minor: any sign-out (lease expiry, another tab, hydration error) now
+    clears the held arrival and resets the bar; the arrival waits for the
+    student's own controls (8 s fallback); a closed section's question
+    address says so; `_mm_reload` / `launchError` are consumed.
+  The extraction verifier confirmed all 59 moved declarations are verbatim
+  (bar `export` and import paths) and SessionGate's JSX identical. It asked
+  for the SessionGate props to be asserted and the full
+  confusing-browser-globals list, both done.
 
 ## Left for later, and why
-- **The split is a start.** About 240 lines left App.jsx; the URL work added
-  about 200, so it is 13,566 lines. The large render blocks (the assignment
+- **Student Home is still ~1.4 MB gzip**: see section 5. Needs the teacher
+  workspace out of App's static graph.
+- **An arrival on a page that loaded signed out** (a restored tab, an
+  expired lease at load) still opens for whoever signs in next. The address
+  carries ids only and every gate applies, so it shows that account its own
+  view of the assignment, never the previous student's work. An entry the
+  previous account wrote is refused (U9).
+- `classroomConnected` / `classroomError` (the Classroom OAuth callback)
+  stay in the address until reload: ClassroomManagerV2 reads them when the
+  teacher opens the Classroom tab.
+- **The split is a start.** About 240 lines moved out of App.jsx, but the
+  URL wiring and its safety fixes added more, so App.jsx is 13,649 lines
+  (from 13,607). The large render blocks (the assignment
   workspace, the teacher workspace, the student dashboard branches, the
   result screen) are pinned by many source-text tests (the result branch
   alone: ~15 assertions in 5 files) and #461 (job B) still changes App.jsx's
@@ -163,3 +228,10 @@ lives, each with its behaviour re-asserted (and mutation-checked):
   `src/platform/teacher/teacherBrowserHistory.js` — a `url` option.
 - `.oxlintrc.json` — the `src/app/**` override.
 - `tests/browser/studentHomeToday.mjs` — the resume copy check.
+- `src/main.jsx` (in my lane), `vite.config.js` (`build.manifest`),
+  `package.json` (`check:first-load`), `.github/workflows/full-platform-suite.yml`
+  (the budget step), `.github/workflows/student-teacher-journeys.yml`
+  (the `app-urls` job).
+- Test files repointed (behaviour re-asserted, mutation-checked):
+  `supportDeadlineParity`, `initialBundleBoundary`,
+  `sharedGradersStayOutOfStartupBundle`, plus those listed in section 6.

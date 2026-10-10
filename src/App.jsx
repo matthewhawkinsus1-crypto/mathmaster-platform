@@ -5314,6 +5314,26 @@ function App() {
     };
   }, [user, activeView, activeAssignmentId, isIdle, activeSupportPresentation.disableIdleTimer]);
 
+  // THE LIKELY NEXT CHUNK. From Home a student almost always opens an
+  // assignment, and the question runtime (QuestionEngine, with MathLive) is
+  // its own chunk (app/lazyScreens.js). Fetch it once the browser is idle on
+  // Home, so the first assignment does not wait on it. Nothing here joins the
+  // first paint (scripts/check-first-load-budget.mjs measures that).
+  const questionEnginePrefetchedRef = useRef(false);
+  useEffect(() => {
+    if (user?.role !== 'student' || activeView !== 'dashboard' || questionEnginePrefetchedRef.current) return undefined;
+    const prefetch = () => {
+      questionEnginePrefetchedRef.current = true;
+      import('./QuestionEngine.jsx').catch(() => { /* the real open retries */ });
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(prefetch, { timeout: 5000 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(prefetch, 2000);
+    return () => window.clearTimeout(timer);
+  }, [user?.role, activeView]);
+
   // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
   useDocumentTitle(pageTitleFor({
     signedIn: Boolean(user),
