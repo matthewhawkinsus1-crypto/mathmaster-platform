@@ -16454,6 +16454,11 @@ exports.startSecureExamSession = onCall(async (request) => {
     if (secureExam.LOCKED_STATES.has(current.status)) return current;
     if (current.status !== "not_started" && current.status !== "in_progress") throw new HttpsError("failed-precondition", "This exam cannot be started.");
     if (current.status === "in_progress") return current;
+    // The course gate again, through this transaction: a pause or archive that
+    // lands while the start is in flight is seen here (or retries it), so a
+    // Test never starts on a closed assessment, where no clock hold would
+    // cover it (holdCourseTestClocks holds only Tests already under way).
+    await assertCourseTestEntryAllowed(db, current, studentId, { transaction });
     const now = Date.now();
     // The accommodation multiplies the test's own limit once, at start; an
     // untimed test stays untimed.
@@ -23612,16 +23617,26 @@ exports.getAssignmentEvidenceSummary = onCall(async (request) => {
  * started and not finished gets the "assignment" hold (secureExam.withPauseHold),
  * and loses it when the assessment is open again, which extends its deadline
  * by the time it was closed. Each session changes in its own transaction, so a
- * proctor's pause or a save landing at the same moment is never lost.
+ * proctor's pause or a save landing at the same moment is never lost — and
+ * that transaction reads the assignment, so the hold follows whether the
+ * assessment is closed then, not when this call began: an archive racing an
+ * unarchive (two tabs, two teachers) ends with the hold matching where the
+ * assessment ended up. A Test starting meanwhile is gated inside its own start
+ * transaction (startSecureExamSession).
  */
-async function holdCourseTestClocks(db, assignmentId, { closed, now = Date.now() }) {
+async function holdCourseTestClocks(db, assignmentId) {
+  const assignmentRef = db.collection("assignments").doc(String(assignmentId));
   const snapshot = await db.collection("examSessions").where("courseTest.assignmentId", "==", String(assignmentId)).get();
   const live = (session) => session.status === "in_progress" || secureExam.LOCKED_STATES.has(session.status);
   await Promise.all(snapshot.docs
     .filter((doc) => live(doc.data() || {}))
     .map((doc) => db.runTransaction(async (transaction) => {
-      const session = (await transaction.get(doc.ref)).data() || {};
+      const [sessionSnapshot, assignmentSnapshot] = await Promise.all([transaction.get(doc.ref), transaction.get(assignmentRef)]);
+      const session = sessionSnapshot.data() || {};
       if (!live(session)) return;
+      const assignment = assignmentSnapshot.data() || {};
+      const closed = assignment.archived === true || assignment.unpublished === true;
+      const now = Date.now();
       const change = closed ? secureExam.withPauseHold(session, "assignment", now) : secureExam.withoutPauseHold(session, "assignment", now);
       if (Object.keys(change).length) transaction.set(doc.ref, { ...change, updatedAt: now }, { merge: true });
     })));
@@ -23649,7 +23664,7 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
       lifecycleHistory: audit(action),
       updatedAt: stamp,
     });
-    await holdCourseTestClocks(db, ref.id, { closed: archived || assignment.unpublished === true, now });
+    await holdCourseTestClocks(db, ref.id);
     return { success: true, assignmentId: ref.id, action, archived };
   }
   if (action === "unpublish" || action === "publish") {
@@ -23661,7 +23676,7 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
       lifecycleHistory: audit(action),
       updatedAt: stamp,
     });
-    await holdCourseTestClocks(db, ref.id, { closed: unpublished || assignment.archived === true, now });
+    await holdCourseTestClocks(db, ref.id);
     return { success: true, assignmentId: ref.id, action, unpublished };
   }
   if (action !== "delete") throw new HttpsError("invalid-argument", "Choose archive, unarchive, unpublish, publish or delete.");

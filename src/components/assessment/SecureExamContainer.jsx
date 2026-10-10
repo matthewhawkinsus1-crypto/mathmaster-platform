@@ -783,7 +783,7 @@ export const SecureExamContainer = ({
   // Dialog's own focus return off: by the time it opens, the surface going
   // inert has already dropped focus to <body>, so only the record kept here
   // knows which answer the student was in.
-  const paused = pauseKind(session?.status);
+  const paused = pauseKind(session?.status, session?.clockPaused === true);
   useEffect(() => {
     if (!paused) return undefined;
     pauseRef.current?.focus();

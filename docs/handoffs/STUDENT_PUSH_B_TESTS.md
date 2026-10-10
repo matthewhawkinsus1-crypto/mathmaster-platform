@@ -274,6 +274,18 @@ attempt per question.
   the original deadline (no time-up and no edits while paused, the paused
   minutes banked on resume), a proctor pause, an integrity lock that banks
   nothing, then the extended deadline grading the draft saved after the resume.
+- **The holds agree with whether the Test is closed** (review of #471). Two
+  races, both forced on the emulator with a transaction gate and pinned there:
+  a Test starting just as its assessment is archived now meets the course gate
+  again inside its start transaction and does not start (it used to start,
+  unheld, on the archived assessment); and an archive racing an unarchive (two
+  tabs, two teachers) leaves no hold, because each session's hold transaction
+  reads the assignment and holds the clock exactly when it is archived or
+  unpublished at that moment (it used to decide from before the update, which
+  could leave a hold on an open Test: "Your teacher paused the test" with
+  nothing to clear it). Also: the pause screen returns focus when an
+  assignment pause ends, and a test finished while held (submitted or reset
+  during a pause) is no longer reported as paused.
 - **The release check sees past the teacher list's 400-record cap**
   (`27d9a67`). When the list is capped, `courseAnswersRelease` reads the
   records itself; an out-of-roster record holder past the 400th can no longer
@@ -406,6 +418,11 @@ proctorExamAction releaseTestCycleAnswers saveSecureExamDraft
 startSecureExamSession submitSecureExamResponse teacherTestCycleAction
 ```
 
+**Do not pause or resume a live Test while `manageAssignmentLifecycle` is
+rolling out.** A pause written by a new instance and a resume served by an old
+one (which does not touch holds) leaves a hold on an open Test; one pause and
+resume after the deploy clears it.
+
 All of the time-checking callables are in it because `deadlineFor` changed:
 they must agree on the deadline. Between the two steps, a teacher page on the
 old client cannot make an early release while anyone is still testing (it
@@ -447,6 +464,15 @@ releases again.
 
 ## Follow-ups (outside this lane, or later)
 
+- **A resume costs up to five seconds** (pre-existing for proctor pauses, now
+  for assessment pauses too): the server's clock restarts at the resume, but
+  the paused screen notices on its next 5-second poll. A small grace added
+  when the last hold lifts would cover it; left as is to keep the pause
+  arithmetic exactly the paused time (as reviewed).
+- **In Corrections with "Review my Test" open, each 30-second re-check reads
+  the cycle's records twice** (the card's `testAnswersHeld` and the review's
+  own hold check, two callables). Sharing one read would need a records cache
+  across callables; left as is.
 - **`tests/browser/testCycleRichToolQa.mjs` is stale** (no package script, not
   in CI), as the lifecycle driver was before B2: it submits through the old
   Submit confirmation (`alertdialog`) and expects a Rich Tool's final action to

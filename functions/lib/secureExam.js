@@ -238,7 +238,9 @@ function publicSession(session = {}, { teacher = false } = {}) {
   const responseValues = responses && typeof responses === 'object' ? Object.values(responses) : [];
   const now = Date.now();
   const expiresAt = deadlineFor(session, now);
-  const clockPaused = clockPausedSince(session) !== null;
+  // Only a test still under way is paused: one finished while held (submitted
+  // or reset during a pause) keeps its hold, which no longer means anything.
+  const clockPaused = (session.status === 'in_progress' || LOCKED_STATES.has(session.status)) && clockPausedSince(session) !== null;
   return {
     ...safe,
     summary: {

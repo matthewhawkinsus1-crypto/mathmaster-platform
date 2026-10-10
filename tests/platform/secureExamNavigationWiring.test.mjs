@@ -238,8 +238,8 @@ test('a pause covers everything, takes focus, leaves nothing to type into, and r
   // where the student was (lastFocusRef) gives focus back.
   assert.match(container, /^import Dialog from '\.\.\/\.\.\/ui\/Dialog\.jsx';$/m);
   assert.match(overlay, /<Dialog ref=\{pauseRef\} role="alertdialog" closeOnEscape=\{false\} returnFocus=\{false\} aria-labelledby="secure-pause-title"/);
-  assert.match(region(container, 'const paused = pauseKind(session?.status);', '}, [paused]);', 'pause focus return'), /const last = lastFocusRef\.current;\s*if \(last\?\.isConnected && typeof last\.focus === 'function' && !last\.closest\('\[inert\]'\)\) last\.focus\(\);/);
-  assert.match(region(container, 'const paused = pauseKind(session?.status);', '}, [paused]);', 'pause focus'), /if \(!paused\) return undefined;\s*pauseRef\.current\?\.focus\(\);/);
+  assert.match(region(container, 'const paused = pauseKind(session?.status, session?.clockPaused === true);', '}, [paused]);', 'pause focus return'), /const last = lastFocusRef\.current;\s*if \(last\?\.isConnected && typeof last\.focus === 'function' && !last\.closest\('\[inert\]'\)\) last\.focus\(\);/);
+  assert.match(region(container, 'const paused = pauseKind(session?.status, session?.clockPaused === true);', '}, [paused]);', 'pause focus'), /if \(!paused\) return undefined;\s*pauseRef\.current\?\.focus\(\);/);
   // Only a pause makes the test inert. The question list is a panel on the
   // page (not a modal), so nothing has to be shut off behind it.
   assert.match(container, /const surfaceInert = Boolean\(pause\);/);

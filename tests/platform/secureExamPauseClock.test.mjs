@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-import { componentSource, region } from './helpers/sourceContract.mjs';
+import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { classifySecureExamError, pauseKind } from '../../src/platform/assessment/secureExamNavigationModel.js';
 
 /*
@@ -108,8 +108,30 @@ test('a proctor pause and an assessment pause both hold the clock on the server;
   assert.match(proctor, /if \(action === "lock"\) updated = \{ \.\.\.updated, status: "locked_proctor", lockReason: "Locked by proctor\.", lockedAt: now, \.\.\.secureExam\.withPauseHold\(session, "proctor", now\) \};/);
   assert.match(proctor, /if \(action === "unlock"\) updated = \{ \.\.\.updated, status: "in_progress", lockReason: null, unlockedAt: now, \.\.\.secureExam\.withoutPauseHold\(session, "proctor", now\) \};/);
   const lifecycle = region(functionsIndex, 'exports.manageAssignmentLifecycle = onCall(', '\n});', 'lifecycle');
-  assert.match(lifecycle, /await holdCourseTestClocks\(db, ref\.id, \{ closed: archived \|\| assignment\.unpublished === true, now \}\);/);
-  assert.match(lifecycle, /await holdCourseTestClocks\(db, ref\.id, \{ closed: unpublished \|\| assignment\.archived === true, now \}\);/);
+  assert.equal(lifecycle.match(/await holdCourseTestClocks\(db, ref\.id\);/g)?.length, 2, 'archive/unarchive and unpublish/publish both settle the holds');
+  // Each hold follows the assignment as its own transaction reads it, not a
+  // snapshot from before the update (an archive racing an unarchive).
+  const hold = region(functionsIndex, 'async function holdCourseTestClocks(', '\n}\n', 'holdCourseTestClocks');
+  assert.match(hold, /const \[sessionSnapshot, assignmentSnapshot\] = await Promise\.all\(\[transaction\.get\(doc\.ref\), transaction\.get\(assignmentRef\)\]\);/);
+  assert.match(hold, /const closed = assignment\.archived === true \|\| assignment\.unpublished === true;/);
+  assert.doesNotMatch(executableSource(hold), /\{ closed,|closed = archived|closed: /, 'no closed state from outside the transaction');
   const start = region(functionsIndex, 'exports.startSecureExamSession = onCall(', '\n});', 'start');
   assert.match(start, /if \(secureExam\.pauseHoldsOf\(entrySession\)\.includes\("assignment"\)/);
+  // A start racing a pause: the gate runs again through the start's own
+  // transaction, before it writes the start.
+  const startTransaction = region(start, 'const session = await db.runTransaction(async (transaction) => {', '  });', 'start transaction');
+  const gateAt = startTransaction.indexOf('await assertCourseTestEntryAllowed(db, current, studentId, { transaction });');
+  assert.ok(gateAt > 0, 'the course gate runs inside the start transaction');
+  assert.ok(gateAt < startTransaction.indexOf('transaction.set(ref, next);'), 'before the start is written');
+});
+
+test('a test finished while held is not reported as paused', () => {
+  const held = { ...session, ...secureExam.withPauseHold(session, 'assignment', started + MINUTE) };
+  assert.equal(secureExam.publicSession(held).clockPaused, true);
+  for (const status of ['submitted', 'time_expired', 'force_submitted']) {
+    const view = secureExam.publicSession({ ...held, status });
+    assert.equal(view.clockPaused, false, status);
+    assert.equal('pausedRemainingSeconds' in view, false, status);
+  }
+  assert.equal(secureExam.publicSession({ ...held, status: 'locked_proctor' }).clockPaused, true, 'a locked test still is');
 });

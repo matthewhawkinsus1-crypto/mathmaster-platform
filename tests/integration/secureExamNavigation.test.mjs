@@ -65,6 +65,11 @@ const CACHE_ASSIGNMENT_ID = 'nav_cache_test_cycle';
 const CACHE_CLASS = 'NAV_CACHE_CLASS';
 const CACHE_FIRST = 'NAV_CACHE_S1';
 const CACHE_JOINER = 'NAV_CACHE_S2';
+// Pause races, on an assignment of their own: archiving it touches nothing else here.
+const RACE_ASSIGNMENT_ID = 'nav_race_test_cycle';
+const RACE_CLASS = 'NAV_RACE_CLASS';
+const RACE_STARTER = 'NAV_RACE_S1';
+const RACE_TAKER = 'NAV_RACE_S2';
 
 const roster = (data) => teacherRequest({ assignmentId: ROSTER_ASSIGNMENT_ID, ...data });
 const testSessionOf = async (studentId) => (await readRecord(ROSTER_ASSIGNMENT_ID, studentId)).test.examSessionId;
@@ -150,6 +155,10 @@ after(async () => {
     ...[CACHE_FIRST, CACHE_JOINER].map((studentId) => db.collection('grades').doc(studentId).delete()),
     ...[CACHE_FIRST, CACHE_JOINER].map((studentId) => db.collection('testCycleRecords').doc(`${CACHE_ASSIGNMENT_ID}__${studentId}`).delete()),
     ...[CACHE_FIRST, CACHE_JOINER].map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${CACHE_ASSIGNMENT_ID}__${studentId}`).delete()),
+    db.collection('assignments').doc(RACE_ASSIGNMENT_ID).delete(),
+    db.collection('classes').doc(RACE_CLASS).delete(),
+    ...[RACE_STARTER, RACE_TAKER].map((studentId) => db.collection('grades').doc(studentId).delete()),
+    ...[RACE_STARTER, RACE_TAKER].map((studentId) => db.collection('testCycleRecords').doc(`${RACE_ASSIGNMENT_ID}__${studentId}`).delete()),
   ];
   await Promise.allSettled(deletions);
 });
@@ -906,6 +915,98 @@ test('the roster the review re-check caches only ever holds the answers: a stude
   assert.ok(held(again), 'the new student holds the answers on the very next ask, cache or not');
   // And while held, the next ask comes back held too.
   assert.ok(held((await fns.getStudentSecureExamReview.run(student(CACHE_FIRST, { examSessionId }))).review));
+});
+
+/*
+ * A DETERMINISTIC INTERLEAVING. The next transaction any function starts waits
+ * here until the test lets it go, so another call can run to the end in
+ * between: the race a teacher's pause meets in a classroom, made repeatable.
+ */
+const gateNextTransaction = () => {
+  const proto = Object.getPrototypeOf(db);
+  const original = proto.runTransaction;
+  let release = null;
+  const released = new Promise((resolve) => { release = resolve; });
+  let reach = null;
+  const reached = new Promise((resolve) => { reach = resolve; });
+  proto.runTransaction = async function gatedOnce(...args) {
+    proto.runTransaction = original;
+    reach();
+    await released;
+    return original.apply(this, args);
+  };
+  return { reached, release: () => { proto.runTransaction = original; release(); } };
+};
+
+let raceSessions = null;
+const raceSetup = () => {
+  raceSessions ||= (async () => {
+    await db.collection('classes').doc(RACE_CLASS).set({
+      name: 'Race Algebra I', course: 'algebra1', courseLevel: 'standard', period: 'Period 6', teacherOfRecord: TEACHER_EMAIL, status: 'active',
+    });
+    await Promise.all([RACE_STARTER, RACE_TAKER].map((studentId) => db.collection('grades').doc(studentId).set({
+      displayName: studentId, classId: RACE_CLASS, classPeriod: 'Period 6', assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+      gradesByAssignment: { [RACE_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+    })));
+    await db.collection('assignments').doc(RACE_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [RACE_CLASS] }), id: RACE_ASSIGNMENT_ID });
+    await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: RACE_ASSIGNMENT_ID, classId: RACE_CLASS }));
+    const sessions = {};
+    for (const studentId of [RACE_STARTER, RACE_TAKER]) {
+      // eslint-disable-next-line no-await-in-loop
+      sessions[studentId] = (await readRecord(RACE_ASSIGNMENT_ID, studentId)).test.examSessionId;
+      created.push(sessions[studentId]);
+    }
+    return sessions;
+  })();
+  return raceSessions;
+};
+const raceLifecycle = (action) => fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: RACE_ASSIGNMENT_ID, action }));
+
+test('a Test started just as its assessment is archived does not start: the start\'s own transaction sees the archive', async () => {
+  const examSessionId = (await raceSetup())[RACE_STARTER];
+  // The start passes its first check while the assessment is open and waits at
+  // its transaction; the teacher archives in between (the sweep finds nothing
+  // under way to hold).
+  const gate = gateNextTransaction();
+  const starting = refusal(fns.startSecureExamSession.run(student(RACE_STARTER, { examSessionId })));
+  await gate.reached;
+  try {
+    await raceLifecycle('archive');
+  } finally {
+    gate.release();
+  }
+  const refused = await starting;
+  try {
+    assert.equal(refused?.code, 'failed-precondition', 'the start is refused');
+    assert.equal((await readSession(examSessionId)).status, 'not_started', 'so no Test runs, unheld, on an archived assessment');
+  } finally {
+    await raceLifecycle('unarchive');
+  }
+  // Open again, it starts as usual (and finishes, so the next race has one Test under way).
+  assert.equal((await fns.startSecureExamSession.run(student(RACE_STARTER, { examSessionId }))).session.status, 'in_progress');
+  await fns.finalizeSecureExam.run(student(RACE_STARTER, { examSessionId }));
+});
+
+test('an archive racing an unarchive leaves no hold once the assessment is open', async () => {
+  const examSessionId = (await raceSetup())[RACE_TAKER];
+  await fns.startSecureExamSession.run(student(RACE_TAKER, { examSessionId }));
+  // The archive is written, and its sweep waits at the session's transaction
+  // while an unarchive (another tab, a co-teacher) runs to the end.
+  const gate = gateNextTransaction();
+  const archiving = raceLifecycle('archive');
+  await gate.reached;
+  try {
+    await raceLifecycle('unarchive');
+  } finally {
+    gate.release();
+  }
+  await archiving;
+  assert.equal((await db.collection('assignments').doc(RACE_ASSIGNMENT_ID).get()).data().archived, false, 'the assessment ended open');
+  assert.deepEqual((await readSession(examSessionId)).teacherPause?.holds || [], [], 'so no hold is left on the clock');
+  const view = (await fns.startSecureExamSession.run(student(RACE_TAKER, { examSessionId }))).session;
+  assert.equal(view.clockPaused, false, 'and the student is not left behind "Your teacher paused the test"');
+  const saved = await save(RACE_TAKER, { examSessionId, questionInstanceId: (await issue(RACE_TAKER, examSessionId, { position: 0 })).questionInstance.questionInstanceId, responsePayload: { responses: { answer: '1' } } });
+  assert.ok(saved, 'and can keep working');
 });
 
 test('a session written by the old linear runtime is upgraded without reopening recorded answers', async () => {
