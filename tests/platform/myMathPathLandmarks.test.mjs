@@ -16,7 +16,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { MAIN_CONTENT_ID, STUDENT_NAVIGATION_LABEL, skipTarget } from '../../src/components/common/skipTarget.js';
-import { TABS_WITH_OWN_H1, pathContentIsMain, pathHeaderIsH1 } from '../../src/components/student/myMathPathLandmarks.js';
+import { PATH_HEADER_H1_STYLE, TABS_WITH_OWN_H1, pathContentIsMain, pathHeaderIsH1 } from '../../src/components/student/myMathPathLandmarks.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -99,6 +99,25 @@ test('a nav under another name is invisible to the skip link: it falls back to t
   assert.equal(skipTarget(screen.doc), screen.anchor);
 });
 
+test('hidden navs and hidden headings are not landing places', () => {
+  // A collapsed copy of the nav earlier in the page and a hidden heading at
+  // the top of main must both be passed over: the skip link goes past the nav
+  // the student can see, to the heading they can see.
+  const hidden = (tag, attrs = {}) => new FakeElement(tag, attrs, [], { visible: false });
+  const titleH1 = el('h1', {});
+  const hiddenH2 = hidden('h2');
+  const shownH2 = el('h2', {});
+  const root = el('body', {},
+    hidden('nav', { 'aria-label': STUDENT_NAVIGATION_LABEL }),
+    el('div', { id: MAIN_CONTENT_ID }),
+    el('header', {}, titleH1, el('nav', { 'aria-label': STUDENT_NAVIGATION_LABEL }, el('button', {}))),
+    el('main', {}, hiddenH2, el('section', {}, shownH2)));
+  const target = skipTarget(fakeDocument(root));
+  assert.notEqual(target, titleH1, 'a hidden nav must not anchor the search (it would land on the title above the visible nav)');
+  assert.notEqual(target, hiddenH2, 'a hidden heading is not where focus can be seen');
+  assert.equal(target, shownH2);
+});
+
 test('My Math Path names its global nav as every student screen does', () => {
   const nav = executableSource(read('src/components/student/StudentGlobalNav.jsx'));
   assert.match(nav, new RegExp(`label = '${STUDENT_NAVIGATION_LABEL}'`), 'the nav component defaults to the name the skip link looks for');
@@ -127,9 +146,31 @@ test('exactly one h1 on every My Math Path view a student sees', () => {
   }
 
   const app = executableSource(read('src/components/student/MyMathPathApp.jsx'));
-  assert.match(app, /import \{ pathContentIsMain, pathHeaderIsH1 \} from '\.\/myMathPathLandmarks\.js';/);
+  assert.match(app, /import \{ PATH_HEADER_H1_STYLE, pathContentIsMain, pathHeaderIsH1 \} from '\.\/myMathPathLandmarks\.js';/);
   const header = region(app, "{activeTab !== 'session' && (\n        <header", '</header>', 'the header');
-  assert.match(header, /\{pathHeaderIsH1\(\{ activeTab, embedded: embeddedInTeacherPage \}\)\s*\? <h1[^>]*>My Math Path<\/h1>/);
+  // The h1 is only structure: inside it is the same <strong> the other tabs
+  // draw, so the title does not change look as the student switches tabs.
+  assert.match(header, /\{pathHeaderIsH1\(\{ activeTab, embedded: embeddedInTeacherPage \}\)\s*\? <h1 style=\{PATH_HEADER_H1_STYLE\}><strong>My Math Path<\/strong><\/h1>\s*: <strong>/);
+});
+
+test('the header h1 inherits every property the global h1 rule sets', () => {
+  // src/index.css styles every h1 (heading font, weight 500, 56px/36px,
+  // margins, letter-spacing -1.68px, heading colour). Each one must be
+  // neutralised, or "My Math Path" is restyled the moment it becomes an h1.
+  const css = read('src/index.css');
+  const h1Rules = [...css.matchAll(/(^|\})\s*([^{}]*\bh1\b[^{}]*)\{([^{}]*)/g)].map((m) => m[3]);
+  assert.ok(h1Rules.length >= 2, 'found the global h1 rules');
+  const set = new Set(h1Rules.flatMap((body) => [...body.matchAll(/^\s*([a-z-]+)\s*:/gm)].map((m) => m[1])));
+  for (const prop of ['font-family', 'font-weight', 'font-size', 'letter-spacing', 'margin', 'color']) assert.ok(set.has(prop), `read ${prop} from the global h1 rules`);
+  const camel = (prop) => prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  for (const prop of set) {
+    const value = PATH_HEADER_H1_STYLE[camel(prop)];
+    if (prop === 'margin') assert.equal(value, 0, 'margin reset');
+    else assert.equal(value, 'inherit', `${prop} is inherited from the header, not taken from the global h1 rule`);
+  }
+  for (const prop of ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'color']) {
+    assert.equal(PATH_HEADER_H1_STYLE[prop], 'inherit', prop);
+  }
 });
 
 test('the content after the header is the main landmark, except where another main exists', () => {
@@ -156,7 +197,12 @@ test('each weekly session has exactly one Start: its own card', () => {
   assert.match(card, /onClick=\{\(\) => onStart\?\.\(session\)\}/);
   // The next session is marked on its own card instead.
   const cards = region(main, '<SessionCard', '/>', 'session cards');
-  assert.match(cards, /onStart=\{onStartSession\}/);
+  assert.match(cards, /onStart=\{onStartSession \? \(started\) => \{ setStartingSlot\(started\?\.slot \?\? null\); onStartSession\(started\); \} : null\}/);
+  // "Starting…" belongs on the card the student pressed (any order is
+  // allowed), not on the "Do this next" card.
+  assert.match(cards, /starting=\{busy && session\.slot === startingSlot\}/);
+  assert.match(card, /\{starting \? 'Starting…' : /);
+  assert.match(card, /const highlighted = isNext && !done;/);
   assert.match(cards, /isNext=\{session\.slot === next\?\.slot\}/);
   assert.match(card, /\{highlighted && \([\s\S]{0,300}Do this next/);
 });

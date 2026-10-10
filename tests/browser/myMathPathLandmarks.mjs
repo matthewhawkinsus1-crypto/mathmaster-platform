@@ -92,6 +92,46 @@ try {
       const repeated = names.filter((name, index) => names.indexOf(name) !== index);
       check(viewport.id, names.length >= 1 && repeated.length === 0, `weekly launch names are unique (${JSON.stringify(names)})`);
 
+      // 5. The removed "Do this next" card lives on as a marker on the next
+      //    session's own card: once, and on the card that holds Start 1 of 4.
+      const doNext = page.getByText('Do this next', { exact: true });
+      check(viewport.id, await doNext.count() === 1, `"Do this next" appears once (found ${await doNext.count()})`);
+      const markedCardHoldsStart1 = await doNext.first().evaluate((marker) => {
+        const card = marker.closest('li');
+        return Boolean(card && [...card.querySelectorAll('button')].some((button) => button.innerText.trim() === 'Start session 1 of 4'));
+      }).catch(() => false);
+      check(viewport.id, markedCardHoldsStart1, '"Do this next" marks the card whose button is "Start session 1 of 4"');
+
+      // 6. Becoming an h1 did not restyle the title: it reads exactly like the
+      //    <strong> title on a tab that keeps its own h1 (Mastery Overview).
+      const titleLook = () => page.locator('header').first().evaluate((header) => {
+        const strong = [...header.querySelectorAll('strong')].find((node) => node.textContent.trim() === 'My Math Path');
+        if (!strong) return null;
+        const style = getComputedStyle(strong);
+        // The header row's item: the h1 on Path, the bare <strong> elsewhere.
+        const box = (strong.closest('h1') || strong).getBoundingClientRect();
+        return {
+          inH1: Boolean(strong.closest('h1')),
+          letterSpacing: style.letterSpacing,
+          fontFamily: style.fontFamily,
+          fontSize: style.fontSize,
+          fontWeight: style.fontWeight,
+          color: style.color,
+          width: Math.round(box.width * 10) / 10,
+          height: Math.round(box.height * 10) / 10,
+        };
+      });
+      const pathTitle = await titleLook();
+      await page.getByRole('navigation', { name: 'My Math Path navigation' }).getByRole('button', { name: 'Mastery Overview' }).click();
+      await page.getByRole('heading', { level: 1 }).filter({ hasNotText: 'My Math Path' }).first().waitFor({ timeout: 30_000 });
+      const overviewTitle = await titleLook();
+      check(viewport.id, pathTitle?.inH1 === true && overviewTitle?.inH1 === false,
+        `the title is the h1 on Path and a plain <strong> on Mastery Overview (${pathTitle?.inH1} / ${overviewTitle?.inH1})`);
+      const { inH1: _a, ...pathLook } = pathTitle || {};
+      const { inH1: _b, ...overviewLook } = overviewTitle || {};
+      check(viewport.id, pathTitle && overviewTitle && JSON.stringify(pathLook) === JSON.stringify(overviewLook),
+        `the h1 title looks the same as the <strong> title (path ${JSON.stringify(pathLook)} vs overview ${JSON.stringify(overviewLook)})`);
+
       check(viewport.id, pageErrors.length === 0, `no page errors${pageErrors.length ? `: ${pageErrors.join(' | ')}` : ''}`);
     } catch (error) {
       check(viewport.id, false, `could not reach My Math Path: ${error.message}`);

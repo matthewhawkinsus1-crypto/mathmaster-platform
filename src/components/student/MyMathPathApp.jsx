@@ -49,7 +49,7 @@ import {
   readMathPathRouteState,
   writeMathPathRouteState,
 } from '../../platform/student/browserHistory.js';
-import { pathContentIsMain, pathHeaderIsH1 } from './myMathPathLandmarks.js';
+import { PATH_HEADER_H1_STYLE, pathContentIsMain, pathHeaderIsH1 } from './myMathPathLandmarks.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -705,7 +705,7 @@ export const MyMathPathExperience = ({
       {activeTab !== 'session' && (
         <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span>{pathHeaderIsH1({ activeTab, embedded: embeddedInTeacherPage })
-            ? <h1 style={{ margin: 0, fontSize: 'inherit', fontWeight: 700, lineHeight: 'inherit', color: 'inherit' }}>My Math Path</h1>
+            ? <h1 style={PATH_HEADER_H1_STYLE}><strong>My Math Path</strong></h1>
             : <strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>}{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
           {/*
             TWO LEVELS, AND THEY ARE DIFFERENT KINDS OF THING.

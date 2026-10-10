@@ -19,3 +19,21 @@ export const pathHeaderIsH1 = ({ activeTab, embedded = false } = {}) => (
 export const pathContentIsMain = ({ activeTab, embedded = false } = {}) => (
   !embedded && activeTab !== 'session'
 );
+
+// THE h1 LOOKS LIKE THE OLD <strong>. Promoting the header title to an h1
+// must not restyle it: src/index.css gives every h1 a heading font, 56px,
+// margins and letter-spacing -1.68px, which squeezed "My Math Path" ~18%
+// narrower than on the tabs where it stays a <strong>. So the h1 is a bare
+// structural wrapper that inherits every typographic property, and the text
+// inside it is the same <strong> the other tabs draw.
+export const PATH_HEADER_H1_STYLE = Object.freeze({
+  margin: 0,
+  fontFamily: 'inherit',
+  fontSize: 'inherit',
+  fontWeight: 'inherit',
+  fontStyle: 'inherit',
+  letterSpacing: 'inherit',
+  lineHeight: 'inherit',
+  textTransform: 'inherit',
+  color: 'inherit',
+});

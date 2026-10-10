@@ -337,6 +337,9 @@ export default function WeeklyPathGoalPanel({
   busy = false,
   compact = false,
 }) {
+  // Which card's Start the student pressed, so "Starting…" shows on THAT
+  // card (sessions can be done in any order), not on the "Do this next" one.
+  const [startingSlot, setStartingSlot] = useState(null);
   if (!goal || !goal.sessions?.length) {
     return (
       <section style={CARD}>
@@ -494,14 +497,14 @@ export default function WeeklyPathGoalPanel({
             session={session}
             done={done.has(session.slot)}
             active={done.has(session.slot) ? null : inProgressForSlot(inProgress, session)}
-            onStart={onStartSession}
+            onStart={onStartSession ? (started) => { setStartingSlot(started?.slot ?? null); onStartSession(started); } : null}
             onChoose={onChooseAlternative}
             disabled={busy || launchBlocked}
             blockedLabel={blockedLabel}
             swapHidden={launchBlocked}
             total={required}
             isNext={session.slot === next?.slot}
-            starting={busy && session.slot === next?.slot}
+            starting={busy && session.slot === startingSlot}
           />
         ))}
       </ul>
