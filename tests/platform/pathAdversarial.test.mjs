@@ -234,7 +234,10 @@ test('ATTACK a self-declared modified curriculum does not reach the entitlement 
 test('ATTACK claimed support usage cannot make a supported success look independent', () => {
   // The inverse attack: a student who used a hint claims independence to earn
   // stronger mastery evidence. Hint release is a server fact.
-  assert.ok(serverSource.includes('hintUsed: hintReleased'));
+  // hintUsed is what the server released before this answer, read from the
+  // stored item (mathPath.pathAttemptSupport), never from the request.
+  assert.ok(serverSource.includes('hintUsed: supportBeforeAttempt.hintUsed,'));
+  assert.match(serverSource, /mathPath\.pathAttemptSupport\(\{\s*priorSupport: currentQuestion\.supportReleased \|\| \{\},\s*attemptSupport,\s*\}\)/);
   assert.ok(!/hintUsed:\s*Boolean\(claimed/.test(serverSource),
     'hint usage must never be taken from the request');
 });

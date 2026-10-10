@@ -721,6 +721,31 @@ async function gradeResponse(grading, responsePayload = {}) {
     fieldResults: fieldResults.map(({ id, isCorrect }) => ({ id, isCorrect })) };
 }
 
+/**
+ * What helped THIS Path attempt, and what is released from now on.
+ *
+ * `priorSupport` is the item's `supportReleased`: the hint and review that
+ * earlier responses on this item released. Only those were on screen before
+ * the student submitted this answer, so only they mark it as supported. What
+ * this response releases (`attemptSupport`: a hint after the second miss, the
+ * review once the item closes) is shown AFTER the answer. It is carried
+ * forward to the next attempt but never marks this one. Counting it here
+ * recorded every Path answer as "worked example used", including correct
+ * first tries, because the review always arrives when an item closes
+ * (QA R2-M2).
+ */
+function pathAttemptSupport({ priorSupport = {}, attemptSupport = {} } = {}) {
+  const hintBefore = Boolean(priorSupport?.hintReleased);
+  const reviewBefore = Boolean(priorSupport?.reviewReleased);
+  return {
+    used: { hintUsed: hintBefore, workedExampleUsed: reviewBefore, scaffoldUsed: hintBefore },
+    released: {
+      hintReleased: hintBefore || Boolean(attemptSupport?.support?.hint),
+      reviewReleased: reviewBefore || Boolean(attemptSupport?.solutionReview),
+    },
+  };
+}
+
 function mathematicalIndependence(supportUsage = {}) {
   // An algebra auto-apply performs an algebraic step the student selected but
   // did not carry out. Every other ACCESS accommodation in `accommodations` is
@@ -838,6 +863,7 @@ module.exports = {
   gradeResponse,
   hasGradeableDefinition,
   mathematicalIndependence,
+  pathAttemptSupport,
   nextRetentionDue,
   opaqueId,
   privateGradingDefinition,

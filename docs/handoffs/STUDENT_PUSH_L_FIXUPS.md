@@ -36,12 +36,50 @@ assignment evidence) exempts every accommodation except `algebraAutoApply`,
 `CONSTRUCT_AFFECTING_SUPPORTS` holds only that one, and `AttemptContext` and
 `evidenceClassification` have no TTS flag. No grading change.
 
+## R2-M2 — a Path answer is no longer helped by the review shown after it
+
+QA round 2 found this. `submitPathResponse` set `workedExampleUsed`, and
+also `hintUsed` and `scaffoldUsed`, from whatever THIS response released.
+A Path item allows one attempt, and a closed item always releases its
+solution review. So every Path answer, including a correct first try, was
+stored as "worked example used". A Path-only student could never reach
+Mastered: in the QA repro, 3 right of 5 read as "0 of 2 on your own" and 45%.
+The same applied to a hint first released by the second miss: it marked that
+second miss.
+
+The fix is a new pure `mathPath.pathAttemptSupport({ priorSupport,
+attemptSupport })` in `functions/lib/mathPath.js`. It returns `used`, which is
+only what earlier responses on the item released, i.e. what was on screen
+before this answer. It also returns `released`, which is that plus what this
+response releases, stored as `supportReleased` for the next attempt. The
+`functions/index.js` hunk in `submitPathResponse` is three spots: the call,
+the three `supportUsage` flags, and `supportReleased`. The evidence shape is
+unchanged. This applies going forward only; no stored evidence was touched
+(job I's backfill owns history).
+
+Tests:
+- `tests/platform/pathMasteryIndependence.test.mjs` no longer pins source text.
+  It now has a wiring check bound to the handler region, plus behaviour tests:
+  the repro sequence gives 3 independent successes, estimate 60 and "2 of 2"
+  on your own; a hint released before an answer marks it and stays sticky; a
+  review released before an answer marks it.
+- New `tests/integration/pathIndependentFirstTry.test.mjs` (emulator, run by
+  `test:challenge-finish` in full-platform-suite) drives the real
+  `issueNextQuestion` → `submitPathResponse` → `updateMyMathPathMasteryFromEvidence`
+  chain through the same cases.
+- All of these fail against the old handler and pass on the fix.
+
 ## Files changed
 
 - `src/platform/supports/feedback/genericMissChecks.js`
 - `src/platform/supports/feedback/missDiagnosis.js` (doc comment only)
 - `src/platform/language/speechText.js`
 - `functions/shared/masteryRule.mjs`
+- `functions/index.js` (R2-M2: `submitPathResponse` only, one hunk; job I owns functions/**)
+- `functions/lib/mathPath.js` (R2-M2: new `pathAttemptSupport`, exported)
+- `tests/platform/pathMasteryIndependence.test.mjs`
+- `tests/platform/pathAdversarial.test.mjs` (R2-M2: the "claimed hint" attack check now names the new server-derived flag)
+- `tests/integration/pathIndependentFirstTry.test.mjs` (new)
 - `tests/platform/feedbackThatTeaches.test.mjs`
 - `tests/platform/speechCommandBoundary.test.mjs` (new)
 - `tests/platform/masteryChecklistAccommodations.test.mjs` (new)
