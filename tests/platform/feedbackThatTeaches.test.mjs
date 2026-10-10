@@ -19,6 +19,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { assignmentFeedbackWasReleased } from '../../src/app/student/assignmentRuntimeHelpers.js';
 
 import { MISCONCEPTION_REGISTRY } from '../../functions/shared/misconceptionCodes.mjs';
 import { MISCONCEPTION_STUDENT_MESSAGES, codesWithoutStudentMessage, studentMisconceptionMessage } from '../../functions/shared/misconceptionStudentMessages.mjs';
@@ -244,7 +245,13 @@ test('3. a DOL\'s per-item right/wrong release never opens the worked solution (
   // …but the review follows the assignment-level release only.
   assert.match(app, /assessmentReviewReleased=\{assignmentFeedbackWasReleased\(assignment\)\}/);
   assert.doesNotMatch(app, /assessmentReviewReleased=\{currentFeedbackReleased\}/);
-  assert.match(app, /const assignmentFeedbackWasReleased = \(assignment\) => assignment\?\.feedbackReleased === true \|\| Boolean\(assignment\?\.feedbackReleasedAt\);/);
+  // The assignment-level release is the teacher's release and nothing else
+  // (moved to app/student/assignmentRuntimeHelpers.js by the App split).
+  assert.match(app, /\bassignmentFeedbackWasReleased,\n[\s\S]*?\} from '\.\/app\/student\/assignmentRuntimeHelpers\.js';/);
+  assert.equal(assignmentFeedbackWasReleased({ feedbackReleased: true }), true);
+  assert.equal(assignmentFeedbackWasReleased({ feedbackReleasedAt: '2026-10-01T00:00:00Z' }), true);
+  assert.equal(assignmentFeedbackWasReleased({ dol: { enabled: true } }), false, 'nothing but the teacher\'s release counts');
+  assert.equal(assignmentFeedbackWasReleased(null), false);
   // The journey: a DOL item runs out of attempts (per-item release on), the
   // teacher grants one more attempt (the item is open again), all before any
   // assignment release — at no point may a review show.

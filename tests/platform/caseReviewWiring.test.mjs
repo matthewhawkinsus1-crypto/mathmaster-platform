@@ -23,7 +23,9 @@ const caseComponents = readdirSync(caseComponentDir).filter((name) => name.endsW
   .map((name) => ({ name, source: readFileSync(new URL(name, caseComponentDir), 'utf8') }));
 
 test('App loads the case review lazily and mounts it between the drawer and the Support Evidence Report', () => {
-  assert.match(app, /const StudentCaseReviewView = lazy\(\(\) => import\('\.\/components\/teacher\/caseReview\/StudentCaseReviewView\.jsx'\)\);/);
+  // Declared lazily in app/lazyScreens.js since the App split; App imports it from there.
+  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /export const StudentCaseReviewView = lazy\(\(\) => import\('\.\.\/components\/teacher\/caseReview\/StudentCaseReviewView\.jsx'\)\);/);
+  assert.match(app, /\bStudentCaseReviewView,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
   const executable = executableSource(app);
   assert.doesNotMatch(executable, /import StudentCaseReviewView from/, 'never imported eagerly');
   assert.doesNotMatch(executable, /from '\.\/platform\/caseReview\//, 'no case review module in the main bundle');

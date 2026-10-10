@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import {
   addDoc,
@@ -338,9 +338,75 @@ import {
   studentRouteKey,
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
-import { mathPathUrlFor, resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
+import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
 import { planStudentArrival, planTeacherArrival, readUrlArrival } from './app/routes/urlArrival.js';
 import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
+import {
+  DISPLAYED_CHECKPOINT_OUTCOMES,
+  activityTitleForRole,
+  assignmentFeedbackWasReleased,
+  assignmentHasHeldTeacherFeedback,
+  assignmentUsesTeacherReleasePolicy,
+  calculateDOLSectionScore,
+  captureTimedSectionAccess,
+  createEmptyAssignmentTracker,
+  createPracticeAssignmentTracker,
+  createQuestionId,
+  formatDueDate,
+  formatLateDueDate,
+  formatTimeStamp,
+  normalizeAssignmentQuestions,
+  toDateTimeLocalInputValue,
+  warmupCaptureWasActive,
+} from './app/student/assignmentRuntimeHelpers.js';
+import {
+  CLASS_SCOPED_TABS,
+  NO_RECOVERY_OPPORTUNITIES,
+  RECOVERY_ANNOUNCEMENT_MODES,
+  RECOVERY_DISCOVERY_ALL,
+  TEACHER_CROSS_CLASS_TABS,
+  TEACHER_FULL_STUDENT_DATA_TABS,
+  TEACHER_PARENT_CONTACT_STREAM_TABS,
+  TEACHER_SESSION_SUMMARY_TABS,
+  TEACHER_SUPPORT_STREAM_TABS,
+} from './app/screenScopes.js';
+// Every screen loaded on demand (one chunk each).
+import {
+  AssignmentContentUpgradeModal,
+  AssignmentIntake,
+  AssignmentLibrary,
+  AssignmentQuestionEditor,
+  ClassCourseSettings,
+  ClassScheduleSettings,
+  ClassesWorkspace,
+  ClassroomManagerV2,
+  DemoExperience,
+  GradeTransferCenter,
+  LessonPreflightModal,
+  LiveChallengeStudent,
+  LiveChallengeTeacher,
+  MarkingPeriodSettings,
+  MathToolsLab,
+  MyMathPathApp,
+  PacingControls,
+  PathSimulator,
+  QuestionEngine,
+  ReviewMyWork,
+  SectionRecoveryRunner,
+  StudentCaseReviewView,
+  StudentSecureExamDashboard,
+  StudentsRoster,
+  TeacherAnalyticsDashboard,
+  TeacherAssignmentPdfDialog,
+  TeacherHome,
+  TeacherQuestionReviewPanel,
+  TeacherSecureExamDashboard,
+  TeacherSidebar,
+  TestCycleCard,
+  TestCyclePreview,
+  TexasStandardsDashboard,
+  WarmupChallengeGate,
+} from './app/lazyScreens.js';
 import {
   TEACHER_HISTORY_DOCUMENT_ID,
   planTeacherHistoryWrite,
@@ -515,7 +581,7 @@ import {
 } from './platform/rigor/courseRigor.js';
 import { certifyHonorsExtensionQuestion } from './platform/rigor/honorsExtensionRecipes.js';
 import { withAppendedQuestionSections } from './platform/rigor/honorsExtensionSwap.js';
-import LoginScreen from './LoginScreen.jsx';
+import SessionGate from './app/shell/SessionGate.jsx';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
@@ -533,225 +599,6 @@ import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
 // not per-render or per-teacher state (see the identical constant in
 // LiveClassMonitor.jsx, which needs the same calendar for the same reason).
 const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
-
-const ClassroomManagerV2 = lazy(() => import('./ClassroomManagerV2.jsx'));
-const AssignmentQuestionEditor = lazy(() => import('./AssignmentQuestionEditor.jsx'));
-const QuestionEngine = lazy(() => import('./QuestionEngine.jsx'));
-const AssignmentIntake = lazy(() => import('./AssignmentIntake.jsx'));
-const TeacherQuestionReviewPanel = lazy(() => import('./components/teacher/TeacherQuestionReviewPanel.jsx'));
-const TeacherSidebar = lazy(() => import('./TeacherSidebar.jsx'));
-const GradeTransferCenter = lazy(() => import('./components/teacher/GradeTransferCenter.jsx'));
-const AssignmentLibrary = lazy(() => import('./AssignmentLibrary.jsx'));
-const TeacherAssignmentPdfDialog = lazy(() => import('./components/teacher/TeacherAssignmentPdfDialog.jsx'));
-const AssignmentContentUpgradeModal = lazy(() => import('./components/teacher/AssignmentContentUpgradeModal.jsx'));
-const ClassesWorkspace = lazy(() => import('./ClassesWorkspace.jsx'));
-const TeacherHome = lazy(() => import('./TeacherHome.jsx'));
-const TexasStandardsDashboard = lazy(() => import('./TexasStandardsDashboard.jsx'));
-const MathToolsLab = lazy(() => import('./dev/MathToolsLab.jsx'));
-const LessonPreflightModal = lazy(() => import('./components/teacher/LessonPreflightModal.jsx'));
-const MyMathPathApp = lazy(() => import('./components/student/MyMathPathApp.jsx'));
-const StudentSecureExamDashboard = lazy(() => import('./components/assessment/StudentSecureExamDashboard.jsx'));
-// Lazy: the worked-solution renderers pull MathLive, which stays out of the
-// first load (initialBundleBoundary.test.mjs).
-const ReviewMyWork = lazy(() => import('./components/student/ReviewMyWork.jsx'));
-const TeacherSecureExamDashboard = lazy(() => import('./components/assessment/TeacherSecureExamDashboard.jsx'));
-const TeacherAnalyticsDashboard = lazy(() => import('./components/analytics/TeacherAnalyticsDashboard.jsx'));
-// Student Case Review / Academic Evidence Deep Dive: its code loads only when a
-// teacher opens it from the student drawer (docs/STUDENT_CASE_REVIEW_DESIGN.md).
-const StudentCaseReviewView = lazy(() => import('./components/teacher/caseReview/StudentCaseReviewView.jsx'));
-const DemoExperience = lazy(() => import('./components/demo/DemoExperience.jsx'));
-const StudentsRoster = lazy(() => import('./components/teacher/StudentsRoster.jsx'));
-const ClassCourseSettings = lazy(() => import('./components/teacher/ClassCourseSettings.jsx'));
-const ClassScheduleSettings = lazy(() => import('./components/teacher/ClassScheduleSettings.jsx'));
-const PathSimulator = lazy(() => import('./components/teacher/PathSimulator.jsx'));
-const PacingControls = lazy(() => import('./components/teacher/PacingControls.jsx'));
-const MarkingPeriodSettings = lazy(() => import('./components/teacher/MarkingPeriodSettings.jsx'));
-const WarmupChallengeGate = lazy(() => import('./components/liveChallenge/WarmupChallengeGate.jsx'));
-const LiveChallengeTeacher = lazy(() => import('./components/liveChallenge/LiveChallengeTeacher.jsx'));
-const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveChallengeStudent.jsx'));
-// Only a student opening a Test Cycle needs this, and it brings the secure
-// exam player, the calculator and all of MathLive with it — about 1 MB that a
-// static import put in front of every sign-in.
-const TestCycleCard = lazy(() => import('./components/student/TestCycleCard.jsx'));
-const TestCyclePreview = lazy(() => import('./components/teacher/TestCyclePreview.jsx'));
-// The Recovery runner mounts QuestionEngine, and with it MathLive (~780 KB):
-// a student who opens a Recovery fetches it then, not every student at sign-in.
-const SectionRecoveryRunner = lazy(() => import('./components/student/SectionRecoveryRunner.jsx'));
-// A stable "none", so a signed-in teacher's clock tick never hands the student
-// surfaces a new empty list.
-const NO_RECOVERY_OPPORTUNITIES = Object.freeze([]);
-// The discovery scope that means "every assignment" (the dashboard screens);
-// otherwise the scope is the one open assignment's id.
-const RECOVERY_DISCOVERY_ALL = '__allAssignments__';
-// Where a newly open Recovery is announced: the screens a student chooses
-// their next step from (Home, Assignments, Grades) — never inside a Live
-// Challenge, My Math Path or a secure exam.
-const RECOVERY_ANNOUNCEMENT_MODES = new Set(['assignments', 'assignmentsCenter', 'grades']);
-
-
-
-/*
- * Which teacher tabs a class actually scopes, and what it scopes there.
- *
- * This table is the honest boundary of the class-first architecture. A tab in
- * it inherits the workspace's class rather than asking again; a tab absent from
- * it genuinely operates outside class scope, and showing a class selector above
- * it would imply a filter that does not exist.
- *
- * `allowAllClasses: false` marks the views that cannot answer anything without
- * a specific class — a weekly goal or a live room is a fact about one class, not
- * an average across five.
- */
-const CLASS_SCOPED_TABS = Object.freeze({
-  home: { scopeLabel: 'Showing what needs attention' },
-  classesWorkspace: { scopeLabel: 'Showing the class' },
-  students: { scopeLabel: 'Showing the roster' },
-  grades: { scopeLabel: 'Showing grades' },
-  weeklyPath: { scopeLabel: 'Showing weekly goals', allowAllClasses: false },
-  pacing: { scopeLabel: 'Showing pacing', allowAllClasses: false },
-  standards: { scopeLabel: 'Showing mastery' },
-  analytics: { scopeLabel: 'Showing analytics' },
-  assignments: { scopeLabel: 'Showing assignments' },
-});
-
-const createQuestionId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  return `q_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-};
-
-const normalizeAssignmentQuestions = (questions = []) => questions.map((question) => ({
-  ...question,
-  questionId: question.questionId || createQuestionId(),
-  teacherExcluded: question.teacherExcluded === true,
-}));
-
-const assignmentFeedbackWasReleased = (assignment) => assignment?.feedbackReleased === true || Boolean(assignment?.feedbackReleasedAt);
-
-const assignmentUsesTeacherReleasePolicy = (assignment) => (
-  getStoredAssignmentQuestions(assignment).some((question) => {
-    const role = resolveQuestionActivityRole({ question, assignment });
-    return getEffectiveActivityPolicy(role).feedback === 'teacherRelease';
-  })
-);
-
-const assignmentHasHeldTeacherFeedback = (assignment) => (
-  assignmentUsesTeacherReleasePolicy(assignment) && !assignmentFeedbackWasReleased(assignment)
-);
-
-const createEmptyAssignmentTracker = (questions = []) => {
-  const initialTracker = {};
-  questions.forEach((_, index) => {
-    initialTracker[index] = emptyQuestionRecord();
-  });
-  return initialTracker;
-};
-
-const createPracticeAssignmentTracker = (questions = [], frozenTracker = {}) => {
-  const initialTracker = {};
-  questions.forEach((_, index) => {
-    const frozenRecord = normalizeQuestionRecord(frozenTracker[index]);
-    initialTracker[index] = {
-      ...emptyQuestionRecord(),
-      variantIndex: frozenRecord.variantIndex,
-    };
-  });
-  return initialTracker;
-};
-
-const formatDueDate = (assignmentOrValue) => {
-  if (assignmentOrValue && typeof assignmentOrValue === 'object') {
-    return formatDateTime(assignmentOrValue.dueAt || assignmentOrValue.dueDate);
-  }
-  return formatDateTime(assignmentOrValue);
-};
-
-const formatLateDueDate = (assignment) =>
-  formatDateTime(assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate);
-
-const formatTimeStamp = (value) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
-};
-
-const toDateTimeLocalInputValue = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value).slice(0, 16);
-  const pad = (number) => String(number).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-
-const activityTitleForRole = (role) => ({
-  warmup: 'Warm-Up',
-  classwork: 'Classwork',
-  dol: 'DOL',
-  practice: 'Practice',
-  quiz: 'Quiz',
-  test: 'Unit Test',
-}[role] || 'Activity');
-
-const captureTimedSectionAccess = ({
-  activityRole,
-  assignment,
-  schedule,
-  classId,
-  classPeriod,
-  capturedAt,
-}) => {
-  if (activityRole !== 'warmup') return null;
-  const state = getWarmupState({
-    assignment,
-    schedule,
-    classId,
-    classPeriod,
-    nowValue: capturedAt,
-  });
-  return {
-    role: 'warmup',
-    status: state.status,
-    teacherTimerScheduled: state.teacherTimerScheduled === true,
-    endsAt: state.endsAt instanceof Date ? state.endsAt.toISOString() : null,
-    instructionDateKey: state.instructionDateKey || null,
-  };
-};
-
-const warmupCaptureWasActive = (capture, capturedAt) => {
-  if (capture?.role !== 'warmup' || capture?.status !== 'active') return false;
-  const endsAt = capture?.endsAt ? new Date(capture.endsAt).getTime() : Number.NaN;
-  return !Number.isFinite(endsAt) || capturedAt <= endsAt;
-};
-
-const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], assignment = null) => {
-  const indices = Array.isArray(questionIndices) ? questionIndices : [];
-  if (!indices.length) return 0;
-  const questions = getStoredAssignmentQuestions(assignment || {});
-  let possibleWeight = 0;
-  let earnedWeight = 0;
-  indices.forEach((index) => {
-    const weight = normalizeQuestionWeight(questions[index] || {});
-    possibleWeight += weight;
-    earnedWeight += getQuestionCredit(assignmentTracker?.[index]) * weight;
-  });
-  return possibleWeight > 0 ? Math.round((earnedWeight / possibleWeight) * 100) : 0;
-};
-
-// Statuses that mean something to a student who has come back after the close.
-// Every other lifecycle status is internal bookkeeping.
-const DISPLAYED_CHECKPOINT_OUTCOMES = ['auto-submitted', 'incomplete-at-close', 'explicitly-submitted'];
-
-const TEACHER_FULL_STUDENT_DATA_TABS = new Set([
-  'students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer',
-  'standards', 'analytics', 'exams',
-]);
-const TEACHER_SUPPORT_STREAM_TABS = new Set(['home', 'classesWorkspace', 'attendanceHistory', 'actionCenter', 'parentContacts']);
-const TEACHER_PARENT_CONTACT_STREAM_TABS = new Set(['parentContacts', 'actionCenter']);
-// Tabs that work across every class a teacher teaches by design (Grade
-// Export's units, the Action Center's queue, Parent Contacts' roster): their
-// students' private controls are read for all of those classes, in the one
-// controls listener (platform/teacher/teacherClassControls.js).
-const TEACHER_CROSS_CLASS_TABS = new Set(['gradeTransfer', 'actionCenter', 'parentContacts']);
-const TEACHER_SESSION_SUMMARY_TABS = new Set(['home', 'classesWorkspace', 'parentContacts']);
 
 function App() {
   const auth = useAuth();
@@ -6116,25 +5963,24 @@ function App() {
       }
       return;
     }
-    if (user.role === 'teacher') {
-      const plan = planTeacherArrival({
-        arrival,
-        assignments,
-        canAdminister: user.isRootAdmin === true || isRootAdminEmail(user.email),
-        historyRoute: readTeacherRouteState(window.history.state),
-      });
-      if (!plan) return;
-      if (plan.message) toastInfo(plan.message.title, plan.message.body);
-      if (plan.action === 'preview') {
-        startTeacherPreview(plan.assignmentId);
-      } else if (plan.action === 'administration') {
-        setTeacherWorkspaceMode('administration');
-        setAdminTab(plan.adminTab);
-      } else {
-        setTeacherWorkspaceMode('teacher');
-        setTeacherTab(plan.tab);
-        if (plan.hubAssignmentId) setAssignmentHubTarget({ assignmentId: plan.hubAssignmentId, classId: plan.hubClassId || null });
-      }
+    if (user.role !== 'teacher') return;
+    const teacherPlan = planTeacherArrival({
+      arrival,
+      assignments,
+      canAdminister: user.isRootAdmin === true || isRootAdminEmail(user.email),
+      historyRoute: readTeacherRouteState(window.history.state),
+    });
+    if (!teacherPlan) return;
+    if (teacherPlan.message) toastInfo(teacherPlan.message.title, teacherPlan.message.body);
+    if (teacherPlan.action === 'preview') {
+      startTeacherPreview(teacherPlan.assignmentId);
+    } else if (teacherPlan.action === 'administration') {
+      setTeacherWorkspaceMode('administration');
+      setAdminTab(teacherPlan.adminTab);
+    } else {
+      setTeacherWorkspaceMode('teacher');
+      setTeacherTab(teacherPlan.tab);
+      if (teacherPlan.hubAssignmentId) setAssignmentHubTarget({ assignmentId: teacherPlan.hubAssignmentId, classId: teacherPlan.hubClassId || null });
     }
     // The arrival is opened once, with the state as it is when the account
     // has loaded; startAssignment and the rest read the latest state.
@@ -11969,19 +11815,15 @@ function App() {
   // of the previous account's screens renders while its state is torn down.
   const userIsSignedInAccount = Boolean(user && auth.status === 'ready' && auth.session?.uid && auth.session.uid === user.uid);
   if (!userIsSignedInAccount) {
-    if (auth.status === 'signedOut' || auth.status === 'linking') return <LoginScreen launchAssignment={launchAssignment} />;
-    if (sessionHydrationError) {
-      return (
-        <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '24px', background: 'var(--mm-surface-sunken)' }}>
-          <section style={{ width: 'min(560px, 100%)', padding: '24px', borderRadius: '12px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', textAlign: 'center' }}>
-            <h1 style={{ marginTop: 0, color: 'var(--mm-error-text)' }}>MathMaster could not load your account</h1>
-            <p style={{ color: 'var(--mm-text-muted)' }}>{sessionHydrationError}</p>
-            <button type="button" onClick={() => auth.signOut()} style={{ padding: '10px 16px', border: 0, borderRadius: '7px', background: '#174ea6', color: '#fff', fontWeight: 900 }}>Return to sign in</button>
-          </section>
-        </main>
-      );
-    }
-    return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--mm-primary-text)', background: 'var(--mm-surface-sunken)' }}>{sessionHydrating ? 'Loading your MathMaster workspace…' : 'Finishing sign in…'}</div>;
+    return (
+      <SessionGate
+        authStatus={auth.status}
+        hydrationError={sessionHydrationError}
+        hydrating={sessionHydrating}
+        launchAssignment={launchAssignment}
+        onSignOut={() => auth.signOut()}
+      />
+    );
   }
 
   if (isTeacherPreview) {

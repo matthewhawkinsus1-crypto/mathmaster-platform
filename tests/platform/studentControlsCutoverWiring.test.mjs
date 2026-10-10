@@ -168,7 +168,9 @@ test('surfaces showing another class say so, and the app keeps their students\' 
   assert.match(scope, /teacherTab === 'attendanceHistory' \? teacherSurfaceClasses\.attendance : null,/);
   assert.match(scope, /studentClass\(caseReviewStudentId\),\s*studentClass\(supportReportStudentId\),/);
   assert.match(scope, /crossClassTab: TEACHER_CROSS_CLASS_TABS\.has\(teacherTab\),/);
-  assert.match(code, /const TEACHER_CROSS_CLASS_TABS = new Set\(\['gradeTransfer', 'actionCenter', 'parentContacts'\]\);/);
+  // The table lives in app/screenScopes.js since the App split; App imports it.
+  assert.match(readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'), /export const TEACHER_CROSS_CLASS_TABS = new Set\(\['gradeTransfer', 'actionCenter', 'parentContacts'\]\);/);
+  assert.match(code, /\bTEACHER_CROSS_CLASS_TABS,\n[\s\S]*?\} from '\.\/app\/screenScopes\.js';/);
 });
 
 test('16. a copy of a lesson carries no student\'s private state — even from the teacher\'s merged view', () => {

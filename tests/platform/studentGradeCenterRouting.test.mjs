@@ -15,6 +15,7 @@ import {
 import { assertCapability, region } from './helpers/sourceContract.mjs';
 
 const app = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+const lazyScreens = fs.readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8');
 const gradeCenter = fs.readFileSync(
   new URL('../../src/components/student/StudentGradeCenter.jsx', import.meta.url),
   'utf8',
@@ -232,8 +233,11 @@ test('App imports every student grade module it calls', () => {
   ]) {
     const escapedFrom = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const staticImport = new RegExp(`${identifier}[\\s\\S]{0,400}?from '\\.\\/${escapedFrom}'`);
-    const lazyImport = new RegExp(`const ${identifier} = lazy\\(\\(\\) => import\\('\\.\\/${escapedFrom}'\\)\\)`);
-    assert.ok(staticImport.test(app) || lazyImport.test(app), `${identifier} must be statically or lazily imported from ${from}`);
+    // Lazily: declared in app/lazyScreens.js (the App split) and imported
+    // from there by App.
+    const lazyImport = new RegExp(`export const ${identifier} = lazy\\(\\(\\) => import\\('\\.\\.\\/${escapedFrom}'\\)\\)`);
+    const fromLazyScreens = new RegExp(`\\b${identifier},\\n[\\s\\S]*?\\} from '\\.\\/app\\/lazyScreens\\.js'`);
+    assert.ok(staticImport.test(app) || (lazyImport.test(lazyScreens) && fromLazyScreens.test(app)), `${identifier} must be statically or lazily imported from ${from}`);
     assert.match(app, new RegExp(`<${identifier}[\\s>]|${identifier}\\(|${identifier}\\)`), `${identifier} must actually be used`);
   }
 });

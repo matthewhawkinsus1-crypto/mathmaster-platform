@@ -362,7 +362,8 @@ test('a corrected name in Sign-In Access refetches the compact roster', () => {
 });
 
 test('the identity fix adds no full-grades tab and leaves the full-grades listener as it was', () => {
-  const tabs = region(app, 'const TEACHER_FULL_STUDENT_DATA_TABS = new Set([', ']);', 'full student data tabs');
+  // Declared in app/screenScopes.js since the App split.
+  const tabs = region(readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'), 'export const TEACHER_FULL_STUDENT_DATA_TABS = new Set([', ']);', 'full student data tabs');
   assert.deepEqual(
     [...tabs.matchAll(/'([A-Za-z]+)'/g)].map(([, tab]) => tab),
     ['students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer', 'standards', 'analytics', 'exams'],

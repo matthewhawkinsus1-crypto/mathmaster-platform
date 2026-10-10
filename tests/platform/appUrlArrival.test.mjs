@@ -143,13 +143,13 @@ test('App opens an arrival with the calls a click makes, and imports what it cal
   assert.match(effect, /setActiveTestCycleAssignmentId\(plan\.assignmentId\);\s*openStudentDashboardMode\('testCycle'\)/);
   assert.match(effect, /setPathLaunchTeks\(plan\.launchTeks\)/);
   assert.match(effect, /planTeacherArrival\(\{/);
-  assert.match(effect, /startTeacherPreview\(plan\.assignmentId\)/);
+  assert.match(effect, /startTeacherPreview\(teacherPlan\.assignmentId\)/);
   assert.match(effect, /if \(plan\.message\) toastInfo\(plan\.message\.title, plan\.message\.body\);/);
   // Every call above is a module import (no-undef aside, the import is the
   // contract a reader can check).
   assert.match(app, /import \{ planStudentArrival, planTeacherArrival, readUrlArrival \} from '\.\/app\/routes\/urlArrival\.js';/);
   assert.match(app, /import \{ questionAddressFor, studentQuestionEntries \} from '\.\/app\/routes\/questionAddress\.js';/);
-  assert.match(app, /import \{ mathPathUrlFor, resetAddressToHome, studentUrlFor, teacherUrlFor \} from '\.\/app\/routes\/browserUrl\.js';/);
+  assert.match(app, /import \{ resetAddressToHome, studentUrlFor, teacherUrlFor \} from '\.\/app\/routes\/browserUrl\.js';/);
   assert.match(app, /\breadMathPathRouteState,\n/);
   assert.match(app, /\breadTeacherRouteState,\n/);
 });
