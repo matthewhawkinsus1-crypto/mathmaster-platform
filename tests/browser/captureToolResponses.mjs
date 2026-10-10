@@ -103,7 +103,7 @@ const SCRIPTS = {
   // { finalEquation: " x = 4" }.
   algebra: async (page) => {
     await balanceMove(page, 'Subtract', '5');
-    await btn(page, '+ 5, select to cancel').click();
+    await page.locator('[data-term-text="+ 5"][aria-label$="select to cancel"]').first().click();
     await simplifySide(page, 'Right side', '8');
     await balanceMove(page, 'Divide by', '2');
     await btn(page, '2, mark this factor for cancellation').first().click();
@@ -251,7 +251,7 @@ const SCRIPTS = {
   // it does not change the shape of what it submits.
   stepAlgebra: async (page) => {
     await balanceMove(page, 'Add', '6');
-    await btn(page, '+ 6, select to cancel').click();
+    await page.locator('[data-term-text="+ 6"][aria-label$="select to cancel"]').first().click();
     await simplifySide(page, 'Right side', '15');
     await btn(page, 'Submit Solved Equation').click();
   },

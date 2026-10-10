@@ -214,6 +214,11 @@ export const createWorkspaceDraftSync = ({
     return true;
   };
 
+  function flushNow() {
+    if (handle !== null) { timers.clear(handle); handle = null; }
+    return runFlush();
+  }
+
   return {
     record,
     /**
@@ -249,13 +254,23 @@ export const createWorkspaceDraftSync = ({
       schedule();
     },
     /** Used by pagehide and by assignment teardown. Still never blocks a render. */
-    flushNow() {
-      if (handle !== null) { timers.clear(handle); handle = null; }
-      return runFlush();
-    },
+    flushNow,
     stop() {
-      stopped = true;
+      if (stopped) return;
       if (handle !== null) { timers.clear(handle); handle = null; }
+      // Edits made while a save was already on its way are still pending:
+      // flushNow hands back that save, and a stopped sync schedules nothing
+      // after it, so they never left this device — and a tool workspace does
+      // not offer its draft again when it next opens. They go once it lands,
+      // in one last save, and then nothing more.
+      if (inFlight && dirtySinceFlush) {
+        inFlight.finally(() => {
+          flushNow();
+          stopped = true;
+        });
+        return;
+      }
+      stopped = true;
     },
     pendingKeys: () => [...pending.keys()],
     stats: () => ({ ...stats, rejected: { ...stats.rejected } }),

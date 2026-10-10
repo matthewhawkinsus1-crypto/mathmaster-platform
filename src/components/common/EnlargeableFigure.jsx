@@ -14,6 +14,7 @@ import { WorkViewPresentationContext } from '../../platform/workView/workViewPre
 import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../platform/workView/workViewScrollHold.js';
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
+import { useModalDialog } from '../../ui/Dialog.jsx';
 import './WorkViewShell.css';
 
 // A graph a student can actually see.
@@ -168,25 +169,21 @@ export default function EnlargeableFigure({
   // MathMaster/mobile keyboard before the continuation controls appear.
   useEffect(() => {
     if (!shouldForceClose) return;
-    if (typeof document !== 'undefined') document.activeElement?.blur?.();
+    // A NESTED figure is closed by design from its first render: it never held
+    // focus, and blurring here dropped whatever the student had just Tabbed to
+    // (keyboard sweep S2 — focus fell to <body> 200–400ms after the first Tab).
+    if (!nestedWorkView && typeof document !== 'undefined') document.activeElement?.blur?.();
     setDrawer(null);
     setEnlarged(false);
-  }, [shouldForceClose]);
+  }, [shouldForceClose, nestedWorkView]);
 
-  useEffect(() => {
-    if (!enlarged) return undefined;
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        close();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    // preventScroll: focusing into the pinned panel scrolled the page behind it
-    // to the top (scrollY 400 → 5), losing the student's place on close.
-    closeRef.current?.focus?.({ preventScroll: true });
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [enlarged, close]);
+  // THE OPEN PANEL IS A MODAL DIALOG (src/ui/Dialog.jsx): Escape closes it,
+  // Tab stays inside it (keyboard sweep S4 — it walked out in 31 of 31 scenes),
+  // it opens on Close. preventScroll throughout: focusing into the pinned
+  // panel scrolled the page behind it to the top (scrollY 400 → 5). Focus
+  // return stays this component's own (only after a real close, below); the
+  // floating calculator lifted above it is an allowed focus layer.
+  useModalDialog(hostRef, { onClose: close, initialFocusRef: closeRef, returnFocus: false, active: enlarged });
 
   /*
    * OPEN ON THE STUDENT'S CURRENT WORK.
@@ -418,6 +415,14 @@ export default function EnlargeableFigure({
     (name) => registeredCapabilities[name]?.onAction || registeredCapabilities[name]?.onClick,
   );
   const supports = registeredCapabilities.supports?.render ? registeredCapabilities.supports : null;
+  // ONE DRAWER FOR HELP AND SUPPORT TOOLS ON A PHONE. Every student now has
+  // Support tools outside assessments (universal design), and a fourth 44px
+  // header button squeezed a phone's task from four lines to six — cut off in
+  // the header (studentUxPlatform "staged", PR #454). With Help present, the
+  // tools open inside Help there; elsewhere they keep their own button. The
+  // button is still named "Help" and the drawer "Help and instructions": the
+  // tray inside is its own group, "Support tools".
+  const supportsInHelp = Boolean(help && supports && viewport.mode === 'mobile');
   const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
     .filter((name) => !['task', 'help', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
     .filter((name) => !shellActionNames.includes(name));
@@ -576,8 +581,17 @@ export default function EnlargeableFigure({
           {shortHeight ? instructionNode : null}
         </div>
         {task ? <button type="button" aria-expanded={drawer === 'task'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'task'))}>Task</button> : null}
-        {help ? <button type="button" aria-expanded={drawer === 'help'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'help'))}>Help</button> : null}
-        {supports ? <button type="button" data-work-view-supports aria-expanded={drawer === 'supports'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'supports'))}>{supports.label || 'Support tools'}</button> : null}
+        {help ? (
+          <button
+            type="button"
+            data-work-view-supports={supportsInHelp ? '' : undefined}
+            aria-expanded={drawer === 'help'}
+            onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'help'))}
+          >
+            Help
+          </button>
+        ) : null}
+        {supports && !supportsInHelp ? <button type="button" data-work-view-supports aria-expanded={drawer === 'supports'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'supports'))}>{supports.label || 'Support tools'}</button> : null}
         <button ref={closeRef} type="button" onClick={close}>{openEnlarged ? 'Close full screen ✕' : 'Close ✕'}</button>
       </header>
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'task' ? 'true' : 'false'} aria-label="Original task">
@@ -585,8 +599,9 @@ export default function EnlargeableFigure({
       </section>
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'help' ? 'true' : 'false'} aria-label="Help and instructions">
         {help || null}
+        {supportsInHelp && enlarged && drawer === 'help' ? supports.render() : null}
       </section>
-      {supports ? (
+      {supports && !supportsInHelp ? (
         <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'supports' ? 'true' : 'false'} aria-label="Support tools">
           {enlarged && drawer === 'supports' ? supports.render() : null}
         </section>

@@ -34,6 +34,8 @@
 //   constraint-builder the Constraint-Based Function Builder's live checklist
 //   composed-algebra   "Need a strategic hint?" in a composed question's algebra step
 //   three-plane-reveal the three-plane model's author-allowed "Reveal" button
+//   graph-reading      a given graph whose intercepts are the answer: no feature
+//                      value in its description and no data table, in any role
 //
 // (The modeling lab's result after submission comes from a Cloud Function, so
 // it is held in node by tests/platform/solverRuntimeOutcomePolicy.test.mjs.)
@@ -700,6 +702,34 @@ const threePlaneReveal = async () => {
   }
 };
 
+/* --------------------------------------------------------- graph-reading */
+
+// PR #454 review B1/B2: a screen reader (ChromeVox is one keystroke on every
+// Chromebook) heard "crosses the y-axis at 2" and a "Show data table" listed
+// the intercept rows on items whose answer IS the intercepts. While the item
+// can be answered — in every role, not only assessments — the plane says what
+// is drawn and never where, and offers no table.
+const planeReading = (page) => page.evaluate(() => {
+  const svg = document.querySelector('svg[aria-describedby][role="img"]');
+  const description = svg ? document.getElementById(svg.getAttribute('aria-describedby'))?.textContent || '' : '';
+  return { found: Boolean(svg), description, table: [...document.querySelectorAll('button')].some((b) => /data table/i.test(b.textContent)) };
+});
+const FEATURE_TALK = /cross|touch|high point|low point|passes through|\(3, 0\)|\(0, 2\)|at 2\b|at 3\b|between/;
+const graphReading = async () => {
+  for (const role of ['practice', 'dol', 'test']) {
+    for (const read of ['1', '0']) {
+      await scenario(`${role} graph-reading read=${read}`, async () => {
+        const page = await open(role, 'graph-reading', `&read=${read}`);
+        const plane = await planeReading(page);
+        check(plane.found, `${role} graph-reading (read=${read}): the given graph is described`);
+        check(/1 line/.test(plane.description), `${role} graph-reading (read=${read}): it says what is drawn`, plane.description);
+        check(!FEATURE_TALK.test(plane.description), `${role} graph-reading (read=${read}): the description names no intercept or position`, firstMatch(plane.description, FEATURE_TALK));
+        check(!plane.table, `${role} graph-reading (read=${read}): no data table while the item can be answered`);
+      });
+    }
+  }
+};
+
 /* ----------------------------------------------------------------- runner */
 
 const SURFACES = {
@@ -711,6 +741,7 @@ const SURFACES = {
   'constraint-builder': constraintBuilder,
   'composed-algebra': composedAlgebra,
   'three-plane-reveal': threePlaneReveal,
+  'graph-reading': graphReading,
 };
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SURFACES);
 for (const name of selected) {

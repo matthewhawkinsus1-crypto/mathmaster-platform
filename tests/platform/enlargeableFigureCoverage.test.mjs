@@ -113,7 +113,9 @@ test('the enlarged view is a real dialog a keyboard can leave', () => {
   const source = codeOf('src/components/common/EnlargeableFigure.jsx');
   assert.match(source, /role=\{enlarged \? 'dialog' : undefined\}/);
   assert.match(source, /aria-modal=\{enlarged \? 'true' : undefined\}/);
-  assert.match(source, /event\.key === 'Escape'/);
+  // Escape (and the Tab trap) are the shared modal dialog's, wired to close
+  // only while the panel is open (src/ui/Dialog.jsx useModalDialog).
+  assert.match(source, /useModalDialog\(hostRef, \{ onClose: close, [^}]*active: enlarged \}\)/);
   assert.match(source, /openerRef\.current\?\.focus/);
   // Clicking the plane must not close the panel: plotting a point is a click.
   assert.match(source, /event\.target === event\.currentTarget/);

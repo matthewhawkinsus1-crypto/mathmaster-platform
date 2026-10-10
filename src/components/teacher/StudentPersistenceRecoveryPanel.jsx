@@ -5,6 +5,7 @@ import {
   resolveStudentPersistenceHold,
   sweepAllStudentResponseCheckpoints,
 } from '../../services/persistenceRecoveryService.js';
+import Dialog from '../../ui/Dialog.jsx';
 import { STUDENT_NAME_UNAVAILABLE, resolveRosterStudentName, studentIdLabel } from '../../platform/studentName.js';
 
 /*
@@ -433,7 +434,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
       )}
 
       {confirmationOpen && (
-        <div role="dialog" aria-modal="true" aria-labelledby="recovery-confirm-title" style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.55)' }}>
+        <Dialog onClose={() => setConfirmationOpen(false)} aria-labelledby="recovery-confirm-title" style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.55)' }}>
           <div style={{ ...CARD, width: 'min(520px, 100%)', boxShadow: '0 12px 40px rgba(0,0,0,.28)' }}>
             <h3 id="recovery-confirm-title" style={{ marginTop: 0 }}>Recover these saved responses as graded attempts?</h3>
             <p>MathMaster will grade each response on the server using the original assignment question and attempt rules. Existing newer attempts will not be overwritten.</p>
@@ -448,11 +449,11 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
               <button type="button" style={{ ...BUTTON, background: '#137333', color: '#fff' }} disabled={Boolean(busy)} onClick={commitDrafts}>Recover responses</button>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
 
       {resolutionTarget && (
-        <div role="dialog" aria-modal="true" aria-labelledby="resolve-hold-title" style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.55)' }}>
+        <Dialog closeOnEscape={false} onClose={() => { setResolutionTarget(null); setResolutionReason(''); }} aria-labelledby="resolve-hold-title" style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.55)' }}>
           <div style={{ ...CARD, width: 'min(560px, 100%)', boxShadow: '0 12px 40px rgba(0,0,0,.28)' }}>
             <h3 id="resolve-hold-title" style={{ marginTop: 0 }}>Resolve technical persistence hold?</h3>
             {/* THE EXACT MEANING OF THE ACTION, IN THE DIALOG THAT TAKES IT. */}
@@ -499,7 +500,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
               </button>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
     </section>
   );

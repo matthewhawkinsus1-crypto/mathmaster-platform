@@ -15,6 +15,7 @@ import {
   districtIdSavedMessage,
 } from './platform/teacher/studentDistrictIdModel.js';
 import DistrictIdEditor from './components/teacher/DistrictIdEditor.jsx';
+import Dialog from './ui/Dialog.jsx';
 
 const card = {
   border: '1px solid var(--mm-border)',
@@ -650,12 +651,12 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
 
       {deleteTarget && adminMode && isRootAdmin && (
         <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 12000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.72)' }}>
-          <section role="dialog" aria-modal="true" aria-label="Permanent student deletion" style={{ width: 'min(560px, 96vw)', padding: 24, borderRadius: 14, background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,.3)' }}>
+          <Dialog as="section" aria-label="Permanent student deletion" onClose={() => { setDeleteTarget(null); setDeleteConfirmation(''); }} closeOnEscape={pendingAction !== `delete:${deleteTarget.studentId}`} style={{ width: 'min(560px, 96vw)', padding: 24, borderRadius: 14, background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,.3)' }}>
             <h3 style={{ marginTop: 0, color: 'var(--mm-error-text)' }}>Permanently delete {formatStudentLabel(deleteTarget, { includeId: true })}?</h3>
             <p style={{ lineHeight: 1.55 }}>This erases the student&apos;s sign-in identity and MathMaster grades, submissions, mastery/retention state, My Math Path history, labs, secure-exam data, supports, and Classroom linkage records. <strong>This cannot be undone.</strong></p>
             <label style={{ display: 'block', fontWeight: 800 }}>Type <code>DELETE {deleteTarget.studentId}</code> to confirm<input autoFocus value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} style={{ ...inputStyle, width: '100%', marginTop: 7, boxSizing: 'border-box' }} /></label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}><button type="button" onClick={() => { setDeleteTarget(null); setDeleteConfirmation(''); }} style={quietButton}>Cancel</button><button type="button" disabled={deleteConfirmation !== `DELETE ${deleteTarget.studentId}` || pendingAction === `delete:${deleteTarget.studentId}`} onClick={confirmPermanentDeletion} style={{ ...primaryButton, background: deleteConfirmation === `DELETE ${deleteTarget.studentId}` ? '#b3261e' : '#dadce0' }}>{pendingAction === `delete:${deleteTarget.studentId}` ? 'Deleting…' : 'Permanently Delete Student'}</button></div>
-          </section>
+          </Dialog>
         </div>
       )}
     </div>

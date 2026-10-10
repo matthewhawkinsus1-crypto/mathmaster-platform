@@ -73,7 +73,10 @@ export default function SectionRecoveryPanel({ summary = [], busySection = null,
       {anyLocked && (
         <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--mm-info-bg)', border: '1px solid var(--mm-info-border)', color: 'var(--mm-info-text)' }}>
           <strong>Recovery Available</strong>
-          <div style={{ marginTop: 2, fontSize: 13 }}>Improve your Practice mastery to unlock another opportunity.</div>
+          {/* Names the button, because "improve your Practice mastery" sent
+              students to the assignment's own Practice section, which never
+              counts toward unlocking a Recovery. */}
+          <div style={{ marginTop: 2, fontSize: 13 }}>Use the “Practice for …” button below to unlock another try. Practice inside the assignment itself does not count toward it.</div>
         </div>
       )}
       {summary.map((entry) => {

@@ -190,8 +190,11 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
     hoveredPointIndex: 'Which plotted point is under the cursor.',
     keyboardActive: 'Whether the keyboard cursor is showing.',
     dragIndex: 'Which point the current gesture is moving. Gone at pointer-up.',
+    keyboardHeldIndex: 'Which point the keyboard has picked up to move. Gone at Enter or Escape.',
     gestureActive: 'Whether a pointer gesture is in progress.',
     keyboardHelpVisible: 'Whether the plane has keyboard focus, which shows the keyboard plotting help.',
+    dataTableOpen: 'Whether the "Show data table" disclosure under a read-only plane is open. The table restates the drawn graph; it is not an answer.',
+    insideControl: 'Whether the plane sits inside a button or link, measured after mount, which leaves out the nested data-table toggle. Layout.',
   }),
   'shared/ToolShell.jsx': Object.freeze({
     revealed: 'Whether the hint list is open.',
