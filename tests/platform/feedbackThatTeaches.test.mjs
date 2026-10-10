@@ -165,17 +165,46 @@ test('3. no feedback, diagnosis or review while an assessment item can still be 
   assert.equal(feedbackOpenForItem({ showOutcomeFeedback: false, immediateFeedback: false, closed: true }), false);
   // released, but the item can still be answered: nothing
   assert.equal(feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: false, closed: false }), false);
-  // released and closed: the review may show
-  assert.equal(feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: false, closed: true }), true);
+  // closed, with right/wrong released for the item only (a DOL as each item
+  // closes): nothing — "Grant one more DOL attempt" reopens the same item
+  assert.equal(feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: false, closed: true }), false);
+  assert.equal(feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: false, closed: true, assessmentReleased: false }), false);
+  // closed, and the teacher released the assignment's feedback: the review may show
+  assert.equal(feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: false, closed: true, assessmentReleased: true }), true);
+  // an assignment release does not open an item that can still be answered
+  assert.equal(feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: false, closed: false, assessmentReleased: true }), false);
   // a server-graded host (Path, Test Cycle, Live Challenge) owns its feedback
   assert.equal(feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: true, closed: true, serverGraded: true }), false);
+  // a role nobody recognises fails closed
+  assert.equal(feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: true, closed: true, assessmentReleased: true, roleKnown: false }), false);
 
   const engine = executableSource(read('src/QuestionEngine.jsx'));
-  assert.match(engine, /const feedbackOpen = feedbackOpenForItem\(\{\s*showOutcomeFeedback,\s*immediateFeedback: resolvedActivityPolicy\?\.feedback === 'immediate',\s*closed: locked,\s*serverGraded,\s*\}\);/);
+  // "Closed" is the question closing, never a section lock a teacher can lift.
+  assert.match(engine, /const feedbackOpen = feedbackOpenForItem\(\{\s*showOutcomeFeedback,\s*immediateFeedback: resolvedActivityPolicy\?\.feedback === 'immediate',\s*closed: isCorrect \|\| isExpired,\s*assessmentReleased: assessmentReviewReleased === true,\s*serverGraded,\s*roleKnown: ladderRoleKnown,\s*\}\);/);
   assert.match(engine, /const closedReview = \(isCorrect \|\| isExpired\) && feedbackOpen \? \(/);
+  assert.match(engine, /\{expiredAlmost \? 'Almost' : 'Incorrect'\}\{reviewAvailable && feedbackOpen \? ' — review below' : ''\}/);
   // The hint control follows the activity's help policy, and a server-graded host keeps its own.
-  assert.match(engine, /const hintControlAllowed = toolHintsAllowed && !serverGrading;/);
+  assert.match(engine, /const hintControlAllowed = toolHintsAllowed && !serverGrading && ladderRoleKnown;/);
   assert.match(engine, /const toolHintsAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false;/);
+  assert.match(engine, /const ladderRoleKnown = Boolean\(activityPolicy\) \|\| isActivityRole\(String\(activityRole \?\? ''\)\.trim\(\)\.toLowerCase\(\)\);/);
+  assert.match(engine, /import \{ getEffectiveActivityPolicy, isActivityRole \} from '\.\/platform\/policies\/activityPolicies';/);
+});
+
+test('3. a DOL\'s per-item right/wrong release never opens the worked solution (PR #462 review B1)', () => {
+  const app = executableSource(read('src/App.jsx'));
+  // The per-item release (a DOL item that is correct or out of attempts)
+  // still shows right/wrong…
+  assert.match(app, /const currentFeedbackReleased = lifecycle\.isPracticeOnly \|\| assignmentFeedbackWasReleased\(assignment\)\s*\|\| \(activeActivityPolicy\.feedback === 'afterAssignmentSubmit' && \['correct', 'expired'\]\.includes\(currentRecord\.status\)\);/);
+  // …but the review follows the assignment-level release only.
+  assert.match(app, /assessmentReviewReleased=\{assignmentFeedbackWasReleased\(assignment\)\}/);
+  assert.doesNotMatch(app, /assessmentReviewReleased=\{currentFeedbackReleased\}/);
+  assert.match(app, /const assignmentFeedbackWasReleased = \(assignment\) => assignment\?\.feedbackReleased === true \|\| Boolean\(assignment\?\.feedbackReleasedAt\);/);
+  // The journey: a DOL item runs out of attempts (per-item release on), the
+  // teacher grants one more attempt (the item is open again), all before any
+  // assignment release — at no point may a review show.
+  const dolItem = (closed) => feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: false, closed, assessmentReleased: false });
+  assert.equal(dolItem(true), false, 'closed, per-item release');
+  assert.equal(dolItem(false), false, 'reopened by a granted attempt');
 });
 
 test('3. a closed question points at a worked solution only when there is one', () => {

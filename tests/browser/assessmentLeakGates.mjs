@@ -769,6 +769,23 @@ const feedbackLadder = async () => {
       }
     });
   }
+  // PR #462 review B1: a DOL shows right/wrong per item as soon as the item
+  // closes, and "Grant one more DOL attempt" reopens that same item. The
+  // worked solution waits for the teacher's assignment-level release.
+  for (const role of ['dol', 'quiz', 'test']) {
+    for (const review of ['0', '1']) {
+      await scenario(`${role} feedback-ladder closed (review=${review})`, async () => {
+        const page = await open(role, 'feedback-ladder', `&record=expired&released=1&review=${review}`);
+        const worked = await page.locator('[aria-label="Worked solution"]').count();
+        const html = await page.evaluate(() => document.documentElement.outerHTML);
+        if (review === '0') {
+          check(worked === 0 && !html.includes('LEAKCHECK-REVIEW'), `${role} feedback-ladder: a closed item with right/wrong released shows no worked solution`, `${worked} panels`);
+        } else {
+          check(worked === 1 && html.includes('LEAKCHECK-REVIEW: change in y is 3.'), `${role} feedback-ladder: after the assignment's release the worked solution shows`, `${worked} panels`);
+        }
+      });
+    }
+  }
   for (const which of ['feedback-family', 'feedback-tool']) {
     for (const role of ['dol', 'test']) {
       await scenario(`${role} ${which}`, async () => {

@@ -7,10 +7,17 @@
  *
  * feedbackOpenForItem — the one gate. Specific feedback, a diagnosis or a
  * review may be shown only when outcome feedback is open for this activity
- * AND, for anything but immediate-feedback practice, the item is closed. A
- * DOL, quiz or test item that can still be answered gets none of it, even
- * after a release, and a server-graded host (Path, Test Cycle, Live
- * Challenge) keeps its own feedback.
+ * AND, for anything but immediate-feedback practice, the item is closed AND
+ * the teacher has released the assignment's feedback. A DOL, quiz or test item
+ * that can still be answered gets none of it, and a server-graded host (Path,
+ * Test Cycle, Live Challenge) keeps its own feedback.
+ *
+ * `closed` is the QUESTION closing (correct, or out of attempts) — never a
+ * section lock, which a teacher can lift. `assessmentReleased` is the
+ * assignment-level release only: a DOL shows right/wrong per item as soon as
+ * the item closes, and "Grant one more DOL attempt" then reopens that same
+ * item, so a per-item release must not open a review (PR #462 review B1).
+ * An activity role nobody recognises fails closed (`roleKnown: false`).
  *
  * missFeedback — the sentence under "Not quite": an authored message keyed
  * to this wrong answer first, then the misconception / generic diagnosis
@@ -23,8 +30,18 @@ import { buildPrivateSupport } from '../../../../functions/shared/pathSolutionSu
 const list = (value) => (Array.isArray(value) ? value : []);
 const text = (value) => String(value ?? '').trim();
 
-export const feedbackOpenForItem = ({ showOutcomeFeedback = false, immediateFeedback = false, closed = false, serverGraded = false } = {}) => (
-  Boolean(showOutcomeFeedback) && !serverGraded && (Boolean(immediateFeedback) || Boolean(closed))
+export const feedbackOpenForItem = ({
+  showOutcomeFeedback = false,
+  immediateFeedback = false,
+  closed = false,
+  assessmentReleased = false,
+  serverGraded = false,
+  roleKnown = true,
+} = {}) => (
+  roleKnown === true
+  && Boolean(showOutcomeFeedback)
+  && !serverGraded
+  && (Boolean(immediateFeedback) || (Boolean(closed) && assessmentReleased === true))
 );
 
 /** The student's submitted values, as text, from the graded parts. */

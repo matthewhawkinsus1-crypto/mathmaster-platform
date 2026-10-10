@@ -11512,6 +11512,7 @@ function App() {
               activityRole={runtimeActivityRole}
               activityPolicy={runtimeQuestionActivityPolicy}
               feedbackReleased={currentFeedbackReleased}
+              assessmentReviewReleased={assignmentFeedbackWasReleased(assignment)}
               replacementWarning={replacementWarning}
               draftKey={buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}

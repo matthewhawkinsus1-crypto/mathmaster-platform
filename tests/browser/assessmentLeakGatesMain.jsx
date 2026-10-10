@@ -6,7 +6,9 @@
 //   ?q=<fixture>                   one of FIXTURES below
 //   ?run=<id>                      a fresh draft namespace for this run
 //   ?released=1                    the teacher has released outcome feedback
-//   ?record=partial                the item's record after one half-right attempt
+//   ?record=partial|expired        the item's record: one half-right attempt, or
+//                                  out of attempts
+//   ?review=1                      the teacher has released the assignment's feedback
 //
 // What the engine hands its host lands on window: every graded submission in
 // __mmGraded, every step-credit report in __mmStepGrades.
@@ -28,6 +30,7 @@ const role = params.get('role') || 'practice';
 const which = params.get('q') || 'systems-3x3';
 const run = params.get('run') || 'manual';
 const released = params.get('released') === '1';
+const reviewReleased = params.get('review') === '1';
 
 const day2Question = (id) => day2.sections.flatMap((section) => section.questions).find((question) => question.questionId === id);
 
@@ -212,6 +215,7 @@ const RECORDS = {
     ],
   },
 };
+RECORDS.expired = { status: 'expired', attemptCount: 3 };
 const questionRecord = RECORDS[params.get('record')] || { status: 'unattempted', attemptCount: 0 };
 
 const assignmentId = `leak-gates-${run}`;
@@ -228,6 +232,7 @@ function Harness() {
         generationKey={`${assignmentId}|${which}`}
         activityRole={role}
         feedbackReleased={released}
+        assessmentReviewReleased={reviewReleased}
         maximumAttempts={3}
         draftKey={draftKey}
         assignmentId={assignmentId}

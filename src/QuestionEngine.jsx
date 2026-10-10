@@ -48,7 +48,7 @@ import CalculatorPanel from './components/CalculatorPanel';
 import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
 import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
-import { getEffectiveActivityPolicy } from './platform/policies/activityPolicies';
+import { getEffectiveActivityPolicy, isActivityRole } from './platform/policies/activityPolicies';
 import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
@@ -203,6 +203,10 @@ function QuestionEngineBody({
   explicitActivityRole = null,
   activityPolicy = null,
   feedbackReleased = false,
+  // The teacher released the ASSIGNMENT's feedback (not the per-item
+  // right/wrong a DOL shows as each item closes). Only this opens a
+  // diagnosis or worked solution on a DOL, quiz or test item.
+  assessmentReviewReleased = false,
   assessmentContext = null,
   teacherCalculatorChoice = null,
   assignmentId = null,
@@ -262,6 +266,11 @@ function QuestionEngineBody({
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
   const showOutcomeFeedback = resolvedActivityPolicy?.feedback === 'immediate' || feedbackReleased === true;
+  // The support ladder (Hint control, miss diagnosis, worked review) fails
+  // closed on a role nobody recognises, which getEffectiveActivityPolicy would
+  // otherwise read as classwork. An omitted role is the prop default,
+  // 'practice': legacy practice content mounts without one.
+  const ladderRoleKnown = Boolean(activityPolicy) || isActivityRole(String(activityRole ?? '').trim().toLowerCase());
   const stableQuestion = useDeepStableValue(question);
   const stableStudentProfile = useDeepStableValue(studentProfile);
   // Deep-stabilised like the profile: `adaptation` is rebuilt on every parent
@@ -1418,7 +1427,7 @@ function QuestionEngineBody({
    * closes. Each reveal is recorded as hint use, so the next attempt is not
    * counted as independent.
    */
-  const hintControlAllowed = toolHintsAllowed && !serverGrading;
+  const hintControlAllowed = toolHintsAllowed && !serverGrading && ladderRoleKnown;
   const questionHints = useMemo(() => (hintControlAllowed ? buildQuestionHints(processedQuestion) : []), [hintControlAllowed, processedQuestion]);
   const hintState = hintRelease({ hints: questionHints, revealed: hintsRevealed, attemptCount: record.attemptCount, hintsAllowed: hintControlAllowed, closed: locked });
   const similarExample = useMemo(
@@ -1519,16 +1528,20 @@ function QuestionEngineBody({
    * FEEDBACK THAT TEACHES (attemptFeedbackPlan.js). One gate decides whether
    * anything beyond right/wrong may be shown for this item: outcome feedback
    * open, not a server-graded host, and — on a DOL, quiz or test — the item
-   * closed. Inside it: a specific message for the miss (authored, else the
-   * display-only diagnosis), a hint offered from the second miss, and the
-   * worked solution once the question closes.
+   * closed AND the assignment's feedback released by the teacher. Inside it:
+   * a specific message for the miss (authored, else the display-only
+   * diagnosis), a hint offered from the second miss, and the worked solution
+   * once the question closes. "Closed" is the question closing, never a
+   * section lock; a role nobody recognises gets none of it.
    */
   const isToolQuestion = Boolean(missingToolDefinition);
   const feedbackOpen = feedbackOpenForItem({
     showOutcomeFeedback,
     immediateFeedback: resolvedActivityPolicy?.feedback === 'immediate',
-    closed: locked,
+    closed: isCorrect || isExpired,
+    assessmentReleased: assessmentReviewReleased === true,
     serverGraded,
+    roleKnown: ladderRoleKnown,
   });
   const reviewAvailable = useMemo(
     () => closedQuestionHasReview({ question: processedQuestion, isToolQuestion, legacyContent: legacySolutionReviewContent }),
@@ -2393,7 +2406,7 @@ function QuestionEngineBody({
               boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
             }}
           >
-            {expiredAlmost ? 'Almost' : 'Incorrect'}{reviewAvailable ? ' — review below' : ''}
+            {expiredAlmost ? 'Almost' : 'Incorrect'}{reviewAvailable && feedbackOpen ? ' — review below' : ''}
           </div>
         )}
       </div>
@@ -2571,7 +2584,7 @@ function QuestionEngineBody({
           {closedReview}
           {resolvedActivityPolicy?.allowReplacement && (
             <>
-              <p style={{ margin: '8px 0 14px' }}>{reviewAvailable ? 'Review the solution, then request' : 'Request'} a new problem at the same difficulty.</p>
+              <p style={{ margin: '8px 0 14px' }}>{reviewAvailable && feedbackOpen ? 'Review the solution, then request' : 'Request'} a new problem at the same difficulty.</p>
               <button type="button" onClick={handleRequestNewQuestion} disabled={requesting || assignmentLocked} style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', background: requesting || assignmentLocked ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: requesting || assignmentLocked ? 'var(--mm-disabled-text)' : '#fff', fontWeight: 'bold', cursor: requesting || assignmentLocked ? 'not-allowed' : 'pointer' }}>
                 {requesting ? 'Creating New Question…' : 'Request New Question'}
               </button>
