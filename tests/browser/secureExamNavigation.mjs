@@ -324,6 +324,18 @@ const practiceJourney = async (context, device) => {
   await noVerdict(page, label('question list'));
   await shot(page, device, 'practice-05-question-list');
   await layout(page, label('question list'));
+  // Escape closes the list, from inside it and from the "Question N of 4" button (QA m5).
+  await page.keyboard.press('Escape');
+  check(await page.waitForSelector('[data-secure-navigator]', { state: 'detached', timeout: 5000 }).then(() => true).catch(() => false), label('Escape inside the list closes it'));
+  await page.locator('[data-secure-navigator-toggle]').click();
+  await page.waitForSelector('[data-secure-navigator]');
+  await page.locator('[data-secure-navigator-toggle]').focus();
+  await page.keyboard.press('Escape');
+  check(await page.waitForSelector('[data-secure-navigator]', { state: 'detached', timeout: 5000 }).then(() => true).catch(() => false), label('Escape on the question button closes the list'));
+  const timerName = await page.locator('[data-secure-timer]').getAttribute('aria-label');
+  check(/^(Untimed test|Show the timer|Time left \d+:\d{2}\. (Hide the timer|Shown for the last five minutes))$/.test(timerName || ''), label('the timer button says what it shows and does'), timerName);
+  await page.locator('[data-secure-navigator-toggle]').click();
+  await page.waitForSelector('[data-secure-navigator]');
 
   // Square 3 starts module 2: the module review comes first.
   await page.locator('[data-secure-navigator] [data-question-status]').nth(2).click();
@@ -463,13 +475,26 @@ const courseJourney = async (context, device) => {
   await next(page);
   await page.waitForSelector('[data-secure-pause="teacher"]', { timeout: 8000 });
   text = await bodyText(page);
-  check(/Your teacher paused the test/.test(text) && /Your answers are saved\. Wait here/.test(text), label('teacher pause has its own words'));
+  check(/Your teacher paused the test/.test(text) && /Your answers are saved and your time is stopped\. Wait here/.test(text), label('teacher pause has its own words, and says the time is stopped'));
   check(!/Preparing the next secure item/.test(text), label('a pause never strands the student on "Preparing…"'));
   check(await focusIn(page, '[data-secure-pause]'), label('the pause screen takes focus'));
   await titleFits(page, '[data-secure-pause] h1', label('teacher pause'));
   await shot(page, device, 'course-03-teacher-pause');
+  // The clock stops with the pause: the header's time left does not move, and
+  // the student gets back exactly what they had.
+  const timerName = () => page.locator('[data-secure-timer]').getAttribute('aria-label');
+  const secondsIn = (name) => { const match = /Time left (\d+):(\d{2})/.exec(name || ''); return match ? Number(match[1]) * 60 + Number(match[2]) : null; };
+  await page.waitForFunction(() => /stopped while your teacher/.test(document.querySelector('[data-secure-timer]')?.getAttribute('aria-label') || ''), null, { timeout: 8000 }).catch(() => {});
+  const pausedName = await timerName();
+  await page.waitForTimeout(2500);
+  check(/stopped while your teacher has the test paused/.test(pausedName || '') && (await timerName()) === pausedName, label('the clock stops while the teacher has the test paused'), pausedName);
+  // Paused for longer than the screen's 5-second check: none of it comes off
+  // the student's time (only the moments before the screen sees the resume).
+  await page.waitForTimeout(6000);
   await page.evaluate(() => window.__secureHarness.proctor('unlock'));
   await page.waitForSelector('[data-secure-pause]', { state: 'detached', timeout: 12000 });
+  const resumedLeft = secondsIn(await timerName());
+  check(resumedLeft !== null && secondsIn(pausedName) - resumedLeft <= 6, label('the time paused is not taken from the student'), `${secondsIn(pausedName)} → ${resumedLeft}`);
   await page.getByText('Write it in notation').waitFor({ timeout: 12000 });
   check(await headerPosition(page) === 'Question 2 of 5', label('resume reopens the same question'), await headerPosition(page));
   check(await toolValue() === '[-3,5)', label('the saved work is still there after the pause'), await toolValue());
@@ -568,6 +593,21 @@ const backtrackJourney = async (context, device) => {
   const extendedOnStart = await page.waitForFunction(() => /You have 30 minutes, starting when you press Start\. The timer stays on screen\. This includes your extended time\./.test(document.body.innerText), null, { timeout: 8000 }).then(() => true).catch(() => false);
   check(extendedOnStart, label('start screen: the student\'s extended time, from a card that did not know it'));
   await shot(page, device, 'backtrack-01-start');
+  // Opened again with a slow list: the screen says it is checking, and never
+  // states the card's base 20 minutes while it waits (QA m2).
+  await page.evaluate(() => { window.__secureSandboxDelays = { list: 2000 }; window.__secureHarness.remount(); });
+  await page.waitForSelector('[data-secure-start-loading]', { timeout: 3000 }).catch(() => {});
+  const waiting = await bodyText(page);
+  check(/Checking where your test stands/.test(waiting) && !/20 minutes/.test(waiting) && await page.getByRole('button', { name: 'Start Test' }).isDisabled(), label('start screen: loading, not the full time, until the session arrives'), waiting.slice(0, 160));
+  await page.waitForSelector('[data-secure-start-rules]', { timeout: 6000 });
+  check(/You have 30 minutes, starting when you press Start/.test(await bodyText(page)), label('start screen: then the student\'s own time'));
+  // A list slower than the screen waits: the card's facts stand in, and Start works.
+  await page.evaluate(() => { window.__secureSandboxDelays = { list: 9000 }; window.__secureHarness.remount(); });
+  await page.waitForSelector('[data-secure-start-loading]', { timeout: 3000 }).catch(() => {});
+  const stoppedWaiting = await page.waitForSelector('[data-secure-start-rules]', { timeout: 7000 }).then(() => true).catch(() => false);
+  check(stoppedWaiting && await page.getByRole('button', { name: 'Start Test' }).isEnabled(), label('start screen: a slow list never keeps the student from starting'));
+  await page.evaluate(() => { window.__secureSandboxDelays = null; window.__secureHarness.remount(); });
+  await page.waitForFunction(() => /You have 30 minutes, starting when you press Start/.test(document.body.innerText), null, { timeout: 8000 });
   await page.getByRole('button', { name: 'Start Test' }).click();
   await page.waitForSelector('[data-secure-navigator-toggle]');
   const header = await page.locator('[data-secure-exam-header]').innerText();

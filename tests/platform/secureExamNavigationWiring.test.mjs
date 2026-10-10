@@ -67,7 +67,7 @@ const handlers = {
   move: region(container, 'const move = useCallback(', 'const start = async () => {', 'move'),
   start: region(container, 'const start = async () => {', '  useEffect(() => {', 'start'),
   checkStatus: region(container, 'const checkStatus = useCallback(', 'const resumeAfterPause = useCallback(', 'status check'),
-  resume: region(container, 'const resumeAfterPause = useCallback(', 'const previousStatusRef', 'resumeAfterPause'),
+  resume: region(container, 'const resumeAfterPause = useCallback(', '// Resumed from either pause', 'resumeAfterPause'),
   autosave: region(container, 'const autosaveDraft = useCallback(', 'const saveItemNow', 'autosaveDraft'),
   toggleFlag: region(container, 'const toggleFlag = useCallback(', 'const openNavigator = useCallback(', 'toggleFlag'),
   backToQuestion: region(container, 'const backToQuestion = useCallback(', 'const returnToFullscreen', 'backToQuestion'),
@@ -156,7 +156,8 @@ test('the header numbers the question on screen, marks it for review, and opens 
   assert.match(headerProps, /navigatorId="secure-question-list"/);
   assert.match(header, /const position = `Question \$\{questionOrdinal\} of \$\{total\}`;/);
   const toggle = region(header, '{onOpenNavigator', ': <div', 'navigator toggle');
-  assert.match(toggle, /<button type="button" onClick=\{onOpenNavigator\} aria-expanded=\{navigatorOpen\} aria-controls=\{navigatorOpen && navigatorId \? navigatorId : undefined\}/);
+  assert.match(toggle, /<button\s+type="button"\s+onClick=\{onOpenNavigator\}/);
+  assert.match(toggle, /\s+aria-expanded=\{navigatorOpen\}\s+aria-controls=\{navigatorOpen && navigatorId \? navigatorId : undefined\}/);
   assert.doesNotMatch(toggle, /aria-haspopup/, 'it expands a panel on the page; it does not open a dialog');
   assert.match(region(header, '{onToggleReviewFlag && (', ')}', 'flag button'), /aria-pressed=\{reviewFlagged\}/);
 
@@ -191,7 +192,10 @@ test('every call that can meet a pause or the end of time hands its failure to h
   // What it does with each.
   const locked = region(handlers.handleProblem, "if (problem.kind === 'locked') {", 'return true;', 'locked');
   assert.match(locked, /setSession\(\(current\) => \(current \? \{ \.\.\.current, status: pausedStatusAfterRefusal\(problem\.status, current\.status\) \} : current\)\);/);
-  assert.match(locked, /\n\s*if \(!problem\.status\) refreshSession\(\);/, 'a refusal that does not say which pause asks the server');
+  // Every refusal asks the server where the test stands: which pause, when the
+  // refusal does not say, and whether the clock is stopped (a teacher's pause).
+  assert.match(locked, /\n\s*refreshSession\(\);/, 'a refusal asks the server');
+  assert.doesNotMatch(executableSource(locked), /if \(!problem\.status\) refreshSession/, 'not only when the refusal does not say which pause');
   assert.match(region(handlers.handleProblem, "if (problem.kind === 'expired') {", 'return true;', 'expired'), /finishRef\.current\?\.\('timeExpired'\)/);
   const navigationRefusal = region(handlers.handleProblem, "if (problem.kind === 'navigation') {", 'return true;', 'navigation refusal');
   assert.match(navigationRefusal, /const moduleEnd = problem\.reason === 'module_end' \? pendingModuleEnd\(readNavigation\(sessionRef\.current\)\) : null;/);
@@ -202,12 +206,14 @@ test('a pause covers everything, takes focus, leaves nothing to type into, and r
   const resume = handlers.resume;
   assert.match(resume, /const target = Number\.isInteger\(positionRef\.current\) \? positionRef\.current : readNavigation\(active\)\.cursor;\s*await openPosition\(active\.examSessionId, target\);/);
   assert.doesNotMatch(executableSource(resume), /!question\b|\bquestion\s*(\?|&&|\|\|)|\(question\b/, 'not only when no question was showing');
-  assert.match(container, /if \(status === EXAM_RUNTIME_STATES\.IN_PROGRESS && locked\.has\(previous\)\) resumeAfterPause\(\);/);
+  // Either pause ends it: a lock lifted, or the assessment open again (the clock was stopped).
+  assert.match(container, /const pausedNow = Boolean\(session && pauseKind\(session\.status, session\.clockPaused === true\)\);/);
+  assert.match(container, /if \(wasPaused && !pausedNow && session\?\.status === EXAM_RUNTIME_STATES\.IN_PROGRESS\) resumeAfterPause\(\);/);
 
   const overlay = region(container, '{pause && (', '</Dialog>\n    )}', 'pause overlay');
   const teacher = region(overlay, "{pause === 'teacher' ? (", ') : (', 'teacher pause');
   assert.match(teacher, /<h1 id="secure-pause-title" style=\{pauseTitle\}>Your teacher paused the test<\/h1>/);
-  assert.match(teacher, /Your answers are saved\. Wait here — it will continue when your teacher resumes it\./);
+  assert.match(teacher, /\{session\.timed \? 'Your answers are saved and your time is stopped\.' : 'Your answers are saved\.'\} Wait here — it will continue when your teacher resumes it\./);
   const integrity = overlay.slice(overlay.indexOf(') : (', overlay.indexOf("{pause === 'teacher' ? (")));
   assert.match(integrity, /<h1 id="secure-pause-title" style=\{pauseTitle\}>Your test is paused<\/h1>/);
   assert.match(integrity, /\{integrityPauseText\(threshold\)\}/);
@@ -232,8 +238,8 @@ test('a pause covers everything, takes focus, leaves nothing to type into, and r
   // where the student was (lastFocusRef) gives focus back.
   assert.match(container, /^import Dialog from '\.\.\/\.\.\/ui\/Dialog\.jsx';$/m);
   assert.match(overlay, /<Dialog ref=\{pauseRef\} role="alertdialog" closeOnEscape=\{false\} returnFocus=\{false\} aria-labelledby="secure-pause-title"/);
-  assert.match(region(container, 'const paused = pauseKind(session?.status);', '}, [paused]);', 'pause focus return'), /const last = lastFocusRef\.current;\s*if \(last\?\.isConnected && typeof last\.focus === 'function' && !last\.closest\('\[inert\]'\)\) last\.focus\(\);/);
-  assert.match(region(container, 'const paused = pauseKind(session?.status);', '}, [paused]);', 'pause focus'), /if \(!paused\) return undefined;\s*pauseRef\.current\?\.focus\(\);/);
+  assert.match(region(container, 'const paused = pauseKind(session?.status, session?.clockPaused === true);', '}, [paused]);', 'pause focus return'), /const last = lastFocusRef\.current;\s*if \(last\?\.isConnected && typeof last\.focus === 'function' && !last\.closest\('\[inert\]'\)\) last\.focus\(\);/);
+  assert.match(region(container, 'const paused = pauseKind(session?.status, session?.clockPaused === true);', '}, [paused]);', 'pause focus'), /if \(!paused\) return undefined;\s*pauseRef\.current\?\.focus\(\);/);
   // Only a pause makes the test inert. The question list is a panel on the
   // page (not a modal), so nothing has to be shut off behind it.
   assert.match(container, /const surfaceInert = Boolean\(pause\);/);
@@ -250,8 +256,11 @@ test('a teacher\'s pause reaches a student who is only reading', () => {
   assert.match(check, /await startSecureExamSession\(\{ examSessionId: active\.examSessionId, examType: active\.examType \}\)/);
   // A change of status is taken whole (the pause, the resume, the finished test)…
   assert.match(check, /\n\s*if \(fresh\.status !== current\.status\) return fresh;/);
-  // …otherwise only the clock, so a slow answer cannot undo a newer save or flag.
-  assert.match(check, /\n\s*return \{ \.\.\.current, expiresAt: fresh\.expiresAt, timeLimitSeconds: fresh\.timeLimitSeconds, addedTimeSeconds: fresh\.addedTimeSeconds \};/);
+  // …otherwise only the clock (stopped or running), so a slow answer cannot undo a newer save or flag.
+  const clockOnly = region(check, 'return {\n          ...current,', '};', 'clock only');
+  for (const field of ['expiresAt', 'timeLimitSeconds', 'addedTimeSeconds', 'clockPaused', 'pausedRemainingSeconds']) {
+    assert.match(clockOnly, new RegExp(`\\n\\s*${field}: fresh\\.${field},`), field);
+  }
   assert.doesNotMatch(executableSource(check), /navigation/);
   const poll = region(container, '  useEffect(() => {\n    if (!session?.examSessionId || session.status !== EXAM_RUNTIME_STATES.IN_PROGRESS) return undefined;\n    const id = window.setInterval(', '}, [session?.examSessionId, session?.status, checkStatus]);', 'status poll');
   assert.match(poll, /if \(busyRef\.current \|\| finishingRef\.current \|\| document\.visibilityState === 'hidden'\) return;\s*checkStatus\(\);/);
@@ -311,7 +320,7 @@ test('the start screen states the new rules and the student\'s own time, and non
   assert.match(startScreen, /\{rules\.map\(\(rule\) => <li key=\{rule\}>\{rule\}<\/li>\)\}/);
   // The session as the list knows it — passed in, or asked for when it was not.
   assert.match(container, /const startPreview = sessionPreview && typeof sessionPreview === 'object' \? sessionPreview : loadedPreview;/);
-  const ask = region(container, 'if (sessionPreview || !examSessionId || session) return undefined;', '}, [sessionPreview, examSessionId, session]);', 'preview request');
+  const ask = region(container, 'if (sessionPreview || !examSessionId || session) { setPreviewPending(false); return undefined; }', '}, [sessionPreview, examSessionId, session]);', 'preview request');
   assert.match(ask, /listStudentSecureExamSessions\(\)/);
   assert.match(ask, /\.find\(\(entry\) => entry\?\.examSessionId === examSessionId\)/);
   assert.match(ask, /if \(!cancelled && found\) setLoadedPreview\(found\);/);

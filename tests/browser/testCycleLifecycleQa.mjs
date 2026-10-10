@@ -3,8 +3,11 @@
 //
 // HOW TO RUN (one command; it starts the emulator, the bridge and Vite):
 //
-//   node tests/browser/testCycleLifecycleQa.mjs
+//   npm run test:test-cycle-lifecycle        (node tests/browser/testCycleLifecycleQa.mjs)
 //   QA_SHOTS=/some/dir node tests/browser/testCycleLifecycleQa.mjs   # keep screenshots
+//
+// It needs Java (the Firestore emulator), functions/node_modules and Chromium,
+// and takes about five minutes. It exits 1 on any finding.
 //
 // WHAT IS REAL. The student card, the secure exam container and question
 // player, corrections, the teacher's results panel and the teacher preview —
@@ -19,7 +22,9 @@
 //   - the card follows the server without a reload (Review done, results
 //     released, retest opened);
 //   - an untimed Test shows no clock and is not called the SAT;
-//   - answers survive going offline and a reload; submit asks first;
+//   - skip, flag and go back: every answer is a saved draft until Submit;
+//     answers survive going offline and a reload; the review before Submit
+//     names the questions with no answer;
 //   - release from the results panel; corrections with real tries; the
 //     retest; the capped recorded grade, explained;
 //   - the teacher preview's stages and real secure items, writing nothing;
@@ -28,7 +33,10 @@
 //
 // NOTHING TOUCHES PRODUCTION: firebase.js is swapped for an emulator module,
 // the browsers block every non-local request, and the project id is throwaway.
-// This is a QA tool, not part of the CI gate.
+// This is a QA tool, not part of the CI gate: no CI job has the emulator, the
+// functions' dependencies and Chromium together, and the emulator suites
+// (test:challenge-finish, test:test-cycle-certification) already hold its
+// server-side journey on every push.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -216,7 +224,6 @@ const shot = async (page, name) => {
   return file;
 };
 
-const stageOf = (page) => page.locator('[data-test-cycle-stage]').first().getAttribute('data-test-cycle-stage');
 const waitForStage = async (page, stage, timeout = 20_000) => {
   await page.waitForFunction((expected) => document.querySelector('[data-test-cycle-stage]')?.getAttribute('data-test-cycle-stage') === expected, stage, { timeout });
 };
@@ -262,6 +269,50 @@ const audit = async (page, label) => {
 const answerFromHeading = async (page, selector) => {
   const prompt = await page.locator(selector).first().innerText();
   return fixture.certAnswerFromPrompt(prompt);
+};
+// A Corrections question: its prompt is the line that asks for the sum.
+const answerFromPrompt = async (page) => {
+  const prompt = await page.getByText(fixture.CERT_PROMPT_PATTERN).first().innerText({ timeout: 30_000 });
+  return fixture.certAnswerFromPrompt(prompt);
+};
+
+/*
+ * A TYPED ANSWER: the math editor (MathLive's math-field, named by its field
+ * label) where the item uses one, a text box otherwise. Typing is real
+ * keystrokes, as in tests/browser/secureExamNavigation.mjs.
+ */
+const fillAnswer = async (page, value, label = 'Sum') => {
+  const math = page.locator(`math-field[aria-label^="${label}"]`).first();
+  if (await math.count()) {
+    await math.focus();
+    await math.evaluate((element) => element.executeCommand?.('selectAll'));
+    await page.keyboard.type(String(value));
+    return;
+  }
+  await page.getByLabel(label, { exact: true }).first().fill(String(value));
+};
+const answerValue = async (page, label = 'Sum') => {
+  const math = page.locator(`math-field[aria-label^="${label}"]`).first();
+  if (await math.count()) return math.evaluate((element) => element.value);
+  return page.getByLabel(label, { exact: true }).first().inputValue();
+};
+
+/*
+ * THE SECURE TEST SCREEN: skip, flag and go back, every answer a saved draft
+ * until Submit (SecureExamContainer). `answerAndMove` types the answer, waits
+ * for "Saved", then moves on — or, on the last question, opens the review.
+ */
+const atQuestion = (page, ordinal) => page.waitForFunction((n) => document.querySelector('[data-secure-navigator-toggle]')?.textContent.includes(`Question ${n} of`), ordinal, { timeout: 30_000 });
+const waitSaved = (page) => page.waitForSelector('[data-secure-save-state="saved"]', { timeout: 15_000 });
+const answerAndMove = async (page, answer, { last = false } = {}) => {
+  await page.getByText('Secure exam question').first().waitFor({ timeout: 30_000 });
+  await fillAnswer(page, answer);
+  await waitSaved(page);
+  await page.locator(last ? '[data-secure-nav="review"]' : '[data-secure-nav="next"]').click();
+};
+const submitFromReview = async (page) => {
+  await page.waitForSelector('[data-secure-review="submit"]', { timeout: 30_000 });
+  await page.getByRole('button', { name: 'Submit test' }).click();
 };
 
 /* ------------------------------- journeys -------------------------------- */
@@ -311,6 +362,8 @@ try {
   // 4. The secure Test: untimed, not the SAT, answers saved, offline + reload survive.
   await student.getByRole('button', { name: 'Start Test' }).click();
   await student.getByRole('heading', { name: /Unit 3 Test/ }).waitFor();
+  // The screen asks the student's list where the test stands before it states any time.
+  await student.locator('[data-secure-start-rules]').waitFor({ timeout: 15_000 });
   check(await student.getByText('This test is not timed. Take the time you need.').isVisible(), 'secure start: says it is untimed');
   check((await student.getByText('Digital SAT').count()) === 0, 'secure start: not called the SAT');
   await shot(student, 'secure-start-screen');
@@ -321,27 +374,25 @@ try {
   const legend = (await student.locator('legend').first().innerText()).trim();
   check(legend === 'Sum', 'secure question: the answer label reads as authored (no stray comma)', legend);
   const total = Number(fixture.CERT_TOTAL_QUESTIONS);
-  const answerOne = async (correct) => {
+  const answerOne = async (correct, options) => {
     const answer = correct ? await answerFromHeading(student, 'h1') : fixture.CERT_WRONG_ANSWER;
-    await student.getByLabel('Sum').fill(answer);
-    await student.getByText('Answer saved').waitFor({ timeout: 10_000 });
-    await student.getByRole('button', { name: 'Record answer & continue' }).click();
+    await answerAndMove(student, answer, options);
   };
   for (let index = 0; index < 4; index += 1) {
     // eslint-disable-next-line no-await-in-loop
     await answerOne(index < 2);
     // eslint-disable-next-line no-await-in-loop
-    await student.waitForFunction((ordinal) => document.body.innerText.includes(`Question ${ordinal} of`), index + 2);
+    await atQuestion(student, index + 2);
   }
-  await student.getByText('Secure exam question').waitFor();
+  await student.getByText('Secure exam question').first().waitFor();
   await shot(student, 'secure-question-saved');
   await audit(student, 'secure question (chromebook, light)');
 
   // Offline: the answer is kept on the device and the screen says so.
   await student.evaluate(() => { window.__mmBridgeOffline = true; });
   const offlineAnswer = await answerFromHeading(student, 'h1');
-  await student.getByLabel('Sum').fill(offlineAnswer);
-  await student.getByText(/Offline|Not saved yet/).waitFor({ timeout: 10_000 });
+  await fillAnswer(student, offlineAnswer);
+  await student.getByText(/Offline|Not saved yet/).waitFor({ timeout: 15_000 });
   check(true, 'secure: an offline save is reported, not swallowed');
   await shot(student, 'secure-offline-kept-on-device');
   // Reload mid-Test while still offline locally: reopening restores the typed answer.
@@ -350,29 +401,31 @@ try {
   await waitForStage(student, 'test', 60_000);
   check(await student.getByRole('button', { name: 'Resume Test' }).isVisible(), 'after reload: the card offers Resume Test');
   await student.getByRole('button', { name: 'Resume Test' }).click();
-  await student.getByRole('button', { name: 'Resume Test' }).click();
-  await student.getByText('Secure exam question').waitFor();
-  check((await student.getByLabel('Sum').inputValue()) === offlineAnswer, 'after reload: the answer typed offline is restored');
+  await student.getByRole('button', { name: /Resume (Test|test)/ }).click();
+  await atQuestion(student, 5);
+  await student.getByText('Secure exam question').first().waitFor();
+  await student.waitForFunction(() => document.querySelector('math-field')?.value || document.querySelector('[data-secure-answer-editor]')?.value, null, { timeout: 15_000 }).catch(() => {});
+  check(String(await answerValue(student)) === String(offlineAnswer), 'after reload: the answer typed offline is restored', `${await answerValue(student)} vs ${offlineAnswer}`);
+  await waitSaved(student);
 
-  // Submit asks first, with the unanswered count.
-  await student.getByRole('button', { name: 'Submit test' }).click();
-  await student.getByRole('alertdialog').waitFor();
-  const dialogText = await student.getByRole('alertdialog').innerText();
-  check(/will be left unanswered and count as zero/.test(dialogText), 'submit: the confirmation names unanswered questions', dialogText.split('\n')[1]);
-  await shot(student, 'secure-submit-confirmation');
-  await student.getByRole('button', { name: 'Keep working' }).click();
+  // Submit asks first: the review before submitting names the questions with no answer.
+  await student.locator('[data-secure-nav="review"]').click();
+  await student.waitForSelector('[data-secure-review="submit"]');
+  const reviewText = await student.locator('[data-secure-review="submit"]').innerText();
+  check(/count as zero/.test(reviewText) && /not opened yet/.test(reviewText), 'submit: the review first names the questions with no answer', reviewText.replace(/\s+/g, ' ').slice(0, 160));
+  await shot(student, 'secure-submit-review');
+  await student.getByRole('button', { name: 'Back to questions' }).click();
+  await atQuestion(student, 5);
   // Finish honestly: 10 correct of 25 in total (40%) — two of the first four,
   // the restored offline answer, and seven more.
-  await student.getByRole('button', { name: 'Record answer & continue' }).click();
+  await student.locator('[data-secure-nav="next"]').click();
   for (let index = 5; index < total; index += 1) {
-    // Answer the NEXT question, not the one still being recorded.
     // eslint-disable-next-line no-await-in-loop
-    await student.waitForFunction((ordinal) => document.body.innerText.includes(`Question ${ordinal} of`), index + 1);
+    await atQuestion(student, index + 1);
     // eslint-disable-next-line no-await-in-loop
-    await student.getByText('Secure exam question').waitFor();
-    // eslint-disable-next-line no-await-in-loop
-    await answerOne(index < 12);
+    await answerOne(index < 12, { last: index === total - 1 });
   }
+  await submitFromReview(student);
   await student.getByRole('heading', { name: 'Test submitted' }).waitFor({ timeout: 30_000 });
   await shot(student, 'secure-test-submitted');
   await student.getByRole('button', { name: 'Back to my assessment' }).click();
@@ -405,8 +458,8 @@ try {
 
   // 6. Corrections: a wrong answer keeps the same question with tries left.
   await student.getByRole('button', { name: /Start Corrections|Continue Corrections/ }).click();
-  await student.getByLabel('Sum').waitFor();
-  await student.getByLabel('Sum').fill(fixture.CERT_WRONG_ANSWER);
+  await student.getByRole('button', { name: 'Check my answer' }).waitFor({ timeout: 30_000 });
+  await fillAnswer(student, fixture.CERT_WRONG_ANSWER);
   await student.getByRole('button', { name: 'Check my answer' }).click();
   await student.getByText(/tries left on this question/).waitFor();
   check(true, 'corrections: a wrong answer keeps the question, with tries left');
@@ -418,9 +471,9 @@ try {
     // eslint-disable-next-line no-await-in-loop
     if ((await student.locator('[data-test-cycle-stage]').count()) > 0) break;
     // eslint-disable-next-line no-await-in-loop
-    const answer = await answerFromHeading(student, 'h2');
+    const answer = await answerFromPrompt(student);
     // eslint-disable-next-line no-await-in-loop
-    await student.getByLabel('Sum').fill(answer);
+    await fillAnswer(student, answer);
     // eslint-disable-next-line no-await-in-loop
     await student.getByRole('button', { name: /Check my answer/ }).click();
     // eslint-disable-next-line no-await-in-loop
@@ -438,16 +491,15 @@ try {
 
   // 7. The retest, then its release: 21/25 = 84 raw, recorded at the 70 cap.
   await student.getByRole('button', { name: 'Start Retest' }).click();
-  await student.getByRole('button', { name: 'Start Retest' }).click();
+  await student.getByRole('button', { name: /Start (Retest|Test)/ }).click();
   for (let index = 0; index < total; index += 1) {
     // eslint-disable-next-line no-await-in-loop
-    await student.waitForFunction((ordinal) => document.body.innerText.includes(`Question ${ordinal} of`), index + 1);
+    await atQuestion(student, index + 1);
     // eslint-disable-next-line no-await-in-loop
-    await student.getByText('Secure exam question').waitFor();
-    // eslint-disable-next-line no-await-in-loop
-    await answerOne(index < 21);
+    await answerOne(index < 21, { last: index === total - 1 });
   }
-  await student.getByRole('heading', { name: 'Test submitted' }).waitFor({ timeout: 30_000 });
+  await submitFromReview(student);
+  await student.getByRole('heading', { name: /submitted/i }).waitFor({ timeout: 30_000 });
   await student.getByRole('button', { name: 'Back to my assessment' }).click();
   await teacher.getByRole('button', { name: 'Refresh' }).click();
   await teacher.getByRole('button', { name: /Release 1 retest result/ }).click();
@@ -479,9 +531,9 @@ try {
   }
   await teacher.getByRole('button', { name: 'Test unlocked', exact: true }).click();
   await teacher.getByRole('button', { name: 'Start Test' }).click();
-  await teacher.getByText('Secure exam question').waitFor({ timeout: 60_000 });
+  await teacher.getByText('Secure exam question').first().waitFor({ timeout: 60_000 });
   const previewAnswer = await answerFromHeading(teacher, '[data-preview-device] h1');
-  await teacher.getByLabel('Sum').fill(previewAnswer);
+  await fillAnswer(teacher, previewAnswer);
   await teacher.getByRole('button', { name: 'Record answer & continue' }).click();
   await teacher.getByText('The secure grader accepts this answer.').waitFor();
   check(true, 'preview: real secure items, graded by the real grader');
@@ -509,7 +561,7 @@ try {
       // eslint-disable-next-line no-await-in-loop
       await page.getByRole('button', { name: /Start Test|Resume Test/ }).click();
       // eslint-disable-next-line no-await-in-loop
-      await page.getByText('Secure exam question').waitFor({ timeout: 60_000 });
+      await page.getByText('Secure exam question').first().waitFor({ timeout: 60_000 });
       // eslint-disable-next-line no-await-in-loop
       await audit(page, `secure question (${device}, ${theme})`);
       // eslint-disable-next-line no-await-in-loop

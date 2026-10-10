@@ -63,6 +63,10 @@ const WARNING_LAYER = 2147483550;
 // paused it, added time or turned it in (see the status check below).
 const STATUS_CHECK_MS = 30 * 1000;
 
+// How long a start screen waits for the student's list before the card's
+// facts stand in: a slow list never keeps a student from starting or resuming.
+const START_PREVIEW_WAIT_MS = 5 * 1000;
+
 /*
  * A SECURE TEST THE STUDENT MOVES AROUND IN.
  *
@@ -264,6 +268,9 @@ export const SecureExamContainer = ({
   // The session as the student's list knows it, read for the start screen when
   // the screen was opened without one (a course Test, from its card).
   const [loadedPreview, setLoadedPreview] = useState(null);
+  // A start screen opened without the session waits for the list's answer
+  // before it states any time (a resumed test has less than the full limit).
+  const [previewPending, setPreviewPending] = useState(() => !sessionPreview && Boolean(examSessionId));
   const loggerRef = useRef(null);
   const draftTimerRef = useRef(null);
   const pendingDraftRef = useRef(null);
@@ -424,9 +431,16 @@ export const SecureExamContainer = ({
     if (problem.kind === 'locked') {
       setNavigatorOpen(false);
       setSession((current) => (current ? { ...current, status: pausedStatusAfterRefusal(problem.status, current.status) } : current));
-      // A refusal that does not say which pause it is: ask, so the pause
-      // screen shows the right words (and the poll below takes over).
-      if (!problem.status) refreshSession();
+      // Ask the server where the test stands now: which pause it is, when the
+      // refusal does not say, and the stopped clock (the poll below takes over).
+      refreshSession();
+      return true;
+    }
+    if (problem.kind === 'paused') {
+      // The whole assessment is paused: the server says where the test
+      // stands (the clock stopped), and the pause screen follows from it.
+      setNavigatorOpen(false);
+      refreshSession();
       return true;
     }
     if (problem.kind === 'expired') {
@@ -586,10 +600,10 @@ export const SecureExamContainer = ({
   // A paused client has no direct Firestore access. Poll the authenticated
   // callable only while paused so a teacher's resume appears without reloading.
   useEffect(() => {
-    if (!session?.examSessionId || !locked.has(session.status)) return undefined;
+    if (!session?.examSessionId || !(locked.has(session.status) || session.clockPaused === true)) return undefined;
     const id = window.setInterval(() => { refreshSession(); }, 5000);
     return () => window.clearInterval(id);
-  }, [session?.examSessionId, session?.status, refreshSession]);
+  }, [session?.examSessionId, session?.status, session?.clockPaused, refreshSession]);
 
   /*
    * A TEACHER'S PAUSE, ADDED TIME OR SUBMIT, NOTICED WHILE THE STUDENT READS.
@@ -611,7 +625,14 @@ export const SecureExamContainer = ({
       setSession((current) => {
         if (!current || current.examSessionId !== fresh.examSessionId) return current;
         if (fresh.status !== current.status) return fresh;
-        return { ...current, expiresAt: fresh.expiresAt, timeLimitSeconds: fresh.timeLimitSeconds, addedTimeSeconds: fresh.addedTimeSeconds };
+        return {
+          ...current,
+          expiresAt: fresh.expiresAt,
+          timeLimitSeconds: fresh.timeLimitSeconds,
+          addedTimeSeconds: fresh.addedTimeSeconds,
+          clockPaused: fresh.clockPaused,
+          pausedRemainingSeconds: fresh.pausedRemainingSeconds,
+        };
       });
     } catch { /* the next save, move or check will tell */ }
   }, []);
@@ -646,13 +667,14 @@ export const SecureExamContainer = ({
     } finally { setBusyState(false); }
   }, [handleProblem, openPosition, saveDraftNow, setBusyState]);
 
-  const previousStatusRef = useRef(null);
+  // Resumed from either pause: a lock lifted, or the assessment open again.
+  const pausedNow = Boolean(session && pauseKind(session.status, session.clockPaused === true));
+  const wasPausedRef = useRef(false);
   useEffect(() => {
-    const previous = previousStatusRef.current;
-    const status = session?.status || null;
-    previousStatusRef.current = status;
-    if (status === EXAM_RUNTIME_STATES.IN_PROGRESS && locked.has(previous)) resumeAfterPause();
-  }, [session?.status, resumeAfterPause]);
+    const wasPaused = wasPausedRef.current;
+    wasPausedRef.current = pausedNow;
+    if (wasPaused && !pausedNow && session?.status === EXAM_RUNTIME_STATES.IN_PROGRESS) resumeAfterPause();
+  }, [pausedNow, session?.status, resumeAfterPause]);
 
   // Back online: the answer that could not be saved is saved now, unprompted.
   useEffect(() => {
@@ -761,7 +783,7 @@ export const SecureExamContainer = ({
   // Dialog's own focus return off: by the time it opens, the surface going
   // inert has already dropped focus to <body>, so only the record kept here
   // knows which answer the student was in.
-  const paused = pauseKind(session?.status);
+  const paused = pauseKind(session?.status, session?.clockPaused === true);
   useEffect(() => {
     if (!paused) return undefined;
     pauseRef.current?.focus();
@@ -773,18 +795,22 @@ export const SecureExamContainer = ({
 
   // A start screen opened without the session asks the student's list for it
   // (read-only), so it can say whether the test is new or resumed and how
-  // much time it has. Until it answers, or if it cannot, the card's delivery
-  // facts stand in.
+  // much time it has. Until it answers the screen says it is loading, not the
+  // full time; if it cannot answer, or is slow to, the card's delivery facts
+  // stand in.
   useEffect(() => {
-    if (sessionPreview || !examSessionId || session) return undefined;
+    if (sessionPreview || !examSessionId || session) { setPreviewPending(false); return undefined; }
     let cancelled = false;
+    setPreviewPending(true);
+    const stopWaiting = setTimeout(() => { if (!cancelled) setPreviewPending(false); }, START_PREVIEW_WAIT_MS);
     listStudentSecureExamSessions()
       .then((result) => {
         const found = (Array.isArray(result?.sessions) ? result.sessions : []).find((entry) => entry?.examSessionId === examSessionId);
         if (!cancelled && found) setLoadedPreview(found);
       })
-      .catch(() => { /* the delivery facts stand in */ });
-    return () => { cancelled = true; };
+      .catch(() => { /* the delivery facts stand in */ })
+      .finally(() => { clearTimeout(stopWaiting); if (!cancelled) setPreviewPending(false); });
+    return () => { cancelled = true; clearTimeout(stopWaiting); };
   }, [sessionPreview, examSessionId, session]);
 
   // Once the finished view is committed, clear again: finishing clears the
@@ -869,11 +895,15 @@ export const SecureExamContainer = ({
         <section style={{ width: 'min(600px,100%)', textAlign: 'left', padding: 'clamp(18px, 5vw, 30px)', border: '1px solid var(--mm-border)', borderRadius: 14, background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
           <h1 style={{ marginTop: 0, fontSize: 'clamp(20px, 5vw, 26px)', lineHeight: 1.25, color: 'var(--mm-text-strong)' }}>{examTitle}</h1>
           <h2 style={{ margin: '0 0 8px', fontSize: 16, color: 'var(--mm-text-strong)' }}>How this test works</h2>
-          <ul data-secure-start-rules="" style={{ margin: '0 0 16px', paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6 }}>
-            {rules.map((rule) => <li key={rule}>{rule}</li>)}
-          </ul>
+          {previewPending && !loadedPreview ? (
+            <p role="status" data-secure-start-loading="" style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>Checking where your test stands…</p>
+          ) : (
+            <ul data-secure-start-rules="" style={{ margin: '0 0 16px', paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6 }}>
+              {rules.map((rule) => <li key={rule}>{rule}</li>)}
+            </ul>
+          )}
           {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
-          <button type="button" disabled={busy} onClick={start} style={primaryButton(!busy)}>{busy ? 'Opening…' : (startLabel || (resuming ? 'Resume test' : 'Start test'))}</button>
+          <button type="button" disabled={busy || (previewPending && !loadedPreview)} onClick={start} style={primaryButton(!busy && !(previewPending && !loadedPreview))}>{busy ? 'Opening…' : (startLabel || (resuming ? 'Resume test' : 'Start test'))}</button>
         </section>
       </div>
     );
@@ -899,7 +929,7 @@ export const SecureExamContainer = ({
   const current = Number.isInteger(position) ? position : null;
   const next = current === null ? null : nextTarget(navigation, current);
   const previous = current === null ? null : previousTarget(navigation, current);
-  const pause = pauseKind(session.status);
+  const pause = pauseKind(session.status, session.clockPaused === true);
   const allowance = timeAllowance(session);
   const threshold = Number(session.integrityLockThreshold) || DEFAULT_INTEGRITY_LOCK_THRESHOLD;
   const fullscreenAvailable = typeof document !== 'undefined' && document.fullscreenEnabled !== false && typeof document.documentElement?.requestFullscreen === 'function';
@@ -956,6 +986,8 @@ export const SecureExamContainer = ({
         questionOrdinal={(current ?? navigation.cursor) + 1}
         totalQuestions={navigation.total || session.requiredQuestions}
         expiresAt={session.expiresAt}
+        clockPaused={session.clockPaused === true}
+        pausedRemainingSeconds={session.pausedRemainingSeconds}
         onTimeExpired={onTimeExpired}
         reviewFlagged={currentFlagged}
         onToggleReviewFlag={!reviewing && question && !pause ? toggleFlag : null}
@@ -1052,7 +1084,7 @@ export const SecureExamContainer = ({
           {pause === 'teacher' ? (
             <>
               <h1 id="secure-pause-title" style={pauseTitle}>Your teacher paused the test</h1>
-              <p id="secure-pause-detail" style={{ lineHeight: 1.55, color: '#e8eaed' }}>Your answers are saved. Wait here — it will continue when your teacher resumes it.</p>
+              <p id="secure-pause-detail" style={{ lineHeight: 1.55, color: '#e8eaed' }}>{session.timed ? 'Your answers are saved and your time is stopped.' : 'Your answers are saved.'} Wait here — it will continue when your teacher resumes it.</p>
             </>
           ) : (
             <>

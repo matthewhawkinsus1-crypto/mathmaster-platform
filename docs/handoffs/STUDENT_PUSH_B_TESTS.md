@@ -5,6 +5,10 @@ with `main` merged back in before the final push (hotfix #456, then #457
 Recoveries and #458 tool-workspace drafts, then job F's accessibility #454,
 then job C's Home and Grades #455).
 
+**Follow-up (B2, 2026-10-10).** #461 merged into `main` at `990faff`; the
+coordinator's follow-up list is on the same branch, restarted from that merge,
+for a new PR. See **Follow-up fixes (B2)**; the deploy targets below cover it.
+
 Goal: tests that work like real tests, full access for every student, and
 results that teach. Product decisions 2 (skip / flag / go back) and 3 (worked
 solutions once the work is closed — for secure tests, after release) are
@@ -249,6 +253,82 @@ attempt per question.
   and solutions" (practice) or "Release score and grade (answers follow when
   the class is done)" (course Test).
 
+### Follow-up fixes (B2, after #461 merged)
+
+- **A teacher's pause stops the clock** (`86fe885`). A course Test the teacher
+  pauses or archives (the assignment hold, set by `manageAssignmentLifecycle`
+  on every live session of that Test) and any test a proctor pauses (the
+  proctor hold, `proctorExamAction` lock and unlock) stop the student's clock.
+  The session keeps `teacherPause: { since, holds }` and `pausedSeconds`;
+  `deadlineFor` is the limit, plus added time, plus every paused second, so the
+  server stays the one authority and every call that checks time agrees. Two
+  holds stop the clock once, and it runs again only when both are lifted. A
+  pause that begins after the deadline does not bring the test back (the
+  arithmetic keeps it expired). An integrity lock is not a teacher's pause: the
+  clock runs through it, as before. The student is told the clock is stopped
+  and how much time is left (`clockPaused`, `pausedRemainingSeconds`; the hold
+  itself never leaves the server), the header clock freezes at the server's
+  time, and a refusal asks the server again so the frozen time shows at once.
+  `startSecureExamSession` hands a paused Test's session back instead of
+  refusing, so the screen can show the pause. Emulator case: a pause that spans
+  the original deadline (no time-up and no edits while paused, the paused
+  minutes banked on resume), a proctor pause, an integrity lock that banks
+  nothing, then the extended deadline grading the draft saved after the resume.
+- **The holds agree with whether the Test is closed** (review of #471). Two
+  races, both forced on the emulator with a transaction gate and pinned there:
+  a Test starting just as its assessment is archived now meets the course gate
+  again inside its start transaction and does not start (it used to start,
+  unheld, on the archived assessment); and an archive racing an unarchive (two
+  tabs, two teachers) leaves no hold, because each session's hold transaction
+  reads the assignment and holds the clock exactly when it is archived or
+  unpublished at that moment (it used to decide from before the update, which
+  could leave a hold on an open Test: "Your teacher paused the test" with
+  nothing to clear it). Also: the pause screen returns focus when an
+  assignment pause ends, and a test finished while held (submitted or reset
+  during a pause) is no longer reported as paused.
+- **The release check sees past the teacher list's 400-record cap**
+  (`27d9a67`). When the list is capped, `courseAnswersRelease` reads the
+  records itself; an out-of-roster record holder past the 400th can no longer
+  make an explicit release refuse forever. Emulator case with 401 records.
+- **An explicit release cannot cover a reset student** (`27d9a67`). Coverage is
+  per attempt: the confirm sends the server's keys (`student#test.retest`
+  attempt, `answersRelease[stage].confirmKeys`) and the release stores
+  `coveredKeys`. A reset bumps the attempt, so a release written before, during
+  or after a reset never covers the new attempt, and the reset no longer edits
+  the release document: the race is gone rather than locked around. A release
+  stored by #461 (`coveredStudentIds`) covers nobody here, so the answers hold
+  again until the teacher releases again (only matters if #461 was deployed
+  first). Emulator case: a confirm taken before a reset releases nothing, and a
+  release that read just before the reset and wrote just after it still leaves
+  the new attempt holding the answers.
+- **The roster read behind the 30-second re-check is cached, only ever to
+  hold** (`2b2d852`). Per function instance, per assignment and class list, for
+  60 seconds (at most 500 entries). A cached roster may only keep the answers
+  held: when it would release them, the roster is read fresh first, so a
+  student who joined in the last minute is never missed; a student who left can
+  hold the answers up to a minute longer. Any error still fails closed (no
+  solutions). The release callable and the teacher list always read fresh.
+- **`tests/browser/testCycleLifecycleQa.mjs` drives the navigation screen**
+  (`f3f88b5`): math editor, Next, "Saved", the review before Submit, Back to
+  questions, Submit from the review, for the Test and the Retest. 67 checks, 0
+  findings against the real functions on the emulator. `npm run
+  test:test-cycle-lifecycle` runs it; not in CI (no job has the emulator, the
+  functions' dependencies and Chromium together; a new five-minute job), and
+  the emulator suites hold its server journey.
+- **QA minors** (`7c1bbf0`). m1: in Corrections, `getStudentTestCycle` says
+  whether the Test review would hold its answers (`testAnswersHeld`; cached
+  roster, fail-closed to held; asked only there, where it shows, since it reads
+  the cycle's records), and the note beside "Review my Test" says the worked
+  solutions open once everyone has finished. m2: a start screen opened without
+  the session says "Checking where your test stands…" (Start disabled) until
+  the student's list answers, instead of stating the full allowance for a
+  resumed test; after five seconds the card's facts stand in, so a slow list
+  never keeps a student from starting or resuming. m3: the card's
+  how-the-sitting-runs facts show only while a sitting is ahead (Review, Test,
+  Retest ready, Retest). m5: the timer button's name says what it shows and
+  does (with the paused clock), and Escape on the "Question N of M" button
+  closes the list it opened.
+
 ## Verification
 
 - **Unit / contract** (`tests/platform`, CI): new suites for the server
@@ -287,6 +367,20 @@ attempt per question.
 - **Gate** (merged head, main 3a70944): `test:platform` (10289),
   `test:authoring-v5` (686), `tests/tools` (1392), lint, build, build:firebase,
   the theme audit (`audit:theme-colors`) — green; GitHub CI on #461.
+- **B2** (with main b027eb4 merged). Every fix was mutation-checked (revert it,
+  see the named assertion fail, restore). Emulator
+  `test:secure-exam-navigation`: 23 tests, 4 of them new (the paused clock
+  across the deadline, a reset racing a release, the 401-record cap, the cached
+  roster). Unit: new `secureExamPauseClock` (7) and the contracts in the
+  changed suites. Browser: `secureExamNavigation.mjs` (the clock stops while
+  paused, the loading start screen, a slow list, Escape on the question
+  button, the timer's name), `secureResults.mjs` (the Corrections note per
+  hold, the card's facts per stage), and the lifecycle driver (67 checks, 0
+  findings). Local gate on the merged head, green before the push:
+  `test:platform`, `test:authoring-v5`, lint, build, build:firebase. Per the coordinator's
+  usage notice, the remaining emulator and browser suites (`test:challenge-finish`,
+  `test:test-cycle-certification`, `test:grade-authority`, `test:rules`,
+  `test:test-cycle-device`, the browser workflows) run in CI on the PR.
 
 ## Deploy targets (owner's Cloud Shell step)
 
@@ -310,6 +404,33 @@ submitTestCycleCorrectionResponse teacherTestCycleAction
 catch-all already denied it). No new indexes. Hosting via
 `npm run deploy:hosting`. `node scripts/release-firebase.mjs` plans the same.
 
+**B2 follow-up.** It adds `manageAssignmentLifecycle` to the list above (a
+pause or archive now holds the clock of every live session of that Test). If
+#461 is already deployed, B2 alone needs **functions, then Hosting** (no rules
+change, no new indexes; the new session query is a single-field equality the
+code already uses):
+
+```
+createSecureExamSession finalizeSecureExam getStudentSecureExamReview
+getStudentTestCycle issueSecureExamQuestion listProctorExamSessions
+listStudentSecureExamSessions listTeacherTestCycleRecords manageAssignmentLifecycle
+proctorExamAction releaseTestCycleAnswers saveSecureExamDraft
+startSecureExamSession submitSecureExamResponse teacherTestCycleAction
+```
+
+**Do not pause or resume a live Test while `manageAssignmentLifecycle` is
+rolling out.** A pause written by a new instance and a resume served by an old
+one (which does not touch holds) leaves a hold on an open Test; one pause and
+resume after the deploy clears it.
+
+All of the time-checking callables are in it because `deadlineFor` changed:
+they must agree on the deadline. Between the two steps, a teacher page on the
+old client cannot make an early release while anyone is still testing (it
+names students, the new function wants attempts, so it refuses and releases
+nothing); a reload after Hosting fixes it. A release stored by #461 covers
+nobody under B2 (see above), so a teacher who released early under #461
+releases again.
+
 ## Conservative calls and open decisions
 
 - Review gate unchanged (above).
@@ -322,9 +443,13 @@ catch-all already denied it). No new indexes. Hosting via
   the assignment, the grade document and the Test Cycle record to check.)
 - The answer hold reads the roster: each course review request, and the
   review's 30-second re-check while it is open and visible, runs one `grades`
-  query per assigned class (status field only) plus the cycle's records.
-  Cheap per call, but it grows with roster size × open reviews; a stored
-  per-stage count would make it constant if that ever matters.
+  query per assigned class (status field only) plus the cycle's records. B2
+  caches the roster for a minute per function instance, only ever to hold, so
+  the re-check mostly reads the records alone; a stored per-stage count would
+  make it constant if that ever matters.
+- A pause or archive of the assignment holds the clock (B2), and so does a
+  proctor's pause, of a practice test too. Unarchiving or publishing lifts the
+  assignment hold only when the Test is neither archived nor unpublished.
 - Digital SAT modules are not adaptive and share one timer (the real test
   times each module and adapts module 2).
 - A legacy session's already-recorded answers stay locked after the upgrade.
@@ -339,19 +464,22 @@ catch-all already denied it). No new indexes. Hosting via
 
 ## Follow-ups (outside this lane, or later)
 
-- **`tests/browser/testCycleLifecycleQa.mjs` is stale** (no package script, not
-  in CI). It still drives the old one-question-at-a-time screen ("Record answer
-  & continue", a plain answer box), so it stops at the first Test answer. It
-  needs the navigation and math-field steps `secureExamNavigation.mjs` uses.
-  Its server-side journey is covered by the emulator suites
-  (`test:challenge-finish`).
-
-- **A teacher's pause does not stop the clock** (main behaves the same:
-  `deadlineFor` is `startedAt + limit + added time`, with no pause in it). A
-  long pause can therefore expire a timed Test, which is then graded on the
-  drafts saved before the pause. "Pause stops the clock" (store paused time
-  and add it to the deadline) is a follow-up; until then a teacher can add
-  time with +5 min after a pause.
+- **A resume costs up to five seconds** (pre-existing for proctor pauses, now
+  for assessment pauses too): the server's clock restarts at the resume, but
+  the paused screen notices on its next 5-second poll. A small grace added
+  when the last hold lifts would cover it; left as is to keep the pause
+  arithmetic exactly the paused time (as reviewed).
+- **In Corrections with "Review my Test" open, each 30-second re-check reads
+  the cycle's records twice** (the card's `testAnswersHeld` and the review's
+  own hold check, two callables). Sharing one read would need a records cache
+  across callables; left as is.
+- **`tests/browser/testCycleRichToolQa.mjs` is stale** (no package script, not
+  in CI), as the lifecycle driver was before B2: it submits through the old
+  Submit confirmation (`alertdialog`) and expects a Rich Tool's final action to
+  read "Record answer" (navigation shows "Save answer", and Submit is on the
+  review screen). It needs the same steps `testCycleLifecycleQa.mjs` now uses.
+  (B2 fixed the lifecycle driver and the paused clock, the two follow-ups that
+  stood here.)
 
 - **Grader (pre-existing, not this PR):** an interval answer with fraction
   endpoints is rejected even when typed exactly as the key
@@ -389,7 +517,13 @@ catch-all already denied it). No new indexes. Hosting via
   (this lane's code, in the shared file); two `answeredQuestions` lines in the
   Test Cycle sync/release helpers.
 - `firestore.rules` — one explicit deny line. `package.json` — the
-  `test:secure-exam-navigation` script.
+  `test:secure-exam-navigation` script, and (B2) `test:test-cycle-lifecycle`.
+- B2: `functions/index.js` `manageAssignmentLifecycle` — one
+  `holdCourseTestClocks` call in each of the archive/unarchive and
+  unpublish/publish branches (the helper sits beside it).
+  `src/components/teacher/TestCycleControls.jsx` and
+  `src/services/testCycleService.js` — the early-release confirm sends the
+  server's attempt keys (`confirmed`) instead of student ids.
 - `tests/rules/securityRules.test.mjs` — a case for the server-only
   `testCycleAnswerReleases`. `src/platform/teacher/testCycleTeacherRows.js` —
   the per-student release actions say what they release.

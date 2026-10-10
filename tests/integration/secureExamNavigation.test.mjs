@@ -43,7 +43,8 @@ const HISTORY_STUDENT = 'NAV_STUDENT_LONG_HISTORY';
 const LATE_SAVE_STUDENT = 'NAV_STUDENT_LATE_SAVE';
 const RESET_STUDENT = 'NAV_STUDENT_RESET';
 const PAUSE_STUDENT = 'NAV_STUDENT_PAUSE';
-const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT, HISTORY_STUDENT, LATE_SAVE_STUDENT, RESET_STUDENT, PAUSE_STUDENT];
+const CLOCK_STUDENT = 'NAV_STUDENT_CLOCK';
+const ALL = [SIM_STUDENT, EXTRA_TIME_STUDENT, SAT_STUDENT, COURSE_STUDENT, LEGACY_STUDENT, HISTORY_STUDENT, LATE_SAVE_STUDENT, RESET_STUDENT, PAUSE_STUDENT, CLOCK_STUDENT];
 const created = [];
 
 // A second Test Cycle assigned to two periods, for who the answers wait for.
@@ -55,6 +56,20 @@ const ROSTER_A2 = 'NAV_ROSTER_A2';
 const ROSTER_B3 = 'NAV_ROSTER_B3';
 const ROSTER_C3 = 'NAV_ROSTER_C3';
 const ROSTER_STUDENTS = [ROSTER_A1, ROSTER_A2, ROSTER_B3, ROSTER_C3];
+// A Test Cycle with more records than the teacher's table reads (400).
+const CAP_ASSIGNMENT_ID = 'nav_cap_test_cycle';
+const CAP_FILLERS = Array.from({ length: 400 }, (_, index) => `NAV_CAP_A${String(index).padStart(3, '0')}`);
+const CAP_HOLDER = 'NAV_CAP_Z_MOVED';
+// A one-student class, for the roster the review re-check caches.
+const CACHE_ASSIGNMENT_ID = 'nav_cache_test_cycle';
+const CACHE_CLASS = 'NAV_CACHE_CLASS';
+const CACHE_FIRST = 'NAV_CACHE_S1';
+const CACHE_JOINER = 'NAV_CACHE_S2';
+// Pause races, on an assignment of their own: archiving it touches nothing else here.
+const RACE_ASSIGNMENT_ID = 'nav_race_test_cycle';
+const RACE_CLASS = 'NAV_RACE_CLASS';
+const RACE_STARTER = 'NAV_RACE_S1';
+const RACE_TAKER = 'NAV_RACE_S2';
 
 const roster = (data) => teacherRequest({ assignmentId: ROSTER_ASSIGNMENT_ID, ...data });
 const testSessionOf = async (studentId) => (await readRecord(ROSTER_ASSIGNMENT_ID, studentId)).test.examSessionId;
@@ -132,6 +147,18 @@ after(async () => {
     ...ROSTER_STUDENTS.map((studentId) => db.collection('testCycleRecords').doc(`${ROSTER_ASSIGNMENT_ID}__${studentId}`).delete()),
     ...ROSTER_STUDENTS.map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${ROSTER_ASSIGNMENT_ID}__${studentId}`).delete()),
     ...ROSTER_STUDENTS.map((studentId) => db.collection('testCycleRetestPlans').doc(`${ROSTER_ASSIGNMENT_ID}__${studentId}`).delete()),
+    db.collection('assignments').doc(CAP_ASSIGNMENT_ID).delete(),
+    db.collection('testCycleAnswerReleases').doc(CAP_ASSIGNMENT_ID).delete(),
+    ...[...CAP_FILLERS, CAP_HOLDER].map((studentId) => db.collection('testCycleRecords').doc(`${CAP_ASSIGNMENT_ID}__${studentId}`).delete()),
+    db.collection('assignments').doc(CACHE_ASSIGNMENT_ID).delete(),
+    db.collection('classes').doc(CACHE_CLASS).delete(),
+    ...[CACHE_FIRST, CACHE_JOINER].map((studentId) => db.collection('grades').doc(studentId).delete()),
+    ...[CACHE_FIRST, CACHE_JOINER].map((studentId) => db.collection('testCycleRecords').doc(`${CACHE_ASSIGNMENT_ID}__${studentId}`).delete()),
+    ...[CACHE_FIRST, CACHE_JOINER].map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${CACHE_ASSIGNMENT_ID}__${studentId}`).delete()),
+    db.collection('assignments').doc(RACE_ASSIGNMENT_ID).delete(),
+    db.collection('classes').doc(RACE_CLASS).delete(),
+    ...[RACE_STARTER, RACE_TAKER].map((studentId) => db.collection('grades').doc(studentId).delete()),
+    ...[RACE_STARTER, RACE_TAKER].map((studentId) => db.collection('testCycleRecords').doc(`${RACE_ASSIGNMENT_ID}__${studentId}`).delete()),
   ];
   await Promise.allSettled(deletions);
 });
@@ -473,7 +500,7 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   assert.equal(listing.answersRelease.test.released, false);
   assert.ok(listing.answersRelease.test.stillTesting > 0, 'the teacher is told how many are still testing');
   // The teacher releases them explicitly, for the students the confirm named; the review now carries them.
-  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, stage: 'test', studentIds: listing.answersRelease.test.stillTestingIds }));
+  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, stage: 'test', confirmed: listing.answersRelease.test.confirmKeys }));
   const withAnswers = await fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId }));
   assert.equal(withAnswers.review.solutionsHeld, undefined);
   assert.ok(withAnswers.review.items[0].solution?.answers?.[0]?.display, 'the worked answer is released with the teacher\'s release');
@@ -520,24 +547,27 @@ test('the answers wait for everyone the Test is assigned to: a period with no se
 
   // B3, in period 3, has no session and no record yet: the answers wait for them.
   assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'held while a period-3 student with no record can still sit the Test');
+  const cardOf = async (studentId) => fns.getStudentTestCycle.run(student(studentId, { assignmentId: ROSTER_ASSIGNMENT_ID }));
+  assert.equal((await cardOf(ROSTER_A1)).testAnswersHeld, true, 'and the card is told the Test review holds its answers');
   let release = await answersRelease();
   assert.equal(release.test.released, false);
   assert.deepEqual(release.test.stillTestingIds, [ROSTER_B3], 'the teacher is shown exactly who is still testing');
 
   // A release that does not name everyone still testing opens nothing.
-  const unnamed = await refusal(fns.releaseTestCycleAnswers.run(roster({ stage: 'test', studentIds: [] })));
+  const unnamed = await refusal(fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: [] })));
   assert.equal(unnamed?.code, 'failed-precondition', 'a release must name every student still testing');
   assert.match(unnamed.message, /not on the list you confirmed/);
   assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'and nothing was released');
-  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', studentIds: release.test.stillTestingIds }));
+  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: release.test.confirmKeys }));
   assert.ok((await reviewOf(ROSTER_A1, a1Test)).items.every((item) => item.solution), 'the named release opens the answers');
+  assert.equal((await cardOf(ROSTER_A1)).testAnswersHeld, false, 'and the card says so');
 
   // C3 joins period 3 after the release. Nobody confirmed them: the answers wait again.
   await enroll(ROSTER_C3, ROSTER_P3);
   assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'a student who joined after the release holds the answers again');
   release = await answersRelease();
   assert.deepEqual([...release.test.stillTestingIds].sort(), [ROSTER_B3, ROSTER_C3]);
-  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', studentIds: release.test.stillTestingIds }));
+  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: release.test.confirmKeys }));
   assert.ok(!held(await reviewOf(ROSTER_A1, a1Test)), 'released again once the teacher names them');
 
   // Period 3's sessions open; B3 sits the Test. A reset gives B3 an attempt nobody confirmed.
@@ -603,6 +633,30 @@ test('the Retest answers wait while anyone can still take a Retest: a student in
   assert.equal(release.retest.released, false);
   assert.deepEqual([...release.retest.stillTestingIds].sort(), [ROSTER_A2, ROSTER_B3, ROSTER_C3],
     'in Corrections, or yet to finish the Test: all can still take a Retest');
+});
+
+test('a release confirmed before a reset does not cover the new attempt, however the two interleave', async () => {
+  // C3 is still on attempt 1. The teacher loads the list, then C3's Test is reset.
+  const before = (await answersRelease()).test;
+  const c3Before = before.confirmKeys.find((key) => key.startsWith(`${ROSTER_C3}#`));
+  assert.ok(c3Before?.endsWith('#1.1'), `C3 is listed at attempt 1 (${c3Before})`);
+  await fns.teacherTestCycleAction.run(roster({ studentId: ROSTER_C3, action: 'resetSecureSession', stage: 'test' }));
+  created.push(await testSessionOf(ROSTER_C3));
+  // The list the teacher confirmed named attempt 1: the release is refused.
+  const stale = await refusal(fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: before.confirmKeys })));
+  assert.equal(stale?.code, 'failed-precondition', 'a confirm taken before the reset releases nothing');
+  // The race: a release that read the records just before the reset and wrote
+  // just after it stores the old attempt — which does not cover the new one.
+  await db.collection('testCycleAnswerReleases').doc(ROSTER_ASSIGNMENT_ID).set({
+    assignmentId: ROSTER_ASSIGNMENT_ID, test: { releasedAt: Date.now(), releasedBy: 'uid-race', coveredKeys: before.confirmKeys },
+  }, { merge: true });
+  const a1Test = (await readRecord(ROSTER_ASSIGNMENT_ID, ROSTER_A1)).test.examSessionId;
+  assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), "the reset student's new attempt still holds the answers");
+  const after = (await answersRelease()).test;
+  assert.ok(after.confirmKeys.includes(`${ROSTER_C3}#2.1`) && after.heldFor >= 1, 'the teacher is shown C3 at attempt 2, not yet covered');
+  // Confirming the new list releases them.
+  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: after.confirmKeys }));
+  assert.ok(!held(await reviewOf(ROSTER_A1, a1Test)));
 });
 
 test("a teacher's reset of the Test closes the old Corrections plan until the new Test is submitted", async () => {
@@ -721,6 +775,85 @@ test('a course Test the teacher paused or archived takes no edits, no recorded a
   }
 });
 
+test("a teacher's pause stops the clock: a pause spanning the original deadline extends it by the time paused", async () => {
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
+  await db.collection('grades').doc(CLOCK_STUDENT).set({
+    gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  }, { merge: true });
+  const examSessionId = (await readRecord(CERT_ASSIGNMENT_ID, CLOCK_STUDENT)).test.examSessionId;
+  created.push(examSessionId);
+  await fns.startSecureExamSession.run(student(CLOCK_STUDENT, { examSessionId }));
+  const opened = (await issue(CLOCK_STUDENT, examSessionId, { position: 0 })).questionInstance;
+  const draft = (answer) => save(CLOCK_STUDENT, { examSessionId, questionInstanceId: opened.questionInstanceId, responsePayload: { responses: { answer } } });
+  const timeUp = () => fns.finalizeSecureExam.run(student(CLOCK_STUDENT, { examSessionId, reason: 'timeExpired' }));
+  const where = async () => (await fns.startSecureExamSession.run(student(CLOCK_STUDENT, { examSessionId }))).session;
+  await draft(certAnswerFromPrompt(opened.prompt));
+  const sessionRef = db.collection('examSessions').doc(examSessionId);
+  const limitSeconds = Number((await readSession(examSessionId)).timeLimitSeconds);
+  assert.ok(limitSeconds > 0, 'the course Test is timed');
+  const lifecycle = (action) => fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, action }));
+
+  // The Test began so long ago that its original deadline passed ten minutes
+  // ago, but the teacher paused the Test Cycle eleven minutes ago, a minute
+  // before that deadline.
+  const now = Date.now();
+  await sessionRef.set({ startedAt: now - (limitSeconds + 10 * 60) * 1000 }, { merge: true });
+  try {
+    await lifecycle('unpublish');
+    assert.deepEqual((await readSession(examSessionId)).teacherPause?.holds, ['assignment'], 'pausing the Test Cycle holds the clock of a Test under way');
+    await sessionRef.set({ teacherPause: { since: now - 11 * 60 * 1000, holds: ['assignment'] } }, { merge: true });
+
+    // Paused: time has not run out, the student's screen sees the stopped clock, and nothing is edited.
+    const duringPause = await refusal(timeUp());
+    assert.equal(duringPause?.code, 'failed-precondition', 'no time-up during the pause, even past the original deadline');
+    const paused = await where();
+    assert.equal(paused.clockPaused, true);
+    assert.ok(Math.abs(paused.pausedRemainingSeconds - 60) <= 5, `a minute left, stopped (${paused.pausedRemainingSeconds})`);
+    assert.equal((await refusal(draft(CERT_WRONG_ANSWER)))?.code, 'failed-precondition', 'no edits while paused');
+
+    // Resumed: eleven minutes paused are banked, and the student has their minute.
+    await lifecycle('publish');
+    const resumed = await readSession(examSessionId);
+    assert.deepEqual(resumed.teacherPause.holds, []);
+    assert.ok(Math.abs(resumed.pausedSeconds - 11 * 60) <= 5, `eleven minutes banked (${resumed.pausedSeconds})`);
+    const running = await where();
+    assert.equal(running.clockPaused, false);
+    const left = running.expiresAt - Date.now();
+    assert.ok(left > 50 * 1000 && left <= 65 * 1000, `the deadline moved by the time paused (${left} ms left)`);
+    await draft(CERT_WRONG_ANSWER);
+    assert.equal((await refusal(timeUp()))?.code, 'failed-precondition', 'and time is not up yet');
+
+    // A proctor's pause holds the clock the same way.
+    await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'lock' }));
+    assert.deepEqual((await readSession(examSessionId)).teacherPause?.holds, ['proctor'], 'a proctor pause holds the clock');
+    await sessionRef.set({ teacherPause: { since: Date.now() - 5 * 60 * 1000, holds: ['proctor'] } }, { merge: true });
+    await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'unlock' }));
+    const unlocked = await readSession(examSessionId);
+    assert.ok(Math.abs(unlocked.pausedSeconds - 16 * 60) <= 5, `five more minutes banked (${unlocked.pausedSeconds})`);
+
+    // An integrity lock is not a teacher's pause: the clock keeps running through it.
+    for (const eventId of ['clock-e1', 'clock-e2', 'clock-e3']) {
+      // eslint-disable-next-line no-await-in-loop
+      await fns.recordSecureExamIntegrityEvent.run(student(CLOCK_STUDENT, { examSessionId, eventId, type: 'tab_switch' }));
+    }
+    const integrity = await readSession(examSessionId);
+    assert.equal(integrity.status, 'locked_integrity');
+    assert.deepEqual(integrity.teacherPause.holds, [], 'no hold for an integrity lock');
+    await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'unlock' }));
+    assert.equal((await readSession(examSessionId)).pausedSeconds, unlocked.pausedSeconds, 'and nothing banked for it');
+
+    // Then the extended deadline passes: graded on the last draft saved in time.
+    await sessionRef.set({ startedAt: unlocked.startedAt - 30 * 60 * 1000 }, { merge: true });
+    assert.equal((await refusal(draft(certAnswerFromPrompt(opened.prompt))))?.code, 'deadline-exceeded');
+    await timeUp();
+    const stored = await readSession(examSessionId);
+    assert.equal(stored.status, 'time_expired');
+    assert.equal(stored.responses[opened.questionInstanceId].grading.isCorrect, false, 'the draft saved after the resume is the one graded');
+  } finally {
+    await db.collection('assignments').doc(CERT_ASSIGNMENT_ID).set({ unpublished: false }, { merge: true });
+  }
+});
+
 test('a draft sent after time is up is refused, and the test is graded on the last draft saved in time', async () => {
   const { examSessionId } = await createSimulation(PAUSE_STUDENT, 'tsia2', 1);
   await fns.startSecureExamSession.run(student(PAUSE_STUDENT, { examSessionId }));
@@ -735,6 +868,145 @@ test('a draft sent after time is up is refused, and the test is graded on the la
   await fns.finalizeSecureExam.run(student(PAUSE_STUDENT, { examSessionId, reason: 'timeExpired' }));
   const stored = await readSession(examSessionId);
   assert.equal(stored.responses[questionInstanceId].grading.isCorrect, true, 'the draft saved in time is the one graded');
+});
+
+test('a record holder past the 400 the teacher\'s table reads is still on the list a release confirms', async () => {
+  // Assigned to the roster P1 class; 400 records of students who finished,
+  // and one more, out of the roster (they moved class), still testing.
+  await db.collection('assignments').doc(CAP_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [ROSTER_P1] }), id: CAP_ASSIGNMENT_ID });
+  const batch = db.batch();
+  CAP_FILLERS.forEach((studentId) => batch.set(db.collection('testCycleRecords').doc(`${CAP_ASSIGNMENT_ID}__${studentId}`), {
+    assignmentId: CAP_ASSIGNMENT_ID, studentId, test: { state: 'released', attempt: 1, rawScore: 90 },
+  }));
+  batch.set(db.collection('testCycleRecords').doc(`${CAP_ASSIGNMENT_ID}__${CAP_HOLDER}`), {
+    assignmentId: CAP_ASSIGNMENT_ID, studentId: CAP_HOLDER, test: { state: 'assigned', attempt: 1, examSessionId: 'nav-cap-session' },
+  });
+  await batch.commit();
+  const listing = await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: CAP_ASSIGNMENT_ID }));
+  assert.equal(listing.rows.some((row) => row.studentId === CAP_HOLDER), false, 'the table itself stops at 400 records');
+  assert.ok(listing.answersRelease.test.stillTestingIds.includes(CAP_HOLDER), 'but the student still testing is on the list');
+  // So the release the teacher confirms goes through, rather than refusing forever.
+  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CAP_ASSIGNMENT_ID, stage: 'test', confirmed: listing.answersRelease.test.confirmKeys }));
+  assert.equal((await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: CAP_ASSIGNMENT_ID }))).answersRelease.test.released, true);
+});
+
+test('the roster the review re-check caches only ever holds the answers: a student who joins closes them at once', async () => {
+  await db.collection('classes').doc(CACHE_CLASS).set({
+    name: 'Cache Algebra I', course: 'algebra1', courseLevel: 'standard', period: 'Period 5', teacherOfRecord: TEACHER_EMAIL, status: 'active',
+  });
+  const enroll = (studentId) => db.collection('grades').doc(studentId).set({
+    displayName: studentId, classId: CACHE_CLASS, classPeriod: 'Period 5', assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+    gradesByAssignment: { [CACHE_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  });
+  await enroll(CACHE_FIRST);
+  await db.collection('assignments').doc(CACHE_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [CACHE_CLASS] }), id: CACHE_ASSIGNMENT_ID });
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CACHE_ASSIGNMENT_ID, classId: CACHE_CLASS }));
+  const examSessionId = (await readRecord(CACHE_ASSIGNMENT_ID, CACHE_FIRST)).test.examSessionId;
+  created.push(examSessionId);
+  await fns.startSecureExamSession.run(student(CACHE_FIRST, { examSessionId }));
+  await fns.finalizeSecureExam.run(student(CACHE_FIRST, { examSessionId }));
+  await fns.releaseTestCycleResults.run(teacherRequest({ assignmentId: CACHE_ASSIGNMENT_ID, stage: 'test' }));
+  // The only student has finished: the answers are open (and the roster is now cached).
+  const open = (await fns.getStudentSecureExamReview.run(student(CACHE_FIRST, { examSessionId }))).review;
+  assert.ok(!held(open), 'with everyone finished, the answers are open');
+  // A student joins the class a moment later, well inside the cache's minute.
+  await enroll(CACHE_JOINER);
+  const again = (await fns.getStudentSecureExamReview.run(student(CACHE_FIRST, { examSessionId }))).review;
+  assert.ok(held(again), 'the new student holds the answers on the very next ask, cache or not');
+  // And while held, the next ask comes back held too.
+  assert.ok(held((await fns.getStudentSecureExamReview.run(student(CACHE_FIRST, { examSessionId }))).review));
+});
+
+/*
+ * A DETERMINISTIC INTERLEAVING. The next transaction any function starts waits
+ * here until the test lets it go, so another call can run to the end in
+ * between: the race a teacher's pause meets in a classroom, made repeatable.
+ */
+const gateNextTransaction = () => {
+  const proto = Object.getPrototypeOf(db);
+  const original = proto.runTransaction;
+  let release = null;
+  const released = new Promise((resolve) => { release = resolve; });
+  let reach = null;
+  const reached = new Promise((resolve) => { reach = resolve; });
+  proto.runTransaction = async function gatedOnce(...args) {
+    proto.runTransaction = original;
+    reach();
+    await released;
+    return original.apply(this, args);
+  };
+  return { reached, release: () => { proto.runTransaction = original; release(); } };
+};
+
+let raceSessions = null;
+const raceSetup = () => {
+  raceSessions ||= (async () => {
+    await db.collection('classes').doc(RACE_CLASS).set({
+      name: 'Race Algebra I', course: 'algebra1', courseLevel: 'standard', period: 'Period 6', teacherOfRecord: TEACHER_EMAIL, status: 'active',
+    });
+    await Promise.all([RACE_STARTER, RACE_TAKER].map((studentId) => db.collection('grades').doc(studentId).set({
+      displayName: studentId, classId: RACE_CLASS, classPeriod: 'Period 6', assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+      gradesByAssignment: { [RACE_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+    })));
+    await db.collection('assignments').doc(RACE_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [RACE_CLASS] }), id: RACE_ASSIGNMENT_ID });
+    await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: RACE_ASSIGNMENT_ID, classId: RACE_CLASS }));
+    const sessions = {};
+    for (const studentId of [RACE_STARTER, RACE_TAKER]) {
+      // eslint-disable-next-line no-await-in-loop
+      sessions[studentId] = (await readRecord(RACE_ASSIGNMENT_ID, studentId)).test.examSessionId;
+      created.push(sessions[studentId]);
+    }
+    return sessions;
+  })();
+  return raceSessions;
+};
+const raceLifecycle = (action) => fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: RACE_ASSIGNMENT_ID, action }));
+
+test('a Test started just as its assessment is archived does not start: the start\'s own transaction sees the archive', async () => {
+  const examSessionId = (await raceSetup())[RACE_STARTER];
+  // The start passes its first check while the assessment is open and waits at
+  // its transaction; the teacher archives in between (the sweep finds nothing
+  // under way to hold).
+  const gate = gateNextTransaction();
+  const starting = refusal(fns.startSecureExamSession.run(student(RACE_STARTER, { examSessionId })));
+  await gate.reached;
+  try {
+    await raceLifecycle('archive');
+  } finally {
+    gate.release();
+  }
+  const refused = await starting;
+  try {
+    assert.equal(refused?.code, 'failed-precondition', 'the start is refused');
+    assert.equal((await readSession(examSessionId)).status, 'not_started', 'so no Test runs, unheld, on an archived assessment');
+  } finally {
+    await raceLifecycle('unarchive');
+  }
+  // Open again, it starts as usual (and finishes, so the next race has one Test under way).
+  assert.equal((await fns.startSecureExamSession.run(student(RACE_STARTER, { examSessionId }))).session.status, 'in_progress');
+  await fns.finalizeSecureExam.run(student(RACE_STARTER, { examSessionId }));
+});
+
+test('an archive racing an unarchive leaves no hold once the assessment is open', async () => {
+  const examSessionId = (await raceSetup())[RACE_TAKER];
+  await fns.startSecureExamSession.run(student(RACE_TAKER, { examSessionId }));
+  // The archive is written, and its sweep waits at the session's transaction
+  // while an unarchive (another tab, a co-teacher) runs to the end.
+  const gate = gateNextTransaction();
+  const archiving = raceLifecycle('archive');
+  await gate.reached;
+  try {
+    await raceLifecycle('unarchive');
+  } finally {
+    gate.release();
+  }
+  await archiving;
+  assert.equal((await db.collection('assignments').doc(RACE_ASSIGNMENT_ID).get()).data().archived, false, 'the assessment ended open');
+  assert.deepEqual((await readSession(examSessionId)).teacherPause?.holds || [], [], 'so no hold is left on the clock');
+  const view = (await fns.startSecureExamSession.run(student(RACE_TAKER, { examSessionId }))).session;
+  assert.equal(view.clockPaused, false, 'and the student is not left behind "Your teacher paused the test"');
+  const saved = await save(RACE_TAKER, { examSessionId, questionInstanceId: (await issue(RACE_TAKER, examSessionId, { position: 0 })).questionInstance.questionInstanceId, responsePayload: { responses: { answer: '1' } } });
+  assert.ok(saved, 'and can keep working');
 });
 
 test('a session written by the old linear runtime is upgraded without reopening recorded answers', async () => {

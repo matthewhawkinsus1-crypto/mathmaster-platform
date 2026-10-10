@@ -16438,7 +16438,18 @@ exports.startSecureExamSession = onCall(async (request) => {
   // `courseTest` block and this is a no-op for it.
   const entrySnapshot = await ref.get();
   const entrySession = assertStudentExamSession(entrySnapshot, studentId);
-  await assertCourseTestEntryAllowed(db, entrySession, studentId);
+  try {
+    await assertCourseTestEntryAllowed(db, entrySession, studentId);
+  } catch (error) {
+    // A Test under way that the teacher has paused or archived: the screen
+    // gets where it stands (states only, the clock stopped) and shows the
+    // pause, rather than an error. Nothing is issued, saved or submitted.
+    if (secureExam.pauseHoldsOf(entrySession).includes("assignment")
+      && (entrySession.status === "in_progress" || secureExam.LOCKED_STATES.has(entrySession.status))) {
+      return { success: true, session: secureExam.publicSession(entrySession) };
+    }
+    throw error;
+  }
   const timeMultiplier = entrySession.status === "not_started" ? await secureExamTimeMultiplier(db, studentId) : 1;
   const session = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
@@ -16447,6 +16458,11 @@ exports.startSecureExamSession = onCall(async (request) => {
     if (secureExam.LOCKED_STATES.has(current.status)) return current;
     if (current.status !== "not_started" && current.status !== "in_progress") throw new HttpsError("failed-precondition", "This exam cannot be started.");
     if (current.status === "in_progress") return current;
+    // The course gate again, through this transaction: a pause or archive that
+    // lands while the start is in flight is seen here (or retries it), so a
+    // Test never starts on a closed assessment, where no clock hold would
+    // cover it (holdCourseTestClocks holds only Tests already under way).
+    await assertCourseTestEntryAllowed(db, current, studentId, { transaction });
     const now = Date.now();
     // The accommodation multiplies the test's own limit once, at start; an
     // untimed test stays untimed.
@@ -16518,7 +16534,13 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
     const blocked = secureExam.courseReviewBlockedBy(record, { examSessionId, cycleStage: session.courseTest.cycleStage });
     if (blocked) throw new HttpsError("failed-precondition", blocked.message, { reason: blocked.reason });
     const stage = String(session.courseTest.cycleStage || "") === "retest" ? "retest" : "test";
-    withSolutions = (await courseAnswersRelease(getFirestore(), shared, session.courseTest.assignmentId, stage)).released;
+    try {
+      withSolutions = (await courseAnswersRelease(getFirestore(), shared, session.courseTest.assignmentId, stage, { cacheRoster: true })).released;
+    } catch (error) {
+      // Fail closed: the review shows, and the answers wait.
+      console.error("course_answers_release_failed", { examSessionId, message: error?.message || String(error) });
+      withSolutions = false;
+    }
   }
   /*
    * The same line for practice tests. Two practice tests of one exam draw from
@@ -16557,11 +16579,22 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
  * class the assignment is assigned to (one with no record yet, in a period
  * whose sessions are not open, included) and anyone holding a record. They
  * open once none of them is left, or when the teacher releases them
- * (releaseTestCycleAnswers) — and that release covers only the students its
- * confirm named. One it did not name (a student who joined later, or whose
- * attempt a teacher reset) holds them again until they finish.
+ * (releaseTestCycleAnswers) — and that release covers only the students, at
+ * the attempts, its confirm named. One it did not name (a student who joined
+ * later, or one whose attempt a teacher reset since) holds them again until
+ * they finish.
  */
 const TEST_CYCLE_ANSWER_RELEASES = "testCycleAnswerReleases";
+
+/*
+ * A student at their current attempts: the unit an explicit release covers.
+ * A reset gives the stage a new attempt, so the key changes and no release
+ * that did not confirm the new attempt can cover it — however the release
+ * and the reset interleave. A Test reset changes the key for both stages.
+ */
+function answerCoverageKey(record) {
+  return `${record.studentId}#${record.test.attempt}.${record.retest.attempt}`;
+}
 
 /*
  * Who can still sit a stage. The Test: anyone whose Test is not submitted,
@@ -16599,6 +16632,33 @@ async function testCycleRosterIds(db, assignment) {
   return ids;
 }
 
+/*
+ * THE ROSTER, CACHED FOR A REVIEW'S RE-CHECKS — AND ONLY EVER TO HOLD.
+ *
+ * A student with a review open asks again every 30 seconds, and each ask
+ * read every class's roster. On that path the roster is cached per assignment
+ * (per server instance, for a minute, keyed by its class list). A cached
+ * roster can only miss a student, and a missing student can only make the
+ * answers look released, so a released verdict is always recomputed from a
+ * fresh read: while classmates still test (the common case) the re-check
+ * reads no roster, and nothing opens early.
+ */
+const ROSTER_CACHE_TTL_MS = 60 * 1000;
+const ROSTER_CACHE_LIMIT = 500;
+const testCycleRosterCache = new Map();
+async function cachedTestCycleRosterIds(db, assignment, assignmentId, { fresh = false } = {}) {
+  const classKey = assignmentAudience(assignment).classIds.join("|");
+  const cached = testCycleRosterCache.get(assignmentId);
+  if (!fresh && cached && cached.classKey === classKey && Date.now() - cached.at < ROSTER_CACHE_TTL_MS) {
+    return { ids: cached.ids, cached: true };
+  }
+  const ids = await testCycleRosterIds(db, assignment);
+  testCycleRosterCache.delete(assignmentId);
+  testCycleRosterCache.set(assignmentId, { at: Date.now(), classKey, ids });
+  if (testCycleRosterCache.size > ROSTER_CACHE_LIMIT) testCycleRosterCache.delete(testCycleRosterCache.keys().next().value);
+  return { ids, cached: false };
+}
+
 async function courseAnswersRelease(db, shared, assignmentId, stage, known = {}) {
   const id = String(assignmentId);
   const release = (await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(id).get()).data()?.[stage] || null;
@@ -16606,22 +16666,41 @@ async function courseAnswersRelease(db, shared, assignmentId, stage, known = {})
   const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy) || shared.policy.defaultTestCyclePolicy();
   const records = known.records || new Map((await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", id).get())
     .docs.map((doc) => [String(doc.data()?.studentId || ""), doc.data()]));
-  const rosterIds = known.rosterIds || await testCycleRosterIds(db, assignment);
+  let rosterIds = known.rosterIds;
+  let rosterFromCache = false;
+  if (!rosterIds && known.cacheRoster) {
+    const roster = await cachedTestCycleRosterIds(db, assignment, id);
+    rosterIds = roster.ids;
+    rosterFromCache = roster.cached;
+  }
+  if (!rosterIds) rosterIds = await testCycleRosterIds(db, assignment);
   const everyone = [...new Set([...rosterIds, ...records.keys()])].filter(Boolean);
-  const stillTesting = everyone.filter((studentId) => stillToSitStage(shared, policy, stage, records.get(studentId) || { assignmentId: id, studentId }));
+  const stillTestingRecords = everyone
+    .map((studentId) => shared.record.normalizeTestCycleRecord(records.get(studentId) || { assignmentId: id, studentId }))
+    .filter((record) => stillToSitStage(shared, policy, stage, record));
+  const stillTesting = stillTestingRecords.map((record) => record.studentId);
+  const stillTestingKeys = stillTestingRecords.map(answerCoverageKey);
   const explicit = Boolean(release?.releasedAt);
-  const covered = new Set(explicit && Array.isArray(release.coveredStudentIds) ? release.coveredStudentIds.map(String) : []);
-  const heldFor = stillTesting.filter((studentId) => !covered.has(studentId));
-  return { released: heldFor.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting, heldFor };
+  // An earlier release's student-only list covers nobody: it named no attempts.
+  const covered = new Set(explicit && Array.isArray(release.coveredKeys) ? release.coveredKeys.map(String) : []);
+  const heldFor = stillTestingRecords.filter((record) => !covered.has(answerCoverageKey(record))).map((record) => record.studentId);
+  if (rosterFromCache && heldFor.length === 0) {
+    // A cached roster only holds: a released verdict is checked against a fresh one.
+    const fresh = await cachedTestCycleRosterIds(db, assignment, id, { fresh: true });
+    return courseAnswersRelease(db, shared, assignmentId, stage, { assignment, records, rosterIds: fresh.ids });
+  }
+  return { released: heldFor.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting, stillTestingKeys, heldFor };
 }
 
 /*
  * "RELEASE ANSWERS AND WORKED SOLUTIONS": the teacher opens them before every
  * student who can still sit the stage has submitted. The screen's confirm
- * names those students and sends their ids; the release covers exactly them.
- * If anyone still testing was not on that list (it changed since the page
- * loaded), nothing is released: the teacher refreshes and confirms the new
- * list, rather than opening the answers to a student nobody was told about.
+ * names those students and sends back their coverage keys (student and
+ * attempts, answerCoverageKey); the release covers exactly those. If anyone
+ * still testing is not on that list (someone joined, or an attempt was reset,
+ * since the page loaded), nothing is released: the teacher refreshes and
+ * confirms the new list, rather than opening the answers to a student nobody
+ * was told about.
  */
 exports.releaseTestCycleAnswers = onCall(async (request) => {
   const db = getFirestore();
@@ -16630,9 +16709,9 @@ exports.releaseTestCycleAnswers = onCall(async (request) => {
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
   const { assignmentId, assignment, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
   const stage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
-  const named = new Set((Array.isArray(request.data?.studentIds) ? request.data.studentIds : []).slice(0, 5000).map(String));
-  const { stillTesting } = await courseAnswersRelease(db, shared, assignmentId, stage, { assignment });
-  const unnamed = stillTesting.filter((studentId) => !named.has(studentId));
+  const confirmed = new Set((Array.isArray(request.data?.confirmed) ? request.data.confirmed : []).slice(0, 5000).map(String));
+  const { stillTestingKeys } = await courseAnswersRelease(db, shared, assignmentId, stage, { assignment });
+  const unnamed = stillTestingKeys.filter((key) => !confirmed.has(key));
   if (unnamed.length) {
     throw new HttpsError(
       "failed-precondition",
@@ -16642,9 +16721,9 @@ exports.releaseTestCycleAnswers = onCall(async (request) => {
   }
   await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(assignmentId).set({
     assignmentId,
-    [stage]: { releasedAt: Date.now(), releasedBy: teacherUid, coveredStudentIds: stillTesting },
+    [stage]: { releasedAt: Date.now(), releasedBy: teacherUid, coveredKeys: stillTestingKeys },
   }, { merge: true });
-  return { success: true, stage, covered: stillTesting.length };
+  return { success: true, stage, covered: stillTestingKeys.length };
 });
 
 /** Where a navigation request may go, or the student-facing refusal. */
@@ -17339,8 +17418,9 @@ exports.proctorExamAction = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "This exam is untimed; there is no time limit to extend.");
     }
     let updated = { ...session, updatedAt: now, lastProctorActionBy: teacherUid };
-    if (action === "unlock") updated = { ...updated, status: "in_progress", lockReason: null, unlockedAt: now };
-    if (action === "lock") updated = { ...updated, status: "locked_proctor", lockReason: "Locked by proctor.", lockedAt: now };
+    // A proctor's pause stops the clock until the unlock (secureExam.withPauseHold).
+    if (action === "unlock") updated = { ...updated, status: "in_progress", lockReason: null, unlockedAt: now, ...secureExam.withoutPauseHold(session, "proctor", now) };
+    if (action === "lock") updated = { ...updated, status: "locked_proctor", lockReason: "Locked by proctor.", lockedAt: now, ...secureExam.withPauseHold(session, "proctor", now) };
     if (action === "extendTime") {
       const minutes = Math.max(1, Math.min(120, Math.round(Number(request.data?.minutes) || 5)));
       updated = { ...updated, addedTimeSeconds: Number(session.addedTimeSeconds || 0) + minutes * 60 };
@@ -18216,10 +18296,24 @@ exports.getStudentTestCycle = onCall(async (request) => {
   );
 
   let corrections = null;
-  if (state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open) {
+  const inCorrections = state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open;
+  if (inCorrections) {
     const planSnapshot = await db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(record.recordId).get();
     const plan = planSnapshot.exists ? planSnapshot.data()?.plan : null;
     corrections = plan ? studentVisibleCorrectionPlan(plan) : null;
+  }
+  // Whether the Test review offered beside Corrections would hold its answers
+  // and worked solutions (courseAnswersRelease), so Corrections says what it
+  // opens. Asked only there, where it is shown: it reads the cycle's records.
+  const testReviewOffered = record.test.state === shared.record.SESSION_STATE.RELEASED
+    && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" });
+  let testAnswersHeld = null;
+  if (testReviewOffered && inCorrections) {
+    try {
+      testAnswersHeld = !(await courseAnswersRelease(db, shared, assignmentId, "test", { assignment, cacheRoster: true })).released;
+    } catch {
+      testAnswersHeld = true;
+    }
   }
 
   return {
@@ -18253,10 +18347,8 @@ exports.getStudentTestCycle = onCall(async (request) => {
     // stage alone ("retestClosed") cannot say the review would open.
     // Offered exactly when getStudentSecureExamReview would open it: the same
     // rule (secureExam.courseReviewBlockedBy) decides both.
-    testReviewExamSessionId: record.test.state === shared.record.SESSION_STATE.RELEASED
-      && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" })
-      ? record.test.examSessionId
-      : null,
+    testReviewExamSessionId: testReviewOffered ? record.test.examSessionId : null,
+    testAnswersHeld,
     grade: shared.record.testCycleGradeBreakdown(record, policy),
     corrections,
     // Everything below is question-free and score-free: what a student needs
@@ -18788,21 +18880,8 @@ exports.teacherTestCycleAction = onCall(async (request) => {
           next = { ...next, review: { ...next.review, complete: true, completedAt: next.review.completedAt || Date.now() } };
         }
 
-        /*
-         * An explicit answer release covers only the students its confirm
-         * named as still testing (courseAnswersRelease). This new attempt is
-         * one no teacher confirmed: if the student was on that list, take
-         * them off it, so the answers wait for this attempt too (a student
-         * who was not on it is held already). A new Test comes before any
-         * Retest, so a Test reset leaves both lists.
-         */
-        const releaseRef = db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(String(assignmentId));
-        const releaseData = (await transaction.get(releaseRef)).data() || {};
-        const reopen = (stage === "test" ? ["test", "retest"] : ["retest"])
-          .filter((name) => (Array.isArray(releaseData[name]?.coveredStudentIds) ? releaseData[name].coveredStudentIds : []).map(String).includes(String(studentId)));
-        if (reopen.length) {
-          transaction.set(releaseRef, Object.fromEntries(reopen.map((name) => [name, { coveredStudentIds: FieldValue.arrayRemove(String(studentId)) }])), { merge: true });
-        }
+        // The new attempt is a new coverage key (answerCoverageKey): no
+        // explicit answer release covers it until a teacher confirms it.
 
         if (current.examSessionId) {
           // The old session is closed, not deleted: the evidence a student produced
@@ -19092,14 +19171,18 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
     // who can still sit each stage (courseAnswersRelease): the list a release
     // confirm names and sends back.
     answersRelease: Object.fromEntries(await Promise.all(["test", "retest"].map(async (stage) => {
+      // The table reads at most 400 records; past that, the release reads
+      // them all, so a record holder beyond the first 400 is on the list the
+      // confirm names (or the release would refuse it as unnamed, forever).
       const release = await courseAnswersRelease(db, shared, assignmentId, stage, {
-        assignment, records: recordsByStudent, rosterIds: [...gradeDataByStudent.keys()],
+        assignment, records: snapshot.size < 400 ? recordsByStudent : null, rosterIds: [...gradeDataByStudent.keys()],
       });
       return [stage, {
         released: release.released,
         explicit: release.explicit,
         stillTesting: release.stillTesting.length,
         stillTestingIds: release.stillTesting,
+        confirmKeys: release.stillTestingKeys,
         heldFor: release.heldFor.length,
       }];
     }))),
@@ -23530,6 +23613,39 @@ exports.getAssignmentEvidenceSummary = onCall(async (request) => {
   return { success: true, assignmentId: snapshot.id, ...publicSummary };
 });
 
+/*
+ * A PAUSED OR ARCHIVED TEST CYCLE STOPS THE CLOCK OF EVERY TEST UNDER WAY.
+ *
+ * Students cannot work while the teacher has the assessment paused or
+ * archived, so their time does not run either: each course session that is
+ * started and not finished gets the "assignment" hold (secureExam.withPauseHold),
+ * and loses it when the assessment is open again, which extends its deadline
+ * by the time it was closed. Each session changes in its own transaction, so a
+ * proctor's pause or a save landing at the same moment is never lost — and
+ * that transaction reads the assignment, so the hold follows whether the
+ * assessment is closed then, not when this call began: an archive racing an
+ * unarchive (two tabs, two teachers) ends with the hold matching where the
+ * assessment ended up. A Test starting meanwhile is gated inside its own start
+ * transaction (startSecureExamSession).
+ */
+async function holdCourseTestClocks(db, assignmentId) {
+  const assignmentRef = db.collection("assignments").doc(String(assignmentId));
+  const snapshot = await db.collection("examSessions").where("courseTest.assignmentId", "==", String(assignmentId)).get();
+  const live = (session) => session.status === "in_progress" || secureExam.LOCKED_STATES.has(session.status);
+  await Promise.all(snapshot.docs
+    .filter((doc) => live(doc.data() || {}))
+    .map((doc) => db.runTransaction(async (transaction) => {
+      const [sessionSnapshot, assignmentSnapshot] = await Promise.all([transaction.get(doc.ref), transaction.get(assignmentRef)]);
+      const session = sessionSnapshot.data() || {};
+      if (!live(session)) return;
+      const assignment = assignmentSnapshot.data() || {};
+      const closed = assignment.archived === true || assignment.unpublished === true;
+      const now = Date.now();
+      const change = closed ? secureExam.withPauseHold(session, "assignment", now) : secureExam.withoutPauseHold(session, "assignment", now);
+      if (Object.keys(change).length) transaction.set(doc.ref, { ...change, updatedAt: now }, { merge: true });
+    })));
+}
+
 exports.manageAssignmentLifecycle = onCall(async (request) => {
   const db = getFirestore();
   const ref = db.collection("assignments").doc(String(request.data?.assignmentId || "").trim());
@@ -23552,6 +23668,7 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
       lifecycleHistory: audit(action),
       updatedAt: stamp,
     });
+    await holdCourseTestClocks(db, ref.id);
     return { success: true, assignmentId: ref.id, action, archived };
   }
   if (action === "unpublish" || action === "publish") {
@@ -23563,6 +23680,7 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
       lifecycleHistory: audit(action),
       updatedAt: stamp,
     });
+    await holdCourseTestClocks(db, ref.id);
     return { success: true, assignmentId: ref.id, action, unpublished };
   }
   if (action !== "delete") throw new HttpsError("invalid-argument", "Choose archive, unarchive, unpublish, publish or delete.");

@@ -92,9 +92,14 @@ const mockTimeLimitSeconds = (policy, requiredQuestions) => {
   return Math.max(60, Math.ceil((full * requiredQuestions) / total / 60) * 60);
 };
 
-const mockDeadline = (session) => (
+// A teacher's pause stops the clock, as on the server (secureExam.deadlineFor):
+// the deadline moves with the clock while paused, and on resume it stands
+// extended by the time paused.
+const mockDeadline = (session, now = Date.now()) => (
   session.startedAt && session.timeLimitSeconds
-    ? session.startedAt + (Number(session.timeLimitSeconds) + Number(session.addedTimeSeconds || 0)) * 1000
+    ? session.startedAt
+      + (Number(session.timeLimitSeconds) + Number(session.addedTimeSeconds || 0) + Number(session.pausedSeconds || 0)) * 1000
+      + (session.pausedSince ? Math.max(0, now - session.pausedSince) : 0)
     : null
 );
 
@@ -184,13 +189,19 @@ const mockPublicNavigation = (session) => ({
 const publicMockSession = (session) => {
   const {
     nav: _nav, issued: _issued, responses: _responses, sandboxItems: _sandboxItems,
-    sandboxTimeMultiplier: _sandboxTimeMultiplier, integrityEventIds: _integrityEventIds, ...safe
+    sandboxTimeMultiplier: _sandboxTimeMultiplier, integrityEventIds: _integrityEventIds,
+    pausedSince: _pausedSince, pausedSeconds: _pausedSeconds, ...safe
   } = session;
   const answeredQuestions = mockAnsweredCount(session);
+  const now = Date.now();
+  const expiresAt = mockDeadline(session, now);
+  const clockPaused = Boolean(session.pausedSince);
   return clone({
     ...safe,
     summary: { completedQuestions: answeredQuestions },
-    expiresAt: mockDeadline(session),
+    expiresAt,
+    clockPaused,
+    ...(clockPaused && expiresAt !== null ? { pausedRemainingSeconds: Math.max(0, Math.round((expiresAt - now) / 1000)) } : {}),
     timed: session.timeLimitSeconds !== null && session.timeLimitSeconds !== undefined,
     hasOpenQuestion: session.nav.itemOrder.some((id) => session.nav.items[id]?.state === 'open'),
     answeredQuestions,
@@ -348,6 +359,9 @@ export const createSecureExamSession = async (payload) => {
 
 export const listStudentSecureExamSessions = async () => {
   if (isMock()) {
+    // Sandbox only: a harness can slow the list to watch a screen wait for it.
+    const delay = Number(globalThis.__secureSandboxDelays?.list) || 0;
+    if (delay > 0) await new Promise((resolve) => { setTimeout(resolve, delay); });
     return {
       sessions: [...mockSessions.values()]
         .sort((a, b) => b.createdAt - a.createdAt)
@@ -560,11 +574,16 @@ export const proctorExamAction = async (payload) => {
     if (TERMINAL.has(session.status)) throw mockError('failed-precondition', 'This submitted exam cannot be changed except to release feedback.');
     if (action === 'unlock') {
       if (!LOCKED.has(session.status)) throw mockError('failed-precondition', 'Only a locked exam can be unlocked. A student starts their own exam.');
+      if (session.pausedSince) {
+        session.pausedSeconds = Number(session.pausedSeconds || 0) + Math.max(0, Date.now() - session.pausedSince) / 1000;
+        session.pausedSince = null;
+      }
       session.status = 'in_progress';
     }
     if (action === 'lock') {
       if (session.status !== 'in_progress') throw mockError('failed-precondition', 'Only an exam in progress can be paused.');
       session.status = 'locked_proctor';
+      session.pausedSince = Date.now();
     }
     if (action === 'extendTime') {
       if (!session.timeLimitSeconds) throw mockError('failed-precondition', 'This exam is untimed; there is no time limit to extend.');

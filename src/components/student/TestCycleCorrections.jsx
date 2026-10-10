@@ -65,7 +65,7 @@ const card = {
   padding: 'clamp(16px, 4vw, 26px)',
 };
 
-export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, onComplete, onExit, reviewExamSessionId = null, onReviewTest = null }) => {
+export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, onComplete, onExit, reviewExamSessionId = null, onReviewTest = null, testAnswersHeld = false }) => {
   const targets = corrections?.targets || [];
   const reviewTest = reviewExamSessionId && onReviewTest ? (
     <button type="button" onClick={() => onReviewTest(reviewExamSessionId)} style={reviewTestButton}>
@@ -190,7 +190,12 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
         {reviewTest && (
           <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             {reviewTest}
-            <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>See your Test answers and the worked solutions.</span>
+            {/* What the review opens: the worked solutions wait while classmates can still sit the Test (getStudentTestCycle's testAnswersHeld). */}
+            <span data-corrections-review-note="" style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
+              {testAnswersHeld
+                ? 'See your Test answers. The correct answers and worked solutions open once everyone has finished the Test.'
+                : 'See your Test answers and the worked solutions.'}
+            </span>
           </div>
         )}
       </section>

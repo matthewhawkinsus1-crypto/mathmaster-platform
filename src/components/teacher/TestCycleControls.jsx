@@ -509,7 +509,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
             )}
             {/* Answers and worked solutions wait until no one who can still sit the stage is left; the teacher can open them sooner,
                 told who is still testing. The names are the server's list (the whole roster, a student with no session included),
-                and the release covers exactly the ids sent back. */}
+                and the release covers exactly the students, at the attempts, that list held (its confirm keys). */}
             {!external && ['test', 'retest'].map((stage) => {
               const held = listing?.answersRelease?.[stage];
               if (!held || held.released || !rows.some((row) => row[stage]?.state === 'released')) return null;
@@ -529,7 +529,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                     title: `Release ${stageNoun} answers and worked solutions now?`,
                     body: `${stage === 'retest' ? 'Can still take the retest' : 'Still testing'} (${stillTesting.length}): ${stillTesting.join(', ')}. Every student whose result is released will see the correct answers and worked solutions now, before these students finish. If a student joins later, or you reset a student's attempt, they close again until that student finishes.`,
                     confirmLabel: 'Release answers and worked solutions',
-                    work: () => releaseTestCycleAnswers({ assignmentId, stage, studentIds: stillTestingIds }),
+                    work: () => releaseTestCycleAnswers({ assignmentId, stage, confirmed: Array.isArray(held.confirmKeys) ? held.confirmKeys : [] }),
                     done: () => `Released the ${stageNoun} answers and worked solutions.`,
                     context: { action: `Releasing ${stageNoun} answers`, callable: 'releaseTestCycleAnswers' },
                   })}

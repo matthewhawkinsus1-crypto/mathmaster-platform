@@ -306,9 +306,12 @@ export function integrityWarningDue({ status, violationCount, lockThreshold, war
 }
 
 /** Which kind of pause a session is in: the teacher's, or the integrity limit's. */
-export function pauseKind(status) {
+export function pauseKind(status, clockPaused = false) {
   if (status === SESSION_STATUS.LOCKED_PROCTOR) return 'teacher';
   if (status === SESSION_STATUS.LOCKED_INTEGRITY) return 'integrity';
+  // A Test under way whose assessment the teacher has paused or archived: the
+  // server stopped the clock (`clockPaused`) without locking the session.
+  if (status === SESSION_STATUS.IN_PROGRESS && clockPaused === true) return 'teacher';
   return null;
 }
 
@@ -332,6 +335,8 @@ export function pausedStatusAfterRefusal(refusalStatus, currentStatus) {
  *
  *   locked      the session is paused (teacher or integrity): show the pause,
  *               never a question that will not load
+ *   paused      the teacher paused or archived the whole assessment: ask the
+ *               server where the test stands, and show its pause
  *   navigation  the server refused a move; `message` is written for students
  *   expired     the time is up: finish the test as timed out
  *   finished    the test was already submitted (a teacher may have done it)
@@ -353,6 +358,7 @@ export function classifySecureExamError(error, { expiresAt = null, now = Date.no
   if (typeof details.navigation === 'string' && details.navigation) {
     return { kind: 'navigation', reason: details.navigation, message: message || NAVIGATION_MESSAGES[details.navigation] || '' };
   }
+  if (details.availability === 'unpublished' || details.availability === 'archived') return { kind: 'paused', message };
   const deadline = Number(expiresAt);
   const deadlinePassed = Number.isFinite(deadline) && deadline > 0 && Number(now) >= deadline;
   if (code === 'deadline-exceeded' && (/expired/i.test(message) || deadlinePassed)) return { kind: 'expired', message };
