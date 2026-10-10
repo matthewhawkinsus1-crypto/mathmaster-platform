@@ -99,3 +99,20 @@ export const resendAtGoDelayMs = ({ serverNowMs, startsAtMs, endsAtMs = 0, resen
   if (deadlineMs > 0 && sendAtMs >= deadlineMs) return null;
   return sendAtMs - nowMs;
 };
+
+/*
+ * GRAPH FEATURE RUSH sends taps in batches, and its server refuses a batch
+ * outside the round with a bare deadline-exceeded: "Time is up for this
+ * round." whether it came after the deadline or just before GO
+ * (submitGraphFeatureRushAttempts in functions/index.js), and a client-side
+ * timeout has the same code. This device's own clock tells them apart: in the
+ * round's last RUSH_TIME_UP_WINDOW_MS it is time up and the queue is dropped;
+ * earlier it is a batch that reached the server before its GO (this clock runs
+ * a little ahead) or a timeout, so the taps are kept and sent again.
+ */
+export const RUSH_TIME_UP_WINDOW_MS = 1_500;
+
+/** Whether a refused rush batch means time is up (`code` is the error's code). */
+export const rushRefusalIsTimeUp = (code, msUntilEnd) => (
+  /deadline-exceeded/.test(String(code || '')) && Number(msUntilEnd) <= RUSH_TIME_UP_WINDOW_MS
+);

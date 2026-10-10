@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GraphFeatureRushGraph from './GraphFeatureRushGraph.jsx';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
+import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
 import { graphDrawing } from '../../platform/liveChallenge/rushGraphModel.js';
 import {
   RUSH_FEEDBACK,
@@ -350,7 +351,7 @@ export default function GraphFeatureRushRound({
       const code = String(error?.code || '');
       // "Time is up" from the server, when this device's clock agrees; a
       // client-side timeout with the same code mid-round is retried.
-      const timeIsUp = /deadline-exceeded/.test(code) && performance.now() >= timing.endMono - 1_500;
+      const timeIsUp = rushRefusalIsTimeUp(code, timing.endMono - performance.now());
       if (isFinalRefusal(error) || timeIsUp) {
         stoppedRef.current = true;
         commit(dropQueue(sessionRef.current));
@@ -405,7 +406,10 @@ export default function GraphFeatureRushRound({
           pending = pending.slice(batch.length);
           writeQueue(queueKey, pending);
         } catch (error) {
-          if (isFinalRefusal(error) || /deadline-exceeded/.test(String(error?.code || ''))) {
+          // The flush's rule: deadline-exceeded is final only once this
+          // device's clock says time is up. Earlier it is a batch that reached
+          // the server before its GO, or a timeout, and is sent again.
+          if (isFinalRefusal(error) || rushRefusalIsTimeUp(error?.code, timing.endMono - performance.now())) {
             pending = [];
             writeQueue(queueKey, pending);
             break;

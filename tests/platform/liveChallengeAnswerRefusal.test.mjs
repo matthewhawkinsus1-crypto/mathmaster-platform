@@ -19,9 +19,11 @@ import {
   RESEND_AT_GO_MARGIN_MS,
   RESEND_AT_GO_MAX,
   ROUND_NOT_STARTED,
+  RUSH_TIME_UP_WINDOW_MS,
   classifyAnswerRefusal,
   refusedBeforeGo,
   resendAtGoDelayMs,
+  rushRefusalIsTimeUp,
 } from '../../src/platform/liveChallenge/challengeAnswerRefusal.js';
 import { buildRoundTimer, timerAcceptsArrival } from '../../functions/shared/liveChallengeTimer.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -202,4 +204,25 @@ test('the screen keeps an answer refused before GO, says so, and resends the sam
   assert.match(retry, /setWaitingForGo\(false\);/);
   assert.match(round, /useEffect\(\(\) => \(\) => window\.clearTimeout\(resendTimerRef\.current\), \[\]\);/);
   assert.match(screen, /import \{ REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs \} from '\.\.\/\.\.\/platform\/liveChallenge\/challengeAnswerRefusal\.js';/);
+});
+
+// GRAPH FEATURE RUSH. Its server refuses a batch outside the round with a bare
+// "Time is up for this round." whether it came late or before GO, so only this
+// device's clock can tell them apart.
+test('a refused rush batch is time up only at the end of the round by this device\'s clock', () => {
+  const rushSubmit = region(server, 'exports.submitGraphFeatureRushAttempts', '\n});\n', 'the rush submit');
+  const refusals = rushSubmit.match(/throw new HttpsError\("deadline-exceeded"[^;]*;/g) || [];
+  assert.ok(refusals.length >= 1, 'the rush server refuses an arrival outside the round');
+  refusals.forEach((refusal) => assert.doesNotMatch(refusal, /reason/, 'without a reason, so the client cannot read one'));
+  // Mid-round (a batch that arrived just before the server's GO, or a
+  // client-side timeout): kept and sent again.
+  assert.equal(rushRefusalIsTimeUp('functions/deadline-exceeded', 59_000), false);
+  assert.equal(rushRefusalIsTimeUp('functions/deadline-exceeded', RUSH_TIME_UP_WINDOW_MS + 1), false);
+  // At the end of the round: time is up.
+  assert.equal(rushRefusalIsTimeUp('functions/deadline-exceeded', RUSH_TIME_UP_WINDOW_MS), true);
+  assert.equal(rushRefusalIsTimeUp('functions/deadline-exceeded', -400), true);
+  assert.equal(RUSH_TIME_UP_WINDOW_MS, 1_500);
+  // Any other code is not this rule's to decide (the screen's isFinalRefusal is).
+  assert.equal(rushRefusalIsTimeUp('functions/unavailable', -400), false);
+  assert.equal(rushRefusalIsTimeUp(undefined, -400), false);
 });
