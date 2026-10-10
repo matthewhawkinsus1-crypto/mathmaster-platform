@@ -266,7 +266,7 @@ test('the trigger reads the history inside the mastery transaction and writes it
 test('the profile and its history are authorized by one derived object', () => {
   const transaction = region(trigger, 'await db.runTransaction(async (transaction) => {', 'transaction.set(applicationRef', 'mastery transaction');
   assert.match(transaction, /const authorization = masteryHistory\.derivedMasteryAuthorization\(evidence\);/);
-  const profileWrite = region(transaction, 'transaction.set(profileRef, {', '}, { merge: true });', 'profile write');
+  const profileWrite = region(transaction, 'transaction.set(profileRef, {', '\n      });', 'profile write');
   assert.match(profileWrite, /\.\.\.authorization,/);
   assert.doesNotMatch(profileWrite, /authorizedTeacherEmails:/, 'a second derivation could let the two drift apart');
 });

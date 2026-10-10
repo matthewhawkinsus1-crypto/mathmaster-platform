@@ -40,6 +40,32 @@ export const MASTERY_RULE = Object.freeze({
 const num = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 const doks = (value) => (Array.isArray(value) ? value.map(Number).filter(Number.isFinite) : []);
 
+// Lowest to highest. "Not Enough Evidence" sits lowest: it is never a reason
+// to keep a floor up, and a floor never sets it.
+const STATUS_ORDER = [
+  MASTERY_STATUS.NOT_ENOUGH_EVIDENCE,
+  MASTERY_STATUS.NEEDS_ATTENTION,
+  MASTERY_STATUS.DEVELOPING,
+  MASTERY_STATUS.SECURE,
+  MASTERY_STATUS.MASTERED,
+];
+
+/** 0 (Not Enough Evidence) … 4 (Mastered); -1 for anything else. */
+export const masteryStatusRank = (status) => STATUS_ORDER.indexOf(status);
+
+/*
+ * A FLOOR: what deploy day guaranteed this student (product decision 8).
+ *
+ * When the server began scoring each question once, a one-off backfill
+ * (scripts/backfill-mastery-scoring.mjs) wrote, per skill, the status and
+ * score the student already had — on the server's profile or on main's Path
+ * map — wherever the new scoring gives less. Every reader classifies through
+ * this rule, so the map, the wheel, its card and the planner all honour it,
+ * and the trigger removes it once the student's own evidence reaches it
+ * (masteryScoring.mjs). A floor only ever raises a status.
+ */
+const validFloor = (floor) => (floor && typeof floor === 'object' && !Array.isArray(floor) ? floor : null);
+
 /**
  * The status for one skill's evidence. Inputs are the accumulator facts the
  * server keeps: estimate (0–100), eligible events, effective weight,
@@ -51,7 +77,15 @@ export const classifyMasteryStatus = ({
   effectiveWeight = 0,
   independentSuccesses = 0,
   dokRepresented = [],
+  floor = null,
 } = {}) => {
+  const earned = classifyEarnedStatus({ estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented });
+  const kept = validFloor(floor);
+  // Only a real status raises one: a floor never sets "Not Enough Evidence".
+  return kept && masteryStatusRank(kept.status) > Math.max(0, masteryStatusRank(earned)) ? kept.status : earned;
+};
+
+const classifyEarnedStatus = ({ estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented }) => {
   const rule = MASTERY_RULE;
   if (num(eligibleEvents) < rule.minimumEvents || num(effectiveWeight) < rule.minimumWeight) {
     return MASTERY_STATUS.NOT_ENOUGH_EVIDENCE;
@@ -68,15 +102,26 @@ export const classifyMasteryStatus = ({
   return MASTERY_STATUS.NEEDS_ATTENTION;
 };
 
-/** The facts the rule reads, from a stored Phase 5 mastery profile. */
-export const masteryFactsFromProfile = (profile = {}) => ({
-  estimate: profile?.mastery?.estimate ?? null,
-  eligibleEvents: num(profile?.accumulator?.eligibleEvents ?? profile?.dimensions?.eligibleGradeLevelEvents),
-  effectiveWeight: num(profile?.accumulator?.effectiveWeight ?? profile?.dimensions?.effectiveWeight
-    ?? profile?.dimensions?.eligibleGradeLevelEvents),
-  independentSuccesses: num(profile?.accumulator?.independentSuccesses ?? profile?.dimensions?.independentSuccesses),
-  dokRepresented: doks(profile?.dimensions?.dokRepresented),
-});
+/**
+ * The facts the rule reads, from a stored Phase 5 mastery profile. A floor
+ * lifts the score and the evidence weight to what it guarantees, so a screen
+ * that shows either number agrees with the status.
+ */
+export const masteryFactsFromProfile = (profile = {}) => {
+  const floor = validFloor(profile?.floor);
+  const stored = profile?.mastery?.estimate ?? null;
+  const weight = num(profile?.accumulator?.effectiveWeight ?? profile?.dimensions?.effectiveWeight
+    ?? profile?.dimensions?.eligibleGradeLevelEvents);
+  const floorEstimate = floor && floor.estimate != null && Number.isFinite(Number(floor.estimate)) ? Number(floor.estimate) : null;
+  return {
+    estimate: floorEstimate != null && (stored == null || Number(stored) < floorEstimate) ? floorEstimate : stored,
+    eligibleEvents: num(profile?.accumulator?.eligibleEvents ?? profile?.dimensions?.eligibleGradeLevelEvents),
+    effectiveWeight: floor ? Math.max(weight, num(floor.effectiveWeight)) : weight,
+    independentSuccesses: num(profile?.accumulator?.independentSuccesses ?? profile?.dimensions?.independentSuccesses),
+    dokRepresented: doks(profile?.dimensions?.dokRepresented),
+    floor,
+  };
+};
 
 export const isMasteredProfile = (profile) => (
   classifyMasteryStatus(masteryFactsFromProfile(profile)) === MASTERY_STATUS.MASTERED

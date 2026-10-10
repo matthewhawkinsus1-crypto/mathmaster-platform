@@ -66,22 +66,32 @@ const LEGACY_MASTERED = 0.9;
 const better = (a, b) => (a == null ? b : (b == null ? a : Math.max(a, b)));
 
 /**
- * NO STUDENT LOSES, ON DEPLOY DAY, WHAT MAIN GAVE THEM.
+ * NO STUDENT LOSES, ON DEPLOY DAY, WHAT MAIN GAVE THEM (product decision 8).
  *
- * The server profile counts EVERY attempt as an event, so a question right on
- * the second try reads 50% where the assignment record (one score per
- * question, right on any try = 100%) reads 100%. Fed alone to the Path engine
+ * The server used to count EVERY attempt as an event, so a question right on
+ * the second try read 50% where the assignment record (one score per
+ * question, right on any try = 100%) read 100%. Fed alone to the Path engine
  * it took a student's Mastered status away overnight and locked the skills
- * built on it. Until the server scores each question once (a wave-2 change to
- * server mastery everywhere), the Path engine — map, locks, readiness,
- * Challenge, topic browser, Recommended — reads the MORE FAVOURABLE of the two
- * per skill: the higher number and the better verdict.
+ * built on it, so the Path engine read the MORE FAVOURABLE of the two per
+ * skill while the wheel kept the server's number — and the two disagreed.
  *
- * A skill only Path evidence knows was unproven to main's engine, which never
- * locks on unproven. So such a record adds its Mastered verdict but never a
- * lock and never a lower readiness (`gate: false`).
+ * The server now scores each question once, by its final attempt
+ * (functions/shared/masteryScoring.mjs), and an owner-run backfill rescored
+ * every stored profile, writing a floor wherever main had given the student
+ * more (scripts/backfill-mastery-scoring.mjs). So the bridge is narrowed to
+ * what is still needed:
  *
- * The wheel and the weekly planner keep the server rule (unifiedMastery.js).
+ *   a skill the backfill rescored (`serverScored`) — the unified record as
+ *     it is, which is what the wheel, its card and the planner read: one
+ *     number and one verdict everywhere. The floor already holds what main
+ *     gave.
+ *   any other skill — a student the backfill has not reached yet, or the
+ *     Teacher Path Simulator (no server document) — the more favourable of
+ *     the two, as before.
+ *
+ * Either way, a skill only Path evidence knows was unproven to main's engine,
+ * which never locks on unproven. So such a record adds its Mastered verdict
+ * but never a lock and never a lower readiness (`gate: false`).
  */
 export const favourableMasteryBySkill = ({ legacy = {}, unified = {} } = {}) => {
   const result = {};
@@ -90,6 +100,7 @@ export const favourableMasteryBySkill = ({ legacy = {}, unified = {} } = {}) => 
     const now = unified?.[skillId] || null;
     if (!now) { result[skillId] = old; return; }
     if (!old) { result[skillId] = now.mastered ? now : { ...now, gate: false }; return; }
+    if (now.serverScored === true) { result[skillId] = now; return; }
     const mastered = now.mastered === true || Number(old.mastery) >= LEGACY_MASTERED;
     const oldLeads = Number(old.mastery) > Number(now.mastery);
     result[skillId] = {

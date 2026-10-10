@@ -101,8 +101,13 @@ test('the guard mirrors the trigger thresholds it re-checks (functions/index.js)
   const body = source.slice(start, source.indexOf('\nexports.', start + 10));
   // The trigger classifies with the one Mastered rule (masteryRule.mjs), from
   // the same facts the guard re-checks; the guard reads that rule's numbers.
-  assert.match(body, /const masteryRule = await import\("\.\/shared\/masteryRule\.mjs"\);/);
-  assert.match(body, /const status = masteryRule\.classifyMasteryStatus\(\{\s*estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented,/);
+  // It scores through the shared scorer (masteryScoring.mjs), which builds
+  // the rule's facts from the same accumulator fields the guard re-checks.
+  assert.match(body, /const masteryScoring = await import\("\.\/shared\/masteryScoring\.mjs"\);/);
+  assert.match(body, /masteryScoring\.applyMasteryEvent\(profiles\[code\], facts, code,/);
+  const scorer = readFileSync(new URL('../../functions/shared/masteryScoring.mjs', import.meta.url), 'utf8');
+  assert.match(scorer, /const ruleFacts = \{\s*estimate,\s*eligibleEvents: sums\.eligibleEvents,\s*effectiveWeight: sums\.effectiveWeight,\s*independentSuccesses: sums\.independentSuccesses,\s*dokRepresented,/);
+  assert.match(scorer, /accumulator: sums,/);
   const rules = readFileSync(new URL('../../functions/shared/growthRewardRules.mjs', import.meta.url), 'utf8');
   for (const [constant, field] of [
     ['MASTERED_MIN_ESTIMATE', 'masteredEstimate'],
@@ -111,8 +116,8 @@ test('the guard mirrors the trigger thresholds it re-checks (functions/index.js)
     ['MASTERED_MIN_EFFECTIVE_WEIGHT', 'minimumWeight'],
     ['MASTERED_MIN_DOK', 'masteredDok'],
   ]) assert.match(rules, new RegExp(`const ${constant} = MASTERY_RULE\\.${field};`), constant);
-  assert.match(body, /const code = mathPath\.displayAlignmentKey\(alignmentKey\);/);
-  assert.match(body, /teksCode: code,/);
+  assert.match(scorer, /codes: alignmentKeys\.map\(helpers\.displayAlignmentKey\),/);
+  assert.match(scorer, /teksCode: code,/);
 });
 
 test('200 bare "Mastered" labels — the insider forgery — pay nothing', () => {

@@ -8,11 +8,12 @@
 //
 // The wheel, the skill card and the weekly planner read the profiles built
 // here, and every status comes from the shared rule
-// (functions/shared/masteryRule.mjs) the server trigger uses. The Path engine
-// (map, locks, Challenge, topic browser, Recommended) reads the MORE
-// FAVOURABLE of these and main's assignment record until the server scores
-// each question once (src/platform/path/masteryAdapter.js
-// favourableMasteryBySkill). Pure apart from its inputs: the live app passes
+// (functions/shared/masteryRule.mjs) the server trigger uses. The server now
+// scores each question once (functions/shared/masteryScoring.mjs). For a skill
+// the backfill has rescored, the Path engine (map, locks, Challenge, topic
+// browser, Recommended) reads these very records; for any other it still reads
+// the MORE FAVOURABLE of these and main's assignment record
+// (src/platform/path/masteryAdapter.js favourableMasteryBySkill). Pure apart from its inputs: the live app passes
 // the server document, the Teacher Path Simulator passes none, and both go
 // through the same code.
 
@@ -25,6 +26,7 @@ import {
   classifyMasteryStatus,
   masteryFactsFromProfile,
 } from '../../../functions/shared/masteryRule.mjs';
+import { MASTERY_SCORING_VERSION } from '../../../functions/shared/masteryScoring.mjs';
 
 // Weighted evidence at which the path engine treats mastery as trustworthy.
 // Matches CONFIDENT_ATTEMPTS in the recommendation engine.
@@ -46,7 +48,10 @@ export const mergeMasteryProfile = (fallback = {}, server = {}, schedule = {}) =
       retention: retentionSignal(schedule || {}),
     },
   };
-  merged.mastery.status = classifyMasteryStatus(masteryFactsFromProfile(merged));
+  const facts = masteryFactsFromProfile(merged);
+  // A floor (masteryRule.mjs) lifts the number shown with the status it keeps.
+  if (facts.floor && facts.estimate != null) merged.mastery.estimate = facts.estimate;
+  merged.mastery.status = classifyMasteryStatus(facts);
   return merged;
 };
 
@@ -112,6 +117,11 @@ export const toPathSkillMastery = (profile) => {
     evidenceStrength: clamp01(facts.effectiveWeight / CONFIDENT_EVIDENCE),
     mastered: status === MASTERY_STATUS.MASTERED,
     status,
+    // The server has rescored this skill's whole history, each question once,
+    // and floored it at what the student had on deploy day
+    // (scripts/backfill-mastery-scoring.mjs): its number is the whole truth,
+    // and the Path map reads it as the wheel does (masteryAdapter.js).
+    serverScored: Number(profile?.scoringVersion) >= MASTERY_SCORING_VERSION,
   };
 };
 

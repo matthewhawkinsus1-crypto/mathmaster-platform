@@ -19006,54 +19006,23 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     const studentId = event.params.studentId;
     if (evidence.studentId && String(evidence.studentId) !== String(studentId)) return;
     const eventKey = String(evidence.eventKey || event.params.eventId);
-    const alignmentKeys = [...new Set((evidence.masteryEvidenceKeys?.length ? evidence.masteryEvidenceKeys : evidence.alignmentKeys || [])
-      .map(mathPath.canonicalAlignmentKey)
-      .filter((key) => key.startsWith("texas:")))];
-    if (!alignmentKeys.length) return;
+    // Each QUESTION is one event, scored by its final attempt, as the
+    // assignment record scores it (functions/shared/masteryScoring.mjs): a
+    // question right on the second try reads 100%, not 50%, so the Path map,
+    // the wheel, its card and the weekly planner read the same number.
+    //
+    // The support discount is NOT folded into the weight (that was a real bug:
+    // the 0.85 divided straight back out and a hint on every question still
+    // reached Mastered). WEIGHT is how much an event counts as evidence and
+    // stays in the denominator; CREDIT is what the student demonstrated,
+    // discounted for support. Both live in masteryEventFacts now.
+    const masteryScoring = await import("./shared/masteryScoring.mjs");
+    const facts = masteryScoring.masteryEventFacts(evidence, mathPath, { eventId: event.params.eventId });
+    if (!facts.codes.length) return;
 
     const db = getFirestore();
     const profileRef = db.collection("studentMasteryProfiles").doc(studentId);
     const applicationRef = db.collection("masteryEvidenceApplications").doc(mathPath.opaqueId("mastery", studentId, eventKey));
-    // liveChallenge sits below practice on purpose. The answer is real and the
-    // grader is the same, but one attempt against a countdown with a
-    // leaderboard in view is noisier evidence than the same question at a desk
-    // — a wrong answer may mean "cannot do this" or may mean "ran out of
-    // seconds", and the estimate should not treat those as equally informative.
-    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4, retention: 1.15, liveChallenge: 0.7 }[evidence.source?.activityRole] || 1;
-    const modified = Boolean(evidence.supportUsage?.modified) || Boolean(evidence.supportUsage?.modifications?.length);
-    const independent = mathPath.mathematicalIndependence(evidence.supportUsage || {});
-    const score = Math.max(0, Math.min(1, Number(evidence.performance?.score) || 0));
-
-    // THE BUG THIS REPLACED, and it was not a small one.
-    //
-    // The support discount used to be folded into `weight`:
-    //
-    //     weight = roleWeight * (independent ? 1 : 0.85)
-    //     estimate = Σ(score × weight) / Σ(weight)
-    //
-    // The 0.85 appears in BOTH the numerator and the denominator, so for a
-    // correct answer (score = 1) it divides straight back out. A student who
-    // took a hint on every single question reached an estimate of 100 and was
-    // labelled Mastered — exactly the "clicking through Path inflates mastery"
-    // failure the design forbids.
-    //
-    // The fix separates two different questions that were being answered with
-    // one number:
-    //
-    //   WEIGHT  — how much this event counts as evidence at all. Stays in the
-    //             denominator. A hinted answer is still evidence.
-    //   CREDIT  — what the student actually demonstrated. Discounted for
-    //             support, so a supported success is worth less than an
-    //             independent one no matter how many of them there are.
-    const weight = modified ? 0 : roleWeight;
-    // Deliberately below the Mastered threshold: a student whose every success
-    // needed the platform to supply the mathematical idea has not shown mastery
-    // of it, and no quantity of such successes should add up to that claim.
-    const SUPPORTED_CREDIT = 0.75;
-    const creditedScore = independent ? score : score * SUPPORTED_CREDIT;
-    const dok = Number(evidence.questionSnapshot?.dok) || null;
-    const familyId = evidence.questionSnapshot?.familyId || null;
-    const masteryRule = await import("./shared/masteryRule.mjs");
     // Growth over time: one compact snapshot per week, written in this same
     // transaction from the same profiles (functions/shared/masteryHistory.mjs).
     const masteryHistory = await import("./shared/masteryHistory.mjs");
@@ -19066,58 +19035,33 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
         transaction.get(historyRef),
       ]);
       if (application.exists) return;
-      const profiles = profileSnapshot.exists ? { ...(profileSnapshot.data()?.profiles || {}) } : {};
+      const stored = profileSnapshot.exists ? (profileSnapshot.data() || {}) : {};
+      const profiles = { ...(stored.profiles || {}) };
+      // A document the backfill has rescored marks every entry it touches, so
+      // the browser knows this skill's number is the server's whole truth
+      // (src/platform/path/masteryAdapter.js).
+      const markScored = Number(stored.masteryScoring?.version) >= masteryScoring.MASTERY_SCORING_VERSION;
 
-      alignmentKeys.forEach((alignmentKey) => {
-        const code = mathPath.displayAlignmentKey(alignmentKey);
-        const previous = profiles[code] || {};
-        const accumulator = previous.accumulator || {};
-        const effectiveWeight = Number(accumulator.effectiveWeight || 0) + weight;
-        const weightedScoreSum = Number(accumulator.weightedScoreSum || 0) + creditedScore * weight;
-        const eligibleEvents = Number(accumulator.eligibleEvents || 0) + (weight > 0 ? 1 : 0);
-        const modifiedEvents = Number(accumulator.modifiedEvents || 0) + (modified ? 1 : 0);
-        // Independent successes are counted separately, because "can do this"
-        // and "can do this when the platform supplies the idea" are different
-        // claims and the mastery label is only allowed to make the first one.
-        const independentSuccesses = Number(accumulator.independentSuccesses || 0)
-          + (evidence.performance?.isCorrect && independent && weight > 0 ? 1 : 0);
-        const dokRepresented = [...new Set([...(previous.dimensions?.dokRepresented || []), ...(dok ? [dok] : [])])].sort();
-        const familiesRepresented = [...new Set([...(previous.dimensions?.familiesRepresented || []), ...(familyId ? [familyId] : [])])];
-        const estimate = effectiveWeight > 0 ? Math.round((weightedScoreSum / effectiveWeight) * 100) : null;
-        // ONE definition of Mastered (functions/shared/masteryRule.mjs), read
-        // by the wheel, the Path map, Recommended and the prerequisite locks.
-        // Mastered additionally requires evidence the student did the
-        // mathematics themselves: a high estimate assembled entirely from
-        // supported successes must not read as mastery.
-        const status = masteryRule.classifyMasteryStatus({
-          estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented,
-        });
-        const confidence = eligibleEvents >= 8 && effectiveWeight >= 5 && dokRepresented.length >= 2 ? "High" : eligibleEvents >= 4 && effectiveWeight >= 2.4 ? "Medium" : "Low";
-        const lastIndependentSuccessAt = evidence.performance?.isCorrect && independent
-          ? Math.max(Number(previous.dimensions?.lastIndependentSuccessAt || 0), Number(evidence.occurredAt || 0))
-          : previous.dimensions?.lastIndependentSuccessAt || null;
-        profiles[code] = {
-          ...previous,
-          teksCode: code,
-          mastery: { estimate, observedPerformance: estimate, status, confidence },
-          signals: { ...(previous.signals || {}), breadth: dokRepresented.length >= 2 ? "broad" : "developing", retention: previous.signals?.retention || "stable" },
-          dimensions: { eligibleGradeLevelEvents: eligibleEvents, modifiedEvidenceEvents: modifiedEvents, independentSuccesses, dokRepresented, familiesRepresented, lastIndependentSuccessAt },
-          accumulator: { effectiveWeight, weightedScoreSum, eligibleEvents, modifiedEvents, independentSuccesses },
-          recommendation: { reason: status === "Needs Attention" ? "Rebuild this skill with targeted grade-level support." : "Continue building independent accuracy and breadth." },
-          updatedAt: Date.now(),
-        };
+      // ONE definition of Mastered (functions/shared/masteryRule.mjs), read
+      // by the wheel, the Path map, Recommended and the prerequisite locks.
+      facts.codes.forEach((code) => {
+        profiles[code] = masteryScoring.applyMasteryEvent(profiles[code], facts, code, { now: Date.now(), markScored }).entry;
       });
 
       // The mastery profile inherits the evidence's authorization context, so
       // a derived record is never readable by anyone the source was not. The
       // history below inherits the very same context object.
       const authorization = masteryHistory.derivedMasteryAuthorization(evidence);
+      // Whole, not merged: a merge would keep a floor the student has reached
+      // and question rows dropped from the bounded list. `stored` was read in
+      // this transaction, so nothing else on the document is lost.
       transaction.set(profileRef, {
+        ...stored,
         profiles,
         studentId,
         ...authorization,
         updatedAt: Date.now(),
-      }, { merge: true });
+      });
       // An addition, never a gate: if a snapshot cannot be built, the profile
       // update above still lands and the history simply skips this answer.
       let historyDocument = null;
