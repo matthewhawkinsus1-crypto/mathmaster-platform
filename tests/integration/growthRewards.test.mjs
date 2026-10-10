@@ -464,3 +464,23 @@ test('abandoned Path sessions cannot crowd the completed ones out of the read', 
   const result = await growth.syncStudentGrowthRewards(db, { studentId, nowMs: Date.parse('2026-10-21T15:00:00Z') });
   assert.deepEqual(result.delivered.map((award) => [award.ruleId, award.sourceId]), [['weeklyPathGoal', weekAt(0)]]);
 });
+
+test('every Test Cycle record is read: a retest past the first page is still paid', async () => {
+  const { studentId } = await seedStudent();
+  // More records than one page, with ids that sort before the released retest.
+  for (let start = 0; start < 410; start += 205) {
+    const batch = db.batch();
+    for (let index = start; index < start + 205; index += 1) {
+      batch.set(db.collection('testCycleRecords').doc(`a-pending-${studentId}-${String(index).padStart(3, '0')}`), {
+        studentId, assignmentId: `a-pending-${index}`, test: { state: 'scheduled' },
+      });
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  const result = await sync(studentId);
+  assert.deepEqual(
+    result.delivered.map((award) => award.ruleId).filter((ruleId) => ruleId !== 'weeklyPathGoal').sort(),
+    ['correctionsCompleted', 'correctionsCompleted', 'retestPassed', 'retestPassed'],
+  );
+});

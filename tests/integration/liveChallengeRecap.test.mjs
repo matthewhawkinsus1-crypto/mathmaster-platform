@@ -347,3 +347,38 @@ test('(b) a replayed question\'s solution is held until its replay has closed', 
   assert.equal(replayRound.isCorrect, true);
   assert.equal(replayRound.solutionAvailable, true);
 });
+
+test('(e) a personal best is all-time: absent invitations never push an older record out of reach', async () => {
+  const recap = require(path.join(repo, 'functions/lib/liveChallengeRecap.js'));
+  const STUDENT = 'recap-history-student';
+  const HISTORY_CLASS = 'recap-history-class';
+  const result = (roomId, finalizedAtMs, { joined = true, correctCount = 0 } = {}) => ({
+    status: 'finished',
+    classId: HISTORY_CLASS,
+    modeId: 'classic',
+    scheduledRoundCount: 10,
+    finalizedAtMs,
+    studentIds: [STUDENT],
+    recognitions: [],
+    standings: [{ studentId: STUDENT, joined, correctCount, bestStreak: 0, roundOutcomes: [] }],
+  });
+  const base = 1_700_000_000_000;
+  const batch = db.batch();
+  const docs = [['recap-history-best', result('recap-history-best', base, { correctCount: 9 })]];
+  // Thirty newer invitations the student never joined.
+  for (let index = 0; index < 30; index += 1) {
+    docs.push([`recap-history-absent-${index}`, result(`recap-history-absent-${index}`, base + 1_000 + index, { joined: false })]);
+  }
+  docs.forEach(([id, data]) => batch.set(db.collection('liveChallengeMatchResults').doc(id), data));
+  await batch.commit();
+
+  // Paged reads return the whole history, newest first.
+  const all = await recap.previousMatchResults(db, { studentId: STUDENT, beforeMs: base + 10_000, pageSize: 7 });
+  assert.equal(all.length, 31);
+  assert.equal(all[all.length - 1].roomId, 'recap-history-best');
+
+  // 7 correct now does not beat the 9 from before the absences; 10 does.
+  const now = (correctCount) => ({ ...result('recap-history-now', base + 10_000, { correctCount }), roomId: 'recap-history-now' });
+  assert.deepEqual(await recap.personalBestStudentIds(db, now(7)), []);
+  assert.deepEqual(await recap.personalBestStudentIds(db, now(10)), [STUDENT]);
+});

@@ -4,9 +4,9 @@
 // Read aloud, and a final card that leads with what the student did.
 //
 // HOW TO RUN (one command; it starts the emulator, the bridge and Vite). The
-// ports are shared with the other Live Challenge harnesses, so hold the lock:
+// ports are shared with the other emulator suites, so run one at a time:
 //
-//   flock /tmp/mm-emulator.lock node tests/browser/liveChallengeTeachingQa.mjs
+//   node tests/browser/liveChallengeTeachingQa.mjs
 //   TEACHING_QA_SHOTS=/some/dir …        # where screenshots go
 //
 // THE GAME. A Standard Challenge, three rounds of 20 s, Second Chance on, in a
@@ -46,7 +46,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
+// PLAYWRIGHT_MODULE, else the project's playwright (CI installs it), else
+// the global install of a development container.
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
+  .catch(() => import('/opt/node22/lib/node_modules/playwright/index.mjs'));
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -429,14 +432,15 @@ try {
   check(await waitForText(ben, 'Correct!', 10_000), 'Ben\'s answer inside his extended time was not accepted', 'Ben\'s answer inside his extended time was accepted');
   await closeRound(roomId);
 
-  /* ---- round 3 results: a worked solution (round 3 will not come back) ---- */
+  /* ---- round 3 results: the solution is held. Second Chance rounds follow,
+   * and every scheduled round waits for the last of them, so which rounds are
+   * held never says which questions come back. ---- */
   check(await waitForStage(ana, 'roundResults', 15_000), 'Ana never reached round 3 results', 'Ana reached round 3 results');
-  check(await waitForSelector(ana, '[data-mm-round-solution="ready"]', 10_000), 'round 3 results show no worked solution', 'round 3 results show the worked solution');
-  await ana.page.locator('[data-mm-round-solution="ready"]').first().scrollIntoViewIfNeeded().catch(() => {});
-  await shot(ana, 'S06-results-worked-solution-1366');
+  check(await waitForSelector(ana, '[data-mm-round-solution="held"]', 10_000), 'round 3 results do not say the solution is held for Second Chance', 'round 3 results hold the solution until Second Chance is over');
+  check(await ana.page.locator('[data-mm-round-solution="ready"]').count() === 0, 'round 3 results show a worked solution before Second Chance', 'no worked solution before Second Chance');
+  await shot(ana, 'S06-results-solution-held-1366');
   await waitForStage(ben, 'roundResults', 10_000);
-  await ben.page.locator('[data-mm-round-solution="ready"]').first().scrollIntoViewIfNeeded().catch(() => {});
-  await shot(ben, 'S06-results-worked-solution-390');
+  await shot(ben, 'S06-results-solution-held-390');
 
   /* ---- Second Chance rounds, then the end ---- */
   for (let replay = 0; replay < 4; replay += 1) {

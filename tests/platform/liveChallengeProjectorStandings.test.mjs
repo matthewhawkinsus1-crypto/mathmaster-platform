@@ -81,6 +81,15 @@ test('ties at the bottom: a hard round with 2 of 24 right projects only the two'
   // the last ranked group is hidden with them.
   const round = publicStandingsRows(TOP_FEW, ranked([1, 2, 3, 3, null, null]), { spaceForRows: 10 });
   assert.deepEqual(keysOf(round), ['p1', 'p2']);
+  // A round's table that says what each player earned: when every answer
+  // tied (six right, two no answer), the six are not last and are projected.
+  const withPoints = (ranks, points) => ranked(ranks).map((row, index) => ({ ...row, roundPoints: points[index] }));
+  const allRight = publicStandingsRows(TOP_FEW, withPoints([1, 1, 1, 1, 1, 1, null, null], [100, 100, 100, 100, 100, 100, 0, 0]), { spaceForRows: 10 });
+  assert.deepEqual(keysOf(allRight), ['p1', 'p2', 'p3', 'p4', 'p5']);
+  assert.equal(allRight.hiddenCount, 3);
+  // A ranked row that earned nothing is last with the non-answers.
+  assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, withPoints([1, 2, 3, 3, null, null], [90, 80, 0, 0, 0, 0]), { spaceForRows: 10 })), ['p1', 'p2']);
+  assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, withPoints([1, 2, 3, null, null], [90, 80, 70, 0, 0]), { spaceForRows: 10 })), ['p1', 'p2', 'p3']);
 });
 
 test('nobody is named by elimination: never exactly one player unshown', () => {

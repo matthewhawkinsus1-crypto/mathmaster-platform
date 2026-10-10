@@ -40,8 +40,6 @@ export const PERSONAL_BEST_ORDER = Object.freeze([
 ]);
 
 export const MIN_ACCURACY_ANSWERED = 3;
-// How many earlier matches are compared against (the server's read cap).
-export const PERSONAL_BEST_HISTORY_LIMIT = 25;
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const isInt = (value) => typeof value === 'number' && Number.isInteger(value);
@@ -157,8 +155,7 @@ export const personalBestsFor = ({ matchResult = {}, studentId, previousResults 
       && (!Number.isFinite(before) || Number(result.finalizedAtMs) < before))
     .map((result) => ({ result, standing: joinedStanding(result, id) }))
     .filter((entry) => entry.standing)
-    .sort((a, b) => Number(b.result.finalizedAtMs) - Number(a.result.finalizedAtMs))
-    .slice(0, PERSONAL_BEST_HISTORY_LIMIT);
+    .sort((a, b) => Number(b.result.finalizedAtMs) - Number(a.result.finalizedAtMs));
   if (!earlier.length) return Object.freeze({ firstGame: true, personalBests: [] });
 
   const now = personalMetrics(matchResult, standing);

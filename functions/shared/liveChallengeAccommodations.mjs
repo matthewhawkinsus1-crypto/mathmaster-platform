@@ -12,8 +12,9 @@
  * Who has extended time is never public. The student's own multiplier lives
  * on their private player record and their own invite (readable by them
  * only). The room carries only whether anyone joined has extended time,
- * set when a round opens (`extendedTimeInPlay`) — never in a commit that also
- * changes one student's public row — so the projector can say "a few students
+ * set when a round opens (`extendedTimeInPlay`), or — when such a student
+ * joined mid-round — by the host's close that the round's hold refuses; never
+ * in a commit that also changes one student's public row — so the projector can say "a few students
  * are still finishing", never who. An answer given after the class's
  * deadline reaches the student's public row only when the round closes.
  *

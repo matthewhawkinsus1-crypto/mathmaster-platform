@@ -2,9 +2,10 @@
 // the teacher's catalog editor and pending requests, and the student's My
 // Rewards — at a Chromebook (1366×768) and a phone (390×844).
 //
-// HOW TO RUN (one command, it starts everything; hold the shared lock):
+// HOW TO RUN (one command, it starts everything; it uses the emulator's fixed
+// ports, so run one emulator suite at a time):
 //
-//   flock /tmp/mm-emulator.lock node tests/browser/classRewardsQa.mjs [screenshotDir]
+//   node tests/browser/classRewardsQa.mjs [screenshotDir]
 //
 // What is real: the screens (the app's own components), every Firestore read
 // and listener (against the emulator), and every class reward transaction —
@@ -26,7 +27,10 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 
 const require = createRequire(import.meta.url);
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
+// PLAYWRIGHT_MODULE, else the project's playwright (CI installs it), else
+// the global install of a development container.
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
+  .catch(() => import('/opt/node22/lib/node_modules/playwright/index.mjs'));
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');

@@ -27,14 +27,16 @@
  * award ids are deterministic, a sync that runs late pays exactly what an
  * immediate one would have.
  *
- * Every read is bounded: at most MAX_TEST_CYCLE_RECORDS records, one
+ * Reads are bounded by the student's own records: every Test Cycle record,
+ * a page of TEST_CYCLE_PAGE_SIZE at a time (a released retest or a finished
+ * correction can sit anywhere in the set, so none is skipped), one
  * assignment per record, at most WEEK_LOOKBACK snapshot ids and their streak
  * award documents, the completed Path sessions of those weeks, one mastery
  * profile with the ledger documents of its newly Mastered skills, and one
  * state document.
  */
 
-const { FieldValue } = require("firebase-admin/firestore");
+const { FieldPath, FieldValue } = require("firebase-admin/firestore");
 const { HttpsError } = require("firebase-functions/v2/https");
 
 const TEST_CYCLE_RECORDS = "testCycleRecords";
@@ -48,7 +50,7 @@ const ACCOUNTS = "classPointAccounts";
 // of the last sync, nothing a student or teacher needs to read.
 const GROWTH_STATE = "growthRewardState";
 
-const MAX_TEST_CYCLE_RECORDS = 200;
+const TEST_CYCLE_PAGE_SIZE = 200;
 // A year of weekly goals. Older weeks are settled: anything they earned was
 // paid by an earlier sync (see the streak's run-start check for the edge).
 const WEEK_LOOKBACK = 52;
@@ -225,12 +227,23 @@ async function deliverGrowthAward(db, award, { nowMs = Date.now() } = {}) {
 }
 
 /** The student's Test Cycle records that could hold a growth event, with their assignments. */
-async function loadTestCycles(db, studentId) {
-  const snapshot = await db.collection(TEST_CYCLE_RECORDS)
+async function loadTestCycles(db, studentId, { pageSize = TEST_CYCLE_PAGE_SIZE } = {}) {
+  // Every record, in document-id order a page at a time (an equality filter
+  // ordered by id needs no composite index): a sync must reach an event in
+  // any record, or the student would never be paid for it.
+  const query = db.collection(TEST_CYCLE_RECORDS)
     .where("studentId", "==", studentId)
-    .limit(MAX_TEST_CYCLE_RECORDS)
-    .get();
-  const records = snapshot.docs.map((entry) => entry.data() || {}).filter((record) => (
+    .orderBy(FieldPath.documentId())
+    .limit(pageSize);
+  const docs = [];
+  for (let cursor = null; ;) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await (cursor ? query.startAfter(cursor) : query).get();
+    docs.push(...snapshot.docs);
+    if (snapshot.size < pageSize) break;
+    cursor = snapshot.docs[snapshot.docs.length - 1];
+  }
+  const records = docs.map((entry) => entry.data() || {}).filter((record) => (
     record.retest?.state === "released"
     || record.test?.state === "released"
     || record.corrections?.complete === true

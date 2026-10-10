@@ -11649,6 +11649,23 @@ function lifecycleHttpsError(plan) {
   );
 }
 
+/**
+ * A refused round command. When the refusal is a round held past the class's
+ * deadline for extended time, the room learns `extendedTimeInPlay` here if
+ * the round's opening did not set it (a student with extended time joined
+ * mid-round): the console and projector then say "still finishing" and offer
+ * End Round Now, not a frozen "Time!". The write belongs to the host's close,
+ * not to any student's row, and says nothing the held round does not already
+ * show. Returns the refusal for the caller to throw after the commit.
+ */
+function refuseLiveChallengeRoundCommand(transaction, { roomRef, room, plan }) {
+  if (plan?.readiness === "extended_time" && room?.extendedTimeInPlay !== true) {
+    transaction.set(roomRef, { extendedTimeInPlay: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { refused: plan };
+  }
+  throw lifecycleHttpsError(plan);
+}
+
 function playersFromSnapshot(snapshot) {
   return snapshot.docs.map((playerDoc) => ({ studentId: playerDoc.id, ...playerDoc.data() }));
 }
@@ -12861,7 +12878,7 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
       force,
     });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
-    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) return refuseLiveChallengeRoundCommand(transaction, { roomRef, room: currentRoom, plan });
     // As in advance: a close that raced a Finish is answered from the room.
     if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
     const privateState = latestPrivate.data() || {};
@@ -12903,6 +12920,7 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
     }, { merge: true });
     return { roundResult: engine.results.publicRoundSummary(roundResult) };
   });
+  if (outcome.refused) throw lifecycleHttpsError(outcome.refused);
   if (outcome.alreadyApplied) return liveChallengeRoundResponse(roomId, outcome.room, { alreadyApplied: true });
   return { roomId, roundIndex: outcome.roundResult.roundIndex, roundState: lifecycle.ROUND_STATE.CLOSED, roundResult: outcome.roundResult };
 });
@@ -12966,7 +12984,7 @@ exports.advanceLiveChallenge = onCall(async (request) => {
       nowMs,
     });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
-    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) return refuseLiveChallengeRoundCommand(transaction, { roomRef, room: currentRoom, plan });
     // Required only by a command that changes the match: a press that raced a
     // Finish was answered above, from the room, even after the finished
     // match's effects deleted its private state.
@@ -13049,6 +13067,7 @@ exports.advanceLiveChallenge = onCall(async (request) => {
     };
   });
 
+  if (outcome.refused) throw lifecycleHttpsError(outcome.refused);
   if (outcome.alreadyApplied) return liveChallengeRoundResponse(roomId, outcome.room, { alreadyApplied: true });
   if (outcome.finished) {
     await runLiveChallengeFinalizationEffects(db, roomId).catch((error) => logger.error(

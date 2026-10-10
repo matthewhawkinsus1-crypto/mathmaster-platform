@@ -232,3 +232,31 @@ test('a round waits for an extended-time student who has not answered until thei
   assert.equal((await roomRef(GC).collection('solutions').doc('0').get()).exists, true);
   await call('finishLiveChallenge', teacher({ roomId: GC }));
 });
+
+test('a student with extended time who joins mid-round: the held close, not the join, tells the room', async () => {
+  const GD = await create({ roundCount: 1, roundSeconds: 15 });
+  await call('joinLiveChallenge', student(R1, { roomId: GD }));
+  await call('startLiveChallenge', teacher({ roomId: GD }));
+  assert.equal((await roomOf(GD)).extendedTimeInPlay, false, 'nobody with extended time when the round opened');
+  await waitForRoundStart(GD);
+  const beforeJoin = await roomOf(GD);
+  await call('joinLiveChallenge', student(R2, { roomId: GD }));
+  const afterJoin = await roomOf(GD);
+  assert.equal(afterJoin.extendedTimeInPlay, false);
+  assert.equal(millis(afterJoin.updatedAt), millis(beforeJoin.updatedAt), 'the join did not write the room');
+  await answer(GD, R1, { correct: true });
+  await sleep(Math.max(0, millis(afterJoin.endsAt) - Date.now() + 1_500));
+  // The host's close at the class's deadline is refused for R2's time, and
+  // the room learns that someone is still finishing.
+  const held = await failureOf(roundCommand('closeLiveChallengeRound', GD));
+  assert.equal(held?.details?.readiness, 'extended_time');
+  const waiting = await roomOf(GD);
+  assert.equal(waiting.extendedTimeInPlay, true);
+  assert.equal(waiting.roundState, 'open');
+  // A second refusal changes nothing more.
+  await failureOf(roundCommand('closeLiveChallengeRound', GD));
+  assert.equal(millis((await roomOf(GD)).updatedAt), millis(waiting.updatedAt));
+  await roundCommand('closeLiveChallengeRound', GD, { force: true });
+  assert.equal((await roomOf(GD)).roundState, 'closed');
+  await call('finishLiveChallenge', teacher({ roomId: GD }));
+});

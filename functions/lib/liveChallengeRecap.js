@@ -27,8 +27,9 @@ const PRIVATE = "liveChallengePrivate";
 const INVITES = "liveChallengeInvites";
 // A match has at most a few dozen rounds; this bounds the solution reads.
 const MAX_RECAP_ROUNDS = 60;
-// Personal-best history reads run a few students at a time.
+// Personal-best history reads run a few students at a time, a page at a time.
 const HISTORY_CONCURRENCY = 8;
+const HISTORY_PAGE_SIZE = 100;
 
 let modulesPromise = null;
 function recapModules() {
@@ -51,23 +52,32 @@ function recapModules() {
  * BEFORE `beforeMs`, so a rewards effect retried tomorrow — after the student
  * has played again — reads the same history it read today. Served by the
  * (studentIds CONTAINS, finalizedAtMs DESC) index in firestore.indexes.json.
+ *
+ * The WHOLE history, a page at a time: a personal best is all-time, and
+ * `studentIds` also lists matches the student was invited to and never
+ * joined, so any cut-off could drop the record a new result has to beat.
  */
-async function previousMatchResults(db, { studentId, beforeMs, limit = 25 }) {
+async function previousMatchResults(db, { studentId, beforeMs, pageSize = HISTORY_PAGE_SIZE }) {
   if (!studentId || !Number.isFinite(Number(beforeMs))) return [];
-  const snapshot = await db.collection(MATCH_RESULTS)
+  const query = db.collection(MATCH_RESULTS)
     .where("studentIds", "array-contains", String(studentId))
     .where("finalizedAtMs", "<", Number(beforeMs))
     .orderBy("finalizedAtMs", "desc")
-    .limit(limit)
-    .get();
-  return snapshot.docs.map((doc) => ({ roomId: doc.id, ...doc.data() }));
+    .limit(pageSize);
+  const results = [];
+  let cursor = null;
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await (cursor ? query.startAfter(cursor) : query).get();
+    snapshot.docs.forEach((doc) => results.push({ roomId: doc.id, ...doc.data() }));
+    if (snapshot.size < pageSize) return results;
+    cursor = snapshot.docs[snapshot.docs.length - 1];
+  }
 }
 
 async function personalBestsOf(db, result, studentId) {
   const { personalBests } = await recapModules();
-  const previousResults = await previousMatchResults(db, {
-    studentId, beforeMs: result.finalizedAtMs, limit: personalBests.PERSONAL_BEST_HISTORY_LIMIT,
-  });
+  const previousResults = await previousMatchResults(db, { studentId, beforeMs: result.finalizedAtMs });
   return personalBests.personalBestsFor({ matchResult: result, studentId, previousResults });
 }
 

@@ -148,6 +148,24 @@ export const lastRankOf = (rows = []) => {
 };
 
 /**
+ * The rank where a list's last group starts. A row with no rank (no answer
+ * this round) is in it. When the rows say what each player earned this round
+ * (`roundPoints`, a round's table), the ranked rows that earned nothing join
+ * it, and a class that all earned something stays above it, so a round in
+ * which every answer tied is still projected. Without points, the last
+ * ranked group is assumed to have earned no more than a non-answer.
+ */
+const lastGroupRank = (rows) => {
+  const worst = lastRankOf(rows);
+  if (worst === null) return 0;
+  const ranked = rows.filter((row) => Number.isFinite(rankOf(row)));
+  if (ranked.length === rows.length) return worst;
+  if (!ranked.every((row) => Number.isFinite(Number(row?.roundPoints)) && row.roundPoints !== null)) return worst;
+  const earnedNothing = ranked.filter((row) => Number(row.roundPoints) <= 0).map(rankOf);
+  return earnedNothing.length ? Math.min(...earnedNothing) : worst + 1;
+};
+
+/**
  * One public list. `rows` are in standing order (the engine's). Returns the
  * classmates' rows it may show (in order; a student's own row stays where it
  * falls), the viewer's own row when it falls outside them, how many players
@@ -176,7 +194,7 @@ export const publicStandingsRows = (room = {}, rows = [], {
     // whole class) or the rows in hand. A row with no rank (no answer this
     // round) sits with the last group: it earned no more than they did.
     const given = Number(lastRank);
-    const last = Math.max(lastRankOf(all) ?? 0, Number.isInteger(given) && given >= 1 ? given : 0);
+    const last = Math.max(lastGroupRank(all), Number.isInteger(given) && given >= 1 ? given : 0);
     // Rule 1, then rule 3: the standing order is by rank, so the rows above
     // the last rank are a prefix.
     shown = [];
@@ -282,7 +300,8 @@ export const podiumRecognitionRows = (room = {}) => {
  * EXTENDED TIME (functions/shared/liveChallengeAccommodations.mjs). The class's
  * deadline has passed but the round is still open because a student with
  * extended time has not finished. The room says only that someone has more
- * time (`extendedTimeInPlay`, set when the round opened — never who) — and so do the screens: "A few
+ * time (`extendedTimeInPlay`, set when the round opened, or by the host's
+ * refused close when a student with it joined mid-round — never who) — and so do the screens: "A few
  * students are still finishing", not a frozen "Time!". Only a synchronized
  * question round is extended (never a Graph Feature Rush), and once everyone
  * has answered there is nobody left to wait for.

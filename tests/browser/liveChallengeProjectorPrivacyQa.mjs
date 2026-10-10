@@ -4,9 +4,9 @@
 // "Projector shows" choice.
 //
 // HOW TO RUN (one command; it starts the emulator, the bridge and Vite). The
-// ports are shared with the other Live Challenge harnesses, so hold the lock:
+// ports are shared with the other emulator suites, so run one at a time:
 //
-//   flock /tmp/mm-emulator.lock node tests/browser/liveChallengeProjectorPrivacyQa.mjs
+//   node tests/browser/liveChallengeProjectorPrivacyQa.mjs
 //   PROJECTOR_QA_SHOTS=/some/dir …        # where screenshots go
 //
 // THE GAMES. A class of eight, all bot students answering through the real
@@ -49,7 +49,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
+// PLAYWRIGHT_MODULE, else the project's playwright (CI installs it), else
+// the global install of a development container.
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
+  .catch(() => import('/opt/node22/lib/node_modules/playwright/index.mjs'));
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -355,9 +358,25 @@ const shot = async (handle, name) => {
   await handle.page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: false, animations: 'disabled' }).catch(() => {});
   log(`  · screenshot ${name}.png`);
 };
+// The create panel re-renders as its class loads (a reload, a slow CI
+// runner), which can detach a select mid-action: retry until the value holds.
 const selectInLabel = async (handle, labelStart, value) => {
-  await handle.page.locator('label').filter({ hasText: new RegExp(`^${labelStart}`) }).locator('select').first().selectOption(String(value));
+  const select = () => handle.page.locator('label').filter({ hasText: new RegExp(`^${labelStart}`) }).locator('select').first();
+  let lastError = null;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      await select().selectOption(String(value), { timeout: 5_000 });
+      if (await select().inputValue({ timeout: 2_000 }) === String(value)) return;
+    } catch (error) {
+      lastError = error;
+    }
+    await wait(500);
+  }
+  throw lastError || new Error(`${labelStart} would not keep ${value}`);
 };
+// The board on screen after everyone answered: the round closes itself, so the
+// live board may already have become the standings after the round.
+const STANDINGS_ON_SCREEN = '[aria-label="Live standings"] [data-mm-standing], [aria-label="Standings after this round"] [data-mm-standing]';
 const keysIn = (handle, selector) => handle.page.locator(selector).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-mm-standing') || node.getAttribute('data-mm-round-result')));
 const overflowX = (handle) => handle.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 const confirmDialog = async (handle, label) => {
@@ -367,7 +386,17 @@ const confirmDialog = async (handle, label) => {
 };
 
 const createClassic = async (teacher, { standingsDisplay = null, seconds = 20 } = {}) => {
-  await teacher.page.locator('text=Create a challenge').first().waitFor({ timeout: 60_000 });
+  // A console reopened on an ended room (a reload after Play Again was
+  // cancelled) offers New Challenge first, as a teacher would see it.
+  // The console may switch to it a moment after the create form showed, so
+  // the form must hold for a second.
+  const fresh = teacher.page.getByRole('button', { name: 'New Challenge', exact: true });
+  const classSelect = teacher.page.locator('label').filter({ hasText: /^Class/ }).locator('select').first();
+  for (let held = 0, waited = 0; held < 2 && waited < 120; waited += 1) {
+    if (await fresh.isVisible().catch(() => false)) { await fresh.click().catch(() => {}); held = 0; }
+    else held = await classSelect.isVisible().catch(() => false) ? held + 1 : 0;
+    await wait(500);
+  }
   await selectInLabel(teacher, 'Class', CLASS_ID);
   await selectInLabel(teacher, 'Game type', 'standard');
   await selectInLabel(teacher, 'Rounds', 5);
@@ -664,7 +693,7 @@ try {
   const tableWinner = tableLive.find((row) => row.rank === 1);
   const tableLast = tableLive.filter((row) => row.rank === tableLive[tableLive.length - 1].rank);
   check(tableLast.length === 3, `the table's bottom is ${tableLast.length} players (expected 3 tied)`, 'three players tie for last at the table');
-  const tableLiveKeys = await keysIn(teacher, '[aria-label="Live standings"] [data-mm-standing]');
+  const tableLiveKeys = await keysIn(teacher, STANDINGS_ON_SCREEN);
   check(JSON.stringify(tableLiveKeys) === JSON.stringify([tableWinner?.playerKey]), `the table's live board shows ${tableLiveKeys.length} rows (expected the winner only)`, 'the table\'s live board shows the winner only');
   check(await waitForText(teacher, 'and 3 more players · everyone sees their own place on their device', 3_000), 'the table\'s live board does not say "and 3 more players"', 'the table\'s live board says "and 3 more players · everyone sees their own place on their device"');
   text = await textOf(teacher);
@@ -711,10 +740,14 @@ try {
   await toProjector(teacher);
   await waitForAttr(teacher, '[data-mm-lobby-count]', 'data-mm-lobby-count', '3', 15_000);
   await startFromProjector(teacher, threeId);
-  for (const [index, id] of THREE.entries()) await botAnswer(threeId, id, { correct: true, humanElapsedMs: 2_000 + index * 1_500 });
-  await wait(1_500);
+  // Speed is scored in whole seconds of the server's time, so three places
+  // need answers that arrive seconds apart.
+  for (const id of THREE) {
+    await botAnswer(threeId, id, { correct: true, humanElapsedMs: 0 });
+    await wait(2_100);
+  }
   const threeLive = await standingsOf(threeId);
-  const threeLiveKeys = await keysIn(teacher, '[aria-label="Live standings"] [data-mm-standing]');
+  const threeLiveKeys = await keysIn(teacher, STANDINGS_ON_SCREEN);
   check(threeLive.length === 3 && new Set(threeLive.map((row) => row.rank)).size === 3, `the three ranks are ${threeLive.map((row) => row.rank).join(',')}`, 'three players, three places');
   check(JSON.stringify(threeLiveKeys) === JSON.stringify([threeLive[0].playerKey]), `the live board of three shows ${threeLiveKeys.length} rows (expected 1st only)`, 'the live board of three shows 1st only (2nd would name 3rd by elimination)');
   await shot(teacher, 'G01-three-live');
