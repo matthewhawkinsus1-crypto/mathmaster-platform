@@ -326,8 +326,21 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // After the final grading cutoff the whole assignment becomes voluntary
 // Practice Mode. At that point teacher section locks no longer hide content —
 // students may revisit everything, but none of it writes grades/evidence.
+//
+// A PREREQUISITE MET EARLY OPENS A SCHEDULED ASSIGNMENT (prerequisiteAccess):
+// "opens when the prerequisite is met, or at the release date, whichever comes
+// first". Every assignment-level gate (entry, the PDF, availability, the Today
+// rule) already lets `prerequisiteMet` through `isScheduled`; this one did not,
+// so the lesson read "opens later" and entry found no section to land on. When
+// the caller passes the student's `classworkGradesByAssignment` and the
+// prerequisite is met, the section is decided by the teacher's lock exactly as
+// on an open assignment — a section authored to start locked stays locked.
+// Without the grades (teacher views, previews) nothing changes. The lifecycle
+// itself is untouched: still `scheduled`, never `creditEligible` early, and
+// due/late/close are still the dates — so grading and closing cannot move.
 export const getSectionAccessState = ({
   assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now(), studentId = null, privateOverride = undefined,
+  classworkGradesByAssignment = undefined,
 }) => {
   const role = String(activityRole || '').trim().toLowerCase();
   const exists = projectCurrentAssignmentContent(assignment).entries.some((entry) => entry.logicalRole === role);
@@ -339,10 +352,13 @@ export const getSectionAccessState = ({
   if (lifecycle.isPracticeOnly) {
     return { role, enabled: true, status: 'open', isOpen: true, defaultState: 'open', override: null, lifecycle, practiceOnly: true };
   }
-  if (lifecycle.isScheduled) {
+  const openedByPrerequisite = lifecycle.isScheduled
+    && Boolean(classworkGradesByAssignment)
+    && prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue }).reason === 'prerequisiteMet';
+  if (lifecycle.isScheduled && !openedByPrerequisite) {
     return { role, enabled: true, status: 'scheduled', isOpen: false, defaultState: 'open', override: null, lifecycle };
   }
-  if (!lifecycle.isOpen) {
+  if (!lifecycle.isOpen && !openedByPrerequisite) {
     return { role, enabled: true, status: 'closedAssignment', isOpen: false, defaultState: 'open', override: null, lifecycle };
   }
 
@@ -352,7 +368,9 @@ export const getSectionAccessState = ({
   const override = scopedOverride({ byClassId: config?.overridesByClassId, classId });
   const overrideState = String(override?.state || '').toLowerCase();
   const status = SECTION_ACCESS_STATES.has(overrideState) ? overrideState : defaultState;
-  return { role, enabled: true, status, isOpen: status === 'open', defaultState, override, lifecycle };
+  const state = { role, enabled: true, status, isOpen: status === 'open', defaultState, override, lifecycle };
+  // Named only when it applied, so every other answer keeps its exact shape.
+  return openedByPrerequisite ? { ...state, openedByPrerequisite: true } : state;
 };
 
 export const normalizeSchedule = normalizeSharedSchedule;
