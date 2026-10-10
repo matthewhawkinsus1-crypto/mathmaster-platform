@@ -11,12 +11,19 @@
  * #461).
  *
  * "Still working": assigned to them (their class), not excused, not closed
- * for them (their own deadline, extensions included), and at least one of
- * their required teacher-release items (quiz/test) is not finished — correct,
- * or out of tries. Someone who has not started is still working. Read from
- * what the teacher's Gradebook already loads (each student's
- * gradesByAssignment); a student with no records loaded counts as still
- * working, so the warning errs toward naming too many, never too few.
+ * for them — their OWN dates: an extra-time accommodation
+ * (withStudentSupportDates) and a private extension or reopen (the
+ * override records of EVERY assigned class, read at release time,
+ * feedbackReleaseControls.js) — and at least one of their required
+ * teacher-release items (quiz/test) is not finished: correct, or out of
+ * tries. Someone who has not started is still working. A student with no
+ * records loaded counts as still working.
+ *
+ * WHAT COULD NOT BE CHECKED IS SAID, NEVER ASSUMED FINISHED. A class this
+ * teacher does not teach (any teacher can assign to any class) has no roster
+ * here; extension records that could not be read leave every class
+ * unverified. Those are named; "every assigned student has finished" is said
+ * only when every assigned class was checked.
  */
 import {
   assignmentIsForStudent,
@@ -26,7 +33,8 @@ import {
 import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
 import { getEffectiveActivityPolicy, resolveQuestionActivityRole } from '../../platform/policies/activityPolicies.js';
 import { questionIsTerminal } from '../../platform/student/studentWorkState.js';
-import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
+import { resolveStudentOverride, teacherAssignmentView } from '../../../functions/shared/studentAssignmentOverrides.mjs';
+import { withStudentSupportDates } from '../../../functions/shared/supportDeadline.mjs';
 import { formatStudentName } from '../../platform/studentName.js';
 
 const releasePolicyIndices = (assignment) => {
@@ -37,8 +45,10 @@ const releasePolicyIndices = (assignment) => {
     .map(({ index, role }) => ({ index, role, question: questions[index] }));
 };
 
-export const studentStillWorking = ({ assignment, student, nowValue = Date.now() }) => {
-  if (!assignment || !student) return false;
+export const studentStillWorking = ({ assignment: sharedAssignment, student, nowValue = Date.now() }) => {
+  if (!sharedAssignment || !student) return false;
+  // The assignment as THIS student has it: their extra-time dates applied.
+  const assignment = withStudentSupportDates(sharedAssignment, student.id, student.profile || null);
   if (!assignmentIsForStudent(assignment, { classId: student.classId || null, classPeriod: student.classPeriod })) return false;
   if (resolveStudentOverride({ assignment, studentId: student.id })?.excused === true) return false;
   const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId: student.id });
@@ -86,14 +96,58 @@ export const studentsStillWorkingByClass = ({ assignment, students = [], classes
 
 const NAMES_PER_CLASS = 12;
 
-/** The confirm's text: what releasing does, and who has not finished, by class. */
-export const describeFeedbackRelease = ({ title = 'this assignment', stillWorking = [] }) => {
+const list = (value) => (Array.isArray(value) ? value : []);
+
+/**
+ * Everything the release confirm needs.
+ *
+ *   privateRecords  student id -> override record for EVERY assigned class,
+ *                   read at release time; null when that read failed
+ *   students        the teacher's roster (their own classes only)
+ *   classes         the teacher's classes
+ */
+export const releaseHoldReport = ({ assignment, privateRecords = null, students = [], classes = [], nowValue = Date.now() }) => {
+  const withControls = privateRecords ? teacherAssignmentView(assignment, privateRecords) : assignment;
+  const assignedClassIds = [...new Set(list(assignment?.assignedClassIds).map((id) => String(id || '').trim()).filter(Boolean))];
+  const myClassIds = new Set(list(classes).map((entry) => entry.classId).filter(Boolean));
+  const unchecked = [];
+  assignedClassIds.filter((classId) => !myClassIds.has(classId)).forEach((classId) => {
+    unchecked.push({ classId, label: classId, reason: 'not one of your classes, so its students could not be checked' });
+  });
+  if (!privateRecords) {
+    assignedClassIds.filter((classId) => myClassIds.has(classId)).forEach((classId) => {
+      const record = list(classes).find((entry) => entry.classId === classId);
+      unchecked.push({ classId, label: record?.name || classId, reason: 'extensions and extra time could not be read' });
+    });
+  }
+  const stillWorking = studentsStillWorkingByClass({ assignment: withControls, students, classes, nowValue });
+  return { stillWorking, unchecked };
+};
+
+/** The confirm's text: what releasing does, who has not finished by class, and what could not be checked. */
+export const describeFeedbackRelease = ({ title = 'this assignment', stillWorking = [], unchecked = [] }) => {
   const total = stillWorking.reduce((sum, group) => sum + group.students.length, 0);
-  if (!total) {
+  const uncheckedLines = list(unchecked).map((entry) => `${entry.label}: ${entry.reason}`);
+  if (!total && !uncheckedLines.length) {
     return {
       title: `Release feedback for “${title}”?`,
       message: 'Every assigned student has finished. Students will immediately see Quiz/Test correctness, worked solutions and recorded grades. This cannot make already-viewed feedback private again.',
       confirmLabel: 'Release Feedback',
+      stillWorkingCount: 0,
+    };
+  }
+  if (!total) {
+    return {
+      title: `Not every class could be checked for “${title}”`,
+      message: [
+        'Releasing shows worked solutions to every student who has finished — in every class this is assigned to.',
+        '',
+        'Not checked:',
+        ...uncheckedLines,
+        '',
+        'Release only if you know those students have finished. This cannot make already-viewed feedback private again.',
+      ].join('\n'),
+      confirmLabel: 'Release anyway',
       stillWorkingCount: 0,
     };
   }
@@ -110,6 +164,7 @@ export const describeFeedbackRelease = ({ title = 'this assignment', stillWorkin
       '',
       'Still working:',
       ...lines,
+      ...(uncheckedLines.length ? ['', 'Not checked:', ...uncheckedLines] : []),
       '',
       'Release only if you are sure. This cannot make already-viewed feedback private again.',
     ].join('\n'),

@@ -343,7 +343,8 @@ import {
 import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
 import { readUrlArrival } from './app/routes/urlArrival.js';
 import { useUrlArrival } from './app/routes/useUrlArrival.js';
-import { describeFeedbackRelease, studentsStillWorkingByClass } from './app/teacher/feedbackReleaseHold.js';
+import { describeFeedbackRelease, releaseHoldReport } from './app/teacher/feedbackReleaseHold.js';
+import { readReleaseControls } from './app/teacher/feedbackReleaseControls.js';
 import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
 import {
   DISPLAYED_CHECKPOINT_OUTCOMES,
@@ -5807,6 +5808,12 @@ function App() {
         }
         return true;
       };
+      // A question's own address keeps that question only while its section
+      // is open now; otherwise it resolves exactly as Continue does (the first
+      // unfinished question open now), never onto finished work elsewhere.
+      const requestedRole = stageEntries.find((entry) => entry.storageIndex === safeQuestionIndex)?.logicalRole || null;
+      const keepRequested = Boolean(options?.returnToResult)
+        || Boolean(options?.keepRequestedQuestion && roleIsActionable(requestedRole));
       const actionableIndex = resolveStudentAssignmentEntry({
         entries: stageEntries,
         includedQuestionIndices,
@@ -5819,7 +5826,7 @@ function App() {
         // returns to the question they were on, if its section is open now.
         // Finished means what Home means: correct, or out of tries (a
         // teacher-granted extra DOL try reopens an expired DOL question).
-        isFinished: options?.returnToResult || options?.keepRequestedQuestion
+        isFinished: keepRequested
           ? null
           : (index) => questionIsTerminal({
             record: tracker?.[assignmentId]?.[index],
@@ -8710,9 +8717,13 @@ function App() {
     // One release opens worked solutions in EVERY class this is assigned to:
     // name everyone who has not finished, by class, before it goes
     // (app/teacher/feedbackReleaseHold.js; coordinator QA M3).
+    // Every assigned class's extensions, not only the classes on screen.
+    const privateRecords = await readReleaseControls({
+      db, assignment, email: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
+    });
     const release = describeFeedbackRelease({
       title: assignment.title,
-      stillWorking: studentsStillWorkingByClass({ assignment, students: allStudents, classes, nowValue: Date.now() }),
+      ...releaseHoldReport({ assignment, privateRecords, students: allStudents, classes, nowValue: Date.now() }),
     });
     const proceedWithRelease = await confirmAction({
       title: release.title,
