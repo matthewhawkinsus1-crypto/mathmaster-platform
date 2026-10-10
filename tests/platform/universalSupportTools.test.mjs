@@ -132,3 +132,20 @@ test('the Path session recap describes its graphs in full; the live question doe
   const player = executableSource(read('src/components/student/PathSessionPlayer.jsx'));
   assert.doesNotMatch(player, /<PathQuestionStimulus[^>]*describeFeatures/, 'never on the answerable question');
 });
+
+// Review of #463 (MAJOR 1): the student's question payload never carries
+// pathRole — buildSanitizedQuestion drops it — so a diagnostic must be
+// recognised from the session (publicPathSession keeps `diagnosing`).
+// Exercised against the REAL sanitizer.
+test('My Math Path: a diagnostic item gets no universal tools, from the real payload', async () => {
+  const { createRequire } = await import('node:module');
+  const require = createRequire(import.meta.url);
+  const mathPath = require('../../functions/lib/mathPath.js');
+  const stored = { id: 'diag-1', questionType: 'multipleChoice', prompt: 'Which is 3 + 4?', choices: [{ id: 'a', label: '7' }, { id: 'b', label: '6' }], correctChoiceId: 'a', pathRole: 'diagnose', teksCode: 'A.2A' };
+  const questionInstance = mathPath.buildSanitizedQuestion(stored, { questionInstanceId: 'qi-diag', attemptsAllowed: 1 });
+  assert.equal(questionInstance.pathRole, undefined, 'the sanitizer drops pathRole: the session is the only signal');
+  const diagnosing = { session: { sessionKind: 'practice', diagnosing: { skillId: 'teks:A.2A' } }, questionInstance };
+  assert.equal(pathUniversalDesignRole(diagnosing), null);
+  assert.deepEqual(toolsEntitlementFromPath({ applicableSupports: [], activityRole: pathUniversalDesignRole(diagnosing) }).tools, []);
+  assert.equal(pathUniversalDesignRole({ session: { sessionKind: 'practice', diagnosing: null }, questionInstance }), 'practice', 'an ordinary practice item still gets them');
+});

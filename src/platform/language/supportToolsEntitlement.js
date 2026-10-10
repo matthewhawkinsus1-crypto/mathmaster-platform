@@ -115,14 +115,19 @@ export const toolsEntitlementFromPath = ({ applicableSupports = [], translationL
  *
  * Only an ordinary practice session is "practice" here. A retention check, a
  * session against an exam framework (TSIA/SAT/ACT practice is rehearsal for a
- * test whose read-aloud rules are not ours to widen), a diagnostic item and a
+ * test whose read-aloud rules are not ours to widen), a diagnostic item (the
+ * session is `diagnosing`) and a
  * question whose own role is anything but practice get nothing extra — and so
  * does a session that does not say what it is (job H, F's conservative call 3).
  */
 export const pathUniversalDesignRole = ({ session = null, questionInstance = null, assessmentFramework = null } = {}) => {
   if (!session || session.sessionKind !== 'practice') return null;
   if (assessmentFramework || session.assessmentFramework || questionInstance?.assessmentContext) return null;
-  if (questionInstance?.pathRole === 'diagnose') return null;
+  // A diagnostic item: the session says so (publicPathSession keeps
+  // `diagnosing`); the student's question payload never carries pathRole
+  // (buildSanitizedQuestion drops it), so that check alone let diagnostics
+  // through. Both are kept: either one is enough to withhold.
+  if (session.diagnosing || questionInstance?.pathRole === 'diagnose') return null;
   const role = questionInstance?.activityRole ?? 'practice';
   return role === 'practice' ? 'practice' : null;
 };
