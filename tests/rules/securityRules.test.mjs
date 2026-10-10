@@ -829,6 +829,29 @@ test('no client can read, write or list the open items of a secure session', asy
   await assertFails(setDoc(doc(studentA(), 'examSessions/exam-1/items/examq-1'), { draftResponse: { responsePayload: { responses: { answer: '4' } } } }));
 });
 
+test('no client can read or write when a Test Cycle\'s answers are released', async () => {
+  /*
+   * testCycleAnswerReleases says whether a course Test's correct answers and
+   * worked solutions are open and which students the teacher's release
+   * covered. Only the server reads it (getStudentSecureExamReview) and only
+   * the server writes it (releaseTestCycleAnswers, a reset): a student who
+   * could write it could open the answers to their class while classmates
+   * still sit the Test, and a teacher's write would skip the named list.
+   */
+  const path = 'testCycleAnswerReleases/assignment-1';
+  const forged = { assignmentId: 'assignment-1', test: { releasedAt: 1, releasedBy: 'uid', coveredStudentIds: ['STUDENT_A'] } };
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(getDoc(doc(client, path)));
+    await assertFails(setDoc(doc(client, path), forged));
+    await assertFails(getDocs(collection(client, 'testCycleAnswerReleases')));
+  }
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), path), forged);
+  });
+  await assertFails(updateDoc(doc(studentA(), path), { 'test.coveredStudentIds': ['STUDENT_A', 'STUDENT_B'] }));
+  await assertFails(deleteDoc(doc(teacherA(), path)));
+});
+
 test('a student cannot read their own Test Cycle record, plans, or write a recorded grade', async () => {
   // The record holds the recorded grade and the teacher override flags; the
   // plans hold the families and seeds behind questions the student has not

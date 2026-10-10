@@ -94,7 +94,7 @@ export const TeacherSecureExamDashboard = ({ students = [], testCycleAssignments
         </p>
         <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 13, color: 'var(--mm-text)', fontSize: 13 }}>
           <input type="checkbox" checked={releaseAutomatically} onChange={(event) => setReleaseAutomatically(event.target.checked)} />
-          <span><strong>Release results automatically when the student submits.</strong> {releaseAutomatically ? 'The student sees their score, answers and worked solutions as soon as they finish.' : 'Results wait until you choose Release feedback in the monitor below.'}</span>
+          <span><strong>Release results automatically when the student submits.</strong> {releaseAutomatically ? 'The student sees their score, answers and worked solutions as soon as they finish.' : 'Results wait until you choose "Release score, answers and solutions" in the monitor below.'}</span>
         </label>
         <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 13, color: 'var(--mm-text)', fontSize: 13 }}><input type="checkbox" checked={accommodationsConfirmed} onChange={(event) => setAccommodationsConfirmed(event.target.checked)} /><span><strong>Teacher/proctor confirms documented exam accommodations.</strong> This explicit confirmation is required before MathMaster applies a support-plan calculator that would deviate from the base simulation policy.</span></label>
         {message && <p role="status" style={{ color: message.startsWith('Secure session') ? 'var(--mm-success-text)' : 'var(--mm-error-text)', fontWeight: 700 }}>{message}</p>}
