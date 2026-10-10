@@ -65,13 +65,23 @@
 //
 // Pure: no React, no I/O. Exact rational arithmetic for everything solved.
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
-import { normalizeIntervals, sameIntervals } from '../../../../functions/shared/toolMath/intervalNumberLine/intervalMath.mjs';
+import {
+  intervalsToInequality,
+  normalizeIntervals,
+  resolveIntervalAsk,
+  sameIntervals,
+} from '../../../../functions/shared/toolMath/intervalNumberLine/intervalMath.mjs';
+import { inequalitySolutionRepresentationStages } from '../../../../functions/shared/toolMath/algebra-relations/inequalityRepresentationPolicy.mjs';
 import {
   buildSignIntervals,
   evaluateRadicalEquationCandidate,
   solutionPiecesForRelation,
 } from '../../../../functions/shared/toolMath/signSolutionAnalyzer/signSolutionMath.mjs';
-import { relationSourceFromQuestion } from '../../../../functions/shared/serverGrading/stepAlgebraRouting.mjs';
+import {
+  STEP_ALGEBRA_MODES,
+  relationSourceFromQuestion,
+  resolveStepAlgebraMode,
+} from '../../../../functions/shared/serverGrading/stepAlgebraRouting.mjs';
 import { withPromptRelationSource } from '../../../../functions/shared/runtime/stepAlgebraRelationRouting.mjs';
 
 export const family = 'pointsAndIntervals';
@@ -672,7 +682,14 @@ const rootProductText = (factors, variable = 'x') => [...factors.filter((factor)
 
 // A parsed product as the student would write it: (x + 6)(x - 3), 2(x - 1)².
 const structureText = (structure, variable) => {
-  const factors = structure.factors.map((factor) => {
+  // Equal factors are written once, with their powers added: x(x) is x², never "xx".
+  const merged = [];
+  structure.factors.forEach((factor) => {
+    const same = merged.find((entry) => entry.a.n === factor.a.n && entry.a.d === factor.a.d && entry.b.n === factor.b.n && entry.b.d === factor.b.d);
+    if (same) same.multiplicity += factor.multiplicity;
+    else merged.push({ ...factor });
+  });
+  const factors = merged.map((factor) => {
     const a = rval(factor.a);
     const b = rval(factor.b);
     const inner = a === 1 ? baseFactorText(-b, variable) : linearText(a, b, variable);
@@ -1860,4 +1877,565 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
     }
   } catch { /* a sibling that cannot be built is not offered */ }
   return null;
+};
+
+/* ---------------------------------------------------------------------------
+ * workedSolution: THIS question, worked in full, for the closed-question
+ * review only (closedQuestionReview.js). It states the answer, so nothing
+ * shown while the item is open (hints, the back-up step, the sibling) ever
+ * calls it.
+ *
+ * The steps are written the way this family's siblings write theirs
+ * (pieceStep, solveSibling, factoredSibling, signChartSibling,
+ * radicalSibling, verbalSibling, plottedSibling, linesSibling,
+ * numberLineSibling), on this question's own numbers, each following from the
+ * one before, and the last step states the answer in the form its grader
+ * reads: every asked number-line stage (graph, interval notation, the
+ * tool's own inequality sentence), the sign-chart intervals to select, the
+ * radical candidates to keep, the ordered pair, the point to select, or the
+ * solved inequality (with the number line the relation workspace asks for).
+ * null, never a wrong step, for a shape it cannot explain exactly: an
+ * `unknown` key, a number with no exact short form, a key the grader does not
+ * hold the way the family read it.
+ * ------------------------------------------------------------------------- */
+
+const SLOPPY = /NaN|undefined|\bnull\b|\[object|Infinity|\+\s*-|--|(?<![\d.])-0(?![\d./])|(?<![\d.)/])1[a-z](?![a-z])/;
+
+/** Thrown inside a worker: this question gets no worked solution. */
+const cannot = () => {
+  throw new Error('no exact worked solution');
+};
+const sameRat = (a, b) => a.n === b.n && a.d === b.d;
+const isOne = (a) => a.n === 1 && a.d === 1;
+
+/** A rational exactly: 3, 2.5, -13/8 (a decimal only when it ends within four places). */
+const exactText = (r) => {
+  if (r.d === 1) return String(tidy(r.n));
+  let rest = r.d;
+  let places = 0;
+  while (rest % 10 === 0 || rest % 2 === 0 || rest % 5 === 0) {
+    if (rest % 10 === 0) rest /= 10;
+    else if (rest % 2 === 0) rest /= 2;
+    else rest /= 5;
+    places += 1;
+  }
+  if (rest === 1 && places <= 4) {
+    const decimal = (r.n / r.d).toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+    if (Number(decimal) === r.n / r.d) return decimal;
+  }
+  return `${r.n}/${r.d}`;
+};
+
+/** A float the question holds, as an exact rational, or null. */
+const ratOf = (value) => {
+  const v = tidy(Number(value));
+  if (!Number.isFinite(v)) return null;
+  const fraction = toFraction(v);
+  if (fraction) return rat(fraction.n, fraction.d);
+  const written = String(v);
+  if (!/^-?\d+\.\d{1,6}$/.test(written)) return null;
+  const magnitude = decimalRat(written.replace('-', ''));
+  return written.startsWith('-') ? rneg(magnitude) : magnitude;
+};
+const ratOrStop = (value) => ratOf(value) || cannot();
+
+/** A float as this family prints it (fmt), but only when that print is exact. */
+const endText = (value) => {
+  const written = fmt(value);
+  const read = numericValue(written);
+  return read !== null && Math.abs(read - value) < 1e-12 ? written : cannot();
+};
+
+const coefText = (a) => {
+  const written = exactText(a);
+  if (!written.includes('/')) return written;
+  return a.n < 0 ? `-(${exactText(rneg(a))})` : `(${written})`;
+};
+const termR = (a, v) => (isOne(a) ? v : isOne(rneg(a)) ? `-${v}` : `${coefText(a)}${v}`);
+const linearR = (a, b, v) => {
+  if (a.n === 0) return exactText(b);
+  if (b.n === 0) return termR(a, v);
+  return `${termR(a, v)} ${b.n > 0 ? '+' : '-'} ${exactText(b.n > 0 ? b : rneg(b))}`;
+};
+const squash = (value) => String(value).replace(/\s+/g, '');
+const joinWords = (parts) => (parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`);
+
+/* -------- a solved key, stated the way the number line grades it -------- */
+
+const isPointPiece = (piece) => piece.min === piece.max;
+const isWholeLine = (piece) => !Number.isFinite(piece.min) && !Number.isFinite(piece.max);
+const dot = (closed) => (closed ? 'a closed' : 'an open');
+
+/** What the graph shows for one piece. */
+const shadeText = (piece) => {
+  if (isWholeLine(piece)) return 'shade the whole number line, with an arrow at each end';
+  if (isPointPiece(piece)) return `draw a closed dot at ${endText(piece.min)} and shade nothing else`;
+  if (!Number.isFinite(piece.min)) return `draw ${dot(piece.maxClosed)} dot at ${endText(piece.max)} and shade to the left with an arrow`;
+  if (!Number.isFinite(piece.max)) return `draw ${dot(piece.minClosed)} dot at ${endText(piece.min)} and shade to the right with an arrow`;
+  return `draw ${dot(piece.minClosed)} dot at ${endText(piece.min)} and ${dot(piece.maxClosed)} dot at ${endText(piece.max)}, and shade the segment between them`;
+};
+
+/** One piece as pieceStep (the graph sibling's builder) writes it, with the two shapes it has no words for. */
+const pieceWork = (piece, v) => {
+  if (isWholeLine(piece)) return `Every real number works, so shade the whole number line, with an arrow at each end.`;
+  if (isPointPiece(piece)) return `Only ${v} = ${endText(piece.min)} works: draw a closed dot at ${endText(piece.min)} and shade nothing else.`;
+  [piece.min, piece.max].filter(Number.isFinite).forEach(endText);
+  return pieceStep(piece, v);
+};
+
+/** Interval notation, exact endpoints; a one-number piece as the tool writes it, [a, a]. */
+const notationText = (pieces) => pieces.map((piece) => (isPointPiece(piece)
+  ? `[${endText(piece.min)}, ${endText(piece.min)}]`
+  : pieceNotation(piece, endText))).join(' ∪ ');
+
+/** The tool's own inequality sentence, when its four-place endpoints are exact. */
+const inequalityText = (pieces, v) => {
+  pieces.flatMap((piece) => [piece.min, piece.max]).filter(Number.isFinite)
+    .forEach((end) => (Number(Number(end).toFixed(4)) === end ? end : cannot()));
+  return intervalsToInequality(pieces, v);
+};
+
+const stagedAnswer = (pieces, v, stages) => {
+  const parts = [];
+  if (stages.includes('graph')) parts.push(`on the number line, ${pieces.map(shadeText).join(', then ')}`);
+  if (stages.includes('interval')) parts.push(`in interval notation, ${notationText(pieces)}`);
+  if (stages.includes('inequality')) parts.push(`as an inequality, ${inequalityText(pieces, v)}`);
+  return parts.length ? parts : cannot();
+};
+const capitalizeFirst = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+
+/* -------- solving a linear inequality (solveSibling's moves) -------- */
+
+/** Each side of the inequality already reads a·x + b (either order), so no rewrite is needed. */
+const shownAsWritten = (run, v) => {
+  const forms = (a, b) => {
+    if (a.n === 0 || b.n === 0) return [linearR(a, b, v)];
+    const term = termR(a, v);
+    return [linearR(a, b, v), `${exactText(b)} ${a.n > 0 ? '+' : '-'} ${a.n > 0 ? term : termR(rneg(a), v)}`];
+  };
+  const shown = squash(run.display);
+  return forms(run.a1, run.b1).some((left) => forms(run.a2, run.b2)
+    .some((right) => squash(`${left}${run.relation}${right}`) === shown));
+};
+
+const solveWork = (run, v) => {
+  let { a1, b1, a2, b2 } = run;
+  let relation = run.relation;
+  const steps = [];
+  const sides = () => `${linearR(a1, b1, v)} ${relation} ${linearR(a2, b2, v)}`;
+  if (run.grouped) steps.push(`${run.grouped === 'bare' ? 'Drop' : 'Clear'} the brackets and collect like terms: ${sides()}.`);
+  else if (!shownAsWritten(run, v)) steps.push(`Rewrite each side: ${sides()}.`);
+  if (a1.n === 0) {
+    [a1, b1, a2, b2] = [a2, b2, a1, b1];
+    relation = FLIP[relation];
+    steps.push(`Read it from right to left, so ${v} is on the left: ${sides()}.`);
+  }
+  if (a2.n !== 0) {
+    const verb = a2.n > 0 ? `Subtract ${termR(a2, v)} from` : `Add ${termR(rneg(a2), v)} to`;
+    a1 = rsub(a1, a2);
+    a2 = ZERO;
+    if (a1.n === 0) cannot();
+    steps.push(`${verb} both sides: ${sides()}.`);
+  }
+  if (b1.n !== 0) {
+    const verb = b1.n > 0 ? `Subtract ${exactText(b1)}` : `Add ${exactText(rneg(b1))}`;
+    b2 = rsub(b2, b1);
+    b1 = ZERO;
+    steps.push(`${verb} on both sides: ${sides()}.`);
+  }
+  if (!isOne(a1)) {
+    const solved = a1.n < 0 ? FLIP[relation] : relation;
+    const by = a1;
+    b2 = rdiv(b2, a1);
+    a1 = ONE;
+    steps.push(`Divide both sides by ${exactText(by)}${by.n < 0 ? `. Dividing by a negative number flips the symbol, so ${relation} becomes ${solved}` : ''}: ${v} ${solved} ${exactText(b2)}.`);
+    relation = solved;
+  }
+  if (relation !== run.solvedRelation || !sameRat(b2, run.boundary)) cannot();
+  // The sibling's check, on the original sides, at a whole number inside the solution.
+  const t = rat(isLess(relation) ? Math.ceil(rval(b2)) - 1 : Math.floor(rval(b2)) + 1);
+  const left = radd(rmul(run.a1, t), run.b1);
+  const right = radd(rmul(run.a2, t), run.b2);
+  const holds = { '<': rval(left) < rval(right), '>': rval(left) > rval(right), '≤': rval(left) <= rval(right), '≥': rval(left) >= rval(right) }[run.relation];
+  if (!holds) cannot();
+  steps.push(`Check with ${v} = ${exactText(t)}, on the solution side: ${exactText(left)} ${run.relation} ${exactText(right)} is true.`);
+  return { steps, statement: `${v} ${relation} ${exactText(b2)}` };
+};
+
+/* -------- one worker per shape -------- */
+
+const workedGraph = (model) => {
+  const v = model.variable;
+  const G = model.given.map((run) => run.display).join(model.joiner === 'and' ? ' and ' : ' or ');
+  const steps = [];
+  if (model.key.length > 1) steps.push(`${G} joins ${countWord(model.key.length)} conditions with "or", so the graph has ${countWord(model.key.length)} separate pieces. Graph each one.`);
+  if (model.joiner === 'and') steps.push(`${G}: both conditions must hold at once, so ${statementOf(model.key, v)}.`);
+  steps.push(...model.key.map((piece) => pieceWork(piece, v)));
+  return { headline: `Graph ${G}: mark each boundary number with the right dot, then shade the numbers that make it true.`, steps };
+};
+
+const workedFactored = (model) => {
+  const v = model.variable;
+  const { structure, relation } = model.run;
+  const P = structureText(structure, v);
+  const roots = [...new Map(structure.factors.map((factor) => {
+    const root = rdiv(rneg(factor.b), factor.a);
+    return [`${root.n}/${root.d}`, root];
+  })).values()].sort((a, b) => rval(a) - rval(b));
+  const bounds = [null, ...roots, null];
+  const productAt = (t) => structure.factors.reduce((total, factor) => {
+    let out = total;
+    const inner = radd(rmul(factor.a, t), factor.b);
+    for (let count = 0; count < factor.multiplicity; count += 1) out = rmul(out, inner);
+    return out;
+  }, structure.coef);
+  const label = (left, right) => `(${left ? exactText(left) : '-∞'}, ${right ? exactText(right) : '∞'})`;
+  const tests = bounds.slice(0, -1).map((left, index) => {
+    const right = bounds[index + 1];
+    const t = testRational(left, right);
+    const value = productAt(t);
+    if (value.n === 0) cannot();
+    return `Test ${v} = ${exactText(t)} in ${label(left, right)}: the product is ${exactText(value)}, which is ${sign(value.n)}.`;
+  });
+  const steps = [
+    ...(squash(`${P} ${relation} 0`) === squash(powersAsSuperscripts(model.run.display)) ? [] : [`Write the factors simply: ${P} ${relation} 0.`]),
+    `The product is 0 when one of its factors is 0: ${roots.map((root) => `${v} = ${exactText(root)}`).join(' or ')}.`,
+    `These zeros split the number line into ${countWord(roots.length + 1)} intervals: ${bounds.slice(0, -1).map((left, index) => label(left, bounds[index + 1])).join(', ')}.`,
+    ...tests,
+    `${relation} 0 keeps the ${isLess(relation) ? 'negative' : 'positive'} intervals${isInclusive(relation) ? ', and the zeros themselves are included because of the "or equal to"' : '; the zeros themselves are left out'}.`,
+  ];
+  return { headline: `Solve ${P} ${relation} 0: find the zeros, test one number in each interval, and keep the intervals where the product is ${isLess(relation) ? 'negative' : 'positive'}.`, steps };
+};
+
+/** x^2 and x^{2} as they render, x²: a step that only changes how a power is typed changes nothing. */
+const powersAsSuperscripts = (value) => String(value).replace(/\^\{?(\d)\}?/g, (match, digit) => POWERS[Number(digit)] || match);
+
+/** A test number strictly inside (left, right) — 0 if it fits, else a whole number, else the midpoint. */
+function testRational(left, right) {
+  if (!left && !right) return ZERO;
+  if (!left) return rat(Math.ceil(rval(right)) - 1);
+  if (!right) return rat(Math.floor(rval(left)) + 1);
+  const low = Math.floor(rval(left)) + 1;
+  const high = Math.ceil(rval(right)) - 1;
+  if (low <= high) return low <= 0 && high >= 0 ? ZERO : rat(low);
+  return rdiv(radd(left, right), rat(2));
+}
+
+const workedVerbal = (model) => {
+  const v = model.variable;
+  const { phrase, number, relation } = model.verbal;
+  const n = endText(number);
+  return {
+    headline: `Translate "${phrase} ${n}" into an inequality, then graph it.`,
+    steps: [
+      `"${phrase} ${n}" means ${v} ${relation} ${n}.`,
+      `${relation} ${isInclusive(relation) ? 'includes' : 'leaves out'} ${n} itself, so draw ${dot(isInclusive(relation))} dot at ${n}.`,
+      `The allowed values are ${isLess(relation) ? 'smaller' : 'larger'}, so shade to the ${isLess(relation) ? 'left' : 'right'} with an arrow.`,
+    ],
+  };
+};
+
+const workedInterval = (question, model) => {
+  if (!['graph', 'solve', 'factored', 'verbal'].includes(model.sub)) return null;
+  // The key the number line grades is the question's own intervals (a Path
+  // instance carries them as expectedIntervals) — the one the model read.
+  const stages = resolveIntervalAsk(question.ask);
+  let worked;
+  let lead = 'the answer is:';
+  if (model.sub === 'graph') worked = workedGraph(model);
+  else if (model.sub === 'factored') worked = workedFactored(model);
+  else if (model.sub === 'verbal') worked = workedVerbal(model);
+  else {
+    const solved = solveWork(model.run, model.variable);
+    lead = `${solved.statement};`;
+    worked = {
+      headline: `Solve ${model.run.display} the way you solve an equation, flipping the symbol if you divide by a negative number, then show the solution.`,
+      steps: solved.steps,
+    };
+  }
+  const parts = stagedAnswer(model.key, model.variable, stages);
+  return {
+    headline: worked.headline,
+    steps: [...worked.steps, `So ${lead} ${parts.join('; ')}.`],
+    answerSummary: `${capitalizeFirst(parts.join('; '))}.`,
+  };
+};
+
+const workedLinearInequality = (question, model) => {
+  // Only an item the relation workspace opens is solved (and graded) as an
+  // inequality: anything else opens the equation engine, which these steps
+  // would not describe.
+  if (resolveStepAlgebraMode(question) !== STEP_ALGEBRA_MODES.RELATION) return null;
+  const v = model.variable;
+  const solved = solveWork(model.run, v);
+  const asked = inequalitySolutionRepresentationStages(withPromptRelationSource(question));
+  const parts = asked.length ? stagedAnswer(model.key, v, resolveIntervalAsk(asked)) : [];
+  const tail = parts.length ? `; ${parts.join('; ')}` : '';
+  return {
+    headline: `Solve ${model.run.display}: undo each operation on both sides, and flip the symbol if you divide by a negative number.`,
+    steps: [...solved.steps, `So the solution is ${solved.statement}${tail}.`],
+    answerSummary: `The solution is ${solved.statement}${tail}.`,
+  };
+};
+
+const workedSignChart = (model) => {
+  const E = model.expression;
+  const R = model.symbol;
+  const want = isLess(R) ? -1 : 1;
+  const ends = model.criticalPoints.map((point) => endText(point.value));
+  const label = (interval) => `(${Number.isFinite(interval.left) ? endText(interval.left) : '-∞'}, ${Number.isFinite(interval.right) ? endText(interval.right) : '∞'})`;
+  const valueAt = (x) => model.numerator.reduce((p, f) => p * ((x - f.root) ** f.multiplicity), 1)
+    / model.denominator.reduce((p, f) => p * ((x - f.root) ** f.multiplicity), 1);
+  const tests = model.intervals.map((interval) => {
+    const t = testValue(interval.left, interval.right);
+    const value = valueAt(t);
+    if (!Number.isFinite(value) || value === 0 || Math.sign(value) !== Math.sign(interval.sign)) cannot();
+    if ((Math.sign(value) === want) !== interval.included) cannot();
+    return `Test x = ${endText(t)} in ${label(interval)}: the expression is ${sign(value)}, so ${interval.included ? 'select' : 'leave out'} this interval.`;
+  });
+  const zeros = model.criticalPoints.filter((point) => point.isZero && !point.isExcluded).map((point) => endText(point.value));
+  const poles = model.criticalPoints.filter((point) => point.isExcluded).map((point) => endText(point.value));
+  const selected = model.intervals.filter((interval) => interval.included).map(label);
+  const solution = model.solution.length ? notationText(model.solution) : '∅';
+  const answer = selected.length
+    ? `select ${joinWords(selected)}; the solution set is ${solution}`
+    : `select no interval, since none makes the expression ${isLess(R) ? 'negative' : 'positive'}; the solution set is ${solution}`;
+  return {
+    headline: `Use a sign chart for ${E} ${R} 0: find the critical points, test one number in each interval, and select the intervals where the expression is ${isLess(R) ? 'negative' : 'positive'}.`,
+    steps: [
+      `Critical points: ${model.criticalPoints.map((point, index) => `x = ${ends[index]}${point.isExcluded ? ' (denominator 0)' : ''}`).join(', ')}. They split the number line into ${countWord(model.intervals.length)} intervals.`,
+      ...tests,
+      model.inclusive
+        ? `${R} also accepts 0, so ${zeros.length ? `x = ${zeros.join(' and x = ')} ${zeros.length === 1 ? 'is' : 'are'} included` : 'no zero is added'}${poles.length ? `; x = ${poles.join(' and x = ')} never ${poles.length === 1 ? 'is' : 'are'}, because the denominator is 0 there` : ''}.`
+        : `${R} is strict, so the critical points themselves are left out.`,
+      `So ${answer}.`,
+    ],
+    answerSummary: `${capitalizeFirst(answer)}.`,
+  };
+};
+
+/** √r exactly, when r is the square of a rational. */
+const exactRoot = (r) => {
+  if (r.n < 0) return null;
+  const top = Math.round(Math.sqrt(r.n));
+  const bottom = Math.round(Math.sqrt(r.d));
+  return top * top === r.n && bottom * bottom === r.d ? rat(top, bottom) : null;
+};
+
+/**
+ * The real roots of the squared equation m1·x + b1 = (m2·x + b2)², exactly, with
+ * the steps that find them; null when a root is irrational (no candidate list of
+ * rationals can then hold it, so completeness is never claimed).
+ */
+const squaredRoots = (m1, b1, m2, b2) => {
+  // (m2·x + b2)² − (m1·x + b1) = a·x² + b·x + c, written with a positive lead.
+  let [a, b, c] = [rmul(m2, m2), rsub(rmul(rat(2), rmul(m2, b2)), m1), rsub(rmul(b2, b2), b1)];
+  if (a.n < 0 || (a.n === 0 && b.n < 0)) [a, b, c] = [rneg(a), rneg(b), rneg(c)];
+  const terms = [[a, 'x²'], [b, 'x'], [c, '']].filter(([coef]) => coef.n !== 0);
+  const polyText = terms.map(([coef, power], index) => {
+    const size = coef.n < 0 ? rneg(coef) : coef;
+    const body = power ? termR(size, power) : exactText(size);
+    if (index === 0) return coef.n < 0 ? `-${body}` : body;
+    return `${coef.n < 0 ? '-' : '+'} ${body}`;
+  }).join(' ');
+  let roots;
+  let found;
+  if (a.n === 0) {
+    if (b.n === 0) return null;
+    roots = [rdiv(rneg(c), b)];
+    found = `so x = ${exactText(roots[0])}`;
+  } else {
+    const disc = rsub(rmul(b, b), rmul(rat(4), rmul(a, c)));
+    if (disc.n < 0) {
+      roots = [];
+      found = `which has no real solution: its discriminant b² - 4ac is ${exactText(disc)}, which is negative`;
+    } else {
+      const root = exactRoot(disc);
+      if (!root) return null;
+      const twoA = rmul(rat(2), a);
+      roots = [...new Map([rsub(rneg(b), root), radd(rneg(b), root)].map((top) => rdiv(top, twoA)).map((r) => [`${r.n}/${r.d}`, r])).values()]
+        .sort((p, q) => rval(p) - rval(q));
+      found = `and the quadratic formula gives ${roots.map((r) => `x = ${exactText(r)}`).join(' or ')}`;
+    }
+  }
+  const steps = (model, rhs) => {
+    const right = m2.n === 0 ? exactText(rmul(b2, b2)) : rhs === 'x' ? 'x²' : `(${rhs})²`;
+    return [
+      `Square both sides: ${model.radicand} = ${right}. Gather every term on one side: ${polyText} = 0, ${found}.`,
+      roots.length
+        ? `Every real solution of ${model.equation} ${roots.length > 1 ? 'is one of these numbers, and each of them is a candidate' : 'must be this number, and it is a candidate'}, so checking the candidates finds every solution.`
+        : `So ${model.equation} has no real solution either, and every candidate must fail the check.`,
+    ];
+  };
+  return { roots, steps };
+};
+
+const workedRadical = (question, model) => {
+  const [m1, b1, m2, b2] = [model.m1, model.b1, model.m2, model.b2].map(ratOrStop);
+  const rhs = linearText(model.m2, model.b2, 'x');
+  const rootText = (r) => `√${exactText(r).includes('/') ? `(${exactText(r)})` : exactText(r)}`;
+  const kept = [];
+  const steps = [`Squaring both sides can create candidates that do not solve ${model.equation}, so check each candidate in the original equation.`];
+  // Whether the candidates hold every solution there is: only then may the
+  // conclusion speak of the equation itself, not just of these candidates.
+  const squared = squaredRoots(m1, b1, m2, b2);
+  const complete = squared !== null && squared.roots.every((root) => model.values.some((value) => sameRat(ratOrStop(value), root)));
+  if (complete) steps.push(...squared.steps(model, rhs));
+  model.values.forEach((value) => {
+    const c = ratOrStop(value);
+    const x = endText(value);
+    const R = radd(rmul(m1, c), b1);
+    const S = radd(rmul(m2, c), b2);
+    const rightSide = m2.n === 0 ? `the right side is ${exactText(S)}` : `the right side ${rhs} is ${exactText(S)}`;
+    let keep = false;
+    if (R.n < 0) {
+      steps.push(`Check x = ${x}: the radicand ${model.radicand} is ${exactText(R)}, which is negative, so the square root is not a real number. Reject it.`);
+    } else {
+      const root = exactRoot(R);
+      const left = `the radicand ${model.radicand} is ${exactText(R)}, so the left side is ${rootText(R)}${root && !sameRat(root, R) ? ` = ${exactText(root)}` : ''}`;
+      if (S.n < 0) {
+        steps.push(`Check x = ${x}: ${left}, but ${rightSide}. A square root is never negative, so x = ${x} is extraneous. Reject it.`);
+      } else if (sameRat(rmul(S, S), R)) {
+        keep = true;
+        steps.push(`Check x = ${x}: ${left}, and ${rightSide}, which matches. Keep it.`);
+      } else {
+        steps.push(`Check x = ${x}: ${left}, but ${rightSide}${root ? '' : `, and ${exactText(S)}² = ${exactText(rmul(S, S))}, not ${exactText(R)}`}. The two sides are not equal, so reject it.`);
+      }
+    }
+    // The grader's own verdict on this candidate must agree.
+    if (keep !== model.valid.includes(value)) cannot();
+    if (keep) kept.push(x);
+  });
+  const select = `select ${kept.length > 1 ? 'them' : 'it'}`;
+  const named = joinWords(kept.map((x) => `x = ${x}`));
+  let answer;
+  if (complete) {
+    answer = kept.length
+      ? `the equation's only real solution${kept.length > 1 ? 's are' : ' is'} ${named}: ${select}`
+      : 'the equation has no real solution: select none of the candidates';
+  } else {
+    answer = kept.length
+      ? `of the candidates, ${kept.length > 1 ? `only ${named} check out` : `only ${named} checks out`}: ${select}`
+      : 'none of the candidates solves the equation: select none of them';
+  }
+  return {
+    headline: `Check each candidate in ${model.equation}: squaring both sides can create candidates that do not work.`,
+    steps: [...steps, `So ${answer}.`],
+    answerSummary: `${capitalizeFirst(answer)}.`,
+  };
+};
+
+/** The ordered pair the orderedPair grader holds: question.answer || question.solution, as two numbers. */
+const gradedPair = (question, model) => {
+  const key = question.answer || question.solution;
+  if (!Array.isArray(key) || key.length !== 2) return null;
+  const pair = key.map(plainNumber);
+  return pair.every((value) => value !== null) && samePoint(pair, model.point) ? pair : null;
+};
+
+const workedPlotted = (model) => {
+  const [x, y] = model.point.map(endText);
+  const [px, py] = model.point;
+  const xStep = px === 0
+    ? 'The point is straight above, below or on the origin, so the x-coordinate is 0.'
+    : `Move ${endText(Math.abs(px))} units ${px < 0 ? 'left' : 'right'} until you are level with the point: ${px < 0 ? 'left is negative' : 'right is positive'}, so the x-coordinate is ${x}.`;
+  const yStep = py === 0
+    ? 'The point is on the x-axis itself, so the y-coordinate is 0.'
+    : `Then move ${endText(Math.abs(py))} units ${py < 0 ? 'down' : 'up'} to the point: ${py < 0 ? 'down is negative' : 'up is positive'}, so the y-coordinate is ${y}.`;
+  return {
+    headline: 'Read the plotted point: count across from the origin for x, then up or down for y.',
+    steps: ['Start at the origin, where the axes cross.', xStep, yStep, `Write x first, then y: (${x}, ${y}).`],
+  };
+};
+
+const workedLines = (model) => {
+  const [first, second] = model.lines;
+  const [m1, b1, m2, b2] = [first.m, first.b, second.m, second.b].map(ratOrStop);
+  const [X, Y] = model.point.map(ratOrStop);
+  // The point is on both lines, exactly.
+  if (!sameRat(radd(rmul(m1, X), b1), Y) || !sameRat(radd(rmul(m2, X), b2), Y) || sameRat(m1, m2)) cannot();
+  const at = `(${exactText(X)}, ${exactText(Y)})`;
+  const plug = (m, b) => linearR(m, b, 'x').replace(/x/g, `(${exactText(X)})`);
+  const flat = m1.n === 0 ? 0 : m2.n === 0 ? 1 : -1;
+  let steps;
+  if (flat >= 0) {
+    const level = flat === 0 ? first : second;
+    const other = flat === 0 ? second : first;
+    const [m, b] = flat === 0 ? [m2, b2] : [m1, b1];
+    const solveX = isOne(m)
+      ? `so x = ${exactText(rsub(Y, b))}`
+      : `so ${termR(m, 'x')} = ${exactText(rsub(Y, b))} and x = ${exactText(X)}`;
+    steps = [
+      `${level.display} is a horizontal line, so at the meeting point y = ${exactText(Y)}.`,
+      `Substitute into ${other.display}: ${exactText(Y)} = ${linearR(m, b, 'x')}, ${solveX}.`,
+    ];
+  } else {
+    const gathered = rsub(m1, m2);
+    steps = [
+      `At the meeting point both equations give the same y, so set the right sides equal: ${linearR(m1, b1, 'x')} = ${linearR(m2, b2, 'x')}.`,
+      `Gather the x-terms and the numbers: ${termR(gathered, 'x')} = ${exactText(rsub(b2, b1))}${isOne(gathered) ? '' : `, so x = ${exactText(X)}`}.`,
+      `Substitute x = ${exactText(X)} into ${first.display}: y = ${plug(m1, b1)} = ${exactText(Y)}.`,
+      `Check in ${second.display}: ${plug(m2, b2)} = ${exactText(Y)}.`,
+    ];
+  }
+  return {
+    headline: `Find where ${first.display} and ${second.display} meet: the point is on both lines, so both equations give the same y there.`,
+    steps: [...steps, `The lines meet at ${at}.`],
+  };
+};
+
+const workedPoint = (question, model) => {
+  const pair = gradedPair(question, model);
+  if (!pair || !['plotted', 'lines'].includes(model.sub)) return null;
+  const worked = model.sub === 'plotted' ? workedPlotted(model) : workedLines(model);
+  const answer = `(${endText(pair[0])}, ${endText(pair[1])})`;
+  return { ...worked, answerSummary: `The point is ${answer}.` };
+};
+
+const LABEL_ORDINALS = Object.freeze(['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth']);
+
+const workedNumberLine = (question, model) => {
+  // The number-line grader holds question.target, and the student selects one of the labels.
+  const target = plainNumber(question.target);
+  if (target === null || target !== model.target || !list(question.choices).length) return null;
+  const labels = model.labels;
+  const position = labels.findIndex((value) => value === target);
+  if (position < 0 || position >= LABEL_ORDINALS.length) return null;
+  const t = endText(target);
+  const shown = labels.map(endText).join(', ');
+  return {
+    headline: `Find ${t} on the number line: decide which side of zero it is on, then count along the labels.`,
+    steps: [
+      target === 0 ? '0 is neither positive nor negative: it is the zero point itself.' : `${t} is ${target < 0 ? 'negative, so it sits to the left of zero' : 'positive, so it sits to the right of zero'}.`,
+      model.spacing ? `The labels go up by ${endText(model.spacing)} from left to right: ${shown}.` : `The labels from left to right are ${shown}.`,
+      `${t} is the ${LABEL_ORDINALS[position]} label from the left: select it.`,
+    ],
+    answerSummary: `Select the point ${t}.`,
+  };
+};
+
+const WORKED = Object.freeze({
+  interval: workedInterval,
+  linearInequality: workedLinearInequality,
+  signChart: (question, model) => workedSignChart(model),
+  radical: workedRadical,
+  point: workedPoint,
+  numberLine: workedNumberLine,
+});
+
+export const workedSolution = (question) => {
+  const model = modelFor(question);
+  if (!model || !WORKED[model.kind]) return null;
+  try {
+    const worked = WORKED[model.kind](question, model);
+    if (!worked) return null;
+    const steps = list(worked.steps).map(text).filter(Boolean);
+    const headline = text(worked.headline);
+    const answerSummary = text(worked.answerSummary);
+    if (!steps.length || !answerSummary) return null;
+    if ([headline, ...steps, answerSummary].some((line) => SLOPPY.test(line))) return null;
+    return { headline, steps, answerSummary };
+  } catch {
+    return null;
+  }
 };

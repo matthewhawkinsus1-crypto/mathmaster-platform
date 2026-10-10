@@ -1524,6 +1524,22 @@ const solveForConstant = (left, right, value) => {
     : { left, right: replaceAt(right, path, k) };
 };
 
+/** One worked move, with the equation it reaches: the sibling's steps and this question's worked solution. */
+const numericMoveStep = (move, v, style) => {
+  const eq = equationLatexOf(move.left, move.right, v, style);
+  const show = (number) => numberLatex(absolute(number), style);
+  switch (move.kind) {
+    case 'clear': return `Multiply every term on both sides by $${show(move.factor)}$ to clear the fractions: $${eq}$.`;
+    case 'distribute': return `Distribute to remove the parentheses: $${eq}$.`;
+    case 'combine': return `Combine like terms on each side: $${eq}$.`;
+    case 'swap': return `Switch the two sides so the $${v}$-term is on the left: $${eq}$.`;
+    case 'collect': return `${capitalize(addOrSubtract(move.coef, xMagnitude(move.coef, v, style)))}: $${eq}$.`;
+    case 'constant': return `${capitalize(addOrSubtract(move.value, show(move.value)))}: $${eq}$.`;
+    case 'divide': return `Divide both sides by $${numberLatex(move.by, style)}$: $${eq}$.`;
+    default: return '';
+  }
+};
+
 const numericSibling = (model, random, accept) => {
   const v = model.variable;
   const style = model.style;
@@ -1543,23 +1559,9 @@ const numericSibling = (model, random, accept) => {
     if (!last || last.kind === 'special') continue;
     const final = expandLinearSide(last.right);
     if (!(last.left.length === 1 && last.left[0].kind === 'x' && equals(last.left[0].coef, ONE) && equals(final.b, value))) continue;
-    const say = (move) => {
-      const eq = equationLatexOf(move.left, move.right, v, style);
-      const show = (number) => numberLatex(absolute(number), style);
-      switch (move.kind) {
-        case 'clear': return `Multiply every term on both sides by $${show(move.factor)}$ to clear the fractions: $${eq}$.`;
-        case 'distribute': return `Distribute to remove the parentheses: $${eq}$.`;
-        case 'combine': return `Combine like terms on each side: $${eq}$.`;
-        case 'swap': return `Switch the two sides so the $${v}$-term is on the left: $${eq}$.`;
-        case 'collect': return `${capitalize(addOrSubtract(move.coef, xMagnitude(move.coef, v, style)))}: $${eq}$.`;
-        case 'constant': return `${capitalize(addOrSubtract(move.value, show(move.value)))}: $${eq}$.`;
-        case 'divide': return `Divide both sides by $${numberLatex(move.by, style)}$: $${eq}$.`;
-        default: return '';
-      }
-    };
     const leftValue = add(multiply(L.a, value), L.b);
     const steps = [
-      ...moves.map(say).filter(Boolean),
+      ...moves.map((move) => numericMoveStep(move, v, style)).filter(Boolean),
       `Check: with $${v} = ${numberLatex(value, style)}$, both sides of $${equation}$ equal $${numberLatex(leftValue, style)}$.`,
     ];
     const example = {
@@ -1703,6 +1705,315 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
     else if (model.lineForm) example = lineSibling(model, random, accept);
     else example = literalSibling(model, random, accept);
     return example ? { prompt: example.prompt, steps: example.steps, answer: example.answer } : null;
+  } catch {
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * workedSolution: THIS question, worked in full, for the closed-question
+ * review only (closedQuestionReview.js). It states the answer, so nothing that
+ * is shown while the item is open (hints, back-up, sibling) may call it.
+ *
+ * The steps are the sibling's own moves (numericMoves / numericMoveStep) on
+ * this item's numbers, each showing the equation it reaches, and the last one
+ * reaches the answer the grader keys. Null — never a wrong step — when the
+ * shape cannot be explained exactly, or the key disagrees with the equation
+ * the student was shown.
+ * ------------------------------------------------------------------------- */
+
+/** The value of an expression tree at a point (every letter given), exactly. */
+const nodeValue = (node, scope) => {
+  switch (node.type) {
+    case 'num': return node.value;
+    case 'sym': {
+      if (!Object.prototype.hasOwnProperty.call(scope, node.name)) throw new RangeError('a letter with no value');
+      return scope[node.name];
+    }
+    case 'neg': return negate(nodeValue(node.node, scope));
+    case 'paren': return nodeValue(node.node, scope);
+    case 'sum': return node.terms.reduce((sum, term) => (term.sign < 0 ? subtract : add)(sum, nodeValue(term.node, scope)), ZERO);
+    case 'product': return node.factors.reduce((productSoFar, factor) => {
+      const value = nodeValue(factor.node, scope);
+      if (!factor.inverse) return multiply(productSoFar, value);
+      if (isZero(value)) throw new RangeError('division by zero');
+      return divide(productSoFar, value);
+    }, ONE);
+    case 'power': {
+      const exponent = nodeValue(node.exponent, scope);
+      if (!isInteger(exponent) || exponent.n < 0 || exponent.n > MAX_DEGREE) throw new RangeError('exponent');
+      let out = ONE;
+      for (let count = 0; count < exponent.n; count += 1) out = multiply(out, nodeValue(node.base, scope));
+      return out;
+    }
+    default: throw new TypeError('unknown node');
+  }
+};
+
+const polyValue = (poly, scope) => [...poly.values()].reduce((sum, { symbols, coef }) => add(sum, symbols.reduce((term, symbol) => {
+  if (!Object.prototype.hasOwnProperty.call(scope, symbol)) throw new RangeError('a letter with no value');
+  return multiply(term, scope[symbol]);
+}, coef)), ZERO);
+
+const substituteNode = (node, name, replacement) => {
+  switch (node.type) {
+    case 'sym': return node.name === name ? replacement : node;
+    case 'neg': case 'paren': return { ...node, node: substituteNode(node.node, name, replacement) };
+    case 'sum': return { ...node, terms: node.terms.map((term) => ({ ...term, node: substituteNode(term.node, name, replacement) })) };
+    case 'product': return { ...node, factors: node.factors.map((factor) => ({ ...factor, node: substituteNode(factor.node, name, replacement) })) };
+    case 'power': return { ...node, base: substituteNode(node.base, name, replacement), exponent: substituteNode(node.exponent, name, replacement) };
+    default: return node;
+  }
+};
+
+/*
+ * The equation as the worked solution quotes it: the question's own spelling
+ * unless that spelling is untidy (a Path draw's "1x + 9", "+ -3"), then the
+ * same equation written cleanly.
+ */
+const UNTIDY = /(^|[^\d.\\{])1(?=[A-Za-z])|\+\s*-|-\s*-|\+\s*\+/;
+const quotedEquation = (model) => {
+  if (!UNTIDY.test(model.display)) return model.display;
+  return model.kind === 'numeric'
+    ? equationLatexOf(model.leftTerms, model.rightTerms, model.variable, model.style)
+    : `${polyLatex(model.leftPoly, { style: model.style, last: model.target })} = ${polyLatex(model.rightPoly, { style: model.style, last: model.target })}`;
+};
+
+const isBareVariable = (terms) => terms.length === 1 && terms[0].kind === 'x' && equals(terms[0].coef, ONE);
+
+/** The moves of a numeric model as worked steps, ending on its value or its case. */
+const numericWorkedSteps = (model) => {
+  const v = model.variable;
+  const style = model.style;
+  const moves = numericMoves(model.leftTerms, model.rightTerms, { style });
+  if (!moves.length) return null;
+  const last = moves[moves.length - 1];
+  const steps = moves.map((move) => {
+    if (move.kind !== 'special') return numericMoveStep(move, v, style);
+    const statement = `${numberLatex(move.statement.left, style)} = ${numberLatex(move.statement.right, style)}`;
+    return move.outcome === 'allReals'
+      ? `The $${v}$-terms cancel, leaving $${statement}$, which is always true: every value of $${v}$ makes the equation true, so the solution is all real numbers.`
+      : `The $${v}$-terms cancel, leaving $${statement}$, which is never true: no value of $${v}$ makes the equation true, so the equation has no solution.`;
+  });
+  if (steps.some((step) => !step)) return null;
+  if (model.outcome === 'value') {
+    if (last.kind === 'special' || !isBareVariable(last.left) || last.right.some((term) => term.kind !== 'c')) return null;
+    if (!equals(expandLinearSide(last.right).b, model.solution)) return null;
+    return { steps, answer: `${v} = ${numberLatex(model.solution, style)}` };
+  }
+  if (last.kind !== 'special' || last.outcome !== model.outcome) return null;
+  return { steps, answer: model.outcome === 'allReals' ? 'All real numbers' : 'No solution' };
+};
+
+const numericSummary = (model, answer) => {
+  if (model.outcome === 'allReals') return `All real numbers: every value of $${model.variable}$ makes the equation true.`;
+  if (model.outcome === 'noSolution') return `No solution: no value of $${model.variable}$ makes the equation true.`;
+  return `The solution is $${answer}$.`;
+};
+
+const numericWorked = (question, model) => {
+  const special = specialOutcomeOf(question);
+  const keys = keyedAnswers(question).map(numericKey).filter(Boolean);
+  if (model.outcome === 'value') {
+    if (special || keys.some((key) => !equals(key, model.solution))) return null;
+  } else if ((special && special !== model.outcome) || keys.length) {
+    return null;
+  }
+  const worked = numericWorkedSteps(model);
+  if (!worked) return null;
+  return {
+    headline: `Solve $${quotedEquation(model)}$ for $${model.variable}$, doing the same thing to both sides at every step.`,
+    steps: worked.steps,
+    answerSummary: numericSummary(model, worked.answer),
+  };
+};
+
+/** "C = 15 + 7g … a bill is $50": put the given value in, then solve as a numeric equation. */
+const appliedWorked = (question, model) => {
+  const t = model.target;
+  const keys = keyedAnswers(question).map(numericKey);
+  if (!keys.length || keys.some((key) => key === null)) return null;
+  const [value] = keys;
+  if (keys.some((key) => !equals(key, value))) return null;
+  const letters = [...new Set([...polySymbols(model.leftPoly), ...polySymbols(model.rightPoly)])].filter((symbol) => symbol !== t);
+  if (letters.length !== 1 || letters[0] === 'pi') return null;
+  const [given] = letters;
+  // At t = the key the formula is linear in the given letter: its value is the one the prompt states.
+  const difference = polyAdd(model.leftPoly, model.rightPoly, MINUS_ONE);
+  const at = (number) => polyValue(difference, { [t]: value, [given]: number });
+  const slope = subtract(at(ONE), at(ZERO));
+  if (isZero(slope)) return null;
+  const givenValue = divide(negate(at(ZERO)), slope);
+  // Only a number the prompt GIVES counts: the formula's own constants (a
+  // prompt quoting "C = 15 + 7g") are not a given value. Strip the formula as
+  // authored, and any equation in the prompt that mentions the unknown.
+  let givenText = String(question.prompt ?? '').replace(/[−–]/g, '-');
+  for (const formula of [question.formula, question.formulaLatex, question.equation, question.equationLatex, model.display]) {
+    const compact = text(formula).replace(/\$/g, '').replace(/\s+/g, '');
+    if (!compact) continue;
+    const spaced = new RegExp([...compact].map((char) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*'), 'g');
+    givenText = givenText.replace(spaced, ' ');
+  }
+  const mathToken = String.raw`-?(?:\d+(?:\.\d+)?[A-Za-z]*|[A-Za-z])`;
+  const equationRun = new RegExp(String.raw`[A-Za-z]\s*=\s*${mathToken}(?:\s*[-+*/·]\s*${mathToken})*|${mathToken}(?:\s*[-+*/·]\s*${mathToken})*\s*=\s*[A-Za-z](?![A-Za-z])`, 'g');
+  const unknown = new RegExp(`(^|[^A-Za-z])${t}([^A-Za-z]|$)`);
+  givenText = givenText.replace(equationRun, (run) => (unknown.test(run) ? ' ' : run));
+  const stated = [...givenText.matchAll(/(-?)(\d+(?:\.\d+)?)/g)].some(([, minus, digits]) => {
+    try {
+      const number = decimalRational(digits);
+      return equals(minus ? negate(number) : number, givenValue);
+    } catch {
+      return false;
+    }
+  });
+  if (!stated) return null;
+  const style = model.style;
+  const replacement = { type: 'num', value: givenValue, text: numberLatex(givenValue, style) };
+  for (const candidate of equationCandidates(question)) {
+    if (candidate.abc) continue;
+    const leftNode = parseExpression(candidate.left, t);
+    const rightNode = parseExpression(candidate.right, t);
+    if (!leftNode || !rightNode) continue;
+    let leftTerms;
+    let rightTerms;
+    try {
+      if (!polyEquals(toPoly(leftNode), model.leftPoly) || !polyEquals(toPoly(rightNode), model.rightPoly)) continue;
+      leftTerms = sideTerms(substituteNode(leftNode, given, replacement), t);
+      rightTerms = sideTerms(substituteNode(rightNode, given, replacement), t);
+    } catch {
+      continue;
+    }
+    const numeric = buildNumeric({ question: {}, leftTerms, rightTerms, variable: t, display: model.display, style });
+    if (!numeric || numeric.outcome !== 'value' || !equals(numeric.solution, value)) return null;
+    const worked = numericWorkedSteps(numeric);
+    if (!worked) return null;
+    const substituted = equationLatexOf(numeric.leftTerms, numeric.rightTerms, t, style);
+    return {
+      headline: `Put $${given} = ${numberLatex(givenValue, style)}$ into $${quotedEquation(model)}$, then solve for $${t}$.`,
+      steps: [`Substitute $${given} = ${numberLatex(givenValue, style)}$ into $${quotedEquation(model)}$: $${substituted}$.`, ...worked.steps],
+      answerSummary: `The solution is $${worked.answer}$.`,
+    };
+  }
+  return null;
+};
+
+/** A poly as LaTeX with its positive terms first: "11 - T", never "-T + 11". */
+const positiveFirstLatex = (poly, options) => {
+  const entries = [...poly.entries()];
+  const positive = new Map(entries.filter(([, monomial]) => monomial.coef.n > 0));
+  const negative = new Map(entries.filter(([, monomial]) => monomial.coef.n < 0));
+  if (!positive.size || !negative.size) return polyLatex(poly, options);
+  return `${polyLatex(positive, options)} ${polyLatex(negative, options).replace(/^-/, '- ')}`;
+};
+
+const literalWorked = (question, model) => {
+  if (model.applied) return appliedWorked(question, model);
+  const t = model.target;
+  const style = model.style;
+  // Written as a student writes it: letters in order (mx, Bh), positive terms
+  // first (y - b); a line keeps its x-term first (y = -\frac{2}{3}x + 4).
+  const latex = (poly) => (model.lineForm ? polyLatex(poly, { style }) : positiveFirstLatex(poly, { style }));
+  const tPoly = polyOf([[[t], ONE]]);
+  let left = model.leftPoly;
+  let right = model.rightPoly;
+  const steps = [];
+  const show = () => `${latex(left)} = ${latex(right)}`;
+  // A group multiplied out (2(l + w), \frac{5}{9}(F - 32), -(x - 1)) is distributed
+  // as its own step, never silently inside another move.
+  if (/(?:[\dA-Za-z}]|-)\s*\([^()]*[+-][^()]*\)|\([^()]*[+-][^()]*\)\s*[\dA-Za-z\\(]/.test(quotedEquation(model).replace(/\\left|\\right/g, ''))) {
+    steps.push(`Distribute: $${show()}$.`);
+  }
+  const moveText = (poly) => {
+    const single = singleMonomial(poly);
+    if (single) return capitalize(addOrSubtract(single.coef, latex(polyOf([[single.symbols, absolute(single.coef)]]))));
+    return `Subtract $\\left(${latex(poly)}\\right)$ from both sides`;
+  };
+  const factor = lcmInt(polyDenominator(left), polyDenominator(right));
+  if (factor > 1 && style !== 'decimal') {
+    left = polyScale(left, rational(factor));
+    right = polyScale(right, rational(factor));
+    steps.push(`Multiply both sides by $${factor}$ to clear the fraction: $${show()}$.`);
+  }
+  if (model.side === 'both') {
+    const moving = polyMul(splitByTarget(right, t).coefficient, tPoly);
+    left = polyAdd(left, moving, MINUS_ONE);
+    right = polyAdd(right, moving, MINUS_ONE);
+    steps.push(`${moveText(moving)} to collect the $${t}$-terms on the left: $${show()}$.`);
+  }
+  const onLeft = model.side !== 'right';
+  const { coefficient, rest } = splitByTarget(onLeft ? left : right, t);
+  let other = onLeft ? right : left;
+  if (!coefficient.size || splitByTarget(other, t).coefficient.size) return null;
+  const tTerms = polyMul(coefficient, tPoly);
+  const place = (tSide, otherSide) => (onLeft ? `${tSide} = ${otherSide}` : `${otherSide} = ${tSide}`);
+  if (rest.size) {
+    other = polyAdd(other, rest, MINUS_ONE);
+    steps.push(`${moveText(rest)}: $${place(latex(tTerms), latex(other))}$.`);
+  }
+  const constant = polyConstant(coefficient);
+  let answer;
+  if (constant !== null && equals(constant, ONE)) {
+    answer = latex(other);
+    if (!onLeft || !steps.length) steps.push(`Write it with $${t}$ on the left: $${t} = ${answer}$.`);
+  } else if (coefficient.size > 1) {
+    const by = `\\left(${latex(coefficient)}\\right)`;
+    steps.push(`Factor $${t}$ out of the $${t}$-terms: $${place(`${t}${by}`, latex(other))}$.`);
+    const allNegative = [...other.values()].every((monomial) => monomial.coef.n < 0);
+    answer = allNegative
+      ? `-\\frac{${latex(polyScale(other, MINUS_ONE))}}{${latex(coefficient)}}`
+      : `\\frac{${positiveFirstLatex(other, { style, last: t })}}{${latex(coefficient)}}`;
+    steps.push(`Divide both sides by $${by}$: $${t} = ${answer}$.`);
+  } else if (model.lineForm) {
+    answer = latex(polyScale(other, divide(ONE, constant)));
+    steps.push(`Divide every term on both sides by $${numberLatex(constant, style)}$: $${t} = ${answer}$.`);
+  } else {
+    const single = singleMonomial(coefficient);
+    const negative = single.coef.n < 0;
+    const top = polyScale(other, rational(negative ? -single.coef.d : single.coef.d));
+    const bottomNumber = Math.abs(single.coef.n);
+    const bottom = latex(polyOf([[single.symbols, rational(bottomNumber)]]));
+    const allNegative = [...top.values()].every((monomial) => monomial.coef.n < 0);
+    if (!single.symbols.length && bottomNumber === 1) answer = positiveFirstLatex(top, { style, last: t });
+    else if (allNegative) answer = `-\\frac{${latex(polyScale(top, MINUS_ONE))}}{${bottom}}`;
+    else answer = `\\frac{${positiveFirstLatex(top, { style, last: t })}}{${bottom}}`;
+    const by = coefficient.size === 1 && single.symbols.length === 0 ? numberLatex(single.coef, style) : latex(coefficient);
+    steps.push(`Divide both sides by $${by}$: $${t} = ${answer}$.`);
+  }
+  // The key, wherever it can be read, is the same formula: compared at two points.
+  const letters = [...new Set([...polySymbols(model.leftPoly), ...polySymbols(model.rightPoly)])].filter((symbol) => symbol !== t);
+  const scopes = [0, 1].map((salt) => Object.fromEntries(letters.map((letter, index) => [letter, rational(2 * index + 3 + 5 * salt, (index % 3) + 2 + salt)])));
+  for (const key of keyedAnswers(question)) {
+    const body = text(key).replace(/^\$|\$$/g, '').replace(new RegExp(`^\\s*${t}\\s*=`), '');
+    const node = parseExpression(body, t);
+    if (!node) continue;
+    for (const scope of scopes) {
+      try {
+        const divisor = polyValue(coefficient, scope);
+        if (isZero(divisor)) continue;
+        if (!equals(nodeValue(node, scope), divide(polyValue(other, scope), divisor))) return null;
+      } catch {
+        return null;
+      }
+    }
+  }
+  const headline = model.lineForm
+    ? `Write $${quotedEquation(model)}$ in slope-intercept form by getting $y$ by itself.`
+    : `Solve $${quotedEquation(model)}$ for $${t}$: treat every other letter as a number and undo what is done to $${t}$.`;
+  return {
+    headline,
+    steps,
+    answerSummary: model.lineForm ? `In slope-intercept form, $${t} = ${answer}$.` : `The solution is $${t} = ${answer}$.`,
+  };
+};
+
+export const workedSolution = (question) => {
+  try {
+    if (!matches(question)) return null;
+    const model = modelFor(question);
+    if (!model) return null;
+    const worked = model.kind === 'numeric' ? numericWorked(question, model) : literalWorked(question, model);
+    if (!worked || !worked.steps.length || worked.steps.some((step) => !text(step))) return null;
+    return worked;
   } catch {
     return null;
   }

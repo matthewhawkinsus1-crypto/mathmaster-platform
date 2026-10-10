@@ -13,6 +13,10 @@
 //                                  the inclusion "Let's back up" check: one quick
 //                                  question about THIS problem's first move (never its
 //                                  answer); null keeps the platform's generic one
+//   workedSolution(question)     → { headline, steps: [text], answerSummary } | null
+//                                  THIS question's worked solution, for the closed-question
+//                                  review only (it states the answer); null when any part
+//                                  cannot be explained exactly — see the section at the end
 // `implemented` stays false until the family is real: the index skips it.
 //
 // WHAT THIS FAMILY OWNS (sixth in the index order; the five families before it
@@ -80,14 +84,17 @@
 //
 // Pure: no React, no I/O.
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
-import { answerCandidatesForField } from '../../../../functions/shared/answerUtils.mjs';
+import { answerCandidatesForField, matchesFieldAnswer } from '../../../../functions/shared/answerUtils.mjs';
 import { readComposedQuestion } from '../../../../functions/shared/toolMath/workflow/questionWorkflow.mjs';
-import { graphWorkspaceModelFor } from '../../../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
+import { gradeAnalysisPart, graphWorkspaceModelFor } from '../../../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
+import { POINT_INPUT_NONE_TOKEN, gradeFeaturePoints, gradeStage } from '../../../../functions/shared/toolMath/workflow/workflowGrading.mjs';
 import {
   evaluateGraphFunction,
   getEffectiveDomain,
+  getSuggestedGraphPoints,
   xIsInFunctionDomain,
 } from '../../../../functions/shared/toolMath/graphWorkspace/functionGraphUtils.mjs';
+import { gradePointPlacements } from '../../../../functions/shared/toolMath/graphWorkspace/interactiveGraphEngine.mjs';
 import {
   relationAskOf,
   relationIsFunction,
@@ -99,6 +106,8 @@ import { relationshipModelRequirements } from '../../../../functions/shared/tool
 import {
   compareSequencesAt,
   compareSpecsFromQuestion,
+  fullBridgeTermCount,
+  missingTermCount,
   normalizeSequenceSpec,
   sequenceChange,
   sequencePartialSum,
@@ -2574,6 +2583,1205 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
     if (model.kind === 'investigation') return investigationSibling(question, model, guard, seed);
     if (model.kind === 'attributes') return attributesSibling(question, model, guard, seed);
     return null;
+  } catch {
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * workedSolution: THIS question's worked solution, for the review panel once
+ * the question is closed (closedQuestionReview.js). It states the answer, so
+ * nothing shown while the item is open (hints, the back-up step, siblings)
+ * ever calls it.
+ *
+ * The steps are the siblings' own (featureSentence, the analyzer's domain,
+ * range, monotone pieces, signs and features, the table and relation steps,
+ * the sequence and investigation steps) worked on THIS item's function,
+ * pairs or terms. Every answer is computed here and then held to the item's
+ * key by the item's own grader before anything is returned: the graph
+ * workspace's gradeAnalysisPart and point tasks, the composed workflow's
+ * gradeStage / gradeFeaturePoints, a multiAnswer field's matchesFieldAnswer,
+ * the grader's own helpers for the registry tools (sequenceMath,
+ * functionInvestigationMath, the relation helpers). A part the analyzer
+ * cannot explain exactly, or whose key it does not reproduce, makes the whole
+ * answer null — the panel then keeps today's behaviour. Never a wrong step.
+ * ------------------------------------------------------------------------- */
+
+/** A number this family can print exactly (six decimals at most). */
+const exact = (value) => Number.isFinite(value) && Math.abs(Number(dec(value)) - value) < 1e-9;
+const allExact = (values) => values.every((value) => !Number.isFinite(value) || exact(value));
+const intervalNumbers = (parts) => parts.flatMap((part) => [part.lo, part.hi]);
+
+const NO_INTERVAL = 'none';
+
+/**
+ * The zeros, when every one of them can be written exactly; null when a zero
+ * is irrational or long (2/3, √2): the analyzer's rounded zeros drop such a
+ * root, and "it never meets the x-axis" would then be false.
+ */
+const exactZeros = (spec) => {
+  const type = specType(spec);
+  const investigated = type === 'linear'
+    ? { type: 'linear', a: slopeOf(spec), h: paramH(spec), k: interceptOf(spec) }
+    : { type, a: paramA(spec), h: paramH(spec), k: paramK(spec), base: baseOf(spec) };
+  let roots = [];
+  try { roots = interceptsForSpec(investigated).x; } catch { return null; }
+  const zeros = zerosOf(spec);
+  const near = roots.filter((x) => xIsInFunctionDomain(spec, x) && Math.abs(valueAt(spec, x)) < 1e-3);
+  if (near.length !== zeros.length || !allExact(zeros) || zeros.some((x) => Math.abs(valueAt(spec, x)) > 1e-9)) return null;
+  return zeros;
+};
+/**
+ * Solving rule = 0 as a clause: the equation's whole real solution set, then,
+ * on a restricted graph, only the solutions on the drawn piece. Saying just the
+ * drawn zeros would be a false statement about the equation. null when the
+ * unrestricted equation's solutions cannot be written exactly.
+ */
+const solveClause = (spec, zeros) => {
+  const rule = renderRhs(spec);
+  if (!isRestricted(spec)) return zeros.length ? `solving ${rule} = 0 gives x = ${zeros.map(dec).join(' or x = ')}` : `${rule} never equals zero where the graph is drawn`;
+  const roots = exactZeros(withoutRestriction(spec));
+  if (!roots || zeros.some((zero) => !roots.some((root) => same(root, zero)))) return null;
+  if (!roots.length) return `${rule} = 0 has no real solution`;
+  const solved = `solving ${rule} = 0 gives x = ${roots.map(dec).join(' or x = ')}`;
+  const drawn = restrictionText(spec) ? `the drawn graph (${restrictionText(spec)})` : 'the drawn graph';
+  if (zeros.length === roots.length) return `${solved}, and ${roots.length === 1 ? 'it is' : 'each is'} on ${drawn}`;
+  if (!zeros.length) return `${solved}, but ${roots.length === 1 ? 'it is not' : 'none of them is'} on ${drawn}`;
+  return `${solved}, and only x = ${zeros.map(dec).join(' and x = ')} ${zeros.length === 1 ? 'is' : 'are'} on ${drawn}`;
+};
+
+/** An interval answer in the notation a part or stage asks for. */
+const intervalAnswer = (parts, notation, variable) => {
+  if (!parts.length) return NO_INTERVAL;
+  return notation === 'interval' ? showIntervals(parts) : showInequality(parts, variable);
+};
+
+const DOMAIN_LIMIT = Object.freeze({
+  squareRoot: (h) => `the expression under the root, ${insideText(h)}, must be at least zero`,
+  rational: (h) => `the denominator, ${insideText(h)}, cannot be zero`,
+  logarithmic: (h) => `the input of the logarithm, ${insideText(h)}, must be positive`,
+});
+
+/** Why the domain is what it is, ending on the domain itself. */
+const domainSentence = (spec, shown) => {
+  const restriction = restrictionText(spec);
+  const limit = DOMAIN_LIMIT[specType(spec)]?.(paramH(spec));
+  const reasons = [restriction && `the graph is drawn only for ${restriction}`, limit].filter(Boolean);
+  return `Domain: ${reasons.length ? joinWords(reasons) : 'every real number can be substituted'}, so the domain is ${shown}.`;
+};
+
+const flatLine = (spec) => specType(spec) === 'linear' && same(slopeOf(spec), 0);
+
+/** Why the range is what it is, ending on the range itself; '' when it cannot be explained. */
+const rangeSentence = (spec, shown) => {
+  const type = specType(spec);
+  const pieces = domainPieces(spec);
+  const a = paramA(spec);
+  const h = paramH(spec);
+  const k = paramK(spec);
+  if (isRestricted(spec)) {
+    if (pieces.length !== 1 || !Number.isFinite(pieces[0].min) || !Number.isFinite(pieces[0].max)) return '';
+    const { min, max, minIn, maxIn } = pieces[0];
+    const turning = turningOf(spec);
+    const ends = [[min, minIn], ...(turning !== null && turning > min && turning < max ? [[turning, true, true]] : []), [max, maxIn]];
+    const values = ends.map(([x]) => valueAt(spec, x));
+    if (!allExact(values)) return '';
+    const evidence = ends.map(([x, closed, vertex], index) => `f(${dec(x)}) = ${dec(values[index])}${vertex ? ' at the vertex' : closed ? ' (a closed dot)' : ' (an open dot: not reached there)'}`);
+    return `Range: check the ends${turning !== null && turning > min && turning < max ? ' and the vertex' : ''}: ${joinWords(evidence)}. The smallest and largest of these bound the y-values, so the range is ${shown}.`;
+  }
+  const rises = a > 0;
+  const reasons = {
+    linear: 'a line that is not horizontal keeps rising or falling without end and reaches every height',
+    quadratic: `the vertex (${dec(h)}, ${dec(k)}) is the ${rises ? 'lowest' : 'highest'} point and the parabola keeps ${rises ? 'rising' : 'falling'} on both sides of it`,
+    absolute: `the vertex (${dec(h)}, ${dec(k)}) is the ${rises ? 'lowest' : 'highest'} point and the V keeps ${rises ? 'rising' : 'falling'} on both sides of it`,
+    squareRoot: `the graph starts at its endpoint (${dec(h)}, ${dec(k)}) and keeps ${rises ? 'rising' : 'falling'} from there`,
+    cubic: 'the graph keeps rising or falling without end in both directions and reaches every height',
+    cubeRoot: 'the graph keeps rising or falling without end in both directions and reaches every height',
+    exponential: `the outputs get closer and closer to the asymptote y = ${dec(k)} without reaching it, and move away from it without end on the other side`,
+    logarithmic: `the graph ${rises === (baseOf(spec) > 1) ? 'drops' : 'climbs'} without end near its vertical asymptote x = ${dec(h)} and ${rises === (baseOf(spec) > 1) ? 'climbs' : 'drops'} without end as x grows, reaching every height`,
+    rational: `the outputs get close to the horizontal asymptote y = ${dec(k)} but never equal it, and reach every other value`,
+  };
+  return reasons[type] ? `Range: ${reasons[type]}, so the range is ${shown}.` : '';
+};
+
+/** Reading the graph left to right: the monotone pieces asked for, as one sentence. */
+const monotoneSentence = (spec, kinds) => {
+  const turning = turningOf(spec);
+  const pieces = domainPieces(spec);
+  const said = kinds.map((kind) => {
+    if (kind === 'constant') return 'never flat (constant) on any interval';
+    const intervals = monotoneIntervals(spec, kind === 'increasing' ? 1 : -1);
+    return intervals.length ? `${kind} on ${showIntervals(intervals)}` : `never ${kind}`;
+  });
+  const goes = directionOf(spec, pieces[0]) > 0 ? 'rises' : 'falls';
+  let lead;
+  if (turning !== null && turning > pieces[0].min && turning < pieces[pieces.length - 1].max) lead = `Reading left to right, the graph turns around at x = ${dec(turning)}, so it is`;
+  else if (pieces.length > 1) lead = `Reading left to right, each branch ${goes}, on both sides of the vertical asymptote x = ${dec(paramH(spec))}, so it is`;
+  else lead = `Reading left to right, the graph ${goes} the whole way, so it is`;
+  return `${lead} ${joinClauses(said)}.`;
+};
+
+const monotoneParts = (spec, kind) => {
+  if (kind === 'constant') return [];
+  return monotoneIntervals(spec, kind === 'increasing' ? 1 : -1);
+};
+
+/** Where the graph is above or below the x-axis, as one sentence; '' when it cannot be explained. */
+const signSentence = (spec, kinds) => {
+  const zeros = exactZeros(spec);
+  if (!zeros) return '';
+  const solve = capitalize(solveClause(spec, zeros));
+  if (!solve) return '';
+  const said = kinds.map((kind) => {
+    const intervals = signIntervals(spec, kind === 'positive' ? 1 : -1);
+    return intervals.length ? `${kind} on ${showIntervals(intervals)}` : `never ${kind}`;
+  });
+  return `${solve}; testing one x-value in each piece between them, the function is ${joinClauses(said)}.`;
+};
+
+const signParts = (spec, kind) => signIntervals(spec, kind === 'positive' ? 1 : -1);
+
+const samePoints = (left, right) => left.length === right.length
+  && left.every((point) => right.some((other) => Math.abs(point[0] - other[0]) < 1e-6 && Math.abs(point[1] - other[1]) < 1e-6));
+const pointsAnswer = (points) => (points.length ? points.map(showPoint).join(', ') : NO_INTERVAL);
+
+/** One feature point part: { step, points } from the analyzer, or null. */
+const featureWork = (spec, feature) => {
+  const type = specType(spec);
+  const vertex = [paramH(spec), paramK(spec)];
+  if (feature === 'xIntercepts') {
+    const zeros = exactZeros(spec);
+    if (!zeros) return null;
+    const points = zeros.map((zero) => [zero, 0]);
+    if (isRestricted(spec)) {
+      const solve = solveClause(spec, zeros);
+      if (!solve) return null;
+      return { points, step: `x-intercepts: ${solve}, so ${zeros.length ? `the graph meets the x-axis at ${points.map(showPoint).join(' and ')}` : 'the drawn graph never meets the x-axis'}.` };
+    }
+    return { points, step: zeros.length ? `x-intercepts: solving ${renderRhs(spec)} = 0 gives ${points.map(showPoint).join(' and ')}.` : 'x-intercepts: the graph never meets the x-axis.' };
+  }
+  if (feature === 'yIntercept') {
+    if (!xIsInFunctionDomain(spec, 0)) return { points: [], step: 'y-intercept: the graph never reaches x = 0, so it never meets the y-axis.' };
+    const y = valueAt(spec, 0);
+    if (!exact(y)) return null;
+    return { points: [[0, y]], step: `y-intercept: f(0) = ${dec(y)}, the point ${showPoint([0, y])}.` };
+  }
+  if (feature === 'localMinimum' || feature === 'localMaximum') {
+    const wantMin = feature === 'localMinimum';
+    const turning = turningOf(spec);
+    const word = wantMin ? 'local minimum' : 'local maximum';
+    const inside = turning !== null && domainPieces(spec).some((piece) => turning > piece.min && turning < piece.max);
+    if (turning !== null && !inside) return null;
+    const has = inside && (paramA(spec) > 0) === wantMin;
+    if (has) return { points: [vertex], step: `The turning point ${showPoint(vertex)} is the ${wantMin ? 'lowest' : 'highest'} point nearby, so it is the ${word}.` };
+    if (isRestricted(spec)) return null;
+    return {
+      points: [],
+      step: turning !== null
+        ? `There is not a ${word}: the graph's only turning point is a ${wantMin ? 'highest' : 'lowest'} point.`
+        : `There is not a ${word}: reading left to right, the graph never turns around.`,
+    };
+  }
+  // On a restricted graph the point must be on the drawn piece (a reciprocal's center: both branches drawn).
+  const drawn = !isRestricted(spec) || (type === 'rational' ? domainPieces(spec).length > 1 : xIsInFunctionDomain(spec, paramH(spec)));
+  if (!drawn) return null;
+  if (feature === 'center') return CENTER_TYPES.includes(type) ? { points: [vertex], step: `The center is (h, k) = ${showPoint(vertex)}.` } : null;
+  if (feature === 'vertex') return VERTEX_TYPES.includes(type) ? { points: [vertex], step: `The vertex is (h, k) = ${showPoint(vertex)}.` } : null;
+  return null;
+};
+
+const ANALYSIS_NAMES = Object.freeze({
+  domain: 'the domain', range: 'the range', increasing: 'increasing', decreasing: 'decreasing', constant: 'constant', positive: 'positive', negative: 'negative',
+});
+const FEATURE_NAMES = Object.freeze({
+  vertex: 'the vertex', center: 'the center', xIntercepts: 'the x-intercepts', yIntercept: 'the y-intercept', localMinimum: 'the local minimum', localMaximum: 'the local maximum',
+});
+
+/** The construction: every point task plotted, every end marked. null when a task cannot be stated. */
+const constructionWork = (spec, workspace) => {
+  const tasks = list(workspace.tasks);
+  if (!tasks.length) return null;
+  const type = specType(spec);
+  // Cards whose x the student chooses get x-values the workspace accepts: in the
+  // domain, distinct, exact, and two on each side of the center where it asks.
+  const fixedXs = tasks.filter((task) => !task.studentChoosesX).map((task) => finiteNumber(task.x));
+  const open = tasks.filter((task) => task.studentChoosesX);
+  const chosenXValues = {};
+  if (open.length) {
+    const center = paramH(spec);
+    const usable = (x) => xIsInFunctionDomain(spec, x) && exact(valueAt(spec, x)) && !fixedXs.some((other) => other !== null && same(other, x));
+    const pool = unique([...getSuggestedGraphPoints(spec).map(([x]) => x), ...range(1, 10).flatMap((step) => [center - step, center + step])].map(String))
+      .map(Number).filter(usable);
+    const sides = ['absolute', 'quadratic', 'cubic', 'cubeRoot', 'rational'].includes(type);
+    const left = pool.filter((x) => x < center);
+    const right = pool.filter((x) => x > center);
+    const picked = sides
+      ? open.map((_, index) => (index % 2 ? right : left)[Math.floor(index / 2)])
+      : pool.slice(0, open.length);
+    if (picked.length < open.length || picked.some((x) => x === undefined)) return null;
+    open.forEach((task, index) => { chosenXValues[task.id] = picked[index]; });
+  }
+  const placements = {};
+  const plotted = [];
+  const missing = [];
+  for (const task of tasks) {
+    const x = task.studentChoosesX ? chosenXValues[task.id] : finiteNumber(task.x);
+    if (x === null || x === undefined) return null;
+    if (task.expected === 'undefined') {
+      placements[task.id] = 'undefined';
+      missing.push(x);
+      continue;
+    }
+    const y = valueAt(spec, x);
+    if (!exact(y)) return null;
+    placements[task.id] = [x, y];
+    plotted.push([x, y]);
+  }
+  // The workspace's own check of the placements: every card right.
+  const graded = gradePointPlacements(tasks, placements, spec, chosenXValues, workspace.pointTolerance);
+  if (!plotted.length || !graded.every((part) => part.isCorrect)) return null;
+  const ordered = [...plotted].sort((p, q) => p[0] - q[0]);
+  const steps = [];
+  if (open.length) steps.push(`Choose x-values in the domain for the open cards${['absolute', 'quadratic', 'cubic', 'cubeRoot', 'rational'].includes(type) ? `, two on each side of x = ${dec(paramH(spec))}` : ''}: x = ${open.map((task) => chosenXValues[task.id]).sort((p, q) => p - q).map(dec).join(', ')}.`);
+  steps.push(`Compute each point to plot: ${ordered.map(([x, y]) => `f(${dec(x)}) = ${dec(y)}`).join(', ')}.`);
+  missing.forEach((x) => {
+    const reason = DOMAIN_LIMIT[type]?.(paramH(spec));
+    steps.push(`At x = ${dec(x)} there is no point: ${reason || 'that input is outside the domain'}, so mark that card as undefined.`);
+  });
+  const shape = FAMILY_SHAPE[type] || 'curve';
+  if (workspace.pointOnly) {
+    steps.push(`Plot ${ordered.map(showPoint).join(', ')}.`);
+  } else {
+    steps.push(`Plot ${ordered.map(showPoint).join(', ')} and draw the ${shape} through them.`);
+    const markers = list(workspace.endpointRequirements);
+    const dots = markers.filter((marker) => marker.marker === 'closed' || marker.marker === 'open');
+    if (dots.some((marker) => !Array.isArray(marker.point) || !allExact(marker.point))) return null;
+    const arrows = markers.length - dots.length;
+    const said = [
+      ...dots.map((marker) => `a${marker.marker === 'open' ? 'n open' : ' closed'} dot at ${showPoint(marker.point)}, where the graph ${marker.marker === 'open' ? 'stops without including the point' : 'stops and includes the point'}`),
+      arrows ? `an arrow at ${arrows === 1 ? 'the end' : 'each end'} where the graph keeps going` : '',
+    ].filter(Boolean);
+    if (said.length) steps.push(`Mark the ends of the graph: ${joinWords(said)}.`);
+  }
+  return {
+    steps,
+    chosenXValues,
+    placements,
+    answer: `the graph goes through ${ordered.map(showPoint).join(', ')}${missing.length ? `, with no point at x = ${missing.map(dec).join(' or x = ')}` : ''}`,
+  };
+};
+
+/** The drawn piece of a restricted graph, each end's dot as the domain says (open or closed). */
+const restrictionLine = (spec) => {
+  const domain = getEffectiveDomain(spec);
+  const restriction = restrictionText(spec);
+  if (!restriction || !Number.isFinite(domain.min) || !Number.isFinite(domain.max)) return restriction ? `It is drawn only for ${restriction}.` : '';
+  const dot = (included) => (included ? 'a closed dot' : 'an open dot');
+  return `It is drawn only for ${restriction}: ${dot(domain.minInclusive)} at x = ${dec(domain.min)} and ${dot(domain.maxInclusive)} at x = ${dec(domain.max)}.`;
+};
+
+const graphWorked = (question, model) => {
+  const { spec } = model;
+  // A horizontal line's workspace key says "none" for its constant part and
+  // every real number for its range: no true statement would be graded right.
+  if (flatLine(spec)) return null;
+  let workspace;
+  try { workspace = graphWorkspaceModelFor(question, { analysisMode: typeOf(question) === 'graphAnalysis' }); } catch { return null; }
+  const parts = list(workspace.analysisParts);
+  const steps = [featureSentence(spec), restrictionLine(spec)].filter(Boolean);
+  const said = [];
+  const analysis = { answers: {}, typedPoints: {}, selections: {}, noneSelections: {} };
+  const accepted = (part) => gradeAnalysisPart(part, analysis, workspace.analysisTolerance).isCorrect === true;
+  if (workspace.constructionEnabled) {
+    const built = constructionWork(spec, workspace);
+    if (!built) return null;
+    steps.push(...built.steps);
+    said.push(built.answer);
+  }
+  const intervalKinds = ['increasing', 'decreasing', 'constant'];
+  const signKinds = ['positive', 'negative'];
+  const asked = (group) => parts.filter((part) => group.includes(part.kind));
+  for (const part of parts) {
+    if (part.kind === 'domain' || part.kind === 'range') {
+      const intervals = part.kind === 'domain' ? domainOf(spec) : rangeOf(spec);
+      if (!intervals.length || !allExact(intervalNumbers(intervals).filter(Number.isFinite))) return null;
+      const stated = intervalAnswer(intervals, part.notation, part.kind === 'domain' ? 'x' : 'y');
+      analysis.answers[part.id] = stated;
+      const sentence = part.kind === 'domain' ? domainSentence(spec, stated) : rangeSentence(spec, stated);
+      if (!sentence || !accepted(part)) return null;
+      steps.push(sentence);
+      said.push(`${ANALYSIS_NAMES[part.kind]} is ${stated}`);
+    } else if (intervalKinds.includes(part.kind) || signKinds.includes(part.kind)) {
+      const intervals = intervalKinds.includes(part.kind) ? monotoneParts(spec, part.kind) : signParts(spec, part.kind);
+      if (!allExact(intervalNumbers(intervals).filter(Number.isFinite))) return null;
+      const stated = intervalAnswer(intervals, part.notation, 'x');
+      analysis.answers[part.id] = stated;
+      if (!accepted(part)) return null;
+      said.push(intervals.length ? `it is ${part.kind} on ${stated}` : `it is never ${part.kind} (${NO_INTERVAL})`);
+    } else if (part.kind === 'point') {
+      const worked = featureWork(spec, text(part.feature) || 'vertex');
+      if (!worked || !samePoints(worked.points, list(part.expected))) return null;
+      const stated = pointsAnswer(worked.points);
+      if (worked.points.length) {
+        analysis.selections[part.id] = worked.points;
+        analysis.typedPoints[part.id] = stated;
+      } else {
+        analysis.noneSelections[part.id] = true;
+        analysis.typedPoints[part.id] = NO_INTERVAL;
+      }
+      if (!accepted(part)) return null;
+      steps.push(worked.step);
+      const named = FEATURE_NAMES[part.feature] || 'the point';
+      const plural = named.endsWith('s');
+      said.push(stated === NO_INTERVAL
+        ? `there ${plural ? 'are no' : 'is no'} ${named.replace(/^the /, '')} (none)`
+        : `${named} ${plural ? 'are' : 'is'} ${stated}`);
+    } else {
+      return null;
+    }
+  }
+  // The monotone and sign parts are explained together, as the siblings do.
+  const monotone = asked(intervalKinds).map((part) => part.kind);
+  if (monotone.length) steps.push(monotoneSentence(spec, unique(monotone)));
+  const signs = asked(signKinds).map((part) => part.kind);
+  if (signs.length) {
+    const sentence = signSentence(spec, unique(signs));
+    if (!sentence) return null;
+    steps.push(sentence);
+  }
+  if (!said.length) return null;
+  return {
+    headline: parts.length
+      ? 'Read each feature from the function: where it is defined, which heights it reaches, and how it moves from left to right.'
+      : 'Compute points from the rule, plot them, and draw the curve through them.',
+    steps: [...steps, `So ${joinWords(said)}.`],
+    answerSummary: capitalize(said.join('; ')),
+  };
+};
+
+/* ---- composed workflows: functionCharacteristics, the table-then-graph workflow, relationRepresentations ---- */
+
+const BEHAVIOR_LABELS = Object.freeze({
+  minimum: 'Decreasing, then increasing',
+  maximum: 'Increasing, then decreasing',
+  increasing: 'Increasing everywhere',
+  decreasing: 'Decreasing everywhere',
+  growth: 'Exponential growth',
+  decay: 'Exponential decay',
+});
+
+const choiceNamed = (stage, wanted) => list(stage?.choices).map(text).find((choice) => choice.toLowerCase() === text(wanted).toLowerCase()) || '';
+
+/** One composed stage's answer and step: { response, stated, step } | null. */
+const characteristicsStage = (spec, stage) => {
+  const id = text(stage.id);
+  const group = stageGroup(stage);
+  const type = specType(spec);
+  const zeros = exactZeros(spec);
+  const turning = turningOf(spec);
+  const restricted = isRestricted(spec);
+  const featureReply = (points) => (points.length ? { response: points.map(showPoint).join(', '), stated: points.map(showPoint).join(', ') } : { response: POINT_INPUT_NONE_TOKEN, stated: 'none' });
+  if (group === 'xIntercept') {
+    if (!zeros) return null;
+    const points = zeros.map((zero) => [zero, 0]);
+    const solve = restricted ? solveClause(spec, zeros) : null;
+    if (restricted && !solve) return null;
+    const step = restricted
+      ? `x-intercepts: ${solve}, so ${zeros.length ? `the graph meets the x-axis at ${points.map(showPoint).join(' and ')}` : 'the drawn graph never meets the x-axis'}.`
+      : zeros.length
+        ? `x-intercepts: solving ${renderRhs(spec)} = 0 gives x = ${zeros.map(dec).join(' or x = ')}, so the graph meets the x-axis at ${points.map(showPoint).join(' and ')}.`
+        : (characteristicsWork(spec, 'xIntercept', stage) || [])[0];
+    if (!step) return null;
+    if (id === 'xInterceptExists') return { response: zeros.length ? 'Yes' : 'No', stated: zeros.length ? 'Yes' : 'No', step };
+    if (id === 'zeros') return zeros.length ? { response: `{${zeros.map(dec).join(', ')}}`, stated: `{${zeros.map(dec).join(', ')}}`, step: `The zeros are the x-values where f(x) = 0: {${zeros.map(dec).join(', ')}}.` } : null;
+    return { ...featureReply(points), step };
+  }
+  if (group === 'yIntercept') {
+    const worked = featureWork(spec, 'yIntercept');
+    if (!worked) return null;
+    if (id === 'yInterceptExists') return { response: worked.points.length ? 'Yes' : 'No', stated: worked.points.length ? 'Yes' : 'No', step: worked.step };
+    return { ...featureReply(worked.points), step: worked.step };
+  }
+  if (group === 'extreme') {
+    if (restricted) return null;
+    const vertex = [paramH(spec), paramK(spec)];
+    const kind = turning === null ? 'Neither' : paramA(spec) > 0 ? 'Minimum' : 'Maximum';
+    const step = turning === null
+      ? 'Turning point: the graph never turns around, so it has no single highest or lowest point.'
+      : `Turning point: the vertex ${showPoint(vertex)} is the ${paramA(spec) > 0 ? 'lowest' : 'highest'} point of the graph, so it is a ${kind.toLowerCase()}.`;
+    if (id === 'extremeKind') {
+      const choice = choiceNamed(stage, kind);
+      return choice ? { response: choice, stated: choice, step } : null;
+    }
+    return { ...featureReply(turning === null ? [] : [vertex]), step };
+  }
+  if (group === 'axis') {
+    if (turning === null) return null;
+    const stated = `x = ${dec(paramH(spec))}`;
+    return { response: stated, stated, step: `Axis of symmetry: the vertical line through the vertex, ${stated}.` };
+  }
+  if (group === 'asymptote') {
+    if (type !== 'exponential' && type !== 'rational') return null;
+    const worked = characteristicsWork(spec, 'asymptote', stage);
+    if (!worked) return null;
+    const stated = `y = ${dec(paramK(spec))}`;
+    return { response: stated, stated, step: worked[0] };
+  }
+  if (group === 'behavior') {
+    if (restricted && turning !== null) return null;
+    const code = type === 'exponential' && list(stage.choices).some((choice) => /exponential/i.test(choice))
+      ? (paramA(spec) > 0 ? (baseOf(spec) > 1 ? 'growth' : 'decay') : null)
+      : turning !== null ? (paramA(spec) > 0 ? 'minimum' : 'maximum')
+        : domainPieces(spec).length > 1 ? null
+          : directionOf(spec, domainPieces(spec)[0]) > 0 ? 'increasing' : 'decreasing';
+    if (!code) return null;
+    const choice = choiceNamed(stage, BEHAVIOR_LABELS[code]);
+    if (!choice) return null;
+    const step = code === 'growth' || code === 'decay'
+      ? `Behavior: with a = ${dec(paramA(spec))} > 0 and base ${dec(baseOf(spec))} ${code === 'growth' ? '> 1' : 'between 0 and 1'}, the outputs ${code === 'growth' ? 'grow' : 'shrink'} by the same factor at each step to the right: ${choice.toLowerCase()}.`
+      : `${(characteristicsWork(spec, 'behavior', stage) || [''])[0]} That is: ${choice.toLowerCase()}.`;
+    return { response: choice, stated: choice, step };
+  }
+  if (group === 'domain' || group === 'range') {
+    const intervals = group === 'domain' ? domainOf(spec) : rangeOf(spec);
+    if (!intervals.length || !allExact(intervalNumbers(intervals).filter(Number.isFinite))) return null;
+    const notation = text(stage.notation) || 'inequality';
+    if (notation !== 'interval' && notation !== 'inequality') return null;
+    const stated = intervalAnswer(intervals, notation, group === 'domain' ? 'x' : 'y');
+    const step = group === 'domain' ? domainSentence(spec, stated) : rangeSentence(spec, stated);
+    return step ? { response: stated, stated, step } : null;
+  }
+  return null;
+};
+
+const STAGE_NAMES = Object.freeze({
+  xInterceptExists: 'an x-intercept exists', xIntercept: 'the x-intercepts', xInterceptValue: 'the x-intercepts', zeros: 'the zeros',
+  yInterceptExists: 'a y-intercept exists', yIntercept: 'the y-intercept', yInterceptValue: 'the y-intercept',
+  extremeKind: 'the extreme', extremePoint: 'the maximum or minimum', extremeValue: 'the maximum or minimum',
+  axisOfSymmetry: 'the axis of symmetry', asymptote: 'the asymptote', behavior: 'the behavior', domain: 'the domain', range: 'the range',
+});
+
+/** Does the stage's own grader accept this response? A stage with no key accepts what the analyzer computed. */
+const stageAccepts = (stage, rule, response, stages) => {
+  if (rule === undefined || rule === null) return true;
+  if (['graphFeatureSelect', 'pointInput'].includes(stage.kind) && isObject(rule)) return gradeFeaturePoints(response, rule).isCorrect === true;
+  try {
+    return gradeStage({ stage, rule, responses: { [stage.id]: response }, stages }).isCorrect === true;
+  } catch {
+    return false;
+  }
+};
+
+/** A stage hidden behind an earlier answer (showWhen) that this solution did not give is not asked. */
+const stageShown = (stage, responses) => {
+  const when = stage?.showWhen;
+  if (!isObject(when) || !text(when.stage)) return true;
+  if (!(when.stage in responses)) return false;
+  const wanted = list(when.is ?? when.equals).map(text);
+  return !wanted.length || wanted.some((value) => value.toLowerCase() === text(responses[when.stage]).toLowerCase());
+};
+
+const characteristicsWorked = (model) => {
+  const { spec } = model;
+  if (!spec || flatLine(spec)) return null;
+  const steps = [featureSentence(spec), restrictionLine(spec)].filter(Boolean);
+  const responses = {};
+  const said = [];
+  for (const stage of model.stages) {
+    if (!stageShown(stage, responses)) continue;
+    const worked = characteristicsStage(spec, stage);
+    if (!worked || !stageAccepts(stage, model.grading[stage.id], worked.response, model.stages)) return null;
+    responses[stage.id] = worked.response;
+    if (worked.step && !steps.includes(worked.step)) steps.push(worked.step);
+    const name = STAGE_NAMES[stage.id] || text(stage.prompt).replace(/[?.:]\s*$/, '');
+    const piece = stage.id.endsWith('Exists') ? `${worked.stated.toLowerCase() === 'yes' ? 'yes' : 'no'}, ${name.replace(' exists', '')} ${worked.stated.toLowerCase() === 'yes' ? 'exists' : 'does not exist'}` : `${name}: ${worked.stated}`;
+    if (!said.includes(piece)) said.push(piece);
+  }
+  if (!said.length) return null;
+  return {
+    headline: 'Read each feature from the function: where it crosses the axes, where it turns, how it behaves, and which x- and y-values it uses.',
+    steps: [...steps, `So ${said.join('; ')}.`],
+    answerSummary: capitalize(said.join('; ')),
+  };
+};
+
+/** A linear functionGraph workflow: the table, discrete points, the domain and range sets. */
+const tableGraphWorked = (model) => {
+  const spec = model.spec;
+  if (!spec || specType(spec) !== 'linear' || isRestricted(spec)) return null;
+  const m = slopeOf(spec);
+  const b = interceptOf(spec);
+  const tableStage = model.stages.find((stage) => stageGroup(stage) === 'table');
+  const xs = list(tableStage?.xValues).map(finiteNumber);
+  if (!tableStage || !xs.length || xs.some((x) => x === null)) return null;
+  const rows = xs.map((x) => [x, m * x + b]);
+  if (!allExact(rows.flat())) return null;
+  const equation = renderEquation(spec);
+  const steps = [`Substitute each input into ${equation}: ${rows.map(([x, y]) => `f(${dec(x)}) = ${signed(m)}(${dec(x)})${plusConstant(b)} = ${dec(y)}`).join('; ')}.`];
+  const responses = {};
+  const said = [];
+  const domainSet = `{${uniqueSorted(xs).map(dec).join(', ')}}`;
+  const rangeSet = `{${uniqueSorted(rows.map(([, y]) => y)).map(dec).join(', ')}}`;
+  for (const stage of model.stages) {
+    if (!stageShown(stage, responses)) continue;
+    const group = stageGroup(stage);
+    const rule = model.grading[stage.id];
+    let response;
+    if (group === 'table') {
+      response = Object.fromEntries(rows.map(([, y], index) => [`${index}:${text(stage.responseColumn) || 'y'}`, dec(y)]));
+      said.push(`the table is ${rows.map(showPoint).join(', ')}`);
+    } else if (group === 'continuity') {
+      response = choiceNamed(stage, 'discrete');
+      if (!response) return null;
+      steps.push(`Only the listed inputs are used, so the graph is ${rows.length} separate points, not a connected line: the relation is ${response}.`);
+      said.push(`it is ${response}`);
+    } else if (group === 'graph') {
+      if (!isObject(rule) || !(rule.useStageVerdict || rule.consistentWith)) return null;
+      steps.push(`Plot ${rows.map(showPoint).join(', ')} as separate points without connecting them.`);
+      said.push(`the graph is the points ${rows.map(showPoint).join(', ')}`);
+      responses[stage.id] = 'plotted';
+      continue;
+    } else if (group === 'domain' || group === 'range') {
+      if (text(stage.notation) !== 'set') return null;
+      response = group === 'domain' ? domainSet : rangeSet;
+      steps.push(group === 'domain'
+        ? `The domain is the set of inputs used: ${domainSet}.`
+        : `The range is the set of outputs, each listed once from least to greatest: ${rangeSet}.`);
+      said.push(`the ${group} is ${response}`);
+    } else {
+      return null;
+    }
+    if (!stageAccepts(stage, rule, response, model.stages)) return null;
+    responses[stage.id] = response;
+  }
+  if (!said.length) return null;
+  return {
+    headline: 'Substitute each listed input into the rule; only those points belong to the relation.',
+    steps: [...steps, `So ${joinWords(said)}.`],
+    answerSummary: capitalize(said.join('; ')),
+  };
+};
+
+/** The relation steps the sibling writes, on this relation: { steps, said } for the parts asked. */
+const relationWork = (listed, ask) => {
+  // A pair listed twice is one pair of the relation: one arrow, one point.
+  const pairs = listed.filter(([x, y], index) => listed.findIndex(([p, q]) => p === x && q === y) === index);
+  const steps = [`Read each pair as input first, output second: ${pairs.map(([x, y]) => `${dec(x)} → ${dec(y)}`).join(', ')}.`];
+  const said = [];
+  const xs = uniqueSorted(pairs.map(([x]) => x));
+  const ys = uniqueSorted(pairs.map(([, y]) => y));
+  if (ask.includes('mapping')) said.push(`the arrows are ${pairs.map(([x, y]) => `${dec(x)} → ${dec(y)}`).join(', ')}`);
+  if (ask.includes('plot')) said.push(`the points are ${pairsText(pairs)}`);
+  if (ask.includes('domain')) {
+    steps.push(`Domain: the first numbers, each listed once from least to greatest: {${xs.map(dec).join(', ')}}.`);
+    said.push(`the domain is {${xs.map(dec).join(', ')}}`);
+  }
+  if (ask.includes('range')) {
+    steps.push(`Range: the second numbers, each listed once from least to greatest: {${ys.map(dec).join(', ')}}.`);
+    said.push(`the range is {${ys.map(dec).join(', ')}}`);
+  }
+  if (ask.includes('isFunction')) {
+    const passes = relationIsFunction(pairs);
+    const repeated = pairs.find(([x, y], index) => pairs.some(([other, otherY], at) => at !== index && other === x && otherY !== y));
+    steps.push(passes
+      ? 'Function test: no input is paired with two different outputs, so each input has exactly one output; the relation passes the function test (a repeated output is allowed).'
+      : `Function test: the input ${dec(repeated[0])} is paired with two different outputs, so the relation fails the function test.`);
+    said.push(passes ? 'it is a function' : 'it is not a function');
+  }
+  return { steps, said, xs, ys };
+};
+
+const relationRepresentationsWorked = (question, model) => {
+  const pairs = relationPairsOf(question.pairs);
+  if (!pairs.length) return null;
+  const responses = {};
+  const ask = [];
+  for (const stage of model.stages) {
+    if (!stageShown(stage, responses)) continue;
+    const group = stageGroup(stage);
+    const rule = model.grading[stage.id];
+    const xs = uniqueSorted(pairs.map(([x]) => x));
+    const ys = uniqueSorted(pairs.map(([, y]) => y));
+    let candidates;
+    if (group === 'mapping') { ask.push('mapping'); candidates = [pairs]; }
+    else if (group === 'graph') {
+      if (!isObject(rule) || !(rule.useStageVerdict || Array.isArray(rule.pairs))) return null;
+      ask.push('plot');
+      responses[stage.id] = 'plotted';
+      continue;
+    } else if (group === 'domain') { ask.push('domain'); candidates = [`{${xs.map(dec).join(', ')}}`]; }
+    else if (group === 'range') { ask.push('range'); candidates = [`{${ys.map(dec).join(', ')}}`]; }
+    else if (group === 'isFunction') {
+      ask.push('isFunction');
+      const verdict = relationVerdict(model.kind === 'relation' ? model : { pairs });
+      candidates = [verdict.value, verdict.label, ...list(stage.choices).map(text).filter((choice) => verdict.phrases.some((phrase) => choice.toLowerCase().startsWith(phrase)))];
+    } else return null;
+    const response = candidates.find((candidate) => stageAccepts(stage, rule, candidate, model.stages));
+    if (response === undefined) return null;
+    responses[stage.id] = response;
+  }
+  const worked = relationWork(pairs, ask);
+  if (!worked.said.length) return null;
+  return {
+    headline: 'A relation is its set of ordered pairs: the inputs come first, the outputs second.',
+    steps: [...worked.steps, `So ${joinWords(worked.said)}.`],
+    answerSummary: capitalize(worked.said.join('; ')),
+  };
+};
+
+const composedWorked = (question, model) => {
+  if (model.standalone || model.recipe === 'functionModeling') return null;
+  if (model.recipe === 'relationRepresentations') return relationRepresentationsWorked(question, model);
+  if (model.groups.includes('table')) return tableGraphWorked(model);
+  if (model.spec && model.groups.every((group) => CHARACTERISTIC_GROUPS.includes(group))) return characteristicsWorked(model);
+  return null;
+};
+
+/* ---- the relationMapping tool ---- */
+
+const relationWorked = (model) => {
+  // A relation item's extra analysis fields are authored questions this module cannot read.
+  if (model.fields.length) return null;
+  const asked = model.ask.filter((part) => ['mapping', 'domain', 'range', 'isFunction', 'plot'].includes(part));
+  if (!asked.length || asked.length !== model.ask.length) return null;
+  const worked = relationWork(model.pairs, asked);
+  if (asked.includes('isFunction')) worked.said[worked.said.length - 1] += ` (${relationVerdict(model).label.replace(/\.$/, '')})`;
+  return {
+    headline: 'A relation is its set of ordered pairs: the inputs come first, the outputs second.',
+    steps: [...worked.steps, `So ${joinWords(worked.said)}.`],
+    answerSummary: capitalize(worked.said.join('; ')),
+  };
+};
+
+/* ---- the legacy function table ---- */
+
+/**
+ * A rule's terms ([coefficient, power], highest first) with x put in, bracketed:
+ * 2(-8)² - 7, (5)² + 3(5). A zero term is left out and a coefficient of 1 is not written.
+ */
+const substitutedTerms = (terms, x) => {
+  const pieces = terms.filter(([c]) => !same(c, 0)).map(([c, power]) => {
+    const magnitude = Math.abs(c);
+    const body = power === 0 ? dec(magnitude) : `${same(magnitude, 1) ? '' : dec(magnitude)}(${dec(x)})${power === 2 ? '²' : ''}`;
+    return [c < 0, body];
+  });
+  if (!pieces.length) return '0';
+  return pieces.map(([negative, body], index) => (index === 0 ? `${negative ? '-' : ''}${body}` : ` ${negative ? '-' : '+'} ${body}`)).join('');
+};
+
+const tableWorked = (model) => {
+  const { rule } = model;
+  if (!rule || !model.ruleVisible) return null;
+  const rows = [];
+  for (const blank of model.blanks) {
+    if (blank.x === null) return null;
+    const y = ruleValue(rule, blank.x);
+    if (!exact(y) || Math.abs(y - blank.value) > 1e-9) return null;
+    const shown = substitutedTerms(rule.type === 'quadratic' ? [[rule.a, 2], [rule.b, 1], [rule.c, 0]] : [[rule.m, 1], [rule.b, 0]], blank.x);
+    rows.push({ x: blank.x, y, shown });
+  }
+  if (!rows.length) return null;
+  const said = `the missing y-values are ${rows.map(({ x, y }) => `${dec(y)} (at x = ${dec(x)})`).join(', ')}`;
+  return {
+    headline: `Substitute each x into the rule y = ${ruleRhs(rule)}.`,
+    steps: [...rows.map(({ x, y, shown }) => `x = ${dec(x)}: y = ${shown} = ${dec(y)}.`), `So ${said}.`],
+    answerSummary: capitalize(said),
+  };
+};
+
+/* ---- sequenceExplorer ---- */
+
+/** The family test on a run of terms, as the sibling words it; '' when the terms do not settle it. */
+const sequenceTest = (spec, terms, stepWord) => {
+  const arithmetic = spec.kind === 'arithmetic';
+  const differences = terms.slice(1).map((value, index) => value - terms[index]);
+  if (terms.some((value) => value === 0)) return '';
+  const ratios = terms.slice(1).map((value, index) => value / terms[index]);
+  const differencesEqual = differences.every((value) => same(value, differences[0]));
+  const ratiosEqual = ratios.every((value) => same(value, ratios[0]));
+  if (differencesEqual === ratiosEqual || !allExact([...differences, ...ratios].filter((value, index) => (arithmetic ? index < differences.length : index >= differences.length)))) return '';
+  return arithmetic
+    ? `Differences: ${differences.map(dec).join(', ')} are all equal, while the ratios are not, so the terms have ${stepWord}.`
+    : `Ratios: ${ratios.map(dec).join(', ')} are all equal, while the differences are not, so the terms have ${stepWord}.`;
+};
+
+const stepWordOf = (spec) => (spec.kind === 'arithmetic' ? `a common difference of ${dec(sequenceChange(spec))}` : `a common ratio of ${dec(sequenceChange(spec))}`);
+const termStep = (spec, n) => {
+  const change = sequenceChange(spec);
+  const value = sequenceTerm(spec, n);
+  return spec.kind === 'arithmetic'
+    ? `From the first term to the ${ordinal(n)} there are ${n - 1} steps of ${dec(change)}: ${dec(spec.first)} + ${n - 1} · ${signed(change)} = ${dec(value)}.`
+    : `From the first term to the ${ordinal(n)} there are ${n - 1} steps of × ${signed(change)}: ${dec(spec.first)} · ${signed(change)}^${n - 1} = ${dec(value)}.`;
+};
+const ruleTexts = (spec) => {
+  const change = sequenceChange(spec);
+  const arithmetic = spec.kind === 'arithmetic';
+  return {
+    explicit: arithmetic ? `aₙ = ${dec(spec.first)} + (n - 1)·${signed(change)}` : `aₙ = ${dec(spec.first)} · ${signed(change)}^(n - 1)`,
+    recursive: arithmetic ? `aₙ = aₙ₋₁ ${change < 0 ? '-' : '+'} ${dec(Math.abs(change))}` : `aₙ = ${signed(change)} · aₙ₋₁`,
+  };
+};
+
+const sequenceWorked = (question, model) => {
+  if (model.mode === 'compare') {
+    const n = model.compareN;
+    if (!Number.isInteger(n) || n < 1 || n > 12) return null;
+    const result = compareSequencesAt(model.left, model.right, n);
+    const left = listTerms(model.left, n);
+    const right = listTerms(model.right, n);
+    if (!allExact([...left, ...right, result.difference])) return null;
+    const relation = result.relation === 'left' ? model.leftLabel : result.relation === 'right' ? model.rightLabel : '';
+    const said = [relation ? `the larger ${ordinal(n)} term is in ${relation}` : `the ${ordinal(n)} terms are equal`, `the difference is ${dec(result.difference)}`];
+    return {
+      headline: `List both sequences out to the ${ordinal(n)} term, then compare.`,
+      steps: [
+        `${model.leftLabel}: ${left.map(dec).join(', ')}, so its ${ordinal(n)} term is ${dec(result.left)}.`,
+        `${model.rightLabel}: ${right.map(dec).join(', ')}, so its ${ordinal(n)} term is ${dec(result.right)}.`,
+        `${relation ? `${relation} has the larger ${ordinal(n)} term` : 'They are equal'}; the difference is ${dec(Math.max(result.left, result.right))} - ${signed(Math.min(result.left, result.right))} = ${dec(result.difference)}.`,
+        `So ${joinWords(said)}.`,
+      ],
+      answerSummary: capitalize(said.join('; ')),
+    };
+  }
+  const { spec } = model;
+  if (model.authored && !(model.authored.kind === spec.kind && same(model.authored.first, spec.first) && same(sequenceChange(model.authored), sequenceChange(spec)))) return null;
+  const change = sequenceChange(spec);
+  const stepWord = stepWordOf(spec);
+  const said = [];
+  const steps = [];
+  const familyTest = (terms) => {
+    const test = sequenceTest(spec, terms, stepWord);
+    if (!test) return false;
+    steps.push(`The terms are ${terms.map(dec).join(', ')}, …`, test);
+    said.push(`${spec.kind} with ${stepWord}`);
+    return true;
+  };
+  if (model.mode === 'analyze') {
+    const n = model.targetN;
+    if (!Number.isInteger(n) || n < 1 || !familyTest(listTerms(spec, 4)) || !exact(sequenceTerm(spec, n))) return null;
+    steps.push(termStep(spec, n));
+    said.push(`the ${ordinal(n)} term is ${dec(sequenceTerm(spec, n))}`);
+  } else if (model.mode === 'missingTerm') {
+    const gap = model.missingIndex;
+    const count = missingTermCount(question);
+    if (!Number.isInteger(gap) || gap < 1 || gap > 20) return null;
+    const visible = listTerms(spec, Math.max(count, gap + 2));
+    if (!allExact(visible)) return null;
+    const shown = visible.map((value, index) => (index === gap - 1 ? '__' : dec(value)));
+    const pairs = visible.slice(1).map((value, index) => [index, index + 1]).filter(([p, q]) => p !== gap - 1 && q !== gap - 1).slice(0, 2);
+    if (pairs.length < 2 || visible.some((value) => value === 0)) return null;
+    const arithmetic = spec.kind === 'arithmetic';
+    const neighbours = pairs.map(([p, q]) => (arithmetic ? `${dec(visible[q])} - ${signed(visible[p])} = ${dec(change)}` : `${dec(visible[q])} ÷ ${signed(visible[p])} = ${dec(change)}`));
+    const otherSame = pairs.every(([p, q]) => (arithmetic ? same(visible[q] / visible[p], visible[pairs[0][1]] / visible[pairs[0][0]]) : same(visible[q] - visible[p], visible[pairs[0][1]] - visible[pairs[0][0]])));
+    if (otherSame) return null;
+    const value = sequenceTerm(spec, gap);
+    steps.push(
+      `The terms shown are ${shown.slice(0, Math.max(count, gap + 1)).join(', ')}.`,
+      `Neighbours you can see: ${joinWords(neighbours)}, the same ${arithmetic ? 'difference (their ratios differ)' : 'ratio (their differences differ)'}, so the terms have ${stepWord}.`,
+      gap > 1
+        ? (arithmetic
+          ? `The missing ${ordinal(gap)} term is the term before it plus the step: ${dec(visible[gap - 2])} + ${signed(change)} = ${dec(value)}.`
+          : `The missing ${ordinal(gap)} term is the term before it times the ratio: ${dec(visible[gap - 2])} · ${signed(change)} = ${dec(value)}.`)
+        : (arithmetic
+          ? `The missing first term is the second term minus the step: ${dec(visible[1])} - ${signed(change)} = ${dec(value)}.`
+          : `The missing first term is the second term divided by the ratio: ${dec(visible[1])} ÷ ${signed(change)} = ${dec(value)}.`),
+    );
+    said.push(`the missing ${ordinal(gap)} term is ${dec(value)}`, `the sequence is ${spec.kind}`);
+  } else if (model.mode === 'partialSum') {
+    const n = model.sumN;
+    if (!Number.isInteger(n) || n < 1 || n > 12) return null;
+    const all = listTerms(spec, n);
+    const sum = sequencePartialSum(spec, n);
+    if (!allExact([...all, sum])) return null;
+    steps.push(
+      `The first ${n} terms are ${all.map(dec).join(', ')}; the ${ordinal(n)} term is ${dec(all[n - 1])}.`,
+      `Adding them: ${all.map((value, index) => (index ? signed(value) : dec(value))).join(' + ')} = ${dec(sum)}.`,
+    );
+    said.push(`the ${ordinal(n)} term is ${dec(all[n - 1])}`, `the sum of the first ${n} terms is ${dec(sum)}`);
+  } else if (model.mode === 'ruleBridge' || model.mode === 'fullBridge') {
+    const rules = ruleTexts(spec);
+    const actions = model.mode === 'ruleBridge' ? ['writeExplicit', 'writeRecursive'] : model.actions;
+    if (model.mode === 'fullBridge') {
+      const known = ['buildSequenceTable', 'plotSequence', 'analyzeSequence', 'writeExplicit', 'writeRecursive', 'findSequenceTerm'];
+      if (!actions.length || actions.some((action) => !known.includes(action))) return null;
+      const count = fullBridgeTermCount(question);
+      const rows = listTerms(spec, count);
+      if (!allExact(rows)) return null;
+      if (actions.includes('buildSequenceTable') || actions.includes('plotSequence')) {
+        steps.push(`The table of (n, aₙ): ${rows.map((value, index) => `(${index + 1}, ${dec(value)})`).join(', ')}.`);
+        if (actions.includes('buildSequenceTable')) said.push(`the table values are ${rows.map(dec).join(', ')}`);
+        if (actions.includes('plotSequence')) {
+          steps.push('A sequence is defined only at whole-number positions n, so plot those points without connecting them.');
+          said.push('the graph is those separate points');
+        }
+      }
+      if (actions.includes('analyzeSequence') && !familyTest(listTerms(spec, 4))) return null;
+    }
+    if (actions.includes('writeExplicit')) {
+      steps.push(`Explicit rule: start at the first term and apply the step once for each position after the first: ${rules.explicit}.`);
+      said.push(`explicit rule ${rules.explicit}`);
+    }
+    if (actions.includes('writeRecursive')) {
+      steps.push(`Recursive rule: the first term is ${dec(spec.first)}, and each term comes from the one before: ${rules.recursive}.`);
+      said.push(`a₁ = ${dec(spec.first)}`, `recursive rule ${rules.recursive}`);
+    }
+    if (model.mode === 'fullBridge' && actions.includes('findSequenceTerm') && model.targetN > 0) {
+      if (!exact(sequenceTerm(spec, model.targetN))) return null;
+      steps.push(termStep(spec, model.targetN));
+      said.push(`the ${ordinal(model.targetN)} term is ${dec(sequenceTerm(spec, model.targetN))}`);
+    }
+  } else {
+    return null;
+  }
+  if (!said.length || !allExact([spec.first, change])) return null;
+  return {
+    headline: spec.kind === 'arithmetic' ? 'An arithmetic sequence adds the same number each time.' : 'A geometric sequence multiplies by the same number each time.',
+    steps: [...steps, `So ${joinWords(said)}.`],
+    answerSummary: capitalize(said.join('; ')),
+  };
+};
+
+/* ---- functionInvestigation2 ---- */
+
+/** An investigation spec (a line is a(x - h) + k there) as the graph workspace's spec, to evaluate it unrounded. */
+const investigationAsGraph = (spec) => (spec.type === 'linear' ? { type: 'linear', m: spec.a, b: spec.k - spec.a * spec.h } : { ...spec });
+/** The investigation's value at x, when it is exactly what six decimals print. */
+const investigationExact = (spec, x) => {
+  const value = valueAt(investigationAsGraph(spec), x);
+  return exact(value) ? value : null;
+};
+
+/** Solving f(x) = 0 for one investigation spec: { step, roots } with exact roots, or null. */
+const investigationZeros = (spec) => {
+  const { type, a, h, k, base } = spec;
+  const x = insideText(h);
+  const r = -k / a;
+  const roots = interceptsForSpec(spec).x;
+  // The tool rounds its roots to six places: each one must be a true zero, not a rounding of one.
+  if (!allExact([r, ...roots]) || roots.some((root) => Math.abs(valueAt(investigationAsGraph(spec), root)) > 1e-9)) return null;
+  const rhs = investigationRhs(spec);
+  const lead = `x-intercepts: set ${rhs} = 0`;
+  if (type === 'linear') return { roots, step: `${lead}: ${withCoefficient(a, `(${x})`)} = ${dec(-k)}, so x = ${dec(h)} ${r < 0 ? '-' : '+'} ${dec(Math.abs(r))} = ${roots.map(dec).join('')}.` };
+  if (type === 'quadratic') {
+    if (r < 0) return { roots: [], step: `${lead}: (${x})² = ${dec(r)}, and a square is never negative, so there is no x-intercept.` };
+    return exact(Math.sqrt(r)) ? { roots, step: `${lead}: (${x})² = ${dec(r)}, so ${x} = ±${dec(Math.sqrt(r))} and x = ${roots.map(dec).join(' or x = ')}.` } : null;
+  }
+  if (type === 'absolute') {
+    if (r < 0) return { roots: [], step: `${lead}: |${x}| = ${dec(r)}, and an absolute value is never negative, so there is no x-intercept.` };
+    return { roots, step: `${lead}: |${x}| = ${dec(r)}, so ${x} = ±${dec(r)} and x = ${roots.map(dec).join(' or x = ')}.` };
+  }
+  if (type === 'squareRoot') {
+    if (r < 0) return { roots: [], step: `${lead}: √(${x}) = ${dec(r)}, and a square root is never negative, so there is no x-intercept.` };
+    return { roots, step: `${lead}: √(${x}) = ${dec(r)}, so ${x} = ${dec(r * r)} and x = ${roots.map(dec).join('')}.` };
+  }
+  if (type === 'cubic') return exact(Math.cbrt(r)) ? { roots, step: `${lead}: (${x})³ = ${dec(r)}, so ${x} = ${dec(Math.cbrt(r))} and x = ${roots.map(dec).join('')}.` } : null;
+  if (type === 'cubeRoot') return { roots, step: `${lead}: ∛(${x}) = ${dec(r)}, so ${x} = ${dec(r ** 3)} and x = ${roots.map(dec).join('')}.` };
+  if (type === 'exponential') {
+    if (r <= 0) return { roots: [], step: `${lead}: ${baseText(base)}^(${x}) = ${dec(r)}, and a power of a positive base is always positive, so there is no x-intercept.` };
+    return roots.length ? { roots, step: `${lead}: ${baseText(base)}^(${x}) = ${dec(r)}, so ${x} = ${dec(roots[0] - h)} and x = ${roots.map(dec).join('')}.` } : null;
+  }
+  if (type === 'logarithmic') return roots.length ? { roots, step: `${lead}: log base ${baseText(base)} of (${x}) = ${dec(r)}, so ${x} = ${baseText(base)}^${signed(r)} = ${dec(roots[0] - h)} and x = ${roots.map(dec).join('')}.` } : null;
+  if (type === 'rational') {
+    if (same(k, 0)) return { roots: [], step: `${lead}: ${dec(a)}/(${x}) is never zero, so there is no x-intercept.` };
+    return { roots, step: `${lead}: ${dec(a)}/(${x}) = ${dec(-k)}, so ${x} = ${dec(a)} ÷ ${signed(-k)} = ${dec(-a / k)} and x = ${roots.map(dec).join('')}.` };
+  }
+  return null;
+};
+
+const INVESTIGATION_DOMAIN_REASON = Object.freeze({
+  squareRoot: (spec) => `the expression under the root, ${insideText(spec.h)}, must be at least zero`,
+  logarithmic: (spec) => `the input of the logarithm, ${insideText(spec.h)}, must be positive`,
+  rational: (spec) => `the denominator, ${insideText(spec.h)}, cannot be zero`,
+});
+
+const investigationWorked = (model) => {
+  if (model.mode === 'compare') {
+    const result = compareFunctionValues(model.left, model.right, model.x);
+    if (result.relation === 'undefined' || !exact(model.x) || investigationExact(model.left, model.x) === null || investigationExact(model.right, model.x) === null) return null;
+    const labels = { left: 'f(x) — the solid blue curve', right: 'g(x) — the dashed red curve', equal: 'They are equal' };
+    const X = dec(model.x);
+    return {
+      headline: 'Evaluate both functions at the same input, then compare the outputs.',
+      steps: [
+        `f(${X}): substitute x = ${X} into f(x) = ${investigationRhs(model.left)}: f(${X}) = ${dec(result.leftValue)}.`,
+        `g(${X}): substitute x = ${X} into g(x) = ${investigationRhs(model.right)}: g(${X}) = ${dec(result.rightValue)}.`,
+        result.relation === 'equal' ? 'The two outputs are equal.' : `${dec(Math.max(result.leftValue, result.rightValue))} is greater than ${dec(Math.min(result.leftValue, result.rightValue))}, so ${result.relation === 'left' ? 'f' : 'g'} has the greater value at x = ${X}.`,
+        `So the answer is: ${labels[result.relation]}.`,
+      ],
+      answerSummary: labels[result.relation],
+    };
+  }
+  const { spec } = model;
+  const equation = `f(x) = ${investigationRhs(spec)}`;
+  const label = FUNCTION_FAMILY_LABELS[spec.type] || 'function';
+  const steps = [];
+  const said = [];
+  if (model.mode === 'features') {
+    const features = investigationFeatures(spec);
+    const [px, py] = features.anchor.point;
+    if (!allExact([px, py, ...features.verticalAsymptotes, ...features.horizontalAsymptotes])) return null;
+    steps.push(`${equation} is ${withArticle(label.toLowerCase())} function: its defining feature is its ${features.anchor.label}.`);
+    if (spec.type === 'linear') steps.push(`The y-intercept is the output at x = 0: f(0) = ${dec(py)}, the point ${showPoint([px, py])}.`);
+    else if (spec.type === 'exponential') steps.push(`At x = h = ${dec(spec.h)} the power is ${baseText(spec.base)}⁰ = 1, so f(${dec(px)}) = ${dec(spec.a)} + ${signed(spec.k)} = ${dec(py)}: the ${features.anchor.label} is ${showPoint([px, py])}.`);
+    else if (spec.type === 'logarithmic') steps.push(`At x = h + 1 = ${dec(px)} the logarithm is of 1, which is 0, so f(${dec(px)}) = ${dec(spec.k)}: the ${features.anchor.label} is ${showPoint([px, py])}.`);
+    else steps.push(`With a = ${dec(spec.a)}, h = ${dec(spec.h)} and k = ${dec(spec.k)}, the ${features.anchor.label} is (h, k) = ${showPoint([px, py])}.`);
+    said.push(`the ${features.anchor.label} is ${showPoint([px, py])}`);
+    features.verticalAsymptotes.forEach((x) => { steps.push(`The vertical asymptote is x = ${dec(x)}, where ${spec.type === 'rational' ? 'the denominator is zero' : 'the input of the logarithm reaches zero'}.`); said.push(`the vertical asymptote is x = ${dec(x)}`); });
+    features.horizontalAsymptotes.forEach((y) => { steps.push(`The horizontal asymptote is y = ${dec(y)}, the value the outputs approach but never reach.`); said.push(`the horizontal asymptote is y = ${dec(y)}`); });
+  } else if (model.mode === 'domainRange') {
+    const key = domainRangeForSpec(spec);
+    if (!allExact([spec.h, spec.k])) return null;
+    const domain = relationLabel(key.domainCode, spec);
+    const range = relationLabel(key.rangeCode, spec);
+    const reason = INVESTIGATION_DOMAIN_REASON[spec.type]?.(spec);
+    steps.push(
+      `${equation} is ${withArticle(label.toLowerCase())} function with h = ${dec(spec.h)} and k = ${dec(spec.k)}.`,
+      `Domain: ${reason ? `${reason}, so the x-values it accepts are` : 'every real number can be substituted:'} ${domain}.`,
+      `Range: the y-values it produces are ${range}.`,
+    );
+    said.push(`the domain is ${domain}`, `the range is ${range}`);
+  } else if (model.mode === 'intercepts') {
+    const key = interceptsForSpec(spec);
+    const zeros = investigationZeros(spec);
+    if (!zeros || (key.y !== null && investigationExact(spec, 0) === null)) return null;
+    steps.push(zeros.step);
+    steps.push(key.y === null ? `y-intercept: f(0) does not exist, because x = 0 is outside the domain, so there is no y-intercept.` : `y-intercept: f(0) = ${dec(key.y)}.`);
+    said.push(zeros.roots.length ? `the x-intercepts are ${zeros.roots.map(dec).join(', ')}` : 'there is no x-intercept (none)', key.y === null ? 'there is no y-intercept (none)' : `the y-intercept is ${dec(key.y)}`);
+  } else if (model.mode === 'behavior') {
+    const code = behaviorForSpec(spec);
+    if (!allExact([spec.h, spec.k])) return null;
+    const turning = code === 'minimum' || code === 'maximum';
+    const growing = ['exponential', 'logarithmic'].includes(spec.type);
+    steps.push(
+      `${equation} is ${withArticle(label.toLowerCase())} function with a = ${dec(spec.a)}${growing ? ` and base ${dec(spec.base)}` : ''}.`,
+      turning
+        ? `Since a is ${spec.a > 0 ? 'positive' : 'negative'}, the graph turns at (${dec(spec.h)}, ${dec(spec.k)}), which is its ${code === 'minimum' ? 'lowest' : 'highest'} point.`
+        : code.endsWith('Branches')
+          ? `Each branch ${code.startsWith('increasing') ? 'rises' : 'falls'} from left to right, on both sides of the vertical asymptote x = ${dec(spec.h)}.`
+          : `Reading left to right, the graph ${code === 'increasing' ? 'rises' : 'falls'} the whole way.`,
+    );
+    said.push(`it ${behaviorLabel(code)}`);
+  } else {
+    return null;
+  }
+  return {
+    headline: `Read the features of ${equation} from its family and its numbers a, h and k.`,
+    steps: [...steps, `So ${joinWords(said)}.`],
+    answerSummary: capitalize(said.join('; ')),
+  };
+};
+
+/* ---- multiAnswer function attributes ---- */
+
+/** A parent function's right-hand side, exactly as a prompt writes it (no shifts, no coefficient). */
+const PARENT_RHS = Object.freeze([
+  [/^√\(?x\)?$/, () => ({ type: 'squareRoot', a: 1, h: 0, k: 0 })],
+  [/^∛\(?x\)?$/, () => ({ type: 'cubeRoot', a: 1, h: 0, k: 0 })],
+  [/^1\/x$/, () => ({ type: 'rational', a: 1, h: 0, k: 0 })],
+  [/^\|x\|$/, () => ({ type: 'absolute', a: 1, h: 0, k: 0 })],
+  [/^x(?:²|\^2)$/, () => ({ type: 'quadratic', a: 1, h: 0, k: 0 })],
+  [/^x(?:³|\^3)$/, () => ({ type: 'cubic', a: 1, h: 0, k: 0 })],
+  [/^(\d+(?:\.\d+)?)(?:ˣ|\^\(?x\)?)$/, (match) => (Number(match[1]) > 0 && Number(match[1]) !== 1 ? { type: 'exponential', a: 1, h: 0, k: 0, base: Number(match[1]) } : null)],
+  [/^log(?:₂|_2|_\{2\})\(x\)$/, () => ({ type: 'logarithmic', a: 1, h: 0, k: 0, base: 2 })],
+  [/^log(?:₃|_3)\(x\)$/, () => ({ type: 'logarithmic', a: 1, h: 0, k: 0, base: 3 })],
+  [/^log\(x\)$/, () => ({ type: 'logarithmic', a: 1, h: 0, k: 0, base: 10 })],
+]);
+const parentSpecOf = (rhs) => {
+  const cleaned = ascii(rhs).replace(/\s+/g, '').replace(/[.,;:]+$/, '');
+  for (const [pattern, build] of PARENT_RHS) {
+    const match = pattern.exec(cleaned);
+    if (match) return build(match);
+  }
+  return null;
+};
+/** Every name(x) = rule a text defines: { name, rhs, spec } (spec null when it is not a parent or a line). */
+const definitionsOf = (source) => [...ascii(source).matchAll(/(?<![A-Za-z])([A-Za-z])\s*\(\s*([a-z])\s*\)\s*=\s*([^\s,;]+(?:\s*[+-]\s*[^\s,;]+)*)/g)]
+  .map(([whole, name, variable, rhs], index, all) => {
+    const parent = variable === 'x' ? parentSpecOf(rhs) : null;
+    // A restriction ("for 0 ≤ t ≤ 12", "from 0 to 20") belongs to the rule only when the text defines one rule.
+    const linear = parent ? null : parseFunctionText(all.length === 1 ? ascii(source).slice(ascii(source).indexOf(whole)) : whole);
+    const spec = parent || (linear?.type === 'linear' ? {
+      type: 'linear',
+      m: linear.m,
+      b: linear.b,
+      ...(linear.restriction ? { domain: { min: linear.restriction[0], max: linear.restriction[1], minClosed: true, maxClosed: true } } : {}),
+    } : null);
+    return { name, variable, rhs: rhs.replace(/[.,;:]+$/, ''), spec, restricted: Boolean(linear?.restriction) };
+  });
+
+/** The function one attribute field is about: its label's own rule, the one its label names, or the prompt's only one. */
+const attributeFunction = (field, prompt, fields = []) => {
+  const own = definitionsOf(field.label);
+  if (own.length === 1) return own[0];
+  if (own.length > 1) return null;
+  const defs = definitionsOf(prompt);
+  const named = /\bof\s+([a-z])\b/i.exec(text(field.label));
+  if (named) return defs.find((entry) => entry.name === named[1]) || null;
+  if (defs.length === 1) return defs[0];
+  // No rule in the prompt: the item's one rule, wherever a label states it.
+  const everywhere = defs.length ? [] : fields.flatMap((other) => definitionsOf(other.label));
+  return everywhere.length && everywhere.every((entry) => entry.name === everywhere[0].name && entry.rhs === everywhere[0].rhs) ? everywhere[0] : null;
+};
+
+const sameSetText = (key, intervals, variable) => {
+  const forms = [showIntervals(intervals), showInequality(intervals, variable)];
+  if (intervals.length === 1 && intervals[0].lo === -Infinity && intervals[0].hi === Infinity) forms.push('all real numbers', '(-∞, ∞)');
+  const keyed = canonicalAnswer(key);
+  return forms.some((form) => canonicalAnswer(form) === keyed || (ALL_REALS_CANON.has(keyed) && ALL_REALS_CANON.has(canonicalAnswer(form))));
+};
+
+const ASYMPTOTE_REASON = Object.freeze({
+  rational: (spec) => `the denominator is zero at x = ${dec(paramH(spec))}, and far from it the fraction gets close to zero, so the outputs approach ${dec(paramK(spec))}`,
+  exponential: (spec) => `far to one side the power ${baseText(baseOf(spec))}^x gets close to zero, so the outputs approach ${dec(paramK(spec))}`,
+  logarithmic: (spec) => `the input of the logarithm gets close to zero as x gets close to ${dec(paramH(spec))}, and the outputs fall without end there`,
+});
+
+/** One attribute field, worked: { step, stated } or null. */
+const attributeWorked = (entry, model) => {
+  const { field, kind } = entry;
+  const fn = attributeFunction(field, model.prompt, model.fields.map((item) => item.field));
+  const spec = fn?.spec;
+  if (!spec) return null;
+  const type = specType(spec);
+  const keys = keyTextsOf(field);
+  const state = (verified) => keys.find((key) => verified(key) && accepts(field, key)) || null;
+  const name = `${fn.name}(${fn.variable}) = ${fn.rhs}`;
+  if (kind === 'domain' || kind === 'range') {
+    const intervals = kind === 'domain' ? domainOf(spec) : rangeOf(spec);
+    if (!allExact(intervalNumbers(intervals).filter(Number.isFinite))) return null;
+    const stated = state((key) => sameSetText(key, intervals, kind === 'domain' ? 'x' : 'y'));
+    if (!stated) return null;
+    if (kind === 'domain') {
+      const limit = DOMAIN_LIMIT[type]?.(0);
+      const reason = fn.restricted ? `the input is used only for ${restrictionText(spec).replace(' x ', ` ${fn.variable} `)}` : limit || 'every real number can be substituted';
+      return { stated, step: `Domain of ${name}: ${reason}, so the domain is ${stated}.` };
+    }
+    if (fn.restricted) {
+      const { min, max } = spec.domain;
+      const [low, high] = [valueAt(spec, min), valueAt(spec, max)];
+      if (!allExact([low, high])) return null;
+      return { stated, step: `Range of ${name}: ${fn.name}(${dec(min)}) = ${dec(low)} and ${fn.name}(${dec(max)}) = ${dec(high)}, and the line takes every value in between, so the range is ${stated}.` };
+    }
+    const sentence = rangeSentence(spec, stated);
+    return sentence ? { stated, step: sentence.replace(/^Range:/, `Range of ${name}:`) } : null;
+  }
+  if (kind === 'family') {
+    const stated = state((key) => key.toLowerCase() === FAMILY_NAMES[type]);
+    return stated ? { stated, step: attributeStep(spec, 'family')[0].replace('this is the', `${name} is in the`) } : null;
+  }
+  if (kind === 'asymptote') {
+    const wantsOnly = /horizontal/i.test(field.label) ? 'y' : /vertical/i.test(field.label) ? 'x' : '';
+    const lines = [];
+    if (type === 'rational' || type === 'logarithmic') lines.push(['x', paramH(spec)]);
+    if (type === 'rational' || type === 'exponential') lines.push(['y', paramK(spec)]);
+    const wanted = lines.filter(([axis]) => !wantsOnly || axis === wantsOnly);
+    const lineSet = (key) => [...ascii(key).matchAll(/([xy])\s*=\s*(-?\d+(?:\.\d+)?)/g)].map(([, axis, value]) => `${axis}=${Number(value)}`).sort().join('|');
+    const expected = wanted.map(([axis, value]) => `${axis}=${value}`).sort().join('|');
+    const stated = state((key) => (wanted.length ? lineSet(key) === expected && !/\bno\b/i.test(key) : /^no asymptotes?$/i.test(text(key))));
+    if (!stated) return null;
+    const described = wanted.map(([axis, value]) => `${axis === 'x' ? 'vertical' : 'horizontal'} ${axis} = ${dec(value)}`);
+    return {
+      stated,
+      step: wanted.length
+        ? `Asymptotes of ${name}: ${ASYMPTOTE_REASON[type](spec)}: ${joinWords(described)}.`
+        : `${name} is ${withArticle(FAMILY_NAMES[type])} function: its graph has no asymptotes.`,
+    };
+  }
+  if (kind === 'intercept') {
+    if (!xIsInFunctionDomain(spec, 0)) return null;
+    const y = valueAt(spec, 0);
+    if (!exact(y)) return null;
+    const stated = state((key) => {
+      const pair = /\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/.exec(ascii(key));
+      return pair && same(Number(pair[1]), 0) && same(Number(pair[2]), y);
+    });
+    return stated ? { stated, step: `y-intercept of ${name}: the output at x = 0 is ${fn.name}(0) = ${dec(y)}, the point ${stated}.` } : null;
+  }
+  if (kind === 'continuity') {
+    if (type !== 'linear' || !fn.restricted || /whole|integer|number of|count/i.test(model.prompt)) return null;
+    const stated = state((key) => /^continuous$/i.test(key));
+    return stated ? { stated, step: `The input of ${name} can be any real value from ${dec(spec.domain.min)} to ${dec(spec.domain.max)}, not only whole numbers, so the graph is one connected segment: it is ${stated}.` } : null;
+  }
+  if (kind === 'attribute') {
+    const domain = domainOf(spec);
+    const range = rangeOf(spec);
+    const allReal = (parts) => parts.length === 1 && parts[0].lo === -Infinity && parts[0].hi === Infinity;
+    const holds = (key) => {
+      const claim = ascii(key).toLowerCase().replace(/\s+/g, ' ').trim();
+      if (/^domain and range are both all real numbers$/.test(claim)) return allReal(domain) && allReal(range);
+      let match = /^(domain|range) is (.+)$/.exec(claim);
+      if (match) return sameSetText(match[2], match[1] === 'domain' ? domain : range, match[1] === 'domain' ? 'x' : 'y');
+      match = /^([xy]) ?= ?(-?[\d.]+) is a (vertical|horizontal) asymptote$/.exec(claim);
+      if (match) {
+        const vertical = match[1] === 'x';
+        if (vertical !== (match[3] === 'vertical')) return false;
+        return vertical ? (['rational', 'logarithmic'].includes(type) && same(paramH(spec), Number(match[2]))) : (['rational', 'exponential'].includes(type) && same(paramK(spec), Number(match[2])));
+      }
+      return false;
+    };
+    const stated = state(holds);
+    if (!stated) return null;
+    const options = list(field.options).map(text).filter((option) => option && option !== stated);
+    if (options.some(holds)) return null;
+    const domainStep = attributeStep(spec, 'domain')[0];
+    return { stated, step: `For ${name}: ${lowerFirst(domainStep)} ${rangeSentence(spec, showIntervals(range))} So the true statement is: ${stated}.` };
+  }
+  return null;
+};
+
+const attributesWorked = (model) => {
+  const steps = [];
+  const said = [];
+  for (const entry of model.fields) {
+    const worked = attributeWorked(entry, model);
+    if (!worked) return null;
+    if (!steps.includes(worked.step)) steps.push(worked.step);
+    const label = text(entry.field.label).replace(/[:?]\s*$/, '');
+    said.push(/(?:\bis|\bas)$/i.test(label) ? `${label} ${worked.stated}` : `${label}: ${worked.stated}`);
+  }
+  if (!said.length) return null;
+  return {
+    headline: 'Read each attribute from the function itself: which inputs it accepts, which outputs it reaches, and how its graph behaves.',
+    steps: [...steps, `So: ${said.join('; ')}.`],
+    answerSummary: said.join('; '),
+  };
+};
+
+const accepts = (field, spelling) => {
+  try {
+    return Boolean(text(spelling)) && matchesFieldAnswer(text(spelling), field);
+  } catch {
+    return false;
+  }
+};
+const keyTextsOf = (field) => answerCandidatesForField(field).filter((value) => value !== null && typeof value !== 'object').map(text).filter(Boolean);
+
+const WORKED = Object.freeze({
+  graph: (question, model) => graphWorked(question, model),
+  composed: (question, model) => composedWorked(question, model),
+  relation: (question, model) => relationWorked(model),
+  table: (question, model) => tableWorked(model),
+  sequence: (question, model) => sequenceWorked(question, model),
+  investigation: (question, model) => investigationWorked(model),
+  attributes: (question, model) => attributesWorked(model),
+});
+
+// What a step must never print: a JS leak or an unsimplified sign. "undefined"
+// is a word only a graph card with no point may use.
+const SLOPPY = /NaN|Infinity|\bnull\b|\[object|[+−-] [−-]\s*\d|--|−−|(?<![\d.])[-−]0(?![\d./])|(?<![\d.)⁻])1[a-z](?![a-zₙ])/;
+
+export const workedSolution = (question) => {
+  try {
+    const model = modelFor(question);
+    if (!model || !WORKED[model.kind]) return null;
+    const result = WORKED[model.kind](question, model);
+    if (!result) return null;
+    const steps = list(result.steps).map(text).filter(Boolean);
+    const answerSummary = text(result.answerSummary);
+    if (!steps.length || !answerSummary) return null;
+    const mayBeUndefined = steps.some((step) => step.includes('mark that card as undefined'));
+    if ([...steps, answerSummary, text(result.headline)].some((entry) => SLOPPY.test(entry) || (!mayBeUndefined && /undefined/.test(entry)))) return null;
+    return { headline: text(result.headline), steps, answerSummary };
   } catch {
     return null;
   }

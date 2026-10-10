@@ -88,6 +88,15 @@ const rationalize = (value) => {
   return null;
 };
 
+/**
+ * The nearest double to a value's exact fraction (11/3, not tidy's
+ * 3.666666667), so arithmetic on it stays on exact values; tidy otherwise.
+ */
+const snap = (value) => {
+  const r = rationalize(value);
+  return r ? r.n / r.d : tidy(value);
+};
+
 const parseNumber = (raw) => {
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
   const value = text(raw).replace(/[−–]/g, '-').replace(/\s+/g, '').replace(/^\$|\$$/g, '');
@@ -120,11 +129,17 @@ const parsePair = (raw) => {
  */
 const formatter = ({ latex = true } = {}) => {
   const printed = [];
+  // A value with no exact fraction form is printed rounded: a worked solution
+  // that printed one is not exact, and is not shown (isExact()).
+  let inexact = false;
   const num = (value) => {
     const v = tidy(value);
     printed.push(Math.abs(v));
     const r = rationalize(v);
-    if (!r) return String(Math.round(v * 1e4) / 1e4);
+    if (!r) {
+      inexact = true;
+      return String(Math.round(v * 1e4) / 1e4);
+    }
     if (r.d === 1) return String(r.n);
     const sign = r.n < 0 ? '-' : '';
     return latex ? `${sign}\\frac{${Math.abs(r.n)}}{${r.d}}` : `${r.n}/${r.d}`;
@@ -137,7 +152,8 @@ const formatter = ({ latex = true } = {}) => {
   const linear = (terms) => {
     let out = '';
     terms.forEach(([coefficient, symbol]) => {
-      const c = tidy(coefficient);
+      // Exact value: a coefficient computed as 0.999999999 is 1, written "x", not "1x".
+      const c = snap(coefficient);
       if (!c) return;
       const magnitude = Math.abs(c);
       const body = symbol ? (magnitude === 1 ? symbol : `${coef(magnitude)}${symbol}`) : num(magnitude);
@@ -150,7 +166,7 @@ const formatter = ({ latex = true } = {}) => {
   const paren = (value) => `(${num(value)})`;
   // c·(value) as a student writes it: 3(-2), -(4), (5).
   const times = (coefficient, value) => {
-    const c = tidy(coefficient);
+    const c = snap(coefficient);
     // A zero keeps its parentheses: "x - (0)" and "-(0) + 4(-6)", never "-0".
     if (c === 1) return tidy(value) <= 0 ? paren(value) : num(value);
     if (c === -1) return `-${paren(value)}`;
@@ -160,7 +176,7 @@ const formatter = ({ latex = true } = {}) => {
   const products = (pairs) => {
     let out = '';
     pairs.forEach(([coefficient, value]) => {
-      const c = tidy(coefficient);
+      const c = snap(coefficient);
       if (!c) return;
       const body = times(Math.abs(c), value);
       if (!out) out = c < 0 ? `-${body}` : body;
@@ -169,7 +185,7 @@ const formatter = ({ latex = true } = {}) => {
     return out || num(0);
   };
   const std = ({ a, b, c }, [X, Y]) => `${linear([[a, X], [b, Y]])} = ${num(c)}`;
-  return { latex, printed, num, coef, linear, term, paren, times, products, std };
+  return { latex, printed, num, coef, linear, term, paren, times, products, std, isExact: () => !inexact };
 };
 
 /* ------------------------------------------------------------ reading */
@@ -197,9 +213,11 @@ const parseEquation = (raw, variables) => {
   try { plain = latexToExpression(display); } catch { /* the display is already plain */ }
   const form = linearEquationForm(plain, variables);
   if (!form) return null;
-  const a = tidy(form.coefficients[variables[0]]);
-  const b = tidy(form.coefficients[variables[1]]);
-  const c = tidy(form.constant);
+  // Snapped to the exact fraction: the engine rounds \frac{1}{3} to 0.333333333,
+  // and arithmetic on that lands beside the whole numbers (3 · it = 0.999999999).
+  const a = snap(form.coefficients[variables[0]]);
+  const b = snap(form.coefficients[variables[1]]);
+  const c = snap(form.constant);
   if (!a && !b) return null;
   const [left, right] = display.split('=').map((side) => side.trim());
   let isolated = null;
@@ -799,16 +817,19 @@ const nonZero = (random, low, high) => {
 
 // v = m·w + k and a·X + b·Y = c, solved by substitution (optionally after
 // isolating v from a standard-form first equation).
-const workSubstitution = ({ variables, v, w, wValue, vValue, m, isoFirst, aV, aW, methodWord }) => {
+// `bounded` keeps a sibling's numbers small; a question's own system
+// (workedSolution) is worked whatever its size. isoName / otherName say which
+// of the question's equations is which.
+const workSubstitution = ({ variables, v, w, wValue, vValue, m, isoFirst, aV, aW, methodWord, bounded = true, isoName = 'first', otherName = 'second' }) => {
   const f = formatter();
   const [X, Y] = variables;
   const vIsX = v === X;
-  if (!wValue && !vValue) return null;
-  const k = vValue - m * wValue;
-  const c = aV * vValue + aW * wValue;
-  const A = aW + aV * m;
-  const B = aV * k;
-  if (!A || Math.abs(k) > 24 || Math.abs(c) > 48 || Math.abs(B) > 60) return null;
+  if (bounded && !wValue && !vValue) return null;
+  const k = snap(vValue - m * wValue);
+  const c = snap(aV * vValue + aW * wValue);
+  const A = snap(aW + aV * m);
+  const B = snap(aV * k);
+  if (!A || (bounded && (Math.abs(k) > 24 || Math.abs(c) > 48 || Math.abs(B) > 60))) return null;
   const isoExpression = f.linear([[m, w], [k, null]]);
   const isoDisplay = `${v} = ${isoExpression}`;
   // The first equation as shown: v = m·w + k, or (isolateFirst) v - m·w = k with v first.
@@ -816,47 +837,53 @@ const workSubstitution = ({ variables, v, w, wValue, vValue, m, isoFirst, aV, aW
   const pair = (vCoef, wCoef) => (vIsX ? [[vCoef, X], [wCoef, Y]] : [[wCoef, X], [vCoef, Y]]);
   const otherDisplay = `${f.linear(pair(aV, aW))} = ${f.num(c)}`;
   const vTerm = (() => {
+    // v = k, a number: 3(4), -(4), 4 — written as times() writes a product.
+    if (!m) return f.times(aV, k);
     if (aV === 1) return `(${isoExpression})`;
     if (aV === -1) return `-(${isoExpression})`;
     return `${f.num(aV)}(${isoExpression})`;
   })();
   const wTerm = f.term(aW, w);
   const joinTerms = (left, right) => (right.startsWith('-') ? `${left} - ${right.slice(1)}` : `${left} + ${right}`);
-  const substituted = vIsX ? joinTerms(vTerm, wTerm) : joinTerms(wTerm, vTerm);
+  // An equation with no w-term (3x = 9) substitutes into v alone: never "+ 0".
+  const substituted = !aW ? vTerm : vIsX ? joinTerms(vTerm, wTerm) : joinTerms(wTerm, vTerm);
   const distributedTerms = vIsX ? [[aV * m, w], [aV * k, null], [aW, w]] : [[aW, w], [aV * m, w], [aV * k, null]];
   const steps = [];
-  if (isoFirst) steps.push(`Solve the first equation for ${math(v)}: ${math(isoDisplay)}.`);
-  else steps.push(`The first equation already gives ${math(isoDisplay)}.`);
-  steps.push(`Substitute ${math(isoExpression)} for ${math(v)} in the second equation: ${math(`${substituted} = ${f.num(c)}`)}.`);
+  if (isoFirst) steps.push(`Solve the ${isoName} equation for ${math(v)}: ${math(isoDisplay)}.`);
+  else steps.push(`The ${isoName} equation already gives ${math(isoDisplay)}.`);
+  steps.push(`Substitute ${math(isoExpression)} for ${math(v)} in the ${otherName} equation: ${math(`${substituted} = ${f.num(c)}`)}.`);
   if (m && aV !== 1) steps.push(`Distribute: ${math(`${f.linear(distributedTerms)} = ${f.num(c)}`)}.`);
-  if (m) steps.push(`Combine the ${math(w)}-terms: ${math(`${f.linear([[A, w], [B, null]])} = ${f.num(c)}`)}.`);
+  if (m && aW) steps.push(`Combine the ${math(w)}-terms: ${math(`${f.linear([[A, w], [B, null]])} = ${f.num(c)}`)}.`);
   if (B) steps.push(`${B > 0 ? 'Subtract' : 'Add'} ${math(f.num(Math.abs(B)))} ${B > 0 ? 'from' : 'to'} both sides: ${math(`${f.term(A, w)} = ${f.num(c - B)}`)}.`);
   if (A !== 1) steps.push(`Divide both sides by ${math(f.num(A))}: ${math(`${w} = ${f.num(wValue)}`)}.`);
   const back = m ? `${f.times(m, wValue)}${k ? (k > 0 ? ` + ${f.num(k)}` : ` - ${f.num(-k)}`) : ''}` : f.num(k);
   steps.push(m
     ? `Substitute ${math(`${w} = ${f.num(wValue)}`)} into ${math(isoDisplay)}: ${math(`${v} = ${back} = ${f.num(vValue)}`)}.`
-    : `The first equation gives ${math(`${v} = ${f.num(vValue)}`)} directly.`);
+    : `The ${isoName} equation gives ${math(`${v} = ${f.num(vValue)}`)} directly.`);
   const [xValue, yValue] = vIsX ? [vValue, wValue] : [wValue, vValue];
-  steps.push(`Check in the second equation: ${math(`${f.products([[vIsX ? aV : aW, xValue], [vIsX ? aW : aV, yValue]])} = ${f.num(c)}`)}, which is true.`);
+  steps.push(`Check in the ${otherName} equation: ${math(`${f.products([[vIsX ? aV : aW, xValue], [vIsX ? aW : aV, yValue]])} = ${f.num(c)}`)}, which is true.`);
   return {
     prompt: `Solve the system${methodWord ? ` by ${methodWord}` : ''}: ${math(firstDisplay)} and ${math(otherDisplay)}.`,
     steps,
     answer: `(${f.num(xValue)}, ${f.num(yValue)})`,
     printed: f.printed,
     point: { x: xValue, y: yValue },
+    isoK: k,
+    otherC: c,
+    exact: f.isExact(),
   };
 };
 
 // v = m1·w + b1 and v = m2·w + b2: set the right sides equal (graph: draw both first).
-const workSetEqual = ({ variables = ['x', 'y'], v, w, wValue, vValue, m1, m2, graph }) => {
+const workSetEqual = ({ variables = ['x', 'y'], v, w, wValue, vValue, m1, m2, graph, bounded = true }) => {
   const f = formatter();
-  if (m1 === m2 || (!wValue && !vValue)) return null;
-  const b1 = vValue - m1 * wValue;
-  const b2 = vValue - m2 * wValue;
-  if (Math.abs(b1) > 20 || Math.abs(b2) > 20) return null;
+  if (tidy(m1 - m2) === 0 || (bounded && !wValue && !vValue)) return null;
+  const b1 = snap(vValue - m1 * wValue);
+  const b2 = snap(vValue - m2 * wValue);
+  if (bounded && (Math.abs(b1) > 20 || Math.abs(b2) > 20)) return null;
   const E1 = f.linear([[m1, w], [b1, null]]);
   const E2 = f.linear([[m2, w], [b2, null]]);
-  const A = m1 - m2;
+  const A = snap(m1 - m2);
   const steps = [];
   if (graph) {
     steps.push(`Graph ${math(`${v} = ${E1}`)}: start at its y-intercept, ${math(f.num(b1))}, and use the slope ${math(f.num(m1))}.`);
@@ -865,17 +892,19 @@ const workSetEqual = ({ variables = ['x', 'y'], v, w, wValue, vValue, m1, m2, gr
   } else {
     steps.push(`Both equations give ${math(v)}, so set the right sides equal: ${math(`${E1} = ${E2}`)}.`);
   }
-  steps.push(`${m2 > 0 ? 'Subtract' : 'Add'} ${math(f.term(Math.abs(m2), w))} ${m2 > 0 ? 'from' : 'to'} both sides: ${math(`${f.linear([[A, w], [b1, null]])} = ${f.num(b2)}`)}.`);
+  // A horizontal second line (v = b2) leaves no w-term to move: never "Add $0$".
+  if (m2) steps.push(`${m2 > 0 ? 'Subtract' : 'Add'} ${math(f.term(Math.abs(m2), w))} ${m2 > 0 ? 'from' : 'to'} both sides: ${math(`${f.linear([[A, w], [b1, null]])} = ${f.num(b2)}`)}.`);
   if (b1) steps.push(`${b1 > 0 ? 'Subtract' : 'Add'} ${math(f.num(Math.abs(b1)))} ${b1 > 0 ? 'from' : 'to'} both sides: ${math(`${f.term(A, w)} = ${f.num(b2 - b1)}`)}.`);
   if (A !== 1) steps.push(`Divide both sides by ${math(f.num(A))}: ${math(`${w} = ${f.num(wValue)}`)}.`);
-  const back = (m, b) => `${f.times(m, wValue)}${b ? (b > 0 ? ` + ${f.num(b)}` : ` - ${f.num(-b)}`) : ''}`;
+  // A horizontal line (m = 0) is its constant: never "0(2) + 3".
+  const back = (m, b) => (!m ? f.num(b) : `${f.times(m, wValue)}${b ? (b > 0 ? ` + ${f.num(b)}` : ` - ${f.num(-b)}`) : ''}`);
   steps.push(`Substitute ${math(`${w} = ${f.num(wValue)}`)} into ${math(`${v} = ${E1}`)}: ${math(`${v} = ${back(m1, b1)} = ${f.num(vValue)}`)}.`);
   steps.push(`Check in the other equation: ${math(`${back(m2, b2)} = ${f.num(vValue)}`)}, the same value.`);
   const prompt = graph
     ? `Graph ${math(`${v} = ${E1}`)} and ${math(`${v} = ${E2}`)}, and find where the lines intersect.`
     : `Solve the system: ${math(`${v} = ${E1}`)} and ${math(`${v} = ${E2}`)}.`;
   const [xValue, yValue] = v === variables[0] ? [vValue, wValue] : [wValue, vValue];
-  return { prompt, steps, answer: `(${f.num(xValue)}, ${f.num(yValue)})`, printed: f.printed, point: { x: xValue, y: yValue } };
+  return { prompt, steps, answer: `(${f.num(xValue)}, ${f.num(yValue)})`, printed: f.printed, point: { x: xValue, y: yValue }, intercepts: [b1, b2], exact: f.isExact() };
 };
 
 // a1·X + b1·Y = c1 and a2·X + b2·Y = c2, by elimination (or row operations).
@@ -890,8 +919,8 @@ const workElimination = ({ variables, rows, point, only = null, matrix = false, 
   const wValue = index === 0 ? point.y : point.x;
   const wOf = (row) => (index === 0 ? row.b : row.a);
   const sign = op === 'add' ? 1 : -1;
-  const A = k1 * wOf(r1) + sign * k2 * wOf(r2);
-  const C = k1 * r1.c + sign * k2 * r2.c;
+  const A = snap(k1 * wOf(r1) + sign * k2 * wOf(r2));
+  const C = snap(k1 * r1.c + sign * k2 * r2.c);
   if (!A) return null;
   const E = rows.map((row) => f.std(row, variables));
   const scale = (row, k) => ({ a: row.a * k, b: row.b * k, c: row.c * k });
@@ -924,12 +953,17 @@ const workElimination = ({ variables, rows, point, only = null, matrix = false, 
     ? `${f.term(r1.a, X)}${wOf(r1) < 0 ? ' - ' : ' + '}${f.times(Math.abs(wOf(r1)), wValue)}`
     : `${f.times(r1.a, wValue)}${r1.b < 0 ? ' - ' : ' + '}${f.term(Math.abs(r1.b), Y)}`;
   const solved = u1 === 1 ? '' : `, and ${math(`${v} = ${f.num(vValue)}`)}`;
-  steps.push(`Substitute ${math(`${w} = ${f.num(wValue)}`)} into the first ${matrix ? 'row\'s equation' : 'equation'}: ${math(`${substitutedTerms} = ${f.num(r1.c)}`)}, so ${math(`${f.term(u1, v)} = ${f.num(r1.c - known)}`)}${solved}.`);
+  if (!wOf(r1)) {
+    // The first equation has no w-term: it already says what v is (never "+ 0(…)").
+    steps.push(`The first ${matrix ? 'row\'s equation' : 'equation'} has no ${math(w)}-term: ${math(`${f.term(u1, v)} = ${f.num(r1.c)}`)}${u1 === 1 ? '' : `, so ${math(`${v} = ${f.num(vValue)}`)}`}.`);
+  } else {
+    steps.push(`Substitute ${math(`${w} = ${f.num(wValue)}`)} into the first ${matrix ? 'row\'s equation' : 'equation'}: ${math(`${substitutedTerms} = ${f.num(r1.c)}`)}, so ${math(`${f.term(u1, v)} = ${f.num(snap(r1.c - known))}`)}${solved}.`);
+  }
   steps.push(`Check in the second equation: ${math(`${f.products([[r2.a, point.x], [r2.b, point.y]])} = ${f.num(r2.c)}`)}, which is true.`);
   const prompt = matrix
     ? `Solve the system whose augmented matrix has the rows [${f.num(r1.a)}  ${f.num(r1.b)} | ${f.num(r1.c)}] and [${f.num(r2.a)}  ${f.num(r2.b)} | ${f.num(r2.c)}].`
     : `Solve the system${methodWord ? ` by ${methodWord}` : ''}: ${math(E[0])} and ${math(E[1])}.`;
-  return { prompt, steps, answer: `(${f.num(point.x)}, ${f.num(point.y)})`, printed: f.printed, point, shape: moveShape(move) };
+  return { prompt, steps, answer: `(${f.num(point.x)}, ${f.num(point.y)})`, printed: f.printed, point, shape: moveShape(move), reduced: { A, C, wValue }, exact: f.isExact() };
 };
 
 const ATTEMPTS = 3000;
@@ -1110,6 +1144,229 @@ export const backUpQuestion = (question) => {
     const step = steps.find(safe);
     if (step) return step;
     return { ...GENERIC_BACK_UP, options: [...GENERIC_BACK_UP.options] };
+  } catch {
+    return null;
+  }
+};
+
+/* ------------------------------------------------------- worked solution */
+
+/*
+ * workedSolution: THIS question's system, worked in full, for the
+ * closed-question review only (closedQuestionReview.js). It states the answer,
+ * so nothing shown while the item is open (hints, back-up, sibling) calls it.
+ *
+ * The steps are the sibling workers (workSubstitution, workSetEqual,
+ * workElimination) run on this question's own equations and point, by the
+ * method planFor already chose for its hints, and the last step states the
+ * answer the key holds. A system with no solution or infinitely many ends on
+ * that conclusion. Null — never a wrong step — when the key disagrees with
+ * the equations shown, or the numbers have no exact form to print.
+ */
+const sameNumber = (p, q) => Math.abs(p - q) <= 1e-9 * Math.max(1, Math.abs(p), Math.abs(q));
+const ORDINALS = Object.freeze(['first', 'second']);
+
+/** v = m·w + k read from an equation's coefficients: { m, k }. */
+const solvedFor = (equation, variables, v) => {
+  const vIndex = variables.indexOf(v);
+  const cv = vIndex === 0 ? equation.a : equation.b;
+  const cw = vIndex === 0 ? equation.b : equation.a;
+  if (!cv) return null;
+  return { m: snap(-cw / cv), k: snap(equation.c / cv) };
+};
+
+/** The rows with every coefficient a whole number: each scaled by its denominators' lcm. */
+const integerRows = (equations) => equations.map((equation) => {
+  const parts = [equation.a, equation.b, equation.c].map(rationalize);
+  if (parts.some((part) => !part)) return null;
+  const factor = parts.reduce((so, part) => lcm(so, part.d) || so, 1);
+  return { ...equation, a: snap(equation.a * factor), b: snap(equation.b * factor), c: snap(equation.c * factor), factor };
+});
+
+const pointWorked = (question, system, plan, point) => {
+  const f = formatter();
+  const { equations, variables } = system;
+  const [X] = variables;
+  const vOf = (v) => (v === X ? point.x : point.y);
+  const nameOf = (equation) => ORDINALS[equations.indexOf(equation)];
+  const lead = [];
+  const rewrite = (equation) => {
+    if (!isStandard(equation, variables)) lead.push(`Write the ${nameOf(equation)} equation with the variables on the left: ${math(f.std(equation, variables))}.`);
+  };
+  let result = null;
+  if (plan.method === 'graph') {
+    const [l1, l2] = equations.map((equation) => equation.line);
+    result = workSetEqual({ v: 'y', w: 'x', wValue: point.x, vValue: point.y, m1: l1.m, m2: l2.m, graph: true, bounded: false });
+    if (result && !(sameNumber(result.intercepts[0], l1.b) && sameNumber(result.intercepts[1], l2.b))) return null;
+  } else if (plan.method === 'setEqual') {
+    const { v } = plan;
+    const w = variables.find((name) => name !== v);
+    const [s1, s2] = equations.map((equation) => solvedFor(equation, variables, v));
+    if (!s1 || !s2) return null;
+    result = workSetEqual({ variables, v, w, wValue: vOf(w), vValue: vOf(v), m1: s1.m, m2: s2.m, bounded: false });
+    if (result && !(sameNumber(result.intercepts[0], s1.k) && sameNumber(result.intercepts[1], s2.k))) return null;
+  } else if (['substitution', 'isolateFirst', 'isolateAny'].includes(plan.method)) {
+    const iso = plan.method === 'substitution' ? plan.iso : plan.equation;
+    const { other, v, w } = plan;
+    const solved = solvedFor(iso, variables, v);
+    if (!solved) return null;
+    const vIndex = variables.indexOf(v);
+    const aV = vIndex === 0 ? other.a : other.b;
+    const aW = vIndex === 0 ? other.b : other.a;
+    if (!aV) {
+      // The other equation has only w: solve it, then put w into v = m·w + k.
+      if (!aW) return null;
+      const wValue = vOf(w);
+      if (!sameNumber(aW * wValue, other.c) || !sameNumber(solved.m * wValue + solved.k, vOf(v))) return null;
+      const steps = [aW === 1 && other.display.replace(/\s+/g, '') === `${w}=${f.num(other.c)}`.replace(/\s+/g, '')
+        ? `The ${nameOf(other)} equation gives ${math(`${w} = ${f.num(wValue)}`)} directly.`
+        : `The ${nameOf(other)} equation has only ${math(w)} in it: ${math(f.std(other, variables))}, so ${math(`${w} = ${f.num(wValue)}`)}.`];
+      const isoText = `${v} = ${f.linear([[solved.m, w], [solved.k, null]])}`;
+      if (solved.m) {
+        const back = `${f.times(solved.m, wValue)}${solved.k ? (solved.k > 0 ? ` + ${f.num(solved.k)}` : ` - ${f.num(-solved.k)}`) : ''}`;
+        steps.push(`Substitute ${math(`${w} = ${f.num(wValue)}`)} into ${math(isoText)}: ${math(`${v} = ${back} = ${f.num(vOf(v))}`)}.`);
+      } else {
+        steps.push(`The ${nameOf(iso)} equation gives ${math(`${v} = ${f.num(vOf(v))}`)} directly.`);
+      }
+      result = { steps, exact: true };
+    } else {
+      rewrite(other);
+      result = workSubstitution({
+        variables, v, w, wValue: vOf(w), vValue: vOf(v), m: solved.m, isoFirst: plan.method !== 'substitution', aV, aW,
+        bounded: false, isoName: nameOf(iso), otherName: nameOf(other),
+      });
+      if (result && !(sameNumber(result.isoK, solved.k) && sameNumber(result.otherC, other.c))) return null;
+    }
+  } else if (plan.method === 'elimination' && equations.every((equation) => !equation.a !== !equation.b) && !equations[0].a !== !equations[1].a) {
+    // Each equation already has only one variable (-5y = 10 and x = 9): there is
+    // nothing to eliminate, so each one is solved on its own.
+    const steps = equations.map((equation) => {
+      const vIndex = equation.a ? 0 : 1;
+      const v = variables[vIndex];
+      const coefficient = vIndex === 0 ? equation.a : equation.b;
+      const value = vOf(v);
+      if (!sameNumber(coefficient * value, equation.c)) return null;
+      return coefficient === 1 && equation.display.replace(/\s+/g, '') === `${v}=${f.num(equation.c)}`
+        ? `The ${nameOf(equation)} equation gives ${math(`${v} = ${f.num(value)}`)} directly.`
+        : `The ${nameOf(equation)} equation has only ${math(v)} in it: ${math(f.std(equation, variables))}, so ${math(`${v} = ${f.num(value)}`)}.`;
+    });
+    if (steps.some((step) => !step)) return null;
+    result = { steps, exact: true };
+  } else if (plan.method === 'elimination' || plan.method === 'matrix') {
+    let rows = equations;
+    if (!eliminationMove(rows, variables, plan.method === 'matrix' ? 0 : null)) {
+      if (plan.method === 'matrix') return null;
+      // Fractions or decimals: clear them first, so a whole-number multiplier can be named.
+      const scaled = integerRows(equations);
+      if (scaled.some((row) => !row)) return null;
+      scaled.forEach((row, index) => {
+        if (row.factor !== 1) lead.push(`Multiply the ${ORDINALS[index]} equation by ${math(f.num(row.factor))} to clear the fractions: ${math(f.std(row, variables))}.`);
+      });
+      rows = scaled;
+    }
+    result = workElimination({ variables, rows, point, only: plan.method === 'matrix' ? 0 : null, matrix: plan.method === 'matrix' });
+    if (result && !sameNumber(result.reduced.A * result.reduced.wValue, result.reduced.C)) return null;
+  }
+  if (!result || !result.exact) return null;
+  // The worker's own check line stays; the last step is the answer.
+  const answer = `(${f.num(point.x)}, ${f.num(point.y)})`;
+  if (!f.isExact()) return null;
+  return {
+    steps: [...lead, ...result.steps, `So the solution of the system is ${math(answer)}.`],
+    answer,
+  };
+};
+
+const specialWorked = (system, outcome) => {
+  const f = formatter();
+  const { equations, variables } = system;
+  if (system.kind === 'graph') {
+    const [l1, l2] = equations.map((equation) => equation.line);
+    const sameIntercept = sameNumber(l1.b, l2.b);
+    if (!sameNumber(l1.m, l2.m) || sameIntercept !== (outcome === 'infinite')) return null;
+    return [
+      `${math(equations[0].display)} has slope ${math(f.num(l1.m))} and y-intercept ${math(f.num(l1.b))}; ${math(equations[1].display)} has slope ${math(f.num(l2.m))} and y-intercept ${math(f.num(l2.b))}.`,
+      outcome === 'none'
+        ? 'The slopes are equal and the y-intercepts are different, so the lines are parallel and never meet: the system has no solution.'
+        : 'The slopes are equal and so are the y-intercepts, so both equations describe the same line: every point on it is a solution, and the system has infinitely many solutions.',
+    ];
+  }
+  const steps = [];
+  let rows = equations;
+  if (!eliminationMove(rows, variables)) {
+    const scaled = integerRows(equations);
+    if (scaled.some((row) => !row)) return null;
+    scaled.forEach((row, index) => {
+      if (row.factor !== 1) steps.push(`Multiply the ${ORDINALS[index]} equation by ${math(f.num(row.factor))} to clear the fractions: ${math(f.std(row, variables))}.`);
+    });
+    rows = scaled;
+  }
+  const move = eliminationMove(rows, variables);
+  if (!move) return null;
+  const [r1, r2] = rows;
+  const { v, u1, u2, k1, k2, op } = move;
+  const sign = op === 'add' ? 1 : -1;
+  const wLeft = tidy(k1 * (move.index === 0 ? r1.b : r1.a) + sign * k2 * (move.index === 0 ? r2.b : r2.a));
+  const C = tidy(k1 * r1.c + sign * k2 * r2.c);
+  // Both variables cancel exactly when there is no single solution.
+  if (wLeft || (C === 0) !== (outcome === 'infinite')) return null;
+  const lineUp = system.kind === 'matrix' ? 'Read each row as an equation' : 'Line up the equations';
+  steps.push(`${lineUp}: ${math(f.std(r1, variables))} and ${math(f.std(r2, variables))}.`);
+  const scale = (row, k) => ({ a: row.a * k, b: row.b * k, c: row.c * k });
+  const statement = `0 = ${f.num(C)}`;
+  if (k1 === 1 && k2 === 1) {
+    steps.push(op === 'add'
+      ? `The ${math(v)}-terms, ${math(f.term(u1, v))} and ${math(f.term(u2, v))}, are opposites. Add the equations: both variables cancel, leaving ${math(statement)}.`
+      : `The ${math(v)}-terms are both ${math(f.term(u1, v))}. Subtract the second equation from the first: both variables cancel, leaving ${math(statement)}.`);
+  } else {
+    if (k1 !== 1) steps.push(`Multiply the first equation by ${math(f.num(k1))}: ${math(f.std(scale(r1, k1), variables))}.`);
+    if (k2 !== 1) steps.push(`Multiply the second equation by ${math(f.num(k2))}: ${math(f.std(scale(r2, k2), variables))}.`);
+    steps.push(op === 'add'
+      ? `Add the equations: both variables cancel, leaving ${math(statement)}.`
+      : `Subtract the second equation from the first: both variables cancel, leaving ${math(statement)}.`);
+  }
+  steps.push(outcome === 'none'
+    ? `${math(statement)} is never true, so no pair makes both equations true: the system has no solution.`
+    : `${math(statement)} is always true: the two equations describe the same line, so the system has infinitely many solutions.`);
+  return f.isExact() ? steps : null;
+};
+
+export const workedSolution = (question) => {
+  try {
+    if (!matches(question)) return null;
+    const system = readSystem(question);
+    if (!system?.equations) return null;
+    const computed = solveEquations(system.equations);
+    const key = keyOf(question, system.variables);
+    if (key && (key.outcome !== computed.outcome
+      || (key.outcome === 'point' && !(sameNumber(key.x, computed.x) && sameNumber(key.y, computed.y))))) return null;
+    const [first, second] = system.equations.map((equation) => equation.display);
+    const shown = system.kind === 'matrix' ? 'the system in the augmented matrix' : `the system ${math(first)} and ${math(second)}`;
+    if (computed.outcome !== 'point') {
+      const steps = specialWorked(system, computed.outcome);
+      if (!steps) return null;
+      return {
+        headline: `Solve ${shown}: eliminate a variable and see what is left.`,
+        steps,
+        answerSummary: computed.outcome === 'none'
+          ? 'No solution: no pair makes both equations true.'
+          : 'Infinitely many solutions: every point on the line makes both equations true.',
+      };
+    }
+    // The point as the nearest double to its exact fraction, so the workers'
+    // arithmetic lands on exact values (tidy's 9-place rounding would not).
+    const exact = [computed.x, computed.y].map(rationalize);
+    if (exact.some((part) => !part)) return null;
+    const plan = planFor(question, system);
+    const worked = pointWorked(question, system, plan, { x: exact[0].n / exact[0].d, y: exact[1].n / exact[1].d });
+    if (!worked) return null;
+    const how = { graph: 'graph both lines and find where they cross', setEqual: 'set the two expressions equal', matrix: 'use row operations' }[plan.method]
+      || (plan.method === 'elimination' ? 'eliminate one variable' : 'substitute one equation into the other');
+    return {
+      headline: `Solve ${shown}: ${how}.`,
+      steps: worked.steps,
+      answerSummary: `The solution is ${math(worked.answer)}.`,
+    };
   } catch {
     return null;
   }
