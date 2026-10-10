@@ -19,6 +19,7 @@ import {
 } from '../../functions/shared/growthRewardRules.mjs';
 import { MAX_AWARD_AMOUNT, SOURCE_TYPES, applyTransaction, emptyAccount, isReversibleAward } from '../../functions/shared/classPoints.mjs';
 import { BADGE_CATALOG, REWARD_SOURCE, badgeDisplay } from '../../functions/shared/rewardGrants.mjs';
+import { buildMasteryHistoryDocument } from '../../functions/shared/masteryHistory.mjs';
 
 /*
  * Growth, effort and mastery rewards: the pure rules. Delivery (exactly once,
@@ -327,43 +328,50 @@ const profileDoc = (statuses, { classId = CLASS, updatedAt = AFTER_START } = {})
 });
 const codes = (count, prefix = 'A.') => Array.from({ length: count }, (_, index) => `${prefix}${index + 1}`);
 const mastered = (list) => Object.fromEntries(list.map((code) => [code, 'Mastered']));
+/*
+ * The studentMasteryHistory the trigger would hold for `profile`, built by the
+ * writer it uses (masteryHistory.mjs buildMasteryHistoryDocument): a week of
+ * `before` profiles, then the week of `at` with the profile's. Mastery is
+ * paid from this history (when), checked against the profile (the evidence).
+ */
+const historyFor = (profile, { before = {}, at = AFTER_START } = {}) => {
+  const authorization = { classId: profile.classId };
+  const earlier = buildMasteryHistoryDocument({ profiles: before, studentId: STUDENT, authorization, now: at - 7 * DAY });
+  return buildMasteryHistoryDocument({ existing: earlier, profiles: profile.profiles, studentId: STUDENT, authorization, now: at });
+};
+const masteryFor = (profile, extra = {}) => evaluateMasteryGrowth({
+  studentId: STUDENT, classId: CLASS, masteryProfile: profile, masteryHistory: historyFor(profile), ...extra,
+});
+// A baseline frozen just after the start date, before the profile's mastery.
+const BASELINE_AT = GROWTH_REWARDS_START_MS + HOUR;
 
 test('mastery pays once per newly Mastered skill, never for the baseline', () => {
-  assert.deepEqual(evaluateMasteryGrowth({ studentId: STUDENT, classId: CLASS, masteryProfile: profileDoc({ 'A.1': 'Mastered' }), baseline: null }).awards, [],
+  assert.deepEqual(masteryFor(profileDoc({ 'A.1': 'Mastered' }), { baseline: null }).awards, [],
     'no baseline yet: the first sync only sets it');
 
-  const baseline = masteryBaselineFor(profileDoc({ 'A.1': 'Mastered', 'A.2': 'Secure' }));
+  const baseline = masteryBaselineFor(profileDoc({ 'A.1': 'Mastered', 'A.2': 'Secure' }), BASELINE_AT);
   assert.deepEqual(baseline.skills, ['A.1']);
   const now = profileDoc({ 'A.1': 'Mastered', 'A.2': 'Mastered', 'A.3': 'Developing' });
-  const result = evaluateMasteryGrowth({ studentId: STUDENT, classId: CLASS, masteryProfile: now, baseline });
+  const result = masteryFor(now, { baseline });
   assert.deepEqual(pointsOf(result.awards).map((award) => [award.sourceId, award.amount]), [['A.2', GROWTH_REWARD_AMOUNTS.masterySkill]]);
   assert.equal(pointsOf(result.awards)[0].identity, growthAwardIdentity({ studentId: STUDENT, ruleId: GROWTH_RULE_IDS.MASTERY_SKILL, sourceId: 'A.2' }));
 
-  const again = evaluateMasteryGrowth({ studentId: STUDENT, classId: CLASS, masteryProfile: now, baseline });
+  const again = masteryFor(now, { baseline });
   assert.deepEqual(again.awards.map((award) => award.id), result.awards.map((award) => award.id), 'the same skill is the same award');
 });
 
 test('5 and 10 mastered skills earn badges only when the count is crossed after the baseline', () => {
-  const crossFive = evaluateMasteryGrowth({
-    studentId: STUDENT, classId: CLASS, masteryProfile: profileDoc(mastered(codes(5))), baseline: { skills: codes(4) },
-  });
+  const crossFive = masteryFor(profileDoc(mastered(codes(5))), { baseline: { skills: codes(4) } });
   assert.deepEqual(badgesOf(crossFive.awards).map((award) => award.badgeCode), ['mastery-5']);
 
-  const alreadyFive = evaluateMasteryGrowth({
-    studentId: STUDENT, classId: CLASS, masteryProfile: profileDoc(mastered(codes(6))), baseline: { skills: codes(5) },
-  });
+  const alreadyFive = masteryFor(profileDoc(mastered(codes(6))), { baseline: { skills: codes(5) } });
   assert.deepEqual(badgesOf(alreadyFive.awards), []);
 
   // Ten at once: five pay now (MASTERY_SKILLS_PER_SYNC), so only the 5 badge;
   // once those five are paid the next five pay and the 10 badge follows.
-  const firstFive = evaluateMasteryGrowth({
-    studentId: STUDENT, classId: CLASS, masteryProfile: profileDoc(mastered(codes(10))), baseline: { skills: [] },
-  });
+  const firstFive = masteryFor(profileDoc(mastered(codes(10))), { baseline: { skills: [] } });
   assert.deepEqual(badgesOf(firstFive.awards).map((award) => award.badgeCode), ['mastery-5']);
-  const both = evaluateMasteryGrowth({
-    studentId: STUDENT,
-    classId: CLASS,
-    masteryProfile: profileDoc(mastered(codes(10))),
+  const both = masteryFor(profileDoc(mastered(codes(10))), {
     baseline: { skills: [] },
     paidSkills: pointsOf(firstFive.awards).map((award) => award.sourceId),
   });
@@ -371,28 +379,24 @@ test('5 and 10 mastered skills earn badges only when the count is crossed after 
 });
 
 test('mastery from another class or before the start does not pay', () => {
-  const other = evaluateMasteryGrowth({
-    studentId: STUDENT, classId: CLASS, masteryProfile: profileDoc({ 'A.1': 'Mastered' }, { classId: 'old-class' }), baseline: { skills: [] },
-  });
+  const other = masteryFor(profileDoc({ 'A.1': 'Mastered' }, { classId: 'old-class' }), { baseline: { skills: [] } });
   assert.deepEqual(other.awards, []);
   assert.equal(other.skipped[0].reason, SKIP_REASON.DIFFERENT_CLASS);
 
-  // A profile whose last evidence named no class is not guessed into the
+  // A history whose last evidence named no class is not guessed into the
   // current one, and the skill is not settled: it pays once a later change
   // names the class of record.
   const baseline = { skills: [] };
-  const unknown = evaluateMasteryGrowth({
-    studentId: STUDENT, classId: CLASS, masteryProfile: profileDoc({ 'A.1': 'Mastered' }, { classId: null }), baseline,
-  });
+  const unknown = masteryFor(profileDoc({ 'A.1': 'Mastered' }, { classId: null }), { baseline });
   assert.deepEqual(unknown.awards, []);
   assert.equal(unknown.skipped[0].reason, SKIP_REASON.CLASS_UNKNOWN);
-  const labelled = evaluateMasteryGrowth({
-    studentId: STUDENT, classId: CLASS, masteryProfile: profileDoc({ 'A.1': 'Mastered' }), baseline,
-  });
+  const labelled = masteryFor(profileDoc({ 'A.1': 'Mastered' }), { baseline });
   assert.deepEqual(pointsOf(labelled.awards).map((award) => award.sourceId), ['A.1']);
 
+  // Mastered (by the history) before the start date.
+  const early = profileDoc({ 'A.1': 'Mastered' }, { updatedAt: BEFORE_START });
   const old = evaluateMasteryGrowth({
-    studentId: STUDENT, classId: CLASS, masteryProfile: profileDoc({ 'A.1': 'Mastered' }, { updatedAt: BEFORE_START }), baseline: { skills: [] },
+    studentId: STUDENT, classId: CLASS, masteryProfile: early, masteryHistory: historyFor(early, { at: BEFORE_START }), baseline: { skills: [] },
   });
   assert.deepEqual(pointsOf(old.awards), []);
   assert.equal(old.skipped[0].reason, SKIP_REASON.BEFORE_START);
@@ -411,6 +415,7 @@ const everything = () => ({
   completions: [0, 1, 2].flatMap((n) => completionsFor(addWeeks(WEEK_ONE, n))),
   windowStartWeekKey: WEEK_ONE,
   masteryProfile: profileDoc(mastered(codes(5))),
+  masteryHistory: historyFor(profileDoc(mastered(codes(5)))),
   masteryBaseline: { skills: [] },
   nowMs: weekStart(addWeeks(WEEK_ONE, 4)),
 });
