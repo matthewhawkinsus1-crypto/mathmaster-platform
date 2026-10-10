@@ -1611,6 +1611,9 @@ service cloud.firestore {
           : ownsStudent(resource.data.studentId));
       allow create: if ownsStudent(request.resource.data.studentId)
         && request.resource.data.documentId == draftId
+        // The id names its owner (see read): nobody creates a draft under
+        // another student's id, which would lock that student out of it.
+        && draftId.split('__')[0] == request.resource.data.studentId
         && request.resource.data.secure == false
         && request.resource.data.schemaVersion == 1
         && request.resource.data.updatedAt == request.time
