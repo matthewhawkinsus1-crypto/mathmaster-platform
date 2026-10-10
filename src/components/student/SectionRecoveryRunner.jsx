@@ -32,6 +32,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QuestionEngine from '../../QuestionEngine.jsx';
+import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import { buildQuestionDraftKey } from '../../questionDraftStorage.js';
 import { normalizeCheckpointResponse } from '../../platform/performance/responseCheckpoint.js';
 import { ACTIVITY_POLICIES } from '../../platform/policies/activityPolicies.js';
@@ -714,9 +715,14 @@ export default function SectionRecoveryRunner({
   onRecord,
   onStartAssessment,
 }) {
+  // Recovery has the assignment screen's sticky action bar but not its
+  // scroll-padding: Tab must not park a control under the bar (S5, job H).
+  const hostRef = useRef(null);
+  useActionBarFocusReveal(hostRef);
   if (!assignment?.id || !entry) return null;
   if (mode === 'assessment') {
     return (
+      <div ref={hostRef} data-recovery-host="assessment" style={{ display: 'contents' }}>
       <AssessmentRunner
         assignment={assignment}
         entry={entry}
@@ -725,9 +731,11 @@ export default function SectionRecoveryRunner({
         onExit={onExit}
         onRecord={onRecord}
       />
+      </div>
     );
   }
   return (
+    <div ref={hostRef} data-recovery-host="practice" style={{ display: 'contents' }}>
     <PracticeRunner
       assignment={assignment}
       entry={entry}
@@ -737,5 +745,6 @@ export default function SectionRecoveryRunner({
       onRecord={onRecord}
       onStartAssessment={onStartAssessment}
     />
+    </div>
   );
 }

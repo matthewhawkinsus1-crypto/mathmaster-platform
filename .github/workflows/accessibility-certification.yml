@@ -19,6 +19,7 @@ on:
       - "tests/browser/graphDescription*"
       - "tests/browser/accessiblePrimitives*"
       - "tests/browser/calculatorKeyboard*"
+      - "tests/browser/hostAccessibility*"
       - "tests/browser/keyboardSweep*"
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/emulator/**"
@@ -107,6 +108,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/calculatorKeyboard.mjs
+      - name: My Math Path and Recovery hosts (focus clear of the action bar, universal tools, graph descriptions)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/hostAccessibility.mjs
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@v4
