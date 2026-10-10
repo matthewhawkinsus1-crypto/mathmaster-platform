@@ -495,7 +495,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.2C:v2-exponential-log-features",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",

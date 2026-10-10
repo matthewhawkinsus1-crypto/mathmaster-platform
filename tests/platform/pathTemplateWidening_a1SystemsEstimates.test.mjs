@@ -52,7 +52,8 @@ const contentKey = (question) => JSON.stringify({
 // whose fees/balances and rates must stay positive.
 const COMMON = {
   courseId: 'algebra1',
-  familyVersion: 3,
+// familyVersion 4: raised with the widening so the recap can tell old draws from new (review of #464, m1).
+  familyVersion: 4,
   alignmentKeys: ['texas:A.3G'],
   assessedConstruct: 'A.3G',
   type: 'systemsWorkspace',

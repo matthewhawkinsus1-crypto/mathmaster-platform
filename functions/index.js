@@ -10824,13 +10824,20 @@ const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
       )];
       if (!alternate) throw new HttpsError("failed-precondition", "There is no other Solver Race structure for this stage.");
       const swapNumber = Math.max(1, Number(current?.solverRaceSwap) + 1 || 1);
-      const generated = solverRace.generateSolverRaceQuestion(
-        alternate,
-        `${dryRun.solverRaceSeed}|swap|${roundIndex}|${swapNumber}`,
-      );
+      // Never an equation another round of this match already asks: its
+      // solution is published when that round closes (review of #464, B1).
+      const usedKeys = new Set(roundQuestions
+        .filter((_, index) => index !== roundIndex)
+        .map((question) => solverRace.solverRaceEquationKey(question))
+        .filter(Boolean));
+      const generated = solverRace.generateDistinctSolverRaceQuestion({
+        structure: alternate,
+        seedKey: `${dryRun.solverRaceSeed}|swap|${roundIndex}|${swapNumber}`,
+        usedKeys,
+      });
       const replacementQuestion = {
         ...generated,
-        id: `${alternate.id}_r${roundIndex + 1}_swap${swapNumber}`,
+        id: `${generated.familyId}_r${roundIndex + 1}_swap${swapNumber}`,
         solverRaceRound: roundIndex,
         solverRaceStage: current?.solverRaceStage,
         solverRaceSwap: swapNumber,
@@ -12102,6 +12109,8 @@ function liveChallengeRevealableRounds({ challenge, engine, room, privateState, 
   }
   const rounds = engine.solutionReveal.revealableRounds({
     closedThrough, scheduledRoundCount, secondChancePossible, replayOf, finished,
+    // Solver Race: never publish a solution while a later round asks the same equation.
+    questionKeys: engine.solutionReveal.roundQuestionKeys(privateState.roundQuestions, questionIds),
   });
   // Never a round the match did not reach.
   const reached = Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1;

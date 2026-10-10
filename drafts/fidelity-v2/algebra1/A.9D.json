@@ -509,7 +509,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.9D:v2-context-decay-graph",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",

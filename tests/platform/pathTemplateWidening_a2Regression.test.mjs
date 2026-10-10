@@ -205,7 +205,8 @@ const PINNED = {
   'mm_A2_8B_v2_quadratic-regression-noisy': { familyId: 'mathmaster:A2.8B:v2-quadratic-regression-noisy', alignmentKeys: ['texas:A2.8B'], assessedConstruct: 'A2.8B', representation: 'multipleRepresentation', taskType: 'procedural', difficultyBand: 3, mode: 'quadraticFit' },
   'mm_A2_8C_v2_prediction-model-variants': { familyId: 'mathmaster:A2.8C:v2-prediction-model-variants', alignmentKeys: ['texas:A2.8C'], assessedConstruct: 'A2.8C', representation: 'multipleRepresentation', taskType: 'modeling', difficultyBand: 3 },
 };
-const COMMON = { familyVersion: 3, courseId: 'algebra2', type: 'dataModelingLab', questionType: 'response', dok: 2, activityRole: 'practice', calculatorPolicy: 'graphing' };
+// familyVersion 4: raised with the widening so the recap can tell old draws from new (review of #464, m1).
+const COMMON = { familyVersion: 4, courseId: 'algebra2', type: 'dataModelingLab', questionType: 'response', dok: 2, activityRole: 'practice', calculatorPolicy: 'graphing' };
 const PINNED_VARIANTS = {
   'mm_A2_8B_v2_linear-regression-noisy': [
     { coverageKey: 'core-d2b3', difficultyBand: 3, dok: 2 },

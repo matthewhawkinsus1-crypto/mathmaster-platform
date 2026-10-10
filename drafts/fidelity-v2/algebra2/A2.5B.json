@@ -365,7 +365,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.5B:v2-logarithmic-ratio-scale-model",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -413,10 +413,7 @@
           "expected": "L=10log_10(I/{{ref}})",
           "accepted": [
             "L=10log_{10}(I/{{ref}})",
-            "L=10\\log_{10}(I/{{ref}})",
-            "L=10log10(I/{{ref}})",
-            "L=10log(I/{{ref}})",
-            "L=10\\log(I/{{ref}})"
+            "L=10\\log_{10}(I/{{ref}})"
           ]
         },
         {

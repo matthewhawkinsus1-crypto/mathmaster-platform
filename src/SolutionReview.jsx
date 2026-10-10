@@ -395,9 +395,16 @@ export const legacySolutionReviewContent = (question) => {
   const graph = workflowSolution?.graph || legacyGraph;
   const analysisSummary = workflowSolution ? [] : buildGraphAnalysisSummary(question);
   const completeAnswerDetails = workflowSolution ? [] : buildCompleteAnswerDetails(question);
+  // A graph counts as a solution only when it shows one: a solved function,
+  // a workflow's graph, or a system / ordered pair with its answer marked.
+  // The problem's own lines with nothing marked are not a solution (QA round
+  // 2: "Compare your work with the solution." over no solution).
+  const pairShown = ['system', 'orderedPair'].includes(question.type)
+    && (Array.isArray(question.solution) || Array.isArray(question.answer));
+  const graphShowsSolution = Boolean(workflowSolution?.graph || graphSpec || (legacyGraph && (question.type === 'graphing' || pairShown)));
   const hasContent = Boolean(
     workflowSolution?.entries?.length || question.equationLatex || representations.length
-      || completeAnswerDetails.length || graph || analysisSummary.length,
+      || completeAnswerDetails.length || graphShowsSolution || analysisSummary.length,
   );
   return { workflowSolution, representations, graph, analysisSummary, completeAnswerDetails, hasContent };
 };
@@ -410,8 +417,8 @@ export const legacySolutionReviewContent = (question) => {
  */
 export default function SolutionReview({ question, incorrectParts = [], embedded = false, allowReplacement = false }) {
   const content = legacySolutionReviewContent(question);
-  if (!content) return null;
-  if (embedded && !content.hasContent) return null;
+  // Nothing to show: no frame, no "Compare your work with the solution."
+  if (!content || !content.hasContent) return null;
   const { workflowSolution, representations, graph, analysisSummary, completeAnswerDetails } = content;
 
   return (

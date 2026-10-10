@@ -254,9 +254,10 @@ for (const [standard, id] of TEMPLATES) {
   });
 }
 
-// The model field also accepts the common spellings of the same equation
-// (brace subscript, \log, log10, and bare log, which is base 10 by
-// convention). The alternates are graded on the server and never leave it.
+// The model field also accepts the brace-subscript spellings of the same
+// equation (log_{10}, \log_{10}). Bare "log" / "log10" are NOT accepted: the
+// form-preserving grader reads a bare log as a product (review of #464, M1).
+// The alternates are graded on the server and never leave it.
 test('mm_A2_5B_v2_logarithmic-ratio-scale-model: equivalent spellings of the model are graded right, and they stay private', async () => {
   const template = draft('A2.5B', 'mm_A2_5B_v2_logarithmic-ratio-scale-model');
   const references = new Set();
@@ -277,9 +278,6 @@ test('mm_A2_5B_v2_logarithmic-ratio-scale-model: equivalent spellings of the mod
       `L=10log_{10}(I/${reference})`,
       `L=10\\log_{10}(I/${reference})`,
       `L = 10 \\log_{10}\\left(\\frac{I}{${reference}}\\right)`,
-      `L=10log10(I/${reference})`,
-      `L=10log(I/${reference})`,
-      `L=10\\log(I/${reference})`,
     ]) {
       // eslint-disable-next-line no-await-in-loop
       assert.equal((await grade(model)).isCorrect, true, `ref ${reference}: ${model} is the right model`);
@@ -291,6 +289,14 @@ test('mm_A2_5B_v2_logarithmic-ratio-scale-model: equivalent spellings of the mod
       `L=20log_{10}(I/${reference})`,
       `L=10ln(I/${reference})`,
       `L=10log_{10}(${reference}/I)`,
+      // Coordinator review of #464, M1: with a bare "log" spelling accepted,
+      // the form-preserving grader read log as the product l·o·g and marked
+      // all of these right. No bare-log spelling is accepted now.
+      `L=10log(I)/${reference}`,
+      `L=log(10I/${reference})`,
+      `L=10log10(I)/${reference}`,
+      `L=I*10log/${reference}`,
+      `L=10gol(I/${reference})`,
     ]) {
       // eslint-disable-next-line no-await-in-loop
       assert.equal((await grade(model)).isCorrect, false, `ref ${reference}: ${model} is not the model`);
@@ -308,7 +314,8 @@ const COMMITTED = {
     fields: {
       id: "mm_A2_3B_v2_matrix-technology-rref",
       familyId: "mathmaster:A2.3B:v2-matrix-technology-rref",
-      familyVersion: 3,
+// familyVersion 4: raised with the widening so the recap can tell old draws from new (review of #464, m1).
+      familyVersion: 4,
       courseId: "algebra2",
       alignmentKeys: ["texas:A2.3B"],
       assessedConstruct: "A2.3B",
@@ -331,7 +338,7 @@ const COMMITTED = {
     fields: {
       id: "mm_A2_4E_v2_quadratic-context-interpolation",
       familyId: "mathmaster:A2.4E:v2-quadratic-context-interpolation",
-      familyVersion: 3,
+      familyVersion: 4,
       courseId: "algebra2",
       alignmentKeys: ["texas:A2.4E"],
       assessedConstruct: "A2.4E",
@@ -356,7 +363,7 @@ const COMMITTED = {
     fields: {
       id: "mm_A2_4E_v2_quadratic-regression-table",
       familyId: "mathmaster:A2.4E:v2-quadratic-regression-table",
-      familyVersion: 3,
+      familyVersion: 4,
       courseId: "algebra2",
       alignmentKeys: ["texas:A2.4E"],
       assessedConstruct: "A2.4E",
@@ -381,7 +388,7 @@ const COMMITTED = {
     fields: {
       id: "mm_A2_4E_v2_square-root-context-interpolation",
       familyId: "mathmaster:A2.4E:v2-square-root-context-interpolation",
-      familyVersion: 3,
+      familyVersion: 4,
       courseId: "algebra2",
       alignmentKeys: ["texas:A2.4E"],
       assessedConstruct: "A2.4E",
@@ -406,7 +413,7 @@ const COMMITTED = {
     fields: {
       id: "mm_A2_5B_v2_logarithmic-ratio-scale-model",
       familyId: "mathmaster:A2.5B:v2-logarithmic-ratio-scale-model",
-      familyVersion: 3,
+      familyVersion: 4,
       courseId: "algebra2",
       alignmentKeys: ["texas:A2.5B"],
       assessedConstruct: "A2.5B",
@@ -451,6 +458,6 @@ test('the assessed construct, complexity, tool and response contract equal the c
   }
   const model = draft('A2.5B', 'mm_A2_5B_v2_logarithmic-ratio-scale-model').responseFields.find((field) => field.id === 'model');
   assert.deepEqual(model.accepted, [
-    'L=10log_{10}(I/{{ref}})', 'L=10\\log_{10}(I/{{ref}})', 'L=10log10(I/{{ref}})', 'L=10log(I/{{ref}})', 'L=10\\log(I/{{ref}})',
+    'L=10log_{10}(I/{{ref}})', 'L=10\\log_{10}(I/{{ref}})',
   ]);
 });

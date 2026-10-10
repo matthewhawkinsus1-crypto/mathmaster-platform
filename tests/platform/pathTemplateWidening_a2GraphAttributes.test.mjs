@@ -76,7 +76,8 @@ const contentKey = (question) => JSON.stringify({
 
 const COMMON = {
   courseId: 'algebra2',
-  familyVersion: 3,
+// familyVersion 4: raised with the widening so the recap can tell old draws from new (review of #464, m1).
+  familyVersion: 4,
   questionType: 'response',
   activityRole: 'practice',
   calculatorPolicy: 'inherit',

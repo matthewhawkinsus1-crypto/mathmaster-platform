@@ -44,7 +44,9 @@ const STATE_COPY = Object.freeze({
   },
   [RECOVERY_STATE.COMPLETED]: {
     badge: 'Complete',
-    message: 'Your Recovery is finished. Recovery practice stays open whenever you want more.',
+    // Practice closes with the Recovery (canPractice is LOCKED/UNLOCKED only,
+    // and the server refuses it): the copy promises nothing more (review of #464, m3).
+    message: 'Your Recovery is finished. Your result is below.',
   },
   // Submitted, but MathMaster could not grade enough of it to score it. The
   // brief's words: what happened, that the work is safe, and who decides —

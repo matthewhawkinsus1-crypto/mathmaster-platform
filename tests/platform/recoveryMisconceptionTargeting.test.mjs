@@ -37,7 +37,8 @@ import { getSectionVariantMode } from '../../src/assignmentLifecycle.js';
 import { planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { RECOVERY_ACTION, buildSectionRecoveryContext, nextRecoveryPracticeItem } from '../../functions/shared/sectionRecoveryService.mjs';
 import { runSectionRecoveryAction } from '../../functions/shared/sectionRecoveryActions.mjs';
-import { reproduceFamilyQuestionFromPin } from '../../functions/shared/questionFamilyInstance.mjs';
+import { reproduceFamilyQuestionFromPin, resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
+import { resolveGenerationAllocation } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { buildRecoveryPracticeItem } from '../../functions/shared/sectionRecoveryPlan.mjs';
 import { MISCONCEPTION_EVIDENCE_SOURCE, MISCONCEPTION_REGISTRY_VERSION } from '../../functions/shared/misconceptionCodes.mjs';
 import { gradeFamilyInstanceResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
@@ -274,4 +275,53 @@ test('the server reads the evidence and passes it in; the runner shows the serve
   // a hanging callable hid "no new practice questions left").
   assert.match(practice, /useState\(Boolean\(entry\.nextPracticeItem\)\)/);
   assert.match(practice, /if \(!entry\.nextPracticeItem\) \{ settle\(null\); return undefined; \}/);
+});
+
+test('a targeted candidate is never a version the student has seen (coordinator review of #464, m2)', () => {
+  // Every version targeting could reach — the instance at each of the next
+  // TARGETED_PRACTICE_CANDIDATES allocations of the student's own seat — is
+  // marked as seen. The deal must still be unseen: a candidate that skipped
+  // the history would land on one of them.
+  let checked = 0;
+  for (const studentId of ROSTER) {
+    const context = contextFor({ studentId });
+    const slot = context.readiness.readySlots.find((entry) => entry.ready && entry.storageIndex === SLOPE_INDEX);
+    const question = context.questionsByIndex[SLOPE_INDEX];
+    const slotKey = `${lesson.id}|recoveryPractice:dol:o1|${slot.questionId || `index-${SLOPE_INDEX}`}`;
+    const reachable = [];
+    for (let variant = 0; variant < 8; variant += 1) {
+      const result = resolveFamilyQuestionInstance({
+        question,
+        assignmentId: lesson.id,
+        storageIndex: SLOPE_INDEX,
+        slotKey,
+        allocation: resolveGenerationAllocation({ seatInfo: context.seatInfo, variant }),
+        excludeFingerprints: context.seenFingerprints,
+        historyIsComplete: true,
+      });
+      if (!result.error) reachable.push(result.delivery.fingerprint);
+    }
+    const seen = [...new Set([...context.seenFingerprints, ...reachable.slice(1)])];
+    const dealt = buildRecoveryPracticeItem({
+      assignmentId: lesson.id,
+      section: 'dol',
+      readySlots: [slot],
+      questionsByIndex: context.questionsByIndex,
+      practiceIndex: 0,
+      seatInfo: context.seatInfo,
+      seenFingerprints: seen,
+      misconceptionFocus: { [SLOPE_INDEX]: ['slope-run-over-rise'] },
+    });
+    if (dealt.error) continue;
+    assert.equal(seen.includes(dealt.pin.fingerprint), false, `${studentId}: the deal is unseen`);
+    checked += 1;
+  }
+  assert.ok(checked > 20);
+});
+
+test('a finished Recovery does not promise practice the server refuses (coordinator review of #464, m3)', () => {
+  const model = executableSource(read('src/platform/recovery/studentRecoveryModel.js'));
+  const completed = region(model, '[RECOVERY_STATE.COMPLETED]: {', '},');
+  assert.doesNotMatch(completed, /practice/i);
+  assert.match(model, /canPractice: \[RECOVERY_STATE\.LOCKED, RECOVERY_STATE\.UNLOCKED\]\.includes\(eligibility\.state\)/, 'Practice is offered only before the Recovery starts');
 });
