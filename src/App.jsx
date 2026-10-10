@@ -343,6 +343,7 @@ import {
 import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
 import { readUrlArrival } from './app/routes/urlArrival.js';
 import { useUrlArrival } from './app/routes/useUrlArrival.js';
+import { describeFeedbackRelease, studentsStillWorkingByClass } from './app/teacher/feedbackReleaseHold.js';
 import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
 import {
   DISPLAYED_CHECKPOINT_OUTCOMES,
@@ -8706,10 +8707,17 @@ function App() {
 
   const handleReleaseAssignmentFeedback = async (assignment) => {
     if (!assignment?.id || !assignmentUsesTeacherReleasePolicy(assignment) || assignmentFeedbackWasReleased(assignment)) return;
+    // One release opens worked solutions in EVERY class this is assigned to:
+    // name everyone who has not finished, by class, before it goes
+    // (app/teacher/feedbackReleaseHold.js; coordinator QA M3).
+    const release = describeFeedbackRelease({
+      title: assignment.title,
+      stillWorking: studentsStillWorkingByClass({ assignment, students: allStudents, classes, nowValue: Date.now() }),
+    });
     const proceedWithRelease = await confirmAction({
-      title: `Release feedback for “${assignment.title}”?`,
-      message: 'Students will immediately see Quiz/Test correctness, solution review, and recorded grades. This cannot make already-viewed feedback private again.',
-      confirmLabel: 'Release Feedback',
+      title: release.title,
+      message: release.message,
+      confirmLabel: release.confirmLabel,
     });
     if (!proceedWithRelease) return;
     setFeedbackReleaseBusyId(assignment.id);
