@@ -56,6 +56,10 @@ const ROSTER_A2 = 'NAV_ROSTER_A2';
 const ROSTER_B3 = 'NAV_ROSTER_B3';
 const ROSTER_C3 = 'NAV_ROSTER_C3';
 const ROSTER_STUDENTS = [ROSTER_A1, ROSTER_A2, ROSTER_B3, ROSTER_C3];
+// A Test Cycle with more records than the teacher's table reads (400).
+const CAP_ASSIGNMENT_ID = 'nav_cap_test_cycle';
+const CAP_FILLERS = Array.from({ length: 400 }, (_, index) => `NAV_CAP_A${String(index).padStart(3, '0')}`);
+const CAP_HOLDER = 'NAV_CAP_Z_MOVED';
 
 const roster = (data) => teacherRequest({ assignmentId: ROSTER_ASSIGNMENT_ID, ...data });
 const testSessionOf = async (studentId) => (await readRecord(ROSTER_ASSIGNMENT_ID, studentId)).test.examSessionId;
@@ -133,6 +137,9 @@ after(async () => {
     ...ROSTER_STUDENTS.map((studentId) => db.collection('testCycleRecords').doc(`${ROSTER_ASSIGNMENT_ID}__${studentId}`).delete()),
     ...ROSTER_STUDENTS.map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${ROSTER_ASSIGNMENT_ID}__${studentId}`).delete()),
     ...ROSTER_STUDENTS.map((studentId) => db.collection('testCycleRetestPlans').doc(`${ROSTER_ASSIGNMENT_ID}__${studentId}`).delete()),
+    db.collection('assignments').doc(CAP_ASSIGNMENT_ID).delete(),
+    db.collection('testCycleAnswerReleases').doc(CAP_ASSIGNMENT_ID).delete(),
+    ...[...CAP_FILLERS, CAP_HOLDER].map((studentId) => db.collection('testCycleRecords').doc(`${CAP_ASSIGNMENT_ID}__${studentId}`).delete()),
   ];
   await Promise.allSettled(deletions);
 });
@@ -474,7 +481,7 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   assert.equal(listing.answersRelease.test.released, false);
   assert.ok(listing.answersRelease.test.stillTesting > 0, 'the teacher is told how many are still testing');
   // The teacher releases them explicitly, for the students the confirm named; the review now carries them.
-  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, stage: 'test', studentIds: listing.answersRelease.test.stillTestingIds }));
+  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, stage: 'test', confirmed: listing.answersRelease.test.confirmKeys }));
   const withAnswers = await fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId }));
   assert.equal(withAnswers.review.solutionsHeld, undefined);
   assert.ok(withAnswers.review.items[0].solution?.answers?.[0]?.display, 'the worked answer is released with the teacher\'s release');
@@ -526,11 +533,11 @@ test('the answers wait for everyone the Test is assigned to: a period with no se
   assert.deepEqual(release.test.stillTestingIds, [ROSTER_B3], 'the teacher is shown exactly who is still testing');
 
   // A release that does not name everyone still testing opens nothing.
-  const unnamed = await refusal(fns.releaseTestCycleAnswers.run(roster({ stage: 'test', studentIds: [] })));
+  const unnamed = await refusal(fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: [] })));
   assert.equal(unnamed?.code, 'failed-precondition', 'a release must name every student still testing');
   assert.match(unnamed.message, /not on the list you confirmed/);
   assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'and nothing was released');
-  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', studentIds: release.test.stillTestingIds }));
+  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: release.test.confirmKeys }));
   assert.ok((await reviewOf(ROSTER_A1, a1Test)).items.every((item) => item.solution), 'the named release opens the answers');
 
   // C3 joins period 3 after the release. Nobody confirmed them: the answers wait again.
@@ -538,7 +545,7 @@ test('the answers wait for everyone the Test is assigned to: a period with no se
   assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), 'a student who joined after the release holds the answers again');
   release = await answersRelease();
   assert.deepEqual([...release.test.stillTestingIds].sort(), [ROSTER_B3, ROSTER_C3]);
-  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', studentIds: release.test.stillTestingIds }));
+  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: release.test.confirmKeys }));
   assert.ok(!held(await reviewOf(ROSTER_A1, a1Test)), 'released again once the teacher names them');
 
   // Period 3's sessions open; B3 sits the Test. A reset gives B3 an attempt nobody confirmed.
@@ -604,6 +611,30 @@ test('the Retest answers wait while anyone can still take a Retest: a student in
   assert.equal(release.retest.released, false);
   assert.deepEqual([...release.retest.stillTestingIds].sort(), [ROSTER_A2, ROSTER_B3, ROSTER_C3],
     'in Corrections, or yet to finish the Test: all can still take a Retest');
+});
+
+test('a release confirmed before a reset does not cover the new attempt, however the two interleave', async () => {
+  // C3 is still on attempt 1. The teacher loads the list, then C3's Test is reset.
+  const before = (await answersRelease()).test;
+  const c3Before = before.confirmKeys.find((key) => key.startsWith(`${ROSTER_C3}#`));
+  assert.ok(c3Before?.endsWith('#1.1'), `C3 is listed at attempt 1 (${c3Before})`);
+  await fns.teacherTestCycleAction.run(roster({ studentId: ROSTER_C3, action: 'resetSecureSession', stage: 'test' }));
+  created.push(await testSessionOf(ROSTER_C3));
+  // The list the teacher confirmed named attempt 1: the release is refused.
+  const stale = await refusal(fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: before.confirmKeys })));
+  assert.equal(stale?.code, 'failed-precondition', 'a confirm taken before the reset releases nothing');
+  // The race: a release that read the records just before the reset and wrote
+  // just after it stores the old attempt — which does not cover the new one.
+  await db.collection('testCycleAnswerReleases').doc(ROSTER_ASSIGNMENT_ID).set({
+    assignmentId: ROSTER_ASSIGNMENT_ID, test: { releasedAt: Date.now(), releasedBy: 'uid-race', coveredKeys: before.confirmKeys },
+  }, { merge: true });
+  const a1Test = (await readRecord(ROSTER_ASSIGNMENT_ID, ROSTER_A1)).test.examSessionId;
+  assert.ok(held(await reviewOf(ROSTER_A1, a1Test)), "the reset student's new attempt still holds the answers");
+  const after = (await answersRelease()).test;
+  assert.ok(after.confirmKeys.includes(`${ROSTER_C3}#2.1`) && after.heldFor >= 1, 'the teacher is shown C3 at attempt 2, not yet covered');
+  // Confirming the new list releases them.
+  await fns.releaseTestCycleAnswers.run(roster({ stage: 'test', confirmed: after.confirmKeys }));
+  assert.ok(!held(await reviewOf(ROSTER_A1, a1Test)));
 });
 
 test("a teacher's reset of the Test closes the old Corrections plan until the new Test is submitted", async () => {
@@ -815,6 +846,26 @@ test('a draft sent after time is up is refused, and the test is graded on the la
   await fns.finalizeSecureExam.run(student(PAUSE_STUDENT, { examSessionId, reason: 'timeExpired' }));
   const stored = await readSession(examSessionId);
   assert.equal(stored.responses[questionInstanceId].grading.isCorrect, true, 'the draft saved in time is the one graded');
+});
+
+test('a record holder past the 400 the teacher\'s table reads is still on the list a release confirms', async () => {
+  // Assigned to the roster P1 class; 400 records of students who finished,
+  // and one more, out of the roster (they moved class), still testing.
+  await db.collection('assignments').doc(CAP_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [ROSTER_P1] }), id: CAP_ASSIGNMENT_ID });
+  const batch = db.batch();
+  CAP_FILLERS.forEach((studentId) => batch.set(db.collection('testCycleRecords').doc(`${CAP_ASSIGNMENT_ID}__${studentId}`), {
+    assignmentId: CAP_ASSIGNMENT_ID, studentId, test: { state: 'released', attempt: 1, rawScore: 90 },
+  }));
+  batch.set(db.collection('testCycleRecords').doc(`${CAP_ASSIGNMENT_ID}__${CAP_HOLDER}`), {
+    assignmentId: CAP_ASSIGNMENT_ID, studentId: CAP_HOLDER, test: { state: 'assigned', attempt: 1, examSessionId: 'nav-cap-session' },
+  });
+  await batch.commit();
+  const listing = await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: CAP_ASSIGNMENT_ID }));
+  assert.equal(listing.rows.some((row) => row.studentId === CAP_HOLDER), false, 'the table itself stops at 400 records');
+  assert.ok(listing.answersRelease.test.stillTestingIds.includes(CAP_HOLDER), 'but the student still testing is on the list');
+  // So the release the teacher confirms goes through, rather than refusing forever.
+  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CAP_ASSIGNMENT_ID, stage: 'test', confirmed: listing.answersRelease.test.confirmKeys }));
+  assert.equal((await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: CAP_ASSIGNMENT_ID }))).answersRelease.test.released, true);
 });
 
 test('a session written by the old linear runtime is upgraded without reopening recorded answers', async () => {

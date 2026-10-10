@@ -387,14 +387,14 @@ test('a held review says when the answers will come, and the teacher can release
   assert.match(button, /const stillTesting = stillTestingIds\.map\(\(studentId\) => \(/);
   assert.doesNotMatch(button, /\['assigned', 'inProgress'\]/, 'not only the students whose sessions are open');
   assert.match(button, /\(\$\{stillTesting\.length\}\): \$\{stillTesting\.join\(', '\)\}\./);
-  assert.match(button, /work: \(\) => releaseTestCycleAnswers\(\{ assignmentId, stage, studentIds: stillTestingIds \}\)/);
+  assert.match(button, /work: \(\) => releaseTestCycleAnswers\(\{ assignmentId, stage, confirmed: Array\.isArray\(held\.confirmKeys\) \? held\.confirmKeys : \[\] \}\)/);
   // The release dialogs say exactly what a score release shows, and when the answers follow.
   assert.match(controls, /their own answer and whether it was right\. The correct answers and worked solutions stay closed until every student this \$\{noun\} is assigned to, in every class, has submitted it/);
   assert.match(controls, /The correct answers and worked solutions stay closed while any student can still take this retest, counting students in Corrections or yet to take the \$\{noun\}/);
   assert.doesNotMatch(executableSource(controls), /open once every student has finished the Test|open once every student retesting has finished/);
   assert.doesNotMatch(executableSource(controls), /Students will see their score and question review\./);
   const service = componentSource('src/services/testCycleService.js');
-  assert.match(region(service, 'export const releaseTestCycleAnswers = async (', '\n};', 'service'), /return call\('releaseTestCycleAnswers', \{ assignmentId, stage, studentIds \}\);/);
+  assert.match(region(service, 'export const releaseTestCycleAnswers = async (', '\n};', 'service'), /return call\('releaseTestCycleAnswers', \{ assignmentId, stage, confirmed \}\);/);
 });
 
 test('every open review asks the server again, and a refusal closes it (coordinator re-check, PR #461)', () => {

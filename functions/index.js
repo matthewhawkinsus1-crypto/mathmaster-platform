@@ -16564,11 +16564,22 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
  * class the assignment is assigned to (one with no record yet, in a period
  * whose sessions are not open, included) and anyone holding a record. They
  * open once none of them is left, or when the teacher releases them
- * (releaseTestCycleAnswers) — and that release covers only the students its
- * confirm named. One it did not name (a student who joined later, or whose
- * attempt a teacher reset) holds them again until they finish.
+ * (releaseTestCycleAnswers) — and that release covers only the students, at
+ * the attempts, its confirm named. One it did not name (a student who joined
+ * later, or one whose attempt a teacher reset since) holds them again until
+ * they finish.
  */
 const TEST_CYCLE_ANSWER_RELEASES = "testCycleAnswerReleases";
+
+/*
+ * A student at their current attempts: the unit an explicit release covers.
+ * A reset gives the stage a new attempt, so the key changes and no release
+ * that did not confirm the new attempt can cover it — however the release
+ * and the reset interleave. A Test reset changes the key for both stages.
+ */
+function answerCoverageKey(record) {
+  return `${record.studentId}#${record.test.attempt}.${record.retest.attempt}`;
+}
 
 /*
  * Who can still sit a stage. The Test: anyone whose Test is not submitted,
@@ -16615,20 +16626,27 @@ async function courseAnswersRelease(db, shared, assignmentId, stage, known = {})
     .docs.map((doc) => [String(doc.data()?.studentId || ""), doc.data()]));
   const rosterIds = known.rosterIds || await testCycleRosterIds(db, assignment);
   const everyone = [...new Set([...rosterIds, ...records.keys()])].filter(Boolean);
-  const stillTesting = everyone.filter((studentId) => stillToSitStage(shared, policy, stage, records.get(studentId) || { assignmentId: id, studentId }));
+  const stillTestingRecords = everyone
+    .map((studentId) => shared.record.normalizeTestCycleRecord(records.get(studentId) || { assignmentId: id, studentId }))
+    .filter((record) => stillToSitStage(shared, policy, stage, record));
+  const stillTesting = stillTestingRecords.map((record) => record.studentId);
+  const stillTestingKeys = stillTestingRecords.map(answerCoverageKey);
   const explicit = Boolean(release?.releasedAt);
-  const covered = new Set(explicit && Array.isArray(release.coveredStudentIds) ? release.coveredStudentIds.map(String) : []);
-  const heldFor = stillTesting.filter((studentId) => !covered.has(studentId));
-  return { released: heldFor.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting, heldFor };
+  // An earlier release's student-only list covers nobody: it named no attempts.
+  const covered = new Set(explicit && Array.isArray(release.coveredKeys) ? release.coveredKeys.map(String) : []);
+  const heldFor = stillTestingRecords.filter((record) => !covered.has(answerCoverageKey(record))).map((record) => record.studentId);
+  return { released: heldFor.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting, stillTestingKeys, heldFor };
 }
 
 /*
  * "RELEASE ANSWERS AND WORKED SOLUTIONS": the teacher opens them before every
  * student who can still sit the stage has submitted. The screen's confirm
- * names those students and sends their ids; the release covers exactly them.
- * If anyone still testing was not on that list (it changed since the page
- * loaded), nothing is released: the teacher refreshes and confirms the new
- * list, rather than opening the answers to a student nobody was told about.
+ * names those students and sends back their coverage keys (student and
+ * attempts, answerCoverageKey); the release covers exactly those. If anyone
+ * still testing is not on that list (someone joined, or an attempt was reset,
+ * since the page loaded), nothing is released: the teacher refreshes and
+ * confirms the new list, rather than opening the answers to a student nobody
+ * was told about.
  */
 exports.releaseTestCycleAnswers = onCall(async (request) => {
   const db = getFirestore();
@@ -16637,9 +16655,9 @@ exports.releaseTestCycleAnswers = onCall(async (request) => {
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
   const { assignmentId, assignment, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
   const stage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
-  const named = new Set((Array.isArray(request.data?.studentIds) ? request.data.studentIds : []).slice(0, 5000).map(String));
-  const { stillTesting } = await courseAnswersRelease(db, shared, assignmentId, stage, { assignment });
-  const unnamed = stillTesting.filter((studentId) => !named.has(studentId));
+  const confirmed = new Set((Array.isArray(request.data?.confirmed) ? request.data.confirmed : []).slice(0, 5000).map(String));
+  const { stillTestingKeys } = await courseAnswersRelease(db, shared, assignmentId, stage, { assignment });
+  const unnamed = stillTestingKeys.filter((key) => !confirmed.has(key));
   if (unnamed.length) {
     throw new HttpsError(
       "failed-precondition",
@@ -16649,9 +16667,9 @@ exports.releaseTestCycleAnswers = onCall(async (request) => {
   }
   await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(assignmentId).set({
     assignmentId,
-    [stage]: { releasedAt: Date.now(), releasedBy: teacherUid, coveredStudentIds: stillTesting },
+    [stage]: { releasedAt: Date.now(), releasedBy: teacherUid, coveredKeys: stillTestingKeys },
   }, { merge: true });
-  return { success: true, stage, covered: stillTesting.length };
+  return { success: true, stage, covered: stillTestingKeys.length };
 });
 
 /** Where a navigation request may go, or the student-facing refusal. */
@@ -18796,21 +18814,8 @@ exports.teacherTestCycleAction = onCall(async (request) => {
           next = { ...next, review: { ...next.review, complete: true, completedAt: next.review.completedAt || Date.now() } };
         }
 
-        /*
-         * An explicit answer release covers only the students its confirm
-         * named as still testing (courseAnswersRelease). This new attempt is
-         * one no teacher confirmed: if the student was on that list, take
-         * them off it, so the answers wait for this attempt too (a student
-         * who was not on it is held already). A new Test comes before any
-         * Retest, so a Test reset leaves both lists.
-         */
-        const releaseRef = db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(String(assignmentId));
-        const releaseData = (await transaction.get(releaseRef)).data() || {};
-        const reopen = (stage === "test" ? ["test", "retest"] : ["retest"])
-          .filter((name) => (Array.isArray(releaseData[name]?.coveredStudentIds) ? releaseData[name].coveredStudentIds : []).map(String).includes(String(studentId)));
-        if (reopen.length) {
-          transaction.set(releaseRef, Object.fromEntries(reopen.map((name) => [name, { coveredStudentIds: FieldValue.arrayRemove(String(studentId)) }])), { merge: true });
-        }
+        // The new attempt is a new coverage key (answerCoverageKey): no
+        // explicit answer release covers it until a teacher confirms it.
 
         if (current.examSessionId) {
           // The old session is closed, not deleted: the evidence a student produced
@@ -19100,14 +19105,18 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
     // who can still sit each stage (courseAnswersRelease): the list a release
     // confirm names and sends back.
     answersRelease: Object.fromEntries(await Promise.all(["test", "retest"].map(async (stage) => {
+      // The table reads at most 400 records; past that, the release reads
+      // them all, so a record holder beyond the first 400 is on the list the
+      // confirm names (or the release would refuse it as unnamed, forever).
       const release = await courseAnswersRelease(db, shared, assignmentId, stage, {
-        assignment, records: recordsByStudent, rosterIds: [...gradeDataByStudent.keys()],
+        assignment, records: snapshot.size < 400 ? recordsByStudent : null, rosterIds: [...gradeDataByStudent.keys()],
       });
       return [stage, {
         released: release.released,
         explicit: release.explicit,
         stillTesting: release.stillTesting.length,
         stillTestingIds: release.stillTesting,
+        confirmKeys: release.stillTestingKeys,
         heldFor: release.heldFor.length,
       }];
     }))),

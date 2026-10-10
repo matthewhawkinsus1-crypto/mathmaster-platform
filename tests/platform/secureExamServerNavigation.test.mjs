@@ -301,12 +301,13 @@ test('a course review can hold back the correct answers and worked solutions, an
   const release = region(functionsIndex, 'async function courseAnswersRelease(', '\n}', 'answers release');
   assert.match(release, /const rosterIds = known\.rosterIds \|\| await testCycleRosterIds\(db, assignment\);/);
   assert.match(release, /const everyone = \[\.\.\.new Set\(\[\.\.\.rosterIds, \.\.\.records\.keys\(\)\]\)\]\.filter\(Boolean\);/);
-  // An explicit release covers only the students it named.
-  assert.match(release, /const heldFor = stillTesting\.filter\(\(studentId\) => !covered\.has\(studentId\)\);/);
+  // An explicit release covers only the students, at the attempts, it named.
+  assert.match(release, /const heldFor = stillTestingRecords\.filter\(\(record\) => !covered\.has\(answerCoverageKey\(record\)\)\)\.map\(\(record\) => record\.studentId\);/);
+  assert.match(functionsIndex, /return `\$\{record\.studentId\}#\$\{record\.test\.attempt\}\.\$\{record\.retest\.attempt\}`;/);
   assert.match(release, /return \{ released: heldFor\.length === 0,/);
   const action = region(functionsIndex, 'exports.releaseTestCycleAnswers = onCall(', '\n});', 'release answers');
   assert.match(action, /await assertTeacherMayManageAssignment\(request, assignmentSnapshot\);/);
-  assert.match(action, /\[stage\]: \{ releasedAt: Date\.now\(\), releasedBy: teacherUid, coveredStudentIds: stillTesting \},/);
+  assert.match(action, /\[stage\]: \{ releasedAt: Date\.now\(\), releasedBy: teacherUid, coveredKeys: stillTestingKeys \},/);
 });
 
 test('a paused, archived or replaced course Test takes no edit, recorded answer or Submit: the gate runs inside each write (coordinator re-check, PR #461)', () => {
