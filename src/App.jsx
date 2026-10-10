@@ -198,6 +198,10 @@ import GradebookAssignmentBar, { GradebookClassChooser } from './components/teac
 import { classGradeProgress } from './platform/teacher/assignmentProgress.js';
 import { groupAssignmentList } from './platform/teacher/assignmentListGroups.js';
 import StudentNameLink from './components/common/StudentNameLink.jsx';
+import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';
+import Dialog from './ui/Dialog.jsx';
+import { MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle } from './components/common/pageChrome.jsx';
+import { subscribeToReadingActivity } from './components/common/readingActivity.js';
 import StudentResponseInspector from './components/teacher/StudentResponseInspector.jsx';
 import AssignmentGradeOverrideControls from './components/teacher/AssignmentGradeOverrideControls.jsx';
 
@@ -5252,6 +5256,8 @@ function App() {
     window.addEventListener('pointerdown', resetActivity, passive);
     window.addEventListener('touchstart', resetActivity, passive);
     window.addEventListener('wheel', resetActivity, passive);
+    // A screen-reader student reading the page (./components/common/readingActivity.js).
+    const stopReadingActivity = subscribeToReadingActivity(window, resetActivity);
 
     const interval = window.setInterval(() => {
       if (document.hidden) return;
@@ -5275,9 +5281,20 @@ function App() {
       window.removeEventListener('pointerdown', resetActivity, passive);
       window.removeEventListener('touchstart', resetActivity, passive);
       window.removeEventListener('wheel', resetActivity, passive);
+      stopReadingActivity();
       window.clearInterval(interval);
     };
   }, [user, activeView, activeAssignmentId, isIdle, activeSupportPresentation.disableIdleTimer]);
+
+  // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
+  useDocumentTitle(pageTitleFor({
+    signedIn: Boolean(user),
+    role: user?.role || null,
+    view: activeView,
+    studentMode: studentDashboardMode,
+    teacherTab,
+    assignmentTitle: assignments.find((item) => item.id === activeAssignmentId)?.title || '',
+  }));
 
   useEffect(() => {
     if (typeof window === 'undefined' || activeView !== 'assignment' || !activeAssignmentId) return undefined;
@@ -10110,12 +10127,13 @@ function App() {
   const renderIdleOverlay = () => {
     if (!isIdle) return null;
     return (
-      <div
+      <Dialog
         role="alertdialog"
-        aria-modal="true"
+        onClose={() => { lastActivityRef.current = Date.now(); setIsIdle(false); }}
         aria-labelledby="mathmaster-idle-title"
         aria-describedby="mathmaster-idle-detail"
         className="mathmaster-idle-overlay"
+        data-idle-prompt=""
         style={{
           position: 'fixed',
           inset: 0,
@@ -10167,7 +10185,7 @@ function App() {
             Yes, I&apos;m Back!
           </button>
         </div>
-      </div>
+      </Dialog>
     );
   };
 
@@ -10199,9 +10217,9 @@ function App() {
           padding: '20px',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          onClose={closeDeleteDialog}
+          closeOnEscape={!isDeleting}
           aria-labelledby="delete-assignment-title"
           style={{
             width: '100%',
@@ -10438,7 +10456,7 @@ function App() {
               </button>
             )}
           </div>
-        </div>
+        </Dialog>
       </div>
     );
   };
@@ -10480,9 +10498,8 @@ function App() {
           padding: '20px',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          onClose={closeExportJsonDialog}
           aria-labelledby="export-json-title"
           style={{
             width: '100%',
@@ -10526,7 +10543,7 @@ function App() {
               {exportJsonCopied ? 'Copied!' : 'Copy to Clipboard'}
             </button>
           </div>
-        </div>
+        </Dialog>
       </div>
     );
   };
@@ -10552,9 +10569,8 @@ function App() {
           padding: '24px',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          onClose={() => setTeacherScratchpadDialog(null)}
           aria-labelledby="student-work-title"
           style={{
             width: 'min(1080px, 96vw)',
@@ -10647,7 +10663,7 @@ function App() {
               </div>
             )}
           </div>
-        </div>
+        </Dialog>
       </div>
     );
   };
@@ -11176,7 +11192,7 @@ function App() {
             <div className="mathmaster-assignment-unified-top">
               <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : returnsToAssignmentResult ? 'Back to results' : 'Back to dashboard'}>←</button>
               {!assignmentNavigationCollapsed ? (
-                <div className="mathmaster-section-tabs" role="list" aria-label="Assignment sections">
+                <div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">
                   {navigationSections.map((section) => {
                     const meta = activitySectionMeta[section.role] || { label: section.role, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)' };
                     const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
@@ -11186,7 +11202,6 @@ function App() {
                     return (
                       <button
                         type="button"
-                        role="listitem"
                         key={`section-tab-${section.role}-${section.entries[0]?.index}`}
                         className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
                         style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
@@ -11422,6 +11437,11 @@ function App() {
             })}
           </div>
           )}
+          <QuestionAnnouncer
+            announceKey={`${activeAssignmentId}-${currentQuestionIndex}`}
+            position={`${currentSectionMeta.label}, question ${currentSectionQuestionNumber} of ${currentSectionQuestionCount}`}
+            containerRef={assignmentQuestionStageRef}
+          />
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             {questions[currentQuestionIndex]?.instructionalPhase
               && (preview || assignment.showInstructionalPhaseLabelsToStudents === true)
@@ -11548,6 +11568,7 @@ function App() {
   // assignment controls, Live Challenge, and screens that omit global nav.
   const renderStudentIdentityShell = (content, { preview = false } = {}) => (
     <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>
+      <SkipToContent />
       <StudentIdentityBar
         preview={preview}
         student={preview ? null : { ...studentRecord, ...user }}
@@ -11565,6 +11586,8 @@ function App() {
         <section role="status" style={{ margin: '10px auto', maxWidth: 760, padding: '10px 14px', borderRadius: 10, background: '#681da8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><strong>Presenting to class</strong><button type="button" onClick={stopStudentSpotlight} style={{ padding: '7px 11px', border: '1px solid var(--mm-border-soft)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Stop Presenting</button></section>
       )}
       {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: 'var(--mm-text-muted)', fontSize: 12 }}>{studentSpotlightMessage}</div>}
+      {/* Where the skip link lands: focus here, the next Tab enters the screen. */}
+      <div id={MAIN_CONTENT_ID} tabIndex={-1} />
       {content}
     </div>
   );

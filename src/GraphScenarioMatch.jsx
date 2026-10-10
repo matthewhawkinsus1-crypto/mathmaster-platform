@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
+import Dialog from './ui/Dialog.jsx';
 import useUndoHistory from './useUndoHistory';
 import graphScenarioMatchGrader from '../functions/shared/serverGrading/tools/graphScenarioMatch.mjs';
 import { scenarioMatchWork } from '../functions/shared/toolMath/scenario/scenarioWork.mjs';
@@ -464,7 +465,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
             if (event.target === event.currentTarget) setZoomedGraphId('');
           }}
         >
-          <section className="graph-scenario-zoom-dialog" role="dialog" aria-modal="true" aria-label={`Enlarged ${zoomedGraph.label || zoomedGraph.id}`}>
+          <Dialog as="section" onClose={() => setZoomedGraphId('')} className="graph-scenario-zoom-dialog" aria-label={`Enlarged ${zoomedGraph.label || zoomedGraph.id}`}>
             <div className="graph-scenario-zoom-header">
               <div><span>Graph detail</span><h3>{zoomedGraph.label || zoomedGraph.id}</h3></div>
               <button type="button" onClick={() => setZoomedGraphId('')}>✕ Close</button>
@@ -472,7 +473,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
             <div className="graph-scenario-zoom-graph">
               <GraphDisplay graph={zoomedGraph.graph} title={zoomedGraph.label || 'Graph choice'} />
             </div>
-          </section>
+          </Dialog>
         </div>
       )}
     </div>

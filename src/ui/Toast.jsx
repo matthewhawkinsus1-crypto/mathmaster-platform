@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import './uiKit.css';
+import Dialog from './Dialog.jsx';
 
 /*
  * Replaces window.alert / window.confirm across the app.
@@ -30,6 +31,7 @@ export function ToastProvider({ children }) {
   const [confirmState, setConfirmState] = useState(null);
   const timersRef = useRef(new Map());
   const confirmButtonRef = useRef(null);
+  const cancelButtonRef = useRef(null);
   const previouslyFocusedRef = useRef(null);
   const confirmOpenedAtRef = useRef(0);
 
@@ -97,19 +99,6 @@ export function ToastProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    if (!confirmState) return undefined;
-    confirmButtonRef.current?.focus();
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeConfirm(false);
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [confirmState, closeConfirm]);
-
   const value = useMemo(() => ({
     showToast,
     dismissToast,
@@ -155,9 +144,12 @@ export function ToastProvider({ children }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
           }}
         >
-          <div
+          {/* Opens on Cancel, the least destructive choice: Enter on a
+              "Reset this question?" must not reset it. Escape cancels. */}
+          <Dialog
             role="alertdialog"
-            aria-modal="true"
+            onClose={() => closeConfirm(false)}
+            initialFocusRef={cancelButtonRef}
             aria-labelledby="mm-confirm-title"
             aria-describedby={confirmState.message ? 'mm-confirm-message' : undefined}
             style={{
@@ -175,7 +167,7 @@ export function ToastProvider({ children }) {
               </p>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px', flexWrap: 'wrap' }}>
-              <button type="button" className="mm-btn mm-btn--neutral" onClick={() => closeConfirm(false)}>
+              <button type="button" ref={cancelButtonRef} className="mm-btn mm-btn--neutral" onClick={() => closeConfirm(false)}>
                 {confirmState.cancelLabel}
               </button>
               <button
@@ -187,7 +179,7 @@ export function ToastProvider({ children }) {
                 {confirmState.confirmLabel}
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </ToastContext.Provider>

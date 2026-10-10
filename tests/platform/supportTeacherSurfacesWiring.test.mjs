@@ -31,10 +31,21 @@ test('the student drawer carries Supports & evidence, given the signed-in teache
 });
 
 test('Escape closes only the top layer of the drawer (a service or profile dialog first)', () => {
-  const onKey = region(drawer, 'const onKey = (event) => {', '};', 'drawer Escape handler');
-  assert.match(onKey, /if \(event\.key !== 'Escape' \|\| event\.defaultPrevented\) return;/);
-  assert.match(onKey, /if \(modals\.length && modals\[modals\.length - 1\] !== panelRef\.current\) return;/);
-  assert.match(drawer, /<aside ref=\{panelRef\}/);
+  // The drawer, the service log and the profile editor are all the shared
+  // modal Dialog, which answers Escape only for the topmost Dialog and skips a
+  // key something above already handled.
+  const dialog = read('src/ui/Dialog.jsx');
+  // Topmost Dialog, not covered by a later non-Dialog modal, key not handled.
+  assert.match(dialog, /const onTop = \(\) => isTopDialog\(token\) && !coveredByForeignModal\(dialog\);/);
+  assert.match(dialog, /if \(handledInside \|\| !onTop\(\)\) return;/);
+  const shell = region(drawer, '<Dialog as="aside"', '\n', 'drawer dialog');
+  assert.match(shell, /ref=\{panelRef\}/);
+  assert.match(shell, /onClose=\{closeIfTopLayer\}/);
+  // …and a modal above it that is not a Dialog (a Toast confirmation) by DOM order.
+  const guard = region(drawer, 'const closeIfTopLayer = () => {', '\n  };', 'drawer top-layer guard');
+  assert.match(guard, /if \(modals\.length && modals\[modals\.length - 1\] !== panelRef\.current\) return;\n\s*onCloseRef\.current\?\.\(\);/);
+  assert.match(region(service, '<Dialog as="section"', '\n', 'service log dialog'), /onClose=\{onClose\}/);
+  assert.match(region(panel, '<Dialog className="tw-review__panel"', '\n', 'profile editor dialog'), /onClose=\{\(\) => setEditorOpen\(false\)\}/);
 });
 
 test('the assignment hub carries the Supports layer after progress, filed under the signed-in teacher', () => {

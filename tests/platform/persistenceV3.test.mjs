@@ -751,7 +751,9 @@ test('the recovery panel shows the discrepancy before it offers to resolve it', 
     /persistencePendingReasons \|\| \[\]\)\.length === 1[\s\S]*=== 'session-summary-gap'/,
   );
   // It is confirmed, and the confirmation states exactly what it means.
-  assert.match(panel, /role="dialog"[\s\S]*resolve-hold-title/);
+  // (The modal is the shared Dialog, which renders role="dialog" aria-modal.)
+  assert.match(panel, /<Dialog [^\n]*aria-labelledby="resolve-hold-title"/);
+  assert.match(panel, /<h3 id="resolve-hold-title"/);
   assert.match(
     panel,
     /I acknowledge the unrecoverable discrepancy and permit normal finalization using the canonical\s*\n?\s*evidence that exists\./,

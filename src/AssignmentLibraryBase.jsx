@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
+import Dialog from './ui/Dialog.jsx';
 import {
   UNCATEGORIZED,
   assignmentFolderMatches,
@@ -147,6 +148,7 @@ export default function AssignmentLibrary({
   const [dragOverFolder, setDragOverFolder] = useState(null);
   const [folderDialog, setFolderDialog] = useState(null); // { mode, path?, parentPath?, input }
   const [dialogError, setDialogError] = useState(null);
+  const folderDialogTitleId = useId();
   const [folderPaneCollapsed, setFolderPaneCollapsed] = useState(() => {
     try { return window.localStorage.getItem('mathmaster:library:folder-pane-collapsed') === 'true'; } catch { return false; }
   });
@@ -424,17 +426,17 @@ export default function AssignmentLibrary({
 
       {folderDialog && (
         <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDialog(); }} style={dialogOverlayStyle}>
-          <div role="dialog" aria-modal="true" style={dialogCardStyle}>
+          <Dialog closeOnEscape={false} aria-labelledby={folderDialogTitleId} onClose={closeDialog} style={dialogCardStyle}>
             {folderDialog.mode === 'delete' ? (
               <>
-                <h3 style={{ marginTop: 0 }}>Delete &ldquo;{getFolderLabel(folderDialog.path)}&rdquo;?</h3>
+                <h3 id={folderDialogTitleId} style={{ marginTop: 0 }}>Delete &ldquo;{getFolderLabel(folderDialog.path)}&rdquo;?</h3>
                 <p style={{ color: 'var(--mm-text-muted)', fontSize: '13px' }}>
                   Assignments inside this folder become Uncategorized. Subfolders are removed too. This does not delete any assignment.
                 </p>
               </>
             ) : (
               <>
-                <h3 style={{ marginTop: 0 }}>{folderDialog.mode === 'create' ? 'New folder' : 'Rename folder'}</h3>
+                <h3 id={folderDialogTitleId} style={{ marginTop: 0 }}>{folderDialog.mode === 'create' ? 'New folder' : 'Rename folder'}</h3>
                 <label style={{ display: 'block', fontWeight: 'bold', fontSize: '13px', marginBottom: '6px' }}>
                   Folder path
                   <input
@@ -460,7 +462,7 @@ export default function AssignmentLibrary({
                 {folderDialog.mode === 'delete' ? 'Delete' : folderDialog.mode === 'create' ? 'Create' : 'Save'}
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

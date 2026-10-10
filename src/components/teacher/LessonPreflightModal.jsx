@@ -50,6 +50,7 @@ import {
   registrableTestCycleFamilies,
   unavailableTestCycleFamilies,
 } from '../../platform/teacher/testCycleFamilyRegistration.js';
+import Dialog from '../../ui/Dialog.jsx';
 import RepresentationAudit from './RepresentationAudit';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
 import {
@@ -1819,9 +1820,10 @@ export const LessonPreflightModal = ({
 
   return (
     <div className="preflight-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.64)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: isNarrow ? 0 : 12 }}>
-      <section
-        role="dialog"
-        aria-modal="true"
+      <Dialog
+        as="section"
+        onClose={onClose}
+        closeOnEscape={false}
         aria-label="Lesson pre-flight review"
         style={{
           background: 'var(--mm-surface)',
@@ -1978,7 +1980,7 @@ export const LessonPreflightModal = ({
             </button>
           )}
         </footer>
-      </section>
+      </Dialog>
       {cyclePreviewOpen && testCycleCandidate && (
         <Suspense fallback={<p role="status" style={{ position: 'fixed', top: 12, left: 12, zIndex: 11000, margin: 0, padding: '8px 12px', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)' }}>Opening the student preview…</p>}>
           <TestCyclePreview

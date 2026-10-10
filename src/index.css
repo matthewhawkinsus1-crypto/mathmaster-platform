@@ -233,6 +233,28 @@ math-field:focus-within {
   outline-offset: 2px;
 }
 
+/* VISIBLE FOCUS, EVERYWHERE A KEYBOARD CAN LAND (WCAG 2.4.7).
+ *
+ * The rule above only knew native controls. Interactive spans and divs —
+ * role="button" algebra terms, cards, tabs, tiles, options, links styled as
+ * text — had no ring at all, and many inline styles set `outline: 'none'`
+ * (an inline style beats any stylesheet rule that is not !important), so a
+ * keyboard student lost track of where they were on the screens where it
+ * matters most. This ring wins over inline styles for KEYBOARD focus only:
+ * :focus-visible never matches a mouse or touch press, so nothing changes for
+ * a pointer user. A control that draws its focus on a wrapper (the search
+ * field's :focus-within ring) opts out with data-focus-ring="container".
+ * Portalled dialogs live outside #root, hence body. */
+body :is(
+  a[href], button, input, select, textarea, summary, math-field,
+  [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"],
+  [role="radio"], [role="checkbox"], [role="switch"], [role="slider"], [role="gridcell"], [role="treeitem"],
+  [tabindex]:not([tabindex="-1"])
+):not([data-focus-ring="container"]):focus-visible {
+  outline: 3px solid var(--mm-focus) !important;
+  outline-offset: 2px !important;
+}
+
 /* Shared surface primitives used by assignment shells, dialogs and tools. */
 .mathmaster-theme-certification-fixtures {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 10px;
@@ -427,3 +449,21 @@ math-field:focus-within {
     line-height: 1.48;
   }
 }
+
+/* Skip link (src/components/common/pageChrome.jsx): off screen until a
+ * keyboard student Tabs to it, then pinned top-left above everything. */
+.mm-skip-link {
+  position: fixed;
+  left: 8px;
+  top: -200px;
+  z-index: 2147483200;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--mm-surface);
+  color: var(--mm-primary-text);
+  border: 2px solid var(--mm-focus);
+  font-weight: 800;
+  text-decoration: underline;
+}
+.mm-skip-link:focus { top: 8px; }
+#mm-main-content:focus { outline: none; }
