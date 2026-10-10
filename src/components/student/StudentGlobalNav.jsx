@@ -63,10 +63,11 @@ const ACTIVE_TEXT = Object.freeze({
 export default function StudentGlobalNav({
   current = null,
   onNavigate = null,
-  onLogout = null,
-  // Screens embedded inside another shell (a teacher previewing a student's
-  // Path, for instance) have their own way out and must not offer Log Out.
-  showLogout = true,
+  // `onLogout` and `showLogout` are still accepted from callers but no longer
+  // drawn: Log Out lives in ONE place, the identity bar that is pinned to the
+  // top of every student screen (StudentIdentityBar.jsx). Two Log Out buttons
+  // a few pixels apart was one too many, and only the bar's asks before
+  // throwing away work that has not been sent.
   // A compact row for headers that already carry a title and a Back control.
   dense = false,
   label = 'Student navigation',
@@ -109,20 +110,6 @@ export default function StudentGlobalNav({
           </button>
         );
       })}
-      {showLogout && onLogout && (
-        <button
-          type="button"
-          onClick={onLogout}
-          style={{
-            appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
-            minHeight: MIN_TOUCH_TARGET_PX, padding: dense ? '9px 12px' : '10px 15px',
-            borderRadius: 9, border: '2px solid var(--mm-border)', background: 'var(--mm-surface-control)',
-            color: 'var(--mm-text-muted)', fontWeight: 800, fontSize: dense ? 13 : 14, cursor: 'pointer',
-          }}
-        >
-          Log Out
-        </button>
-      )}
     </nav>
   );
 }

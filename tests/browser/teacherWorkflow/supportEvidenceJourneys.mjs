@@ -247,15 +247,18 @@ const journeys = {
     // next action is resuming Lesson 3 ('a-today'). Dates are compared as the
     // page prints them, so this holds in any browser time zone.
     const LESSON_3 = 'Systems of Equations — Lesson 3: Elimination';
-    const DUE = /\bDue (\w{3} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M)/;
+    // "Due <date>" on lists and results; the primary "Do this next" card
+    // names an individualized date as "Your due date: <date>".
+    const DUE = /\b(?:Due|Your due date:) (\w{3} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M)/;
     const nextCard = await text(page.locator('section[aria-labelledby="what-now-heading"]'));
     const nextDue = nextCard.match(DUE)?.[1] || null;
-    const resumeDue = (await text(page.locator('[aria-label="Resume assignment"]').first())).match(DUE)?.[1] || null;
     const classDue = await page.evaluate((iso) => new Date(iso).toLocaleString(undefined, {
       month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
     }), (await db(page))['assignments/a-today']?.dueAt);
     expect('S1', nextCard.includes(LESSON_3) && Boolean(nextDue), `"Do this next" names Lesson 3 and a due date (${nextCard.slice(0, 160)})`);
-    expect('S1', nextDue === resumeDue, `"Do this next" shows the student's own due date (${nextDue}; Resume card ${resumeDue})`);
+    // Home shows one primary card for the work to resume (the separate Resume
+    // card was a duplicate of it); that card names the date as the student's own.
+    expect('S1', /Your due date: /.test(nextCard), `"Do this next" names the student's own due date (${nextCard.slice(0, 200)})`);
     expect('S1', nextDue !== classDue, `"Do this next" does not show the class due date (${classDue})`);
     for (const tab of ['Assignments', 'Grades']) {
       await page.getByRole('button', { name: new RegExp(`^${tab}$`) }).first().click();
@@ -268,7 +271,8 @@ const journeys = {
         await page.waitForTimeout(1200);
         const resultDue = (await text(page.locator('main').first())).match(DUE)?.[1] || null;
         expect('S1', resultDue === nextDue, `the assignment result shows the student's own due date (${resultDue}; expected ${nextDue})`);
-        await page.getByRole('button', { name: /Back to My grades/ }).first().click();
+        // The result's Back control names its destination ("← Grades").
+        await page.getByRole('button', { name: /^← Grades$|Back to My grades/ }).first().click();
         await page.waitForTimeout(800);
       }
     }

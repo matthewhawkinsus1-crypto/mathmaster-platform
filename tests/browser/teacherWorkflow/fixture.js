@@ -500,6 +500,27 @@ const addPrivateControlsScenario = ({ fixture, now, mode, classRecord }) => {
       at,
     };
   });
+  /*
+   * The extension only means something if there is work left: a student who
+   * finished every question of last week's lesson has a Finished lesson
+   * (product decision 4 — finished at any accuracy), and Home files it with
+   * finished work, however long their window runs. So 910001 left the last
+   * Practice question of that lesson unanswered — the work their extension
+   * is for.
+   */
+  const extendedGrades = fixture[`grades/${PRIVATE_CONTROLS.extended}`];
+  const lastWeekRecord = extendedGrades?.gradesByAssignment?.['a-lastweek'];
+  // Its last Practice question: Practice stays open through the late window
+  // (a closed Warm-Up/DOL would just be closed, and closed is finished too).
+  const lastWeekQuestions = (fixture['assignments/a-lastweek']?.sections || []).flatMap((section) => section.questions || []);
+  const lastPractice = lastWeekQuestions.map((question, index) => (question.activityRole === 'practice' ? index : -1)).filter((index) => index >= 0).at(-1);
+  if (lastWeekRecord && lastPractice !== undefined) {
+    const { [lastPractice]: _unanswered, ...answered } = lastWeekRecord;
+    fixture[`grades/${PRIVATE_CONTROLS.extended}`] = {
+      ...extendedGrades,
+      gradesByAssignment: { ...extendedGrades.gradesByAssignment, 'a-lastweek': answered },
+    };
+  }
   fixture[`platformFlags/${OVERRIDE_STORAGE_FLAG}`] = { sharedRetired: mode === 'retired' };
   fixture[`${PLATFORM_MIGRATIONS_COLLECTION}/${OVERRIDE_MIGRATION_ID}`] = {};
   if (mode === 'retired') return;

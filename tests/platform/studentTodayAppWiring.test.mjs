@@ -1,0 +1,146 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+
+/*
+ * App.jsx WIRING FOR THE ONE "TODAY" RULE.
+ *
+ * Nothing imports App.jsx, so a call with no import passes every gate and
+ * throws for every student at runtime. Each call below is asserted beside its
+ * import (AGENTS.md, "Two things the whole gate misses").
+ */
+const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+
+test('Recovery for every assignment is built and fed to the dashboard, with its import', () => {
+  assert.match(app, /import\s*\{[^}]*\bbuildRecoverySummariesByAssignment\b[^}]*\}\s*from\s*'\.\/platform\/student\/recoveryStates\.js'/);
+  assert.match(app, /import\s*\{[^}]*\brecoveryStatesFromSummaries\b[^}]*\}\s*from\s*'\.\/platform\/student\/recoveryStates\.js'/);
+  assert.match(app, /useMemo\(\(\)\s*=>\s*\(user\?\.role === 'student'[\s\S]{0,40}buildRecoverySummariesByAssignment\(/);
+});
+
+test('the dashboard model receives the student, their Recovery states and the teacher section lock', () => {
+  const call = region(app, 'buildStudentDashboardModel({', 'matchesSmartView: (assignment', 'the dashboard model call');
+  assert.match(call, /studentId:\s*user\.id/);
+  assert.match(call, /recoveryStateByAssignment:\s*recoveryStatesFromSummaries\(studentRecoverySummariesByAssignment\)/);
+  assert.match(call, /\bgetSectionAccessState,/);
+  assert.match(app, /import\s*\{[^}]*\bgetSectionAccessState\b/);
+});
+
+test('Start/Continue lands on the first unfinished open question, and never on a dead end', () => {
+  const start = region(app, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
+  const entry = region(start, 'resolveStudentAssignmentEntry({', 'safeQuestionIndex = actionableIndex', 'entry resolution');
+  assert.match(entry, /isFinished:\s*options\?\.returnToResult\s*\?\s*null/);
+  // The same "finished" as Home: questionIsTerminal (extra DOL tries reopen).
+  assert.match(entry, /: \(index\) => questionIsTerminal\(\{\s*record: tracker\?\.\[assignmentId\]\?\.\[index\]/);
+  // With nothing open for a whole-assignment start, the student is taken to
+  // the result page (what opens when), not left on a toast.
+  assert.match(entry, /if \(actionableIndex === null && user\?\.role === 'student' && !scopedSectionKey\) \{\s*openStudentAssignmentResult\(assignmentId/);
+});
+
+test('Tests & Exams carries the shared student navigation, and Back names Home', () => {
+  const exams = region(app, "studentDashboardMode === 'secureExams'", '<StudentSecureExamDashboard', 'Tests & Exams branch');
+  assert.match(exams, /<StudentGlobalNav current=\{STUDENT_DESTINATION\.SECURE_EXAMS\} onNavigate=\{navigateStudent\}/);
+  assert.match(app, /import StudentGlobalNav, \{ STUDENT_DESTINATION \} from '\.\/components\/student\/StudentGlobalNav\.jsx'/);
+  const backLabel = region(app, 'const studentAssignmentBackLabel =', 'const isLiveTeachingThisAssignment', 'assignment Back label');
+  assert.match(backLabel, /'Back to Home'/);
+  assert.doesNotMatch(backLabel, /'Back to Dashboard'/);
+});
+
+test('What changed items are built once in App from records the student reads, with their imports', () => {
+  assert.match(app, /import \{[^}]*\bbuildWhatChanged\b[^}]*\} from '\.\/platform\/student\/whatChangedModel\.js'/);
+  assert.match(app, /import WhatChangedList from '\.\/components\/student\/WhatChangedList\.jsx'/);
+  const memo = region(app, 'const whatChangedItems = useMemo(', '}, [user?.role, user?.id, user?.classId', 'What changed memo');
+  assert.match(memo, /controlsByAssignmentId: studentAssignmentControls\?\.byAssignmentId/);
+  assert.match(memo, /teacherGradeOverridesByAssignment,/);
+  // Raw records, so an override the student has re-attempted past is not claimed.
+  assert.match(memo, /trackerByAssignment: tracker,/);
+  assert.match(memo, /return buildWhatChanged\(\{ \.\.\.input, firstSeenByKey \}\)/);
+});
+
+test('Log Out warns about unsent work on the one identity bar', () => {
+  assert.match(app, /import \{ describeLogoutRisk \} from '\.\/platform\/student\/logoutGuard\.js'/);
+  const bar = region(app, '<StudentIdentityBar', '/>', 'identity bar');
+  assert.match(bar, /logoutRisk=\{preview \? null : describeLogoutRisk\(\{\s*outboxDepth: studentOutboxDepth,\s*pendingGradeCount: studentPendingGradeCount/);
+});
+
+test('Home is wired without the support flag, with results, save status and What changed', () => {
+  const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
+  assert.doesNotMatch(home, /inclusionStatus/);
+  assert.match(home, /onOpenResult=\{\(assignmentId\) => openStudentAssignmentResult\(assignmentId/);
+  assert.match(home, /saveStatus=\{describeSaveStatus\(\{/);
+  assert.match(home, /whatChangedPanel=\{renderWhatChangedPanel\(true\)\}/);
+  assert.match(app, /import \{ describeSaveStatus \} from '\.\/platform\/student\/saveStatusModel\.js'/);
+  const before = region(app, 'const studentNextAction = resolveNextAction({', '<StudentDashboardView', 'before Home');
+  assert.doesNotMatch(before, /renderStudentWarmupBanner\(\)/, 'Home offers the Warm-Up once, not as a banner too');
+});
+
+test('the result page receives the Today entry, Up next and Continue; the Assignments Center passes the question', () => {
+  const result = region(app, "activeView === 'assignmentResult' && assignmentResultRoute", 'if (isStudentAssignment)', 'result view');
+  assert.match(result, /const resultDashboard = studentUpNextDashboard\(\);/);
+  assert.match(result, /resolveUpNext\(\{ dashboard: resultDashboard, assignmentId: assignmentResultRoute\.assignmentId \}\)/);
+  assert.match(result, /todayEntry=\{resultTodayEntry\}/);
+  assert.match(result, /upNext=\{resultUpNext\}/);
+  assert.match(result, /onContinue=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex\)\}/);
+  const center = region(app, '<StudentAssignmentsCenter', '/>', 'Assignments Center');
+  assert.match(center, /onContinue=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex\)\}/);
+});
+
+test('Grades gets Start, ways to raise and What changed; Home gets the count — with imports', () => {
+  assert.match(app, /import \{ buildWaysToRaise, countWaysToRaise \} from '\.\/platform\/student\/waysToRaiseModel\.js'/);
+  const ways = region(app, 'function studentWaysToRaiseNow() {', '}) : [];', 'ways builder');
+  assert.match(ways, /recoverySummariesByAssignment: studentRecoverySummariesByAssignment/);
+  // Filtered by the Today rule (review finding C / item 3).
+  assert.match(ways, /todayByAssignment: studentTodayByAssignment\(\)/);
+  const grades = region(app, '<StudentGradeCenter', '/>\n', 'Grades');
+  assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0\)\}/);
+  assert.match(grades, /waysToRaise=\{studentWaysToRaiseNow\(\)\}/);
+  assert.match(grades, /if \(way\.action === 'none'\) return undefined;/);
+  assert.match(grades, /if \(way\.action === 'start'\) return startAssignment\(way\.assignmentId, way\.questionIndex \?\? 0\);/);
+  assert.match(grades, /whatChangedPanel=\{renderWhatChangedPanel\(false\)\}/);
+  const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
+  assert.match(home, /waysToRaise=\{\{ count: countWaysToRaise\(studentWaysToRaiseNow\(\)\) \}\}/);
+});
+
+test('Review My Work shows only for closed, released, non-Test-Cycle work — with imports', () => {
+  // Lazy, so MathLive (pulled by the solution renderers) stays out of the first load.
+  assert.match(app, /const ReviewMyWork = lazy\(\(\) => import\('\.\/components\/student\/ReviewMyWork\.jsx'\)\)/);
+  assert.match(app, /import \{ loadMyReviewWork \} from '\.\/services\/reviewMyWorkService\.js'/);
+  const panel = region(app, 'const resultReviewPanel =', ': null;', 'review panel');
+  assert.match(app, /reviewPanel=\{resultReviewPanel\}/);
+  assert.match(panel, /resultEntry\.frozen/);
+  assert.match(panel, /!resultEntry\.isTestCycle/);
+  assert.match(panel, /!assignmentHasHeldTeacherFeedback\(recoveryAssignment\)/);
+  assert.match(panel, /<ReviewMyWork assignment=\{recoveryAssignment\} load=\{loadMyReviewWork\} \/>/);
+});
+
+test('"Use a Practice Pass" is offered only to a student who holds one', () => {
+  const ways = region(app, 'function studentWaysToRaiseNow() {', '}) : [];', 'ways builder');
+  assert.match(ways, /practicePassEligibleAssignmentIds: studentRewardWallet\?\.practicePasses\?\.count > 0 \? studentPracticePassEligibleAssignments : \[\]/);
+});
+
+test('entry shares the Today rule\'s predicates, with their imports (review findings 1, 2, 5)', () => {
+  assert.match(app, /import \{ questionIsTerminal, timedSectionWorkableNow \} from '\.\/platform\/student\/studentWorkState\.js'/);
+  const start = region(app, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
+  const gate = region(start, 'const roleIsActionable = (role) => {', 'const actionableIndex', 'role gate');
+  // A switched-off Warm-Up/DOL window is open, exactly as Home says.
+  assert.match(gate, /return timedSectionWorkableNow\(getWarmupState\(/);
+  assert.match(gate, /return timedSectionWorkableNow\(getDOLState\(/);
+  assert.doesNotMatch(gate, /\.status === 'active'/);
+  // Review My Work from the result page never bounces back to the same page.
+  assert.match(executableSource(start), /if \(actionableIndex === null && options\?\.returnToResult\) \{\s*toastInfo\(/);
+});
+
+test('the Warm-Up banner never recommends excused or unopened work (review finding 6)', () => {
+  const banner = region(app, 'const renderStudentWarmupBanner = () => {', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  assert.match(banner, /if \(assignmentIsExcusedForStudent\(assignment, user\.id\)\) return null;/);
+  assert.match(banner, /if \(!getAssignmentLifecycle\(assignment, now, \{ studentId: user\.id \}\)\.isOpen\) return null;/);
+  assert.match(app, /import \{[^}]*\bassignmentIsExcusedForStudent\b[^}]*\} from '\.\/platform\/student\/studentGradeCenterModel\.js'/);
+});
+
+test('the cached dashboard never outlives the signed-in student (shared Chromebook)', () => {
+  // The cache holds the student's lessons with their own controls; the
+  // private-controls journey scans React state after sign-out for them.
+  assert.match(app, /useEffect\(\(\) => \{\s*studentUpNextCacheRef\.current = \{ inputs: null, dashboard: null \};\s*\}, \[user\?\.id, user\?\.role\]\);/);
+  const logout = region(app, 'const handleLogout = async () => {', 'hydratedSessionUidRef.current = null;', 'logout');
+  assert.match(logout, /studentUpNextCacheRef\.current = \{ inputs: null, dashboard: null \};/);
+});
