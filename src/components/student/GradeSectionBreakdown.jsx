@@ -18,7 +18,11 @@ const SECTION_LABEL = {
   dol: 'DOL',
 };
 
-export default function GradeSectionBreakdown({ sections = {}, hidden = false, compact = false }) {
+// `shares` (optional) is the Grade Center entry's sectionShares: each section's
+// share of the assignment's points, read through gradeWeightTotals() and only
+// present when the shares add up to the assignment's own grade. Absent, the
+// breakdown shows the section grades alone, exactly as before.
+export default function GradeSectionBreakdown({ sections = {}, shares = null, hidden = false, compact = false }) {
   const present = SECTION_GRADE_KEYS
     .map((key) => ({ key, split: sections?.[key] || null }))
     .filter(({ split }) => Number(split?.total) > 0);
@@ -58,6 +62,11 @@ export default function GradeSectionBreakdown({ sections = {}, hidden = false, c
             <div style={{ marginTop: 2, fontSize: excused || noEvidence || hidden ? 13 : 18, fontWeight: 900, color: excused ? 'var(--mm-accent-text)' : noEvidence ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
               {hidden ? '••' : excused ? '✓ Excused (Practice Pass)' : noEvidence ? 'Not attempted' : `${split.score}%`}
             </div>
+            {!excused && Number.isFinite(Number(shares?.[key]?.sharePercent)) && Number(shares?.[key]?.possibleWeight) > 0 && (
+              <div data-section-share={key} style={{ marginTop: 2, fontSize: 11, color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
+                {shares[key].sharePercent}% of this grade
+              </div>
+            )}
             {!hidden && !noEvidence && !excused && Number(split.unanswered) > 0 && (
               <div style={{ marginTop: 2, fontSize: 11, color: 'var(--mm-text-muted)' }}>
                 {split.attempted} of {split.total} answered

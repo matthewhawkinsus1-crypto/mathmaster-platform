@@ -9,7 +9,11 @@ const css = fs.readFileSync(new URL('../../src/App.css', import.meta.url), 'utf8
 test('gold achievement state only requires every question to be correct', () => {
   assert.match(app, /allCorrect: section\.entries\.length > 0 && section\.entries\.every\(\(entry\) => sectionQuestionIsCorrect\(entry\.index\)\)/);
   assert.match(app, /section\.allCorrect \? ' is-complete'/);
-  assert.match(app, /sectionComplete=\{Boolean\(currentNavigationSection\?\.allCorrect\)\}/);
+  // The gold tab state still requires every question correct (above). The
+  // workspace's section-complete signal follows TERMINAL completion instead
+  // (decision 4: done at any accuracy), so a student out of tries on the last
+  // question still gets the continue/hand-off action.
+  assert.match(app, /sectionComplete=\{Boolean\(currentNavigationSection\?\.complete\)\}/);
 });
 
 test('completed section tabs communicate completion without color alone', () => {
@@ -26,7 +30,11 @@ test('finishing a section shows a milestone card and next available section acti
   assert.match(engine, /SECTION.*COMPLETE/i);
   assert.match(engine, /Continue to \{continueSectionLabel \|\| 'next section'\}/);
   assert.match(app, /nextAvailableIncompleteSection/);
-  assert.match(app, /onContinueSection=\{nextAvailableSectionTarget/);
+  // The action continues to the next section with work left, or — with none
+  // left — hands off to Up next / results (assignmentHandoff.js); it is wired
+  // whenever a hand-off exists, which includes the next-section case.
+  assert.match(app, /onContinueSection=\{assignmentHandoff \? continueAfterSection : null\}/);
+  assert.match(app, /assignmentHandoff\.kind === 'section'\s*\?\s*\(\) => changeQuestion\(nextAvailableSectionTarget\.index\)/);
 });
 
 test('section celebration is transition based and respects reduced motion', () => {

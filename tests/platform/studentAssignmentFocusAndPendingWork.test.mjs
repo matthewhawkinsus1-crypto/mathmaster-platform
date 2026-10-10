@@ -54,8 +54,12 @@ test('scheduled assigned work blocks a false caught-up message even when it is n
   });
 
   assert.equal(next.kind, 'assignedSoon');
-  assert.match(next.headline, /assigned work/i);
-  assert.equal(next.actionLabel, null);
+  assert.doesNotMatch(next.headline, /caught up/i);
+  // It names the waiting work, and never offers to START it (that was the
+  // "Nothing open right now" dead end): the only action is the open Path.
+  assert.match(next.detail, /Tomorrow DOL/);
+  assert.equal(next.assignment, undefined);
+  assert.equal(next.actionLabel, 'Open My Math Path');
 });
 
 test('caught up is reserved for complete class work plus a confirmed complete weekly Path goal', () => {

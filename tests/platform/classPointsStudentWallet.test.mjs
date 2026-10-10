@@ -126,8 +126,10 @@ test('teacher preview is isolated before subscriptions and identity points rende
 test('student name remains the strongest identity element and points are secondary', async () => {
   const source = await read('src/components/student/StudentIdentityBar.jsx');
   assert.match(source, /<strong[\s\S]*?\{name\}\{context/);
-  assert.match(source, /<span aria-label=\{`\$\{classPointsBalance\} Class Points`\}/);
-  assert.ok(source.indexOf('<strong') < source.indexOf('classPointsBalance} Class Points'));
+  // The points chip reads "N Class Points" from its own text (no aria-label
+  // on a role-less span — axe), and comes after the name.
+  assert.match(source, /\{classPointsBalance\}<span className="mm-identity-points-word"> Class Points<\/span>/);
+  assert.ok(source.indexOf('<strong') < source.indexOf('className="mm-identity-points"'));
   assert.match(source, /fontSize: 15/);
   assert.match(source, /fontSize: 12/);
 });
