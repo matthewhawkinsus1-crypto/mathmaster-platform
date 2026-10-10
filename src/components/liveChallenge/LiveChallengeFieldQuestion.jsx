@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import MathInput from '../../MathInput.jsx';
 import MathText from '../common/MathText.jsx';
 import { liveChallengeResponseReadiness } from '../../../functions/shared/liveChallenge.mjs';
+import { radioGroupKeyAction, radioTabStopIndex } from '../../platform/interaction/radioGroupKeys.js';
 
 const CHOICE_PROFILES = new Set([
   'choice', 'multiplechoice', 'multiple-choice', 'singlechoice', 'single-choice', 'select',
@@ -60,11 +61,31 @@ function ResponseBadge({ readiness }) {
   );
 }
 
+// A proper radio group (radioGroupKeys.js): one tab stop, arrows move focus
+// AND select, Space selects. Nothing here locks an answer in — that stays the
+// explicit Lock In Answer press below.
 function ChoiceField({ question, field, value, disabled, onChange }) {
   const choices = choicesFor(question, field);
+  const legendId = useId();
+  const optionRefs = useRef([]);
+  const options = choices.map((choice, index) => ({
+    id: String(choice?.id ?? choice?.value ?? `choice-${index + 1}`),
+    label: String(choice?.label ?? choice?.text ?? choice?.value ?? choice ?? ''),
+  }));
+  const tabStop = radioTabStopIndex(options.map((option) => option.id), value);
+  const onKeyDown = (event, index) => {
+    if (disabled || event.altKey || event.ctrlKey || event.metaKey) return;
+    const action = radioGroupKeyAction(event.key, index, options.length);
+    if (!action) return;
+    event.preventDefault();
+    const target = options[action.index];
+    if (!target) return;
+    onChange(target.id);
+    if (action.type === 'move') optionRefs.current[action.index]?.focus();
+  };
   return (
     <fieldset disabled={disabled} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
-      <legend style={{ marginBottom: 8, fontWeight: 900 }}>
+      <legend id={legendId} style={{ marginBottom: 8, fontWeight: 900 }}>
         <MathText as="span">{`${field.label || 'Choose an answer'}${field.unit ? ` (${field.unit})` : ''}`}</MathText>
       </legend>
       {field.responseHint && (
@@ -72,19 +93,21 @@ function ChoiceField({ question, field, value, disabled, onChange }) {
           {field.responseHint}
         </MathText>
       )}
-      <div role="radiogroup" aria-label={field.label || 'Choose an answer'} style={{ display: 'grid', gap: 9 }}>
-        {choices.map((choice, index) => {
-          const id = String(choice?.id ?? choice?.value ?? `choice-${index + 1}`);
-          const label = String(choice?.label ?? choice?.text ?? choice?.value ?? choice ?? '');
+      <div role="radiogroup" aria-labelledby={legendId} aria-disabled={disabled || undefined} style={{ display: 'grid', gap: 9 }}>
+        {options.map(({ id, label }, index) => {
           const selected = String(value ?? '') === id;
           return (
             <button
               key={id}
+              ref={(node) => { optionRefs.current[index] = node; }}
               type="button"
               role="radio"
               aria-checked={selected}
+              data-choice-id={id}
+              tabIndex={index === tabStop ? 0 : -1}
               disabled={disabled}
               onClick={() => onChange(id)}
+              onKeyDown={(event) => onKeyDown(event, index)}
               style={{
                 width: '100%',
                 minHeight: 48,
@@ -175,8 +198,29 @@ function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
   const readiness = useMemo(() => liveChallengeResponseReadiness(question), [question]);
   const [responses, setResponses] = useState({});
   const [busy, setBusy] = useState(false);
+  // Set by THIS student's Lock In press. While the answer is locked (the round
+  // disables the field), focus sits on the "locked in" note below, never on
+  // <body>: the press disables every control the student was on.
+  const [lockPressed, setLockPressed] = useState(false);
+  const lockStatusRef = useRef(null);
+  const lockButtonRef = useRef(null);
+  const lockedByPress = lockPressed && (disabled || busy);
 
-  useEffect(() => setResponses({}), [question?.questionInstanceId]);
+  useEffect(() => {
+    setResponses({});
+    setLockPressed(false);
+  }, [question?.questionInstanceId]);
+
+  useEffect(() => {
+    if (!lockPressed) return;
+    if (disabled || busy) {
+      lockStatusRef.current?.focus();
+      return;
+    }
+    // The round refused the press (nothing was locked): back to the button.
+    setLockPressed(false);
+    lockButtonRef.current?.focus();
+  }, [lockPressed, disabled, busy]);
 
   const complete = readiness.eligible
     && fields.length > 0
@@ -184,6 +228,7 @@ function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
 
   const submit = async () => {
     if (!complete || disabled || busy) return;
+    setLockPressed(true);
     setBusy(true);
     try { await onSubmit({ responses }); }
     finally { setBusy(false); }
@@ -257,9 +302,14 @@ function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
           );
         })}
       </div>
-      <button type="button" disabled={!complete || disabled || busy} onClick={submit} style={{ marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: !complete || disabled || busy ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 900 }}>
+      <button ref={lockButtonRef} type="button" disabled={!complete || disabled || busy} onClick={submit} style={{ marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: !complete || disabled || busy ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 900 }}>
         {busy ? 'Checking…' : 'Lock In Answer'}
       </button>
+      {lockedByPress && (
+        <p ref={lockStatusRef} tabIndex={-1} data-mm-lock-status="1" style={{ margin: '12px 0 0', fontWeight: 900, color: 'var(--mm-text-strong)' }}>
+          Your answer is locked in.
+        </p>
+      )}
     </section>
   );
 }
