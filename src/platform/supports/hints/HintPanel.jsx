@@ -37,6 +37,9 @@ export default function HintPanel({
   onSupportEvidence = null,
 }) {
   const shown = hints.slice(0, revealed);
+  // On a DOL (no hints) the panel holds only "Ask my teacher", and says
+  // nothing about hints (PR #462 review m9).
+  const askOnly = !hints.length && !similar;
   return (
     <section aria-label="Hints" data-hint-panel="" style={{ textAlign: 'left', color: 'var(--mm-text)', display: 'grid', gap: 12 }}>
       {shown.length ? (
@@ -48,6 +51,8 @@ export default function HintPanel({
             </li>
           ))}
         </ol>
+      ) : askOnly ? (
+        <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Stuck? Ask your teacher to come over. Asking does not change your score.</p>
       ) : (
         <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>A hint points you at the next move without giving the answer. Using one is noted with your attempt.</p>
       )}
@@ -75,7 +80,7 @@ export default function HintPanel({
         )}
       </div>
       {askTeacher?.requested && (
-        <p role="status" style={{ margin: 0, color: 'var(--mm-warning-text)', fontWeight: 700 }}>Your teacher can see that you asked for help on this question. Keep working while you wait.</p>
+        <p role="status" style={{ margin: 0, color: 'var(--mm-warning-text)', fontWeight: 700 }}>Your hand is raised on your teacher’s live class screen for this question. Keep working while you wait.</p>
       )}
       {similar && similarOpen && (
         <section aria-label="A similar problem, worked" data-similar-example="" style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)' }}>

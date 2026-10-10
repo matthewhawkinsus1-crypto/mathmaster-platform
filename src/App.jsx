@@ -4311,7 +4311,9 @@ function App() {
   // A help request belongs to the assignment it was made in.
   useEffect(() => { setHelpRequest(null); }, [activeAssignmentId]);
   // …and comes down when the question it was raised on closes.
-  useEffect(() => { setHelpRequest((current) => helpRequestAfterClose(current, activeWorkingTracker)); }, [activeWorkingTracker]);
+  useEffect(() => {
+    setHelpRequest((current) => helpRequestAfterClose(current, activeWorkingTracker, { askingAllowed: !activeLifecycle?.isPracticeOnly }));
+  }, [activeWorkingTracker, activeLifecycle?.isPracticeOnly]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) return undefined;
@@ -11531,7 +11533,7 @@ function App() {
               onAskTeacher={preview || lifecycle.isPracticeOnly || user?.role !== 'student'
                 ? null
                 : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }))}
-              helpRequested={helpRequest?.assignmentId === activeAssignmentId}
+              helpRequested={helpRequest?.assignmentId === activeAssignmentId && helpRequest?.questionIndex === currentQuestionIndex}
             />
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.

@@ -72,6 +72,7 @@ const FLAG_LABEL = {
   [LIVE_FLAGS.BEHIND_PACE]: 'Behind pace',
   [LIVE_FLAGS.STRUGGLING]: 'Low accuracy',
   [LIVE_FLAGS.STUCK]: 'Stuck',
+  [LIVE_FLAGS.HELP_REQUESTED]: 'Hand raised',
 };
 
 const REPRESENTATION_GLYPH = {
@@ -1079,6 +1080,7 @@ export default function LiveClassMonitor({
         <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
           {counts.online} of {counts.total} present students working
           {absentCount > 0 && <span> · {absentCount} absent</span>}
+          {counts.helpRequests > 0 && <strong data-live-help-count="" style={{ color: 'var(--mm-danger)' }}> · {counts.helpRequests} asked for help</strong>}
           {counts.needsAttention > 0 && <strong style={{ color: 'var(--mm-danger)' }}> · {counts.needsAttention} need a look</strong>}
           {classStats.meanAccuracy !== null && ` · class average ${classStats.meanAccuracy}%`}
         </span>

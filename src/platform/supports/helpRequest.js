@@ -36,10 +36,15 @@ export const nextHelpRequest = ({ requested, assignmentId, questionIndex, now = 
  * answered correctly or out of attempts, QuestionEngine no longer offers the
  * cancel toggle, so a request left standing would keep publishing a stale
  * "Help requested" on every heartbeat (PR #462 review). Returns the request,
- * or null once the question it was raised on is closed.
+ * or null once the question it was raised on is closed — or once asking is
+ * no longer offered at all (the assignment turned into post-due practice).
+ * A question LOCKED without closing (DOL timer, a section closed by the
+ * teacher, the Warm-Up window) is lowered by QuestionEngine, which is where
+ * that lock is known.
  */
-export const helpRequestAfterClose = (request, tracker = {}) => {
+export const helpRequestAfterClose = (request, tracker = {}, { askingAllowed = true } = {}) => {
   if (!request || typeof request !== 'object') return null;
+  if (askingAllowed === false) return null;
   const index = Number(request.questionIndex);
   if (!Number.isInteger(index)) return request;
   const status = tracker?.[index]?.status;

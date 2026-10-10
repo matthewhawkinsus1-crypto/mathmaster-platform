@@ -1459,6 +1459,12 @@ function QuestionEngineBody({
     ? { requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
     : null;
   const helpControlAvailable = Boolean((hintState.allowed || askTeacher) && !locked);
+  // A raised hand comes down when this question can no longer be worked on —
+  // closed, or locked by the DOL timer, a section the teacher closed or the
+  // Warm-Up window — because Ask and Cancel go with it (PR #462 review M4).
+  useEffect(() => {
+    if (locked && helpRequested && typeof onAskTeacher === 'function') onAskTeacher(false);
+  }, [locked, helpRequested, onAskTeacher]);
   const hintPanelRef = useRef(null);
   const revealNextHint = () => {
     if (!hintState.canRevealNext) return;

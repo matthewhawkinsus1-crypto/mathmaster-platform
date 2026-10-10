@@ -780,6 +780,17 @@ const feedbackLadder = async () => {
     const next = (await lastGrade(page))?.supportUsage || {};
     check(next.feedbackAssisted === true && next.isMathematicallyIndependent === false, 'practice feedback-ladder: the attempt after a miss message is feedback-assisted', JSON.stringify(next));
   });
+  // PR #462 review M4: a question locked without closing (DOL timer, a
+  // section the teacher closed, the Warm-Up window) loses its Ask and Cancel
+  // controls, so it lowers its own raised hand.
+  for (const locked of ['1', '0']) {
+    await scenario(`practice feedback-ladder raised hand (locked=${locked})`, async () => {
+      const page = await open('practice', 'feedback-ladder', `&ask=1&hand=1&locked=${locked}`);
+      const calls = await page.evaluate(() => window.__mmHelp);
+      if (locked === '1') check(calls.includes(false), 'practice feedback-ladder: a locked question lowers its raised hand', JSON.stringify(calls));
+      else check(calls.length === 0, 'practice feedback-ladder: an open question leaves the hand raised', JSON.stringify(calls));
+    });
+  }
   // PR #462 review: the partial-credit breakdown names the parts still wrong,
   // which steers the remaining attempts. Released feedback on a DOL, quiz or
   // test item that can still be answered keeps the percentage only.

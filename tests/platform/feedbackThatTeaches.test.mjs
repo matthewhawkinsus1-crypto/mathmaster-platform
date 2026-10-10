@@ -38,6 +38,9 @@ import { buildQuestionHints, hintRelease } from '../../src/platform/supports/hin
 import { similarExampleIsSafe } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from '../../src/platform/supports/helpRequest.js';
+import { buildWalkthroughMonitor } from '../../src/platform/teacher/walkthroughMonitor.js';
+import { buildLiveStatus, classifyLiveStudent, LIVE_FLAGS, LIVE_SEVERITY, summarizeLiveClass } from '../../src/livePresence.js';
+import { ACTIVITY_ROLES } from '../../functions/shared/activityPolicies.mjs';
 import { familyInstance } from './helpers/misconceptionFixtures.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -492,6 +495,8 @@ test('6. "Ask my teacher" adds a time and a question position to the student\'s 
   assert.equal(helpRequestAfterClose(request, { 2: { status: 'attempted' } }), request, 'still working: still raised (same object)');
   assert.equal(helpRequestAfterClose(request, { 5: { status: 'correct' } }), request);
   assert.equal(helpRequestAfterClose(null, { 2: { status: 'correct' } }), null);
+  // Once asking is no longer offered (post-due practice), the hand comes down.
+  assert.equal(helpRequestAfterClose(request, { 2: { status: 'attempted' } }, { askingAllowed: false }), null);
 
   // Wired: imported where it is used (nothing imports App.jsx, so a missing
   // import passes every other gate).
@@ -499,13 +504,83 @@ test('6. "Ask my teacher" adds a time and a question position to the student\'s 
   assert.match(app, /^import \{ helpRequestAfterClose, helpRequestFields, nextHelpRequest \} from '\.\/platform\/supports\/helpRequest\.js';$/m);
   // A raised hand comes down when its question closes (the toggle is gone
   // from a closed question, so nothing else could lower it).
-  assert.match(app, /useEffect\(\(\) => \{ setHelpRequest\(\(current\) => helpRequestAfterClose\(current, activeWorkingTracker\)\); \}, \[activeWorkingTracker\]\);/);
+  assert.match(app, /useEffect\(\(\) => \{\s*setHelpRequest\(\(current\) => helpRequestAfterClose\(current, activeWorkingTracker, \{ askingAllowed: !activeLifecycle\?\.isPracticeOnly \}\)\);\s*\}, \[activeWorkingTracker, activeLifecycle\?\.isPracticeOnly\]\);/);
   assert.match(app, /\.\.\.helpRequestFields\(helpRequest, \{ assignmentId: activeAssignmentId \}\),/);
   assert.match(app, /onAskTeacher=\{preview \|\| lifecycle\.isPracticeOnly \|\| user\?\.role !== 'student'\s*\? null\s*: \(requested\) => setHelpRequest\(nextHelpRequest\(\{ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex \}\)\)\}/);
   // Published only after the stale document is deleted (a write before it
   // would be deleted and archived as a session of its own).
   const start = region(app, 'const startPresence = async () => {', '};', 'starting presence');
   assert.ok(start.indexOf('publishPresenceNowRef.current = publishLatest;') > start.indexOf('await deleteDoc(presenceRef);'));
+});
+
+test('6. a hand comes down when its question locks without closing — DOL timer, a closed section, the Warm-Up window (PR #462 review M4)', () => {
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  // `locked` covers every lock the host knows, not only a closed question…
+  assert.match(engine, /const locked = Boolean\(isCorrect \|\| isExpired \|\| assignmentLocked\);/);
+  // …and a locked question lowers its own raised hand, since Ask and Cancel go with it.
+  assert.match(engine, /useEffect\(\(\) => \{\s*if \(locked && helpRequested && typeof onAskTeacher === 'function'\) onAskTeacher\(false\);\s*\}, \[locked, helpRequested, onAskTeacher\]\);/);
+  const app = executableSource(read('src/App.jsx'));
+  // The hand belongs to the question it was raised on: another question shows
+  // "Ask my teacher", and only the question it was raised on can lower it.
+  assert.match(app, /helpRequested=\{helpRequest\?\.assignmentId === activeAssignmentId && helpRequest\?\.questionIndex === currentQuestionIndex\}/);
+  assert.match(app, /assignmentLocked=\{!preview && \(\(currentIsDOL && dolState\.status === 'ended'\) \|\| \(currentIsWarmup && warmupState\.status !== 'active'\) \|\| currentSectionManuallyLocked\)\}/);
+});
+
+test('6. the teacher sees a raised hand: first in the Room view and first in Walkthrough, wherever the student is (PR #462 review M5)', () => {
+  const now = 1_800_000_000_000;
+  const live = (overrides = {}) => ({ assignmentId: 'A1', activityRole: 'classwork', questionStates: 'ca......', sectionQuestionIndex: 2, questionIndex: 2, updatedAt: now - 5000, lastInteractionAt: now - 5000, ...overrides });
+  const students = [
+    { id: 's-ahead', name: 'Ahead Asker', liveStatus: live({ sectionQuestionIndex: 4, questionIndex: 4, helpRequestedAt: now - 30000, helpQuestionIndex: 4 }) },
+    { id: 's-on', name: 'On Question', liveStatus: live({ sectionQuestionIndex: 2, helpRequestedAt: now - 20000, helpQuestionIndex: 2 }) },
+    { id: 's-behind', name: 'Behind Quiet', liveStatus: live({ sectionQuestionIndex: 0, questionIndex: 0 }) },
+    { id: 's-plain', name: 'Plain Worker', liveStatus: live({ sectionQuestionIndex: 2 }) },
+  ];
+  // Walkthrough: before, a student on or ahead of the teacher's question was
+  // filtered out before the help priority was read.
+  const walk = buildWalkthroughMonitor({ students, assignmentId: 'A1', teacherQuestionIndex: 2, nowValue: now, checkedStudentIds: ['s-on'] });
+  const listed = walk.needsCheck.map((row) => row.id);
+  assert.ok(listed.includes('s-ahead'), 'working ahead, hand raised');
+  assert.ok(listed.includes('s-on'), 'on the question and already checked, hand raised');
+  assert.ok(['s-ahead', 's-on'].includes(walk.visitNext.id), 'a raised hand is visited next');
+  assert.ok(listed.indexOf('s-behind') > listed.indexOf('s-on') && listed.indexOf('s-behind') > listed.indexOf('s-ahead'));
+  assert.ok(!listed.includes('s-plain'));
+  assert.equal(walk.counts.helpRequests, 2);
+  // Room (the default view): a raised hand is an alert, says so, and sorts first.
+  const room = summarizeLiveClass(students, { nowValue: now, assignmentId: 'A1' });
+  const asker = room.rows.find((row) => row.id === 's-on');
+  assert.ok(asker.flags.includes(LIVE_FLAGS.HELP_REQUESTED));
+  assert.equal(asker.severity, LIVE_SEVERITY.ALERT);
+  assert.equal(asker.headline, 'Asked for help');
+  assert.deepEqual(room.rows.slice(0, 2).map((row) => row.id).sort(), ['s-ahead', 's-on']);
+  assert.equal(room.counts.helpRequests, 2);
+  // A closed laptop's last request is not a student waiting.
+  const gone = classifyLiveStudent({ id: 's-off', name: 'Gone', liveStatus: live({ updatedAt: now - 10 * 60000, helpRequestedAt: now - 11 * 60000 }) }, { nowValue: now });
+  assert.ok(!gone.flags.includes(LIVE_FLAGS.HELP_REQUESTED));
+  const monitor = read('src/components/teacher/LiveClassMonitor.jsx');
+  assert.match(monitor, /\[LIVE_FLAGS\.HELP_REQUESTED\]: 'Hand raised',/);
+  assert.match(monitor, /\{counts\.helpRequests > 0 && <strong data-live-help-count="" style=\{\{ color: 'var\(--mm-danger\)' \}\}> · \{counts\.helpRequests\} asked for help<\/strong>\}/);
+  // The student is told where the teacher sees it, and an ask-only panel (a
+  // DOL) says nothing about hints (m9).
+  const panel = read('src/platform/supports/hints/HintPanel.jsx');
+  assert.match(panel, /Your hand is raised on your teacher’s live class screen for this question\./);
+  assert.doesNotMatch(panel, /Your teacher can see that you asked/);
+  assert.match(panel, /const askOnly = !hints\.length && !similar;/);
+  assert.match(panel, /\) : askOnly \? \(\s*<p[^>]*>Stuck\? Ask your teacher to come over\. Asking does not change your score\.<\/p>/);
+});
+
+test('6. every key the heartbeat writes is one the presence rule allows (PR #462 review m7)', () => {
+  const rules = read('firestore.rules');
+  const fn = region(rules, 'function presenceKeysKnown(data) {', '    }', 'the presence key rule');
+  const allowed = new Set([...region(fn, 'hasOnly([', '])', 'the allowed keys').matchAll(/'([A-Za-z]+)'/g)].map((match) => match[1]));
+  const app = executableSource(read('src/App.jsx'));
+  const payload = region(app, 'const payload = {\n      studentId: user.id,', '\n    };', 'the presence payload');
+  const appKeys = [...payload.matchAll(/^ {6}([A-Za-z]+)(?=[:,])/gm)].map((match) => match[1]);
+  const keys = [...appKeys, ...Object.keys(buildLiveStatus({})), 'helpRequestedAt', 'helpQuestionIndex', 'pageVisible', 'updatedAt'];
+  assert.ok(appKeys.includes('studentId') && appKeys.includes('currentTeksCode'));
+  keys.forEach((key) => assert.ok(allowed.has(key), `${key} is written by the heartbeat but not allowed by the rule`));
+  Object.values(ACTIVITY_ROLES).forEach((role) => assert.match(fn, new RegExp(`'${role}'`), `the rule allows the role ${role}`));
+  assert.match(rules, /&& presenceKeysKnown\(request\.resource\.data\)\s*&& presenceHelpRequestValid\(request\.resource\.data\);/);
+  assert.match(rules, /data\.helpRequestedAt > request\.time\.toMillis\(\) - 86400000\s*&& data\.helpRequestedAt < request\.time\.toMillis\(\) \+ 3600000/);
 });
 
 /* ------------------------------------------- the compiler keeps authored hints */

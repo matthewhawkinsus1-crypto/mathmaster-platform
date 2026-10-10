@@ -9,6 +9,9 @@
 //   ?record=partial|expired        the item's record: one half-right attempt, or
 //                                  out of attempts
 //   ?review=1                      the teacher has released the assignment's feedback
+//   ?ask=1&hand=1&locked=1         an "Ask my teacher" host, a hand already raised on
+//                                  this question, the section locked (every call the
+//                                  engine makes lands in __mmHelp)
 //
 // What the engine hands its host lands on window: every graded submission
 // (with the support use it recorded) in __mmGraded, every step-credit report
@@ -32,6 +35,9 @@ const which = params.get('q') || 'systems-3x3';
 const run = params.get('run') || 'manual';
 const released = params.get('released') === '1';
 const reviewReleased = params.get('review') === '1';
+const asking = params.get('ask') === '1';
+const handRaised = params.get('hand') === '1';
+const sectionLocked = params.get('locked') === '1';
 
 const day2Question = (id) => day2.sections.flatMap((section) => section.questions).find((question) => question.questionId === id);
 
@@ -203,6 +209,7 @@ const FIXTURES = {
 const question = FIXTURES[which]?.();
 window.__mmGraded = [];
 window.__mmStepGrades = [];
+window.__mmHelp = [];
 window.__mmFixture = { role, which, questionId: question?.questionId || null };
 
 const RECORDS = {
@@ -234,6 +241,9 @@ function Harness() {
         activityRole={role}
         feedbackReleased={released}
         assessmentReviewReleased={reviewReleased}
+        assignmentLocked={sectionLocked}
+        onAskTeacher={asking ? (requested) => { window.__mmHelp.push(requested); } : null}
+        helpRequested={handRaised}
         maximumAttempts={3}
         draftKey={draftKey}
         assignmentId={assignmentId}

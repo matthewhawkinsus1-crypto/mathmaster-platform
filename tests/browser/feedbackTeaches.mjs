@@ -129,7 +129,7 @@ for (const device of DEVICES) {
     await page.locator('[data-hint-control]').click();
     await page.locator('.mathmaster-hint-panel button', { hasText: 'Ask my teacher' }).click();
     check((await page.evaluate(() => window.__mmHelp)).at(-1) === true, `${device.name}: "Ask my teacher" reaches the host`);
-    check(await page.locator('.mathmaster-hint-panel').getByText(/Your teacher can see that you asked for help/).isVisible(), `${device.name}: and says so`);
+    check(await page.locator('.mathmaster-hint-panel').getByText(/Your hand is raised on your teacher’s live class screen/).isVisible(), `${device.name}: and says so`);
     await page.locator('.mathmaster-hint-panel button', { hasText: 'Cancel my help request' }).click();
     check((await page.evaluate(() => window.__mmHelp)).at(-1) === false, `${device.name}: and can be cancelled`);
     await answer(page, '\\frac{3}{4}');
@@ -170,6 +170,12 @@ for (const device of DEVICES) {
   {
     const { page, context } = await open(device, 'q=multi&role=dol');
     check(!(await page.locator('[data-hint-control]').isVisible().catch(() => false)) || (await page.locator('[data-hint-control]').getAttribute('aria-label')) === 'Ask my teacher', `${device.name} dol: no Hint control`);
+    if (await page.locator('[data-hint-control]').isVisible().catch(() => false)) {
+      await page.locator('[data-hint-control]').click();
+      const panelText = await page.locator('.mathmaster-hint-panel').textContent();
+      check(/Ask your teacher/.test(panelText) && !/hint/i.test(panelText), `${device.name} dol: the ask-only panel says nothing about hints`, panelText.slice(0, 160));
+      await page.locator('[data-hint-control]').click();
+    }
     await answer(page, '-\\frac{3}{4}');
     await submit(page);
     check((await page.locator('[data-miss-feedback]').count()) === 0, `${device.name} dol: no miss message`);
