@@ -97,7 +97,7 @@ const lineFromVisiblePoints = (entry = {}) => {
   return { vertical:false, m, b, entry };
 };
 
-function StimulusGraph({ graph }) {
+function StimulusGraph({ graph, describeFeatures = null }) {
   if (!graph || typeof graph !== 'object') return null;
   const bounds = {
     xMin:Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -6,
@@ -162,6 +162,10 @@ function StimulusGraph({ graph }) {
         // An author's description that does not give the answer away
         // (src/platform/preflight/graphAccessibilityPreflight.js warns without one).
         description={graph.accessibleDescription || null}
+        // null: the question's lifecycle decides (kinds only while it can be
+        // answered). A screen that asks nothing — the session recap — passes
+        // true for the full reading.
+        describeFeatures={describeFeatures}
       >
         {({ sx, sy, plotClip }) => curves.map((curve, index) => (
           <polyline
@@ -247,7 +251,7 @@ function LabelledItems({ items }) {
   );
 }
 
-export const PathQuestionStimulus = ({ stimulus }) => {
+export const PathQuestionStimulus = ({ stimulus, describeFeatures = null }) => {
   if (!stimulus) return null;
   const hasContent = Boolean(
     stimulus.graph
@@ -268,8 +272,8 @@ export const PathQuestionStimulus = ({ stimulus }) => {
           Algebra II bank — so the heading gets the same rendering the rest of
           this component already gave its content. */}
       {stimulus.title && <h2 style={titleStyle}><MathText>{stimulus.title}</MathText></h2>}
-      {(stimulus.panels || []).map((panel, index) => <PathQuestionStimulus key={index} stimulus={panel} />)}
-      <StimulusGraph graph={stimulus.graph} />
+      {(stimulus.panels || []).map((panel, index) => <PathQuestionStimulus key={index} stimulus={panel} describeFeatures={describeFeatures} />)}
+      <StimulusGraph graph={stimulus.graph} describeFeatures={describeFeatures} />
       <StimulusTable table={stimulus.table} />
       <OrderedPairList pairs={stimulus.orderedPairs} />
       <WorkedSteps steps={stimulus.steps} />

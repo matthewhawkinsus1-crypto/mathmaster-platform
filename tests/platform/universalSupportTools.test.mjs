@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  SUPPORT_TOOL, UNIVERSAL_ACTIVITY_ROLES, toolsEntitlementFromPath, toolsEntitlementFromProfile,
+  SUPPORT_TOOL, UNIVERSAL_ACTIVITY_ROLES, pathDeliveryFact, pathUniversalDesignRole, toolsEntitlementFromPath, toolsEntitlementFromProfile,
 } from '../../src/platform/language/supportToolsEntitlement.js';
 import { pathDeliveryOf, supportToolsForItem, toolEvidenceRecords } from '../../src/platform/language/supportToolsModel.js';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
@@ -28,7 +28,7 @@ test('assessments, and an unknown activity, add nothing', () => {
   for (const activityRole of ['quiz', 'test', 'dol', null, undefined, '']) {
     assert.deepEqual(toolsEntitlementFromProfile(null, { nowValue: NOW, activityRole, universalDesignRole: activityRole }).tools, [], String(activityRole));
   }
-  // My Math Path asks with no role until its own bar can host the tools (wave 2).
+  // My Math Path with no role (a host that did not say) adds nothing.
   assert.deepEqual(toolsEntitlementFromPath({ applicableSupports: [] }).tools, []);
 });
 
@@ -86,4 +86,49 @@ test('a universal-only tray follows the work on a laptop and never moves it', ()
   assert.match(container, /\{!workspaceActive && supportTray && !supportTrayAfterWork && <div className="mathmaster-question-support-tray">/, 'not above the work on a laptop');
   assert.match(region(container, '<main className="math-tool-workspace">', '</main>\n', 'the workspace') + container.slice(container.indexOf('</main>\n'), container.indexOf('</main>\n') + 200),
     /<\/main>\s*\{supportTray && supportTrayAfterWork && !isMobile && <div className="mathmaster-question-support-tray mathmaster-question-support-tray--after">/, 'after it instead');
+});
+
+// Wave 2 (job H, F's conservative call 3): My Math Path offers the universal
+// tools in an ordinary practice session only. Fails closed on everything else.
+test('My Math Path: universal tools in ordinary practice only', () => {
+  const practice = { sessionKind: 'practice' };
+  assert.equal(pathUniversalDesignRole({ session: practice, questionInstance: { activityRole: 'practice' } }), 'practice');
+  assert.equal(pathUniversalDesignRole({ session: practice, questionInstance: {} }), 'practice', 'a Path item is practice unless it says otherwise');
+  for (const [label, args] of [
+    ['no session', { session: null, questionInstance: {} }],
+    ['a session that does not say its kind', { session: {}, questionInstance: {} }],
+    ['retention check', { session: { sessionKind: 'retentionProbe' }, questionInstance: { activityRole: 'retention' } }],
+    ['exam-framework practice (prop)', { session: practice, questionInstance: {}, assessmentFramework: 'tsia2' }],
+    ['exam-framework practice (session)', { session: { ...practice, assessmentFramework: 'sat' }, questionInstance: {} }],
+    ['an item with an assessment context', { session: practice, questionInstance: { assessmentContext: { framework: 'act' } } }],
+    ['a diagnostic item', { session: practice, questionInstance: { pathRole: 'diagnose' } }],
+    ['an item whose role is not practice', { session: practice, questionInstance: { activityRole: 'test' } }],
+  ]) assert.equal(pathUniversalDesignRole(args), null, label);
+  const universal = toolsEntitlementFromPath({ applicableSupports: [], activityRole: pathUniversalDesignRole({ session: practice, questionInstance: {} }) });
+  assert.deepEqual(universal.tools, [SUPPORT_TOOL.VOCABULARY, SUPPORT_TOOL.READ_ALOUD]);
+  assert.deepEqual(universal.universal, [SUPPORT_TOOL.VOCABULARY, SUPPORT_TOOL.READ_ALOUD]);
+  // Never evidence on the Path either: the server did not list them.
+  assert.equal(pathDeliveryFact({ supportId: 'glossary-lookup', eventType: 'used' }, []), null);
+});
+
+test('My Math Path wiring: the player decides the role, the bar and the engine use it', () => {
+  const player = executableSource(read('src/components/student/PathSessionPlayer.jsx'));
+  assert.match(player, /const universalDesignRole = pathUniversalDesignRole\(\{ session, questionInstance, assessmentFramework \}\);/);
+  assert.match(player, /toolsEntitlementFromPath\(\{ applicableSupports, translationLanguage: supportLanguage, activityRole: universalDesignRole \}\)/, 'tool questions (QuestionEngine)');
+  assert.match(region(player, '<PathSupportBar', '/>', 'support bar'), /universalDesignRole=\{universalDesignRole\}/, 'the generic renderer\'s bar');
+  const bar = executableSource(read('src/components/student/PathSupportBar.jsx'));
+  assert.match(bar, /toolsEntitlementFromPath\(\{ applicableSupports: applicable, translationLanguage: supportLanguage, activityRole: universalDesignRole \}\)/);
+  assert.match(bar, /if \(!applicable\.length && !languageTools\.tools\.length\) return null;/, 'a universal-only bar still renders');
+  assert.match(bar, /includeReadAloud=\{!wantsTts\}/, 'the tray carries Read aloud unless the bar\'s own TTS button does');
+});
+
+test('the Path session recap describes its graphs in full; the live question does not', () => {
+  const recap = executableSource(read('src/components/student/MyMathPathSessionRecap.jsx'));
+  assert.match(recap, /<PathQuestionStimulus stimulus=\{item\.question\?\.stimulus \|\| null\} describeFeatures \/>/);
+  const stimulus = executableSource(read('src/components/student/PathQuestionStimulus.jsx'));
+  assert.match(stimulus, /export const PathQuestionStimulus = \(\{ stimulus, describeFeatures = null \}\)/, 'default: the lifecycle decides');
+  assert.match(stimulus, /<StimulusGraph graph=\{stimulus\.graph\} describeFeatures=\{describeFeatures\} \/>/);
+  assert.match(region(stimulus, '<CoordinatePlane', '>', 'plane'), /describeFeatures=\{describeFeatures\}/);
+  const player = executableSource(read('src/components/student/PathSessionPlayer.jsx'));
+  assert.doesNotMatch(player, /<PathQuestionStimulus[^>]*describeFeatures/, 'never on the answerable question');
 });
