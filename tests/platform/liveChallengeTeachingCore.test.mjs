@@ -222,14 +222,18 @@ test('a student\'s board lists classmates by the projector\'s rule: never a plac
   assert.doesNotMatch(shell, /look="student" limit=/);
   assert.equal((shell.match(/board=\{publicStandingsRows\(room, /g) || []).length, 3);
   assert.equal((shell.match(/<(StandingsBoard|RoundResultsTable)\b/g) || []).length, 3);
-  // … the final card's with the class's last rank, from the snapshot's every-seat ranks …
+  // … the final card's with where the class's last group starts — which the
+  // server computed over the whole class, since the snapshot holds only the
+  // public rows (no every-seat ranks a classmate could read) …
   assert.match(shell, /<StandingsBoard board=\{publicStandingsRows\(room, rows, \{ selfKey, lastRank, totalCount: totalPlayers \|\| null \}\)\}/);
-  assert.match(student, /const finalLastRank = finalStandings \? lastRankOf\(projectionRankTable\(projection\)\) : null;/);
+  assert.match(student, /const finalLastRank = finalStandings \? finalStandings\.lastRank : null;/);
   assert.match(student, /\n\s*lastRank=\{finalLastRank\}\n/);
+  // … the round card's with the class copy's last group and size …
+  assert.match(shell, /publicStandingsRows\(room, view\.standings, \{ selfKey: standing\?\.playerKey \|\| null, \.\.\.view\.standingsBoard \}\)/);
+  assert.match(shell, /publicStandingsRows\(room, view\.rows, \{ selfKey: self\?\.playerKey \|\| null, \.\.\.view\.tableBoard \}\)/);
   // … and both cards are handed the room (its standings choice).
   assert.equal((student.match(/\n\s*room=\{room\}\n/g) || []).length, 2);
-  assert.match(student, /import \{ PROJECTION_KIND, projectionRankTable, standingsFromProjection \} from/);
-  assert.match(student, /import \{ lastRankOf \} from '\.\.\/\.\.\/platform\/liveChallenge\/liveChallengeProjectorModel\.js';/);
+  assert.doesNotMatch(student, /projectionRankTable|lastRankOf/, 'no screen reads every seat');
 });
 
 /* ---------- audit follow-ups: nothing public names an accommodated student ---------- */

@@ -147,7 +147,10 @@ test('the class\'s taps do not wake every student\'s screen during a rush round'
   // before the round — and the header shows no score it cannot keep current.
   const results = region(student, 'function StudentRoundResults(', '\n}\n', 'student round results');
   assert.match(results, /useRoundSummary\(room\.roomId, roundIndex, true\)/);
-  assert.match(results, /roundResultsView\(\{ summary, previousSummary, selfKey: playerKey \}\)/);
+  // The student's own place in it is their own summary's (the class's copy
+  // lists only the public rows), written in the commit that closed the round.
+  assert.match(results, /roundResultsView\(\{ summary, previousSummary, selfKey: playerKey, ownRound, ownPreviousRound, alias \}\)/);
+  assert.match(results, /const ownRound = summaryRound\(ownSummary, roundIndex, /);
   assert.doesNotMatch(executableSource(results), /players|leaderboard/, 'never the standings listener');
   assert.match(student, /\{stage === CHALLENGE_STAGE\.ROUND_RESULTS && \(\s*<StudentRoundResults /);
   assert.match(student, /const headerRow = selfEntry && room\.status === 'running' && selfFresh \? selfEntry : null;/);

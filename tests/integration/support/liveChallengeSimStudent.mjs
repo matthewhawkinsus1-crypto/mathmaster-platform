@@ -40,7 +40,8 @@ import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mj
 import { CHALLENGE_STAGE, challengeClock } from '../../../src/platform/liveChallenge/challengeShellModel.js';
 import { studentConnectionState } from '../../../src/platform/liveChallenge/challengePresenceModel.js';
 import { projectionBoardRows, standingsRows, standingsWindow } from '../../../src/platform/liveChallenge/challengeStandingsModel.js';
-import { projectionRankTable, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
+import { standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
+import { summaryFinal } from '../../../functions/shared/liveChallengePlayerSummary.mjs';
 import { documentWireBytes, SNAPSHOT_OVERHEAD_BYTES } from './firestoreWireBytes.mjs';
 import { importClientService } from './registerClientFirebase.mjs';
 
@@ -70,7 +71,7 @@ const bytesOfVersion = (documentPath, signature, data) => {
 };
 
 /** Every device's open listeners, by kind: a leak shows up as a count that never comes back down. */
-export const openListeners = { room: 0, standings: 0, self: 0, players: 0, invite: 0 };
+export const openListeners = { room: 0, standings: 0, self: 0, summary: 0, players: 0, invite: 0 };
 export const listenerTotal = () => Object.values(openListeners).reduce((sum, count) => sum + count, 0);
 
 const counted = (kind, stop) => {
@@ -157,11 +158,14 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     errors: [],
     // Per room: rounds this device had on screen as roundActive, with when.
     seen: {},
-    stops: { room: null, standings: null, self: null, players: null, invite: null },
+    stops: { room: null, standings: null, self: null, summary: null, players: null, invite: null },
     // The screen's own row and the room's standings snapshot ('projection').
     selfRow: null,
     projection: null,
     standingsView: null,
+    // The device's own summary (playerSummaries/{studentId}): its own place.
+    summary: null,
+    ownFinal: null,
     joinedPlayerKey: null,
     timers: new Set(),
     queued: [],
@@ -387,17 +391,20 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     }, (error) => device.errors.push(`players: ${error?.message}`)));
   };
 
-  // THE SCREEN'S STANDINGS ('projection'): two single documents, both paused
-  // while a rush round is open — the device's own public row and the room's
-  // standings snapshot. Each delivery is one document, whatever the class size.
+  // THE SCREEN'S STANDINGS ('projection'): three single documents — the
+  // device's own public row and the room's standings snapshot, both paused
+  // while a rush round is open, and the device's own summary (its own place,
+  // which changes only at a round's close and the finish). Each delivery is one
+  // document, whatever the class size.
   let standingsFor = null;
   let selfFor = null;
+  let summaryFor = null;
   const myKey = () => device.invite?.playerKey || device.joinedPlayerKey || null;
   const deriveStandings = () => {
-    const slot = Number.isInteger(device.selfRow?.slot) ? device.selfRow.slot : (Number.isInteger(device.invite?.slot) ? device.invite.slot : null);
-    device.standingsView = standingsFromProjection(device.projection, { roomId: device.roomId, slot, playerKey: myKey() });
+    device.standingsView = standingsFromProjection(device.projection, { roomId: device.roomId });
+    device.ownFinal = summaryFinal(device.summary, { roomId: device.roomId });
     device.boardWindow = standingsWindow(
-      standingsRows(projectionBoardRows(device.standingsView, { selfKey: myKey(), alias: device.invite?.alias }), { selfKey: myKey() }),
+      standingsRows(projectionBoardRows(device.standingsView, { selfKey: myKey(), alias: device.invite?.alias, own: device.ownFinal }), { selfKey: myKey() }),
       { limit: 5, selfKey: myKey(), total: device.standingsView?.count ?? null },
     );
   };
@@ -455,6 +462,20 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
           device.selfRow = row;
           delivered('self', `liveChallengeRooms/${wantedRoom}/players/${key}`, row, row ? [key, Number(row.answeredRound), millisOf(row.updatedAt), Number(row.score) || 0] : null);
         }, (error) => device.errors.push(`self: ${error?.message}`)));
+      }
+    }
+    const wantedSummary = device.roomId ? `${device.roomId}/${studentId}` : null;
+    if (wantedSummary !== summaryFor) {
+      device.stops.summary?.();
+      device.stops.summary = null;
+      summaryFor = wantedSummary;
+      if (wantedSummary) {
+        const summaryRoom = device.roomId;
+        device.stops.summary = counted('summary', device.service.watchLiveChallengePlayerSummary(summaryRoom, studentId, (summary) => {
+          if (device.closed || summaryRoom !== device.roomId) return;
+          device.summary = summary;
+          delivered('summary', `liveChallengeRooms/${summaryRoom}/playerSummaries/${studentId}`, summary);
+        }, (error) => device.errors.push(`summary: ${error?.message}`)));
       }
     }
   };
@@ -651,6 +672,8 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     device.selfRow = null;
     device.projection = null;
     device.standingsView = null;
+    device.summary = null;
+    device.ownFinal = null;
     device.joinedPlayerKey = null;
     device.roomFromCache = false;
     device.everInSync = false;
@@ -663,10 +686,13 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     device.stops.players = null;
     standingsFor = null;
     selfFor = null;
+    summaryFor = null;
     device.stops.standings?.();
     device.stops.standings = null;
     device.stops.self?.();
     device.stops.self = null;
+    device.stops.summary?.();
+    device.stops.summary = null;
     if (!roomId) return;
     collectLaunchEvent('listener_attached', null);
     device.stops.room = counted('room', device.service.watchLiveChallengeRoom(roomId, onRoom, (error) => {
@@ -720,17 +746,17 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
         playerCount: profile.standingsClient === 'projection' ? (device.standingsView?.count ?? 0) : device.players.length,
         board: profile.standingsClient === 'projection' ? null : leaderboard().map((row) => [row.playerKey, row.rank]),
         // What the screen's standings say: the snapshot's moment, how many
-        // play, its top rows, this student's own place, and every seat's rank.
+        // play, its public rows and where the last group starts — and this
+        // student's own final place, from their own summary.
         standings: device.standingsView ? {
           kind: device.standingsView.kind,
           exact: device.standingsView.exact,
           roundVersion: device.standingsView.roundVersion,
           phase: device.standingsView.phase,
           count: device.standingsView.count,
+          lastRank: device.standingsView.lastRank,
           top: device.standingsView.top.map((row) => [row.playerKey, row.rank, row.tied, row.score]),
-          self: device.standingsView.self ? { ...device.standingsView.self } : null,
-          table: projectionRankTable(device.projection).map((seat) => [seat.slot, seat.rank, seat.score]),
-          slotKeys: device.projection?.slotKeys || null,
+          self: device.ownFinal ? { rank: device.ownFinal.rank, tied: device.ownFinal.tied === true, score: device.ownFinal.score } : null,
         } : null,
         selfRow: device.selfRow ? { answeredRound: device.selfRow.answeredRound, score: device.selfRow.score, slot: device.selfRow.slot ?? null, joined: device.selfRow.joined === true } : null,
         window: device.boardWindow ? { top: device.boardWindow.top.map((row) => [row.playerKey, row.rank]), self: device.boardWindow.self ? [device.boardWindow.self.playerKey, device.boardWindow.self.rank] : null, hiddenCount: device.boardWindow.hiddenCount } : null,
@@ -795,10 +821,11 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
       device.scheduledAnswers = 0;
       tickTimer = null;
       Object.values(device.stops).forEach((stop) => stop?.());
-      device.stops = { room: null, standings: null, self: null, players: null, invite: null };
+      device.stops = { room: null, standings: null, self: null, summary: null, players: null, invite: null };
       playersListenerFor = null;
       standingsFor = null;
       selfFor = null;
+      summaryFor = null;
       await device.firebase?.shutdown?.();
     },
   });

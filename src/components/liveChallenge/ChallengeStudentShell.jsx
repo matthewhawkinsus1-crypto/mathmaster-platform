@@ -145,9 +145,12 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
           <strong>{presentation.placementPoints ? 'Championship' : 'Standings'}</strong>
           <span style={{ color: '#9fb0cc', fontSize: 13 }}>{presentation.total.long}</span>
         </div>
+        {/* The class's copy lists only the public rows; the view says where
+            the class's last group starts and how many play, so the student's
+            own row is placed without the rule naming anyone else. */}
         {view.standings
-          ? <StandingsBoard board={publicStandingsRows(room, view.standings, { selfKey: standing?.playerKey || null })} presentation={presentation} look="student" label="Standings after this round" />
-          : <RoundResultsTable view={view} board={publicStandingsRows(room, view.rows, { selfKey: self?.playerKey || null })} presentation={presentation} look="student" />}
+          ? <StandingsBoard board={publicStandingsRows(room, view.standings, { selfKey: standing?.playerKey || null, ...view.standingsBoard })} presentation={presentation} look="student" label="Standings after this round" />
+          : <RoundResultsTable view={view} board={publicStandingsRows(room, view.rows, { selfKey: self?.playerKey || null, ...view.tableBoard })} presentation={presentation} look="student" />}
       </section>
     </div>
   );

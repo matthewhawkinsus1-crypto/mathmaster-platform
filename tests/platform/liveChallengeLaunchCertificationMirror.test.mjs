@@ -101,10 +101,15 @@ test('both know their answer is on the server from their own row, never from the
   assert.match(region(mirror, 'const answerRoundNow = async (room) => {', 'const capture = {'), /profile\.standingsClient === 'projection' \? device\.selfRow :/);
 });
 
-test('both decode the snapshot with the same functions and seat themselves the same way', () => {
-  assert.match(screenRoot, /standingsFromProjection\(projection, \{ roomId, slot: selfSlot, playerKey \}\)/);
-  assert.match(screenRoot, /const selfSlot = Number\.isInteger\(selfRow\?\.slot\) \? selfRow\.slot : \(Number\.isInteger\(invite\?\.slot\) \? invite\.slot : null\);/);
+test('both decode the snapshot with the same functions and take their own place from their own summary', () => {
+  // The snapshot is the class's public rows only; neither looks for itself in it.
+  assert.match(screenRoot, /standingsFromProjection\(projection, \{ roomId \}\)/);
+  assert.match(screenRoot, /const ownFinal = useMemo\(\(\) => summaryFinal\(ownSummary, \{ roomId \}\), \[ownSummary, roomId\]\);/);
+  assert.match(screenRoot, /projectionBoardRows\(finalStandings, \{ selfKey: playerKey, alias: invite\.alias, own: ownFinal \}\)/);
+  assert.match(region(screenRoot, 'useEffect(() => {\n    setSummaryFresh(false);', '}, [roomId, studentId]);'), /watchLiveChallengePlayerSummary\(roomId, studentId, /);
   const derive = region(mirror, 'const deriveStandings = () => {', 'const delivered');
-  assert.match(derive, /const slot = Number\.isInteger\(device\.selfRow\?\.slot\) \? device\.selfRow\.slot : \(Number\.isInteger\(device\.invite\?\.slot\) \? device\.invite\.slot : null\);/);
-  assert.match(derive, /standingsFromProjection\(device\.projection, \{ roomId: device\.roomId, slot, playerKey: myKey\(\) \}\)/);
+  assert.match(derive, /standingsFromProjection\(device\.projection, \{ roomId: device\.roomId \}\)/);
+  assert.match(derive, /device\.ownFinal = summaryFinal\(device\.summary, \{ roomId: device\.roomId \}\)/);
+  assert.match(derive, /projectionBoardRows\(device\.standingsView, \{ selfKey: myKey\(\), alias: device\.invite\?\.alias, own: device\.ownFinal \}\)/);
+  assert.match(region(mirror, 'const wantedSummary =', 'const alreadyJoined'), /device\.service\.watchLiveChallengePlayerSummary\(summaryRoom, studentId, /);
 });

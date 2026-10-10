@@ -10,11 +10,19 @@
  * with the number of classmates answering.
  *
  * WHAT IT IS. liveChallengeRooms/{roomId}/standings/current: a sanitized,
- * self-contained snapshot of the standings — the top rows a screen shows, and
- * every joined player's rank and score in two compact lists indexed by seat
- * (`slot`, the player's position in the room's shuffled alias order). A student
- * finds their own place by their own slot. It is REPLACED, never patched: a
- * screen that missed one snapshot loses nothing, because the next one is whole.
+ * self-contained snapshot of the standings — the rows the public rule shows
+ * the whole class (liveChallengePrivacy.classStandingsRows: the top few, never
+ * a row tied with the last), how many are playing, and where the class's last
+ * group starts. It is REPLACED, never patched: a screen that missed one
+ * snapshot loses nothing, because the next one is whole.
+ *
+ * NOBODY ELSE'S PLACE. Every student in the room can read this document, so
+ * it carries no rank or score beyond the rows the class is shown anyway. (It
+ * once carried every seat's rank and score, for each screen to find its own:
+ * any student could read the whole class's.) A student's own place comes from
+ * their own summary (liveChallengePlayerSummary.mjs), written with the exact
+ * snapshots below; a live snapshot has no "own place" to give, because a
+ * student never sees a rank under the question.
  *
  * WHO WRITES IT, AND WHEN. Never the answer path. A student's answer commits
  * to their own private record and their own public row exactly as before, and
@@ -39,23 +47,28 @@
  * points, placements and rewards are computed on the server from the private
  * records, never from this document.
  *
- * WHAT IT CONTAINS. Only what every student in the room is already shown: a
- * game alias, a rank (and whether it is shared), a score, how many are playing,
- * and the room's round and strategy. Never a student id, an email, an answer,
- * a per-player timestamp, a diagnostic, or anything about supports.
+ * WHAT IT CONTAINS. Only what every student in the room is already shown: the
+ * public rows' aliases, ranks (and whether shared) and scores, how many are
+ * playing, and the room's round and strategy. Never a student id, an email,
+ * an answer, a per-player timestamp, a diagnostic, anything about supports —
+ * or the place of anyone the public rule leaves off the list.
  *
  * Pure: no Firebase. The server builds it; the student screen and the launch
  * certification decode it with the same functions.
  */
 
 import { publicLeaderboard } from './liveChallenge.mjs';
+import { classStandingsRows } from './liveChallengePrivacy.mjs';
 import { leaderboardOptionsFor, getScoringStrategy } from './liveChallengeScoring.mjs';
 import { timerFromRoom } from './liveChallengeTimer.mjs';
 
-export const STANDINGS_PROJECTION_SCHEMA_VERSION = 1;
+// 2: public rows only (no every-seat rank and score lists). A screen reads no
+// other version, and the finish repair rewrites a final snapshot of version 1.
+export const STANDINGS_PROJECTION_SCHEMA_VERSION = 2;
 export const STANDINGS_COLLECTION = 'standings';
 export const STANDINGS_DOC_ID = 'current';
-// A student's board shows the top five and their own row (standingsWindow).
+// The most rows a snapshot carries: the public rule's top few
+// (liveChallengePrivacy.PUBLIC_TOP_COUNT), fewer when the rule hides more.
 export const STANDINGS_TOP_ROWS = 5;
 // THE BOUNDED CADENCE. The host asks for a live snapshot at most once a second
 // (standingsPublishPacer.js), timed from when it SENDS; the server measures from
@@ -110,42 +123,11 @@ export const comparePositions = (left = {}, right = {}) => (
   || ((PHASE_RANK[left.phase] ?? 0) - (PHASE_RANK[right.phase] ?? 0))
 );
 
-/*
- * THE COMPACT LISTS. One comma-separated string per measure, one entry per
- * slot, empty where that seat is not ranked (never joined). A list of integers
- * in the browser's wire format costs about twenty bytes an entry; this costs
- * two to six.
- */
-export const encodeSlotList = (values = []) => (Array.isArray(values) ? values : [])
-  .map((value) => (value === null || value === undefined || !Number.isFinite(Number(value)) ? '' : String(Math.round(Number(value)))))
-  .join(',');
-
-export const decodeSlotList = (text = '') => (typeof text === 'string' && text.length
-  ? text.split(',').map((entry) => (entry === '' ? null : (Number.isFinite(Number(entry)) ? Number(entry) : null)))
-  : []);
-
-/**
- * The slot of every ranked player. A room created with seats gives each player
- * theirs (`slot`, fixed at creation). A room from before seats existed has
- * none, so its players are seated by player key, and the projection then names
- * the key of each seat (`slotKeys`) for a screen to find its own.
- */
-const seatPlayers = (entries = []) => {
-  const seated = entries.every((entry) => Number.isInteger(entry.slot) && entry.slot >= 0 && entry.slot < STANDINGS_MAX_PLAYERS);
-  const unique = seated && new Set(entries.map((entry) => entry.slot)).size === entries.length;
-  if (unique) return { entries, slotKeys: null };
-  const keys = [...new Set(entries.map((entry) => entry.playerKey).filter(Boolean))].sort();
-  const slotOf = new Map(keys.map((key, index) => [key, index]));
-  return {
-    entries: entries.map((entry) => ({ ...entry, slot: slotOf.get(entry.playerKey) ?? null })),
-    slotKeys: keys,
-  };
-};
-
 /**
  * Build a projection document (without its server timestamps, which the
- * writer adds) from ranked entries: [{ playerKey, slot, alias, rank, tied,
- * position, score }] in display order.
+ * writer adds) from ranked entries: [{ playerKey, alias, rank, tied,
+ * position, score }] for EVERY ranked player, in display order. Only the
+ * public rule's rows are kept.
  */
 export const buildStandingsProjection = ({
   roomId,
@@ -159,12 +141,11 @@ export const buildStandingsProjection = ({
   ranked = [],
 } = {}) => {
   const exact = kind === PROJECTION_KIND.ROUND_CLOSED || kind === PROJECTION_KIND.FINAL;
-  const rows = (Array.isArray(ranked) ? ranked : [])
+  const entries = (Array.isArray(ranked) ? ranked : [])
     .filter((entry) => entry && cleanKey(entry.playerKey) && Number.isInteger(Number(entry.rank)) && Number(entry.rank) >= 1)
     .slice(0, STANDINGS_MAX_PLAYERS)
     .map((entry, index) => ({
       playerKey: cleanKey(entry.playerKey),
-      slot: Number.isInteger(Number(entry.slot)) ? Number(entry.slot) : null,
       alias: cleanAlias(entry.alias),
       rank: integerOr(entry.rank, null),
       tied: entry.tied === true,
@@ -172,15 +153,7 @@ export const buildStandingsProjection = ({
       score: nonNegativeInt(entry.score),
     }))
     .sort((left, right) => left.position - right.position);
-  const { entries, slotKeys } = seatPlayers(rows);
-  const width = entries.reduce((max, entry) => Math.max(max, (entry.slot ?? -1) + 1), 0);
-  const ranks = Array.from({ length: width }, () => null);
-  const scores = Array.from({ length: width }, () => null);
-  entries.forEach((entry) => {
-    if (entry.slot === null) return;
-    ranks[entry.slot] = entry.rank;
-    scores[entry.slot] = entry.score;
-  });
+  const board = classStandingsRows(entries, { totalCount: entries.length });
   const position = projectionPosition({ status, roundVersion, roundState, kind });
   return {
     schemaVersion: STANDINGS_PROJECTION_SCHEMA_VERSION,
@@ -194,17 +167,16 @@ export const buildStandingsProjection = ({
     scoringStrategyId: getScoringStrategy(scoringStrategyId).id,
     includesWorkInProgress: includesWorkInProgress === true,
     count: entries.length,
-    top: entries.slice(0, STANDINGS_TOP_ROWS).map((entry) => ({
+    // Where the class's last group starts: a screen passes it back to the
+    // public rule with its own row (null when nobody is ranked).
+    lastRank: board.lastRank || null,
+    top: board.rows.slice(0, STANDINGS_TOP_ROWS).map((entry) => ({
       playerKey: entry.playerKey,
-      slot: entry.slot,
       alias: entry.alias,
       rank: entry.rank,
       tied: entry.tied,
       score: entry.score,
     })),
-    ranks: encodeSlotList(ranks),
-    scores: encodeSlotList(scores),
-    ...(slotKeys ? { slotKeys: slotKeys.join(',') } : {}),
   };
 };
 
@@ -229,9 +201,6 @@ export const liveProjectionActiveRound = (room = {}, nowMs = Date.now()) => {
  */
 export const liveProjectionFromPublicRows = ({ roomId, room = {}, rows = [], nowMs = Date.now() } = {}) => {
   const activeRound = liveProjectionActiveRound(room, nowMs);
-  const slotByKey = new Map((Array.isArray(rows) ? rows : [])
-    .filter((row) => row?.playerKey)
-    .map((row) => [String(row.playerKey), Number.isInteger(Number(row.slot)) && row.slot !== null && row.slot !== undefined ? Number(row.slot) : null]));
   const board = publicLeaderboard(rows, { activeRound, ...leaderboardOptionsFor(room.scoringStrategyId || null) });
   return buildStandingsProjection({
     roomId,
@@ -244,7 +213,6 @@ export const liveProjectionFromPublicRows = ({ roomId, room = {}, rows = [], now
     includesWorkInProgress: activeRound !== null && leaderboardOptionsFor(room.scoringStrategyId || null).includeProvisional === true,
     ranked: board.map((row) => ({
       playerKey: row.playerKey,
-      slot: slotByKey.get(String(row.playerKey)) ?? null,
       alias: row.alias,
       rank: row.rank,
       tied: row.tied,
@@ -257,15 +225,11 @@ export const liveProjectionFromPublicRows = ({ roomId, room = {}, rows = [], now
 /**
  * An EXACT snapshot from standings the engine wrote: a round's
  * standingsAfterRound (matchStandingsAfterRound) or a match result's
- * standings (buildMatchResult). `players` are the private records the
- * transaction read, for each player's slot. Players without a rank (never
- * joined) are not on it.
+ * standings (buildMatchResult). Players without a rank (never joined) are
+ * not on it.
  */
-export const exactProjectionFromStandings = ({ roomId, room = {}, kind, standings = [], players = [], status = null } = {}) => {
-  const slotByKey = new Map((Array.isArray(players) ? players : [])
-    .filter((player) => player?.playerKey)
-    .map((player) => [String(player.playerKey), Number.isInteger(Number(player.slot)) && player.slot !== null && player.slot !== undefined ? Number(player.slot) : null]));
-  return buildStandingsProjection({
+export const exactProjectionFromStandings = ({ roomId, room = {}, kind, standings = [], status = null } = {}) => (
+  buildStandingsProjection({
     roomId,
     kind,
     status: status || room.status || null,
@@ -278,15 +242,14 @@ export const exactProjectionFromStandings = ({ roomId, room = {}, kind, standing
       .filter((standing) => standing?.playerKey && standing.rank !== null && standing.rank !== undefined && standing.joined !== false)
       .map((standing) => ({
         playerKey: standing.playerKey,
-        slot: slotByKey.get(String(standing.playerKey)) ?? null,
         alias: standing.alias,
         rank: standing.rank,
         tied: standing.tied,
         position: standing.position,
         score: standing.score,
       })),
-  });
-};
+  })
+);
 
 // A 53-bit string hash (cyrb53): small and pure, so the snapshot carries a
 // 14-character digest instead of a second copy of itself, and the module stays
@@ -305,15 +268,14 @@ const hash53 = (text) => {
 };
 
 /**
- * What a snapshot SAYS, for "did anything change": the moment, the count, the
- * top rows and every rank and score. A live publish whose digest equals the
- * stored one writes nothing, so no screen is woken for it.
+ * What a snapshot SAYS, for "did anything change": the moment, the count and
+ * the public rows. A live publish whose digest equals the stored one writes
+ * nothing, so no screen is woken for it.
  */
 export const projectionDigest = (projection = {}) => hash53(JSON.stringify([
-  projection.kind, projection.status, projection.roundIndex, projection.roundVersion, projection.phase,
-  projection.includesWorkInProgress === true, projection.count,
-  (projection.top || []).map((row) => [row.playerKey, row.slot, row.alias, row.rank, row.tied, row.score]),
-  projection.ranks || '', projection.scores || '', projection.slotKeys || '',
+  projection.schemaVersion, projection.kind, projection.status, projection.roundIndex, projection.roundVersion, projection.phase,
+  projection.includesWorkInProgress === true, projection.count, projection.lastRank ?? null,
+  (projection.top || []).map((row) => [row.playerKey, row.alias, row.rank, row.tied, row.score]),
 ]));
 
 /**
@@ -336,43 +298,26 @@ export const projectionMayReplace = (stored = null, next = {}) => {
 };
 
 /*
- * ON A SCREEN. A student's view of a snapshot: the top rows in the shape the
- * standings model expects (standingsRows), and their own place.
+ * ON A SCREEN. A student's view of a snapshot: the class's rows in the shape
+ * the standings model expects (standingsRows), how many play, and where the
+ * last group starts. Their own place is not here (their own summary has it).
  */
 
-/** This screen's slot in `projection`: its own seat, or — in a room from before seats — its key's. */
-export const projectionSlotFor = (projection = null, { slot = null, playerKey = null } = {}) => {
-  if (!projection) return null;
-  if (typeof projection.slotKeys === 'string' && projection.slotKeys) {
-    const index = projection.slotKeys.split(',').indexOf(String(playerKey || ''));
-    return index >= 0 ? index : null;
-  }
-  return Number.isInteger(Number(slot)) && slot !== null && slot !== undefined ? Number(slot) : null;
-};
-
-/**
- * Decode a snapshot for one screen. `self` is null when the student is not on
- * it (not joined yet, or a seat the snapshot does not rank).
- */
-export const standingsFromProjection = (projection = null, { roomId = null, slot = null, playerKey = null } = {}) => {
+/** Decode a snapshot for one screen; null for another room or an unknown version. */
+export const standingsFromProjection = (projection = null, { roomId = null } = {}) => {
   if (!projection || typeof projection !== 'object') return null;
   if (roomId && projection.roomId && String(projection.roomId) !== String(roomId)) return null;
   if (Number(projection.schemaVersion) !== STANDINGS_PROJECTION_SCHEMA_VERSION) return null;
-  const ranks = decodeSlotList(projection.ranks);
-  const scores = decodeSlotList(projection.scores);
-  const mine = projectionSlotFor(projection, { slot, playerKey });
-  const myRank = mine !== null ? ranks[mine] ?? null : null;
-  const shared = myRank !== null ? ranks.filter((rank) => rank === myRank).length > 1 : false;
   const top = (Array.isArray(projection.top) ? projection.top : []).map((row, index) => ({
-    playerKey: cleanKey(row.playerKey) || `slot-${row.slot}`,
+    playerKey: cleanKey(row.playerKey) || `row-${index + 1}`,
     alias: cleanAlias(row.alias),
     rank: integerOr(row.rank, null),
     tied: row.tied === true,
     position: index + 1,
     score: nonNegativeInt(row.score),
     liveScore: nonNegativeInt(row.score),
-    slot: Number.isInteger(Number(row.slot)) ? Number(row.slot) : null,
   }));
+  const lastRank = integerOr(projection.lastRank, null);
   return Object.freeze({
     kind: projection.kind,
     exact: projection.exact === true,
@@ -382,20 +327,7 @@ export const standingsFromProjection = (projection = null, { roomId = null, slot
     phase: projection.phase || null,
     includesWorkInProgress: projection.includesWorkInProgress === true,
     count: nonNegativeInt(projection.count),
+    lastRank: lastRank !== null && lastRank >= 1 ? lastRank : null,
     top,
-    self: myRank === null ? null : Object.freeze({
-      slot: mine,
-      rank: myRank,
-      tied: shared,
-      score: nonNegativeInt(scores[mine]),
-    }),
   });
-};
-
-/** Every ranked seat, as { slot, rank, score }: what the certification compares. */
-export const projectionRankTable = (projection = null) => {
-  if (!projection) return [];
-  const ranks = decodeSlotList(projection.ranks);
-  const scores = decodeSlotList(projection.scores);
-  return ranks.map((rank, slot) => ({ slot, rank, score: scores[slot] ?? null })).filter((entry) => entry.rank !== null);
 };

@@ -258,7 +258,8 @@ log(`seeded ${bank.length} questions`);
 const roomRef = (roomId) => db.collection('liveChallengeRooms').doc(roomId);
 const roomOf = async (roomId) => (await roomRef(roomId).get()).data() || {};
 const publicPlayers = async (roomId) => (await roomRef(roomId).collection('players').get()).docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-const roundDoc = async (roomId, roundIndex) => (await roomRef(roomId).collection('rounds').doc(String(roundIndex)).get()).data() || null;
+// The teacher's whole copy of a closed round (the class's copy lists only the public rows).
+const roundDoc = async (roomId, roundIndex) => (await roomRef(roomId).collection('hostRounds').doc(String(roundIndex)).get()).data() || null;
 const privatePlayer = async (roomId, studentId) => (await db.collection('liveChallengePrivate').doc(roomId).collection('players').doc(studentId).get()).data() || {};
 const activeRoomId = async () => (await db.collection('liveChallengeTeacherActive').doc(TEACHER).get()).data()?.roomId || null;
 const ms = (value) => value?.toMillis?.() || 0;

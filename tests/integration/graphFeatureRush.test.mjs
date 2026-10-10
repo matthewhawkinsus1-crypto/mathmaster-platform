@@ -148,7 +148,9 @@ const advance = async (roomId, classKey = 'pair') => {
   }));
 };
 
-const roundResult = async (roomId, roundIndex) => (await roomRef(roomId).collection('rounds').doc(String(roundIndex)).get()).data();
+// The teacher's whole copy of a closed round (the class's copy, rounds/{n}, holds
+// only the public rows: tests/platform/liveChallengeRankPrivacy.test.mjs).
+const roundResult = async (roomId, roundIndex) => (await roomRef(roomId).collection('hostRounds').doc(String(roundIndex)).get()).data();
 
 /* ===================== GAME 1: two players, Grand Prix ===================== */
 
