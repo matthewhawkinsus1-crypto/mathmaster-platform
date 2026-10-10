@@ -593,13 +593,16 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                   setSlotNotice(`Opening My Math Path on ${card?.title || 'that skill'}.`);
                   window.setTimeout(() => setSlotNotice(''), 3000);
                 }}
-                onSimulatedEvidence={({ learner: nextLearner, sessionAssignment }) => {
+                onSimulatedEvidence={({ learner: nextLearner, sessionAssignment, retentionSchedulesByTEKS: nextSchedules }) => {
                   // Real answers become real evidence on the synthetic learner,
-                  // so the Path the teacher returns to has actually moved.
+                  // so the Path the teacher returns to has actually moved. A
+                  // finished retention check moves the schedules too, as it
+                  // does for a real student.
                   setSlots((current) => current.map((slot) => (slot.id !== activeSlot.id ? slot : {
                     ...slot,
                     session: {
                       ...slot.session,
+                      ...(nextSchedules ? { retentionSchedulesByTEKS: nextSchedules } : {}),
                       learner: nextLearner,
                       extraAssignments: [
                         ...(slot.session?.extraAssignments || []).filter((entry) => entry.id !== sessionAssignment.id),

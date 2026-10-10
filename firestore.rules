@@ -874,6 +874,19 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // The student's CCMR plan: the tests they are preparing for and an
+    // optional test date (functions/shared/ccmrPlan.mjs). Written only by the
+    // setMyCcmrPlan callable, which validates it and copies the authorization
+    // context from the roster row, so no client may write it. The student
+    // reads their own. A teacher reads it from the record's own access list
+    // (which also proves an array-contains query), or as the student's current
+    // teacher of record — the second branch is what lets a teacher's screen
+    // read "no plan yet" for a student who has not saved one, instead of an error.
+    match /studentCcmrPlans/{studentId} {
+      allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher() || teachesPresenceStudent(studentId);
+      allow create, update, delete: if false;
+    }
+
     // Compact server-generated session summaries. Students never write or read
     // these directly. They contain only counts/durations already visible to the
     // teacher in Live Class — no answers, URLs, screenshots or keystrokes.
@@ -1830,6 +1843,14 @@ service cloud.firestore {
     match /studentMasteryProfiles/{studentId} {
       allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
       allow write: if false;
+    }
+
+    // Weekly growth snapshots of the profile above, written only by the mastery
+    // trigger in the same transaction (functions/shared/masteryHistory.mjs).
+    // Read exactly as the profile is read; no browser writes it, root included.
+    match /studentMasteryHistory/{studentId} {
+      allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
+      allow create, update, delete: if false;
     }
 
     match /studentRetentionSchedules/{studentId} {

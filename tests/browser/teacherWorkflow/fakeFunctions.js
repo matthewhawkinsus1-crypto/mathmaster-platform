@@ -53,6 +53,8 @@ import {
   mayChangeStudentDistrictId, validateDistrictStudentIdInput,
 } from '../../../functions/shared/studentDistrictId.mjs';
 import { runSectionRecoveryAction } from '../../../functions/shared/sectionRecoveryActions.mjs';
+import { collectWeeklyPathSessions, weeklyCompletionWindow } from '../../../functions/shared/weeklyPathCompletion.mjs';
+import { buildWeeklyPathHistory } from '../../../functions/shared/weeklyPathHistory.mjs';
 import {
   HELD_RECOVERY_ACTION, applyHeldRecoveryResolution, heldRecoveryActionsFor, heldRecoveryItemIds, isHeldRecoveryAction,
 } from '../../../functions/shared/sectionRecoveryResolution.mjs';
@@ -742,6 +744,35 @@ const handlers = {
       throw rejection('invalid-argument', 'A valid weekly Path weekKey is required.');
     }
     return { success: true, goal: harnessStore.get(`weeklyPathGoalSnapshots/${studentId}__${key}`) || null };
+  },
+  // The signed-in student's weekly Path completions (functions/index.js
+  // getMyWeeklyPathCompletions): the shared completion rule
+  // (weeklyPathCompletion.mjs) over the student's own pathSessions documents —
+  // only a session the server marked "completed" counts.
+  getMyWeeklyPathCompletions: ({ weekKey } = {}) => {
+    const studentId = requireStudent();
+    const key = String(weekKey || '').trim();
+    if (!weeklyCompletionWindow(key)) throw rejection('invalid-argument', 'A valid weekly Path weekKey is required.');
+    const sessions = harnessStore.paths('pathSessions/')
+      .map((path) => ({ id: path.split('/').pop(), data: harnessStore.get(path) }))
+      .filter((entry) => entry.data?.studentId === studentId);
+    const { completions, inProgress } = collectWeeklyPathSessions({ sessions, weekKey: key });
+    return { success: true, weekKey: key, completions, inProgress, truncated: false };
+  },
+  // The signed-in student's past weekly goals and grades (functions/index.js
+  // getMyWeeklyPathHistory), built by the callable's own builder from the
+  // frozen goals and sessions in the harness.
+  getMyWeeklyPathHistory: () => {
+    const studentId = requireStudent();
+    const goalsByWeekKey = {};
+    harnessStore.paths(`weeklyPathGoalSnapshots/${studentId}__`).forEach((path) => {
+      const goal = harnessStore.get(path);
+      if (goal?.weekKey) goalsByWeekKey[goal.weekKey] = goal;
+    });
+    const sessions = harnessStore.paths('pathSessions/')
+      .map((path) => ({ id: path.split('/').pop(), data: harnessStore.get(path) }))
+      .filter((entry) => entry.data?.studentId === studentId);
+    return { success: true, ...buildWeeklyPathHistory({ goalsByWeekKey, sessions, now: Date.now() }) };
   },
   // A student device's report of what its durable queue still holds
   // (functions/index.js reportStudentDeviceQueue): counts only, written as a

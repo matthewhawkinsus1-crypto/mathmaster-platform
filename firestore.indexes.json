@@ -421,6 +421,14 @@
         { "fieldPath": "authorizedTeacherEmails", "arrayConfig": "CONTAINS" },
         { "fieldPath": "assignmentId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "pathSessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentId", "order": "ASCENDING" },
+        { "fieldPath": "completedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

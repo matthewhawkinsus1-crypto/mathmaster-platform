@@ -315,6 +315,43 @@ export const fetchStudentWeeklyPathGoalSnapshot = async ({ weekKey } = {}) => {
   return result?.data?.goal || null;
 };
 
+/**
+ * The signed-in student's weekly completions, counted on the server by the
+ * same rule the teacher table and the Classroom publisher use (only sessions
+ * the server marked "completed"), plus unfinished weekly sessions to resume.
+ */
+export const fetchMyWeeklyPathCompletions = async ({ weekKey } = {}) => {
+  if (!weekKey) return { completions: [], inProgress: [], truncated: false };
+  const call = httpsCallable(functions, 'getMyWeeklyPathCompletions');
+  const result = await call({ weekKey });
+  return {
+    completions: Array.isArray(result?.data?.completions) ? result.data.completions : [],
+    inProgress: Array.isArray(result?.data?.inProgress) ? result.data.inProgress : [],
+    truncated: result?.data?.truncated === true,
+  };
+};
+
+/**
+ * The signed-in student's recent weeks of Path — each frozen weekly goal with
+ * the grade the Classroom publisher computes for it — and the "weeks hit"
+ * streak (functions/shared/weeklyPathHistory.mjs). The server reads only the
+ * caller's own records, so this takes no student or week.
+ */
+export const fetchMyWeeklyPathHistory = async () => {
+  const call = httpsCallable(functions, 'getMyWeeklyPathHistory');
+  const result = await call({});
+  const data = result?.data || {};
+  return {
+    currentWeekKey: data.currentWeekKey || null,
+    weeks: Array.isArray(data.weeks) ? data.weeks : [],
+    streak: data.streak || { weeks: 0, includesOpenWeek: false, atLeast: false, endedBy: null },
+    weeksHit: Number(data.weeksHit) || 0,
+    weeksWithGoal: Number(data.weeksWithGoal) || 0,
+    weeksCounted: Number(data.weeksCounted ?? data.weeksWithGoal) || 0,
+    truncated: data.truncated === true,
+  };
+};
+
 /** Freeze or retrieve this student's server-owned weekly commitment. */
 export const resolveWeeklyPathGoalSnapshot = async (goal) => {
   if (!goal?.weekKey) return null;

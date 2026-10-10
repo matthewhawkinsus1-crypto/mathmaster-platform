@@ -19,6 +19,8 @@ import { REASON, STATUS } from './recommendationEngine.js';
 import { TIMING } from './curriculumPacing.js';
 import { buildStudentLearningProfile } from '../profile/studentLearningProfile.js';
 import { buildWeeklyRecommendations } from './recommendationV2.js';
+import { evaluateStudentRetentionSchedule } from '../retention/retentionScheduler.js';
+import { toDisplayCode } from '../../utils/teksUtils.js';
 
 /**
  * Which V1 buckets may be considered for a weekly Path.
@@ -150,6 +152,30 @@ export const buildRecentFailureIndex = (evidenceEvents = []) => {
 };
 
 /**
+ * The retention schedules as the Path map and the banner read them.
+ *
+ * A stored schedule only ever says "scheduled" or "concern" — the server never
+ * writes "due". Whether a check is due is a matter of the clock, which the
+ * retention scheduler (evaluateStudentRetentionSchedule) works out from the
+ * last verification and the 14/30/60-day horizons. The planner used to read the
+ * stored status, so a mastered skill that simply came due never got a weekly
+ * Retention slot while the map and the banner were already calling it due.
+ * Stored entries the scheduler does not evaluate (skills no longer Secure or
+ * Mastered) pass through unchanged.
+ */
+export const evaluatedRetentionSchedules = ({ masteryProfilesByTeks = {}, retentionSchedules = {}, now = Date.now() } = {}) => {
+  const merged = {};
+  Object.entries(retentionSchedules || {}).forEach(([code, schedule]) => {
+    merged[toDisplayCode(code)] = schedule;
+  });
+  const { schedules } = evaluateStudentRetentionSchedule(masteryProfilesByTeks || {}, retentionSchedules || {}, now);
+  Object.entries(schedules).forEach(([code, schedule]) => {
+    merged[code] = { ...(merged[code] || {}), ...schedule };
+  });
+  return merged;
+};
+
+/**
  * The weekly Path for one student: V1's curriculum judgement, V2's reasons.
  *
  * `options` is whatever `buildStudentPathOptions` returned — this never calls
@@ -173,17 +199,24 @@ export const buildWeeklyPathPlan = ({
   interventionMode = false,
   allowTransfer = true,
   coverage = undefined,
+  // The student's saved CCMR plan (studentCcmrPlans) and the teacher's
+  // framework setting ("auto" follows the student). Between them they choose
+  // the FORMAT of transfer slots; they never add one (weeklyTransferFramework.js).
+  ccmrPlan = null,
+  ccmrFramework = null,
   now = Date.now(),
 } = {}) => {
   const strandIndex = buildStrandIndex(courseId);
   const rows = flattenEngineRows(options, { strandIndex });
+  // Due by the clock, exactly as the map and the banner see it.
+  const schedules = evaluatedRetentionSchedules({ masteryProfilesByTeks, retentionSchedules, now });
   const { currentInstructionSkills, prerequisiteOfCurrent, openAssignmentSkills } = deriveInstructionalContext(rows);
 
   const learningProfile = profile || buildStudentLearningProfile({
     courseId,
     masteryProfilesByTeks,
     evidenceEvents,
-    retentionSchedules,
+    retentionSchedules: schedules,
     foundationGapDepth,
     completion,
     previousBand,
@@ -200,7 +233,7 @@ export const buildWeeklyPathPlan = ({
     rows: rowsWithHistory,
     profile: learningProfile,
     masteryProfilesByTeks,
-    retentionSchedules,
+    retentionSchedules: schedules,
     lastPracticedByTeks: buildLastPracticedIndex(evidenceEvents),
     currentInstructionSkills,
     openAssignmentSkills,
@@ -211,6 +244,8 @@ export const buildWeeklyPathPlan = ({
     interventionMode,
     allowTransfer,
     coverage,
+    ccmrPlan,
+    teacherFramework: ccmrFramework,
     now,
   });
 
