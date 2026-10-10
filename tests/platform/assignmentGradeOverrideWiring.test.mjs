@@ -6,6 +6,7 @@ import {
   ASSIGNMENT_GRADE_OVERRIDE_KEY,
   assignmentGradeOverrideFor,
 } from '../../src/platform/grading/canonicalGradeProjection.js';
+import { splitIntegrityConsequence } from '../../functions/shared/integrityOverridePrivacy.mjs';
 import { region } from './helpers/sourceContract.mjs';
 
 test('assignment override helper accepts only active numeric server projection', () => {
@@ -101,8 +102,13 @@ test('server enforces confirmed section zeros, preserves prior corrections, upda
   assert.match(block, /teacherConfirmed/);
   assert.match(block, /runtimeIncludedQuestionIndicesForSection/);
   assert.match(block, /previousOverridesByQuestion/);
-  assert.match(block, /persistent:\s*true/);
-  assert.match(block, /source:\s*["']teacher-section-zero["']/);
+  // Each section question gets the persistent section-zero entry, built by the
+  // shared split (functions/shared/integrityOverridePrivacy.mjs) so the grade
+  // doc never carries the teacher-only details.
+  assert.match(block, /included\.forEach\(\(index\) => \{ assignmentOverrides\[String\(index\)\] = \{ \.\.\.studentOverride \}; \}\)/);
+  const { studentOverride: sectionZero } = splitIntegrityConsequence({ scope: 'section', reasonCode: 'cellPhoneUse', reasonLabel: 'x', sectionRole: 'dol', incidentId: 'i', at: 't' });
+  assert.equal(sectionZero.persistent, true);
+  assert.equal(sectionZero.source, 'teacher-section-zero');
   assert.match(block, /runtimeIncludedQuestionIndicesForSection\(assignment, sectionRole\)/);
   assert.match(block, /kind:\s*["']academicIntegrityIncident["']/);
   assert.match(block, /kind:\s*["']parentFollowUp["']/);
