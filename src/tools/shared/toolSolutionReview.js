@@ -36,6 +36,7 @@ import {
   normalizeInvestigationSpec,
   relationLabel,
 } from '../functionInvestigation2/functionInvestigationMath.js';
+import { TOOL_REVIEW_BUILDERS } from './reviews/index.js';
 
 const finiteText = (value) => Number.isFinite(Number(value)) ? String(Number(value)) : String(value ?? '');
 const titleCase = (value) => String(value || '').replace(/^./, (character) => character.toUpperCase());
@@ -368,6 +369,22 @@ const reviewText = (value) => {
   return '';
 };
 
+/*
+ * THE REVIEW MODEL IS TEXT. Every builder returns
+ *
+ *   { title, items: [{ label, value }], steps: [text], why: text|null, note: text|null }
+ *
+ *   items  the results — what the correct work arrives at;
+ *   steps  the worked solution, in order, each a sentence a student can follow;
+ *   why    why the correct answer works (a check), shown to every student
+ *          whose question closed — including one who got it right.
+ *
+ * Anything else a builder returns is dropped here, so no object, array or
+ * function ever reaches the page.
+ */
+const textList = (values, max = 12) => (Array.isArray(values) ? values : [])
+  .map(reviewText).filter(Boolean).slice(0, max);
+
 const textOnlyReview = (model) => {
   if (!model || typeof model !== 'object') return null;
   const items = (Array.isArray(model.items) ? model.items : [])
@@ -376,11 +393,15 @@ const textOnlyReview = (model) => {
   return {
     title: reviewText(model.title) || 'Solution review',
     items,
+    steps: textList(model.steps),
+    why: reviewText(model.why) || null,
     note: reviewText(model.note) || null,
   };
 };
 
 const reviewBuilderFor = (toolId) => {
+  // Own keys only: a toolId of 'constructor' must not find Object's.
+  if (Object.prototype.hasOwnProperty.call(TOOL_REVIEW_BUILDERS, toolId)) return TOOL_REVIEW_BUILDERS[toolId];
   if (toolId === 'sequenceExplorer') return buildSequenceReview;
   if (toolId === 'representationMatch') return buildRepresentationReview;
   if (toolId === 'functionInvestigation2') return buildFunctionReview;
@@ -400,3 +421,10 @@ export const buildToolSolutionReviewModel = (question = {}) => {
     return { title: 'Solution review', items: [], note: 'The worked solution could not be generated for this question.' };
   }
 };
+
+// The tools this file can explain: its own branches and every implemented
+// builder in ./reviews (toolSupportMatrix.js reads this, not the source text).
+export const TOOLS_WITH_SOLUTION_REVIEW_BUILDER = Object.freeze([
+  'sequenceExplorer', 'representationMatch', 'functionInvestigation2', 'relationMapping', 'openSortBoard', 'constraintFunctionBuilder',
+  ...Object.keys(TOOL_REVIEW_BUILDERS),
+].filter((toolId, index, all) => all.indexOf(toolId) === index));

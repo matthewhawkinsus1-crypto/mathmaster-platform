@@ -34,6 +34,12 @@
 //   constraint-builder the Constraint-Based Function Builder's live checklist
 //   composed-algebra   "Need a strategic hint?" in a composed question's algebra step
 //   three-plane-reveal the three-plane model's author-allowed "Reveal" button
+//   feedback-ladder    the classroom feedback ladder (Hint control, miss message,
+//                      hint offer, worked solution, similar problem, back-up step)
+//                      on a plain key, a Question Family instance and a registry
+//                      tool: none of its text anywhere in the document on a DOL
+//                      or test, before or after Submit; and the partial-credit
+//                      breakdown ("still to fix: …") only where feedback is open
 //   graph-reading      a given graph whose intercepts are the answer: no feature
 //                      value in its description and no data table, in any role
 //
@@ -47,6 +53,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
+import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
+import { GENERIC_MISS_MESSAGES, GENERIC_MISS_MESSAGES_OPEN } from '../../src/platform/supports/feedback/genericMissChecks.js';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -70,14 +78,14 @@ const check = (ok, label, detail = '') => {
 const run = Date.now();
 let pageCount = 0;
 const pages = [];
-const open = async (role, q, extra = '') => {
+const open = async (role, q, extra = '', runId = null) => {
   pageCount += 1;
   const page = await context.newPage();
   pages.push(page);
   // A control that never appears is a finding, not a 30-second wait.
   page.setDefaultTimeout(8000);
   page.on('pageerror', (error) => check(false, `${role} ${q}: page error`, error.message));
-  await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=${q}&run=${run}-${pageCount}${extra}`, { waitUntil: 'networkidle' });
+  await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=${q}&run=${runId || `${run}-${pageCount}`}${extra}`, { waitUntil: 'networkidle' });
   await page.locator('[data-leak-fixture]').waitFor();
   await settle(page, 900);
   return page;
@@ -702,6 +710,157 @@ const threePlaneReveal = async () => {
   }
 };
 
+/* ------------------------------------------------------- feedback ladder */
+
+// Every text the classroom feedback ladder can produce (Student push, Job A):
+// authored supports (marked LEAKCHECK in the fixtures), every misconception
+// and generic miss message, and the ladder's own words. On a DOL or test none
+// may be anywhere in the document — visible text, aria-labels, live regions
+// or hidden nodes — while the item can still be answered, nor after a
+// submission whose outcome is held.
+const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up'];
+const ladderLeaks = async (page) => {
+  const html = await page.evaluate(() => document.documentElement.outerHTML);
+  const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES_OPEN)];
+  return [...LADDER_WORDS, ...messages].filter((text) => html.includes(text.replace(/&/g, '&amp;')));
+};
+const typeAnswer = async (page, value) => {
+  await setMathField(page, page.locator('.mathmaster-question-tool-workspace math-field').first(), value);
+};
+const submitAnswer = async (page) => {
+  await page.locator('button.mathmaster-bar-submit').first().click();
+  await settle(page, 700);
+};
+const feedbackLadder = async () => {
+  for (const role of ['practice', 'dol', 'test']) {
+    await scenario(`${role} feedback-ladder`, async () => {
+      const page = await open(role, 'feedback-ladder');
+      const hintControl = await page.locator('[data-hint-control]').count();
+      if (role === 'practice') check(hintControl === 1, 'practice feedback-ladder: the Hint control is offered');
+      else check(hintControl === 0, `${role} feedback-ladder: no Hint control`);
+      if (role !== 'practice') check((await ladderLeaks(page)).length === 0, `${role} feedback-ladder: nothing from the ladder in the document before Submit`, (await ladderLeaks(page)).join(' | '));
+      if (role === 'practice') {
+        await page.locator('[data-hint-control]').click();
+        await page.locator('.mathmaster-hint-panel button', { hasText: 'Show a hint' }).click();
+        await settle(page, 200);
+      }
+      await typeAnswer(page, '-\\frac{3}{4}');
+      await submitAnswer(page);
+      const grade = await lastGrade(page);
+      check(grade?.isCorrect === false, `${role} feedback-ladder: a wrong answer is graded wrong`, brief(grade));
+      // Every hint revealed is recorded with the attempt (recordHintUse).
+      if (role === 'practice') check(grade?.supportUsage?.hintUsed === true && grade?.supportUsage?.isMathematicallyIndependent === false, 'practice feedback-ladder: the hint revealed is recorded with the attempt', JSON.stringify(grade?.supportUsage));
+      const miss = page.locator('[data-miss-feedback]');
+      if (role === 'practice') {
+        check(await miss.count() === 1 && /LEAKCHECK-MISCONCEPTION/.test(await miss.textContent()), 'practice feedback-ladder: the authored wrong-answer message is shown');
+      } else {
+        check(await miss.count() === 0, `${role} feedback-ladder: no miss message after Submit`);
+        check((await ladderLeaks(page)).length === 0, `${role} feedback-ladder: nothing from the ladder in the document after Submit`, (await ladderLeaks(page)).join(' | '));
+      }
+    });
+  }
+  // PR #462 review B2 / M6c: help had on a question is recorded with the
+  // attempts that follow it — across a remount (the same draft key), and a
+  // miss message on screen makes the next attempt feedback-assisted.
+  await scenario('practice feedback-ladder support use', async () => {
+    const runId = `${run}-support-use`;
+    const first = await open('practice', 'feedback-ladder', '', runId);
+    await first.locator('[data-hint-control]').click();
+    await first.locator('.mathmaster-hint-panel button', { hasText: 'Show a hint' }).click();
+    await settle(first, 300);
+    await first.close();
+    const page = await open('practice', 'feedback-ladder', '', runId);
+    await typeAnswer(page, '-\\frac{3}{4}');
+    await submitAnswer(page);
+    const remounted = (await lastGrade(page))?.supportUsage || {};
+    check(remounted.hintUsed === true && remounted.isMathematicallyIndependent === false, 'practice feedback-ladder: a hint revealed before leaving is recorded after coming back', JSON.stringify(remounted));
+    check(remounted.feedbackAssisted === false, 'practice feedback-ladder: the first attempt saw no miss message', JSON.stringify(remounted));
+    await typeAnswer(page, '5');
+    await submitAnswer(page);
+    const next = (await lastGrade(page))?.supportUsage || {};
+    check(next.feedbackAssisted === true && next.isMathematicallyIndependent === false, 'practice feedback-ladder: the attempt after a miss message is feedback-assisted', JSON.stringify(next));
+  });
+  // PR #462 review m8: a role nobody recognises (which the policy table would
+  // read as classwork) fails closed — no Hint control, no miss message.
+  await scenario('unknown-role feedback-ladder', async () => {
+    const page = await open('homework', 'feedback-ladder');
+    check(await page.locator('[data-hint-control]').count() === 0, 'unknown-role feedback-ladder: no Hint control');
+    await typeAnswer(page, '-\\frac{3}{4}');
+    await submitAnswer(page);
+    check((await lastGrade(page))?.isCorrect === false, 'unknown-role feedback-ladder: still graded');
+    check(await page.locator('[data-miss-feedback]').count() === 0, 'unknown-role feedback-ladder: no miss message');
+  });
+  // PR #462 review M4: a question locked without closing (DOL timer, a
+  // section the teacher closed, the Warm-Up window) loses its Ask and Cancel
+  // controls, so it lowers its own raised hand.
+  for (const locked of ['1', '0']) {
+    await scenario(`practice feedback-ladder raised hand (locked=${locked})`, async () => {
+      const page = await open('practice', 'feedback-ladder', `&ask=1&hand=1&locked=${locked}`);
+      const calls = await page.evaluate(() => window.__mmHelp);
+      if (locked === '1') check(calls.includes(false), 'practice feedback-ladder: a locked question lowers its raised hand', JSON.stringify(calls));
+      else check(calls.length === 0, 'practice feedback-ladder: an open question leaves the hand raised', JSON.stringify(calls));
+    });
+  }
+  // PR #462 review: the partial-credit breakdown names the parts still wrong,
+  // which steers the remaining attempts. Released feedback on a DOL, quiz or
+  // test item that can still be answered keeps the percentage only.
+  for (const role of ['practice', 'dol', 'quiz', 'test']) {
+    await scenario(`${role} feedback-partial (released)`, async () => {
+      const page = await open(role, 'feedback-partial', '&record=partial&released=1');
+      const strip = page.locator('.mathmaster-question-attempt-strip');
+      const stripText = await strip.textContent();
+      check(/50% partial credit so far/.test(stripText), `${role} feedback-partial: the percentage is shown`, stripText);
+      const breakdown = await strip.locator('.mathmaster-attempt-detail-breakdown').count();
+      if (role === 'practice') {
+        check(breakdown === 1 && /still to fix: LEAKCHECK-PART y-intercept/.test(stripText), 'practice feedback-partial: the breakdown names the part to fix', stripText);
+      } else {
+        check(breakdown === 0 && !/still to fix|parts right|LEAKCHECK-PART/.test(stripText), `${role} feedback-partial: no breakdown while the item can be answered`, stripText);
+      }
+    });
+  }
+  // PR #462 review B1: a DOL shows right/wrong per item as soon as the item
+  // closes, and "Grant one more DOL attempt" reopens that same item. The
+  // worked solution waits for the teacher's assignment-level release.
+  for (const role of ['dol', 'quiz', 'test']) {
+    for (const review of ['0', '1']) {
+      await scenario(`${role} feedback-ladder closed (review=${review})`, async () => {
+        const page = await open(role, 'feedback-ladder', `&record=expired&released=1&review=${review}`);
+        const worked = await page.locator('[aria-label="Worked solution"]').count();
+        const html = await page.evaluate(() => document.documentElement.outerHTML);
+        if (review === '0') {
+          check(worked === 0 && !html.includes('LEAKCHECK-REVIEW'), `${role} feedback-ladder: a closed item with right/wrong released shows no worked solution`, `${worked} panels`);
+        } else {
+          check(worked === 1 && html.includes('LEAKCHECK-REVIEW: change in y is 3.'), `${role} feedback-ladder: after the assignment's release the worked solution shows`, `${worked} panels`);
+        }
+      });
+    }
+  }
+  for (const which of ['feedback-family', 'feedback-tool']) {
+    for (const role of ['dol', 'test']) {
+      await scenario(`${role} ${which}`, async () => {
+        const page = await open(role, which);
+        check(await page.locator('[data-hint-control]').count() === 0, `${role} ${which}: no Hint control`);
+        check((await ladderLeaks(page)).length === 0, `${role} ${which}: nothing from the ladder in the document`, (await ladderLeaks(page)).join(' | '));
+        if (which === 'feedback-family') {
+          const prompt = await page.locator('.mathmaster-question-engine').first().textContent();
+          const match = prompt.match(/(−|-)?\s*(\d+)x\s*([+−-])\s*(\d+)\s*=\s*(−|-)?\s*(\d+)/);
+          check(Boolean(match), `${role} ${which}: the instance renders`, prompt.slice(0, 120));
+          if (match) {
+            const a = Number(match[2]) * (match[1] ? -1 : 1);
+            const b = Number(match[4]) * (match[3] === '+' ? 1 : -1);
+            const c = Number(match[6]) * (match[5] ? -1 : 1);
+            // The kept-sign value: in practice the classifier would name it.
+            await typeAnswer(page, String((c + b) / a));
+            await submitAnswer(page);
+            check((await lastGrade(page))?.isCorrect === false, `${role} ${which}: graded wrong`);
+            check((await ladderLeaks(page)).length === 0, `${role} ${which}: no diagnosis, hint or review after Submit`, (await ladderLeaks(page)).join(' | '));
+          }
+        }
+      });
+    }
+  }
+};
+
 /* --------------------------------------------------------- graph-reading */
 
 // PR #454 review B1/B2: a screen reader (ChromeVox is one keystroke on every
@@ -741,6 +900,7 @@ const SURFACES = {
   'constraint-builder': constraintBuilder,
   'composed-algebra': composedAlgebra,
   'three-plane-reveal': threePlaneReveal,
+  'feedback-ladder': feedbackLadder,
   'graph-reading': graphReading,
 };
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SURFACES);

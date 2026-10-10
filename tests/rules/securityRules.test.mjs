@@ -8,6 +8,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { accountId as classPointsAccountId } from '../../functions/shared/classPoints.mjs';
+import { buildLiveStatus } from '../../src/livePresence.js';
 import {
   activeStudentSpotlightQuery,
   activeTeacherSpotlightQuery,
@@ -376,6 +377,55 @@ test('live presence is scoped to the teacher roster and owned by the student hea
   await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), {
     assignmentId: 'forged-by-teacher',
   }, { merge: true }));
+});
+
+test('"Ask my teacher" rides the student\'s own presence heartbeat: a time and a question position only', async () => {
+  const heartbeat = { studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'A1', updatedAt: Date.now() };
+  // The heartbeat rewrites the whole document (no merge), carrying the request.
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpQuestionIndex: 2 }));
+  // The teacher's monitor reads it.
+  const seen = await getDoc(doc(teacherA(), 'presence/STUDENT_A'));
+  assert.ok(seen.data().helpRequestedAt > 0);
+  // Cancelling is the next heartbeat without it.
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), heartbeat));
+  // Never a message, never a malformed value, never on another student.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpMessage: 'come here' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: 'now' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpQuestionIndex: -1 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_B'), { studentId: 'STUDENT_B', helpRequestedAt: Date.now() }));
+  // A teacher cannot raise or clear it for a student.
+  await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now() }));
+});
+
+test('presence holds exactly the heartbeat\'s keys, a known role and a recent help time (PR #462 review m7)', async () => {
+  // The real heartbeat, built the way App.jsx builds it, is accepted whole.
+  const now = Date.now();
+  const real = {
+    studentId: 'STUDENT_A',
+    name: 'Student A',
+    classId: 'class-a',
+    classPeriod: '2',
+    currentTeksCode: 'A.5A',
+    ...buildLiveStatus({ assignmentId: 'A1', assignmentTitle: 'Two-step equations', activityRole: 'dol', questionIndex: 2, questionCount: 8, questionStates: 'cxa.....', nowValue: now }),
+    helpRequestedAt: now,
+    helpQuestionIndex: 2,
+    pageVisible: true,
+    updatedAt: now,
+  };
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), real));
+  // No free text under another name.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequested: '<b>come here</b>' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpComment: 'come here' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpMessage: 'come here' }));
+  // The monitor prints the role ("in <role>"): only a role the platform knows.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, activityRole: 'detention — see me' }));
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, activityRole: 'classwork' }));
+  // A help time from this day, not the epoch's first millisecond or the year 287,000.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: 1 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: 9000000000000000 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: now + 3 * 3600000 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: now - 2 * 86400000 }));
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: now - 60000 }));
 });
 
 test('Spotlight requires fresh affirmative consent and isolates the active frame', async () => {

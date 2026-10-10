@@ -22,6 +22,7 @@ import {
 } from '../../src/platform/supports/toolSupportMatrix.js';
 import { SUPPORT, resolveSupportEntitlements } from '../../functions/shared/supportEntitlements.mjs';
 import { PATH_TOOL_IDS } from '../../functions/shared/pathToolContracts.mjs';
+import { TOOLS_WITH_SOLUTION_REVIEW_BUILDER, buildToolSolutionReviewModel } from '../../src/tools/shared/toolSolutionReview.js';
 
 const capabilitiesSource = readFileSync(new URL('../../src/tools/toolCapabilities.js', import.meta.url), 'utf8');
 const reviewSource = readFileSync(new URL('../../src/tools/shared/toolSolutionReview.js', import.meta.url), 'utf8');
@@ -39,9 +40,13 @@ test('every registry tool has a capability entry', () => {
 });
 
 test('supportsSolutionReview matches what the review builder can actually produce', () => {
-  // The builder is a switch. If a tool is not one of its branches it returns
-  // null, and declaring otherwise tells a teacher a review exists that does not.
-  const builderBranches = [...reviewSource.matchAll(/toolId === '([A-Za-z0-9]+)'/g)].map((m) => m[1]);
+  // A tool the builder cannot explain gets null, and declaring otherwise tells
+  // a teacher a review exists that does not. The builder's own list is what
+  // it can explain: its own branches plus every implemented ./reviews builder.
+  const builderBranches = [...TOOLS_WITH_SOLUTION_REVIEW_BUILDER];
+  [...reviewSource.matchAll(/toolId === '([A-Za-z0-9]+)'/g)].map((m) => m[1])
+    .forEach((toolId) => assert.ok(builderBranches.includes(toolId), `${toolId}: a branch of the builder is on its list`));
+  builderBranches.forEach((toolId) => assert.ok(buildToolSolutionReviewModel({ toolId }) !== undefined, `${toolId}: the builder answers`));
   assert.deepEqual(builderBranches.sort(), [...TOOLS_WITH_REAL_SOLUTION_REVIEW].sort(),
     'the matrix list must track the builder');
 

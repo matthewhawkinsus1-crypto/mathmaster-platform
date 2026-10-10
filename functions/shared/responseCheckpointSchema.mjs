@@ -126,6 +126,9 @@ const normalizeSupportUsage = (supportUsage = {}) => ({
   contextScaffoldUsed: Boolean(supportUsage?.contextScaffoldUsed),
   remediationUsed: Boolean(supportUsage?.remediationUsed),
   workedExampleUsed: Boolean(supportUsage?.workedExampleUsed),
+  // PR #462 review B3 / M6c: kept so a deadline finalization records them too.
+  backUpStepUsed: Boolean(supportUsage?.backUpStepUsed),
+  feedbackAssisted: Boolean(supportUsage?.feedbackAssisted),
   calculatorUsed: Boolean(supportUsage?.calculatorUsed),
 });
 

@@ -479,6 +479,27 @@ Recovery callable. The Recovery callable is also certified end to end on the Fir
 (`tests/integration/misconceptionEvidenceRecovery.test.mjs`): one server-only record per graded item, no attempt
 event, and read back only by the student's teacher.
 
+## What the student sees (Student push, Job A)
+
+Product decision 1: a student sees a feedback message based on the misconception diagnosis — it names the likely
+error, never the answer, and never appears while an assessment item can still be answered. The evidence rules above
+are unchanged; the display is a second, separate reader of the same pure classifiers.
+
+| Piece | Where | Rule |
+| --- | --- | --- |
+| Messages | `functions/shared/misconceptionStudentMessages.mjs` | One fixed sentence per registry code. No number from any item can reach it; it describes the work, never the student. A test keeps it complete as codes are added. |
+| Diagnosis | `src/platform/supports/feedback/missDiagnosis.js` | Runs in the browser **after** the attempt was graded and handed to the recorder, on a JSON copy of the shared grader's result (a registry tool's `gradeRegistryToolWork` verdict, or the legacy grader's parts). A Question Family instance's values are reproduced from its delivery pin with the server's own `reproduceFamilyQuestionFromPin`, platform families only — exactly what the server would classify. |
+| Generic checks | `src/platform/supports/feedback/genericMissChecks.js` | Only where no classifier fires: sign flipped, coordinates swapped, reciprocal, the right value not simplified. Display text only — never a registry code, never stored. |
+| Gate | `feedbackOpenForItem` in `attemptFeedbackPlan.js` | Outcome feedback open, not a server-graded host (Path, Test Cycle, Live Challenge keep their own), and — on anything but immediate-feedback practice — the item closed. |
+
+What is still byte-identical with and without the display: correctness, score, partial credit, attempts, support
+usage, the attempt record and the evidence event. The display code is held in QuestionEngine state the recorder never
+reads; the registry-tool forwarder region contains no diagnosis
+(`tests/platform/feedbackThatTeaches.test.mjs`, `misconceptionCodePassThrough.test.mjs`).
+
+Two explanations for one value is still no explanation: where the classifier abstains (for example −2x − 14 = 0,
+where keeping the moved term's sign gives the sign-flipped answer), only the plainer generic check speaks.
+
 ## Not covered yet (backlog)
 
 | Item | Why it waits |
@@ -489,3 +510,4 @@ event, and read back only by the student's teacher.
 | `relationMapping` `isFunction` reasoning; plotted (y, x) pairs | Need their own ambiguity analysis. |
 | Context-meaning choices on the representations board | The filled choice text does not keep its template. |
 | Practice Mode drafts | Not server-graded attempts. |
+| Recovery practice targeted by stored codes | Wave 2 of the student push: choose Recovery items from a student's recurring trusted codes. |

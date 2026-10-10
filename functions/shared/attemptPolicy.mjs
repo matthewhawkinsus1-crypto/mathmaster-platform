@@ -144,6 +144,12 @@ export const emptyQuestionRecord = () => ({
     teacherAssisted: false,
     scaffoldUsed: false,
     contextScaffoldUsed: false,
+    // The inclusion "Let's back up" step, any source. Only a step written for
+    // this problem (authored or family) also sets scaffoldUsed; the platform's
+    // generic step is recorded here and is not help with the mathematics.
+    backUpStepUsed: false,
+    // A specific miss message was shown before this attempt (PR #462 review M6c).
+    feedbackAssisted: false,
     remediationUsed: false,
     workedExampleUsed: false,
     calculatorUsed: false,
@@ -282,6 +288,8 @@ export const normalizeQuestionRecord = (record) => {
       teacherAssisted: Boolean(record.supportUsage?.teacherAssisted),
       scaffoldUsed: Boolean(record.supportUsage?.scaffoldUsed),
       contextScaffoldUsed: Boolean(record.supportUsage?.contextScaffoldUsed),
+      backUpStepUsed: Boolean(record.supportUsage?.backUpStepUsed),
+      feedbackAssisted: Boolean(record.supportUsage?.feedbackAssisted),
       remediationUsed: Boolean(record.supportUsage?.remediationUsed),
       workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
       calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
@@ -290,7 +298,8 @@ export const normalizeQuestionRecord = (record) => {
         && !record.supportUsage?.teacherAssisted
         && !record.supportUsage?.scaffoldUsed
         && !record.supportUsage?.remediationUsed
-        && !record.supportUsage?.workedExampleUsed,
+        && !record.supportUsage?.workedExampleUsed
+        && !record.supportUsage?.feedbackAssisted,
     },
   };
 };
@@ -382,6 +391,8 @@ export const recordQuestionStep = ({
       teacherAssisted: Boolean(supportUsage.teacherAssisted),
       scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
       contextScaffoldUsed: Boolean(supportUsage.contextScaffoldUsed),
+      backUpStepUsed: Boolean(supportUsage.backUpStepUsed),
+      feedbackAssisted: Boolean(supportUsage.feedbackAssisted),
       remediationUsed: Boolean(supportUsage.remediationUsed),
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
@@ -390,7 +401,8 @@ export const recordQuestionStep = ({
         && !supportUsage.teacherAssisted
         && !supportUsage.scaffoldUsed
         && !supportUsage.remediationUsed
-        && !supportUsage.workedExampleUsed,
+        && !supportUsage.workedExampleUsed
+        && !supportUsage.feedbackAssisted,
     } : current.supportUsage,
     lastAttemptAt: occurrenceIso,
   };
@@ -516,6 +528,8 @@ export const recordQuestionAttempt = ({
       teacherAssisted: Boolean(supportUsage.teacherAssisted),
       scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
       contextScaffoldUsed: Boolean(supportUsage.contextScaffoldUsed),
+      backUpStepUsed: Boolean(supportUsage.backUpStepUsed),
+      feedbackAssisted: Boolean(supportUsage.feedbackAssisted),
       remediationUsed: Boolean(supportUsage.remediationUsed),
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
@@ -524,7 +538,8 @@ export const recordQuestionAttempt = ({
         && !supportUsage.teacherAssisted
         && !supportUsage.scaffoldUsed
         && !supportUsage.remediationUsed
-        && !supportUsage.workedExampleUsed,
+        && !supportUsage.workedExampleUsed
+        && !supportUsage.feedbackAssisted,
     } : current.supportUsage,
     lastAttemptAt: occurrenceIso,
   };

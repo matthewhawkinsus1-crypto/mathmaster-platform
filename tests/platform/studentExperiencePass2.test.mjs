@@ -61,7 +61,10 @@ test('student tool cards preserve the authored problem and closed tools render s
   assert.doesNotMatch(toolShell, />Skill focus</);
   assert.doesNotMatch(toolShell, /StandardBadge/);
   assert.match(questionEngine, /<StandardBadge/);
-  assert.match(questionEngine, /<ToolSolutionReview question=\{processedQuestion\}/);
+  // A closed registry tool gets the tool's own review, through the one
+  // worked-solution panel.
+  assert.match(questionEngine, /<SolutionReviewPanel\s+question=\{processedQuestion\}\s+isToolQuestion=\{isToolQuestion\}/);
+  assert.match(questionEngine, /const isToolQuestion = Boolean\(missingToolDefinition\);/);
 });
 
 test('graph matching can enforce discrete versus continuous representation fidelity', async () => {
