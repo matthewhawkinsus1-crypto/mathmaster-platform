@@ -11,10 +11,11 @@
  * targets  The identity bar's Log Out is at least 44px tall (WCAG 2.5.5).
  * s5       Live Challenge round (1366×768): Tab from the top of the round to
  *          the end, no focused control under the sticky action bar (2.4.11).
- * text     WCAG 1.4.4 / 1.4.10: every scene at 200% browser text size
+ * text     WCAG 1.4.4 / 1.4.10 / 1.4.12: every scene at 200% browser text size
  *          (Chromium's default font size 16 → 32, what the text-size setting
  *          changes) at 1366×768 and 390×844, and at 320 CSS px wide: no
- *          horizontal page scroll, and no text clipped by its own box —
+ *          horizontal page scroll, and no text clipped by its own box (also
+ *          with the 1.4.12 text-spacing override at both viewports) —
  *          graphs, tables and canvases excepted, as 1.4.10 exempts them.
  */
 import path from 'node:path';
@@ -288,8 +289,15 @@ if (CHECKS.has('text')) {
     { id: 'chromebook-200%', width: 1366, height: 768, textScale: 2 },
     { id: 'phone-200%', width: 390, height: 844, mobile: true, textScale: 2 },
     { id: 'reflow-320', width: 320, height: 640, mobile: true, textScale: 1 },
+    // 1.4.12: the WCAG text-spacing override (the bookmarklet's values).
+    { id: 'spacing-chromebook', width: 1366, height: 768, textScale: 1, spacing: true },
+    { id: 'spacing-phone', width: 390, height: 844, mobile: true, textScale: 1, spacing: true },
   ]) {
     await runScenes(setting, async (page, label, screen) => {
+      if (setting.spacing) {
+        await page.addStyleTag({ content: '* { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; } p { margin-bottom: 2em !important; }' });
+        await page.waitForTimeout(400);
+      }
       // A screen's `include` (the certification's: the assignment tools are
       // measured inside .mathmaster-question-stage, not the harness's
       // stand-in navigator).

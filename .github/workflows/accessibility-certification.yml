@@ -21,6 +21,7 @@ on:
       - "tests/browser/calculatorKeyboard*"
       - "tests/browser/hostAccessibility*"
       - "tests/browser/studentShellLargeText*"
+      - "tests/browser/contrastReview*"
       - "tests/browser/keyboardSweep*"
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/emulator/**"
@@ -122,6 +123,13 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: node tests/browser/studentShellLargeText.mjs --check=targets,s5
+      - name: Contrast over gradients (axe's undecided nodes, measured)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: npm run review:contrast
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@v4
