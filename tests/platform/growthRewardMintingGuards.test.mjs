@@ -12,8 +12,10 @@ import {
   evaluateWeeklyPathGrowth,
   growthAwardIdentity,
   payableMasteredSkills,
+  reachedMasteredEvidence,
   serverDerivedMastered,
 } from '../../functions/shared/growthRewardRules.mjs';
+import { weekKeyFor } from '../../functions/shared/weeklyPathGrade.mjs';
 
 /*
  * The growth rewards must not be a mint for anyone who can write a record
@@ -25,7 +27,11 @@ import {
  *   Points and both count badges. firestore.rules now closes the document to
  *   every client (tests/rules/growthRewardSourcesRules.test.mjs); these tests
  *   pin the rules' own guard: only a skill as the evidence trigger derives it
- *   pays, and at most MASTERY_SKILLS_PER_SYNC per sync.
+ *   pays, and at most MASTERY_SKILLS_PER_SYNC per sync. Mastery is paid from
+ *   studentMasteryHistory (when), but the history is never enough on its
+ *   own: the tests below hand the rules a history that says Mastered for
+ *   every key — the worst case, as if it too had been forged — and the
+ *   profile's evidence still decides.
  *
  *   STREAK. A later read that is missing a week must never re-segment a run
  *   whose blocks are already paid into a new block.
@@ -80,6 +86,23 @@ const MASTERED_EVENTS = [{ roleWeight: 1 }, { roleWeight: 1.35 }, { roleWeight: 
 const realMastered = (code) => applyEvidence(code, MASTERED_EVENTS);
 const codes = (count) => Array.from({ length: count }, (_, index) => `A.${(index % 99) + 1}${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(index / 99)]}`);
 const profileOf = (entries, { classId = CLASS } = {}) => ({ studentId: STUDENT, classId, profiles: entries });
+/*
+ * A studentMasteryHistory that calls every key Mastered ([estimate, 4]).
+ * `observed`: a week before it shows them Secure, so the history saw each
+ * move to Mastered (its time is known). Otherwise they are already Mastered in
+ * the oldest week on record (time unknown).
+ */
+const historySaying = (keys, { observed = true, at = AFTER_START, classId = CLASS } = {}) => ({
+  studentId: STUDENT,
+  classId,
+  weeks: {
+    ...(observed ? { [weekKeyFor(at - 7 * DAY)]: { skills: Object.fromEntries(keys.map((key) => [key, [75, 3]])), updatedAt: at - 7 * DAY } } : {}),
+    [weekKeyFor(at)]: { skills: Object.fromEntries(keys.map((key) => [key, [100, 4]])), updatedAt: at },
+  },
+});
+const masteryOf = (entries, extra = {}) => evaluateMasteryGrowth({
+  studentId: STUDENT, classId: CLASS, masteryProfile: profileOf(entries), masteryHistory: historySaying(Object.keys(entries)), baseline: { skills: [] }, ...extra,
+});
 
 test('the trigger-derived Mastered entry pays; the trigger agrees it is Mastered', () => {
   const entry = realMastered('A.2C');
@@ -101,8 +124,13 @@ test('the guard mirrors the trigger thresholds it re-checks (functions/index.js)
   const body = source.slice(start, source.indexOf('\nexports.', start + 10));
   // The trigger classifies with the one Mastered rule (masteryRule.mjs), from
   // the same facts the guard re-checks; the guard reads that rule's numbers.
-  assert.match(body, /const masteryRule = await import\("\.\/shared\/masteryRule\.mjs"\);/);
-  assert.match(body, /const status = masteryRule\.classifyMasteryStatus\(\{\s*estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented,/);
+  // It scores through the shared scorer (masteryScoring.mjs), which builds
+  // the rule's facts from the same accumulator fields the guard re-checks.
+  assert.match(body, /const masteryScoring = await import\("\.\/shared\/masteryScoring\.mjs"\);/);
+  assert.match(body, /masteryScoring\.applyMasteryEvent\(profiles\[code\], facts, code,/);
+  const scorer = readFileSync(new URL('../../functions/shared/masteryScoring.mjs', import.meta.url), 'utf8');
+  assert.match(scorer, /const ruleFacts = \{\s*estimate,\s*eligibleEvents: sums\.eligibleEvents,\s*effectiveWeight: sums\.effectiveWeight,\s*independentSuccesses: sums\.independentSuccesses,\s*dokRepresented,/);
+  assert.match(scorer, /accumulator: sums,/);
   const rules = readFileSync(new URL('../../functions/shared/growthRewardRules.mjs', import.meta.url), 'utf8');
   for (const [constant, field] of [
     ['MASTERED_MIN_ESTIMATE', 'masteredEstimate'],
@@ -111,19 +139,23 @@ test('the guard mirrors the trigger thresholds it re-checks (functions/index.js)
     ['MASTERED_MIN_EFFECTIVE_WEIGHT', 'minimumWeight'],
     ['MASTERED_MIN_DOK', 'masteredDok'],
   ]) assert.match(rules, new RegExp(`const ${constant} = MASTERY_RULE\\.${field};`), constant);
-  assert.match(body, /const code = mathPath\.displayAlignmentKey\(alignmentKey\);/);
-  assert.match(body, /teksCode: code,/);
+  assert.match(scorer, /codes: alignmentKeys\.map\(helpers\.displayAlignmentKey\),/);
+  assert.match(scorer, /teksCode: code,/);
 });
 
 test('200 bare "Mastered" labels — the insider forgery — pay nothing', () => {
   const forged = Object.fromEntries(codes(200).map((code) => [code, { teksCode: code, mastery: { status: 'Mastered' }, updatedAt: AFTER_START }]));
-  const result = evaluateMasteryGrowth({ studentId: STUDENT, classId: CLASS, masteryProfile: profileOf(forged), baseline: { skills: [] } });
-  assert.deepEqual(result.awards, []);
+  for (const observed of [true, false]) {
+    const result = masteryOf(forged, { masteryHistory: historySaying(Object.keys(forged), { observed }) });
+    assert.deepEqual(result.awards, [], `history ${observed ? 'saw the move' : 'starts Mastered'}`);
+  }
   assert.deepEqual(payableMasteredSkills(profileOf(forged)), []);
 });
 
 test('a Mastered entry pays only with a canonical key, its own teksCode, and evidence consistent with Mastered', () => {
   const good = realMastered('A.2C');
+  // Real evidence whose estimate fell below 85 after a wrong answer.
+  const slippedEntry = applyEvidence('A.2C', [...MASTERED_EVENTS, { score: 0, isCorrect: false }]);
   const variants = {
     'non-canonical key': ['not a skill', { ...realMastered('not a skill') }],
     'lower-case key': ['a.2c', { ...realMastered('a.2c') }],
@@ -137,26 +169,52 @@ test('a Mastered entry pays only with a canonical key, its own teksCode, and evi
     'more successes than events': ['A.2C', { ...good, accumulator: { ...good.accumulator, independentSuccesses: 5 }, dimensions: { ...good.dimensions, independentSuccesses: 5 } }],
     'no DOK 3': ['A.2C', { ...good, dimensions: { ...good.dimensions, dokRepresented: [1, 2] } }],
     'estimate the accumulator does not imply': ['A.2C', { ...good, accumulator: { ...good.accumulator, weightedScoreSum: good.accumulator.effectiveWeight * 0.5 } }],
-    'estimate below 85': ['A.2C', applyEvidence('A.2C', [...MASTERED_EVENTS, { score: 0, isCorrect: false }])],
+    'labelled Mastered below 85': ['A.2C', { ...slippedEntry, mastery: { ...slippedEntry.mastery, status: 'Mastered' } }],
     'score sum above the weight': ['A.2C', { ...good, accumulator: { ...good.accumulator, weightedScoreSum: good.accumulator.effectiveWeight * 2 }, mastery: { ...good.mastery, estimate: 200 } }],
     'string counts': ['A.2C', { ...good, accumulator: { ...good.accumulator, eligibleEvents: '4' } }],
     'undated': ['A.2C', { ...good, updatedAt: undefined }],
-    'not Mastered': ['A.2C', { ...good, mastery: { ...good.mastery, status: 'Secure' } }],
   };
   for (const [label, [code, entry]] of Object.entries(variants)) {
     assert.equal(serverDerivedMastered(code, entry), false, label);
-    const result = evaluateMasteryGrowth({ studentId: STUDENT, classId: CLASS, masteryProfile: profileOf({ [code]: entry }), baseline: { skills: [] } });
-    assert.deepEqual(pointsOf(result.awards), [], label);
+    assert.equal(reachedMasteredEvidence(code, entry), false, label);
+    for (const observed of [true, false]) {
+      const result = masteryOf({ [code]: entry }, { masteryHistory: historySaying([code], { observed }) });
+      assert.deepEqual(pointsOf(result.awards), [], `${label}, history ${observed ? 'saw the move' : 'starts Mastered'}`);
+    }
   }
   for (const code of ['A.2C', 'A2.4F', '8.5D', 'A.10A', 'G.12A', 'A.1']) assert.match(code, CANONICAL_SKILL_CODE);
-  const paid = evaluateMasteryGrowth({ studentId: STUDENT, classId: CLASS, masteryProfile: profileOf({ 'A.2C': good }), baseline: { skills: [] } });
+  const paid = masteryOf({ 'A.2C': good });
   assert.deepEqual(pointsOf(paid.awards).map((award) => award.sourceId), ['A.2C']);
+});
+
+test('a skill that slipped after mastering pays only when the history saw it reach Mastered', () => {
+  // Real evidence after the slip: the counts that reached Mastered are still
+  // there, only the estimate fell. And Mastered facts read as Secure.
+  const slipped = {
+    'estimate below 85': applyEvidence('A.2C', [...MASTERED_EVENTS, { score: 0, isCorrect: false }]),
+    'not labelled Mastered': { ...realMastered('A.2C'), mastery: { ...realMastered('A.2C').mastery, status: 'Secure' } },
+  };
+  for (const [label, entry] of Object.entries(slipped)) {
+    assert.notEqual(entry.mastery.status, 'Mastered', label);
+    assert.equal(serverDerivedMastered('A.2C', entry), false, label);
+    assert.equal(reachedMasteredEvidence('A.2C', entry), true, label);
+    // The history saw the move: mastered, then slipped, pays that once.
+    assert.deepEqual(pointsOf(masteryOf({ 'A.2C': entry }).awards).map((award) => award.sourceId), ['A.2C'], label);
+    // Already Mastered when the history began (time unknown): only the rule
+    // from before the switch, Mastered now, pays.
+    const unknown = masteryOf({ 'A.2C': entry }, { masteryHistory: historySaying(['A.2C'], { observed: false }) });
+    assert.deepEqual(pointsOf(unknown.awards), [], label);
+  }
+  // Never enough evidence for Mastered: not even an observed move pays.
+  const neverMastered = applyEvidence('A.2C', MASTERED_EVENTS.slice(0, 3));
+  assert.equal(reachedMasteredEvidence('A.2C', neverMastered), false);
+  assert.deepEqual(pointsOf(masteryOf({ 'A.2C': neverMastered }).awards), []);
 });
 
 test(`at most ${MASTERY_SKILLS_PER_SYNC} skills pay per sync; the rest pay later under unchanged identities`, () => {
   const all = codes(12);
   const profile = profileOf(Object.fromEntries(all.map((code) => [code, realMastered(code)])));
-  const base = { studentId: STUDENT, classId: CLASS, masteryProfile: profile, baseline: { skills: [] } };
+  const base = { studentId: STUDENT, classId: CLASS, masteryProfile: profile, masteryHistory: historySaying(all), baseline: { skills: [] } };
   const paidSoFar = [];
   const rounds = [];
   for (let round = 0; round < 4; round += 1) {
@@ -185,10 +243,14 @@ test(`at most ${MASTERY_SKILLS_PER_SYNC} skills pay per sync; the rest pay later
 
 test('even 200 trigger-shaped skills mint at most one sync\'s worth at once', () => {
   const profile = profileOf(Object.fromEntries(codes(200).map((code) => [code, realMastered(code)])));
-  const result = evaluateMasteryGrowth({ studentId: STUDENT, classId: CLASS, masteryProfile: profile, baseline: { skills: [] } });
-  assert.equal(pointsOf(result.awards).length, MASTERY_SKILLS_PER_SYNC);
-  assert.ok(pointsOf(result.awards).reduce((sum, award) => sum + award.amount, 0) <= 25);
-  assert.deepEqual(badgesOf(result.awards).map((award) => award.badgeCode), ['mastery-5']);
+  for (const observed of [true, false]) {
+    const result = evaluateMasteryGrowth({
+      studentId: STUDENT, classId: CLASS, masteryProfile: profile, masteryHistory: historySaying(codes(200), { observed }), baseline: { skills: [] },
+    });
+    assert.equal(pointsOf(result.awards).length, MASTERY_SKILLS_PER_SYNC);
+    assert.ok(pointsOf(result.awards).reduce((sum, award) => sum + award.amount, 0) <= 25);
+    assert.deepEqual(badgesOf(result.awards).map((award) => award.badgeCode), ['mastery-5']);
+  }
 });
 
 // --- Weekly Path streak: paid blocks are never re-segmented ------------------

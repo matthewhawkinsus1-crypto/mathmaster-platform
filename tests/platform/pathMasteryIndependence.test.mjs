@@ -24,6 +24,10 @@ import {
 } from '../../src/masteryEngine.js';
 import { MASTERY_STATUS, classifyMasteryStatus } from '../../functions/shared/masteryRule.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { ROLE_WEIGHT, applyMasteryEvent, masteryEventFacts } from '../../functions/shared/masteryScoring.mjs';
+import { createRequire } from 'node:module';
+
+const mathPathHelpers = createRequire(import.meta.url)('../../functions/lib/mathPath.js');
 
 const serverSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 
@@ -91,14 +95,30 @@ test('the Mastered gate requires successes the student produced unaided', () => 
     '\nexports.',
     'the server mastery trigger',
   );
-  assert.match(trigger, /masteryRule\.classifyMasteryStatus\(\{[^}]*\bindependentSuccesses\s*[,}]/,
-    'the server Mastered gate must be given the independent successes, not only a high estimate');
-  // The count it is given is of answers that were right AND unaided.
-  assert.match(
-    trigger,
-    /const independentSuccesses = Number\(accumulator\.independentSuccesses \|\| 0\)\s*\+ \(evidence\.performance\?\.isCorrect && independent && weight > 0 \? 1 : 0\);/,
-    'only a correct answer the student produced without support may count toward Mastered',
-  );
+  // The trigger scores each question through the shared scorer, which hands
+  // the rule its count of unaided successes (functions/shared/masteryScoring.mjs).
+  assert.match(trigger, /masteryScoring\.applyMasteryEvent\(profiles\[code\], facts, code,/,
+    'the server Mastered gate must run through the shared scorer');
+  // The count it is given is of answers that were right AND unaided: six
+  // correct answers, each with a hint, reach a high estimate and no success.
+  const event = (index, supportUsage) => ({
+    eventKey: `e${index}`, occurredAt: 1000 + index, masteryEvidenceKeys: ['texas:A.5A'],
+    questionSnapshot: { questionInstanceId: `q${index}`, dok: 3 }, source: { kind: 'path', activityRole: 'practice' },
+    performance: { score: 1, isCorrect: true, attemptNumber: 1 }, supportUsage,
+  });
+  let hinted;
+  for (let index = 0; index < 6; index += 1) {
+    hinted = applyMasteryEvent(hinted, masteryEventFacts(event(index, { hintUsed: true }), mathPathHelpers), 'A.5A').entry;
+  }
+  assert.equal(hinted.accumulator.independentSuccesses, 0,
+    'only a correct answer the student produced without support may count toward Mastered');
+  assert.notEqual(hinted.mastery.status, MASTERY_STATUS.MASTERED);
+  let unaided;
+  for (let index = 0; index < 6; index += 1) {
+    unaided = applyMasteryEvent(unaided, masteryEventFacts(event(index, {}), mathPathHelpers), 'A.5A').entry;
+  }
+  assert.equal(unaided.accumulator.independentSuccesses, 6);
+  assert.equal(unaided.mastery.status, MASTERY_STATUS.MASTERED);
   // ...and the rule refuses Mastered without two of them, however high the
   // estimate and however broad the evidence.
   const strong = { estimate: 100, eligibleEvents: 6, effectiveWeight: 6, dokRepresented: [2, 3] };
@@ -106,10 +126,12 @@ test('the Mastered gate requires successes the student produced unaided', () => 
     'a top label assembled entirely from supported successes is a claim the evidence does not support');
   assert.notEqual(classifyMasteryStatus({ ...strong, independentSuccesses: 1 }), MASTERY_STATUS.MASTERED);
   assert.equal(classifyMasteryStatus({ ...strong, independentSuccesses: 2 }), MASTERY_STATUS.MASTERED);
-  assert.ok(serverSource.includes('const weight = modified ? 0 : roleWeight;'),
-    'the support discount must NOT be folded back into the weight');
-  assert.ok(serverSource.includes('SUPPORTED_CREDIT'),
-    'the support discount must be applied to credit');
+  // The discount is on CREDIT, never folded into the weight (where it would
+  // divide straight back out): hinted successes keep full weight and earn
+  // 75% each, so their estimate is 75, below Mastered however many there are.
+  const hintedFacts = masteryEventFacts(event(0, { hintUsed: true }), mathPathHelpers);
+  assert.equal(hintedFacts.weight, ROLE_WEIGHT.practice, 'the support discount must NOT be folded back into the weight');
+  assert.equal(hinted.mastery.estimate, 75, 'the support discount must be applied to credit');
 });
 
 test('the client performance level refuses Masters built entirely on support', () => {
@@ -163,6 +185,7 @@ test('a hint released on an earlier attempt still counts on the attempt that fin
 test('a retention probe is not recorded as ordinary practice', () => {
   assert.ok(serverSource.includes('session.sessionKind === "retentionProbe" ? "retention" : "practice"'),
     '"has this stayed with you?" and "are you learning this?" are different evidence');
-  assert.ok(/retention:\s*1\.15/.test(serverSource),
+  assert.equal(ROLE_WEIGHT.retention, 1.15,
     'the retention role needs its own weight, or the distinction has no effect downstream');
+  assert.notEqual(ROLE_WEIGHT.retention, ROLE_WEIGHT.practice);
 });

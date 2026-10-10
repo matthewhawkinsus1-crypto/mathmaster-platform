@@ -1,6 +1,6 @@
 import { HOST_COMMAND } from '../../platform/liveChallenge/challengeShellModel.js';
 import { PRESENCE } from '../../platform/liveChallenge/challengePresenceModel.js';
-import { SOLUTION_STATE, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { SOLUTION_STATE, answerSummaryLabel, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import MathText from '../common/MathText.jsx';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
 
@@ -213,7 +213,7 @@ export function HostSolutionPanel({ solution = null, state = SOLUTION_STATE.NONE
           {solution?.prompt && <MathText as="div" style={{ whiteSpace: 'pre-wrap', color: 'var(--mm-text-muted)' }}>{solution.prompt}</MathText>}
           {review.headline && <MathText as="div" style={{ fontWeight: 900, fontSize: 17 }}>{review.headline}</MathText>}
           {steps.length > 0 && <ol style={{ margin: 0, paddingLeft: 22 }}>{steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}</ol>}
-          {review.answerSummary && <div><strong>Answer:</strong> <MathText>{review.answerSummary}</MathText></div>}
+          {review.answerSummary && <div><strong>{answerSummaryLabel(review.answerSummary)}:</strong> <MathText>{review.answerSummary}</MathText></div>}
           {review.commonError && <div><strong>Watch out:</strong> <MathText>{review.commonError}</MathText></div>}
           {review.connection && <div style={{ color: 'var(--mm-text-muted)' }}><MathText>{review.connection}</MathText></div>}
         </div>

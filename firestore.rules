@@ -1221,28 +1221,33 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId);
       allow create, update, delete: if false;
 
-      // Anonymous per-player standings are separate documents so a whole class
+      // NOBODY IS PUBLICLY LAST — ALSO TO A STUDENT READING FIRESTORE
+      // DIRECTLY (functions/shared/liveChallengePrivacy.mjs). A classmate
+      // reads only what the projector would show the class: the standings
+      // snapshot and each round's class copy hold the public rule's top rows
+      // and nothing else. Every player's score, rank and round result lives
+      // where only that player (or the room's teacher) can read it.
+
+      // Anonymous per-player rows are separate documents so a whole class
       // can answer at once without every response contending on one hot room
-      // document. They contain only game aliases and score/progress counters.
-      //
-      // The student screen now listens to its OWN row only, and gets the
-      // class's standings from the one snapshot below. Reading a classmate's
-      // row stays allowed in this release so that a screen loaded before it
-      // (which still lists every row) keeps working until it reloads; the
-      // tightening to own-row-only is a later, separate rules deploy
-      // (docs/handoffs/LIVE_CHALLENGE_STANDINGS_SCALE_2026-10-05.md).
+      // document: game alias, score and progress counters, the last round's
+      // own facts. A score is a place once you can read everyone's, so a
+      // student reads their OWN row only — the one their invite names — and
+      // never lists the collection. The room's teacher reads every row (the
+      // console and its projector).
       match /players/{playerKey} {
         allow read: if rootAdmin()
           || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
           || (signedIn()
             && request.auth.token.role == 'student'
-            && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId);
+            && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId
+            && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.playerKey == playerKey);
         allow create, update, delete: if false;
       }
 
-      // The class's standings snapshot (standings/current): game aliases,
-      // ranks and scores only, written by the server. Read by exactly the
-      // audience of the room.
+      // The class's standings snapshot (standings/current), written by the
+      // server: the public rule's rows (alias, rank, score), how many play and
+      // where the last group starts. Read by exactly the audience of the room.
       match /standings/{snapshotId} {
         allow read: if rootAdmin()
           || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
@@ -1252,15 +1257,38 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
-      // Anonymous round results — alias, rank, round points, placement points —
-      // written once when a round closes. Readable by exactly the audience of
-      // the standings above; they carry no student id.
+      // A closed round's CLASS copy, written once when the round closes: the
+      // public rule's rows of the round's table and of the standings after it
+      // (alias, rank, points), and counts. Readable by exactly the audience of
+      // the standings above; it carries no student id.
       match /rounds/{roundIndex} {
         allow read: if rootAdmin()
           || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
           || (signedIn()
             && request.auth.token.role == 'student'
             && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId);
+        allow create, update, delete: if false;
+      }
+
+      // A closed round's WHOLE anonymous table and standings, every player's
+      // place: the teacher's console and the projector it drives (a teacher
+      // session) read it, and nobody else.
+      match /hostRounds/{roundIndex} {
+        allow read: if rootAdmin()
+          || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email);
+        allow create, update, delete: if false;
+      }
+
+      // Each student's OWN place (liveChallengePlayerSummary.mjs): their place
+      // in each closed round and in the match after it, and their final place.
+      // Keyed by the student's id, so a student may get only their own; only
+      // the room's teacher (or a root admin) may list them. Server-written.
+      match /playerSummaries/{studentId} {
+        allow get: if ownsStudent(studentId)
+          || rootAdmin()
+          || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email);
+        allow list: if rootAdmin()
+          || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email);
         allow create, update, delete: if false;
       }
 

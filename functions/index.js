@@ -2429,6 +2429,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
   const assignmentRef = db.collection("assignments").doc(assignmentId);
   const nowIso = new Date().toISOString();
   const identity = await studentIdentity();
+  const integrityPrivacy = await import("./shared/integrityOverridePrivacy.mjs");
 
   return db.runTransaction(async (transaction) => {
     const [gradeSnap, assignmentSnap] = await Promise.all([transaction.get(gradeRef), transaction.get(assignmentRef)]);
@@ -2450,6 +2451,14 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
     const incidentRef = db.collection("studentSupportEvents").doc();
     const parentFollowUpRef = db.collection("studentSupportEvents").doc();
     let nextOverride = null;
+    // The grade doc is the student's own to read, so it gets the consequence
+    // and its fixed reason only. The teacher's note, who acted and the
+    // participant role go on the incident (teacher-only) and the audit —
+    // functions/shared/integrityOverridePrivacy.mjs.
+    const { studentOverride, incidentDetails } = integrityPrivacy.splitIntegrityConsequence({
+      scope, reasonCode, reasonLabel: ASSIGNMENT_ZERO_REASONS[reasonCode], sectionRole: scope === "section" ? sectionRole : null,
+      participantRole, note, actor, incidentId: incidentRef.id, at: nowIso,
+    });
 
     if (scope === "section") {
       const included = runtimeIncludedQuestionIndicesForSection(assignment, sectionRole);
@@ -2459,10 +2468,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
         if (assignmentOverrides[stateKey]?.active === true) throw new HttpsError("already-exists", "This section already has an integrity consequence.");
         const previousOverridesByQuestion = Object.fromEntries(included.map((index) => [String(index), assignmentOverrides[String(index)] || null]));
         assignmentOverrides[stateKey] = { active: true, incidentId: incidentRef.id, sectionRole, previousOverridesByQuestion };
-        included.forEach((index) => { assignmentOverrides[String(index)] = {
-          active: true, score: 0, persistent: true, source: "teacher-section-zero", incidentId: incidentRef.id,
-          sectionRole, reasonCode, reason: ASSIGNMENT_ZERO_REASONS[reasonCode], participantRole, note: note || null, actor, at: nowIso,
-        }; });
+        included.forEach((index) => { assignmentOverrides[String(index)] = { ...studentOverride }; });
       } else {
         const saved = assignmentOverrides[stateKey];
         if (saved?.active !== true) throw new HttpsError("failed-precondition", "No section integrity consequence is active.");
@@ -2473,10 +2479,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
         delete assignmentOverrides[stateKey];
       }
     } else {
-      nextOverride = action === "issueZero" ? {
-        active: true, score: 0, reasonCode, reason: ASSIGNMENT_ZERO_REASONS[reasonCode], note: note || null,
-        source: "teacher-assignment-zero", participantRole, incidentId: incidentRef.id, actor, at: nowIso,
-      } : null;
+      nextOverride = action === "issueZero" ? studentOverride : null;
       if (nextOverride) assignmentOverrides[ASSIGNMENT_GRADE_OVERRIDE_KEY] = nextOverride;
       else delete assignmentOverrides[ASSIGNMENT_GRADE_OVERRIDE_KEY];
     }
@@ -2500,8 +2503,9 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
         createdByEmail: teacherEmail, authorizedTeacherEmails: [teacherEmail], createdAt: nowIso, createdAtServer: FieldValue.serverTimestamp(),
         source: "teacher", confidence: "confirmed", relatedEventId: incidentRef.id };
       transaction.set(incidentRef, { ...commonEvent, kind: "academicIntegrityIncident", stage: "teacherConfirmed",
-        signalKey: `academicIntegrityIncident:${incidentRef.id}`, summary: ASSIGNMENT_ZERO_REASONS[reasonCode], note: note || "",
-        evidence: { scope, sectionRole: scope === "section" ? sectionRole : null, incidentReason: reasonCode, participantRole } });
+        signalKey: `academicIntegrityIncident:${incidentRef.id}`, summary: ASSIGNMENT_ZERO_REASONS[reasonCode], note: incidentDetails.note,
+        actor: incidentDetails.actor,
+        evidence: { scope, sectionRole: scope === "section" ? sectionRole : null, incidentReason: reasonCode, participantRole: incidentDetails.participantRole } });
       transaction.set(parentFollowUpRef, { ...commonEvent, kind: "parentFollowUp", stage: "teacherConfirmed",
         signalKey: `parentFollowUp:${parentFollowUpRef.id}`, summary: "Parent follow-up for confirmed academic-integrity incident", note: "",
         evidence: { incidentId: incidentRef.id, scope, sectionRole: scope === "section" ? sectionRole : null } });
@@ -6980,6 +6984,18 @@ async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
   }
   if (grantsSnapshot.size) deleted.rewardGrants = grantsSnapshot.size;
 
+  // Their own place in each match they played (liveChallengeRooms/{room}/
+  // playerSummaries/{studentId}, keyed by their id): found through the match
+  // results that list them, before the scrub below takes them off the list.
+  const playedSnapshot = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).where("studentIds", "array-contains", studentId).get();
+  let summariesDeleted = 0;
+  for (const resultDoc of playedSnapshot.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection(LIVE_CHALLENGE_ROOMS).doc(resultDoc.id).collection("playerSummaries").doc(studentId).delete();
+    summariesDeleted += 1;
+  }
+  if (summariesDeleted) deleted.liveChallengePlayerSummaries = summariesDeleted;
+
   const scrub = async (collectionName, rowFields) => {
     const snapshot = await db.collection(collectionName).where("studentIds", "array-contains", studentId).get();
     for (const recordDoc of snapshot.docs) {
@@ -10549,7 +10565,7 @@ async function graphFeatureRushRules() {
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10564,9 +10580,10 @@ async function liveChallengeEngine() {
       import("./shared/liveChallengeDifficulty.mjs"),
       import("./shared/liveChallengePrivacy.mjs"),
       import("./shared/liveChallengeRecognitions.mjs"),
+      import("./shared/liveChallengePlayerSummary.mjs"),
     ]);
     liveChallengeEngineModules = {
-      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions,
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary,
     };
   }
   return liveChallengeEngineModules;
@@ -10592,6 +10609,9 @@ const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
 const LIVE_CHALLENGE_INVITES = "liveChallengeInvites";
 const LIVE_CHALLENGE_TEACHER_ACTIVE = "liveChallengeTeacherActive";
+// A closed round's whole anonymous table, for the room's teacher only
+// (liveChallengeRooms/{room}/hostRounds/{n}); the class reads rounds/{n}.
+const LIVE_CHALLENGE_HOST_ROUNDS = "hostRounds";
 // The durable final result of a finished or cancelled match. Server-only: it
 // names students. Reports, Warm-Up credit, evidence and rewards are all
 // derived from it, so each can be re-run safely after a crash.
@@ -11923,14 +11943,70 @@ function applyLiveChallengeRoundClose(transaction, {
   const standingsAfterRound = engine.results.matchStandingsAfterRound({
     players: updatedPlayers, modeId: room.challengeMode, scoringStrategyId,
   });
-  transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
-    ...engine.results.publicRoundSummary(roundResult, { standingsAfterRound }),
+  // NOBODY IS PUBLICLY LAST, ALSO IN FIRESTORE. Three copies, by who reads
+  // them: the class's (rounds/{n}) holds only the rows the public rule shows
+  // everyone; the teacher's (hostRounds/{n}) the whole anonymous table, for
+  // the console and the projector it drives; and each student's own summary
+  // their own place in the round and the match (liveChallengePlayerSummary).
+  const hostSummary = engine.results.publicRoundSummary(roundResult, { standingsAfterRound });
+  transaction.set(roomRef.collection(LIVE_CHALLENGE_HOST_ROUNDS).doc(String(roundIndex)), {
+    ...hostSummary,
     closedAt: FieldValue.serverTimestamp(),
   });
+  transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
+    ...engine.results.classRoundSummary(roundResult, { standingsAfterRound }),
+    closedAt: FieldValue.serverTimestamp(),
+  });
+  writeLiveChallengeRoundSummaries(transaction, { engine, roomRef, roundResult, summary: hostSummary, standingsAfterRound });
   // The caller writes the class's standings snapshot from these same
   // standings (writeExactStandingsProjection), or the final one when the
   // match ends in the same transaction.
   return { roundResult, players: updatedPlayers, standingsAfterRound };
+}
+
+/*
+ * EACH STUDENT'S OWN SUMMARY (functions/shared/liveChallengePlayerSummary.mjs):
+ * liveChallengeRooms/{room}/playerSummaries/{studentId}, readable by that
+ * student and the room's teacher only. Written in the commit that closes a
+ * round (their place in it, and in the match after it) and in the commit that
+ * finishes the match (their final place), beside the class's documents for the
+ * same moment — so a student's own place and the class's top rows are always
+ * one moment.
+ */
+const liveChallengePlayerSummaryRef = (roomRef, engine, studentId) => roomRef
+  .collection(engine.playerSummary.PLAYER_SUMMARY_COLLECTION)
+  .doc(String(studentId));
+
+function writeLiveChallengeRoundSummaries(transaction, { engine, roomRef, roundResult, summary, standingsAfterRound }) {
+  const entries = engine.playerSummary.roundSummaryEntries({
+    roundResult, summary, standingsAfterRound, byPoints: engine.results.roundTableByPoints(summary),
+  });
+  entries.forEach((item) => {
+    transaction.set(liveChallengePlayerSummaryRef(roomRef, engine, item.studentId), {
+      schemaVersion: engine.playerSummary.PLAYER_SUMMARY_SCHEMA_VERSION,
+      roomId: roomRef.id,
+      playerKey: item.playerKey,
+      alias: item.alias,
+      // Merged: one entry per closed round, kept for the whole match.
+      rounds: { [String(item.roundIndex)]: item.entry },
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+}
+
+/** Each placed player's final place, from the match result's standings (a finished match only). */
+function writeLiveChallengeFinalSummaries(transaction, { engine, roomRef, standings, status }) {
+  engine.playerSummary.finalSummaryEntries({ standings }).forEach((item) => {
+    transaction.set(liveChallengePlayerSummaryRef(roomRef, engine, item.studentId), {
+      schemaVersion: engine.playerSummary.PLAYER_SUMMARY_SCHEMA_VERSION,
+      roomId: roomRef.id,
+      playerKey: item.playerKey,
+      alias: item.alias,
+      status,
+      final: item.entry,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
 }
 
 /** The public row an answer updates: anonymous counters only (alias, never a student id). */
@@ -11967,11 +12043,11 @@ function liveChallengePublicAnswerRow(player, finalPlayer, roundIndex) {
 const standingsProjectionRef = (roomRef, standings) => roomRef.collection(standings.STANDINGS_COLLECTION).doc(standings.STANDINGS_DOC_ID);
 
 function writeExactStandingsProjection(transaction, {
-  engine, roomRef, room, kind, standings, players, status = null, nowMs, source,
+  engine, roomRef, room, kind, standings, status = null, nowMs, source,
 }) {
   try {
     const projection = engine.standings.exactProjectionFromStandings({
-      roomId: roomRef.id, room, kind, standings, players, status,
+      roomId: roomRef.id, room, kind, standings, status,
     });
     transaction.set(standingsProjectionRef(roomRef, engine.standings), {
       ...projection,
@@ -12259,11 +12335,13 @@ function applyLiveChallengeMatchFinalization(transaction, {
     room: { ...room, status },
     kind: engine.standings.PROJECTION_KIND.FINAL,
     standings: matchResult.standings,
-    players,
     status,
     nowMs,
     source: "finish",
   });
+  // And each student's own final place, from the same standings. A cancelled
+  // match records nothing, so it places nobody.
+  if (finished) writeLiveChallengeFinalSummaries(transaction, { engine, roomRef, standings: matchResult.standings, status });
   return matchResult;
 }
 
@@ -12927,7 +13005,6 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
       room: { ...currentRoom, roundState: lifecycle.ROUND_STATE.CLOSED },
       kind: engine.standings.PROJECTION_KIND.ROUND_CLOSED,
       standings: standingsAfterRound,
-      players: roundPlayers,
       nowMs,
       source: "roundClose",
     });
@@ -13037,7 +13114,6 @@ exports.advanceLiveChallenge = onCall(async (request) => {
         room: { ...currentRoom, roundState: lifecycle.ROUND_STATE.CLOSED },
         kind: engine.standings.PROJECTION_KIND.ROUND_CLOSED,
         standings: closedStandings,
-        players: roundPlayers,
         nowMs,
         source: "roundClose",
       });
@@ -13234,54 +13310,64 @@ exports.getLiveChallengeMatchRecap = onCall(async (request) => {
 /*
  * A FINISHED ROOM'S FINAL STANDINGS, REBUILT FROM ITS MATCH RESULT IF MISSING.
  *
- * The finishing transaction writes the final snapshot. A room that finished
- * before snapshots existed — or one whose final snapshot could not be built —
- * has none, and a screen opened on it would wait for its final place forever.
- * Its own students and teacher may ask for it: the server rebuilds it from the
- * durable match result (the same standings the podium and rewards use) and
- * writes it once. Asking again changes nothing.
+ * The finishing transaction writes the final snapshot and each student's own
+ * final place. A room that finished before either existed — or one whose
+ * final snapshot could not be built, or is of a version the screens no longer
+ * read (one that listed every seat's rank) — would leave a screen waiting for
+ * its final place forever. Its own students and teacher may ask for it: the
+ * server rebuilds what is missing from the durable match result (the same
+ * standings the podium and rewards use) and writes it once. Asking again
+ * changes nothing.
  */
 exports.ensureLiveChallengeFinalStandings = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  let studentId = null;
   if (request.auth?.token?.role === "teacher") {
     await requireOwnedChallenge(db, request, roomId);
   } else {
-    const { studentId } = requireStudent(request);
+    ({ studentId } = requireStudent(request));
     const invite = await db.collection(LIVE_CHALLENGE_INVITES).doc(studentId).get();
     if (!invite.exists || invite.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   }
   const engine = await liveChallengeEngine();
-  const { standings } = engine;
+  const { standings, playerSummary } = engine;
   const roomSnapshot = await roomRef.get();
   if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
   const room = roomSnapshot.data() || {};
   if (!["finished", "cancelled"].includes(room.status)) return { ensured: false, reason: "not-finished" };
   const ref = standingsProjectionRef(roomRef, standings);
-  const existing = await ref.get();
-  if (existing.exists && existing.data()?.kind === standings.PROJECTION_KIND.FINAL) return { ensured: true, existing: true };
+  const finalIsCurrent = (snapshot) => snapshot.exists
+    && snapshot.data()?.kind === standings.PROJECTION_KIND.FINAL
+    && Number(snapshot.data()?.schemaVersion) === standings.STANDINGS_PROJECTION_SCHEMA_VERSION;
+  // A student of a finished match also needs their own final place.
+  const summaryRef = studentId && room.status === "finished" ? liveChallengePlayerSummaryRef(roomRef, engine, studentId) : null;
+  const summaryIsCurrent = (snapshot) => !snapshot || Boolean(playerSummary.summaryFinal(snapshot.exists ? snapshot.data() : null, { roomId }));
+  const [existing, existingSummary] = await Promise.all([ref.get(), summaryRef ? summaryRef.get() : Promise.resolve(null)]);
+  if (finalIsCurrent(existing) && summaryIsCurrent(existingSummary)) return { ensured: true, existing: true };
   const resultSnapshot = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomId).get();
   if (!resultSnapshot.exists) return { ensured: false, reason: "no-result" };
   const result = resultSnapshot.data() || {};
   const resultStandings = Array.isArray(result.standings) ? result.standings : [];
   return db.runTransaction(async (transaction) => {
-    const latest = await transaction.get(ref);
-    if (latest.exists && latest.data()?.kind === standings.PROJECTION_KIND.FINAL) return { ensured: true, existing: true };
-    const written = writeExactStandingsProjection(transaction, {
+    const [latest, latestSummary] = await Promise.all([transaction.get(ref), summaryRef ? transaction.get(summaryRef) : Promise.resolve(null)]);
+    const projectionDone = finalIsCurrent(latest);
+    const summariesDone = summaryIsCurrent(latestSummary);
+    if (projectionDone && summariesDone) return { ensured: true, existing: true };
+    const written = projectionDone || writeExactStandingsProjection(transaction, {
       engine,
       roomRef,
       room,
       kind: standings.PROJECTION_KIND.FINAL,
-      // The match result's standings carry each player's seat; a result from
-      // before seats is seated by player key instead.
       standings: resultStandings,
-      players: resultStandings,
       status: room.status,
       nowMs: Date.now(),
       source: "repair",
     });
+    // Every player's own final place, from the same standings, in one commit.
+    if (!summariesDone) writeLiveChallengeFinalSummaries(transaction, { engine, roomRef, standings: resultStandings, status: room.status });
     return written ? { ensured: true, repaired: true } : { ensured: false, reason: "unbuildable" };
   });
 });
@@ -14381,7 +14467,9 @@ exports.resolveWeeklyPathGoalSnapshot = onCall(async (request) => {
     if (frozen.exists) return { success: true, goal: frozen.data() };
   }
   const { loadWeeklyFreezeInputs } = require("./lib/weeklyPathFreezeInputs");
-  const freezeInputs = await loadWeeklyFreezeInputs({ db, studentId, studentData: studentSnapshot.data(), classRecord, now: Date.now() });
+  // The proposal is passed only so a short one can be checked against the
+  // server's own plan for the week; nothing in it sets the count.
+  const freezeInputs = await loadWeeklyFreezeInputs({ db, studentId, studentData: studentSnapshot.data(), classRecord, goal: request.data?.goal || {}, now: Date.now() });
   const proposed = await sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord, freezeInputs });
   const ref = db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${proposed.weekKey}`);
   const assigned = await db.runTransaction(async (transaction) => {
@@ -19499,54 +19587,23 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     const studentId = event.params.studentId;
     if (evidence.studentId && String(evidence.studentId) !== String(studentId)) return;
     const eventKey = String(evidence.eventKey || event.params.eventId);
-    const alignmentKeys = [...new Set((evidence.masteryEvidenceKeys?.length ? evidence.masteryEvidenceKeys : evidence.alignmentKeys || [])
-      .map(mathPath.canonicalAlignmentKey)
-      .filter((key) => key.startsWith("texas:")))];
-    if (!alignmentKeys.length) return;
+    // Each QUESTION is one event, scored by its final attempt, as the
+    // assignment record scores it (functions/shared/masteryScoring.mjs): a
+    // question right on the second try reads 100%, not 50%, so the Path map,
+    // the wheel, its card and the weekly planner read the same number.
+    //
+    // The support discount is NOT folded into the weight (that was a real bug:
+    // the 0.85 divided straight back out and a hint on every question still
+    // reached Mastered). WEIGHT is how much an event counts as evidence and
+    // stays in the denominator; CREDIT is what the student demonstrated,
+    // discounted for support. Both live in masteryEventFacts now.
+    const masteryScoring = await import("./shared/masteryScoring.mjs");
+    const facts = masteryScoring.masteryEventFacts(evidence, mathPath, { eventId: event.params.eventId });
+    if (!facts.codes.length) return;
 
     const db = getFirestore();
     const profileRef = db.collection("studentMasteryProfiles").doc(studentId);
     const applicationRef = db.collection("masteryEvidenceApplications").doc(mathPath.opaqueId("mastery", studentId, eventKey));
-    // liveChallenge sits below practice on purpose. The answer is real and the
-    // grader is the same, but one attempt against a countdown with a
-    // leaderboard in view is noisier evidence than the same question at a desk
-    // — a wrong answer may mean "cannot do this" or may mean "ran out of
-    // seconds", and the estimate should not treat those as equally informative.
-    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4, retention: 1.15, liveChallenge: 0.7 }[evidence.source?.activityRole] || 1;
-    const modified = Boolean(evidence.supportUsage?.modified) || Boolean(evidence.supportUsage?.modifications?.length);
-    const independent = mathPath.mathematicalIndependence(evidence.supportUsage || {});
-    const score = Math.max(0, Math.min(1, Number(evidence.performance?.score) || 0));
-
-    // THE BUG THIS REPLACED, and it was not a small one.
-    //
-    // The support discount used to be folded into `weight`:
-    //
-    //     weight = roleWeight * (independent ? 1 : 0.85)
-    //     estimate = Σ(score × weight) / Σ(weight)
-    //
-    // The 0.85 appears in BOTH the numerator and the denominator, so for a
-    // correct answer (score = 1) it divides straight back out. A student who
-    // took a hint on every single question reached an estimate of 100 and was
-    // labelled Mastered — exactly the "clicking through Path inflates mastery"
-    // failure the design forbids.
-    //
-    // The fix separates two different questions that were being answered with
-    // one number:
-    //
-    //   WEIGHT  — how much this event counts as evidence at all. Stays in the
-    //             denominator. A hinted answer is still evidence.
-    //   CREDIT  — what the student actually demonstrated. Discounted for
-    //             support, so a supported success is worth less than an
-    //             independent one no matter how many of them there are.
-    const weight = modified ? 0 : roleWeight;
-    // Deliberately below the Mastered threshold: a student whose every success
-    // needed the platform to supply the mathematical idea has not shown mastery
-    // of it, and no quantity of such successes should add up to that claim.
-    const SUPPORTED_CREDIT = 0.75;
-    const creditedScore = independent ? score : score * SUPPORTED_CREDIT;
-    const dok = Number(evidence.questionSnapshot?.dok) || null;
-    const familyId = evidence.questionSnapshot?.familyId || null;
-    const masteryRule = await import("./shared/masteryRule.mjs");
     // Growth over time: one compact snapshot per week, written in this same
     // transaction from the same profiles (functions/shared/masteryHistory.mjs).
     const masteryHistory = await import("./shared/masteryHistory.mjs");
@@ -19559,58 +19616,32 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
         transaction.get(historyRef),
       ]);
       if (application.exists) return;
-      const profiles = profileSnapshot.exists ? { ...(profileSnapshot.data()?.profiles || {}) } : {};
+      const stored = profileSnapshot.exists ? (profileSnapshot.data() || {}) : {};
+      const profiles = { ...(stored.profiles || {}) };
 
-      alignmentKeys.forEach((alignmentKey) => {
-        const code = mathPath.displayAlignmentKey(alignmentKey);
-        const previous = profiles[code] || {};
-        const accumulator = previous.accumulator || {};
-        const effectiveWeight = Number(accumulator.effectiveWeight || 0) + weight;
-        const weightedScoreSum = Number(accumulator.weightedScoreSum || 0) + creditedScore * weight;
-        const eligibleEvents = Number(accumulator.eligibleEvents || 0) + (weight > 0 ? 1 : 0);
-        const modifiedEvents = Number(accumulator.modifiedEvents || 0) + (modified ? 1 : 0);
-        // Independent successes are counted separately, because "can do this"
-        // and "can do this when the platform supplies the idea" are different
-        // claims and the mastery label is only allowed to make the first one.
-        const independentSuccesses = Number(accumulator.independentSuccesses || 0)
-          + (evidence.performance?.isCorrect && independent && weight > 0 ? 1 : 0);
-        const dokRepresented = [...new Set([...(previous.dimensions?.dokRepresented || []), ...(dok ? [dok] : [])])].sort();
-        const familiesRepresented = [...new Set([...(previous.dimensions?.familiesRepresented || []), ...(familyId ? [familyId] : [])])];
-        const estimate = effectiveWeight > 0 ? Math.round((weightedScoreSum / effectiveWeight) * 100) : null;
-        // ONE definition of Mastered (functions/shared/masteryRule.mjs), read
-        // by the wheel, the Path map, Recommended and the prerequisite locks.
-        // Mastered additionally requires evidence the student did the
-        // mathematics themselves: a high estimate assembled entirely from
-        // supported successes must not read as mastery.
-        const status = masteryRule.classifyMasteryStatus({
-          estimate, eligibleEvents, effectiveWeight, independentSuccesses, dokRepresented,
-        });
-        const confidence = eligibleEvents >= 8 && effectiveWeight >= 5 && dokRepresented.length >= 2 ? "High" : eligibleEvents >= 4 && effectiveWeight >= 2.4 ? "Medium" : "Low";
-        const lastIndependentSuccessAt = evidence.performance?.isCorrect && independent
-          ? Math.max(Number(previous.dimensions?.lastIndependentSuccessAt || 0), Number(evidence.occurredAt || 0))
-          : previous.dimensions?.lastIndependentSuccessAt || null;
-        profiles[code] = {
-          ...previous,
-          teksCode: code,
-          mastery: { estimate, observedPerformance: estimate, status, confidence },
-          signals: { ...(previous.signals || {}), breadth: dokRepresented.length >= 2 ? "broad" : "developing", retention: previous.signals?.retention || "stable" },
-          dimensions: { eligibleGradeLevelEvents: eligibleEvents, modifiedEvidenceEvents: modifiedEvents, independentSuccesses, dokRepresented, familiesRepresented, lastIndependentSuccessAt },
-          accumulator: { effectiveWeight, weightedScoreSum, eligibleEvents, modifiedEvents, independentSuccesses },
-          recommendation: { reason: status === "Needs Attention" ? "Rebuild this skill with targeted grade-level support." : "Continue building independent accuracy and breadth." },
-          updatedAt: Date.now(),
-        };
+      // ONE definition of Mastered (functions/shared/masteryRule.mjs), read
+      // by the wheel, the Path map, Recommended and the prerequisite locks.
+      facts.codes.forEach((code) => {
+        profiles[code] = masteryScoring.applyMasteryEvent(profiles[code], facts, code, { now: Date.now() }).entry;
       });
+      // Held well under Firestore's 1 MiB document limit, however long the
+      // history (masteryScoring.mjs compactQuestionRows).
+      masteryScoring.compactQuestionRows(profiles);
 
       // The mastery profile inherits the evidence's authorization context, so
       // a derived record is never readable by anyone the source was not. The
       // history below inherits the very same context object.
       const authorization = masteryHistory.derivedMasteryAuthorization(evidence);
+      // Whole, not merged: a merge would keep question rows dropped from the
+      // bounded lists. `stored` was read in this transaction, so nothing else
+      // on the document is lost.
       transaction.set(profileRef, {
+        ...stored,
         profiles,
         studentId,
         ...authorization,
         updatedAt: Date.now(),
-      }, { merge: true });
+      });
       // An addition, never a gate: if a snapshot cannot be built, the profile
       // update above still lands and the history simply skips this answer.
       let historyDocument = null;

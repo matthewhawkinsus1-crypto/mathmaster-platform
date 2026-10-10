@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { describeSkill } from '../../platform/path/skillGraph';
 import { buildStudentPathOptions } from '../../platform/path/studentPathOptions';
 import { curateStudentPanel, resolveChoiceState } from '../../platform/path/studentPanel';
+import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
+import { practisableOptions } from '../../platform/path/recommendedCoverage.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
 
 // "Recommended for You" — the student's independent path.
@@ -73,16 +75,30 @@ export default function RecommendedSkills({
   teacherOverrides = [],
   requiredSkillIds = [],
   onChooseSkill,
+  // The course's coverage index; read here when not given (tests pass one).
+  coverage: coverageOverride = undefined,
 }) {
   const [showAll, setShowAll] = useState(false);
+  // undefined while loading; null when there is no index (fails closed).
+  const [loadedCoverage, setLoadedCoverage] = useState(undefined);
+  useEffect(() => {
+    if (coverageOverride !== undefined) return undefined;
+    let cancelled = false;
+    setLoadedCoverage(undefined);
+    fetchPathCoverage(courseId).then((index) => { if (!cancelled) setLoadedCoverage(index || null); });
+    return () => { cancelled = true; };
+  }, [courseId, coverageOverride]);
+  const coverage = coverageOverride !== undefined ? coverageOverride : loadedCoverage;
 
   // Prefer the options the caller already evaluated: My Math Path uses the
-  // same object, and two evaluations could drift apart between renders.
-  const options = useMemo(() => (
-    pathOptions || buildStudentPathOptions({
+  // same object, and two evaluations could drift apart between renders. Only
+  // skills a student can practise are offered (recommendedCoverage.js).
+  const options = useMemo(() => {
+    if (coverage === undefined) return null;
+    return practisableOptions(pathOptions || buildStudentPathOptions({
       student, assignments, courseId, pacing, teacherOverrides, requiredSkillIds,
-    })
-  ), [pathOptions, student, assignments, courseId, pacing, teacherOverrides, requiredSkillIds]);
+    }), coverage);
+  }, [coverage, pathOptions, student, assignments, courseId, pacing, teacherOverrides, requiredSkillIds]);
 
   const panel = useMemo(() => (options ? curateStudentPanel(options) : null), [options]);
 

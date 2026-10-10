@@ -83,7 +83,7 @@ export const SkillDetailCardModal = ({
         <div style={{ marginTop: '18px', padding: '13px', borderRadius: '8px', background: 'var(--mm-surface-sunken)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>Your score on this skill</div>
-            <div style={{ fontSize: '21px', fontWeight: 900, color: statusColor }}>{mastery.estimate == null ? '—' : `${mastery.estimate}%`}</div>
+            <div style={{ fontSize: '21px', fontWeight: 900, color: statusColor }}>{mastery.estimate == null ? '—' : `${Math.round(Number(mastery.estimate))}%`}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div data-mastery-status style={{ fontSize: '14px', fontWeight: 900, color: statusColor }}>{checklist.status}</div>

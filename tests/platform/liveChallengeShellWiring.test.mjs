@@ -101,7 +101,10 @@ test('a finished game: your place, then what reached your wallet, then the top o
   // words; it never tells a player who was there that they joined too late.
   assert.match(finalCard, /\{loading \? 'Loading your final place…' : 'You joined after the last round\.'\}/);
   const finished = region(studentMain, "{room.status === 'finished' && (", "{room.status === 'cancelled' && (", 'finished view');
-  assert.match(finished, /loading=\{!finalStandings\}/);
+  // Waiting is the final snapshot, the student's own summary, or — for a
+  // student who played — their own final place in it (a repair writes it).
+  assert.match(finished, /loading=\{finalLoading\}/);
+  assert.match(studentMain, /const finalLoading = !finalStandings \|\| !summaryFresh \|\| \(selfRow\?\.joined === true && !ownFinal\);/);
   assert.match(finished, /warmup=\{Boolean\(room\.assignmentId\)\}/, 'a Warm-Up game is one with an assignment');
   // The final place and podium come from the FINAL snapshot only — the one
   // written from the match result — never from a live one still on screen.

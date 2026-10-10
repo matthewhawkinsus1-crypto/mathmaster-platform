@@ -76,13 +76,13 @@ export async function createDeviceFarm({ workers = Math.max(2, Math.min(4, os.av
       const lists = await everyWorker('views', {});
       return new Map(lists.flat().map((view) => [view.studentId, view]));
     },
-    /** Every device's open listeners by kind (room, standings, self, players, invite) and in total. */
+    /** Every device's open listeners by kind (room, standings, self, summary, players, invite) and in total. */
     async listeners() {
       const counts = await everyWorker('listeners', {});
       return counts.reduce((sum, count) => {
         Object.entries(count).forEach(([kind, value]) => { sum[kind] = (sum[kind] || 0) + value; });
         return sum;
-      }, { room: 0, standings: 0, self: 0, players: 0, invite: 0, total: 0 });
+      }, { room: 0, standings: 0, self: 0, summary: 0, players: 0, invite: 0, total: 0 });
     },
     /** Heap used across the farm's workers after a forced GC, in MB. */
     async heapMb() {

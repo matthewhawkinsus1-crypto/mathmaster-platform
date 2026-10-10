@@ -233,6 +233,10 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
   requestedSessions: serverRequestedSessions = null,
   shortWeekReason = null,
   retentionDue = null,
+  // How many sessions the server's OWN plan holds for this student this week
+  // (functions/lib/weeklyPathServerPlan.js), computed only for a short
+  // proposal; null when the server did not or could not plan.
+  plannedSessions = null,
   ...toolOptions
 } = {}) => {
   const tools = toolsFrom(toolOptions);
@@ -282,11 +286,15 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
   }
   // A week with fewer sessions than the class asks for is graded on the
   // sessions it holds, so the server accepts one only when its own records
-  // explain it (the teacher selects every session and selected fewer). A
+  // explain it: the teacher selects every session and selected fewer, or the
+  // server's own planner, on the server's records, cannot fill the count
+  // either and the proposal holds at least as many sessions as that plan. A
   // browser that sent one easy slot would otherwise be graded 100 for one
-  // session.
+  // session, and a browser can never shorten a week the server could fill.
   const shortBy = requested - proposed.length;
-  if (fromServer && shortBy > 0 && !shortWeekReason) {
+  const planned = Number(plannedSessions);
+  const plannerShortfall = Number.isInteger(planned) && planned > 0 && proposed.length >= planned;
+  if (fromServer && shortBy > 0 && !shortWeekReason && !plannerShortfall) {
     throw new WeeklyPathGoalError(
       'failed-precondition',
       `This week's Path needs ${requested} sessions and only ${proposed.length} could be planned. Reload My Math Path to try again.`,
