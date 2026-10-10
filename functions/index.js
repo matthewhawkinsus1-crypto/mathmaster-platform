@@ -2427,6 +2427,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
   const assignmentRef = db.collection("assignments").doc(assignmentId);
   const nowIso = new Date().toISOString();
   const identity = await studentIdentity();
+  const integrityPrivacy = await import("./shared/integrityOverridePrivacy.mjs");
 
   return db.runTransaction(async (transaction) => {
     const [gradeSnap, assignmentSnap] = await Promise.all([transaction.get(gradeRef), transaction.get(assignmentRef)]);
@@ -2448,6 +2449,14 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
     const incidentRef = db.collection("studentSupportEvents").doc();
     const parentFollowUpRef = db.collection("studentSupportEvents").doc();
     let nextOverride = null;
+    // The grade doc is the student's own to read, so it gets the consequence
+    // and its fixed reason only. The teacher's note, who acted and the
+    // participant role go on the incident (teacher-only) and the audit —
+    // functions/shared/integrityOverridePrivacy.mjs.
+    const { studentOverride, incidentDetails } = integrityPrivacy.splitIntegrityConsequence({
+      scope, reasonCode, reasonLabel: ASSIGNMENT_ZERO_REASONS[reasonCode], sectionRole: scope === "section" ? sectionRole : null,
+      participantRole, note, actor, incidentId: incidentRef.id, at: nowIso,
+    });
 
     if (scope === "section") {
       const included = runtimeIncludedQuestionIndicesForSection(assignment, sectionRole);
@@ -2457,10 +2466,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
         if (assignmentOverrides[stateKey]?.active === true) throw new HttpsError("already-exists", "This section already has an integrity consequence.");
         const previousOverridesByQuestion = Object.fromEntries(included.map((index) => [String(index), assignmentOverrides[String(index)] || null]));
         assignmentOverrides[stateKey] = { active: true, incidentId: incidentRef.id, sectionRole, previousOverridesByQuestion };
-        included.forEach((index) => { assignmentOverrides[String(index)] = {
-          active: true, score: 0, persistent: true, source: "teacher-section-zero", incidentId: incidentRef.id,
-          sectionRole, reasonCode, reason: ASSIGNMENT_ZERO_REASONS[reasonCode], participantRole, note: note || null, actor, at: nowIso,
-        }; });
+        included.forEach((index) => { assignmentOverrides[String(index)] = { ...studentOverride }; });
       } else {
         const saved = assignmentOverrides[stateKey];
         if (saved?.active !== true) throw new HttpsError("failed-precondition", "No section integrity consequence is active.");
@@ -2471,10 +2477,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
         delete assignmentOverrides[stateKey];
       }
     } else {
-      nextOverride = action === "issueZero" ? {
-        active: true, score: 0, reasonCode, reason: ASSIGNMENT_ZERO_REASONS[reasonCode], note: note || null,
-        source: "teacher-assignment-zero", participantRole, incidentId: incidentRef.id, actor, at: nowIso,
-      } : null;
+      nextOverride = action === "issueZero" ? studentOverride : null;
       if (nextOverride) assignmentOverrides[ASSIGNMENT_GRADE_OVERRIDE_KEY] = nextOverride;
       else delete assignmentOverrides[ASSIGNMENT_GRADE_OVERRIDE_KEY];
     }
@@ -2498,8 +2501,9 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
         createdByEmail: teacherEmail, authorizedTeacherEmails: [teacherEmail], createdAt: nowIso, createdAtServer: FieldValue.serverTimestamp(),
         source: "teacher", confidence: "confirmed", relatedEventId: incidentRef.id };
       transaction.set(incidentRef, { ...commonEvent, kind: "academicIntegrityIncident", stage: "teacherConfirmed",
-        signalKey: `academicIntegrityIncident:${incidentRef.id}`, summary: ASSIGNMENT_ZERO_REASONS[reasonCode], note: note || "",
-        evidence: { scope, sectionRole: scope === "section" ? sectionRole : null, incidentReason: reasonCode, participantRole } });
+        signalKey: `academicIntegrityIncident:${incidentRef.id}`, summary: ASSIGNMENT_ZERO_REASONS[reasonCode], note: incidentDetails.note,
+        actor: incidentDetails.actor,
+        evidence: { scope, sectionRole: scope === "section" ? sectionRole : null, incidentReason: reasonCode, participantRole: incidentDetails.participantRole } });
       transaction.set(parentFollowUpRef, { ...commonEvent, kind: "parentFollowUp", stage: "teacherConfirmed",
         signalKey: `parentFollowUp:${parentFollowUpRef.id}`, summary: "Parent follow-up for confirmed academic-integrity incident", note: "",
         evidence: { incidentId: incidentRef.id, scope, sectionRole: scope === "section" ? sectionRole : null } });
