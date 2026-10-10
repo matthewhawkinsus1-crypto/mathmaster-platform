@@ -71,7 +71,7 @@ const bytesOfVersion = (documentPath, signature, data) => {
 };
 
 /** Every device's open listeners, by kind: a leak shows up as a count that never comes back down. */
-export const openListeners = { room: 0, standings: 0, self: 0, players: 0, invite: 0 };
+export const openListeners = { room: 0, standings: 0, self: 0, summary: 0, players: 0, invite: 0 };
 export const listenerTotal = () => Object.values(openListeners).reduce((sum, count) => sum + count, 0);
 
 const counted = (kind, stop) => {

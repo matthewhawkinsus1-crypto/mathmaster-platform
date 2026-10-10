@@ -482,10 +482,10 @@ for (const size of SIZES) {
       assertEveryDevicePlayed(views, roomId, label);
       const totals = await assertMatchIntegrity(farm, roomId, entry, views, label, privateAtLastClose);
       const standings = assertBoundedStandings(views, { label, gameMs, host, size });
-      // A constant four listeners' worth per screen — room, standings snapshot,
-      // own row (no invite listener here) — and never a classmate's row.
+      // A constant listener set per screen — room, standings snapshot, own row,
+      // own summary (no invite listener here) — and never a classmate's row.
       const census = await farm.listeners();
-      assert.deepEqual({ room: census.room, standings: census.standings, self: census.self, players: census.players }, { room: size, standings: size, self: size, players: 0 }, `${label}: one room, one standings and one own-row listener per screen, and no player-row listener: ${JSON.stringify(census)}`);
+      assert.deepEqual({ room: census.room, standings: census.standings, self: census.self, summary: census.summary, players: census.players }, { room: size, standings: size, self: size, summary: size, players: 0 }, `${label}: one room, one standings, one own-row and one own-summary listener per screen, and no player-row listener: ${JSON.stringify(census)}`);
       assert.ok(totals.secondAnswersRefused >= 1, `${label}: a second answer for a round is refused, never scored`);
       assert.ok(totals.duplicateReplies >= 1, `${label}: an answer resent after a lost reply is recognised as the same answer`);
 
@@ -738,7 +738,7 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
       // eslint-disable-next-line no-await-in-loop
       const listeners = await farm.listeners();
       listenerSamples.push(listeners);
-      assert.deepEqual(listeners, { room: ENDURANCE_CLASS, standings: ENDURANCE_CLASS, self: ENDURANCE_CLASS, players: 0, invite: ENDURANCE_CLASS, total: 4 * ENDURANCE_CLASS }, `${label}: one listener of each kind per device`);
+      assert.deepEqual(listeners, { room: ENDURANCE_CLASS, standings: ENDURANCE_CLASS, self: ENDURANCE_CLASS, summary: ENDURANCE_CLASS, players: 0, invite: ENDURANCE_CLASS, total: 5 * ENDURANCE_CLASS }, `${label}: one listener of each kind per device`);
       // eslint-disable-next-line no-await-in-loop
       heap.push(await farm.heapMb());
     }

@@ -211,26 +211,36 @@ export const roundTableByPoints = ({ scoringStrategyId = null, modeId = null } =
  * (hostRounds/{n}); each student's own row goes to their own summary
  * (liveChallengePlayerSummary.mjs).
  */
-export const classRoundSummary = (roundResult = {}, { standingsAfterRound = null } = {}) => {
-  const full = publicRoundSummary(roundResult);
+export const classRoundSummary = (roundResult = {}, { standingsAfterRound = null } = {}) => (
+  classCopyOfRoundSummary(publicRoundSummary(roundResult, { standingsAfterRound }))
+);
+
+/**
+ * The class's copy of a whole anonymous round summary (publicRoundSummary's
+ * shape, as hostRounds/{n} holds it — and as rounds/{n} held it before the
+ * class's copy existed, which scripts/scrub-live-challenge-public-ranks.mjs
+ * rewrites with this).
+ */
+export const classCopyOfRoundSummary = (full = {}) => {
+  const standingsAfterRound = Array.isArray(full.standingsAfterRound) ? full.standingsAfterRound : null;
   const table = classStandingsRows(roundTableRows(full.standings, { byPoints: roundTableByPoints(full) }), {
-    totalCount: full.participantCount,
+    totalCount: nonNegativeInt(full.participantCount) || (Array.isArray(full.standings) ? full.standings.length : 0),
   });
-  const after = Array.isArray(standingsAfterRound) ? classStandingsRows(standingsAfterRound) : null;
+  const after = standingsAfterRound ? classStandingsRows(standingsAfterRound) : null;
   return Object.freeze({
     schemaVersion: RESULT_SCHEMA_VERSION,
     // The rows below are the class's, already ranked for display: a screen
     // draws them as they are and adds the viewer's own row from their summary.
     visibility: 'class',
-    roundIndex: full.roundIndex,
-    roundVersion: full.roundVersion,
-    isSecondChance: full.isSecondChance,
-    modeId: full.modeId,
-    scoringStrategyId: full.scoringStrategyId,
-    closedAtMs: full.closedAtMs,
-    participantCount: full.participantCount,
-    completedCount: full.completedCount,
-    fieldSize: full.fieldSize,
+    roundIndex: integerOr(full.roundIndex, -1),
+    roundVersion: nonNegativeInt(full.roundVersion),
+    isSecondChance: full.isSecondChance === true,
+    modeId: full.modeId ?? null,
+    scoringStrategyId: full.scoringStrategyId ?? null,
+    closedAtMs: full.closedAtMs ?? null,
+    participantCount: nonNegativeInt(full.participantCount),
+    completedCount: nonNegativeInt(full.completedCount),
+    fieldSize: full.fieldSize ?? null,
     standings: table.rows.map((row) => ({
       playerKey: row.playerKey,
       alias: row.alias,
@@ -249,12 +259,12 @@ export const classRoundSummary = (roundResult = {}, { standingsAfterRound = null
         playerKey: row.playerKey,
         alias: row.alias,
         rank: row.rank,
-        position: row.position,
-        tied: row.tied,
-        score: row.score,
-        correctCount: row.correctCount,
-        roundsAnswered: row.roundsAnswered,
-        roundWins: row.roundWins,
+        position: integerOr(row.position, 0),
+        tied: row.tied === true,
+        score: nonNegativeInt(row.score),
+        correctCount: nonNegativeInt(row.correctCount),
+        roundsAnswered: nonNegativeInt(row.roundsAnswered),
+        roundWins: nonNegativeInt(row.roundWins),
       })),
       standingsLastRank: after.lastRank,
       standingsCount: after.totalCount,
