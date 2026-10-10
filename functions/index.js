@@ -14860,7 +14860,8 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   if (session.currentQuestion) {
     // Stored with its tool fields encoded when they nest arrays (secureItemStorage).
     const openQuestion = secureItems.readStoredItem(session.currentQuestion);
-    return { questionInstance: mathPath.buildSanitizedQuestion(openQuestion, { questionInstanceId: openQuestion.questionInstanceId, attemptsAllowed: openQuestion.attemptsAllowed, attemptsUsed: openQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(openQuestion) }) };
+    // `issued: true` — the stored item is already sanitized; keep its ids.
+    return { questionInstance: mathPath.buildSanitizedQuestion(openQuestion, { questionInstanceId: openQuestion.questionInstanceId, attemptsAllowed: openQuestion.attemptsAllowed, attemptsUsed: openQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(openQuestion), issued: true }) };
   }
 
   if (session.assessmentFramework) {
@@ -14897,6 +14898,7 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
               attemptsAllowed: openQuestion.attemptsAllowed,
               attemptsUsed: openQuestion.attemptsUsed,
               toolPayload: mathPath.storedToolPayload(openQuestion),
+              issued: true,
             }),
           };
         }
@@ -15309,7 +15311,9 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     return currentQuestion;
   });
 
-  return { questionInstance: mathPath.buildSanitizedQuestion(issuedQuestion, { questionInstanceId: issuedQuestion.questionInstanceId, attemptsAllowed: issuedQuestion.attemptsAllowed, attemptsUsed: issuedQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(issuedQuestion) }) };
+  // Either branch of the transaction yields the stored (already sanitized)
+  // item, so the re-send keeps its ids: `issued: true`.
+  return { questionInstance: mathPath.buildSanitizedQuestion(issuedQuestion, { questionInstanceId: issuedQuestion.questionInstanceId, attemptsAllowed: issuedQuestion.attemptsAllowed, attemptsUsed: issuedQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(issuedQuestion), issued: true }) };
 }));
 
 /**

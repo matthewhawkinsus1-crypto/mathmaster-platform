@@ -13,6 +13,7 @@ import { SECTION_STATE, describeSectionWait } from '../../platform/student/lesso
 import { firstOpenLiveQuestionIndex } from '../../platform/student/liveSectionEntry.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { testCycleHasUnseenChange } from '../../platform/student/testCycleDiscovery.js';
+import { RecoveryHomeSection } from './RecoveryOpportunities.jsx';
 
 // A Test Cycle's pill, by the tone its stage description gives it.
 const TEST_CYCLE_TONE = {
@@ -139,6 +140,11 @@ export default function StudentDashboardView({
   // Grades through the shared onNavigate — Home owns no per-destination
   // props (studentGlobalNavigation.test.mjs).
   waysToRaise = null,
+  // Every Warm-Up/DOL Recovery this student can act on now
+  // (buildStudentRecoveryDiscovery), and the handler that opens one. Absent
+  // where there is no signed-in student (the Teacher Path Simulator).
+  recoveryOpportunities = [],
+  onOpenRecovery = null,
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
@@ -466,6 +472,19 @@ export default function StudentDashboardView({
             <button type="button" onClick={() => onStartAssignment(assignment.id, firstOpenLiveQuestionIndex({ indices: state.questionIndices || [state.questionIndex], records, section: 'dol' }) ?? 0)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #681da8', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Start DOL</button>
           </section>
         ))}
+
+        {/* A closed Warm-Up or DOL with a second try open. Below the live,
+            timed cards (they close first) and above everything that waits:
+            it was reachable only from View Results, and students missed it. */}
+        {/* Each action appears once: a Recovery that is already the "Do
+            this next" action is not listed again here. */}
+        <RecoveryHomeSection
+          opportunities={(recoveryOpportunities || []).filter((opportunity) => !(
+            nextAction?.opensResult && opportunity.assignmentId === nextAction.assignment?.id
+          ))}
+          studentId={student?.id || null}
+          onOpen={onOpenRecovery}
+        />
 
         {showResumeCard && (
           <section aria-label="Resume assignment" data-secondary-live="resume" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-surface)', border: '2px solid var(--mm-primary-border)', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>

@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS } from '../../tools/shared/usePersistentToolState.js';
 import { normalizeLabDefinition } from '../../platform/labs/labDefinitionSchema.js';
 import { submitModelingLab } from '../../services/modelingLabService.js';
 import { modelingLabResultView } from './modelingLabResultView.js';
@@ -17,10 +18,20 @@ export const InteractiveModelingLabPlayer = ({
   revealEvaluation = true,
 }) => {
   const lab = useMemo(() => normalizeLabDefinition(rawLabSpec || {}), [rawLabSpec]);
-  const [paramValues, setParamValues] = useState(() => Object.fromEntries(lab.parameters.map((parameter) => [parameter.id, parameter.defaultValue])));
-  const [hypothesis, setHypothesis] = useState('');
-  const [justification, setJustification] = useState('');
-  const [trialHistory, setTrialHistory] = useState([]);
+  const defaultParams = useMemo(() => Object.fromEntries(lab.parameters.map((parameter) => [parameter.id, parameter.defaultValue])), [lab]);
+  // The student's work — the hypothesis, the parameters, every recorded trial
+  // and the justification — is draft-backed, so another question, a reload or
+  // another Chromebook brings it back; it used to be component state, gone at
+  // the first Next. QuestionEngine opens the draft scope; without one (a
+  // teacher's preview) these are ordinary state. A slider drag writes at
+  // display rate, so its writes coalesce, as an endpoint drag's do.
+  const [savedParams, setParamValues] = usePersistentToolState('paramValues', defaultParams, { coalesceMs: TOOL_DRAFT_COALESCE_MS });
+  // A parameter the lab gained after this draft was saved starts at its default.
+  const paramValues = useMemo(() => ({ ...defaultParams, ...savedParams }), [defaultParams, savedParams]);
+  const [hypothesis, setHypothesis] = usePersistentToolState('hypothesis', '');
+  const [justification, setJustification] = usePersistentToolState('justification', '');
+  const [trialHistory, setTrialHistory] = usePersistentToolState('trialHistory', []);
+  // The server's evaluation of a submission: a grading result, never a draft.
   const [evaluation, setEvaluation] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);

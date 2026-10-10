@@ -9,6 +9,7 @@ import {
 } from '../../platform/student/studentAssignmentsCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
+import { RecoveryInlineNotice } from './RecoveryOpportunities.jsx';
 
 /*
  * THE ASSIGNMENTS CENTER.
@@ -50,7 +51,7 @@ const control = (primary) => ({
   color: primary ? 'var(--mm-on-primary)' : 'var(--mm-text)',
 });
 
-function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
+function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, onOpenRecovery }) {
   const tone = STATUS_TONE[row.status] || STATUS_TONE.notStarted;
   return (
     <article
@@ -109,6 +110,10 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
         </div>
       )}
 
+      {/* An open Warm-Up/DOL Recovery, with its own button: the row's Practice
+          button is the assignment's practice, which never unlocks one. */}
+      <RecoveryInlineNotice opportunities={row.recovery} studentId={studentId} onOpen={onOpenRecovery} />
+
       {/* Every button comes from the one "Today" rule (resolveActions): Start/
           Continue only when it lands on work open this minute, at the
           question it names; a Recovery opens the result page where it lives;
@@ -164,14 +169,19 @@ export default function StudentAssignmentsCenter({
   onContinue = null,
   onOpenResult = null,
   onPractice = null,
+  // Open Warm-Up/DOL Recoveries by assignment id (buildStudentRecoveryDiscovery),
+  // the signed-in student (for the NEW mark) and the handler that opens one.
+  recoveryByAssignment = {},
+  studentId = null,
+  onOpenRecovery = null,
 }) {
   const [search, setSearch] = useState('');
   const [periodId, setPeriodId] = useState(null);
   const [category, setCategory] = useState(ASSIGNMENT_CATEGORY.ACTIVE);
 
   const center = useMemo(() => buildStudentAssignmentsCenter({
-    dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category,
-  }), [dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category]);
+    dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category, recoveryByAssignment,
+  }), [dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category, recoveryByAssignment]);
 
   const { categories, activeCategory, activePeriodId, periodOptions, isSearching, visibleEntries, totalCount } = center;
   const activeGroup = categories.find((group) => group.id === activeCategory) || null;
@@ -294,6 +304,8 @@ export default function StudentAssignmentsCenter({
               onContinue={onContinue}
               onOpenResult={onOpenResult}
               onPractice={onPractice}
+              studentId={studentId}
+              onOpenRecovery={onOpenRecovery}
             />
           ))
         )}
