@@ -49,13 +49,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Unlike linear denominators require an LCD before numerators can be combined.",
+            "headline": "Rewrite both fractions over the LCD $(x-{{r}})(x-{{s}})$, add the numerators, and keep both original restrictions.",
             "reasoning": [
-              "The LCD is $(x-{{r}})(x-{{s}})$.",
-              "The combined numerator is ${{A}}(x-{{s}})+{{B}}(x-{{r}})={{N1}}x+({{N0}})$.",
-              "The original denominators exclude x={{r}} and x={{s}}."
+              "The denominators $x-{{r}}$ and $x-{{s}}$ share no factor, so the LCD is their product $(x-{{r}})(x-{{s}})$.",
+              "Give each numerator the factor its denominator is missing: $\\frac{{{A}}}{x-{{r}}}+\\frac{{{B}}}{x-{{s}}}=\\frac{{{A}}(x-{{s}})+{{B}}(x-{{r}})}{(x-{{r}})(x-{{s}})}$.",
+              "Expand and combine like terms: ${{A}}(x-{{s}})+{{B}}(x-{{r}})={{A}}x{{mAs|signed}}{{B|signed}}x{{mBr|signed}}={{N1}}x{{N0|signed}}$.",
+              "At $x={{r}}$ only ${{A}}(x-{{s}})$ survives, giving {{atR}}; at $x={{s}}$ only ${{B}}(x-{{r}})$ survives, giving {{atS}}. Neither is 0, so nothing cancels; the original denominators still give $x\\ne{{r}}$ and $x\\ne{{s}}$."
             ],
-            "answerSummary": "$\\frac{{{N1}}x+({{N0}})}{(x-{{r}})(x-{{s}})}$, with x≠{{r}},{{s}}."
+            "commonError": "Adding numerators and denominators straight across, or forgetting to multiply ${{B}}$ by $x-{{r}}$ before combining like terms.",
+            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Do not add denominators; rewrite both fractions over the LCD first."
@@ -100,7 +102,11 @@
             },
             "derived": {
               "N1": "A+B",
-              "N0": "-A*s-B*r"
+              "N0": "-A*s-B*r",
+              "mAs": "-A*s",
+              "mBr": "-B*r",
+              "atR": "A*(r-s)",
+              "atS": "B*(s-r)"
             },
             "constraints": [
               "r!=s",
@@ -135,13 +141,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Factor-level LCD reasoning prevents duplicated common factors.",
+            "headline": "The two denominators share $x-{{r}}$, so the LCD uses each distinct factor once: $(x-{{r}})(x-{{s}})(x-{{t}})$.",
             "reasoning": [
-              "The LCD uses each distinct factor once: $(x-{{r}})(x-{{s}})(x-{{t}})$.",
-              "The numerator is ${{A}}(x-{{t}})+{{B}}(x-{{s}})={{N1}}x+({{N0}})$.",
-              "All three denominator zeros remain excluded."
+              "Both denominators contain $x-{{r}}$; the first also has $x-{{s}}$ and the second $x-{{t}}$. The LCD is $(x-{{r}})(x-{{s}})(x-{{t}})$.",
+              "The first fraction is missing $x-{{t}}$ and the second is missing $x-{{s}}$, so the numerator over the LCD is ${{A}}(x-{{t}})+{{B}}(x-{{s}})$.",
+              "Expand and combine: ${{A}}(x-{{t}})+{{B}}(x-{{s}})={{A}}x{{mAt|signed}}{{B|signed}}x{{mBs|signed}}={{N1}}x{{N0|signed}}$.",
+              "At $x={{r}}$ the numerator equals {{atR}}; at $x={{s}}$ only ${{A}}(x-{{t}})$ survives, giving {{atS}}; at $x={{t}}$ only ${{B}}(x-{{s}})$ survives, giving {{atT}}. None is 0, so no factor cancels. The original denominators exclude $x={{r}}$, $x={{s}}$ and $x={{t}}$."
             ],
-            "answerSummary": "Use the three-factor LCD and keep x≠{{r}},{{s}},{{t}}."
+            "commonError": "Using $(x-{{r}})^2(x-{{s}})(x-{{t}})$ as the denominator: the shared factor $x-{{r}}$ belongs in the LCD only once.",
+            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})(x-{{t}})}$ with $x\\ne{{r}}$, $x\\ne{{s}}$ and $x\\ne{{t}}$."
           },
           "attemptFeedback": [
             "The shared factor x-{{r}} appears only once in the LCD."
@@ -195,7 +203,11 @@
             "derived": {
               "N1": "A+B",
               "N0": "-A*t-B*s",
-              "atR": "A*(r-t)+B*(r-s)"
+              "atR": "A*(r-t)+B*(r-s)",
+              "mAt": "-A*t",
+              "mBs": "-B*s",
+              "atS": "A*(s-t)",
+              "atT": "B*(t-s)"
             },
             "constraints": [
               "r!=s",
@@ -233,13 +245,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "The quadratic denominator already contains the linear denominator factor.",
+            "headline": "The quadratic denominator $(x-{{r}})(x-{{s}})$ already contains $x-{{r}}$, so it is the LCD.",
             "reasoning": [
-              "The LCD is $(x-{{r}})(x-{{s}})$.",
-              "Only the first numerator needs the extra factor x-{{s}}.",
-              "The combined numerator is {{A}}x+({{N0}}), and both original zeros stay excluded."
+              "The LCD is $(x-{{r}})(x-{{s}})$: it contains the first denominator $x-{{r}}$ and is the second denominator.",
+              "Only the first fraction needs rewriting: $\\frac{{{A}}}{x-{{r}}}=\\frac{{{A}}(x-{{s}})}{(x-{{r}})(x-{{s}})}$. The second numerator ${{B}}$ stays as it is.",
+              "Add the numerators: ${{A}}(x-{{s}})+{{B}}={{A}}x{{mAs|signed}}{{B|signed}}={{A}}x{{N0|signed}}$.",
+              "At $x={{r}}$ the numerator equals {{atR}} and at $x={{s}}$ only the constant ${{B}}$ survives; neither is 0, so nothing cancels. Keep $x\\ne{{r}}$ and $x\\ne{{s}}$ from the original denominators."
             ],
-            "answerSummary": "Mixed-degree sum over $(x-{{r}})(x-{{s}})$."
+            "commonError": "Multiplying the second fraction by another $x-{{r}}$, which builds the denominator $(x-{{r}})^2(x-{{s}})$; that fraction is already over the LCD.",
+            "answerSummary": "Numerator ${{A}}x{{N0|signed}}$; answer $\\frac{{{A}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Do not multiply the second fraction by an extra x-{{r}}; its denominator is already the LCD."
@@ -284,7 +298,8 @@
             },
             "derived": {
               "N0": "-A*s+B",
-              "atR": "A*(r-s)+B"
+              "atR": "A*(r-s)+B",
+              "mAs": "-A*s"
             },
             "constraints": [
               "r!=s",
@@ -339,13 +354,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Subtraction changes the entire second numerator contribution.",
+            "headline": "Rewrite both fractions over $(x-{{r}})(x-{{s}})$, then subtract the WHOLE second numerator.",
             "reasoning": [
-              "Over the LCD, the numerator is ${{A}}(x-{{s}})-{{B}}(x-{{r}})$.",
-              "That simplifies to {{N1}}x+({{N0}}).",
-              "The original denominator zeros remain x={{r}} and x={{s}}."
+              "The expression is $\\frac{{{A}}}{x-{{r}}}-\\frac{{{B}}}{x-{{s}}}$. The denominators share no factor, so the LCD is $(x-{{r}})(x-{{s}})$.",
+              "Over the LCD the numerator is ${{A}}(x-{{s}})-{{B}}(x-{{r}})$: each numerator gets the factor its denominator is missing.",
+              "Distribute the subtraction to both terms: ${{A}}(x-{{s}})-{{B}}(x-{{r}})={{A}}x{{mAs|signed}}{{mB|signed}}x{{Br|signed}}={{N1}}x{{N0|signed}}$.",
+              "At $x={{r}}$ only ${{A}}(x-{{s}})$ survives, giving {{atR}}; at $x={{s}}$ only $-{{B}}(x-{{r}})$ survives, giving {{atS}}. Neither is 0, so nothing cancels; the original denominators still give $x\\ne{{r}}$ and $x\\ne{{s}}$."
             ],
-            "answerSummary": "Subtract the full second contribution before combining like terms."
+            "commonError": "Subtracting only the first term of the second contribution: $-{{B}}(x-{{r}})$ is ${{mB}}x{{Br|signed}}$, so both of its terms change sign.",
+            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Keep parentheses around the second numerator contribution until the subtraction has been distributed."
@@ -390,7 +407,12 @@
             },
             "derived": {
               "N1": "A-B",
-              "N0": "-A*s+B*r"
+              "N0": "-A*s+B*r",
+              "mAs": "-A*s",
+              "mB": "-B",
+              "Br": "B*r",
+              "atR": "A*(r-s)",
+              "atS": "-B*(s-r)"
             },
             "constraints": [
               "r!=s",
@@ -425,13 +447,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Quadratic denominators can share one factor without having the same LCD.",
+            "headline": "The denominators share $x-{{r}}$, so the LCD is $(x-{{r}})(x-{{s}})(x-{{t}})$; then subtract the whole second numerator.",
             "reasoning": [
-              "The LCD is $(x-{{r}})(x-{{s}})(x-{{t}})$.",
-              "The numerator is ${{A}}(x-{{t}})-{{B}}(x-{{s}})={{N1}}x+({{N0}})$.",
-              "None of the three original denominator zeros may be restored after simplification."
+              "Each distinct factor appears once in the LCD: $(x-{{r}})(x-{{s}})(x-{{t}})$. The first fraction is missing $x-{{t}}$, the second is missing $x-{{s}}$.",
+              "Over the LCD the numerator is ${{A}}(x-{{t}})-{{B}}(x-{{s}})$.",
+              "Distribute the subtraction: ${{A}}(x-{{t}})-{{B}}(x-{{s}})={{A}}x{{mAt|signed}}{{mB|signed}}x{{Bs|signed}}={{N1}}x{{N0|signed}}$.",
+              "At $x={{r}}$ the numerator equals {{atR}}; at $x={{s}}$ only ${{A}}(x-{{t}})$ survives, giving {{atS}}; at $x={{t}}$ only $-{{B}}(x-{{s}})$ survives, giving {{atT}}. None is 0, so nothing cancels. The original denominators exclude $x={{r}}$, $x={{s}}$ and $x={{t}}$."
             ],
-            "answerSummary": "Three-factor LCD with a fully distributed subtraction."
+            "commonError": "Writing $-{{B}}(x-{{s}})$ as ${{mB}}x-{{Bs}}$: the subtraction changes the sign of BOTH terms, giving ${{mB}}x{{Bs|signed}}$.",
+            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})(x-{{t}})}$ with $x\\ne{{r}}$, $x\\ne{{s}}$ and $x\\ne{{t}}$."
           },
           "attemptFeedback": [
             "The negative sign applies to both terms produced by B(x-s)."
@@ -485,7 +509,12 @@
             "derived": {
               "N1": "A-B",
               "N0": "-A*t+B*s",
-              "atR": "A*(r-t)-B*(r-s)"
+              "atR": "A*(r-t)-B*(r-s)",
+              "mAt": "-A*t",
+              "mB": "-B",
+              "Bs": "B*s",
+              "atS": "A*(s-t)",
+              "atT": "-B*(t-s)"
             },
             "constraints": [
               "r!=s",
@@ -523,13 +552,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Only the degree-1 denominator fraction needs to be scaled to the LCD.",
+            "headline": "Only the degree-1 fraction needs rewriting over the LCD $(x-{{r}})(x-{{s}})$; then subtract ${{B}}$.",
             "reasoning": [
-              "The numerator becomes ${{A}}(x-{{s}})-{{B}}={{A}}x+({{N0}})$.",
-              "The denominator is $(x-{{r}})(x-{{s}})$.",
-              "Both x={{r}} and x={{s}} are excluded."
+              "The second denominator $(x-{{r}})(x-{{s}})$ already contains $x-{{r}}$, so it is the LCD.",
+              "Rewrite the first fraction: $\\frac{{{A}}}{x-{{r}}}=\\frac{{{A}}(x-{{s}})}{(x-{{r}})(x-{{s}})}$, so the numerator is ${{A}}(x-{{s}})-{{B}}$.",
+              "Simplify: ${{A}}(x-{{s}})-{{B}}={{A}}x{{mAs|signed}}{{mB|signed}}={{A}}x{{N0|signed}}$.",
+              "At $x={{r}}$ the numerator equals {{atR}} and at $x={{s}}$ only the constant ${{mB}}$ survives; neither is 0, so nothing cancels. Keep $x\\ne{{r}}$ and $x\\ne{{s}}$."
             ],
-            "answerSummary": "Mixed-degree difference with two preserved restrictions."
+            "commonError": "Adding ${{B}}$ instead of subtracting it, or multiplying the second fraction by an extra $x-{{r}}$ although it is already over the LCD.",
+            "answerSummary": "Numerator ${{A}}x{{N0|signed}}$; answer $\\frac{{{A}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Subtract B after expanding A(x-s); do not change the denominator factors."
@@ -574,7 +605,9 @@
             },
             "derived": {
               "N0": "-A*s-B",
-              "atR": "A*(r-s)-B"
+              "atR": "A*(r-s)-B",
+              "mAs": "-A*s",
+              "mB": "-B"
             },
             "constraints": [
               "r!=s",
@@ -629,13 +662,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A common factor may cancel from a product, but its original restriction does not.",
+            "headline": "The complete factor $x-{{b}}$ cancels from the product, but $x={{b}}$ stays excluded.",
             "reasoning": [
-              "The factor x-{{b}} cancels as a complete numerator/denominator factor.",
-              "The simplified product is (x-{{a}})/(x-{{c}}).",
-              "The original denominators still exclude x={{b}} and x={{c}}."
+              "Multiply into one fraction: $\\frac{x-{{a}}}{x-{{b}}}\\cdot\\frac{x-{{b}}}{x-{{c}}}=\\frac{(x-{{a}})(x-{{b}})}{(x-{{b}})(x-{{c}})}$.",
+              "The factor $x-{{b}}$ is in the numerator and the denominator, so it cancels: the product is $\\frac{x-{{a}}}{x-{{c}}}$.",
+              "Restrictions come from the ORIGINAL denominators: $x-{{b}}$ is zero at $x={{b}}$ and $x-{{c}}$ is zero at $x={{c}}$. The original product is undefined at $x={{b}}$ even though the simplified form is not, so keep $x\\ne{{b}}$."
             ],
-            "answerSummary": "$\\frac{x-{{a}}}{x-{{c}}}$ with x≠{{b}},{{c}}."
+            "commonError": "Dropping $x\\ne{{b}}$ after cancelling: $\\frac{x-{{a}}}{x-{{c}}}$ is defined at $x={{b}}$, but the original product is not.",
+            "answerSummary": "Cancel $x-{{b}}$; answer $\\frac{x-{{a}}}{x-{{c}}}$ with $x\\ne{{b}}$ and $x\\ne{{c}}$."
           },
           "attemptFeedback": [
             "Cancel factors, never individual terms inside a sum or difference."
@@ -726,13 +760,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Factored quadratic rational expressions can cancel several complete factors.",
+            "headline": "Two complete factors, $x-{{a}}$ and $x-{{c}}$, cancel; all four original denominator zeros stay excluded.",
             "reasoning": [
-              "Cancel x-{{a}} and x-{{c}} across the product.",
-              "The reduced product is (x-{{b}})(x-{{e}})/[(x-{{d}})(x-{{f}})].",
-              "Restrictions x={{a}},{{c}},{{d}},{{f}} all survive from the original denominators."
+              "Multiply into one fraction: $\\frac{(x-{{a}})(x-{{b}})}{(x-{{c}})(x-{{d}})}\\cdot\\frac{(x-{{c}})(x-{{e}})}{(x-{{a}})(x-{{f}})}=\\frac{(x-{{a}})(x-{{b}})(x-{{c}})(x-{{e}})}{(x-{{c}})(x-{{d}})(x-{{a}})(x-{{f}})}$.",
+              "$x-{{a}}$ and $x-{{c}}$ each appear on top and bottom, so both cancel: $\\frac{(x-{{b}})(x-{{e}})}{(x-{{d}})(x-{{f}})}$.",
+              "The first denominator is zero at $x={{c}}$ and $x={{d}}$; the second at $x={{a}}$ and $x={{f}}$. All four stay excluded, including the cancelled $x={{a}}$ and $x={{c}}$."
             ],
-            "answerSummary": "Reduced degree-2 product with four original restrictions."
+            "commonError": "Listing only $x\\ne{{d}}$ and $x\\ne{{f}}$ from the simplified denominator: $x={{a}}$ and $x={{c}}$ made an original denominator zero, so they remain excluded.",
+            "answerSummary": "Cancel $x-{{a}}$ and $x-{{c}}$; answer $\\frac{(x-{{b}})(x-{{e}})}{(x-{{d}})(x-{{f}})}$ with $x\\ne{{a}}$, $x\\ne{{c}}$, $x\\ne{{d}}$ and $x\\ne{{f}}$."
           },
           "attemptFeedback": [
             "A canceled denominator factor still marks an input that was illegal in the original expression."
@@ -837,13 +872,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Mixed-degree multiplication follows the same factor rule.",
+            "headline": "The factor $x-{{b}}$ cancels across the two fractions; the restrictions $x\\ne{{b}}$, $x\\ne{{d}}$, $x\\ne{{e}}$ all remain.",
             "reasoning": [
-              "Cancel the shared factor x-{{b}}.",
-              "The reduced numerator is (x-{{a}})(x-{{c}}) and denominator is (x-{{d}})(x-{{e}}).",
-              "The original restrictions are x≠{{b}},{{d}},{{e}}."
+              "Multiply into one fraction: $\\frac{x-{{a}}}{x-{{b}}}\\cdot\\frac{(x-{{b}})(x-{{c}})}{(x-{{d}})(x-{{e}})}=\\frac{(x-{{a}})(x-{{b}})(x-{{c}})}{(x-{{b}})(x-{{d}})(x-{{e}})}$.",
+              "Cancel the complete common factor $x-{{b}}$: the product is $\\frac{(x-{{a}})(x-{{c}})}{(x-{{d}})(x-{{e}})}$.",
+              "The original denominators are zero at $x={{b}}$ (first fraction) and at $x={{d}}$ and $x={{e}}$ (second fraction), so all three values are excluded."
             ],
-            "answerSummary": "Mixed-degree product simplified without losing domain restrictions."
+            "commonError": "Losing $x\\ne{{b}}$ when $x-{{b}}$ cancels: the first original fraction is undefined at $x={{b}}$.",
+            "answerSummary": "Cancel $x-{{b}}$; answer $\\frac{(x-{{a}})(x-{{c}})}{(x-{{d}})(x-{{e}})}$ with $x\\ne{{b}}$, $x\\ne{{d}}$ and $x\\ne{{e}}$."
           },
           "attemptFeedback": [
             "Cancel only the shared whole factor x-{{b}}."
@@ -956,13 +992,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Division introduces both denominator restrictions and divisor-zero restrictions.",
+            "headline": "Multiply by the reciprocal of $\\frac{x-{{c}}}{x-{{d}}}$, and exclude $x={{c}}$ because it makes the divisor zero.",
             "reasoning": [
-              "Multiply by the reciprocal of the second rational expression.",
-              "Original denominators exclude x={{b}} and x={{d}}.",
-              "The divisor is zero at x={{c}}, so x={{c}} is also excluded."
+              "Dividing means multiplying by the reciprocal: $\\frac{x-{{a}}}{x-{{b}}}\\cdot\\frac{x-{{d}}}{x-{{c}}}=\\frac{(x-{{a}})(x-{{d}})}{(x-{{b}})(x-{{c}})}$.",
+              "All four factors are different, so nothing cancels.",
+              "Excluded values: $x={{b}}$ and $x={{d}}$ make an original denominator zero, and $x={{c}}$ makes the divisor $\\frac{x-{{c}}}{x-{{d}}}$ equal to zero."
             ],
-            "answerSummary": "Reciprocal product with restrictions x≠{{b}},{{c}},{{d}}."
+            "commonError": "Missing $x\\ne{{d}}$: after flipping, $x-{{d}}$ moves to the numerator, but $x={{d}}$ was already illegal in the original divisor.",
+            "answerSummary": "Answer $\\frac{(x-{{a}})(x-{{d}})}{(x-{{b}})(x-{{c}})}$ with $x\\ne{{b}}$, $x\\ne{{c}}$ and $x\\ne{{d}}$."
           },
           "attemptFeedback": [
             "A rational divisor may be undefined at one value and equal to zero at another; both matter."
@@ -1036,13 +1073,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A simplified quotient can hide several values that were illegal before cancellation.",
+            "headline": "After flipping the divisor, $x-{{a}}$ and $x-{{c}}$ cancel; five values stay excluded.",
             "reasoning": [
-              "After taking the reciprocal, x-{{a}} and x-{{c}} cancel.",
-              "The reduced quotient is (x-{{b}})(x-{{f}})/[(x-{{d}})(x-{{e}})].",
-              "The original denominators exclude {{c}},{{d}},{{f}}, and divisor zeros exclude {{a}},{{e}}."
+              "Multiply by the reciprocal of the divisor: $\\frac{(x-{{a}})(x-{{b}})}{(x-{{c}})(x-{{d}})}\\cdot\\frac{(x-{{c}})(x-{{f}})}{(x-{{a}})(x-{{e}})}=\\frac{(x-{{a}})(x-{{b}})(x-{{c}})(x-{{f}})}{(x-{{c}})(x-{{d}})(x-{{a}})(x-{{e}})}$.",
+              "Cancel the complete factors $x-{{a}}$ and $x-{{c}}$: the quotient is $\\frac{(x-{{b}})(x-{{f}})}{(x-{{d}})(x-{{e}})}$.",
+              "The original denominators are zero at $x={{c}}$, $x={{d}}$ and $x={{f}}$; the divisor is zero at $x={{a}}$ and $x={{e}}$. All five are excluded."
             ],
-            "answerSummary": "Reduced quadratic quotient with five preserved restrictions."
+            "commonError": "Reading the restrictions only from the simplified denominator ($x\\ne{{d}}$, $x\\ne{{e}}$) and missing $x={{a}}$, $x={{c}}$ and $x={{f}}$.",
+            "answerSummary": "Answer $\\frac{(x-{{b}})(x-{{f}})}{(x-{{d}})(x-{{e}})}$ with $x\\ne{{a}}$, $x\\ne{{c}}$, $x\\ne{{d}}$, $x\\ne{{e}}$ and $x\\ne{{f}}$."
           },
           "attemptFeedback": [
             "Write restrictions before cancellation; then add the zeros of the divisor numerator."
@@ -1141,13 +1179,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Mixed-degree division can create a cubic-over-cubic product even though each original expression is degree 1 or 2.",
+            "headline": "Flip the degree-2 divisor and multiply; the quotient is cubic over cubic, with five excluded values.",
             "reasoning": [
-              "Flip the degree-2 divisor and multiply.",
-              "The first denominator excludes {{b}}; the divisor denominator excludes {{e}},{{f}}.",
-              "Because the divisor cannot equal zero, {{c}} and {{d}} are excluded too."
+              "Multiply by the reciprocal: $\\frac{x-{{a}}}{x-{{b}}}\\cdot\\frac{(x-{{e}})(x-{{f}})}{(x-{{c}})(x-{{d}})}=\\frac{(x-{{a}})(x-{{e}})(x-{{f}})}{(x-{{b}})(x-{{c}})(x-{{d}})}$.",
+              "All six factors are different, so nothing cancels.",
+              "The first denominator excludes $x={{b}}$, the divisor's denominator excludes $x={{e}}$ and $x={{f}}$, and the divisor is zero at $x={{c}}$ and $x={{d}}$, so those are excluded too."
             ],
-            "answerSummary": "Fully simplified mixed-degree quotient with five original/divisor-zero restrictions."
+            "commonError": "Forgetting $x\\ne{{e}}$ and $x\\ne{{f}}$: after flipping, those factors sit in the numerator, but they were denominators in the original divisor.",
+            "answerSummary": "Answer $\\frac{(x-{{a}})(x-{{e}})(x-{{f}})}{(x-{{b}})(x-{{c}})(x-{{d}})}$ with $x\\ne{{b}}$, $x\\ne{{c}}$, $x\\ne{{d}}$, $x\\ne{{e}}$ and $x\\ne{{f}}$."
           },
           "attemptFeedback": [
             "Do not stop after writing the reciprocal; finish the multiplication and simplification."

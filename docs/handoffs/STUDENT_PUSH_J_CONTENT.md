@@ -187,6 +187,27 @@ Also fixed: the one-step inequality structure showed `3*x+0 <= 18`.
 - **m2. "Never a copy" is now pinned.** A targeted candidate that skipped the history turns a test red.
 - **m3. A finished Recovery no longer promises Practice.**
 
+## #469: worked solutions for the classroom Live Challenge pool
+
+Branch `claude/student-push-j2-lc-solutions`, cut from #464 and carrying its review fixes by merge. The 79 standard
+Live Challenge templates that published only a generic solution now carry a `solutionReview` built from each draw's
+own numbers and nouns: 48 in grades 6–8 (`seed/pathQuestionBank/gradeN`) and 31 in Algebra I and II
+(`drafts/fidelity-v2`). Only the review and new derived values changed. Prompts, fields, grading, parameters and
+constraints are pinned by digest, and derived values never consume the random stream, so every draw keeps its
+numbers. `tests/platform/pathSolutionReviewSpecific_*.test.mjs` checks each draw's review against an independent
+oracle.
+
+The same item is never shown with its solution while it can still be asked. The `revealableRounds` hold from B1
+compares bank questions by template id, so a solution stays held while a later open round uses the same template.
+
+**Deploy.** Same steps as #464. Publish release **`course-path-v2-4d9681dfcc5dd150`** in place of #464's id. If #464
+ships alone first, publish its id then and this one after #469 merges.
+
+**What's left.** No classroom Live Challenge templates remain: the 79 were every standard-pool template that
+published only a generic solution (18 Algebra I, 13 Algebra II, 12 grade 6, 16 grade 7, 20 grade 8). The 768 test-prep
+templates still publish the generic solution. They are a separate job: stopped under the usage limit, by the
+coordinator's decision. Main was not merged into either branch from this session.
+
 ## Conservative calls not listed above
 
 - Targeted Recovery does not change the Recovery **assessment** (one fresh instance of every DOL question): only

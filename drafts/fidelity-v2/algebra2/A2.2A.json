@@ -102,12 +102,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "The square-root parent begins at the origin and extends only to the right.",
+            "headline": "$f(x)=\\sqrt{x}$ starts at the closed endpoint $(0,0)$ and rises more and more slowly to the right.",
             "reasoning": [
-              "Real square roots require $x\\ge0$, so the graph starts at the closed endpoint $(0,0)$.",
-              "The outputs are also nonnegative, giving domain $[0,\\infty)$ and range $[0,\\infty)$."
+              "The endpoint is where the radicand is zero: $\\sqrt{0}=0$, so plot the closed point $(0,0)$.",
+              "Each requested input is a perfect square: $\\sqrt{{{xa}}}={{ra}}$, $\\sqrt{{{xb}}}={{rb}}$ and $\\sqrt{{{xc}}}={{rc}}$, so plot $({{xa}},{{ra}})$, $({{xb}},{{rb}})$ and $({{xc}},{{rc}})$.",
+              "Join the points with one curve that rises from $(0,0)$ and flattens: from $x={{xb}}$ to $x={{xc}}$ the input grows by {{dx}} but the output grows by only {{dy}}.",
+              "A real square root needs $x\\ge0$, so the domain is $[0,\\infty)$; the outputs start at 0 and grow without bound, so the range is $[0,\\infty)$."
             ],
-            "answerSummary": "Domain $[0,\\infty)$; range $[0,\\infty)$."
+            "commonError": "Drawing the curve to the left of $x=0$ or giving the domain as all real numbers: the square root of a negative input is not real, so the graph stops at the endpoint $(0,0)$.",
+            "answerSummary": "Points $(0,0)$, $({{xa}},{{ra}})$, $({{xb}},{{rb}})$, $({{xc}},{{rc}})$; domain $[0,\\infty)$; range $[0,\\infty)$."
           },
           "generator": {
             "parameters": {
@@ -132,7 +135,9 @@
               "xb": "rb^2",
               "xc": "rc^2",
               "xMax": "xStep*ceil(max(11, xc + 2)/xStep)",
-              "xStep": "1 + (xc > 9) + 3*(xc > 16)"
+              "xStep": "1 + (xc > 9) + 3*(xc > 16)",
+              "dx": "xc-xb",
+              "dy": "rc-rb"
             },
             "constraints": [
               "ra < rb",
@@ -230,12 +235,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Cube roots accept negative, zero, and positive real inputs.",
+            "headline": "$f(x)=\\sqrt[3]{x}$ passes through the origin and continues in both directions, because every real number has a real cube root.",
             "reasoning": [
-              "Unlike a square root, an odd root is defined for every real input.",
-              "Its outputs also extend without bound in both directions, so both domain and range are all real numbers."
+              "Negative inputs have negative cube roots: $\\sqrt[3]{{{xnl}}}={{ynl}}$ because $({{ynl}})^3={{xnl}}$, and $\\sqrt[3]{{{xns}}}={{yns}}$ because $({{yns}})^3={{xns}}$.",
+              "Positive inputs: $\\sqrt[3]{{{xps}}}={{ps}}$ and $\\sqrt[3]{{{xpl}}}={{pl}}$; also $\\sqrt[3]{0}=0$. Plot $({{xnl}},{{ynl}})$, $({{xns}},{{yns}})$, $(0,0)$, $({{xps}},{{ps}})$ and $({{xpl}},{{pl}})$.",
+              "Sketch one S-shaped curve through the five points, steepest at the origin and flattening outward on both sides; it has no endpoint.",
+              "Every real input has a real cube root, and every real output $y$ comes from the input $x=y^3$, so the domain and the range are both $(-\\infty,\\infty)$."
             ],
-            "answerSummary": "Domain and range are both $(-\\infty,\\infty)$."
+            "commonError": "Treating the cube root like a square root and stopping the graph at $x=0$: $\\sqrt[3]{{{xnl}}}={{ynl}}$ is a real number, so the left half of the curve belongs on the graph.",
+            "answerSummary": "Points $({{xnl}},{{ynl}})$, $({{xns}},{{yns}})$, $(0,0)$, $({{xps}},{{ps}})$, $({{xpl}},{{pl}})$; domain $(-\\infty,\\infty)$; range $(-\\infty,\\infty)$."
           },
           "generator": {
             "parameters": {
@@ -383,12 +391,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "The absolute-value parent is symmetric about the y-axis.",
+            "headline": "$f(x)=|x|$ is a V with vertex $(0,0)$; opposite inputs give equal outputs, so the y-axis is its line of symmetry.",
             "reasoning": [
-              "Opposite inputs have the same output, so the graph mirrors across $x=0$.",
-              "The vertex $(0,0)$ is the minimum point, so the range is $[0,\\infty)$."
+              "Evaluate: $|{{na}}|=|{{a}}|={{a}}$ and $|{{nb}}|=|{{b}}|={{b}}$. Plot the vertex $(0,0)$ and the points $({{na}},{{a}})$, $({{a}},{{a}})$, $({{nb}},{{b}})$, $({{b}},{{b}})$.",
+              "Each pair, such as $({{nb}},{{b}})$ and $({{b}},{{b}})$, sits at the same height on opposite sides of $x=0$, so folding along $x=0$ (the y-axis) matches the graph to itself.",
+              "Draw two straight rays from the vertex: slope $-1$ to the left and slope $1$ to the right.",
+              "The lowest output is $f(0)=0$ and the rays rise without bound, so the range is $[0,\\infty)$."
             ],
-            "answerSummary": "Range $[0,\\infty)$; symmetry line $x=0$."
+            "commonError": "Giving the range as all real numbers: $|x|$ is never negative, so no point of the graph lies below $y=0$.",
+            "answerSummary": "Points $({{nb}},{{b}})$, $({{na}},{{a}})$, $(0,0)$, $({{a}},{{a}})$, $({{b}},{{b}})$; range $[0,\\infty)$; line of symmetry $x=0$."
           },
           "generator": {
             "parameters": {
@@ -508,12 +519,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "The cubic parent passes through the origin and has origin symmetry.",
+            "headline": "$f(x)=x^3$ sends opposite inputs to opposite outputs, so the graph has rotational symmetry about the origin.",
             "reasoning": [
-              "For $f(x)=x^3$, changing $x$ to $-x$ changes the sign of the output, producing rotational symmetry about the origin.",
-              "The cubic extends to negative and positive infinity, so the range is all real numbers."
+              "Cube each input: ${{a}}^3={{ca}}$ and ${{b}}^3={{cb}}$, while $({{na}})^3={{nca}}$ and $({{nb}})^3={{ncb}}$.",
+              "Plot $({{nb}},{{ncb}})$, $({{na}},{{nca}})$, $(0,0)$, $({{a}},{{ca}})$, $({{b}},{{cb}})$ and sketch one S-shaped curve through them, flat at the origin and steep farther out.",
+              "Opposite inputs give opposite outputs, for example $({{a}},{{ca}})$ and $({{na}},{{nca}})$, so turning the graph a half-turn about $(0,0)$ maps it onto itself.",
+              "The outputs fall below every negative number and rise above every positive number, so the range is $(-\\infty,\\infty)$."
             ],
-            "answerSummary": "Range $(-\\infty,\\infty)$; rotational symmetry about $(0,0)$."
+            "commonError": "Calling the graph symmetric about the y-axis: reflecting $({{a}},{{ca}})$ across it gives $({{na}},{{ca}})$, which is not on the graph because $({{na}})^3={{nca}}$.",
+            "answerSummary": "Points $({{nb}},{{ncb}})$, $({{na}},{{nca}})$, $(0,0)$, $({{a}},{{ca}})$, $({{b}},{{cb}})$; range $(-\\infty,\\infty)$; center of rotational symmetry $(0,0)$."
           },
           "generator": {
             "parameters": {

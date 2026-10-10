@@ -102,12 +102,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "The square-root parent begins at the origin and extends only to the right.",
+            "headline": "$f(x)=\\sqrt{x}$ starts at the closed endpoint $(0,0)$ and rises more and more slowly to the right.",
             "reasoning": [
-              "Real square roots require $x\\ge0$, so the graph starts at the closed endpoint $(0,0)$.",
-              "The outputs are also nonnegative, giving domain $[0,\\infty)$ and range $[0,\\infty)$."
+              "The endpoint is where the radicand is zero: $\\sqrt{0}=0$, so plot the closed point $(0,0)$.",
+              "Each requested input is a perfect square: $\\sqrt{{{xa}}}={{ra}}$, $\\sqrt{{{xb}}}={{rb}}$ and $\\sqrt{{{xc}}}={{rc}}$, so plot $({{xa}},{{ra}})$, $({{xb}},{{rb}})$ and $({{xc}},{{rc}})$.",
+              "Join the points with one curve that rises from $(0,0)$ and flattens: from $x={{xb}}$ to $x={{xc}}$ the input grows by {{dx}} but the output grows by only {{dy}}.",
+              "A real square root needs $x\\ge0$, so the domain is $[0,\\infty)$; the outputs start at 0 and grow without bound, so the range is $[0,\\infty)$."
             ],
-            "answerSummary": "Domain $[0,\\infty)$; range $[0,\\infty)$."
+            "commonError": "Drawing the curve to the left of $x=0$ or giving the domain as all real numbers: the square root of a negative input is not real, so the graph stops at the endpoint $(0,0)$.",
+            "answerSummary": "Points $(0,0)$, $({{xa}},{{ra}})$, $({{xb}},{{rb}})$, $({{xc}},{{rc}})$; domain $[0,\\infty)$; range $[0,\\infty)$."
           },
           "generator": {
             "parameters": {
@@ -132,7 +135,9 @@
               "xb": "rb^2",
               "xc": "rc^2",
               "xMax": "xStep*ceil(max(11, xc + 2)/xStep)",
-              "xStep": "1 + (xc > 9) + 3*(xc > 16)"
+              "xStep": "1 + (xc > 9) + 3*(xc > 16)",
+              "dx": "xc-xb",
+              "dy": "rc-rb"
             },
             "constraints": [
               "ra < rb",
@@ -230,12 +235,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Cube roots accept negative, zero, and positive real inputs.",
+            "headline": "$f(x)=\\sqrt[3]{x}$ passes through the origin and continues in both directions, because every real number has a real cube root.",
             "reasoning": [
-              "Unlike a square root, an odd root is defined for every real input.",
-              "Its outputs also extend without bound in both directions, so both domain and range are all real numbers."
+              "Negative inputs have negative cube roots: $\\sqrt[3]{{{xnl}}}={{ynl}}$ because $({{ynl}})^3={{xnl}}$, and $\\sqrt[3]{{{xns}}}={{yns}}$ because $({{yns}})^3={{xns}}$.",
+              "Positive inputs: $\\sqrt[3]{{{xps}}}={{ps}}$ and $\\sqrt[3]{{{xpl}}}={{pl}}$; also $\\sqrt[3]{0}=0$. Plot $({{xnl}},{{ynl}})$, $({{xns}},{{yns}})$, $(0,0)$, $({{xps}},{{ps}})$ and $({{xpl}},{{pl}})$.",
+              "Sketch one S-shaped curve through the five points, steepest at the origin and flattening outward on both sides; it has no endpoint.",
+              "Every real input has a real cube root, and every real output $y$ comes from the input $x=y^3$, so the domain and the range are both $(-\\infty,\\infty)$."
             ],
-            "answerSummary": "Domain and range are both $(-\\infty,\\infty)$."
+            "commonError": "Treating the cube root like a square root and stopping the graph at $x=0$: $\\sqrt[3]{{{xnl}}}={{ynl}}$ is a real number, so the left half of the curve belongs on the graph.",
+            "answerSummary": "Points $({{xnl}},{{ynl}})$, $({{xns}},{{yns}})$, $(0,0)$, $({{xps}},{{ps}})$, $({{xpl}},{{pl}})$; domain $(-\\infty,\\infty)$; range $(-\\infty,\\infty)$."
           },
           "generator": {
             "parameters": {
@@ -383,12 +391,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "The absolute-value parent is symmetric about the y-axis.",
+            "headline": "$f(x)=|x|$ is a V with vertex $(0,0)$; opposite inputs give equal outputs, so the y-axis is its line of symmetry.",
             "reasoning": [
-              "Opposite inputs have the same output, so the graph mirrors across $x=0$.",
-              "The vertex $(0,0)$ is the minimum point, so the range is $[0,\\infty)$."
+              "Evaluate: $|{{na}}|=|{{a}}|={{a}}$ and $|{{nb}}|=|{{b}}|={{b}}$. Plot the vertex $(0,0)$ and the points $({{na}},{{a}})$, $({{a}},{{a}})$, $({{nb}},{{b}})$, $({{b}},{{b}})$.",
+              "Each pair, such as $({{nb}},{{b}})$ and $({{b}},{{b}})$, sits at the same height on opposite sides of $x=0$, so folding along $x=0$ (the y-axis) matches the graph to itself.",
+              "Draw two straight rays from the vertex: slope $-1$ to the left and slope $1$ to the right.",
+              "The lowest output is $f(0)=0$ and the rays rise without bound, so the range is $[0,\\infty)$."
             ],
-            "answerSummary": "Range $[0,\\infty)$; symmetry line $x=0$."
+            "commonError": "Giving the range as all real numbers: $|x|$ is never negative, so no point of the graph lies below $y=0$.",
+            "answerSummary": "Points $({{nb}},{{b}})$, $({{na}},{{a}})$, $(0,0)$, $({{a}},{{a}})$, $({{b}},{{b}})$; range $[0,\\infty)$; line of symmetry $x=0$."
           },
           "generator": {
             "parameters": {
@@ -508,12 +519,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "The cubic parent passes through the origin and has origin symmetry.",
+            "headline": "$f(x)=x^3$ sends opposite inputs to opposite outputs, so the graph has rotational symmetry about the origin.",
             "reasoning": [
-              "For $f(x)=x^3$, changing $x$ to $-x$ changes the sign of the output, producing rotational symmetry about the origin.",
-              "The cubic extends to negative and positive infinity, so the range is all real numbers."
+              "Cube each input: ${{a}}^3={{ca}}$ and ${{b}}^3={{cb}}$, while $({{na}})^3={{nca}}$ and $({{nb}})^3={{ncb}}$.",
+              "Plot $({{nb}},{{ncb}})$, $({{na}},{{nca}})$, $(0,0)$, $({{a}},{{ca}})$, $({{b}},{{cb}})$ and sketch one S-shaped curve through them, flat at the origin and steep farther out.",
+              "Opposite inputs give opposite outputs, for example $({{a}},{{ca}})$ and $({{na}},{{nca}})$, so turning the graph a half-turn about $(0,0)$ maps it onto itself.",
+              "The outputs fall below every negative number and rise above every positive number, so the range is $(-\\infty,\\infty)$."
             ],
-            "answerSummary": "Range $(-\\infty,\\infty)$; rotational symmetry about $(0,0)$."
+            "commonError": "Calling the graph symmetric about the y-axis: reflecting $({{a}},{{ca}})$ across it gives $({{na}},{{ca}})$, which is not on the graph because $({{na}})^3={{nca}}$.",
+            "answerSummary": "Points $({{nb}},{{ncb}})$, $({{na}},{{nca}})$, $(0,0)$, $({{a}},{{ca}})$, $({{b}},{{cb}})$; range $(-\\infty,\\infty)$; center of rotational symmetry $(0,0)$."
           },
           "generator": {
             "parameters": {
@@ -7740,11 +7754,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "The system solution is the intersection of both half-planes.",
+        "headline": "Draw both boundaries solid, shade above $y={{m1}}x{{b1|signed}}$ and below $y={{m2}}x{{b2|signed}}$, and keep only the overlap.",
         "reasoning": [
-          "Both inequalities include equality, so both boundaries are solid.",
-          "Shade above the first boundary and below the second; keep only the common region."
-        ]
+          "$y\\ge{{m1}}x{{b1|signed}}$: graph the line through $(0,{{b1}})$ with slope {{m1}}. The symbol $\\ge$ includes equality, so the line is solid; shade the side above it.",
+          "$y\\le{{m2}}x{{b2|signed}}$: graph the line through $(0,{{b2}})$ with slope {{m2}}. The symbol $\\le$ includes equality, so this line is solid too; shade below it.",
+          "The solution is only where both shadings overlap. Test $(0,1)$: $1\\ge{{m1}}(0){{b1|signed}}={{b1}}$ and $1\\le{{m2}}(0){{b2|signed}}={{b2}}$ are both true, so $(0,1)$ is in the solution.",
+          "The first line rises and the second falls, so the overlap is the wedge to the left of where they cross, edges included."
+        ],
+        "commonError": "Shading everything either inequality shades (the union) instead of only the overlap, or dashing a boundary even though $\\ge$ and $\\le$ include their lines.",
+        "answerSummary": "Solid $y={{m1}}x{{b1|signed}}$ shaded above and solid $y={{m2}}x{{b2|signed}}$ shaded below; the solution is the overlap, which contains $(0,1)$."
       },
       "attemptFeedback": [
         "A correct boundary is not enough; each line needs the correct style and the final shading must satisfy both inequalities."
@@ -7820,12 +7838,15 @@
         "yMax": 12
       },
       "solutionReview": {
-        "headline": "Boundary style is part of the solution.",
+        "headline": "Dash the strict boundary $y={{m1}}x{{b1|signed}}$, draw $y={{m2}}x{{b2|signed}}$ solid, and keep only where the two shadings overlap.",
         "reasoning": [
-          "The > inequality uses a dashed boundary and shades above.",
-          "The ≤ inequality uses a solid boundary and shades below.",
-          "Only their common region solves the system."
-        ]
+          "$y>{{m1}}x{{b1|signed}}$: graph the line through $(0,{{b1}})$ with slope {{m1}}. Points on it give equality, not $>$, so the line is dashed; shade above it.",
+          "$y\\le{{m2}}x{{b2|signed}}$: graph the line through $(0,{{b2}})$ with slope {{m2}}. Equality is allowed, so this line is solid; shade below it.",
+          "Test $(0,1)$: $1>{{m1}}(0){{b1|signed}}={{b1}}$ and $1\\le{{m2}}(0){{b2|signed}}={{b2}}$, so $(0,1)$ is in the solution.",
+          "Keep only the overlap: the wedge to the left of where the lines cross, including the solid edge but not the dashed one."
+        ],
+        "commonError": "Making both boundaries the same style: points on $y={{m1}}x{{b1|signed}}$ fail the strict $>$ and are excluded, while points on $y={{m2}}x{{b2|signed}}$ satisfy $\\le$ and are included.",
+        "answerSummary": "Dashed $y={{m1}}x{{b1|signed}}$ shaded above and solid $y={{m2}}x{{b2|signed}}$ shaded below; the solution is the overlap, which contains $(0,1)$."
       },
       "attemptFeedback": [
         "Check both the side you shaded and whether each boundary should be solid or dashed."
@@ -7900,11 +7921,15 @@
             "yMax": 12
           },
           "solutionReview": {
-            "headline": "Three constraints increase construction load while the reasoning remains routine intersection work.",
+            "headline": "Three boundaries: dashed $y={{m1}}x{{b1|signed}}$, solid $y={{m2}}x{{b2|signed}}$ and solid $y={{c}}$; the solution is the region all three shadings share.",
             "reasoning": [
-              "Use a dashed first boundary, a solid second boundary, and a solid horizontal third boundary.",
-              "Keep only the region satisfying all three inequalities at once."
-            ]
+              "$y>{{m1}}x{{b1|signed}}$: line through $(0,{{b1}})$ with slope {{m1}}, dashed because the inequality is strict; shade above it.",
+              "$y\\le{{m2}}x{{b2|signed}}$: line through $(0,{{b2}})$ with slope {{m2}}, solid because equality is allowed; shade below it.",
+              "$y\\ge{{c}}$: the horizontal line $y={{c}}$, solid; shade above it.",
+              "Keep only the points that satisfy all three. Test $(0,1)$: $1>{{b1}}$, $1\\le{{b2}}$ and $1\\ge{{c}}$ all hold, so $(0,1)$ lies in the common region."
+            ],
+            "commonError": "Keeping a region that satisfies only two of the inequalities: a system means AND, so every retained point must also be on or above $y={{c}}$.",
+            "answerSummary": "Dashed $y={{m1}}x{{b1|signed}}$ shaded above, solid $y={{m2}}x{{b2|signed}}$ shaded below, solid $y={{c}}$ shaded above; the common region contains $(0,1)$."
           },
           "attemptFeedback": [
             "Check boundary style and shading direction for all three before identifying the overlap."
@@ -30638,13 +30663,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Unlike linear denominators require an LCD before numerators can be combined.",
+            "headline": "Rewrite both fractions over the LCD $(x-{{r}})(x-{{s}})$, add the numerators, and keep both original restrictions.",
             "reasoning": [
-              "The LCD is $(x-{{r}})(x-{{s}})$.",
-              "The combined numerator is ${{A}}(x-{{s}})+{{B}}(x-{{r}})={{N1}}x+({{N0}})$.",
-              "The original denominators exclude x={{r}} and x={{s}}."
+              "The denominators $x-{{r}}$ and $x-{{s}}$ share no factor, so the LCD is their product $(x-{{r}})(x-{{s}})$.",
+              "Give each numerator the factor its denominator is missing: $\\frac{{{A}}}{x-{{r}}}+\\frac{{{B}}}{x-{{s}}}=\\frac{{{A}}(x-{{s}})+{{B}}(x-{{r}})}{(x-{{r}})(x-{{s}})}$.",
+              "Expand and combine like terms: ${{A}}(x-{{s}})+{{B}}(x-{{r}})={{A}}x{{mAs|signed}}{{B|signed}}x{{mBr|signed}}={{N1}}x{{N0|signed}}$.",
+              "At $x={{r}}$ only ${{A}}(x-{{s}})$ survives, giving {{atR}}; at $x={{s}}$ only ${{B}}(x-{{r}})$ survives, giving {{atS}}. Neither is 0, so nothing cancels; the original denominators still give $x\\ne{{r}}$ and $x\\ne{{s}}$."
             ],
-            "answerSummary": "$\\frac{{{N1}}x+({{N0}})}{(x-{{r}})(x-{{s}})}$, with x≠{{r}},{{s}}."
+            "commonError": "Adding numerators and denominators straight across, or forgetting to multiply ${{B}}$ by $x-{{r}}$ before combining like terms.",
+            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Do not add denominators; rewrite both fractions over the LCD first."
@@ -30689,7 +30716,11 @@
             },
             "derived": {
               "N1": "A+B",
-              "N0": "-A*s-B*r"
+              "N0": "-A*s-B*r",
+              "mAs": "-A*s",
+              "mBr": "-B*r",
+              "atR": "A*(r-s)",
+              "atS": "B*(s-r)"
             },
             "constraints": [
               "r!=s",
@@ -30724,13 +30755,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Factor-level LCD reasoning prevents duplicated common factors.",
+            "headline": "The two denominators share $x-{{r}}$, so the LCD uses each distinct factor once: $(x-{{r}})(x-{{s}})(x-{{t}})$.",
             "reasoning": [
-              "The LCD uses each distinct factor once: $(x-{{r}})(x-{{s}})(x-{{t}})$.",
-              "The numerator is ${{A}}(x-{{t}})+{{B}}(x-{{s}})={{N1}}x+({{N0}})$.",
-              "All three denominator zeros remain excluded."
+              "Both denominators contain $x-{{r}}$; the first also has $x-{{s}}$ and the second $x-{{t}}$. The LCD is $(x-{{r}})(x-{{s}})(x-{{t}})$.",
+              "The first fraction is missing $x-{{t}}$ and the second is missing $x-{{s}}$, so the numerator over the LCD is ${{A}}(x-{{t}})+{{B}}(x-{{s}})$.",
+              "Expand and combine: ${{A}}(x-{{t}})+{{B}}(x-{{s}})={{A}}x{{mAt|signed}}{{B|signed}}x{{mBs|signed}}={{N1}}x{{N0|signed}}$.",
+              "At $x={{r}}$ the numerator equals {{atR}}; at $x={{s}}$ only ${{A}}(x-{{t}})$ survives, giving {{atS}}; at $x={{t}}$ only ${{B}}(x-{{s}})$ survives, giving {{atT}}. None is 0, so no factor cancels. The original denominators exclude $x={{r}}$, $x={{s}}$ and $x={{t}}$."
             ],
-            "answerSummary": "Use the three-factor LCD and keep x≠{{r}},{{s}},{{t}}."
+            "commonError": "Using $(x-{{r}})^2(x-{{s}})(x-{{t}})$ as the denominator: the shared factor $x-{{r}}$ belongs in the LCD only once.",
+            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})(x-{{t}})}$ with $x\\ne{{r}}$, $x\\ne{{s}}$ and $x\\ne{{t}}$."
           },
           "attemptFeedback": [
             "The shared factor x-{{r}} appears only once in the LCD."
@@ -30784,7 +30817,11 @@
             "derived": {
               "N1": "A+B",
               "N0": "-A*t-B*s",
-              "atR": "A*(r-t)+B*(r-s)"
+              "atR": "A*(r-t)+B*(r-s)",
+              "mAt": "-A*t",
+              "mBs": "-B*s",
+              "atS": "A*(s-t)",
+              "atT": "B*(t-s)"
             },
             "constraints": [
               "r!=s",
@@ -30822,13 +30859,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "The quadratic denominator already contains the linear denominator factor.",
+            "headline": "The quadratic denominator $(x-{{r}})(x-{{s}})$ already contains $x-{{r}}$, so it is the LCD.",
             "reasoning": [
-              "The LCD is $(x-{{r}})(x-{{s}})$.",
-              "Only the first numerator needs the extra factor x-{{s}}.",
-              "The combined numerator is {{A}}x+({{N0}}), and both original zeros stay excluded."
+              "The LCD is $(x-{{r}})(x-{{s}})$: it contains the first denominator $x-{{r}}$ and is the second denominator.",
+              "Only the first fraction needs rewriting: $\\frac{{{A}}}{x-{{r}}}=\\frac{{{A}}(x-{{s}})}{(x-{{r}})(x-{{s}})}$. The second numerator ${{B}}$ stays as it is.",
+              "Add the numerators: ${{A}}(x-{{s}})+{{B}}={{A}}x{{mAs|signed}}{{B|signed}}={{A}}x{{N0|signed}}$.",
+              "At $x={{r}}$ the numerator equals {{atR}} and at $x={{s}}$ only the constant ${{B}}$ survives; neither is 0, so nothing cancels. Keep $x\\ne{{r}}$ and $x\\ne{{s}}$ from the original denominators."
             ],
-            "answerSummary": "Mixed-degree sum over $(x-{{r}})(x-{{s}})$."
+            "commonError": "Multiplying the second fraction by another $x-{{r}}$, which builds the denominator $(x-{{r}})^2(x-{{s}})$; that fraction is already over the LCD.",
+            "answerSummary": "Numerator ${{A}}x{{N0|signed}}$; answer $\\frac{{{A}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Do not multiply the second fraction by an extra x-{{r}}; its denominator is already the LCD."
@@ -30873,7 +30912,8 @@
             },
             "derived": {
               "N0": "-A*s+B",
-              "atR": "A*(r-s)+B"
+              "atR": "A*(r-s)+B",
+              "mAs": "-A*s"
             },
             "constraints": [
               "r!=s",
@@ -30928,13 +30968,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Subtraction changes the entire second numerator contribution.",
+            "headline": "Rewrite both fractions over $(x-{{r}})(x-{{s}})$, then subtract the WHOLE second numerator.",
             "reasoning": [
-              "Over the LCD, the numerator is ${{A}}(x-{{s}})-{{B}}(x-{{r}})$.",
-              "That simplifies to {{N1}}x+({{N0}}).",
-              "The original denominator zeros remain x={{r}} and x={{s}}."
+              "The expression is $\\frac{{{A}}}{x-{{r}}}-\\frac{{{B}}}{x-{{s}}}$. The denominators share no factor, so the LCD is $(x-{{r}})(x-{{s}})$.",
+              "Over the LCD the numerator is ${{A}}(x-{{s}})-{{B}}(x-{{r}})$: each numerator gets the factor its denominator is missing.",
+              "Distribute the subtraction to both terms: ${{A}}(x-{{s}})-{{B}}(x-{{r}})={{A}}x{{mAs|signed}}{{mB|signed}}x{{Br|signed}}={{N1}}x{{N0|signed}}$.",
+              "At $x={{r}}$ only ${{A}}(x-{{s}})$ survives, giving {{atR}}; at $x={{s}}$ only $-{{B}}(x-{{r}})$ survives, giving {{atS}}. Neither is 0, so nothing cancels; the original denominators still give $x\\ne{{r}}$ and $x\\ne{{s}}$."
             ],
-            "answerSummary": "Subtract the full second contribution before combining like terms."
+            "commonError": "Subtracting only the first term of the second contribution: $-{{B}}(x-{{r}})$ is ${{mB}}x{{Br|signed}}$, so both of its terms change sign.",
+            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Keep parentheses around the second numerator contribution until the subtraction has been distributed."
@@ -30979,7 +31021,12 @@
             },
             "derived": {
               "N1": "A-B",
-              "N0": "-A*s+B*r"
+              "N0": "-A*s+B*r",
+              "mAs": "-A*s",
+              "mB": "-B",
+              "Br": "B*r",
+              "atR": "A*(r-s)",
+              "atS": "-B*(s-r)"
             },
             "constraints": [
               "r!=s",
@@ -31014,13 +31061,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Quadratic denominators can share one factor without having the same LCD.",
+            "headline": "The denominators share $x-{{r}}$, so the LCD is $(x-{{r}})(x-{{s}})(x-{{t}})$; then subtract the whole second numerator.",
             "reasoning": [
-              "The LCD is $(x-{{r}})(x-{{s}})(x-{{t}})$.",
-              "The numerator is ${{A}}(x-{{t}})-{{B}}(x-{{s}})={{N1}}x+({{N0}})$.",
-              "None of the three original denominator zeros may be restored after simplification."
+              "Each distinct factor appears once in the LCD: $(x-{{r}})(x-{{s}})(x-{{t}})$. The first fraction is missing $x-{{t}}$, the second is missing $x-{{s}}$.",
+              "Over the LCD the numerator is ${{A}}(x-{{t}})-{{B}}(x-{{s}})$.",
+              "Distribute the subtraction: ${{A}}(x-{{t}})-{{B}}(x-{{s}})={{A}}x{{mAt|signed}}{{mB|signed}}x{{Bs|signed}}={{N1}}x{{N0|signed}}$.",
+              "At $x={{r}}$ the numerator equals {{atR}}; at $x={{s}}$ only ${{A}}(x-{{t}})$ survives, giving {{atS}}; at $x={{t}}$ only $-{{B}}(x-{{s}})$ survives, giving {{atT}}. None is 0, so nothing cancels. The original denominators exclude $x={{r}}$, $x={{s}}$ and $x={{t}}$."
             ],
-            "answerSummary": "Three-factor LCD with a fully distributed subtraction."
+            "commonError": "Writing $-{{B}}(x-{{s}})$ as ${{mB}}x-{{Bs}}$: the subtraction changes the sign of BOTH terms, giving ${{mB}}x{{Bs|signed}}$.",
+            "answerSummary": "Numerator ${{N1}}x{{N0|signed}}$; answer $\\frac{{{N1}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})(x-{{t}})}$ with $x\\ne{{r}}$, $x\\ne{{s}}$ and $x\\ne{{t}}$."
           },
           "attemptFeedback": [
             "The negative sign applies to both terms produced by B(x-s)."
@@ -31074,7 +31123,12 @@
             "derived": {
               "N1": "A-B",
               "N0": "-A*t+B*s",
-              "atR": "A*(r-t)-B*(r-s)"
+              "atR": "A*(r-t)-B*(r-s)",
+              "mAt": "-A*t",
+              "mB": "-B",
+              "Bs": "B*s",
+              "atS": "A*(s-t)",
+              "atT": "-B*(t-s)"
             },
             "constraints": [
               "r!=s",
@@ -31112,13 +31166,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "Only the degree-1 denominator fraction needs to be scaled to the LCD.",
+            "headline": "Only the degree-1 fraction needs rewriting over the LCD $(x-{{r}})(x-{{s}})$; then subtract ${{B}}$.",
             "reasoning": [
-              "The numerator becomes ${{A}}(x-{{s}})-{{B}}={{A}}x+({{N0}})$.",
-              "The denominator is $(x-{{r}})(x-{{s}})$.",
-              "Both x={{r}} and x={{s}} are excluded."
+              "The second denominator $(x-{{r}})(x-{{s}})$ already contains $x-{{r}}$, so it is the LCD.",
+              "Rewrite the first fraction: $\\frac{{{A}}}{x-{{r}}}=\\frac{{{A}}(x-{{s}})}{(x-{{r}})(x-{{s}})}$, so the numerator is ${{A}}(x-{{s}})-{{B}}$.",
+              "Simplify: ${{A}}(x-{{s}})-{{B}}={{A}}x{{mAs|signed}}{{mB|signed}}={{A}}x{{N0|signed}}$.",
+              "At $x={{r}}$ the numerator equals {{atR}} and at $x={{s}}$ only the constant ${{mB}}$ survives; neither is 0, so nothing cancels. Keep $x\\ne{{r}}$ and $x\\ne{{s}}$."
             ],
-            "answerSummary": "Mixed-degree difference with two preserved restrictions."
+            "commonError": "Adding ${{B}}$ instead of subtracting it, or multiplying the second fraction by an extra $x-{{r}}$ although it is already over the LCD.",
+            "answerSummary": "Numerator ${{A}}x{{N0|signed}}$; answer $\\frac{{{A}}x{{N0|signed}}}{(x-{{r}})(x-{{s}})}$ with $x\\ne{{r}}$ and $x\\ne{{s}}$."
           },
           "attemptFeedback": [
             "Subtract B after expanding A(x-s); do not change the denominator factors."
@@ -31163,7 +31219,9 @@
             },
             "derived": {
               "N0": "-A*s-B",
-              "atR": "A*(r-s)-B"
+              "atR": "A*(r-s)-B",
+              "mAs": "-A*s",
+              "mB": "-B"
             },
             "constraints": [
               "r!=s",
@@ -31218,13 +31276,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A common factor may cancel from a product, but its original restriction does not.",
+            "headline": "The complete factor $x-{{b}}$ cancels from the product, but $x={{b}}$ stays excluded.",
             "reasoning": [
-              "The factor x-{{b}} cancels as a complete numerator/denominator factor.",
-              "The simplified product is (x-{{a}})/(x-{{c}}).",
-              "The original denominators still exclude x={{b}} and x={{c}}."
+              "Multiply into one fraction: $\\frac{x-{{a}}}{x-{{b}}}\\cdot\\frac{x-{{b}}}{x-{{c}}}=\\frac{(x-{{a}})(x-{{b}})}{(x-{{b}})(x-{{c}})}$.",
+              "The factor $x-{{b}}$ is in the numerator and the denominator, so it cancels: the product is $\\frac{x-{{a}}}{x-{{c}}}$.",
+              "Restrictions come from the ORIGINAL denominators: $x-{{b}}$ is zero at $x={{b}}$ and $x-{{c}}$ is zero at $x={{c}}$. The original product is undefined at $x={{b}}$ even though the simplified form is not, so keep $x\\ne{{b}}$."
             ],
-            "answerSummary": "$\\frac{x-{{a}}}{x-{{c}}}$ with x≠{{b}},{{c}}."
+            "commonError": "Dropping $x\\ne{{b}}$ after cancelling: $\\frac{x-{{a}}}{x-{{c}}}$ is defined at $x={{b}}$, but the original product is not.",
+            "answerSummary": "Cancel $x-{{b}}$; answer $\\frac{x-{{a}}}{x-{{c}}}$ with $x\\ne{{b}}$ and $x\\ne{{c}}$."
           },
           "attemptFeedback": [
             "Cancel factors, never individual terms inside a sum or difference."
@@ -31315,13 +31374,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Factored quadratic rational expressions can cancel several complete factors.",
+            "headline": "Two complete factors, $x-{{a}}$ and $x-{{c}}$, cancel; all four original denominator zeros stay excluded.",
             "reasoning": [
-              "Cancel x-{{a}} and x-{{c}} across the product.",
-              "The reduced product is (x-{{b}})(x-{{e}})/[(x-{{d}})(x-{{f}})].",
-              "Restrictions x={{a}},{{c}},{{d}},{{f}} all survive from the original denominators."
+              "Multiply into one fraction: $\\frac{(x-{{a}})(x-{{b}})}{(x-{{c}})(x-{{d}})}\\cdot\\frac{(x-{{c}})(x-{{e}})}{(x-{{a}})(x-{{f}})}=\\frac{(x-{{a}})(x-{{b}})(x-{{c}})(x-{{e}})}{(x-{{c}})(x-{{d}})(x-{{a}})(x-{{f}})}$.",
+              "$x-{{a}}$ and $x-{{c}}$ each appear on top and bottom, so both cancel: $\\frac{(x-{{b}})(x-{{e}})}{(x-{{d}})(x-{{f}})}$.",
+              "The first denominator is zero at $x={{c}}$ and $x={{d}}$; the second at $x={{a}}$ and $x={{f}}$. All four stay excluded, including the cancelled $x={{a}}$ and $x={{c}}$."
             ],
-            "answerSummary": "Reduced degree-2 product with four original restrictions."
+            "commonError": "Listing only $x\\ne{{d}}$ and $x\\ne{{f}}$ from the simplified denominator: $x={{a}}$ and $x={{c}}$ made an original denominator zero, so they remain excluded.",
+            "answerSummary": "Cancel $x-{{a}}$ and $x-{{c}}$; answer $\\frac{(x-{{b}})(x-{{e}})}{(x-{{d}})(x-{{f}})}$ with $x\\ne{{a}}$, $x\\ne{{c}}$, $x\\ne{{d}}$ and $x\\ne{{f}}$."
           },
           "attemptFeedback": [
             "A canceled denominator factor still marks an input that was illegal in the original expression."
@@ -31426,13 +31486,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Mixed-degree multiplication follows the same factor rule.",
+            "headline": "The factor $x-{{b}}$ cancels across the two fractions; the restrictions $x\\ne{{b}}$, $x\\ne{{d}}$, $x\\ne{{e}}$ all remain.",
             "reasoning": [
-              "Cancel the shared factor x-{{b}}.",
-              "The reduced numerator is (x-{{a}})(x-{{c}}) and denominator is (x-{{d}})(x-{{e}}).",
-              "The original restrictions are x≠{{b}},{{d}},{{e}}."
+              "Multiply into one fraction: $\\frac{x-{{a}}}{x-{{b}}}\\cdot\\frac{(x-{{b}})(x-{{c}})}{(x-{{d}})(x-{{e}})}=\\frac{(x-{{a}})(x-{{b}})(x-{{c}})}{(x-{{b}})(x-{{d}})(x-{{e}})}$.",
+              "Cancel the complete common factor $x-{{b}}$: the product is $\\frac{(x-{{a}})(x-{{c}})}{(x-{{d}})(x-{{e}})}$.",
+              "The original denominators are zero at $x={{b}}$ (first fraction) and at $x={{d}}$ and $x={{e}}$ (second fraction), so all three values are excluded."
             ],
-            "answerSummary": "Mixed-degree product simplified without losing domain restrictions."
+            "commonError": "Losing $x\\ne{{b}}$ when $x-{{b}}$ cancels: the first original fraction is undefined at $x={{b}}$.",
+            "answerSummary": "Cancel $x-{{b}}$; answer $\\frac{(x-{{a}})(x-{{c}})}{(x-{{d}})(x-{{e}})}$ with $x\\ne{{b}}$, $x\\ne{{d}}$ and $x\\ne{{e}}$."
           },
           "attemptFeedback": [
             "Cancel only the shared whole factor x-{{b}}."
@@ -31545,13 +31606,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Division introduces both denominator restrictions and divisor-zero restrictions.",
+            "headline": "Multiply by the reciprocal of $\\frac{x-{{c}}}{x-{{d}}}$, and exclude $x={{c}}$ because it makes the divisor zero.",
             "reasoning": [
-              "Multiply by the reciprocal of the second rational expression.",
-              "Original denominators exclude x={{b}} and x={{d}}.",
-              "The divisor is zero at x={{c}}, so x={{c}} is also excluded."
+              "Dividing means multiplying by the reciprocal: $\\frac{x-{{a}}}{x-{{b}}}\\cdot\\frac{x-{{d}}}{x-{{c}}}=\\frac{(x-{{a}})(x-{{d}})}{(x-{{b}})(x-{{c}})}$.",
+              "All four factors are different, so nothing cancels.",
+              "Excluded values: $x={{b}}$ and $x={{d}}$ make an original denominator zero, and $x={{c}}$ makes the divisor $\\frac{x-{{c}}}{x-{{d}}}$ equal to zero."
             ],
-            "answerSummary": "Reciprocal product with restrictions x≠{{b}},{{c}},{{d}}."
+            "commonError": "Missing $x\\ne{{d}}$: after flipping, $x-{{d}}$ moves to the numerator, but $x={{d}}$ was already illegal in the original divisor.",
+            "answerSummary": "Answer $\\frac{(x-{{a}})(x-{{d}})}{(x-{{b}})(x-{{c}})}$ with $x\\ne{{b}}$, $x\\ne{{c}}$ and $x\\ne{{d}}$."
           },
           "attemptFeedback": [
             "A rational divisor may be undefined at one value and equal to zero at another; both matter."
@@ -31625,13 +31687,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A simplified quotient can hide several values that were illegal before cancellation.",
+            "headline": "After flipping the divisor, $x-{{a}}$ and $x-{{c}}$ cancel; five values stay excluded.",
             "reasoning": [
-              "After taking the reciprocal, x-{{a}} and x-{{c}} cancel.",
-              "The reduced quotient is (x-{{b}})(x-{{f}})/[(x-{{d}})(x-{{e}})].",
-              "The original denominators exclude {{c}},{{d}},{{f}}, and divisor zeros exclude {{a}},{{e}}."
+              "Multiply by the reciprocal of the divisor: $\\frac{(x-{{a}})(x-{{b}})}{(x-{{c}})(x-{{d}})}\\cdot\\frac{(x-{{c}})(x-{{f}})}{(x-{{a}})(x-{{e}})}=\\frac{(x-{{a}})(x-{{b}})(x-{{c}})(x-{{f}})}{(x-{{c}})(x-{{d}})(x-{{a}})(x-{{e}})}$.",
+              "Cancel the complete factors $x-{{a}}$ and $x-{{c}}$: the quotient is $\\frac{(x-{{b}})(x-{{f}})}{(x-{{d}})(x-{{e}})}$.",
+              "The original denominators are zero at $x={{c}}$, $x={{d}}$ and $x={{f}}$; the divisor is zero at $x={{a}}$ and $x={{e}}$. All five are excluded."
             ],
-            "answerSummary": "Reduced quadratic quotient with five preserved restrictions."
+            "commonError": "Reading the restrictions only from the simplified denominator ($x\\ne{{d}}$, $x\\ne{{e}}$) and missing $x={{a}}$, $x={{c}}$ and $x={{f}}$.",
+            "answerSummary": "Answer $\\frac{(x-{{b}})(x-{{f}})}{(x-{{d}})(x-{{e}})}$ with $x\\ne{{a}}$, $x\\ne{{c}}$, $x\\ne{{d}}$, $x\\ne{{e}}$ and $x\\ne{{f}}$."
           },
           "attemptFeedback": [
             "Write restrictions before cancellation; then add the zeros of the divisor numerator."
@@ -31730,13 +31793,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Mixed-degree division can create a cubic-over-cubic product even though each original expression is degree 1 or 2.",
+            "headline": "Flip the degree-2 divisor and multiply; the quotient is cubic over cubic, with five excluded values.",
             "reasoning": [
-              "Flip the degree-2 divisor and multiply.",
-              "The first denominator excludes {{b}}; the divisor denominator excludes {{e}},{{f}}.",
-              "Because the divisor cannot equal zero, {{c}} and {{d}} are excluded too."
+              "Multiply by the reciprocal: $\\frac{x-{{a}}}{x-{{b}}}\\cdot\\frac{(x-{{e}})(x-{{f}})}{(x-{{c}})(x-{{d}})}=\\frac{(x-{{a}})(x-{{e}})(x-{{f}})}{(x-{{b}})(x-{{c}})(x-{{d}})}$.",
+              "All six factors are different, so nothing cancels.",
+              "The first denominator excludes $x={{b}}$, the divisor's denominator excludes $x={{e}}$ and $x={{f}}$, and the divisor is zero at $x={{c}}$ and $x={{d}}$, so those are excluded too."
             ],
-            "answerSummary": "Fully simplified mixed-degree quotient with five original/divisor-zero restrictions."
+            "commonError": "Forgetting $x\\ne{{e}}$ and $x\\ne{{f}}$: after flipping, those factors sit in the numerator, but they were denominators in the original divisor.",
+            "answerSummary": "Answer $\\frac{(x-{{a}})(x-{{e}})(x-{{f}})}{(x-{{b}})(x-{{c}})(x-{{d}})}$ with $x\\ne{{b}}$, $x\\ne{{c}}$, $x\\ne{{d}}$, $x\\ne{{e}}$ and $x\\ne{{f}}$."
           },
           "attemptFeedback": [
             "Do not stop after writing the reciprocal; finish the multiplication and simplification."
@@ -34005,13 +34069,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A constant output ratio over equal input steps identifies exponential change.",
+            "headline": "Every consecutive ratio is {{r}}, so the data grow by a constant factor: exponential growth.",
             "reasoning": [
-              "Each consecutive output ratio equals {{r}}.",
-              "The same multiplicative factor repeats at every one-unit x-step.",
-              "Because {{r}}>1, this is exponential growth."
+              "Divide each output by the one before it: $\\frac{{{y1}}}{{{y0}}}={{r}}$, $\\frac{{{y2}}}{{{y1}}}={{r}}$ and $\\frac{{{y3}}}{{{y2}}}={{r}}$.",
+              "The first differences {{d1}}, {{d2}}, {{d3}} are not constant, so the data are not linear; the second differences {{dd1}}, {{dd2}} are not constant either, so they are not quadratic.",
+              "Each one-unit step in $x$ multiplies $y$ by the same factor, so $y={{y0}}({{r}})^x$. Because ${{r}}>1$, this is exponential growth."
             ],
-            "answerSummary": "Exponential growth with common ratio {{r}}."
+            "commonError": "Calling the data quadratic because the differences grow: growing differences only rule out linear. The constant ratio {{r}} is what identifies exponential.",
+            "answerSummary": "Each ratio is {{r}}; best model: Exponential (growth, $y={{y0}}({{r}})^x$)."
           },
           "generator": {
             "parameters": {
@@ -34030,7 +34095,12 @@
               "y0": "a",
               "y1": "a*r",
               "y2": "a*r*r",
-              "y3": "a*r*r*r"
+              "y3": "a*r*r*r",
+              "d1": "y1-y0",
+              "d2": "y2-y1",
+              "d3": "y3-y2",
+              "dd1": "y2-2*y1+y0",
+              "dd2": "y3-2*y2+y1"
             }
           }
         },
@@ -34105,13 +34175,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A constant output ratio below 1 identifies exponential decay.",
+            "headline": "Every consecutive ratio is $\\frac{1}{{{r}}}$, a constant factor between 0 and 1: exponential decay.",
             "reasoning": [
-              "Each consecutive output ratio equals 1/{{r}}.",
-              "The same multiplicative factor repeats at every one-unit x-step.",
-              "Because the ratio is between 0 and 1, this is exponential decay."
+              "Divide each output by the one before it: $\\frac{{{y1}}}{{{y0}}}=\\frac{1}{{{r}}}$, $\\frac{{{y2}}}{{{y1}}}=\\frac{1}{{{r}}}$ and $\\frac{{{y3}}}{{{y2}}}=\\frac{1}{{{r}}}$.",
+              "The first differences {{d1}}, {{d2}}, {{d3}} are not constant, so the data are not linear; the second differences {{dd1}}, {{dd2}} are not constant either, so they are not quadratic.",
+              "Each one-unit step in $x$ multiplies $y$ by the same factor, so $y={{y0}}\\left(\\frac{1}{{{r}}}\\right)^x$. Because $0<\\frac{1}{{{r}}}<1$, this is exponential decay."
             ],
-            "answerSummary": "Exponential decay with common ratio 1/{{r}}."
+            "commonError": "Ruling out exponential because the outputs decrease: a constant ratio below 1, here $\\frac{1}{{{r}}}$, is exponential decay.",
+            "answerSummary": "Each ratio is $\\frac{1}{{{r}}}$; best model: Exponential (decay, $y={{y0}}\\left(\\frac{1}{{{r}}}\\right)^x$)."
           },
           "generator": {
             "parameters": {
@@ -34130,7 +34201,12 @@
               "y0": "a*r*r*r",
               "y1": "a*r*r",
               "y2": "a*r",
-              "y3": "a"
+              "y3": "a",
+              "d1": "y1-y0",
+              "d2": "y2-y1",
+              "d3": "y3-y2",
+              "dd1": "y2-2*y1+y0",
+              "dd2": "y3-2*y2+y1"
             }
           }
         }
@@ -35169,13 +35245,15 @@
             "note": "Fit the complete data set first, then compare x=4 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
-            "headline": "Fit first, then use the fitted linear model at the requested input.",
+            "headline": "Fit the line to all five points, evaluate it at x=4, and note that x=4 is outside the data.",
             "reasoning": [
-              "The balanced noisy data fit y={{m}}x+({{b}}).",
-              "At x=4 the fitted model predicts {{pred}}.",
-              "Because 4 is beyond the observed maximum x=2, this is extrapolation."
+              "The x-values $-2,-1,0,1,2$ are centered at 0, so the intercept is the mean of the outputs: $b=\\frac{({{ym2}})+({{ym1}})+({{y0}})+({{y1}})+({{y2}})}{5}={{b}}$.",
+              "The slope is $m=\\frac{\\sum xy}{\\sum x^2}=\\frac{-2({{ym2}})-({{ym1}})+({{y1}})+2({{y2}})}{10}={{m}}$, so linear regression gives $y={{m}}x+({{b}})$.",
+              "Evaluate at x=4: $y={{m}}(4)+({{b}})={{pred}}$.",
+              "The observed inputs run from $x=-2$ to $x=2$. Since 4 is beyond the largest observed x, the prediction is an extrapolation."
             ],
-            "answerSummary": "Prediction {{pred}} at x=4."
+            "commonError": "Drawing a line through just two of the points: regression uses all five observations, and here it gives $m={{m}}$ and $b={{b}}$.",
+            "answerSummary": "$m={{m}}$, $b={{b}}$; Prediction {{pred}} at x=4 (extrapolation)."
           },
           "generator": {
             "parameters": {
@@ -35245,13 +35323,15 @@
             "note": "Fit the complete data set first, then compare x=0.5 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
-            "headline": "A fitted quadratic can interpolate between observed inputs.",
+            "headline": "Fit the quadratic to all five points, evaluate it at x=0.5, and note that x=0.5 lies inside the data.",
             "reasoning": [
-              "The full regression recovers the fitted quadratic coefficients.",
-              "At x=0.5 the model predicts {{pred}}.",
-              "Because 0.5 lies inside the observed range, this is interpolation."
+              "Quadratic regression on all five observations gives $a={{a}}$, $b={{b}}$ and $c={{c}}$, so the model is $y={{a}}x^2+({{b}})x+({{c}})$.",
+              "Check $b$ by hand: with x-values centered at 0, $b=\\frac{\\sum xy}{\\sum x^2}=\\frac{-2({{ym2}})-({{ym1}})+({{y1}})+2({{y2}})}{10}={{b}}$.",
+              "Evaluate at x=0.5: $y={{a}}(0.5)^2+({{b}})(0.5)+({{c}})={{pred}}$.",
+              "The observed inputs run from $x=-2$ to $x=2$, and 0.5 lies between them, so the prediction is an interpolation."
             ],
-            "answerSummary": "Prediction {{pred}} at x=0.5."
+            "commonError": "Calling the prediction extrapolation because x=0.5 is not one of the observed x-values: what matters is that it lies inside the observed range.",
+            "answerSummary": "$a={{a}}$, $b={{b}}$, $c={{c}}$; Prediction {{pred}} at x=0.5 (interpolation)."
           },
           "generator": {
             "parameters": {
@@ -35325,13 +35405,14 @@
             "note": "The data contain multiplicative noise; use the full exponential regression before predicting."
           },
           "solutionReview": {
-            "headline": "Exponential prediction uses the fitted multiplicative model.",
+            "headline": "Fit the exponential model to all five points, evaluate it at x=3, and note that x=3 is outside the data.",
             "reasoning": [
-              "The log-balanced noisy data recover a={{a}} and base {{base}}.",
-              "At x=3 the fitted model predicts {{pred}}.",
-              "x=3 is beyond the observed maximum x=2, so the prediction is extrapolation."
+              "Exponential regression fits a line to $(x,\\ln y)$. The multiplicative noise cancels in the logs, so the fit gives $a={{a}}$ and base {{base}}: $y={{a}}({{base}})^x$.",
+              "Evaluate at x=3: $y={{a}}({{base}})^3={{pred}}$.",
+              "The observed inputs run from $x=-2$ to $x=2$. Since 3 is beyond the largest observed x, the prediction is an extrapolation."
             ],
-            "answerSummary": "Prediction {{pred}} at x=3."
+            "commonError": "Fitting a line to the raw outputs: the task assigns exponential regression, which fits a line to $(x,\\ln y)$ through all five observations, so the model to report is $y={{a}}({{base}})^x$, not a linear one.",
+            "answerSummary": "$a={{a}}$, base {{base}}; Prediction {{pred}} at x=3 (extrapolation)."
           },
           "generator": {
             "parameters": {
@@ -35466,13 +35547,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A decision should follow the model calculation.",
+            "headline": "Predict with the model first: $y(4)={{pred}}$ is above the capacity of {{threshold}}.",
             "reasoning": [
-              "The model gives y(4)={{pred}}.",
-              "Capacity is {{threshold}}.",
-              "Since {{pred}}>{{threshold}}, the model says capacity will be exceeded."
+              "The model matches the table: the observed values {{y0}}, {{y1}}, {{y2}}, {{y3}} rise by {{m}} each step, the slope of $y={{m}}x+({{b}})$.",
+              "Substitute x=4: $y(4)={{m}}(4)+{{b}}={{m4}}+{{b}}={{pred}}$.",
+              "Management can staff at most {{threshold}} units, and ${{pred}}>{{threshold}}$, so the prediction is {{margin}} units over capacity."
             ],
-            "answerSummary": "Exceed capacity."
+            "commonError": "Comparing the last observed value {{y3}} (at x=3) with the capacity instead of the model's prediction at x=4.",
+            "answerSummary": "$y(4)={{pred}}>{{threshold}}$, so: Yes. The predicted amount exceeds capacity."
           },
           "generator": {
             "parameters": {
@@ -35498,7 +35580,8 @@
               "y2": "2*m+b",
               "y3": "3*m+b",
               "pred": "4*m+b",
-              "threshold": "pred-margin"
+              "threshold": "pred-margin",
+              "m4": "4*m"
             }
           }
         },
@@ -35558,13 +35641,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Compare the model prediction with the stated decision threshold.",
+            "headline": "Predict with the model first: $y(4)={{pred}}$ falls short of the approval threshold {{threshold}}.",
             "reasoning": [
-              "The quadratic predicts {{pred}} at x=4.",
-              "The approval threshold is {{threshold}}.",
-              "Because {{pred}}<{{threshold}}, the model does not support approval."
+              "The model matches the table, for example $y(3)={{a}}(9)+({{b}})(3)+{{c}}={{y3}}$.",
+              "Substitute x=4: $y(4)={{a}}(16)+({{b}})(4)+{{c}}={{a16}}+({{b4}})+{{c}}={{pred}}$.",
+              "Approval needs at least {{threshold}}, but ${{pred}}<{{threshold}}$: the prediction is {{margin}} short, so the model does not support approval."
             ],
-            "answerSummary": "Do not approve."
+            "commonError": "Deciding from the observed table instead of the prediction: the rule is about predicted demand at x=4, and $y(4)={{pred}}$ is below the threshold {{threshold}}.",
+            "answerSummary": "$y(4)={{pred}}<{{threshold}}$, so: Do not approve; predicted demand is below the threshold."
           },
           "generator": {
             "parameters": {
@@ -35595,7 +35679,9 @@
               "y2": "4*a+2*b+c",
               "y3": "9*a+3*b+c",
               "pred": "16*a+4*b+c",
-              "threshold": "pred+margin"
+              "threshold": "pred+margin",
+              "a16": "16*a",
+              "b4": "4*b"
             }
           }
         },
@@ -35655,13 +35741,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Use the exponential prediction as the quantitative basis for the decision.",
+            "headline": "Predict with the model first: $y(5)={{pred}}$ is above the trigger of {{threshold}}.",
             "reasoning": [
-              "The model predicts {{pred}} at x=5.",
-              "The trigger is {{threshold}}.",
-              "Since {{pred}}>{{threshold}}, the model supports the upgrade."
+              "The model matches the table: each observation ({{y0}}, {{y1}}, {{y2}}, {{y3}}) is {{r}} times the one before it.",
+              "Substitute x=5: $y(5)={{a}}({{r}})^5={{a}}\\cdot{{r5}}={{pred}}$.",
+              "The upgrade triggers above {{threshold}}, and ${{pred}}>{{threshold}}$, so the model supports triggering it."
             ],
-            "answerSummary": "Trigger the upgrade."
+            "commonError": "Stopping one step early: $y(4)={{y4}}$ is the value at x=4, but the decision is about x=5, one more factor of {{r}}.",
+            "answerSummary": "$y(5)={{pred}}>{{threshold}}$, so: Trigger the upgrade; the prediction exceeds the threshold."
           },
           "generator": {
             "parameters": {
@@ -35687,7 +35774,9 @@
               "y2": "a*r*r",
               "y3": "a*r*r*r",
               "pred": "a*pow(r,5)",
-              "threshold": "pred-margin"
+              "threshold": "pred-margin",
+              "r5": "pow(r,5)",
+              "y4": "a*pow(r,4)"
             }
           }
         }
@@ -35756,13 +35845,15 @@
             }
           ],
           "solutionReview": {
-            "headline": "A numerical extrapolation can be computed without being equally trustworthy.",
+            "headline": "The model can compute $y(80)={{pred}}$, but x=80 is far beyond the data, so the value is not automatically reliable.",
             "reasoning": [
-              "The model produces {{pred}} at x=80.",
-              "But 80 is far outside the observed range 0 to 10.",
-              "A strong in-range fit does not guarantee the same linear relationship that far beyond the data."
+              "Compute: $y(80)={{m}}(80)+{{b}}={{m80}}+{{b}}={{pred}}$.",
+              "The data cover only $0\\le x\\le10$. x=80 is 70 units past the largest observed input, 8 times as far out as the data reach.",
+              "A strong fit on 0 to 10 shows the line describes that interval only; nothing in the data tests whether y keeps rising by {{m}} per unit all the way to x=80.",
+              "So {{pred}} is a computed extrapolation that needs caution, not a guaranteed forecast."
             ],
-            "answerSummary": "Prediction {{pred}}, but treat it as a distant extrapolation."
+            "commonError": "Treating a strong fit on the observed interval as proof the line holds at x=80: fit quality says nothing about inputs the data never reached.",
+            "answerSummary": "$y(80)={{pred}}$. Use caution: x=80 is far outside the observed range, so the relationship may not remain linear."
           },
           "generator": {
             "parameters": {
@@ -35778,7 +35869,8 @@
               }
             },
             "derived": {
-              "pred": "80*m+b"
+              "pred": "80*m+b",
+              "m80": "80*m"
             }
           },
           "difficultyBand": 3
@@ -35835,13 +35927,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Context can make a mathematically computed extrapolation unreasonable.",
+            "headline": "The model gives $y(10)={{pred}}$, a negative value for a measurement that cannot be negative.",
             "reasoning": [
-              "At x=10 the model gives {{pred}}, which is negative.",
-              "The measured quantity cannot be negative.",
-              "The model was fitted only through x=4, so this is evidence not to extend it blindly."
+              "Compute: $y(10)=-{{a}}(10)^2+{{c}}=-{{a100}}+{{c}}={{pred}}$.",
+              "The model values in the table go {{c}}, {{y2}}, {{y4}} at x=0, 2, 4: the $-{{a}}x^2$ term makes them fall faster and faster as x grows, so by x=10 that term alone is $-{{a100}}$.",
+              "The measurement is nonnegative, so every negative model value, {{pred}} at x=10 and any negative value in the table, is impossible in context: the quadratic describes the situation only while its output stays at or above 0."
             ],
-            "answerSummary": "The numerical prediction is {{pred}}, but it is not physically credible."
+            "commonError": "Accepting {{pred}} because the formula produced it: a model is credible only where it agrees with the context, and it was fitted only for $0\\le x\\le4$.",
+            "answerSummary": "$y(10)={{pred}}$. The negative extrapolation is not physically credible for a nonnegative measurement; the model should not be extended blindly."
           },
           "generator": {
             "parameters": {
@@ -35859,7 +35952,8 @@
             "derived": {
               "y2": "-4*a+c",
               "y4": "-16*a+c",
-              "pred": "-100*a+c"
+              "pred": "-100*a+c",
+              "a100": "100*a"
             },
             "constraints": [
               "pred<0"
@@ -35919,13 +36013,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "Exponential extrapolation can grow dramatically faster than the evidence supports.",
+            "headline": "The formula gives $y(15)={{pred}}$, but that assumes 11 more doublings than the data ever showed.",
             "reasoning": [
-              "The formula predicts {{pred}} at x=15.",
-              "The observed data cover only x=0 through 4.",
-              "The model does not prove that the same growth mechanism continues unchanged to x=15."
+              "Compute: $y(15)={{a}}(2)^{15}={{a}}\\cdot32768={{pred}}$.",
+              "The data stop at x=4, where the model value is {{y4}}. Reaching x=15 takes 11 more doublings: ${{y4}}\\cdot2^{11}={{y4}}\\cdot2048={{pred}}$.",
+              "Nothing observed for $0\\le x\\le4$ shows the population can keep doubling that long; limited food or space, or changing conditions, can stop the growth."
             ],
-            "answerSummary": "Prediction {{pred}}, with strong extrapolation caution."
+            "commonError": "Assuming that a good exponential fit on 0 to 4 guarantees the same doubling through x=15: the data never test that range.",
+            "answerSummary": "$y(15)={{pred}}$. No. This is a distant exponential extrapolation; resource limits or changing conditions may invalidate continued doubling."
           },
           "generator": {
             "parameters": {
@@ -36009,12 +36104,13 @@
             }
           ],
           "solutionReview": {
-            "headline": "A target inside the observed input range is interpolation.",
+            "headline": "x=2.5 lies inside the observed range 0 to 5, so the prediction $y(2.5)={{pred}}$ is an interpolation.",
             "reasoning": [
-              "The model gives {{pred}} at x=2.5.",
-              "2.5 lies between 0 and 5."
+              "Substitute: $y(2.5)={{m}}(2.5)+({{b}})={{m25}}{{b|signed}}={{pred}}$.",
+              "The data were observed for $0\\le x\\le5$, and $0\\le2.5\\le5$, so the input is inside the observed range: interpolation."
             ],
-            "answerSummary": "{{pred}}, interpolation."
+            "commonError": "Calling it extrapolation because x=2.5 is not a whole-number data value: interpolation only requires the input to lie within the observed range.",
+            "answerSummary": "$y(2.5)={{pred}}$; Interpolation."
           },
           "generator": {
             "parameters": {
@@ -36033,7 +36129,8 @@
               }
             },
             "derived": {
-              "pred": "2.5*m+b"
+              "pred": "2.5*m+b",
+              "m25": "2.5*m"
             }
           }
         },
@@ -36081,12 +36178,13 @@
             }
           ],
           "solutionReview": {
-            "headline": "A target beyond the observed range is extrapolation.",
+            "headline": "x=5 is beyond the observed range $-2\\le x\\le2$, so the prediction $y(5)={{pred}}$ is an extrapolation.",
             "reasoning": [
-              "The model gives {{pred}} at x=5.",
-              "5 is greater than the largest observed x=2."
+              "Substitute: $y(5)={{a}}(25)+({{b}})(5)+{{c}}={{a25}}+({{b5}})+{{c}}={{pred}}$.",
+              "The data were observed for $-2\\le x\\le2$. x=5 is 3 units beyond the largest observed x, so this is extrapolation."
             ],
-            "answerSummary": "{{pred}}, extrapolation."
+            "commonError": "Calling it interpolation because the formula still gives a number: the classification depends on where x=5 sits relative to the observed inputs, not on whether the model can be evaluated.",
+            "answerSummary": "$y(5)={{pred}}$; Extrapolation."
           },
           "generator": {
             "parameters": {
@@ -36110,7 +36208,9 @@
               }
             },
             "derived": {
-              "pred": "25*a+5*b+c"
+              "pred": "25*a+5*b+c",
+              "a25": "25*a",
+              "b5": "5*b"
             }
           }
         },
@@ -36159,12 +36259,13 @@
             }
           ],
           "solutionReview": {
-            "headline": "Interpolation can occur at an input that was not itself observed.",
+            "headline": "x=1.5 lies inside the observed range 0 to 4, so the prediction $y(1.5)\\approx{{predR}}$ is an interpolation.",
             "reasoning": [
-              "The exponential model gives approximately {{pred}} at x=1.5.",
-              "1.5 lies inside the observed interval 0 to 4."
+              "Substitute: $y(1.5)={{a}}({{r}})^{1.5}={{a}}\\cdot{{r}}\\sqrt{{{r}}}\\approx{{a}}({{rr}})\\approx{{predR}}$.",
+              "x=1.5 was not itself observed, but $0\\le1.5\\le4$: it lies inside the observed range, so this is interpolation."
             ],
-            "answerSummary": "{{pred}}, interpolation."
+            "commonError": "Calling it extrapolation because x=1.5 is not in the data table: interpolation only requires the input to lie within the observed range.",
+            "answerSummary": "$y(1.5)\\approx{{predR}}$; Interpolation."
           },
           "generator": {
             "parameters": {
@@ -36183,7 +36284,9 @@
               }
             },
             "derived": {
-              "pred": "a*pow(r,1.5)"
+              "pred": "a*pow(r,1.5)",
+              "rr": "round(pow(r,1.5)*1000)/1000",
+              "predR": "round(a*pow(r,1.5)*1000)/1000"
             }
           }
         }
