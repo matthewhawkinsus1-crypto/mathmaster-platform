@@ -19,12 +19,13 @@ const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 test('secure issuance reads a stored plan and calls no model', () => {
   const issue = region(
     functionsIndex,
-    'async function issueCourseTestQuestion(',
+    'async function buildCourseTestExamItem(',
     '// Immutable evidence drives the Phase 5A mastery wheel',
-    'issueCourseTestQuestion',
+    'buildCourseTestExamItem',
   );
-  // It looks up the next plan entry and instantiates the family it names.
-  assert.match(issue, /nextPlanEntry\(plan, completedSlotIds\)/);
+  // It looks up the next plan entry — after every slot already ISSUED, skipped
+  // or not — and instantiates the family it names.
+  assert.match(issue, /nextPlanEntry\(plan, secureExamNavigation\.issuedSlotIds\(session\)\)/);
   assert.match(issue, /instantiateQuestion\(family, entry\.seedKey/);
   assert.match(issue, /buildIssuePlan\(instantiated\.question\)/);
 
@@ -54,8 +55,8 @@ test('the plan is written with the session, before a student can start it', () =
 test('the issued instance id is written back onto the plan entry', () => {
   // This is what later lets corrections join evidence to blueprint slots and
   // lets the retest audit prove it reused nothing.
-  const issue = region(functionsIndex, 'async function issueCourseTestQuestion(', '// Immutable evidence drives the Phase 5A mastery wheel', 'issue');
-  assert.match(issue, /planEntry\.slotId === entry\.slotId \? \{ \.\.\.planEntry, questionInstanceId \}/);
+  const issue = region(functionsIndex, 'exports.issueSecureExamQuestion = onCall(', 'function sanitizeSecureExamDraft', 'issue');
+  assert.match(issue, /planEntry\.slotId === generated\.planEntry\.slotId \? \{ \.\.\.planEntry, questionInstanceId \}/);
 });
 
 test('releasing a failed Test builds the correction plan automatically', () => {

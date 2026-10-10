@@ -72,6 +72,8 @@ const secureExam = require("./lib/secureExam");
 // Rich Tool items on every secure surface: the mode-aware public payload and
 // the one grading authority (see the file header).
 const secureItems = require("./lib/secureItems");
+const secureExamNavigation = require("./lib/secureExamNavigation");
+const secureExamItems = require("./lib/secureExamItems");
 // The Test Cycle rules are shared ESM; this is the CommonJS bridge to them.
 const testCycleLib = require("./lib/testCycle");
 const adminPolicy = require("./lib/admin");
@@ -16322,9 +16324,53 @@ function assertStudentExamSession(snapshot, studentId) {
 
 function assertExamInProgress(session) {
   if (secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam has already been submitted.");
-  if (secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam is locked. Ask the proctor to review the session.");
+  if (secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam is locked. Ask the proctor to review the session.", { status: session.status });
   if (session.status !== "in_progress") throw new HttpsError("failed-precondition", "This exam is not currently in progress.");
   if (secureExam.isExpired(session)) throw new HttpsError("deadline-exceeded", "The exam time has expired.");
+}
+
+/*
+ * THE STUDENT'S EXTENDED-TIME ACCOMMODATION, FROM THEIR SUPPORT PROFILE.
+ *
+ * Read from `grades/{studentId}.profile` through the one entitlement resolver
+ * (functions/shared/supportEntitlements.mjs), so a district SIS multiplier and
+ * the teacher UI's "extra time" box mean the same thing here as everywhere
+ * else. Applied once, when the student starts the session (below), so it
+ * covers every kind of secure session — a practice test, a course Test, a
+ * Retest — through one path. A profile that cannot be read grants nothing
+ * extra rather than blocking the start.
+ */
+async function secureExamTimeMultiplierFromProfile(profile, studentId = null) {
+  try {
+    const entitlements = await mathPath.resolveEntitlements(profile || null);
+    const multiplier = Number(entitlements?.extendedTimeMultiplier);
+    return Number.isFinite(multiplier) && multiplier > 1 ? multiplier : 1;
+  } catch (error) {
+    console.error("secure_exam_time_accommodation_unreadable", { studentId, message: error?.message || String(error) });
+    return 1;
+  }
+}
+
+async function secureExamTimeMultiplier(db, studentId) {
+  const snapshot = await db.collection("grades").doc(studentId).get();
+  return secureExamTimeMultiplierFromProfile(snapshot.exists ? snapshot.data()?.profile || null : null, studentId);
+}
+
+/*
+ * The time a not-yet-started session WILL have, so the start screen and the
+ * Test Cycle card can say "includes your extended time" before the student
+ * presses Start. The server applies the same multiplier at start; this only
+ * describes it.
+ */
+function projectedSecureExamTime(session, multiplier) {
+  if (session?.status !== "not_started" || !(multiplier > 1)) return {};
+  const base = secureExam.timeLimitSecondsOf(session);
+  if (base === null) return {};
+  return {
+    baseTimeLimitSeconds: base,
+    timeLimitSeconds: secureExamNavigation.accommodatedTimeLimitSeconds(base, multiplier),
+    extendedTimeMultiplier: multiplier,
+  };
 }
 
 /** Teacher action: create a server-owned session for a rostered student. */
@@ -16352,16 +16398,23 @@ exports.createSecureExamSession = onCall(async (request) => {
     title: String(request.data?.title || policy.title).trim().slice(0, 160) || policy.title,
     status: "not_started",
     requiredQuestions,
-    timeLimitSeconds: policy.timeLimitSeconds,
+    // A shortened practice test keeps the real test's pace, not its whole
+    // clock (secureExamNavigation.proportionalTimeLimitSeconds).
+    timeLimitSeconds: secureExamNavigation.proportionalTimeLimitSeconds(policy, requiredQuestions),
     addedTimeSeconds: 0,
     calculatorMode: policy.calculatorMode,
     accommodationsConfirmed: request.data?.accommodationsConfirmed === true,
     feedbackReleased: false,
+    // A practice test's results (score, answers, worked solutions) are the
+    // student's as soon as they submit. A teacher who wants to hold them asks
+    // for teacher release explicitly.
+    releasePolicy: request.data?.releasePolicy === "teacher" ? "teacher" : "automatic",
     violationCount: 0,
     summary: { completedQuestions: 0, correctQuestions: 0 },
     responses: {},
     usedQuestionIds: [],
     currentQuestion: null,
+    navigation: secureExamNavigation.initialNavigation({ examType, requiredQuestions }),
     createdBy: teacherUid,
     createdAt: now,
     updatedAt: now,
@@ -16380,7 +16433,9 @@ exports.startSecureExamSession = onCall(async (request) => {
   // the stage the Test Cycle says the student is on. A simulation has no
   // `courseTest` block and this is a no-op for it.
   const entrySnapshot = await ref.get();
-  await assertCourseTestEntryAllowed(db, assertStudentExamSession(entrySnapshot, studentId), studentId);
+  const entrySession = assertStudentExamSession(entrySnapshot, studentId);
+  await assertCourseTestEntryAllowed(db, entrySession, studentId);
+  const timeMultiplier = entrySession.status === "not_started" ? await secureExamTimeMultiplier(db, studentId) : 1;
   const session = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const current = assertStudentExamSession(snapshot, studentId);
@@ -16388,7 +16443,25 @@ exports.startSecureExamSession = onCall(async (request) => {
     if (secureExam.LOCKED_STATES.has(current.status)) return current;
     if (current.status !== "not_started" && current.status !== "in_progress") throw new HttpsError("failed-precondition", "This exam cannot be started.");
     if (current.status === "in_progress") return current;
-    const next = { ...current, status: "in_progress", startedAt: Date.now(), updatedAt: Date.now() };
+    const now = Date.now();
+    // The accommodation multiplies the test's own limit once, at start; an
+    // untimed test stays untimed.
+    const baseLimit = secureExam.timeLimitSecondsOf(current);
+    const accommodated = baseLimit !== null && timeMultiplier > 1 && current.extendedTimeMultiplier === undefined
+      ? {
+        baseTimeLimitSeconds: baseLimit,
+        timeLimitSeconds: secureExamNavigation.accommodatedTimeLimitSeconds(baseLimit, timeMultiplier),
+        extendedTimeMultiplier: timeMultiplier,
+      }
+      : {};
+    const next = {
+      ...current,
+      ...accommodated,
+      navigation: secureExamNavigation.navigationOf(current),
+      status: "in_progress",
+      startedAt: now,
+      updatedAt: now,
+    };
     transaction.set(ref, next);
     return next;
   });
@@ -16399,14 +16472,21 @@ exports.startSecureExamSession = onCall(async (request) => {
 /** Student dashboard: discover only the caller's assigned secure sessions. */
 exports.listStudentSecureExamSessions = onCall(async (request) => {
   const { studentId } = requireStudent(request);
-  const snapshot = await getFirestore().collection("examSessions").where("studentId", "==", studentId).limit(50).get();
+  const db = getFirestore();
+  const [snapshot, timeMultiplier] = await Promise.all([
+    db.collection("examSessions").where("studentId", "==", studentId).limit(50).get(),
+    secureExamTimeMultiplier(db, studentId),
+  ]);
   const sessions = snapshot.docs
-    .map((docSnapshot) => secureExam.publicSession(docSnapshot.data()))
+    .map((docSnapshot) => {
+      const session = docSnapshot.data();
+      return secureExam.publicSession({ ...session, ...projectedSecureExamTime(session, timeMultiplier) });
+    })
     .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
   return { sessions };
 });
 
-/** Student review: released correctness plus the original sanitized item and standards. */
+/** Student review: released correctness, answers and worked solutions. */
 exports.getStudentSecureExamReview = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
@@ -16418,58 +16498,177 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
   if (session.feedbackReleased !== true) {
     throw new HttpsError("failed-precondition", "Your teacher has not released feedback for this exam yet.");
   }
-  const review = secureExam.publicReview(session);
+  /*
+   * NOT AN OPEN BOOK FOR ANOTHER ATTEMPT (secureExam.courseReviewBlockedBy).
+   *
+   * A released course Test's or Retest's review stays closed while the student
+   * has another attempt of the cycle open: the Retest, or the new Test or
+   * Retest a teacher's reset assigned (the old session keeps its release). The
+   * Test Cycle card hides "Review my Test" at the same stages; this is the
+   * server holding the line for any screen that asks.
+   */
+  let withSolutions = true;
+  if (secureExam.isCourseTestSession(session) && session.courseTest?.assignmentId) {
+    const shared = await testCycleLib.shared();
+    const record = await readTestCycleRecord(getFirestore(), session.courseTest.assignmentId, studentId, shared);
+    const blocked = secureExam.courseReviewBlockedBy(record, { examSessionId, cycleStage: session.courseTest.cycleStage });
+    if (blocked) throw new HttpsError("failed-precondition", blocked.message, { reason: blocked.reason });
+    const stage = String(session.courseTest.cycleStage || "") === "retest" ? "retest" : "test";
+    withSolutions = (await courseAnswersRelease(getFirestore(), shared, session.courseTest.assignmentId, stage)).released;
+  }
+  /*
+   * The same line for practice tests. Two practice tests of one exam draw from
+   * the same exam-style item families, so a released practice test's answers
+   * and solutions stay closed while the student has another practice test of
+   * that exam under way (started, or paused), and open again once it is
+   * submitted. A practice test that has not been started does not close it.
+   */
+  if (!secureExam.isCourseTestSession(session)) {
+    // Every session of this exam, with no cap: a capped, unordered read of the
+    // student's whole history could miss the one under way.
+    const examType = String(session.examType || "");
+    const sessions = getFirestore().collection("examSessions").where("studentId", "==", studentId);
+    const others = await (examType ? sessions.where("examType", "==", examType) : sessions).get();
+    const openSameExam = others.docs.some((docSnapshot) => {
+      const other = docSnapshot.data() || {};
+      return docSnapshot.id !== examSessionId
+        && String(other.examType || "") === String(session.examType || "")
+        && (other.status === "in_progress" || secureExam.LOCKED_STATES.has(other.status));
+    });
+    if (openSameExam) {
+      throw new HttpsError("failed-precondition", "These results open again when you finish the practice test you have started.", { reason: "practice_test_open" });
+    }
+  }
+  const review = secureExam.publicReview(session, { withSolutions });
   return { success: true, review };
 });
 
-/** Issue one sanitized exam item; expected answers never leave Functions. */
-exports.issueSecureExamQuestion = onCall(async (request) => {
-  const { studentId } = requireStudent(request);
-  const examSessionId = secureExamSessionId(request);
+/*
+ * A COURSE TEST'S ANSWERS AND WORKED SOLUTIONS WAIT FOR THE CLASS.
+ *
+ * Scores and the question review (each question with the student's own
+ * answer, right or wrong) release as they always have. The correct answers
+ * and worked solutions the review now adds are held while anyone who can
+ * still sit that stage could be handed them: every active student in every
+ * class the assignment is assigned to (one with no record yet, in a period
+ * whose sessions are not open, included) and anyone holding a record. They
+ * open once none of them is left, or when the teacher releases them
+ * (releaseTestCycleAnswers) — and that release covers only the students its
+ * confirm named. One it did not name (a student who joined later, or whose
+ * attempt a teacher reset) holds them again until they finish.
+ */
+const TEST_CYCLE_ANSWER_RELEASES = "testCycleAnswerReleases";
+
+/*
+ * Who can still sit a stage. The Test: anyone whose Test is not submitted,
+ * except where the stage machine says they never will (an external original
+ * that passed, a retest a teacher closed). The Retest: anyone who has not
+ * submitted one and is not done without one (passed, retest closed or
+ * released): before or in the Test, awaiting its release, in Corrections,
+ * waiting for or sitting the Retest.
+ */
+function stillToSitStage(shared, policy, stage, raw) {
+  const record = shared.record.normalizeTestCycleRecord(raw);
+  const finished = [shared.record.SESSION_STATE.SUBMITTED, shared.record.SESSION_STATE.RELEASED];
+  const STAGE = shared.stages.TEST_CYCLE_STAGE;
+  const state = shared.stages.resolveTestCycleStage({ policy, record });
+  if (stage === "test") {
+    if (finished.includes(record.test.state)) return false;
+    return !(state?.stage === STAGE.RETEST_CLOSED && (state.grade.originalTestGrade !== null || state.teacherControls.retestDisabled));
+  }
+  // An external original's one secure session lives in the Test slot.
+  if (policy?.externalAssessment) return false;
+  if (finished.includes(record.retest.state)) return false;
+  return ![STAGE.PASSED, STAGE.COMPLETE, STAGE.RETEST_CLOSED, STAGE.RETEST_SUBMITTED].includes(state?.stage);
+}
+
+/** Every active student in the assignment's classes, by id. */
+async function testCycleRosterIds(db, assignment) {
+  const ids = new Set();
+  for (const classId of assignmentAudience(assignment).classIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection("grades").where("classId", "==", classId).select("status").get();
+    snapshot.docs.forEach((doc) => {
+      if (doc.id !== "test_connection" && doc.data()?.status !== "inactive") ids.add(doc.id);
+    });
+  }
+  return ids;
+}
+
+async function courseAnswersRelease(db, shared, assignmentId, stage, known = {}) {
+  const id = String(assignmentId);
+  const release = (await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(id).get()).data()?.[stage] || null;
+  const assignment = known.assignment || (await db.collection("assignments").doc(id).get()).data() || {};
+  const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy) || shared.policy.defaultTestCyclePolicy();
+  const records = known.records || new Map((await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", id).get())
+    .docs.map((doc) => [String(doc.data()?.studentId || ""), doc.data()]));
+  const rosterIds = known.rosterIds || await testCycleRosterIds(db, assignment);
+  const everyone = [...new Set([...rosterIds, ...records.keys()])].filter(Boolean);
+  const stillTesting = everyone.filter((studentId) => stillToSitStage(shared, policy, stage, records.get(studentId) || { assignmentId: id, studentId }));
+  const explicit = Boolean(release?.releasedAt);
+  const covered = new Set(explicit && Array.isArray(release.coveredStudentIds) ? release.coveredStudentIds.map(String) : []);
+  const heldFor = stillTesting.filter((studentId) => !covered.has(studentId));
+  return { released: heldFor.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting, heldFor };
+}
+
+/*
+ * "RELEASE ANSWERS AND WORKED SOLUTIONS": the teacher opens them before every
+ * student who can still sit the stage has submitted. The screen's confirm
+ * names those students and sends their ids; the release covers exactly them.
+ * If anyone still testing was not on that list (it changed since the page
+ * loaded), nothing is released: the teacher refreshes and confirms the new
+ * list, rather than opening the answers to a student nobody was told about.
+ */
+exports.releaseTestCycleAnswers = onCall(async (request) => {
   const db = getFirestore();
-  const sessionRef = db.collection("examSessions").doc(examSessionId);
-  const snapshot = await sessionRef.get();
-  const session = assertStudentExamSession(snapshot, studentId);
-  assertExamInProgress(session);
-  /*
-   * THE GATE IS RE-CHECKED ON EVERY ISSUE, NOT ONLY AT START.
-   *
-   * Start is the only call a screen makes once, so it used to be the only call
-   * that asked the Test Cycle whether this student may be here. Everything that
-   * changes after that — a teacher closing the retest, resetting the session,
-   * archiving or pausing the assessment — went unnoticed by a tab that was
-   * already open: it kept issuing secure questions. The open item is still
-   * returned below for an unchanged session, so a teacher action never strands
-   * an answer half-typed; it stops the NEXT question.
-   */
-  if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId);
-  // The mode every item of this session renders under: Secure Test, or Secure
-  // Retest for a Test Cycle's retest. Never a practice mode.
-  const runtimeMode = await secureItems.runtimeModeForSession(session);
-  if (session.currentQuestion) {
-    return { questionInstance: await secureExamPublicQuestion(session.currentQuestion, { mode: runtimeMode }), draftResponse: secureItems.publicDraft(session.currentQuestion.draftResponse), session: secureExam.publicSession(session) };
+  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, assignment, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const stage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
+  const named = new Set((Array.isArray(request.data?.studentIds) ? request.data.studentIds : []).slice(0, 5000).map(String));
+  const { stillTesting } = await courseAnswersRelease(db, shared, assignmentId, stage, { assignment });
+  const unnamed = stillTesting.filter((studentId) => !named.has(studentId));
+  if (unnamed.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      `${unnamed.length === 1 ? "1 student who is" : `${unnamed.length} students who are`} still testing ${unnamed.length === 1 ? "was" : "were"} not on the list you confirmed. Refresh, check the list and release again.`,
+      { reason: "still_testing_changed", unnamed: unnamed.length },
+    );
   }
-  if (Number(session.summary?.completedQuestions || 0) >= Number(session.requiredQuestions || 1)) {
-    throw new HttpsError("failed-precondition", "All required exam questions have been completed.");
-  }
-  // A teacher-created course Test/Retest reads its next item from the issuance
-  // plan written before the student could start. The simulation path below is
-  // untouched, which is what keeps SAT/ACT/TSIA2/ASVAB delivery identical.
-  if (secureExam.isCourseTestSession(session)) {
-    const issuedCourseTest = await issueCourseTestQuestion(db, { sessionRef, session, studentId, runtimeMode });
-    return {
-      questionInstance: await secureExamPublicQuestion(issuedCourseTest.currentQuestion, { mode: runtimeMode }),
-      draftResponse: secureItems.publicDraft(issuedCourseTest.currentQuestion?.draftResponse),
-      session: secureExam.publicSession(issuedCourseTest),
-    };
-  }
-  // Secure simulations use the same verified, generator-backed assessment
-  // families as CCMR My Path. The old `examQuestionBank` had no bundled seed,
-  // so a teacher could create an exam that had nothing reliable to issue.
-  // Selecting from the trusted built-in Path package keeps exam format, answer
-  // generation and grading on the same server-side contract students already
-  // use for assessment-specific Path practice.
-  const used = new Set(Array.isArray(session.usedQuestionIds) ? session.usedQuestionIds.map(String) : []);
+  await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(assignmentId).set({
+    assignmentId,
+    [stage]: { releasedAt: Date.now(), releasedBy: teacherUid, coveredStudentIds: stillTesting },
+  }, { merge: true });
+  return { success: true, stage, covered: stillTesting.length };
+});
+
+/** Where a navigation request may go, or the student-facing refusal. */
+function secureExamTarget(session, position, closeModule) {
+  const target = secureExamNavigation.resolveTarget(session, { position, closeModule });
+  if (target.error === "complete") throw new HttpsError("failed-precondition", target.reason);
+  if (target.error === "invalid") throw new HttpsError("invalid-argument", target.reason);
+  if (target.error) throw new HttpsError("failed-precondition", target.reason, { navigation: target.error });
+  return target;
+}
+
+/*
+ * The next simulation item, drawn at random from the trusted exam-style bank.
+ *
+ * Secure simulations use the same verified, generator-backed assessment
+ * families as CCMR My Path. Selecting from the trusted built-in Path package
+ * keeps exam format, answer generation and grading on the same server-side
+ * contract students already use for assessment-specific Path practice. The
+ * draw is seeded by the session and the question number
+ * (secureExamNavigation.seededOrder): random across sessions, reproducible on
+ * a retry, never chosen by the browser.
+ */
+async function buildSimulationExamItem({ examSessionId, session, position, runtimeMode }) {
+  const navigationState = secureExamNavigation.navigationOf(session);
+  const used = new Set([
+    ...(Array.isArray(session.usedQuestionIds) ? session.usedQuestionIds.map(String) : []),
+    ...navigationState.itemOrder.map((id) => String(navigationState.items[id]?.bankQuestionId || "")).filter(Boolean),
+  ]);
   const targetDomainId = secureExam.nextDomainId(session);
   const assessmentItems = loadBuiltInStarterPathSeed().filter((question) => {
     const context = question?.assessmentContext || {};
@@ -16483,8 +16682,7 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
   const domainCandidates = targetDomainId ? assessmentItems.filter((question) => domainFor(question) === targetDomainId) : assessmentItems;
   const candidates = domainCandidates.length ? domainCandidates : assessmentItems;
   if (!candidates.length) throw new HttpsError("failed-precondition", `No unused secure ${session.examType} exam items are available.`);
-  candidates.sort((left, right) => String(left.id || "").localeCompare(String(right.id || "")));
-  const authored = candidates[Number(session.summary?.completedQuestions || 0) % candidates.length];
+  const authored = secureExamNavigation.seededOrder(`${examSessionId}|${position}`, candidates, (question) => question?.id)[0];
   const questionInstanceId = mathPath.runtimeId("examq");
   const instantiated = await mathPath.instantiateQuestion(authored, `${examSessionId}|${questionInstanceId}`);
   if (!instantiated.question) throw new HttpsError("failed-precondition", "This secure exam item could not be generated.");
@@ -16496,29 +16694,135 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
   // one today; this is what keeps it that way unless one is certified.
   const simulationCertification = await secureItems.certifyItem(issuedQuestion, { mode: runtimeMode });
   if (!simulationCertification.compatible) throw new HttpsError("failed-precondition", simulationCertification.reason || "This secure exam item cannot be delivered securely.");
-  const assessmentDomainId = domainFor(authored);
-  const currentQuestion = secureItems.storableItem({
-    ...issuedQuestion,
-    bankQuestionId: authored.id,
-    alignmentKeys: secureExamAlignmentKeys(issuedQuestion),
-    questionInstanceId,
-    attemptsAllowed: 1,
-    attemptsUsed: 0,
-    assessmentDomainId,
-    generatorParameters: instantiated.parameters,
-    privateGrading: issuePlan.privateGrading,
-    ...(issuePlan.toolPayload || {}),
-  });
-  const issued = await db.runTransaction(async (transaction) => {
+  return {
+    storedItem: secureItems.storableItem({
+      ...issuedQuestion,
+      bankQuestionId: authored.id,
+      alignmentKeys: secureExamAlignmentKeys(issuedQuestion),
+      questionInstanceId,
+      attemptsAllowed: 1,
+      attemptsUsed: 0,
+      assessmentDomainId: domainFor(authored),
+      generatorParameters: instantiated.parameters,
+      privateGrading: issuePlan.privateGrading,
+      ...(issuePlan.toolPayload || {}),
+    }),
+    planEntry: null,
+  };
+}
+
+/*
+ * ISSUE OR REOPEN ONE QUESTION BY NUMBER.
+ *
+ * `position` (zero-based) names the question the student is moving to: any
+ * question already opened, or the next unopened one — which is how a student
+ * skips. An item is still issued only when the student first reaches it, from
+ * the plan stored before they could start. Without `position` this is the
+ * older linear call: the first open question, else the next new one.
+ *
+ * Expected answers never leave Functions, and nothing here says whether any
+ * saved answer is right.
+ */
+exports.issueSecureExamQuestion = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const examSessionId = secureExamSessionId(request);
+  const requestedPosition = request.data?.position;
+  const closeModule = request.data?.closeModule === true;
+  const db = getFirestore();
+  const sessionRef = db.collection("examSessions").doc(examSessionId);
+  const snapshot = await sessionRef.get();
+  const session = assertStudentExamSession(snapshot, studentId);
+  assertExamInProgress(session);
+  /*
+   * THE GATE IS RE-CHECKED ON EVERY ISSUE, NOT ONLY AT START.
+   *
+   * Start is the only call a screen makes once, so it used to be the only call
+   * that asked the Test Cycle whether this student may be here. Everything that
+   * changes after that — a teacher closing the retest, resetting the session,
+   * archiving or pausing the assessment — went unnoticed by a tab that was
+   * already open: it kept issuing secure questions.
+   */
+  if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId);
+  // The mode every item of this session renders under: Secure Test, or Secure
+  // Retest for a Test Cycle's retest. Never a practice mode.
+  const runtimeMode = await secureItems.runtimeModeForSession(session);
+  const target = secureExamTarget(session, requestedPosition, closeModule);
+
+  // A new item is generated before the transaction (generation reads the bank)
+  // and appended inside it only if that position is still unissued.
+  const generated = target.issuing
+    ? (secureExam.isCourseTestSession(session)
+      ? await buildCourseTestExamItem(db, { session, runtimeMode })
+      : await buildSimulationExamItem({ examSessionId, session, position: target.position, runtimeMode }))
+    : null;
+
+  const outcome = await db.runTransaction(async (transaction) => {
     const freshSnapshot = await transaction.get(sessionRef);
     const fresh = assertStudentExamSession(freshSnapshot, studentId);
     assertExamInProgress(fresh);
-    if (fresh.currentQuestion) return fresh;
-    const next = { ...fresh, currentQuestion, updatedAt: Date.now() };
+    const upgrade = await secureExamItems.upgradeSession(sessionRef, fresh);
+    const current = upgrade.session;
+    const navigationState = secureExamNavigation.navigationOf(current);
+    const position = target.position;
+    let next = current;
+    let itemData = null;
+    let questionInstanceId = navigationState.itemOrder[position] || null;
+    if (questionInstanceId) {
+      // Reopening (or a concurrent issue already filled this position).
+      const pending = upgrade.writes.find((write) => write.ref.id === questionInstanceId);
+      if (pending) itemData = pending.data;
+      else if (navigationState.items[questionInstanceId]?.state === secureExamNavigation.ITEM_STATE.OPEN) {
+        const itemSnapshot = await transaction.get(secureExamItems.itemRef(sessionRef, questionInstanceId));
+        itemData = itemSnapshot.exists ? itemSnapshot.data() : null;
+      }
+      next = { ...current, navigation: { ...navigationState, cursor: position } };
+    } else {
+      if (!generated || position !== navigationState.itemOrder.length) {
+        throw new HttpsError("aborted", "The test changed while this question was opening. Try again.");
+      }
+      const stored = generated.storedItem;
+      questionInstanceId = String(stored.questionInstanceId);
+      itemData = { item: stored, draftResponse: null, issuedAt: Date.now() };
+      const items = { ...navigationState.items, [questionInstanceId]: secureExamItems.navigationEntryFor(stored, position) };
+      next = {
+        ...current,
+        navigation: {
+          ...navigationState,
+          itemOrder: [...navigationState.itemOrder, questionInstanceId],
+          items,
+          cursor: position,
+          closedThrough: target.closesThrough !== null && target.closesThrough !== undefined
+            ? Math.max(navigationState.closedThrough, target.closesThrough)
+            : navigationState.closedThrough,
+        },
+        usedQuestionIds: [...new Set([...(current.usedQuestionIds || []), stored.bankQuestionId].filter(Boolean))],
+        // The issued instance id is written back onto the plan entry, which is
+        // what later lets the corrections algorithm join evidence to blueprint
+        // slots and lets the retest audit prove it reused nothing.
+        ...(generated.planEntry ? {
+          issuancePlan: {
+            ...current.issuancePlan,
+            entries: (current.issuancePlan?.entries || []).map((planEntry) => (
+              planEntry.slotId === generated.planEntry.slotId ? { ...planEntry, questionInstanceId } : planEntry
+            )),
+          },
+        } : {}),
+      };
+      transaction.set(secureExamItems.itemRef(sessionRef, questionInstanceId), itemData);
+    }
+    upgrade.writes.forEach((write) => transaction.set(write.ref, write.data));
+    next = { ...next, updatedAt: Date.now() };
     transaction.set(sessionRef, next);
-    return next;
+    return { next, itemData, position, questionInstanceId };
   });
-  return { questionInstance: await secureExamPublicQuestion(issued.currentQuestion, { mode: runtimeMode }), draftResponse: secureItems.publicDraft(issued.currentQuestion?.draftResponse), session: secureExam.publicSession(issued) };
+  const recorded = !outcome.itemData;
+  return {
+    position: outcome.position,
+    recorded,
+    questionInstance: recorded ? null : await secureExamPublicQuestion(outcome.itemData.item, { mode: runtimeMode }),
+    draftResponse: recorded ? null : secureItems.publicDraft(outcome.itemData.draftResponse),
+    session: secureExam.publicSession(outcome.next),
+  };
 });
 
 /*
@@ -16562,30 +16866,114 @@ async function sanitizeSecureExamDraft(responsePayload, supportUsage, { draftKey
   };
 }
 
-/** Transactional draft autosave. Draft values are student-authored and private. */
+/** An open, writable item of this session, or the refusal a stale screen gets. */
+async function readWritableExamItem(transaction, sessionRef, upgrade, questionInstanceId) {
+  const navigationState = secureExamNavigation.navigationOf(upgrade.session);
+  const entry = navigationState.items[questionInstanceId];
+  const position = navigationState.itemOrder.indexOf(questionInstanceId);
+  if (!entry || entry.state !== secureExamNavigation.ITEM_STATE.OPEN || position < 0 || secureExamNavigation.positionClosed(navigationState, position)) {
+    throw new HttpsError("failed-precondition", "That question is no longer active.");
+  }
+  const pending = upgrade.writes.find((write) => write.ref.id === questionInstanceId);
+  if (pending) return { navigationState, entry, itemData: pending.data };
+  const itemSnapshot = await transaction.get(secureExamItems.itemRef(sessionRef, questionInstanceId));
+  if (!itemSnapshot.exists) throw new HttpsError("failed-precondition", "That question is no longer active.");
+  return { navigationState, entry, itemData: itemSnapshot.data() || {} };
+}
+
+/*
+ * Transactional draft autosave, for ANY open question of the session. Draft
+ * values are student-authored and private. `flagged` marks the question for
+ * review; it may be sent alone (no `responsePayload`) without touching the
+ * saved answer. Nothing is graded here.
+ */
 exports.saveSecureExamDraft = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
   const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
-  if (!questionInstanceId) throw new HttpsError("invalid-argument", "questionInstanceId is required.");
+  if (!questionInstanceId || questionInstanceId.length > 180) throw new HttpsError("invalid-argument", "questionInstanceId is required.");
+  const hasPayload = request.data?.responsePayload !== undefined && request.data?.responsePayload !== null;
+  const flagged = typeof request.data?.flagged === "boolean" ? request.data.flagged : undefined;
+  if (!hasPayload && flagged === undefined) throw new HttpsError("invalid-argument", "Send an answer draft or a review flag.");
   // Only the open item's own workspace drafts are accepted (secureItemDraftKey).
-  const draft = await sanitizeSecureExamDraft(request.data?.responsePayload, request.data?.supportUsage, {
-    draftKey: await secureItems.examItemDraftKey(examSessionId, questionInstanceId),
-    includeWorkspaceDrafts: true,
-  });
+  const draft = hasPayload
+    ? await sanitizeSecureExamDraft(request.data?.responsePayload, request.data?.supportUsage, {
+      draftKey: await secureItems.examItemDraftKey(examSessionId, questionInstanceId),
+      includeWorkspaceDrafts: true,
+    })
+    : null;
+  const hasWork = draft ? await secureItems.payloadHasWork(secureExamItems.recordedPayloadOf(draft)) : undefined;
+  // Which page sent this save and how new it is (secureExamItems.staleDraftWrite).
+  const stamp = draft ? secureExamItems.draftStampOf(request.data) : null;
   const db = getFirestore();
   const ref = db.collection("examSessions").doc(examSessionId);
-  await db.runTransaction(async (transaction) => {
+  const outcome = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
+    // A course Test the teacher has paused, archived or closed takes no edits,
+    // just as it issues no questions: what finalize grades is what was saved
+    // while it was open. Not a lock — the work resumes when it reopens.
+    if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId, { transaction });
     assertExamInProgress(session);
-    if (!session.currentQuestion || session.currentQuestion.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer active.");
-    transaction.set(ref, { ...session, currentQuestion: { ...session.currentQuestion, draftResponse: draft }, updatedAt: Date.now() });
+    const upgrade = await secureExamItems.upgradeSession(ref, session);
+    const { navigationState, entry, itemData } = await readWritableExamItem(transaction, ref, upgrade, questionInstanceId);
+    // An older save from this page, arriving after a newer one: write nothing.
+    if (draft && secureExamItems.staleDraftWrite(itemData?.draftResponse, stamp)) {
+      return { next: upgrade.session, stale: true, answeredChanged: false };
+    }
+    const now = Date.now();
+    const nextEntry = {
+      ...entry,
+      ...(hasWork !== undefined ? { hasWork } : {}),
+      ...(flagged !== undefined ? { flagged } : {}),
+    };
+    const navigationNext = { ...navigationState, items: { ...navigationState.items, [questionInstanceId]: nextEntry } };
+    const base = { ...upgrade.session, navigation: navigationNext, updatedAt: now };
+    const next = { ...base, summary: { ...(base.summary || {}), completedQuestions: secureExamNavigation.answeredCount(base) } };
+    upgrade.writes.forEach((write) => {
+      if (write.ref.id !== questionInstanceId || !draft) transaction.set(write.ref, write.data);
+    });
+    if (draft) transaction.set(secureExamItems.itemRef(ref, questionInstanceId), { ...itemData, draftResponse: { ...draft, ...(stamp || {}) }, updatedAt: now });
+    transaction.set(ref, next);
+    return { next, answeredChanged: hasWork !== undefined && hasWork !== (entry.hasWork === true) };
   });
-  return { success: true, recorded: true };
+  // The teacher's table reads "in progress, 12 of 25" — kept current only
+  // when the answered count actually moved, not on every keystroke.
+  if (outcome.answeredChanged && secureExam.isCourseTestSession(outcome.next)) await syncTestCycleSessionState(db, outcome.next);
+  return { success: true, recorded: outcome.stale !== true, ...(outcome.stale ? { stale: true } : {}), navigation: secureExam.publicSession(outcome.next).navigation, answeredQuestions: secureExamNavigation.answeredCount(outcome.next) };
 });
 
-/** Grade and autosave one secure response. Correctness stays server-only. */
+/*
+ * RELEASE A PRACTICE TEST'S RESULTS THE MOMENT IT IS FINISHED.
+ *
+ * Only a session created with `releasePolicy: "automatic"` (a practice test;
+ * never a course Test, whose release writes a recorded grade and is the
+ * teacher's call). It runs the same release a teacher's button runs, so the
+ * released evidence and the review are identical.
+ */
+async function autoReleaseSecureSession(db, session) {
+  if (!session || session.releasePolicy !== "automatic" || secureExam.isCourseTestSession(session)) return session;
+  if (!secureExam.TERMINAL_STATES.has(session.status) || session.feedbackReleased === true) return session;
+  const ref = db.collection("examSessions").doc(String(session.examSessionId));
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return session;
+    const fresh = snapshot.data() || {};
+    if (fresh.feedbackReleased === true || !secureExam.TERMINAL_STATES.has(fresh.status)) return fresh;
+    return releaseSessionFeedbackInTransaction(transaction, db, {
+      ref, session: fresh, examSessionId: fresh.examSessionId, teacherUid: "system:automaticRelease", now: Date.now(),
+    });
+  });
+}
+
+/*
+ * RECORD ONE ANSWER AND LOCK IT — the older, linear call.
+ *
+ * The navigation runtime saves drafts and grades them all at finalize; this
+ * call remains so a browser still running the previous build during a deploy
+ * can finish its test. The item is graded now, its result held, and it can no
+ * longer be edited. Correctness stays server-only.
+ */
 exports.submitSecureExamResponse = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
@@ -16605,14 +16993,16 @@ exports.submitSecureExamResponse = onCall(async (request) => {
       if (String(marker.data()?.studentId || "") !== studentId) throw new HttpsError("not-found", "That secure exam session is not available.");
       return marker.data()?.result;
     }
+    // Recording an answer is an edit: a course Test the teacher has paused,
+    // archived or closed takes none, by this older call either.
+    if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId, { transaction });
     assertExamInProgress(session);
-    const current = session.currentQuestion;
-    if (!current || current.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer active.");
+    const upgrade = await secureExamItems.upgradeSession(sessionRef, session);
+    const { navigationState, entry, itemData } = await readWritableExamItem(transaction, sessionRef, upgrade, questionInstanceId);
     // ONE GRADING AUTHORITY for field and Rich Tool items alike: a tool item is
-    // graded by its Path Tool Contract grader on the student's bounded raw work
-    // (it used to reach the FIELD grader, which has no fields for it and scored
-    // every answer 0). Nothing the browser claims about correctness is read.
-    const grading = await secureItems.gradeIssuedItem(current, request.data?.responsePayload || {});
+    // graded by its Path Tool Contract grader on the student's bounded raw work.
+    // Nothing the browser claims about correctness is read.
+    const grading = await secureItems.gradeIssuedItem(itemData.item, request.data?.responsePayload || {});
     // Work that is not shaped like an answer to this item is an interface
     // problem ("complete the construction"), not a wrong answer: it is refused
     // before anything is recorded, so the student's one attempt is not spent
@@ -16621,55 +17011,33 @@ exports.submitSecureExamResponse = onCall(async (request) => {
       throw new HttpsError("invalid-argument", grading.detail || "This answer is not complete yet. Finish your work in the tool, then record it.");
     }
     const now = Date.now();
-    const completedQuestions = Number(session.summary?.completedQuestions || 0) + 1;
-    const correctQuestions = Number(session.summary?.correctQuestions || 0) + (grading.isCorrect ? 1 : 0);
-    const safeSupport = request.data?.supportUsage && typeof request.data.supportUsage === "object" ? {
-      accommodations: Array.isArray(request.data.supportUsage.accommodations) ? request.data.supportUsage.accommodations.map(String).slice(0, 20) : [],
-      modifications: Array.isArray(request.data.supportUsage.modifications) ? request.data.supportUsage.modifications.map(String).slice(0, 20) : [],
-      calculatorUsed: Boolean(request.data.supportUsage.calculatorUsed),
-      teacherAssisted: Boolean(request.data.supportUsage.teacherAssisted),
-    } : {};
+    const safeSupport = secureExamItems.safeSupportUsage(request.data?.supportUsage);
     const safeResponsePayload = (await sanitizeSecureExamDraft(request.data?.responsePayload, safeSupport)).responsePayload;
-    const responseRecord = {
-      questionInstanceId,
-      bankQuestionId: current.bankQuestionId,
-      // Which Rich Tool produced the work, so released review can say so.
-      pathToolId: current.pathToolId || null,
-      alignmentKeys: current.alignmentKeys || [],
-      questionType: current.questionType,
-      familyId: current.familyId,
-      assessmentDomainId: current.assessmentDomainId || null,
-      dok: current.dok,
-      // Blueprint provenance for a course Test. Null on a simulation, which is
-      // why the corrections algorithm only ever runs on a Test Cycle session.
-      slotId: current.slotId || null,
-      targetId: current.targetId || null,
-      planWeight: current.planWeight ?? null,
-      grading: { score: grading.score, isCorrect: grading.isCorrect },
-      supportUsage: safeSupport,
-      // Stored server-side while feedback is held. `publicSession` strips the
-      // whole responses map, and `publicReview` releases only this sanitized
-      // question/response after an authenticated teacher releases feedback.
-      // The snapshot keeps the item's allowlisted tool payload, so released
-      // review can show which tool the work was built in.
-      questionSnapshot: secureItems.storableItem(await reviewSnapshotOf(current, session)),
-      responsePayload: safeResponsePayload,
-      submittedAt: now,
-    };
-    const finished = completedQuestions >= Number(session.requiredQuestions || 1);
+    const responseRecord = await secureExamItems.buildResponseRecord(itemData.item, {
+      session: upgrade.session, responsePayload: safeResponsePayload, supportUsage: safeSupport, now,
+    });
+    const items = { ...navigationState.items, [questionInstanceId]: { ...entry, state: secureExamNavigation.ITEM_STATE.RECORDED, hasWork: true } };
+    const navigationNext = { ...navigationState, items };
+    const responses = { ...(upgrade.session.responses || {}), [questionInstanceId]: responseRecord };
+    const finished = navigationNext.itemOrder.length >= Number(upgrade.session.requiredQuestions || 1)
+      && secureExamNavigation.openItemIds(navigationNext).length === 0;
+    const base = { ...upgrade.session, navigation: navigationNext, responses };
     const next = {
-      ...session,
+      ...base,
       status: finished ? "submitted" : "in_progress",
-      submittedAt: finished ? now : session.submittedAt || null,
-      summary: { completedQuestions, correctQuestions },
-      responses: { ...(session.responses || {}), [questionInstanceId]: responseRecord },
-      usedQuestionIds: [...new Set([...(session.usedQuestionIds || []), current.bankQuestionId])],
+      submittedAt: finished ? now : upgrade.session.submittedAt || null,
+      summary: {
+        completedQuestions: secureExamNavigation.answeredCount(base),
+        correctQuestions: Object.values(responses).filter((response) => response?.grading?.isCorrect === true).length,
+      },
+      usedQuestionIds: [...new Set([...(upgrade.session.usedQuestionIds || []), responseRecord.bankQuestionId].filter(Boolean))],
       currentQuestion: null,
       updatedAt: now,
     };
     const publicResult = { success: true, submissionId, recorded: true, correctnessReleased: false, needsNextQuestion: !finished, session: secureExam.publicSession(next) };
+    upgrade.writes.forEach((write) => transaction.set(write.ref, write.data));
     transaction.set(sessionRef, next);
-    transaction.set(markerRef, { examSessionId, studentId, submittedSlotId: current.slotId || null, submissionId, createdAt: now, result: publicResult });
+    transaction.set(markerRef, { examSessionId, studentId, submittedSlotId: entry.slotId || null, submissionId, createdAt: now, result: publicResult });
     return publicResult;
   });
   // A finished course Test moves the student's card from "Test" to "submitted"
@@ -16680,10 +17048,15 @@ exports.submitSecureExamResponse = onCall(async (request) => {
   if (afterSnapshot.exists && secureExam.isCourseTestSession(afterSnapshot.data())) {
     await syncTestCycleSessionState(db, afterSnapshot.data());
   }
+  if (afterSnapshot.exists && result?.needsNextQuestion === false) await autoReleaseSecureSession(db, afterSnapshot.data());
   return result;
 });
 
-/** Student-observed browser integrity events are idempotent and can only lock. */
+/*
+ * Student-observed browser integrity events are idempotent and can only lock.
+ * The response says how many events the session has and where the lock is, so
+ * the screen can warn BEFORE the event that pauses the test.
+ */
 exports.recordSecureExamIntegrityEvent = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
@@ -16695,69 +17068,42 @@ exports.recordSecureExamIntegrityEvent = onCall(async (request) => {
   const db = getFirestore();
   const sessionRef = db.collection("examSessions").doc(examSessionId);
   const eventRef = db.collection("examIntegrityEvents").doc(mathPath.opaqueId("integrity", examSessionId, eventId));
+  const threshold = secureExam.INTEGRITY_LOCK_THRESHOLD;
   return db.runTransaction(async (transaction) => {
     const [sessionSnapshot, existingEvent] = await Promise.all([transaction.get(sessionRef), transaction.get(eventRef)]);
     const session = assertStudentExamSession(sessionSnapshot, studentId);
-    if (existingEvent.exists) return { success: true, duplicate: true, status: session.status, violationCount: Number(session.violationCount || 0) };
+    if (existingEvent.exists) return { success: true, duplicate: true, status: session.status, violationCount: Number(session.violationCount || 0), lockThreshold: threshold };
     if (secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam is already submitted.");
     const count = Number(session.violationCount || 0) + 1;
-    const status = count >= 3 && session.status === "in_progress" ? "locked_integrity" : session.status;
+    const status = count >= threshold && session.status === "in_progress" ? "locked_integrity" : session.status;
     const now = Date.now();
     transaction.set(eventRef, { eventId, examSessionId, studentId, type, details, receivedAt: now });
     transaction.set(sessionRef, { ...session, violationCount: count, status, lockReason: status === "locked_integrity" ? "Integrity event threshold reached; proctor review required." : session.lockReason || null, lockedAt: status === "locked_integrity" ? now : session.lockedAt || null, updatedAt: now });
-    return { success: true, status, violationCount: count };
+    return {
+      success: true,
+      status,
+      violationCount: count,
+      lockThreshold: threshold,
+      // One more event will pause the test: the screen warns now.
+      warning: status === "in_progress" && count === threshold - 1,
+    };
   });
 });
 
-/** The released-review snapshot of an issued item: public material only. */
-async function reviewSnapshotOf(storedCurrent, session) {
-  const current = secureItems.readStoredItem(storedCurrent);
-  const mode = await secureItems.runtimeModeForSession(session);
-  return mathPath.buildSanitizedQuestion(current, {
-    questionInstanceId: current.questionInstanceId,
-    attemptsAllowed: current.attemptsAllowed,
-    attemptsUsed: current.attemptsUsed,
-    toolPayload: await secureItems.toolPayloadForMode(current, mode),
-  });
-}
-
-async function applyOpenSecureExamDraft(session, now) {
-  const current = session.currentQuestion;
-  const draft = current?.draftResponse;
-  // A typed field answer OR a Rich Tool construction is work worth finalizing.
-  if (!current || !(await secureItems.payloadHasWork(draft?.responsePayload))) return session;
-  // The open item's workspace drafts were only ever a way back to the screen.
-  const { workspaceDraftsJson: _workspaceDrafts, ...recordedPayload } = draft.responsePayload || {};
-  // Finalizing records whatever was saved, complete or not: an unfinished
-  // construction is graded as it stands (a rejected shape scores 0).
-  const grading = await secureItems.gradeIssuedItem(current, recordedPayload);
-  const responseRecord = {
-    questionInstanceId: current.questionInstanceId,
-    bankQuestionId: current.bankQuestionId,
-    pathToolId: current.pathToolId || null,
-    alignmentKeys: current.alignmentKeys || [],
-    questionType: current.questionType,
-    familyId: current.familyId,
-    dok: current.dok,
-    slotId: current.slotId || null,
-    targetId: current.targetId || null,
-    planWeight: current.planWeight ?? null,
-    grading: { score: grading.score, isCorrect: grading.isCorrect },
-    supportUsage: draft.supportUsage || {},
-    questionSnapshot: secureItems.storableItem(await reviewSnapshotOf(current, session)),
-    responsePayload: Object.keys(recordedPayload).length ? recordedPayload : { responses: {} },
-    submittedAt: now,
-    finalizedFromAutosave: true,
-  };
-  return {
-    ...session,
-    summary: {
-      completedQuestions: Number(session.summary?.completedQuestions || 0) + 1,
-      correctQuestions: Number(session.summary?.correctQuestions || 0) + (grading.isCorrect ? 1 : 0),
-    },
-    responses: { ...(session.responses || {}), [current.questionInstanceId]: responseRecord },
-    usedQuestionIds: [...new Set([...(session.usedQuestionIds || []), current.bankQuestionId])],
-  };
+/*
+ * FINALIZE A SESSION INSIDE THE CALLER'S TRANSACTION: grade every open item.
+ *
+ * Shared by the student's submit, the verified timer and the proctor's
+ * force-submit, so there is one definition of how a test ends. Reads first
+ * (Firestore requires every transaction read before any write); the caller
+ * writes the returned session.
+ */
+async function finalizeSecureSessionInTransaction(transaction, ref, session, { status, now }) {
+  const upgrade = await secureExamItems.upgradeSession(ref, session);
+  const openItems = await secureExamItems.readOpenItems(transaction, ref, upgrade.session);
+  upgrade.writes.forEach((write) => { if (!openItems.has(write.ref.id)) openItems.set(write.ref.id, write.data); });
+  const graded = await secureExamItems.finalizeOpenItems(upgrade.session, openItems, now);
+  return { ...graded, status, submittedAt: now, updatedAt: now };
 }
 
 /** Student submit / verified timer autosubmit. */
@@ -16781,6 +17127,13 @@ exports.finalizeSecureExam = onCall(async (request) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
     if (secureExam.TERMINAL_STATES.has(session.status)) return session;
+    // A student's own Submit waits while the teacher has the course Test
+    // paused, archived or closed, as saves and questions do. Time running out
+    // still finishes it (the deadline is checked below), grading the drafts
+    // saved while it was open.
+    if (reason !== "timeExpired" && secureExam.isCourseTestSession(session)) {
+      await assertCourseTestEntryAllowed(db, session, studentId, { transaction });
+    }
     /*
      * AN EXAM THAT WAS NEVER STARTED HAS NOTHING TO SUBMIT.
      *
@@ -16795,27 +17148,28 @@ exports.finalizeSecureExam = onCall(async (request) => {
     if (session.status === "not_started") throw new HttpsError("failed-precondition", "Start the exam before submitting it.");
     if (reason === "timeExpired" && !secureExam.isExpired(session)) throw new HttpsError("failed-precondition", "The server-side exam deadline has not been reached.");
     if (reason !== "timeExpired" && secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "A locked exam must be resolved by the proctor.");
-    const now = Date.now();
-    const withDraft = await applyOpenSecureExamDraft(session, now);
-    const updated = { ...withDraft, status: reason === "timeExpired" ? "time_expired" : "submitted", submittedAt: now, currentQuestion: null, updatedAt: now };
+    const updated = await finalizeSecureSessionInTransaction(transaction, ref, session, {
+      status: reason === "timeExpired" ? "time_expired" : "submitted",
+      now: Date.now(),
+    });
     transaction.set(ref, updated);
     return updated;
   });
   await syncTestCycleSessionState(db, next);
-  return { success: true, session: secureExam.publicSession(next) };
+  const released = await autoReleaseSecureSession(db, next);
+  return { success: true, session: secureExam.publicSession(released || next) };
 });
 
 /** Teacher-only live monitor summaries. No answer payloads are returned. */
 exports.listProctorExamSessions = onCall(async (request) => {
-  await requireTeacher(request);
+  const teacherUid = await requireTeacher(request);
   const examType = String(request.data?.examType || "").trim();
   const db = getFirestore();
   let query = db.collection("examSessions");
   if (examType && secureExam.supportsExamType(examType)) query = query.where("examType", "==", examType);
   const snapshot = await query.limit(200).get();
   // Course-test sessions are scoped to the teacher of record for the student's
-  // class. Simulation scope is unchanged: widening or narrowing it is existing
-  // behaviour this change has no business touching.
+  // class; practice tests to the student's own teachers (below).
   const ownedClassIds = await teacherOwnedClassIds(db, request);
   const byId = new Map();
   snapshot.docs
@@ -16845,7 +17199,36 @@ exports.listProctorExamSessions = onCall(async (request) => {
     }
   }
   const sessions = [...byId.values()];
-  return { sessions: sessions.map((session) => secureExam.publicSession(session, { teacher: true })) };
+  /*
+   * A PRACTICE TEST GOES TO THE STUDENT'S OWN TEACHERS, AND SO DOES THEIR
+   * EXTENDED TIME.
+   *
+   * A practice-test session names a student, not a class, so its class is the
+   * student's: a teacher sees those for students in their own classes, and the
+   * ones they created. Extended time (the multiplier and the base limit it
+   * multiplied) is accommodation data and goes only to a teacher of the
+   * student's class. The root administrator (ownedClassIds null) sees all.
+   */
+  const practiceStudentIds = [...new Set(sessions
+    .filter((session) => !secureExam.isCourseTestSession(session))
+    .map((session) => String(session.studentId || ""))
+    .filter(Boolean))];
+  const studentClassIds = new Map();
+  if (ownedClassIds !== null && practiceStudentIds.length) {
+    const snapshots = await db.getAll(...practiceStudentIds.map((id) => db.collection("grades").doc(id)));
+    snapshots.forEach((snapshot) => studentClassIds.set(snapshot.id, String(snapshot.data()?.classId || "")));
+  }
+  const teachesStudent = (session) => ownedClassIds === null || ownedClassIds.has(secureExam.isCourseTestSession(session)
+    ? String(session.classId || "")
+    : (studentClassIds.get(String(session.studentId || "")) || ""));
+  return {
+    sessions: sessions
+      .filter((session) => teachesStudent(session) || String(session.createdBy || "") === String(teacherUid))
+      .map((session) => {
+        const row = secureExam.publicSession(session, { teacher: true });
+        return teachesStudent(session) ? row : withoutExtendedTime(row);
+      }),
+  };
 });
 
 function releasedExamEvidence(session, response) {
@@ -16878,6 +17261,9 @@ function releaseSessionFeedbackInTransaction(transaction, db, { ref, session, ex
   if (!secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "Submit the exam before releasing feedback.");
   if (!session.feedbackReleased) {
     Object.values(session.responses || {}).forEach((response) => {
+      // A question the student left blank says nothing about the skill; it
+      // counts zero in the score but is not mastery evidence.
+      if (response?.unanswered === true) return;
       const eventKey = mathPath.opaqueId("evexam", examSessionId, response.questionInstanceId);
       const eventRef = db.collection("grades").doc(session.studentId).collection("evidenceEvents").doc(eventKey);
       transaction.set(eventRef, { ...releasedExamEvidence(session, response), eventKey });
@@ -16907,7 +17293,7 @@ exports.proctorExamAction = onCall(async (request) => {
   const proctorSnapshot = await ref.get();
   if (!proctorSnapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
   const proctorSession = proctorSnapshot.data() || {};
-  await assertMayProctorCourseTest(db, request, proctorSession);
+  const scope = await secureExamProctorScope(db, request, proctorSession, teacherUid);
   if (
     action === "releaseFeedback"
     && secureExam.isCourseTestSession(proctorSession)
@@ -16955,7 +17341,8 @@ exports.proctorExamAction = onCall(async (request) => {
       const minutes = Math.max(1, Math.min(120, Math.round(Number(request.data?.minutes) || 5)));
       updated = { ...updated, addedTimeSeconds: Number(session.addedTimeSeconds || 0) + minutes * 60 };
     }
-    if (action === "forceSubmit") updated = { ...(await applyOpenSecureExamDraft(updated, now)), status: "force_submitted", submittedAt: now, currentQuestion: null };
+    // Every open draft is graded exactly as a student's own submit grades it.
+    if (action === "forceSubmit") updated = { ...(await finalizeSecureSessionInTransaction(transaction, ref, updated, { status: "force_submitted", now })), lastProctorActionBy: teacherUid };
     transaction.set(ref, updated);
     return updated;
   });
@@ -16964,7 +17351,10 @@ exports.proctorExamAction = onCall(async (request) => {
   // simulation session has no `courseTest` block and both helpers no-op.
   if (action === "releaseFeedback") await applyTestCycleFeedbackRelease(db, next);
   else await syncTestCycleSessionState(db, next);
-  return { success: true, session: secureExam.publicSession(next, { teacher: true }) };
+  // A practice test a proctor submitted is released like one the student did.
+  const settled = action === "forceSubmit" ? (await autoReleaseSecureSession(db, next)) || next : next;
+  const row = secureExam.publicSession(settled, { teacher: true });
+  return { success: true, session: scope.teachesStudent ? row : withoutExtendedTime(row) };
 });
 
 // --- Test Cycle: one assignment, four stages, one recorded grade ------------
@@ -17367,21 +17757,28 @@ async function assertTestCycleAssessmentOpen(shared, assignment) {
  * not reached its release time — the assignment-level gate the stage machine
  * deliberately does not know about.
  */
-async function assertCourseTestEntryAllowed(db, session, studentId) {
+async function assertCourseTestEntryAllowed(db, session, studentId, { transaction = null } = {}) {
   const courseTest = session?.courseTest;
   if (!courseTest?.assignmentId) return;
+  // Inside a caller's transaction every read is the transaction's, so a pause,
+  // archive or reset written while the call is in flight either lands first
+  // and is seen here, or retries the call: nothing is written after it.
+  const read = (ref) => (transaction ? transaction.get(ref) : ref.get());
   const shared = await testCycleLib.shared();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(courseTest.assignmentId)).get();
+  const assignmentSnapshot = await read(db.collection("assignments").doc(String(courseTest.assignmentId)));
   if (!assignmentSnapshot.exists) throw new HttpsError("failed-precondition", "This assessment is no longer available.");
   const assignment = assignmentSnapshot.data() || {};
   const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy);
   if (!policy) throw new HttpsError("failed-precondition", "This assessment is no longer a Test Cycle.");
 
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
-  const [gradeSnapshot, record] = await Promise.all([
-    db.collection("grades").doc(studentId).get(),
-    readTestCycleRecord(db, courseTest.assignmentId, studentId, shared),
+  const [gradeSnapshot, recordSnapshot] = await Promise.all([
+    read(db.collection("grades").doc(studentId)),
+    read(db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(courseTest.assignmentId, studentId))),
   ]);
+  const record = shared.record.normalizeTestCycleRecord(
+    recordSnapshot.exists ? recordSnapshot.data() : { assignmentId: courseTest.assignmentId, studentId },
+  );
 
   /*
    * SUPERSESSION IS CHECKED BEFORE ANYTHING ELSE, TERMINAL STATE INCLUDED.
@@ -17437,25 +17834,42 @@ async function teacherOwnedClassIds(db, request) {
 }
 
 /**
- * May this teacher proctor this course-test session?
+ * May this teacher proctor this session, and do they teach its student?
  *
- * `proctorExamAction` has always accepted any authenticated teacher, which was
- * a defensible scope while the only thing it could do was unlock a simulation.
- * Releasing a COURSE test now writes a student's recorded assessment grade and
- * pushes it to Google Classroom, so the same call in the same shape is a much
- * larger action and needs the teacher of record for that student's class.
- *
- * Scoped to course tests on purpose: the simulation proctor scope is existing
- * behaviour this change has no business widening.
+ * `proctorExamAction` used to accept any authenticated teacher. Releasing a
+ * COURSE test writes a student's recorded assessment grade and pushes it to
+ * Google Classroom, so it needs the teacher of record for that student's
+ * class. A practice test is the student's own teachers' and its creator's.
  */
-async function assertMayProctorCourseTest(db, request, session) {
-  if (!secureExam.isCourseTestSession(session)) return;
+async function secureExamProctorScope(db, request, session, teacherUid) {
   const ownedClassIds = await teacherOwnedClassIds(db, request);
-  if (ownedClassIds === null) return;
-  const classId = String(session.classId || "");
-  if (!classId || !ownedClassIds.has(classId)) {
-    throw new HttpsError("permission-denied", "Only the teacher of record for this student's class can proctor their course test.");
+  if (ownedClassIds === null) return { teachesStudent: true };
+  if (secureExam.isCourseTestSession(session)) {
+    const classId = String(session.classId || "");
+    if (!classId || !ownedClassIds.has(classId)) {
+      throw new HttpsError("permission-denied", "Only the teacher of record for this student's class can proctor their course test.");
+    }
+    return { teachesStudent: true };
   }
+  /*
+   * A PRACTICE TEST: the teacher who set it, or a teacher of the student's
+   * class — the same teachers the live monitor lists it for. Another teacher
+   * holding its id could otherwise unlock, extend or submit it. A creator who
+   * does not teach the student proctors it without their extended time.
+   */
+  const studentId = String(session.studentId || "");
+  const studentClassId = studentId ? String((await db.collection("grades").doc(studentId).get()).data()?.classId || "") : "";
+  const teachesStudent = Boolean(studentClassId) && ownedClassIds.has(studentClassId);
+  if (!teachesStudent && String(session.createdBy || "") !== String(teacherUid)) {
+    throw new HttpsError("permission-denied", "Only the teacher who set this practice test, or a teacher of this student's class, can proctor it.");
+  }
+  return { teachesStudent };
+}
+
+/** Extended time is accommodation data: a session row without it, for a teacher who does not teach the student. */
+function withoutExtendedTime(row) {
+  const { extendedTimeMultiplier: _multiplier, baseTimeLimitSeconds: _baseLimit, ...rest } = row;
+  return rest;
 }
 
 /**
@@ -17743,12 +18157,16 @@ exports.preflightTestCycleCandidate = onCall(async (request) => {
  * UNTIMED, and the card says so in as many words, so a student is never left
  * guessing whether a clock is running.
  */
-function testCycleDeliveryFacts(blueprint) {
-  const seconds = secureExam.timeLimitSecondsOf({ timeLimitSeconds: blueprint?.timeLimitSeconds });
+function testCycleDeliveryFacts(blueprint, { timeMultiplier = 1 } = {}) {
+  const baseSeconds = secureExam.timeLimitSecondsOf({ timeLimitSeconds: blueprint?.timeLimitSeconds });
+  // The student's own extended time, as the server will apply it at start.
+  const extended = baseSeconds !== null && timeMultiplier > 1;
+  const seconds = extended ? secureExamNavigation.accommodatedTimeLimitSeconds(baseSeconds, timeMultiplier) : baseSeconds;
   const calculatorMode = String(blueprint?.calculatorMode || "questionSpecific");
   return {
     timed: seconds !== null,
     timeLimitMinutes: seconds === null ? null : Math.round(seconds / 60),
+    ...(extended ? { baseTimeLimitMinutes: Math.round(baseSeconds / 60), extendedTimeMultiplier: timeMultiplier } : {}),
     calculatorMode,
     questionCount: Array.isArray(blueprint?.targets)
       ? blueprint.targets.reduce((sum, target) => sum + Math.max(0, Number(target?.questionCount) || 0), 0)
@@ -17822,6 +18240,19 @@ exports.getStudentTestCycle = onCall(async (request) => {
       : record.test.state === shared.record.SESSION_STATE.RELEASED
         ? record.test.examSessionId
         : null,
+    // The original Test's released session on its own, so "Review my Test"
+    // still reaches it once a released Retest has taken over the field above.
+    // The card offers it only at stages where no secure item can be answered,
+    // and it is not sent at all while a Retest session is assigned or under
+    // way — the line getStudentSecureExamReview holds (`retest_open`). A
+    // teacher closing retesting does not end a Retest already issued, so the
+    // stage alone ("retestClosed") cannot say the review would open.
+    // Offered exactly when getStudentSecureExamReview would open it: the same
+    // rule (secureExam.courseReviewBlockedBy) decides both.
+    testReviewExamSessionId: record.test.state === shared.record.SESSION_STATE.RELEASED
+      && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" })
+      ? record.test.examSessionId
+      : null,
     grade: shared.record.testCycleGradeBreakdown(record, policy),
     corrections,
     // Everything below is question-free and score-free: what a student needs
@@ -17843,9 +18274,31 @@ exports.getStudentTestCycle = onCall(async (request) => {
       summary: state.policySummary,
       external: Boolean(policy.externalAssessment),
     },
-    delivery: testCycleDeliveryFacts(blueprint),
+    delivery: testCycleDeliveryFacts(blueprint, {
+      timeMultiplier: await secureExamTimeMultiplierFromProfile(gradeSnapshot.data()?.profile || null, studentId),
+    }),
+    // "What's on this test": the skills the blueprint covers and how many
+    // questions each gets — what a real test's study guide says. Never which
+    // question is which (not even by the list's order), and nothing about
+    // families, seeds or answers.
+    testSkills: await testCycleSkillList(blueprint),
+    // The Review, skill by skill: answered and correct so far, from the same
+    // tracker the gate reads. Instruction only — nothing from the secure Test,
+    // and it does not change what unlocks it (reviewProgress does that).
+    reviewBySkill: await testCycleLib.reviewProgressBySkill(assignment, tracker, { targets: blueprint?.targets }),
   };
 });
+
+/*
+ * The blueprint's skills for the student card. The rules live in
+ * functions/lib/testCycle.js `testSkillList`, where node tests run them on a
+ * real normalized blueprint: a label is sent only when it is a name (never the
+ * code normalizeTestBlueprint puts in an empty label), and the list's order
+ * says nothing about the order questions are issued in.
+ */
+function testCycleSkillList(blueprint) {
+  return testCycleLib.testSkillList(blueprint);
+}
 
 /**
  * Corrections, as a student may see them.
@@ -17879,6 +18332,28 @@ function studentVisibleCorrectionPlan(plan) {
 
 const CORRECTION_ATTEMPTS_PER_QUESTION = 3;
 
+/*
+ * CORRECTIONS CLOSE WHILE THE STUDENT'S OWN TEST OR RETEST IS OPEN.
+ *
+ * Corrections hand out hints and, after a third miss, a worked solution, on
+ * parallel items from the same families the Test and the Retest draw on. Once
+ * either is assigned or under way, that is an open book for it: a Retest a
+ * teacher opened with the plan unfinished (waived corrections, an unlocked
+ * retest), or the new Test a teacher's reset assigned while the old plan is
+ * still there. No correction question is issued and no response is taken
+ * until that attempt is submitted.
+ */
+function assertCorrectionsOpenFor(shared, record) {
+  const { ASSIGNED, IN_PROGRESS } = shared.record.SESSION_STATE;
+  const open = (state) => state === ASSIGNED || state === IN_PROGRESS;
+  const sitting = open(record.retest.state) ? "Retest" : open(record.test.state) ? "Test" : null;
+  if (sitting) {
+    throw new HttpsError("failed-precondition", `Corrections are closed while your ${sitting} is open. They open again once you submit it.`, {
+      reason: sitting === "Retest" ? "retest_open" : "test_open",
+    });
+  }
+}
+
 /**
  * Issue one CORRECTION question.
  *
@@ -17897,6 +18372,7 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
   const db = getFirestore();
   const { assignmentId, assignment, policy, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
   await assertTestCycleAssessmentOpen(shared, assignment);
+  assertCorrectionsOpenFor(shared, await readTestCycleRecord(db, assignmentId, studentId, shared));
   const recordId = testCycleRecordKey(assignmentId, studentId);
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(recordId);
   const planSnapshot = await planRef.get();
@@ -18027,8 +18503,11 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
   if (!correctionId || !questionInstanceId) throw new HttpsError("invalid-argument", "correctionId and questionInstanceId are required.");
   const db = getFirestore();
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  // Paused or archived: no responses, as no questions are issued.
+  await assertTestCycleAssessmentOpen(shared, assignment);
   const recordId = testCycleRecordKey(assignmentId, studentId);
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(recordId);
+  const recordRef = db.collection(TEST_CYCLE_RECORDS).doc(recordId);
   const preview = (await planRef.get()).data() || null;
   if (!preview) throw new HttpsError("not-found", "You have no corrections for this assessment.");
   if (String(preview.studentId || "") !== studentId) throw new HttpsError("not-found", "You have no corrections for this assessment.");
@@ -18048,7 +18527,10 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
   const now = Date.now();
 
   const applied = await db.runTransaction(async (transaction) => {
-    const stored = (await transaction.get(planRef)).data() || {};
+    const [planSnapshot, recordSnapshot] = await Promise.all([transaction.get(planRef), transaction.get(recordRef)]);
+    // Checked with the write, so a Retest opened meanwhile gets no worked solution.
+    assertCorrectionsOpenFor(shared, shared.record.normalizeTestCycleRecord(recordSnapshot.exists ? recordSnapshot.data() : { assignmentId, studentId }));
+    const stored = planSnapshot.data() || {};
     const open = stored.activeQuestions?.[correctionId];
     if (!open || open.questionInstanceId !== questionInstanceId) {
       throw new HttpsError("failed-precondition", "That correction question is no longer active.");
@@ -18278,7 +18760,7 @@ exports.teacherTestCycleAction = onCall(async (request) => {
     studentId,
     shared,
     policy,
-    mutate: (record, { transaction }) => {
+    mutate: async (record, { transaction }) => {
       const controls = shared.policy.applyTeacherControlAction(record.teacherControls, action);
       let next = { ...record, teacherControls: controls };
 
@@ -18300,6 +18782,22 @@ exports.teacherTestCycleAction = onCall(async (request) => {
           && current.state !== shared.record.SESSION_STATE.NONE
           && current.state !== shared.record.SESSION_STATE.ASSIGNED) {
           next = { ...next, review: { ...next.review, complete: true, completedAt: next.review.completedAt || Date.now() } };
+        }
+
+        /*
+         * An explicit answer release covers only the students its confirm
+         * named as still testing (courseAnswersRelease). This new attempt is
+         * one no teacher confirmed: if the student was on that list, take
+         * them off it, so the answers wait for this attempt too (a student
+         * who was not on it is held already). A new Test comes before any
+         * Retest, so a Test reset leaves both lists.
+         */
+        const releaseRef = db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(String(assignmentId));
+        const releaseData = (await transaction.get(releaseRef)).data() || {};
+        const reopen = (stage === "test" ? ["test", "retest"] : ["retest"])
+          .filter((name) => (Array.isArray(releaseData[name]?.coveredStudentIds) ? releaseData[name].coveredStudentIds : []).map(String).includes(String(studentId)));
+        if (reopen.length) {
+          transaction.set(releaseRef, Object.fromEntries(reopen.map((name) => [name, { coveredStudentIds: FieldValue.arrayRemove(String(studentId)) }])), { merge: true });
         }
 
         if (current.examSessionId) {
@@ -18586,6 +19084,21 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
       test: rows.filter((row) => row.test.state === "submitted").length,
       retest: rows.filter((row) => row.retest.state === "submitted").length,
     },
+    // Whether the answers and worked solutions are open to students yet, and
+    // who can still sit each stage (courseAnswersRelease): the list a release
+    // confirm names and sends back.
+    answersRelease: Object.fromEntries(await Promise.all(["test", "retest"].map(async (stage) => {
+      const release = await courseAnswersRelease(db, shared, assignmentId, stage, {
+        assignment, records: recordsByStudent, rosterIds: [...gradeDataByStudent.keys()],
+      });
+      return [stage, {
+        released: release.released,
+        explicit: release.explicit,
+        stillTesting: release.stillTesting.length,
+        stillTestingIds: release.stillTesting,
+        heldFor: release.heldFor.length,
+      }];
+    }))),
   };
 });
 
@@ -18699,7 +19212,7 @@ async function applyTestCycleFeedbackRelease(db, session) {
   // 69.99 is not 70: keep its precision.
   const rawScore = testCycleLib.weightedSessionScorePercent(session, { preservePrecision: Boolean(policy.externalAssessment) });
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
-  const answeredQuestions = Object.keys(session.responses || {}).length;
+  const answeredQuestions = secureExamNavigation.answeredCount(session);
   const totalQuestions = Number(session.requiredQuestions || 0);
 
   const released = await mutateTestCycleRecord(db, {
@@ -18871,7 +19384,7 @@ async function syncTestCycleSessionState(db, session) {
       // superseded session cannot move the card.
       if (String(current.examSessionId || "") !== String(session.examSessionId || "")) return null;
       if (current.state === shared.record.SESSION_STATE.RELEASED) return null;
-      const answeredQuestions = Object.keys(session.responses || {}).length;
+      const answeredQuestions = secureExamNavigation.answeredCount(session);
       if (state === current.state && answeredQuestions === current.answeredQuestions) return null;
 
       const stageRecord = {
@@ -18918,19 +19431,17 @@ async function syncTestCycleSessionState(db, session) {
  *
  * No selection happens here and no model is consulted: the plan already named
  * the approved family and the generator seed. This instantiates that family
- * with that seed and checks it can still be privately graded.
- *
- * The issued instance id is written back onto the plan entry, which is what
- * later lets the corrections algorithm join evidence to blueprint slots and
- * lets the retest audit prove it reused nothing.
+ * with that seed and checks it can still be privately graded. The caller
+ * (issueSecureExamQuestion) appends it in its transaction and writes the
+ * issued instance id back onto the plan entry, which is what later lets the
+ * corrections algorithm join evidence to blueprint slots and lets the retest
+ * audit prove it reused nothing.
  */
-async function issueCourseTestQuestion(db, { sessionRef, session, studentId, runtimeMode = "secureTest" }) {
+async function buildCourseTestExamItem(db, { session, runtimeMode = "secureTest" }) {
   const shared = await testCycleLib.shared();
   const plan = session.issuancePlan || {};
-  const completedSlotIds = Object.values(session.responses || {})
-    .map((response) => String(response?.slotId || ""))
-    .filter(Boolean);
-  const entry = shared.issuance.nextPlanEntry(plan, completedSlotIds);
+  // Every slot already issued — answered, skipped or still open.
+  const entry = shared.issuance.nextPlanEntry(plan, secureExamNavigation.issuedSlotIds(session));
   if (!entry) throw new HttpsError("failed-precondition", "All required exam questions have been completed.");
 
   const families = await resolveBlueprintFamilies(db, [entry.familyId]);
@@ -18955,7 +19466,7 @@ async function issueCourseTestQuestion(db, { sessionRef, session, studentId, run
   }
 
   // Stored with its tool fields encoded: arrays of arrays cannot be stored.
-  const currentQuestion = secureItems.storableItem({
+  const storedItem = secureItems.storableItem({
     ...instantiated.question,
     bankQuestionId: family.id,
     familyId: entry.familyId,
@@ -18974,25 +19485,7 @@ async function issueCourseTestQuestion(db, { sessionRef, session, studentId, run
     privateGrading: issuePlan.privateGrading,
     ...issuePlan.toolPayload,
   });
-
-  const issued = await db.runTransaction(async (transaction) => {
-    const freshSnapshot = await transaction.get(sessionRef);
-    const fresh = assertStudentExamSession(freshSnapshot, studentId);
-    assertExamInProgress(fresh);
-    if (fresh.currentQuestion) return fresh;
-    const entries = (fresh.issuancePlan?.entries || []).map((planEntry) => (
-      planEntry.slotId === entry.slotId ? { ...planEntry, questionInstanceId } : planEntry
-    ));
-    const next = {
-      ...fresh,
-      currentQuestion,
-      issuancePlan: { ...fresh.issuancePlan, entries },
-      updatedAt: Date.now(),
-    };
-    transaction.set(sessionRef, next);
-    return next;
-  });
-  return issued;
+  return { storedItem, planEntry: entry };
 }
 
 // Immutable evidence drives the Phase 5A mastery wheel. A separate idempotency

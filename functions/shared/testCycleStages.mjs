@@ -17,7 +17,8 @@
  *   review          Review is required and unfinished. The Test is not merely
  *                   hidden, it is not enterable: the launch path checks the
  *                   same stage this returns.
- *   test            Secure. One attempt per item, no hints, no AI.
+ *   test            Secure. No hints, no AI. Answers stay editable until the
+ *                   student submits; graded once, on the server, at submit.
  *   awaitingRelease The student has submitted. There is no score to show yet,
  *                   and crucially NO SIGN that a retest exists — telling a
  *                   student "you'll get a retest" is telling them they failed,
@@ -162,7 +163,7 @@ export const resolveTestCycleStage = ({
       actionLabel: normalized.test.state === SESSION_STATE.IN_PROGRESS ? `Resume ${external ? 'Retest' : 'Test'}` : `Start ${external ? 'Retest' : 'Test'}`,
       statusLabel: external ? 'Retest' : 'Test',
       detail: assigned
-        ? 'Secure test: one attempt per question, no hints or help, and your score is held until your teacher releases it.'
+        ? 'Secure test: no hints or help. You can skip, flag and go back to any question until you submit, and your score is held until your teacher releases it.'
         : 'Your teacher has not opened the secure test session yet.',
     };
   }
@@ -286,7 +287,7 @@ export const resolveTestCycleStage = ({
       canEnter: true,
       actionLabel: 'Resume Retest',
       statusLabel: 'Retest',
-      detail: `Secure retest: one attempt per question, no hints. The highest grade retesting can record is ${resolved.retest.maxRecordedGrade}%.`,
+      detail: `Secure retest: no hints. You can skip, flag and go back to any question until you submit. The highest grade retesting can record is ${resolved.retest.maxRecordedGrade}%.`,
     };
   }
 
@@ -300,7 +301,7 @@ export const resolveTestCycleStage = ({
     actionLabel: retestAssigned ? 'Start Retest' : 'Retest pending',
     statusLabel: 'Retest',
     detail: retestAssigned
-      ? `Secure retest: one attempt per question, no hints. The highest grade retesting can record is ${resolved.retest.maxRecordedGrade}%.`
+      ? `Secure retest: no hints. You can skip, flag and go back to any question until you submit. The highest grade retesting can record is ${resolved.retest.maxRecordedGrade}%.`
       : 'Your retest is being prepared and will appear here when it opens.',
   };
 };

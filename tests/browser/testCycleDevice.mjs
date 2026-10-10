@@ -154,8 +154,8 @@ for (const device of DEVICES) {
         if (!result.bodyText.includes(expected)) problems.push(`the completed card does not show "${expected}"`);
       }
     }
-    if (stage.id === 'test' && !/one attempt per question/i.test(result.bodyText)) {
-      problems.push('the secure Test card does not state the one-attempt rule');
+    if (stage.id === 'test' && !/go back to any question until you submit/i.test(result.bodyText)) {
+      problems.push('the secure Test card does not state the test-taking rule (skip, flag, go back until submit)');
     }
 
     findings.push({ device: device.id, stage: stage.id, problems, result });

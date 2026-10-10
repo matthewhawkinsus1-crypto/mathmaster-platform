@@ -148,3 +148,29 @@ test('opening one student\'s session is the class-wide callable scoped to that s
   // The waiver's own success message carries the next step.
   assert.match(apply, /`\$\{item\.label\} applied for \$\{name\}\.\$\{item\.doneNote \? ` \$\{item\.doneNote\}` : ''\}`/);
 });
+
+/* --- a release says what it releases (coordinator re-check, PR #461) ------- */
+
+test("a student's release says what it shows now and when the answers follow", () => {
+  const submitted = { ...notStarted, stage: 'awaitingRelease', test: { state: 'submitted', examSessionId: 'exam-1' } };
+  const test = teacherActionsForRow(submitted).find((item) => item.kind === 'release');
+  assert.equal(test.label, 'Release Test result');
+  assert.match(test.detail, /their score and, for each question, their own answer and whether it was right/);
+  assert.match(test.detail, /correct answers and worked solutions follow once every student assigned the Test has submitted it, or when you release them/);
+  const retestSubmitted = { ...submitted, test: { state: 'released', examSessionId: 'exam-1' }, retest: { state: 'submitted', examSessionId: 'exam-2' } };
+  const retest = teacherActionsForRow(retestSubmitted).find((item) => item.kind === 'release');
+  assert.equal(retest.label, 'Release retest result');
+  assert.match(retest.detail, /updates their recorded grade \(and Google Classroom\) under the retest policy/);
+  assert.match(retest.detail, /follow once no student can still take the retest/);
+  const external = teacherActionsForRow(submitted, { external: true }).find((item) => item.kind === 'release');
+  assert.match(external.detail, /higher of the original and the capped retest/);
+  // The panel shows every action's detail beside its button.
+  assert.match(controls, /\{item\.detail && <span style=\{\{ flex: '1 1 240px'/);
+});
+
+test("the proctor monitor's release button names what it releases", () => {
+  const monitor = componentSource('src/components/assessment/ProctorLiveMonitor.jsx');
+  assert.match(monitor, /onClick=\{\(\) => act\(session, 'releaseFeedback'\)\}>\{releaseLabel\(session\)\}<\/button>/);
+  assert.match(monitor, /\? 'Release score and grade \(answers follow when the class is done\)'\s+: 'Release score, answers and solutions'\);/);
+  assert.doesNotMatch(monitor, />Release feedback</);
+});

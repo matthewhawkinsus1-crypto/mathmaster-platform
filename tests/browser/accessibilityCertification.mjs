@@ -152,7 +152,7 @@ export const SCREENS = [
         await page.goto(`${origins.audit}/tests/browser/accessibilitySecureExam.html?stage=test`, { timeout: 180_000 });
         await page.locator('[data-test-cycle-stage="test"]').waitFor({ timeout: 180_000 });
         await page.getByRole('button', { name: /Start Test/ }).first().click();
-        await page.getByText('One attempt per question').first().waitFor({ timeout: 30_000 });
+        await page.getByText('You can change any answer until you submit').first().waitFor({ timeout: 30_000 });
         await page.waitForTimeout(600);
       } },
       { id: 'question', run: async (page) => {

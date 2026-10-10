@@ -125,7 +125,13 @@ const externalActionsForRow = (row, actions) => {
   const test = row.test || {};
   const controls = row.teacherControls || {};
   if (test.state === 'submitted') {
-    actions.push({ key: 'release', label: 'Release retest result', kind: 'release', stage: 'test' });
+    actions.push({
+      key: 'release',
+      label: 'Release retest result',
+      kind: 'release',
+      stage: 'test',
+      detail: 'Shows this student their retest score and their own answers. Their recorded grade becomes the higher of the original and the capped retest. A released score cannot be hidden again.',
+    });
   }
   if (!controls.reviewWaived && row.stage === 'review') {
     actions.push({
@@ -188,7 +194,19 @@ export const teacherActionsForRow = (row = {}, { external = false } = {}) => {
   }
   if (external) return externalActionsForRow(row, actions);
   if (test.state === 'submitted' || retest.state === 'submitted') {
-    actions.push({ key: 'release', label: test.state === 'submitted' ? 'Release Test result' : 'Release retest result', kind: 'release', stage: test.state === 'submitted' ? 'test' : 'retest' });
+    // What a release shows, said beside the button: the score and the
+    // student's own answers now; the correct answers and worked solutions
+    // only once no one else can still sit that stage, or the teacher releases them.
+    const releasingTest = test.state === 'submitted';
+    actions.push({
+      key: 'release',
+      label: releasingTest ? 'Release Test result' : 'Release retest result',
+      kind: 'release',
+      stage: releasingTest ? 'test' : 'retest',
+      detail: releasingTest
+        ? 'Shows this student their score and, for each question, their own answer and whether it was right. Below passing, their corrections open. The correct answers and worked solutions follow once every student assigned the Test has submitted it, or when you release them. A released score cannot be hidden again.'
+        : 'Shows this student their retest score and their own answers, and updates their recorded grade (and Google Classroom) under the retest policy. The correct answers and worked solutions follow once no student can still take the retest, or when you release them.',
+    });
   }
   if (!testReleased && !controls.reviewWaived && stage === 'review') {
     actions.push({
