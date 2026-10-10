@@ -69,8 +69,19 @@ export const bindActionBarFocusReveal = (getHost, { win = typeof window !== 'und
     frame = win.requestAnimationFrame(() => {
       const bar = host.querySelector(ACTION_BAR_SELECTOR);
       if (!bar || win.document.activeElement !== target) return;
-      const delta = actionBarFocusOverlap({ target: target.getBoundingClientRect(), bar: bar.getBoundingClientRect() });
+      // Under Work View the page's bar is still laid out (display:flex) but
+      // covered by the modal: it can hide nothing, so nothing moves (review
+      // of #463: Tab inside Work View scrolled the page beneath it).
+      if (win.document.documentElement.getAttribute('data-work-view-open') === 'true') return;
+      const targetRect = target.getBoundingClientRect();
+      const delta = actionBarFocusOverlap({ target: targetRect, bar: bar.getBoundingClientRect() });
       if (delta <= 0) return;
+      // And only a bar that is really drawn over the control: what is under
+      // the control's lower centre must be the bar.
+      const x = Math.min(win.innerWidth - 1, Math.max(0, targetRect.left + targetRect.width / 2));
+      const y = Math.min(win.innerHeight - 1, Math.max(0, targetRect.bottom - 2));
+      const hit = win.document.elementFromPoint?.(x, y);
+      if (hit && !bar.contains(hit)) return;
       const scroller = scrollParentOf(target, win);
       if (scroller && scroller.contains(bar)) scroller.scrollBy({ top: delta, left: 0, behavior: 'auto' });
       else win.scrollBy({ top: delta, left: 0, behavior: 'auto' });

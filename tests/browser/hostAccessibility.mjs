@@ -98,6 +98,27 @@ for (const viewport of VIEWPORTS) {
       await page.close();
     }
   }
+  if (!ONLY || ONLY === 's5') {
+    // Review of #463: inside Work View the page's bar is still laid out but
+    // covered by the modal; Tab must never scroll the page beneath it.
+    for (const tool of ['dataModelingLab', 'linearTableWorkbench']) {
+      const { page } = await open(`scene=path-tool&tool=${tool}`, viewport);
+      const enlarge = page.locator('button:visible', { hasText: /Enlarge question/ }).first();
+      if (!(await enlarge.count())) { check(false, `${at} ${tool}: no Enlarge question button`); await page.close(); continue; }
+      await enlarge.click();
+      await page.waitForFunction(() => document.documentElement.getAttribute('data-work-view-open') === 'true');
+      const startY = await page.evaluate(() => window.scrollY);
+      let moved = 0;
+      for (let i = 0; i < 40; i += 1) {
+        await page.keyboard.press('Tab');
+        await page.waitForTimeout(40);
+        if (await page.evaluate((y) => window.scrollY !== y, startY)) moved += 1;
+      }
+      console.log(`S5 ${at} ${tool} in Work View: the page beneath scrolled on ${moved} of 40 Tabs`);
+      check(moved === 0, `${at} ${tool}: Tab inside Work View scrolled the page beneath ${moved} time(s)`);
+      await page.close();
+    }
+  }
   if (!ONLY || ONLY === 'tools') {
     for (const [query, expected] of [
       ['scene=path-generic&kind=practice', true],

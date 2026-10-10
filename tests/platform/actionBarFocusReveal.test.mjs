@@ -37,6 +37,10 @@ test('keyboard focus only, never inside the bar, after the browser scrolled', ()
   assert.match(source, /if \(target\.closest\(ACTION_BAR_SELECTOR\)\) return;/);
   assert.match(source, /frame = win\.requestAnimationFrame\(/);
   assert.match(source, /if \(delta <= 0\) return;/);
+  // Review of #463: under Work View the bar is laid out but covered; and only
+  // a bar actually drawn over the control counts.
+  assert.match(source, /if \(win\.document\.documentElement\.getAttribute\('data-work-view-open'\) === 'true'\) return;/);
+  assert.match(source, /const hit = win\.document\.elementFromPoint\?\.\(x, y\);\s*if \(hit && !bar\.contains\(hit\)\) return;/);
 });
 
 test('My Math Path and Section Recovery bind it; the assignment screen keeps its scroll-padding', () => {
