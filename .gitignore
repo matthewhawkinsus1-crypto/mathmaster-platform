@@ -51,3 +51,7 @@ identity-reports/
 # My Math Path choice-id report detail (scripts/report-path-choice-id-regrade.mjs).
 # Lists student ids (never names): never commit it.
 path-choice-reports/
+
+# Job K classroom re-grade report detail (scripts/report-classroom-regrade-candidates.mjs).
+# Lists student ids and their submitted work (never names): never commit it.
+classroom-regrade-reports/
