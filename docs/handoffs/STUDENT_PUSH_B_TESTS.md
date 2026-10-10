@@ -56,9 +56,17 @@ secure-exam region of `functions/index.js`. Client: `SecureExamContainer.jsx`
   finalize) reach a browser only through `secureExam.publicReview`, which
   returns null until the session is finished AND released. A choice key is
   shown as its label, never as the runtime choice id.
-- Not an open book: a course Test's review is refused while that student's
-  Retest is assigned or in progress; a practice test's review is refused while
-  the student has another practice test of the same exam started or paused.
+- Not an open book: a course Test's review is refused while that student has
+  another attempt of the cycle assigned or in progress (the Retest, or a new
+  attempt a reset assigned); a practice test's review is refused while the
+  student has another practice test of the same exam started or paused. Every
+  open review asks again on focus, on return to the tab and every 30 seconds,
+  and closes on a refusal. Corrections issue no question and take no response
+  while the student's own Retest is assigned or in progress.
+- A course Test's correct answers and worked solutions wait until no one who
+  can still sit that stage is left: the whole roster of every assigned class
+  (a student with no session yet included) and every record holder. A
+  teacher's early release covers only the students its confirm named.
 - The public navigator carries states only (answered / unanswered / recorded,
   flagged, closed) — no slot, family, bank id or domain.
 - The client never computes correctness and never records per item; the
@@ -186,6 +194,59 @@ attempt per question.
   answers will come.
 - **A draft sent after time is up is refused:** now covered by a test.
 
+### Re-check fixes (coordinator re-check of 58938b4)
+
+- **The answer hold counts everyone who can still sit the stage.**
+  `courseAnswersRelease` reads the assignment's whole roster (every active
+  student in every assigned class, as the teacher table builds it) plus every
+  record holder. A student with no record yet, in a period whose sessions are
+  not open, holds the answers. The Test stage holds until each of them has
+  submitted; the Retest stage also counts anyone who may still retest: before
+  or in the Test, awaiting its release, in Corrections, or waiting for or
+  sitting the Retest (`stillToSitStage`; passed, closed and finished students
+  do not count).
+- **An early release covers only the students it named.** The confirm lists
+  the server's roster-based names (`answersRelease[stage].stillTestingIds`)
+  and sends those ids. `releaseTestCycleAnswers` refuses if anyone still
+  testing is missing from that list (the list changed since the page loaded),
+  and stores the covered ids. A student who joins later holds the answers
+  again; a reset takes the student off the list (a Test reset leaves both
+  lists), so their new attempt holds them too. The release dialogs now state
+  the roster rule.
+- **The older record-and-lock call is gated.** `submitSecureExamResponse`
+  refuses a course Test the teacher has paused, archived or closed, like a
+  save. The save, submit and finalize gates now run inside each call's
+  transaction and read the assignment, record and grade document through it,
+  so a save in flight cannot land after a pause.
+- **No Corrections during the student's own Retest.**
+  `issueTestCycleCorrectionQuestion` and `submitTestCycleCorrectionResponse`
+  refuse while that student's Retest is assigned or in progress (inside the
+  submit's transaction, so a Retest opened meanwhile gets no worked solution),
+  and the submit now also refuses a paused or archived Test Cycle, as issue
+  already did.
+- **Proctor actions on a practice test are its creator's and the student's
+  teachers'.** `proctorExamAction` refuses any other teacher (the root
+  administrator is not filtered). A creator who does not teach the student
+  gets the session back without `extendedTimeMultiplier` and
+  `baseTimeLimitSeconds`, as the list already did. `timeLimitSeconds` and
+  `expiresAt` stay for every proctor, since time left is what a proctor
+  needs. Note that a limit longer than the exam's pace can hint at extended
+  time.
+- **Every review re-checks.** `SecureExamReview` itself asks the server again
+  on focus, on return to the tab and every 30 seconds, wherever it was opened:
+  the card's Review Test or Review Retest, Corrections, or the Tests & Exams
+  list. A refusal drops the review and shows the server's reason; a network
+  failure leaves it. The Tests & Exams list no longer offers "See your
+  results" for an attempt a reset replaced ("Replaced by a new attempt";
+  course tests hand off to the card).
+- **Rules cases** for `testCycleAnswerReleases` (server only: no client read,
+  write, list, update or delete, the root administrator included).
+- **Release copy.** The per-student "Release Test result" and "Release retest
+  result" actions say beside the button what is shown now and when the
+  answers follow. The proctor monitor's button reads "Release score, answers
+  and solutions" (practice) or "Release score and grade (answers follow when
+  the class is done)" (course Test).
+
 ## Verification
 
 - **Unit / contract** (`tests/platform`, CI): new suites for the server
@@ -196,27 +257,34 @@ attempt per question.
   launch. Every new or rewritten assertion was mutation-checked (break the
   behaviour, see it red, restore). Existing contracts pinned to old function
   names or copy were rewritten against the behaviour they protect.
-- **Emulator** (`npm run test:secure-exam-navigation`, new): skip/flag/back
-  and change an answer, graded once at submit; blank = unanswered; no verdict
-  in any response; key never on the session; released solutions only after
-  release; held vs automatic release; integrity warning; Digital SAT modules;
-  course Test over the plan with Corrections; extended time before and at
-  start; Retest and practice-test open-book gates; legacy session upgrade.
-  Also green on the merged head: `test:challenge-finish` (every integration
-  suite on one emulator, as CI runs it — 353, including the Rich Tool
-  certification against the v2 storage), `test:test-cycle-certification`
-  (35), `test:grade-authority` (14), `test:rules` (154).
+- **Emulator** (`npm run test:secure-exam-navigation`, new, 18 tests):
+  skip/flag/back and change an answer, graded once at submit; blank =
+  unanswered; no verdict in any response; key never on the session; released
+  solutions only after release; held vs automatic release; integrity warning;
+  Digital SAT modules; course Test over the plan with Corrections; extended
+  time before and at start; Retest and practice-test open-book gates; the
+  answer hold over the whole roster (a period with no sessions open, a student
+  who joins later, a reset of a covered student, the Retest held while a
+  classmate is in Corrections) and the named release; Corrections closed during
+  the student's own Retest and while paused; the legacy record call and Submit
+  refused while paused or archived, with time-up grading the pre-pause draft;
+  practice-test proctor scope; legacy session upgrade. Every fix in the
+  coordinator re-check was mutation-checked against this suite (revert it, see
+  the named assertion fail, restore). Also green on the merged head:
+  `test:challenge-finish` (every integration suite on one emulator, as CI runs
+  it: 405), `test:test-cycle-certification` (35), `test:grade-authority` (14),
+  `test:rules` (186; the new `testCycleAnswerReleases` case fails when a
+  client rule is added).
 - **Browser** (Chromium, 1366×768 and 390×844, sandboxed services, no network):
   `tests/browser/secureExamNavigation.mjs` (314 checks, includes the toolbar
   tools and the in-page list), `tests/browser/secureAccessParity.mjs` (26),
-  `tests/browser/secureResults.mjs` (246), and the existing
-  `npm run test:test-cycle-device`. Screenshots were reviewed by eye, light
-  and dark.
-- **Gate** (merged head): `test:platform` (9333), `test:authoring-v5` (686),
-  `tests/tools` (1176), lint, build, build:firebase, the theme contract
-  (`audit:theme-colors` and the theme architecture tests) and the strict
-  Algebra seed, authority and quality audits with `audit:answer-acceptance` —
-  green; GitHub CI on #461.
+  `tests/browser/secureResults.mjs` (268, including an open review that closes
+  when the server refuses it, from the card's Review Test and on its own; the
+  8 checks fail without the re-check), and `npm run test:test-cycle-device`
+  (12 of 12). Screenshots were reviewed by eye, light and dark.
+- **Gate** (merged head, main 3a70944): `test:platform` (10289),
+  `test:authoring-v5` (686), `tests/tools` (1392), lint, build, build:firebase,
+  the theme audit (`audit:theme-colors`) — green; GitHub CI on #461.
 
 ## Deploy targets (owner's Cloud Shell step)
 
@@ -229,10 +297,11 @@ Functions (default codebase) — every export that reaches changed code:
 ```
 assignTestCycleSessions createSecureExamSession finalizeSecureExam
 getStudentSecureExamReview getStudentTestCycle issueSecureExamQuestion
-listProctorExamSessions listStudentSecureExamSessions listTeacherTestCycleRecords
-previewTestCycleSecureItems proctorExamAction recordSecureExamIntegrityEvent
-releaseTestCycleAnswers releaseTestCycleResults saveSecureExamDraft startSecureExamSession
-submitSecureExamResponse submitTestCycleCorrectionResponse teacherTestCycleAction
+issueTestCycleCorrectionQuestion listProctorExamSessions listStudentSecureExamSessions
+listTeacherTestCycleRecords previewTestCycleSecureItems proctorExamAction
+recordSecureExamIntegrityEvent releaseTestCycleAnswers releaseTestCycleResults
+saveSecureExamDraft startSecureExamSession submitSecureExamResponse
+submitTestCycleCorrectionResponse teacherTestCycleAction
 ```
 
 `firestore:rules` (an explicit deny for `examSessions/{id}/items`; the
@@ -249,6 +318,11 @@ catch-all already denied it). No new indexes. Hosting via
 - (Superseded by the integrity review: drafts no longer save while a teacher
   has a course Test paused, archived or closed. Each debounced save now reads
   the assignment, the grade document and the Test Cycle record to check.)
+- The answer hold reads the roster: each course review request, and the
+  review's 30-second re-check while it is open and visible, runs one `grades`
+  query per assigned class (status field only) plus the cycle's records.
+  Cheap per call, but it grows with roster size × open reviews; a stored
+  per-stage count would make it constant if that ever matters.
 - Digital SAT modules are not adaptive and share one timer (the real test
   times each module and adapts module 2).
 - A legacy session's already-recorded answers stay locked after the upgrade.
@@ -262,6 +336,20 @@ catch-all already denied it). No new indexes. Hosting via
   `aria-modal="false"` went, for F's no-hand-rolled-modal rule.
 
 ## Follow-ups (outside this lane, or later)
+
+- **`tests/browser/testCycleLifecycleQa.mjs` is stale** (no package script, not
+  in CI). It still drives the old one-question-at-a-time screen ("Record answer
+  & continue", a plain answer box), so it stops at the first Test answer. It
+  needs the navigation and math-field steps `secureExamNavigation.mjs` uses.
+  Its server-side journey is covered by the emulator suites
+  (`test:challenge-finish`).
+
+- **A teacher's pause does not stop the clock** (main behaves the same:
+  `deadlineFor` is `startedAt + limit + added time`, with no pause in it). A
+  long pause can therefore expire a timed Test, which is then graded on the
+  drafts saved before the pause. "Pause stops the clock" (store paused time
+  and add it to the deadline) is a follow-up; until then a teacher can add
+  time with +5 min after a pause.
 
 - **Grader (pre-existing, not this PR):** an interval answer with fraction
   endpoints is rejected even when typed exactly as the key
@@ -300,6 +388,9 @@ catch-all already denied it). No new indexes. Hosting via
   Test Cycle sync/release helpers.
 - `firestore.rules` — one explicit deny line. `package.json` — the
   `test:secure-exam-navigation` script.
+- `tests/rules/securityRules.test.mjs` — a case for the server-only
+  `testCycleAnswerReleases`. `src/platform/teacher/testCycleTeacherRows.js` —
+  the per-student release actions say what they release.
 - `tests/integration/testCycleRichToolCertification.test.mjs` — its two reads
   of a secure item's stored draft now look where navigation v2 keeps it (the
   session's server-only `items` subcollection, not `currentQuestion`), and
