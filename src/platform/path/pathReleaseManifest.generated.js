@@ -10,14 +10,14 @@
 // rather than silently publishing against stale assumptions.
 
 export const DEPLOYED_COURSE_PATH_RELEASE = Object.freeze({
-  releaseId: "course-path-v2-b22dd4a317a1ed63",
-  contentHash: "b22dd4a317a1ed631ffd16f517ad43fd7172bce2b41a542c898be737a038bb6f",
+  releaseId: "course-path-v2-20ba5a218a66d73f",
+  contentHash: "20ba5a218a66d73f0ce8456d102a573b4f4dc55ee19966357bf04165502a8d7b",
   schemaVersion: 1,
   compilerSchemaVersion: 2,
   questionCount: 1161,
   courses: Object.freeze(["grade6","grade7","grade8","algebra1","algebra2"]),
   courseCounts: Object.freeze({"grade6":237,"grade7":212,"grade8":227,"algebra1":245,"algebra2":240}),
-  builtAt: "2026-10-10T16:39:19.369Z",
+  builtAt: "2026-10-10T17:44:50.514Z",
 });
 
 export default DEPLOYED_COURSE_PATH_RELEASE;

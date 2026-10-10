@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "compilerSchemaVersion": 2,
   "releaseLine": "course",
-  "releaseId": "course-path-v2-b22dd4a317a1ed63",
-  "contentHash": "b22dd4a317a1ed631ffd16f517ad43fd7172bce2b41a542c898be737a038bb6f",
+  "releaseId": "course-path-v2-20ba5a218a66d73f",
+  "contentHash": "20ba5a218a66d73f0ce8456d102a573b4f4dc55ee19966357bf04165502a8d7b",
   "questionCount": 1161,
   "courses": [
     "grade6",
@@ -48,8 +48,8 @@
     {
       "courseId": "algebra2",
       "file": "algebra2_pathQuestionBank_seed.json",
-      "sha256": "e2ba87eea31cb9e9c19d32e4cdcce352ac495db87a010cfe88d8e4367bd8fd22",
-      "bytes": 1102440
+      "sha256": "5ed9969c5f09a9a2de3c1e821973c00a7ecadd28b044aac738ed0613832296a4",
+      "bytes": 1111646
     }
   ],
   "documents": [
@@ -57,35 +57,35 @@
       "id": "mm_A2_2A_v2_exponential-graph-attributes",
       "familyId": "mathmaster:A2.2A:v2-exponential-graph-attributes",
       "courseId": "algebra2",
-      "contentHash": "0594e062cc884a0b8261ceb32dec066eeab1a8e50f9526bcafe2c4942737203e",
+      "contentHash": "a15b63bec56ae7eb0d0eaa5ea2c990d6bbad2ad58a24103c8230d87549d34f81",
       "samples": 12
     },
     {
       "id": "mm_A2_2A_v2_logarithmic-graph-attributes",
       "familyId": "mathmaster:A2.2A:v2-logarithmic-graph-attributes",
       "courseId": "algebra2",
-      "contentHash": "4e45923328046e241b490b6f9deb1f7537ccf7cca3aa849bc5ddb956c7492b0a",
+      "contentHash": "4cba89da8fc8a8278244b4d7a7f4d151205755cf2067f130890ee4737941abe2",
       "samples": 12
     },
     {
       "id": "mm_A2_2A_v2_reciprocal-graph-attributes",
       "familyId": "mathmaster:A2.2A:v2-reciprocal-graph-attributes",
       "courseId": "algebra2",
-      "contentHash": "41ae909c5f4e0b3b4fc94b20992ef2a48c1a202efd5c4befc8afd9c59a9d51e1",
+      "contentHash": "275e84cdd0270c81c81c770e10a56240c92ba871671ef44c4a78c2255dde0227",
       "samples": 12
     },
     {
       "id": "mm_A2_2A_v2_root-family-graph",
       "familyId": "mathmaster:A2.2A:v2-root-family-graph",
       "courseId": "algebra2",
-      "contentHash": "b4441ee43f819eed6f9e3085c71dfebe114531f0711d86473b6b435297dbbdf4",
+      "contentHash": "999e24615677fa4c55ed90828951926dea14b6c4b76f82008d372f70c522c0bc",
       "samples": 12
     },
     {
       "id": "mm_A2_2A_v2_symmetry-family-graph",
       "familyId": "mathmaster:A2.2A:v2-symmetry-family-graph",
       "courseId": "algebra2",
-      "contentHash": "720f9063d457a6024cdc328e32d1043a53b535253639dd0c45fb6abdbe3bbdcb",
+      "contentHash": "fb38e425ac0a436269078d35abbee28a5883f36f256d0ed961f15e78e03c778a",
       "samples": 12
     },
     {
@@ -127,7 +127,7 @@
       "id": "mm_A2_2C_v2_exponential-log-features",
       "familyId": "mathmaster:A2.2C:v2-exponential-log-features",
       "courseId": "algebra2",
-      "contentHash": "d6e12ed504592145040788b16356dc6b2404342131c3f917e063006f5cd7a766",
+      "contentHash": "58a5dfe21f0196667397431fd9ef65c64f1c2bed4584c36782acf20c6e9f700b",
       "samples": 12
     },
     {
@@ -8182,10 +8182,10 @@
     }
   ],
   "build": {
-    "builtAt": "2026-10-10T16:39:19.369Z",
+    "builtAt": "2026-10-10T17:44:50.514Z",
     "builtBy": "scripts/build-course-path-release-v2.mjs",
-    "gitCommit": "951808ff3a0edbc56f70cd86b7f096fb6510e5b7",
+    "gitCommit": "3e43c1120b4d052ec1a59ec919045eeb2582f0ad",
     "nodeVersion": "v22.22.0",
-    "certificationMs": 1348
+    "certificationMs": 1162
   }
 }

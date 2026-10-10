@@ -25,7 +25,7 @@
       "prompt": "Construct the parent-function graph shown in the task. Plot every required point, sketch the full curve, then state its domain and range.",
       "variants": [
         {
-          "prompt": "Construct the parent square-root graph $f(x)=\\sqrt{x}$. Plot the required points, sketch the curve, then state its domain and range.",
+          "prompt": "Construct the parent square-root graph $f(x)=\\sqrt{x}$. Plot the endpoint and the points at $x={{xa}}$, $x={{xb}}$, and $x={{xc}}$, sketch the curve, then state its domain and range.",
           "functionSpec": {
             "type": "squareRoot",
             "a": 1,
@@ -34,10 +34,10 @@
           },
           "graph": {
             "xMin": -3,
-            "xMax": 11,
+            "xMax": "{{xMax}}",
             "yMin": -3,
             "yMax": 6,
-            "xStep": 1,
+            "xStep": "{{xStep}}",
             "yStep": 1,
             "snapStep": 0.5
           },
@@ -53,29 +53,29 @@
             },
             {
               "id": "p1",
-              "label": "Plot x = 1",
-              "x": 1,
+              "label": "Plot x = {{xa}}",
+              "x": "{{xa}}",
               "expected": [
-                1,
-                1
+                "{{xa}}",
+                "{{ra}}"
               ]
             },
             {
               "id": "p4",
-              "label": "Plot x = 4",
-              "x": 4,
+              "label": "Plot x = {{xb}}",
+              "x": "{{xb}}",
               "expected": [
-                4,
-                2
+                "{{xb}}",
+                "{{rb}}"
               ]
             },
             {
               "id": "p9",
-              "label": "Plot x = 9",
-              "x": 9,
+              "label": "Plot x = {{xc}}",
+              "x": "{{xc}}",
               "expected": [
-                9,
-                3
+                "{{xc}}",
+                "{{rc}}"
               ]
             }
           ],
@@ -111,16 +111,38 @@
           },
           "generator": {
             "parameters": {
-              "scale": {
+              "ra": {
                 "type": "int",
                 "min": 1,
+                "max": 3
+              },
+              "rb": {
+                "type": "int",
+                "min": 2,
                 "max": 4
+              },
+              "rc": {
+                "type": "int",
+                "min": 3,
+                "max": 5
               }
-            }
+            },
+            "derived": {
+              "xa": "ra^2",
+              "xb": "rb^2",
+              "xc": "rc^2",
+              "xMax": "xStep*ceil(max(11, xc + 2)/xStep)",
+              "xStep": "1 + (xc > 9) + 3*(xc > 16)"
+            },
+            "constraints": [
+              "ra < rb",
+              "rb < rc"
+            ],
+            "attempts": 400
           }
         },
         {
-          "prompt": "Construct the parent cube-root graph $f(x)=\\sqrt[3]{x}$. Plot the required points, sketch the curve through both sides of the origin, then state its domain and range.",
+          "prompt": "Construct the parent cube-root graph $f(x)=\\sqrt[3]{x}$. Plot the points at $x={{xnl}}$, $x={{xns}}$, $x=0$, $x={{xps}}$, and $x={{xpl}}$, sketch the curve through both sides of the origin, then state its domain and range.",
           "functionSpec": {
             "type": "cubeRoot",
             "a": 1,
@@ -128,31 +150,31 @@
             "k": 0
           },
           "graph": {
-            "xMin": -10,
-            "xMax": 10,
+            "xMin": "{{xMin}}",
+            "xMax": "{{xMax}}",
             "yMin": -4,
             "yMax": 4,
-            "xStep": 2,
+            "xStep": "{{xStep}}",
             "yStep": 1,
             "snapStep": 0.5
           },
           "pointTasks": [
             {
               "id": "pm8",
-              "label": "Plot x = -8",
-              "x": -8,
+              "label": "Plot x = {{xnl}}",
+              "x": "{{xnl}}",
               "expected": [
-                -8,
-                -2
+                "{{xnl}}",
+                "{{ynl}}"
               ]
             },
             {
               "id": "pm1",
-              "label": "Plot x = -1",
-              "x": -1,
+              "label": "Plot x = {{xns}}",
+              "x": "{{xns}}",
               "expected": [
-                -1,
-                -1
+                "{{xns}}",
+                "{{yns}}"
               ]
             },
             {
@@ -166,20 +188,20 @@
             },
             {
               "id": "p1",
-              "label": "Plot x = 1",
-              "x": 1,
+              "label": "Plot x = {{xps}}",
+              "x": "{{xps}}",
               "expected": [
-                1,
-                1
+                "{{xps}}",
+                "{{ps}}"
               ]
             },
             {
               "id": "p8",
-              "label": "Plot x = 8",
-              "x": 8,
+              "label": "Plot x = {{xpl}}",
+              "x": "{{xpl}}",
               "expected": [
-                8,
-                2
+                "{{xpl}}",
+                "{{pl}}"
               ]
             }
           ],
@@ -217,11 +239,31 @@
           },
           "generator": {
             "parameters": {
-              "scale": {
+              "omitNeg": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 3
+              },
+              "omitPos": {
+                "type": "int",
+                "min": 1,
+                "max": 3
               }
+            },
+            "derived": {
+              "ns": "1 + (omitNeg == 1)",
+              "nl": "3 - (omitNeg == 3)",
+              "ps": "1 + (omitPos == 1)",
+              "pl": "3 - (omitPos == 3)",
+              "xnl": "-(nl^3)",
+              "xns": "-(ns^3)",
+              "xps": "ps^3",
+              "xpl": "pl^3",
+              "ynl": "-nl",
+              "yns": "-ns",
+              "xMin": "-xStep*ceil((nl^3 + 2)/xStep)",
+              "xMax": "xStep*ceil((pl^3 + 2)/xStep)",
+              "xStep": "2 + 3*(max(nl, pl) == 3)"
             }
           }
         }
@@ -254,7 +296,7 @@
       "prompt": "Construct the required parent graph, then identify its range and symmetry.",
       "variants": [
         {
-          "prompt": "Construct the parent absolute-value graph $f(x)=|x|$. Plot the five points, sketch the V-shape, then state the range and line of symmetry.",
+          "prompt": "Construct the parent absolute-value graph $f(x)=|x|$. Plot the vertex and the points at $x=\\pm{{a}}$ and $x=\\pm{{b}}$, sketch the V-shape, then state the range and line of symmetry.",
           "functionSpec": {
             "type": "absolute",
             "a": 1,
@@ -262,10 +304,10 @@
             "k": 0
           },
           "graph": {
-            "xMin": -6,
-            "xMax": 6,
+            "xMin": "{{xMin}}",
+            "xMax": "{{xMax}}",
             "yMin": -2,
-            "yMax": 7,
+            "yMax": "{{yMax}}",
             "xStep": 1,
             "yStep": 1,
             "snapStep": 0.5
@@ -273,20 +315,20 @@
           "pointTasks": [
             {
               "id": "pm2",
-              "label": "Plot x = -2",
-              "x": -2,
+              "label": "Plot x = {{nb}}",
+              "x": "{{nb}}",
               "expected": [
-                -2,
-                2
+                "{{nb}}",
+                "{{b}}"
               ]
             },
             {
               "id": "pm1",
-              "label": "Plot x = -1",
-              "x": -1,
+              "label": "Plot x = {{na}}",
+              "x": "{{na}}",
               "expected": [
-                -1,
-                1
+                "{{na}}",
+                "{{a}}"
               ]
             },
             {
@@ -300,20 +342,20 @@
             },
             {
               "id": "p1",
-              "label": "Plot x = 1",
-              "x": 1,
+              "label": "Plot x = {{a}}",
+              "x": "{{a}}",
               "expected": [
-                1,
-                1
+                "{{a}}",
+                "{{a}}"
               ]
             },
             {
               "id": "p2",
-              "label": "Plot x = 2",
-              "x": 2,
+              "label": "Plot x = {{b}}",
+              "x": "{{b}}",
               "expected": [
-                2,
-                2
+                "{{b}}",
+                "{{b}}"
               ]
             }
           ],
@@ -350,16 +392,32 @@
           },
           "generator": {
             "parameters": {
-              "scale": {
+              "a": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 5
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 6
               }
-            }
+            },
+            "derived": {
+              "na": "-a",
+              "nb": "-b",
+              "xMax": "max(6, b + 1)",
+              "xMin": "-max(6, b + 1)",
+              "yMax": "max(7, b + 1)"
+            },
+            "constraints": [
+              "a < b"
+            ],
+            "attempts": 400
           }
         },
         {
-          "prompt": "Construct the parent cubic graph $f(x)=x^3$. Plot the five points, sketch the S-shaped curve, then state the range and center of rotational symmetry.",
+          "prompt": "Construct the parent cubic graph $f(x)=x^3$. Plot the points at $x=0$, $x=\\pm{{a}}$, and $x=\\pm{{b}}$, sketch the S-shaped curve, then state the range and center of rotational symmetry.",
           "functionSpec": {
             "type": "cubic",
             "a": 1,
@@ -369,29 +427,29 @@
           "graph": {
             "xMin": -4,
             "xMax": 4,
-            "yMin": -10,
-            "yMax": 10,
+            "yMin": "{{yMin}}",
+            "yMax": "{{yMax}}",
             "xStep": 1,
-            "yStep": 2,
+            "yStep": "{{yStep}}",
             "snapStep": 0.5
           },
           "pointTasks": [
             {
               "id": "pm2",
-              "label": "Plot x = -2",
-              "x": -2,
+              "label": "Plot x = {{nb}}",
+              "x": "{{nb}}",
               "expected": [
-                -2,
-                -8
+                "{{nb}}",
+                "{{ncb}}"
               ]
             },
             {
               "id": "pm1",
-              "label": "Plot x = -1",
-              "x": -1,
+              "label": "Plot x = {{na}}",
+              "x": "{{na}}",
               "expected": [
-                -1,
-                -1
+                "{{na}}",
+                "{{nca}}"
               ]
             },
             {
@@ -405,20 +463,20 @@
             },
             {
               "id": "p1",
-              "label": "Plot x = 1",
-              "x": 1,
+              "label": "Plot x = {{a}}",
+              "x": "{{a}}",
               "expected": [
-                1,
-                1
+                "{{a}}",
+                "{{ca}}"
               ]
             },
             {
               "id": "p2",
-              "label": "Plot x = 2",
-              "x": 2,
+              "label": "Plot x = {{b}}",
+              "x": "{{b}}",
               "expected": [
-                2,
-                8
+                "{{b}}",
+                "{{cb}}"
               ]
             }
           ],
@@ -459,12 +517,32 @@
           },
           "generator": {
             "parameters": {
-              "scale": {
+              "a": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 2
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 3
               }
-            }
+            },
+            "derived": {
+              "na": "-a",
+              "nb": "-b",
+              "ca": "a^3",
+              "cb": "b^3",
+              "nca": "-(a^3)",
+              "ncb": "-(b^3)",
+              "yMax": "yStep*ceil((b^3 + 2)/yStep)",
+              "yMin": "-yStep*ceil((b^3 + 2)/yStep)",
+              "yStep": "2 + 3*(b == 3)"
+            },
+            "constraints": [
+              "a < b"
+            ],
+            "attempts": 400
           }
         }
       ],
@@ -472,7 +550,7 @@
         "Do not decide symmetry from one side of the graph; compare opposite inputs."
       ],
       "supportHints": [
-        "Absolute value has y-axis symmetry; the cubic parent has origin symmetry."
+        "Compare the outputs at a pair of opposite inputs: equal outputs point to a mirror line, opposite outputs point to a half-turn about a point."
       ]
     },
     {
@@ -493,7 +571,7 @@
       "difficultyBand": 3,
       "dok": 2,
       "taskType": "interpretation",
-      "prompt": "Construct the parent reciprocal graph $f(x)=\\frac1x$ with both branches. Then state its vertical asymptote, horizontal asymptote, domain, and range.",
+      "prompt": "Construct the parent reciprocal graph $f(x)=\\frac1x$ with both branches, plotting the points at $x={{x1}}$, $x={{x2}}$, $x={{x3}}$, and $x={{x4}}$. Then state its vertical asymptote, horizontal asymptote, domain, and range.",
       "functionSpec": {
         "type": "rational",
         "a": 1,
@@ -512,38 +590,38 @@
       "pointTasks": [
         {
           "id": "pm2",
-          "label": "Plot x = -2",
-          "x": -2,
+          "label": "Plot x = {{x1}}",
+          "x": "{{x1}}",
           "expected": [
-            -2,
-            -0.5
+            "{{x1}}",
+            "{{y1}}"
           ]
         },
         {
           "id": "pm1",
-          "label": "Plot x = -1",
-          "x": -1,
+          "label": "Plot x = {{x2}}",
+          "x": "{{x2}}",
           "expected": [
-            -1,
-            -1
+            "{{x2}}",
+            "{{y2}}"
           ]
         },
         {
           "id": "p1",
-          "label": "Plot x = 1",
-          "x": 1,
+          "label": "Plot x = {{x3}}",
+          "x": "{{x3}}",
           "expected": [
-            1,
-            1
+            "{{x3}}",
+            "{{y3}}"
           ]
         },
         {
           "id": "p2",
-          "label": "Plot x = 2",
-          "x": 2,
+          "label": "Plot x = {{x4}}",
+          "x": "{{x4}}",
           "expected": [
-            2,
-            0.5
+            "{{x4}}",
+            "{{y4}}"
           ]
         }
       ],
@@ -599,16 +677,39 @@
         "Make sure both branches are present and do not cross an asymptote."
       ],
       "supportHints": [
-        "A denominator of zero is undefined; $1/x$ approaches zero without reaching it."
+        "Ask which input makes the denominator zero, and whether a fraction with a nonzero numerator can ever equal zero."
       ],
       "generator": {
         "parameters": {
-          "scale": {
+          "o1": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 6
+          },
+          "o2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
           }
-        }
+        },
+        "derived": {
+          "r1": "1 + (o1 <= 1) + (o2 <= 1 + (o1 <= 1))",
+          "x1": "-2*(r1 == 1) - (r1 == 2) - 0.5*(r1 == 3) + 0.5*(r1 == 4) + (r1 == 5) + 2*(r1 == 6)",
+          "y1": "1/x1",
+          "r2": "2 + (o1 <= 2) + (o2 <= 2 + (o1 <= 2))",
+          "x2": "-2*(r2 == 1) - (r2 == 2) - 0.5*(r2 == 3) + 0.5*(r2 == 4) + (r2 == 5) + 2*(r2 == 6)",
+          "y2": "1/x2",
+          "r3": "3 + (o1 <= 3) + (o2 <= 3 + (o1 <= 3))",
+          "x3": "-2*(r3 == 1) - (r3 == 2) - 0.5*(r3 == 3) + 0.5*(r3 == 4) + (r3 == 5) + 2*(r3 == 6)",
+          "y3": "1/x3",
+          "r4": "4 + (o1 <= 4) + (o2 <= 4 + (o1 <= 4))",
+          "x4": "-2*(r4 == 1) - (r4 == 2) - 0.5*(r4 == 3) + 0.5*(r4 == 4) + (r4 == 5) + 2*(r4 == 6)",
+          "y4": "1/x4"
+        },
+        "constraints": [
+          "o1 < o2"
+        ],
+        "attempts": 400
       },
       "variants": [
         {
@@ -762,10 +863,10 @@
             "answerSummary": "Asymptotes x=0 and y=0; domain and range both exclude 0."
           },
           "attemptFeedback": [
-            "Use each fractional input exactly; the points near x=0 should move farther from the x-axis."
+            "Use each fractional input exactly; an input closer to zero in size should give a point farther from the horizontal axis."
           ],
           "supportHints": [
-            "For x=1/4, the reciprocal is 4; for x=-1/4, it is -4."
+            "Dividing by a number smaller than one in size makes the output larger than one in size, and a negative input gives a negative output."
           ]
         }
       ]
@@ -788,7 +889,7 @@
       "difficultyBand": 3,
       "dok": 2,
       "taskType": "representationTranslation",
-      "prompt": "Construct the parent exponential graph $f(x)={{base}}^x$. Plot the requested points, sketch the curve, then state the y-intercept, horizontal asymptote, domain, and range.",
+      "prompt": "Construct the parent exponential graph $f(x)={{base}}^x$. Plot the y-intercept and the points at $x=-1$, $x={{xc}}$, and $x={{xd}}$, sketch the curve, then state the y-intercept, horizontal asymptote, domain, and range.",
       "functionSpec": {
         "type": "exponential",
         "a": 1,
@@ -797,12 +898,12 @@
         "base": "{{base}}"
       },
       "graph": {
-        "xMin": -4,
-        "xMax": 4,
+        "xMin": -5,
+        "xMax": 5,
         "yMin": -2,
-        "yMax": 12,
+        "yMax": "{{yMax}}",
         "xStep": 1,
-        "yStep": 1,
+        "yStep": "{{yStep}}",
         "snapStep": 0.25
       },
       "pointTasks": [
@@ -826,20 +927,20 @@
         },
         {
           "id": "p1",
-          "label": "Plot x = 1",
-          "x": 1,
+          "label": "Plot x = {{xc}}",
+          "x": "{{xc}}",
           "expected": [
-            1,
-            "{{base}}"
+            "{{xc}}",
+            "{{yc}}"
           ]
         },
         {
           "id": "p2",
-          "label": "Plot x = 2",
-          "x": 2,
+          "label": "Plot x = {{xd}}",
+          "x": "{{xd}}",
           "expected": [
-            2,
-            "{{base2}}"
+            "{{xd}}",
+            "{{yd}}"
           ]
         }
       ],
@@ -896,7 +997,7 @@
         "Check the multiplicative pattern in the plotted points before sketching the curve."
       ],
       "supportHints": [
-        "At x = 0 the output is 1; positive exponential outputs never equal 0."
+        "To find where the graph crosses the y-axis, evaluate the function at the input where that happens. Then ask whether a power of a positive base can ever be zero or negative."
       ],
       "generator": {
         "parameters": {
@@ -906,13 +1007,133 @@
               2,
               3
             ]
+          },
+          "xc": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "xd": {
+            "type": "int",
+            "min": 2,
+            "max": 4
           }
         },
         "derived": {
           "invBase": "1/base",
-          "base2": "base^2"
+          "yc": "base^xc",
+          "yd": "base^xd",
+          "yMax": "yStep*ceil(max(12, yd + 3)/yStep)",
+          "yStep": "1 + (yd > 12) + 3*(yd > 16)"
+        },
+        "constraints": [
+          "xc < xd",
+          "yd <= 27"
+        ],
+        "attempts": 400
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3-exponential-growth",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "core-d2b3-exponential-decay",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Construct the parent exponential graph $f(x)=\\left(\\frac{1}{{{den}}}\\right)^x$. Plot the y-intercept and the points at $x={{xa}}$, $x={{xb}}$, and $x=1$, sketch the curve, then state the y-intercept, horizontal asymptote, domain, and range.",
+          "functionSpec": {
+            "type": "exponential",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "base": "{{base}}"
+          },
+          "graph": {
+            "xMin": -5,
+            "xMax": 5,
+            "yMin": -2,
+            "yMax": "{{yMax}}",
+            "xStep": 1,
+            "yStep": "{{yStep}}",
+            "snapStep": 0.25
+          },
+          "pointTasks": [
+            {
+              "id": "pm1",
+              "label": "Plot x = {{xa}}",
+              "x": "{{xa}}",
+              "expected": [
+                "{{xa}}",
+                "{{ya}}"
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = {{xb}}",
+              "x": "{{xb}}",
+              "expected": [
+                "{{xb}}",
+                "{{yb}}"
+              ]
+            },
+            {
+              "id": "p0",
+              "label": "Plot the y-intercept",
+              "x": 0,
+              "expected": [
+                0,
+                1
+              ]
+            },
+            {
+              "id": "p2",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                "{{base}}"
+              ]
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "den": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3
+                ]
+              },
+              "na": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "nb": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "base": "1/den",
+              "xa": "-nb",
+              "xb": "-na",
+              "ya": "den^nb",
+              "yb": "den^na",
+              "yMax": "yStep*ceil(max(12, ya + 3)/yStep)",
+              "yStep": "1 + (ya > 12) + 3*(ya > 16)"
+            },
+            "constraints": [
+              "na < nb",
+              "ya <= 27"
+            ],
+            "attempts": 400
+          }
         }
-      }
+      ]
     },
     {
       "id": "mm_A2_2A_v2_logarithmic-graph-attributes",
@@ -1028,14 +1249,14 @@
         "answerSummary": "Domain $(0,\\infty)$; range $(-\\infty,\\infty)$; x-intercept $1$; vertical asymptote $x=0$."
       },
       "attemptFeedback": [
-        "The graph approaches the y-axis but never crosses it; that behavior determines the domain."
+        "Check which inputs actually have points on your graph; that set of inputs is the domain."
       ],
       "supportHints": [
-        "For any valid logarithm base, $\\log_b(1)=0$ and $\\log_b(b)=1$."
+        "Rewrite $y=\\log_b(x)$ as $b^y=x$. Ask which inputs $x$ can be produced by a power of a positive base, and which outputs $y$ can be used."
       ],
       "variants": [
         {
-          "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_2(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+          "prompt": "{{who}} claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_2(x)$ to test the claim: plot $x=\\frac12$, the x-intercept, and $x={{xr}}$. Then state the domain, range, x-intercept, and vertical asymptote.",
           "functionSpec": {
             "type": "logarithmic",
             "a": 1,
@@ -1064,21 +1285,37 @@
             },
             {
               "id": "pbase",
-              "label": "Plot x = 2",
-              "x": 2,
+              "label": "Plot x = {{xr}}",
+              "x": "{{xr}}",
               "expected": [
-                2,
-                1
+                "{{xr}}",
+                "{{k}}"
               ]
             }
           ],
           "generator": {
             "parameters": {
-              "n": {
+              "who": {
+                "type": "choice",
+                "values": [
+                  "A student",
+                  "Jordan",
+                  "Priya",
+                  "Marcus",
+                  "Elena",
+                  "Wei",
+                  "Aaliyah",
+                  "Diego"
+                ]
+              },
+              "k": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 3
               }
+            },
+            "derived": {
+              "xr": "2^k"
             }
           },
           "coverageKey": "core-d3b4-log-base2",
@@ -1086,7 +1323,7 @@
           "difficultyBand": 4
         },
         {
-          "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_{10}(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+          "prompt": "{{who}} claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_{10}(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
           "functionSpec": {
             "type": "logarithmic",
             "a": 1,
@@ -1125,10 +1362,18 @@
           ],
           "generator": {
             "parameters": {
-              "n": {
-                "type": "int",
-                "min": 1,
-                "max": 4
+              "who": {
+                "type": "choice",
+                "values": [
+                  "A student",
+                  "Jordan",
+                  "Priya",
+                  "Marcus",
+                  "Elena",
+                  "Wei",
+                  "Aaliyah",
+                  "Diego"
+                ]
               }
             }
           },
@@ -1137,7 +1382,7 @@
           "difficultyBand": 4
         },
         {
-          "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\ln(x)$ (log base $e$) to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+          "prompt": "{{who}} claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\ln(x)$ (log base $e$) to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
           "functionSpec": {
             "type": "logarithmic",
             "a": 1,
@@ -1176,10 +1421,18 @@
           ],
           "generator": {
             "parameters": {
-              "n": {
-                "type": "int",
-                "min": 1,
-                "max": 4
+              "who": {
+                "type": "choice",
+                "values": [
+                  "A student",
+                  "Jordan",
+                  "Priya",
+                  "Marcus",
+                  "Elena",
+                  "Wei",
+                  "Aaliyah",
+                  "Diego"
+                ]
               }
             }
           },
@@ -1188,7 +1441,7 @@
           "difficultyBand": 4
         },
         {
-          "prompt": "A student says the parent logarithm $f(x)=\\log_2(x)$ has domain all real numbers because its inverse exponential has domain all real numbers. Construct the base-2 log graph, use the vertical asymptote and plotted points to test the claim, then state the correct domain and range.",
+          "prompt": "{{who}} says the parent logarithm $f(x)=\\log_2(x)$ has domain all real numbers because its inverse exponential has domain all real numbers. Construct the base-2 log graph, plotting $x=\\frac12$, the x-intercept, and $x={{xr}}$; use the vertical asymptote and plotted points to test the claim, then state the correct domain and range.",
           "functionSpec": {
             "type": "logarithmic",
             "a": 1,
@@ -1217,21 +1470,37 @@
             },
             {
               "id": "pbase",
-              "label": "Plot x = 2",
-              "x": 2,
+              "label": "Plot x = {{xr}}",
+              "x": "{{xr}}",
               "expected": [
-                2,
-                1
+                "{{xr}}",
+                "{{k}}"
               ]
             }
           ],
           "generator": {
             "parameters": {
-              "n": {
+              "who": {
+                "type": "choice",
+                "values": [
+                  "A student",
+                  "Jordan",
+                  "Priya",
+                  "Marcus",
+                  "Elena",
+                  "Wei",
+                  "Aaliyah",
+                  "Diego"
+                ]
+              },
+              "k": {
                 "type": "int",
                 "min": 1,
-                "max": 4
+                "max": 3
               }
+            },
+            "derived": {
+              "xr": "2^k"
             }
           },
           "coverageKey": "adaptive-d3b3-log-domain-claim-fixed-base2",
@@ -2574,13 +2843,13 @@
       "difficultyBand": 4,
       "dok": 3,
       "taskType": "comparison",
-      "prompt": "Compare $f(x)={{b}}^x$ with $g(x)=\\log_{{b}}x$. Analyze which graph transformation connects them and how a key intercept and asymptote are exchanged.",
+      "prompt": "Compare $f(x)={{b}}^x$ with $g(x)=\\log_{{{b}}}x$. Analyze which graph transformation connects them and how a key intercept and asymptote are exchanged.",
       "stimulus": {
         "kind": "expressions",
         "title": "Inverse pair",
         "expressions": [
           "$f(x)={{b}}^x$",
-          "$g(x)=\\log_{{b}}x$",
+          "$g(x)=\\log_{{{b}}}x$",
           "$f(0)=1$"
         ]
       },
@@ -2647,7 +2916,7 @@
         "answerSummary": "Reflection across $y=x$ swaps $(0,1)$ with $(1,0)$ and swaps the horizontal/vertical asymptotes."
       },
       "attemptFeedback": [
-        "Track what reflection across $y=x$ does to both coordinates and to horizontal versus vertical lines."
+        "Pick a point on $f$, swap its two coordinates, and check whether the swapped point lies on $g$. Then ask what that swap does to a horizontal line and to a vertical line."
       ],
       "supportHints": [
         "Track how input-output coordinates exchange roles, then compare corresponding points and the orientation of key graph features."
@@ -2657,7 +2926,7 @@
           "b": {
             "type": "int",
             "min": 2,
-            "max": 6
+            "max": 10
           }
         }
       },
@@ -2673,13 +2942,13 @@
           "difficultyBand": 3,
           "taskType": "errorAnalysis",
           "representation": "multipleRepresentation",
-          "prompt": "For the inverse pair $f(x)=2^x$ and $g(x)=\\log_2x$, a student says the horizontal asymptote $y=0$ of $f$ stays horizontal on $g$. Use the geometry of inverse graphs to evaluate the claim, identify the corresponding intercepts, and give the correct asymptote relationship.",
+          "prompt": "For the inverse pair $f(x)={{b}}^x$ and $g(x)=\\log_{{{b}}}x$, a student says the horizontal asymptote $y=0$ of $f$ stays horizontal on $g$. Use the geometry of inverse graphs to evaluate the claim, identify the corresponding intercepts, and give the correct asymptote relationship.",
           "stimulus": {
             "kind": "expressions",
             "title": "Fixed inverse pair",
             "expressions": [
-              "$f(x)=2^x$",
-              "$g(x)=\\log_2x$",
+              "$f(x)={{b}}^x$",
+              "$g(x)=\\log_{{{b}}}x$",
               "$f(0)=1$"
             ]
           },
@@ -2738,7 +3007,7 @@
             "answerSummary": "Exponential y=0 asymptote ↔ logarithmic x=0 asymptote."
           },
           "attemptFeedback": [
-            "Reflect a few points on the asymptote line across y=x to see its new orientation."
+            "Take two points on the asymptote of $f$, swap the coordinates of each, and check what kind of line the new points lie on."
           ],
           "supportHints": [
             "Track what happens to horizontal and vertical features when the input-output coordinates of an inverse pair trade roles."

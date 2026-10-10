@@ -20,6 +20,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import {
   RECAP_INSTANCE_DRAWS,
   RECAP_MIN_DISTINCT_INSTANCES,
+  RECAP_REPEATING_TEMPLATE_IDS,
+  RECAP_SAME_MATHEMATICS_TEMPLATE_IDS,
   RECAP_WITHHELD_TEMPLATE_IDS,
 } from '../../functions/shared/pathRecapWithheld.mjs';
 import {
@@ -61,17 +63,28 @@ const distinctQuestions = (template) => {
   return seen.size;
 };
 
-test('the withheld list is exactly the seed bank templates that draw fewer than 8 distinct questions in 30', () => {
+test('the withheld list is exactly the seed bank templates that draw fewer than 8 distinct questions in 30, plus the named same-mathematics ones', () => {
   const repeating = [];
+  const counts = new Map();
   let templates = 0;
   for (const file of readdirSync(BANK).filter((name) => name.endsWith('_pathQuestionBank_seed.json')).sort()) {
     for (const template of JSON.parse(readFileSync(new URL(file, BANK), 'utf8')).documents) {
       templates += 1;
-      if (distinctQuestions(template) < RECAP_MIN_DISTINCT_INSTANCES) repeating.push(template.id);
+      const distinct = distinctQuestions(template);
+      counts.set(template.id, distinct);
+      if (distinct < RECAP_MIN_DISTINCT_INSTANCES) repeating.push(template.id);
     }
   }
   assert.ok(templates > 3000, `the whole seed bank was read (${templates} templates)`);
-  assert.deepEqual([...RECAP_WITHHELD_TEMPLATE_IDS], repeating.sort());
+  assert.deepEqual([...RECAP_REPEATING_TEMPLATE_IDS], repeating.sort());
+  // A same-mathematics exception is a template that passes the count (so the
+  // count alone would release its answers) and is in the bank.
+  RECAP_SAME_MATHEMATICS_TEMPLATE_IDS.forEach((id) => assert.ok((counts.get(id) || 0) >= RECAP_MIN_DISTINCT_INSTANCES, `${id} is a real template that reaches the count`));
+  assert.deepEqual([...RECAP_WITHHELD_TEMPLATE_IDS], [...new Set([...repeating, ...RECAP_SAME_MATHEMATICS_TEMPLATE_IDS])].sort());
+  // Student push J's two conservative calls, pinned: one answer on every
+  // draw (A.12A), and 24 wordings of 8 sets of points (the A2.2A logarithm).
+  assert.ok(RECAP_WITHHELD_TEMPLATE_IDS.includes('mm_A_12A_v2_mapping-nonfunction'));
+  assert.ok(RECAP_WITHHELD_TEMPLATE_IDS.includes('mm_A2_2A_v2_logarithmic-graph-attributes'));
 });
 
 // Withheld for good: its verdict is "not a function" on every draw (student push J).
