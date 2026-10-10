@@ -20,6 +20,7 @@ on:
       - "tests/browser/accessiblePrimitives*"
       - "tests/browser/calculatorKeyboard*"
       - "tests/browser/hostAccessibility*"
+      - "tests/browser/studentShellLargeText*"
       - "tests/browser/keyboardSweep*"
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/emulator/**"
@@ -114,6 +115,13 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/hostAccessibility.mjs
+      - name: Log Out target size and the Live Challenge host by keyboard
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/studentShellLargeText.mjs --check=targets,s5
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@v4

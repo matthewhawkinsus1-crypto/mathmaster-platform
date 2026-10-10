@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import QuestionEngineView from '../../QuestionEngine.jsx';
+import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { getScoringStrategy, leaderboardOptionsFor, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
@@ -98,7 +99,10 @@ function QuestionEngine(props) {
   const pathToolId = serverGrading?.pathToolId;
   const recordStatus = questionRecord?.status;
   const recordAttempts = questionRecord?.attemptCount;
-  return useMemo(() => (
+  // Tab must not park a control under the sticky action bar (S5, job H).
+  const hostRef = useRef(null);
+  useActionBarFocusReveal(hostRef);
+  const engine = useMemo(() => (
     <QuestionEngineView
       question={question}
       questionRecord={{ status: recordStatus, attemptCount: recordAttempts }}
@@ -114,6 +118,7 @@ function QuestionEngine(props) {
       onGrade={handlers.onGrade}
     />
   ), [question, recordStatus, recordAttempts, studentProfile, attemptsDoNotExpire, activityRole, assignmentLocked, assignmentLockedMessage, draftKey, pathToolId, handlers]);
+  return <div ref={hostRef} data-live-challenge-engine="" style={{ display: 'contents' }}>{engine}</div>;
 }
 
 /*

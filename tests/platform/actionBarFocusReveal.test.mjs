@@ -50,3 +50,12 @@ test('My Math Path and Section Recovery bind it; the assignment screen keeps its
   assert.match(recovery, /useActionBarFocusReveal\(hostRef\);\s*if \(!assignment\?\.id \|\| !entry\) return null;/, 'before the early return (rules of hooks)');
   assert.equal((recovery.match(/<div ref=\{hostRef\} data-recovery-host=/g) || []).length, 2, 'practice and assessment');
 });
+
+test('Live Challenge binds it around its stable engine (job I\'s file: one small hunk)', () => {
+  const live = executableSource(readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8'));
+  assert.match(live, /^import useActionBarFocusReveal from '\.\.\/common\/useActionBarFocusReveal\.js';$/m);
+  const wrapper = live.slice(live.indexOf('function QuestionEngine(props)'), live.indexOf('export function ChallengeRound'));
+  assert.match(wrapper, /useActionBarFocusReveal\(hostRef\);/);
+  assert.match(wrapper, /return <div ref=\{hostRef\} data-live-challenge-engine="" style=\{\{ display: 'contents' \}\}>\{engine\}<\/div>;/, 'the memoised engine element is unchanged inside it');
+});
+
