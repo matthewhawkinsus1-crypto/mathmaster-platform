@@ -11,7 +11,15 @@
  *      server would record at ingestion, here only to choose a message
  *      (misconceptionStudentMessages.mjs);
  *   2. where no classifier fires, the cheap generic checks
- *      (genericMissChecks.js) on each wrong part against its key.
+ *      (genericMissChecks.js) on each wrong part against its key — worded
+ *      without the move that yields the answer while attempts are left
+ *      (`attemptsLeft`, the default).
+ *
+ * A CHOICE FIELD GETS NO DIAGNOSIS. With options {5, 0, −5}, "the opposite
+ * sign" after −5 leaves one option: any message about how a picked option
+ * relates to the key narrows a finite set (PR #462 review M6a). Neither the
+ * generic checks nor a classifier finding that cites only choice parts speak
+ * for one.
  *
  * NEVER A GRADE, NEVER EVIDENCE. Nothing returned here is stored, sent with
  * the attempt or read by the attempt policy; the attempt was already recorded
@@ -28,6 +36,18 @@ import { genericMissCheck } from './genericMissChecks.js';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const text = (value) => String(value ?? '').trim();
+
+const CHOICE_PROFILES = new Set(['choice', 'multiplechoice', 'multiple-choice', 'select', 'dropdown', 'radio']);
+const CHOICE_TYPES = new Set(['multiplechoice', 'multiple-choice', 'choice', 'truefalse', 'true-false']);
+
+/** Is this graded part answered by picking from a finite set? */
+export const partIsChoice = (question = {}, part = {}) => {
+  if (CHOICE_TYPES.has(text(question?.type).toLowerCase())) return true;
+  const field = list(question?.answerFields).find((entry) => text(entry?.id) === text(part?.id));
+  if (!field) return false;
+  const profile = text(field.inputProfile ?? field.inputMode ?? field.type).toLowerCase();
+  return CHOICE_PROFILES.has(profile) || list(field.options).length > 1 || list(field.choices).length > 1;
+};
 
 /** A part the grader marked complete and wrong. */
 const wrongParts = (grading) => list(grading?.parts)
@@ -79,19 +99,26 @@ export const displayFamilyValues = ({ template = null, delivered = null, assignm
   }
 };
 
-export const diagnoseMiss = ({ question = null, grading = null, response = null, familyValues = null } = {}) => {
+export const diagnoseMiss = ({ question = null, grading = null, response = null, familyValues = null, attemptsLeft = true } = {}) => {
   try {
     if (!question || !grading || grading.graded !== true || grading.isCorrect === true) return null;
     // A copy: the classifier never touches the caller's result, and this
     // function cannot either.
     const copy = JSON.parse(JSON.stringify(grading));
+    const wrong = wrongParts(copy);
+    const choiceIds = new Set(wrong.filter((part) => partIsChoice(question, part)).map((part) => text(part.id)));
+    const citesOnlyChoices = (entry) => {
+      const cited = list(entry?.parts).map(text).filter(Boolean);
+      return cited.length ? cited.every((id) => choiceIds.has(id) || partIsChoice(question, { id })) : wrong.length > 0 && wrong.every((part) => choiceIds.has(text(part.id)));
+    };
     const classified = classifyMisconceptions({ question, response, grading: copy, familyValues });
-    const finding = list(classified?.findings).find((entry) => studentMisconceptionMessage(entry?.code));
+    const finding = list(classified?.findings).find((entry) => studentMisconceptionMessage(entry?.code) && !citesOnlyChoices(entry));
     if (finding) return { source: 'classifier', code: finding.code, message: studentMisconceptionMessage(finding.code) };
-    for (const part of wrongParts(copy)) {
+    for (const part of wrong) {
+      if (choiceIds.has(text(part.id))) continue;
       const expected = expectedForPart(question, part);
       if (expected === null || expected === undefined) continue;
-      const hit = genericMissCheck({ student: part.response, expected });
+      const hit = genericMissCheck({ student: part.response, expected, open: attemptsLeft !== false });
       if (hit) return { source: 'generic', code: hit.check, message: hit.message };
     }
     return null;

@@ -5,9 +5,10 @@
 //
 // At 1366×768 and 390×844, through rendered controls only:
 //
-//   practice  Hint control → a hint; a miss names the likely error (generic
-//             check, or the server's own classifier on a Question Family
-//             instance) and never the answer; the second miss offers a hint;
+//   practice  Hint control → a hint; a miss gets a specific message (a
+//             generic check worded without the move that yields the answer,
+//             or the server's own classifier on a Question Family instance)
+//             and never the answer; the second miss offers a hint;
 //             the third closes the question, says "the worked solution is
 //             below" and shows it; a correct answer offers "See why it works";
 //             "Ask my teacher" reaches the host; every hint reveal is recorded
@@ -94,8 +95,10 @@ for (const device of DEVICES) {
     const text = await box.textContent();
     check(/Not quite\. You have 2 attempts remaining/.test(text), `${device.name}: the attempt outcome is unchanged`, text);
     const miss = box.locator('[data-miss-feedback]');
-    check(await miss.isVisible() && /opposite sign/.test(await miss.textContent()), `${device.name}: the miss names the likely error (sign)`, await miss.textContent().catch(() => ''));
-    check(!/3\/4|\\frac|0\.75/.test(await miss.textContent()), `${device.name}: and never the answer`);
+    // Attempts left: where to look and how to check, never the move that
+    // yields the answer (PR #462 review M6b).
+    check(await miss.isVisible() && /compares with the equation/.test(await miss.textContent()), `${device.name}: the miss gets a specific check (sign)`, await miss.textContent().catch(() => ''));
+    check(!/3\/4|\\frac|0\.75|sign|negative|opposite/.test(await miss.textContent()), `${device.name}: and never the answer or the move`);
     check(await reachable(page, miss), `${device.name}: the miss message is on screen`);
     const graded = await page.evaluate(() => window.__mmGrades);
     check(graded[0]?.supportUsage?.hintUsed === true && graded[0]?.supportUsage?.isMathematicallyIndependent === false, `${device.name}: the hint is recorded with the attempt`);

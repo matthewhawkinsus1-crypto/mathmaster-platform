@@ -1579,9 +1579,11 @@ function QuestionEngineBody({
       assignmentId: familyAssignmentId,
       storageIndex: familyStorageIndex,
     });
-    const diagnosis = diagnoseMiss({ question: processedQuestion, grading: gradedForDisplay.grading, response: gradedForDisplay.response, familyValues });
+    // While attempts are left, a generic message names no move that yields
+    // the answer (genericMissChecks.js).
+    const diagnosis = diagnoseMiss({ question: processedQuestion, grading: gradedForDisplay.grading, response: gradedForDisplay.response, familyValues, attemptsLeft: !isExpired });
     return missFeedback({ question: processedQuestion, attemptNumber: Number(feedback.attemptCount) || record.attemptCount, diagnosis, parts: gradedForDisplay.grading?.parts });
-  }, [feedback, feedbackOpen, gradedForDisplay, runtimeQuestion, processedQuestion, familyAssignmentId, familyStorageIndex, record.attemptCount]);
+  }, [feedback, feedbackOpen, gradedForDisplay, runtimeQuestion, processedQuestion, familyAssignmentId, familyStorageIndex, record.attemptCount, isExpired]);
   // An attempt made after a specific miss message was shown is feedback-
   // assisted, not independent (PR #462 review M6c).
   useEffect(() => {

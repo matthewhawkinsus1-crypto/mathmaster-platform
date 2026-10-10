@@ -54,7 +54,7 @@ import path from 'node:path';
 import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
-import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
+import { GENERIC_MISS_MESSAGES, GENERIC_MISS_MESSAGES_OPEN } from '../../src/platform/supports/feedback/genericMissChecks.js';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -721,7 +721,7 @@ const threePlaneReveal = async () => {
 const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up'];
 const ladderLeaks = async (page) => {
   const html = await page.evaluate(() => document.documentElement.outerHTML);
-  const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)];
+  const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES_OPEN)];
   return [...LADDER_WORDS, ...messages].filter((text) => html.includes(text.replace(/&/g, '&amp;')));
 };
 const typeAnswer = async (page, value) => {

@@ -29,8 +29,8 @@ import { attemptWasIndependent } from '../../functions/shared/sectionRecoverySer
 import { classifyAttemptEvidence } from '../../src/platform/mastery/evidenceClassification.js';
 import { attemptSupportUsageFrom, readSupportUse, rememberSupportUse, restoredSupportUse } from '../../src/platform/supports/supportUseMemory.js';
 import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
-import { genericMissCheck, GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
-import { diagnoseMiss, displayFamilyValues, expectedForPart } from '../../src/platform/supports/feedback/missDiagnosis.js';
+import { genericMissCheck, GENERIC_MISS_MESSAGES, GENERIC_MISS_MESSAGES_OPEN } from '../../src/platform/supports/feedback/genericMissChecks.js';
+import { diagnoseMiss, displayFamilyValues, expectedForPart, partIsChoice } from '../../src/platform/supports/feedback/missDiagnosis.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
 import { partialCreditBreakdown } from '../../src/platform/supports/feedback/partialCreditBreakdown.js';
 import { backUpStepFor } from '../../src/platform/supports/feedback/backUpStep.js';
@@ -58,6 +58,7 @@ test('1. every registry code has a student message: names the error, carries no 
     assert.ok(message.length > 40 && message.length < 260, `${id}: a sentence or two`);
   });
   Object.values(GENERIC_MISS_MESSAGES).forEach((message) => assert.doesNotMatch(message, /\d/));
+  Object.values(GENERIC_MISS_MESSAGES_OPEN).forEach((message) => assert.doesNotMatch(message, /\d/));
   assert.equal(studentMisconceptionMessage('constructor'), null, 'own keys only');
 });
 
@@ -131,6 +132,42 @@ test('2. the miss message comes from the server\'s own classifier, on values the
   assert.deepEqual([both?.source, both?.code], ['generic', 'sign-flipped']);
   // Another pin is not this instance.
   assert.equal(displayFamilyValues({ template: twoStepSlot, delivered: { familyDelivery: { ...delivered.delivery, fingerprint: 'other' } }, assignmentId: ASSIGNMENT_ID, storageIndex: 0 }), null);
+});
+
+test('2. a generic message never hands over the answer: no move named while attempts are left, nothing on a choice field (PR #462 review M6a, M6b)', () => {
+  // Each open message says where to look and how to check — never the move
+  // (negate, invert, swap, reduce) that turns the student's answer into the key.
+  const MOVES = /sign|negative|opposite|upside|numerator|denominator|top|order|swap|first|simplest|factor|reduc|divid|flip|invert|traded/i;
+  Object.entries(GENERIC_MISS_MESSAGES_OPEN).forEach(([check, message]) => assert.doesNotMatch(message, MOVES, `${check}: ${message}`));
+  assert.deepEqual(Object.keys(GENERIC_MISS_MESSAGES_OPEN).sort(), Object.keys(GENERIC_MISS_MESSAGES).sort());
+
+  // −4x + 8 = 36, key −7.
+  const question = { type: 'multiAnswer', prompt: 'Solve −4x + 8 = 36.', answerFields: [{ id: 'x', label: 'x', answer: '-7' }] };
+  const signed = diagnoseMiss({ question, grading: browserGrading(question, { x: '7' }) });
+  assert.equal(signed?.code, 'sign-flipped');
+  assert.equal(signed.message, GENERIC_MISS_MESSAGES_OPEN['sign-flipped'], 'attempts left (the default): no move named');
+  assert.doesNotMatch(signed.message, MOVES);
+  const inverted = diagnoseMiss({ question, grading: browserGrading(question, { x: '-1/7' }) });
+  assert.equal(inverted?.code, 'reciprocal');
+  assert.doesNotMatch(inverted.message, MOVES);
+  // Once the item has closed, the error may be named.
+  assert.equal(diagnoseMiss({ question, grading: browserGrading(question, { x: '7' }), attemptsLeft: false }).message, GENERIC_MISS_MESSAGES['sign-flipped']);
+  assert.equal(genericMissCheck({ student: '7', expected: '-7' }).message, GENERIC_MISS_MESSAGES_OPEN['sign-flipped'], 'the default is the open wording');
+
+  // A choice field: with options {5, 0, −5}, "the opposite sign" after −5 leaves one option.
+  const choice = { type: 'multiAnswer', answerFields: [{ id: 'x', label: 'x', answer: '5', options: ['5', '0', '-5'] }] };
+  assert.equal(partIsChoice(choice, { id: 'x' }), true);
+  assert.equal(diagnoseMiss({ question: choice, grading: browserGrading(choice, { x: '-5' }) }), null);
+  assert.equal(diagnoseMiss({ question: choice, grading: browserGrading(choice, { x: '-5' }), attemptsLeft: false }), null, 'closed or not');
+  const profiled = { type: 'multiAnswer', answerFields: [{ id: 'x', label: 'x', answer: '5', inputProfile: 'choice' }] };
+  assert.equal(partIsChoice(profiled, { id: 'x' }), true);
+  // A free-response field beside a choice field still gets its message.
+  const mixed = { type: 'multiAnswer', answerFields: [{ id: 'x', label: 'x', answer: '-7' }, { id: 'kind', label: 'Kind', answer: '5', options: ['5', '0', '-5'] }] };
+  assert.equal(partIsChoice(mixed, { id: 'x' }), false);
+  assert.equal(diagnoseMiss({ question: mixed, grading: browserGrading(mixed, { x: '7', kind: '-5' }) })?.code, 'sign-flipped');
+
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  assert.match(engine, /diagnoseMiss\(\{ question: processedQuestion, grading: gradedForDisplay\.grading, response: gradedForDisplay\.response, familyValues, attemptsLeft: !isExpired \}\)/);
 });
 
 test('2. where no classifier fires, a generic check speaks for a plain multi-answer key', () => {
