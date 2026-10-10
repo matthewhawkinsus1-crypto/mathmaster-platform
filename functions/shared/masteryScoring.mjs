@@ -15,8 +15,9 @@
  *
  *   sums  = sums − previous contribution of this question + this attempt's
  *
- * Which attempt is final: the higher attempt number, then the later time. An
- * older attempt delivered late (triggers do not run in order) changes nothing.
+ * Which attempt is final: the later one in time, then the higher attempt
+ * number (a content repair resets attempt numbers). An older attempt
+ * delivered late (triggers do not run in order) changes nothing.
  *
  * What a "question" is (questionKeyFor):
  *   assignment  — the assignment and the question in it, whatever version
@@ -130,8 +131,12 @@ const contributionOf = (facts) => ({
   t: facts.occurredAt,
 });
 
+// The later attempt by TIME, then by attempt number. Not by number first: a
+// content repair resets a question's attempts, so the student's next attempt
+// is number 1 again — and it is their final attempt, as the assignment record
+// says (review of #467). An older attempt delivered late still loses.
 const isLater = (next, previous) => (
-  !previous || next.n > num(previous.n) || (next.n === num(previous.n) && next.t >= num(previous.t))
+  !previous || next.t > num(previous.t) || (next.t === num(previous.t) && next.n >= num(previous.n))
 );
 
 const confidenceFor = ({ eligibleEvents, effectiveWeight, dokRepresented }) => (

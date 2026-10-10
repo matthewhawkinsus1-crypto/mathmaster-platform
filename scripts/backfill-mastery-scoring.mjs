@@ -131,29 +131,36 @@ export const runMasteryBackfill = async ({ db, execute = false, student = null, 
     : (await db.collection('grades').select().get()).docs.map((doc) => doc.ref);
   const plans = [];
   for (const gradeRef of gradeRefs.slice(0, limit || gradeRefs.length)) {
-    // eslint-disable-next-line no-await-in-loop
-    const [gradeSnapshot, profileSnapshot, events] = await Promise.all([
-      db.getAll(gradeRef, { fieldMask: STUDENT_FIELDS }).then(([snapshot]) => snapshot),
-      db.collection('studentMasteryProfiles').doc(gradeRef.id).get(),
-      readEvents((query) => query.get(), gradeRef),
-    ]);
-    if (!gradeSnapshot.exists) continue;
-    report.counts.students += 1;
-    // eslint-disable-next-line no-await-in-loop
-    const inputs = await loadStudentInputs(db, gradeRef.id, gradeSnapshot.data() || {}, (...refs) => db.getAll(...refs));
-    const plan = planStudentMasteryBackfill({
-      studentId: gradeRef.id, stored: profileSnapshot.exists ? profileSnapshot.data() : null, events, helpers: mathPath, now, ...inputs,
-    });
-    if (plan.action === 'skip') { report.counts.skippedAlreadyRescored += 1; continue; }
-    report.counts.pathEvents += plan.pathReview?.pathEvents || 0;
-    report.counts.pathReviewsReclassified += plan.pathReview?.reclassified || 0;
-    report.counts.pathReviewAnomalies += plan.pathReview?.anomalies || 0;
-    if (!events.length && !profileSnapshot.exists && !plan.changes.length) { report.counts.unchanged += 1; continue; }
-    report.counts.changedSkills += plan.changes.length;
-    report.students.push({ studentId: gradeRef.id, action: plan.action, changes: plan.changes, violations: plan.violations, pathReview: plan.pathReview });
-    if (plan.action === 'refuse') { report.counts.refused += 1; continue; }
-    report.counts.wouldWrite += 1;
-    plans.push({ gradeRef });
+    // One student's failure, in planning as in writing, is reported and the
+    // run goes on (the report is always written).
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const [gradeSnapshot, profileSnapshot, events] = await Promise.all([
+        db.getAll(gradeRef, { fieldMask: STUDENT_FIELDS }).then(([snapshot]) => snapshot),
+        db.collection('studentMasteryProfiles').doc(gradeRef.id).get(),
+        readEvents((query) => query.get(), gradeRef),
+      ]);
+      if (!gradeSnapshot.exists) continue;
+      report.counts.students += 1;
+      // eslint-disable-next-line no-await-in-loop
+      const inputs = await loadStudentInputs(db, gradeRef.id, gradeSnapshot.data() || {}, (...refs) => db.getAll(...refs));
+      const plan = planStudentMasteryBackfill({
+        studentId: gradeRef.id, stored: profileSnapshot.exists ? profileSnapshot.data() : null, events, helpers: mathPath, now, ...inputs,
+      });
+      if (plan.action === 'skip') { report.counts.skippedAlreadyRescored += 1; continue; }
+      report.counts.pathEvents += plan.pathReview?.pathEvents || 0;
+      report.counts.pathReviewsReclassified += plan.pathReview?.reclassified || 0;
+      report.counts.pathReviewAnomalies += plan.pathReview?.anomalies || 0;
+      if (!events.length && !profileSnapshot.exists && !plan.changes.length) { report.counts.unchanged += 1; continue; }
+      report.counts.changedSkills += plan.changes.length;
+      report.students.push({ studentId: gradeRef.id, action: plan.action, changes: plan.changes, violations: plan.violations, pathReview: plan.pathReview });
+      if (plan.action === 'refuse') { report.counts.refused += 1; continue; }
+      report.counts.wouldWrite += 1;
+      plans.push({ gradeRef });
+    } catch (error) {
+      report.counts.failed += 1;
+      report.students.push({ studentId: gradeRef.id, action: 'failed', stage: 'plan', message: String(error?.message || error).slice(0, 300) });
+    }
   }
   log(`${report.counts.students} students read; ${report.counts.wouldWrite} documents to write, ${report.counts.refused} refused, ${report.counts.skippedAlreadyRescored} already rescored.`);
   if (!execute || !plans.length) return report;

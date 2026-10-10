@@ -224,3 +224,22 @@ test('the skill card never says "You have mastered this" above unmet counts', as
   assert.equal(open.items.length, 4);
   assert.ok(open.remaining > 0);
 });
+
+test('after a content repair resets a question, the student\'s new attempt is their final one', () => {
+  // Three attempts, the last wrong; the question is repaired and reset; the
+  // student's next attempt is number 1 again, later in time, and right.
+  let entry = apply(undefined, assignmentAttempt({ attempt: 1, correct: false, at: 1000 }));
+  entry = apply(entry, assignmentAttempt({ attempt: 3, correct: false, at: 2000 }));
+  assert.equal(entry.mastery.estimate, 0);
+  entry = apply(entry, assignmentAttempt({ attempt: 1, correct: true, at: 9000 }));
+  assert.equal(entry.mastery.estimate, 100, 'the new work counts');
+  assert.equal(entry.accumulator.eligibleEvents, 1);
+  // A late delivery of an attempt older in time still changes nothing.
+  const late = applyMasteryEvent(entry, masteryEventFacts(assignmentAttempt({ attempt: 3, correct: false, at: 2000 }), mathPath), 'A.5A');
+  assert.equal(late.changed, false);
+});
+
+test('the skill card shows its score rounded, as the checklist does', () => {
+  const card = readFileSync(new URL('../../src/components/student/SkillDetailCardModal.jsx', import.meta.url), 'utf8');
+  assert.match(executableSource(card), /`\$\{Math\.round\(Number\(mastery\.estimate\)\)\}%`/);
+});
