@@ -360,8 +360,9 @@ const buildBridgeReview = (question) => {
   const checkIndex = order.reduce((best, index) => (Math.abs(rows[index].x) > Math.abs(rows[best].x) ? index : best), order[0]);
   const [cx, cy] = exactRows[checkIndex];
   const rowCheck = `${rowName(checkIndex)} ${pointSay([cx, cy])}: ${evaluated(m, cx, b)} = ${say(cy)}`;
+  // a·x is written as a term ("x", "−x", "(1/2)x"), never "1x" or "(−1)x".
   const why = zero && needsZero
-    ? `Check: expanding a(x − c) gives ${factor(m)}x − ${factor(m)}(${say(zero)}) = ${rightSide(m, b)}, the general form, so the equations are the same line; the zero works, since ${evaluated(m, zero, b)} = 0; and the line passes through every row of the table — for ${rowCheck}. One line, every representation.`
+    ? `Check: expanding a(x − c) gives ${sayEquation(coefficientTerm(m, 'x', true))} − ${factor(m)}(${say(zero)}) = ${rightSide(m, b)}, the general form, so the equations are the same line; the zero works, since ${evaluated(m, zero, b)} = 0; and the line passes through every row of the table — for ${rowCheck}. One line, every representation.`
     : `Check: the line y = mx + b with m = ${say(m)} and b = ${say(b)} passes through every row of the table — for ${rowCheck} — because every interval has the same rate, ${say(m)}.`;
   return {
     title: 'Representation bridge solution',
