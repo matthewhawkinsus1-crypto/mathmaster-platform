@@ -29,7 +29,10 @@ test('the dashboard model receives the student, their Recovery states and the te
 test('Start/Continue lands on the first unfinished open question, and never on a dead end', () => {
   const start = region(app, 'const startAssignment = (', 'const openStudentDashboardMode', 'startAssignment');
   const entry = region(start, 'resolveStudentAssignmentEntry({', 'safeQuestionIndex = actionableIndex', 'entry resolution');
-  assert.match(entry, /isFinished:\s*options\?\.returnToResult \|\| options\?\.keepRequestedQuestion\s*\?\s*null/);
+  // Review My Work keeps the question it asked for; a question's address
+  // keeps it only while its section is open (roleIsActionable).
+  assert.match(entry, /isFinished:\s*keepRequested\s*\?\s*null/);
+  assert.match(start, /const keepRequested = Boolean\(options\?\.returnToResult\)\s*\|\| Boolean\(options\?\.keepRequestedQuestion && roleIsActionable\(requestedRole\)\);/);
   // The same "finished" as Home: questionIsTerminal (extra DOL tries reopen).
   assert.match(entry, /: \(index\) => questionIsTerminal\(\{\s*record: tracker\?\.\[assignmentId\]\?\.\[index\]/);
   // With nothing open for a whole-assignment start, the student is taken to

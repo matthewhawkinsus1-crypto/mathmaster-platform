@@ -45,13 +45,19 @@ export const staticClosure = (manifest, startKeys = []) => {
 /**
  * The critical-path files of each measured path.
  * `studentAppKey` is the manifest key of the chunk a signed-in student loads
- * (src/app/shell/AppShell.jsx lazy-loads src/App.jsx); when the build has no
- * such chunk, App is part of the entry and studentHome equals signIn.
+ * (src/app/shell/AppShell.jsx lazy-loads src/App.jsx). A build without that
+ * key throws: Home cannot be measured, so the budget cannot pass.
  */
 export const criticalPaths = (manifest, { studentAppKey = 'src/App.jsx' } = {}) => {
   const entry = entryKeyOf(manifest);
   const signIn = staticClosure(manifest, [entry]);
-  const app = manifest[studentAppKey] && !manifest[studentAppKey].isEntry
+  // The student's app must be a chunk of its own. If its key disappears (a
+  // rename or a further split), Home would quietly measure as sign-in alone
+  // and pass "below baseline": fail instead, and name the key to update.
+  if (!manifest[studentAppKey]) {
+    throw new Error(`The build has no chunk for ${studentAppKey}: update studentAppKey in scripts/lib/firstLoadBudget.mjs to the module a signed-in student loads.`);
+  }
+  const app = !manifest[studentAppKey].isEntry
     ? staticClosure(manifest, [studentAppKey])
     : new Set();
   return {

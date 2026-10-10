@@ -33,10 +33,11 @@ test('a path follows static imports and their CSS, never a dynamic import', () =
   assert.deepEqual(paths.signIn, ['assets/firebase.js', 'assets/index.css', 'assets/index.js', 'assets/react.js']);
   assert.ok(paths.studentHome.includes('assets/App.js') && paths.studentHome.includes('assets/mathjs.js') && paths.studentHome.includes('assets/App.css'));
   assert.ok(!paths.studentHome.includes('assets/TeacherHome.js') && !paths.studentHome.includes('assets/charts.js'), 'a lazily loaded teacher screen is not on a student path');
-  // App bundled into the entry (no lazy shell): Home is the sign-in path.
-  const eager = { ...manifest, 'src/App.jsx': undefined };
-  delete eager['src/App.jsx'];
-  assert.deepEqual(criticalPaths(eager).studentHome, criticalPaths(eager).signIn);
+  // The student app's chunk renamed or gone: the budget fails, never measures
+  // Home as sign-in alone ("below baseline").
+  const renamed = { ...manifest };
+  delete renamed['src/App.jsx'];
+  assert.throws(() => criticalPaths(renamed), /no chunk for src\/App\.jsx/);
 });
 
 test('the ratchet fails growth past the allowance and a path with no baseline, and passes a reduction', () => {

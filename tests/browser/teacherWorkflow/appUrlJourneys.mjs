@@ -222,6 +222,15 @@ const runStudentJourneys = async (viewport) => {
     expect(`U5 ${tag}`, (await bodyText(page)).length > 40, `${probe}: blank screen`);
   }
 
+  // U5 — a question in a section that is not open now (today's DOL, locked)
+  // resolves the way Continue does — the first unfinished open question —
+  // never onto finished work in another section.
+  await page.goto(`${ORIGIN}/assignments/${TODAY}/dol/1?${asStudent}`);
+  await shown(page, QUESTION).waitFor({ timeout: 60_000 });
+  await page.waitForTimeout(700);
+  expect(`U5 ${tag}`, pathOf(page) === `/assignments/${TODAY}/classwork/1`, `a locked DOL question's address opened ${pathOf(page)}`);
+  expect(`U5 ${tag}`, /not open right now/.test(await toasts(page)), `no "not open" message (${await toasts(page)})`);
+
   // U8 — My Math Path's own tabs: Back onto /path/progress shows Progress.
   const activeMathPathTab = () => page.evaluate(() => [...document.querySelectorAll('nav button')]
     .find((button) => getComputedStyle(button).borderBottomColor === 'rgb(26, 115, 232)')?.textContent?.trim() || null);
@@ -242,7 +251,7 @@ const runStudentJourneys = async (viewport) => {
   await page.waitForTimeout(500);
   expect(`U8 ${tag}`, (await activeMathPathTab()) === 'My Progress', `reload of /path/progress shows ${await activeMathPathTab()}`);
 
-
+  // U6 — Log Out returns the address to "/".
   await page.goto(`${ORIGIN}/grades?${asStudent}`);
   await ready(page, /My Grades/);
   await page.getByRole('button', { name: /^Log Out$/ }).first().click();
@@ -316,6 +325,41 @@ const runSharedChromebookJourney = async (viewport) => {
   passed.push(`shared Chromebook ${tag}`);
 };
 
+const runSharedChromebookReloadJourney = async (viewport) => {
+  const tag = `${viewport.width}x${viewport.height}`;
+  const context = await newSchoolContext(browser, { viewport });
+  const page = await context.newPage();
+  // U9 across a RELOAD: A logs out, Back on the sign-in screen (the bar now
+  // names A's screen, with A's entry), the page reloads, and B signs in. B
+  // lands on their own Home, never A's address. (The page starts signed out
+  // so the reload does not sign A back in from the harness's query string.)
+  await page.goto(`${ORIGIN}/?reset=1&signedOut=1&${asStudent}`, { timeout: 180_000 });
+  await page.getByRole('button', { name: /I'm a student/ }).click();
+  await page.getByRole('button', { name: /Google/ }).first().click();
+  await ready(page, /Welcome, /);
+  await page.getByRole('button', { name: /^Continue$/ }).filter({ visible: true }).first().click();
+  await shown(page, QUESTION).waitFor({ timeout: 30_000 });
+  const aAddress = pathOf(page);
+  await page.getByRole('button', { name: /^(← )?Back to (Home|dashboard)$/ }).filter({ visible: true }).first().click();
+  await ready(page, /Welcome, /);
+  await page.getByRole('button', { name: /^Log Out$/ }).filter({ visible: true }).first().click();
+  await page.waitForTimeout(500);
+  if (await page.getByRole('alertdialog').count()) await page.getByRole('button', { name: /^(Log Out|Log out anyway|Yes)/ }).last().click();
+  await page.getByRole('button', { name: /I'm a student/ }).waitFor({ timeout: 30_000 });
+  await page.goBack();
+  await page.waitForTimeout(800);
+  expect(`U9r ${tag}`, pathOf(page) === aAddress, `setup: Back on the sign-in screen should show A's address, shows ${pathOf(page)}`);
+  await page.reload();
+  await page.getByRole('button', { name: /I'm a student/ }).waitFor({ timeout: 60_000 });
+  await page.evaluate((id) => window.__mmHarnessAuth.signInStudent(id), NEXT_STUDENT);
+  await ready(page, /Welcome, /);
+  await page.waitForTimeout(1200);
+  expect(`U9r ${tag}`, pathOf(page) === '/', `after the reload B landed on ${pathOf(page)} (A's address was ${aAddress})`);
+  expect(`U9r ${tag}`, !QUESTION.test(await bodyText(page)), 'B was shown the question A left open');
+  await context.close();
+  passed.push(`shared Chromebook reload ${tag}`);
+};
+
 const runExcusedJourney = async (viewport) => {
   const tag = `${viewport.width}x${viewport.height}`;
   const context = await newSchoolContext(browser, { viewport });
@@ -373,6 +417,7 @@ try {
     await runSignInJourney(viewport);
     await runExcusedJourney(viewport);
     await runSharedChromebookJourney(viewport);
+    await runSharedChromebookReloadJourney(viewport);
     await runTeacherJourney(viewport);
   }
 } catch (error) {

@@ -26,7 +26,13 @@ const sizeOf = (file) => {
   if (!sizes.has(file)) sizes.set(file, gzipSync(readFileSync(path.join(dist, file)), { level: 9 }).length);
   return sizes.get(file);
 };
-const paths = criticalPaths(manifest);
+let paths;
+try {
+  paths = criticalPaths(manifest);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 const measured = measurePaths(paths, sizeOf);
 const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
 

@@ -196,9 +196,13 @@ test('fewer required items renumber the section for that student', () => {
 
 test('Hosting serves index.html, uncached, at every address the app writes; static files keep their rules', () => {
   const config = JSON.parse(readFileSync(new URL('../../firebase.json', import.meta.url), 'utf8')).hosting;
-  // Every path falls back to the app (static files are served first by Hosting).
-  assert.ok(config.rewrites.some((rule) => rule.source === '**' && rule.destination === '/index.html'), 'SPA fallback');
+  // Every path falls back to the app (static files are served first by
+  // Hosting) — except /assets/: a missing hashed chunk must be a 404, never
+  // index.html cached as an immutable asset for a year.
   assert.equal(config.rewrites.length, 1, 'a new rewrite needs a check that it does not shadow an app address');
+  const [fallback] = config.rewrites;
+  assert.equal(fallback.destination, '/index.html');
+  const fallbackPattern = new RegExp(fallback.regex);
   // A rewritten address is cached by ITS path, not /index.html's: without its
   // own no-cache rule a reload of /grades after a deploy could keep the old
   // page shell, whose fingerprinted bundles no longer exist.
@@ -223,13 +227,23 @@ test('Hosting serves index.html, uncached, at every address the app writes; stat
   for (const path of ['/assets/index-abc123.js', '/mathmaster-build.json', '/audio/ding.mp3', '/mathmaster-icon.svg', '/__/auth/handler', '/tools-lab.html']) {
     assert.doesNotMatch(path, routePattern, `${path} is a static file and keeps its own caching`);
   }
+  for (const path of written) assert.match(path, fallbackPattern, `${path} would not fall back to the app`);
+  for (const path of ['/about', '/a', '/as', '/assets', '/assetsX/y', '/teacher/assignments/assignments/a1']) {
+    assert.match(path, fallbackPattern, `${path} must fall back to the app`);
+  }
+  for (const path of ['/assets/index-abc123.js', '/assets/App-old.js', '/assets/x.css']) {
+    assert.doesNotMatch(path, fallbackPattern, `${path}: a missing chunk must 404, not serve index.html`);
+  }
   const indexRule = config.headers.find((rule) => rule.source === '/index.html');
   assert.ok(indexRule, '/ and /index.html keep their own rule');
 });
 
 test('Vercel previews fall back to the app at every address too (static files are served first)', () => {
   const config = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
-  assert.deepEqual(config.rewrites, [{ source: '/(.*)', destination: '/index.html' }]);
+  assert.deepEqual(config.rewrites, [{ source: '/((?!assets/).*)', destination: '/index.html' }]);
+  const vercelFallback = /^\/((?!assets\/).*)$/;
+  assert.match('/grades', vercelFallback);
+  assert.doesNotMatch('/assets/App-old.js', vercelFallback);
   const assets = config.headers.find((rule) => rule.source === '/assets/(.*)');
   assert.match(assets.headers[0].value, /immutable/);
 });

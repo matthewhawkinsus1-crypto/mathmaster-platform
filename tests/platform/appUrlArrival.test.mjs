@@ -178,7 +178,8 @@ test('startAssignment still redirects every Test Cycle to its card, before any r
   assert.ok(redirect < start.indexOf('assignmentIsForStudent('), 'and before the class check');
   // keepRequestedQuestion keeps the question only where roleIsActionable
   // (section windows, locks) still decides; it never opens a closed section.
-  assert.match(start, /isFinished: options\?\.returnToResult \|\| options\?\.keepRequestedQuestion\s*\? null/);
+  assert.match(start, /const keepRequested = Boolean\(options\?\.returnToResult\)\s*\|\| Boolean\(options\?\.keepRequestedQuestion && roleIsActionable\(requestedRole\)\);/);
+  assert.match(start, /isFinished: keepRequested\s*\? null/);
   assert.match(start, /roleIsActionable,/);
 });
 
