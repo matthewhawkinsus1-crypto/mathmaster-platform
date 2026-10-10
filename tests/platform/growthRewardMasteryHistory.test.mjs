@@ -231,6 +231,17 @@ test('the history says when: a move it saw before the start date never pays', as
   assert.deepEqual(milestone, { code: 'A.2C', atMs: GROWTH_REWARDS_START_MS - 7 * DAY, timeKnown: true });
 });
 
+test('Mastered in the oldest week (time unknown): a profile entry last updated before the start date never pays', async () => {
+  // The pre-switch rule in the time-unknown branch: it reads the profile
+  // entry's own update time (verify lane, growth: this kept check had no test).
+  const db = freshStudent({ baselineSkills: [], baselineAtMs: null });
+  practise(db, GROWTH_REWARDS_START_MS - 7 * DAY, { 'A.2C': 'mastered' });
+  practise(db, weekAt(0), { 'A.3A': 'developing' });
+  const result = await sync(db, weekAt(0) + HOUR);
+  assert.deepEqual(masteryPaid(result), []);
+  assert.ok(result.skipped.some((entry) => entry.sourceId === 'A.2C' && entry.reason === SKIP_REASON.BEFORE_START), JSON.stringify(result.skipped));
+});
+
 // --- Exactly once ----------------------------------------------------------------
 
 test('each skill is paid exactly once across any number of syncs', async () => {

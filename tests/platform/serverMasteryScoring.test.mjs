@@ -172,3 +172,16 @@ test('the trigger scores through the shared scorer and writes the whole document
   // The per-attempt sums the old trigger kept are gone from it.
   assert.doesNotMatch(trigger, /Number\(accumulator\.eligibleEvents \|\| 0\) \+/);
 });
+
+test('a Mastered held only by a deploy-day floor is not paid as growth; earned Mastered is', async () => {
+  const { reachedMasteredEvidence, serverDerivedMastered } = await import('../../functions/shared/growthRewardRules.mjs');
+  // Five DOK-3 questions, two right: the floor holds Mastered and 95.
+  let held = { floor: { status: MASTERY_STATUS.MASTERED, estimate: 95, effectiveWeight: 4, questionsSince: 0 } };
+  ['a', 'b', 'c', 'd', 'e'].forEach((question, index) => { held = apply(held, assignmentAttempt({ question, correct: index < 2, at: 1000 + index })); });
+  assert.equal(held.mastery.status, MASTERY_STATUS.MASTERED);
+  assert.equal(reachedMasteredEvidence('A.5A', held), false, 'the shown score is the floor\'s, not the evidence\'s');
+  assert.equal(serverDerivedMastered('A.5A', held), false);
+  let earned;
+  ['a', 'b', 'c', 'd'].forEach((question, index) => { earned = apply(earned, assignmentAttempt({ question, at: 1000 + index })); });
+  assert.equal(serverDerivedMastered('A.5A', earned), true);
+});

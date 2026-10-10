@@ -259,8 +259,15 @@ baseline, the class check (the history's class of the last evidence must be the
 class of record), and at most `MASTERY_SKILLS_PER_SYNC` (5) unpaid skills per
 sync, oldest mastery first. Skills already paid take no place under the cap and
 count toward the badges. Conservative call: a skill the history saw mastered
-*before* the baseline and lost again by then (so not frozen) never pays, not
-even when mastered again; before the switch it would have paid on re-mastery.
+*before* the baseline and lost again by then (so not frozen) normally does not
+pay when mastered again; before the switch it would have paid on re-mastery.
+Two edges bring that one pre-switch payment back (still once): the history
+keeps 60 weeks, so a re-mastery can become the oldest week (time unknown), and
+it keeps one snapshot a week, so mastered, lost and re-mastered inside one
+week is seen only as the last. A skill held at Mastered only by a deploy-day
+floor (functions/shared/masteryScoring.mjs) does not pay while the floor holds
+it: its stored score is the floor's, not its evidence's, so the evidence check
+refuses it; it pays once the student's own evidence earns Mastered.
 Tests: `tests/platform/growthRewardMasteryHistory.test.mjs` (the real sync
 against an in-memory Firestore), `growthRewardRules.test.mjs`,
 `growthRewardMintingGuards.test.mjs`, and against the emulator
