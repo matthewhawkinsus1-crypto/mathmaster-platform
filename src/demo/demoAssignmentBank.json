@@ -8,11 +8,11 @@
     "teks": "A.3B",
     "timeline": { "dueOffsetDays": -12, "lateOffsetDays": -10 },
     "questions": [
-      { "questionId": "linear-warmup-q1", "type": "algebra", "a": 2, "b": 3, "c": 15, "prompt": "Solve 2x + 3 = 15.", "teks": ["A.3B"], "dok": 1 },
-      { "questionId": "linear-warmup-q2", "type": "algebra", "a": 4, "b": -5, "c": 19, "prompt": "Solve 4x - 5 = 19.", "teks": ["A.3B"], "dok": 1 },
-      { "questionId": "linear-warmup-q3", "type": "algebra", "a": 3, "b": 8, "c": 29, "prompt": "Solve 3x + 8 = 29.", "teks": ["A.3B"], "dok": 1 },
-      { "questionId": "linear-warmup-q4", "type": "algebra", "a": 5, "b": -2, "c": 38, "prompt": "Solve 5x - 2 = 38.", "teks": ["A.3B"], "dok": 1 },
-      { "questionId": "linear-warmup-q5", "type": "algebra", "a": 6, "b": 1, "c": 31, "prompt": "Solve 6x + 1 = 31.", "teks": ["A.3B"], "dok": 1 }
+      { "questionId": "linear-warmup-q1", "type": "stepAlgebra", "equation": "2x + 3 = 15", "acceptedAnswers": ["6"], "a": 2, "b": 3, "c": 15, "prompt": "Solve 2x + 3 = 15.", "teks": ["A.3B"], "dok": 1 },
+      { "questionId": "linear-warmup-q2", "type": "stepAlgebra", "equation": "4x - 5 = 19", "acceptedAnswers": ["6"], "a": 4, "b": -5, "c": 19, "prompt": "Solve 4x - 5 = 19.", "teks": ["A.3B"], "dok": 1 },
+      { "questionId": "linear-warmup-q3", "type": "stepAlgebra", "equation": "3x + 8 = 29", "acceptedAnswers": ["7"], "a": 3, "b": 8, "c": 29, "prompt": "Solve 3x + 8 = 29.", "teks": ["A.3B"], "dok": 1 },
+      { "questionId": "linear-warmup-q4", "type": "stepAlgebra", "equation": "5x - 2 = 38", "acceptedAnswers": ["8"], "a": 5, "b": -2, "c": 38, "prompt": "Solve 5x - 2 = 38.", "teks": ["A.3B"], "dok": 1 },
+      { "questionId": "linear-warmup-q5", "type": "stepAlgebra", "equation": "6x + 1 = 31", "acceptedAnswers": ["5"], "a": 6, "b": 1, "c": 31, "prompt": "Solve 6x + 1 = 31.", "teks": ["A.3B"], "dok": 1 }
     ]
   },
   {
@@ -24,11 +24,11 @@
     "teks": "A.5A",
     "timeline": { "dueOffsetDays": 2, "lateOffsetDays": 3 },
     "questions": [
-      { "questionId": "equations-classwork-q1", "type": "algebra", "a": 3, "b": 4, "c": 40, "prompt": "Solve 3x + 4 = 40.", "teks": ["A.5A"], "dok": 1 },
-      { "questionId": "equations-classwork-q2", "type": "algebra", "a": 7, "b": -6, "c": 29, "prompt": "Solve 7x - 6 = 29.", "teks": ["A.5A"], "dok": 1 },
-      { "questionId": "equations-classwork-q3", "type": "algebra", "a": 4, "b": 9, "c": 45, "prompt": "Solve 4x + 9 = 45.", "teks": ["A.5A"], "dok": 1 },
-      { "questionId": "equations-classwork-q4", "type": "algebra", "a": 8, "b": 3, "c": 59, "prompt": "Solve 8x + 3 = 59.", "teks": ["A.5A"], "dok": 1 },
-      { "questionId": "equations-classwork-q5", "type": "algebra", "a": 5, "b": -11, "c": 14, "prompt": "Solve 5x - 11 = 14.", "teks": ["A.5A"], "dok": 1 }
+      { "questionId": "equations-classwork-q1", "type": "stepAlgebra", "equation": "3x + 4 = 40", "acceptedAnswers": ["12"], "a": 3, "b": 4, "c": 40, "prompt": "Solve 3x + 4 = 40.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "equations-classwork-q2", "type": "stepAlgebra", "equation": "7x - 6 = 29", "acceptedAnswers": ["5"], "a": 7, "b": -6, "c": 29, "prompt": "Solve 7x - 6 = 29.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "equations-classwork-q3", "type": "stepAlgebra", "equation": "4x + 9 = 45", "acceptedAnswers": ["9"], "a": 4, "b": 9, "c": 45, "prompt": "Solve 4x + 9 = 45.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "equations-classwork-q4", "type": "stepAlgebra", "equation": "8x + 3 = 59", "acceptedAnswers": ["7"], "a": 8, "b": 3, "c": 59, "prompt": "Solve 8x + 3 = 59.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "equations-classwork-q5", "type": "stepAlgebra", "equation": "5x - 11 = 14", "acceptedAnswers": ["5"], "a": 5, "b": -11, "c": 14, "prompt": "Solve 5x - 11 = 14.", "teks": ["A.5A"], "dok": 1 }
     ]
   },
   {
@@ -105,11 +105,11 @@
     "teks": "A.5A",
     "timeline": { "dueOffsetDays": 1, "lateOffsetDays": 2 },
     "questions": [
-      { "questionId": "retention-q1", "type": "algebra", "a": 4, "b": 2, "c": 26, "prompt": "Without notes, solve 4x + 2 = 26.", "teks": ["A.5A"], "dok": 1 },
-      { "questionId": "retention-q2", "type": "algebra", "a": 5, "b": -3, "c": 32, "prompt": "Without notes, solve 5x - 3 = 32.", "teks": ["A.5A"], "dok": 1 },
-      { "questionId": "retention-q3", "type": "algebra", "a": 9, "b": 4, "c": 58, "prompt": "Solve 9x + 4 = 58.", "teks": ["A.5A"], "dok": 1 },
-      { "questionId": "retention-q4", "type": "algebra", "a": 6, "b": -8, "c": 34, "prompt": "Solve 6x - 8 = 34.", "teks": ["A.5A"], "dok": 1 },
-      { "questionId": "retention-q5", "type": "algebra", "a": 7, "b": 5, "c": 40, "prompt": "Solve 7x + 5 = 40.", "teks": ["A.5A"], "dok": 1 }
+      { "questionId": "retention-q1", "type": "stepAlgebra", "equation": "4x + 2 = 26", "acceptedAnswers": ["6"], "a": 4, "b": 2, "c": 26, "prompt": "Without notes, solve 4x + 2 = 26.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "retention-q2", "type": "stepAlgebra", "equation": "5x - 3 = 32", "acceptedAnswers": ["7"], "a": 5, "b": -3, "c": 32, "prompt": "Without notes, solve 5x - 3 = 32.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "retention-q3", "type": "stepAlgebra", "equation": "9x + 4 = 58", "acceptedAnswers": ["6"], "a": 9, "b": 4, "c": 58, "prompt": "Solve 9x + 4 = 58.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "retention-q4", "type": "stepAlgebra", "equation": "6x - 8 = 34", "acceptedAnswers": ["7"], "a": 6, "b": -8, "c": 34, "prompt": "Solve 6x - 8 = 34.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "retention-q5", "type": "stepAlgebra", "equation": "7x + 5 = 40", "acceptedAnswers": ["5"], "a": 7, "b": 5, "c": 40, "prompt": "Solve 7x + 5 = 40.", "teks": ["A.5A"], "dok": 1 }
     ]
   },
   {
