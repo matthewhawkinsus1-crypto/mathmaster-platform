@@ -55,7 +55,10 @@ export const writeWorkspaceDraft = async (patch) => {
  * This is what makes "resume where you left off" survive a different device,
  * rather than depending on the browser that happens to be in front of them.
  */
-export const readLatestWorkspaceResume = async (studentId, { maxAssignments = 1 } = {}) => {
+// More than one: a Recovery's saved answers live in this collection too
+// (`…-recovery`, platform/recovery/recoveryAnswerDrafts.js) and carry no
+// resume, so the newest document alone could hide the assignment to resume.
+export const readLatestWorkspaceResume = async (studentId, { maxAssignments = 4 } = {}) => {
   if (!studentId) return null;
   const snapshot = await getDocs(query(
     collection(db, WORKSPACE_DRAFT_COLLECTION),
