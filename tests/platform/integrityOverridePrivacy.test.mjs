@@ -220,6 +220,74 @@ test('details with nowhere safe to go are left on the grade doc and reported', (
   assert.deepEqual(plan.unresolved, [{ assignmentId: 'A1', key: '__assignment', reason: 'no-incident-and-no-teacher-email' }]);
 });
 
+// Review finding M4: the planner treated ANY entry with a note/actor as an
+// integrity zero. On the emulator a per-question teacher correction (score 50,
+// note, actor) was stripped and a teacherConfirmed academicIntegrityIncident
+// was created for it. A per-question correction is not an integrity zero.
+test('a per-question teacher correction with a note and actor is reported, untouched, and gets no incident', async () => {
+  const correction = { active: true, score: 50, source: 'teacher-override', note: 'Gave partial credit for setup.', actor: ACTOR, at: NOW };
+  const gradeData = {
+    assignedTeacherEmail: 'teacher@example.test',
+    classId: 'class-1',
+    teacherGradeOverridesByAssignment: { A1: { 3: correction } },
+  };
+  assert.deepEqual(linkedIncidentIds({ teacherGradeOverridesByAssignment: { A1: { 3: { ...correction, incidentId: 'x' } } } }), [],
+    'a correction never makes the migration read an incident');
+  const plan = planIntegrityOverrideNoteMigration({ studentId: 'S1', gradeData, incidentsById: {}, nowIso: NOW });
+  assert.deepEqual(plan.assignments, [], 'the grade doc is not rewritten');
+  assert.deepEqual(plan.incidentWrites, [], 'no incident is created for it');
+  assert.equal(plan.counts.strippedEntries, 0);
+  assert.deepEqual(plan.unresolved, [{ assignmentId: 'A1', key: '3', reason: 'not-an-integrity-override' }]);
+  assert.equal(JSON.stringify(plan).includes('partial credit'), false, 'the report never carries the note');
+
+  // End to end through the script: --execute writes nothing for this doc.
+  const docs = { 'grades/S1': gradeData };
+  const live = fakeDb(docs);
+  const report = await runIntegrityOverrideNoteMigration({ db: live, FieldPath: FakeFieldPath, mode: 'execute', actor: 'ops@example.test', listIds: true, now: () => NOW });
+  assert.equal(report.counts.gradeDocsToChange, 0);
+  assert.equal(report.counts.incidentsCreated, 0);
+  assert.equal(report.counts.unresolved, 1);
+  assert.deepEqual(report.ids.unresolved, [{ studentId: 'S1', assignmentId: 'A1', key: '3', reason: 'not-an-integrity-override' }]);
+  assert.equal(live.writes.length, 0, 'no grade or incident write');
+  assert.deepEqual(live.store['grades/S1'], docs['grades/S1']);
+});
+
+test('real integrity zeros beside a per-question correction are still migrated; the correction is not', () => {
+  const correction = { active: true, score: 50, source: 'teacher-override', note: 'Setup credit.', actor: ACTOR, at: NOW };
+  const gradeData = {
+    assignedTeacherEmail: 'teacher@example.test',
+    teacherGradeOverridesByAssignment: {
+      A1: { __assignment: legacyAssignmentZero(), 4: correction },
+      A2: {
+        0: legacySectionEntry(),
+        1: legacySectionEntry(),
+        5: correction,
+        __sectionIntegrity_classwork: { active: true, incidentId: 'inc-s', sectionRole: 'classwork', previousOverridesByQuestion: { 0: null, 1: null } },
+      },
+    },
+  };
+  const incidents = {
+    'inc-a': incidentAsWritten(),
+    'inc-s': { kind: 'academicIntegrityIncident', note: '', evidence: { scope: 'section' } },
+  };
+  assert.deepEqual(linkedIncidentIds(gradeData), ['inc-a', 'inc-s']);
+  const plan = planIntegrityOverrideNoteMigration({ studentId: 'S1', gradeData, incidentsById: incidents, nowIso: NOW });
+  const byId = Object.fromEntries(plan.assignments.map(({ assignmentId, nextOverrides }) => [assignmentId, nextOverrides]));
+  assert.deepEqual(Object.keys(byId), ['A1', 'A2']);
+  assert.deepEqual(teacherOnlyKeysIn(byId.A1.__assignment), [], 'the assignment zero is stripped');
+  assert.deepEqual(teacherOnlyKeysIn(byId.A2[0]), [], 'the section-zero copy is stripped');
+  assert.deepEqual(teacherOnlyKeysIn(byId.A2[1]), []);
+  assert.equal(byId.A2[0].score, 0);
+  assert.strictEqual(byId.A1[4], correction, 'the correction beside the assignment zero is the same object');
+  assert.strictEqual(byId.A2[5], correction, 'the correction beside the section zero is the same object');
+  assert.equal(plan.counts.strippedEntries, 3);
+  assert.equal(plan.counts.incidentsCreated, 0, 'only the two real incidents are filled');
+  assert.deepEqual(plan.incidentWrites.map((write) => write.incidentId).sort(), ['inc-a', 'inc-s']);
+  assert.deepEqual(plan.unresolved.map(({ assignmentId, key, reason }) => `${assignmentId}:${key}:${reason}`).sort(),
+    ['A1:4:not-an-integrity-override', 'A2:5:not-an-integrity-override']);
+  assertPlanKeepsGrades(gradeData, plan);
+});
+
 test('the grade-value guard refuses a plan that would change a score', () => {
   const gradeData = { teacherGradeOverridesByAssignment: { A1: { __assignment: legacyAssignmentZero() } } };
   const plan = planIntegrityOverrideNoteMigration({ studentId: 'S1', gradeData, incidentsById: { 'inc-a': incidentAsWritten() }, nowIso: NOW });

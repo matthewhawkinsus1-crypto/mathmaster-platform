@@ -102,6 +102,34 @@ const teacherOnlyDetailsOf = (entry) => ({
 });
 
 const holdsTeacherOnlyField = (entry) => INTEGRITY_OVERRIDE_TEACHER_ONLY_FIELDS.some((field) => own(entry, field));
+
+/*
+ * WHICH OVERRIDE ENTRIES ARE AN INTEGRITY CONSEQUENCE. Only
+ * overrideStudentAssignmentGrade (functions/index.js) writes these, and it
+ * writes exactly three shapes under teacherGradeOverridesByAssignment[aid]:
+ *
+ *   `__assignment`              the assignment zero (source
+ *                               'teacher-assignment-zero'); no other writer
+ *                               uses this key.
+ *   `__sectionIntegrity_<role>` a section's restore state: { active,
+ *                               incidentId, sectionRole,
+ *                               previousOverridesByQuestion }. The priors it
+ *                               holds are integrity state too: a restore puts
+ *                               them back, so they are cleaned with it.
+ *   `<questionIndex>`           the section-zero copy, source
+ *                               'teacher-section-zero'.
+ *
+ * Every other entry, e.g. a per-question teacher correction (grantFullCredit,
+ * grantPartCredit, applyReplay, 'teacher-override', ...), is NOT an integrity
+ * zero, even when it carries a note or an actor. The migration never strips
+ * it and never creates an incident for it; it only reports it, by id.
+ */
+export const isIntegrityOverrideEntry = (key, entry) => {
+  if (!isObject(entry)) return false;
+  const name = String(key);
+  if (name === ASSIGNMENT_OVERRIDE_KEY || name.startsWith(SECTION_INTEGRITY_KEY_PREFIX)) return true;
+  return entry.source === SECTION_ZERO_SOURCE;
+};
 const hasDetails = (details) => Boolean(details.note || details.actor || details.participantRole);
 const sameActor = (left, right) => {
   const a = cleanActor(left);
@@ -140,6 +168,9 @@ export const migratedIncidentId = ({ studentId, assignmentId, groupKey }) => (
  *           incident is written, authorized for the teacher who acted (or
  *           the student's assigned teacher).
  *
+ * Only integrity entries are migrated (isIntegrityOverrideEntry). Any other
+ * entry that holds a note, actor or participant role is left exactly as it is
+ * and reported `unresolved` with reason 'not-an-integrity-override'.
  * An entry whose details have nowhere to go (no incident and no teacher email
  * to authorize one) is left exactly as it is and reported `unresolved`.
  * Running the plan on its own output plans nothing.
@@ -277,6 +308,13 @@ export const planIntegrityOverrideNoteMigration = ({
     const nextOverrides = {};
     Object.keys(overrides).forEach((key) => {
       const entry = overrides[key];
+      if (!isIntegrityOverrideEntry(key, entry)) {
+        // Not an integrity zero: reported by id only (never the note) and
+        // left exactly as it is. No incident, no stripped field.
+        if (holdsTeacherOnlyField(entry)) unresolved.push({ assignmentId, key, reason: 'not-an-integrity-override' });
+        nextOverrides[key] = entry;
+        return;
+      }
       let next = migrateEntry({ assignmentId, key, entry });
       // The section restore state carries the prior per-question overrides it
       // puts back; those are cleaned the same way, so a restore can never
@@ -346,6 +384,7 @@ export const linkedIncidentIds = (gradeData = {}) => {
     .forEach((overrides) => {
       if (!isObject(overrides)) return;
       Object.entries(overrides).forEach(([key, entry]) => {
+        if (!isIntegrityOverrideEntry(key, entry)) return;
         visit(entry);
         if (key.startsWith(SECTION_INTEGRITY_KEY_PREFIX) && isObject(entry?.previousOverridesByQuestion)) {
           Object.values(entry.previousOverridesByQuestion).forEach(visit);
