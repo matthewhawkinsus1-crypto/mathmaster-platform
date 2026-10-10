@@ -1,6 +1,6 @@
 # Student push — Job K: grades students can trust
 
-Branch `claude/student-push-k-grading` (draft PR #465). Job K covers four things:
+Branch `claude/student-push-k-grading` (draft PR #465), merged with main at b027eb4 (#461, #468). Job K covers four things:
 
 - the independent mathematics review that Job A's worked solutions shipped without;
 - the grading and compiler defects A found (2a–2f);
@@ -111,7 +111,37 @@ every write. Each is proved on emulator fixtures that reproduce the old and new 
   submissions. It now has its own directory and CI step. The classroom report test follows the same pattern.
 - c5ecf53: `scripts/explain-test-failures.mjs` counts a failing `todo` as a failure, so two `todo` tests are `skip`.
 
-<!-- K-STATUS: m9 and follow-ups sections are filled in when those workflows land. -->
+### Follow-ups: defects the audit found outside its files
+
+| Commit | Area | Fix |
+| --- | --- | --- |
+| a3edcf0 | Compiler | Student graded on the tool's *default* problem: it now keeps parabolaGeometryLab's `point` / `offset`; polynomialWorkshop's `candidateRoot`, `numeratorRoots`, `targetValue`, `leadingCoefficient` and `targetRoot`; and a sign chart's `numeratorFactors`. A sign chart with `denominatorFactors` and no mode compiles as rational. A `{{name}}` key no longer makes a set box. |
+| 400d4df | Tool graders | **graphing2:** a line through a point one snap step off the target was accepted; both points must now be on the line. A target the grid cannot reach (y = 2.3 on a 0.5 grid) keeps the line rule, so it still has a right answer. **complexPlaneLab:** 'divide' was graded as multiply; it is now an invalid question. **stepAlgebra2:** `-(x+1)` and `x*2 - 6` left unchanged are no longer "finished". **regressionCalculator:** the run's r, m and b are checked against its own table, as on the Path. |
+| e488cdd | Path | **pathQuadraticRegression:** centred and scaled, the same fix as the lab grader. **Digital SAT union-overlap:** accepts the SAT's four-place decimal. Two CCMR prompts fixed at the source (`drafts/ccmr-v2.1`) and regenerated. |
+| fb0bbbe | Re-grade report | Covers every K grading change above, each attributed separately. |
+
+### QA m9: worked solutions that were only the answer
+
+| Commit | Change |
+| --- | --- |
+| cf2e281 | **Contract.** A family may export `workedSolution(question)`: the steps for that item, ending on its key. `closedQuestionReview.js` uses them as the authored-shaped review only when the item has no authored steps and no tool review with steps. The review stays behind the closed-question gate, and nothing else calls `workedSolution`. **The QA case:** "A line passes through (0, 4) and (3, 2)" now shows: change in y, change in x, slope −2/3, b = 4, y = (−2/3)x + 4. **Recognition:** linesAndSlope now recognises two-point slope/intercept items, with hints, back-up step and sibling under the existing leak guards. |
+| 95dcf19 | The other six families have `workedSolution` for the shapes they recognise. |
+| e00162f | **Tool reviews.** toolSolutionReview's own reviews returned items with no steps for computed answers: sequenceExplorer in every mode, relationMapping, functionInvestigation2 compare and intercepts, and representationMatch tableAudit. They now derive the answers. The systems spatial and representation-bridge reviews derive what they used to assert. |
+| 63f83ef | **Inventory test.** Classifies every bank item as STEPS or ANSWER-ONLY and pins the STEPS count from below. |
+
+**Still answer-only** (from `tests/platform/kSteps_answerOnlyInventory.test.mjs`):
+
+| Source | Items | Why |
+| --- | --- | --- |
+| DOL2 review draft, multiAnswer tasks | 336 | No family matches them. Their authored `explanation` is never read by the review model. |
+| Secure DOL2 retest seed: number, set, choice and orderedPair responses | 832 | No family covers these shapes, and there is no authored solutionReview. |
+| Demo bank `literal` items | 44 | No family matches the generated type. |
+| Digital SAT native families | 32 | Authored without reasoning. |
+| Algebra 2 Honors transformations / absolute-value lessons | 16 | J's stub families. |
+| DOL1 `relationshipModel`, `figureMatch`, `graphChoicePreview` and sequence-field items, and one transformationsLab item with an empty review | 13 | No family or builder covers them. |
+
+The fix for most of these is authored `solutionReview` steps in the content, or J's three families.
+
 
 ## Owner: running the reports (read-only, from Cloud Shell)
 
@@ -192,3 +222,82 @@ entry point. The targets this branch needs:
 - **Hint guard.** A minus after an operand is read as subtraction, so `y = -2x − 5` is still not caught for the answer
   −5. No hint is dropped less often than before.
 - **Path report.** It never claims "would be correct", because the stored records cannot decide it.
+
+## What is left, and why
+
+The coordinator's usage stop (2026-10-10) ended new work. Everything below was found and verified, but not built.
+
+### Grading
+
+- **Typed exponential with the base written as `b`.** It grades as base 2. One meaning for `b` has to be chosen across
+  the compiler, the exponentialLog grader and the review.
+- **intervalNumberLine inequality stage.** It compares the student's text literally against 4-place decimal
+  endpoints, so `x > 1/3` is rejected and `x > 0.3333` accepted. Fix: compare parsed endpoints numerically.
+- **Digital SAT 3-place decimals.** The SAT's own rules also accept a 3-place decimal with a leading zero (0.781 for
+  57/73); the Path still rejects it.
+- **CCMR requiredSymbols.** A `{{a}}` key still asks for `{`, `}` and `a` keys
+  (`inferRequiredAnswerSymbols`, the interaction layer). The test is `skip` in `kSweep_ccmrBanks.test.mjs`.
+- **graphWorkspace feature keys.** A "vertex" or "center" is keyed at (h, k) for every function type, including
+  exponential and log, where no such feature exists (`interactiveGraphEngine.mjs:328`). This is an authoring and grader
+  owner decision.
+- **Monotone keys have no linear branch.** For y = 2x + 1, "increasing on (−∞, ∞)" is marked wrong, and a horizontal
+  line's range `{3}` is mishandled. Found by the functions-family verifier; owned by the graph-features grader.
+- **Path, other graders' keypad and form variants** (job I's `functions/shared/answerEquivalence.mjs`): keypad
+  radicals, exponent braces, `|x|` vs `abs`, `x≠−5`, `x^1`, fractions in ordered pairs, `%`, `x=` in a number box,
+  sides swapped, vertex form with the constant first.
+- **Plain-text quotients with ambiguous precedence** (`x^2-1/x^2+x`). They keep their old verdict (accepted); changing
+  that would flip stored right answers.
+
+### Worked solutions
+
+- **Answer-only groups:** listed in the m9 section above.
+- **Wording and coverage the m9 verifiers left as minor:**
+  - systems siblings and solutions for two single-variable equations under elimination, and many fractional-coefficient
+    systems, return null;
+  - odd term order in literal-equation steps;
+  - `(g ∘ f)(x) = x+0.3333333333333333` echoed from an authored choice;
+  - "never/neither" wording edges.
+- **Coverage gaps in the new step tests:** a few steps are checked only at their final value.
+  - Graphing Lines mid-chain steps.
+  - The 'and' interval step.
+  - The quadratic `x − h = ±√R` radicand.
+  - The arithmetic missing-term-at-a₁ branch.
+
+### Content and authoring
+
+- **Graphing2 targets the grid cannot reach.** `toolSchemas.js` could warn about them at authoring time.
+- **Algebraic 2×2 authoring with no variable.** `['0 = 5', '0 = 3']` is graded correctly now, but authoring could warn.
+- **Compile warnings may never reach the teacher.** Whether the import and preflight screens show
+  `parseAssignmentBlueprintText().warnings` was not checked.
+
+### Platform
+
+- **Path should keep the submitted choice id.** `submitPathResponse` could store the raw submitted choice id, so a
+  future incident like #456 can be re-graded. Today the picked option is not stored anywhere.
+- **Field-level choices are not remapped.** A Path field with field-level choices and a non-'choice' inputProfile is
+  served runtime ids, but its expected value is not remapped (`functions/lib/mathPath.js`). This is job I's.
+- **D's handoff needs a correction.** `docs/handoffs/STUDENT_PUSH_D_PATH.md` says pre-#456 grades "could be re-graded
+  from pathSubmissions". They cannot; that doc should point to the Path report.
+- **Test wrapper.** `scripts/explain-test-failures.mjs` counts a failing `todo` as a failure, so this branch uses
+  `skip`.
+
+## Verification
+
+- **Final gate on HEAD, after the merge with main:**
+
+  | Check | Result |
+  | --- | --- |
+  | `npm run test:platform` | 10,534 pass, 0 fail |
+  | `node --test tests/tools/*.test.mjs` | 1,587 pass, 0 fail |
+  | `npm run test:authoring-v5` | 686 pass, 0 fail |
+  | `npm run lint` | 0 errors |
+  | `npm run build` | passes |
+  | `npm run build:firebase` | passes |
+
+- **Release and seed checks:** `npm run release:path:verify`, `node scripts/build-algebra-fidelity-v2-production-seeds.mjs --check`
+  and `node scripts/audit-algebra1-path-release-authority.mjs --strict` pass. `npm run audit:answer-acceptance`
+  reports 0 false negatives.
+- **Emulator tests:** `npm run test:path-choice-report:emulator` (5) and `npm run test:classroom-regrade-report:emulator`
+  (5) pass. Both are CI steps.
+- **Not run:** `npm run test:rules`, because no rules changed. Playwright browser suites were left to CI, per the
+  coordinator.
