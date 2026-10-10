@@ -17823,8 +17823,10 @@ exports.getStudentTestCycle = onCall(async (request) => {
     // way — the line getStudentSecureExamReview holds (`retest_open`). A
     // teacher closing retesting does not end a Retest already issued, so the
     // stage alone ("retestClosed") cannot say the review would open.
+    // Offered exactly when getStudentSecureExamReview would open it: the same
+    // rule (secureExam.courseReviewBlockedBy) decides both.
     testReviewExamSessionId: record.test.state === shared.record.SESSION_STATE.RELEASED
-      && !([shared.record.SESSION_STATE.ASSIGNED, shared.record.SESSION_STATE.IN_PROGRESS].includes(record.retest.state) && record.retest.examSessionId)
+      && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" })
       ? record.test.examSessionId
       : null,
     grade: shared.record.testCycleGradeBreakdown(record, policy),

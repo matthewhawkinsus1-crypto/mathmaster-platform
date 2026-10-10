@@ -129,13 +129,13 @@ test('under a mastery-gated Review, the skill rows count answers the way the gat
 });
 
 test('the card holds "Review my Test" back exactly when the review itself is refused', () => {
+  // One rule decides both: secureExam.courseReviewBlockedBy (another attempt
+  // of the cycle open — the Retest, or a reset's new Test or Retest).
   const card = region(functionsIndex, 'exports.getStudentTestCycle = onCall(', 'function testCycleSkillList(', 'getStudentTestCycle');
-  const guard = region(functionsIndex, 'exports.getStudentSecureExamReview = onCall(', 'const review = secureExam.publicReview(session);', 'review guard');
-  const retestOpen = /\[shared\.record\.SESSION_STATE\.ASSIGNED, shared\.record\.SESSION_STATE\.IN_PROGRESS\]\.includes\(record\.retest\.state\) && record\.retest\.examSessionId/;
-  assert.match(guard, retestOpen, 'the review guard (precondition)');
+  const guard = region(functionsIndex, 'exports.getStudentSecureExamReview = onCall(', 'const review = secureExam.publicReview(session, { withSolutions });', 'review guard');
+  assert.match(guard, /const blocked = secureExam\.courseReviewBlockedBy\(record, \{ examSessionId, cycleStage: session\.courseTest\.cycleStage \}\);\s*if \(blocked\) throw/, 'the review guard (precondition)');
   const field = region(card, 'testReviewExamSessionId:', 'grade:', 'testReviewExamSessionId');
-  assert.match(field, /record\.test\.state === shared\.record\.SESSION_STATE\.RELEASED\s*&& !\(/);
-  assert.match(field, retestOpen);
+  assert.match(field, /record\.test\.state === shared\.record\.SESSION_STATE\.RELEASED\s*&& !secureExam\.courseReviewBlockedBy\(record, \{ examSessionId: record\.test\.examSessionId, cycleStage: "test" \}\)/);
   assert.match(field, /\? record\.test\.examSessionId\s*: null,/);
 });
 
