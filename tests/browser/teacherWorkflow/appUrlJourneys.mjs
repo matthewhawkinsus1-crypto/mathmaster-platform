@@ -26,6 +26,10 @@
 //   U6  Log Out returns the bar to "/", so the next student starts at Home.
 //   U7  Teacher: a tab and an assignment's monitor survive a reload; a student's
 //       link to the teacher's assignment opens its monitor.
+//   U8  My Math Path: Back onto /path/progress shows Progress; so does a reload.
+//   U9  After Log Out, the next student's Back never opens the previous
+//       student's screens or addresses.
+//   U10 An excused lesson's address opens its result page, never graded work.
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/appUrls/ (git-ignored).
@@ -64,6 +68,10 @@ const TODAY_TITLE = 'Systems of Equations — Lesson 3: Elimination';
 const OTHER_CLASS_ASSIGNMENT = 'a-p5';
 const OTHER_CLASS_TITLE = 'Linear Equations — Lesson 5';
 const asStudent = `as=student&studentId=${STUDENT}`;
+// The next student on the same Chromebook (same class), and one excused from
+// today's lesson in the private-controls scenario (fixture.js PRIVATE_CONTROLS).
+const NEXT_STUDENT = '910004';
+const EXCUSED_STUDENT = '910006';
 
 const findings = [];
 const passed = [];
@@ -214,7 +222,27 @@ const runStudentJourneys = async (viewport) => {
     expect(`U5 ${tag}`, (await bodyText(page)).length > 40, `${probe}: blank screen`);
   }
 
-  // U6 — Log Out returns the address to "/".
+  // U8 — My Math Path's own tabs: Back onto /path/progress shows Progress.
+  const activeMathPathTab = () => page.evaluate(() => [...document.querySelectorAll('nav button')]
+    .find((button) => getComputedStyle(button).borderBottomColor === 'rgb(26, 115, 232)')?.textContent?.trim() || null);
+  await page.goto(`${ORIGIN}/path?${asStudent}`);
+  await ready(page, /Math Path/);
+  await page.getByRole('button', { name: /^My Progress$/ }).filter({ visible: true }).first().click();
+  await page.waitForTimeout(700);
+  expect(`U8 ${tag}`, pathOf(page) === '/path/progress', `My Progress wrote ${pathOf(page)}`);
+  await page.getByRole('button', { name: /^Home$/ }).filter({ visible: true }).first().click();
+  await ready(page, /Welcome, /);
+  await page.goBack();
+  await ready(page, /Math Path/);
+  await page.waitForTimeout(500);
+  expect(`U8 ${tag}`, pathOf(page) === '/path/progress', `Back went to ${pathOf(page)}`);
+  expect(`U8 ${tag}`, (await activeMathPathTab()) === 'My Progress', `Back onto /path/progress shows ${await activeMathPathTab()}`);
+  await page.reload();
+  await ready(page, /Math Path/);
+  await page.waitForTimeout(500);
+  expect(`U8 ${tag}`, (await activeMathPathTab()) === 'My Progress', `reload of /path/progress shows ${await activeMathPathTab()}`);
+
+
   await page.goto(`${ORIGIN}/grades?${asStudent}`);
   await ready(page, /My Grades/);
   await page.getByRole('button', { name: /^Log Out$/ }).first().click();
@@ -224,10 +252,11 @@ const runStudentJourneys = async (viewport) => {
   await page.getByRole('button', { name: /I'm a student/ }).waitFor({ timeout: 30_000 });
   expect(`U6 ${tag}`, pathOf(page) === '/', `after Log Out the bar reads ${pathOf(page)}`);
 
+
   expect(`errors ${tag}`, errors.length === 0, `page errors: ${errors.join(' | ')}`);
   // The workspace's background syncs (submission ingest, activity
   // reconcile) are not faked by this harness; anything else is a finding.
-  const unexpected = unimplemented().filter((name) => !['ingestStudentSubmissions', 'reconcileAssignmentActivityProjection'].includes(name));
+  const unexpected = unimplemented().filter((name) => !['ingestStudentSubmissions', 'reconcileAssignmentActivityProjection', 'resolveWeeklyPathGoalSnapshot'].includes(name));
   expect(`callables ${tag}`, unexpected.length === 0, `unimplemented callables reached: ${unexpected.join(', ')}`);
   await context.close();
   passed.push(`student ${tag}`);
@@ -241,6 +270,8 @@ const runSignInJourney = async (viewport) => {
   await page.goto(`${ORIGIN}/assignments/${TODAY}/classwork/2?reset=1&signedOut=1&${asStudent}`, { timeout: 180_000 });
   await page.getByRole('button', { name: /I'm a student/ }).waitFor({ timeout: 60_000 });
   expect(`U3 ${tag}`, pathOf(page) === `/assignments/${TODAY}/classwork/2`, `the sign-in screen moved the address to ${pathOf(page)}`);
+  // The shell names the sign-in screen before App has loaded (WCAG 2.4.2).
+  expect(`U3 ${tag}`, (await page.title()) === 'Sign in – MathMaster', `sign-in title is "${await page.title()}"`);
   await page.getByRole('button', { name: /I'm a student/ }).click();
   await page.getByRole('button', { name: /Google/ }).first().click();
   await shown(page, QUESTION).waitFor({ timeout: 60_000 });
@@ -250,6 +281,57 @@ const runSignInJourney = async (viewport) => {
   await page.screenshot({ path: path.join(ARTIFACTS, `U3-after-sign-in-${tag}.png`) });
   await context.close();
   passed.push(`sign-in ${tag}`);
+};
+
+const runSharedChromebookJourney = async (viewport) => {
+  const tag = `${viewport.width}x${viewport.height}`;
+  const context = await newSchoolContext(browser, { viewport });
+  const page = await context.newPage();
+  // U9 — the next student on this Chromebook, in the same tab: Back never
+  // walks into the previous student's screens (entries carry their account).
+  // One document throughout: every step is a click.
+  await page.goto(`${ORIGIN}/?reset=1&${asStudent}`, { timeout: 180_000 });
+  await ready(page, /Welcome, /);
+  await page.getByRole('button', { name: /^Continue$/ }).filter({ visible: true }).first().click();
+  await shown(page, QUESTION).waitFor({ timeout: 30_000 });
+  await page.getByRole('button', { name: /^(← )?Back to (Home|dashboard)$/ }).filter({ visible: true }).first().click();
+  await ready(page, /Welcome, /);
+  await page.getByRole('button', { name: /^Grades$/ }).filter({ visible: true }).first().click();
+  await ready(page, /My Grades/);
+  await page.getByRole('button', { name: /^Log Out$/ }).filter({ visible: true }).first().click();
+  await page.waitForTimeout(500);
+  if (await page.getByRole('alertdialog').count()) await page.getByRole('button', { name: /^(Log Out|Log out anyway|Yes)/ }).last().click();
+  await page.getByRole('button', { name: /I'm a student/ }).waitFor({ timeout: 30_000 });
+  await page.evaluate((id) => window.__mmHarnessAuth.signInStudent(id), NEXT_STUDENT);
+  await ready(page, /Welcome, /);
+  for (let step = 0; step < 3; step += 1) {
+    await page.goBack();
+    await page.waitForTimeout(1200);
+    const screen = await bodyText(page);
+    expect(`U9 ${tag}`, pathOf(page) === '/', `Back #${step + 1} put the previous student's address in the bar: ${pathOf(page)}`);
+    expect(`U9 ${tag}`, !QUESTION.test(screen) && !/My Grades/.test(screen), `Back #${step + 1} opened the previous student's screen`);
+  }
+  await page.screenshot({ path: path.join(ARTIFACTS, `U9-next-student-back-${tag}.png`) });
+  await context.close();
+  passed.push(`shared Chromebook ${tag}`);
+};
+
+const runExcusedJourney = async (viewport) => {
+  const tag = `${viewport.width}x${viewport.height}`;
+  const context = await newSchoolContext(browser, { viewport });
+  const page = await context.newPage();
+  // U10 — an excused lesson's address opens its result page, never graded work.
+  await page.goto(`${ORIGIN}/?reset=1&controls=retired&as=student&studentId=${EXCUSED_STUDENT}`, { timeout: 180_000 });
+  await ready(page, /Welcome, /);
+  for (const probe of [`/assignments/${TODAY}/classwork/1`, `/assignments/${TODAY}`]) {
+    await page.goto(`${ORIGIN}${probe}?controls=retired&as=student&studentId=${EXCUSED_STUDENT}`);
+    await page.waitForTimeout(4000);
+    expect(`U10 ${tag}`, pathOf(page) === `/assignments/${TODAY}/results`, `${probe} for an excused student went to ${pathOf(page)}`);
+    expect(`U10 ${tag}`, !QUESTION.test(await bodyText(page)), `${probe} opened a question for an excused student`);
+    expect(`U10 ${tag}`, /excused/i.test(await toasts(page)), `${probe}: no excused message (${await toasts(page)})`);
+  }
+  await context.close();
+  passed.push(`excused ${tag}`);
 };
 
 const runTeacherJourney = async (viewport) => {
@@ -289,6 +371,8 @@ try {
   for (const viewport of VIEWPORTS) {
     await runStudentJourneys(viewport);
     await runSignInJourney(viewport);
+    await runExcusedJourney(viewport);
+    await runSharedChromebookJourney(viewport);
     await runTeacherJourney(viewport);
   }
 } catch (error) {

@@ -101,7 +101,12 @@ const chainTo = (graph, file) => {
 };
 
 test('the student app entry never statically imports the shared grader map', () => {
+  // main.jsx, then App.jsx — AppShell loads App lazily the moment an account
+  // signs in, so for a student both are the startup path.
   const graph = staticGraph(path.join(ROOT, 'src/main.jsx'));
+  for (const [file, parent] of staticGraph(path.join(ROOT, 'src/App.jsx'))) {
+    if (!graph.has(file)) graph.set(file, parent ?? path.join(ROOT, 'src/app/shell/AppShell.jsx'));
+  }
   assert.ok(graph.size > 200, `the walker reached only ${graph.size} modules — the import parser has broken`);
   // The light half IS expected on the startup path; it is what lets App.jsx
   // and the checkpoint writer ask "can the server mark this?".

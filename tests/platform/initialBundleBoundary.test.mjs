@@ -65,7 +65,28 @@ const chainTo = (graph, target) => {
   return chain.join(' -> ');
 };
 
-const graph = staticGraph(path.join(repo, 'src/main.jsx'));
+// The first load of a signed-in student: main.jsx's static graph (the shell
+// and the sign-in screen), then App.jsx's, which src/app/shell/AppShell.jsx
+// loads the moment an account is signed in (and prefetches while the sign-in
+// screen is up). Everything either reaches is "the first load" here.
+const signInGraph = staticGraph(path.join(repo, 'src/main.jsx'));
+const graph = new Map(signInGraph);
+for (const [file, parent] of staticGraph(path.join(repo, 'src/App.jsx'))) {
+  if (!graph.has(file)) graph.set(file, parent ?? path.join(repo, 'src/app/shell/AppShell.jsx'));
+}
+
+test('the sign-in screen does not wait for the app: main.jsx reaches App.jsx only by a lazy import', () => {
+  assert.ok(!signInGraph.has(path.join(repo, 'src/App.jsx')), `App.jsx is statically reachable from main.jsx: ${chainTo(signInGraph, path.join(repo, 'src/App.jsx'))}`);
+  assert.ok(signInGraph.has(path.join(repo, 'src/app/shell/AppShell.jsx')) && signInGraph.has(path.join(repo, 'src/LoginScreen.jsx')));
+  // Nothing of the grading, tools or assignment runtime before sign-in.
+  for (const heavy of ['pkg:mathjs', 'pkg:mathlive', 'src/QuestionEngine.jsx', 'src/assignmentLifecycle.js', 'src/platform/policies/activityPolicies.js']) {
+    const key = heavy.startsWith('pkg:') ? heavy : path.join(repo, heavy);
+    assert.ok(!signInGraph.has(key), `${heavy} is on the sign-in path: ${signInGraph.has(key) ? chainTo(signInGraph, key) : ''}`);
+  }
+  const shell = readFileSync(path.join(repo, 'src/app/shell/AppShell.jsx'), 'utf8');
+  assert.match(shell, /export const loadApp = \(\) => import\('\.\.\/\.\.\/App\.jsx'\);/);
+  assert.match(shell, /const App = lazy\(loadApp\);/);
+});
 
 test('the first load reaches App and the student and teacher shells (the walker works)', () => {
   assert.ok(graph.has(path.join(repo, 'src/App.jsx')));

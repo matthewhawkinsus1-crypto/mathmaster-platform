@@ -24,7 +24,9 @@ test('lint refuses free identifiers in App and every moved module, and browser-g
   const shell = config.overrides.find((entry) => entry.files.includes('src/app/**'));
   const [level, ...globals] = shell?.rules?.['no-restricted-globals'] || [];
   assert.equal(level, 'error');
-  for (const name of ['history', 'location', 'name', 'status', 'event', 'length', 'open', 'close', 'top', 'parent', 'self', 'origin', 'confirm']) {
+  // The full confusing-browser-globals set.
+  for (const name of ['history', 'location', 'name', 'status', 'event', 'length', 'open', 'close', 'top', 'parent', 'self', 'origin', 'confirm',
+    'scrollY', 'scrollTo', 'outerWidth', 'onload', 'screenX', 'pageYOffset', 'toolbar', 'frameElement', 'menubar']) {
     assert.ok(globals.includes(name), `a moved \`${name}\` would silently read window.${name}`);
   }
 });
@@ -62,12 +64,21 @@ test('every screen in lazyScreens.js is a lazy import, so none joins the first l
 });
 
 test('the session gate renders for any screen that does not belong to the account signed in now', () => {
-  assert.match(appCode, /if \(!userIsSignedInAccount\) \{\s*return \(\s*<SessionGate\b[\s\S]*?\/>\s*\);\s*\}/);
+  const call = appCode.match(/if \(!userIsSignedInAccount\) \{\s*return \(\s*(<SessionGate\b[\s\S]*?\/>)\s*\);\s*\}/);
+  assert.ok(call, 'App returns the session gate for a screen that is not this account\'s');
+  // The seam between App and the gate: every state the inline JSX read.
+  assert.match(call[1], /authStatus=\{auth\.status\}/);
+  assert.match(call[1], /hydrationError=\{sessionHydrationError\}/);
+  assert.match(call[1], /hydrating=\{sessionHydrating\}/);
+  assert.match(call[1], /launchAssignment=\{launchAssignment\}/);
+  assert.match(call[1], /onSignOut=\{\(\) => \{ resetAddressToHome\(\); auth\.signOut\(\); \}\}/);
   assert.match(app, /^import SessionGate from '\.\/app\/shell\/SessionGate\.jsx';$/m);
   const gate = executableSource(read('src/app/shell/SessionGate.jsx'));
   assert.match(gate, /if \(authStatus === 'signedOut' \|\| authStatus === 'linking'\) return <LoginScreen launchAssignment=\{launchAssignment\} \/>;/);
   assert.match(gate, /^import LoginScreen from '\.\.\/\.\.\/LoginScreen\.jsx';$/m);
   assert.match(gate, /onClick=\{onSignOut\}/);
+  assert.match(gate, /if \(hydrationError\) \{[\s\S]*MathMaster could not load your account[\s\S]*\{hydrationError\}/);
+  assert.match(gate, /\{hydrating \? 'Loading your MathMaster workspace…' : 'Finishing sign in…'\}/);
 });
 
 test('nothing under src/app imports App.jsx back (the shell depends on screens, never the reverse)', () => {
@@ -76,4 +87,19 @@ test('nothing under src/app imports App.jsx back (the shell depends on screens, 
   for (const file of walk('src/app')) {
     assert.doesNotMatch(read(file), /from '(?:\.\.\/)+App(?:\.jsx)?'/, `${file} imports App.jsx`);
   }
+});
+
+test('the app shell shows sign-in itself, names it, prefetches App, and keeps App mounted once loaded', () => {
+  const shell = executableSource(read('src/app/shell/AppShell.jsx'));
+  assert.match(read('src/main.jsx'), /^import AppShell from '\.\/app\/shell\/AppShell\.jsx';$/m);
+  assert.doesNotMatch(executableSource(read('src/main.jsx')), /import App from/);
+  assert.match(shell, /const accountPresent = \(status\) => status === 'ready';/);
+  // Once wanted, always wanted: everything after the first sign-in is App's.
+  assert.match(shell, /if \(accountPresent\(auth\.status\)\) setAppWanted\(true\);/);
+  assert.doesNotMatch(shell, /setAppWanted\(false\)/);
+  assert.match(shell, /useDocumentTitle\(appWanted \? null : pageTitleFor\(\{ signedIn: false \}\)\);/);
+  assert.match(shell, /window\.requestIdleCallback\(prefetch/);
+  assert.match(shell, /if \(!appWanted\) return gate;/);
+  // The launch preview reads only ?launch=, never the lifecycle-heavy route module.
+  assert.doesNotMatch(executableSource(read('src/app/shell/useClassroomLaunchPreview.js')), /from '[^']*classroomLaunchRoute/);
 });

@@ -30,6 +30,10 @@ export default defineConfig(() => {
   fillBuildIdentity()
   return {
     plugins: [react()],
+    // dist/.vite/manifest.json: what each chunk loads, for the student
+    // first-load budget (scripts/check-first-load-budget.mjs). Hosting ignores
+    // dot-directories, so it is never deployed.
+    build: { manifest: true },
     resolve: {
       // The shared graders under functions/shared import mathjs, and so does
       // the browser's own code. When a developer has installed the Functions
