@@ -15,9 +15,9 @@
  *
  *   sums  = sums − previous contribution of this question + this attempt's
  *
- * Which attempt is final: the later one in time, then the higher attempt
- * number (a content repair resets attempt numbers). An older attempt
- * delivered late (triggers do not run in order) changes nothing.
+ * Which attempt is final: the higher attempt number, or a lower one only when
+ * it is later in time (a content repair resets attempt numbers). An older
+ * attempt delivered late (triggers do not run in order) changes nothing.
  *
  * What a "question" is (questionKeyFor):
  *   assignment  — the assignment and the question in it, whatever version
@@ -131,13 +131,18 @@ const contributionOf = (facts) => ({
   t: facts.occurredAt,
 });
 
-// The later attempt by TIME, then by attempt number. Not by number first: a
-// content repair resets a question's attempts, so the student's next attempt
-// is number 1 again — and it is their final attempt, as the assignment record
-// says (review of #467). An older attempt delivered late still loses.
-const isLater = (next, previous) => (
-  !previous || next.t > num(previous.t) || (next.t === num(previous.t) && next.n >= num(previous.n))
-);
+// The higher attempt number wins; a lower number wins only when it is later
+// in time — a content repair resets a question's attempts, so the student's
+// next attempt is number 1 again and is their final one. Not time first:
+// assignment event times come from the device clock, and a correct final
+// attempt from a device whose clock runs behind must still count (review of
+// #467). An older attempt delivered late still loses.
+const isLater = (next, previous) => {
+  if (!previous) return true;
+  if (next.n > num(previous.n)) return true;
+  if (next.n === num(previous.n)) return next.t >= num(previous.t);
+  return next.t > num(previous.t);
+};
 
 const confidenceFor = ({ eligibleEvents, effectiveWeight, dokRepresented }) => (
   eligibleEvents >= 8 && effectiveWeight >= 5 && dokRepresented.length >= 2 ? 'High'

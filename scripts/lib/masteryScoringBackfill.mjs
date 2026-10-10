@@ -49,9 +49,13 @@ const withoutScoring = (entry = {}) => Object.fromEntries(Object.entries(entry |
 
 // What the Path engine does with each skill, in every course the student's
 // skills belong to: which it closes (locked, or behind a repair) and which it
-// offers as a Challenge (extension, which needs evidence strength). Pacing is
-// a plain sequence: these are prerequisite and readiness decisions, not
-// calendar ones.
+// offers as a Challenge (extension, which needs evidence strength). A Challenge
+// card depends on where the class is in the year, so every pacing window and
+// both acceleration radii are checked (review of #467: a class at window 1
+// can offer only two Challenge cards; later windows lost others). Decisions
+// are keyed "window:radius:skillId".
+const PACING_WINDOWS = 8;
+const RADII = [1, 2];
 const pathDecisions = (map) => {
   const courses = new Set(Object.keys(map).map((skillId) => getTexasStandard(teksCodeFromSkillId(skillId))?.courseId).filter(Boolean));
   const closed = new Set();
@@ -59,16 +63,24 @@ const pathDecisions = (map) => {
   courses.forEach((courseId) => {
     const skills = getSkillGraph(courseId);
     if (!skills.length) return;
-    const options = getStudentPathOptions({
-      courseId, masteryBySkill: map,
-      pacing: { windowIndex: 3, windowCount: 8, accelerationRadius: 1 },
-      pacingProvider: sequenceProvider({ skills, windowCount: 8 }),
-    });
-    [STATUS.LOCKED, STATUS.REMEDIATION].forEach((key) => (options[key] || []).forEach((row) => closed.add(row.skillId)));
-    (options[STATUS.EXTENSION] || []).forEach((row) => extension.add(row.skillId));
+    const pacingProvider = sequenceProvider({ skills, windowCount: PACING_WINDOWS });
+    for (let currentWindow = 1; currentWindow <= PACING_WINDOWS; currentWindow += 1) {
+      RADII.forEach((accelerationRadius) => {
+        const options = getStudentPathOptions({
+          courseId, masteryBySkill: map,
+          pacing: { currentWindow, windowCount: PACING_WINDOWS, accelerationRadius },
+          pacingProvider,
+        });
+        const at = `${currentWindow}:${accelerationRadius}:`;
+        [STATUS.LOCKED, STATUS.REMEDIATION].forEach((key) => (options[key] || []).forEach((row) => closed.add(at + row.skillId)));
+        (options[STATUS.EXTENSION] || []).forEach((row) => extension.add(at + row.skillId));
+      });
+    }
   });
   return { closed, extension };
 };
+
+const skillOfDecision = (key) => key.split(':').slice(2).join(':');
 
 const viewOf = ({ student, assignments, serverProfiles, favourable }) => {
   const unified = buildUnifiedMasteryProfiles({ student, assignments, serverProfiles, favourable });
@@ -175,8 +187,8 @@ export const planStudentMasteryBackfill = ({ studentId, stored = null, events = 
   const after = studentView({ student, assignments, serverProfiles: profiles });
   const changes = [];
   const violations = [];
-  newlyClosed(before, after).forEach((skillId) => violations.push({ code: teksCodeFromSkillId(skillId), losses: ['map: skill now locked'] }));
-  lostChallenges(before, after).forEach((skillId) => violations.push({ code: teksCodeFromSkillId(skillId), losses: ['map: Challenge card lost'] }));
+  newlyClosed(before, after).forEach((key) => violations.push({ code: teksCodeFromSkillId(skillOfDecision(key)), losses: [`map: skill now locked (window ${key.split(':')[0]})`] }));
+  lostChallenges(before, after).forEach((key) => violations.push({ code: teksCodeFromSkillId(skillOfDecision(key)), losses: [`map: Challenge card lost (window ${key.split(':')[0]})`] }));
   codes.forEach((code) => {
     const losses = lossesFor(code, before, after);
     if (losses.length) violations.push({ code, losses });

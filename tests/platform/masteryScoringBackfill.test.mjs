@@ -205,7 +205,7 @@ test('a plan that would lower something is refused, never written', () => {
 // favourable rule keeps main's outcome where the narrowed bridge did not.
 const optionsFor = (masteryBySkill) => getStudentPathOptions({
   courseId: 'algebra1', masteryBySkill,
-  pacing: { windowIndex: 3, windowCount: 8, accelerationRadius: 1 },
+  pacing: { currentWindow: 3, windowCount: 8, accelerationRadius: 1 },
   pacingProvider: sequenceProvider({ skills: getSkillGraph('algebra1'), windowCount: 8 }),
 });
 const statusOf = (options, code) => Object.keys(options)
@@ -336,4 +336,18 @@ test('review BLOCKER 1: a Mastered server profile beside a short quiz stays Mast
   // And no over-promotion: record 85.9 from 8 items beside a Developing server.
   const developing = { ...server, mastery: { estimate: 54, status: MASTERY_STATUS.DEVELOPING }, accumulator: { ...server.accumulator, weightedScoreSum: 5.4 } };
   assert.equal(mergeMasteryProfile({}, developing, {}, assignmentRecordFor({ score: 85.9, itemCount: 8, effectiveEvidence: 8 })).mastery.status, MASTERY_STATUS.SECURE);
+});
+
+test('a Challenge card lost only at a later pacing window is still refused (re-check of #467)', () => {
+  // At window 1 nothing is lost; from window 2 on, A.5B and A.5C stop being
+  // Challenge cards after rescoring (their prerequisites' strength drops).
+  const { result } = plan({ questionsByCode: {
+    'A.4A': [{ tries: 1, dok: 3 }, { tries: 1, dok: 3 }],
+    'A.5A': [{ tries: 1, dok: 3 }, { tries: 2, dok: 2 }],
+    'A.2B': [{ tries: 1, dok: 2 }, { tries: 1, dok: 2 }, { tries: 2, dok: 2 }, { tries: 2, dok: 2 }, { tries: 1, dok: 2 }, { tries: 1, dok: 2 }],
+  } }, 'later-window');
+  assert.equal(result.action, 'refuse');
+  const losses = result.violations.flatMap((violation) => violation.losses.map((loss) => `${violation.code} ${loss}`));
+  assert.ok(losses.some((loss) => /^A\.5B map: Challenge card lost \(window 2\)$/.test(loss)), losses.join(' | '));
+  assert.equal(losses.some((loss) => /\(window 1\)/.test(loss)), false, 'window 1 alone would have missed it');
 });

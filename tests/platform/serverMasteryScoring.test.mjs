@@ -234,12 +234,21 @@ test('after a content repair resets a question, the student\'s new attempt is th
   entry = apply(entry, assignmentAttempt({ attempt: 1, correct: true, at: 9000 }));
   assert.equal(entry.mastery.estimate, 100, 'the new work counts');
   assert.equal(entry.accumulator.eligibleEvents, 1);
-  // A late delivery of an attempt older in time still changes nothing.
-  const late = applyMasteryEvent(entry, masteryEventFacts(assignmentAttempt({ attempt: 3, correct: false, at: 2000 }), mathPath), 'A.5A');
-  assert.equal(late.changed, false);
+  // A lower attempt number that is also older in time still changes nothing.
+  const higher = apply(undefined, assignmentAttempt({ attempt: 2, correct: true, at: 2000 }));
+  assert.equal(applyMasteryEvent(higher, masteryEventFacts(assignmentAttempt({ attempt: 1, correct: false, at: 1000 }), mathPath), 'A.5A').changed, false);
 });
 
 test('the skill card shows its score rounded, as the checklist does', () => {
   const card = readFileSync(new URL('../../src/components/student/SkillDetailCardModal.jsx', import.meta.url), 'utf8');
   assert.match(executableSource(card), /`\$\{Math\.round\(Number\(mastery\.estimate\)\)\}%`/);
+});
+
+test('a correct final attempt from a device whose clock runs behind still counts', () => {
+  // Attempt 1 wrong at t=600000, attempt 2 right at t=0 (the device clock was
+  // behind): the higher attempt number is the final one.
+  let entry = apply(undefined, assignmentAttempt({ attempt: 1, correct: false, at: 600000 }));
+  const result = applyMasteryEvent(entry, masteryEventFacts(assignmentAttempt({ attempt: 2, correct: true, at: 0 }), mathPath), 'A.5A');
+  assert.equal(result.changed, true);
+  assert.equal(result.entry.mastery.estimate, 100);
 });
