@@ -170,6 +170,8 @@ const exactOrNull = (value, { fractions = fractionStyle } = {}) => {
   return longer === null ? null : signed(String(longer));
 };
 const exact = (value) => exactOrNull(value) ?? unwritable();
+// A factor written after × or ÷: bracketed when negative, so "× (−3)", never "× −3".
+const bracketed = (value) => (clean(value) < 0 ? `(${exact(value)})` : exact(value));
 // The value the review states, as the number a student's exact entry is: a key
 // rounded to 1e-9 (1.166666667) becomes the float of 7/6 again.
 const stated = (value) => {
@@ -693,10 +695,15 @@ const linearQuadraticReview = (question) => {
   const parabola = expressionText([[a, 'x²'], [qb, 'x']], qc);
   const line = expressionText([[m, 'x']], k);
   const paren = (value) => `(${exact(value)})`;
+  // Written like the coefficients it comes from: beside decimals, a decimal
+  // (−10.2975, not −4119/400) whenever one of at most six places is exact.
+  const decimalCoefficients = [A, B, C].every((value) => !exact(value).includes('/'));
+  const discriminantDecimal = decimalCoefficients ? fixedExactly(discriminant, 6) : null;
+  const discriminantText = discriminantDecimal === null ? exact(discriminant) : signed(String(discriminantDecimal));
   const steps = [
     `At an intersection the parabola and the line have the same y: ${parabola} = ${line}.`,
     `Move every term to one side: ${expressionText([[A, 'x²'], [B, 'x']], C)} = 0.`,
-    `The discriminant is ${paren(B)}² ${MINUS} 4${paren(A)}${paren(C)} = ${exact(discriminant)}, which is ${points.length === 2 ? 'positive, so the line crosses the parabola twice' : points.length === 1 ? 'zero, so the line touches the parabola once' : 'negative, so the line never meets the parabola'}.`,
+    `The discriminant is ${paren(B)}² ${MINUS} 4${paren(A)}${paren(C)} = ${discriminantText}, which is ${points.length === 2 ? 'positive, so the line crosses the parabola twice' : points.length === 1 ? 'zero, so the line touches the parabola once' : 'negative, so the line never meets the parabola'}.`,
   ];
   const items = [{ label: 'Number of intersections', value: String(points.length) }];
   if (!points.length) {
@@ -716,10 +723,10 @@ const linearQuadraticReview = (question) => {
   const allExact = (points.length === 1 || rationalRoot)
     && points.every((point) => exactOrNull(point.x) !== null && exactOrNull(point.y) !== null);
   const formula = points.length === 1
-    ? `x = ${MINUS}${paren(B)} ÷ (2 × ${exact(A)}) = ${exact(points[0].x)}`
+    ? `x = ${MINUS}${paren(B)} ÷ (2 × ${bracketed(A)}) = ${exact(points[0].x)}`
     : rationalRoot
-      ? `x = (${exact(-B)} ± ${exact(root)}) ÷ ${exact(2 * A)}, so x = ${exact(points[0].x)} or x = ${exact(points[1].x)}`
-      : `x = (${exact(-B)} ± √${exact(discriminant)}) ÷ ${exact(2 * A)}, so x ≈ ${approx(points[0].x)} or x ≈ ${approx(points[1].x)}`;
+      ? `x = (${exact(-B)} ± ${exact(root)}) ÷ ${bracketed(2 * A)}, so x = ${exact(points[0].x)} or x = ${exact(points[1].x)}`
+      : `x = (${exact(-B)} ± √${discriminantText.includes('/') ? `(${discriminantText})` : discriminantText}) ÷ ${bracketed(2 * A)}, so x ≈ ${approx(points[0].x)} or x ≈ ${approx(points[1].x)}`;
   steps.push(`Solve with the quadratic formula: ${formula}.`);
   steps.push(`Find each y from the line y = ${line}: ${points.map((point) => (allExact ? `x = ${exact(point.x)} gives y = ${expressionText([[m, 'x']], k, { x: point.x })} = ${exact(point.y)}` : `x ≈ ${approx(point.x)} gives y ≈ ${approx(point.y)}`)).join('; ')}.`);
   const answers = points.map((point) => answerPoint([point.x, point.y], 0.1, { exactKnown: allExact }));
@@ -1181,7 +1188,7 @@ const algebraicTwoReview = (question) => {
     steps,
     why: isTrue
       ? `${labels[1]} is ${exact(ratio)} times ${labels[0]}, constant included, so every solution of one is a solution of the other.`
-      : `The variable terms of ${labels[1]} are ${exact(ratio)} times those of ${labels[0]}, but its constant ${exact(forms[1].constant)} is not ${exact(ratio)} × ${exact(forms[0].constant)}, so no pair can satisfy both.`,
+      : `The variable terms of ${labels[1]} are ${exact(ratio)} times those of ${labels[0]}, but its constant ${exact(forms[1].constant)} is not ${exact(ratio)} × ${bracketed(forms[0].constant)}, so no pair can satisfy both.`,
     note: null,
   };
 };
@@ -1294,7 +1301,7 @@ const planeExplanation = (forms, vars, { first, second }, truth) => {
   if (truth === 'line') return `Planes ${first} and ${second}: their coefficients ${coefficients(a)} and ${coefficients(b)} are not in one ratio, so the planes are not parallel — they ${relation}.`;
   const pivot = vars.find((name) => coefficientOf(a, name) !== 0);
   const ratio = clean(coefficientOf(b, pivot) / coefficientOf(a, pivot));
-  return `Planes ${first} and ${second}: every coefficient of plane ${second} is ${exact(ratio)} times plane ${first}'s, and its constant ${exact(b.constant)} ${truth === 'coincident' ? 'is' : 'is not'} ${exact(ratio)} × ${exact(a.constant)}, so they ${relation}.`;
+  return `Planes ${first} and ${second}: every coefficient of plane ${second} is ${exact(ratio)} times plane ${first}'s, and its constant ${exact(b.constant)} ${truth === 'coincident' ? 'is' : 'is not'} ${exact(ratio)} × ${bracketed(a.constant)}, so they ${relation}.`;
 };
 
 const algebraicThreeReview = (question) => {

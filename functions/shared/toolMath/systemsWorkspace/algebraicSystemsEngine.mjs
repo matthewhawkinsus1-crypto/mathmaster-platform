@@ -533,6 +533,12 @@ export const solveAlgebraicSystem = (coefficients) => {
       y: (eq1.a * eq2.c - eq1.c * eq2.a) / det,
     };
   }
+  // No variable left in either equation: each reads 0 = constant, so the system
+  // is consistent only when both constants are 0 (the minors below are all 0
+  // then, and would call 0 = 5 "infinitely many").
+  if ([eq1.a, eq1.b, eq2.a, eq2.b].every((value) => Math.abs(value) <= EPS)) {
+    return { type: Math.abs(eq1.c) <= EPS && Math.abs(eq2.c) <= EPS ? 'infinite' : 'none' };
+  }
   const consistent = Math.abs(eq1.a * eq2.c - eq1.c * eq2.a) <= EPS && Math.abs(eq1.b * eq2.c - eq1.c * eq2.b) <= EPS;
   return { type: consistent ? 'infinite' : 'none' };
 };

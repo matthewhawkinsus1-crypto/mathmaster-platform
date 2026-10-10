@@ -123,6 +123,12 @@ export const solve2x2System = (matrix = {}) => {
   if (Math.abs(det) > EPS) {
     return { type: 'one', determinant: det, x: (c * e - b * f) / det, y: (a * f - c * d) / det };
   }
+  // No variable in either row: each row reads 0 = constant, so the system is
+  // consistent only when both constants are 0 (the minors below are all 0 then,
+  // and would call 0 = 5 "infinitely many").
+  if ([a, b, d, e].every((value) => Math.abs(value) <= EPS)) {
+    return { type: Math.abs(c) <= EPS && Math.abs(f) <= EPS ? 'infinite' : 'none', determinant: det };
+  }
   const consistent1 = Math.abs(a * f - c * d) <= EPS;
   const consistent2 = Math.abs(b * f - c * e) <= EPS;
   return { type: consistent1 && consistent2 ? 'infinite' : 'none', determinant: det };
