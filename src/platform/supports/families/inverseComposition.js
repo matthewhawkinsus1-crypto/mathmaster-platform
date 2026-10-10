@@ -91,6 +91,7 @@ import {
   inverseLabInitialX,
   inverseLabInputLocked,
   inverseLabRequiredParts,
+  inverseLabRoundTrip,
 } from '../../../../functions/shared/toolMath/inverseComposition/inverseCompositionMath.mjs';
 import {
   deriveFunctionOperations,
@@ -742,7 +743,9 @@ const toolExpected = (model) => {
     const out = [];
     if (model.parts.includes('fog') && Number.isFinite(model.fog)) out.push(...numberForms(model.fog));
     if (model.parts.includes('gof') && Number.isFinite(model.gof)) out.push(...numberForms(model.gof));
-    if (model.parts.includes('inverse') && model.canInvert) out.push(...numberForms(model.x));
+    // f⁻¹(f(x)) is x on f's kept branch and the mirror 2h − x off it: the
+    // value the grader marks, kept with x so neither is ever hinted.
+    if (model.parts.includes('inverse') && model.canInvert) out.push(...numberForms(model.x), ...numberForms(inverseLabRoundTrip(model.f, model.x)));
     if (model.parts.includes('restriction')) out.push(...restrictionForms(model.restriction, model.f));
     return out;
   }

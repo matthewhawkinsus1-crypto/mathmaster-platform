@@ -508,3 +508,13 @@ test('defect: one sum, difference, product or composition gets a worked example,
     assert.match(example.steps[example.steps.length - 1], /^Check at x = /, operation);
   });
 });
+
+test('off a parabola\'s kept branch the guarded answers include the value the grader marks, 2h − x', async () => {
+  const { expectedValues } = await import('../../src/platform/supports/families/inverseComposition.js');
+  // f(x) = (x − 2)² kept on x ≥ 2 (declared on the question, where V5 puts it); x = 0:
+  // f(0) = 4 and f⁻¹(4) = 2 + √4 = 4.
+  const question = { type: 'inverseCompositionLab', mode: 'inverse', inverseBranch: 'right', f: { type: 'quadratic', a: 1, h: 2, k: 0 }, x: 0 };
+  const values = expectedValues(question).map(String);
+  assert.ok(values.includes('4'), `expected 4 among ${JSON.stringify(values)}`);
+  assert.ok(values.includes('0'), 'x itself stays guarded');
+});
