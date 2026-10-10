@@ -10,7 +10,7 @@
 // 68px at 390 and 24px at 344, and it ellipsed.
 //
 // In the real QuestionEngine with every tool the bar can carry
-// (tests/browser/workBarPrimaryLabelMain.jsx), at 344x882, 390x844 and
+// (tests/browser/workBarPrimaryLabelMain.jsx), at 320x640, 344x882, 390x844 and
 // 1366x768, for Submit, Next question and Continue to the next section:
 //   LABEL     the primary's scrollWidth <= clientWidth: nothing is cut off, and
 //             its visible words begin its accessible name ("Next →" is the
@@ -40,6 +40,9 @@ const check = (ok, label, detail = '') => {
 };
 
 const DEVICES = [
+  // The narrowest phone a student may have (review of #463): the tools narrow
+  // to 32px there and nothing scrolls sideways.
+  { id: 'phone-320', phone: true, minTool: 31.5, options: { viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
   { id: 'foldable-344', phone: true, options: { viewport: { width: 344, height: 882 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
   { id: 'phone-390', phone: true, options: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
   { id: 'chromebook-1366', phone: false, options: { viewport: { width: 1366, height: 768 } } },
@@ -126,8 +129,9 @@ for (const device of DEVICES) {
         check(facts.barScroll[0] <= facts.barScroll[1], `${scene}: the bar does not overflow sideways`, `${facts.barScroll[0]} <= ${facts.barScroll[1]}`);
         const short = facts.controls.filter((control) => control.height < 44);
         check(short.length === 0, `${scene}: every control is at least 44px tall`, short.map((control) => `${control.name} ${control.height}`).join(', '));
-        const narrow = tools.filter((tool) => tool.width < 35.5);
-        check(narrow.length === 0, `${scene}: every tool is at least 36px wide`, tools.map((tool) => `${tool.name} ${tool.width.toFixed(1)}`).join(', '));
+        const floor = device.minTool ?? 35.5;
+        const narrow = tools.filter((tool) => tool.width < floor);
+        check(narrow.length === 0, `${scene}: every tool is at least ${Math.round(floor)}px wide`, tools.map((tool) => `${tool.name} ${tool.width.toFixed(1)}`).join(', '));
       } else {
         check(!facts.portrait, `${scene}: the desktop bar is not the phone bar`);
         check(facts.text === state.name, `${scene}: the desktop shows the whole label`, `"${facts.text}"`);
