@@ -165,3 +165,41 @@ test('a clock up to a second ahead is still answered inside the bound; a device 
   // answer for the student's Retry rather than sending forever.
   assert.equal(playEarlyAnswer({ aheadMs: 10_000 }).outcome, 'gave up');
 });
+
+// THE STUDENT SCREEN (LiveChallengeStudent.jsx, ChallengeRound). Node cannot
+// render it, so its wiring to the rule is read from source.
+const screen = executableSource(await readFile(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8'));
+const round = region(screen, 'export function ChallengeRound(', 'export default function LiveChallengeStudent', 'ChallengeRound');
+
+test('the screen keeps an answer refused before GO, says so, and resends the same envelope at GO', () => {
+  // Both ways an answer is sent read a refusal through the rule, and send a
+  // refusal before GO to holdForGo, not to the closed-round path.
+  const submit = region(round, 'const submit = async', 'const retryPending', 'submit');
+  const retry = region(round, 'const retryPending = async () => {', 'useEffect(', 'retry');
+  for (const [label, path] of [['submit', submit], ['retry', retry]]) {
+    assert.match(path, /const outcome = classifyAnswerRefusal\(error\);/, label);
+    assert.match(path, /else if \(outcome === REFUSAL_OUTCOME\.RETRY_AT_GO\) holdForGo\(\);/, label);
+  }
+  // Only a closed round drops the envelope and says the round has closed.
+  const closed = region(retry, 'else if (outcome === REFUSAL_OUTCOME.CLOSED) {', '}', 'the closed branch');
+  assert.match(closed, /window\.localStorage\.removeItem\(pendingKey\);/);
+  assert.equal(retry.match(/That round has closed/g)?.length, 1, 'one closed message, in the closed branch');
+  assert.match(closed, /That round has closed/);
+  assert.doesNotMatch(submit, /removeItem\(pendingKey\)|setPending\(null\)/, 'the first send never drops the envelope');
+  // holdForGo keeps the envelope and schedules the retry by the rule, from
+  // the round's own GO and this student's own deadline.
+  const hold = region(round, 'const holdForGo = () => {', '\n  };', 'holdForGo');
+  assert.doesNotMatch(hold, /removeItem\(pendingKey\)|setPending\(|pendingRef\.current =/, 'waiting for GO keeps the envelope');
+  assert.match(hold, /resendAtGoDelayMs\(\{\s*serverNowMs: startsAtMs \+ \(performance\.now\(\) - roundOriginMonoRef\.current\),\s*startsAtMs,\s*endsAtMs,\s*resendsSoFar: resendsAtGoRef\.current,\s*\}\)/);
+  assert.match(hold, /resendsAtGoRef\.current \+= 1;/);
+  assert.match(hold, /resendTimerRef\.current = window\.setTimeout\(\(\) => latestRetryRef\.current\?\.\(\), delayMs\);/);
+  assert.match(hold, /if \(delayMs === null\) \{[^}]*setSubmitError\('[^']*Retry locked answer[^']*'\);/, 'out of tries, it asks for a tap on Retry');
+  // The timer resends the same envelope: the retry sends `pending` itself.
+  assert.match(round, /latestRetryRef\.current = retryPending;/);
+  assert.match(retry, /await submitResponse\(pending\)/);
+  // The student is told plainly while it waits, and the timer dies with the round.
+  assert.match(round, /\{waitingForGo \? 'Your answer is locked in and will send at GO\.' : 'Answer locked in · checking it…'\}/);
+  assert.match(retry, /setWaitingForGo\(false\);/);
+  assert.match(round, /useEffect\(\(\) => \(\) => window\.clearTimeout\(resendTimerRef\.current\), \[\]\);/);
+  assert.match(screen, /import \{ REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs \} from '\.\.\/\.\.\/platform\/liveChallenge\/challengeAnswerRefusal\.js';/);
+});
