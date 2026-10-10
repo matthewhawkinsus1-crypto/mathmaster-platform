@@ -18287,17 +18287,19 @@ exports.getStudentTestCycle = onCall(async (request) => {
   );
 
   let corrections = null;
-  if (state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open) {
+  const inCorrections = state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open;
+  if (inCorrections) {
     const planSnapshot = await db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(record.recordId).get();
     const plan = planSnapshot.exists ? planSnapshot.data()?.plan : null;
     corrections = plan ? studentVisibleCorrectionPlan(plan) : null;
   }
-  // Whether the Test review, when it is offered, would hold its answers and
-  // worked solutions (courseAnswersRelease), so the card says what it opens.
+  // Whether the Test review offered beside Corrections would hold its answers
+  // and worked solutions (courseAnswersRelease), so Corrections says what it
+  // opens. Asked only there, where it is shown: it reads the cycle's records.
   const testReviewOffered = record.test.state === shared.record.SESSION_STATE.RELEASED
     && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" });
   let testAnswersHeld = null;
-  if (testReviewOffered) {
+  if (testReviewOffered && inCorrections) {
     try {
       testAnswersHeld = !(await courseAnswersRelease(db, shared, assignmentId, "test", { assignment, cacheRoster: true })).released;
     } catch {
