@@ -114,8 +114,8 @@ const holdsTeacherOnlyField = (entry) => INTEGRITY_OVERRIDE_TEACHER_ONLY_FIELDS.
  *   `__sectionIntegrity_<role>` a section's restore state: { active,
  *                               incidentId, sectionRole,
  *                               previousOverridesByQuestion }. The priors it
- *                               holds are integrity state too: a restore puts
- *                               them back, so they are cleaned with it.
+ *                               holds are the corrections a lift puts back,
+ *                               verbatim: left untouched and reported.
  *   `<questionIndex>`           the section-zero copy, source
  *                               'teacher-section-zero'.
  *
@@ -281,15 +281,12 @@ export const planIntegrityOverrideNoteMigration = ({
 
   // Strip one entry; returns the next entry, or the SAME object when it must
   // stay as it is.
-  // `fallbackIncidentId`: a prior override kept in a section's restore state
-  // belongs with that section's incident; it is not itself linked to it.
-  const migrateEntry = ({ assignmentId, key, entry, fallbackIncidentId = null }) => {
+  const migrateEntry = ({ assignmentId, key, entry }) => {
     if (!holdsTeacherOnlyField(entry)) return entry;
     const details = teacherOnlyDetailsOf(entry);
     let incidentId = text(entry.incidentId) || null;
     if (hasDetails(details)) {
-      const placed = !incidentId && fallbackIncidentId ? { ...entry, incidentId: fallbackIncidentId } : entry;
-      incidentId = placeDetails({ assignmentId, key, entry: placed, details });
+      incidentId = placeDetails({ assignmentId, key, entry, details });
       if (!incidentId) {
         unresolved.push({ assignmentId, key, reason: 'no-incident-and-no-teacher-email' });
         return entry;
@@ -297,7 +294,7 @@ export const planIntegrityOverrideNoteMigration = ({
     }
     strippedEntries += 1;
     const next = studentReadableOverrideEntry(entry);
-    if (incidentId && !text(entry.incidentId) && !fallbackIncidentId) next.incidentId = incidentId;
+    if (incidentId && !text(entry.incidentId)) next.incidentId = incidentId;
     return next;
   };
 
@@ -315,22 +312,17 @@ export const planIntegrityOverrideNoteMigration = ({
         nextOverrides[key] = entry;
         return;
       }
-      let next = migrateEntry({ assignmentId, key, entry });
-      // The section restore state carries the prior per-question overrides it
-      // puts back; those are cleaned the same way, so a restore can never
-      // bring a note back onto the grade doc.
-      if (key.startsWith(SECTION_INTEGRITY_KEY_PREFIX) && isObject(next?.previousOverridesByQuestion)) {
-        const priors = next.previousOverridesByQuestion;
-        const nextPriors = {};
-        let priorsChanged = false;
-        Object.keys(priors).forEach((index) => {
-          const migrated = migrateEntry({
-            assignmentId, key: `${key}.${index}`, entry: priors[index], fallbackIncidentId: text(next.incidentId) || null,
-          });
-          if (migrated !== priors[index]) priorsChanged = true;
-          nextPriors[index] = migrated;
+      const next = migrateEntry({ assignmentId, key, entry });
+      // The section restore state carries the per-question overrides that
+      // were there before the zero, verbatim, so lifting the zero puts each
+      // back exactly — a teacher's correction with its own note and actor.
+      // They are not integrity details: they are left untouched (never moved
+      // into the incident, never filling its note) and reported like any
+      // other correction (review M4 follow-up).
+      if (key.startsWith(SECTION_INTEGRITY_KEY_PREFIX) && isObject(entry?.previousOverridesByQuestion)) {
+        Object.entries(entry.previousOverridesByQuestion).forEach(([index, prior]) => {
+          if (holdsTeacherOnlyField(prior)) unresolved.push({ assignmentId, key: `${key}.${index}`, reason: 'saved-previous-override' });
         });
-        if (priorsChanged) next = { ...next, previousOverridesByQuestion: nextPriors };
       }
       if (next !== entry) changed = true;
       nextOverrides[key] = next;
@@ -386,9 +378,6 @@ export const linkedIncidentIds = (gradeData = {}) => {
       Object.entries(overrides).forEach(([key, entry]) => {
         if (!isIntegrityOverrideEntry(key, entry)) return;
         visit(entry);
-        if (key.startsWith(SECTION_INTEGRITY_KEY_PREFIX) && isObject(entry?.previousOverridesByQuestion)) {
-          Object.values(entry.previousOverridesByQuestion).forEach(visit);
-        }
       });
     });
   return [...ids].sort();

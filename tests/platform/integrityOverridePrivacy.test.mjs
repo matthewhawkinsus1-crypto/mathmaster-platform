@@ -147,8 +147,8 @@ test('migration strips an old assignment zero, adds only what the incident lacks
   assert.deepEqual(again.incidentWrites, []);
 });
 
-test('migration of a section zero writes one incident fill and cleans the restore state too', () => {
-  const prior = { active: true, score: 50, source: 'teacher-override', note: 'stale note', updatedAt: NOW };
+test('migration of a section zero writes one incident fill; the corrections a lift puts back stay exactly as they were', () => {
+  const prior = { active: true, score: 50, source: 'teacher-override', note: 'CORRECTION NOTE', actor: { uid: 'uid-teacher', email: 'teacher@example.test' }, updatedAt: NOW };
   const gradeData = {
     teacherGradeOverridesByAssignment: {
       A1: {
@@ -161,17 +161,21 @@ test('migration of a section zero writes one incident fill and cleans the restor
   const incidents = { 'inc-s': { kind: 'academicIntegrityIncident', note: '', evidence: { scope: 'section' } } };
   const plan = planIntegrityOverrideNoteMigration({ studentId: 'S1', gradeData, incidentsById: incidents, nowIso: NOW });
   const next = plan.assignments[0].nextOverrides;
-  assert.deepEqual(teacherOnlyKeysIn(next), [], 'neither the entries nor the restore state hold a note');
+  assert.deepEqual(teacherOnlyKeysIn({ 0: next[0], 1: next[1] }), [], 'the section-zero copies hold no note');
   assert.equal(next[0].score, 0);
   assert.equal(next[0].persistent, true);
-  assert.equal(next.__sectionIntegrity_classwork.previousOverridesByQuestion[0].score, 50, 'the restore score is kept');
+  // Review M4 follow-up: the saved correction is put back verbatim by a lift,
+  // note and actor included, so the migration leaves it untouched...
+  assert.deepEqual(next.__sectionIntegrity_classwork.previousOverridesByQuestion, { 0: prior, 1: null });
+  assert.ok(plan.unresolved.some((entry) => entry.key === '__sectionIntegrity_classwork.0' && entry.reason === 'saved-previous-override'));
+  // ...and never fills the incident's note, nor lands there as a grade copy.
   assert.equal(plan.incidentWrites.length, 1, 'two entries of one incident make one write');
   const fill = plan.incidentWrites[0].data;
   assert.equal(fill.note, NOTE);
+  assert.notEqual(fill.note, 'CORRECTION NOTE');
   assert.equal(fill.evidence.participantRole, 'individual');
-  // The prior override's own note had nowhere better to go than this
-  // incident; it differs, so it is kept as a grade copy, not dropped.
-  assert.deepEqual(Object.keys(fill.integrityOverrideMigration.gradeCopies), ['A1:__sectionIntegrity_classwork.0']);
+  assert.deepEqual(Object.keys(fill.integrityOverrideMigration?.gradeCopies || {}), []);
+  assert.equal(JSON.stringify(plan.incidentWrites).includes('CORRECTION NOTE'), false);
   assertPlanKeepsGrades(gradeData, plan);
 });
 
