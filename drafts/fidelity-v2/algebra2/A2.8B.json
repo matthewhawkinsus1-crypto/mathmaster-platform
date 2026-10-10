@@ -23,7 +23,7 @@
       "dok": 2,
       "taskType": "procedural",
       "mode": "linearFit",
-      "prompt": "Use linear regression technology on all five observations to write the line of best fit $y=mx+b$. Enter the regression slope and intercept reported by the technology.",
+      "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, to write the line of best fit $y=mx+b$. Enter the regression slope and intercept reported by the technology.",
       "points": [
         [
           -2,
@@ -107,7 +107,7 @@
           "difficultyBand": 2,
           "taskType": "procedural",
           "representation": "table",
-          "prompt": "Use linear regression technology on all five observations to write the line of best fit $y=mx+b$. The coefficients and noise are intentionally small; enter the fitted slope and intercept reported by the technology.",
+          "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, to write the line of best fit $y=mx+b$. The coefficients and noise are intentionally small; enter the fitted slope and intercept reported by the technology.",
           "generator": {
             "parameters": {
               "m": {
@@ -163,7 +163,7 @@
       "dok": 2,
       "taskType": "procedural",
       "mode": "quadraticFit",
-      "prompt": "Use quadratic regression technology on the complete five-row data set to write $y=ax^2+bx+c$. Enter all three fitted coefficients.",
+      "prompt": "Use quadratic regression technology on the complete five-row data set, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, to write $y=ax^2+bx+c$. Enter all three fitted coefficients.",
       "points": [
         [
           -2,
@@ -261,7 +261,7 @@
       "dok": 2,
       "taskType": "procedural",
       "mode": "exponentialFit",
-      "prompt": "Use exponential regression technology on all five positive observations to write the fitted function $y=a(b)^x$. Enter the fitted initial factor a and base b.",
+      "prompt": "{{scenario}} Use exponential regression technology on all five positive observations to write the fitted function $y=a(b)^x$. Enter the fitted initial factor a and base b.",
       "points": [
         [
           -2,
@@ -326,6 +326,27 @@
               1.1,
               1.2
             ]
+          },
+          "scenario": {
+            "type": "choice",
+            "values": [
+              "The table tracks the area, in square meters, covered by an algae bloom; x is days from the reference survey at x=0.",
+              "The table tracks a bacteria culture, in thousands of cells; x is hours from the reference count at x=0.",
+              "The table tracks the mass, in grams, of a yeast culture; x is hours from the reference weighing at x=0.",
+              "The table tracks downloads of a new app, in thousands; x is weeks from the reference week at x=0.",
+              "The table tracks views of a viral video, in thousands; x is days from the reference day at x=0.",
+              "The table tracks the area, in square kilometers, covered by an invasive vine; x is years from the reference survey at x=0.",
+              "The table tracks followers of a new social media account, in thousands; x is months from the reference month at x=0.",
+              "The table tracks a fruit fly population in a lab jar, in hundreds of flies; x is weeks from the reference count at x=0.",
+              "The table tracks the area, in square centimeters, of a mold colony on bread; x is days from the reference photo at x=0.",
+              "The table tracks the area, in square meters, of duckweed covering a pond; x is days from the reference survey at x=0.",
+              "The table tracks shares of a popular post, in thousands; x is hours from the reference check at x=0.",
+              "The table tracks new flu cases per week in the early weeks of an outbreak, in hundreds; x is weeks from the reference week at x=0.",
+              "The table tracks a rabbit population on an island, in hundreds of rabbits; x is years from the reference census at x=0.",
+              "The table tracks subscribers to a new streaming channel, in thousands; x is months from the reference month at x=0.",
+              "The table tracks daily rides on a new scooter-share service, in hundreds; x is months from the reference month at x=0.",
+              "The table tracks the area, in square meters, covered by a floating water hyacinth mat on a lake; x is weeks from the reference survey at x=0."
+            ]
           }
         },
         "derived": {
@@ -356,7 +377,7 @@
       "dok": 2,
       "taskType": "application",
       "mode": "exponentialFit",
-      "prompt": "A quantity is decaying but the measurements are not perfectly exponential. Use exponential regression technology on all five observations to write the fitted function $y=a(b)^x$. Enter a and b.",
+      "prompt": "{{scenario}} The quantity is decaying, but the measurements are not perfectly exponential. Use exponential regression technology on all five observations to write the fitted function $y=a(b)^x$. Enter a and b.",
       "points": [
         [
           -2,
@@ -421,6 +442,27 @@
             "values": [
               1.1,
               1.2
+            ]
+          },
+          "scenario": {
+            "type": "choice",
+            "values": [
+              "The table records the mass, in milligrams, of a radioactive sample; x is days from the reference measurement at x=0.",
+              "The table records the amount, in milligrams, of a medication in a patient's bloodstream after a single dose given before the first reading; x counts 4-hour periods from the reference reading at x=0.",
+              "The table records the concentration, in parts per billion, of a pollutant in a pond being treated; x is weeks from the reference test at x=0.",
+              "The table records the number of bacteria on a surface, in thousands, after a disinfectant was applied before the first swab; x is minutes from the reference swab at x=0.",
+              "The table records light intensity, in hundreds of lux, in a murky lake; x is meters below the reference depth of 3 m, so x=-2 is 1 m below the surface.",
+              "The table records the charge, in microcoulombs, on a discharging capacitor; x is milliseconds from the reference reading at x=0.",
+              "The table records monthly active players of an older video game, in thousands; x is months from the reference month at x=0.",
+              "The table records the amount of chlorine, in grams, in a backyard pool; x is days from the reference test at x=0.",
+              "The table records the sound intensity of a fading bell, in microwatts per square meter; x is seconds from the reference reading at x=0.",
+              "The table records the concentration, in milligrams per liter, of dye in a tank being flushed with clean water; x is minutes from the reference sample at x=0.",
+              "The table records the carbon monoxide level, in parts per million, in a garage being ventilated; x is minutes from the reference reading at x=0.",
+              "The table records weekly sales of a discontinued phone model, in hundreds; x is weeks from the reference week at x=0.",
+              "The table records a declining fish stock in a lake, in thousands of fish; x is years from the reference survey at x=0.",
+              "The table records the amount of a pesticide residue, in grams per hectare, remaining on a field; x is weeks from the reference test at x=0.",
+              "The table records the concentration, in micrograms per liter, of an antibiotic in a fish tank; x is days from the reference test at x=0.",
+              "The table records the amount, in milligrams, of caffeine in a test sample being broken down by enzymes; x is hours from the reference measurement at x=0."
             ]
           }
         },

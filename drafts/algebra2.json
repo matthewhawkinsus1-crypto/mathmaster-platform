@@ -4831,7 +4831,7 @@
       "type": "systemsWorkspace",
       "mode": "matrix3",
       "requireTechnology": true,
-      "prompt": "Use matrix technology to compute the RREF of this 3×3 augmented matrix. Then interpret the RREF, classify the system, and report $x,y,z$.",
+      "prompt": "Use matrix technology to compute the RREF of this 3×3 augmented matrix, which represents the system $x+y+z={{c1}}$, $2x-y+z={{c2}}$, $x+2y-z={{c3}}$. Then interpret the RREF, classify the system, and report $x,y,z$.",
       "matrix": {
         "rows": [
           [
@@ -11602,7 +11602,7 @@
       "taskType": "procedural",
       "type": "dataModelingLab",
       "mode": "quadraticFitPrediction",
-      "prompt": "Use quadratic regression technology on the full five-row table to formulate the model $y=ax^2+bx+c$. Enter all three regression coefficients, then use that fitted model to predict y when $x=3$.",
+      "prompt": "The table gives the observations $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$ and $(2,{{y2}})$. Use quadratic regression technology on the full five-row table to formulate the model $y=ax^2+bx+c$. Enter all three regression coefficients, then use that fitted model to predict y when $x={{xp}}$.",
       "points": [
         [
           -2,
@@ -11625,7 +11625,7 @@
           "{{y2}}"
         ]
       ],
-      "predictionX": 3,
+      "predictionX": "{{xp}}",
       "quadraticATolerance": 0.015,
       "quadraticBTolerance": 0.03,
       "quadraticCTolerance": 0.05,
@@ -11639,7 +11639,7 @@
         "reasoning": [
           "Running quadratic regression on all five rows returns the coefficients a={{a}}, b={{b}}, and c={{c}}.",
           "The fitted model is $y={{a}}x^2+({{b}})x+({{c}})$.",
-          "Evaluating the fitted model at x=3 gives {{pred}}."
+          "Evaluating the fitted model at x={{xp}} gives {{pred}}."
         ],
         "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; prediction {{pred}}."
       },
@@ -11668,6 +11668,13 @@
             "type": "int",
             "min": -8,
             "max": 8
+          },
+          "xp": {
+            "type": "choice",
+            "values": [
+              3,
+              -3
+            ]
           }
         },
         "derived": {
@@ -11676,7 +11683,7 @@
           "y0": "c",
           "y1": "a+b+c",
           "y2": "4*a+2*b+c",
-          "pred": "9*a+3*b+c"
+          "pred": "a*xp^2+b*xp+c"
         }
       },
       "variants": [
@@ -11691,7 +11698,7 @@
           "difficultyBand": 2,
           "taskType": "procedural",
           "representation": "table",
-          "prompt": "Use quadratic regression technology on all five symmetric observations to formulate $y=ax^2+c$ (the fitted x-term is 0). Enter a, b, and c from technology, then predict y at x=3.",
+          "prompt": "The table gives the observations $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$ and $(2,{{y2}})$. Use quadratic regression technology on all five symmetric observations to formulate $y=ax^2+c$ (the fitted x-term is 0). Enter a, b, and c from technology, then predict y at $x={{xp}}$.",
           "context": {
             "title": "Accessible quadratic regression",
             "note": "The table is symmetric about x=0, but you must still use the regression tool and enter all three reported coefficients."
@@ -11711,6 +11718,13 @@
                 "type": "int",
                 "min": -5,
                 "max": 5
+              },
+              "xp": {
+                "type": "choice",
+                "values": [
+                  3,
+                  -3
+                ]
               }
             },
             "derived": {
@@ -11745,7 +11759,7 @@
       "taskType": "modeling",
       "type": "dataModelingLab",
       "mode": "quadraticFitPrediction",
-      "prompt": "A lab records five measurements of a curved response. Use quadratic regression technology to formulate the model $y=ax^2+bx+c$ from the complete table, then interpolate the response at $x=1$.",
+      "prompt": "A lab records five measurements of a curved response: $(-3,{{ym3}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(2,{{y2}})$ and $(4,{{y4}})$. Use quadratic regression technology to formulate the model $y=ax^2+bx+c$ from the complete table, then interpolate the response at $x={{xp}}$.",
       "points": [
         [
           -3,
@@ -11768,29 +11782,29 @@
           "{{y4}}"
         ]
       ],
-      "predictionX": 1,
+      "predictionX": "{{xp}}",
       "quadraticATolerance": 0.015,
       "quadraticBTolerance": 0.03,
       "quadraticCTolerance": 0.05,
       "predictionTolerance": 0.08,
       "context": {
         "title": "Five-measurement response model",
-        "note": "The requested x=1 lies inside the observed x-range but is not one of the measured rows."
+        "note": "The requested x={{xp}} lies inside the observed x-range but is not one of the measured rows."
       },
       "solutionReview": {
         "headline": "Technology formulates the model; interpolation uses that fitted equation inside the observed range.",
         "reasoning": [
           "Quadratic regression on all five measurements returns a={{a}}, b={{b}}, c={{c}}.",
           "The model is $y={{a}}x^2+({{b}})x+({{c}})$.",
-          "At x=1 the model predicts {{pred}}, an interpolation because 1 lies inside the measured x-range."
+          "At x={{xp}} the model predicts {{pred}}, an interpolation because {{xp}} lies inside the measured x-range."
         ],
-        "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; $y(1)={{pred}}$."
+        "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; $y({{xp}})={{pred}}$."
       },
       "attemptFeedback": [
-        "Do not label the prediction as extrapolation; x=1 is between observed inputs."
+        "Do not label the prediction as extrapolation; x={{xp}} is between observed inputs."
       ],
       "supportHints": [
-        "Run regression first, then evaluate the fitted model at the fixed target x=1."
+        "Run regression first, then evaluate the fitted model at the fixed target x={{xp}}."
       ],
       "generator": {
         "parameters": {
@@ -11811,6 +11825,14 @@
             "type": "int",
             "min": -7,
             "max": 7
+          },
+          "xp": {
+            "type": "choice",
+            "values": [
+              -2,
+              1,
+              3
+            ]
           }
         },
         "derived": {
@@ -11819,7 +11841,7 @@
           "y0": "c",
           "y2": "4*a+2*b+c",
           "y4": "16*a+4*b+c",
-          "pred": "a+b+c"
+          "pred": "a*xp^2+b*xp+c"
         }
       }
     },
@@ -11998,7 +12020,7 @@
       "taskType": "modeling",
       "type": "dataModelingLab",
       "mode": "squareRootFitPrediction",
-      "prompt": "A sensor response follows a square-root pattern. Use the regression technology on all five observations to formulate $y=a\\sqrt{x-h}+k$, then interpolate the response at $x={{x625}}$.",
+      "prompt": "A sensor response follows a square-root pattern. Use the regression technology on all five observations to formulate $y=a\\sqrt{x-h}+k$, then interpolate the response at $x={{xt}}$.",
       "points": [
         [
           "{{h}}",
@@ -12021,7 +12043,7 @@
           "{{y16}}"
         ]
       ],
-      "predictionX": "{{x625}}",
+      "predictionX": "{{xt}}",
       "squareRootATolerance": 0.02,
       "squareRootHTolerance": 0.02,
       "squareRootKTolerance": 0.03,
@@ -12034,7 +12056,7 @@
         "headline": "The fitted square-root equation supports interpolation inside the table's input range.",
         "reasoning": [
           "Technology identifies h={{h}}, k={{k}}, and fits a={{a}} from the full table.",
-          "At x={{x625}}, the radicand is 6.25 and its square root is 2.5.",
+          "At x={{xt}}, the radicand is {{rad}} and its square root is {{s}}.",
           "The fitted model predicts {{pred}}; the target is inside the observed range."
         ],
         "answerSummary": "$y={{a}}\\sqrt{x-({{h}})}+({{k}})$; interpolation {{pred}}."
@@ -12063,6 +12085,14 @@
             "type": "int",
             "min": -5,
             "max": 5
+          },
+          "s": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5
+            ]
           }
         },
         "derived": {
@@ -12070,12 +12100,13 @@
           "x4": "h+4",
           "x9": "h+9",
           "x16": "h+16",
-          "x625": "h+6.25",
+          "rad": "s*s",
+          "xt": "h+rad",
           "y1": "a+k",
           "y4": "2*a+k",
           "y9": "3*a+k",
           "y16": "4*a+k",
-          "pred": "2.5*a+k"
+          "pred": "a*s+k"
         }
       }
     },
@@ -15799,7 +15830,14 @@
           "id": "model",
           "label": "Logarithmic model",
           "inputProfile": "equation",
-          "expected": "L=10log_10(I/{{ref}})"
+          "expected": "L=10log_10(I/{{ref}})",
+          "accepted": [
+            "L=10log_{10}(I/{{ref}})",
+            "L=10\\log_{10}(I/{{ref}})",
+            "L=10log10(I/{{ref}})",
+            "L=10log(I/{{ref}})",
+            "L=10\\log(I/{{ref}})"
+          ]
         },
         {
           "id": "domain",
@@ -15844,8 +15882,20 @@
             "values": [
               1,
               2,
+              3,
+              4,
               5,
-              10
+              6,
+              8,
+              10,
+              12,
+              15,
+              20,
+              25,
+              30,
+              40,
+              50,
+              100
             ]
           }
         }
@@ -34181,7 +34231,7 @@
       "dok": 2,
       "taskType": "procedural",
       "mode": "linearFit",
-      "prompt": "Use linear regression technology on all five observations to write the line of best fit $y=mx+b$. Enter the regression slope and intercept reported by the technology.",
+      "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, to write the line of best fit $y=mx+b$. Enter the regression slope and intercept reported by the technology.",
       "points": [
         [
           -2,
@@ -34265,7 +34315,7 @@
           "difficultyBand": 2,
           "taskType": "procedural",
           "representation": "table",
-          "prompt": "Use linear regression technology on all five observations to write the line of best fit $y=mx+b$. The coefficients and noise are intentionally small; enter the fitted slope and intercept reported by the technology.",
+          "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, to write the line of best fit $y=mx+b$. The coefficients and noise are intentionally small; enter the fitted slope and intercept reported by the technology.",
           "generator": {
             "parameters": {
               "m": {
@@ -34321,7 +34371,7 @@
       "dok": 2,
       "taskType": "procedural",
       "mode": "quadraticFit",
-      "prompt": "Use quadratic regression technology on the complete five-row data set to write $y=ax^2+bx+c$. Enter all three fitted coefficients.",
+      "prompt": "Use quadratic regression technology on the complete five-row data set, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, to write $y=ax^2+bx+c$. Enter all three fitted coefficients.",
       "points": [
         [
           -2,
@@ -34419,7 +34469,7 @@
       "dok": 2,
       "taskType": "procedural",
       "mode": "exponentialFit",
-      "prompt": "Use exponential regression technology on all five positive observations to write the fitted function $y=a(b)^x$. Enter the fitted initial factor a and base b.",
+      "prompt": "{{scenario}} Use exponential regression technology on all five positive observations to write the fitted function $y=a(b)^x$. Enter the fitted initial factor a and base b.",
       "points": [
         [
           -2,
@@ -34484,6 +34534,27 @@
               1.1,
               1.2
             ]
+          },
+          "scenario": {
+            "type": "choice",
+            "values": [
+              "The table tracks the area, in square meters, covered by an algae bloom; x is days from the reference survey at x=0.",
+              "The table tracks a bacteria culture, in thousands of cells; x is hours from the reference count at x=0.",
+              "The table tracks the mass, in grams, of a yeast culture; x is hours from the reference weighing at x=0.",
+              "The table tracks downloads of a new app, in thousands; x is weeks from the reference week at x=0.",
+              "The table tracks views of a viral video, in thousands; x is days from the reference day at x=0.",
+              "The table tracks the area, in square kilometers, covered by an invasive vine; x is years from the reference survey at x=0.",
+              "The table tracks followers of a new social media account, in thousands; x is months from the reference month at x=0.",
+              "The table tracks a fruit fly population in a lab jar, in hundreds of flies; x is weeks from the reference count at x=0.",
+              "The table tracks the area, in square centimeters, of a mold colony on bread; x is days from the reference photo at x=0.",
+              "The table tracks the area, in square meters, of duckweed covering a pond; x is days from the reference survey at x=0.",
+              "The table tracks shares of a popular post, in thousands; x is hours from the reference check at x=0.",
+              "The table tracks new flu cases per week in the early weeks of an outbreak, in hundreds; x is weeks from the reference week at x=0.",
+              "The table tracks a rabbit population on an island, in hundreds of rabbits; x is years from the reference census at x=0.",
+              "The table tracks subscribers to a new streaming channel, in thousands; x is months from the reference month at x=0.",
+              "The table tracks daily rides on a new scooter-share service, in hundreds; x is months from the reference month at x=0.",
+              "The table tracks the area, in square meters, covered by a floating water hyacinth mat on a lake; x is weeks from the reference survey at x=0."
+            ]
           }
         },
         "derived": {
@@ -34514,7 +34585,7 @@
       "dok": 2,
       "taskType": "application",
       "mode": "exponentialFit",
-      "prompt": "A quantity is decaying but the measurements are not perfectly exponential. Use exponential regression technology on all five observations to write the fitted function $y=a(b)^x$. Enter a and b.",
+      "prompt": "{{scenario}} The quantity is decaying, but the measurements are not perfectly exponential. Use exponential regression technology on all five observations to write the fitted function $y=a(b)^x$. Enter a and b.",
       "points": [
         [
           -2,
@@ -34579,6 +34650,27 @@
             "values": [
               1.1,
               1.2
+            ]
+          },
+          "scenario": {
+            "type": "choice",
+            "values": [
+              "The table records the mass, in milligrams, of a radioactive sample; x is days from the reference measurement at x=0.",
+              "The table records the amount, in milligrams, of a medication in a patient's bloodstream after a single dose given before the first reading; x counts 4-hour periods from the reference reading at x=0.",
+              "The table records the concentration, in parts per billion, of a pollutant in a pond being treated; x is weeks from the reference test at x=0.",
+              "The table records the number of bacteria on a surface, in thousands, after a disinfectant was applied before the first swab; x is minutes from the reference swab at x=0.",
+              "The table records light intensity, in hundreds of lux, in a murky lake; x is meters below the reference depth of 3 m, so x=-2 is 1 m below the surface.",
+              "The table records the charge, in microcoulombs, on a discharging capacitor; x is milliseconds from the reference reading at x=0.",
+              "The table records monthly active players of an older video game, in thousands; x is months from the reference month at x=0.",
+              "The table records the amount of chlorine, in grams, in a backyard pool; x is days from the reference test at x=0.",
+              "The table records the sound intensity of a fading bell, in microwatts per square meter; x is seconds from the reference reading at x=0.",
+              "The table records the concentration, in milligrams per liter, of dye in a tank being flushed with clean water; x is minutes from the reference sample at x=0.",
+              "The table records the carbon monoxide level, in parts per million, in a garage being ventilated; x is minutes from the reference reading at x=0.",
+              "The table records weekly sales of a discontinued phone model, in hundreds; x is weeks from the reference week at x=0.",
+              "The table records a declining fish stock in a lake, in thousands of fish; x is years from the reference survey at x=0.",
+              "The table records the amount of a pesticide residue, in grams per hectare, remaining on a field; x is weeks from the reference test at x=0.",
+              "The table records the concentration, in micrograms per liter, of an antibiotic in a fish tank; x is days from the reference test at x=0.",
+              "The table records the amount, in milligrams, of caffeine in a test sample being broken down by enzymes; x is hours from the reference measurement at x=0."
             ]
           }
         },
@@ -34801,10 +34893,10 @@
           "slopeTolerance": 0.02,
           "interceptTolerance": 0.03,
           "predictionTolerance": 0.08,
-          "prompt": "Use linear regression technology on all five observations, then predict y when x=4. Enter the fitted m and b as supporting work and the model prediction at x=4.",
+          "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, then predict y when x=4. Enter the fitted m and b as supporting work and the model prediction at x=4.",
           "context": {
             "title": "Linear prediction from noisy data",
-            "note": "x=4 lies beyond the observed range -2 through 2, so the prediction is an extrapolation."
+            "note": "Fit the complete data set first, then compare x=4 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
             "headline": "Fit first, then use the fitted linear model at the requested input.",
@@ -34877,10 +34969,10 @@
           "quadraticBTolerance": 0.03,
           "quadraticCTolerance": 0.04,
           "predictionTolerance": 0.08,
-          "prompt": "Use quadratic regression technology on all five observations, then predict y when x=0.5. Enter a, b, and c as supporting work and the model prediction.",
+          "prompt": "Use quadratic regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, then predict y when x=0.5. Enter a, b, and c as supporting work and the model prediction.",
           "context": {
-            "title": "Quadratic interpolation",
-            "note": "x=0.5 lies inside the observed x-range -2 through 2."
+            "title": "Quadratic prediction from noisy data",
+            "note": "Fit the complete data set first, then compare x=0.5 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
             "headline": "A fitted quadratic can interpolate between observed inputs.",
@@ -34957,7 +35049,7 @@
           "exponentialATolerance": 0.03,
           "exponentialBaseTolerance": 0.015,
           "predictionTolerance": 0.12,
-          "prompt": "Use exponential regression technology on all five positive observations, then predict y when x=3. Enter the fitted a and base as supporting work and the prediction.",
+          "prompt": "{{scenario}} Use exponential regression technology on all five positive observations, then predict y when x=3. Enter the fitted a and base as supporting work and the prediction.",
           "context": {
             "title": "Exponential prediction",
             "note": "The data contain multiplicative noise; use the full exponential regression before predicting."
@@ -34993,6 +35085,27 @@
                   1.1,
                   1.2
                 ]
+              },
+              "scenario": {
+                "type": "choice",
+                "values": [
+                  "The table tracks the area, in square meters, covered by an algae bloom; x is days from the reference survey at x=0.",
+                  "The table tracks a bacteria culture, in thousands of cells; x is hours from the reference count at x=0.",
+                  "The table tracks the mass, in grams, of a yeast culture; x is hours from the reference weighing at x=0.",
+                  "The table tracks downloads of a new app, in thousands; x is weeks from the reference week at x=0.",
+                  "The table tracks views of a viral video, in thousands; x is days from the reference day at x=0.",
+                  "The table tracks the area, in square kilometers, covered by an invasive vine; x is years from the reference survey at x=0.",
+                  "The table tracks followers of a new social media account, in thousands; x is months from the reference month at x=0.",
+                  "The table tracks a fruit fly population in a lab jar, in hundreds of flies; x is weeks from the reference count at x=0.",
+                  "The table tracks the area, in square centimeters, of a mold colony on bread; x is days from the reference photo at x=0.",
+                  "The table tracks the area, in square meters, of duckweed covering a pond; x is days from the reference survey at x=0.",
+                  "The table tracks shares of a popular post, in thousands; x is hours from the reference check at x=0.",
+                  "The table tracks new flu cases per week in the early weeks of an outbreak, in hundreds; x is weeks from the reference week at x=0.",
+                  "The table tracks a rabbit population on an island, in hundreds of rabbits; x is years from the reference census at x=0.",
+                  "The table tracks subscribers to a new streaming channel, in thousands; x is months from the reference month at x=0.",
+                  "The table tracks daily rides on a new scooter-share service, in hundreds; x is months from the reference month at x=0.",
+                  "The table tracks the area, in square meters, covered by a floating water hyacinth mat on a lake; x is weeks from the reference survey at x=0."
+                ]
               }
             },
             "derived": {
@@ -35001,7 +35114,7 @@
               "y0": "a",
               "y1": "a*base/q",
               "y2": "a*base*base*q",
-              "pred": "a*pow(base,3)"
+              "pred": "round(a*pow(base,3)*1000)/1000"
             }
           },
           "difficultyBand": 4

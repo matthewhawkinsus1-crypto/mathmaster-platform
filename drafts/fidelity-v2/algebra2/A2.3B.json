@@ -353,7 +353,7 @@
       "type": "systemsWorkspace",
       "mode": "matrix3",
       "requireTechnology": true,
-      "prompt": "Use matrix technology to compute the RREF of this 3×3 augmented matrix. Then interpret the RREF, classify the system, and report $x,y,z$.",
+      "prompt": "Use matrix technology to compute the RREF of this 3×3 augmented matrix, which represents the system $x+y+z={{c1}}$, $2x-y+z={{c2}}$, $x+2y-z={{c3}}$. Then interpret the RREF, classify the system, and report $x,y,z$.",
       "matrix": {
         "rows": [
           [

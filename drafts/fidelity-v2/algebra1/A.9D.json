@@ -602,16 +602,15 @@
       "generator": {
         "parameters": {
           "a": {
-            "type": "choice",
-            "values": [
-              20,
-              30,
-              40
-            ]
+            "type": "int",
+            "min": 20,
+            "max": 56,
+            "step": 4
           },
           "base": {
             "type": "choice",
             "values": [
+              0.25,
               0.5,
               0.75
             ]

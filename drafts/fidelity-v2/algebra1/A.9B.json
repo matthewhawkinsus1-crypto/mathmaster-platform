@@ -185,11 +185,11 @@
       "assessedConstruct": "A.9B",
       "taskType": "errorAnalysis",
       "representation": "verbal",
-      "prompt": "A student says a model that multiplies by {{b}} each period has a growth factor of {{b}}%. Correct the interpretation: what MULTIPLICATIVE growth factor belongs in the exponential model?",
+      "prompt": "A student says a model that multiplies by {{b}} each {{unit}} has a growth factor of {{b}}%. Correct the interpretation: what MULTIPLICATIVE growth factor belongs in the exponential model?",
       "solutionReview": {
         "headline": "A multiplicative factor and a percent rate are not the same parameter.",
         "reasoning": [
-          "The factor is the number multiplied by the previous value each period.",
+          "The factor is the number multiplied by the previous value each {{unit}}.",
           "Because the quantity is multiplied by {{b}}, the model's growth factor is {{b}}."
         ],
         "answerSummary": "Growth factor {{b}}."
@@ -208,13 +208,27 @@
               2,
               3,
               4,
-              5
+              5,
+              6,
+              7,
+              8
             ]
           },
           "a": {
             "type": "int",
             "min": 20,
             "max": 200
+          },
+          "unit": {
+            "type": "choice",
+            "values": [
+              "period",
+              "year",
+              "month",
+              "week",
+              "day",
+              "hour"
+            ]
           }
         }
       },

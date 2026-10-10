@@ -11,7 +11,9 @@
  *
  * tests/platform/pathRecapWithheld.test.mjs regenerates this list from
  * seed/pathQuestionBank (30 seeded draws per template, compared by content)
- * and fails when it drifts. Content follow-up: widen these generators.
+ * and fails when it drifts. Student push J widened 20 of D's 27; what is left
+ * is either still being widened or, like mm_A_12A_v2_mapping-nonfunction,
+ * has the same answer on every draw, so its recap must never carry it.
  */
 
 export const RECAP_INSTANCE_DRAWS = 30;
@@ -24,27 +26,7 @@ export const RECAP_WITHHELD_TEMPLATE_IDS = Object.freeze([
   'mm_A2_2A_v2_root-family-graph',
   'mm_A2_2A_v2_symmetry-family-graph',
   'mm_A2_2C_v2_exponential-log-features',
-  'mm_A2_3B_v2_matrix-technology-rref',
-  'mm_A2_4E_v2_quadratic-context-interpolation',
-  'mm_A2_4E_v2_quadratic-regression-table',
-  'mm_A2_4E_v2_square-root-context-interpolation',
-  'mm_A2_5B_v2_logarithmic-ratio-scale-model',
-  'mm_A2_8B_v2_exponential-regression-decay-noisy',
-  'mm_A2_8B_v2_exponential-regression-growth-noisy',
-  'mm_A2_8B_v2_linear-regression-noisy',
-  'mm_A2_8B_v2_quadratic-regression-noisy',
-  'mm_A2_8C_v2_prediction-model-variants',
   'mm_A_12A_v2_mapping-nonfunction',
-  'mm_A_12D_v2_geometric-decay-terms-to-formula',
-  'mm_A_12E_v2_solve-area-height',
-  'mm_A_2A_v2_discrete-mapping-domain-range',
-  'mm_A_3G_v2_error-read-intersection',
-  'mm_A_3G_v2_graph-then-verify',
-  'mm_A_3G_v2_pricing-estimate',
-  'mm_A_3G_v2_savings-estimate',
-  'mm_A_3G_v2_transport-estimate',
-  'mm_A_9B_v2_growth-factor',
-  'mm_A_9D_v2_context-decay-graph',
 ]);
 
 const WITHHELD = new Set(RECAP_WITHHELD_TEMPLATE_IDS);

@@ -217,7 +217,8 @@
           "inputProfile": "expression",
           "expected": "{{a}}*(0.5)^(n-1)",
           "accepted": [
-            "{{a}}*(1/2)^(n-1)"
+            "{{a}}*(1/2)^(n-1)",
+            "{{a}}/2^(n-1)"
           ]
         }
       ],
@@ -238,15 +239,10 @@
       "generator": {
         "parameters": {
           "a": {
-            "type": "choice",
-            "values": [
-              32,
-              48,
-              64,
-              80,
-              96,
-              128
-            ]
+            "type": "int",
+            "min": 16,
+            "max": 200,
+            "step": 8
           }
         },
         "derived": {

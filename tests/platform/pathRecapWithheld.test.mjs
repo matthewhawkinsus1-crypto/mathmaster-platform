@@ -74,7 +74,8 @@ test('the withheld list is exactly the seed bank templates that draw fewer than 
   assert.deepEqual([...RECAP_WITHHELD_TEMPLATE_IDS], repeating.sort());
 });
 
-const REPEATING = 'mm_A_9B_v2_growth-factor';
+// Withheld for good: its verdict is "not a function" on every draw (student push J).
+const REPEATING = 'mm_A_12A_v2_mapping-nonfunction';
 
 const missed = (templateId, overrides = {}) => buildPathRecapEntry({
   sessionId: 'session-1',
