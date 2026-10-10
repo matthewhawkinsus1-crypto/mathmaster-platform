@@ -39,6 +39,8 @@ const normalizeToken = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+
 // before any student's numbers exist, so a whole-field token is carried as
 // written. Every other value is coerced exactly as before.
 const WHOLE_TEMPLATE_TOKEN = /^\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*\}\}$/;
+// Any placeholder, with the Path generator's optional '|filter' ('{{b|signed}}').
+const TEMPLATE_TOKEN = /\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\|\s*[A-Za-z]+\s*)?\}\}/g;
 const numberOrTemplateToken = (value) => (
   typeof value === 'string' && WHOLE_TEMPLATE_TOKEN.test(value.trim()) ? value.trim() : Number(value)
 );
@@ -409,7 +411,14 @@ const fieldFromIntent = (field, index) => {
       : out.answer !== undefined
         ? [out.answer]
         : [];
-    if (accepted.some((value) => looksLikeFiniteSetNotation(value))) {
+    // A family key's {{name}} placeholders are template syntax, not set
+    // braces: '{{a}}' or '{{union}}/{{total}}' is the number the generator
+    // substitutes. Reading them as set notation compiled such boxes (Digital
+    // SAT student-produced responses) as set fields. Test the key with each
+    // placeholder standing in as a plain literal, so only braces the author
+    // wrote around it ('{ {{a}}, {{b}} }', '{-4, -3}') make a set.
+    const withoutPlaceholders = (value) => (typeof value === 'string' ? value.replace(TEMPLATE_TOKEN, '0') : value);
+    if (accepted.some((value) => looksLikeFiniteSetNotation(withoutPlaceholders(value)))) {
       out.type = 'set';
       out.toolProfile = out.toolProfile || 'set';
     }
@@ -1892,17 +1901,49 @@ const compileOne = (q, index, repairs) => {
     case 'parabolaGeometryLab': {
       const p = q.parabola || {};
       out = copyCommon(q, { type, mode: q.mode || (p.focus || q.focus ? 'fromGeometry' : 'features'), h: q.h ?? p.h, k: q.k ?? p.k, p: q.p ?? p.p, orientation: q.orientation || p.orientation, focus: q.focus || p.focus, directrix: q.directrix || p.directrix });
+      // The equidistance view measures from `point` (or the parabola point at
+      // `offset`). Dropping them graded a prompt that names P at the lab's
+      // default sampled point instead. Copied only when authored.
+      {
+        const point = q.point ?? p.point;
+        const offset = q.offset ?? p.offset;
+        if (point != null) out.point = point;
+        if (offset != null) out.offset = offset;
+      }
       break;
     }
     case 'polynomialWorkshop': {
       const p = q.polynomial || {};
       const mode = q.mode || (actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : 'factorQuadratic');
       out = copyCommon(q, { type, mode, coefficients: q.coefficients || p.coefficients, leftBinomial: q.leftBinomial || p.leftBinomial, rightBinomial: q.rightBinomial || p.rightBinomial, dividend: q.dividend || p.dividend, divisor: q.divisor || p.divisor, roots: q.roots || p.roots, denominatorRoots: q.denominatorRoots || p.denominatorRoots });
+      // The factorZero, graphConnection and rationalFeatures views also read
+      // these. Dropping them graded the question with the workshop's defaults
+      // — a different problem from the prompt. Copied only when authored.
+      {
+        const numeratorRoots = q.numeratorRoots || p.numeratorRoots;
+        if (numeratorRoots) out.numeratorRoots = numeratorRoots;
+        ['candidateRoot', 'targetValue', 'leadingCoefficient', 'targetRoot'].forEach((key) => {
+          const value = q[key] ?? p[key];
+          if (value != null) out[key] = value;
+        });
+      }
       break;
     }
     case 'signSolutionAnalyzer': {
       const s = q.signChart || q.inequalityModel || {};
-      out = copyCommon(q, { type, mode: q.mode || s.mode || 'polynomial', factors: q.factors || s.factors, denominatorFactors: q.denominatorFactors || s.denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
+      const denominatorFactors = q.denominatorFactors || s.denominatorFactors;
+      // With no authored mode, denominator factors make the chart rational —
+      // the analyzer's own resolution (declarations/signSolutionAnalyzer.mjs).
+      // A 'polynomial' default here made the tool and grader ignore the
+      // denominator: (x − 2)/(x + 3) ≥ 0 was graded as x − 2 ≥ 0.
+      out = copyCommon(q, { type, mode: q.mode || s.mode || (denominatorFactors?.length ? 'rational' : 'polynomial'), factors: q.factors || s.factors, denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
+      // The analyzer reads `numeratorFactors` ahead of `factors`, and the
+      // router above sends a question to it on numeratorFactors alone;
+      // dropping them graded the default numerator (x + 2)(x − 3) instead.
+      {
+        const numeratorFactors = q.numeratorFactors || s.numeratorFactors;
+        if (numeratorFactors) out.numeratorFactors = numeratorFactors;
+      }
       break;
     }
     case 'sequenceExplorer': {

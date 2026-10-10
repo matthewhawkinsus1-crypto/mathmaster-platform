@@ -318,55 +318,80 @@ test('the six ASVAB families never draw a distractor that is also right', () => 
  * DIGITAL SAT "union-overlap" probability: the decimal the SAT accepts.
  *
  * The only student-produced response in the CCMR banks whose key is not an
- * integer. The Digital SAT's directions for a student-produced response accept
- * a decimal that does not fit, truncated or rounded at the fourth digit (2/3 as
- * .6666 or .6667). The Path grades 57/73 right and .7808 wrong.
+ * integer. The Digital SAT's directions for a student-produced response: "If
+ * your answer is a decimal that doesn't fit in the provided space, enter it by
+ * truncating or rounding at the fourth digit" (2/3 as .6666 or .6667). The
+ * Path graded 57/73 right and .7808 wrong.
  *
- * The fix is item data, but not in this lane's files: the Digital SAT mirrors
- * are regenerated at predeploy from drafts/ccmr-v2.1/digitalSAT
- * (scripts/build-ccmr-v2-1-production-release.mjs --write, pinned by
- * ccmrV21ProductionReleaseContent.test.mjs), so an edit to the mirror alone
- * would be overwritten. Reported with the patch: list both four-place decimals
- * as accepted answers. Then .78 and the other neighbour .7809 stay wrong.
+ * Fixed in the item's source (drafts/ccmr-v2.1/digitalSAT, Job K follow-up):
+ * the field lists the truncated and the rounded four-place decimal as accepted
+ * answers, derived from the draw, and the mirrors are regenerated from it
+ * (scripts/build-ccmr-v2-1-production-release.mjs --write).
+ *
+ * The SAT's own example also accepts 0.666 and 0.667 (five characters with the
+ * leading zero), but not 0.66. The Path compares numbers, not spellings, so a
+ * three-place decimal ending in 0 (57/73 truncated: 0.780) would let 0.78
+ * through; those are deliberately not listed.
  */
-test('Digital SAT union-overlap accepts the four-place decimal the SAT accepts, on the Path', { skip: 'source fix in drafts/ccmr-v2.1/digitalSAT reported; the mirrors are regenerated from it' }, async () => {
+test('Digital SAT union-overlap accepts the four-place decimal the SAT accepts, on the Path', async () => {
   const item = familyById('digitalSAT', 'mm_sat_native_prob_ch1_union-overlap_v21');
+  let unequalDraws = 0;
   for (let draw = 0; draw < 12; draw += 1) {
     const question = drawPath(item, draw);
     const { stored } = await issue(question);
     const key = new Fraction(question.responseFields[0].expected);
-    // Fraction.js, to four places: floor for the truncation, round for the rounding.
-    const truncated = key.mul(10000).floor().div(10000);
-    const rounded = key.mul(10000).round().div(10000);
-    const shown = (fraction) => fraction.valueOf().toFixed(4);
-    for (const accepted of new Set([shown(truncated), shown(truncated).replace(/^0/, ''), shown(rounded), shown(rounded).replace(/^0/, '')])) {
+    // Fraction.js, to four places: floor truncates, round rounds.
+    const accepted = ['floor', 'round'].map((how) => key.mul(10000)[how]().div(10000));
+    if (!accepted[0].equals(accepted[1])) unequalDraws += 1;
+    const spellings = new Set(accepted.flatMap((value) => [value.valueOf().toFixed(4), value.valueOf().toFixed(4).replace(/^0/, '')]));
+    for (const spelling of spellings) {
       // eslint-disable-next-line no-await-in-loop
-      assert.equal(await gradePath(stored, 'answer', accepted), true, `${question.prompt} → ${accepted}`);
+      assert.equal(await gradePath(stored, 'answer', spelling), true, `${question.prompt} → ${spelling}`);
     }
-    // Not every decimal near the key: a two-place rounding and a four-place
-    // neighbour that is neither truncation nor rounding stay wrong.
-    const neighbour = truncated.equals(rounded) ? truncated.add(new Fraction(1, 10000)) : rounded.add(new Fraction(1, 10000));
-    // eslint-disable-next-line no-await-in-loop
-    assert.equal(await gradePath(stored, 'answer', shown(neighbour)), false, `${shown(neighbour)} is not the SAT decimal of ${key.toFraction()}`);
+    // Not every decimal near the key: the four-place decimals just beside the
+    // accepted ones and a two-place rounding stay wrong.
+    const step = new Fraction(1, 10000);
+    const neighbours = [accepted[0].sub(step), accepted[1].add(step)]
+      .filter((value) => !accepted.some((ok) => ok.equals(value)) && !value.equals(key));
+    assert.ok(neighbours.length > 0);
+    for (const neighbour of neighbours) {
+      // eslint-disable-next-line no-await-in-loop
+      assert.equal(await gradePath(stored, 'answer', neighbour.valueOf().toFixed(4)), false, `${neighbour.valueOf().toFixed(4)} is not the SAT decimal of ${key.toFraction()}`);
+    }
     const coarse = key.valueOf().toFixed(2);
     // eslint-disable-next-line no-await-in-loop
     if (!new Fraction(coarse).equals(key)) assert.equal(await gradePath(stored, 'answer', coarse), false, `${coarse} is too coarse for ${key.toFraction()}`);
   }
+  assert.ok(unequalDraws > 0, 'some draw has a truncation that differs from the rounding');
 });
 
 // Outside this lane (reported): the assignment hydration keeps only `answer`
 // for an open field (ccmrAssignmentBank responseFieldToIntent), so the decimal
-// is still wrong in an assignment, and the V5 compiler reads the template key
-// '{{a}}' as set notation, so every Digital SAT student-produced response opens
-// the set keypad with '{', '}' and 'a' marked as required symbols.
-test('Assignments: a Digital SAT student-produced response is a number box, not a set box', { skip: 'compiler fieldFromIntent reads "{{a}}" as a set; reported to the compiler owner' }, () => {
+// is still wrong in an assignment. The V5 compiler used to read the template
+// key '{{a}}' as set notation, so every Digital SAT student-produced response
+// compiled as a set field (type and toolProfile 'set'); fieldFromIntent now
+// leaves a whole placeholder alone (Job K follow-up, compiler lane).
+const sprField = () => {
   const item = familyById('digitalSAT', 'mm_sat_A_10C_4_quotient-parameter_v21');
   const template = compileAuthoringIntentV5({
     schemaVersion: 5,
     assignment: { title: 'K sweep SPR', courseId: 'algebra1', instructionalPurpose: 'review', gradingPurpose: 'practice' },
     sections: [{ role: 'practice', title: 'Practice', questions: [bankDocumentToV5Intent(item)] }],
   }).package.sections[0].questions[0];
-  const field = generateQuestion(template, 'k-sweep-ccmr-spr').answerFields[0];
+  return generateQuestion(template, 'k-sweep-ccmr-spr').answerFields[0];
+};
+
+test('Assignments: a Digital SAT student-produced response is a number box, not a set box', () => {
+  const field = sprField();
   assert.notEqual(field.type, 'set');
-  assert.deepEqual(field.requiredSymbols ?? [], []);
+  assert.notEqual(field.toolProfile, 'set');
+  assert.equal(field.answerFormat, 'number');
+});
+
+// Still outside: the interaction contract infers required keypad symbols from
+// the template text '{{a}}' before the generator substitutes the number
+// (src/platform/interaction/answerEntryTools.js inferRequiredAnswerSymbols),
+// so the number box still lists '{', '}' and 'a' as required symbols.
+test('Assignments: a Digital SAT student-produced response requires no set or letter keys', { skip: 'interaction inferRequiredAnswerSymbols reads the template "{{a}}"; reported to the interaction owner' }, () => {
+  assert.deepEqual(sprField().requiredSymbols ?? [], []);
 });
