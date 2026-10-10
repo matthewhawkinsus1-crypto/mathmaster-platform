@@ -191,3 +191,45 @@ test('fewer required items renumber the section for that student', () => {
   assert.deepEqual(questionAddressFor(entries, 4), { section: 'classwork', number: 1 });
   assert.equal(questionAddressFor(entries, 3), null);
 });
+
+// --- Hosting ------------------------------------------------------------------
+
+test('Hosting serves index.html, uncached, at every address the app writes; static files keep their rules', () => {
+  const config = JSON.parse(readFileSync(new URL('../../firebase.json', import.meta.url), 'utf8')).hosting;
+  // Every path falls back to the app (static files are served first by Hosting).
+  assert.ok(config.rewrites.some((rule) => rule.source === '**' && rule.destination === '/index.html'), 'SPA fallback');
+  assert.equal(config.rewrites.length, 1, 'a new rewrite needs a check that it does not shadow an app address');
+  // A rewritten address is cached by ITS path, not /index.html's: without its
+  // own no-cache rule a reload of /grades after a deploy could keep the old
+  // page shell, whose fingerprinted bundles no longer exist.
+  const routeRule = config.headers.find((rule) => rule.regex);
+  assert.ok(routeRule, 'app addresses need a no-cache rule');
+  assert.match(routeRule.headers.find((header) => header.key === 'Cache-Control').value, /no-cache/);
+  const routePattern = new RegExp(routeRule.regex);
+  const written = [
+    ...STUDENT_DASHBOARD_MODES.map((dashboardMode) => studentPathFor({ surface: 'dashboard', dashboardMode })),
+    ...MATH_PATH_TABS.map((tab) => studentPathFor({ surface: 'dashboard', dashboardMode: 'mathPath' }, { mathPath: { tab } })),
+    studentPathFor({ surface: 'dashboard', dashboardMode: 'mathPath' }, { mathPath: { tab: 'session', skill: 'A.5A' } }),
+    studentPathFor({ surface: 'dashboard', dashboardMode: 'testCycle' }, { testCycleAssignmentId: 'c1' }),
+    studentPathFor({ surface: 'assignment', assignmentId: 'a1' }, { question: { section: 'classwork', number: 2 } }),
+    studentPathFor({ surface: 'assignmentResult', assignmentId: 'a1', sectionKey: 'dol' }),
+    ...TEACHER_TABS.map((tab) => teacherPathFor({ surface: 'workspace', tab, panels: { hubAssignmentId: 'a1' } })),
+    ...TEACHER_TABS.map((tab) => teacherPathFor({ surface: 'workspace', tab })),
+    teacherPathFor({ surface: 'administration', adminTab: 'ai' }),
+    teacherPathFor({ surface: 'preview', assignmentId: 'a1' }),
+  ];
+  assert.ok(written.includes('/'), 'Home is an app address too');
+  for (const path of written) assert.match(path, routePattern, `${path} is written by the app but cached by Hosting`);
+  for (const path of ['/assets/index-abc123.js', '/mathmaster-build.json', '/audio/ding.mp3', '/mathmaster-icon.svg', '/__/auth/handler', '/tools-lab.html']) {
+    assert.doesNotMatch(path, routePattern, `${path} is a static file and keeps its own caching`);
+  }
+  const indexRule = config.headers.find((rule) => rule.source === '/index.html');
+  assert.ok(indexRule, '/ and /index.html keep their own rule');
+});
+
+test('Vercel previews fall back to the app at every address too (static files are served first)', () => {
+  const config = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  assert.deepEqual(config.rewrites, [{ source: '/(.*)', destination: '/index.html' }]);
+  const assets = config.headers.find((rule) => rule.source === '/assets/(.*)');
+  assert.match(assets.headers[0].value, /immutable/);
+});

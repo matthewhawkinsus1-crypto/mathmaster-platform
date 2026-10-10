@@ -136,6 +136,7 @@ const appCode = executableSource(app);
 test('App opens an arrival with the calls a click makes, and imports what it calls', () => {
   const effect = region(appCode, 'useEffect(() => {\n    if (!urlArrival || !user?.id) return;', '}, [urlArrival, user?.id, user?.role]);', 'arrival effect');
   assert.match(effect, /setUrlArrival\(null\);/, 'an arrival opens once');
+  assert.match(effect, /if \(openedUrlArrivalRef\.current === arrival\) return;\s*openedUrlArrivalRef\.current = arrival;/, 'once, even when the effect runs twice');
   assert.match(effect, /planStudentArrival\(\{/);
   assert.match(effect, /startAssignment\(plan\.assignmentId, plan\.storageIndex \?\? 0, plan\.exact \? \{ keepRequestedQuestion: true \} : \{\}\)/);
   assert.match(effect, /openStudentAssignmentResult\(plan\.assignmentId/);

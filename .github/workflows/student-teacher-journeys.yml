@@ -59,6 +59,12 @@ name: Student and Teacher Journeys
 #                          (the same board's facts established by a process,
 #                          verified, reused, then built on)
 #   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
+#   real URLs              tests/browser/teacherWorkflow/appUrlJourneys.mjs
+#                          (its own job: refresh on every student screen and
+#                          question, Back/Forward Home -> question -> Grades,
+#                          a deep link through sign-in, another class's or
+#                          student's address shows nothing, Log Out returns
+#                          to /, a teacher's tab and monitor; desktop, phone)
 #
 # Pull requests that touch the app run the journeys; the long endurance run is
 # nightly and on demand. Read-only: this workflow writes nothing back.
@@ -78,6 +84,8 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/student-teacher-journeys.yml"
+      - "firebase.json"
+      - "vercel.json"
   schedule:
     - cron: "17 7 * * *"
   workflow_dispatch:
@@ -233,6 +241,29 @@ jobs:
           REPEAT: "50"
           THROTTLED_REPEAT: "20"
         run: node tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
+
+  # Its own runner: the teacher job is near its time limit. A few minutes:
+  # every student screen reloaded, on a Chromebook and a phone.
+  app-urls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Real URLs — refresh, Back/Forward, deep links, and what an address may reach
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1366x768,390x844"
+        run: node tests/browser/teacherWorkflow/appUrlJourneys.mjs
 
   student:
     runs-on: ubuntu-latest

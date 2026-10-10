@@ -6079,10 +6079,14 @@ function App() {
    * section windows, the Test Cycle card's server check, the secure-exam
    * dashboard — and the server's authority is unchanged.
    */
+  const openedUrlArrivalRef = useRef(null);
   useEffect(() => {
     if (!urlArrival || !user?.id) return;
     const arrival = urlArrival;
     setUrlArrival(null);
+    // Once, even where an effect runs twice for the same state (StrictMode).
+    if (openedUrlArrivalRef.current === arrival) return;
+    openedUrlArrivalRef.current = arrival;
     if (user.role === 'student') {
       const plan = planStudentArrival({
         arrival,
