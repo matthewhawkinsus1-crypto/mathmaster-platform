@@ -21,8 +21,14 @@
  * server never saw) gets a floor-only entry, so the map and the wheel can read
  * one record for it too.
  *
- * Idempotent: a document already rescored (masteryScoring.version ≥ 2) is
- * skipped, so running twice changes nothing the second time.
+ * Before rescoring, My Math Path answers whose only "support" was their own
+ * post-answer review are read as independent (pathReviewReclassification.mjs,
+ * QA round 2 R2-M2). That can only raise a skill; floors still hold the rest.
+ *
+ * Idempotent: a document already rescored and reclassified
+ * (masteryScoring.version ≥ 2 and pathReviewReclassified) is skipped, so
+ * running twice changes nothing the second time; one rescored before the
+ * reclassification existed is planned once more from what it is now.
  */
 import { buildStudentMasteryProfile } from '../../src/masteryEngine.js';
 import { buildMasteryBySkill, favourableMasteryBySkill, CONFIDENT_EVIDENCE } from '../../src/platform/path/masteryAdapter.js';
@@ -31,6 +37,7 @@ import { teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { toDisplayCode } from '../../src/utils/teksUtils.js';
 import { MASTERY_STATUS, masteryStatusRank } from '../../functions/shared/masteryRule.mjs';
 import { MASTERY_SCORING_VERSION, rescoreProfilesFromEvidence } from '../../functions/shared/masteryScoring.mjs';
+import { reclassifyPathReviewEvidence } from '../../functions/shared/pathReviewReclassification.mjs';
 
 export const FLOOR_REASON = 'scoring-v2-deploy';
 
@@ -119,12 +126,17 @@ const floorFrom = (code, before, now) => {
  * Returns { action: 'skip'|'write', reason?, document?, changes, violations }.
  */
 export const planStudentMasteryBackfill = ({ studentId, stored = null, events = [], student = {}, assignments = [], helpers, now = Date.now() }) => {
-  if (Number(stored?.masteryScoring?.version) >= MASTERY_SCORING_VERSION) {
-    return { action: 'skip', reason: 'already-rescored', changes: [], violations: [] };
+  // Rescored AND with My Math Path's post-answer reviews read as they should
+  // have been written (pathReviewReclassification.mjs). A document rescored by
+  // the first release of this script lacks the second mark and is planned
+  // again from what it is now, so the second pass also never lowers anything.
+  if (Number(stored?.masteryScoring?.version) >= MASTERY_SCORING_VERSION && stored?.masteryScoring?.pathReviewReclassified === true) {
+    return { action: 'skip', reason: 'already-rescored', changes: [], violations: [], pathReview: null };
   }
   const storedProfiles = stored?.profiles && typeof stored.profiles === 'object' ? stored.profiles : {};
   const before = studentView({ student, assignments, serverProfiles: storedProfiles });
-  const rescored = rescoreProfilesFromEvidence(events, helpers, { now });
+  const pathReview = reclassifyPathReviewEvidence(events, helpers);
+  const rescored = rescoreProfilesFromEvidence(pathReview.events, helpers, { now });
 
   const profiles = {};
   const codes = new Set([
@@ -175,11 +187,12 @@ export const planStudentMasteryBackfill = ({ studentId, stored = null, events = 
     action: violations.length ? 'refuse' : 'write',
     changes,
     violations,
+    pathReview: pathReview.counts,
     document: {
       ...(stored || {}),
       studentId,
       profiles,
-      masteryScoring: { version: MASTERY_SCORING_VERSION, rescoredAt: now, evidenceEvents: events.length },
+      masteryScoring: { version: MASTERY_SCORING_VERSION, rescoredAt: now, evidenceEvents: events.length, pathReviewReclassified: true, pathReviewEventsReclassified: pathReview.counts.reclassified },
       updatedAt: now,
     },
   };

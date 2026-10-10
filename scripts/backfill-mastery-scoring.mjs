@@ -17,8 +17,13 @@
  *   node scripts/backfill-mastery-scoring.mjs --project <id> --execute   # writes (asks for the project id again)
  *   node scripts/backfill-mastery-scoring.mjs --project <id> --student <studentId>   # one student
  *
- * Idempotent: a document already rescored (masteryScoring.version ≥ 2) is
- * skipped. A plan that would still lower anything after flooring is REFUSED
+ * My Math Path history is read as it should have been written: an answer's
+ * post-answer review is not support for that answer
+ * (functions/shared/pathReviewReclassification.mjs); the dry run reports how
+ * many Path answers that reclassifies.
+ *
+ * Idempotent: a document already rescored and reclassified
+ * (masteryScoring.version ≥ 2, pathReviewReclassified) is skipped. A plan that would still lower anything after flooring is REFUSED
  * for that student and reported, never written. Grades, evidence, assignments
  * and history are only read; the one document written per student is
  * studentMasteryProfiles/{studentId}.
@@ -113,7 +118,7 @@ export const runMasteryBackfill = async ({ db, execute = false, student = null, 
   const report = {
     startedAt: new Date(now).toISOString(),
     mode: execute ? 'execute' : 'dry-run',
-    counts: { students: 0, skippedAlreadyRescored: 0, unchanged: 0, wouldWrite: 0, written: 0, refused: 0, flooredSkills: 0, changedSkills: 0 },
+    counts: { students: 0, skippedAlreadyRescored: 0, unchanged: 0, wouldWrite: 0, written: 0, refused: 0, flooredSkills: 0, changedSkills: 0, pathEvents: 0, pathReviewsReclassified: 0, pathReviewAnomalies: 0 },
     students: [],
   };
   const assignmentCache = new Map();
@@ -136,11 +141,14 @@ export const runMasteryBackfill = async ({ db, execute = false, student = null, 
       studentId: gradeRef.id, stored: profileSnapshot.exists ? profileSnapshot.data() : null, events, helpers: mathPath, now, ...inputs,
     });
     if (plan.action === 'skip') { report.counts.skippedAlreadyRescored += 1; continue; }
+    report.counts.pathEvents += plan.pathReview?.pathEvents || 0;
+    report.counts.pathReviewsReclassified += plan.pathReview?.reclassified || 0;
+    report.counts.pathReviewAnomalies += plan.pathReview?.anomalies || 0;
     if (!events.length && !profileSnapshot.exists && !plan.changes.length) { report.counts.unchanged += 1; continue; }
     const floored = plan.changes.filter((change) => change.floored).length;
     report.counts.flooredSkills += floored;
     report.counts.changedSkills += plan.changes.length - floored;
-    report.students.push({ studentId: gradeRef.id, action: plan.action, changes: plan.changes, violations: plan.violations });
+    report.students.push({ studentId: gradeRef.id, action: plan.action, changes: plan.changes, violations: plan.violations, pathReview: plan.pathReview });
     if (plan.action === 'refuse') { report.counts.refused += 1; continue; }
     report.counts.wouldWrite += 1;
     plans.push({ gradeRef, inputs });
