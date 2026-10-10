@@ -14379,7 +14379,9 @@ exports.resolveWeeklyPathGoalSnapshot = onCall(async (request) => {
     if (frozen.exists) return { success: true, goal: frozen.data() };
   }
   const { loadWeeklyFreezeInputs } = require("./lib/weeklyPathFreezeInputs");
-  const freezeInputs = await loadWeeklyFreezeInputs({ db, studentId, studentData: studentSnapshot.data(), classRecord, now: Date.now() });
+  // The proposal is passed only so a short one can be checked against the
+  // server's own plan for the week; nothing in it sets the count.
+  const freezeInputs = await loadWeeklyFreezeInputs({ db, studentId, studentData: studentSnapshot.data(), classRecord, goal: request.data?.goal || {}, now: Date.now() });
   const proposed = await sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord, freezeInputs });
   const ref = db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${proposed.weekKey}`);
   const assigned = await db.runTransaction(async (transaction) => {

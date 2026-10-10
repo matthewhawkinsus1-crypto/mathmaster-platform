@@ -12,11 +12,17 @@
  *     and whether the teacher selects every session (the one setting that
  *     explains a week with fewer sessions than the count);
  *   - studentMasteryProfiles/{studentId} and studentRetentionSchedules/
- *     {studentId} — which skills the server says are due a retention check.
+ *     {studentId} — which skills the server says are due a retention check;
+ *   - for a proposal shorter than the count (and only then), the server's own
+ *     plan for the week (weeklyPathServerPlan.js): how many sessions the same
+ *     planner the browser runs can fill on these records. A short week is
+ *     accepted only when the server's plan is at least as short.
  *
  * Returns the options freezeWeeklyPathGoalProposal takes
  * (functions/shared/weeklyPathSlotAuthority.mjs).
  */
+
+const { loadServerPlannedSessions } = require("./weeklyPathServerPlan");
 
 const WEEKLY_GOAL_SETTINGS_DOC = "weeklyPathGoals";
 
@@ -25,7 +31,7 @@ const byCode = (map, code) => {
   return map[code] || map[`texas:${code}`] || null;
 };
 
-async function loadWeeklyFreezeInputs({ db, studentId, studentData = null, classRecord = null, now = Date.now() } = {}) {
+async function loadWeeklyFreezeInputs({ db, studentId, studentData = null, classRecord = null, goal = null, now = Date.now(), plannerOptions = {} } = {}) {
   const [slotAuthority, retentionCheck] = await Promise.all([
     import("../shared/weeklyPathSlotAuthority.mjs"),
     import("../shared/pathRetentionCheck.mjs"),
@@ -45,9 +51,21 @@ async function loadWeeklyFreezeInputs({ db, studentId, studentData = null, class
   const honors = String(courseLevel).toLowerCase() === "honors";
   const profiles = profilesSnapshot.exists ? (profilesSnapshot.data()?.profiles || {}) : {};
   const schedules = schedulesSnapshot.exists ? (schedulesSnapshot.data()?.schedules || {}) : {};
+  const requestedSessions = slotAuthority.weeklySessionsForClass({ config, honors });
+  const shortWeekReason = config?.selectionMode === slotAuthority.TEACHER_SELECTED_MODE ? "teacherSelection" : null;
+  // The server plans only when it has to: a proposal shorter than the count
+  // that the teacher's own selection does not explain.
+  const proposedCount = Array.isArray(goal?.sessions) ? goal.sessions.length : 0;
+  const plannedSessions = !shortWeekReason && proposedCount > 0 && proposedCount < requestedSessions
+    ? await loadServerPlannedSessions({
+      db, studentId, classRecord, honors, requestedSessions, weeklyConfig: config,
+      serverProfiles: profiles, retentionSchedules: schedules, now, plannerOptions,
+    })
+    : null;
   return {
-    requestedSessions: slotAuthority.weeklySessionsForClass({ config, honors }),
-    shortWeekReason: config?.selectionMode === slotAuthority.TEACHER_SELECTED_MODE ? "teacherSelection" : null,
+    requestedSessions,
+    shortWeekReason,
+    plannedSessions,
     retentionDue: (displayCode) => retentionCheck.retentionCheckIsDue({
       profile: byCode(profiles, displayCode),
       schedule: byCode(schedules, displayCode),
