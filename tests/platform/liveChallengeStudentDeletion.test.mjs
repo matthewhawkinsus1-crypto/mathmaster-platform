@@ -93,19 +93,28 @@ test('a student deleted mid-match leaves it whole: roster row, public row, diagn
   assert.ok(db.data('rewardGrants', 'g3'));
 });
 
-test('the running-match documents leave in one commit, before anything else is touched', async () => {
+test('the running-match documents leave in one transaction that read what it deletes, before anything else is touched', async () => {
   const db = world();
   await deleteFootprint(db, 's1', {});
-  const deletes = db.writes.filter((write) => write.op === 'delete').map((write) => `${write.collection}/${write.id}`);
-  // The batch commits its writes together and first: a round closing at the
-  // same moment sees the student either fully in the match or fully out.
-  assert.deepEqual(deletes.slice(0, 5), [
+  const deletes = db.writes.filter((write) => write.op === 'delete');
+  // One commit, first: a round closing at the same moment sees the student
+  // either fully in the match or fully out.
+  assert.deepEqual(deletes.slice(0, 5).map((write) => `${write.collection}/${write.id}`), [
     `${PRIVATE}/R1/players/s1`,
     `${ROOM}/R1/playerSummaries/s1`,
     `${ROOM}/R1/players/pk1`,
     `${ROOM}/R1/diagnostics/pk1`,
     `${C.LIVE_CHALLENGE_INVITES}/s1`,
   ]);
+  const groups = new Set(deletes.slice(0, 5).map((write) => write.group));
+  assert.equal(groups.size, 1, 'the five deletes commit together');
+  assert.match([...groups][0] || '', /^transaction-/, 'and in a transaction, not five separate deletes');
+  // The invite and the roster row are read inside that transaction, so an
+  // invite rewritten for the next match in between is read again rather than
+  // deleted on a stale read (Codex review of #475).
+  const transactionReads = db.reads.filter((read) => read.via === 'transaction.get').map((read) => `${read.collection}/${read.id}`);
+  assert.deepEqual(transactionReads, [`${C.LIVE_CHALLENGE_INVITES}/s1`, `${PRIVATE}/R1/players/s1`]);
+  assert.equal(db.reads.some((read) => read.via === 'doc.get' && read.collection === C.LIVE_CHALLENGE_INVITES), false, 'no invite read outside it');
 });
 
 test('an invite whose roster row is already gone (a finished, finalized room) still goes, with the public row it names', async () => {

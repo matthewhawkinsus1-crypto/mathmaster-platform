@@ -7003,34 +7003,42 @@ async function deleteStudentClassPointsFootprint(db, studentId, deleted) {
 async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
   // The match they are in now (lobby or running) has no result yet, so the
   // results query below cannot find it: their invite names the room. They
-  // leave it whole, in one batch: the private roster row (without it the match
-  // never writes them again: no summary, no place in the final result or
-  // report, no reward), their anonymous public row and device diagnostics,
-  // their own summary, and the invite itself, which carries their room, alias
-  // and class. One batch, so a round that closes at the same moment either
-  // committed first, and this removes what it wrote, or reads the roster after
-  // them. The same invite also leads to a room retired before it finished.
+  // leave it whole: the private roster row (without it the match never writes
+  // them again: no summary, no place in the final result or report, no
+  // reward), their anonymous public row and device diagnostics, their own
+  // summary, and the invite itself, which carries their room, alias and class.
+  // One transaction that reads the invite and the roster row it deletes: a
+  // round that closes at the same moment either committed first, and this
+  // removes what it wrote, or reads the roster after them; and an invite that
+  // moved to a new room in between (the teacher started the next match) is
+  // read again, so the room the student leaves is the one the deleted invite
+  // named (as updateLiveChallengeInvitesForRoom guards re-invitation). The
+  // same invite also leads to a room retired before it finished.
   const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
-  const inviteSnapshot = await inviteRef.get();
-  if (inviteSnapshot.exists) {
+  const membership = await db.runTransaction(async (transaction) => {
+    const inviteSnapshot = await transaction.get(inviteRef);
+    if (!inviteSnapshot.exists) return null;
     const invite = inviteSnapshot.data() || {};
     const invitedRoomId = String(invite.roomId || "").trim();
-    const leave = db.batch();
+    let rosterRowRemoved = false;
     if (invitedRoomId) {
       const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(invitedRoomId);
       const rosterRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(invitedRoomId).collection("players").doc(studentId);
-      const rosterSnapshot = await rosterRef.get();
+      const rosterSnapshot = await transaction.get(rosterRef);
       const playerKey = String(rosterSnapshot.data()?.playerKey || invite.playerKey || "").trim();
-      leave.delete(rosterRef);
-      leave.delete(roomRef.collection("playerSummaries").doc(studentId));
+      transaction.delete(rosterRef);
+      transaction.delete(roomRef.collection("playerSummaries").doc(studentId));
       if (playerKey) {
-        leave.delete(roomRef.collection("players").doc(playerKey));
-        leave.delete(roomRef.collection("diagnostics").doc(playerKey));
+        transaction.delete(roomRef.collection("players").doc(playerKey));
+        transaction.delete(roomRef.collection("diagnostics").doc(playerKey));
       }
-      if (rosterSnapshot.exists) deleted.liveChallengeRoomMemberships = 1;
+      rosterRowRemoved = rosterSnapshot.exists;
     }
-    leave.delete(inviteRef);
-    await leave.commit();
+    transaction.delete(inviteRef);
+    return { rosterRowRemoved };
+  });
+  if (membership) {
+    if (membership.rosterRowRemoved) deleted.liveChallengeRoomMemberships = 1;
     deleted.liveChallengeInvites = 1;
   }
 

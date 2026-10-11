@@ -616,7 +616,7 @@ late join and Play Again. The rules below are the engine-facing ones.
 Permanent student deletion (`permanentlyDeleteStudent`) first takes the
 student out of the match their invite names, still running or not: their
 private roster row, anonymous public row, device diagnostics and own summary,
-and the invite itself, in one batch. Without the roster row the match never
+and the invite itself, in one transaction that reads the invite and roster row it deletes. Without the roster row the match never
 writes them again: no summary, no place in the final result or report, no
 reward. It then removes their grants and award-job references, deletes their
 own summary in every match they played (found through the match results that

@@ -146,6 +146,9 @@ export class FakeFirestore {
     this.reads = [];
     this.writes = [];
     this.autoId = 0;
+    // Each batch or transaction commit gets one id; its writes carry it as
+    // `group`, so a test can prove writes landed together (direct writes: null).
+    this.commitGroups = 0;
   }
 
   docsOf(name) {
@@ -205,7 +208,10 @@ export class FakeFirestore {
       set: (ref, payload, options = {}) => { pending.push({ op: options?.merge ? 'merge' : 'set', ref, payload }); return batch; },
       update: (ref, payload) => { pending.push({ op: 'update', ref, payload }); return batch; },
       delete: (ref) => { pending.push({ op: 'delete', ref, payload: {} }); return batch; },
-      commit: async () => { pending.forEach((write) => this.commit(write)); },
+      commit: async () => {
+        const group = `batch-${this.commitGroups += 1}`;
+        pending.forEach((write) => this.commit({ ...write, group }));
+      },
     };
     return batch;
   }
@@ -235,15 +241,21 @@ export class FakeFirestore {
         pending.push({ op: options?.merge ? 'merge' : 'set', ref, payload });
         return transaction;
       },
+      delete(ref) {
+        wrote = true;
+        pending.push({ op: 'delete', ref, payload: {} });
+        return transaction;
+      },
     };
     const result = await callback(transaction);
-    pending.forEach((write) => this.commit(write));
+    const group = `transaction-${this.commitGroups += 1}`;
+    pending.forEach((write) => this.commit({ ...write, group }));
     return result;
   }
 
-  commit({ op, ref, payload }) {
+  commit({ op, ref, payload, group = null }) {
     const docs = this.docsOf(ref.collectionPath);
-    this.writes.push({ op, collection: ref.collectionPath, id: ref.id, keys: Object.keys(payload) });
+    this.writes.push({ op, collection: ref.collectionPath, id: ref.id, keys: Object.keys(payload), group });
     if (op === 'delete') {
       docs.delete(ref.id);
       return;
