@@ -226,13 +226,52 @@ grant ids, existence check and roster re-check in the delivering transaction):
 | Retest passed after a failing test | same (either-or with the above, one identity per cycle) | 20 Class Points + badge `growth-retest` |
 | Corrections completed (required, not waived, non-empty) | `testCycleRecords.corrections` | 10 + badge `growth-corrections` |
 | Weekly My Math Path goal met on time | `weeklyPathGoalSnapshots` + `pathSessions` | 10; three weeks running: 15 + badge `growth-path-streak` |
-| A skill reaches Mastered | `studentMasteryProfiles` | 5 per skill, once ever; badges `mastery-5`, `mastery-10` |
+| A skill reaches Mastered | `studentMasteryHistory` (when), checked against `studentMasteryProfiles` (the evidence) | 5 per skill, once ever; badges `mastery-5`, `mastery-10` |
 
 Only events on or after 2026-10-07 count (no retroactive flood); the first sync
 freezes skills already Mastered as a baseline. Ledger source type
-`growthReward` ("Growth reward" in the wallet). Dependency: My Math Path (Job D)
-is exposing better weekly-goal and mastered-at data; `evaluateMasteryGrowth`
-and the weekly evaluator are the places to switch over, keeping award ids.
+`growthReward` ("Growth reward" in the wallet). The weekly rules still read
+`weeklyPathGoalSnapshots` + `pathSessions`; the weekly evaluator is where Job
+D's weekly-goal data would switch in, keeping award ids.
+
+**Mastery, from the mastered-at history.** `evaluateMasteryGrowth` reads Job
+D's weekly snapshots (`studentMasteryHistory/{studentId}`,
+`functions/shared/masteryHistory.mjs`), which the mastery trigger writes in the
+same transaction as the profile; no client writes either document. Each skill's
+first move to Mastered on record (`masteryMilestones`, via
+`pathGrowthEvents.mjs skillMasteredEventsFromHistory`) is its one event:
+
+- **A move the history saw** pays if it is on or after the start date, on or
+  after the baseline was frozen, outside the baseline, and the profile entry
+  carries real Mastered evidence (`reachedMasteredEvidence`: canonical code,
+  the trigger's counts at the Mastered thresholds, a consistent estimate). It
+  need not still be Mastered: mastered, then lost, pays that once; mastering it
+  again pays nothing (the identity names the skill).
+- **A skill already Mastered in the oldest week** (time unknown) pays by the
+  rule from before the switch: Mastered now (`serverDerivedMastered`), profile
+  entry updated on or after the start date, outside the baseline.
+- **No history** (no mastery update since Job D's deploy) pays nothing; the
+  next update writes one.
+
+Unchanged by the switch: the award identity (`masterySkill` + TEKS code, so a
+skill paid from the profile before is found already paid), the first-sync
+baseline, the class check (the history's class of the last evidence must be the
+class of record), and at most `MASTERY_SKILLS_PER_SYNC` (5) unpaid skills per
+sync, oldest mastery first. Skills already paid take no place under the cap and
+count toward the badges. Conservative call: a skill the history saw mastered
+*before* the baseline and lost again by then (so not frozen) normally does not
+pay when mastered again; before the switch it would have paid on re-mastery.
+Two edges bring that one pre-switch payment back (still once): the history
+keeps 60 weeks, so a re-mastery can become the oldest week (time unknown), and
+it keeps one snapshot a week, so mastered, lost and re-mastered inside one
+week is seen only as the last. A skill held at Mastered only by a deploy-day
+floor (functions/shared/masteryScoring.mjs) does not pay while the floor holds
+it: its stored score is the floor's, not its evidence's, so the evidence check
+refuses it; it pays once the student's own evidence earns Mastered.
+Tests: `tests/platform/growthRewardMasteryHistory.test.mjs` (the real sync
+against an in-memory Firestore), `growthRewardRules.test.mjs`,
+`growthRewardMintingGuards.test.mjs`, and against the emulator
+`tests/integration/growthRewards.test.mjs`.
 
 ### Class rewards (`functions/shared/classRewardCatalog.mjs`, `functions/lib/classRewardStore.js`)
 

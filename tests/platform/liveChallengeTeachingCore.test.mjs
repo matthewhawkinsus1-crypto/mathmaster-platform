@@ -179,10 +179,15 @@ test('the projector shows the top few unless the teacher opted into full standin
   assert.equal(publicStandingsLimit({}, 10), PUBLIC_TOP_COUNT);
   assert.equal(publicStandingsLimit({ standingsDisplay: 'full' }, 10), 10);
   assert.equal(publicStandingsLimit({}, 3), 3, 'never more rows than fit');
-  assert.equal(finalPlaceIsHeadline(1), true);
-  assert.equal(finalPlaceIsHeadline(3), true);
-  assert.equal(finalPlaceIsHeadline(4), false);
-  assert.equal(finalPlaceIsHeadline(null), false);
+  assert.equal(finalPlaceIsHeadline(1, { lastRank: 5 }), true);
+  assert.equal(finalPlaceIsHeadline(3, { lastRank: 5 }), true);
+  assert.equal(finalPlaceIsHeadline(4, { lastRank: 5 }), false);
+  assert.equal(finalPlaceIsHeadline(null, { lastRank: 5 }), false);
+  // Never a place that ties the class's last place, and never without
+  // knowing where last place is (QA M2: 4 of 6 on 0 points saw "T-3rd").
+  assert.equal(finalPlaceIsHeadline(3, { lastRank: 3 }), false);
+  assert.equal(finalPlaceIsHeadline(1, { lastRank: 1 }), false, 'everyone tied: everyone is last');
+  assert.equal(finalPlaceIsHeadline(1), false);
   const create = regionOf(server, 'exports.createLiveChallenge = onCall', '\nexports.');
   assert.match(create, /standingsDisplay: engine\.privacy\.normalizeStandingsDisplay\(request\.data\?\.standingsDisplay\)/);
 });
@@ -222,14 +227,18 @@ test('a student\'s board lists classmates by the projector\'s rule: never a plac
   assert.doesNotMatch(shell, /look="student" limit=/);
   assert.equal((shell.match(/board=\{publicStandingsRows\(room, /g) || []).length, 3);
   assert.equal((shell.match(/<(StandingsBoard|RoundResultsTable)\b/g) || []).length, 3);
-  // … the final card's with the class's last rank, from the snapshot's every-seat ranks …
+  // … the final card's with where the class's last group starts — which the
+  // server computed over the whole class, since the snapshot holds only the
+  // public rows (no every-seat ranks a classmate could read) …
   assert.match(shell, /<StandingsBoard board=\{publicStandingsRows\(room, rows, \{ selfKey, lastRank, totalCount: totalPlayers \|\| null \}\)\}/);
-  assert.match(student, /const finalLastRank = finalStandings \? lastRankOf\(projectionRankTable\(projection\)\) : null;/);
+  assert.match(student, /const finalLastRank = finalStandings \? finalStandings\.lastRank : null;/);
   assert.match(student, /\n\s*lastRank=\{finalLastRank\}\n/);
+  // … the round card's with the class copy's last group and size …
+  assert.match(shell, /publicStandingsRows\(room, view\.standings, \{ selfKey: standing\?\.playerKey \|\| null, \.\.\.view\.standingsBoard \}\)/);
+  assert.match(shell, /publicStandingsRows\(room, view\.rows, \{ selfKey: self\?\.playerKey \|\| null, \.\.\.view\.tableBoard \}\)/);
   // … and both cards are handed the room (its standings choice).
   assert.equal((student.match(/\n\s*room=\{room\}\n/g) || []).length, 2);
-  assert.match(student, /import \{ PROJECTION_KIND, projectionRankTable, standingsFromProjection \} from/);
-  assert.match(student, /import \{ lastRankOf \} from '\.\.\/\.\.\/platform\/liveChallenge\/liveChallengeProjectorModel\.js';/);
+  assert.doesNotMatch(student, /projectionRankTable|lastRankOf/, 'no screen reads every seat');
 });
 
 /* ---------- audit follow-ups: nothing public names an accommodated student ---------- */

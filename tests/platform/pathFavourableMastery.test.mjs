@@ -5,10 +5,10 @@
  * The server profile counts EVERY attempt as an event, so "right on the second
  * try" reads 50% where main's assignment record reads 100%. Fed alone to the
  * Path engine it took Mastered away overnight and locked the skills built on
- * it. The engine now reads the MORE FAVOURABLE of the two per skill
- * (masteryAdapter.js favourableMasteryBySkill), and Path-only evidence, which
- * main never saw, can credit a skill but never lock one. The wheel and the
- * weekly planner keep the server rule — the divergence the handoff documents.
+ * it. Every screen now reads the MORE FAVOURABLE of the two per skill
+ * (unifiedMastery.js, masteryAdapter.js favourableMasteryBySkill) — the wheel,
+ * its card and the weekly planner as well as the Path engine — and Path-only
+ * evidence, which main never saw, can credit a skill but never lock one.
  *
  * Algebra I: A.3A is a hard prerequisite of A.2B, A.2C and A.3B.
  */
@@ -99,7 +99,8 @@ test('the map, its evidence and the topic browser show the more favourable numbe
   const row = browser.groups.flatMap((group) => group.skills).find((skill) => skill.skillId === teksSkillId(CODE));
   assert.equal(row.masteryStatus, MASTERY_STATUS.MASTERED);
 
-  // The wheel keeps the server rule, as it did on main: the documented
-  // divergence until the server scores each question once.
-  assert.notEqual(profiles[CODE].mastery.status, MASTERY_STATUS.MASTERED);
+  // And the wheel, its card and the planner read the same rule (coordinator
+  // decision on PR #467): Mastered, at the same number, on every screen.
+  assert.equal(profiles[CODE].mastery.status, MASTERY_STATUS.MASTERED);
+  assert.equal(profiles[CODE].mastery.estimate, 100);
 });

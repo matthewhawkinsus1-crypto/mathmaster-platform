@@ -46,6 +46,7 @@ import {
   roundStructureFor,
 } from './liveChallengeModes.mjs';
 import { SCORE_ACCUMULATION, getScoringStrategy } from './liveChallengeScoring.mjs';
+import { classStandingsRows, roundTableRows } from './liveChallengePrivacy.mjs';
 
 export const RESULT_SCHEMA_VERSION = 1;
 
@@ -186,6 +187,90 @@ export const publicRoundSummary = (roundResult = {}, { standingsAfterRound = nul
     ...publicRoundFacts(standing),
   })),
 });
+
+/**
+ * Whether a round's TABLE lists what each player earned (most points first)
+ * rather than the engine's round placement: a per-response strategy (Accuracy
+ * First, Correct Count) never reads the round's place, and a question-set
+ * round always ranks the work. The screens use the same predicate
+ * (challengeStandingsModel.roundRankedByPoints).
+ */
+export const roundTableByPoints = ({ scoringStrategyId = null, modeId = null } = {}) => (
+  getScoringStrategy(scoringStrategyId).accumulation !== SCORE_ACCUMULATION.PER_ROUND
+  && roundStructureFor(getChallengeMode(modeId)).id !== ROUND_STRUCTURE.QUESTION_SET
+);
+
+/**
+ * THE CLASS'S COPY OF A CLOSED ROUND (liveChallengeRooms/{room}/rounds/{n}),
+ * which every student in the room can read. Only the rows the public rule
+ * shows the whole class (liveChallengePrivacy.classStandingsRows) — of the
+ * round's table, ranked as a screen shows it, and of the standings the round
+ * left — with how many played and where each list's last group starts. No
+ * other player's place, score or round result. The full anonymous copy
+ * (publicRoundSummary) goes where only the room's teacher reads it
+ * (hostRounds/{n}); each student's own row goes to their own summary
+ * (liveChallengePlayerSummary.mjs).
+ */
+export const classRoundSummary = (roundResult = {}, { standingsAfterRound = null } = {}) => (
+  classCopyOfRoundSummary(publicRoundSummary(roundResult, { standingsAfterRound }))
+);
+
+/**
+ * The class's copy of a whole anonymous round summary (publicRoundSummary's
+ * shape, as hostRounds/{n} holds it — and as rounds/{n} held it before the
+ * class's copy existed, which scripts/scrub-live-challenge-public-ranks.mjs
+ * rewrites with this).
+ */
+export const classCopyOfRoundSummary = (full = {}) => {
+  const standingsAfterRound = Array.isArray(full.standingsAfterRound) ? full.standingsAfterRound : null;
+  const table = classStandingsRows(roundTableRows(full.standings, { byPoints: roundTableByPoints(full) }), {
+    totalCount: nonNegativeInt(full.participantCount) || (Array.isArray(full.standings) ? full.standings.length : 0),
+  });
+  const after = standingsAfterRound ? classStandingsRows(standingsAfterRound) : null;
+  return Object.freeze({
+    schemaVersion: RESULT_SCHEMA_VERSION,
+    // The rows below are the class's, already ranked for display: a screen
+    // draws them as they are and adds the viewer's own row from their summary.
+    visibility: 'class',
+    roundIndex: integerOr(full.roundIndex, -1),
+    roundVersion: nonNegativeInt(full.roundVersion),
+    isSecondChance: full.isSecondChance === true,
+    modeId: full.modeId ?? null,
+    scoringStrategyId: full.scoringStrategyId ?? null,
+    closedAtMs: full.closedAtMs ?? null,
+    participantCount: nonNegativeInt(full.participantCount),
+    completedCount: nonNegativeInt(full.completedCount),
+    fieldSize: full.fieldSize ?? null,
+    standings: table.rows.map((row) => ({
+      playerKey: row.playerKey,
+      alias: row.alias,
+      rank: row.rank,
+      position: row.position,
+      tied: row.tied,
+      participated: row.participated,
+      roundPoints: row.roundPoints,
+      matchPointsAwarded: row.matchPointsAwarded,
+      ...(row.completed === null ? {} : { completed: row.completed }),
+      ...(row.accuracyPercent === null ? {} : { accuracyPercent: row.accuracyPercent }),
+    })),
+    tableLastRank: table.lastRank,
+    ...(after ? {
+      standingsAfterRound: after.rows.map((row) => ({
+        playerKey: row.playerKey,
+        alias: row.alias,
+        rank: row.rank,
+        position: integerOr(row.position, 0),
+        tied: row.tied === true,
+        score: nonNegativeInt(row.score),
+        correctCount: nonNegativeInt(row.correctCount),
+        roundsAnswered: nonNegativeInt(row.roundsAnswered),
+        roundWins: nonNegativeInt(row.roundWins),
+      })),
+      standingsLastRank: after.lastRank,
+      standingsCount: after.totalCount,
+    } : {}),
+  });
+};
 
 /**
  * Where a round placed a player: their rank, but only WITH credit. When nobody

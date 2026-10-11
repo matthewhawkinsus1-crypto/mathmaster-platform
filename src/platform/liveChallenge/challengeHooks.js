@@ -82,14 +82,16 @@ export const useTicker = (intervalMs = 250, active = true) => {
 
 /**
  * One closed round's anonymous result, while `active`. Keyed by room and
- * round, so a value from another round is never returned for this one.
+ * round (and copy), so a value from another round is never returned for this
+ * one. `host`: the teacher's whole table (hostRounds) instead of the class's
+ * copy (liveChallengeService.watchLiveChallengeRound).
  */
-export const useRoundSummary = (roomId, roundIndex, active = true) => {
-  const key = active && roomId && Number.isInteger(roundIndex) && roundIndex >= 0 ? `${roomId}:${roundIndex}` : null;
+export const useRoundSummary = (roomId, roundIndex, active = true, { host = false } = {}) => {
+  const key = active && roomId && Number.isInteger(roundIndex) && roundIndex >= 0 ? `${host ? 'host' : 'class'}:${roomId}:${roundIndex}` : null;
   const [state, setState] = useState({ key: null, summary: null });
   useEffect(() => {
     if (!key) return undefined;
-    return watchLiveChallengeRound(roomId, roundIndex, (summary) => setState({ key, summary }), () => setState({ key, summary: null }));
+    return watchLiveChallengeRound(roomId, roundIndex, (summary) => setState({ key, summary }), () => setState({ key, summary: null }), { host });
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return state.key === key ? state.summary : null;
 };
@@ -127,15 +129,15 @@ const pastRounds = new Map();
 const PAST_ROUND_MEMORY = 24;
 
 /** The result of the round BEFORE `roundIndex`, for movement since then. */
-export const usePreviousRoundSummary = (roomId, roundIndex, active = true) => {
+export const usePreviousRoundSummary = (roomId, roundIndex, active = true, { host = false } = {}) => {
   const previous = Number.isInteger(roundIndex) ? roundIndex - 1 : -1;
-  const key = active && roomId && previous >= 0 ? `${roomId}:${previous}` : null;
+  const key = active && roomId && previous >= 0 ? `${host ? 'host' : 'class'}:${roomId}:${previous}` : null;
   const [state, setState] = useState(() => ({ key, summary: key ? pastRounds.get(key) || null : null }));
   useEffect(() => {
     if (!key) return undefined;
     if (pastRounds.has(key)) { setState({ key, summary: pastRounds.get(key) }); return undefined; }
     let cancelled = false;
-    readLiveChallengeRound(roomId, previous)
+    readLiveChallengeRound(roomId, previous, { host })
       .then((summary) => {
         if (summary) {
           pastRounds.set(key, summary);

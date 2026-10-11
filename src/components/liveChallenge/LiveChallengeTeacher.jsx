@@ -526,10 +526,12 @@ export default function LiveChallengeTeacher({
   }), [rosterNames, players, diagnostics, roundOpen, currentRound, finishedKeys, clockOffsetMs]);
 
   // THE RESULTS MOMENT reads the round's own result document: the round's
-  // table and the standings it left, written in the commit that closed it.
+  // table and the standings it left, written in the commit that closed it —
+  // the teacher's whole copy (hostRounds), which no student can read; the
+  // projector applies the public rule (or the teacher's full standings) to it.
   const showingResults = stage === CHALLENGE_STAGE.ROUND_RESULTS;
-  const roundSummary = useRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults);
-  const previousSummary = usePreviousRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults);
+  const roundSummary = useRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults, { host: true });
+  const previousSummary = usePreviousRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults, { host: true });
   const roundView = useMemo(() => (showingResults ? roundResultsView({ summary: roundSummary, previousSummary }) : null), [showingResults, roundSummary, previousSummary]);
   // THE WORKED SOLUTION, between rounds only. Read only once the server lists
   // the round as published (never while it can be answered, nor while a

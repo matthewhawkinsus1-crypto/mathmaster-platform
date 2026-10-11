@@ -41,6 +41,11 @@
  */
 
 import { VENDORED_PATHS } from '../sync-path-admin-runtime.mjs';
+import { plannerClosure } from '../sync-functions-weekly-planner.mjs';
+
+// Read once, lazily: the planner's module closure, repo-relative.
+let plannerFiles = null;
+const weeklyPlannerFiles = () => (plannerFiles ||= new Set(plannerClosure()));
 
 export const RELEASE_TARGETS = Object.freeze({
   INDEXES: 'firestore:indexes',
@@ -108,7 +113,7 @@ const ORDER = [
 const NO_DEPLOY = [
   /^docs\//, /^tests\//, /^functions\/test\//, /^\.github\//, /^drafts\//, /^seed\//,
   /\.md$/i, /\.txt$/i, /\.png$/i, /^[._]oxlintrc\.json$/, /^\.gitignore$/,
-  /^scripts\/(?!build-ccmr|build-course-path|sync-path-admin|build-firebase-hosting)/,
+  /^scripts\/(?!build-ccmr|build-course-path|sync-path-admin|sync-functions-weekly-planner|build-firebase-hosting)/,
 ];
 
 const RULES = [
@@ -119,8 +124,12 @@ const RULES = [
     || /^scripts\/(build-course-path-release|sync-path-admin-runtime)/.test(file)],
   // functions/shared is also vendored into the path-admin codebase, so a change
   // there is a change to both.
+  // The weekly planner's src/ modules are copied into the default codebase at
+  // predeploy (scripts/sync-functions-weekly-planner.mjs), so the freeze plans
+  // with the browser's planner; a change to one is a functions change too.
   [RELEASE_TARGETS.FUNCTIONS, (file) => (file.startsWith('functions/') && !file.startsWith('functions/test/'))
-    || /^scripts\/build-ccmr-v2-1-production-release/.test(file)],
+    || /^scripts\/(build-ccmr-v2-1-production-release|sync-functions-weekly-planner)/.test(file)
+    || weeklyPlannerFiles().has(file)],
   [RELEASE_TARGETS.HOSTING, (file) => file.startsWith('src/') || file.startsWith('public/')
     || ['index.html', 'vite.config.js', 'package.json', 'package-lock.json', 'firebase.json'].includes(file)
     || file.startsWith('functions/shared/') // the browser imports the shared grading/policy modules

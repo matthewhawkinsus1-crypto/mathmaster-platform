@@ -12,7 +12,8 @@
 //   * a Path streak longer than the one-year window keeps paying
 //   * a later read missing a paid week never pays a new streak block
 //   * abandoned Path sessions cannot crowd completed ones out of the read
-//   * mastery pays only server-derived skills, at most five per sync
+//   * mastery pays from the mastered-at history (studentMasteryHistory),
+//     only server-derived skills, at most five per sync
 //   * a growth credit is the newest row in the student's Recent points query
 
 import test from 'node:test';
@@ -30,6 +31,7 @@ if (!admin.apps.length) admin.initializeApp({ projectId: process.env.GCLOUD_PROJ
 const db = admin.firestore();
 const growth = require(path.join(repo, 'functions/lib/growthRewards.js'));
 const { accountId } = await import(path.join(repo, 'functions/shared/classPoints.mjs'));
+const { buildMasteryHistoryDocument } = await import(path.join(repo, 'functions/shared/masteryHistory.mjs'));
 
 const TEACHER = 'gr-teacher@example.com';
 const CLASS_ID = 'gr-class';
@@ -93,7 +95,28 @@ const seedStudent = async ({ classId = CLASS_ID, status = 'active' } = {}) => {
     classId,
     profiles: { 'A.1': { teksCode: 'A.1', mastery: { status: 'Mastered' }, updatedAt: RELEASED } },
   });
+  // An older week of mastery history, so later mastery is a move it sees.
+  await db.collection('studentMasteryHistory').doc(studentId).set(buildMasteryHistoryDocument({
+    profiles: {}, studentId, authorization: { classId }, now: RELEASED - 7 * DAY,
+  }));
   return { studentId, assignmentId };
+};
+
+/*
+ * One mastery update as updateMyMathPathMasteryFromEvidence writes it: the
+ * entries merged into studentMasteryProfiles and the weekly history rebuilt
+ * from the same profiles (masteryHistory.mjs buildMasteryHistoryDocument).
+ */
+const writeMastery = async (studentId, entries, at) => {
+  const profileRef = db.collection('studentMasteryProfiles').doc(studentId);
+  const historyRef = db.collection('studentMasteryHistory').doc(studentId);
+  const [profile, history] = await Promise.all([profileRef.get(), historyRef.get()]);
+  const profiles = { ...profile.data()?.profiles, ...entries };
+  const authorization = { classId: profile.data()?.classId ?? CLASS_ID };
+  await profileRef.set({ profiles, studentId, ...authorization, updatedAt: at }, { merge: true });
+  await historyRef.set(buildMasteryHistoryDocument({
+    existing: history.exists ? history.data() : null, profiles, studentId, authorization, occurredAt: at, now: at,
+  }));
 };
 
 // Retest passed (20) + badge, corrections (10) + badge, weekly goal (10).
@@ -106,7 +129,7 @@ const grantsFor = async (studentId) => (await db.collection('rewardGrants').wher
   .docs.map((entry) => entry.data());
 const accountFor = async (studentId, classId = CLASS_ID) => (await db.collection('classPointAccounts').doc(accountId(studentId, classId)).get()).data() || null;
 
-const sync = (studentId) => growth.syncStudentGrowthRewards(db, { studentId, nowMs: NOW });
+const sync = (studentId, nowMs = NOW) => growth.syncStudentGrowthRewards(db, { studentId, nowMs });
 
 /*
  * A skill as updateMyMathPathMasteryFromEvidence writes it after four correct,
@@ -168,16 +191,20 @@ test('mastery pays only for skills reached after the first sync, once', async ()
   const state = (await db.collection(growth.GROWTH_STATE).doc(studentId).get()).data();
   assert.deepEqual(state.masteryBaseline.skills, ['A.1'], 'the skill already Mastered is the baseline');
 
+  // A profile alone is not enough: mastery is paid from the history.
   await db.collection('studentMasteryProfiles').doc(studentId).set({
-    profiles: { 'A.2': derivedMastered('A.2', NOW - HOUR) },
+    profiles: { 'A.3': derivedMastered('A.3', NOW + HOUR) },
   }, { merge: true });
-  const next = await sync(studentId);
-  assert.deepEqual(next.delivered.map((award) => [award.ruleId, award.sourceId, award.amount]), [['masterySkill', 'A.2', 5]]);
-  assert.equal((await accountFor(studentId)).balance, FIRST_SYNC_POINTS + 5);
+  assert.deepEqual((await sync(studentId, NOW + HOUR)).delivered, []);
 
-  const again = await sync(studentId);
+  await writeMastery(studentId, { 'A.2': derivedMastered('A.2', NOW + HOUR) }, NOW + HOUR);
+  const next = await sync(studentId, NOW + 2 * HOUR);
+  assert.deepEqual(next.delivered.map((award) => [award.ruleId, award.sourceId, award.amount]).sort(), [['masterySkill', 'A.2', 5], ['masterySkill', 'A.3', 5]]);
+  assert.equal((await accountFor(studentId)).balance, FIRST_SYNC_POINTS + 10);
+
+  const again = await sync(studentId, NOW + 3 * HOUR);
   assert.deepEqual(again.delivered, []);
-  assert.equal((await accountFor(studentId)).balance, FIRST_SYNC_POINTS + 5);
+  assert.equal((await accountFor(studentId)).balance, FIRST_SYNC_POINTS + 10);
 });
 
 test('concurrent syncs deliver each award exactly once', async () => {
@@ -343,22 +370,22 @@ test('mastery pays only server-derived skills, at most five per sync, each once'
   // labels pay nothing.
   const forged = Object.fromEntries(Array.from({ length: 50 }, (_, index) => {
     const code = `A.${index + 2}F`;
-    return [code, { teksCode: code, mastery: { status: 'Mastered' }, updatedAt: NOW - HOUR }];
+    return [code, { teksCode: code, mastery: { status: 'Mastered' }, updatedAt: NOW + HOUR }];
   }));
-  await db.collection('studentMasteryProfiles').doc(studentId).set({ profiles: forged }, { merge: true });
-  assert.deepEqual((await sync(studentId)).delivered, []);
+  await writeMastery(studentId, forged, NOW + HOUR);
+  assert.deepEqual((await sync(studentId, NOW + HOUR)).delivered, []);
 
   // Twelve skills reached through evidence: five, five, then two.
   const real = Object.fromEntries(Array.from({ length: 12 }, (_, index) => {
     const code = `A2.${index + 1}B`;
-    return [code, derivedMastered(code, NOW - HOUR)];
+    return [code, derivedMastered(code, NOW + 2 * HOUR)];
   }));
-  await db.collection('studentMasteryProfiles').doc(studentId).set({ profiles: real }, { merge: true });
+  await writeMastery(studentId, real, NOW + 2 * HOUR);
   const skillsOf = (result) => result.delivered.filter((award) => award.ruleId === 'masterySkill').map((award) => award.sourceId);
   const rounds = [];
   for (let round = 0; round < 4; round += 1) {
     // eslint-disable-next-line no-await-in-loop
-    rounds.push(skillsOf(await sync(studentId)));
+    rounds.push(skillsOf(await sync(studentId, NOW + (3 + round) * HOUR)));
   }
   assert.deepEqual(rounds.map((round) => round.length), [5, 5, 2, 0]);
   assert.deepEqual(rounds.flat().sort(), Object.keys(real).sort());

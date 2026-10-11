@@ -13,7 +13,14 @@ import MyMathPathDashboard from '../../src/components/student/MyMathPathDashboar
 import RecommendedSkills from '../../src/components/student/RecommendedSkills.jsx';
 import { buildStudentPathOptions } from '../../src/platform/path/studentPathOptions.js';
 import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedMastery.js';
-import { teksSkillId } from '../../src/platform/path/skillGraph.js';
+import { teksCodeFromSkillId, teksSkillId } from '../../src/platform/path/skillGraph.js';
+import { coverageKey } from '../../functions/shared/pathCoverage.mjs';
+
+const everyRankedSkillCovered = (options) => ({
+  skills: Object.fromEntries(Object.values(options || {}).filter(Array.isArray).flat()
+    .flatMap((row) => [row?.skillId, row?.remediationTarget]).filter(Boolean)
+    .map((skillId) => [coverageKey(teksCodeFromSkillId(skillId)), { studentReady: true }])),
+});
 
 // 7 October 2026: Algebra I is in Module 2, Topic 2.
 const NOW = Date.parse('2026-10-07T15:00:00Z');
@@ -92,7 +99,9 @@ const scenes = {
     />
   ),
   recommended: () => (
-    <RecommendedSkills pathOptions={algebraOne.options} courseId="algebra1" onChooseSkill={recordLaunch} />
+    // Every ranked skill practisable, as the index says for a released course
+    // (the panel offers only skills the coverage index can issue).
+    <RecommendedSkills pathOptions={algebraOne.options} courseId="algebra1" coverage={everyRankedSkillCovered(algebraOne.options)} onChooseSkill={recordLaunch} />
   ),
 };
 

@@ -19,6 +19,7 @@ import * as service from '../../../src/platform/liveChallenge/liveChallengeServi
 
 export {
   readLiveChallengeRound,
+  readLiveChallengePlayerSummary,
   readLiveChallengeSolution,
   readChallengeReport,
   timestampMillis,
@@ -87,6 +88,9 @@ export const watchLiveChallengePlayer = counted('self', loggedSelf);
 export const watchLiveChallengeDiagnostics = counted('diagnostics', service.watchLiveChallengeDiagnostics);
 export const watchTeacherActiveChallenge = counted('teacherActive', service.watchTeacherActiveChallenge);
 export const watchLiveChallengeRound = counted('round', service.watchLiveChallengeRound);
+// The student's own place (playerSummaries/{studentId}): changes only at a
+// round's close and the finish.
+export const watchLiveChallengePlayerSummary = counted('summary', service.watchLiveChallengePlayerSummary);
 
 const params = new URLSearchParams(window.location.search);
 const BRIDGE = params.get('bridge') || 'http://localhost:5299';

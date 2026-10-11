@@ -30,7 +30,7 @@ import {
   roundStillFinishing,
   rushRaceRanked,
 } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
-import { SOLUTION_STATE, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { SOLUTION_STATE, answerSummaryLabel, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
 
 /*
  * THE PROJECTOR: THE GAME AS THE WHOLE CLASS SEES IT.
@@ -612,7 +612,7 @@ function ProjectorSolution({ solution, state }) {
       )}
       {review.answerSummary && (
         <div style={{ padding: '8px 14px', borderRadius: 12, background: 'rgba(141,247,201,.12)', border: '1px solid rgba(141,247,201,.4)', color: '#f7f9ff', fontWeight: 900, fontSize: 'clamp(19px, 2.9vh, 28px)' }}>
-          <span style={{ color: '#8df7c9' }}>Answer: </span><MathText>{review.answerSummary}</MathText>
+          <span style={{ color: '#8df7c9' }}>{answerSummaryLabel(review.answerSummary)}: </span><MathText>{review.answerSummary}</MathText>
         </div>
       )}
       {review.commonError && (

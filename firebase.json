@@ -12,7 +12,8 @@
       "codebase": "default",
       "predeploy": [
         "node scripts/write-functions-provenance.mjs --codebase default --dir functions",
-        "node scripts/build-ccmr-v2-1-production-release.mjs --write"
+        "node scripts/build-ccmr-v2-1-production-release.mjs --write",
+        "node scripts/sync-functions-weekly-planner.mjs"
       ],
       "ignore": [
         "node_modules",

@@ -44,9 +44,16 @@ test('the rule: every Mastered condition is required', () => {
 test('the server trigger classifies with the shared rule, not its own thresholds', () => {
   const source = executableSource(read('functions/index.js'));
   const trigger = region(source, 'exports.updateMyMathPathMasteryFromEvidence', 'ASSIGNMENT_AI_USAGE_COLLECTION', 'mastery trigger');
-  assert.match(trigger, /await import\("\.\/shared\/masteryRule\.mjs"\)/);
-  assert.match(trigger, /const status = masteryRule\.classifyMasteryStatus\(\{/);
-  assert.doesNotMatch(trigger, /estimate >= 85/, 'a second copy of the thresholds is how the screens drifted apart');
+  // The trigger scores through the shared scorer, which classifies with the
+  // shared rule (functions/shared/masteryScoring.mjs).
+  assert.match(trigger, /await import\("\.\/shared\/masteryScoring\.mjs"\)/);
+  assert.match(trigger, /masteryScoring\.applyMasteryEvent\(/);
+  const scorer = executableSource(read('functions/shared/masteryScoring.mjs'));
+  assert.match(scorer, /import \{[^}]*\bclassifyMasteryStatus\b[^}]*\} from '\.\/masteryRule\.mjs';/);
+  assert.match(scorer, /const status = classifyMasteryStatus\(ruleFacts\);/);
+  for (const body of [trigger, scorer]) {
+    assert.doesNotMatch(body, /estimate >= 85/, 'a second copy of the thresholds is how the screens drifted apart');
+  }
 });
 
 test('a 92% assignment record without breadth is NOT mastered on the Path map (it used to be, at 0.9)', () => {
