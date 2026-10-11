@@ -33,9 +33,10 @@ FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting
 | main `805b69e2` | 1,448.7 KB, 218 files | 288.8 KB, 20 files |
 | 2a: teacher panels on demand | 1,214.7 KB (−234.0) | 289.7 KB, 24 files |
 | 2b-1: TeacherWorkspace | 1,198.4 KB (−16.3) | 290.8 KB, 27 files |
-| 2b-2: authoring handlers | **1,018.8 KB (−179.6)**, 183 files | **290.3 KB**, 27 files |
+| 2b-2: authoring handlers | 1,018.8 KB (−179.6), 183 files | 290.3 KB, 27 files |
+| review fix: phone stylesheet back in App | **1,019.5 KB** (+0.7), 184 files | **290.3 KB**, 27 files |
 
-The baseline was lowered after each step. Student Home is −429.9 KB in
+The baseline was lowered after each step. Student Home is −429.2 KB in
 total, beating G's estimate of about 1.1 MB. Sign-in is +1.5 KB: rolldown
 splits a few small shared modules (assignmentRuntimeRepair, the curriculum
 calendars) into their own chunks at the new lazy boundaries. That is the

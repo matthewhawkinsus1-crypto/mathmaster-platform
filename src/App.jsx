@@ -167,6 +167,11 @@ import {
   normalizeStudentProfile,
   sameStudentProfile,
 } from './studentSupport';
+// The phone layout rules App's own assignment screens rely on. They used to
+// arrive with AssignmentCardMenu, which moved with the teacher's screen (G2):
+// imported here, where that import stood, so students get them at the same
+// point in the same order.
+import './platform/mobile/MobileInteractionFoundation.css';
 
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
 import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';

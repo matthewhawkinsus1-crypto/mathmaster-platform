@@ -201,3 +201,13 @@ test('student Home prefetches the question runtime at idle, the chunk an assignm
   assert.match(effect, /requestIdleCallback\(prefetch/);
   assert.match(read('src/app/lazyScreens.js'), /export const QuestionEngine = lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\);/);
 });
+
+// G2 adversarial review: AssignmentCardMenu (now the teacher workspace's)
+// brought the phone layout stylesheet into App's chunk. App's assignment
+// screens use its classes, so App imports it itself, where that import stood.
+test('the phone layout stylesheet still arrives with App, not only with the teacher workspace', () => {
+  const stylesheet = "import './platform/mobile/MobileInteractionFoundation.css';";
+  assert.ok(app.includes(stylesheet), 'App imports the stylesheet');
+  assert.ok(app.indexOf(stylesheet) > app.indexOf("} from './studentSupport';"), 'at the position the old import held');
+  assert.ok(app.indexOf(stylesheet) < app.indexOf("import { prefetchQuestionResources }"));
+});
