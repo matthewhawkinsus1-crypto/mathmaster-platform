@@ -18,6 +18,20 @@ on:
       - "tests/browser/mathSpeech*"
       - "tests/browser/graphDescription*"
       - "tests/browser/accessiblePrimitives*"
+      - "tests/browser/calculatorKeyboard*"
+      - "tests/browser/hostAccessibility*"
+      - "tests/browser/studentShellLargeText*"
+      - "tests/browser/contrastReview*"
+      - "tests/browser/toolKeyboard*"
+      - "tests/browser/liveChallengeChoiceKeyboard*"
+      - "tests/browser/closedVerdictChip*"
+      - "tests/browser/workBarPrimaryLabel*"
+      - "tests/browser/myMathPathLandmarks*"
+      - "tests/browser/studentAccessibleNames*"
+      - "tests/browser/staleTabRecord*"
+      - "tests/browser/dolCloseCopy*"
+      - "tests/browser/unchangedConfirmWorkView*"
+      - "tests/browser/keyboardSweep*"
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/emulator/**"
       - "tests/browser/studentUxPlatform*"
@@ -99,6 +113,117 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/accessiblePrimitives.mjs
+      - name: The calculator by keyboard (Escape, focus return, Move)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/calculatorKeyboard.mjs
+      - name: My Math Path and Recovery hosts (focus clear of the action bar, universal tools, graph descriptions)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/hostAccessibility.mjs
+      - name: Log Out target size and the Live Challenge host by keyboard
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/studentShellLargeText.mjs --check=targets,s5
+      - name: Contrast over gradients (axe's undecided nodes, measured)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: npm run review:contrast
+      - name: Mapping Diagram plot by keyboard (T1, T4)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardRelationMapping.mjs
+      - name: Three-plane model and choices by keyboard (T2, T7)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardThreePlane.mjs
+      - name: Number Line endpoints by keyboard (T3, T4)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardNumberLine.mjs
+      - name: Regression Add Item menu by keyboard (T5)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardRegression.mjs
+      - name: Residual table name and tool focus rings (T6, T8)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardDataModelingAndSystemsCss.mjs
+      - name: Live Challenge choices are a radio group; focus after Lock In (QA m4)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/liveChallengeChoiceKeyboard.mjs
+      - name: Closed-question verdict chip overlaps nothing (QA m7)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/closedVerdictChip.mjs
+      - name: Phone work bar primary label never truncated (QA m8)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/workBarPrimaryLabel.mjs
+      - name: My Math Path landmarks (QA m11)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/myMathPathLandmarks.mjs
+      - name: Home and Grades accessible names (QA m13)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/studentAccessibleNames.mjs
+      - name: A stale tab shows the recorded response once closed elsewhere (QA R2-m3)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/staleTabRecord.mjs
+      - name: Closed-DOL copy never contradicts itself (QA R2-m4)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/dolCloseCopy.mjs
+      - name: The unchanged-values confirm opens above Work View
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/unchangedConfirmWorkView.mjs
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@v4

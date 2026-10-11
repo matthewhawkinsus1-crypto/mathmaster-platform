@@ -3056,6 +3056,8 @@ export default function StepByStepAlgebra({
 
         <div
           data-math-state={equationToLatex(equation)}
+          // A named group (axe: aria-label on a role-less div is prohibited).
+          role="group"
           aria-label="Interactive algebra balance scale"
           className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}${structureFocusSides.length === 1 ? ` has-structure-focus-${structureFocusSides[0]}` : ''}`}
           style={structureFocusColumns
@@ -3278,7 +3280,7 @@ export default function StepByStepAlgebra({
               </div>
             );
           })}
-          <div ref={equalsRef} className={`algebra-balance-equals ${balanceStagingSide ? 'is-unbalanced' : ''}`} style={{ gridColumn: 2, gridRow: 1 }} aria-label="equals">=</div>
+          <div ref={equalsRef} className={`algebra-balance-equals ${balanceStagingSide ? 'is-unbalanced' : ''}`} style={{ gridColumn: 2, gridRow: 1 }} role="img" aria-label="equals">=</div>
           {balanceStagingSide && <div className="algebra-balance-status" aria-live="polite">Balance not restored · place the same move on the {balanceMissingSide} side</div>}
           <div aria-hidden="true" className={`algebra-balance-beam ${balancePulse ? 'algebra-balance-pulse' : ''} ${balanceStagingSide ? `tilt-${balanceStagingSide}` : ''}`} />
         </div>

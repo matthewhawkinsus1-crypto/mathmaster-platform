@@ -26,11 +26,11 @@ per-tool sweep (job A's files).
 | S2 nested figure blurs focus | **fixed** | `EnlargeableFigure.jsx` (no blur when nested) | graphing2: late drop 200 ms → none |
 | S3 Scratchpad not a real modal | **fixed** | `ScratchpadOverlay.jsx` on `<Dialog>`; Dialog recovers an opener disabled while loading | opens inside, Tab stays in, Escape asks about unsaved work, focus returns to Scratchpad |
 | S4 Tab walks out of Work View | **fixed** | `EnlargeableFigure.jsx` on `useModalDialog`; the floating calculator is an allowed layer | graphing2: dialog tabbing leaked=false, Escape closes |
-| S5 controls under the action bar off the assignment screen | open — wave 2, per host | a global `scroll-padding-bottom` fixed the bare harness (17 → 0 hidden stops) but moved the page on a Multiple Representations Undo that was already in view (`linearMultipleRepresentations.mjs` undo, PR #454), so it was reverted; each real host (Path, Live Challenge, Recovery, Rich runtime) needs its own measured fix | — |
+| S5 controls under the action bar off the assignment screen | **fixed per host** (job H) | `src/platform/layout/actionBarFocusReveal.js` + `useActionBarFocusReveal` in `PathSessionPlayer`, `SectionRecoveryRunner`, `LiveChallengeStudent`: after the browser reveals a keyboard-focused control, the page scrolls only if the sticky bar actually covers it (overlap + 12px); pointer focus and in-view controls never move the page. Rich runtime / secure exam: see the job H handoff | `tests/browser/hostAccessibility.mjs`: 17 covered stops at 1366×768 on five Path tools and a DOL Recovery → 0 (17 again with the hook removed); Live Challenge tool round 0 → 0 |
 | S6 points movable by pointer only | **fixed** | `CoordinatePlane.jsx`: Enter picks up / arrows / Enter drops / Escape | `tests/browser/graphDescription.mjs` |
-| S7 calculator ignores Escape | open — job A (the calculator) | `src/components/CalculatorPanel.jsx` | — |
+| S7 calculator ignores Escape | **fixed** (job H) | `CalculatorPanel.jsx`: Escape (capture phase, one layer) closes it and focus returns to the opener; ✕ too; the ↕ grip is a "Move calculator" button (arrows, Enter = next corner; a pointer still drags) | `tests/browser/calculatorKeyboard.mjs` (both viewports, over Work View) |
 | S8 ring for custom tab stops | **fixed** | `src/index.css` global `:focus-visible` for ARIA widgets, beats inline `outline:none` | `tests/browser/accessiblePrimitives.mjs` |
-| S9 "values have not changed" dialog | open — job A (`QuestionEngine.jsx`) | `QuestionEngine.jsx` (two dialogs) | — |
+| S9 "values have not changed" dialog | **fixed** (job H) | `QuestionEngine.jsx`: both modals on `<Dialog>`; the confirm is named, opens on Go Back, Escape = Go Back | `tests/platform/accessibleDialog.test.mjs` (no allow-list left) |
 
 ## Bottom line (the original measurement)
 
@@ -268,9 +268,9 @@ tool code; they are listed here so the integration lane can decide ownership.
 * **Not a gap:** the drawing canvas (`ScratchpadOverlay.jsx:515`) is freehand
   and path-dependent, which 2.1.1 exempts. Its toolbar (pen, colours, eraser,
   undo, pages, Save, Close) is all real buttons and reachable.
-* **Proposed fix:** the pattern already in this repo at
-  `src/components/common/SolverWorkspaceFrame.jsx:116-147` (Escape + Tab wrap +
-  initial focus) applied to the overlay root:
+* **Proposed fix** (done by job F with `src/ui/Dialog.jsx`; the pattern cited
+  here, `SolverWorkspaceFrame.jsx`, was deleted unrendered by job H): Escape,
+  Tab wrap and initial focus on the overlay root:
   * on open: remember `document.activeElement` (or take an `openerRef` from
     QuestionEngine) and focus the first toolbar button (`requestAnimationFrame`).
   * `keydown` on the overlay: `Escape` → `requestClose()` (so unsaved work still
@@ -290,8 +290,8 @@ tool code; they are listed here so the integration lane can decide ownership.
   opener (`:250-259`).
 * **Effect:** with Work View covering the screen, Tab goes on into controls of
   the page underneath that the student cannot see (2.4.3, 2.4.11).
-* **Proposed fix:** add the Tab wrap to the existing handler (same code as
-  `SolverWorkspaceFrame.jsx:124-137`, using `hostRef.current` as the container):
+* **Proposed fix** (done by job F with `useModalDialog`): add the Tab wrap to
+  the existing handler, using `hostRef.current` as the container:
   ```js
   if (event.key === 'Tab') {
     const focusables = [...hostRef.current.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), math-field, [tabindex]:not([tabindex="-1"])')]

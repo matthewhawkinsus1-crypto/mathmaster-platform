@@ -104,7 +104,9 @@ function RecapItem({ item }) {
             {`$${item.question.formulaLatex}$`}
           </MathText>
         )}
-        <PathQuestionStimulus stimulus={item.question?.stimulus || null} />
+        {/* A completed session's recap asks nothing: its graphs get the full
+            description (features, data table), not the answerable-item one. */}
+        <PathQuestionStimulus stimulus={item.question?.stimulus || null} describeFeatures />
         {item.question?.stimulusOmitted && (
           <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
             This question&apos;s graph or table is too large to show again here.

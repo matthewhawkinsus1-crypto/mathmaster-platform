@@ -22,7 +22,7 @@ MathfieldElement.fontsDirectory = '/node_modules/mathlive/fonts';
 
 const App = () => (
   <main style={{ padding: '16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }} data-a11y-secure-exam="true">
-    <h1 style={{ fontSize: 20, margin: '0 0 12px' }}>My assignments</h1>
+    <h1 style={{ fontSize: 'calc(20 * var(--mm-px))', margin: '0 0 12px' }}>My assignments</h1>
     <TestCycleCard
       assignmentId="cert-assignment"
       studentProfile={null}

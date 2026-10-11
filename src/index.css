@@ -19,7 +19,13 @@
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  /* The root follows the student's browser text size (WCAG 1.4.4): 112.5% is
+     18px at the default 16px, 36px at 200%. It was 18px flat, so a student who
+     made text bigger got nothing. --mm-px is one CSS pixel AT THE DEFAULT text
+     size, so a size written calc(14 * var(--mm-px)) renders exactly as 14px
+     did and grows with the setting (scripts/codemods/px-to-rem.mjs). */
+  font: 112.5%/145% var(--sans);
+  --mm-px: calc(1rem / 18);
   letter-spacing: 0.18px;
   color: var(--text);
   background: var(--bg);
@@ -29,7 +35,8 @@
   -moz-osx-font-smoothing: grayscale;
 
   @media (max-width: 1024px) {
-    font-size: 16px;
+    font-size: 100%;
+    --mm-px: calc(1rem / 16);
   }
 }
 

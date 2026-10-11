@@ -55,3 +55,6 @@ path-choice-reports/
 # Job K classroom re-grade report detail (scripts/report-classroom-regrade-candidates.mjs).
 # Lists student ids and their submitted work (never names): never commit it.
 classroom-regrade-reports/
+
+# Agent worktrees (local only)
+.claude/worktrees/

@@ -40,40 +40,48 @@ export default function AssignmentGroup({
 
   return (
     <section aria-labelledby={headingId} style={{ marginBottom: 20 }}>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        aria-controls={`${headingId}-body`}
-        style={{
-          appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
-          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-          minHeight: 44, padding: '8px 2px', border: 0, background: 'transparent',
-          cursor: 'pointer', textAlign: 'left',
-        }}
-      >
-        <span
-          aria-hidden="true"
+      {/* The disclosure pattern: the heading CONTAINS the button, never the
+          other way round. A heading inside a <button> is invalid content (a
+          button's children are presentational), so the group lost its
+          heading and the button's name ran the two together. The h2 is
+          unstyled; the label span carries the look and the id the section is
+          named by, so the section is "Finished", the button "Finished 3". */}
+      <h2 style={{ margin: 0, font: 'inherit' }}>
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          aria-expanded={open}
+          aria-controls={`${headingId}-body`}
           style={{
-            display: 'inline-block', color: tone.accent, fontSize: 13,
-            transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s ease',
+            appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+            minHeight: 44, padding: '8px 2px', border: 0, background: 'transparent',
+            cursor: 'pointer', textAlign: 'left',
           }}
         >
-          ▶
-        </span>
-        <h2 id={headingId} style={{ margin: 0, fontSize: 16.5, color: 'var(--mm-text-strong)', fontWeight: 900 }}>
-          {label}
-        </h2>
-        <span
-          style={{
-            padding: '2px 9px', borderRadius: 999, background: tone.chip,
-            color: tone.accent, fontSize: 12, fontWeight: 900,
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {entries.length}
-        </span>
-      </button>
+          <span
+            aria-hidden="true"
+            style={{
+              display: 'inline-block', color: tone.accent, fontSize: 13,
+              transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s ease',
+            }}
+          >
+            ▶
+          </span>
+          <span id={headingId} style={{ fontSize: 16.5, color: 'var(--mm-text-strong)', fontWeight: 900 }}>
+            {label}
+          </span>
+          <span
+            style={{
+              padding: '2px 9px', borderRadius: 999, background: tone.chip,
+              color: tone.accent, fontSize: 12, fontWeight: 900,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {entries.length}
+          </span>
+        </button>
+      </h2>
 
       {hint && open && (
         <p style={{ margin: '0 0 10px 23px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>

@@ -90,6 +90,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     orbitBudgetSpent: 'Whether the idle orbit has used its ten-second budget and stopped for good (deep dive 2026-10-01 §10.6). Resets for a new system; motion bookkeeping, not an answer.',
     modelOnScreen: 'Mirror of the IntersectionObserver report on the three-plane model, so the idle orbit pauses while it is scrolled out of view. Viewport bookkeeping, never mathematics.',
     pageHidden: 'Mirror of document.hidden, so the idle orbit pauses in a hidden tab. Page visibility, never mathematics.',
+    viewAnnouncement: 'The polite live-region text after a keyboard rotation of the three-plane model ("view turned …"). A viewing angle spoken aloud, not an answer (job H, T2).',
   }),
   parabolaGeometryLab: entry(['parabolaGeometry/ParabolaGeometryLab.jsx']),
   polynomialWorkshop: entry(['polynomialWorkshop/PolynomialWorkshop.jsx']),
@@ -120,10 +121,15 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     viewport: 'The camera. Presentation — panning must never look like an edit.',
     endpointError: 'Why a typed endpoint was rejected. Error text.',
     dragging: 'Which endpoint the finger is currently on. Gone at pointer-up.',
+    lineCursor: 'The keyboard placement marker on the focused line, the keyboard twin of the pointer position. Gone on blur; placing records the endpoint.',
+    endpointAnnouncement: 'The polite screen-reader read-out of the last keyboard edit. Speech, not work.',
   }),
   relationMapping: entry(['relationMapping/RelationMapping.jsx'], {
     hoverPoint: 'The cursor preview on the plane.',
     selectedDomain: 'Which domain value is armed for the next arrow. Selection.',
+    keyboardCursor: 'Where the keyboard crosshair sits on the coordinate plot before Enter plots. A cursor, not a point; plotted points stay draft-backed (job H, T1).',
+    keyboardMessage: 'The polite live-region text for the keyboard crosshair ("Crosshair at (x, y)", "Plotted (x, y)"). Positions only, never a verdict.',
+    keyboardHelpVisible: 'Whether the keyboard instruction under the plot is shown (keyboard focus only). Presentation.',
   }),
   openSortBoard: entry(['openSortBoard/OpenSortBoard.jsx'], {
     selectedId: 'Which card is picked up. Selection, not a placement.',
