@@ -1,9 +1,10 @@
 {
   "src/App.css:#000": 1,
   "src/App.css:#fff": 5,
-  "src/App.jsx:#202124": 1,
-  "src/App.jsx:#fff": 17,
+  "src/App.jsx:#fff": 10,
   "src/app/shell/SessionGate.jsx:#fff": 1,
+  "src/app/teacher/TeacherWorkspace.jsx:#202124": 1,
+  "src/app/teacher/TeacherWorkspace.jsx:#fff": 7,
   "src/AssignmentIntakeBase.jsx:#fff": 2,
   "src/AssignmentLibrary.jsx:#fff": 1,
   "src/AssignmentLibraryBase.jsx:#fff": 3,
