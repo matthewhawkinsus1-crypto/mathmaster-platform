@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft } from '../../src/platform/teacher/parentContactCenter.js';
 import { resolveContactEvents } from '../../src/platform/teacher/parentContactStore.js';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 test('contact history groups canonical student IDs and always resolves the current roster name', () => {
   const contacts = [
@@ -67,7 +68,8 @@ test('append-only resolution events clear linked outstanding follow-ups without 
 
 test('runtime wiring imports the contact center and store next to their calls', async () => {
   const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(app, /import ParentContactCenter from '.\/components\/teacher\/ParentContactCenter\.jsx'/);
+  // Imported where it is rendered (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand).
+  assert.ok(importsComponent('src/App.jsx', 'ParentContactCenter', 'src/components/teacher/ParentContactCenter.jsx'));
   assert.match(app, /import \{ fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution, subscribeParentContacts \} from '.\/platform\/teacher\/parentContactStore\.js'/);
   assert.match(app, /teacherTab === 'parentContacts'[\s\S]{0,500}<ParentContactCenter/);
 });

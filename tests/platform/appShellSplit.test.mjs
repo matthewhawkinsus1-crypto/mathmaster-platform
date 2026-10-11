@@ -58,9 +58,59 @@ test('every screen in lazyScreens.js is a lazy import, so none joins the first l
   const declarations = [...screens.matchAll(/^export const ([A-Za-z0-9]+) = (.*)$/gm)];
   assert.ok(declarations.length >= 30);
   for (const [, name, value] of declarations) {
-    assert.match(value, /^lazy\(\(\) => import\('\.\.\/[^']+\.jsx'\)\);$/, `${name} is not a lazy import`);
+    // A screen (`lazy`), or a teacher-only panel (`teacherPanel`, the same
+    // lazy import inside its own Suspense boundary). GradebookClassChooser is
+    // a named export, so it is picked out of the loaded module.
+    assert.match(value, /^(?:lazy|teacherPanel)\(\(\) => import\('\.\.\/[^']+\.jsx'\)(?:\.then\(\(module\) => \(\{ default: module\.[A-Za-z]+ \}\)\))?\);$/, `${name} is not a lazy import`);
   }
-  assert.doesNotMatch(executableSource(screens), /^import (?!\{ lazy \} from 'react')/m, 'lazyScreens.js imports a screen eagerly');
+  assert.doesNotMatch(executableSource(screens), /^import (?!\{ Suspense, createElement, lazy \} from 'react')/m, 'lazyScreens.js imports a screen eagerly');
+});
+
+/*
+ * G2: the teacher-only panels App drew from static imports (and the modules
+ * only they reach) left student Home's first load. A panel is the same lazy
+ * import wrapped in its own Suspense boundary with nothing as its fallback:
+ * App's JSX is unchanged, and a panel still loading never suspends up to
+ * AppShell's boundary, which would hide the whole teacher workspace.
+ */
+const TEACHER_PANELS = {
+  SupportEvidenceReportView: 'components/teacher/SupportEvidenceReportView.jsx',
+  ClassContextBar: 'components/teacher/ClassContextBar.jsx',
+  WeeklyPathGradePanel: 'components/teacher/WeeklyPathGradePanel.jsx',
+  ClassroomSyncReview: 'components/teacher/ClassroomSyncReview.jsx',
+  TeacherQuickSearch: 'components/teacher/TeacherQuickSearch.jsx',
+  StudentProfileDrawer: 'components/teacher/StudentProfileDrawer.jsx',
+  AssignmentHub: 'components/teacher/AssignmentHub.jsx',
+  GradebookAssignmentBar: 'components/teacher/GradebookAssignmentBar.jsx',
+  GradebookClassChooser: 'components/teacher/GradebookAssignmentBar.jsx',
+  StudentResponseInspector: 'components/teacher/StudentResponseInspector.jsx',
+  AssignmentGradeOverrideControls: 'components/teacher/AssignmentGradeOverrideControls.jsx',
+  SectionRecoveryAuditTrail: 'components/teacher/SectionRecoveryAuditTrail.jsx',
+  StudentDolRecoveryRow: 'components/teacher/StudentDolRecoveryRow.jsx',
+  ClassRewardCatalogEditor: 'components/rewards/ClassRewardCatalogEditor.jsx',
+  ClassRewardRequestsPanel: 'components/rewards/ClassRewardRequestsPanel.jsx',
+  WeeklyPathControls: 'components/teacher/WeeklyPathControls.jsx',
+  SignInAccess: 'SignInAccess.jsx',
+  ClassesAdmin: 'components/admin/ClassesAdmin.jsx',
+  PreproductionReset: 'components/admin/PreproductionReset.jsx',
+  AssignmentAiHealth: 'components/admin/AssignmentAiHealth.jsx',
+  PathCoverageAudit: 'components/teacher/PathCoverageAudit.jsx',
+  AttendanceHistoryPanel: 'components/teacher/AttendanceHistoryPanel.jsx',
+  ParentContactCenter: 'components/teacher/ParentContactCenter.jsx',
+  TeacherActionCenter: 'components/teacher/TeacherActionCenter.jsx',
+};
+
+test('the teacher-only panels load on demand, each inside its own Suspense boundary', () => {
+  const screens = executableSource(read('src/app/lazyScreens.js'));
+  const helper = screens.match(/const teacherPanel = \(load\) => \{\s*const Lazy = lazy\(load\);\s*const Panel = \(props\) => createElement\(Suspense, \{ fallback: null \}, createElement\(Lazy, props\)\);\s*return Panel;\s*\};/);
+  assert.ok(helper, 'teacherPanel: lazy, inside Suspense with no fallback, every prop passed through');
+  const imported = importedFrom('./app/lazyScreens.js');
+  for (const [name, path] of Object.entries(TEACHER_PANELS)) {
+    assert.match(screens, new RegExp(`^export const ${name} = teacherPanel\\(\\(\\) => import\\('\\.\\./${path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}'\\)`, 'm'), `${name} loads ${path} on demand`);
+    assert.ok(imported.includes(name), `App takes ${name} from lazyScreens.js`);
+    // No static import of the component's file is left in App.
+    assert.doesNotMatch(app, new RegExp(`^import [^;]* from '\\./${path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';$`, 'm'), `App still imports ${path} statically`);
+  }
 });
 
 test('the session gate renders for any screen that does not belong to the account signed in now', () => {

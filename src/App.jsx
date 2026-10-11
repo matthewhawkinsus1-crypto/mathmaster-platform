@@ -34,7 +34,6 @@ import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerR
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
-import SupportEvidenceReportView from './components/teacher/SupportEvidenceReportView.jsx';
 import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
@@ -195,13 +194,6 @@ import AssignmentCardMenu from './AssignmentCardMenu';
 
 
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
-import ClassContextBar from './components/teacher/ClassContextBar.jsx';
-import WeeklyPathGradePanel from './components/teacher/WeeklyPathGradePanel.jsx';
-import ClassroomSyncReview from './components/teacher/ClassroomSyncReview.jsx';
-import TeacherQuickSearch from './components/teacher/TeacherQuickSearch.jsx';
-import StudentProfileDrawer from './components/teacher/StudentProfileDrawer.jsx';
-import AssignmentHub from './components/teacher/AssignmentHub.jsx';
-import GradebookAssignmentBar, { GradebookClassChooser } from './components/teacher/GradebookAssignmentBar.jsx';
 import { classGradeProgress } from './platform/teacher/assignmentProgress.js';
 import { groupAssignmentList } from './platform/teacher/assignmentListGroups.js';
 import StudentNameLink from './components/common/StudentNameLink.jsx';
@@ -209,8 +201,6 @@ import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';
 import Dialog from './ui/Dialog.jsx';
 import { MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle } from './components/common/pageChrome.jsx';
 import { subscribeToReadingActivity } from './components/common/readingActivity.js';
-import StudentResponseInspector from './components/teacher/StudentResponseInspector.jsx';
-import AssignmentGradeOverrideControls from './components/teacher/AssignmentGradeOverrideControls.jsx';
 
 import DOLCountdown from './components/student/DOLCountdown.jsx';
 
@@ -380,17 +370,29 @@ import {
   TEACHER_SESSION_SUMMARY_TABS,
   TEACHER_SUPPORT_STREAM_TABS,
 } from './app/screenScopes.js';
-// Every screen loaded on demand (one chunk each).
+// Every screen loaded on demand (one chunk each), and the teacher-only
+// panels, each with its own Suspense boundary (lazyScreens.js).
 import {
+  AssignmentAiHealth,
   AssignmentContentUpgradeModal,
+  AssignmentGradeOverrideControls,
+  AssignmentHub,
   AssignmentIntake,
   AssignmentLibrary,
   AssignmentQuestionEditor,
+  AttendanceHistoryPanel,
+  ClassContextBar,
   ClassCourseSettings,
-  ClassScheduleSettings,
+  ClassesAdmin,
   ClassesWorkspace,
+  ClassRewardCatalogEditor,
+  ClassRewardRequestsPanel,
   ClassroomManagerV2,
+  ClassroomSyncReview,
+  ClassScheduleSettings,
   DemoExperience,
+  GradebookAssignmentBar,
+  GradebookClassChooser,
   GradeTransferCenter,
   LessonPreflightModal,
   LiveChallengeStudent,
@@ -399,23 +401,36 @@ import {
   MathToolsLab,
   MyMathPathApp,
   PacingControls,
+  ParentContactCenter,
+  PathCoverageAudit,
   PathSimulator,
+  PreproductionReset,
   QuestionEngine,
   ReviewMyWork,
+  SectionRecoveryAuditTrail,
   SectionRecoveryRunner,
+  SignInAccess,
   StudentCaseReviewView,
+  StudentDolRecoveryRow,
+  StudentProfileDrawer,
+  StudentResponseInspector,
   StudentSecureExamDashboard,
   StudentsRoster,
+  SupportEvidenceReportView,
+  TeacherActionCenter,
   TeacherAnalyticsDashboard,
   TeacherAssignmentPdfDialog,
   TeacherHome,
   TeacherQuestionReviewPanel,
+  TeacherQuickSearch,
   TeacherSecureExamDashboard,
   TeacherSidebar,
   TestCycleCard,
   TestCyclePreview,
   TexasStandardsDashboard,
   WarmupChallengeGate,
+  WeeklyPathControls,
+  WeeklyPathGradePanel,
 } from './app/lazyScreens.js';
 import {
   TEACHER_HISTORY_DOCUMENT_ID,
@@ -457,8 +472,6 @@ import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from './platform/
 import StudentGlobalNav, { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
-import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAuditTrail.jsx';
-import StudentDolRecoveryRow from './components/teacher/StudentDolRecoveryRow.jsx';
 import { completedRecoverySections, heldRecoverySections, warmupChallengeCounts } from './platform/recovery/teacherRecoveryAudit.js';
 import { buildStudentRecoverySummary } from './platform/recovery/studentRecoveryModel.js';
 import {
@@ -492,8 +505,6 @@ import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.
 import { useClassPracticePasses } from './platform/rewards/useClassPracticePasses.js';
 import StudentRewardsCenter from './components/student/rewards/StudentRewardsCenter.jsx';
 import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
-import ClassRewardCatalogEditor from './components/rewards/ClassRewardCatalogEditor.jsx';
-import ClassRewardRequestsPanel from './components/rewards/ClassRewardRequestsPanel.jsx';
 import { useGrowthRewardSync } from './platform/rewards/useGrowthRewardSync.js';
 
 import {
@@ -513,15 +524,9 @@ import {
   setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
   subscribeStudentPathIntervention,
 } from './platform/path/pathStore.js';
-import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
 import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
 import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
-import SignInAccess from './SignInAccess.jsx';
-import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
-import PreproductionReset from './components/admin/PreproductionReset.jsx';
-import AssignmentAiHealth from './components/admin/AssignmentAiHealth.jsx';
-import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
 import {
   blobToBase64,
   generateLessonNotesPdfBlob,
@@ -562,9 +567,6 @@ import {
 import { localDateKeyOf } from './platform/attendance/classMeetings.js';
 import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js';
 import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
-import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.jsx';
-import ParentContactCenter from './components/teacher/ParentContactCenter.jsx';
-import TeacherActionCenter from './components/teacher/TeacherActionCenter.jsx';
 // buildAttendanceCorrectionReviewEvent was called by "Keep current extension"
 // and "Apply shorter extension" without being imported — a ReferenceError that
 // made every attendance correction review impossible to resolve.

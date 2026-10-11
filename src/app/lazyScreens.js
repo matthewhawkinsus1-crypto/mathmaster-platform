@@ -4,7 +4,7 @@
  * downloads a screen when they first open it, never at sign-in
  * (tests/platform/initialBundleBoundary.test.mjs).
  */
-import { lazy } from 'react';
+import { Suspense, createElement, lazy } from 'react';
 
 export const ClassroomManagerV2 = lazy(() => import('../ClassroomManagerV2.jsx'));
 export const AssignmentQuestionEditor = lazy(() => import('../AssignmentQuestionEditor.jsx'));
@@ -49,3 +49,45 @@ export const TestCyclePreview = lazy(() => import('../components/teacher/TestCyc
 // The Recovery runner mounts QuestionEngine, and with it MathLive (~780 KB):
 // a student who opens a Recovery fetches it then, not every student at sign-in.
 export const SectionRecoveryRunner = lazy(() => import('../components/student/SectionRecoveryRunner.jsx'));
+
+/*
+ * TEACHER-ONLY PANELS (student push G2). App rendered these from static
+ * imports, so every student's Home downloaded them and the 115 modules only
+ * they reach (scripts/first-load-baseline.json). Each now loads the first time
+ * a teacher's screen draws it.
+ *
+ * A panel carries its own Suspense boundary, so App's JSX is unchanged and a
+ * panel that is still loading draws nothing in its place: without one, the
+ * nearest boundary is AppShell's, which would swap the whole teacher
+ * workspace for the loading screen while one panel downloads.
+ */
+const teacherPanel = (load) => {
+  const Lazy = lazy(load);
+  const Panel = (props) => createElement(Suspense, { fallback: null }, createElement(Lazy, props));
+  return Panel;
+};
+export const SupportEvidenceReportView = teacherPanel(() => import('../components/teacher/SupportEvidenceReportView.jsx'));
+export const ClassContextBar = teacherPanel(() => import('../components/teacher/ClassContextBar.jsx'));
+export const WeeklyPathGradePanel = teacherPanel(() => import('../components/teacher/WeeklyPathGradePanel.jsx'));
+export const ClassroomSyncReview = teacherPanel(() => import('../components/teacher/ClassroomSyncReview.jsx'));
+export const TeacherQuickSearch = teacherPanel(() => import('../components/teacher/TeacherQuickSearch.jsx'));
+export const StudentProfileDrawer = teacherPanel(() => import('../components/teacher/StudentProfileDrawer.jsx'));
+export const AssignmentHub = teacherPanel(() => import('../components/teacher/AssignmentHub.jsx'));
+export const GradebookAssignmentBar = teacherPanel(() => import('../components/teacher/GradebookAssignmentBar.jsx'));
+// A named export of the same module (lazy() takes a default).
+export const GradebookClassChooser = teacherPanel(() => import('../components/teacher/GradebookAssignmentBar.jsx').then((module) => ({ default: module.GradebookClassChooser })));
+export const StudentResponseInspector = teacherPanel(() => import('../components/teacher/StudentResponseInspector.jsx'));
+export const AssignmentGradeOverrideControls = teacherPanel(() => import('../components/teacher/AssignmentGradeOverrideControls.jsx'));
+export const SectionRecoveryAuditTrail = teacherPanel(() => import('../components/teacher/SectionRecoveryAuditTrail.jsx'));
+export const StudentDolRecoveryRow = teacherPanel(() => import('../components/teacher/StudentDolRecoveryRow.jsx'));
+export const ClassRewardCatalogEditor = teacherPanel(() => import('../components/rewards/ClassRewardCatalogEditor.jsx'));
+export const ClassRewardRequestsPanel = teacherPanel(() => import('../components/rewards/ClassRewardRequestsPanel.jsx'));
+export const WeeklyPathControls = teacherPanel(() => import('../components/teacher/WeeklyPathControls.jsx'));
+export const SignInAccess = teacherPanel(() => import('../SignInAccess.jsx'));
+export const ClassesAdmin = teacherPanel(() => import('../components/admin/ClassesAdmin.jsx'));
+export const PreproductionReset = teacherPanel(() => import('../components/admin/PreproductionReset.jsx'));
+export const AssignmentAiHealth = teacherPanel(() => import('../components/admin/AssignmentAiHealth.jsx'));
+export const PathCoverageAudit = teacherPanel(() => import('../components/teacher/PathCoverageAudit.jsx'));
+export const AttendanceHistoryPanel = teacherPanel(() => import('../components/teacher/AttendanceHistoryPanel.jsx'));
+export const ParentContactCenter = teacherPanel(() => import('../components/teacher/ParentContactCenter.jsx'));
+export const TeacherActionCenter = teacherPanel(() => import('../components/teacher/TeacherActionCenter.jsx'));

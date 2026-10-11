@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -25,7 +26,8 @@ test('every entry point opens the new report; the old pop-up generator is gone',
 });
 
 test('the report view is imported, mounted above the drawer, and closes to it', () => {
-  assert.match(app, /import SupportEvidenceReportView from '\.\/components\/teacher\/SupportEvidenceReportView\.jsx';/);
+  // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
+  assert.ok(importsComponent('src/App.jsx', 'SupportEvidenceReportView', 'src/components/teacher/SupportEvidenceReportView.jsx'));
   assert.ok(app.indexOf('<SupportEvidenceReportView') > app.indexOf('<StudentProfileDrawer'), 'renders after the drawer so it stacks on top');
   const mount = region(app, '<SupportEvidenceReportView', '/>', 'report mount');
   assert.match(mount, /onClose=\{\(\) => setSupportReportStudentId\(null\)\}/);

@@ -26,6 +26,7 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import { teacherAssignmentView, legacyStudentIds, overrideAuthorizationContext, planStudentAbsorption } from '../../functions/shared/studentAssignmentOverrides.mjs';
 import { stripAssignmentInstanceState } from '../../functions/shared/assignmentPrivacy.mjs';
 import { ALL_STUDENTS, CLASS_ID, TEACHER, legacyAssignment } from '../fixtures/studentAssignmentOverrideLegacyFixtures.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -149,7 +150,8 @@ test('5. the staff-only override history is read by staff screens only — never
     .map((file) => readFileSync(path.join(srcRoot, file), 'utf8')).join('\n');
   assert.doesNotMatch(studentSide, /studentOverrideHistory|assignmentOverrideArchives|platformMigrations/);
   // Shown in the gradebook's student detail, a teacher screen.
-  assert.match(app, /import StudentDolRecoveryRow from '\.\/components\/teacher\/StudentDolRecoveryRow\.jsx';/);
+  // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
+  assert.ok(importsComponent('src/App.jsx', 'StudentDolRecoveryRow', 'src/components/teacher/StudentDolRecoveryRow.jsx'));
   assert.match(code, /<StudentDolRecoveryRow db=\{db\} assignment=\{selectedAssignment\} student=\{student\}[^>]*viewer=\{\{ email: user\.email, isRootAdmin: user\.isRootAdmin === true \}\}/);
 });
 

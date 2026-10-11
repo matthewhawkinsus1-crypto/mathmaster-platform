@@ -12,13 +12,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
 const hub = executableSource(read('src/components/teacher/AssignmentHub.jsx'));
 
 test('App renders the hub, imported, with the shared audited handlers', () => {
-  assert.match(app, /import AssignmentHub from '\.\/components\/teacher\/AssignmentHub\.jsx';/);
+  // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
+  assert.ok(importsComponent('src/App.jsx', 'AssignmentHub', 'src/components/teacher/AssignmentHub.jsx'));
   const mount = executableSource(region(app, '<AssignmentHub', '/>', 'AssignmentHub mount'));
   for (const [prop, handler] of [
     ['onToggleWarmup', 'handleToggleWarmupForClass'],
