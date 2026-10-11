@@ -19,6 +19,12 @@
  * the REAL production field grader.
  *
  * Coverage:
+ *   - the school My Math Path banks (grade 6-8, Algebra I/II) exactly as served:
+ *     compiled for the course release, issued, stored and re-served, every
+ *     choice answered with its served option id, every open field with
+ *     spellings confirmed equivalent by mathjs/fraction.js (LaTeX from the
+ *     math editor, commuted factors, chained inequalities ...), every tool
+ *     item with tool work (scripts/lib/pathBankAnswerSweep.mjs)
  *   - every active production Path/CCMR bank
  *   - repeated generated draws per template
  *   - every non-choice/non-prose response field
@@ -43,6 +49,13 @@ import {
   hasPathGenerator,
 } from '../functions/shared/pathQuestionGeneration.mjs';
 import { gradeResponseField } from '../src/grading/fieldGrader.js';
+import {
+  KNOWN_OPEN_FALSE_NEGATIVES,
+  duplicateServedOptions,
+  safeHumanEquation,
+  sweepCourses,
+  unexpectedFindings,
+} from './lib/pathBankAnswerSweep.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../functions/lib/mathPath.js');
@@ -53,6 +66,7 @@ const argOf = (name, fallback) => {
 };
 const SAMPLES = Math.max(1, Number(argOf('--samples', '12')) || 12);
 const MAX_FAILURES = Math.max(10, Number(argOf('--max-failures', '100')) || 100);
+const SCHOOL_DRAWS = Math.max(1, Number(argOf('--school-draws', '6')) || 6);
 
 const documentsIn = (parsed) => (
   Array.isArray(parsed)
@@ -62,33 +76,9 @@ const documentsIn = (parsed) => (
 
 const seedDir = path.resolve('functions/seeds/pathQuestionBank');
 
-const safeHumanEquation = (input) => {
-  let value = String(input ?? '');
-
-  // Explicit multiplication beside an algebraic symbol/group -> implicit
-  // multiplication. Numeric * numeric is deliberately left alone.
-  value = value
-    .replace(/([0-9A-Za-z)\]}])\s*\*\s*([A-Za-z(])/g, '$1$2')
-    .replace(/([A-Za-z)\]}])\s*\*\s*([0-9A-Za-z(])/g, '$1$2');
-
-  // Generator spellings such as +(-6) and +(1).
-  value = value
-    .replace(/\+\(\s*(-\d+(?:\.\d+)?)\s*\)/g, '$1')
-    .replace(/\+\(\s*(\d+(?:\.\d+)?)\s*\)/g, '+$1')
-    .replace(/-\(\s*-(\d+(?:\.\d+)?)\s*\)/g, '+$1')
-    .replace(/-\(\s*(\d+(?:\.\d+)?)\s*\)/g, '-$1');
-
-  // Parentheses around a coefficient/constant carry no mathematical meaning.
-  value = value
-    .replace(/\(\s*(-?\d+(?:\.\d+)?)\s*\)(?=[A-Za-z]|$|[+\-=])/g, '$1');
-
-  // Human standard polynomial writing suppresses coefficient 1.
-  value = value
-    .replace(/(^|[=+\-])1(?=[A-Za-z])/g, '$1')
-    .replace(/(^|[=+])-1(?=[A-Za-z])/g, '$1-');
-
-  return value;
-};
+// safeHumanEquation (generator bookkeeping -> human spelling) is shared with
+// the school-bank sweep, so the two agree on what "human" means. It keeps the
+// parentheses of a call: sqrt(3) is not sqrt3.
 
 const exponentBraceVariant = (input) => String(input ?? '')
   .replace(/\^(-?\d+)(?![}\d])/g, '^{$1}');
@@ -100,6 +90,7 @@ const verifyAuditVariantGenerator = () => {
     ['1/(x-(-1))', '1/(x+1)'],
     ['2/(x+(-5))', '2/(x-5)'],
     ['y=1*x^2+(-6)*x+(1)', 'y=x^2-6x+1'],
+    ['3sqrt(3)', '3sqrt(3)'],
   ];
 
   const failures = cases
@@ -289,7 +280,34 @@ for (const file of walkJsonFiles(teacherRoot)) {
   });
 }
 
+// The school banks as a student meets them (see the header).
+const school = await sweepCourses({ draws: SCHOOL_DRAWS });
+const schoolOptions = duplicateServedOptions(undefined, 1000);
+const schoolUnexpected = [
+  ...unexpectedFindings(school.findings),
+  ...schoolOptions.found.map((entry) => ({ ...entry, class: 'KEY DEFECT', kind: `twin served options (${entry.kind})`, detail: `${entry.at}: ${entry.labels.join(' | ')}` })),
+];
+const schoolKnown = school.findings.filter((finding) => !schoolUnexpected.includes(finding));
+
 console.log('\n# MathMaster Correct Answer Acceptance Audit\n');
+console.log(`School Path banks (as served)  : ${school.totals.families} families, ${school.totals.variantRows} variant rows, ${school.totals.instances} instances (${SCHOOL_DRAWS} draws per generated row)`);
+console.log(`  choice fields / open fields  : ${school.totals.choiceFields} / ${school.totals.fields - school.totals.choiceFields}`);
+console.log(`  spellings graded             : ${school.totals.spellings} (${school.totals.dropped} unconfirmed spellings not sent)`);
+console.log(`  tool items / tool works      : ${school.totals.toolQuestions} / ${school.totals.toolWorks} (${school.totals.keyChecks} keys recomputed)`);
+console.log(`  choice option twins checked  : ${schoolOptions.coverage.enumeratedRows} rows every combination (${schoolOptions.coverage.combinations}), ${schoolOptions.coverage.sampledRows} rows sampled (${schoolOptions.coverage.sampledDraws} draws: ${schoolOptions.coverage.sampled.join(', ')})`);
+const byKind = (findings) => findings.reduce((counts, finding) => {
+  const key = `${finding.class} | ${finding.kind}`;
+  return { ...counts, [key]: (counts[key] || 0) + 1 };
+}, {});
+console.log(`  reported grader gaps         : ${schoolKnown.length}`);
+Object.entries(byKind(schoolKnown)).forEach(([key, count]) => {
+  console.log(`      ${String(count).padStart(5)}  ${key} — ${KNOWN_OPEN_FALSE_NEGATIVES[key.split(' | ')[1]]?.reason || ''}`);
+});
+console.log(`  unexpected findings          : ${schoolUnexpected.length}`);
+schoolUnexpected.slice(0, MAX_FAILURES).forEach((finding) => {
+  console.log(`    ✗ ${finding.class} ${finding.kind}: ${finding.courseId} ${finding.id}#${finding.variant ?? 'base'} ${finding.fieldId || finding.toolId || ''} ${finding.expected ?? ''} -> ${finding.rejected ?? finding.detail ?? ''}`);
+});
+console.log('');
 console.log(`Production bank files          : ${bankFiles.length}`);
 console.log(`Active Path/CCMR templates     : ${templates}`);
 console.log(`Generated/fixed instances      : ${instances}`);
@@ -297,6 +315,11 @@ console.log(`Path open-response fields      : ${pathFields}`);
 console.log(`Teacher-import open responses  : ${assignmentFields}`);
 console.log(`Known-correct variants checked : ${variantsChecked}`);
 console.log(`False-negative findings        : ${failures.length}\n`);
+
+if (schoolUnexpected.length && !failures.length) {
+  console.log('BLOCKED: the school Path banks have a key defect or a false negative nobody has reported.');
+  process.exit(1);
+}
 
 if (failures.length) {
   failures.forEach((failure, index) => {

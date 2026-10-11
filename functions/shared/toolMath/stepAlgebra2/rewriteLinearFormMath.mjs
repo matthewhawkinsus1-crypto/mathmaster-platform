@@ -76,8 +76,48 @@ export const isFactoredLinearForm = (expression) => (
  * Algebra workspace completes on.
  */
 export const isSimplifiedSlopeInterceptForm = (expression) => (
-  preservesLinearDomain(expression) && isSimplifiedSlopeInterceptExpression(latexToExpression(expression), 'x')
+  preservesLinearDomain(expression)
+  && isSimplifiedSlopeInterceptExpression(latexToExpression(expression), 'x')
+  && writtenAsMxPlusB(latexToExpression(expression))
 );
+
+/*
+ * The engine's structural check reads the right side through its additive
+ * terms, so it also passes two shapes that only EQUAL mx + b: a negated group
+ * whose distribution is still to do ("-(x + 1)") and a coefficient written
+ * after the variable ("x*2 - 6"). An authored rewrite question can start from
+ * either, so leaving one unchanged must not count as finished. Every ordering
+ * the engine accepts on purpose ("3 - (5/2)x", "-(5/2)x + 3", "x/2 + 3",
+ * "-(3 * x) - 6") still passes, and so does every spelling that IS mx + b:
+ * b written as a negative number ("5x + -20") and a written coefficient of
+ * one ("1x - 4", "-1x + 5", "(-1) * (x)"). The platform's answer check treats
+ * that as the implied coefficient of one, and the Representation Bridge's
+ * general-form stage — the other caller of describeRewriteGap — must keep
+ * accepting "y = 1x - 4" as y = mx + b.
+ */
+const unwrapParens = (node) => {
+  let current = node;
+  while (current?.type === 'ParenthesisNode') current = current.content;
+  return current;
+};
+const isAdditiveNode = (node) => node?.type === 'OperatorNode' && ['add', 'subtract'].includes(node.fn) && node.args?.length === 2;
+const holdsX = (node) => node.filter((child) => child.isSymbolNode && child.name === 'x').length > 0;
+
+const writtenAsMxPlusB = (expression) => {
+  let root;
+  try { root = parse(String(expression)); } catch { return false; }
+  let finished = true;
+  root.traverse((raw) => {
+    const node = unwrapParens(raw);
+    if (!finished || node?.type !== 'OperatorNode') return;
+    if (node.fn === 'unaryMinus' && isAdditiveNode(unwrapParens(node.args[0]))) finished = false;
+    else if (node.fn === 'multiply' && node.args.length === 2) {
+      const [first, second] = node.args;
+      if (holdsX(first) && !holdsX(second)) finished = false;
+    }
+  });
+  return finished;
+};
 
 export const buildInitialEquationState = (questionData = {}) => {
   const parsed = parseEquationInput({

@@ -248,7 +248,7 @@ export const validateToolQuestion = (question = {}) => {
       if (f.h != null && !Number.isFinite(Number(f.h))) errors.push('inverseCompositionLab deriveInverse mode requires finite h when supplied.');
       if (f.k != null && !Number.isFinite(Number(f.k))) errors.push('inverseCompositionLab deriveInverse mode requires finite k when supplied.');
     }
-    if (f.type === 'quadratic' && !f.inverseBranch && f.domain?.min == null && f.domain?.max == null) warnings.push('Quadratic inverse family should declare inverseBranch or a one-sided domain restriction.');
+    if (f.type === 'quadratic' && !f.inverseBranch && !question.inverseBranch && f.domain?.min == null && f.domain?.max == null) warnings.push('Quadratic inverse family should declare inverseBranch or a one-sided domain restriction.');
     if (['exponential','logarithmic'].includes(f.type)) {
       const base = Number(f.base ?? 2);
       if (!(base > 0) || base === 1) errors.push('Inverse/composition exponential or logarithmic base must be positive and not equal to 1.');

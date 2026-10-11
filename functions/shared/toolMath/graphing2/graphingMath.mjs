@@ -77,13 +77,57 @@ export const pointOnLine = (line, point, tolerance = 0.12) => {
   return nearlyEqual(y, Number(line.m) * x + Number(line.b), tolerance);
 };
 
+/*
+ * The grid Graphing2 snaps plotted points to (Graphing2.jsx resolveSnapStep):
+ * an authored snapStep, else 1 for a line with integer slope and intercept
+ * (or an integer vertical), else 0.5.
+ */
+export const graphing2SnapStep = (question = {}, target) => {
+  const explicit = Number(question?.snapStep);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  if (!target) return 1;
+  if (target.kind === 'vertical') return Number.isInteger(target.x) ? 1 : 0.5;
+  const m = Number(target.m);
+  const b = Number(target.b);
+  if (!Number.isFinite(m) || !Number.isFinite(b)) return 1;
+  return Number.isInteger(m) && Number.isInteger(b) ? 1 : 0.5;
+};
+
+// The window Graphing2 draws (Graphing2.jsx): the question's graphBounds, else ±7.
+export const GRAPHING2_DEFAULT_BOUNDS = Object.freeze({ xMin: -7, xMax: 7, yMin: -7, yMax: 7 });
+
+/*
+ * Whether two distinct snapped points INSIDE the drawn window lie ON the
+ * target line. When none do (y = 2.3 on a 0.5 grid, or y = 0.01x + 0.25 on a
+ * ±10 window), no construction the student can make puts both points on the
+ * line, and requiring it would leave the question with no correct answer.
+ */
+export const targetReachableOnGrid = (target, step = 1, tolerance = 0.12, bounds = GRAPHING2_DEFAULT_BOUNDS) => {
+  if (!target || !(step > 0)) return false;
+  const { xMin, xMax, yMin, yMax } = { ...GRAPHING2_DEFAULT_BOUNDS, ...(bounds || {}) };
+  const snaps = (value) => Math.abs(Math.round(value / step) * step - value) <= tolerance;
+  if (target.kind === 'vertical') {
+    const x = Number(target.x);
+    return x >= xMin - tolerance && x <= xMax + tolerance && snaps(x);
+  }
+  let found = 0;
+  for (let i = Math.ceil(xMin / step); i * step <= xMax; i += 1) {
+    const x = i * step;
+    const y = Number(target.m) * x + Number(target.b);
+    const gridY = Math.round(y / step) * step;
+    if (gridY >= yMin && gridY <= yMax && snaps(y)) found += 1;
+    if (found >= 2) return true;
+  }
+  return false;
+};
+
 /**
  * constructionEvidence plus the facts its score is made of, for the shared
  * grader's per-part report. `evidence` is exactly what constructionEvidence
  * returns; `coincident` says the first two points are the same spot (the
  * CRIT-01 case, where one on-line point earns a quarter, not a half).
  */
-export const constructionEvidenceDetail = (points = [], target, tolerance = 0.12) => {
+export const constructionEvidenceDetail = (points = [], target, tolerance = 0.12, { requirePointsOnLine = true } = {}) => {
   if (!points || points.length < 2) {
     return { evidence: { studentLine: null, pointChecks: [false, false], score: 0, isCorrect: false }, coincident: false };
   }
@@ -102,7 +146,15 @@ export const constructionEvidenceDetail = (points = [], target, tolerance = 0.12
 
   const studentLine = lineFromPoints(p1, p2);
   const pointChecks = points.slice(0, 2).map((point) => pointOnLine(target, point, tolerance));
-  const isCorrect = studentLine !== null && linesEquivalent(studentLine, target, tolerance);
+  // Both points must be ON the target line, not only near a line whose slope
+  // and intercept are within tolerance of it: one snap step off a steep or
+  // fractional line can land inside the m/b tolerance while plotting a
+  // different line (its own "Point 2 is on the target line" part is false).
+  // A target no snapped point reaches keeps the line rule alone (the caller
+  // decides, from the question's grid: targetReachableOnGrid).
+  const isCorrect = studentLine !== null
+    && (!requirePointsOnLine || pointChecks.every(Boolean))
+    && linesEquivalent(studentLine, target, tolerance);
   // Partial-credit scale intentionally unchanged; see the batch D test.
   return { evidence: { studentLine, pointChecks, score: isCorrect ? 1 : pointChecks.filter(Boolean).length / 2, isCorrect }, coincident: false };
 };

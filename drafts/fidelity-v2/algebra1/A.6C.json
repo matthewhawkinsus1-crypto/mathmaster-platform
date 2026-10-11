@@ -162,7 +162,10 @@
               "id": "answer",
               "label": "Complete factored equation",
               "inputProfile": "equation",
-              "expected": "y=2(x{{nr1|signed}})(x{{nr2|signed}})"
+              "expected": "y=2(x{{nr1|signed}})(x{{nr2|signed}})",
+              "accepted": [
+                "y=2(x{{nr2|signed}})(x{{nr1|signed}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -351,7 +354,10 @@
               "id": "answer",
               "label": "Complete factored quadratic equation",
               "inputProfile": "equation",
-              "expected": "y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})"
+              "expected": "y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})",
+              "accepted": [
+                "y={{a}}(x{{nr2|signed}})(x{{nr1|signed}})"
+              ]
             },
             {
               "id": "verify-zero-point",

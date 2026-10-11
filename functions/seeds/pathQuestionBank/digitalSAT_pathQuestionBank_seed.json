@@ -52548,7 +52548,7 @@
         "answerSummary": "$t={{p}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "A model uses the equation $\\sqrt{t {{a|signed}}}={{c}}-t$. Algebra gives candidate times $t={{p}}$ and $t={{q}}$, with $p<c<q$. Which candidate time can satisfy the original model?",
+      "prompt": "A model uses the equation $\\sqrt{t {{a|signed}}}={{c}}-t$. Algebra gives candidate times $t={{p}}$ and $t={{q}}$. Which candidate time can satisfy the original model?",
       "generator": {
         "parameters": {
           "c": {
@@ -78432,7 +78432,9 @@
           "countA": "onlyA+both",
           "countB": "onlyB+both",
           "union": "onlyA+onlyB+both",
-          "total": "union+outside"
+          "total": "union+outside",
+          "satTruncated4": "floor(10000*union/total)/10000",
+          "satRounded4": "round(10000*union/total)/10000"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -78441,7 +78443,11 @@
           "id": "answer",
           "label": "Answer",
           "inputProfile": "number",
-          "expected": "{{union}}/{{total}}"
+          "expected": "{{union}}/{{total}}",
+          "acceptedAnswers": [
+            "{{satTruncated4}}",
+            "{{satRounded4}}"
+          ]
         }
       ],
       "solutionReview": {

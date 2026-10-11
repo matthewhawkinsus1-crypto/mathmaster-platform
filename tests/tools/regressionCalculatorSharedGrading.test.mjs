@@ -67,7 +67,17 @@ const LEGACY_BROWSER_VERDICT = (questionData, { tablePoints, run, direction, str
   const parts = {
     [sourceMode === 'scatterplot' ? 'graph-to-table' : 'data-entry']: tableCorrect,
     'linear-regression': tableCorrect && run?.operation === 'linearRegression' && legacySamePairs(run.table, entered),
-    'correlation-produced': tableCorrect && Math.abs(Number(run?.r) - Number(expected?.r)) <= 0.0005,
+    // ONE DELIBERATE DIFFERENCE from the old inline Submit (K job): the
+    // stage now follows My Math Path's rule — the regression stage passed,
+    // and the run's r, m and b are those of the run's own table, whose r is
+    // the source's. The old rule passed a stale run whose r only happened to
+    // match. A run the calculator executed on the right table always passes.
+    'correlation-produced': (() => {
+      const regressed = tableCorrect && run?.operation === 'linearRegression' && legacySamePairs(run.table, entered);
+      const own = regressed ? regressionCalculatorStats(run.table) : null;
+      return Boolean(own) && ['r', 'm', 'b'].every((field) => Math.abs(Number(run[field]) - own[field]) <= 0.0005)
+        && Math.abs(own.r - Number(expected?.r)) <= 0.0005;
+    })(),
     interpretation: questionData.requireInterpretation === false
       || (direction === interpretation.direction && strength === interpretation.strength),
   };

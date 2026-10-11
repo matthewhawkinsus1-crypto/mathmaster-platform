@@ -616,7 +616,9 @@ test('spatial: each answer field\'s stated answer is what the grader accepts', (
   assertRefused(numeric, { responses: [{ id: 'z', value: '3' }] }, 'numeric field (another value)');
   // The geometry it states is the system's own.
   assert.match(reviewOf(DAY1['3x3-d1-dol-2'], 'dol-2').why, /^\(1, −2, 4\) lies on all three planes/);
-  assert.match(numericModel.steps[0], /single point \(3, 1, 5\)/);
+  // The point is reached by the worked steps (K: the three-plane model shows
+  // its derivation), so it is named in the step that concludes it.
+  assert.match(numericModel.steps.find((step) => /single point/.test(step)) || '', /single point \(3, 1, 5\)/);
 });
 
 /* ======================================================= wiring and nulls */

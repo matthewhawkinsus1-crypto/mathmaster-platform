@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import Fraction from 'fraction.js';
 import { correlation, linearRegression } from '../../src/tools/shared/toolMath.js';
 import { fitAdjustmentPlan } from '../../src/platform/graph/graphScaleService.js';
 import {
@@ -15,6 +16,7 @@ import {
   buildDataModelingPrivateDefinition,
   buildPathCandidateModels,
   choosePathBestModel,
+  dataModelingDefinitionIsGradable,
   gradeDataModelingResponse,
   pathCorrelation,
   pathCorrelationDescriptor,
@@ -557,4 +559,71 @@ test('lineFit server grading uses the same data-scale tolerance as the button-on
     b: plan.intercept.start,
   });
   assert.equal(untouchedStart.isCorrect, false, 'the deliberately displaced starting line must require student work');
+});
+
+/* ------------------------------------------- calendar-year data (Job K) */
+
+// Independent oracle: the least-squares quadratic from the raw-x normal
+// equations, solved in exact rationals (fraction.js), so no floating-point
+// conditioning can hide in it. Decimal y values are read from their text.
+const exactLeastSquaresQuadratic = (points) => {
+  const rows = points.map(([x, y]) => [new Fraction(String(x)), new Fraction(String(y))]);
+  const power = (k) => rows.reduce((s, [x]) => s.add(x.pow(k)), new Fraction(0));
+  const powerY = (k) => rows.reduce((s, [x, y]) => s.add(x.pow(k).mul(y)), new Fraction(0));
+  const m = [
+    [power(4), power(3), power(2), powerY(2)],
+    [power(3), power(2), power(1), powerY(1)],
+    [power(2), power(1), new Fraction(rows.length), powerY(0)],
+  ];
+  for (let col = 0; col < 3; col += 1) {
+    const pivot = m.findIndex((row, i) => i >= col && !row[col].equals(0));
+    if (pivot < 0) return null;
+    [m[col], m[pivot]] = [m[pivot], m[col]];
+    for (let r = 0; r < 3; r += 1) {
+      if (r === col) continue;
+      const f = m[r][col].div(m[col][col]);
+      m[r] = m[r].map((v, j) => v.sub(f.mul(m[col][j])));
+    }
+  }
+  return { a: m[0][3].div(m[0][0]), b: m[1][3].div(m[1][1]), c: m[2][3].div(m[2][2]) };
+};
+
+const YEAR_DATASETS = [
+  [[2002, 48.9], [2005, 52.9], [2008, 61.8], [2011, 63.15], [2014, 69], [2017, 71.6], [2020, 82], [2023, 87.1], [2026, 99], [2029, 111.29], [2032, 116], [2035, 127.73]],
+  [[1988, 47.4], [1990, 50.21], [1992, 55], [1994, 66.3], [1996, 64], [1998, 74.98]],
+  [[2010, 3.2], [2011, 4.1], [2012, 6.3], [2013, 9.8], [2014, 14.1], [2015, 20.2]],
+];
+
+test('Path quadratic regression of calendar-year data is the exact least-squares fit, in parity with the lab', () => {
+  // In raw x (Σx⁴ ≈ 2e14) the Path solver returned c off by about 0.085 for
+  // 2002…2035, and no quadratic at all for 1988…1998 (a pivot under 1e-9).
+  for (const points of YEAR_DATASETS) {
+    const exact = exactLeastSquaresQuadratic(points);
+    const server = pathQuadraticRegression(points);
+    assert.ok(server, `a quadratic of ${points.length} year points exists`);
+    // c is ~1e5–1e6 in size, so compare it relative to its own magnitude.
+    nearly(server.a, exact.a.valueOf(), 1e-9);
+    nearly(server.b, exact.b.valueOf(), Math.abs(exact.b.valueOf()) * 1e-9);
+    nearly(server.c, exact.c.valueOf(), Math.abs(exact.c.valueOf()) * 1e-9);
+    const client = clientQuadratic(points);
+    nearly(server.a, client.a, 1e-12);
+    nearly(server.b, client.b, Math.abs(client.b) * 1e-12);
+    nearly(server.c, client.c, Math.abs(client.c) * 1e-12);
+  }
+});
+
+test('a Path quadratic-fit question on year data accepts the exact fit and still rejects a wrong one', () => {
+  const points = YEAR_DATASETS[1];
+  const exact = exactLeastSquaresQuadratic(points);
+  const definition = buildDataModelingPrivateDefinition({
+    points,
+    mode: 'quadraticFit',
+    quadraticATolerance: 0.0001,
+    quadraticBTolerance: 0.001,
+    quadraticCTolerance: 0.01,
+  });
+  assert.equal(dataModelingDefinitionIsGradable(definition), true);
+  const typed = { a: Number(exact.a.valueOf().toFixed(8)), b: Number(exact.b.valueOf().toFixed(5)), c: Number(exact.c.valueOf().toFixed(3)) };
+  assert.equal(gradeDataModelingResponse(definition, typed).isCorrect, true, JSON.stringify(typed));
+  assert.equal(gradeDataModelingResponse(definition, { ...typed, c: typed.c + 1 }).isCorrect, false);
 });

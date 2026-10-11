@@ -66,7 +66,9 @@ const questionTeks = (question = {}) => {
     .map((entry) => entry.code);
   const raw = canonical.length
     ? canonical
-    : question.standard
+    // A graphing2 standard-form question's `standard` is its {A, B, C} line,
+    // not a code; read it only when it is one.
+    : (typeof question.standard === 'string' && question.standard)
       || question.primaryStandard
       || question.teks
       || question.teksAlignments

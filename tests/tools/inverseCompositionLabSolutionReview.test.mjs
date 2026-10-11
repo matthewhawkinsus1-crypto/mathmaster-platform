@@ -306,10 +306,12 @@ test('no review when no answer can be right, or the lab and the grader disagree 
     assert.equal(buildToolSolutionReviewModel(question), null, `${label}: through the platform entry point`);
   }
 
-  // Off the kept branch the grader still accepts x, but f⁻¹(f(x)) is the
-  // mirror input, not x: there is no true explanation, so there is no review.
+  // Off the kept branch f⁻¹(f(x)) is the mirror input, not x. The grader
+  // marks the mirror; the review, written for "f⁻¹ undoes f", gives none.
   const offBranch = q({ mode: 'inverse', f: { type: 'quadratic', a: 1, h: 2, k: 0, inverseBranch: 'right' }, x: 0 });
-  assert.equal(grade(offBranch, { x: 0, inverseAnswer: '0' }).isCorrect, true, 'the grader accepts x');
+  // f(0) = 4, and on x ≥ 2, f⁻¹(4) = 2 + 2 = 4 = 2h − x: the grader marks that, not x.
+  assert.equal(grade(offBranch, { x: 0, inverseAnswer: '0' }).isCorrect, false, 'x itself is not f⁻¹(f(x)) here');
+  assert.equal(grade(offBranch, { x: 0, inverseAnswer: '4' }).isCorrect, true, 'the mirror input is');
   assert.equal(buildInverseCompositionLabReview(offBranch), null, 'but f⁻¹(4) on the right branch is 4, not 0');
 });
 

@@ -630,7 +630,8 @@ const legacyLabCheck = (questionData, { x, fogAnswer, gofAnswer, inverseAnswer, 
   const results = {
     fog: Number.isFinite(fog) && matchesNumericAnswer(fogAnswer, fog, 0.02),
     gof: Number.isFinite(gof) && matchesNumericAnswer(gofAnswer, gof, 0.02),
-    inverse: canInvert && Number.isFinite(inverseAtFx) && matchesNumericAnswer(inverseAnswer, Number(x), 0.02),
+    // f⁻¹(f(x)) on the kept branch: x there, the mirror 2h − x off a parabola's kept branch.
+    inverse: canInvert && Number.isFinite(inverseAtFx) && matchesNumericAnswer(inverseAnswer, inverseAtFx, 0.02),
     restriction: restrictionChoice === expectedRestriction,
   };
   const scored = requiredParts.map((part) => results[part]);

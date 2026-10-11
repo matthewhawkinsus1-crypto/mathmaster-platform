@@ -13,6 +13,10 @@
 //                                  the inclusion "Let's back up" check: one quick
 //                                  question about THIS problem's first move (never its
 //                                  answer); null keeps the platform's generic one
+//   workedSolution(question)     → { headline, steps: [text], answerSummary } | null
+//                                  THIS question's worked solution, for the closed-question
+//                                  review only (it states the answer); null when any part
+//                                  cannot be explained exactly — see the section at the end
 // `implemented` stays false until the family is real: the index skips it.
 //
 // WHAT THIS FAMILY OWNS (seventh in the index order; the families before it
@@ -80,7 +84,7 @@
 //
 // Pure: no React, no I/O.
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
-import { answerCandidatesForField } from '../../../../functions/shared/answerUtils.mjs';
+import { answerCandidatesForField, matchesFieldAnswer } from '../../../../functions/shared/answerUtils.mjs';
 import { exactFractionText } from '../../../../functions/shared/toolMath/shared/toolMath.mjs';
 import {
   composeValue,
@@ -91,6 +95,7 @@ import {
   inverseLabInitialX,
   inverseLabInputLocked,
   inverseLabRequiredParts,
+  inverseLabRoundTrip,
 } from '../../../../functions/shared/toolMath/inverseComposition/inverseCompositionMath.mjs';
 import {
   deriveFunctionOperations,
@@ -298,18 +303,11 @@ const polyForms = (p, variable = 'x') => spellings(polyText(p, variable));
 // A rule as the problem wrote it, with spaces around + and −.
 const spacedRule = (raw) => text(raw).replace(/\s+/g, '').replace(/\.$/, '')
   .replace(/([0-9A-Za-z²³)])([+\-−])/g, '$1 $2 ').replace(/-/g, MINUS);
-// A rule put in place of x: in parentheses unless nothing in it is added or
-// subtracted at the top level ((u + 6)/3 stays as it is).
-const wrap = (rule) => {
-  let depth = 0;
-  for (let index = 0; index < rule.length; index += 1) {
-    const character = rule[index];
-    if (character === '(') depth += 1;
-    else if (character === ')') depth -= 1;
-    else if (depth === 0 && index > 0 && /[+\-−]/.test(character)) return `(${rule})`;
-  }
-  return rule;
-};
+// A rule put in place of x: in parentheses unless it is a single letter or an
+// unsigned number. "Replace every x in x² with 3x" reads as 3x², and putting
+// (u + 6)/3 in place of u in u² reads as (u + 6)/3²; only (3x)² and
+// ((u + 6)/3)² are the substitution.
+const wrap = (rule) => (/^(?:[A-Za-z]|\d+(?:\.\d+)?)$/.test(text(rule)) ? rule : `(${rule})`);
 const withLetter = (rule, from, to) => rule.replace(new RegExp(`(?<![A-Za-z])${from}(?![A-Za-z])`, 'g'), to);
 
 /* The inverse of y = a·v + b, as the corpus and a student write it. */
@@ -344,7 +342,9 @@ const preferredInverse = (a, b, variable = 'x') => {
   return polyText([tidy(-b / a), tidy(1 / a)], variable);
 };
 // An expression in x with a number put in for x: (11 + 2)/5, 20·3450 − 44000.
-const plugIn = (expression, value) => expression.replace(/\(x/g, `(${numText(value)}`).replace(/(\d|\))x/g, `$1·${sub(value)}`).replace(/x/g, sub(value));
+// A leading −x at zero is −1·0, never "−0".
+const plugIn = (expression, value) => (tidy(value) === 0 ? expression.replace(/(^|[^\d)])−x/g, '$1−1·x') : expression)
+  .replace(/\(x/g, `(${numText(value)}`).replace(/(\d|\))x/g, `$1·${sub(value)}`).replace(/x/g, sub(value));
 
 /* ---------------------------------------- reading rules from the text */
 
@@ -747,7 +747,9 @@ const toolExpected = (model) => {
     const out = [];
     if (model.parts.includes('fog') && Number.isFinite(model.fog)) out.push(...numberForms(model.fog));
     if (model.parts.includes('gof') && Number.isFinite(model.gof)) out.push(...numberForms(model.gof));
-    if (model.parts.includes('inverse') && model.canInvert) out.push(...numberForms(model.x));
+    // f⁻¹(f(x)) is x on f's kept branch and the mirror 2h − x off it: the
+    // value the grader marks, kept with x so neither is ever hinted.
+    if (model.parts.includes('inverse') && model.canInvert) out.push(...numberForms(model.x), ...numberForms(inverseLabRoundTrip(model.f, model.x)));
     if (model.parts.includes('restriction')) out.push(...restrictionForms(model.restriction, model.f));
     return out;
   }
@@ -1058,7 +1060,11 @@ const multiHints = (model) => {
       out.push(['(f ∘ g)(x) means f(g(x)): g acts first, so its whole rule goes inside f.']);
       out.push([`For (f ∘ g)(x), replace every x in ${f.rule} with ${wrap(g.rule)}, then expand and combine like terms.`, 'For (f ∘ g)(x), put all of g(x), in parentheses, in place of every x in f(x); then expand.']);
       out.push([`For (g ∘ f)(x), it is the other way around: replace every x in ${g.rule} with ${wrap(f.rule)}.`, 'For (g ∘ f)(x), it is the other way around: put all of f(x) in place of every x in g(x).']);
-      if (P.degree(f.poly) >= 2 && P.degree(g.poly) === 1) out.push([`Expand (${g.rule})² as (${g.rule})(${g.rule}): every term times every term.`]);
+      // The power to expand is f's own: a cubic f needs (g)³, not (g)².
+      const power = P.degree(f.poly);
+      if ((power === 2 || power === 3) && P.degree(g.poly) === 1) {
+        out.push([`Expand (${g.rule})${SUPERSCRIPT[power]} as ${`(${g.rule})`.repeat(power)}: every term times every term.`]);
+      }
       break;
     }
     case 'inverseVerification': {
@@ -1170,7 +1176,8 @@ const siblingIsSafe = (question, guard, example) => {
 const linear = (a, b, variable = 'x') => polyText([b, a], variable);
 // a·value + b written out for substitution: 3(4) − 1, 0.9 · 800, 750 − 50.
 const linearAt = (a, b, value) => {
-  const head = a === 1 ? sub(value) : a === -1 ? `${MINUS}${sub(value)}` : `${numText(a)}${tidy(value) < 0 ? '' : '·'}${sub(value)}`;
+  // −1 times 0 is written −1·0, never "−0".
+  const head = a === 1 ? sub(value) : a === -1 && tidy(value) !== 0 ? `${MINUS}${sub(value)}` : `${numText(a)}${tidy(value) < 0 ? '' : '·'}${sub(value)}`;
   return b === 0 ? head : `${head} ${b > 0 ? '+' : MINUS} ${numText(Math.abs(b))}`;
 };
 // Every term of a polynomial with x replaced by (inner): 3(2x − 1)² − (2x − 1) + 4.
@@ -1211,7 +1218,10 @@ const undoSibling = (random, type) => {
     const steps = [
       `f(${X}) = ${a === 1 ? '' : `${numText(a)}·`}${numText(base)}^(${X}${h === 0 ? '' : ` ${h > 0 ? MINUS : '+'} ${numText(Math.abs(h))}`}) ${k > 0 ? '+' : MINUS} ${numText(Math.abs(k))} = ${a === 1 ? '' : `${numText(a)}·`}${power} ${k > 0 ? '+' : MINUS} ${numText(Math.abs(k))} = ${numText(y0)}.`,
       `Undo f in reverse order: ${numText(y0)} ${k > 0 ? MINUS : '+'} ${numText(Math.abs(k))} = ${numText(y0 - k)}${a !== 1 ? `, then ${numText(y0 - k)} ÷ ${numText(a)} = ${numText((y0 - k) / a)}` : ''}.`,
-      `log_${numText(base)}(${numText((y0 - k) / a)}) = ${numText(n)}, and ${numText(n)} ${h < 0 ? MINUS : '+'} ${numText(Math.abs(h))} = ${X}.`,
+      // With no horizontal shift the logarithm IS the input: no "+ 0" step.
+      h === 0
+        ? `log_${numText(base)}(${numText((y0 - k) / a)}) = ${numText(n)}, and there is no shift to undo, so x = ${X}.`
+        : `log_${numText(base)}(${numText((y0 - k) / a)}) = ${numText(n)}, and ${numText(n)} ${h < 0 ? MINUS : '+'} ${numText(Math.abs(h))} = ${X}.`,
       `So f⁻¹(${numText(y0)}) = ${X}: f⁻¹ gives back the input ${X}.`,
     ];
     return { f, x0, y0, steps };
@@ -1455,6 +1465,26 @@ const operationsSibling = (random, { fDegree, gDegree, ops, composeOrder = 'fOfG
     worked.push(result);
   }
   const steps = worked.flatMap((entry) => entry.steps);
+  // One sum, difference, product or composition is a single line of work,
+  // and a sibling needs two steps: check the result at a number, so every
+  // one-operation item gets a worked example (it used to get none).
+  if (steps.length < 2 && ops.length === 1 && ops[0] !== 'quotient') {
+    const op = ops[0];
+    const c = pick(random, [1, 2, 3, -1, -2]);
+    const C = numText(c);
+    const [fc, gc] = [P.at(f, c), P.at(g, c)];
+    const result = op === 'composition'
+      ? (composeOrder === 'gOfF' ? P.compose(g, f) : P.compose(f, g))
+      : operate(op, f, g);
+    const at = P.at(result, c);
+    const label = worked[0].label.replace('(x)', `(${C})`);
+    const check = op === 'composition'
+      ? (composeOrder === 'gOfF'
+        ? `f(${C}) = ${numText(fc)} and g(${numText(fc)}) = ${numText(P.at(g, fc))}`
+        : `g(${C}) = ${numText(gc)} and f(${numText(gc)}) = ${numText(P.at(f, gc))}`)
+      : `f(${C}) = ${numText(fc)} and g(${C}) = ${numText(gc)}, so ${label} = ${numText(fc)} ${{ sum: '+', difference: MINUS, product: '·' }[op]} ${sub(gc)} = ${numText(operateNumbers(op, fc, gc))}`;
+    steps.push(`Check at x = ${C}: ${check}; the result ${worked[0].result} also gives ${numText(at)} at x = ${C}.`);
+  }
   const pieces = worked.map((entry) => `${entry.label} = ${entry.result}`);
   if (excluded && !ops.includes('quotient')) {
     const roots = realRoots(g);
@@ -1815,6 +1845,597 @@ export const backUpQuestion = (question) => {
     const guard = guardOf(question);
     return backUpCandidates(model, question)
       .find((step) => [step.prompt, ...step.options].every((piece) => safeText(piece, guard))) || null;
+  } catch {
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * workedSolution: THIS question's worked solution, for the review panel once
+ * the question is closed (closedQuestionReview.js). It states the answer, so
+ * nothing shown while the item is open (hints, the back-up step, siblings)
+ * ever calls it. The steps are the siblings' own moves — the derivation of an
+ * inverse, the inside-out evaluation, a composition written out — on this
+ * item's own rules and numbers. Every answer is computed here, then held to
+ * the item's key: a multiAnswer field's own grader (matchesFieldAnswer) must
+ * accept the stated answer, which is the computed value or the key itself
+ * once the key is shown to be that value; a tool's answer is the one its key
+ * (the lab's helpers, deriveFunctionOperations) gives. null whenever any part
+ * cannot be explained exactly — never a wrong step.
+ * ------------------------------------------------------------------------- */
+
+const accepts = (field, spelling) => {
+  try {
+    return Boolean(text(spelling)) && matchesFieldAnswer(text(spelling), field);
+  } catch {
+    return false;
+  }
+};
+const isChoiceField = (field) => Array.isArray(field?.options) && field.options.length > 0;
+const keyTextsOf = (field) => answerCandidatesForField(field)
+  .filter((value) => value !== null && typeof value !== 'object')
+  .map(text)
+  .filter(Boolean);
+
+/*
+ * The spelling of one field's answer to state: a computed spelling the field's
+ * grader accepts, or a key the computation shows to be the same value (a
+ * choice states its own option first). null when neither: then the key is not
+ * what this module computes, and the item is not explained.
+ */
+const statedFor = (field, computed, sameAs) => {
+  const keys = keyTextsOf(field).filter((key) => {
+    try { return Boolean(sameAs(key)); } catch { return false; }
+  });
+  const mine = unique(computed);
+  const order = isChoiceField(field) ? [...keys, ...mine] : [...mine, ...keys];
+  return unique(order).find((spelling) => accepts(field, spelling)) || null;
+};
+const constantOf = (raw) => {
+  const poly = parsePolynomial(raw);
+  return poly && P.degree(poly) === 0 ? poly[0] : null;
+};
+const numberStated = (field, value) => (Number.isFinite(value)
+  ? statedFor(field, [numText(value), String(tidy(value)), ...(tidy(value) < 0 ? [`-${numText(-value)}`] : [])], (key) => {
+    const keyed = constantOf(key);
+    return keyed !== null && Math.abs(keyed - value) <= 1e-9 * Math.max(1, Math.abs(value));
+  })
+  : null);
+const polyStated = (field, poly, variable = 'x') => statedFor(field, [polyText(poly, variable)], (key) => {
+  const keyed = parsePolynomial(key, variable);
+  return keyed && P.equal(keyed, poly);
+});
+const sameText = (left, right) => normalizeMath(left).toLowerCase() === normalizeMath(right).toLowerCase();
+
+// A polynomial's terms, highest power first, and terms written out in a given order.
+const termsOf = (p) => {
+  const out = [];
+  P.trim(p).forEach((c, power) => { if (tidy(c) !== 0) out.unshift([c, power]); });
+  return out;
+};
+const termsText = (terms, variable = 'x') => (terms.length ? terms.map(([c, power], index) => {
+  const body = monomial(c, power, variable);
+  if (index === 0) return c < 0 ? `${MINUS}${body}` : body;
+  return `${c < 0 ? MINUS : '+'} ${body}`;
+}).join(' ') : '0');
+/** "a = b = c" with any link that repeats the one before it dropped. */
+const chain = (...links) => links.filter((link, index) => link && link !== links[index - 1]).join(' = ');
+
+/** Every term of a polynomial with x replaced by (inner); a fraction coefficient in parentheses: (1/3)(3x − 6) + 2. */
+const substitutedText = (outer, innerText) => termsOf(outer).map(([c, power], index) => {
+  const magnitude = Math.abs(tidy(c));
+  const shown = numText(magnitude);
+  const factor = power === 0 ? '' : `(${innerText})${SUPERSCRIPT[power] || (power === 1 ? '' : `^${power}`)}`;
+  const coefficient = power === 0 ? shown : magnitude === 1 ? '' : shown.includes('/') ? `(${shown})` : shown;
+  const body = `${coefficient}${factor}` || shown;
+  if (index === 0) return c < 0 ? `${MINUS}${body}` : body;
+  return `${c < 0 ? MINUS : '+'} ${body}`;
+}).join(' ');
+/** outer(inner): the substitution, every term multiplied out, then like terms combined. */
+const compositionChain = (outer, inner, innerText) => {
+  const pieces = termsOf(outer).flatMap(([c, power]) => termsOf(P.scale(P.pow(inner, power), c)));
+  return chain(substitutedText(outer, innerText), termsText(pieces), polyText(P.compose(outer, inner)));
+};
+/** The value of a rule at a number, written out: 2·4 − 5, 3(4)² − 2(4) + 1. */
+const valueText = (poly, value) => (P.degree(poly) <= 1 ? linearAt(poly[1] || 0, poly[0] || 0, value) : substitutedText(poly, numText(value)));
+/** A rule written as a fraction, (x + 6)/3, is first rewritten term by term. */
+const termByTerm = (name, definition) => (definition.rule && !sameText(definition.rule, polyText(definition.poly))
+  ? [`Written term by term, ${name}(x) = ${definition.rule} is ${polyText(definition.poly)}.`]
+  : []);
+
+/** y = a·v + b solved for v after the swap: the moves the derivation sibling writes. */
+const derivation = (a, b, { name = 'f', variable = 'x', rule: authored = linear(a, b, variable) } = {}) => {
+  // An authored zero term (x + 0, 0 + 3x) is left out: the rule is written as it simplifies.
+  const rule = /[+\-−]\s*0(?![\d.])|^\s*0\s*[+\-−]/.test(authored) ? linear(a, b, variable) : authored;
+  const out = variable === 'x' ? 'y' : variable;
+  const inverse = preferredInverse(a, b);
+  const steps = [variable === 'x'
+    ? `Write y = ${rule}, then swap x and y: x = ${withLetter(rule, 'x', 'y')}.`
+    : `Let x stand for the output of ${name}: x = ${rule}.`];
+  const aTerm = `${a < 0 ? MINUS : ''}${monomial(a, 1, out)}`;
+  if (tidy(b) !== 0) {
+    steps.push(b > 0
+      ? `Subtract ${numText(b)} from both sides: x ${MINUS} ${numText(b)} = ${aTerm}.`
+      : `Add ${numText(-b)} to both sides: x + ${numText(-b)} = ${aTerm}.`);
+  }
+  if (tidy(a) === -1) steps.push(`Multiply both sides by ${MINUS}1: ${out} = ${inverse}.`);
+  else if (tidy(a) !== 1) steps.push(`Divide both sides by ${numText(a)}: ${out} = ${inverse}.`);
+  return { steps, inverse, poly: [-b / a, 1 / a] };
+};
+
+/** How a field and its stated answer read in the closing line: "f(4) = 3", "Input to f⁻¹: 2". */
+const answerPiece = (field, stated) => {
+  const label = text(field.label || field.prompt || field.id);
+  if (/^[A-Za-z0-9()⁻¹+\-−·*/∘.\s]+$/.test(label) && label.includes('(')) return `${label} = ${stated}`;
+  // A label that is a sentence reads on in lower case: "so if f(1)=3, then f⁻¹(3)=1".
+  const sentence = /^[A-Z][a-z]/.test(label) ? `${label[0].toLowerCase()}${label.slice(1)}` : label;
+  if (/(?:=|,\s*then|\b(?:is|are|as|by))\s*$/i.test(label)) return `${sentence} ${stated}`;
+  return `${sentence.replace(/[:?]\s*$/, '')}: ${stated}`;
+};
+
+/** One operation on two named rules, worked: { steps, poly | quotient }. */
+const operationWork = (op, left, right, names, arg = 'x') => {
+  const [L, R] = names;
+  const lT = polyText(left.poly);
+  const rT = polyText(right.poly);
+  const label = `(${L} ${OP_SYMBOL[op]} ${R})(${arg})`;
+  if (op === 'sum') {
+    const result = P.add(left.poly, right.poly);
+    return { label, poly: result, steps: [`${label} = (${lT}) + (${rT}) = ${chain(termsText([...termsOf(left.poly), ...termsOf(right.poly)]), polyText(result))}.`] };
+  }
+  if (op === 'difference') {
+    const result = P.sub(left.poly, right.poly);
+    return { label, poly: result, steps: [`${label} = (${lT}) ${MINUS} (${rT}) = ${chain(termsText([...termsOf(left.poly), ...termsOf(P.neg(right.poly))]), polyText(result))}.`] };
+  }
+  if (op === 'product') {
+    const result = P.mul(left.poly, right.poly);
+    const distributed = termsOf(left.poly).flatMap(([c, p]) => termsOf(right.poly).map(([d, q]) => [c * d, p + q]));
+    const multiplied = termsOf(right.poly).length > 1 || termsOf(left.poly).length > 1 ? 'multiply each term of the first by each term of the second, then combine like terms' : 'multiply';
+    return { label, poly: result, steps: [`${label} = (${lT})(${rT}): ${multiplied}: ${chain(termsText(distributed), polyText(result))}.`] };
+  }
+  if (op === 'quotient') return { label, quotient: `(${lT})/(${rT})`, steps: [`${label} = (${lT})/(${rT}).`] };
+  if (op === 'composition') {
+    return {
+      label,
+      poly: P.compose(left.poly, right.poly),
+      steps: [...termByTerm(L, left), `${label} = ${L}(${right.rule || rT}) = ${compositionChain(left.poly, right.poly, right.rule || rT)}.`],
+    };
+  }
+  return null;
+};
+
+/** The real zeros of a denominator, when each one is written exactly. */
+const exactRoots = (p) => {
+  const roots = realRoots(p);
+  const written = (root) => Math.abs(P.at(p, root)) < 1e-9 && (Number.isInteger(root) || Math.abs(Number(numText(root).replace(MINUS, '-')) - root) < 1e-12);
+  return roots.every(written) ? roots : null;
+};
+const isRestricted = (spec) => isObject(spec?.domain) || isObject(spec?.restrictedDomain);
+
+// A substitution written out, then its value; an identity rule (x − 0) writes the value once.
+const workedValue = (written, shown) => (sameText(written, shown) ? shown : `${written} = ${shown}`);
+// A divisor as written after ÷: a negative or a fraction in brackets (1 ÷ 2/3 would read as (1 ÷ 2)/3).
+const divisor = (value) => (numText(value).includes('/') ? `(${numText(value)})` : sub(value));
+
+const multiWorked = (model) => {
+  const steps = [];
+  const answers = [];
+  const role = (name) => model.roles.filter((entry) => entry.role === name);
+  const def = (name) => model.defs.get(name) || null;
+  const nameOf = model.def?.name || 'f';
+  let inverse = null;
+  const ensureInverse = () => {
+    if (inverse || model.kind !== 'linearInverse') return inverse;
+    inverse = derivation(model.a, model.b, { name: model.def.name, variable: model.def.variable, rule: model.def.rule });
+    steps.push(...inverse.steps);
+    return inverse;
+  };
+  for (const entry of model.roles) {
+    const { field } = entry;
+    let stated = null;
+    switch (entry.role) {
+      case 'inverseRule': {
+        const worked = ensureInverse();
+        if (!worked) return null;
+        stated = polyStated(field, worked.poly);
+        if (stated) steps.push(`So ${model.def.variable === 'x' ? `${nameOf}⁻¹(x)` : `${model.def.variable} = ${nameOf}⁻¹(x)`} = ${stated}.`);
+        break;
+      }
+      case 'inverseSlope': {
+        const worked = ensureInverse();
+        if (!worked) return null;
+        stated = numberStated(field, 1 / model.a);
+        if (stated) steps.push(`${nameOf}⁻¹ undoes multiplying by ${numText(model.a)}, so its slope is 1 ÷ ${divisor(model.a)} = ${stated}.`);
+        break;
+      }
+      case 'inverseCheck': {
+        const statement = `${entry.name}⁻¹(${numText(entry.output)}) = ${numText(entry.input)}`;
+        const definition = def(entry.name);
+        if (definition && Math.abs(P.at(definition.poly, entry.input) - entry.output) > 1e-9) return null;
+        stated = statedFor(field, [statement], (key) => sameText(key, statement));
+        if (stated) steps.push(`${entry.name}(${numText(entry.input)}) = ${numText(entry.output)} means ${entry.name} takes ${numText(entry.input)} to ${numText(entry.output)}; ${entry.name}⁻¹ runs ${entry.name} backwards, taking ${numText(entry.output)} back to ${numText(entry.input)}: ${stated}.`);
+        break;
+      }
+      case 'compositionCheck': {
+        const worked = ensureInverse();
+        if (!worked) return null;
+        const outerFirst = `${nameOf}(${nameOf}⁻¹(x))`;
+        stated = statedFor(field, [outerFirst], (key) => sameText(key, outerFirst) || sameText(key, `${nameOf}⁻¹(${nameOf}(x))`));
+        if (stated) {
+          const innerText = worked.inverse;
+          steps.push(`An inverse undoes ${nameOf}, so composing them gives back x: ${nameOf}(${nameOf}⁻¹(x)) = ${compositionChain(model.def.poly, worked.poly, innerText)}. The composition to check is ${stated}.`);
+        }
+        break;
+      }
+      case 'contextValue': {
+        const worked = ensureInverse();
+        if (!worked) return null;
+        const value = (entry.amount - model.b) / model.a;
+        stated = numberStated(field, value);
+        if (stated) steps.push(`When ${nameOf}(${model.def.variable}) = ${numText(entry.amount)}: ${model.def.variable} = ${nameOf}⁻¹(${numText(entry.amount)}) = ${plugIn(worked.inverse, entry.amount)} = ${stated}.`);
+        break;
+      }
+      case 'inverseRelation': {
+        const swapped = model.pairs.map(([x, y]) => [y, x]);
+        if (!steps.some((step) => step.startsWith('An inverse relation'))) {
+          steps.push('An inverse relation exchanges the input and the output of every pair.', ...model.pairs.map((pair, index) => `${pairText(pair)} becomes ${pairText(swapped[index])}.`));
+        }
+        stated = statedFor(field, [setText(swapped)], (key) => {
+          const keyed = pairsIn(key);
+          return keyed.length === swapped.length && swapped.every(([x, y]) => keyed.some(([p, q]) => p === x && q === y));
+        });
+        if (stated) steps.push(`So the inverse relation is ${stated}.`);
+        break;
+      }
+      case 'swapPair': {
+        if (!entry.pair) return null;
+        const swapped = [entry.pair[1], entry.pair[0]];
+        stated = statedFor(field, [pairText(swapped)], (key) => {
+          const keyed = pairsIn(key);
+          return keyed.length === 1 && keyed[0][0] === swapped[0] && keyed[0][1] === swapped[1];
+        });
+        if (stated) steps.push(`Swapping exchanges the two coordinates: ${pairText(entry.pair)} becomes ${stated}.`);
+        break;
+      }
+      case 'relationProperty':
+        stated = statedFor(field, [], (key) => /\bswap|exchang|switch|interchang/i.test(key) && !/sign|negat|revers|add/i.test(key));
+        if (stated) steps.push(`In every pair the input and the output trade places, so the move is: ${stated}.`);
+        break;
+      case 'isFunction': {
+        if (model.kind !== 'inverseRelation') return null;
+        const inputs = model.pairs.map(([, y]) => y);
+        const distinct = new Set(inputs).size === inputs.length;
+        stated = statedFor(field, [], (key) => (distinct ? /^yes/i.test(key) : /^no/i.test(key)));
+        if (stated) {
+          steps.push(distinct
+            ? `The inputs of the inverse relation, ${inputs.map(numText).join(', ')}, are all different, so each input has exactly one output: it is a function (${stated}).`
+            : `An input of the inverse relation repeats among ${inputs.map(numText).join(', ')}, so that input has two outputs: it is not a function (${stated}).`);
+        }
+        break;
+      }
+      case 'evalDef': {
+        const poly = parsePolynomial(entry.raw, entry.variable);
+        if (!poly) return null;
+        const value = P.at(poly, entry.arg);
+        stated = numberStated(field, value);
+        if (stated) steps.push(`${entry.name}(${numText(entry.arg)}) = ${valueText(poly, entry.arg)} = ${stated}.`);
+        break;
+      }
+      case 'evalAt': {
+        if (model.kind === 'inverseProperty' && model.point !== undefined) {
+          const P0 = numText(model.point);
+          stated = numberStated(field, model.point);
+          if (stated) steps.push(`(${P0}, ${P0}) is on the graph of ${entry.name}: the input ${P0} gives the output ${P0}, so ${entry.name}(${P0}) = ${stated}.`);
+          break;
+        }
+        const definition = def(entry.name);
+        if (definition) {
+          const value = P.at(definition.poly, entry.arg);
+          stated = numberStated(field, value);
+          if (stated) steps.push(`${entry.name}(${numText(entry.arg)}) = ${valueText(definition.poly, entry.arg)} = ${stated}.`);
+          break;
+        }
+        const given = model.givens.find((item) => item.name === entry.name && Math.abs(item.input - entry.arg) < 1e-9);
+        if (!given) return null;
+        stated = numberStated(field, given.output);
+        if (stated) steps.push(`Work from the inside out: ${entry.name}(${numText(entry.arg)}) = ${stated}, as given.`);
+        break;
+      }
+      case 'inverseAt': {
+        if (model.point === undefined) return null;
+        const P0 = numText(model.point);
+        stated = numberStated(field, model.point);
+        if (stated) steps.push(`${entry.name}⁻¹ exchanges the coordinates of every point of ${entry.name}; exchanging (${P0}, ${P0}) gives (${P0}, ${P0}) again, so ${entry.name}⁻¹(${P0}) = ${stated}.`);
+        break;
+      }
+      case 'inverseInput':
+      case 'inverseOutput': {
+        if (!model.given) return null;
+        const { name, input, output } = model.given;
+        if (!steps.length) {
+          steps.push(
+            `${name}(${numText(input)}) = ${numText(output)} means ${name} takes the input ${numText(input)} to the output ${numText(output)}.`,
+            `${name}⁻¹ runs ${name} backwards: it takes ${numText(output)} back to ${numText(input)}, so ${name}⁻¹(${numText(output)}) = ${numText(input)}.`,
+          );
+        }
+        const value = entry.role === 'inverseInput' ? output : input;
+        stated = numberStated(field, value);
+        if (stated) steps.push(`So the ${entry.role === 'inverseInput' ? 'input' : 'output'} of ${name}⁻¹ is ${stated}.`);
+        break;
+      }
+      case 'graphRole':
+        stated = statedFor(field, [], (key) => /reflect|mirror/i.test(key));
+        if (stated) steps.push(`f⁻¹ exchanges the coordinates of every point of f, and exchanging (a, b) for (b, a) mirrors a point across the line y = x: y = x acts as ${stated}.`);
+        break;
+      case 'lineSlope':
+        stated = numberStated(field, 1);
+        if (stated) steps.push(`In y = x, y goes up by 1 each time x goes up by 1, so the slope of y = x is ${stated}.`);
+        break;
+      case 'opSym': {
+        const left = def(entry.left);
+        const right = def(entry.right);
+        if (!left || !right) return null;
+        const worked = operationWork(entry.op, left, right, [entry.left, entry.right]);
+        if (!worked) return null;
+        steps.push(...worked.steps);
+        stated = worked.quotient
+          ? statedFor(field, [worked.quotient], (key) => sameText(key, worked.quotient))
+          : polyStated(field, worked.poly);
+        if (stated && !worked.quotient && !sameText(stated, polyText(worked.poly))) steps.push(`So ${worked.label} = ${stated}.`);
+        break;
+      }
+      case 'excluded': {
+        const quotient = model.roles.find((item) => item.role === 'opSym' && item.op === 'quotient');
+        const denominatorName = quotient?.right || 'g';
+        const denominator = def(denominatorName);
+        if (!denominator) return null;
+        const roots = exactRoots(denominator.poly);
+        if (!roots || !roots.length) return null;
+        stated = roots.length === 1
+          ? numberStated(field, roots[0])
+          : statedFor(field, [roots.map(numText).join(', ')], () => false);
+        if (stated) steps.push(`A quotient cannot divide by zero: its denominator ${denominator.rule} = 0 when x = ${roots.map(numText).join(' or x = ')}, so the excluded input is ${stated}.`);
+        break;
+      }
+      case 'degree': {
+        const product = model.roles.find((item) => item.role === 'opSym' && item.op === 'product');
+        const left = def(product?.left || 'f');
+        const right = def(product?.right || 'g');
+        if (!left || !right) return null;
+        const degree = P.degree(P.mul(left.poly, right.poly));
+        stated = numberStated(field, degree);
+        if (stated) steps.push(`The highest power of x in the product is ${degree} (${P.degree(left.poly)} + ${P.degree(right.poly)}), so the degree is ${stated}.`);
+        break;
+      }
+      case 'opAt': {
+        const arg = Number(entry.arg);
+        const p = valueOf(model, entry.left, arg);
+        const q = valueOf(model, entry.right, arg);
+        const value = p === null || q === null ? null : operateNumbers(entry.op, p, q);
+        if (value === null) return null;
+        const symbol = { sum: '+', difference: MINUS, product: '·', quotient: '÷' }[entry.op];
+        stated = numberStated(field, value);
+        if (stated) steps.push(`(${entry.left} ${OP_SYMBOL[entry.op]} ${entry.right})(${numText(arg)}) = ${entry.left}(${numText(arg)}) ${symbol} ${entry.right}(${numText(arg)}) = ${numText(p)} ${symbol} ${entry.op === 'quotient' ? divisor(q) : sub(q)} = ${stated}.`);
+        break;
+      }
+      case 'nested': {
+        const inner = valueOf(model, entry.inner, entry.arg);
+        const outer = inner === null ? null : valueOf(model, entry.outer, inner);
+        if (outer === null) return null;
+        const innerDef = def(entry.inner);
+        const outerDef = def(entry.outer);
+        const label = `${entry.outer}(${entry.inner}(${numText(entry.arg)}))`;
+        stated = numberStated(field, outer);
+        if (!stated) break;
+        if (innerDef && outerDef) {
+          steps.push(`${label}: first ${entry.inner}(${numText(entry.arg)}) = ${workedValue(valueText(innerDef.poly, entry.arg), numText(inner))}.`);
+          steps.push(`Then ${entry.outer}(${numText(inner)}) = ${workedValue(valueText(outerDef.poly, inner), stated)}, so ${label} = ${stated}.`);
+        } else {
+          if (!steps.some((step) => step.startsWith('Work from the inside out'))) steps.push(`Work from the inside out: ${entry.inner}(${numText(entry.arg)}) = ${numText(inner)}.`);
+          steps.push(`Then ${label} = ${entry.outer}(${numText(inner)}) = ${stated}.`);
+        }
+        break;
+      }
+      case 'orderCompare': {
+        const nested = role('nested');
+        if (nested.length !== 2) return null;
+        const results = nested.map((item) => {
+          const inner = valueOf(model, item.inner, item.arg);
+          return { item, value: inner === null ? null : valueOf(model, item.outer, inner) };
+        });
+        if (results.some((result) => result.value === null)) return null;
+        const [first, second] = results;
+        if (Math.abs(first.value - second.value) < 1e-9) {
+          stated = statedFor(field, [], (key) => /equal|same/i.test(key));
+          if (stated) steps.push(`Both orders give ${numText(first.value)}: ${stated}.`);
+          break;
+        }
+        const [big, small] = first.value > second.value ? [first, second] : [second, first];
+        const symbol = (item) => `${item.outer}∘${item.inner}`;
+        const flatKey = (key) => key.replace(/\s+/g, '');
+        stated = statedFor(field, [], (key) => flatKey(key).includes(symbol(big.item)) && !flatKey(key).includes(symbol(small.item)));
+        if (stated) {
+          steps.push(`${numText(big.value)} is larger than ${numText(small.value)}, so ${big.item.outer}(${big.item.inner}(${numText(big.item.arg)})) — the order ${big.item.outer} ∘ ${big.item.inner}, ${big.item.inner} first — gives the larger result: ${stated}.`);
+        }
+        break;
+      }
+      case 'verdict': {
+        if (model.kind !== 'inverseVerification') return null;
+        const fog = P.compose(model.f.poly, model.g.poly);
+        const gof = P.compose(model.g.poly, model.f.poly);
+        const identity = (p) => P.equal(p, [0, 1]);
+        const yes = identity(fog) && identity(gof);
+        stated = statedFor(field, [], (key) => (yes ? /^yes/i.test(key) : /^no/i.test(key)));
+        if (stated) {
+          const failing = identity(fog) ? ['(g ∘ f)(x)', gof] : ['(f ∘ g)(x)', fog];
+          steps.push(yes
+            ? `Both compositions simplify to x, so each function undoes the other: f and g are inverses (${stated}).`
+            : `${failing[0]} simplifies to ${polyText(failing[1])}, which is not x, so f and g are not inverses (${stated}).`);
+        }
+        break;
+      }
+      default:
+        return null;
+    }
+    if (!stated) return null;
+    answers.push(answerPiece(field, stated));
+  }
+  const pieces = answers;
+  if (!pieces.length) return null;
+  const HEADLINES = {
+    linearInverse: 'Swap x and y in y = f(x), then solve for y: the result is the inverse.',
+    inverseRelation: 'An inverse relation exchanges the input and the output of every pair.',
+    inverseProperty: 'An inverse runs a function backwards: f(a) = b exactly when f⁻¹(b) = a.',
+    inverseGraph: 'Inverse graphs are mirror images across the line y = x.',
+    operations: 'Combine the two rules term by term, then combine like terms.',
+    pointwise: 'Combine the two outputs at the same input.',
+    compositionValues: 'Evaluate a composition from the inside out.',
+    contextComposition: 'Evaluate each composition from the inside out: the inside function acts first.',
+    compositionSymbolic: 'Put the whole inside rule in place of x in the outside rule, then simplify.',
+    inverseVerification: 'Two functions are inverses exactly when both compositions simplify to x.',
+  };
+  const summary = pieces.join('; ');
+  // A one-answer item whose last step already says it is not closed twice.
+  const closing = `So ${summary}.`;
+  return {
+    headline: HEADLINES[model.kind] || '',
+    steps: steps.at(-1) === closing ? steps : [...steps, closing],
+    answerSummary: /^[a-z][a-z]/.test(summary) ? `${summary[0].toUpperCase()}${summary.slice(1)}` : summary,
+  };
+};
+
+/* The tools: the derivation lab, the inverse/composition lab on lines, the operations workbench. */
+
+const deriveWorked = (model) => {
+  const worked = derivation(model.a, model.b, { rule: model.rule });
+  return {
+    headline: 'Swap x and y in y = f(x), then solve for y: the result is the inverse.',
+    steps: [...worked.steps, `So y = ${worked.inverse}.`],
+    answerSummary: `y = ${worked.inverse}`,
+  };
+};
+
+const labWorked = (model) => {
+  const fLine = (model.f.type || 'linear') === 'linear' ? linearSpec(model.f) : null;
+  const gLine = (model.g.type || 'linear') === 'linear' ? linearSpec(model.g) : null;
+  if (!fLine || isRestricted(model.f)) return null;
+  const { x, parts } = model;
+  const X = numText(x);
+  const f0 = tidy(fLine.a * x + fLine.b);
+  if (!Number.isFinite(model.fx) || Math.abs(model.fx - f0) > 1e-9) return null;
+  const steps = model.locked ? [] : [`Use the input x = ${X}.`];
+  const pieces = [];
+  if (parts.includes('fog') || parts.includes('gof')) {
+    if (!gLine || isRestricted(model.g)) return null;
+    const g0 = tidy(gLine.a * x + gLine.b);
+    const fog = tidy(fLine.a * g0 + fLine.b);
+    const gof = tidy(gLine.a * f0 + gLine.b);
+    if (Math.abs(fog - model.fog) > 1e-9 || Math.abs(gof - model.gof) > 1e-9) return null;
+    steps.push(
+      `(f ∘ g)(${X}) = f(g(${X})): g acts first. g(${X}) = ${linearAt(gLine.a, gLine.b, x)} = ${numText(g0)}.`,
+      `Then f(${numText(g0)}) = ${linearAt(fLine.a, fLine.b, g0)} = ${numText(fog)}, so (f ∘ g)(${X}) = ${numText(fog)}.`,
+      `(g ∘ f)(${X}) = g(f(${X})): f acts first. f(${X}) = ${linearAt(fLine.a, fLine.b, x)} = ${numText(f0)}.`,
+      `Then g(${numText(f0)}) = ${linearAt(gLine.a, gLine.b, f0)} = ${numText(gof)}, so (g ∘ f)(${X}) = ${numText(gof)}.`,
+    );
+    pieces.push(`(f ∘ g)(${X}) = ${numText(fog)}`, `(g ∘ f)(${X}) = ${numText(gof)}`);
+  }
+  if (parts.includes('restriction')) {
+    if (model.restriction !== 'none') return null;
+    steps.push(`f(x) = ${model.fRule} is a line with a nonzero slope: two different inputs never give the same output, so f is already one-to-one and its domain does not have to be cut down.`);
+    pieces.push(`restriction: ${RESTRICTION_LABELS.none}`);
+  }
+  if (parts.includes('inverse')) {
+    if (!model.canInvert || inverseLabRoundTrip(model.f, x) !== x) return null;
+    if (!(parts.includes('fog') || parts.includes('gof'))) steps.push(`f(${X}) = ${linearAt(fLine.a, fLine.b, x)} = ${numText(f0)}.`);
+    const inverse = preferredInverse(fLine.a, fLine.b);
+    steps.push(`f⁻¹ undoes f (${sentence(undoMoves(model.f))}): f⁻¹(x) = ${inverse}, so f⁻¹(f(${X})) = f⁻¹(${numText(f0)}) = ${plugIn(inverse, f0)} = ${X}.`);
+    pieces.push(`f⁻¹(f(${X})) = ${X}`);
+  }
+  if (!pieces.length) return null;
+  return {
+    headline: parts.includes('fog') ? 'In a composition the inside function acts first; an inverse undoes f, giving back the input.' : 'The inverse undoes f step by step, in reverse order, giving back the input.',
+    steps: [...steps, `So ${pieces.join('; ')}.`],
+    answerSummary: pieces.join('; '),
+  };
+};
+
+/** Long division of polynomials (ascending coefficients): { quotient, remainder }. */
+const dividePoly = (numerator, denominator) => {
+  const d = P.trim(denominator);
+  let rest = [...P.trim(numerator)];
+  const quotient = Array(Math.max(1, rest.length - d.length + 1)).fill(0);
+  while (rest.length >= d.length && !(rest.length === 1 && Math.abs(rest[0]) < 1e-12)) {
+    const shift = rest.length - d.length;
+    const factor = rest[rest.length - 1] / d[d.length - 1];
+    quotient[shift] = factor;
+    rest = P.sub(rest, P.mul(d, [...Array(shift).fill(0), factor]));
+    if (rest.length > d.length - 1 + shift) rest.pop();
+    if (P.degree(rest) < P.degree(d) || (rest.length === 1 && Math.abs(rest[0]) < 1e-12)) break;
+  }
+  return { quotient: P.trim(quotient), remainder: P.trim(rest) };
+};
+
+const opsWorked = (model) => {
+  const left = { poly: model.fPoly };
+  const right = { poly: model.gPoly };
+  const steps = [];
+  const pieces = [];
+  const coefficientsPoly = (entry) => P.trim([...list(entry?.coefficients)].map(Number).reverse());
+  for (const operation of model.operations) {
+    const entry = model.key[operation];
+    if (!entry) return null;
+    if (operation === 'quotient') {
+      const roots = exactRoots(model.gPoly);
+      const excluded = list(entry.excludedValues).map(Number);
+      if (!roots || !roots.length || roots.length !== excluded.length || !roots.every((root, index) => Math.abs(root - excluded[index]) < 1e-9)) return null;
+      const fraction = `(${polyText(model.fPoly)})/(${polyText(model.gPoly)})`;
+      steps.push(`(f / g)(x) = ${fraction}.`);
+      let result = fraction;
+      if (entry.simplified) {
+        const { quotient, remainder } = dividePoly(model.fPoly, model.gPoly);
+        const keyed = parsePolynomial(entry.expression);
+        if (!P.equal(remainder, [0]) || !keyed || !P.equal(quotient, keyed)) return null;
+        result = polyText(quotient);
+        steps.push(`g(x) divides f(x) with no remainder: (${polyText(model.gPoly)})(${result}) = ${polyText(model.fPoly)}, so (f / g)(x) = ${result}.`);
+      } else if (!sameText(entry.expression, fraction)) {
+        return null;
+      }
+      const shown = roots.map(numText).join(', ');
+      steps.push(`The denominator ${polyText(model.gPoly)} is zero when x = ${roots.map(numText).join(' or x = ')}, so x = ${shown} is excluded from the domain.`);
+      pieces.push(`(f / g)(x) = ${result}, x ≠ ${shown}`);
+      continue;
+    }
+    const names = operation === 'composition' && model.composeOrder === 'gOfF' ? ['g', 'f'] : ['f', 'g'];
+    const [outer, inner] = names[0] === 'g' ? [right, left] : [left, right];
+    const worked = operationWork(operation, outer, inner, names);
+    if (!worked?.poly || !P.equal(worked.poly, coefficientsPoly(entry))) return null;
+    steps.push(...worked.steps);
+    pieces.push(`${worked.label} = ${polyText(worked.poly)}`);
+  }
+  if (!pieces.length) return null;
+  return {
+    headline: `Work each operation on f(x) = ${model.fRule} and g(x) = ${model.gRule}, then combine like terms.`,
+    steps: [...steps, `So ${pieces.join('; ')}.`],
+    answerSummary: pieces.join('; '),
+  };
+};
+
+const WORKED_TOOLS = Object.freeze({ derive: deriveWorked, lab: labWorked, ops: opsWorked });
+
+// What a step must never print: a JS leak or an unsimplified sign.
+const SLOPPY = /NaN|undefined|Infinity|\bnull\b|\[object|[+−-]\s*[−-]|(?<![\d.])[−-]0(?![\d./])|(?<![\d.)⁻])1[a-z](?![a-z])/;
+
+export const workedSolution = (question) => {
+  try {
+    const model = readModel(question);
+    if (!model) return null;
+    const result = model.source === 'tool' ? WORKED_TOOLS[model.kind]?.(model) : multiWorked(model);
+    if (!result) return null;
+    const steps = list(result.steps).map(text).filter(Boolean);
+    const answerSummary = text(result.answerSummary);
+    if (!steps.length || !answerSummary) return null;
+    if ([...steps, answerSummary, text(result.headline)].some((entry) => SLOPPY.test(entry))) return null;
+    return { headline: text(result.headline), steps, answerSummary };
   } catch {
     return null;
   }

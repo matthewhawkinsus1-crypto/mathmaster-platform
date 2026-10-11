@@ -324,13 +324,13 @@
             },
             {
               "id": "point1",
-              "label": "First ordered-pair solution",
+              "label": "Solution with the smaller x-value",
               "inputProfile": "orderedPair",
               "expected": "({{u}},{{yu}})"
             },
             {
               "id": "point2",
-              "label": "Second ordered-pair solution",
+              "label": "Solution with the larger x-value",
               "inputProfile": "orderedPair",
               "expected": "({{v}},{{yv}})"
             }
@@ -558,13 +558,13 @@
         },
         {
           "id": "point1",
-          "label": "First complete solution",
+          "label": "Solution with the smaller x-value",
           "inputProfile": "orderedPair",
           "expected": "({{u}},{{yu}})"
         },
         {
           "id": "point2",
-          "label": "Second complete solution",
+          "label": "Solution with the larger x-value",
           "inputProfile": "orderedPair",
           "expected": "({{v}},{{yv}})"
         }
@@ -677,13 +677,13 @@
             },
             {
               "id": "point1",
-              "label": "First solution",
+              "label": "Solution with the smaller x-value",
               "inputProfile": "orderedPair",
               "expected": "({{u}},{{yu}})"
             },
             {
               "id": "point2",
-              "label": "Second solution",
+              "label": "Solution with the larger x-value",
               "inputProfile": "orderedPair",
               "expected": "({{v}},{{yv}})"
             }
