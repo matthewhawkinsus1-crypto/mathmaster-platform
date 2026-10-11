@@ -42,9 +42,15 @@ const pathAnswer = ({ instance, attempt = 1, correct = true, finalized = true, h
 test('the recorded bug: every finalized Path answer read as supported', () => {
   const event = pathAnswer({ instance: 'q1' });
   assert.equal(event.evidence.supportUsage.isMathematicallyIndependent, false);
-  // And the line that wrote it is the one this reads around.
-  const submit = region(executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')), 'const reviewReleased =', 'const independent = mathPath.mathematicalIndependence(supportUsage);', 'path support usage');
-  assert.match(submit, /Boolean\(attemptSupport\.solutionReview\)/, 'the review counted is the one this attempt released');
+  // The writer is fixed (#472, mathPath.pathAttemptSupport): the review an
+  // answer releases is carried to the next attempt and never counted on this
+  // one. History written before the fix still reads as above, and that is
+  // what the backfill reclassifies.
+  const fixed = mathPath.pathAttemptSupport({ priorSupport: {}, attemptSupport: { solutionReview: { headline: 'Undo in reverse.' } } });
+  assert.equal(fixed.used.workedExampleUsed, false);
+  assert.equal(fixed.released.reviewReleased, true);
+  const submit = region(executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')), 'exports.submitPathResponse = onCall(', 'const independent = mathPath.mathematicalIndependence(supportUsage);', 'path support usage');
+  assert.match(submit, /mathPath\.pathAttemptSupport\(\{/, 'the server counts only support released before this attempt');
 });
 
 test('a review released by the finalizing answer is not support: reclassified independent', () => {
