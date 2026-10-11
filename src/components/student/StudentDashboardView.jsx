@@ -25,6 +25,7 @@ const TEST_CYCLE_TONE = {
 };
 import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
 import RewardsSummaryCard from './rewards/RewardsSummaryCard.jsx';
+import { questionAddressLabel } from '../../app/routes/questionAddress.js';
 
 // The student's assignment dashboard, as a component.
 //
@@ -147,11 +148,14 @@ export default function StudentDashboardView({
   onOpenRecovery = null,
 }) {
   const {
-    visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
+    visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeQuestionAddress = null, resumeLifecycle,
     resumeRecordedGrade, resumeQuestionsAttempted, resumeFeedbackHeld,
     activeDols = [], activeWarmups = [], groups,
   } = dashboard;
   const hideCountdowns = Boolean(supportPresentation.hideCountdowns);
+  // The workspace's own numbering ("Classwork Question 2"), the same address
+  // the question's URL carries — not its position in storage.
+  const resumeQuestionLabel = questionAddressLabel(resumeQuestionAddress) || `Question ${(resumeQuestionIndex ?? 0) + 1}`;
 
   // Finished work, a closed lesson and a Recovery open the result page. A
   // caller without that page falls back to Start, which lands on the result
@@ -439,7 +443,7 @@ export default function StudentDashboardView({
             countdownEndsAt={nextActionEndsAt}
             hideCountdowns={hideCountdowns}
             resume={nextAction.kind === 'resume' && resumeAssignment
-              ? { questionNumber: (resumeQuestionIndex ?? 0) + 1, gradeText: resumeGradeText }
+              ? { questionLabel: resumeQuestionLabel, gradeText: resumeGradeText }
               : null}
           />
         )}
@@ -492,7 +496,7 @@ export default function StudentDashboardView({
               <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>Pick up where you left off</div>
               <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{resumeAssignment.title}</div>
               <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
-                Continue at Question {resumeQuestionIndex + 1}. Your answers are kept as you go.
+                Continue at {resumeQuestionLabel}. Your answers are kept as you go.
                 {resumeGradeText ? ` ${resumeGradeText}.` : ''}
                 {' '}{resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until it closes` : `Due ${studentDueDateLines(resumeAssignment, resumeLifecycle).dueText}`}
               </div>

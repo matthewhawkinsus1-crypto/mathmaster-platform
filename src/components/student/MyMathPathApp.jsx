@@ -47,8 +47,10 @@ import { FRAMEWORK_LABELS, getSkillCrosswalk } from '../../platform/ccmr/assessm
 import {
   mathPathRouteKey,
   readMathPathRouteState,
+  readStudentRouteState,
   writeMathPathRouteState,
 } from '../../platform/student/browserHistory.js';
+import { mathPathUrlFor } from '../../app/routes/browserUrl.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -150,6 +152,9 @@ export const MyMathPathExperience = ({
   onSimulationEvent = null,
   readOnly = false,
   initialTab = 'path',
+  // A reload of a session (app/routes/urlArrival.js): the session this tab's
+  // history entry recorded, restored exactly as browser Forward restores it.
+  initialSessionConfig = null,
   loading = false,
   error = null,
   historyError = null,
@@ -163,8 +168,20 @@ export const MyMathPathExperience = ({
 }) => {
   // The live student opens on Path. A teacher inspecting an actual student can
   // choose Mastery Overview first, but the same component stays the source of truth.
-  const [activeTab, setActiveTab] = useState(() => initialTab);
-  const [sessionConfig, setSessionConfig] = useState(null);
+  // Back/Forward onto a My Math Path entry remounts this screen: it opens on
+  // the tab or session that entry recorded, so the screen and the address
+  // agree. Only when the entry IS My Math Path's (an entry written elsewhere
+  // can carry a stale copy), and only for the real student.
+  const [restoredRoute] = useState(() => {
+    if (readOnly || sessionProvider || typeof window === 'undefined') return null;
+    const outer = readStudentRouteState(window.history.state);
+    if (outer?.surface !== 'dashboard' || outer.dashboardMode !== 'mathPath') return null;
+    return readMathPathRouteState(window.history.state);
+  });
+  const openingTab = initialTab !== 'path' || initialSessionConfig ? initialTab : (restoredRoute?.tab || 'path');
+  const openingSession = initialSessionConfig || (restoredRoute?.tab === 'session' ? restoredRoute.sessionConfig : null);
+  const [activeTab, setActiveTab] = useState(() => (openingTab === 'session' && !openingSession ? 'path' : openingTab));
+  const [sessionConfig, setSessionConfig] = useState(() => (openingTab === 'session' ? openingSession : null));
   // Which alternative the student put in each slot, keyed by the slot's frozen
   // key. Deliberately session-scoped: a swap is a decision about what to work on
   // right now, not a setting worth persisting. Once the swapped session is
@@ -202,9 +219,13 @@ export const MyMathPathExperience = ({
     }
 
     if (currentKey !== targetKey) {
-      writeMathPathRouteState(mathPathBrowserRoute);
+      // A real student's new tab or session is a new address (/path/progress,
+      // /path/session/<skill>); the first entry above keeps the address the
+      // outer App gave it. The teacher's Path Simulator (a sessionProvider)
+      // keeps the teacher's address.
+      writeMathPathRouteState(mathPathBrowserRoute, { url: sessionProvider ? null : mathPathUrlFor(mathPathBrowserRoute) });
     }
-  }, [mathPathBrowserRoute, readOnly]);
+  }, [mathPathBrowserRoute, readOnly, sessionProvider]);
 
   useEffect(() => {
     if (readOnly) return undefined;

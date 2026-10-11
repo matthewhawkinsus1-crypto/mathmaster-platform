@@ -43,7 +43,9 @@ test('App wires the handler to both results screens, imported next to the call',
   const exec = executableSource(app);
   assert.match(exec, /<TestCycleCard[\s\S]{0,900}onPracticeSkill=\{practiseSkillFromResults\}/);
   assert.match(exec, /<StudentSecureExamDashboard[\s\S]{0,600}onPracticeSkill=\{practiseSkillFromResults\}/);
-  assert.match(exec, /<MyMathPathApp[\s\S]{0,500}initialTab=\{pathLaunchTab \|\| 'path'\}/);
+  // An address arrival's tab (app/routes/urlArrival.js, job G) comes first;
+  // otherwise the launch's tab, otherwise Path.
+  assert.match(exec, /<MyMathPathApp[\s\S]{0,500}initialTab=\{(?:mathPathArrival\?\.tab \|\| )?pathLaunchTab \|\| 'path'\}/);
   // A stale CCMR tab never outlives the launch it was set for.
   const open = region(app, 'const openStudentDashboardMode = (mode) => {', '};', 'open mode');
   assert.match(open, /setPathLaunchTab\(null\);/);

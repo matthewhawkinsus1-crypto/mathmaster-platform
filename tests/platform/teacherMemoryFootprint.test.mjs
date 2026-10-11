@@ -27,12 +27,16 @@ test('teacher sign-in hydrates a compact roster instead of every full grade docu
 });
 
 test('ordinary teacher tabs do not keep the whole grade corpus subscribed', () => {
+  // Declared in app/screenScopes.js since the App split.
   const tabs = between(
-    app,
-    'const TEACHER_FULL_STUDENT_DATA_TABS = new Set([',
+    fs.readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'),
+    'export const TEACHER_FULL_STUDENT_DATA_TABS = new Set([',
     ']);',
     'full student data tab list',
   );
+  // App reads this one table, imported, never a second copy of its own.
+  assert.match(app, /\bTEACHER_FULL_STUDENT_DATA_TABS,\n[\s\S]*?\} from '\.\/app\/screenScopes\.js';/);
+  assert.doesNotMatch(app, /const TEACHER_FULL_STUDENT_DATA_TABS\b/);
   for (const detailTab of ['students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer', 'standards', 'analytics', 'exams']) {
     assert.match(tabs, new RegExp("'" + detailTab + "'"));
   }
@@ -175,12 +179,12 @@ test('Classes Workspace stays on live lightweight data instead of silently showi
 
 test('Parent Contacts opts into complete academic detail only while that tab is open', () => {
   const fullTabs = between(
-    app,
-    'const TEACHER_FULL_STUDENT_DATA_TABS = new Set([',
+    fs.readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'),
+    'export const TEACHER_FULL_STUDENT_DATA_TABS = new Set([',
     ']);',
     'full student data tabs',
   );
   assert.match(fullTabs, /'parentContacts'/);
-  assert.match(app, /TEACHER_SUPPORT_STREAM_TABS[^\n]*parentContacts/);
-  assert.match(app, /TEACHER_SESSION_SUMMARY_TABS[^\n]*parentContacts/);
+  assert.match(fs.readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'), /TEACHER_SUPPORT_STREAM_TABS[^\n]*parentContacts/);
+  assert.match(fs.readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'), /TEACHER_SESSION_SUMMARY_TABS[^\n]*parentContacts/);
 });

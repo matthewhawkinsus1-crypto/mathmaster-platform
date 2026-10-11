@@ -91,13 +91,17 @@ const FULL_STUDENT_DATA_TABS = Object.freeze([
 ]);
 
 test('Test F: TEACHER_FULL_STUDENT_DATA_TABS is unchanged, and only ever consulted', () => {
-  const declaration = region(APP, 'const TEACHER_FULL_STUDENT_DATA_TABS = new Set([', ']);', 'full-data tab list');
+  // Declared in app/screenScopes.js since the App split; App imports and reads it.
+  const SCOPES = readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8');
+  const declaration = region(SCOPES, 'export const TEACHER_FULL_STUDENT_DATA_TABS = new Set([', ']);', 'full-data tab list');
   const tabs = [...declaration.matchAll(/'([^']+)'/g)].map(([, tab]) => tab);
   assert.deepEqual([...tabs].sort(), [...FULL_STUDENT_DATA_TABS].sort(), 'the full-data tab list changed');
   for (const lightTab of ['home', 'classesWorkspace', 'assignments', 'library', 'pacing', 'attendanceHistory', 'access']) {
     assert.ok(!tabs.includes(lightTab), `${lightTab} must stay on the compact roster`);
   }
-  assert.equal((APP.match(/\bTEACHER_FULL_STUDENT_DATA_TABS\s*=/g) || []).length, 1);
+  assert.equal((SCOPES.match(/\bTEACHER_FULL_STUDENT_DATA_TABS\s*=/g) || []).length, 1);
+  assert.equal((APP.match(/\bTEACHER_FULL_STUDENT_DATA_TABS\s*=/g) || []).length, 0, 'App reads the one table, never a second');
+  assert.match(APP, /\bTEACHER_FULL_STUDENT_DATA_TABS,\n[\s\S]*?\} from '\.\/app\/screenScopes\.js';/);
   assert.doesNotMatch(APP, /TEACHER_FULL_STUDENT_DATA_TABS\.(?:add|delete|clear)\(/);
 });
 

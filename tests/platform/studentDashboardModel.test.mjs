@@ -233,6 +233,9 @@ test('resume skips an unfinished Warm-Up after its class window closes and retur
   });
   assert.equal(result.resumeAssignment.id, 'mixed');
   assert.equal(result.resumeQuestionIndex, 1);
+  // Stored second, but the FIRST Practice question: Resume says "Practice
+  // Question 1", the number the workspace and the question's URL use.
+  assert.deepEqual(result.resumeQuestionAddress, { section: 'practice', number: 1 });
 });
 
 test('the resumed assignment is not listed twice', () => {

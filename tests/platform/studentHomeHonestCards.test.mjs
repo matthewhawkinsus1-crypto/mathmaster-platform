@@ -63,7 +63,11 @@ test('what the separate cards carried moves into the next-action card', () => {
   assert.match(card, /const TIMED_KINDS = new Set\(\['dol', 'warmup'\]\)/);
   assert.match(card, /const showCountdown = TIMED_KINDS\.has\(nextAction\.kind\) && Boolean\(countdownEndsAt\) && !hideCountdowns/);
   assert.match(card, /\{showCountdown && \([\s\S]*?<DOLCountdown endsAt=\{countdownEndsAt\} \/>/);
-  assert.match(card, /nextAction\.kind === 'resume' && resume && \([\s\S]*?Continue at Question \{resume\.questionNumber\}\. Your answers are kept as you go\./);
+  // The resume line names the question the way the workspace numbers it
+  // ("Classwork Question 2"), from the same address its URL carries.
+  assert.match(card, /nextAction\.kind === 'resume' && resume && \([\s\S]*?Continue at \{resume\.questionLabel[\s\S]*?\}\. Your answers are kept as you go\./);
+  assert.match(call, /questionLabel: resumeQuestionLabel/);
+  assert.match(code, /const resumeQuestionLabel = questionAddressLabel\(resumeQuestionAddress\)/);
   assert.match(card, /resume\.gradeText/);
 });
 

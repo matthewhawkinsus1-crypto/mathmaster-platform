@@ -14,6 +14,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { BUCKET } from '../../src/studentDashboardModel.js';
@@ -534,7 +535,9 @@ test('a newly open Recovery is announced once, where the student chooses what to
   assert.match(effect, /markRecoveryNotified\(user\.id, opportunity\)/);
   assert.match(effect, /recoveryNotice\(fresh\)/);
   assert.match(effect, /toastSuccess : toastInfo\)\(notice\.title, notice\.message\)/);
-  assert.match(app, /^const RECOVERY_ANNOUNCEMENT_MODES = new Set\(\['assignments', 'assignmentsCenter', 'grades'\]\);$/m);
+  // Declared in app/screenScopes.js since the App split; App imports it.
+  assert.match(readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'), /^export const RECOVERY_ANNOUNCEMENT_MODES = new Set\(\['assignments', 'assignmentsCenter', 'grades'\]\);$/m);
+  assert.match(app, /\bRECOVERY_ANNOUNCEMENT_MODES,\n[\s\S]*?\} from '\.\/app\/screenScopes\.js';/);
 
   // Opening its panel (or runner) is seeing it.
   const seen = region(app, 'studentRecoverySummary.forEach((entry) => markRecoverySeen(', '}, [studentRecoverySummary', 'Recovery seen mark');

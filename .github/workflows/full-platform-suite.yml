@@ -113,6 +113,12 @@ jobs:
         if: always()
         run: npm run build
 
+      # What a student downloads before sign-in and before Home, against
+      # scripts/first-load-baseline.json (scripts/lib/firstLoadBudget.mjs).
+      - name: Student first-load budget
+        if: always()
+        run: node scripts/check-first-load-budget.mjs --report
+
       - name: Build Firebase production web runtime
         if: always()
         run: npm run build:firebase
