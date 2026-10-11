@@ -613,13 +613,18 @@ late join and Play Again. The rules below are the engine-facing ones.
 | `classPointTransactions`, `classPointAccounts` | the Class Points ledger | student own; authorized teachers |
 | `rewardGrants/{grantId}` | item rewards | student own; authorized teachers; no client writes |
 
-Permanent student deletion (`permanentlyDeleteStudent`) removes the student's
-grants and award-job references, deletes their own summary in every match
-they played (found through the match results that list them), and scrubs
-their rows from match results and reports (by the `studentIds` key both
-carry). Reports written before that key
-existed are not reachable by query — a known gap. The pre-production reset
-clears every collection above.
+Permanent student deletion (`permanentlyDeleteStudent`) first takes the
+student out of the match their invite names, still running or not: their
+private roster row, anonymous public row, device diagnostics and own summary,
+and the invite itself, in one batch. Without the roster row the match never
+writes them again: no summary, no place in the final result or report, no
+reward. It then removes their grants and award-job references, deletes their
+own summary in every match they played (found through the match results that
+list them), and scrubs their rows from match results and reports (by the
+`studentIds` key both carry). Known gaps: reports written before that key
+existed are not reachable by query, and a room retired without finishing keeps
+its private round results until the pre-production reset, which clears every
+collection above.
 
 ### 12a. The standings snapshot
 

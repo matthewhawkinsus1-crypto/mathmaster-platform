@@ -6992,15 +6992,48 @@ async function deleteStudentClassPointsFootprint(db, studentId, deleted) {
 }
 
 /*
- * A deleted student's Live Challenge footprint beyond Class Points: their item
- * rewards (Practice Passes, badges) and their standing inside finished match
- * results and teacher reports. Results and reports keep the rest of the class
- * — they are the class's record — and lose only this student's row. Both carry
- * a `studentIds` query key for exactly this purpose; reports written before
- * that key existed are not reachable by query and are recorded as a known gap
- * in docs/architecture/live-challenge-engine.md.
+ * A deleted student's Live Challenge footprint beyond Class Points: the match
+ * they are in now, their item rewards (Practice Passes, badges) and their
+ * standing inside finished match results and teacher reports. Results and
+ * reports keep the rest of the class — they are the class's record — and lose
+ * only this student's row. Both carry a `studentIds` query key for exactly this
+ * purpose; reports written before that key existed are not reachable by query
+ * and are recorded as a known gap in docs/architecture/live-challenge-engine.md.
  */
 async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
+  // The match they are in now (lobby or running) has no result yet, so the
+  // results query below cannot find it: their invite names the room. They
+  // leave it whole, in one batch: the private roster row (without it the match
+  // never writes them again: no summary, no place in the final result or
+  // report, no reward), their anonymous public row and device diagnostics,
+  // their own summary, and the invite itself, which carries their room, alias
+  // and class. One batch, so a round that closes at the same moment either
+  // committed first, and this removes what it wrote, or reads the roster after
+  // them. The same invite also leads to a room retired before it finished.
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
+  const inviteSnapshot = await inviteRef.get();
+  if (inviteSnapshot.exists) {
+    const invite = inviteSnapshot.data() || {};
+    const invitedRoomId = String(invite.roomId || "").trim();
+    const leave = db.batch();
+    if (invitedRoomId) {
+      const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(invitedRoomId);
+      const rosterRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(invitedRoomId).collection("players").doc(studentId);
+      const rosterSnapshot = await rosterRef.get();
+      const playerKey = String(rosterSnapshot.data()?.playerKey || invite.playerKey || "").trim();
+      leave.delete(rosterRef);
+      leave.delete(roomRef.collection("playerSummaries").doc(studentId));
+      if (playerKey) {
+        leave.delete(roomRef.collection("players").doc(playerKey));
+        leave.delete(roomRef.collection("diagnostics").doc(playerKey));
+      }
+      if (rosterSnapshot.exists) deleted.liveChallengeRoomMemberships = 1;
+    }
+    leave.delete(inviteRef);
+    await leave.commit();
+    deleted.liveChallengeInvites = 1;
+  }
+
   const grantsSnapshot = await db.collection("rewardGrants").where("studentId", "==", studentId).get();
   for (const grantDoc of grantsSnapshot.docs) {
     // eslint-disable-next-line no-await-in-loop
