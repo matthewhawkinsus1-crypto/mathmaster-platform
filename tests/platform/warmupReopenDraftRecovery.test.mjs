@@ -45,6 +45,7 @@ import representationMatchGrader from '../../functions/shared/serverGrading/tool
 import { gradeWorkWithGrader } from '../../functions/shared/serverGrading/toolWorkGrading.mjs';
 import { selectRestorableDraftEntries } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { describeDolClose } from '../../src/platform/assessment/dolCloseCopy.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -533,8 +534,17 @@ test('the time-ended receipt belongs to a closed window, not a reopened one', ()
   // While the Warm-Up (or DOL) is open again, the student is told their work
   // will be submitted when time ends — not that time already ended.
   assert.match(app, /const currentSectionOpenNow = /);
-  assert.match(app, /!preview && currentCheckpointOutcome && !currentSectionOpenNow && \(/);
-  assert.match(app, /\['warmup', 'dol'\]\.includes\(runtimeActivityRole\) && \(!currentCheckpointOutcome \|\| currentSectionOpenNow\) && \(/);
+  // The receipt: the DOL copy's (none while the DOL is open), else the earlier
+  // receipt, never while the section is open again.
+  assert.match(app, /!preview && \(currentDolCopy\?\.closeReceipt \|\| \(currentCheckpointOutcome && !currentSectionOpenNow\)\) && \(/);
+  // "When time ends": a DOL's from the copy (open only), a Warm-Up's while it is active.
+  assert.match(app, /runtimeActivityRole === 'dol' && currentDolCopy\?\.openNotice && \(/);
+  assert.match(app, /runtimeActivityRole === 'warmup' && warmupState\.status === 'active' && \(/);
+  // A reopened DOL with a receipt from its earlier window: told it will be
+  // submitted when time ends, never that time already ended.
+  const reopened = describeDolClose({ status: 'active', outcome: 'auto-submitted' });
+  assert.equal(reopened.closeReceipt, '');
+  assert.match(reopened.openNotice, /will be submitted automatically when time ends/);
 });
 
 test('the teacher handler writes the Warm-Up controls through the shared, tested function', () => {

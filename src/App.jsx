@@ -39,6 +39,7 @@ import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './pl
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
+import { describeDolClose } from './platform/assessment/dolCloseCopy.js';
 import {
   classDolFieldPatch,
   controlsRequestKey,
@@ -329,6 +330,7 @@ import {
   buildWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
+import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
 import { describeSaveStatus } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
@@ -5060,6 +5062,15 @@ function App() {
       if (dolRecords.some((record) => record.totalAttempts > 0 || ['correct', 'expired'].includes(record.status))) return;
       const key = `${assignment.id}:${user.classPeriod}:${dolState.instructionDateKey || localDateKey(now)}`;
       activeKeys.add(key);
+      // Not while the student is on that DOL's questions: it would tell them
+      // to open what they have open (release-candidate QA m13).
+      if (!shouldShowDolOpenReminder({
+        assignmentId: assignment.id,
+        dolQuestionIndices: dolState.questionIndices || [dolState.questionIndex],
+        activeView,
+        activeAssignmentId,
+        currentQuestionIndex,
+      })) return;
       const lastReminderAt = Number(dolOpenAnnouncedRef.current[key] || 0);
       if (lastReminderAt && now - lastReminderAt < 120000) return;
       const firstReminder = lastReminderAt === 0;
@@ -5072,7 +5083,7 @@ function App() {
     Object.keys(dolOpenAnnouncedRef.current).forEach((key) => {
       if (!activeKeys.has(key) && now - Number(dolOpenAnnouncedRef.current[key] || 0) > 15 * 60000) delete dolOpenAnnouncedRef.current[key];
     });
-  }, [now, user, assignments, classSchedule, tracker, toastWarning]);
+  }, [now, user, assignments, classSchedule, tracker, toastWarning, activeView, activeAssignmentId, currentQuestionIndex]);
 
   // A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT WHO ALREADY TRIED.
   // The reminder above stops once a student has attempted the DOL, which is
@@ -10962,6 +10973,11 @@ function App() {
     const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
     const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
     const currentCheckpointOutcome = preview ? null : checkpointOutcomes[currentQuestionIndex] || null;
+    // The DOL's lock message, open notice and close receipt: a teacher's
+    // "Close now" never reads as the timer, and "when time ends" only while it is open.
+    const currentDolCopy = currentIsDOL && !preview
+      ? describeDolClose({ status: dolState.status, teacherClosed: dolState.teacherClosed, outcome: currentCheckpointOutcome })
+      : null;
     const currentQuestionBlueprint = questions[currentQuestionIndex];
     const currentReplacementAllowed = resolveQuestionReplacementAllowed({
       question: currentQuestionBlueprint,
@@ -11717,7 +11733,7 @@ function App() {
               guidedNotesMode={currentGuidedNotesMode}
               assignmentLocked={!preview && ((currentIsDOL && dolState.status === 'ended') || (currentIsWarmup && warmupState.status !== 'active') || currentSectionManuallyLocked)}
               assignmentLockedMessage={!preview && currentIsDOL && dolState.status === 'ended'
-                ? 'The DOL timer has ended. Your saved response is available for review, but no new submission is allowed.'
+                ? currentDolCopy.lockMessage
                 : !preview && currentIsWarmup && warmupState.status === 'closed'
                   ? 'Your teacher closed the Warm-Up for this class. Your saved work is available for review, but no new submission is allowed.'
                   : !preview && currentIsWarmup && warmupState.status === 'ended'
@@ -11797,19 +11813,25 @@ function App() {
                 Device reporting unavailable ({studentReportingError}); locally saved work is unchanged.
               </p>
             )}
-            {!preview && ['warmup', 'dol'].includes(runtimeActivityRole) && (!currentCheckpointOutcome || currentSectionOpenNow) && (
+            {/* "When time ends" is a promise only an open window can keep. */}
+            {!preview && runtimeActivityRole === 'dol' && currentDolCopy?.openNotice && (
+              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>{currentDolCopy.openNotice}</p>
+            )}
+            {!preview && runtimeActivityRole === 'warmup' && warmupState.status === 'active' && (
               <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>Your latest completed response will be submitted automatically when time ends.</p>
             )}
             {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
                 Never "submitted" for a response that was not complete — the
-                status comes from the server's own finalization receipt. */}
-            {!preview && currentCheckpointOutcome && !currentSectionOpenNow && (
+                status comes from the server's own finalization receipt. A DOL
+                that ended today says who closed it (describeDolClose); on
+                another day, and for a Warm-Up, the receipt reads as before. */}
+            {!preview && (currentDolCopy?.closeReceipt || (currentCheckpointOutcome && !currentSectionOpenNow)) && (
               <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
-                {currentCheckpointOutcome === 'auto-submitted'
+                {currentDolCopy?.closeReceipt || (currentCheckpointOutcome === 'auto-submitted'
                   ? 'Time ended. Your latest completed response was submitted automatically.'
                   : currentCheckpointOutcome === 'explicitly-submitted'
                     ? 'Time ended. Your submitted work has been saved.'
-                    : 'Time ended. No completed response was available to submit.'}
+                    : 'Time ended. No completed response was available to submit.')}
               </p>
             )}
           </main>
