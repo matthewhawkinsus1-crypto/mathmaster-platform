@@ -11,6 +11,8 @@
  * and the order of every branch are unchanged.
  */
 import { Suspense } from 'react';
+// Shared with App so the sheets form their own chunk that links before App.css.
+import '../shell/leadingStyles.js';
 import { addDoc, collection, deleteField, doc, runTransaction, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { classDolFieldPatch } from '../../platform/assessment/dolAttemptGrantClient.js';

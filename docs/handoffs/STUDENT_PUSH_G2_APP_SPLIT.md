@@ -34,9 +34,9 @@ FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting
 | 2a: teacher panels on demand | 1,214.7 KB (−234.0) | 289.7 KB, 24 files |
 | 2b-1: TeacherWorkspace | 1,198.4 KB (−16.3) | 290.8 KB, 27 files |
 | 2b-2: authoring handlers | 1,018.8 KB (−179.6), 183 files | 290.3 KB, 27 files |
-| review fix: phone stylesheet back in App | **1,019.5 KB** (+0.7), 184 files | **290.3 KB**, 27 files |
+| review fixes: stylesheets restored before App.css | **1,023.4 KB** (+4.6), 186 files | **290.3 KB**, 27 files |
 
-The baseline was lowered after each step. Student Home is −429.2 KB in
+The baseline was lowered after each step. Student Home is −425.3 KB in
 total, beating G's estimate of about 1.1 MB. Sign-in is +1.5 KB: rolldown
 splits a few small shared modules (assignmentRuntimeRepair, the curriculum
 calendars) into their own chunks at the new lazy boundaries. That is the
@@ -150,6 +150,35 @@ baseline.
   - `prerequisiteEarlyJourneys.mjs` at both sizes.
 - **Left to CI:** the certify device jobs, accessibility and the other
   long suites (economy mode).
+
+### Review fixes: the stylesheet order (105af074, then the commit after it)
+
+- **The problem.** Three stylesheets reached App at 805b69e2 through modules
+  that moved with the teacher's screen: `supportEvidence.css`,
+  `teacherWorkspace.css` and `MobileInteractionFoundation.css`. They linked
+  before `App-*.css`. App.css's coarse-pointer `.mm-dashboard-content` rules
+  tie on specificity with some teacher rules and win only by coming later.
+  The rules: 22px checkboxes, 12px cells, 52px controls, and the
+  large-screen headings.
+- **The coordinator's review found** the teacher sheets linking after App.css
+  once lazy. Teachers on touch screens then got 18px checkboxes, 6px cells
+  and smaller headings.
+- **The fix.** `src/app/shell/leadingStyles.js` carries the three sheets, and
+  App (above `./App.css`) and TeacherWorkspace both import it. The module
+  becomes a shared chunk App imports, so its CSS links before App's own.
+  - Importing the sheets straight from App.jsx is not enough: the bundler
+    lists a chunk's own CSS before shared CSS assets.
+  - 105af074's message said its phone-stylesheet fix restored 805b69e2's
+    order. It did not: that sheet still linked after App.css. Students saw
+    no difference, because the one conflict, on
+    `.mathmaster-assignment-screen`, computes the same in both orders. This
+    fix makes the order exact.
+- **Proof.** The CSS App links, concatenated in the manifest's link order,
+  equals 805b69e2's byte for byte, apart from two blank lines at file
+  boundaries. `appShellSplit.test.mjs` pins the module, its order and both
+  imports.
+- **Cost.** About 3.9 KB gzip on Student Home: the price of keeping the
+  cascade identical.
 
 ## Left for later, and why
 
