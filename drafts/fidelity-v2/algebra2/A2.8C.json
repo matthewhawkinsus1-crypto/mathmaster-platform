@@ -12,7 +12,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.8C:v2-prediction-model-variants",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "graphing",
@@ -53,10 +53,10 @@
           "slopeTolerance": 0.02,
           "interceptTolerance": 0.03,
           "predictionTolerance": 0.08,
-          "prompt": "Use linear regression technology on all five observations, then predict y when x=4. Enter the fitted m and b as supporting work and the model prediction at x=4.",
+          "prompt": "Use linear regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, then predict y when x=4. Enter the fitted m and b as supporting work and the model prediction at x=4.",
           "context": {
             "title": "Linear prediction from noisy data",
-            "note": "x=4 lies beyond the observed range -2 through 2, so the prediction is an extrapolation."
+            "note": "Fit the complete data set first, then compare x=4 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
             "headline": "Fit first, then use the fitted linear model at the requested input.",
@@ -129,10 +129,10 @@
           "quadraticBTolerance": 0.03,
           "quadraticCTolerance": 0.04,
           "predictionTolerance": 0.08,
-          "prompt": "Use quadratic regression technology on all five observations, then predict y when x=0.5. Enter a, b, and c as supporting work and the model prediction.",
+          "prompt": "Use quadratic regression technology on all five observations, $(-2,{{ym2}})$, $(-1,{{ym1}})$, $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, then predict y when x=0.5. Enter a, b, and c as supporting work and the model prediction.",
           "context": {
-            "title": "Quadratic interpolation",
-            "note": "x=0.5 lies inside the observed x-range -2 through 2."
+            "title": "Quadratic prediction from noisy data",
+            "note": "Fit the complete data set first, then compare x=0.5 with the observed x-values before you classify the prediction."
           },
           "solutionReview": {
             "headline": "A fitted quadratic can interpolate between observed inputs.",
@@ -209,7 +209,7 @@
           "exponentialATolerance": 0.03,
           "exponentialBaseTolerance": 0.015,
           "predictionTolerance": 0.12,
-          "prompt": "Use exponential regression technology on all five positive observations, then predict y when x=3. Enter the fitted a and base as supporting work and the prediction.",
+          "prompt": "{{scenario}} Use exponential regression technology on all five positive observations, then predict y when x=3. Enter the fitted a and base as supporting work and the prediction.",
           "context": {
             "title": "Exponential prediction",
             "note": "The data contain multiplicative noise; use the full exponential regression before predicting."
@@ -245,6 +245,27 @@
                   1.1,
                   1.2
                 ]
+              },
+              "scenario": {
+                "type": "choice",
+                "values": [
+                  "The table tracks the area, in square meters, covered by an algae bloom; x is days from the reference survey at x=0.",
+                  "The table tracks a bacteria culture, in thousands of cells; x is hours from the reference count at x=0.",
+                  "The table tracks the mass, in grams, of a yeast culture; x is hours from the reference weighing at x=0.",
+                  "The table tracks downloads of a new app, in thousands; x is weeks from the reference week at x=0.",
+                  "The table tracks views of a viral video, in thousands; x is days from the reference day at x=0.",
+                  "The table tracks the area, in square kilometers, covered by an invasive vine; x is years from the reference survey at x=0.",
+                  "The table tracks followers of a new social media account, in thousands; x is months from the reference month at x=0.",
+                  "The table tracks a fruit fly population in a lab jar, in hundreds of flies; x is weeks from the reference count at x=0.",
+                  "The table tracks the area, in square centimeters, of a mold colony on bread; x is days from the reference photo at x=0.",
+                  "The table tracks the area, in square meters, of duckweed covering a pond; x is days from the reference survey at x=0.",
+                  "The table tracks shares of a popular post, in thousands; x is hours from the reference check at x=0.",
+                  "The table tracks new flu cases per week in the early weeks of an outbreak, in hundreds; x is weeks from the reference week at x=0.",
+                  "The table tracks a rabbit population on an island, in hundreds of rabbits; x is years from the reference census at x=0.",
+                  "The table tracks subscribers to a new streaming channel, in thousands; x is months from the reference month at x=0.",
+                  "The table tracks daily rides on a new scooter-share service, in hundreds; x is months from the reference month at x=0.",
+                  "The table tracks the area, in square meters, covered by a floating water hyacinth mat on a lake; x is weeks from the reference survey at x=0."
+                ]
               }
             },
             "derived": {
@@ -253,7 +274,7 @@
               "y0": "a",
               "y1": "a*base/q",
               "y2": "a*base*base*q",
-              "pred": "a*pow(base,3)"
+              "pred": "round(a*pow(base,3)*1000)/1000"
             }
           },
           "difficultyBand": 4

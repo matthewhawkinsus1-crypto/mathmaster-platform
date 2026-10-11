@@ -507,7 +507,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2A:v2-discrete-mapping-domain-range",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -517,7 +517,7 @@
       "taskType": "representationTranslation",
       "representation": "orderedPairs",
       "type": "relationMapping",
-      "prompt": "This DISCRETE linear function is defined only by the displayed ordered pairs. Use the mapping to identify its domain and range.",
+      "prompt": "This DISCRETE linear function is defined only by the displayed ordered pairs $({{x0}}, {{y0}})$, $({{x1}}, {{y1}})$, $({{x2}}, {{y2}})$, and $({{x3}}, {{y3}})$. Use the mapping to identify its domain and range.",
       "pairs": [
         {
           "x": "{{x0}}",
@@ -580,7 +580,10 @@
           "y1": "m*x1+b",
           "y2": "m*x2+b",
           "y3": "m*x3+b"
-        }
+        },
+        "constraints": [
+          "m != 1 || b != 0"
+        ]
       }
     },
     {
@@ -9649,7 +9652,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-pricing-estimate",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 2,
@@ -9661,7 +9664,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.12,
-      "prompt": "Two pricing plans are modeled by the two lines in the workspace. Use the GRAPH to estimate the break-even point to about the nearest tenth; classify the system and enter the intersection coordinates.",
+      "prompt": "Two kayak-rental pricing plans are modeled by the two lines in the workspace, where x is the number of hours and y is the total cost in dollars. Plan A charges a fee of {{b1}} plus {{m1}} per hour; Plan B charges a fee of {{b2}} plus {{m2}} per hour (all amounts in dollars). Use the GRAPH to estimate the break-even point to about the nearest tenth; classify the system and enter the intersection coordinates.",
       "context": {
         "scenario": "Two pricing plans with different starting fees and rates"
       },
@@ -9723,7 +9726,7 @@
           "b2": "ystar-m2*xstar"
         },
         "constraints": [
-          "b2>=-10",
+          "b2>=1",
           "b2<=16",
           "ystar<=34"
         ]
@@ -9737,7 +9740,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-savings-estimate",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -9749,7 +9752,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.12,
-      "prompt": "The workspace graphs two savings models. Estimate graphically when the balances are equal and what that common balance is. Enter the intersection you read from the graph.",
+      "prompt": "The workspace graphs two savings models, where x is the number of weeks and y is the balance in dollars. Account A starts with a balance of {{b1}} and gets a deposit of {{m1}} each week; Account B starts with a balance of {{b2}} and gets a deposit of {{m2}} each week (all amounts in dollars). Estimate graphically when the balances are equal and what that common balance is. Enter the intersection you read from the graph.",
       "context": {
         "scenario": "Two savings strategies growing at different constant rates"
       },
@@ -9811,7 +9814,7 @@
           "b2": "ystar-m2*xstar"
         },
         "constraints": [
-          "b2>=-10",
+          "b2>=1",
           "b2<=16",
           "ystar<=34"
         ]
@@ -9826,7 +9829,7 @@
           "coverageKey": "adaptive-d2b4-fractional-graphical-intersection",
           "dok": 2,
           "difficultyBand": 4,
-          "prompt": "The workspace graphs two savings models with fractional rates. Use the GRAPH to estimate the break-even point to about the nearest tenth. Enter the intersection coordinates; do not solve the system algebraically first.",
+          "prompt": "The workspace graphs two savings models with fractional rates, where x is the number of weeks and y is the balance in dollars. Account A starts with a balance of {{b1}} and gets a deposit of {{m1}} each week; Account B starts with a balance of {{b2}} and gets a deposit of {{m2}} each week (all amounts in dollars). Use the GRAPH to estimate the break-even point to about the nearest tenth. Enter the intersection coordinates; do not solve the system algebraically first.",
           "context": {
             "scenario": "Two savings strategies with fractional constant rates",
             "note": "The intersection is intentionally non-integer, so accurate graphical reading matters."
@@ -9897,7 +9900,7 @@
             },
             "constraints": [
               "m1!=m2",
-              "b2>=-10",
+              "b2>=1",
               "b2<=16",
               "ystar<=34"
             ]
@@ -9913,7 +9916,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-transport-estimate",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -9925,7 +9928,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.12,
-      "prompt": "Two transportation options have different fixed costs and per-unit rates. Use their graphs—not algebra first—to estimate where the costs are equal.",
+      "prompt": "Two transportation options have different fixed costs and per-mile rates. Option A has a fixed fee of {{b1}} plus a charge of {{m1}} per mile; Option B has a fixed fee of {{b2}} plus a charge of {{m2}} per mile (all amounts in dollars). The workspace graphs total cost y in dollars against distance x in miles. Use their graphs—not algebra first—to estimate where the costs are equal.",
       "context": {
         "scenario": "Two transportation cost models"
       },
@@ -9987,7 +9990,7 @@
           "b2": "ystar-m2*xstar"
         },
         "constraints": [
-          "b2>=-10",
+          "b2>=1",
           "b2<=16",
           "ystar<=34"
         ]
@@ -10001,7 +10004,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-error-read-intersection",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 4,
@@ -10013,7 +10016,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.12,
-      "prompt": "A student reads an axis intercept instead of the crossing point when estimating where two real-world models are equal. Use the workspace graph to correct the error and enter the actual intersection estimate.",
+      "prompt": "Two real-world models are graphed in the workspace: Model 1 has slope {{m1}} and y-intercept {{b1}}, and Model 2 has slope {{m2}} and y-intercept {{b2}}. To estimate where the models are equal, a student reads where Model 1 crosses the y-axis and reports $(0,{{b1}})$ instead of the crossing point. Use the workspace graph to correct the error and enter the actual intersection estimate.",
       "context": {
         "scenario": "Checking a student's graphical system estimate"
       },
@@ -10089,7 +10092,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.3G:v2-graph-then-verify",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 4,
@@ -10101,7 +10104,7 @@
       "type": "systemsWorkspace",
       "mode": "linear",
       "numericTolerance": 0.15,
-      "prompt": "Estimate the solution of the two models from their graph to the nearest tenth. Then use the equations shown in the workspace to mentally verify that your estimated point is reasonable before submitting it.",
+      "prompt": "Model A has slope {{m1}} and y-intercept {{b1}}; Model B has slope {{m2}} and y-intercept {{b2}}. Estimate the solution of the two models from their graph to the nearest tenth. Then use the equations shown in the workspace to mentally verify that your estimated point is reasonable before submitting it.",
       "context": {
         "scenario": "Comparing two competing linear models"
       },
@@ -10178,7 +10181,7 @@
           "coverageKey": "adaptive-d3b3-graph-estimate-equation-cross-check",
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "Estimate the solution of the two models from their graph. Before submitting, cross-check the estimated point against BOTH displayed equations and decide whether the same ordered pair is reasonable for each model.",
+          "prompt": "Model A has slope {{m1}} and y-intercept {{b1}}; Model B has slope {{m2}} and y-intercept {{b2}}. Estimate the solution of the two models from their graph. Before submitting, cross-check the estimated point against BOTH displayed equations and decide whether the same ordered pair is reasonable for each model.",
           "context": {
             "scenario": "Graphical solution with algebraic reasonableness check",
             "note": "The numbers are kept moderate so the depth comes from cross-checking one point against both models, not from harder arithmetic."
@@ -19771,7 +19774,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.9B:v2-growth-factor",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -19780,11 +19783,11 @@
       "assessedConstruct": "A.9B",
       "taskType": "errorAnalysis",
       "representation": "verbal",
-      "prompt": "A student says a model that multiplies by {{b}} each period has a growth factor of {{b}}%. Correct the interpretation: what MULTIPLICATIVE growth factor belongs in the exponential model?",
+      "prompt": "A student says a model that multiplies by {{b}} each {{unit}} has a growth factor of {{b}}%. Correct the interpretation: what MULTIPLICATIVE growth factor belongs in the exponential model?",
       "solutionReview": {
         "headline": "A multiplicative factor and a percent rate are not the same parameter.",
         "reasoning": [
-          "The factor is the number multiplied by the previous value each period.",
+          "The factor is the number multiplied by the previous value each {{unit}}.",
           "Because the quantity is multiplied by {{b}}, the model's growth factor is {{b}}."
         ],
         "answerSummary": "Growth factor {{b}}."
@@ -19803,13 +19806,27 @@
               2,
               3,
               4,
-              5
+              5,
+              6,
+              7,
+              8
             ]
           },
           "a": {
             "type": "int",
             "min": 20,
             "max": 200
+          },
+          "unit": {
+            "type": "choice",
+            "values": [
+              "period",
+              "year",
+              "month",
+              "week",
+              "day",
+              "hour"
+            ]
           }
         }
       },
@@ -21123,7 +21140,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.9D:v2-context-decay-graph",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -21216,16 +21233,15 @@
       "generator": {
         "parameters": {
           "a": {
-            "type": "choice",
-            "values": [
-              20,
-              30,
-              40
-            ]
+            "type": "int",
+            "min": 20,
+            "max": 56,
+            "step": 4
           },
           "base": {
             "type": "choice",
             "values": [
+              0.25,
               0.5,
               0.75
             ]
@@ -28998,7 +29014,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.12D:v2-geometric-decay-terms-to-formula",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -29015,7 +29031,8 @@
           "inputProfile": "expression",
           "expected": "{{a}}*(0.5)^(n-1)",
           "accepted": [
-            "{{a}}*(1/2)^(n-1)"
+            "{{a}}*(1/2)^(n-1)",
+            "{{a}}/2^(n-1)"
           ]
         }
       ],
@@ -29036,15 +29053,10 @@
       "generator": {
         "parameters": {
           "a": {
-            "type": "choice",
-            "values": [
-              32,
-              48,
-              64,
-              80,
-              96,
-              128
-            ]
+            "type": "int",
+            "min": 16,
+            "max": 200,
+            "step": 8
           }
         },
         "derived": {
@@ -29643,7 +29655,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.12E:v2-solve-area-height",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -29652,14 +29664,14 @@
       "assessedConstruct": "A.12E",
       "taskType": "errorAnalysis",
       "representation": "symbolic",
-      "prompt": "A student solves $A={{k}}bh$ for $h$ by dividing by {{k}} but forgets that $h$ is also multiplied by $b$. Correct the error and solve for $h$.",
+      "prompt": "A student solves $A={{k}}{{v}}h$ for $h$ by dividing by {{k}} but forgets that $h$ is also multiplied by ${{v}}$. Correct the error and solve for $h$.",
       "solutionReview": {
         "headline": "Divide by the complete factor multiplying the target variable.",
         "reasoning": [
-          "In $A={{k}}bh$, the target $h$ is multiplied by both {{k}} and $b$.",
-          "Divide by the entire product ${{k}}b$ to obtain $h=A/({{k}}b)$."
+          "In $A={{k}}{{v}}h$, the target $h$ is multiplied by both {{k}} and ${{v}}$.",
+          "Divide by the entire product ${{k}}{{v}}$ to obtain $h=A/({{k}}{{v}})$."
         ],
-        "answerSummary": "$h=A/({{k}}b)$"
+        "answerSummary": "$h=A/({{k}}{{v}})$"
       },
       "attemptFeedback": [
         "Isolate the requested variable symbolically while treating every other letter as a known quantity."
@@ -29672,7 +29684,14 @@
           "k": {
             "type": "int",
             "min": 2,
-            "max": 9
+            "max": 12
+          },
+          "v": {
+            "type": "choice",
+            "values": [
+              "b",
+              "w"
+            ]
           }
         }
       },
@@ -29681,9 +29700,13 @@
           "id": "answer",
           "label": "Answer",
           "inputProfile": "expression",
-          "expected": "A/({{k}}b)",
+          "expected": "A/({{k}}{{v}})",
           "accepted": [
-            "A/{{k}}/b"
+            "A/{{k}}/{{v}}",
+            "A/({{v}}*{{k}})",
+            "(A/{{k}})/{{v}}",
+            "A/{{v}}/{{k}}",
+            "(A/{{v}})/{{k}}"
           ]
         }
       ]

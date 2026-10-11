@@ -53,9 +53,9 @@ const buttonStyle = (primary) => ({
 export function RecoveryMasteryMeter({ percent }) {
   const value = Math.max(0, Math.min(100, Number(percent) || 0));
   return (
-    <div aria-label={`Practice Mastery ${value}%`} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} style={{ display: 'grid', gap: 4 }}>
+    <div aria-label={`Recovery practice mastery ${value}%`} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} style={{ display: 'grid', gap: 4 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--mm-text-muted)' }}>
-        <span>Practice Mastery</span>
+        <span>Recovery practice mastery</span>
         <strong style={{ color: 'var(--mm-text-strong)', fontSize: 16 }}>{value}%</strong>
       </div>
       <div style={{ height: 8, borderRadius: 999, background: 'var(--mm-surface-muted)', overflow: 'hidden' }}>

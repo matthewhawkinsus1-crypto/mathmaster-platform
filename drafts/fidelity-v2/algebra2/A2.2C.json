@@ -495,7 +495,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.2C:v2-exponential-log-features",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -504,13 +504,13 @@
       "difficultyBand": 4,
       "dok": 3,
       "taskType": "comparison",
-      "prompt": "Compare $f(x)={{b}}^x$ with $g(x)=\\log_{{b}}x$. Analyze which graph transformation connects them and how a key intercept and asymptote are exchanged.",
+      "prompt": "Compare $f(x)={{b}}^x$ with $g(x)=\\log_{{{b}}}x$. Analyze which graph transformation connects them and how a key intercept and asymptote are exchanged.",
       "stimulus": {
         "kind": "expressions",
         "title": "Inverse pair",
         "expressions": [
           "$f(x)={{b}}^x$",
-          "$g(x)=\\log_{{b}}x$",
+          "$g(x)=\\log_{{{b}}}x$",
           "$f(0)=1$"
         ]
       },
@@ -577,7 +577,7 @@
         "answerSummary": "Reflection across $y=x$ swaps $(0,1)$ with $(1,0)$ and swaps the horizontal/vertical asymptotes."
       },
       "attemptFeedback": [
-        "Track what reflection across $y=x$ does to both coordinates and to horizontal versus vertical lines."
+        "Pick a point on $f$, swap its two coordinates, and check whether the swapped point lies on $g$. Then ask what that swap does to a horizontal line and to a vertical line."
       ],
       "supportHints": [
         "Track how input-output coordinates exchange roles, then compare corresponding points and the orientation of key graph features."
@@ -587,7 +587,7 @@
           "b": {
             "type": "int",
             "min": 2,
-            "max": 6
+            "max": 10
           }
         }
       },
@@ -603,13 +603,13 @@
           "difficultyBand": 3,
           "taskType": "errorAnalysis",
           "representation": "multipleRepresentation",
-          "prompt": "For the inverse pair $f(x)=2^x$ and $g(x)=\\log_2x$, a student says the horizontal asymptote $y=0$ of $f$ stays horizontal on $g$. Use the geometry of inverse graphs to evaluate the claim, identify the corresponding intercepts, and give the correct asymptote relationship.",
+          "prompt": "For the inverse pair $f(x)={{b}}^x$ and $g(x)=\\log_{{{b}}}x$, a student says the horizontal asymptote $y=0$ of $f$ stays horizontal on $g$. Use the geometry of inverse graphs to evaluate the claim, identify the corresponding intercepts, and give the correct asymptote relationship.",
           "stimulus": {
             "kind": "expressions",
             "title": "Fixed inverse pair",
             "expressions": [
-              "$f(x)=2^x$",
-              "$g(x)=\\log_2x$",
+              "$f(x)={{b}}^x$",
+              "$g(x)=\\log_{{{b}}}x$",
               "$f(0)=1$"
             ]
           },
@@ -668,7 +668,7 @@
             "answerSummary": "Exponential y=0 asymptote ↔ logarithmic x=0 asymptote."
           },
           "attemptFeedback": [
-            "Reflect a few points on the asymptote line across y=x to see its new orientation."
+            "Take two points on the asymptote of $f$, swap the coordinates of each, and check what kind of line the new points lie on."
           ],
           "supportHints": [
             "Track what happens to horizontal and vertical features when the input-output coordinates of an inverse pair trade roles."

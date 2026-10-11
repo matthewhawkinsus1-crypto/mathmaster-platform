@@ -169,7 +169,7 @@ export function RecoveryInlineNotice({ opportunities = [], studentId = null, onO
       {open.map((opportunity) => {
         const isNew = recoveryIsUnseen(studentId, opportunity);
         const facts = [
-          opportunity.showMastery ? `Practice Mastery ${opportunity.masteryPercent}%` : null,
+          opportunity.showMastery ? `Recovery practice mastery ${opportunity.masteryPercent}%` : null,
           opportunity.endsAtLabel ? `Open until ${opportunity.endsAtLabel}` : null,
         ].filter(Boolean).join(' · ');
         return (

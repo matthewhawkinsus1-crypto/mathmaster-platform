@@ -143,7 +143,8 @@ test('component: every solution renderer sits inside the supplement boundary', (
   assert.match(boundary, /<SolutionReview question=\{question\} \/>/);
   assert.equal((code.match(/<SolutionReview\b/g) || []).length, 1);
   assert.equal((code.match(/<ToolSolutionReview\b/g) || []).length, 1);
-  assert.match(component, /^import SolutionReview from '\.\.\/\.\.\/SolutionReview\.jsx';$/m);
+  // The renderer is imported (the named content check rides the same import, QA round 2).
+  assert.match(component, /^import SolutionReview(, \{ legacySolutionReviewContent \})? from '\.\.\/\.\.\/SolutionReview\.jsx';$/m);
   assert.match(component, /^import ToolSolutionReview from '\.\.\/\.\.\/tools\/shared\/ToolSolutionReview\.jsx';$/m);
   assert.match(component, /^import QuestionSupplementBoundary from '\.\.\/\.\.\/QuestionSupplementBoundary\.jsx';$/m);
 });

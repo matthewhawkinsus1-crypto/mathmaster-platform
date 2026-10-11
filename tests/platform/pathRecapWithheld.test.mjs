@@ -20,7 +20,11 @@ import { readFileSync, readdirSync } from 'node:fs';
 import {
   RECAP_INSTANCE_DRAWS,
   RECAP_MIN_DISTINCT_INSTANCES,
+  RECAP_REPEATING_TEMPLATE_IDS,
+  RECAP_SAME_MATHEMATICS_TEMPLATE_IDS,
+  RECAP_WIDENED_TEMPLATE_VERSIONS,
   RECAP_WITHHELD_TEMPLATE_IDS,
+  recapWithholdsAnswer,
 } from '../../functions/shared/pathRecapWithheld.mjs';
 import {
   buildPathRecapEntry,
@@ -61,20 +65,32 @@ const distinctQuestions = (template) => {
   return seen.size;
 };
 
-test('the withheld list is exactly the seed bank templates that draw fewer than 8 distinct questions in 30', () => {
+test('the withheld list is exactly the seed bank templates that draw fewer than 8 distinct questions in 30, plus the named same-mathematics ones', () => {
   const repeating = [];
+  const counts = new Map();
   let templates = 0;
   for (const file of readdirSync(BANK).filter((name) => name.endsWith('_pathQuestionBank_seed.json')).sort()) {
     for (const template of JSON.parse(readFileSync(new URL(file, BANK), 'utf8')).documents) {
       templates += 1;
-      if (distinctQuestions(template) < RECAP_MIN_DISTINCT_INSTANCES) repeating.push(template.id);
+      const distinct = distinctQuestions(template);
+      counts.set(template.id, distinct);
+      if (distinct < RECAP_MIN_DISTINCT_INSTANCES) repeating.push(template.id);
     }
   }
   assert.ok(templates > 3000, `the whole seed bank was read (${templates} templates)`);
-  assert.deepEqual([...RECAP_WITHHELD_TEMPLATE_IDS], repeating.sort());
+  assert.deepEqual([...RECAP_REPEATING_TEMPLATE_IDS], repeating.sort());
+  // A same-mathematics exception is a template that passes the count (so the
+  // count alone would release its answers) and is in the bank.
+  RECAP_SAME_MATHEMATICS_TEMPLATE_IDS.forEach((id) => assert.ok((counts.get(id) || 0) >= RECAP_MIN_DISTINCT_INSTANCES, `${id} is a real template that reaches the count`));
+  assert.deepEqual([...RECAP_WITHHELD_TEMPLATE_IDS], [...new Set([...repeating, ...RECAP_SAME_MATHEMATICS_TEMPLATE_IDS])].sort());
+  // Student push J's two conservative calls, pinned: one answer on every
+  // draw (A.12A), and 24 wordings of 8 sets of points (the A2.2A logarithm).
+  assert.ok(RECAP_WITHHELD_TEMPLATE_IDS.includes('mm_A_12A_v2_mapping-nonfunction'));
+  assert.ok(RECAP_WITHHELD_TEMPLATE_IDS.includes('mm_A2_2A_v2_logarithmic-graph-attributes'));
 });
 
-const REPEATING = 'mm_A_9B_v2_growth-factor';
+// Withheld for good: its verdict is "not a function" on every draw (student push J).
+const REPEATING = 'mm_A_12A_v2_mapping-nonfunction';
 
 const missed = (templateId, overrides = {}) => buildPathRecapEntry({
   sessionId: 'session-1',
@@ -187,4 +203,43 @@ test('on screen, a withheld question shows no key and no steps, and says why', (
   assert.match(item, /const correct = withheld \|\| review\?\.answerSummary \? \[\] : \(item\.correctAnswer \|\| \[\]\);/);
   const note = region(item, '{withheld', '</p>', 'withheld note');
   assert.match(note, /This question comes back in practice, so its answer and steps stay out of your review\./);
+});
+
+/*
+ * THE DEPLOY WINDOW (coordinator review of #464, m1). The functions that read
+ * this list can be live before a root admin publishes the course Path
+ * release, while the bank still serves the old, repeating draws of the
+ * widened templates. Their familyVersion was raised with the widening, and
+ * withholding follows the version actually served.
+ */
+test('a widened template\'s older draws stay withheld until the widened version is what was served', () => {
+  const bank = new Map();
+  for (const file of readdirSync(BANK).filter((name) => name.endsWith('_pathQuestionBank_seed.json'))) {
+    for (const template of JSON.parse(readFileSync(new URL(file, BANK), 'utf8')).documents) bank.set(template.id, template);
+  }
+  const widened = Object.entries(RECAP_WIDENED_TEMPLATE_VERSIONS);
+  assert.equal(widened.length, 26);
+  for (const [id, version] of widened) {
+    assert.equal(bank.get(id)?.familyVersion, version, `${id} ships at the version the rule names`);
+    const generated = generatePathInstance(bank.get(id), 'deploy-window');
+    assert.equal(Number(generated.question.familyVersion), version, `${id}: a served draw carries its version`);
+    if (!RECAP_WITHHELD_TEMPLATE_IDS.includes(id)) {
+      assert.equal(recapWithholdsAnswer(id, version), false, `${id} at ${version}: shown`);
+    }
+    assert.equal(recapWithholdsAnswer(id, version - 1), true, `${id} at ${version - 1} (old content): withheld`);
+    assert.equal(recapWithholdsAnswer(id, null), true, `${id} with no version: withheld`);
+  }
+  // A template that was never on the list is unaffected by a missing version.
+  assert.equal(recapWithholdsAnswer('mm_A_9B_v2_growth-factor-table', null), false);
+  const oldDraw = missed('mm_A_9B_v2_growth-factor', { templateFamilyVersion: 3 });
+  assert.equal(oldDraw.answerWithheld, true);
+  assert.equal(missed('mm_A_9B_v2_growth-factor', { templateFamilyVersion: 4 }).answerWithheld, false);
+});
+
+test('the server and the Simulator pass the served item\'s version', () => {
+  const lib = executableSource(read('functions/lib/pathSessionRecap.js'));
+  assert.match(region(lib, 'const entry = rules.buildPathRecapEntry({', '});'), /templateFamilyVersion: currentQuestion\.familyVersion \?\? null,/);
+  const simulator = executableSource(read('src/platform/simulation/teacherPathRuntime.js'));
+  assert.match(simulator, /templateFamilyVersion: chosen\.question\?\.familyVersion \?\? null,/);
+  assert.match(simulator, /templateFamilyVersion: instance\.templateFamilyVersion \?\? null,/);
 });

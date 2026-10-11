@@ -366,6 +366,7 @@ export const createTeacherPathRuntime = ({
       questionInstanceId,
       // The bank template, so the recap applies the server's withheld list.
       templateId: chosen.question?.id || null,
+      templateFamilyVersion: chosen.question?.familyVersion ?? null,
       ...(toolPayload ? {
         pathToolId: toolPayload.pathToolId,
         serverGradingVersion: toolPayload.serverGradingVersion,
@@ -794,6 +795,7 @@ export const createTeacherPathRuntime = ({
     session.closedItems.push(buildPathRecapEntry({
       sessionId: session.sessionId,
       templateId: instance.templateId || null,
+      templateFamilyVersion: instance.templateFamilyVersion ?? null,
       questionInstanceId: instance.questionInstanceId,
       questionNumber: session.summary.completedQuestions,
       skillCode: instance.teksCode || null,

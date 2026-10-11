@@ -265,11 +265,26 @@ const controlChanges = ({ assignment, control, studentId }) => {
   return items;
 };
 
-const newAssignment = ({ assignment, nowValue }) => {
+// Any question the student has worked on (a recorded attempt or status).
+const trackerStarted = (tracker) => isObject(tracker) && Object.values(tracker).some((record) => isObject(record)
+  && (Number(record.attemptCount) > 0 || Number(record.totalAttempts) > 0
+    || ['correct', 'expired', 'attempted', 'partial'].includes(clean(record.status).toLowerCase())));
+
+/*
+ * "New" means new to the student: released, not started, and still open.
+ * A lesson they have worked on, or one whose final due date has passed, is
+ * not news however recently it was released (release-candidate QA m13).
+ */
+const newAssignment = ({ assignment, tracker, studentId, control, nowValue }) => {
   const created = toMillis(assignment.createdAt);
   const release = getAssignmentDate(assignment, 'release')?.getTime() ?? null;
   const at = Math.max(created || 0, release || 0) || null;
   if (!at || at > nowValue) return [];
+  if (trackerStarted(tracker)) return [];
+  // The student's own final date, a private extension included.
+  const own = { privateOverride: isObject(control) ? control : undefined };
+  const finalDue = getAssignmentDate(assignment, 'late', studentId, own)?.getTime() ?? getAssignmentDate(assignment, 'due', studentId, own)?.getTime() ?? null;
+  if (finalDue !== null && finalDue < nowValue) return [];
   return [{ kind: WHAT_CHANGED_KIND.NEW, at, text: `New: ${titleOf(assignment)}` }];
 };
 
@@ -314,7 +329,7 @@ export const buildWhatChanged = ({
         tracker: trackerByAssignment?.[assignmentId],
       }),
       ...controlChanges({ assignment, control, studentId }),
-      ...(control?.excused === true ? [] : newAssignment({ assignment, nowValue: now })),
+      ...(control?.excused === true ? [] : newAssignment({ assignment, tracker: trackerByAssignment?.[assignmentId], studentId, control, nowValue: now })),
     ];
     events.forEach((event) => {
       const key = `${event.kind}:${assignmentId}${event.keySuffix ? `:${event.keySuffix}` : ''}`;

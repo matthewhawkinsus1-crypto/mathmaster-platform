@@ -6,7 +6,7 @@
 //   (TEACHER_HARNESS_ORIGIN=<origin> if not http://127.0.0.1:5188;
 //    PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
 //    when the defaults are not installed; VIEWPORTS=1366x768,768x1024,390x844
-//    — Chromebook, iPad, phone; ONLY=S1,S2,T1,T2,T3 to run some journeys.)
+//    — Chromebook, iPad, phone; ONLY=S1,S2,T1,T2,T3,P1 to run some journeys.)
 //
 // Same harness as journeys.mjs: the real App.jsx with `firebase/*` replaced by
 // in-memory fakes and a synthetic school. `&recovery=p0` adds
@@ -42,6 +42,13 @@
 //       teacher sees what happened and re-scores it — 100%, recorded 90 —
 //       with the stored results untouched.
 //
+//   P1  targeted Recovery Practice (`&recovery=targeted`, student push J):
+//       Tomas's Q3 miss was classified "intercepts-swapped". His first
+//       Recovery practice question is a fresh intercepts question — the one
+//       the server dealt (untargeted it would be Q1), never the one he missed
+//       — headed "DOL Recovery practice"; he answers it, the server records
+//       exactly that question, and the next one is dealt.
+//
 // At every viewport nothing scrolls sideways; on a touch screen the controls
 // this change added are at least 44 px. `--slow` adds 4× CPU throttling and a
 // slow network (the Chromebook).
@@ -64,8 +71,13 @@ import {
   RECOVERY_SHARED_ASSIGNMENT_ID,
   RECOVERY_SHARED_ASSIGNMENT_TITLE,
   SUBMITTING_STUDENT_ID,
+  TARGETED_ASSIGNMENT_ID,
+  TARGETED_ASSIGNMENT_TITLE,
+  TARGETED_STUDENT_ID,
+  recoveryContextFor,
   recoveryFieldAnswers,
 } from './recoveryFixture.js';
+import { nextRecoveryPracticeItem } from '../../../functions/shared/sectionRecoveryService.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -583,6 +595,46 @@ const journeys = {
     expect(where, after.rawScore === 100 && after.legacyCorrection?.rawScoreBefore === 70, `stored: 100, corrected from 70 (${after.rawScore})`);
     await closeDevice(where, device);
   },
+};
+
+journeys.P1 = async (viewport) => {
+  const where = `P1 ${viewport.width}x${viewport.height}`;
+  const device = await openDevice({ viewport, query: `reset=1&recovery=targeted&as=student&studentId=${TARGETED_STUDENT_ID}` });
+  const { page } = device;
+  const db = await harnessDb(page);
+  const assignment = assignmentFrom(db, TARGETED_ASSIGNMENT_ID);
+  const gradeData = db[`grades/${TARGETED_STUDENT_ID}`];
+  const evidence = Object.entries(db).filter(([key]) => key.startsWith(`grades/${TARGETED_STUDENT_ID}/evidenceEvents/`)).map(([, value]) => value);
+  const contextOf = (misconceptionRecords) => recoveryContextFor({ assignment, gradeData, studentId: TARGETED_STUDENT_ID, nowValue: Date.now(), misconceptionRecords });
+  const untargeted = nextRecoveryPracticeItem(contextOf(null));
+  const targetedContext = contextOf(evidence);
+  const dealt = nextRecoveryPracticeItem(targetedContext);
+  expect(where, evidence.length === 1, 'the stored, trusted evidence is in place');
+  expect(where, untargeted?.storageIndex === 0, `untargeted, Practice would open on Q1 (${untargeted?.storageIndex})`);
+  expect(where, dealt?.storageIndex === 2, `targeted, the server deals Q3, the question with the diagnosed error (${dealt?.storageIndex})`);
+  expect(where, !targetedContext.seenFingerprints.includes(dealt?.pin?.fingerprint), 'never the question he missed');
+
+  const card = await openResult(page, TARGETED_ASSIGNMENT_TITLE);
+  await card.getByRole('button', { name: 'Practice for DOL Recovery' }).click();
+  const runner = page.locator('[data-recovery-runner="practice"]');
+  await runner.waitFor({ timeout: 30000 * SLOW_FACTOR });
+  expect(where, /DOL Recovery practice/.test(squash(await runner.innerText())), 'headed "DOL Recovery practice"');
+  await runner.locator('.mathmaster-multipart-fields > div').first().waitFor({ timeout: 30000 * SLOW_FACTOR });
+  const shown = squash(await runner.innerText());
+  expect(where, /intercepts/i.test(shown) && !/Solve for x/.test(shown), `the first question is an intercepts question (${shown.slice(0, 160)})`);
+  await noSidewaysScroll(where, page);
+  await shot(page, 'p1-targeted-practice');
+
+  await answerQuestion(page, runner, recoveryFieldAnswers(assignment, dealt));
+  await runner.getByRole('button', { name: 'Next practice question' }).waitFor({ timeout: 20000 * SLOW_FACTOR });
+  const after = recoveryRecord(await harnessDb(page), TARGETED_STUDENT_ID, TARGETED_ASSIGNMENT_ID);
+  const answered = after?.practice?.items || [];
+  expect(where, answered.length === 1 && answered[0].key === dealt.pin.fingerprint, 'the server recorded exactly the question it dealt');
+  expect(where, answered[0]?.correct === true, 'answered right, graded right');
+  await runner.getByRole('button', { name: 'Next practice question' }).click();
+  await runner.locator('.mathmaster-multipart-fields > div').first().waitFor({ timeout: 30000 * SLOW_FACTOR });
+  await shot(page, 'p1-next');
+  await closeDevice(where, device);
 };
 
 const started = Date.now();

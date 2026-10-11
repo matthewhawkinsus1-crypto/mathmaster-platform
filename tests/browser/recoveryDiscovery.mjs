@@ -118,7 +118,7 @@ for (const device of DEVICES) {
       const notice = page.locator('[data-recovery-inline]');
       await notice.waitFor();
       assert.deepEqual(await notice.locator('[data-recovery-action]').allTextContents(), ['Practice for DOL Recovery', 'Practice for Warm-Up Recovery']);
-      assert.match(await notice.innerText(), /Practice Mastery 0%/);
+      assert.match(await notice.innerText(), /Recovery practice mastery 0%/);
       await fits(page, `${tag} center`);
       await page.screenshot({ path: path.join(OUT, `center-available-${tag}.png`), fullPage: true });
       await notice.locator('[data-recovery-action]').nth(1).click();

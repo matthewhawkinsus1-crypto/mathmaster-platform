@@ -32,6 +32,13 @@ import { resolveFamilyQuestionInstance } from './questionFamilyInstance.mjs';
 import { familyInstanceServerGradable } from './questionFamilyGrading.mjs';
 import { resolveGenerationAllocation } from './questionGenerationIdentity.mjs';
 import { RECOVERY_GRADING_FAILURE, classifyFamilyGenerationError } from './sectionRecoveryEvidence.mjs';
+import {
+  TARGETED_PRACTICE_CANDIDATES,
+  familyTargetsCodes,
+  instanceExposesMisconception,
+  normalizeMisconceptionFocus,
+  orderSlotsForFocus,
+} from './recoveryMisconceptionTargeting.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -55,27 +62,46 @@ export const buildRecoveryPracticeItem = ({
   seatInfo = null,
   seenFingerprints = [],
   opportunity = 1,
+  misconceptionFocus = null,
 } = {}) => {
-  const slots = Array.isArray(readySlots) ? readySlots.filter((slot) => slot?.ready) : [];
+  // Targeted Recovery (recoveryMisconceptionTargeting.mjs): questions with a
+  // diagnosed error lead the rotation; every ready question still follows.
+  const focus = normalizeMisconceptionFocus(misconceptionFocus);
+  const slots = orderSlotsForFocus(Array.isArray(readySlots) ? readySlots.filter((slot) => slot?.ready) : [], focus);
   if (!slots.length) return { error: 'no-ready-slots' };
   const index = Math.max(0, Math.floor(Number(practiceIndex) || 0));
   const slot = slots[index % slots.length];
   const question = questionsByIndex[slot.storageIndex];
   if (!question) return { error: 'slot-question-missing' };
   const round = Math.floor(index / slots.length);
-  const allocation = resolveGenerationAllocation({ seatInfo, variant: round });
-  const result = resolveFamilyQuestionInstance({
+  const resolveVariant = (variant) => resolveFamilyQuestionInstance({
     question,
     assignmentId,
     storageIndex: slot.storageIndex,
     slotKey: recoverySlotKey({ assignmentId, section, kind: 'recoveryPractice', opportunity, questionId: slot.questionId || `index-${slot.storageIndex}` }),
-    allocation,
+    allocation: resolveGenerationAllocation({ seatInfo, variant }),
     excludeFingerprints: seenFingerprints,
     // Every version the student has been shown — originals and every earlier
     // Practice item — is in `seenFingerprints`, so nothing is reconstructed.
     historyIsComplete: true,
   });
+  let result = resolveVariant(round);
   if (result.error) return { error: result.error };
+  // The version in which the student's own error is visible, from a few more
+  // allocations of their own seat (any of them is a pin the server accepts);
+  // none found keeps the untargeted version.
+  const codes = focus[slot.storageIndex] || [];
+  const familyKey = `${result.family?.id}@${result.family?.version}`;
+  if (codes.length && familyTargetsCodes(familyKey, codes)) {
+    for (let step = 0; step < TARGETED_PRACTICE_CANDIDATES; step += 1) {
+      const candidate = step === 0 ? result : resolveVariant(round + step);
+      if (candidate.error) continue;
+      if (instanceExposesMisconception({ familyKey, values: candidate.instance?.values, codes })) {
+        result = candidate;
+        break;
+      }
+    }
+  }
   return {
     itemId: `p${index}`,
     practiceIndex: index,
