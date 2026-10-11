@@ -11822,10 +11822,13 @@ function App() {
             )}
             {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
                 Never "submitted" for a response that was not complete — the
-                status comes from the server's own finalization receipt. A DOL
-                that ended today says who closed it (describeDolClose); on
-                another day, and for a Warm-Up, the receipt reads as before. */}
-            {!preview && (currentDolCopy?.closeReceipt || (currentCheckpointOutcome && !currentSectionOpenNow)) && (
+                status comes from the server's own finalization receipt, and
+                only once there is one: receipts are read when the assignment
+                opens, and a question never worked on gets none, so a
+                "checking" line could stand forever. A DOL that ended today
+                says who closed it (describeDolClose); on another day, and for
+                a Warm-Up, the receipt reads as before. */}
+            {!preview && currentCheckpointOutcome && !currentSectionOpenNow && (
               <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
                 {currentDolCopy?.closeReceipt || (currentCheckpointOutcome === 'auto-submitted'
                   ? 'Time ended. Your latest completed response was submitted automatically.'

@@ -46,9 +46,12 @@ test('R2-m4: a closed DOL says who closed it, and only an open one promises "whe
   assert.equal(promises.length, 1, 'one literal promise left, the Warm-Up one');
   assert.match(workspace, /\{!preview && runtimeActivityRole === 'dol' && currentDolCopy\?\.openNotice && \(/);
   assert.match(workspace, /\{!preview && runtimeActivityRole === 'warmup' && warmupState\.status === 'active' && \(\s*<p[^>]*>Your latest completed response will be submitted automatically when time ends\.<\/p>/);
-  // The receipt: the copy's when it has one, else the earlier receipt.
-  assert.match(workspace, /\{!preview && \(currentDolCopy\?\.closeReceipt \|\| \(currentCheckpointOutcome && !currentSectionOpenNow\)\) && \(/);
-  assert.match(workspace, /\{currentDolCopy\?\.closeReceipt \|\| \(currentCheckpointOutcome === 'auto-submitted'/);
+  // The receipt: only once the server wrote one (receipts are read when the
+  // assignment opens, and an untouched question never gets one, so a
+  // "checking" line could stand forever); the copy's words when it has them,
+  // else the earlier receipt.
+  assert.match(workspace, /\{!preview && currentCheckpointOutcome && !currentSectionOpenNow && \(\s*<p role="status"[^>]*>\s*\{currentDolCopy\?\.closeReceipt \|\| \(currentCheckpointOutcome === 'auto-submitted'/);
+  assert.doesNotMatch(workspace, /\{!preview && \(?currentDolCopy\?\.closeReceipt/, 'the copy alone never opens the receipt line');
 });
 
 test('R2-m4: the copy the workspace now shows for each DOL state', () => {
@@ -58,9 +61,12 @@ test('R2-m4: the copy the workspace now shows for each DOL state', () => {
   const closedByTeacher = describeDolClose({ status: 'ended', teacherClosed: true, outcome: 'auto-submitted' });
   assert.match(closedByTeacher.lockMessage, /Your teacher closed this DOL/);
   assert.doesNotMatch(`${closedByTeacher.lockMessage} ${closedByTeacher.closeReceipt}`, /timer|when time ends/i);
-  const timeUp = describeDolClose({ status: 'ended', outcome: null });
+  const timeUp = describeDolClose({ status: 'ended', outcome: 'incomplete-at-close' });
   assert.match(timeUp.lockMessage, /Time is up/);
-  assert.match(timeUp.closeReceipt, /Checking whether/, 'no receipt yet is never "submitted"');
+  assert.match(timeUp.closeReceipt, /^Time is up\. No completed response was available to submit\.$/);
+  // No receipt: the copy would say "checking", but the workspace shows no
+  // receipt line until the server's receipt exists (asserted above).
+  assert.doesNotMatch(describeDolClose({ status: 'ended', outcome: null }).closeReceipt, /submitted/);
   // Another day: nothing pending, so the workspace keeps the earlier receipt.
   assert.deepEqual(describeDolClose({ status: 'notToday', outcome: 'auto-submitted' }), { state: 'not-open', lockMessage: '', openNotice: '', closeReceipt: '' });
 });

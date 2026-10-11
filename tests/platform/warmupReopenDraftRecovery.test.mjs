@@ -534,9 +534,8 @@ test('the time-ended receipt belongs to a closed window, not a reopened one', ()
   // While the Warm-Up (or DOL) is open again, the student is told their work
   // will be submitted when time ends — not that time already ended.
   assert.match(app, /const currentSectionOpenNow = /);
-  // The receipt: the DOL copy's (none while the DOL is open), else the earlier
-  // receipt, never while the section is open again.
-  assert.match(app, /!preview && \(currentDolCopy\?\.closeReceipt \|\| \(currentCheckpointOutcome && !currentSectionOpenNow\)\) && \(/);
+  // The receipt: never while the section is open again.
+  assert.match(app, /!preview && currentCheckpointOutcome && !currentSectionOpenNow && \(/);
   // "When time ends": a DOL's from the copy (open only), a Warm-Up's while it is active.
   assert.match(app, /runtimeActivityRole === 'dol' && currentDolCopy\?\.openNotice && \(/);
   assert.match(app, /runtimeActivityRole === 'warmup' && warmupState\.status === 'active' && \(/);
