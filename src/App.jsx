@@ -148,7 +148,9 @@ import {
   getClassPackUpState,
   getDOLState,
   getWarmupState,
-  getSectionAccessState,
+  // The plain function, under another name: App binds `getSectionAccessState`
+  // to the signed-in student's own grades below (sectionAccessForStudent).
+  getSectionAccessState as getSectionAccessStateForAnyone,
   getSectionVariantMode,
   localDateKey,
   normalizeSchedule,
@@ -156,6 +158,7 @@ import {
   recordAssignmentActivity,
   resolveDOLQuestionIndex,
   resolveDOLQuestionIndices,
+  sectionAccessForStudent,
   getCurrentContentQuestionIndices,
   getIncludedQuestionIndices,
   questionIsIncluded,
@@ -1015,6 +1018,21 @@ function App() {
   const [assignmentActivity, setAssignmentActivity] = useState({});
   const [dolGradesByAssignment, setDolGradesByAssignment] = useState({});
   const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState({});
+  /*
+   * A LESSON WHOSE PREREQUISITE IS MET OPENS CLASSWORK AND PRACTICE EARLY
+   * (job I, item 4). Every getSectionAccessState call below — Home's cards,
+   * entry, the worksheet PDF, the workspace's locks and the capture proofs a
+   * submission carries to the server — goes through this binding, so a
+   * signed-in student's own Classwork grades decide "prerequisite met"
+   * everywhere at once. A teacher (and View as Student) gets the plain
+   * function: sectionAccessForStudent(null) is getSectionAccessState itself.
+   * DOL, Warm-Up, quizzes and tests are never manual sections, so they never
+   * open early through it.
+   */
+  const getSectionAccessState = useMemo(
+    () => sectionAccessForStudent(user?.role === 'student' ? classworkGradesByAssignment : null),
+    [user?.role, classworkGradesByAssignment],
+  );
   const [supportUsageByAssignment, setSupportUsageByAssignment] = useState({});
   const [classroomSyncStatusByAssignment, setClassroomSyncStatusByAssignment] = useState({});
   /*
@@ -9292,7 +9310,8 @@ function App() {
   const handleToggleSectionAccessForClass = async (assignment, classContext, activityRole) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
     if (!assignment?.id || !classId || !classPeriod || !classKey || !['classwork', 'practice'].includes(activityRole)) return;
-    const state = getSectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() });
+    // The teacher's own control: the plain rule, never a student's grades.
+    const state = getSectionAccessStateForAnyone({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('Section not found', `This assignment does not have an authored ${activityRole} section.`);
       return;

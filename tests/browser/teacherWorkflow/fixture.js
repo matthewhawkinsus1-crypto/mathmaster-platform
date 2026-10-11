@@ -447,9 +447,69 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   if (params?.get?.('recovery') === 'p0') addRecoveryHoldScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
   // Opt-in (`&recovery=targeted`): Practice targeted at a stored misconception.
   if (params?.get?.('recovery') === 'targeted') addTargetedRecoveryScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
+  // Opt-in (`&prereq=1`): a lesson and a quiz that open early once their
+  // prerequisite is met (prerequisiteEarlyJourneys.mjs).
+  if (params?.get?.('prereq') === '1') addPrerequisiteEarlyScenario({ fixture, now, lesson, sectionsFor });
   const controls = params?.get?.('controls');
   if (controls === 'mirror' || controls === 'retired') addPrivateControlsScenario({ fixture, now, mode: controls, classRecord: byId['c-alg2-p3'] });
   return fixture;
+};
+
+/*
+ * A PREREQUISITE MET EARLY (prerequisiteEarlyJourneys.mjs) — synthetic.
+ *
+ * `?prereq=1`: Algebra II Period 3 has Lesson 4 scheduled three days
+ * out, and a quiz the same day, both with yesterday's Lesson 2 as their
+ * prerequisite. The prerequisite is met when Lesson 2's Classwork grade is 100
+ * (prerequisiteAccess):
+ *
+ *   910004  met (Classwork 100): Lesson 4's Classwork and Practice open now
+ *   910005  not met (Classwork 50): everything still opens later
+ *
+ * The grades are the `classworkGradesByAssignment` map the finalizer and
+ * ingestion write on the student's own grade document.
+ */
+export const PREREQUISITE_EARLY = Object.freeze({
+  met: '910004',
+  unmet: '910005',
+  prerequisiteId: 'a-yesterday',
+  lessonId: 'a-prereq-lesson',
+  lessonTitle: 'Systems of Equations — Lesson 4: Applications',
+  quizId: 'a-prereq-quiz',
+  quizTitle: 'Systems of Equations — Quiz 1',
+});
+const addPrerequisiteEarlyScenario = ({ fixture, now, lesson, sectionsFor }) => {
+  const releaseMs = now + 3 * DAY;
+  const scheduled = lesson({
+    id: PREREQUISITE_EARLY.lessonId, title: PREREQUISITE_EARLY.lessonTitle, classIds: ['c-alg2-p3'],
+    releaseMs, dueMs: releaseMs + DAY, lateMs: releaseMs + 5 * DAY, instructionMs: releaseMs, folder: 'Algebra II',
+  });
+  const { id: lessonId, ...lessonData } = scheduled;
+  fixture[`assignments/${lessonId}`] = { ...lessonData, sections: sectionsFor(lessonId), prerequisiteAssignmentId: PREREQUISITE_EARLY.prerequisiteId };
+  const { id: quizId, ...quizBase } = lesson({
+    id: PREREQUISITE_EARLY.quizId, title: PREREQUISITE_EARLY.quizTitle, classIds: ['c-alg2-p3'],
+    releaseMs, dueMs: releaseMs + DAY, lateMs: releaseMs + 2 * DAY, instructionMs: null, folder: 'Algebra II',
+  });
+  fixture[`assignments/${quizId}`] = {
+    ...quizBase,
+    assignmentType: 'quiz',
+    prerequisiteAssignmentId: PREREQUISITE_EARLY.prerequisiteId,
+    warmup: { enabled: false },
+    dol: { enabled: false },
+    sections: [{ id: `${quizId}-quiz`, role: 'quiz', title: 'Quiz', questions: [
+      { questionId: `${quizId}-q1`, activityRole: 'quiz', type: 'literal', prompt: 'Solve 3y = 15 for y.', solveFor: 'y', acceptedAnswers: ['5'], standards: ONE_VARIABLE },
+      { questionId: `${quizId}-q2`, activityRole: 'quiz', type: 'literal', prompt: 'Solve 4y = 8 for y.', solveFor: 'y', acceptedAnswers: ['2'], standards: ONE_VARIABLE },
+    ] }],
+  };
+  const grade = (studentId, score) => {
+    const current = fixture[`grades/${studentId}`];
+    fixture[`grades/${studentId}`] = {
+      ...current,
+      classworkGradesByAssignment: { ...current?.classworkGradesByAssignment, [PREREQUISITE_EARLY.prerequisiteId]: { score, completionPercent: score } },
+    };
+  };
+  grade(PREREQUISITE_EARLY.met, 100);
+  grade(PREREQUISITE_EARLY.unmet, 50);
 };
 
 /*
