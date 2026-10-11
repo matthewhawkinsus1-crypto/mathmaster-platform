@@ -236,9 +236,10 @@ export const weeklyFactsBlockedLabel = (factsStatus) => (
   factsStatus === 'loading' ? 'Checking your week…' : null
 );
 
-function SessionCard({ session, done, active = null, onStart, onChoose, disabled, total, blockedLabel = null, swapHidden = false }) {
+function SessionCard({ session, done, active = null, onStart, onChoose, disabled, total, blockedLabel = null, swapHidden = false, isNext = false, starting = false }) {
   const tone = PURPOSE_TONE[session.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING];
   const choice = describeSlotChoice(session);
+  const highlighted = isNext && !done;
   return (
     <li style={{ listStyle: 'none' }}>
       <div style={{
@@ -246,9 +247,14 @@ function SessionCard({ session, done, active = null, onStart, onChoose, disabled
         padding: 15,
         display: 'grid',
         gap: 9,
-        border: done ? '2px solid var(--mm-success-border)' : CARD.border,
-        background: done ? 'var(--mm-success-subtle)' : 'var(--mm-surface)',
+        border: done ? '2px solid var(--mm-success-border)' : highlighted ? '2px solid var(--mm-tint-border)' : CARD.border,
+        background: done ? 'var(--mm-success-subtle)' : highlighted ? 'var(--mm-surface-tint)' : 'var(--mm-surface)',
       }}>
+        {highlighted && (
+          <div style={{ fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
+            Do this next
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{
@@ -296,7 +302,7 @@ function SessionCard({ session, done, active = null, onStart, onChoose, disabled
               minHeight: 44, width: '100%',
             }}
           >
-            {blockedLabel || weeklyStartLabel(session, active, total)}
+            {starting ? 'Starting…' : (blockedLabel || weeklyStartLabel(session, active, total))}
           </button>
         )}
 
@@ -331,6 +337,9 @@ export default function WeeklyPathGoalPanel({
   busy = false,
   compact = false,
 }) {
+  // Which card's Start the student pressed, so "Starting…" shows on THAT
+  // card (sessions can be done in any order), not on the "Do this next" one.
+  const [startingSlot, setStartingSlot] = useState(null);
   if (!goal || !goal.sessions?.length) {
     return (
       <section style={CARD}>
@@ -475,43 +484,12 @@ export default function WeeklyPathGoalPanel({
         </div>
       )}
 
-      {next && (
-        <div style={{ ...CARD, background: 'var(--mm-surface-tint)', borderColor: 'var(--mm-tint-border)' }}>
-          <div style={{ fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
-            Do this next · weekly session {next.slot} of {required}
-          </div>
-          <div style={{ marginTop: 7 }}>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999,
-              fontSize: 11, fontWeight: 900, letterSpacing: '.02em',
-              background: (PURPOSE_TONE[next.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING]).bg,
-              color: (PURPOSE_TONE[next.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING]).fg,
-              border: `1px solid ${(PURPOSE_TONE[next.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING]).border}`,
-            }}>
-              {weeklyPurposeLabel(next)}
-            </span>
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--mm-text-strong)', marginTop: 5 }}>
-            {next.studentLabel || next.teksCode}
-          </div>
-          <div style={{ ...MUTED, marginTop: 4 }}>{next.studentExplanation}</div>
-          <button
-            type="button"
-            onClick={() => onStartSession?.(next)}
-            disabled={busy || launchBlocked}
-            style={{
-              appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
-              marginTop: 12, padding: '12px 18px', borderRadius: 11, border: 0,
-              background: busy || launchBlocked ? '#c7ccd4' : '#174ea6', color: '#fff',
-              fontSize: 15, fontWeight: 900, cursor: busy || launchBlocked ? 'default' : 'pointer',
-              minHeight: 46, width: '100%',
-            }}
-          >
-            {busy ? 'Starting…' : (blockedLabel || weeklyStartLabel(next, inProgressForSlot(inProgress, next), required))}
-          </button>
-        </div>
-      )}
-
+      {/* ONE START PER SESSION. A separate "Do this next" card used to repeat
+          the next session's label, explanation and Start button above the
+          list, so a screen reader heard "Start session 1 of 4" twice in a row
+          for one action. The next session is marked in place instead: its
+          own card says "Do this next" and holds its only Start, beside its
+          swap control. */}
       <ul style={{ margin: 0, padding: 0, display: 'grid', gap: 11 }}>
         {goal.sessions.map((session) => (
           <SessionCard
@@ -519,12 +497,14 @@ export default function WeeklyPathGoalPanel({
             session={session}
             done={done.has(session.slot)}
             active={done.has(session.slot) ? null : inProgressForSlot(inProgress, session)}
-            onStart={onStartSession}
+            onStart={onStartSession ? (started) => { setStartingSlot(started?.slot ?? null); onStartSession(started); } : null}
             onChoose={onChooseAlternative}
             disabled={busy || launchBlocked}
             blockedLabel={blockedLabel}
             swapHidden={launchBlocked}
             total={required}
+            isNext={session.slot === next?.slot}
+            starting={busy && session.slot === startingSlot}
           />
         ))}
       </ul>

@@ -125,8 +125,11 @@ test('Home reads the same server completions, and App.jsx imports what it calls'
 
 test('a half-done weekly session keeps Resume and cannot be swapped mid-session', () => {
   const panel = executableSource(read('src/components/student/WeeklyPathGoalPanel.jsx'));
-  assert.match(panel, /inProgressForSlot\(inProgress, next\)/, 'the "do this next" button resumes an opened session');
-  assert.match(panel, /active=\{done\.has\(session\.slot\) \? null : inProgressForSlot\(inProgress, session\)\}/);
+  // The "do this next" session is marked on its own card, so it resumes an
+  // opened session exactly as every card does: through `active`.
+  const cards = region(panel, '<SessionCard', '/>', 'session cards');
+  assert.match(cards, /active=\{done\.has\(session\.slot\) \? null : inProgressForSlot\(inProgress, session\)\}/);
+  assert.match(cards, /isNext=\{session\.slot === next\?\.slot\}/, 'the next session is one of the cards');
   // Done and opened slots render no swap control. (Further conditions may
   // also hide it, e.g. while the week's sessions are still loading.)
   assert.match(panel, /\{!done && !active &&[^<{}]*<SlotChoice/);

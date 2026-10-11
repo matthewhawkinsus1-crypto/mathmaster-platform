@@ -410,9 +410,10 @@ const ordinal = (place) => {
   if (tens >= 11 && tens <= 13) return `${place}th`;
   return `${place}${({ 1: 'st', 2: 'nd', 3: 'rd' })[place % 10] || 'th'}`;
 };
-// "1st of 10 this round" / "T-2nd of 10 this round", from the round's own result.
+// "1st of 10 this round" / "T-2nd of 10 this round", from the round's own result (the
+// teacher's whole copy: the class's copy lists only the public rows).
 const roundPlaceText = async (roomId, roundIndex, playerKey) => {
-  const summary = (await roomRef(roomId).collection('rounds').doc(String(roundIndex)).get()).data() || {};
+  const summary = (await roomRef(roomId).collection('hostRounds').doc(String(roundIndex)).get()).data() || {};
   const row = (summary.standings || []).find((entry) => entry.playerKey === playerKey) || {};
   return `${row.tied ? 'T-' : ''}${ordinal(Number(row.rank) || 0)} of ${summary.fieldSize} this round`;
 };

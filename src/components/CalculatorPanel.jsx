@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { bindMathFieldFocusHandoff } from '../platform/interaction/mathFieldFocusHandoff.js';
 import '../platform/math/mathliveRuntime.js';
 import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
 import { evaluateCalculatorExpressionExact } from '../platform/policies/calculatorExpression';
-import { clampCalculatorPosition, settleCalculatorPosition } from './calculatorPanelGeometry.js';
+import {
+  calculatorCornerPosition, clampCalculatorPosition, nextCalculatorCorner, nudgeCalculatorPosition, settleCalculatorPosition,
+} from './calculatorPanelGeometry.js';
 import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
 import { revealMathFieldHost } from '../platform/layout/pinchZoomReveal.js';
@@ -75,6 +77,14 @@ export const CalculatorPanel = ({
   const mathFieldRef = useRef(null);
   const panelRef = useRef(null);
   const dragRef = useRef(null);
+  const toggleRef = useRef(null);
+  // Whatever opened the panel (the launcher, or the work bar's Calculator
+  // button when the panel is controlled), so closing it by keyboard hands
+  // focus back instead of dropping it on <body>.
+  const openerRef = useRef(null);
+  const cornerRef = useRef('bottom-right');
+  const [moveAnnouncement, setMoveAnnouncement] = useState('');
+  const moveHelpId = useId();
   // True while the cursor sits in the denominator a ÷ press created.
   const divisionPendingRef = useRef(false);
   // The same question for a `/` typed on a keyboard (typedFractionEntry.js):
@@ -160,6 +170,12 @@ export const CalculatorPanel = ({
   }, [isOpen, estimateUnlocked, policy.mode]);
 
   useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return;
+    const active = document.activeElement;
+    openerRef.current = active && active !== document.body && !panelRef.current?.contains(active) ? active : null;
+  }, [isOpen]);
+
+  useEffect(() => {
     const mathField = mathFieldRef.current;
     if (!mathField || !isOpen || !estimateUnlocked) return undefined;
     // Opening the calculator should mean the student can type immediately on a
@@ -227,6 +243,52 @@ export const CalculatorPanel = ({
       window.removeEventListener('orientationchange', handleResize);
     };
   }, []);
+
+  // Close from inside the panel (Escape, ✕): focus goes back to the opener,
+  // else the launcher — never to <body>.
+  const closePanel = useCallback(() => {
+    const target = [openerRef.current, toggleRef.current].find((element) => element?.isConnected && !panelRef.current?.contains(element));
+    setOpen(false);
+    target?.focus?.({ preventScroll: true });
+  }, [setOpen]);
+
+  // Escape closes the calculator while focus is in it (S7). Capture phase, so
+  // the expression field never sees it and a Work View beneath stays open:
+  // one Escape closes one layer.
+  const handlePanelKeyDownCapture = (event) => {
+    if (event.key !== 'Escape' || event.isComposing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closePanel();
+  };
+
+  const panelDimensions = () => {
+    const rect = panelRef.current?.getBoundingClientRect();
+    return {
+      panelWidth: rect?.width ?? 0,
+      panelHeight: rect?.height ?? 0,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
+  };
+
+  // The drag handle's keyboard route: arrows move the panel, Enter/Space send
+  // it to the next corner (calculatorPanelGeometry.js).
+  const handleMoveKeyDown = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const next = nudgeCalculatorPosition({ x: rect.left, y: rect.top }, event, panelDimensions());
+    if (!next) return;
+    event.preventDefault();
+    setPanelPosition(next);
+  };
+  const moveToNextCorner = () => {
+    const corner = nextCalculatorCorner(cornerRef.current);
+    cornerRef.current = corner;
+    setPanelPosition(calculatorCornerPosition(corner, panelDimensions()));
+    setMoveAnnouncement(`Calculator moved to the ${corner.replace('-', ' ')} corner.`);
+  };
 
   const toggleDrawer = () => {
     if (!isOpen) onCalculatorOpened?.();
@@ -327,7 +389,10 @@ export const CalculatorPanel = ({
   }, [display, insertCalculatorCommand, insertStackedDivision, policy.mode, setCalculatorValue]);
 
   const startDrag = (event) => {
-    if (event.target?.closest?.('button')) return;
+    // The ↕ Move button is still the grip it always was for a pointer: the
+    // capture below sends the press's click to the header, so only a keyboard
+    // (or assistive-tech) activation reaches the button's onClick.
+    if (event.target?.closest?.('button:not([data-calculator-move])')) return;
     const panel = panelRef.current;
     if (!panel) return;
     const rect = panel.getBoundingClientRect();
@@ -410,6 +475,7 @@ export const CalculatorPanel = ({
     <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: showLauncher ? 'relative' : 'static', zIndex: isOpen ? 9000 : 'auto' }}>
       {showLauncher ? (
         <button
+          ref={toggleRef}
           className="mathmaster-calculator-toggle"
           type="button"
           onClick={toggleDrawer}
@@ -435,6 +501,9 @@ export const CalculatorPanel = ({
           ref={panelRef}
           className="mathmaster-calculator-panel"
           data-work-view-floating-tool="calculator"
+          role="group"
+          aria-label="Calculator"
+          onKeyDownCapture={handlePanelKeyDownCapture}
           style={{
             position: 'fixed',
             width: 'min(320px, calc(100vw - 16px))',
@@ -458,8 +527,22 @@ export const CalculatorPanel = ({
             style={{ display: 'flex', justifyContent: 'space-between', margin: '-6px -4px 12px', padding: '6px 4px', alignItems: 'center', cursor: 'grab', touchAction: 'none', userSelect: 'none' }}
             title="Drag calculator"
           >
-            <span style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--mm-text)' }}>↕ {getCalculatorDrawerLabel(policy.mode)} CALCULATOR</span>
-            <button type="button" aria-label="Close calculator" onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 'bold', fontSize: '13px', color: 'var(--mm-text)' }}>
+              <button
+                type="button"
+                data-calculator-move=""
+                aria-label="Move calculator"
+                aria-describedby={moveHelpId}
+                title="Move calculator: arrow keys, or Enter for the next corner"
+                onClick={moveToNextCorner}
+                onKeyDown={handleMoveKeyDown}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34, color: 'inherit', fontSize: 'inherit' }}
+              >↕</button>
+              {getCalculatorDrawerLabel(policy.mode)} CALCULATOR
+            </span>
+            <span id={moveHelpId} hidden>Arrow keys move the calculator. Enter moves it to the next corner.</span>
+            <span role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{moveAnnouncement}</span>
+            <button type="button" aria-label="Close calculator" onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
           </div>
           {!estimateUnlocked ? (
             <form onSubmit={handleEstimateSubmit} style={{ textAlign: 'left', fontSize: '13px' }}>

@@ -173,7 +173,9 @@ test('resolveWeeklyPathGoalSnapshot freezes a new week with the server\'s facts,
   const index = executableSource(read('functions/index.js'));
   const callable = region(index, 'exports.resolveWeeklyPathGoalSnapshot = onCall(', '\n});', 'the freeze callable');
   const existing = callable.indexOf('if (frozen.exists) return { success: true, goal: frozen.data() };');
-  const load = callable.indexOf('await loadWeeklyFreezeInputs({ db, studentId, studentData: studentSnapshot.data(), classRecord, now: Date.now() })');
+  // The proposal rides along only so a short one can be checked against the
+  // server's own plan (weeklyPathShortWeek.test.mjs).
+  const load = callable.search(/await loadWeeklyFreezeInputs\(\{ db, studentId, studentData: studentSnapshot\.data\(\), classRecord,[^;]*?now: Date\.now\(\) \}\)/);
   const freeze = callable.indexOf('await sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord, freezeInputs })');
   assert.ok(existing > 0 && load > existing && freeze > load, 'existing week first, then the server facts, then the freeze');
   assert.match(callable, /const \{ loadWeeklyFreezeInputs \} = require\("\.\/lib\/weeklyPathFreezeInputs"\);/);

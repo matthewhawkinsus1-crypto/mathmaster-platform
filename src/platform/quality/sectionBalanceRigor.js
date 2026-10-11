@@ -23,7 +23,9 @@ const INTERACTION_FAMILIES = Object.freeze({
 });
 
 const standardKey = (question = {}) => {
-  const direct = question.standard || question.primaryStandard || question.teks;
+  // A graphing2 standard-form question's `standard` is its {A, B, C} line,
+  // not a code; read it only when it is one.
+  const direct = (typeof question.standard === 'string' && question.standard) || question.primaryStandard || question.teks;
   if (typeof direct === 'string') return clean(direct);
   if (Array.isArray(direct)) {
     const first = direct.find(Boolean);

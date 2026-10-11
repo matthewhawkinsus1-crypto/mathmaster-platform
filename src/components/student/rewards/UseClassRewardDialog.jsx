@@ -77,10 +77,24 @@ export default function UseClassRewardDialog({
   // retry is the same request, so it stays allowed even if the live shelf now
   // says "once a week" (that shelf may be counting this very request).
   const disabled = busy || (Boolean(blockedReason) && !error);
+  // The reward changed under the open dialog (repriced or taken off the
+  // list): the promise it opened with ("Uses 50 Class Points. You will have
+  // 70 left") is no longer true, so it is not shown beside the notice that
+  // says so. Nothing can be spent from here; only Close is offered.
+  const stale = (priceChanged || !liveItem) && !error && !busy;
 
   return (
     <RewardDialog titleId="use-class-reward-title" describedById="use-class-reward-description" onClose={onClose} busy={busy} initialFocusRef={confirmRef}>
-      {step === 'confirm' && (
+      {step === 'confirm' && stale && (
+        <>
+          <h2 id="use-class-reward-title" ref={headingRef} tabIndex={-1}>This reward changed</h2>
+          <p id="use-class-reward-description" className="rw-feedback rw-feedback--info" role="alert">{blockedReason} Nothing was spent.</p>
+          <div className="rw-actions">
+            <button ref={confirmRef} type="button" className="rw-button rw-button--quiet" onClick={onClose}>Close</button>
+          </div>
+        </>
+      )}
+      {step === 'confirm' && !stale && (
         <>
           <h2 id="use-class-reward-title" ref={headingRef} tabIndex={-1}>{plan.question}</h2>
           <div id="use-class-reward-description">

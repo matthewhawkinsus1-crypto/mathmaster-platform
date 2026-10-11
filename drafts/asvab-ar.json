@@ -19176,7 +19176,9 @@
     "derived": {},
     "constraints": [
      "rateA!=rateB",
-     "feeA!=feeB"
+     "feeA!=feeB",
+     "abs(rateA-rateB)!=abs(feeA-feeB)",
+     "rateA*feeB!=rateB*feeA"
     ]
    },
    "assessmentItemFormat": "multipleChoice",

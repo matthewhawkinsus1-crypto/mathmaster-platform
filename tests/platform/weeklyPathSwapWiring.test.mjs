@@ -195,9 +195,11 @@ test('weekly launches wait until the week\'s sessions are known, and resume what
 
   const panel = executableSource(read('src/components/student/WeeklyPathGoalPanel.jsx'));
   assert.match(panel, /const launchBlocked = factsStatus !== 'ready';/);
-  const nextButton = region(panel, 'onClick={() => onStartSession?.(next)}', '</button>', '"do this next" button');
-  assert.match(nextButton, /disabled=\{busy \|\| launchBlocked\}/);
-  assert.match(nextButton, /blockedLabel \|\| weeklyStartLabel\(next/);
+  // Each session's one Start (the "do this next" session's included) is its
+  // card's: disabled and relabelled while the week's sessions are unknown.
+  const cardButton = region(panel, 'onClick={() => onStart?.(session)}', '</button>', 'session card Start');
+  assert.match(cardButton, /disabled=\{disabled\}/);
+  assert.match(cardButton, /blockedLabel \|\| weeklyStartLabel\(session, active, total\)/);
   const cards = region(panel, '<SessionCard', '/>', 'session cards');
   assert.match(cards, /disabled=\{busy \|\| launchBlocked\}/);
   assert.match(cards, /swapHidden=\{launchBlocked\}/);

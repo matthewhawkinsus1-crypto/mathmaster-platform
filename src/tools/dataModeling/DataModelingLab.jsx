@@ -475,7 +475,11 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           {studentModelReady ? (
             <div>
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
-              <div style={{ maxHeight:185, overflow:'auto', border:'1px solid var(--mm-border-soft)', borderRadius:8, marginTop:10 }}>
+              {/* A scrolling box is a tab stop in Chrome whether or not it says
+                  so; this one is named, so a keyboard or screen-reader student
+                  lands on "Residual table" and scrolls it with the arrow keys
+                  (keyboard sweep T6). */}
+              <div role="region" aria-label="Residual table" tabIndex={0} data-residual-table-scroller="true" style={{ maxHeight:185, overflow:'auto', border:'1px solid var(--mm-border-soft)', borderRadius:8, marginTop:10 }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                   <thead><tr style={{ background:'var(--mm-surface-sunken)' }}><th style={{padding:6}}>x</th><th>y</th><th>ŷ</th><th>residual</th></tr></thead>
                   <tbody>{studentResiduals.map((row, index)=><tr key={`${row.x}-${index}`}><td style={{padding:6,textAlign:'center'}}>{row.x}</td><td style={{textAlign:'center'}}>{row.y}</td><td style={{textAlign:'center'}}>{round(row.predicted,2)}</td><td style={{textAlign:'center'}}>{round(row.residual,2)}</td></tr>)}</tbody>

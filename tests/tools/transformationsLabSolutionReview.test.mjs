@@ -253,10 +253,12 @@ test('identify: a, h, k read off the graph for every family whose graph fixes th
 });
 
 test('identify: no review where the graph does not fix the graded a, h, k', () => {
-  // 2·2^(x−1) − 3 is 2^x − 3: the grader wants a = 2, h = 1, but the graph
-  // shows a = 1, h = 0 just as well.
+  // 2·2^(x−1) − 3 is 2^x − 3: the graph shows a = 1, h = 0 just as well as
+  // a = 2, h = 1. The grader now accepts both (Job K, defect 2e — this line
+  // used to pin the other reading as wrong), but a worked solution would
+  // still present one arbitrary reading as a deduction, so there is none.
   const exponential = q({ mode: 'identify', family: 'exponential', function: { a: 2, h: 1, k: -3 } });
-  assert.equal(grade(exponential, { a: '1', h: '0', k: '-3' }).isCorrect, false, 'the other reading of the same curve is marked wrong');
+  assert.equal(grade(exponential, { a: '1', h: '0', k: '-3' }).isCorrect, true, 'the other reading of the same curve is marked right');
   assert.equal(build(exponential), null);
   // A line passes through every one of its points: h and k are not readable.
   assert.equal(build(q({ mode: 'identify', family: 'linear', function: { a: 2, h: 1, k: 3 } })), null);

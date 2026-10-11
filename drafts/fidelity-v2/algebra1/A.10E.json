@@ -352,13 +352,13 @@
           "responseFields": [
             {
               "id": "factor1",
-              "label": "First factor",
+              "label": "Factor with the smaller constant",
               "inputProfile": "expression",
               "expected": "x+{{p}}"
             },
             {
               "id": "factor2",
-              "label": "Second factor",
+              "label": "Factor with the larger constant",
               "inputProfile": "expression",
               "expected": "x+{{q}}"
             },
@@ -366,7 +366,10 @@
               "id": "answer",
               "label": "Complete factorization",
               "inputProfile": "expression",
-              "expected": "(x+{{p}})*(x+{{q}})"
+              "expected": "(x+{{p}})*(x+{{q}})",
+              "accepted": [
+                "(x+{{q}})*(x+{{p}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -401,7 +404,7 @@
               "prod": "p*q"
             },
             "constraints": [
-              "p!=q"
+              "p<q"
             ]
           }
         },
@@ -445,7 +448,10 @@
               "id": "answer",
               "label": "Correct factorization",
               "inputProfile": "expression",
-              "expected": "(x+{{p}})*(x+{{q}})"
+              "expected": "(x+{{p}})*(x+{{q}})",
+              "accepted": [
+                "(x+{{q}})*(x+{{p}})"
+              ]
             }
           ],
           "solutionReview": {

@@ -75,7 +75,9 @@ test('on a Path tool question, what the tray showed and what was opened travel w
   const engine = region(player, '<QuestionEngine', 'onGrade=', 'Path QuestionEngine mount');
   assert.match(engine, /supportEntitlement=\{engineSupportTools\}/, 'tools from the server list, not the profile');
   assert.match(engine, /onSupportEvidence=\{onEngineSupportEvidence\}/);
-  assert.match(player, /toolsEntitlementFromPath\(\{ applicableSupports, translationLanguage: supportLanguage \}\)/);
+  // The server's list decides plan tools; wave 2 (job H) adds only the
+  // universal role, which is never evidence (universalSupportTools.test.mjs).
+  assert.match(player, /toolsEntitlementFromPath\(\{ applicableSupports, translationLanguage: supportLanguage(?:, activityRole: universalDesignRole)? \}\)/);
   assert.match(player, /foldPathDelivery\(current, record, \{ key: instanceId, applicableSupports \}\)/);
   // Both submit routes (secure payload and canonical grading) carry it.
   assert.equal((player.match(/supportsPresented: engineSupports\.presented,\s*supportsUsed: engineSupports\.used,/g) || []).length, 2);

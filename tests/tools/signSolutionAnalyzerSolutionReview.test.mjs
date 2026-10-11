@@ -354,8 +354,7 @@ test('shapes the review cannot explain correctly give null', () => {
   const nullCases = [
     // The explicit polynomial chart ignores denominators: not the problem stated.
     q({ mode: 'polynomial', numeratorFactors: [{ root: 2 }], denominatorFactors: [{ root: -3 }], relation: '>' }),
-    // Relations the grader does not read as written ('≥' is read as '<').
-    q({ factors: [{ root: -2 }, { root: 3 }], relation: '≥' }),
+    // Relations the grader does not read as written ('=>' is read as '<').
     q({ factors: [{ root: -2 }, { root: 3 }], relation: '=>' }),
     q({ factors: [{ root: -2 }, { root: 3 }], relation: 5 }),
     // Factors the grader would read as something else, or cannot read.
@@ -385,9 +384,15 @@ test('shapes the review cannot explain correctly give null', () => {
     assert.equal(buildSignSolutionAnalyzerReview(question), null, JSON.stringify(question));
     assert.equal(buildToolSolutionReviewModel({ ...question, toolId: TOOL_ID }), null, `index: ${JSON.stringify(question)}`);
   });
-  // Why '≥' must be null: the grader reads it as '<', so the intervals where
-  // (x + 2)(x − 3) ≥ 0 are graded wrong — a review stating them would be wrong.
+  // Why '=>' must be null: the grader reads it by its first character, as
+  // '<', so the intervals where (x + 2)(x − 3) ≥ 0 are graded wrong — a review
+  // stating them would be wrong.
+  const misspelled = q({ factors: [{ root: -2 }, { root: 3 }], relation: '=>' });
+  assert.equal(grade(misspelled, { selected: [0, 2] }).isCorrect, false);
+  assert.equal(grade(misspelled, { selected: [1] }).isCorrect, true);
+  // The symbol '≥' itself is the relation the chart shows (Job K): graded as
+  // '>=' and explained (kAudit_signSolutionAnalyzer.test.mjs).
   const unicode = q({ factors: [{ root: -2 }, { root: 3 }], relation: '≥' });
-  assert.equal(grade(unicode, { selected: [0, 2] }).isCorrect, false);
-  assert.equal(grade(unicode, { selected: [1] }).isCorrect, true);
+  assert.equal(grade(unicode, { selected: [0, 2] }).isCorrect, true);
+  assert.equal(grade(unicode, { selected: [1] }).isCorrect, false);
 });

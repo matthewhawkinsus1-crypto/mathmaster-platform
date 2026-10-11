@@ -6263,7 +6263,9 @@
      }
     },
     "derived": {},
-    "constraints": []
+    "constraints": [
+     "a+b*c!=a*b+a*c"
+    ]
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
@@ -15643,7 +15645,8 @@
     "constraints": [
      "gcd(a,d)==1",
      "gcd(b,d)==1",
-     "sum!=prod"
+     "sum!=prod",
+     "prod!=2*sum"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -40354,7 +40357,9 @@
      "m1": "m2+rise",
      "b2": "b1+drop"
     },
-    "constraints": []
+    "constraints": [
+     "rise!=drop"
+    ]
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
@@ -43402,7 +43407,8 @@
     },
     "constraints": [
      "x1!=y1",
-     "x1!=m"
+     "x1!=m",
+     "b!=0"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -51055,7 +51061,8 @@
     },
     "constraints": [
      "a!=b",
-     "abm!=noB"
+     "abm!=noB",
+     "c!=bp"
     ]
    },
    "assessmentItemFormat": "multipleChoice",

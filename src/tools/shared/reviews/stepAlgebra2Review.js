@@ -303,22 +303,29 @@ const buildRewriteReview = (question) => {
       return 'unreadable';
     }
   };
-  const alreadyFinished = gapOf(original, objective.kind) === null;
+  // The grader simplifies the left side, so y − 0 = 2(x − 3) is finished too;
+  // the review then writes that left side as the y it is, never "y − 0 = …"
+  // as the answer or "y is already alone" about it.
+  const leftIsY = original.left.replace(/\s+/g, '') === 'y';
   // What the original still needs before it reads y = mx + b: nothing, only
   // its right side rewritten (y is already alone), or y collected and isolated.
   const slopeInterceptGap = gapOf(original, 'slopeIntercept');
   const alreadySlopeIntercept = slopeInterceptGap === null;
-  const yAlreadyAlone = slopeInterceptGap === 'needsSimplification' && isOne(B);
+  const yAlreadyAlone = slopeInterceptGap === 'needsSimplification' && isOne(B) && leftIsY;
+
+  // The answer is always written the review's own way (y = 2x − 3, never the
+  // authored "2x + -3", "1x + 2" or "x*2 − 6"). The grader also calls some
+  // right sides finished that only equal the form (−(x + 1) for mx + b), so
+  // "already in the form" is said only when the authored right side is the
+  // answer's right side as written.
+  const answerRight = factoredTarget ? plainFactored(slope, root) : plainSlopeIntercept(slope, intercept);
+  const compact = (text) => String(text).replace(/\u2212/g, '-').replace(/[\s*]+/g, '');
+  const alreadyFinished = gapOf(original, objective.kind) === null && compact(original.right) === compact(answerRight);
 
   const startLatex = originalLatex(original);
   const slopeInterceptLatex = `y = ${latexLinear(slope, intercept)}`;
-  const answerLatex = alreadyFinished
-    ? startLatex
-    : factoredTarget ? `y = ${latexFactored(slope, root)}` : slopeInterceptLatex;
-  const answerRight = alreadyFinished
-    ? original.right
-    : factoredTarget ? plainFactored(slope, root) : plainSlopeIntercept(slope, intercept);
-  const answerLeft = alreadyFinished ? original.left : 'y';
+  const answerLatex = factoredTarget ? `y = ${latexFactored(slope, root)}` : slopeInterceptLatex;
+  const answerLeft = 'y';
 
   // The equation the review ends on, submitted as the screen submits it.
   const finished = { left: answerLeft, right: answerRight };
@@ -327,12 +334,13 @@ const buildRewriteReview = (question) => {
   const formName = factoredTarget ? 'factored linear form, y = a(x − c)' : 'slope-intercept form, y = mx + b';
   const steps = [];
   if (alreadyFinished) {
+    if (!leftIsY) steps.push(`Start with $${startLatex}$. Its left side simplifies to y, so it reads $${answerLatex}$.`);
     steps.push(factoredTarget
-      ? `The equation $${startLatex}$ already has y alone on the left and the right side written as a number times (x − c), with a = $${latex(slope)}$ and c = $${latex(root)}$.`
-      : `The equation $${startLatex}$ already has y alone on the left and the right side written as mx + b, with m = $${latex(slope)}$ and b = $${latex(intercept)}$.`);
+      ? `The equation $${answerLatex}$ already has y alone on the left and the right side written as a number times (x − c), with a = $${latex(slope)}$ and c = $${latex(root)}$.`
+      : `The equation $${answerLatex}$ already has y alone on the left and the right side written as mx + b, with m = $${latex(slope)}$ and b = $${latex(intercept)}$.`);
   } else {
     steps.push(`Start with $${startLatex}$. The goal is ${formName}.`);
-    if (alreadySlopeIntercept) {
+    if (alreadySlopeIntercept && leftIsY) {
       steps.push(`y is already alone on the left: $${slopeInterceptLatex}$, so the slope is $${latex(slope)}$ and the y-intercept is $${latex(intercept)}$.`);
     } else if (yAlreadyAlone) {
       steps.push(`y is already alone on the left. Rewrite the right side as an x-term plus a constant (distribute, split the fraction and cancel common factors as needed): $${slopeInterceptLatex}$.`);

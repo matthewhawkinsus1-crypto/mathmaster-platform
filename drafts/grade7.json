@@ -9958,7 +9958,10 @@
         },
         "derived": {
           "total": "m*x+b"
-        }
+        },
+        "constraints": [
+          "m!=b"
+        ]
       }
     },
     {
@@ -10481,7 +10484,10 @@
         },
         "derived": {
           "total": "m*x+b"
-        }
+        },
+        "constraints": [
+          "m!=b"
+        ]
       }
     },
     {
@@ -14056,7 +14062,10 @@
             "min": 100,
             "max": 500
           }
-        }
+        },
+        "constraints": [
+          "price!=100"
+        ]
       }
     }
   ]

@@ -70,6 +70,9 @@ export default function PathSupportBar({
   prompt = '',
   toolType = '',
   supportLanguage = null,
+  // The player's pathUniversalDesignRole: 'practice' adds the universal
+  // Vocabulary and Read aloud; null (the default) adds nothing.
+  universalDesignRole = null,
 }) {
   const applicable = useMemo(
     () => (Array.isArray(applicableSupports) ? applicableSupports : []),
@@ -86,8 +89,8 @@ export default function PathSupportBar({
   useEffect(() => { setUsed([]); setTtsUnavailable(false); setTrayPresented([]); }, [questionInstanceId]);
 
   const languageTools = useMemo(
-    () => toolsEntitlementFromPath({ applicableSupports: applicable, translationLanguage: supportLanguage }),
-    [applicable, supportLanguage],
+    () => toolsEntitlementFromPath({ applicableSupports: applicable, translationLanguage: supportLanguage, activityRole: universalDesignRole }),
+    [applicable, supportLanguage, universalDesignRole],
   );
   // The tray reports each tool's state and each first use; on the Path those
   // facts travel with the attempt, where the server intersects them with what
@@ -124,7 +127,8 @@ export default function PathSupportBar({
     current.includes(supportId) ? current : [...current, supportId]
   ));
 
-  if (!applicable.length) return null;
+  // Nothing authorized and nothing universal: no bar at all.
+  if (!applicable.length && !languageTools.tools.length) return null;
 
   const tray = languageTools.tools.length ? (
     <StudentSupportTray
@@ -133,8 +137,10 @@ export default function PathSupportBar({
       toolType={toolType}
       surface="path"
       itemKey={questionInstanceId}
-      // The bar's own "Read this to me" reads the whole card, choices included.
-      includeReadAloud={false}
+      // The bar's own "Read this to me" reads the whole card, choices included,
+      // for a student entitled to text-to-speech; everyone else's universal
+      // Read aloud is the tray's.
+      includeReadAloud={!wantsTts}
       onEvidence={onTrayEvidence}
     />
   ) : null;

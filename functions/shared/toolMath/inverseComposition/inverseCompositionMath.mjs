@@ -114,10 +114,56 @@ export const restrictionDescription = (spec = {}) => {
 export const DEFAULT_INVERSE_LAB_F = Object.freeze({ type: 'linear', a: 2, h: 0, k: 3 });
 export const DEFAULT_INVERSE_LAB_G = Object.freeze({ type: 'linear', a: -1, h: 0, k: 4 });
 
+// Does a quadratic f name its own kept branch — its inverseBranch, or a
+// one-sided domain ending at the vertex (the reading every helper above uses)?
+const declaresOwnBranch = (f = {}) => {
+  const h = Number(f.h ?? 0);
+  return f.inverseBranch === 'left' || f.inverseBranch === 'right'
+    || Number(f.domain?.min) === h || Number(f.domain?.max) === h;
+};
+
+// One merged f per (f, branch), so the lab's memoised values keep their inputs
+// — rebuilt once f's own fields change (an authoring preview edits f in place).
+const withQuestionBranch = new WeakMap();
+
+/*
+ * f's kept branch: f's own first, then the question's. compileAuthoringIntentV5
+ * puts an authored inverseBranch on the question and drops it from f, so a
+ * V5-compiled one-branch parabola carried its branch only there — and the lab
+ * gave it no inverse at all.
+ */
+const branchedF = (f, question) => {
+  const branch = question?.inverseBranch;
+  if ((f.type || 'linear') !== 'quadratic' || (branch !== 'left' && branch !== 'right') || declaresOwnBranch(f)) return f;
+  const fields = JSON.stringify(f);
+  if (withQuestionBranch.get(f)?.fields !== fields) withQuestionBranch.set(f, { fields });
+  const merged = withQuestionBranch.get(f);
+  merged[branch] ||= { ...f, inverseBranch: branch };
+  return merged[branch];
+};
+
 export const inverseLabFunctions = (question = {}) => ({
-  f: question?.f || DEFAULT_INVERSE_LAB_F,
+  f: branchedF(question?.f || DEFAULT_INVERSE_LAB_F, question),
   g: question?.g || DEFAULT_INVERSE_LAB_G,
 });
+
+/**
+ * f⁻¹(f(x)) on f's kept branch: x itself when x is on that branch, and on a
+ * one-branch parabola the mirror input 2h − x when it is not (f⁻¹ only ever
+ * returns a kept input). NaN when f has no inverse or f(x) is undefined.
+ */
+export const inverseLabRoundTrip = (f = {}, x) => {
+  if (!hasFunctionalInverse(f)) return Number.NaN;
+  const value = Number(x);
+  // Inverted on the branch the restriction names (expectedInverseRestriction),
+  // not inverseValue's own strict reading of a vertex domain: f with domain
+  // { max: '2' } keeps x ≤ 2, and f⁻¹ must return an input from there.
+  const kept = (f.type || 'linear') === 'quadratic' ? { ...f, inverseBranch: expectedInverseRestriction(f) } : f;
+  const back = inverseValue(kept, evaluateSpecWithDomain(f, value));
+  if (!Number.isFinite(back)) return Number.NaN;
+  // Floating-point dust on the way back is still the input itself.
+  return Math.abs(back - value) <= 1e-9 * Math.max(1, Math.abs(value)) ? value : back;
+};
 
 /** The input x the lab opens on. */
 export const inverseLabInitialX = (question = {}) => question?.x ?? 2;

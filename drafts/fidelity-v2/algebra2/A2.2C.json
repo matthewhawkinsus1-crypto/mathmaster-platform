@@ -172,7 +172,10 @@
               "id": "inverse-form",
               "label": "Inverse expression g(x)",
               "inputProfile": "expression",
-              "expected": "{{h}}-sqrt(x-({{k}}))"
+              "expected": "{{h}}-sqrt(x-({{k}}))",
+              "accepted": [
+                "-sqrt(x-({{k}})){{h|signed}}"
+              ]
             }
           ],
           "solutionReview": {
@@ -286,7 +289,10 @@
             "min": -5,
             "max": 5
           }
-        }
+        },
+        "constraints": [
+          "h!=k"
+        ]
       }
     },
     {

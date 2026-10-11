@@ -301,13 +301,20 @@ test('a constant denominator excludes nothing; an authored cubic denominator is 
 /* shapes with no honest single answer to state                        */
 /* ------------------------------------------------------------------ */
 
-test('a quotient whose terms share a factor without dividing exactly is null: the grader keeps the unreduced fraction', () => {
-  // (x² − 1)/(x² + x) = (x − 1)/x after cancelling (x + 1) — but the grader's
-  // key is the unreduced fraction, and it rejects the simplified one.
+test('a quotient whose terms share a factor without dividing exactly is stated in lowest terms; the cancelled zero stays excluded', () => {
+  // (x² − 1)/(x² + x) = (x − 1)/x after cancelling (x + 1). This test used to
+  // pin null here, because the grader accepted only the unreduced fraction and
+  // marked the simplified (x − 1)/x wrong — the defect, not the behaviour to
+  // keep (Job K 2d). The grader now accepts both, so the review states the
+  // simplified answer the lab asks for, and x = −1 is still excluded.
   const question = q({ f: { type: 'polynomial', coefficients: [1, 0, -1] }, g: { type: 'polynomial', coefficients: [1, 1, 0] }, operations: ['quotient'] });
-  assert.equal(grade(question, { responses: { quotient: '(x-1)/x' }, restrictions: '-1, 0' }).isCorrect, false);
+  assert.equal(grade(question, { responses: { quotient: '(x-1)/x' }, restrictions: '-1, 0' }).isCorrect, true);
   assert.equal(grade(question, { responses: { quotient: '(x^2-1)/(x^2+x)' }, restrictions: '-1, 0' }).isCorrect, true);
-  assert.equal(buildFunctionOperationsLabReview(question), null);
+  assert.equal(grade(question, { responses: { quotient: '(x-1)/x' }, restrictions: '0' }).isCorrect, false, 'the cancelled x = −1 is still required');
+  const { model, work } = assertReviewGradesCorrect(question, '(x² − 1)/(x² + x)');
+  assert.deepEqual(work, { responses: { quotient: '\\frac{x - 1}{x}' }, restrictions: '-1, 0' });
+  assert.ok(model.steps.some((step) => step.includes('= \\frac{(x + 1)(x - 1)}{x(x + 1)}$. Cancel the common factor $(x + 1)$')), 'the shared factor is shown and cancelled');
+  assert.ok(model.steps.some((step) => step.includes('$x = -1$ stays excluded even though the factor cancelled')));
 });
 
 test('numbers that cannot be stated exactly give null', () => {

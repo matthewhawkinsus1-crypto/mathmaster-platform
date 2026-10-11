@@ -144,7 +144,7 @@ test('the tray is wired into questions, Work View and the Path, and loads lazily
   const viewport = executableSource(readFileSync(new URL('../../src/components/student/MobileViewportContainer.jsx', import.meta.url), 'utf8'));
   assert.equal((viewport.match(/<div className="mathmaster-question-support-tray">\{supportTray\}<\/div>/g) || []).length, 3, 'phone, desktop and focused workspace');
   const bar = readFileSync(new URL('../../src/components/student/PathSupportBar.jsx', import.meta.url), 'utf8');
-  assert.match(bar, /toolsEntitlementFromPath\(\{ applicableSupports: applicable, translationLanguage: supportLanguage \}\)/);
+  assert.match(bar, /toolsEntitlementFromPath\(\{ applicableSupports: applicable, translationLanguage: supportLanguage(?:, activityRole: universalDesignRole)? \}\)/);
   assert.match(bar, /surface="path"/);
   const player = readFileSync(new URL('../../src/components/student/PathSessionPlayer.jsx', import.meta.url), 'utf8');
   const mount = region(player, '<PathSupportBar', '/>', 'Path support bar mount');

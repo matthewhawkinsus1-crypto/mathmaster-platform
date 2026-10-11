@@ -71,21 +71,21 @@ const SCENES = [
     // No completions yet: no grade card rather than a wrong one.
     mustNotContain: ['swap', 'Start session', 'Start is paused', 'Grade so far'],
     toggles: 0,
-    launchButtons: { count: 5, allDisabled: true },
+    launchButtons: { count: 4, allDisabled: true },
   },
   {
     name: 'factsFailed',
     mustContain: ["MathMaster couldn't check which weekly sessions you've already started, so Start is paused.", 'Try again', 'Start session 1 of 4'],
     mustNotContain: ['swap', 'Checking your week', 'Grade so far'],
     toggles: 0,
-    launchButtons: { count: 5, allDisabled: true },
+    launchButtons: { count: 4, allDisabled: true },
   },
   {
     name: 'resumeUnfrozen',
     mustContain: ['Resume session 1 · 2 of 5 answered', RECOMMENDED_LABEL],
     mustNotContain: ['swap'],
     toggles: 0,
-    launchButtons: { count: 5, allDisabled: false },
+    launchButtons: { count: 4, allDisabled: false },
   },
 ];
 
@@ -118,7 +118,8 @@ const measure = (page) => page.evaluate(({ minTap, toggle }) => {
       .slice(0, 5)
       .map(({ element, box }) => `<${element.tagName.toLowerCase()}> to ${Math.round(box.right)}px: "${(element.innerText || '').trim().slice(0, 40)}"`),
     launch: document.querySelector('[data-mm-launch]')?.textContent || null,
-    // Every weekly launch button: the "do this next" button and each card's.
+    // Every weekly launch button: one per session card (the "do this next"
+    // session is marked on its own card, not repeated above the list).
     launchButtons: controls
       .filter(({ element }) => element.tagName === 'BUTTON'
         && /^(Start session|Resume session|Start weekly session|Checking your week|Starting)/.test((element.innerText || '').trim()))

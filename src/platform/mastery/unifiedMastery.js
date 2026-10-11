@@ -6,15 +6,19 @@
 // used to read the assignment-only fallback alone, with its own 0.9 cut-off —
 // so the same skill could be "Mastered" on one screen and "Secure" on the next.
 //
-// The wheel, the skill card and the weekly planner read the profiles built
-// here, and every status comes from the shared rule
-// (functions/shared/masteryRule.mjs) the server trigger uses. The Path engine
-// (map, locks, Challenge, topic browser, Recommended) reads the MORE
-// FAVOURABLE of these and main's assignment record until the server scores
-// each question once (src/platform/path/masteryAdapter.js
-// favourableMasteryBySkill). Pure apart from its inputs: the live app passes
-// the server document, the Teacher Path Simulator passes none, and both go
-// through the same code.
+// Every screen — the wheel, the skill card, the weekly planner, and the Path
+// engine (map, locks, Challenge, topic browser, Recommended) — reads the
+// profiles built here, and reads each skill by ONE rule (product decision 8,
+// coordinator decision on PR #467): the more favourable of the server's
+// evidence profile and the student's assignment record — the higher number,
+// and Mastered when either says so (main's Path engine called an assignment
+// record Mastered at 0.9). The assignment record's side travels on the profile
+// as `favourableRecord`, and the shared rule (functions/shared/masteryRule.mjs)
+// honours it, so every status re-derived anywhere agrees. The server scores
+// each question once (functions/shared/masteryScoring.mjs), so its own number
+// no longer reads 50% for a question right on the second try. Pure apart from
+// its inputs: the live app passes the server document, the Teacher Path
+// Simulator passes none, and both go through the same code.
 
 import { buildStudentMasteryProfile, collectStudentEvidence } from '../../masteryEngine.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
@@ -32,8 +36,34 @@ export const CONFIDENT_EVIDENCE = 6;
 
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
 
-/** Server fields win over the fallback; the status is re-derived from the rule. */
-export const mergeMasteryProfile = (fallback = {}, server = {}, schedule = {}) => {
+// The cut-off main's Path engine applied to an assignment record
+// (recommendationEngine.js MASTERED_THRESHOLD), on its 0–100 scale.
+const LEGACY_MASTERED_SCORE = 90;
+
+/**
+ * The assignment record's side of the favourable rule, from one legacy TEKS
+ * summary (masteryEngine.js): its score, its evidence weight, and Mastered at
+ * 90 — otherwise the shared rule's band for its own score and item count.
+ */
+export const assignmentRecordFor = (summary) => {
+  const items = Number(summary?.itemCount) || 0;
+  if (!summary || items <= 0 || !Number.isFinite(Number(summary.score))) return null;
+  const score = Number(summary.score);
+  return {
+    estimate: score,
+    effectiveWeight: Number(summary.effectiveEvidence) || 0,
+    status: score >= LEGACY_MASTERED_SCORE
+      ? MASTERY_STATUS.MASTERED
+      : classifyMasteryStatus({ estimate: score, eligibleEvents: items, effectiveWeight: items }),
+    items,
+  };
+};
+
+/**
+ * Server fields win over the fallback; the status is re-derived from the rule,
+ * with the assignment record's side (`record`) as the more favourable record.
+ */
+export const mergeMasteryProfile = (fallback = {}, server = {}, schedule = {}, record = null) => {
   const merged = {
     ...fallback,
     ...server,
@@ -46,7 +76,19 @@ export const mergeMasteryProfile = (fallback = {}, server = {}, schedule = {}) =
       retention: retentionSignal(schedule || {}),
     },
   };
-  merged.mastery.status = classifyMasteryStatus(masteryFactsFromProfile(merged));
+  delete merged.favourableRecord;
+  delete merged.mastery.serverEstimate;
+  if (record) {
+    merged.favourableRecord = record;
+    // Kept, so every later re-derivation classifies the server on its own
+    // number, never on the record's (masteryRule.mjs).
+    merged.mastery.serverEstimate = merged.mastery.estimate ?? null;
+  }
+  const facts = masteryFactsFromProfile(merged);
+  // The number shown is the more favourable one; the status is the higher of
+  // each side's own.
+  if (facts.estimate != null) merged.mastery.estimate = facts.estimate;
+  merged.mastery.status = classifyMasteryStatus(facts);
   return merged;
 };
 
@@ -60,6 +102,10 @@ export const buildUnifiedMasteryProfiles = ({
   assignments = [],
   serverProfiles = {},
   retentionSchedulesByTEKS = {},
+  // false gives the profiles main served (the server rule alone, no
+  // assignment record): what a student sees on deploy day, before the new
+  // Hosting loads. Only the rescoring backfill's baseline asks for it.
+  favourable = true,
 } = {}) => {
   const safeStudent = student && typeof student === 'object' ? student : {};
   const safeAssignments = Array.isArray(assignments) ? assignments : [];
@@ -84,12 +130,18 @@ export const buildUnifiedMasteryProfiles = ({
   });
   const server = serverProfiles && typeof serverProfiles === 'object' ? serverProfiles : {};
   const codes = new Set([...Object.keys(fallbackProfiles), ...Object.keys(server)].map(toDisplayCode).filter(Boolean));
+  const recordByCode = {};
+  Object.entries(legacyProfile?.teks || {}).forEach(([rawCode, summary]) => {
+    const record = assignmentRecordFor(summary);
+    if (record) recordByCode[toDisplayCode(rawCode)] = record;
+  });
   const result = {};
   codes.forEach((code) => {
     result[code] = mergeMasteryProfile(
       fallbackProfiles[code],
       server[code] || server[`texas:${code}`],
       retentionSchedulesByTEKS?.[code] || retentionSchedulesByTEKS?.[`texas:${code}`],
+      favourable ? recordByCode[code] || null : null,
     );
   });
   return result;
@@ -107,7 +159,8 @@ export const toPathSkillMastery = (profile) => {
   const firstAttempt = profile?.dimensions?.firstAttemptCorrectRate;
   return {
     mastery: facts.estimate == null ? 0 : clamp01(Number(facts.estimate) / 100),
-    attempts: facts.eligibleEvents,
+    // The questions the shown number rests on.
+    attempts: facts.shownEvents ?? facts.eligibleEvents,
     recentAccuracy: firstAttempt == null ? null : clamp01(Number(firstAttempt) / 100),
     evidenceStrength: clamp01(facts.effectiveWeight / CONFIDENT_EVIDENCE),
     mastered: status === MASTERY_STATUS.MASTERED,

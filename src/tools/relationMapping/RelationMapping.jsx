@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useId, useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -20,6 +20,21 @@ import relationMappingGrader, {
 import { givenRelationInstruction } from './relationMappingCopy.js';
 import { FUNCTION_CHOICES } from '../../../functions/shared/relationFunctionChoice.mjs';
 import { useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
+import {
+  RELATION_PLOT_PAD,
+  RELATION_PLOT_SIZE,
+  initialRelationCrosshair,
+  moveRelationCrosshair,
+  relationCrosshairMessage,
+  relationPlotBounds,
+  relationPlotKeyboardHelp,
+  relationPlotPointAtViewBox,
+  relationPlotStep,
+  relationPointIsPlotted,
+  relationToggleMessage,
+  toggleRelationPlottedPoint,
+} from './relationPlotKeyboard.js';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
@@ -31,8 +46,8 @@ const PAD_Y = 34;
 const LEFT_X = 118;
 const RIGHT_X = WIDTH - 118;
 
-const PLOT_SIZE = 430;
-const PLOT_PAD = 34;
+const PLOT_SIZE = RELATION_PLOT_SIZE;
+const PLOT_PAD = RELATION_PLOT_PAD;
 
 function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 }) {
   const { xMin, xMax, yMin, yMax } = bounds;
@@ -43,8 +58,14 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
   const xTicks = Array.from({ length: Math.max(0, Math.floor(xMax) - Math.ceil(xMin) + 1) }, (_, i) => Math.ceil(xMin) + i);
   const yTicks = Array.from({ length: Math.max(0, Math.floor(yMax) - Math.ceil(yMin) + 1) }, (_, i) => Math.ceil(yMin) + i);
   const [hoverPoint, setHoverPoint] = useState(null);
-  const step = Number.isFinite(Number(snapStep)) && Number(snapStep) > 0 ? Number(snapStep) : 1;
-  const snap = (value) => Number((Math.round(value / step) * step).toFixed(8));
+  // KEYBOARD CROSSHAIR (KEYBOARD_SWEEP.md T1). null = not showing. The arrow
+  // keys move it over the same grid points a tap can reach, and Enter/Space
+  // calls the very onTogglePoint a click calls (relationPlotKeyboard.js).
+  const [keyboardCursor, setKeyboardCursor] = useState(null);
+  const [keyboardMessage, setKeyboardMessage] = useState('');
+  const [keyboardHelpVisible, setKeyboardHelpVisible] = useState(false);
+  const helpId = `mm-relation-plot-help-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const step = relationPlotStep(snapStep);
 
   const pointFromEvent = (event) => {
     // Where the tap is in the DRAWING, not in the box. A phone held sideways
@@ -59,12 +80,7 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
       viewBoxHeight: PLOT_SIZE,
     });
     if (!point) return null;
-    const rawX = xMin + ((point.x - PLOT_PAD) / width) * (xMax - xMin);
-    const rawY = yMax - ((point.y - PLOT_PAD) / height) * (yMax - yMin);
-    const x = snap(rawX);
-    const y = snap(rawY);
-    if (x < xMin || x > xMax || y < yMin || y > yMax) return null;
-    return [x, y];
+    return relationPlotPointAtViewBox({ x: point.x, y: point.y }, bounds, step);
   };
 
   const handleClick = (event) => {
@@ -76,6 +92,40 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
     setHoverPoint(pointFromEvent(event));
   };
 
+  const handleKeyDown = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    const moved = moveRelationCrosshair(keyboardCursor, event.key, { bounds, snapStep: step, shift: event.shiftKey });
+    if (moved) {
+      event.preventDefault();
+      setKeyboardCursor(moved);
+      setKeyboardMessage(relationCrosshairMessage(moved, points));
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const target = keyboardCursor || initialRelationCrosshair(bounds, step);
+      const wasPlotted = relationPointIsPlotted(points, target[0], target[1]);
+      setKeyboardCursor(target);
+      onTogglePoint?.(target[0], target[1]);
+      setKeyboardMessage(relationToggleMessage(target, wasPlotted));
+      return;
+    }
+    if (event.key === 'Escape' && keyboardCursor) {
+      // Leave crosshair mode, and keep this Escape from also closing Work
+      // View around the plot. With no crosshair showing, Escape passes on.
+      event.preventDefault();
+      event.stopPropagation();
+      setKeyboardCursor(null);
+      setKeyboardMessage('Crosshair hidden. Press an arrow key to show it again.');
+    }
+  };
+
+  // The pointer's preview wins while the mouse is over the grid.
+  const guidePoint = hoverPoint || keyboardCursor;
+  const liveText = hoverPoint
+    ? `Cursor: (${hoverPoint[0]}, ${hoverPoint[1]}) — click to plot this point.`
+    : keyboardMessage || 'Move the pointer over the grid to see the exact coordinate before you click.';
+
   return (
     <div>
       <svg
@@ -83,8 +133,17 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         onClick={handleClick}
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverPoint(null)}
+        onKeyDown={handleKeyDown}
+        onFocus={(event) => {
+          let keyboard = false;
+          try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }
+          if (keyboard) setKeyboardHelpVisible(true);
+        }}
+        onBlur={() => { setKeyboardHelpVisible(false); setKeyboardCursor(null); }}
+        tabIndex={0}
         role="application"
         aria-label="Coordinate plane for plotting the relation"
+        aria-describedby={helpId}
         style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 12, cursor: 'crosshair' }}
       >
         {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#e5e9f0" strokeWidth="1" />)}
@@ -94,13 +153,13 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" fill="#5f6b7a">{x}</text>))}
         {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" fill="#5f6b7a">{y}</text>))}
 
-        {hoverPoint ? (
-          <g pointerEvents="none">
-            <line x1={xToPx(hoverPoint[0])} x2={xToPx(hoverPoint[0])} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
-            <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(hoverPoint[1])} y2={yToPx(hoverPoint[1])} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
-            <circle cx={xToPx(hoverPoint[0])} cy={yToPx(hoverPoint[1])} r="9" fill="#fff4ce" stroke="#f9ab00" strokeWidth="3" />
-            <rect x={Math.min(PLOT_SIZE - 112, xToPx(hoverPoint[0]) + 12)} y={Math.max(PLOT_PAD, yToPx(hoverPoint[1]) - 34)} width="96" height="27" rx="7" fill="#202124" opacity="0.9" />
-            <text x={Math.min(PLOT_SIZE - 64, xToPx(hoverPoint[0]) + 60)} y={Math.max(PLOT_PAD + 18, yToPx(hoverPoint[1]) - 16)} textAnchor="middle" fontSize="12" fontWeight="800" fill="#fff">({hoverPoint[0]}, {hoverPoint[1]})</text>
+        {guidePoint ? (
+          <g pointerEvents="none" data-relation-crosshair={keyboardCursor && !hoverPoint ? 'keyboard' : 'pointer'}>
+            <line x1={xToPx(guidePoint[0])} x2={xToPx(guidePoint[0])} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
+            <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(guidePoint[1])} y2={yToPx(guidePoint[1])} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
+            <circle cx={xToPx(guidePoint[0])} cy={yToPx(guidePoint[1])} r="9" fill="#fff4ce" stroke="#f9ab00" strokeWidth="3" />
+            <rect x={Math.min(PLOT_SIZE - 112, xToPx(guidePoint[0]) + 12)} y={Math.max(PLOT_PAD, yToPx(guidePoint[1]) - 34)} width="96" height="27" rx="7" fill="#202124" opacity="0.9" />
+            <text x={Math.min(PLOT_SIZE - 64, xToPx(guidePoint[0]) + 60)} y={Math.max(PLOT_PAD + 18, yToPx(guidePoint[1]) - 16)} textAnchor="middle" fontSize="12" fontWeight="800" fill="#fff">({guidePoint[0]}, {guidePoint[1]})</text>
           </g>
         ) : null}
 
@@ -108,8 +167,20 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         <text x={PLOT_SIZE - PLOT_PAD + 12} y={yMin <= 0 && yMax >= 0 ? yToPx(0) + 4 : PLOT_SIZE - PLOT_PAD + 18} fontSize="13" fontWeight="700" fill="#3c4756">x</text>
         <text x={xMin <= 0 && xMax >= 0 ? xToPx(0) + 8 : PLOT_PAD - 4} y={PLOT_PAD - 12} fontSize="13" fontWeight="700" fill="#3c4756">y</text>
       </svg>
-      <p aria-live="polite" style={{ margin: '8px 0 0', minHeight: 20, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 12 }}>
-        {hoverPoint ? `Cursor: (${hoverPoint[0]}, ${hoverPoint[1]}) — click to plot this point.` : 'Move the pointer over the grid to see the exact coordinate before you click.'}
+      <p aria-live="polite" data-relation-plot-status="true" style={{ margin: '8px 0 0', minHeight: 20, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 12 }}>
+        {liveText}
+      </p>
+      {/* The keyboard instruction: the plot's accessible description always,
+          and on screen while the plot has KEYBOARD focus (a pointer user never
+          sees it). aria-describedby reads it even while aria-hidden, so
+          browse mode does not hear it a second time. */}
+      <p
+        id={helpId}
+        aria-hidden="true"
+        data-relation-plot-help="true"
+        style={keyboardHelpVisible ? { margin: '4px 0 0', textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 12 } : SR_ONLY_STYLE}
+      >
+        {relationPlotKeyboardHelp(step)}
       </p>
     </div>
   );
@@ -148,20 +219,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
   // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
   const submitActionLabel = useSubmitLabel('Check');
 
-  const plotBounds = useMemo(() => {
-    const xs = pairs.map(([x]) => x);
-    const ys = pairs.map(([, y]) => y);
-    const rawMinX = Math.floor(Math.min(...xs) - 1);
-    const rawMaxX = Math.ceil(Math.max(...xs) + 1);
-    const rawMinY = Math.floor(Math.min(...ys) - 1);
-    const rawMaxY = Math.ceil(Math.max(...ys) + 1);
-    return {
-      xMin: Math.min(-5, rawMinX),
-      xMax: Math.max(5, rawMaxX),
-      yMin: Math.min(-5, rawMinY),
-      yMax: Math.max(5, rawMaxY),
-    };
-  }, [pairs]);
+  const plotBounds = useMemo(() => relationPlotBounds(pairs), [pairs]);
 
   const height = Math.max(domainValues.length, rangeValues.length) * ROW + PAD_Y * 2;
   const yFor = (index, count) => PAD_Y + index * ROW + (Math.max(domainValues.length, rangeValues.length) - count) * ROW / 2;
@@ -186,12 +244,8 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     const ny = Number(y);
     if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
     clearFeedback();
-    setPlottedPoints((current) => {
-      const exists = current.some(([px, py]) => Math.abs(px - nx) < 1e-9 && Math.abs(py - ny) < 1e-9);
-      return exists
-        ? current.filter(([px, py]) => Math.abs(px - nx) >= 1e-9 || Math.abs(py - ny) >= 1e-9)
-        : [...current, [nx, ny]];
-    });
+    // One reducer for a click, a keyboard Enter/Space and a "Remove" button.
+    setPlottedPoints((current) => toggleRelationPlottedPoint(current, nx, ny));
   };
 
   const addTypedPoint = () => {

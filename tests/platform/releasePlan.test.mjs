@@ -616,3 +616,15 @@ test('the release wires the access check into the executor, imported where it is
   // Injected as the executor's checker, judged on this release's functions, and repairing.
   assert.match(call, /ensureCallableAccess: async \(step\) => \{[\s\S]*releaseAccessVerdict\(await ensureCallableAccess\(\{[\s\S]*fix: true,[\s\S]*\}\), \{ released: step\.functions \|\| null \}\)/);
 });
+
+test('a change to the weekly planner the freeze vendors deploys Functions as well as Hosting (student push I, item 5)', async () => {
+  const { plannerClosure } = await import('../../scripts/sync-functions-weekly-planner.mjs');
+  const plannerFile = plannerClosure().find((file) => file.startsWith('src/'));
+  assert.ok(plannerFile, 'the planner has src/ modules');
+  const { reasons, unclassified } = classifyChangedFiles([plannerFile, 'scripts/sync-functions-weekly-planner.mjs', 'src/App.css']);
+  assert.ok(reasons.functions.includes(plannerFile));
+  assert.ok(reasons.functions.includes('scripts/sync-functions-weekly-planner.mjs'));
+  assert.ok(reasons.hosting.includes(plannerFile));
+  assert.ok(!reasons.functions.includes('src/App.css'), 'other browser files stay Hosting only');
+  assert.deepEqual(unclassified, []);
+});

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS, flushToolDrafts } from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
@@ -18,11 +18,36 @@ import {
   parseExactNumberLineValue,
   resolveIntervalAsk,
 } from './intervalMath';
+import {
+  NUMBER_LINE_GEOMETRY,
+  applyEndpointEdit,
+  endpointKeyIntent,
+  endpointValue,
+  initialLineCursor,
+  lineKeyIntent,
+  lineValueAtViewBoxX,
+  moveBuiltEndpoint,
+  movePendingEndpoint,
+  placementOutcome,
+  toggleBuiltEndpoint as toggledBuiltEndpoints,
+  togglePendingEndpoint,
+} from './endpointEditing.js';
 
 const INF = Number.POSITIVE_INFINITY;
-const WIDTH = 620;
-const HEIGHT = 138;
-const PAD = 42;
+const { WIDTH, HEIGHT, PAD } = NUMBER_LINE_GEOMETRY;
+
+// Visually hidden, still read by a screen reader.
+const srOnly = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+};
 
 const primaryButton = {
   padding: '9px 14px',
@@ -50,6 +75,9 @@ const gcd = (a, b) => {
   while (y) [x, y] = [y, x % y];
   return x || 1;
 };
+
+// The ends of the drawn line, read as the tick labels read them (−7.5, not −15/2).
+const lineEndLabel = (value) => String(Number(Number(value).toFixed(6))).replace('-', '−');
 
 const rationalLabel = (value, maxDenominator = 16) => {
   if (!Number.isFinite(value)) return value < 0 ? '−∞' : '∞';
@@ -283,45 +311,24 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
   const toggleBuiltEndpoint = (intervalIndex, endpoint) => {
     clearFeedback();
-    setBuilt((current) => current.map((interval, index) => {
-      if (index !== intervalIndex) return interval;
-      if (endpoint === 'min' && interval.min !== -INF) {
-        return { ...interval, minClosed: !interval.minClosed };
-      }
-      if (endpoint === 'max' && interval.max !== INF) {
-        return { ...interval, maxClosed: !interval.maxClosed };
-      }
-      return interval;
-    }));
+    setBuilt((current) => toggledBuiltEndpoints(current, intervalIndex, endpoint));
   };
 
   const placeEndpoint = (value, closed = closedEnd) => {
-    if (!Number.isFinite(value)) return;
+    if (!Number.isFinite(value)) return null;
     ensureVisible(value);
     clearFeedback();
     setEndpointError('');
 
-    if (pending == null) {
-      setPending({ value: tidyNumber(value), closed });
-      return;
+    // The same outcome for a click, a typed value and Enter on the line.
+    const outcome = placementOutcome(pending, value, closed);
+    if (outcome.error) {
+      setEndpointError(outcome.error);
+      return outcome;
     }
-
-    if (Math.abs(value - pending.value) < 1e-10) {
-      setEndpointError('Choose a different second endpoint, or use a ray.');
-      return;
-    }
-
-    const first = { value: pending.value, closed: pending.closed };
-    const second = { value: tidyNumber(value), closed };
-    const [low, high] = first.value < second.value ? [first, second] : [second, first];
-
-    setBuilt((current) => [...current, {
-      min: low.value,
-      max: high.value,
-      minClosed: low.closed,
-      maxClosed: high.closed,
-    }]);
-    setPending(null);
+    if (outcome.interval) setBuilt((current) => [...current, outcome.interval]);
+    setPending(outcome.pending);
+    return outcome;
   };
 
   const valueFromEvent = (event) => {
@@ -337,12 +344,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     });
     if (!point) return null;
 
-    const raw = min + ((point.x - PAD) / (WIDTH - PAD * 2)) * span;
-    const snapped = tidyNumber(Math.round(raw / snapStep) * snapStep);
-
-    return Number.isFinite(snapped)
-      ? Math.max(min, Math.min(max, snapped))
-      : null;
+    return lineValueAtViewBoxX(point.x, { min, max, snapStep });
   };
 
   const handleLineClick = (event) => {
@@ -401,21 +403,11 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     clearFeedback();
 
     if (dragging.kind === 'pending') {
-      setPending((current) => current ? { ...current, value } : current);
+      setPending((current) => movePendingEndpoint(current, value));
       return;
     }
 
-    setBuilt((current) => current.map((interval, index) => {
-      if (index !== dragging.intervalIndex) return interval;
-
-      if (dragging.endpoint === 'min') {
-        const ceiling = Number.isFinite(interval.max) ? interval.max - Math.max(snapStep, 1e-9) : value;
-        return { ...interval, min: Math.min(value, ceiling) };
-      }
-
-      const floor = Number.isFinite(interval.min) ? interval.min + Math.max(snapStep, 1e-9) : value;
-      return { ...interval, max: Math.max(value, floor) };
-    }));
+    setBuilt((current) => moveBuiltEndpoint(current, dragging.intervalIndex, dragging.endpoint, value, snapStep));
   };
 
   const endDrag = () => {
@@ -434,7 +426,91 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     action();
   };
 
+  /*
+   * THE KEYBOARD ROUTE ON A FOCUSED ENDPOINT. Enter/Space do what its click
+   * does; an arrow does what a drag ending one snap step over does. Both go
+   * through endpointEditing.js, the same functions the pointer uses, so the
+   * recorded state is identical either way. The announcement says where the
+   * endpoint now is and whether it is open or closed — never whether it is
+   * right.
+   */
+  const [endpointAnnouncement, setEndpointAnnouncement] = useState('');
+  const keyboardFlushRef = useRef(false);
+  useEffect(() => {
+    if (!keyboardFlushRef.current) return;
+    keyboardFlushRef.current = false;
+    // A finished keyboard move is a finished gesture: persist it now, as endDrag does.
+    flushToolDrafts();
+  }, [pending, built]);
+
+  const handleEndpointKeyDown = (target, event) => {
+    const state = { pending, built };
+    const intent = endpointKeyIntent(event, endpointValue(state, target), { min, max, snapStep });
+    if (!intent) return;
+    event.preventDefault();
+    event.stopPropagation();
+    // A key is never the tail of a drag.
+    suppressEndpointClickRef.current = false;
+    clearFeedback();
+    setEndpointError('');
+
+    const next = applyEndpointEdit(state, target, intent, snapStep);
+    keyboardFlushRef.current = true;
+    if (target.kind === 'pending') setPending(next.pending);
+    else setBuilt(next.built);
+
+    // The pending endpoint is already read out by the status line under the
+    // buttons; a placed one is announced here, value and open/closed only.
+    if (target.kind === 'pending') return;
+    const value = endpointValue(next, target);
+    const closed = next.built[target.intervalIndex]?.[target.endpoint === 'min' ? 'minClosed' : 'maxClosed'];
+    if (value != null) setEndpointAnnouncement(`${closed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(value)}.`);
+  };
+
+  /*
+   * THE LINE ITSELF BY KEYBOARD. Focused from the keyboard it shows a
+   * placement marker: arrows move it by the snap step (Shift: bigger steps,
+   * Home/End: the ends), Enter or Space places an endpoint there — the same
+   * placeEndpoint a click at that value calls. The marker is not part of the
+   * work and is never saved.
+   */
+  const [lineCursor, setLineCursor] = useState(null);
+  const lineCursorValue = lineCursor == null ? null : Math.max(min, Math.min(max, lineCursor));
+
+  const handleLineFocus = (event) => {
+    if (event.target !== event.currentTarget) return;
+    if (!event.currentTarget.matches?.(':focus-visible')) return;
+    if (lineCursor == null) setLineCursor(pending?.value ?? initialLineCursor({ min, max, snapStep }));
+  };
+
+  const handleLineBlur = (event) => {
+    if (event.target !== event.currentTarget) return;
+    setLineCursor(null);
+  };
+
+  const handleLineKeyDown = (event) => {
+    // Keys on an endpoint inside the line are the endpoint's own.
+    if (event.target !== event.currentTarget) return;
+    const intent = lineKeyIntent(event, lineCursorValue, { min, max, snapStep });
+    if (!intent) return;
+    event.preventDefault();
+    if (intent.type === 'cursor') {
+      setLineCursor(intent.value);
+      setEndpointAnnouncement(`Marker at ${rationalLabel(intent.value)}. Press Enter to place ${closedEnd ? 'a closed' : 'an open'} endpoint here.`);
+      return;
+    }
+    const outcome = placeEndpoint(intent.value);
+    if (!outcome) return;
+    // A first endpoint is read out by the status line under the buttons.
+    if (outcome.error) setEndpointAnnouncement(outcome.error);
+    else if (outcome.interval) setEndpointAnnouncement(`${closedEnd ? 'Closed' : 'Open'} endpoint placed at ${rationalLabel(intent.value)}. Graph piece from ${rationalLabel(outcome.interval.min)} to ${rationalLabel(outcome.interval.max)} added.`);
+    else setEndpointAnnouncement('');
+  };
+
+  const endpointKeyHelp = 'Press Enter or Space to switch open or closed. Use the left and right arrow keys to move it, Shift for bigger steps.';
+
   const reset = () => {
+    setEndpointAnnouncement('');
     clearFeedback();
     setPending(null);
     setBuilt([]);
@@ -495,7 +571,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
         steps={[
           'Place an endpoint by clicking the line or typing its exact value. Fractions such as -13/8 are accepted.',
           'For a bounded interval, place a second endpoint. For a ray, choose shade left or shade right.',
-          'Choose open or closed for each endpoint. Drag a plotted endpoint if you want to move it.',
+          'Choose open or closed for each endpoint. Drag a plotted endpoint if you want to move it, or Tab to it and use the arrow keys.',
         ]}
       />
 
@@ -609,7 +685,11 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             role="application"
-            aria-label="Number line. Click anywhere on the line to place an endpoint, or drag an existing endpoint."
+            tabIndex={0}
+            aria-label={`Number line from ${lineEndLabel(min)} to ${lineEndLabel(max)}. Click anywhere on the line to place an endpoint, or drag an existing endpoint. From the keyboard, use the left and right arrow keys to move the marker by ${snapLabel}, Shift for bigger steps, and press Enter or Space to place an endpoint at the marker. You can also type an exact endpoint above.`}
+            onFocus={handleLineFocus}
+            onBlur={handleLineBlur}
+            onKeyDown={handleLineKeyDown}
             onClick={handleLineClick}
             onPointerMove={updateDraggedValue}
             onPointerUp={endDrag}
@@ -622,7 +702,12 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               background: 'var(--mm-surface)',
               cursor: dragging ? 'grabbing' : 'crosshair',
               touchAction: 'none',
-                        }}
+              // The line is a tab stop, so a mouse or touch press focuses it.
+              // Without this, the browser's default :focus ring would appear
+              // on every click. Keyboard focus still gets the ring: the
+              // global :focus-visible rule in index.css is !important.
+              outline: 'none',
+            }}
           >
             <line
               x1={PAD - 14}
@@ -676,6 +761,24 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               </g>
             ))}
 
+            {lineCursorValue != null && (
+              <g data-number-line-marker="true" pointerEvents="none" aria-hidden="true">
+                <line
+                  x1={sx(lineCursorValue)}
+                  x2={sx(lineCursorValue)}
+                  y1={HEIGHT / 2 - 30}
+                  y2={HEIGHT / 2 + 14}
+                  style={{ stroke: 'var(--mm-focus, #1a73e8)' }}
+                  strokeWidth="2"
+                  strokeDasharray="4 3"
+                />
+                <polygon
+                  points={`${sx(lineCursorValue) - 6},${HEIGHT / 2 - 36} ${sx(lineCursorValue) + 6},${HEIGHT / 2 - 36} ${sx(lineCursorValue)},${HEIGHT / 2 - 28}`}
+                  style={{ fill: 'var(--mm-focus, #1a73e8)' }}
+                />
+              </g>
+            )}
+
             {drawn.map((interval, index) => {
               const left = interval.min === -INF ? PAD - 14 : sx(interval.min);
               const right = interval.max === INF ? WIDTH - PAD + 14 : sx(interval.max);
@@ -696,8 +799,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                     <g
                       role="button"
                       tabIndex="0"
-                      aria-label={`${interval.minClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.min)}. Click to switch open or closed. Drag to move it.`}
+                      aria-label={`${interval.minClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.min)}. Click to switch open or closed. Drag to move it. ${endpointKeyHelp}`}
                       onPointerDown={(event) => beginDrag({ kind: 'built', intervalIndex: index, endpoint: 'min' }, event)}
+                      onKeyDown={(event) => handleEndpointKeyDown({ kind: 'built', intervalIndex: index, endpoint: 'min' }, event)}
                       onClick={(event) => {
                         event.stopPropagation();
                         handleEndpointClick(() => toggleBuiltEndpoint(index, 'min'));
@@ -732,8 +836,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                     <g
                       role="button"
                       tabIndex="0"
-                      aria-label={`${interval.maxClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.max)}. Click to switch open or closed. Drag to move it.`}
+                      aria-label={`${interval.maxClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.max)}. Click to switch open or closed. Drag to move it. ${endpointKeyHelp}`}
                       onPointerDown={(event) => beginDrag({ kind: 'built', intervalIndex: index, endpoint: 'max' }, event)}
+                      onKeyDown={(event) => handleEndpointKeyDown({ kind: 'built', intervalIndex: index, endpoint: 'max' }, event)}
                       onClick={(event) => {
                         event.stopPropagation();
                         handleEndpointClick(() => toggleBuiltEndpoint(index, 'max'));
@@ -771,13 +876,12 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               <g
                 role="button"
                 tabIndex="0"
-                aria-label={`${pending.closed ? 'Closed' : 'Open'} pending endpoint at ${rationalLabel(pending.value)}. Click to switch it. Drag to move it.`}
+                aria-label={`${pending.closed ? 'Closed' : 'Open'} pending endpoint at ${rationalLabel(pending.value)}. Click to switch it. Drag to move it. ${endpointKeyHelp}`}
                 onPointerDown={(event) => beginDrag({ kind: 'pending' }, event)}
+                onKeyDown={(event) => handleEndpointKeyDown({ kind: 'pending' }, event)}
                 onClick={(event) => {
                   event.stopPropagation();
-                  handleEndpointClick(() => setPending((current) => (
-                    current == null ? current : { ...current, closed: !current.closed }
-                  )));
+                  handleEndpointClick(() => setPending((current) => togglePendingEndpoint(current)));
                 }}
                 style={{ cursor: 'grab' }}
               >
@@ -834,6 +938,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               Start over
             </button>
           </div>
+
+          <p role="status" aria-live="polite" data-number-line-endpoint-announcement="true" style={srOnly}>
+            {endpointAnnouncement}
+          </p>
 
           <p aria-live="polite" style={{ marginTop: 9, fontSize: 12.5, color: 'var(--mm-text-muted)', lineHeight: 1.4 }}>
             {pending != null

@@ -86,9 +86,42 @@ const settle = (value, scale, level = 0) => (
 // The same number in a sentence: a real minus sign.
 const shown = (text) => String(text).replace(/^-/, '−');
 const say = (value, scale, level = 0) => shown(numberText(settle(value, scale, level), level));
+// Whether `value` rounds to `text` at the decimal places `text` shows.
+const roundsTo = (value, text) => {
+  const places = (String(text).split('.')[1] || '').length;
+  return Math.abs(value - Number(String(text).replace('−', '-'))) <= 0.5 * 10 ** -places * (1 + 1e-9);
+};
 // "=" when the shown text is the value exactly, "≈" when it is rounded.
 const rel = (value, text) => (Number(String(text).replace('−', '-')) === Number(value) ? '=' : '≈');
 const wrap = (text) => (String(text).startsWith('−') ? `(${text})` : text);
+
+// An authored value (a data coordinate, a prediction target) is quoted as it
+// was written, never rounded: "the observed y = 50.977" misquoted a point
+// (0, 50.9766).
+const dataText = (value) => shown(numberText(value, PRECISION_LEVELS));
+
+// The decimal places an authored value is written with (0.0001 → 4, 1e-7 → 7).
+const placesOf = (value) => {
+  const [mantissa, exponent = '0'] = String(Number(value)).toLowerCase().split('e');
+  return Math.max(0, (mantissa.split('.')[1] || '').length - Number(exponent));
+};
+
+/*
+ * A sum of terms that are products of authored values, each with at most
+ * `places` decimal places (Σx²y: twice x's places plus y's). It is printed in
+ * full when floating point holds it to that place, else rounded; `exact` says
+ * which, so its step writes "=" or "≈". Σy of (−1.9175, −1.0598, −3.8165) was
+ * printed "ȳ = −6.794 ÷ 3", Σx² of (0.25, 0.75, 1.25) "Σx² = 2.188".
+ */
+const sumText = (terms, places) => {
+  const total = sum(terms);
+  const scale = sumAbs(terms);
+  if (Number.isFinite(places) && places <= 20 && scale * 10 ** places < 1e14) {
+    const text = trimZeros(total.toFixed(places));
+    return { text: shown(text === '-0' ? '0' : text), exact: true };
+  }
+  return { text: say(total, scale), exact: false };
+};
 
 /* ------------------------------------------------------------- equations */
 
@@ -104,6 +137,16 @@ const nextTerm = (text, suffix) => {
   const negative = text.startsWith('-');
   const magnitude = negative ? text.slice(1) : text;
   return `${negative ? ' − ' : ' + '}${suffix && magnitude === '1' ? '' : magnitude}${suffix}`;
+};
+/*
+ * The right-hand side from its terms, highest first: a zero term is left out,
+ * so a horizontal line reads "y = 5.4", not "y = 0x + 5.4", and a quadratic
+ * whose a is 0 "y = −0.5333x + 1.933", not "y = 0x² − 0.5333x + 1.933".
+ */
+const rightSide = (terms) => {
+  const [first, ...rest] = terms.filter(([text]) => text !== '0');
+  if (!first) return '0';
+  return `${leadTerm(...first)}${rest.map((term) => nextTerm(...term)).join('')}`;
 };
 const radicand = (h) => (h === '0' ? 'x' : h.startsWith('-') ? `x + ${h.slice(1)}` : `x − ${h}`);
 
@@ -125,32 +168,47 @@ const modelText = (family, model, level, { X, Y }) => {
   if (family === 'linear') {
     const m = text(model.m, model.m * X, Y);
     const b = text(model.b, model.b, Y);
-    return { family, coefficients: { m, b }, equation: `y = ${leadTerm(m, 'x')}${nextTerm(b, '')}` };
+    return { family, coefficients: { m, b }, equation: `y = ${rightSide([[m, 'x'], [b, '']])}` };
   }
   if (family === 'quadratic') {
     const a = text(model.a, model.a * X * X, Y);
     const b = text(model.b, model.b * X, Y);
     const c = text(model.c, model.c, Y);
-    return { family, coefficients: { a, b, c }, equation: `y = ${leadTerm(a, 'x²')}${nextTerm(b, 'x')}${nextTerm(c, '')}` };
+    return { family, coefficients: { a, b, c }, equation: `y = ${rightSide([[a, 'x²'], [b, 'x'], [c, '']])}` };
   }
   if (family === 'exponential') {
-    const a = text(model.a, model.a, Y);
-    const base = text(model.base, model.base, 1);
+    /*
+     * a and the base are never dust: a·b^x is positive everywhere. On
+     * calendar-year data a is about e^(−170), which rounds to 0 at every
+     * precision ("y = 0(1.091)^x", whose arithmetic gives 0, not ŷ ≈ 86.7),
+     * and below 1e-36 the 40 decimals numberText allows keep fewer than 4
+     * significant figures; an a or base of 1e+21 or more prints in exponent
+     * notation. None can be typed, so the model is not shown (null).
+     */
+    if (!(Math.abs(model.a) >= 1e-36)) return null;
+    const a = numberText(model.a, level);
+    const base = numberText(model.base, level);
+    if ([a, base].some((value) => value === null || /e/i.test(value))) return null;
     return { family, coefficients: { a, base }, equation: `y = ${shown(a)}(${base})^x` };
   }
   const a = text(model.a, model.a * Math.sqrt(X), Y);
-  const h = text(model.h, model.h, X);
-  const k = text(model.k, model.k, Y);
-  return { family, coefficients: { a, h, k }, equation: `y = ${leadTerm(a, `√(${radicand(h)})`)}${nextTerm(k, '')}` };
+  // h and k are the endpoint data point itself, quoted as authored.
+  const h = numberText(model.h, PRECISION_LEVELS);
+  const k = numberText(model.k, PRECISION_LEVELS);
+  return { family, coefficients: { a, h, k }, equation: `y = ${rightSide([[a, `√(${radicand(h)})`], [k, '']])}` };
 };
+
+// A following term of a substitution, its zero kept (it is the coefficient typed in): " + 0(3)", " − 2.5(3)".
+const signed = (text, factor) => (text.startsWith('-') ? ` − ${text.slice(1)}${factor}` : ` + ${text}${factor}`);
 
 /** The model evaluated at x, written out with this question's numbers. */
 const substitution = ({ family, coefficients: c }, xText) => {
   const x = wrap(xText);
   if (family === 'linear') return `${wrap(shown(c.m))}(${xText})${nextTerm(c.b, '')}`;
-  if (family === 'quadratic') return `${wrap(shown(c.a))}(${xText})² + ${wrap(shown(c.b))}(${xText}) + ${wrap(shown(c.c))}`;
+  // A following coefficient carries its own sign: "− 160.167(2020)", not "+ (−160.167)(2020)".
+  if (family === 'quadratic') return `${wrap(shown(c.a))}(${xText})²${signed(c.b, `(${xText})`)}${signed(c.c, '')}`;
   if (family === 'exponential') return `${wrap(shown(c.a))}(${c.base})^${x}`;
-  return `${wrap(shown(c.a))}√(${x} − ${wrap(shown(c.h))}) + ${wrap(shown(c.k))}`;
+  return `${leadTerm(c.a, `√(${x} − ${wrap(shown(c.h))})`)}${signed(c.k, '')}`;
 };
 
 /** The same evaluation with the shown coefficients, to tell "=" from "≈". */
@@ -160,6 +218,23 @@ const evaluateShown = ({ family, coefficients }, x) => {
   if (family === 'quadratic') return c.a * x ** 2 + c.b * x + c.c;
   if (family === 'exponential') return c.a * c.base ** x;
   return x < c.h ? Number.NaN : c.a * Math.sqrt(x - c.h) + c.k;
+};
+
+/*
+ * The model as a substitution at x must evaluate to the ŷ it is set equal to.
+ * Rounded coefficients can move that arithmetic further than ŷ's last place —
+ * an exponent or a calendar-year x amplifies the rounding: 3.091(1.596)^13 is
+ * 1347.49, not the model's 1350.667, and 0.04026(2020)² − 160.167(2020) +
+ * 159344.23 is 83.794, not 81.853. This is the model with the fewest extra
+ * places whose own arithmetic at x prints as `target` (at `targetLevel`), or
+ * null when no precision does.
+ */
+const workedAt = (family, raw, model, level, facts, x, target, targetLevel = level) => {
+  for (let deeper = level; deeper <= PRECISION_LEVELS; deeper += 1) {
+    const worked = deeper === level ? model : modelText(family, raw, deeper, facts);
+    if (worked && say(evaluateShown(worked, x), facts.Y, targetLevel) === target) return worked;
+  }
+  return null;
 };
 
 /* --------------------------------------------------------- reading data */
@@ -271,8 +346,12 @@ const analyse = (question) => {
     if (prediction.asksType && !TYPE_LABELS[prediction.type]) return null;
   }
 
+  // The places the authored coordinates are written with, for sums of them.
+  const xPlaces = Math.max(...xs.map(placesOf));
+  const yPlaces = Math.max(...ys.map(placesOf));
+
   return {
-    question, mode, points, xs, ys, n, X, Y, xBar, yBar, sxx, syy, sxy,
+    question, mode, points, xs, ys, n, X, Y, xBar, yBar, sxx, syy, sxy, xPlaces, yPlaces,
     regression, candidates, metric, best, r, descriptor, expectedModelId, expectedModel, fromBest,
     parts, lineFitPrediction, fitFamily, prediction, linearTie,
   };
@@ -288,7 +367,27 @@ const linearFitSection = (facts, level) => {
   const yBarText = say(yBar, Y);
   const sxyText = say(sxy, Math.sqrt(sxx * syy));
   const sxxText = say(sxx, sxx);
-  const atMean = evaluateShown(model, Number(xBarText.replace('−', '-')));
+  const xBarShown = Number(xBarText.replace('−', '-'));
+  const sumX = sumText(xs, facts.xPlaces);
+  const sumY = sumText(ys, facts.yPlaces);
+  // ȳ − m·x̄ written with the shown numbers is "=" only when all three are
+  // exact; its value is "=" b only when that arithmetic gives b's text.
+  const shownSubstitution = rel(yBar, yBarText) === '=' && rel(regression.m, m) === '=' && rel(xBar, xBarText) === '=' ? '=' : '≈';
+  const substituted = Number(yBarText.replace('−', '-')) - Number(m) * xBarShown;
+  const interceptRel = shownSubstitution === '=' ? rel(regression.b, b) : rel(substituted, b);
+  /*
+   * Written out with rounded ȳ, m and x̄, that arithmetic is only "≈ b" when it
+   * rounds to b's text: with x̄ near 2000 a slope rounded to 3 places moves it
+   * by a whole unit. Otherwise the step names the formula, not the arithmetic.
+   */
+  const interceptWork = shownSubstitution === '=' || roundsTo(substituted, b)
+    ? `b = ȳ − m·x̄ ${shownSubstitution} ${yBarText} − ${wrap(shown(m))}(${xBarText}) ${interceptRel} ${shown(b)}`
+    : `b = ȳ − m·x̄ ${rel(regression.b, b)} ${shown(b)}`;
+  // The mean-point check, written with the coefficients its arithmetic needs (workedAt).
+  const atMean = workedAt('linear', regression, model, level, facts, xBarShown, yBarText, 0);
+  const meanCheck = atMean
+    ? `the line gives ${substitution(atMean, xBarText)}${atMean !== model ? ' (its coefficients to more places)' : ''} ${rel(evaluateShown(atMean, xBarShown), yBarText)} ${yBarText} ${rel(yBar, yBarText)} ȳ`
+    : 'the line gives ȳ (b = ȳ − m·x̄ makes it so)';
   return {
     model,
     items: [
@@ -297,11 +396,11 @@ const linearFitSection = (facts, level) => {
       { label: 'Intercept b', value: b },
     ],
     steps: [
-      `Use all ${n} points. The means are x̄ = ${say(sum(xs), sumAbs(xs))} ÷ ${n} ${rel(xBar, xBarText)} ${xBarText} and ȳ = ${say(sum(ys), sumAbs(ys))} ÷ ${n} ${rel(yBar, yBarText)} ${yBarText}.`,
+      `Use all ${n} points. The means are x̄ ${sumX.exact ? '=' : '≈'} ${sumX.text} ÷ ${n} ${rel(xBar, xBarText)} ${xBarText} and ȳ ${sumY.exact ? '=' : '≈'} ${sumY.text} ÷ ${n} ${rel(yBar, yBarText)} ${yBarText}.`,
       `Least squares: Sxy = Σ(x − x̄)(y − ȳ) ${rel(sxy, sxyText)} ${sxyText} and Sxx = Σ(x − x̄)² ${rel(sxx, sxxText)} ${sxxText}, so the slope is m = Sxy ÷ Sxx ${rel(regression.m, m)} ${shown(m)}.`,
-      `The line passes through (x̄, ȳ), so b = ȳ − m·x̄ = ${yBarText} − ${wrap(shown(m))}(${xBarText}) ${rel(regression.b, b)} ${shown(b)}. Linear regression technology reports the same line: ${model.equation}.`,
+      `The line passes through (x̄, ȳ), so ${interceptWork}. Linear regression technology reports the same line: ${model.equation}.`,
     ],
-    why: [`at x = x̄ = ${xBarText} the line gives ${substitution(model, xBarText)} ${rel(atMean, yBarText)} ${yBarText} = ȳ, and its residuals y − ŷ add to 0: the least-squares line balances the points above and below it.`],
+    why: [`at x = x̄ ${rel(xBar, xBarText)} ${xBarText} ${meanCheck}, and its residuals y − ŷ add to 0: the least-squares line balances the points above and below it.`],
   };
 };
 
@@ -312,26 +411,41 @@ const middlePoint = (facts) => {
   return { x: facts.xs[index], y: facts.ys[index] };
 };
 
-const residualCheck = (facts, model, predict) => {
+// The written-out ŷ uses the coefficients to as many places as its own
+// arithmetic needs to give the printed ŷ (workedAt); with none, it is not written out.
+const residualCheck = (facts, model, level, raw, predict) => {
   const point = middlePoint(facts);
-  const xText = say(point.x, facts.X);
+  const xText = dataText(point.x);
   const fitted = predict(point.x);
   const fittedText = say(fitted, facts.Y);
-  return `at x = ${xText} the model gives ŷ = ${substitution(model, xText)} ${rel(evaluateShown(model, point.x), fittedText)} ${fittedText} against the observed y = ${say(point.y, facts.Y)}, a residual of ${say(point.y - fitted, facts.Y)}`;
+  const worked = workedAt(model.family, raw, model, level, facts, point.x, fittedText, 0);
+  const value = worked
+    ? `ŷ = ${substitution(worked, xText)}${worked !== model ? ' (its coefficients to more places)' : ''} ${rel(evaluateShown(worked, point.x), fittedText)} ${fittedText}`
+    : `ŷ ${rel(fitted, fittedText)} ${fittedText}`;
+  return `at x = ${xText} the model gives ${value} against the observed y = ${dataText(point.y)}, a residual of ${say(point.y - fitted, facts.Y)}`;
 };
 
 const quadraticFitSection = (facts, level) => {
   const { n, xs, ys, expectedModel } = facts;
   const model = modelText('quadratic', expectedModel.model, level, facts);
+  if (!model) return null;
   const { a, b, c } = model.coefficients;
-  const sumOf = (terms) => say(sum(terms), sumAbs(terms));
-  const sx = sumOf(xs);
-  const sx2 = sumOf(xs.map((x) => x ** 2));
-  const sx3 = sumOf(xs.map((x) => x ** 3));
-  const sx4 = sumOf(xs.map((x) => x ** 4));
-  const sy = sumOf(ys);
-  const sxy = sumOf(xs.map((x, index) => x * ys[index]));
-  const sx2y = sumOf(xs.map((x, index) => x ** 2 * ys[index]));
+  const { xPlaces: dx, yPlaces: dy } = facts;
+  const sums = [
+    ['Σx', xs, dx],
+    ['Σx²', xs.map((x) => x ** 2), 2 * dx],
+    ['Σx³', xs.map((x) => x ** 3), 3 * dx],
+    ['Σx⁴', xs.map((x) => x ** 4), 4 * dx],
+    ['Σy', ys, dy],
+    ['Σxy', xs.map((x, index) => x * ys[index]), dx + dy],
+    ['Σx²y', xs.map((x, index) => x ** 2 * ys[index]), 2 * dx + dy],
+  ].map(([name, terms, places]) => ({ name, ...sumText(terms, places) }));
+  const [sx, sx2, sx3, sx4, sy, sxy, sx2y] = sums.map((entry) => entry.text);
+  // One normal equation's left side, signed like an equation: "18a − 8b + 6c", a zero sum left out.
+  const normal = (...texts) => rightSide(texts.map((text, index) => [text.replace('−', '-'), 'abc'[index]]));
+  const listedSums = sums.map((entry) => `${entry.name} ${entry.exact ? '=' : '≈'} ${entry.text}`);
+  // With a rounded sum the equations as shown hold only to that rounding.
+  const allExact = sums.every((entry) => entry.exact);
   const exact = expectedModel.model;
   return {
     model,
@@ -342,17 +456,18 @@ const quadraticFitSection = (facts, level) => {
       { label: 'c (constant)', value: c },
     ],
     steps: [
-      `Run quadratic regression (least squares) on all ${n} points. It uses the sums Σx = ${sx}, Σx² = ${sx2}, Σx³ = ${sx3}, Σx⁴ = ${sx4}, Σy = ${sy}, Σxy = ${sxy} and Σx²y = ${sx2y}.`,
-      `It solves ${sx4}a + ${wrap(sx3)}b + ${sx2}c = ${sx2y}, ${wrap(sx3)}a + ${sx2}b + ${wrap(sx)}c = ${sxy} and ${sx2}a + ${wrap(sx)}b + ${n}c = ${sy}.`,
+      `Run quadratic regression (least squares) on all ${n} points. It uses the sums ${listedSums.slice(0, -1).join(', ')} and ${listedSums.at(-1)}.`,
+      `It solves${allExact ? '' : ' (to the rounding of those sums)'} ${normal(sx4, sx3, sx2)} = ${sx2y}, ${normal(sx3, sx2, sx)} = ${sxy} and ${normal(sx2, sx, String(n))} = ${sy}.`,
       `The solution is a ${rel(exact.a, a)} ${shown(a)}, b ${rel(exact.b, b)} ${shown(b)} and c ${rel(exact.c, c)} ${shown(c)}, so the model is ${model.equation}.`,
     ],
-    why: [`the residuals y − ŷ of the least-squares quadratic add to 0 (that is the last equation), and ${residualCheck(facts, model, expectedModel.predict)}.`],
+    why: [`the residuals y − ŷ of the least-squares quadratic add to 0 (that is the last equation), and ${residualCheck(facts, model, level, expectedModel.model, expectedModel.predict)}.`],
   };
 };
 
 const exponentialFitSection = (facts, level) => {
   const { points, expectedModel, X } = facts;
   const model = modelText('exponential', expectedModel.model, level, facts);
+  if (!model) return null;
   const { a, base } = model.coefficients;
   // The grader's exponential regression uses only the points with y > 0.
   const numeric = points.map(([x, y]) => [Number(x), Number(y)]);
@@ -361,12 +476,27 @@ const exponentialFitSection = (facts, level) => {
   const ux = used.map(([x]) => x);
   const logs = used.map(([, y]) => Math.log(y));
   const L = Math.max(1, ...logs.map(Math.abs));
-  const uxBarText = say(sum(ux) / used.length, X);
+  const uxBar = sum(ux) / used.length;
+  const uxBarText = say(uxBar, X);
   const logBarText = say(sum(logs) / used.length, L);
   const slopeText = say(Math.log(Number(expectedModel.model.base)), L / X);
+  /*
+   * e^(ln b) and e^(mean − ln b·x̄), written with the rounded ln b, mean and
+   * x̄, must round to the b and a they are set "≈" to. With x̄ near 2000 a
+   * slope rounded to 4 figures moves a by 1% (e^(1.811 − 0.01463·2014) is
+   * 9.775e-13, not a ≈ 9.87e-13); then the step names the formula instead.
+   */
+  const number = (text) => Number(String(text).replace('−', '-'));
+  const baseFromShown = Math.exp(number(slopeText));
+  const aFromShown = Math.exp(number(logBarText) - number(slopeText) * number(uxBarText));
+  const baseWork = roundsTo(baseFromShown, base)
+    ? `b = e^${wrap(slopeText)} ≈ ${base}` : `b = e^(ln b) ≈ ${base}`;
+  const aWork = roundsTo(aFromShown, a)
+    ? `a = e^(${logBarText} − ${wrap(slopeText)}·${wrap(uxBarText)}) ≈ ${shown(a)}`
+    : `a = e^(mean of ln y − ln b·x̄) ≈ ${shown(a)}`;
   const listed = used.length <= 8 ? ` For the points used, ln y ≈ ${logs.map((value) => say(value, L)).join(', ')}.` : '';
   const droppedText = dropped.length
-    ? ` The point${dropped.length > 1 ? 's' : ''} ${dropped.map(([x, y]) => `(${say(x, X)}, ${say(y, facts.Y)})`).join(', ')} ${dropped.length > 1 ? 'are' : 'is'} left out because ln y needs y > 0.`
+    ? ` The point${dropped.length > 1 ? 's' : ''} ${dropped.map(([x, y]) => `(${dataText(x)}, ${dataText(y)})`).join(', ')} ${dropped.length > 1 ? 'are' : 'is'} left out because ln y needs y > 0.`
     : '';
   return {
     model,
@@ -377,16 +507,17 @@ const exponentialFitSection = (facts, level) => {
     ],
     steps: [
       `Exponential regression fits a line to the points (x, ln y), because y = a(b)^x means ln y = ln a + x·ln b.${droppedText}${listed}`,
-      `Least squares on (x, ln y): x̄ = ${uxBarText}, the mean of ln y ≈ ${logBarText}, and the slope ln b = Σ(x − x̄)(ln y − mean) ÷ Σ(x − x̄)² ≈ ${slopeText}.`,
-      `So b = e^${wrap(slopeText)} ≈ ${base} and a = e^(${logBarText} − ${wrap(slopeText)}·${wrap(uxBarText)}) ≈ ${shown(a)}, giving ${model.equation}.`,
+      `Least squares on (x, ln y): x̄ ${rel(uxBar, uxBarText)} ${uxBarText}, the mean of ln y ≈ ${logBarText}, and the slope ln b = Σ(x − x̄)(ln y − mean) ÷ Σ(x − x̄)² ≈ ${slopeText}.`,
+      `So ${baseWork} and ${aWork}, giving ${model.equation}.`,
     ],
-    why: [`each step of 1 in x multiplies ŷ by the base ${base}, and ${residualCheck(facts, model, expectedModel.predict)}.`],
+    why: [`each step of 1 in x multiplies ŷ by the base ${base}, and ${residualCheck(facts, model, level, expectedModel.model, expectedModel.predict)}.`],
   };
 };
 
 const squareRootFitSection = (facts, level) => {
   const { points, expectedModel } = facts;
   const model = modelText('squareRoot', expectedModel.model, level, facts);
+  if (!model) return null;
   const { a, h, k } = model.coefficients;
   const hValue = Number(expectedModel.model.h);
   const kValue = Number(expectedModel.model.k);
@@ -395,8 +526,9 @@ const squareRootFitSection = (facts, level) => {
   const products = rest.map(([x, y]) => Math.sqrt(x - hValue) * (y - kValue));
   const squares = rest.map(([x]) => x - hValue);
   const numeratorText = say(sum(products), sumAbs(products));
-  const denominatorText = say(sum(squares), sumAbs(squares));
-  const ratioSign = rel(sum(products), numeratorText) === '=' && rel(sum(squares), denominatorText) === '=' ? '=' : '≈';
+  const denominator = sumText(squares, facts.xPlaces);
+  const denominatorText = denominator.text;
+  const ratioSign = rel(sum(products), numeratorText) === '=' && denominator.exact ? '=' : '≈';
   return {
     model,
     items: [
@@ -410,7 +542,7 @@ const squareRootFitSection = (facts, level) => {
       `For the other ${rest.length} points, a·√(x − h) should match y − k. Least squares gives a = Σ√(x − h)(y − k) ÷ Σ(x − h) ${ratioSign} ${numeratorText} ÷ ${denominatorText} ${rel(expectedModel.model.a, a)} ${shown(a)}.`,
       `So the model is ${model.equation}.`,
     ],
-    why: [`the model passes through the endpoint, ${wrap(shown(a))}√(${wrap(shown(h))} − ${wrap(shown(h))}) + ${wrap(shown(k))} = ${shown(k)}, and ${residualCheck(facts, model, expectedModel.predict)}.`],
+    why: [`the model passes through the endpoint, ${leadTerm(a, `√(${wrap(shown(h))} − ${wrap(shown(h))})`)}${signed(k, '')} = ${shown(k)}, and ${residualCheck(facts, model, level, expectedModel.model, expectedModel.predict)}.`],
   };
 };
 
@@ -423,6 +555,9 @@ const fitSection = (facts, level) => {
 
 /** r with enough places that its reading (direction, strength) is the true one, and never a false ±1. */
 const correlationText = (r, descriptor, level) => {
+  // Points on one line have r = ±1; floating point can leave it 1e-16 short
+  // (r = −0.9999999999999999 was printed whole). That is a perfect fit, not a false one.
+  if (Math.abs(Math.abs(r) - 1) <= 1e-14) return r > 0 ? '1' : '-1';
   for (let places = 3 + level; places <= 12; places += 1) {
     const text = trimZeros(r.toFixed(places));
     const value = Number(text);
@@ -531,8 +666,21 @@ const predictionSection = (facts, fit, level) => {
   // family in a fit-and-predict mode, and otherwise the expected family.
   const usesFit = lineFitPrediction || (fit && fitFamily === expectedModelId);
   const model = usesFit ? fit.model : modelText(expectedModelId, expectedModel.model, level, facts);
-  const xText = numberText(prediction.x, level);
+  if (!model) return null;
+  // The target x is the question's (or the lab's start), quoted as it is.
+  const xText = numberText(prediction.x, PRECISION_LEVELS);
   const yText = numberText(settle(prediction.value, Y, level), level);
+  /*
+   * The substitution's own arithmetic must give ŷ as printed; when the rounded
+   * coefficients do not, it keeps more places in them (the answer still names
+   * the ones typed into the lab). If no precision does, the working cannot be
+   * shown honestly and there is no review.
+   */
+  const family = lineFitPrediction ? 'linear' : expectedModelId;
+  const raw = lineFitPrediction ? facts.regression : expectedModel.model;
+  const worked = workedAt(family, raw, model, level, facts, prediction.x, shown(yText));
+  if (!worked) return null;
+  const morePlaces = worked !== model;
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const steps = [];
@@ -544,11 +692,11 @@ const predictionSection = (facts, fit, level) => {
         : `the family with the smallest ${METRIC_LABELS[metric]}`;
     steps.push(`Use the ${FAMILY_LABELS[expectedModelId]} model (${source}): ${model.equation}.`);
   }
-  const sign = rel(evaluateShown(model, prediction.x), yText);
-  steps.push(`Substitute x = ${shown(xText)}: ŷ = ${substitution(model, shown(xText))} ${sign} ${shown(yText)}.`);
+  const sign = rel(evaluateShown(worked, prediction.x), yText);
+  steps.push(`Substitute x = ${shown(xText)}${morePlaces ? ', keeping more places in the coefficients so that rounding them does not move ŷ' : ''}: ŷ = ${substitution(worked, shown(xText))} ${sign} ${shown(yText)}.`);
   if (prediction.asksType) {
     const inside = prediction.type === 'interpolation';
-    steps.push(`The data's x-values run from ${say(minX, X)} to ${say(maxX, X)}; x = ${shown(xText)} is ${inside ? 'inside' : 'outside'} that range, so the prediction is ${inside ? 'an interpolation' : 'an extrapolation'}.`);
+    steps.push(`The data's x-values run from ${dataText(minX)} to ${dataText(maxX)}; x = ${shown(xText)} is ${inside ? 'inside' : 'outside'} that range, so the prediction is ${inside ? 'an interpolation' : 'an extrapolation'}.`);
   }
   const caution = !prediction.asksType ? ''
     : prediction.type === 'interpolation'
@@ -561,7 +709,7 @@ const predictionSection = (facts, fit, level) => {
       ...(prediction.asksType ? [{ label: 'This prediction is', value: TYPE_LABELS[prediction.type] }] : []),
     ],
     steps,
-    why: [`substituting x = ${shown(xText)} back into ${model.equation} gives ŷ ${sign} ${shown(yText)}${caution}.`],
+    why: [`substituting x = ${shown(xText)} back into ${worked.equation} gives ŷ ${sign} ${shown(yText)}${caution}.`],
     notes: prediction.fixed ? [] : [
       `You could choose any x: the prediction is marked against this model's value at the x you chose${prediction.asksType ? ', and its type by whether that x is inside the data\'s x-range' : ''}. The lab started at x = ${shown(xText)}.`,
     ],
@@ -628,6 +776,7 @@ const compose = (facts, level) => {
   for (const part of parts) {
     if (part === 'fit') {
       fit = fitSection(facts, level);
+      if (!fit) return null;
       Object.assign(work, fit.model.coefficients);
       sections.push(fit);
       const note = stepperNote(facts, fit);
@@ -652,6 +801,7 @@ const compose = (facts, level) => {
       sections.push(section);
     } else if (part === 'prediction') {
       const section = predictionSection(facts, fit, level);
+      if (!section) return null;
       Object.assign(work, section.work);
       notes.push(...section.notes);
       sections.push(section);

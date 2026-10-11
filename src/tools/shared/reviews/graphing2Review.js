@@ -175,7 +175,13 @@ const standardText = ({ A, B, C }) => {
   return `${terms.join(' ')} = ${frac(C)}`;
 };
 
-const factoredText = ({ a, c }) => (isZero(c) ? `y = ${coefficient(a)}x` : `y = ${coefficient(a)}(x${plusTerm(-c)})`);
+// k(x − x₁), with the bracket dropped only where it multiplies a plain x: a
+// zero slope keeps it, so point-slope form reads "y − 3 = 0(x − 0)", never "0x".
+const timesOffset = (k, x1) => (isZero(x1) && !isZero(k) ? `${coefficient(k)}x`
+  : `${coefficient(k)}(x${isZero(x1) ? ` ${MINUS} 0` : plusTerm(-x1)})`);
+
+const factoredText = ({ a, c }) => `y = ${timesOffset(a, c)}`;
+const pointSlopeText = ([x1, y1], m) => `y${plusTerm(-y1)} = ${timesOffset(m, x1)}`;
 
 // Solving k·v = rhs for v, in words: "2x = 4 and x = 2" (or "x = 4").
 const solveText = (k, variable, rhs) => (isOne(k)
@@ -347,8 +353,7 @@ const introSteps = (mode, question, target) => {
   if (mode === 'pointSlope') {
     const [x1, y1] = readPoint(question.point);
     const m = Number(question.slope);
-    const pointSlope = `y${plusTerm(-y1)} = ${coefficient(m)}${isZero(x1) ? 'x' : `(x${plusTerm(-x1)})`}`;
-    return [`The line goes through the given point ${pt([x1, y1])} with slope ${frac(m)}: ${pointSlope}, which is ${line} in slope-intercept form.`];
+    return [`The line goes through the given point ${pt([x1, y1])} with slope ${frac(m)}: ${pointSlopeText([x1, y1], m)}, which is ${line} in slope-intercept form.`];
   }
   if (mode === 'factoredLinear') {
     const a = Number(question.factored.a); const c = Number(question.factored.c);
@@ -379,7 +384,7 @@ const introSteps = (mode, question, target) => {
     const given = `The line must pass through the given points ${pt([x1, y1])} and ${pt([x2, y2])}.`;
     if (target.kind === 'vertical') return [`${given} Both have x = ${num(x1)}, so the line is the vertical line ${line}.`];
     const paren = (value) => (value < 0 ? `(${num(value)})` : num(value));
-    return [`${given} Its slope is (${num(y2)} − ${paren(y1)}) ÷ (${num(x2)} − ${paren(x1)}) = ${num(y2 - y1)} ÷ ${num(x2 - x1)} = ${frac(target.m)}, so the line is ${line}.`];
+    return [`${given} Its slope is (${num(y2)} − ${paren(y1)}) ÷ (${num(x2)} − ${paren(x1)}) = ${num(y2 - y1)} ÷ ${paren(x2 - x1)} = ${frac(target.m)}, so the line is ${line}.`];
   }
   if (mode === 'verticalHorizontal' || target.kind === 'vertical') {
     if (target.kind === 'vertical') return [`${line} is a vertical line: every point on it has x-coordinate ${frac(target.x)}, whatever its y-coordinate.`];
@@ -425,8 +430,7 @@ const equationForCheck = (mode, question, target) => {
   if (mode === 'standardForm') return standardText(standardOf(question));
   if (mode === 'factoredLinear') return factoredText({ a: Number(question.factored.a), c: Number(question.factored.c) });
   if (mode === 'pointSlope') {
-    const [x1, y1] = readPoint(question.point);
-    return `y${plusTerm(-y1)} = ${coefficient(Number(question.slope))}${isZero(x1) ? 'x' : `(x${plusTerm(-x1)})`}`;
+    return pointSlopeText(readPoint(question.point), Number(question.slope));
   }
   return lineText(target);
 };
@@ -506,6 +510,10 @@ const buildReview = (question) => {
   if (!isRecord(question)) return null;
   const mode = graphingModeOf(question);
   if (!MODES.includes(mode) || !modeDataPresent(mode, question)) return null;
+  // y = 0(x − c) is the x-axis: every point is an x-intercept, so the form's
+  // "x-intercept (c, 0)" — the review's starting point and a form-aware
+  // anchor — is not the line's. No honest walk-through starts there.
+  if (mode === 'factoredLinear' && isZero(Number(question.factored.a))) return null;
   const target = graphingTargetLine(question);
   if (!target) return null;
   if (target.kind === 'vertical' ? !Number.isFinite(target.x) : ![target.m, target.b].every(Number.isFinite)) return null;

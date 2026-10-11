@@ -40,6 +40,9 @@ test('path-admin is an additive Firebase Functions codebase of its own', () => {
   assert.deepEqual(defaultCodebase.predeploy, [
     'node scripts/write-functions-provenance.mjs --codebase default --dir functions',
     'node scripts/build-ccmr-v2-1-production-release.mjs --write',
+    // Student push I, item 5: the freeze plans a short week with the
+    // browser's own planner, copied into functions/vendor/ (gitignored).
+    'node scripts/sync-functions-weekly-planner.mjs',
   ]);
 });
 
