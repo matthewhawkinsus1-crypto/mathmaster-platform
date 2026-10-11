@@ -352,6 +352,17 @@ const applyFilter = (value, filter) => {
     case 'sign': return Number.isFinite(numeric) ? (numeric < 0 ? '-' : '+') : String(value);
     // Parenthesise a negative so "3 × {{m|paren}}" reads "3 × (-4)".
     case 'paren': return Number.isFinite(numeric) && numeric < 0 ? `(${numeric})` : String(value);
+    // Written forms for worked solutions, so a review never reads "1x" or "+ 0":
+    // `coef` leads a variable ("{{m|coef}}x": 1 → "x", -1 → "-x"),
+    // `term` is a signed constant that vanishes at 0, and
+    // `xterm` is a signed x-term that vanishes at 0 ("+ x", "- 3x", "").
+    case 'coef': return Number.isFinite(numeric) && Math.abs(numeric) === 1 ? (numeric < 0 ? '-' : '') : String(value);
+    case 'term': return Number.isFinite(numeric)
+      ? (numeric === 0 ? '' : `${numeric < 0 ? '-' : '+'} ${Math.abs(numeric)}`)
+      : String(value);
+    case 'xterm': return Number.isFinite(numeric)
+      ? (numeric === 0 ? '' : `${numeric < 0 ? '-' : '+'} ${Math.abs(numeric) === 1 ? '' : Math.abs(numeric)}x`)
+      : String(value);
     default: return String(value);
   }
 };

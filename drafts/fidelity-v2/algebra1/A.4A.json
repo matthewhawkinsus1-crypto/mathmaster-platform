@@ -125,11 +125,15 @@
       ],
       "correlationTolerance": 0.025,
       "solutionReview": {
-        "headline": "Negative association still requires a numerical calculation.",
+        "headline": "The five points give $r\\approx {{r}}$: a strong negative linear association.",
         "reasoning": [
-          "Enter all five points and run the correlation calculation.",
-          "A negative sign means the variables move in opposite directions; use the magnitude to judge strength."
-        ]
+          "The points are $(0,{{y0}})$, $(1,{{y1}})$, $(2,{{y2}})$, $(3,{{y3}})$, $(4,{{y4}})$. Their means are $\\bar x=2$ and $\\bar y={{ybar}}$.",
+          "From the deviations: $S_{xy}=\\sum(x-\\bar x)(y-\\bar y)={{sxy}}$, $S_{xx}=\\sum(x-\\bar x)^2=10$ and $S_{yy}=\\sum(y-\\bar y)^2={{syy}}$.",
+          "Then $r=\\frac{S_{xy}}{\\sqrt{S_{xx}S_{yy}}}=\\frac{{{sxy}}}{\\sqrt{10\\cdot {{syy}}}}\\approx {{r}}$, the value technology reports.",
+          "Direction: $r$ is negative, so as $x$ increases $y$ tends to decrease (from {{y0}} down to {{y4}}). Strength: $|r|\\ge 0.8$, so the association is strong even though the points zig-zag."
+        ],
+        "commonError": "Dropping the negative sign, or calling the association weak because the points do not lie exactly on a line. The sign of $r$ gives the direction; $|r|$ close to 1 means strong.",
+        "answerSummary": "$r\\approx {{r}}$: a strong negative linear association."
       },
       "attemptFeedback": [
         "Check that you did not drop the negative direction when interpreting the coefficient."
@@ -155,7 +159,11 @@
           "y1": "b-m+1",
           "y2": "b-2*m-1",
           "y3": "b-3*m+1",
-          "y4": "b-4*m-1"
+          "y4": "b-4*m-1",
+          "ybar": "b-2*m",
+          "sxy": "-(10*m+2)",
+          "syy": "10*m*m+4*m+4",
+          "r": "round(-1000*(10*m+2)/sqrt(10*(10*m*m+4*m+4)))/1000"
         }
       }
     },

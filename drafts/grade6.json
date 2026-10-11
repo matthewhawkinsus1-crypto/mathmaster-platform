@@ -4356,12 +4356,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "A ratio in this standard compares like attributes.",
+        "headline": "A ratio such as ${{a}}$ red tiles to ${{b}}$ blue tiles compares two counts of the same attribute.",
         "reasoning": [
-          "Red marbles and blue marbles are both counts of marbles.",
-          "Miles per hour and dollars per pound compare different attributes and are rates."
+          "The prompt's ratio is ${{a}}$ red tiles to ${{b}}$ blue tiles, written ${{a}}:{{b}}$. Both numbers count tiles, so both quantities describe the same attribute.",
+          "${{a}}$ red marbles to ${{b}}$ blue marbles is built the same way: a count of marbles compared with a count of marbles, so it compares the same attribute.",
+          "${{a}}$ miles in ${{b}}$ hours compares distance with time, and ${{a}}$ dollars for ${{b}}$ pounds compares money with weight. Each pairs two different attributes, so each is a rate, not a same-attribute ratio."
         ],
-        "answerSummary": "Red marbles to blue marbles"
+        "commonError": "Choosing a rate such as ${{a}}$ miles in ${{b}}$ hours because it also pairs the numbers ${{a}}$ and ${{b}}$; check that both numbers measure the same attribute.",
+        "answerSummary": "${{a}}$ red marbles to ${{b}}$ blue marbles"
       },
       "attemptFeedback": [
         "Check the relationship in the question before trying again."
@@ -7069,11 +7071,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "The independent quantity is the input you choose or control.",
+        "headline": "At ${{rate}}$ miles per hour, distance is calculated from the time traveled, so time is the independent variable.",
         "reasoning": [
-          "Distance depends on how long the travel lasts.",
-          "Use the defining property to rule out choices that do not match the mathematical idea."
+          "The speed stays fixed at ${{rate}}$ miles per hour; what changes from trip to trip is how long the traveler moves.",
+          "Distance is found by multiplying the hours by ${{rate}}$. For example, $2$ hours gives ${{rate}} \\times 2 = {{d2}}$ miles and $3$ hours gives ${{rate}} \\times 3 = {{d3}}$ miles.",
+          "Because each distance is computed from a chosen time, distance depends on time. Time traveled is the independent variable and distance traveled is the dependent variable."
         ],
+        "commonError": "Choosing distance because it is the result you care about; the dependent variable is the one calculated from the other, and here distance is calculated from time.",
         "answerSummary": "Time traveled"
       },
       "attemptFeedback": [
@@ -7089,6 +7093,10 @@
             "min": 2,
             "max": 15
           }
+        },
+        "derived": {
+          "d2": "2*rate",
+          "d3": "3*rate"
         }
       }
     },
@@ -7133,11 +7141,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Total cost depends on how many tickets are purchased.",
+        "headline": "Total cost depends on how many tickets are bought: each ticket adds ${{price}}$ dollars.",
         "reasoning": [
-          "Choosing more tickets changes the total cost.",
-          "Use the defining property to rule out choices that do not match the mathematical idea."
+          "The table pairs tickets purchased with total cost: $1$ ticket costs ${{price}}$ dollars, $2$ tickets cost ${{cost2}}$ dollars, and $3$ tickets cost ${{cost3}}$ dollars.",
+          "Each total is the number of tickets times the price: $2 \\times {{price}} = {{cost2}}$ and $3 \\times {{price}} = {{cost3}}$.",
+          "The buyer chooses the number of tickets, and the total cost is then calculated from that choice. The quantity that responds is the dependent quantity, so total cost is dependent and the number of tickets is independent."
         ],
+        "commonError": "Choosing the number of tickets; that is the quantity you pick (independent). The total cost is computed from it, so the total cost is the dependent quantity.",
         "answerSummary": "Total cost"
       },
       "attemptFeedback": [
@@ -7287,11 +7297,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Time is usually the independent quantity in growth data.",
+        "headline": "The plant's age is set by the weekly measuring schedule and its height responds, so age in weeks is independent.",
         "reasoning": [
-          "Height is observed after a chosen amount of time has passed.",
-          "The model must preserve both the quantities and the operation described in the situation."
+          "The plant is measured once per week for ${{weeks}}$ weeks, so the ages at which it is measured (week $1$ through week ${{weeks}}$) are fixed by the schedule before anything is measured.",
+          "The height is what gets observed at each of those ${{weeks}}$ ages, and it changes as the plant grows. Height depends on age, not the other way around.",
+          "The independent variable is the input that is chosen or controlled: age in weeks. Height is the dependent variable."
         ],
+        "commonError": "Choosing height because it is the quantity being measured; the measured, responding quantity is the dependent variable.",
         "answerSummary": "Age in weeks"
       },
       "attemptFeedback": [
@@ -8748,11 +8760,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "No relation symbol means it is an expression.",
+        "headline": "${{a}}x+{{b}}$ has no equals sign and no inequality symbol, so it is an expression.",
         "reasoning": [
-          "There is no equals or inequality sign.",
-          "Use the defining property to rule out choices that do not match the mathematical idea."
+          "${{a}}x+{{b}}$ is made of two terms, ${{a}}x$ and ${{b}}$, joined by addition.",
+          "An equation needs an equals sign joining two expressions, and an inequality needs $<$, $>$, $\\le$ or $\\ge$. ${{a}}x+{{b}}$ contains no relation symbol at all.",
+          "With no relation symbol it states nothing that can be true or false; it only names a value. For $x=1$ its value is ${{a}}(1)+{{b}}={{v1}}$. So it is an expression."
         ],
+        "commonError": "Calling it an equation because it contains a variable; a variable alone does not make an equation. An equation must have an equals sign.",
         "answerSummary": "An expression"
       },
       "attemptFeedback": [
@@ -8773,6 +8787,9 @@
             "min": 1,
             "max": 15
           }
+        },
+        "derived": {
+          "v1": "a+b"
         }
       }
     },
@@ -9331,11 +9348,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Commutative means the order changes.",
+        "headline": "${{a}}+x=x+{{a}}$ swaps the order of the two addends, which is the commutative property of addition.",
         "reasoning": [
-          "The two addends swap positions without changing the sum.",
-          "Use the defining property to rule out choices that do not match the mathematical idea."
+          "Left side: ${{a}}$ first, then $x$. Right side: $x$ first, then ${{a}}$. The same two addends appear on both sides; only their order changed.",
+          "Check with a value: if $x=1$, then ${{a}}+1=1+{{a}}={{s1}}$. Changing the order did not change the sum.",
+          "Changing order is the commutative property. No parentheses move, so it is not the associative property, and nothing is multiplied over a sum, so it is not the distributive property."
         ],
+        "commonError": "Choosing the associative property; associativity moves parentheses among three addends, but here only the order of two addends changes.",
         "answerSummary": "Commutative property of addition"
       },
       "attemptFeedback": [
@@ -9351,6 +9370,9 @@
             "min": 2,
             "max": 20
           }
+        },
+        "derived": {
+          "s1": "a+1"
         }
       }
     },
@@ -9399,11 +9421,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Associative means the grouping changes.",
+        "headline": "In $({{a}}+{{b}})+x={{a}}+({{b}}+x)$ only the parentheses move, which is the associative property of addition.",
         "reasoning": [
-          "The addends remain in the same order; only the grouping changes.",
-          "Use the defining property to rule out choices that do not match the mathematical idea."
+          "Read the addends left to right: ${{a}}$, ${{b}}$, $x$ on the left side and ${{a}}$, ${{b}}$, $x$ on the right side. The order is the same.",
+          "What changes is the grouping: the left side adds ${{a}}+{{b}}$ first, while the right side adds ${{b}}+x$ first.",
+          "Check with $x=1$: $({{a}}+{{b}})+1={{ab}}+1={{s1}}$ and ${{a}}+({{b}}+1)={{a}}+{{b1}}={{s1}}$. Regrouping did not change the sum.",
+          "Changing the grouping without changing the order is the associative property. It is not the commutative property (that changes order) or the identity property (that adds $0$)."
         ],
+        "commonError": "Choosing the commutative property; the numbers did not trade places, only the parentheses moved.",
         "answerSummary": "Associative property of addition"
       },
       "attemptFeedback": [
@@ -9424,6 +9449,11 @@
             "min": 2,
             "max": 15
           }
+        },
+        "derived": {
+          "ab": "a+b",
+          "b1": "b+1",
+          "s1": "a+b+1"
         }
       }
     },
@@ -13252,11 +13282,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Histograms group numerical data into intervals.",
+        "headline": "To show how ${{n}}$ numerical measurements are spread across intervals, use a histogram.",
         "reasoning": [
-          "A histogram is built for numerical intervals and their frequencies.",
-          "Use the defining property to rule out choices that do not match the mathematical idea."
+          "The data are ${{n}}$ numerical measurements, and the goal is to show how many of them fall in each interval of values.",
+          "A histogram splits the number line into equal-width intervals and draws a bar whose height is the number of measurements in each interval. The bars touch because the intervals are consecutive.",
+          "A category bar graph needs separate categories (like colors or names), and a circle graph shows parts of a whole. Neither groups the ${{n}}$ measurements into numerical intervals, so the histogram is the display designed for this."
         ],
+        "commonError": "Choosing a bar graph because both displays use bars; a bar graph's bars stand for separate categories, while a histogram's bars stand for touching numerical intervals.",
         "answerSummary": "Histogram"
       },
       "attemptFeedback": [
@@ -13493,11 +13525,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Mirror-like frequencies indicate symmetry.",
+        "headline": "Frequencies ${{a}},{{b}},{{c}},{{b}},{{a}}$ mirror each other around the middle bin, so the histogram is approximately symmetric.",
         "reasoning": [
-          "The first and last frequencies match, as do the second and fourth.",
-          "Read only the feature the question asks about, then connect that feature to its numerical meaning."
+          "The tallest bar is the middle (third) bin, with frequency ${{c}}$.",
+          "Pair the bins that are equally far from the middle: bins $1$ and $5$ both have ${{a}}$, and bins $2$ and $4$ both have ${{b}}$. Each side is a mirror image of the other.",
+          "The two sides hold the same number of values: left ${{a}}+{{b}}={{side}}$ and right ${{b}}+{{a}}={{side}}$. Neither side has a longer tail.",
+          "A right-skewed histogram has a long tail of short bars to the right, and a left-skewed one has it to the left. Here the bars fall off equally in both directions, so the shape is approximately symmetric."
         ],
+        "commonError": "Calling the shape skewed because the bars have different heights; skew depends on whether one side has a longer tail, and here both sides match exactly.",
         "answerSummary": "Approximately symmetric"
       },
       "attemptFeedback": [
@@ -13523,6 +13558,9 @@
             "min": 9,
             "max": 14
           }
+        },
+        "derived": {
+          "side": "a+b"
         }
       }
     },
@@ -14886,11 +14924,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Different observed values indicate variability.",
+        "headline": "The measurements ${{a}}$, ${{b}}$ and ${{c}}$ are not all the same, so the data have variability.",
         "reasoning": [
-          "The values are not all equal.",
-          "Use the defining property to rule out choices that do not match the mathematical idea."
+          "Compare the measurements: ${{a}}$, ${{b}}$ and ${{c}}$ are three different values.",
+          "Their range is ${{c}}-{{a}}={{spread}}$. Data with no variability would have every value equal and a range of $0$.",
+          "Because the range is ${{spread}}$, not $0$, the measurements vary: the data have variability."
         ],
+        "commonError": "Thinking variability requires big differences; any difference at all between the values means the data have variability.",
         "answerSummary": "Variability"
       },
       "attemptFeedback": [
@@ -14919,7 +14959,8 @@
         },
         "derived": {
           "b": "a+g1",
-          "c": "a+g1+g2"
+          "c": "a+g1+g2",
+          "spread": "c-a"
         }
       }
     },
@@ -15032,12 +15073,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Repeated identical values have zero spread.",
+        "headline": "All four readings are ${{a}}$, so the displayed data have no variability.",
         "reasoning": [
-          "All four readings are the same.",
-          "Read only the feature the question asks about, then connect that feature to its numerical meaning."
+          "The sensor's readings are ${{a}}$, ${{a}}$, ${{a}}$ and ${{a}}$: the same value four times.",
+          "Their range is ${{a}}-{{a}}=0$, and every reading is $0$ away from the mean, ${{a}}$.",
+          "Variability means the values differ from one another. These four readings do not differ, so the displayed data have no variability."
         ],
-        "answerSummary": "No variability"
+        "commonError": "Assuming real measurements must always vary; the question asks about these displayed readings, and they are all identical.",
+        "answerSummary": "The displayed data have no variability."
       },
       "attemptFeedback": [
         "Check the relationship in the question before trying again."
@@ -15096,11 +15139,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "A set has variability when its values are not all identical.",
+        "headline": "Set B (${{b1}},{{b2}},{{b3}}$) contains different values, so it has variability; Set A repeats ${{a}}$.",
         "reasoning": [
-          "Set A repeats one value; Set B contains distinct values.",
-          "Put both quantities in the same form or use the same measure before deciding which is greater."
+          "Set A is ${{a}},{{a}},{{a}}$: one value repeated, so its range is ${{a}}-{{a}}=0$ and it has no variability.",
+          "Set B is ${{b1}},{{b2}},{{b3}}$: the values differ, and its range is ${{b3}}-{{b1}}={{rangeB}}$.",
+          "A range greater than $0$ means the values vary. Set B's range is ${{rangeB}}$, so Set B is the set with variability."
         ],
+        "commonError": "Judging by how large the numbers are; variability is about whether the values differ from each other, not about their size.",
         "answerSummary": "Set B"
       },
       "attemptFeedback": [
@@ -15134,7 +15179,8 @@
         },
         "derived": {
           "b2": "b1+g1",
-          "b3": "b1+g1+g2"
+          "b3": "b1+g1+g2",
+          "rangeB": "b3-b1"
         }
       }
     },

@@ -145,7 +145,11 @@ test('every draw is issuable, mathematically correct by an independent fit, and 
 
       // The solution text states the oracle's coefficients.
       const review = JSON.stringify(question.solutionReview);
-      if (kind === 'linear') assert.ok(review.includes(`y=${parameters.m}x+(${parameters.b})`), `${label} linear solution text`);
+      // A2.8C is written as a textbook would (#469 review): no "1x", no "+ 0", no "+(-8)".
+      const coefficient = (value) => (Math.abs(value) === 1 ? (value < 0 ? '-' : '') : String(value));
+      const constant = (value) => (value === 0 ? '' : `${value < 0 ? '-' : '+'} ${Math.abs(value)}`);
+      const written = id.startsWith('mm_A2_8C_') ? `y=${coefficient(parameters.m)}x${constant(parameters.b)}` : `y=${parameters.m}x+(${parameters.b})`;
+      if (kind === 'linear') assert.ok(review.includes(written), `${label} linear solution text`);
       if (kind === 'quadratic' && !question.predictionX) {
         assert.ok(review.includes(`a=${parameters.a}, b=${parameters.b}, and c=${parameters.c}`), `${label} quadratic solution text`);
       }
