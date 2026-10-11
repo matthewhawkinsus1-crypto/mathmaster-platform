@@ -51,8 +51,12 @@ test('the toggle writes dotted paths so the rest of the Warm-Up survives', () =>
 });
 
 test('the teacher panel is given the assignments and the handler', () => {
-  assert.match(app, /assignments=\{assignments\}/);
-  assert.match(app, /onLinkWarmupChallenge=\{handleLinkWarmupChallenge\}/);
+  // Mounted by the teacher's screen, its own module since G2, given App's
+  // handler by name.
+  const teacherWorkspace = read('../../src/app/teacher/TeacherWorkspace.jsx');
+  assert.match(teacherWorkspace, /assignments=\{assignments\}/);
+  assert.match(teacherWorkspace, /onLinkWarmupChallenge=\{handleLinkWarmupChallenge\}/);
+  assert.match(app, /\n {8}handleLinkWarmupChallenge=\{handleLinkWarmupChallenge\}\n/);
 });
 
 test('round settings are clamped before they are stored', () => {

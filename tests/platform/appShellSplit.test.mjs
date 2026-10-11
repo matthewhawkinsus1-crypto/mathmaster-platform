@@ -31,8 +31,10 @@ test('lint refuses free identifiers in App and every moved module, and browser-g
   }
 });
 
-const importedFrom = (module) => {
-  const match = app.match(new RegExp(`import \\{([^}]*)\\} from '${module.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';`));
+const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+const teacherWorkspaceCode = executableSource(teacherWorkspace);
+const importedFrom = (module, source = app) => {
+  const match = source.match(new RegExp(`import \\{([^}]*)\\} from '${module.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';`));
   return match ? match[1].split(',').map((name) => name.trim()).filter(Boolean) : [];
 };
 const exportsOf = (path) => [...read(path).matchAll(/^export const ([A-Za-z0-9_$]+)/gm)].map((match) => match[1]);
@@ -44,11 +46,15 @@ test('every moved helper, scope table and lazy screen is imported by App and dec
     ['./app/lazyScreens.js', 'src/app/lazyScreens.js'],
   ]) {
     const exported = exportsOf(path);
-    const imported = importedFrom(module);
+    // Since G2 the teacher's screen (src/app/teacher/TeacherWorkspace.jsx)
+    // takes what only it uses; between them, App and it import exactly what
+    // the module exports.
+    const imported = [...new Set([...importedFrom(module), ...importedFrom(module.replace('./app/', '../'), teacherWorkspace)])];
     assert.ok(exported.length > 0, `${path} exports nothing`);
-    assert.deepEqual([...imported].sort(), [...exported].sort(), `${module}: App imports exactly what the module exports`);
+    assert.deepEqual([...imported].sort(), [...exported].sort(), `${module}: App and the teacher workspace import exactly what the module exports`);
     for (const name of exported) {
       assert.doesNotMatch(appCode, new RegExp(`^\\s*(?:const|let|function) ${name}\\b`, 'm'), `${name} is declared in App.jsx as well`);
+      assert.doesNotMatch(teacherWorkspaceCode, new RegExp(`^\\s*(?:const|let|function) ${name}\\b`, 'm'), `${name} is declared in TeacherWorkspace.jsx as well`);
     }
   }
 });
@@ -104,13 +110,46 @@ test('the teacher-only panels load on demand, each inside its own Suspense bound
   const screens = executableSource(read('src/app/lazyScreens.js'));
   const helper = screens.match(/const teacherPanel = \(load\) => \{\s*const Lazy = lazy\(load\);\s*const Panel = \(props\) => createElement\(Suspense, \{ fallback: null \}, createElement\(Lazy, props\)\);\s*return Panel;\s*\};/);
   assert.ok(helper, 'teacherPanel: lazy, inside Suspense with no fallback, every prop passed through');
-  const imported = importedFrom('./app/lazyScreens.js');
+  // Taken by App or, since the teacher's screen left App, by TeacherWorkspace.
+  const imported = [...importedFrom('./app/lazyScreens.js'), ...importedFrom('../lazyScreens.js', teacherWorkspace)];
   for (const [name, path] of Object.entries(TEACHER_PANELS)) {
     assert.match(screens, new RegExp(`^export const ${name} = teacherPanel\\(\\(\\) => import\\('\\.\\./${path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}'\\)`, 'm'), `${name} loads ${path} on demand`);
-    assert.ok(imported.includes(name), `App takes ${name} from lazyScreens.js`);
-    // No static import of the component's file is left in App.
+    assert.ok(imported.includes(name), `App or the teacher workspace takes ${name} from lazyScreens.js`);
+    // No static import of the component's file is left in App or the workspace.
     assert.doesNotMatch(app, new RegExp(`^import [^;]* from '\\./${path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';$`, 'm'), `App still imports ${path} statically`);
+    assert.doesNotMatch(teacherWorkspace, new RegExp(`^import [^;]* from '\\.\\./\\.\\./${path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';$`, 'm'), `TeacherWorkspace imports ${path} statically`);
   }
+});
+
+/*
+ * G2: the teacher's whole screen — App's `if (user.role === 'teacher')`
+ * branch — is src/app/teacher/TeacherWorkspace.jsx, loaded on demand. Moved
+ * verbatim; every input is explicit. App passes each prop as `name={name}`, so
+ * the workspace reads exactly what the branch read. A prop App forgot is
+ * undefined at runtime with nothing to catch it: the two lists must agree.
+ */
+test('the teacher workspace is App\'s teacher branch, given every input it reads by name', () => {
+  const screens = read('src/app/lazyScreens.js');
+  assert.match(screens, /^export const TeacherWorkspace = lazy\(\(\) => import\('\.\.\/app\/teacher\/TeacherWorkspace\.jsx'\)\);$/m);
+  assert.ok(importedFrom('./app/lazyScreens.js').includes('TeacherWorkspace'));
+  const signature = teacherWorkspace.match(/^export default function TeacherWorkspace\(\{\n([\s\S]*?)\n\}\) \{$/m);
+  assert.ok(signature, 'the workspace destructures its props by name');
+  const props = signature[1].split('\n').map((line) => line.trim().replace(/,$/, ''));
+  assert.ok(props.length > 200 && props.every((name) => /^[A-Za-z_$][\w$]*$/.test(name)), 'one plain name per line');
+  const branch = appCode.match(/\n {2}if \(user\.role === 'teacher'\) \{\s*return \(\s*<TeacherWorkspace\n([\s\S]*?)\n {6}\/>\s*\);\s*\}\n/);
+  assert.ok(branch, 'App\'s teacher branch renders the workspace and nothing else');
+  const passed = branch[1].split('\n').map((line) => line.trim());
+  assert.deepEqual(passed, props.map((name) => `${name}={${name}}`), 'App passes exactly the props the workspace reads, each under its own name');
+  // The branch's position is unchanged: after the preview, before the student screens.
+  assert.ok(appCode.indexOf('if (isTeacherPreview) {') < branch.index);
+  assert.ok(branch.index < appCode.indexOf("if (user.role === 'student' && activeView === 'dashboard') {"));
+  // Every prop is something App declares or imports (nothing reaches the
+  // workspace as undefined).
+  for (const name of props) {
+    assert.match(app, new RegExp(`(?:\\bconst \\[?\\s*${name}\\b|\\bconst \\[[^\\]]*\\b${name}\\b[^\\]]*\\]|\\bconst \\{[^}]*\\b${name}\\b[^}]*\\}|\\bfunction ${name}\\(|^import [^;]*\\b${name}\\b[^;]*;|\\blet ${name}\\b)`, 'm'), `${name} is declared or imported in App`);
+  }
+  // Hooks stay in App: the branch had none, and the workspace calls none.
+  assert.doesNotMatch(teacherWorkspaceCode, /\buse[A-Z]\w*\(/);
 });
 
 test('the session gate renders for any screen that does not belong to the account signed in now', () => {

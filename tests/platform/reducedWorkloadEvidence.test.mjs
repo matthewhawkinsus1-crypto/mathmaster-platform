@@ -214,7 +214,11 @@ test('App records the workload with its details, its content variant and the gov
   assert.match(recorder, /details,\s*\n\s*\},/);
   const store = readFileSync(new URL('../../src/platform/supportEvidence/supportEvidenceStore.js', import.meta.url), 'utf8');
   assert.match(store, /availabilityEventId\(\{\s*assignmentId: payload\.assignmentId, profileRevisionId: payload\.profileRevisionId, supportId: payload\.supportId, variant,/);
-  assert.match(app, /import \{ describeWorkloadSummary \} from '\.\.\/functions\/shared\/reducedWorkload\.mjs';/);
   const lifecycleImport = app.match(/import \{([^}]*)\} from '\.\/assignmentLifecycle';/);
   assert.match(lifecycleImport[1], /\bstudentRequiredQuestions,/);
+  // The workload summary is shown by the teacher's gradebook, its own module
+  // since G2: imported there, next to its call.
+  const teacherWorkspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  assert.match(teacherWorkspace, /^import \{ describeWorkloadSummary \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/reducedWorkload\.mjs';$/m);
+  assert.match(teacherWorkspace, /describeWorkloadSummary\(/);
 });

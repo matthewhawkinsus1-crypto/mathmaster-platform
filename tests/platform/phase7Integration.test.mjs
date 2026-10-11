@@ -18,6 +18,8 @@ import { assignmentLibrarySource } from './helpers/splitComponentSource.mjs';
 const require = createRequire(import.meta.url);
 const serverRigor = require('../../functions/lib/rigorPolicy.js');
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+// The teacher's screen (Administration, the sidebar tabs) is its own module since G2.
+const teacherWorkspaceSource = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
 const sidebarSource = readFileSync(new URL('../../src/TeacherSidebar.jsx', import.meta.url), 'utf8');
 const adminUiSource = readFileSync(new URL('../../src/SignInAccess.jsx', import.meta.url), 'utf8');
 const librarySource = assignmentLibrarySource();
@@ -172,8 +174,8 @@ test('demo seed is populated, imperfect, resettable by design, and isolated from
 });
 
 test('root Administration is visible only from the root-aware app and permanent deletion stays callable-only', () => {
-  assert.match(appSource, /user\.isRootAdmin/);
-  assert.match(appSource, /MathMaster Administration/);
+  assert.match(teacherWorkspaceSource, /user\.isRootAdmin/);
+  assert.match(teacherWorkspaceSource, /MathMaster Administration/);
   assert.match(adminUiSource, /Permanently delete/);
   assert.match(adminUiSource, /teacherAdmin\.permanentlyDeleteStudent/);
   const gradesBlock = firestoreRules.match(/match \/grades\/\{studentId\}[\s\S]*?match \/scratchpads/);
@@ -193,7 +195,7 @@ test('mixed Standard/Honors publication creates destination variants and keeps p
 test('teacher navigation exposes Demo/Student Access and Library exposes remembered collapse state', () => {
   assert.match(sidebarSource, /Demo Experience/);
   assert.match(sidebarSource, /Student Access/);
-  assert.match(appSource, /<DemoExperience \/>/);
+  assert.match(teacherWorkspaceSource, /<DemoExperience \/>/);
   assert.match(librarySource, /folder-pane-collapsed/);
   assert.match(librarySource, /expanded-folders/);
   assert.match(librarySource, /Folder actions/);

@@ -4,10 +4,13 @@ import fs from 'node:fs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
+// The teacher's screen (the assignment menu, the Pre-Flight mount) left App
+// for its own module in G2; the handlers it calls stay in App.
+const teacherWorkspace = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
 
 test('assignment menu exposes one no-code setup editor', () => {
-  assert.match(app, /Review \/ Edit Setup/);
-  assert.match(app, /beginEditAssignmentSetup\(assignment\)/);
+  assert.match(teacherWorkspace, /Review \/ Edit Setup/);
+  assert.match(teacherWorkspace, /beginEditAssignmentSetup\(assignment\)/);
   assert.match(app, /prepareStoredAssignmentForReuse\(assignment, \{ resetAssignmentKey: false \}\)/);
   const start = app.indexOf('const beginEditAssignmentSetup');
   const end = app.indexOf('const beginEditAssignmentDates', start);
@@ -16,7 +19,7 @@ test('assignment menu exposes one no-code setup editor', () => {
 });
 
 test('existing setup review reuses the same reviewed Assignment V5 model internally', () => {
-  assert.match(app, /reviewMode=\{assignmentPreflight\.mode \|\| 'create'\}/);
+  assert.match(teacherWorkspace, /reviewMode=\{assignmentPreflight\.mode \|\| 'create'\}/);
   assert.match(modal, /reviewMode = 'create'/);
   assert.match(modal, /buildPreflightReviewedAssignmentV5/);
   // The reviewed V5 object is the model's input (first argument); an options

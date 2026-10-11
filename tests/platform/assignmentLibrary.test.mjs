@@ -181,9 +181,11 @@ test('a null draft does not throw', () => {
 
 test('Library UI exposes a direct Assign to class action instead of forcing export/import copies', () => {
   const source = assignmentLibrarySource();
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  // The Library is mounted by the teacher's screen (its own module since G2).
+  const app = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
   assert.match(source, /onAssignAssignment/);
   assert.match(source, />\s*Assign to class\s*</);
   assert.match(app, /onAssignAssignment=\{beginAssignLibraryAssignment\}/);
-  assert.match(app, /publish the saved Google Classroom post, notes, resources, and grade-passback settings/);
+  // The handler itself stays in App.
+  assert.match(fs.readFileSync('src/App.jsx', 'utf8'), /publish the saved Google Classroom post, notes, resources, and grade-passback settings/);
 });

@@ -34,9 +34,12 @@ test('large live migrations fail closed instead of partially repairing students'
 
 
 test('assigned assignments always enable live question protection even before grade history hydrates', () => {
-  assert.match(app, /hasLiveProtection=\{/);
-  assert.match(app, /!isLibraryAssignment\(questionEditorAssignment\)/);
-  assert.match(app, /gradesByAssignment\?\.\[questionEditorAssignment\.id\]/);
+  // The question editor is mounted by the teacher's screen, its own module since G2.
+  const teacherWorkspace = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
+  const editor = teacherWorkspace.slice(teacherWorkspace.indexOf('hasLiveProtection={'), teacherWorkspace.indexOf('hasLiveProtection={') + 400);
+  assert.match(editor, /hasLiveProtection=\{/);
+  assert.match(editor, /!isLibraryAssignment\(questionEditorAssignment\)/);
+  assert.match(editor, /gradesByAssignment\?\.\[questionEditorAssignment\.id\]/);
 });
 
 

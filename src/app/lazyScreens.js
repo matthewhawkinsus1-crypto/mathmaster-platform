@@ -11,6 +11,9 @@ export const AssignmentQuestionEditor = lazy(() => import('../AssignmentQuestion
 export const QuestionEngine = lazy(() => import('../QuestionEngine.jsx'));
 export const AssignmentIntake = lazy(() => import('../AssignmentIntake.jsx'));
 export const TeacherQuestionReviewPanel = lazy(() => import('../components/teacher/TeacherQuestionReviewPanel.jsx'));
+// The teacher's whole screen (student push G2): App's teacher branch, moved
+// verbatim, with the modules only it reaches.
+export const TeacherWorkspace = lazy(() => import('../app/teacher/TeacherWorkspace.jsx'));
 export const TeacherSidebar = lazy(() => import('../TeacherSidebar.jsx'));
 export const GradeTransferCenter = lazy(() => import('../components/teacher/GradeTransferCenter.jsx'));
 export const AssignmentLibrary = lazy(() => import('../AssignmentLibrary.jsx'));

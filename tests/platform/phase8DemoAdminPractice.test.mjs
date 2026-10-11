@@ -77,9 +77,11 @@ test('root Administration remains discoverable to the protected email and server
   // is now imported from the module the callables enforce rather than repeated
   // as a second literal here, so the browser cannot come to believe in an
   // administrator the server would refuse. See tests/platform/adminAuthority.
-  assert.match(appSource, /import \{ isRootAdminEmail \} from '\.\.\/functions\/shared\/rolePolicy\.mjs'/);
-  assert.match(appSource, /rootAdminUiEligible/);
-  assert.match(appSource, /isRootAdminEmail\(user\.email\)/);
+  // The Administration entry is the teacher's screen, its own module since G2.
+  const teacherWorkspaceSource = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  assert.match(teacherWorkspaceSource, /import \{ isRootAdminEmail \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/rolePolicy\.mjs'/);
+  assert.match(teacherWorkspaceSource, /const rootAdminUiEligible = user\.isRootAdmin === true\s*\|\| isRootAdminEmail\(user\.email\);/);
+  assert.match(teacherWorkspaceSource, /teacherWorkspaceMode === 'administration' && rootAdminUiEligible/);
   assert.match(adminUiSource, /Create Student Account/);
   assert.match(adminUiSource, /setStudentClass/);
   assert.match(authServiceSource, /createStudentAccount/);

@@ -10,7 +10,9 @@ import { region, executableSource } from './helpers/sourceContract.mjs';
 import { supportShortLabel } from '../../functions/shared/supportCatalog.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
-const app = read('src/App.jsx');
+// The drawer and the hub are mounted by the teacher's screen, its own module
+// since G2 (App renders it and hands it every handler by name).
+const app = read('src/app/teacher/TeacherWorkspace.jsx');
 const drawer = read('src/components/teacher/StudentProfileDrawer.jsx');
 const hub = read('src/components/teacher/AssignmentHub.jsx');
 const panel = read('src/components/teacher/StudentSupportEvidencePanel.jsx');

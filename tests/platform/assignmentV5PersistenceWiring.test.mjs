@@ -34,8 +34,11 @@ test('preflight stores and passes the canonical V5 object without a Bundle V3 ad
   const source = fs.readFileSync('src/App.jsx', 'utf8');
   assert.match(source, /const assignmentV5 = inspected\.assignmentV5/);
   assert.match(source, /Number\(assignmentV5\.schemaVersion\) !== 5/);
-  assert.match(source, /assignmentV5=\{assignmentPreflight\.assignmentV5\}/);
+  // Pre-Flight is mounted by the teacher's screen (its own module since G2).
+  const teacherWorkspace = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
+  assert.match(teacherWorkspace, /assignmentV5=\{assignmentPreflight\.assignmentV5\}/);
   assert.doesNotMatch(source, /buildPreflightBundle|normalizeLessonBundle/);
+  assert.doesNotMatch(teacherWorkspace, /buildPreflightBundle|normalizeLessonBundle/);
 });
 
 console.log('assignmentV5PersistenceWiring.test.mjs: all assertions passed');

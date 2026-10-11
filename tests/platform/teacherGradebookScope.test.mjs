@@ -59,10 +59,11 @@ test('the default assignment is the current marking period\'s open one due soone
 });
 
 test('the Grades tab asks which class when none is chosen, instead of a disabled picker', () => {
-  const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  // The Grades tab is the teacher's screen, its own module since G2.
+  const app = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
   // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
-  assert.ok(importsComponent('src/App.jsx', 'GradebookAssignmentBar', 'src/components/teacher/GradebookAssignmentBar.jsx'));
-  assert.ok(importsComponent('src/App.jsx', 'GradebookClassChooser', 'src/components/teacher/GradebookAssignmentBar.jsx'));
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'GradebookAssignmentBar', 'src/components/teacher/GradebookAssignmentBar.jsx'));
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'GradebookClassChooser', 'src/components/teacher/GradebookAssignmentBar.jsx'));
   const grades = executableSource(region(app, "{teacherTab === 'grades' && (", '<GradebookAssignmentBar', 'Grades tab head'));
   assert.match(grades, /classes\.length > 0 && !gradebookFilter\.classId && !gradebookFilter\.student && \(\s*<GradebookClassChooser classes=\{classes\} schedule=\{classSchedule\} nowValue=\{now\} onChoose=\{setActiveClass\} \/>/);
 });

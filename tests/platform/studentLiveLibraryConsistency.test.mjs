@@ -41,7 +41,8 @@ test('question layout is selected by viewport size, not touchscreen hardware', (
 });
 
 test('class-scoped assignment list excludes work that is not assigned to that class', () => {
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  // The Assignments tab is the teacher's screen, its own module since G2.
+  const app = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
   const start = app.indexOf('const visibleAssignments =');
   const end = app.indexOf('const visibleAssignmentIds', start);
   const block = app.slice(start, end);

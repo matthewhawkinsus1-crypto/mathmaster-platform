@@ -170,7 +170,8 @@ test('logging out clears both compact and detailed teacher student state', () =>
 
 test('Classes Workspace stays on live lightweight data instead of silently showing zero historical starts', () => {
   const classesWorkspace = fs.readFileSync('src/ClassesWorkspace.jsx', 'utf8');
-  assert.match(app, /academicDataLoaded=\{teacherStudentDataMode === 'full'\}/);
+  // Mounted by the teacher's screen, its own module since G2.
+  assert.match(fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8'), /academicDataLoaded=\{teacherStudentDataMode === 'full'\}/);
   assert.match(classesWorkspace, /academicDataLoaded = true/);
   assert.match(classesWorkspace, /activeOnAssignmentCount/);
   assert.match(classesWorkspace, /active now/);

@@ -21,8 +21,9 @@ test('Library shows Content version and hides superseded siblings by default', a
 
 
 test('assigned copy exposes V2 preview and fundamental repair choices', async () => {
+  // The teacher's screen lives in its own module since G2.
   const [appSource, modalSource] = await Promise.all([
-    readFile('src/App.jsx', 'utf8'),
+    readFile('src/app/teacher/TeacherWorkspace.jsx', 'utf8'),
     readFile('src/components/teacher/AssignmentContentUpgradeModal.jsx', 'utf8'),
   ]);
   assert.match(appSource, /latestCurrentLibraryRelease/);
@@ -59,7 +60,9 @@ test('upgrade modal keeps success visible and shows actionable function errors a
 });
 
 test('post-upgrade refresh cannot turn a successful server commit into a fake failure', async () => {
-  const appSource = await readFile('src/App.jsx', 'utf8');
+  // The upgrade modal is mounted by the teacher's screen (its own module since G2).
+  const appSource = await readFile('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
+  assert.ok(appSource.includes('onUpgraded={async (result) => {'), 'the modal\'s onUpgraded callback');
   const start = appSource.indexOf('onUpgraded={async (result) => {');
   const end = appSource.indexOf('}}', start);
   const callback = appSource.slice(start, end + 2);

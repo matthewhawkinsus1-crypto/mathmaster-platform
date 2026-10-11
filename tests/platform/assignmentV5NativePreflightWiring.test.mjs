@@ -4,12 +4,15 @@ import fs from 'node:fs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
+// The teacher's screen, which mounts Pre-Flight, is its own module since G2.
+const teacherWorkspace = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
 
 test('assignment intake opens Preflight with canonical V5 rather than a Lesson Bundle adapter', () => {
   assert.doesNotMatch(app, /buildPreflightBundle/);
   assert.doesNotMatch(app, /normalizeLessonBundle/);
   assert.match(app, /const assignmentV5 = inspected\.assignmentV5/);
-  assert.match(app, /assignmentV5=\{assignmentPreflight\.assignmentV5\}/);
+  assert.match(teacherWorkspace, /assignmentV5=\{assignmentPreflight\.assignmentV5\}/);
+  assert.doesNotMatch(teacherWorkspace, /buildPreflightBundle|normalizeLessonBundle/);
 });
 
 test('Preflight validates and plans delivery from Assignment V5 directly', () => {

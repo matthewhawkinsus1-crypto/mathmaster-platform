@@ -180,7 +180,8 @@ test('the review screen imports the missing families through the validated impor
   assert.match(effect, /\}, \[effectiveAssignmentV5, serverCyclePreflightRun\]\);/);
   // Offered to the root administrator; App says who that is.
   assert.match(executableSource(lessonPreflight), /\{canManageSecureBank \? \(/);
-  assert.match(region(app, '<LessonPreflightModal', '/>', 'review modal'), /canManageSecureBank=\{rootAdminUiEligible\}/);
+  // The modal is mounted by the teacher's screen, its own module since G2.
+  assert.match(region(componentSource('src/app/teacher/TeacherWorkspace.jsx'), '<LessonPreflightModal', '/>', 'review modal'), /canManageSecureBank=\{rootAdminUiEligible\}/);
 });
 
 test('the review screen opens the full Test, Corrections and Retest preview for the unsaved cycle', () => {

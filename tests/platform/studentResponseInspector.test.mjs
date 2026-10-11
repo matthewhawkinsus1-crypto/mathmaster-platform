@@ -566,8 +566,10 @@ test('PR250 universal draft-persistence certification and tool cache cleanup rem
   assert.equal(pkg.scripts['test:draft-persistence'], 'node scripts/run-draft-persistence-certification.mjs');
   const app = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
   assert.match(app, /forgetAssignmentToolDrafts/);
-  assert.match(app, /StudentResponseInspector/);
-  assert.match(app, /Inspect Response \/ Override Grade/);
+  // The inspector is opened from the teacher's screen, its own module since G2.
+  const teacherWorkspace = fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  assert.match(teacherWorkspace, /<StudentResponseInspector/);
+  assert.match(teacherWorkspace, /Inspect Response \/ Override Grade/);
 });
 
 test('response inspector deploy surface includes every backend that participates in correction/replay', () => {

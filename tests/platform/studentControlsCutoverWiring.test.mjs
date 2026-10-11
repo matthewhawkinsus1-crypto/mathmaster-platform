@@ -31,6 +31,9 @@ import { importsComponent } from './helpers/componentImport.mjs';
 const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
 const code = executableSource(app);
+// The teacher's screen is its own module since G2: App renders it and hands
+// it every handler by name.
+const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
 const count = (source, pattern) => (source.match(pattern) || []).length;
 
 const sourceFiles = (dir) => readdirSync(dir).flatMap((entry) => {
@@ -151,8 +154,8 @@ test('5. the staff-only override history is read by staff screens only — never
   assert.doesNotMatch(studentSide, /studentOverrideHistory|assignmentOverrideArchives|platformMigrations/);
   // Shown in the gradebook's student detail, a teacher screen.
   // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
-  assert.ok(importsComponent('src/App.jsx', 'StudentDolRecoveryRow', 'src/components/teacher/StudentDolRecoveryRow.jsx'));
-  assert.match(code, /<StudentDolRecoveryRow db=\{db\} assignment=\{selectedAssignment\} student=\{student\}[^>]*viewer=\{\{ email: user\.email, isRootAdmin: user\.isRootAdmin === true \}\}/);
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'StudentDolRecoveryRow', 'src/components/teacher/StudentDolRecoveryRow.jsx'));
+  assert.match(executableSource(teacherWorkspace), /<StudentDolRecoveryRow db=\{db\} assignment=\{selectedAssignment\} student=\{student\}[^>]*viewer=\{\{ email: user\.email, isRootAdmin: user\.isRootAdmin === true \}\}/);
 });
 
 test('surfaces showing another class say so, and the app keeps their students\' controls in the one listener', () => {
@@ -166,7 +169,9 @@ test('surfaces showing another class say so, and the app keeps their students\' 
   assert.match(exportCenter, /const exportableClassKey = \(classFilter\.size \? authorizedClassIds\.filter\(\(classId\) => classFilter\.has\(classId\)\) : authorizedClassIds\)\.join\('\|'\);/);
   assert.match(exportCenter, /onClassScopeChange\(exportableClassKey \? exportableClassKey\.split\('\|'\) : \[\]\);/);
   [['<TeacherHome', 'onLiveClassChange={reportLiveClass}'], ['<AssignmentHub', 'onClassChange={reportHubClass}'], ['<AttendanceHistoryPanel', 'onClassChange={reportAttendanceClass}'], ['<GradeTransferCenter', 'onClassScopeChange={reportExportClasses}']]
-    .forEach(([element, prop]) => assert.match(region(app, element, '/>', element), new RegExp(prop.replace(/[{}]/g, '\\$&'))));
+    .forEach(([element, prop]) => assert.match(region(teacherWorkspace, element, '/>', element), new RegExp(prop.replace(/[{}]/g, '\\$&'))));
+  ['reportLiveClass', 'reportHubClass', 'reportAttendanceClass', 'reportExportClasses']
+    .forEach((name) => assert.match(app, new RegExp(`\\n {8}${name}=\\{${name}\\}\\n`), `App hands ${name} to the teacher's screen`));
   const scope = region(code, 'const teacherControlsScope = useMemo(', 'const teacherClassControls', 'teacher scope');
   assert.match(scope, /activeClassId: activeClass\.classId,/);
   assert.match(scope, /teacherTab === 'home' \? teacherSurfaceClasses\.live : null,/);

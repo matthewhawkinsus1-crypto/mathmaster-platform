@@ -21,10 +21,12 @@ test('the growth-reward sync is imported and called once, with the account and t
 });
 
 test('the teacher class-reward panels are imported and mounted for the active class', () => {
+  // The class page is the teacher's screen, its own module since G2.
   // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
-  assert.ok(importsComponent('src/App.jsx', 'ClassRewardCatalogEditor', 'src/components/rewards/ClassRewardCatalogEditor.jsx'));
-  assert.ok(importsComponent('src/App.jsx', 'ClassRewardRequestsPanel', 'src/components/rewards/ClassRewardRequestsPanel.jsx'));
-  const block = region(app, "{teacherTab === 'classesWorkspace' && activeClass.classId && (", '</section>', 'the class rewards section');
+  const teacherWorkspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'ClassRewardCatalogEditor', 'src/components/rewards/ClassRewardCatalogEditor.jsx'));
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'ClassRewardRequestsPanel', 'src/components/rewards/ClassRewardRequestsPanel.jsx'));
+  const block = region(teacherWorkspace, "{teacherTab === 'classesWorkspace' && activeClass.classId && (", '</section>', 'the class rewards section');
   assert.match(block, /<ClassRewardRequestsPanel\s+classId=\{activeClass\.classId\}\s+teacherEmail=\{user\.email\}/);
   assert.match(block, /<ClassRewardCatalogEditor\s+classId=\{activeClass\.classId\}/);
 });

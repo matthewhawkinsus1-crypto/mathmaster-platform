@@ -13,6 +13,7 @@ import {
   studentRouteKey,
 } from '../../src/platform/student/browserHistory.js';
 import { assertCapability, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const app = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const lazyScreens = fs.readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8');
@@ -229,7 +230,6 @@ test('App imports every student grade module it calls', () => {
     ['GRADING_PERIOD_SETTINGS_DOC', 'platform/student/gradingPeriods.js'],
     ['StudentGradeCenter', 'components/student/StudentGradeCenter.jsx'],
     ['StudentAssignmentResult', 'components/student/StudentAssignmentResult.jsx'],
-    ['MarkingPeriodSettings', 'components/teacher/MarkingPeriodSettings.jsx'],
   ]) {
     const escapedFrom = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const staticImport = new RegExp(`${identifier}[\\s\\S]{0,400}?from '\\.\\/${escapedFrom}'`);
@@ -240,4 +240,7 @@ test('App imports every student grade module it calls', () => {
     assert.ok(staticImport.test(app) || (lazyImport.test(lazyScreens) && fromLazyScreens.test(app)), `${identifier} must be statically or lazily imported from ${from}`);
     assert.match(app, new RegExp(`<${identifier}[\\s>]|${identifier}\\(|${identifier}\\)`), `${identifier} must actually be used`);
   }
+  // Marking periods are set on the teacher's screen, its own module since G2.
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'MarkingPeriodSettings', 'src/components/teacher/MarkingPeriodSettings.jsx'));
+  assert.match(fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'), /<MarkingPeriodSettings[\s>]/);
 });
