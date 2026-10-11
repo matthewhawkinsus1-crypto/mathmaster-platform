@@ -260,7 +260,7 @@ const assertMatchIntegrity = async (farm, roomId, entry, views, label, privateRo
   assert.equal(new Set(privateRows.map((row) => row.playerKey)).size, entry.students.length, `${label}: player keys are unique`);
   assert.equal(publicRows.length, views.size, `${label}: one public player per student who played, no duplicates (${publicRows.length})`);
   const publicByKey = new Map(publicRows.map((row) => [row.id, row]));
-  const totals = { scored: 0, duplicateReplies: 0, secondAnswersRefused: 0, droppedThenRetried: 0, answerMs: [] };
+  const totals = { scored: 0, duplicateReplies: 0, secondAnswersRefused: 0, droppedThenRetried: 0, resentAtGo: 0, answerMs: [] };
   // How the room's strategy turns answers into a score: per response (the
   // points each answer earned, summed) or per round (a placement each round,
   // the championship points summed).
@@ -289,6 +289,10 @@ const assertMatchIntegrity = async (farm, roomId, entry, views, label, privateRo
         // answered (already-exists), or over by the time it lands.
         if (refusal.kind === 'second') totals.secondAnswersRefused += 1;
         else if (/unavailable/.test(refusal.code)) totals.droppedThenRetried += 1;
+        // Sent at a GO this device showed before the server's (its clock runs
+        // ahead): refused as not started, and THAT answer was then resent and
+        // scored. Anything else refused while the round was open is a failure.
+        else if (refusal.reason === 'round_not_started' && record.accepted.some((reply) => reply.submissionId === refusal.submissionId && reply.kind === 'resend')) totals.resentAtGo += 1;
         else assert.fail(`${label}: ${view.studentId} round ${roundIndex + 1}: an answer sent while the round was open was refused: ${JSON.stringify(refusal)} (round record ${JSON.stringify(record)}; server handled ${JSON.stringify(record.accepted.concat(record.refused).map((entry) => [entry.submissionId, invocations[entry.submissionId]]))})`);
       });
       const reply = record.accepted[0];
@@ -420,6 +424,11 @@ for (const size of SIZES) {
     const doubleSender = lobby[Math.min(3, lobby.length - 1)];
     const delayed = new Set(lobby.filter((_, index) => index % 10 === 4));
     if (!delayed.size) delayed.add(refreshesAfterRunning);
+    // A device whose calibrated clock runs 200 ms ahead of the server's, and a
+    // student who answers the moment GO shows: the answer can reach the server
+    // before the round has started there. It must be resent at GO, the same
+    // answer, and scored once (a class of five has no ordinary device to spare).
+    const clockAhead = lobby.find((studentId) => ![offlineAtZero, backgrounded, refreshesAfterRunning, doubleSender].includes(studentId) && !delayed.has(studentId)) || null;
     const profileOf = (studentId, index) => ({
       deliveryJitterMs: delayed.has(studentId) ? 1_500 : 150,
       rttMs: Math.round(random() * 40),
@@ -429,6 +438,7 @@ for (const size of SIZES) {
       // every snapshot late.
       ...(studentId === backgrounded ? { tickMs: 1_000, rttMs: 150, deliveryFixedMs: 700, deliveryJitterMs: 0 } : {}),
       ...(studentId === doubleSender ? { lostReply: true, secondAnswer: true } : {}),
+      ...(studentId === clockAhead ? { clockSkewMs: 200, answerJitterMs: 0, tickMs: 25, rttMs: 0 } : {}),
     });
     const farm = await createDeviceFarm({ workers: WORKERS });
     // The teacher's console: every row, and the pacer for the students' live standings.
@@ -543,6 +553,13 @@ for (const size of SIZES) {
         duplicateRepliesAbsorbed: totals.duplicateReplies,
         secondAnswersRefused: totals.secondAnswersRefused,
         droppedAnswersRetried: totals.droppedThenRetried,
+        // Answers refused before the server's GO and resent at it (the clock-ahead device's).
+        answersResentAtGo: totals.resentAtGo,
+        // The clock-ahead device, round by round: refusals before GO, and what was scored.
+        clockAhead: clockAhead ? Object.values(answersOf(views.get(clockAhead), roomId)).map((record) => ({
+          refusedBeforeGo: record.refused.filter((refusal) => refusal.reason === 'round_not_started').length,
+          scored: record.accepted.map((reply) => reply.kind),
+        })) : null,
         answerRoundTripMs: percentiles(totals.answerMs),
         roomBytesAtLaunch: JSON.stringify(started).length,
         lobbyRoundOneOnScreenAfterZeroMsMax: Math.max(...ordinary.map((view) => seenOf(view, roomId).rounds[0].at - startsAtMs)),
@@ -763,4 +780,12 @@ test('certification report', () => {
   console.log(`[launch-cert] ${JSON.stringify(report)}`);
   assert.equal(Object.keys(report.sizes).length, SIZES.length, 'every class size was certified');
   assert.ok(report.rush && report.endurance, 'the graph-rich launch and the endurance run were certified');
+  // The clock-ahead devices: an answer sent at a GO the server had not yet
+  // reached was refused, resent at GO and scored (assertMatchIntegrity holds
+  // every such refusal to that). Over the run it must have happened at least
+  // once, or the scenario certified nothing.
+  const clockAhead = Object.values(report.sizes).map((entry) => entry.clockAhead).filter(Boolean);
+  if (clockAhead.length) {
+    assert.ok(clockAhead.flat().some((round) => round.refusedBeforeGo > 0 && round.scored.includes('resend')), `no clock-ahead answer was refused before GO and then scored on its resend: ${JSON.stringify(clockAhead)}`);
+  }
 });

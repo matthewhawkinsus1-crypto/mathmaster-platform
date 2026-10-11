@@ -176,6 +176,18 @@ test('the rush round: refs for the tap handler, one clock anchor, a persisted qu
   const failure = region(round, '} catch (error) {\n      if (!mountedRef.current) return;\n      const code', '} finally {', 'send failure');
   assert.match(failure, /if \(isFinalRefusal\(error\) \|\| timeIsUp\) \{[\s\S]*dropQueue\(/);
   assert.match(failure, /flushTimerRef\.current = window\.setTimeout\(\(\) => flushRef\.current\(\), retryDelayRef\.current\)/, 'anything else is retried');
+  // "Time is up" is the shared rule (challengeAnswerRefusal.js), read on this
+  // device's clock: a deadline-exceeded mid-round (a batch that reached the
+  // server before its GO, or a timeout) is retried, not dropped.
+  const timeIsUp = /rushRefusalIsTimeUp\((?:code|error\?\.code), timing\.endMono - performance\.now\(\)\)/;
+  assert.match(failure, timeIsUp);
+  // The same rule when a reopened round resends what this device stored: the
+  // stored taps are dropped only on a final refusal or when time is up.
+  const resume = region(round, 'let pending = readQueue(queueKey);', 'while (!cancelled) {\n        try {', 'stored-queue resend');
+  const dropped = region(resume, '} catch (error) {', 'pending = [];', 'stored-queue refusal');
+  assert.match(dropped, new RegExp(`if \\(isFinalRefusal\\(error\\) \\|\\| ${timeIsUp.source}\\) \\{\\s*$`));
+  assert.doesNotMatch(executableSource(dropped), /\/deadline-exceeded\//, 'a bare deadline-exceeded does not drop the stored taps');
+  assert.match(resume, /setConnection\('retrying'\);[\s\S]*await wait\(delay\);/, 'anything else is sent again');
 });
 
 /* --------------------------- the teacher's screens ------------------------- */

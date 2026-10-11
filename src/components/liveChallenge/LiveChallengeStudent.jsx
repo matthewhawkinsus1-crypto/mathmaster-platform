@@ -19,6 +19,7 @@ import { resolveSupportEntitlements } from '../../../functions/shared/supportEnt
 import { useChallengeClock, usePreviousRoundSummary, useRoundSolution, useRoundSummary } from '../../platform/liveChallenge/challengeHooks.js';
 import { SOLUTION_STATE, roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import { studentConnectionState } from '../../platform/liveChallenge/challengePresenceModel.js';
+import { REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
 import { ChallengeCountdown, ChallengeShellStyles, Confetti, ConnectionPill } from './ChallengeShellParts.jsx';
 import { StudentFinalCard, StudentGuidance, StudentLobbyCard, StudentMatchRecap, StudentRoundResultsCard } from './ChallengeStudentShell.jsx';
@@ -204,6 +205,12 @@ export function ChallengeRound({
   const [progressRawResponse, setProgressRawResponse] = useState(null);
   const wasExpiredRef = useRef(false);
   const [submitError, setSubmitError] = useState('');
+  // A locked answer the server refused because it arrived before GO, waiting
+  // to be sent again at GO (holdForGo, below).
+  const [waitingForGo, setWaitingForGo] = useState(false);
+  const resendTimerRef = useRef(null);
+  const resendsAtGoRef = useRef(0);
+  const latestRetryRef = useRef(null);
   const [stepRecord, setStepRecord] = useState(() => emptyQuestionRecord());
   const stepRecordRef = useRef(stepRecord);
   const workingPoints = useMemo(
@@ -279,6 +286,32 @@ export function ChallengeRound({
     window.localStorage.removeItem(pendingKey);
     setAlreadyRecorded(true);
   };
+  // REFUSED BEFORE GO. This device showed GO a moment before the server
+  // reached it (its synced clock runs a little ahead), so the server refused
+  // the answer as not started yet, without grading it. That is not a closed
+  // round: the same envelope, with the same submission id, is sent again once
+  // this round's clock passes GO plus a margin (challengeAnswerRefusal.js). It
+  // gets a few tries at most and never goes after this student's deadline.
+  // Elapsed time comes from the round's monotonic origin, as the clock does.
+  const holdForGo = () => {
+    window.clearTimeout(resendTimerRef.current);
+    const delayMs = resendAtGoDelayMs({
+      serverNowMs: startsAtMs + (performance.now() - roundOriginMonoRef.current),
+      startsAtMs,
+      endsAtMs,
+      resendsSoFar: resendsAtGoRef.current,
+    });
+    if (delayMs === null) {
+      // Still locked and kept; the Retry button sends it.
+      setWaitingForGo(false);
+      setSubmitError('Your answer is locked in but was not sent. Tap Retry locked answer to send it.');
+      return;
+    }
+    resendsAtGoRef.current += 1;
+    setWaitingForGo(true);
+    resendTimerRef.current = window.setTimeout(() => latestRetryRef.current?.(), delayMs);
+  };
+  useEffect(() => () => window.clearTimeout(resendTimerRef.current), []);
 
   const reportedRef = useRef('');
   useEffect(() => {
@@ -338,7 +371,9 @@ export function ChallengeRound({
           : `${Number(grading.scorePercent) || 0}% credit · +${Number(grading.pointsAwarded) || 0} points`,
       };
     } catch (error) {
-      if (/already-exists/.test(String(error?.code || ''))) settleAsAlreadyRecorded();
+      const outcome = classifyAnswerRefusal(error);
+      if (outcome === REFUSAL_OUTCOME.ALREADY_RECORDED) settleAsAlreadyRecorded();
+      else if (outcome === REFUSAL_OUTCOME.RETRY_AT_GO) holdForGo();
       else setSubmitError(error?.message || 'Your answer could not be submitted.');
       return null;
     } finally {
@@ -370,13 +405,15 @@ export function ChallengeRound({
     if (!pending || result || submissionInFlightRef.current) return;
     submissionInFlightRef.current = true;
     setSubmitError('');
+    setWaitingForGo(false);
     try {
       const grading = await submitResponse(pending);
       settle(grading);
     } catch (error) {
-      const code = String(error?.code || '');
-      if (/already-exists/.test(code)) settleAsAlreadyRecorded();
-      else if (/failed-precondition|deadline-exceeded|not-found/.test(code)) {
+      const outcome = classifyAnswerRefusal(error);
+      if (outcome === REFUSAL_OUTCOME.ALREADY_RECORDED) settleAsAlreadyRecorded();
+      else if (outcome === REFUSAL_OUTCOME.RETRY_AT_GO) holdForGo();
+      else if (outcome === REFUSAL_OUTCOME.CLOSED) {
         setPending(null);
         pendingRef.current = null;
         window.localStorage.removeItem(pendingKey);
@@ -387,6 +424,8 @@ export function ChallengeRound({
       submissionLockRef.current = Boolean(pendingRef.current || resultRef.current);
     }
   };
+  // The resend at GO calls the latest retry, with this render's envelope and state.
+  latestRetryRef.current = retryPending;
 
   useEffect(() => {
     if (!pending || result) return undefined;
@@ -542,7 +581,7 @@ export function ChallengeRound({
       </div>
       </div>
 
-      {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Answer locked in · checking it…</div>}
+      {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{waitingForGo ? 'Your answer is locked in and will send at GO.' : 'Answer locked in · checking it…'}</div>}
 
       {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
       {pending && !result && <button type="button" onClick={retryPending}>Retry locked answer</button>}

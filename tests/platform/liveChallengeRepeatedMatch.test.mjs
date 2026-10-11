@@ -112,9 +112,13 @@ test('a refresh after answering keeps the round locked', () => {
   );
   // Nor does the buzzer, which finalizes work through the same submit.
   assert.match(submit, /if \(!transitionedToExpired \|\| !secureQuestion \|\| resultRef\.current \|\| pendingRef\.current \|\| answeredOnServerRef\.current \|\|/);
-  assert.match(submit, /\/already-exists\/\.test\(String\(error\?\.code \|\| ''\)\)\) settleAsAlreadyRecorded\(\);/);
+  // A refusal is read through the shared rule (challengeAnswerRefusal.js,
+  // which maps already-exists to ALREADY_RECORDED: liveChallengeAnswerRefusal
+  // .test.mjs). Both the first send and the retry settle that as recorded.
+  const settlesRecorded = /const outcome = classifyAnswerRefusal\(error\);\s*if \(outcome === REFUSAL_OUTCOME\.ALREADY_RECORDED\) settleAsAlreadyRecorded\(\);/;
+  assert.match(submit, settlesRecorded);
   const retry = region(round, 'const retryPending', 'useEffect(', 'retry');
-  assert.match(retry, /if \(\/already-exists\/\.test\(code\)\) settleAsAlreadyRecorded\(\);/);
+  assert.match(retry, settlesRecorded);
   const recorded = region(round, 'const settleAsAlreadyRecorded = () => {', '};', 'already recorded');
   assert.match(recorded, /window\.localStorage\.removeItem\(pendingKey\);/);
   assert.doesNotMatch(recorded, /setSubmitError/, 'a recorded answer is information, not an error');
