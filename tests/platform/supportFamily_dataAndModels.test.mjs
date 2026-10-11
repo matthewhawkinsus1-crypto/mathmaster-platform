@@ -937,8 +937,14 @@ test('what cannot be explained correctly, and what earlier families own, is not 
   const batchD = readJson('SAMPLE_BATCH_D_DEEP_DIVE.json').questions;
   const missing = readJson('SAMPLE_MISSING_MATH_TOOLS.json').questions;
   const batchA = readJson('SAMPLE_BATCH_A_DEEP_DIVE.json').questions;
-  const typedLinear = v5([{ questionId: 'lin', prompt: 'Inverse.', studentActions: ['exponentialLogBridge'], mode: 'inverse', function: { a: 2, base: 2, h: 1, k: -3 }, x: 3 }])[0];
-  assert.equal(typedLinear.function.type, 'linear', 'the V5 compiler turns an untyped function into a linear spec');
+  // A typeless exponentialLogBridge function now compiles to the same
+  // exponential spec as the typed one (K's V5 fix, 505d9e80), which this
+  // family explains (the e3 item). Content compiled before that fix keeps the
+  // linear spec it was given, with the base and shift dropped: it cannot be
+  // explained correctly, so it stays unclaimed.
+  const inverse = (fn) => v5([{ questionId: 'inv', prompt: 'Inverse.', studentActions: ['exponentialLogBridge'], mode: 'inverse', function: fn, x: 3 }])[0];
+  assert.deepEqual(inverse({ a: 2, base: 2, h: 1, k: -3 }).function, inverse({ type: 'exponential', a: 2, base: 2, h: 1, k: -3 }).function, 'the V5 compiler keeps a typeless function exponential');
+  const storedLinear = { type: 'exponentialLogBridge', mode: 'inverse', function: { type: 'linear', a: 2, h: 0, k: -3 }, x: 3 };
   const notOurs = [
     ...batchD.filter((q) => q.toolId === 'representationMatch').map((q) => [`representationMatch ${q.mode}`, q]),
     ...missing.filter((q) => q.toolId === 'representationMatch').map((q) => ['representationMatch (missing tools)', q]),
@@ -949,7 +955,7 @@ test('what cannot be explained correctly, and what earlier families own, is not 
     ['dataModelingLab unrecognised mode', { type: 'dataModelingLab', mode: 'Correlation', points: [[1, 2], [2, 3], [3, 5]] }],
     ['modelCompare whose authored model is not the best fit', { type: 'dataModelingLab', mode: 'modelCompare', points: [[0, 1], [1, 4], [2, 9], [3, 16], [4, 25]], expectedModel: 'linear' }],
     ['exponential fit with a non-positive y', { type: 'dataModelingLab', mode: 'exponentialFit', points: [[0, -1], [1, 2], [2, 4], [3, 8]] }],
-    ['V5 inverse whose function compiled to a linear spec', typedLinear],
+    ['an inverse stored with a linear spec (compiled before the V5 fix)', storedLinear],
     ['solveExponential with no real solution', { type: 'exponentialLogBridge', mode: 'solveExponential', equation: { base: 2, m: 1, c: 0, rhs: -8 } }],
     ['solveExponential whose right side is not a power of the base', { type: 'exponentialLogBridge', mode: 'solveExponential', equation: { base: 2, m: 1, c: 0, rhs: 10 } }],
     ['solveLogarithmic with a fractional result', { type: 'exponentialLogBridge', mode: 'solveLogarithmic', equation: { base: 4, m: 1, c: 0, result: 0.5 } }],
