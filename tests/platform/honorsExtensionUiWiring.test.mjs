@@ -14,10 +14,11 @@ import { readFileSync } from 'node:fs';
 
 import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const modal = executableSource(read('src/components/teacher/LessonPreflightModal.jsx'));
-const app = executableSource(read('src/App.jsx'));
+const app = executableSource(appAndTeacherWorkspaceSource());
 const editorBase = executableSource(read('src/AssignmentQuestionEditorBase.jsx'));
 const editor = executableSource(assignmentQuestionEditorSource());
 
@@ -40,7 +41,8 @@ test('the no-AI button asks the recipe registry with the assignment\'s course, a
 
 test('publish uses the extension the teacher reviewed, never regenerates per destination course, and certifies it', () => {
   // Imported next to its call: App.jsx is .jsx, so a call with no import passes every check and fails at runtime.
-  assert.match(app, /import\s*\{[^}]*certifyHonorsExtensionQuestion[^}]*\}\s*from\s*'\.\/platform\/rigor\/honorsExtensionRecipes\.js'/);
+  // (G2: the publish handler moved with the teacher's screen; its import is there.)
+  assert.match(read('src/app/teacher/TeacherWorkspace.jsx'), /import\s*\{[^}]*certifyHonorsExtensionQuestion[^}]*\}\s*from\s*'\.\.\/\.\.\/platform\/rigor\/honorsExtensionRecipes\.js'/);
   assert.doesNotMatch(app, /buildHonorsEnrichmentQuestion/);
   const split = region(app, 'const destinationVariants = destinationGroups.map', 'const createdAssignments = []', 'honors destination split');
   assert.doesNotMatch(split, /course:\s*destination\.course/, 'the extension is never rebuilt from a destination class\'s course');
@@ -53,7 +55,7 @@ test('the editor save evaluates the final candidate, including a swap\'s appende
   assert.match(save, /withAppendedQuestionSections\(questionEditorAssignment,\s*appendedSections\)/);
   assert.match(save, /buildAssignmentV5PreflightModel\(candidateV5\)/);
   assert.match(save, /if \(!model\.isValid\)/, 'an invalid active question still blocks the save');
-  assert.match(app, /import\s*\{[^}]*withAppendedQuestionSections[^}]*\}\s*from\s*'\.\/platform\/rigor\/honorsExtensionSwap\.js'/);
+  assert.match(read('src/app/teacher/TeacherWorkspace.jsx'), /import\s*\{[^}]*withAppendedQuestionSections[^}]*\}\s*from\s*'\.\.\/\.\.\/platform\/rigor\/honorsExtensionSwap\.js'/);
 });
 
 test('the question editor offers Swap / Replace with Current Honors Extension, validated before it is applied', () => {

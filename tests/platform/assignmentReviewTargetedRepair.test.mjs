@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+const app = appAndTeacherWorkspaceSource();
 
 test('Assignment Review groups validation blockers by exact question', () => {
   assert.match(modal, /groupQuestionPreflightIssues\(validationErrors, previewQuestions\)/);

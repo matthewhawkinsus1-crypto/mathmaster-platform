@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
-const src = fs.readFileSync('src/App.jsx', 'utf8');
+const src = appAndTeacherWorkspaceSource();
 
 test('Preflight assignment creation automatically publishes V5 Classroom packages', () => {
   assert.match(src, /autoPublishAssignmentPackageToClassroom/);

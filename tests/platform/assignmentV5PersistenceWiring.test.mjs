@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 test('assignment creation persists canonical V5 sections and policy metadata', () => {
-  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  const source = appAndTeacherWorkspaceSource();
   assert.match(source, /schemaVersion:\s*5/);
   assert.doesNotMatch(source, /runtimeProjectionVersion:\s*1/);
   assert.match(source, /const reviewedQuestions = flattenV5Sections\(reviewedV5\)/);
@@ -22,7 +23,7 @@ test('assignment creation persists canonical V5 sections and policy metadata', (
 });
 
 test('question edits and duplication pass through canonical V5 reconstruction', () => {
-  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  const source = appAndTeacherWorkspaceSource();
   // The stored editor assignment is reconstructed through canonical V5 — with
   // any section an Honors swap appended (honorsExtensionSwap.js).
   assert.match(source, /storedAssignmentToV5\((?:withAppendedQuestionSections\()?questionEditorAssignment/);
@@ -31,7 +32,7 @@ test('question edits and duplication pass through canonical V5 reconstruction', 
 });
 
 test('preflight stores and passes the canonical V5 object without a Bundle V3 adapter', () => {
-  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  const source = appAndTeacherWorkspaceSource();
   assert.match(source, /const assignmentV5 = inspected\.assignmentV5/);
   assert.match(source, /Number\(assignmentV5\.schemaVersion\) !== 5/);
   // Pre-Flight is mounted by the teacher's screen (its own module since G2).
@@ -45,7 +46,7 @@ console.log('assignmentV5PersistenceWiring.test.mjs: all assertions passed');
 
 
 test('teacher-reviewed canonical policy values are persisted from reviewedV5', () => {
-  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  const source = appAndTeacherWorkspaceSource();
   assert.match(source, /differentiationPolicy:\s*reviewedV5\.differentiationPolicy/);
   assert.match(source, /supportPolicy:\s*reviewedV5\.supportPolicy/);
   assert.match(source, /outputProfiles:\s*reviewedV5\.outputProfiles/);
@@ -54,21 +55,21 @@ test('teacher-reviewed canonical policy values are persisted from reviewedV5', (
 
 
 test('Firestore assignment reads keep canonical V5 records without a client hydration mirror', () => {
-  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  const source = appAndTeacherWorkspaceSource();
   assert.doesNotMatch(source, /hydrateAssignmentRuntime|assignmentRuntimeProjection/);
   assert.match(source, /fetchedAssignments\.push\(\{ id: assignmentDoc\.id, \.\.\.assignmentDoc\.data\(\) \}\)/);
   assert.match(source, /return \{ id: assignmentSnapshot\.id, \.\.\.assignmentSnapshot\.data\(\) \};/);
 });
 
 test('duplicate path no longer carries runtime-only question projection cleanup', () => {
-  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  const source = appAndTeacherWorkspaceSource();
   assert.doesNotMatch(source, /questions:\s*_runtimeQuestions/);
   assert.doesNotMatch(source, /runtimeProjectionVersion:\s*_legacyRuntimeProjectionVersion/);
 });
 
 
 test('setup editing derives runtime questions from reviewed V5 sections, never persistence.questions', () => {
-  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  const source = appAndTeacherWorkspaceSource();
   assert.doesNotMatch(source, /\bpersistence\.questions\b/);
   assert.match(source, /const persistedQuestions = flattenV5Sections\(model\.assignmentV5\)/);
 });
@@ -88,7 +89,7 @@ test('canonical persistence patch contains sections only and no flat questions p
 });
 
 test('Classroom and notes runtime packages are regenerated from canonical V5 intent', () => {
-  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  const source = appAndTeacherWorkspaceSource();
   assert.match(source, /normalizeLessonPublishingIntentV5\(\{[\s\S]{0,220}classroom:\s*reviewedV5\.classroomIntegration[\s\S]{0,220}reviewedV5\.outputProfiles\?\.lessonNotesPdf/);
   assert.match(source, /classroomPackage:\s*publishingIntent\.classroomPackage/);
   assert.match(source, /lessonResources:\s*publishingIntent\.lessonResources/);
@@ -98,7 +99,7 @@ test('Classroom and notes runtime packages are regenerated from canonical V5 int
 
 test('retired package metadata aliases cannot re-enter assignment creation', () => {
   const source = fs.readFileSync('src/assignmentBlueprint.js', 'utf8');
-  const appSource = fs.readFileSync('src/App.jsx', 'utf8');
+  const appSource = appAndTeacherWorkspaceSource();
   assert.doesNotMatch(source, /normalizeAssignmentPackageMetadata|ASSIGNMENT_TEMPLATE_DEFAULTS|problemVersions|versionMode/);
   assert.doesNotMatch(appSource, /packageMetadata|normalizeAssignmentPackageMetadata/);
 });

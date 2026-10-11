@@ -183,7 +183,9 @@ const FULL_RECORD_HELPER_CALL = /\b(?:fetchStudentGradeRecord|fetchStudentMaster
 const MODULE_ANCHOR = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([\w$]+)|^(?:export\s+)?(?:const|let)\s+([\w$]+)\s*=/gm;
 const APP_BODY_ANCHOR = /^ {2}(?:const\s+([\w$]+)\s*=|useEffect\(\(\)\s*=>\s*\{\s*\n\s*([^\n]+))/gm;
 const anchorOf = (source, index, path) => {
-  const patterns = path === 'src/App.jsx' ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
+  // The teacher workspace's body members are anchored like App's: G2 moved
+  // App's teacher-only handlers into it verbatim.
+  const patterns = path === 'src/App.jsx' || path === 'src/app/teacher/TeacherWorkspace.jsx' ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
   let best = null;
   patterns.forEach((pattern) => {
     for (const match of source.matchAll(pattern)) {
@@ -226,12 +228,15 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
     // …and the receipt listener on their own document. (Closing a DOL no
     // longer touches the document: the DOL projection is server-owned.)
     "useEffect: if (user?.role !== 'student' || !user.id) {": 1,
-    // A teacher saving a question-weight change migrates the affected grades in one transaction.
-    saveQuestionEditor: 1,
     // The profile drawer: ONE student, when a teacher opens them.
     "useEffect: if (user?.role !== 'teacher' || !profileDrawerStudentId) {": 1,
     // Assignment Hub "who has finished?": one class, on request.
     loadClassGradeRecords: 1,
+  },
+  // App's teacher-only handlers moved here with the teacher's screen (G2).
+  'src/app/teacher/TeacherWorkspace.jsx': {
+    // A teacher saving a question-weight change migrates the affected grades in one transaction.
+    saveQuestionEditor: 1,
     // Repair-from-Library writes corrected grades.
     handleRepairAssignmentFromLibrary: 1,
   },

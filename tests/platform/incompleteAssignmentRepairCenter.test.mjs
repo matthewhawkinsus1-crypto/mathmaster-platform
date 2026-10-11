@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { applyIncompleteDraftRepairCommit } from '../../src/platform/preflight/incompleteAssignmentDraft.js';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const question = (questionId, prompt, role, answer = '3') => ({
   questionId,
@@ -120,7 +121,7 @@ test('Incomplete Assignments exposes the staged repair center instead of immedia
 });
 
 test('parseable incomplete V5 opens Preflight for student preview while publication remains blocked', () => {
-  const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  const appSource = appAndTeacherWorkspaceSource();
   const start = appSource.indexOf('const handleAssignmentJsonReady');
   const end = appSource.indexOf('const handleCreateAssignment', start);
   const intakeRegion = appSource.slice(start, end);

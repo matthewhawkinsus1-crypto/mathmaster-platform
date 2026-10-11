@@ -14,6 +14,7 @@ import {
   repairAssignmentTrackerForLiveCorrections,
 } from '../../src/platform/assignment/liveQuestionCorrection.js';
 import { stageSingleQuestionRepairImport } from '../../src/platform/preflight/questionRepairImport.js';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 /*
  * The live case this exists for: a2sys-cw-05 graphs y = 6x + 18 and
@@ -338,7 +339,7 @@ test('adding a window to a systemsWorkspace question changes nothing about the s
 });
 
 test('a live viewport repair opens no student grade document at all', () => {
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  const app = appAndTeacherWorkspaceSource();
   // Reading a grade doc inside the transaction is what makes this repair cost
   // a per-student write; a display-only repair must not take that path even to
   // write an identical tracker back.
@@ -352,7 +353,7 @@ test('a live viewport repair opens no student grade document at all', () => {
 });
 
 test('the live save path records the repair kind in the assignment audit, never in student records', () => {
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  const app = appAndTeacherWorkspaceSource();
   // The audit entry rides the assignment write that already happens inside the
   // live-repair transaction, so a display-only repair is recorded without any
   // student document being rewritten to say a response was corrected.

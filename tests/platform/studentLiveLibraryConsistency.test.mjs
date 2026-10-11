@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 import { classifyLiveStudent } from '../../src/livePresence.js';
 import { formatStudentName } from '../../src/platform/studentName.js';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 test('linked Google Classroom name becomes the shared student display name', () => {
   const student = { id: '884221', googleName: 'Jordan Rivera' };
@@ -53,7 +54,7 @@ test('class-scoped assignment list excludes work that is not assigned to that cl
 });
 
 test('editing Dates & Classes publishes newly added Classroom destinations before syncing due dates', () => {
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  const app = appAndTeacherWorkspaceSource();
   const start = app.indexOf('if (shouldAutoPublishClassroomPackage(nextAssignment))');
   const end = app.indexOf('setEditingAssignmentId(null)', start);
   const block = app.slice(start, end);
@@ -66,7 +67,7 @@ test('editing Dates & Classes publishes newly added Classroom destinations befor
 
 
 test('adding a class reuses the assignment as an independent class delivery with its own dates', () => {
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  const app = appAndTeacherWorkspaceSource();
   const saveDatesStart = app.indexOf('const handleSaveAssignmentDates');
   const start = app.indexOf('// Adding another class is a NEW delivery', saveDatesStart);
   const end = app.indexOf('// Existing assigned variants may move', start);

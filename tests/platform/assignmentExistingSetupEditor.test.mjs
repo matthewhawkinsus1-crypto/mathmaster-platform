@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+const app = appAndTeacherWorkspaceSource();
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 // The teacher's screen (the assignment menu, the Pre-Flight mount) left App
 // for its own module in G2; the handlers it calls stay in App.

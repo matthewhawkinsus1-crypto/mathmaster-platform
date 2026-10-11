@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 import {
   PUBLICATION_STRATEGIES,
   planClassroomPublication,
 } from '../../src/platform/publishing/publicationPlanner.js';
 
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+const app = appAndTeacherWorkspaceSource();
 const preflight = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 const currentContentExport = fs.readFileSync('src/platform/assignments/currentContentPortableAssignment.js', 'utf8');
 

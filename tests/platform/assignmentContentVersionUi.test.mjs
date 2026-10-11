@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 test('Full Assignment Audit offers corrected content release creation', async () => {
   const source = await readFile('src/components/teacher/FullAssignmentAudit.jsx', 'utf8');
@@ -36,14 +37,14 @@ test('assigned copy exposes V2 preview and fundamental repair choices', async ()
 });
 
 test('Library delivery carries lineage while ordinary Duplicate starts a new family', async () => {
-  const appSource = await readFile('src/App.jsx', 'utf8');
+  const appSource = appAndTeacherWorkspaceSource();
   assert.match(appSource, /sourceContentLineage/);
   assert.match(appSource, /contentLineage: assignmentPreflight\?\.sourceContentLineage/);
   assert.match(appSource, /contentLineage: _contentLineage/);
 });
 
 test('student gets a one-time preserved-work correction notice', async () => {
-  const appSource = await readFile('src/App.jsx', 'utf8');
+  const appSource = appAndTeacherWorkspaceSource();
   assert.match(appSource, /This assignment was corrected by your teacher\. Your previous work was preserved\./);
   assert.match(appSource, /mathmaster:content-upgrade-notice/);
 });

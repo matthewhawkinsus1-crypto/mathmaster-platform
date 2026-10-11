@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+const app = appAndTeacherWorkspaceSource();
 
 test('live question repair uses a Firestore transaction for assignment and student grade records', () => {
   assert.match(app, /runTransaction\(db, async \(transaction\) =>/);

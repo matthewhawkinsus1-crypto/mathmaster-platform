@@ -199,5 +199,6 @@ test('16. a copy of a lesson carries no student\'s private state — even from t
   ALL_STUDENTS.forEach((studentId) => assert.equal(text.includes(studentId), false, `${studentId} in a copy`));
   assert.equal(copy.studentOverrides, undefined);
   // The duplicate path strips the in-memory lesson before writing it.
-  assert.match(executableSource(region(app, 'const handleDuplicateAssignment', 'const handleToggleArchiveAssignment', 'handleDuplicateAssignment')), /\} = stripAssignmentInstanceState\(assignment\);/);
+  // Duplicate moved with the teacher's screen (G2).
+  assert.match(executableSource(region(teacherWorkspace, 'const handleDuplicateAssignment', '\n  };', 'handleDuplicateAssignment')), /\} = stripAssignmentInstanceState\(assignment\);/);
 });
