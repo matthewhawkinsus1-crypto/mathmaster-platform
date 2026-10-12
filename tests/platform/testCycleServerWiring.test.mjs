@@ -48,8 +48,13 @@ test('the plan is written with the session, before a student can start it', () =
   assert.match(create, /examType: secureExam\.COURSE_TEST_EXAM_TYPE/);
   // And the batch refuses any plan that could not be completed from approved
   // families, rather than opening a session that would have to improvise.
+  // The refusal lives in the one opener every route to a Test session uses
+  // (the class-wide callable and the bulk operation), before its transaction.
   const assign = region(functionsIndex, 'exports.assignTestCycleSessions = onCall(', 'exports.preflightTestCycleAssignment', 'assign');
-  assert.match(assign, /planRequiresLiveGeneration\(plan\)/);
+  assert.match(assign, /await openTestSessionForStudent\(\s*db,/);
+  const opener = region(functionsIndex, 'async function openTestSessionForStudent(', 'async function ensureMissedTestRetestSession(', 'opener');
+  assert.match(opener, /if \(shared\.issuance\.planRequiresLiveGeneration\(plan\)\) \{\s*throw new HttpsError\("failed-precondition"/);
+  assert.ok(opener.indexOf('planRequiresLiveGeneration(plan)') < opener.indexOf('mutateTestCycleRecord(db, {'), 'the plan is refused before any session is written');
 });
 
 test('the issued instance id is written back onto the plan entry', () => {

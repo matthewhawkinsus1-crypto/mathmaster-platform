@@ -33,6 +33,20 @@
  *   complete        Everything released; recorded grade is final.
  *   retestClosed    A teacher disabled the retest for this student.
  *
+ * WHEN, AS WELL AS WHICH. `schedule` (testCycleAvailability.mjs) says whether
+ * the original Test's class-time window and the home window for Corrections
+ * and the Retest are open for THIS student now. It never adds a stage; it
+ * decides two things:
+ *
+ *   - whether the stage the student has earned can be ENTERED right now, and
+ *     in what words the card says when it opens or that it closed;
+ *   - that a student who never started the Test before its window closed goes
+ *     straight to the Retest (`missedTest`), with no Corrections: there are no
+ *     answers of theirs to correct, and waiting on a score that will never
+ *     exist is how an absent student used to be stranded.
+ *
+ * A caller that passes no schedule gets exactly the stage it always did.
+ *
  * Pure by construction: no Firestore, no network, no React.
  */
 
@@ -40,6 +54,7 @@ import { normalizeTeacherControls, normalizeTestCyclePolicy } from './testCycleP
 import { describeTestCycleGradePolicy } from './testCycleGrade.mjs';
 import { SESSION_STATE, normalizeTestCycleRecord, recordGradeState } from './testCycleRecord.mjs';
 import { ASSESSMENT_AVAILABILITY } from './assessmentAvailability.mjs';
+import { WINDOW_STATE, followUpRefusal, formatSchoolDateTime, testWindowRefusal } from './testCycleAvailability.mjs';
 
 export const TEST_CYCLE_STAGE = Object.freeze({
   REVIEW: 'review',
@@ -75,6 +90,35 @@ export const resolveTestCycleStage = ({
   policy = null,
   record = null,
   reviewProgress = null,
+  schedule = null,
+} = {}) => {
+  const state = resolveEarnedStage({ policy, record, reviewProgress, schedule });
+  return state ? applyTestCycleSchedule(state, { record, schedule }) : state;
+};
+
+/*
+ * DID THIS STUDENT MISS THE ORIGINAL TEST?
+ *
+ * Yes when its window has closed for them and they never started it. And it
+ * stays yes once they have started the Retest that replaced it: a teacher
+ * reopening the Test window afterwards must not pull a student out of a Retest
+ * they are sitting, have submitted or have had released.
+ */
+const NEVER_STARTED = [SESSION_STATE.NONE, SESSION_STATE.ASSIGNED];
+export const studentMissedOriginalTest = ({ record = null, schedule = null } = {}) => {
+  const normalized = normalizeTestCycleRecord(record);
+  if (!NEVER_STARTED.includes(normalized.test.state)) return false;
+  const retestUnderWay = normalized.retest.withoutOriginal === true
+    && [SESSION_STATE.IN_PROGRESS, SESSION_STATE.SUBMITTED, SESSION_STATE.RELEASED].includes(normalized.retest.state);
+  if (retestUnderWay) return true;
+  return schedule?.test?.enforced === true && schedule.test.state === WINDOW_STATE.CLOSED;
+};
+
+const resolveEarnedStage = ({
+  policy = null,
+  record = null,
+  reviewProgress = null,
+  schedule = null,
 } = {}) => {
   const resolved = normalizeTestCyclePolicy(policy);
   if (!resolved) return null;
@@ -137,9 +181,15 @@ export const resolveTestCycleStage = ({
     // A Test Cycle with no Review content cannot be gated on Review.
     || (resolved.review.minimumMastery === undefined && reviewProgress ? Number(reviewProgress.total || 0) === 0 : false);
 
+  // An external original has no MathMaster Test to miss: its one secure
+  // session already is the retest, and it keeps the rules it always had.
+  const missedTest = !external && studentMissedOriginalTest({ record: normalized, schedule });
+
   if (reviewRequired && !reviewComplete) {
+    const unlocks = external || missedTest ? 'retest' : 'test';
     return {
       ...base,
+      missedTest,
       stage: TEST_CYCLE_STAGE.REVIEW,
       secure: false,
       hintsAllowed: true,
@@ -147,8 +197,44 @@ export const resolveTestCycleStage = ({
       actionLabel: reviewProgress && Number(reviewProgress.attempted || 0) > 0 ? 'Continue Review' : 'Start Review',
       statusLabel: 'Review',
       detail: resolved.review.minimumMastery !== undefined
-        ? `Attempt every review task and earn at least ${resolved.review.minimumMastery}% to unlock your ${external ? 'retest' : 'test'}. Current review mastery: ${Math.floor(Number(reviewProgress?.mastery) || 0)}%. Hints and tools are available here.`
-        : 'Finish the review to unlock your test. Hints and tools are available here.',
+        ? `Attempt every review task and earn at least ${resolved.review.minimumMastery}% to unlock your ${unlocks}. Current review mastery: ${Math.floor(Number(reviewProgress?.mastery) || 0)}%. Hints and tools are available here.`
+        : missedTest
+          ? 'The Test window has closed, so you will take the Retest instead. Finish the review to unlock it. Hints and tools are available here.'
+          : 'Finish the review to unlock your test. Hints and tools are available here.',
+    };
+  }
+
+  if (missedTest) {
+    const missed = { ...base, missedTest: true, secure: true, hintsAllowed: false };
+    const cap = resolved.retest.maxRecordedGrade;
+    const capNote = cap >= 100
+      ? 'Your Retest score is the grade that is recorded.'
+      : `Your actual Retest score is kept and shown; the grade recorded from it is at most ${cap}%.`;
+    if (normalized.retest.state === SESSION_STATE.RELEASED) {
+      return { ...missed, stage: TEST_CYCLE_STAGE.COMPLETE, secure: false, canEnter: true,
+        actionLabel: 'Review Retest', statusLabel: 'Retest complete', detail: grade.reason, complete: true };
+    }
+    if (controls.retestDisabled) {
+      return { ...missed, stage: TEST_CYCLE_STAGE.RETEST_CLOSED, secure: false, canEnter: false,
+        actionLabel: 'Retest closed', statusLabel: 'Retest closed',
+        detail: 'You did not take the Test, and your teacher has closed retesting for this assessment.', complete: true };
+    }
+    if (normalized.retest.state === SESSION_STATE.SUBMITTED) {
+      return { ...missed, stage: TEST_CYCLE_STAGE.RETEST_SUBMITTED, secure: false, canEnter: false,
+        actionLabel: 'Submitted', statusLabel: 'Retest submitted',
+        detail: 'Your retest is submitted. Your score appears once your teacher releases retest results.' };
+    }
+    const sitting = normalized.retest.state === SESSION_STATE.IN_PROGRESS;
+    const assigned = activeSession(normalized.retest);
+    return {
+      ...missed,
+      stage: assigned ? TEST_CYCLE_STAGE.RETEST : TEST_CYCLE_STAGE.RETEST_READY,
+      canEnter: assigned,
+      actionLabel: sitting ? 'Resume Retest' : assigned ? 'Start Retest' : 'Retest pending',
+      statusLabel: 'Retest',
+      detail: assigned
+        ? `You did not take the Test in its class-time window, so you go straight to the Retest. There are no corrections to do. Secure retest: no hints or help; you can skip, flag and go back to any question until you submit. ${capNote}`
+        : 'You did not take the Test in its class-time window, so you go straight to the Retest. It is being prepared and will appear here.',
     };
   }
 
@@ -306,6 +392,67 @@ export const resolveTestCycleStage = ({
   };
 };
 
+/*
+ * CAN THE EARNED STAGE BE ENTERED NOW? THE WINDOWS, LAID OVER THE ONE STAGE.
+ *
+ * The stage is what the student has earned; a window only decides whether it
+ * can be STARTED at this moment. An attempt already under way is never closed
+ * by a window: the student who started in class finishes, and so does the one
+ * who started a Retest at home a minute before it expired.
+ */
+const FOLLOW_UP_STAGES = Object.freeze([
+  TEST_CYCLE_STAGE.CORRECTIONS, TEST_CYCLE_STAGE.RETEST, TEST_CYCLE_STAGE.RETEST_READY,
+]);
+
+export const applyTestCycleSchedule = (state, { record = null, schedule = null } = {}) => {
+  if (!state || !schedule || state.policy?.externalAssessment) return state;
+  const normalized = normalizeTestCycleRecord(record);
+  const timeZone = schedule.timeZone || null;
+  const withSchedule = { ...state, schedule };
+
+  if (state.stage === TEST_CYCLE_STAGE.TEST) {
+    const window = schedule.test;
+    if (!window?.enforced || window.state === WINDOW_STATE.OPEN) return withSchedule;
+    // Started inside the window: they finish.
+    if (normalized.test.state === SESSION_STATE.IN_PROGRESS) {
+      return { ...withSchedule, detail: `${state.detail} The Test window has closed, and you can still finish the Test you started.` };
+    }
+    const upcoming = window.state === WINDOW_STATE.UPCOMING;
+    return {
+      ...withSchedule,
+      canEnter: false,
+      windowClosed: 'test',
+      actionLabel: upcoming ? 'Opens in class' : 'Test window closed',
+      detail: testWindowRefusal(window, { timeZone }),
+    };
+  }
+
+  if (FOLLOW_UP_STAGES.includes(state.stage)) {
+    const followUp = schedule.followUp;
+    if (!followUp?.enforced || followUp.state === WINDOW_STATE.OPEN) {
+      // Open: say when it ends, where the student decides whether to start.
+      return followUp?.enforced && followUp.closesAt
+        ? { ...withSchedule, detail: `${state.detail} Open from home until ${formatSchoolDateTime(followUp.closesAt, timeZone)}.` }
+        : withSchedule;
+    }
+    if (normalized.retest.state === SESSION_STATE.IN_PROGRESS) {
+      return { ...withSchedule, detail: `${state.detail} The retest window has closed, and you can still finish the Retest you started.` };
+    }
+    const corrections = state.stage === TEST_CYCLE_STAGE.CORRECTIONS;
+    const what = corrections ? 'Corrections' : 'The Retest';
+    return {
+      ...withSchedule,
+      canEnter: false,
+      windowClosed: 'followUp',
+      actionLabel: followUp.state === WINDOW_STATE.UPCOMING
+        ? 'Opens after the Test window'
+        : corrections ? 'Corrections closed' : 'Retest window closed',
+      detail: followUpRefusal(followUp, { timeZone, what, plural: corrections }),
+    };
+  }
+  return withSchedule;
+};
+
 /**
  * What a student is allowed to see on this card, as ids.
  *
@@ -339,6 +486,42 @@ export const buildTestCyclePhaseStatus = ({ state = null, record = null } = {}) 
   }
   const controls = normalizeTeacherControls(normalized.teacherControls);
   const reviewComplete = normalized.review.complete === true || current !== TEST_CYCLE_STAGE.REVIEW;
+  /*
+   * A MISSED TEST: three of the four phases read differently. The Test was
+   * not taken and will not be; Corrections do not apply (there are no answers
+   * to correct); the Retest is the student's one secure attempt.
+   */
+  if (state?.missedTest) {
+    const retestState = normalized.retest.state;
+    const retestDone = retestState === SESSION_STATE.RELEASED;
+    const retestStatus = retestDone || retestState === SESSION_STATE.SUBMITTED
+      ? 'completed'
+      : controls.retestDisabled
+        ? 'closed'
+        : current === TEST_CYCLE_STAGE.REVIEW
+          ? 'locked'
+          : state.canEnter
+            ? (retestState === SESSION_STATE.IN_PROGRESS ? 'inProgress' : 'ready')
+            : (current === TEST_CYCLE_STAGE.RETEST_READY ? 'pending' : 'locked');
+    return [
+      { id: 'review', label: 'Review', status: reviewComplete ? 'completed' : 'available' },
+      { id: 'test', label: 'Test', secure: true, status: 'missed', reason: 'Not taken in its class-time window.' },
+      { id: 'corrections', label: 'Corrections', status: 'notRequired', reason: 'Not needed: you go straight to the Retest.' },
+      {
+        id: 'retest',
+        label: 'Retest',
+        secure: true,
+        status: retestStatus,
+        reason: retestState === SESSION_STATE.SUBMITTED
+          ? 'Submitted. Your score appears when your teacher releases retest results.'
+          : controls.retestDisabled && !retestDone
+            ? 'Your teacher has closed retesting for this assessment.'
+            : current === TEST_CYCLE_STAGE.REVIEW
+              ? 'Complete Review to unlock your Retest.'
+              : !state.canEnter && !retestDone ? state.detail : null,
+      },
+    ];
+  }
   const testComplete = [SESSION_STATE.SUBMITTED, SESSION_STATE.RELEASED].includes(normalized.test.state);
   const testInProgress = normalized.test.state === SESSION_STATE.IN_PROGRESS;
   const correctionsKnown = normalized.test.state === SESSION_STATE.RELEASED;

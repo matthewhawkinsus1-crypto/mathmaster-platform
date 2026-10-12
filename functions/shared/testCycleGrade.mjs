@@ -59,6 +59,9 @@ export const GRADE_SOURCE = Object.freeze({
   NONE: 'none',
   ORIGINAL_TEST: 'originalTest',
   RETEST: 'retest',
+  // A teacher set the recorded grade by hand (see applyTeacherGradeAdjustment
+  // in testCycleRecord.mjs). The rule's own result is kept beside it.
+  TEACHER_ADJUSTMENT: 'teacherAdjustment',
 });
 
 /**
@@ -173,6 +176,10 @@ export const buildTestCycleGradeState = ({
     retestCapApplied: capApplied,
     // True when a retest happened and could not improve the recorded grade.
     retestDidNotImprove: contribution !== null && original !== null && contribution <= original,
+    // The student never took the original Test (they missed its window) and
+    // went straight to the Retest. The actual Retest score is `rawRetestGrade`;
+    // the cap decides only what is recorded, and both are shown.
+    retestWithoutOriginal: raw !== null && original === null,
     passed: recordedGrade !== null && recordedGrade >= passingScore,
     reason: buildGradeReason({ original, raw, recordedGrade, maxRecordedGrade, source, capApplied, averaged, uncappedContribution }),
   };
@@ -181,6 +188,11 @@ export const buildTestCycleGradeState = ({
 const buildGradeReason = ({ original, raw, recordedGrade, maxRecordedGrade, source, capApplied, averaged = false, uncappedContribution = null }) => {
   if (recordedGrade === null) return 'No secure Test score has been released yet.';
   if (raw === null) return `Recorded from the original Test (${original}%).`;
+  if (original === null) {
+    return capApplied
+      ? `No original Test was taken. The Retest score was ${raw}%; it is recorded at the ${maxRecordedGrade}% retest cap.`
+      : `No original Test was taken. The Retest score of ${raw}% is recorded.`;
+  }
   if (averaged) {
     const average = `the average of the Test (${original}%) and the retest (${raw}%) is ${uncappedContribution}%`;
     if (source === GRADE_SOURCE.ORIGINAL_TEST) {
@@ -247,6 +259,9 @@ export const GRADE_HISTORY_REASON = Object.freeze({
   TEST_RELEASED: 'testReleased',
   RETEST_RELEASED: 'retestReleased',
   TEACHER_OVERRIDE: 'teacherOverride',
+  // A teacher set, changed or removed the recorded grade by hand.
+  TEACHER_ADJUSTMENT: 'teacherAdjustment',
+  TEACHER_ADJUSTMENT_CLEARED: 'teacherAdjustmentCleared',
 });
 
 /**
@@ -266,6 +281,11 @@ export const appendTestCycleGradeHistory = (history, entry) => {
     rawRetestGrade: optionalPercent(entry?.rawRetestGrade),
     retestCappedContribution: optionalPercent(entry?.retestCappedContribution),
     detail: String(entry?.detail || '').slice(0, 400) || null,
+    // Only a teacher's adjustment names who made it, what it replaced and
+    // where the number came from; a release row keeps its original shape.
+    ...(entry?.by ? { by: String(entry.by).slice(0, 160) } : {}),
+    ...(entry?.source ? { source: String(entry.source).slice(0, 40) } : {}),
+    ...(entry?.previousRecordedGrade !== undefined ? { previousRecordedGrade: optionalPercent(entry.previousRecordedGrade) } : {}),
   };
   const previous = rows[rows.length - 1] || null;
   if (
@@ -274,6 +294,11 @@ export const appendTestCycleGradeHistory = (history, entry) => {
     && previous.recordedGrade === next.recordedGrade
     && previous.rawRetestGrade === next.rawRetestGrade
     && previous.originalTestGrade === next.originalTestGrade
+    // Two adjustments to the same number are still two decisions if the
+    // source or the note changed. (Release and reset rows keep the rule they
+    // always had.)
+    && (next.reason !== GRADE_HISTORY_REASON.TEACHER_ADJUSTMENT
+      || ((previous.source || null) === (next.source || null) && (previous.detail || null) === (next.detail || null)))
   ) {
     return rows;
   }

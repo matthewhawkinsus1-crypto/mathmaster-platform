@@ -1472,6 +1472,12 @@ service cloud.firestore {
         'archived', 'archivedAt', 'archivedBy',
         'unpublished', 'unpublishedAt', 'unpublishedBy',
         'lifecycleHistory',
+        // When the secure Test is open (its class-time windows and the home
+        // window's close) and the audit of who was added to it. Changed only
+        // by updateTestCycleAvailability / updateTestCycleAudience, which
+        // check the teacher of record and read the bell schedule: a window a
+        // browser could write is a Test any teacher account could open early.
+        'testAvailability', 'testAvailabilityHistory', 'audienceHistory',
       ];
     }
 
@@ -1997,6 +2003,11 @@ service cloud.firestore {
     // Assignments expose only an opaque reference; Functions resolve it.
     match /secureTestManifests/{docId} { allow read, write: if false; }
     match /testCycleRetestPlans/{docId} { allow read, write: if false; }
+    // A class-wide Test Cycle operation: who asked, for which action, and what
+    // happened for every student. It is the audit record of a bulk change and
+    // names students, so teachers read it through getTestCycleOperation (which
+    // checks the teacher of record) and nobody writes it from a client.
+    match /testCycleOperations/{docId} { allow read, write: if false; }
     match /examSubmissions/{docId} { allow read, write: if false; }
     // Who deleted which assignment, written by manageAssignmentLifecycle after
     // it has proved no student evidence existed. An audit trail is only worth

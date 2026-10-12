@@ -328,6 +328,29 @@ await check('teacher CANNOT unpublish an assignment with a client write', assert
   { unpublished: true },
   { merge: true },
 )));
+// When the Test is open is decided by updateTestCycleAvailability (teacher of
+// record, bell schedule read on the server); who was added is audited by
+// updateTestCycleAudience. Neither is a field a browser may write.
+await check('teacher CANNOT open a Test window with a client write', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { testAvailability: { policy: 'alwaysOpen' } },
+  { merge: true },
+)));
+await check('teacher CANNOT rewrite the Test window audit trail', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { testAvailabilityHistory: [] },
+  { merge: true },
+)));
+await check('teacher CANNOT rewrite the audience audit trail', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { audienceHistory: [{ at: 1, by: 'someone', addedClassIds: ['C1'] }] },
+  { merge: true },
+)));
+await check('student CANNOT open a Test window', assertFails(setDoc(
+  doc(student, 'assignments/A-cycle'),
+  { testAvailability: { policy: 'alwaysOpen' } },
+  { merge: true },
+)));
 await check('teacher still edits an ordinary field on a Test Cycle', assertSucceeds(setDoc(
   doc(teacher, 'assignments/A-cycle'),
   { title: 'Unit 3 Test Cycle (renamed)', dueAt: '2026-11-01T23:59:00.000Z' },
@@ -338,6 +361,9 @@ await check('student CANNOT change a Test Cycle policy', assertFails(setDoc(
   { assessmentPolicy: { mode: 'testCycle', retest: { maxRecordedGrade: 100 } } },
   { merge: true },
 )));
+await check('nobody reads a class-wide Test Cycle operation from a client', assertFails(getDoc(doc(teacher, 'testCycleOperations/A-cycle__op-12345678'))));
+await check('teacher CANNOT forge a class-wide Test Cycle operation', assertFails(setDoc(doc(teacher, 'testCycleOperations/A-cycle__op-12345678'), { status: 'completed' })));
+await check('student CANNOT read a class-wide Test Cycle operation', assertFails(getDoc(doc(student, 'testCycleOperations/A-cycle__op-12345678'))));
 await check('nobody reads or writes the assignment deletion log from a client', assertFails(getDoc(doc(rootAdmin, 'assignmentDeletionLog/A2'))));
 await check('teacher CANNOT forge an assignment deletion log entry', assertFails(setDoc(doc(teacher, 'assignmentDeletionLog/A2'), { deletedBy: 'someone' })));
 await check('teacher reads live presence only for own roster', assertSucceeds(getDoc(doc(teacher, 'presence/S1042'))));

@@ -16,7 +16,7 @@ const fieldControl = { display: 'block', width: '100%', minHeight: 44, marginTop
  * simulations. Both run on this one secure runtime, so both are administered
  * from one screen rather than from two that could drift apart.
  */
-export const TeacherSecureExamDashboard = ({ students = [], testCycleAssignments = [], classId = null, focusedTestCycleAssignmentId = null, onPreviewTestCycle = null }) => {
+export const TeacherSecureExamDashboard = ({ students = [], classes = [], teacherEmail = '', testCycleAssignments = [], classId = null, focusedTestCycleAssignmentId = null, onPreviewTestCycle = null }) => {
   /*
    * WHICH TEST CYCLES, AND WHICH ONE OPEN.
    *
@@ -77,7 +77,7 @@ export const TeacherSecureExamDashboard = ({ students = [], testCycleAssignments
   };
   return (
     <div>
-      {testCycleAssignments.length > 0 && <section style={{ marginBottom: 28, display: 'grid', gap: 18 }}><div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}><h2 style={{ margin: 0 }}>My Course Tests</h2>{archivedCount > 0 && <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}><input type="checkbox" checked={showArchivedCycles} onChange={(event) => setShowArchivedCycles(event.target.checked)} />Show {archivedCount} archived</label>}</div>{orderedCycles.map((testCycleAssignment, index) => <TestCycleControls key={testCycleAssignment.id} assignment={testCycleAssignment} classId={classId} students={students} onPreview={onPreviewTestCycle} defaultOpen={focusedTestCycleAssignmentId ? testCycleAssignment.id === focusedTestCycleAssignmentId : index === 0} />)}</section>}
+      {testCycleAssignments.length > 0 && <section style={{ marginBottom: 28, display: 'grid', gap: 18 }}><div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}><h2 style={{ margin: 0 }}>My Course Tests</h2>{archivedCount > 0 && <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}><input type="checkbox" checked={showArchivedCycles} onChange={(event) => setShowArchivedCycles(event.target.checked)} />Show {archivedCount} archived</label>}</div>{orderedCycles.map((testCycleAssignment, index) => <TestCycleControls key={testCycleAssignment.id} assignment={testCycleAssignment} classId={classId} students={students} classes={classes} teacherEmail={teacherEmail} onPreview={onPreviewTestCycle} defaultOpen={focusedTestCycleAssignmentId ? testCycleAssignment.id === focusedTestCycleAssignmentId : index === 0} />)}</section>}
       <h2 style={{ marginTop: 0 }}>College &amp; Career Simulations</h2>
       <section style={{ padding: 'clamp(14px, 3vw, 20px)', border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface-sunken)', marginBottom: 28, textAlign: 'left' }}>
         <h2 style={{ marginTop: 0 }}>Create a practice test</h2>

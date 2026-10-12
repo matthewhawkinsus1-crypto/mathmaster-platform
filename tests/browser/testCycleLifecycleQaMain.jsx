@@ -8,7 +8,7 @@
 //   &theme=dark  (the app keys dark mode to <html data-theme="dark">)
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../src/firebase.js';
 import '../../src/theme/tokens.css';
 import '../../src/index.css';
@@ -51,11 +51,23 @@ const Student = () => {
 const Teacher = () => {
   const [assignment, setAssignment] = useState(null);
   const [previewing, setPreviewing] = useState(null);
+  // `roster=1` (the Secure Test workflow QA) gives the panel the teacher's
+  // classes and students, as the teacher workspace does, so it can offer
+  // classes and students to add. The lifecycle QA runs without them.
+  const withRoster = params.get('roster') === '1';
+  const [classes, setClasses] = useState([]);
+  const [students, setStudents] = useState([]);
   useEffect(() => onSnapshot(doc(db, 'assignments', assignmentId), (snapshot) => setAssignment(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null)), []);
-  if (!assignment) return <p role="status">Loading assignment…</p>;
+  useEffect(() => {
+    if (!withRoster) return undefined;
+    const stopClasses = onSnapshot(collection(db, 'classes'), (snapshot) => setClasses(snapshot.docs.map((entry) => ({ classId: entry.id, ...entry.data() }))));
+    const stopStudents = onSnapshot(collection(db, 'grades'), (snapshot) => setStudents(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))));
+    return () => { stopClasses(); stopStudents(); };
+  }, [withRoster]);
+  if (!assignment) return <p role="status">{params.get('deleted') === '1' ? 'This Test no longer exists.' : 'Loading assignment…'}</p>;
   return (
     <main style={{ padding: 16, boxSizing: 'border-box', background: 'var(--mm-surface-sunken)', minHeight: '100vh' }}>
-      <TestCycleControls assignment={assignment} classId={params.get('classId')} students={[]} onPreview={(target) => setPreviewing(target)} />
+      <TestCycleControls assignment={assignment} classId={params.get('classId')} students={students} classes={classes} teacherEmail={params.get('email') || ''} onPreview={(target) => setPreviewing(target)} />
       {previewing && <TestCyclePreview assignment={previewing} onClose={() => setPreviewing(null)} onPreviewReview={() => { window.__qa.reviewOpened += 1; }} />}
     </main>
   );

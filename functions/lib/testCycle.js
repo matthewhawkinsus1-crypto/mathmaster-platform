@@ -17,12 +17,16 @@
 
 const crypto = require("crypto");
 const { runtimeQuestionsFromAssignment } = require("./assignmentRuntime");
-const { assignmentGradeProgress, normalizeStoredQuestionRecord, questionWasAttempted } = require("./classroomGradeRuntime");
+const { assignmentGradeProgress, getQuestionCredit, normalizeStoredQuestionRecord, questionWasAttempted } = require("./classroomGradeRuntime");
+const { normalizeQuestionWeight } = require("./questionWeights");
 
 let sharedModules = null;
 async function shared() {
   if (!sharedModules) {
-    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external] = await Promise.all([
+    // `availability` is the assignment-level gate (archived, paused, not yet
+    // released); `schedule` is when each secure part is open (the class-time
+    // Test window and the home window); `bulk` is the class-wide operation.
+    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk, deadline] = await Promise.all([
       import("../shared/testCyclePolicy.mjs"),
       import("../shared/testCycleGrade.mjs"),
       import("../shared/testCycleRecord.mjs"),
@@ -34,8 +38,15 @@ async function shared() {
       import("../shared/testCyclePreflight.mjs"),
       import("../shared/assessmentAvailability.mjs"),
       import("../shared/externalAssessment.mjs"),
+      import("../shared/testCycleAvailability.mjs"),
+      import("../shared/testCycleBulk.mjs"),
+      import("../shared/sectionDeadline.mjs"),
     ]);
-    sharedModules = { policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external };
+    sharedModules = {
+      policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk,
+      // The school's wall clock: every window is read and shown in it.
+      timeZone: deadline.SCHOOL_TIME_ZONE,
+    };
   }
   return sharedModules;
 }
@@ -231,6 +242,99 @@ function reviewProgress(assignment = {}, tracker = {}) {
   };
 }
 
+/*
+ * WHEN A STORED REVIEW ANSWER WAS LAST SAVED.
+ *
+ * The tracker keeps the academic time of the last attempt (`lastAttemptAt`);
+ * older records carry it under other names, as ISO text, a number or a
+ * Firestore Timestamp. Whatever is there is read; nothing is invented.
+ */
+const SAVED_AT_FIELDS = ["lastAttemptAt", "updatedAt", "lastUpdatedAt", "submittedAt", "completedAt"];
+function savedAtMs(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.getTime();
+  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : null;
+  const parsed = new Date(String(value)).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+function recordSavedAt(record) {
+  if (!record || typeof record !== "object") return null;
+  const stamps = SAVED_AT_FIELDS.map((field) => savedAtMs(record[field])).filter((value) => value !== null);
+  return stamps.length ? Math.max(...stamps) : null;
+}
+
+const REVIEW_SUMMARY_STATUS = Object.freeze({
+  NO_REVIEW: "noReview",
+  NOT_STARTED: "notStarted",
+  IN_PROGRESS: "inProgress",
+  COMPLETE: "complete",
+});
+
+/**
+ * One student's Review, as a grade a teacher can use.
+ *
+ * READ FROM THE ONE PLACE REVIEW WORK IS SAVED. A cycle's Review is ordinary
+ * assignment work, stored where every other answer is:
+ * `grades/{studentId}.gradesByAssignment[assignmentId]`, one record per
+ * question. That tracker is what unlocks the Test (`reviewProgress` above) and
+ * what this reads; nothing here is a second copy that could say something
+ * different, and nothing here writes.
+ *
+ * Points are the questions' own weights, and credit is the gradebook's credit
+ * for a stored record (`getQuestionCredit`: full for a correct answer, the
+ * best partial credit otherwise) — the same numbers the gradebook would show
+ * for the same answers. `complete` is the gate's own answer, so this summary
+ * cannot call a Review finished that the server would still hold a Test for.
+ *
+ * It is kept apart from the secure Test and Retest scores: it is instruction
+ * done with hints and retries. A teacher who decides to record it as this
+ * assessment's grade does that as an explicit, audited adjustment
+ * (testCycleRecord.applyTeacherGradeAdjustment), and it is labelled as such.
+ */
+function reviewSummary(assignment = {}, tracker = {}) {
+  const indices = roleQuestionIndices(assignment, "review");
+  const questions = runtimeQuestionsFromAssignment(assignment);
+  const gate = reviewProgress(assignment, tracker);
+  const answered = reviewAttemptRule(assignment);
+  let possiblePoints = 0;
+  let earnedPoints = 0;
+  let attempted = 0;
+  let correct = 0;
+  let lastSavedAt = null;
+  indices.forEach((index) => {
+    const record = tracker?.[index];
+    const weight = normalizeQuestionWeight(questions[index] || {});
+    possiblePoints += weight;
+    earnedPoints += weight * Math.max(0, Math.min(1, Number(getQuestionCredit(record)) || 0));
+    if (answered(record)) {
+      attempted += 1;
+      if (normalizeStoredQuestionRecord(record).status === "correct") correct += 1;
+    }
+    const savedAt = recordSavedAt(record);
+    if (savedAt !== null && (lastSavedAt === null || savedAt > lastSavedAt)) lastSavedAt = savedAt;
+  });
+  const round = (value) => Math.round(value * 100) / 100;
+  const total = indices.length;
+  return {
+    total,
+    attempted,
+    correct,
+    earnedPoints: round(earnedPoints),
+    possiblePoints: round(possiblePoints),
+    // Null, not zero, when there is nothing to score.
+    percent: possiblePoints > 0 ? Math.round((earnedPoints / possiblePoints) * 100) : null,
+    complete: gate.complete,
+    status: total === 0
+      ? REVIEW_SUMMARY_STATUS.NO_REVIEW
+      : gate.complete
+        ? REVIEW_SUMMARY_STATUS.COMPLETE
+        : attempted > 0 ? REVIEW_SUMMARY_STATUS.IN_PROGRESS : REVIEW_SUMMARY_STATUS.NOT_STARTED,
+    lastSavedAt,
+    ...(gate.minimumMastery !== undefined ? { mastery: gate.mastery, minimumMastery: gate.minimumMastery } : {}),
+  };
+}
+
 let skillModules = null;
 async function reviewSkillModules() {
   if (!skillModules) {
@@ -367,6 +471,8 @@ module.exports = {
   shared,
   roleQuestionIndices,
   reviewProgress,
+  reviewSummary,
+  REVIEW_SUMMARY_STATUS,
   reviewAttemptRule,
   reviewProgressBySkill,
   isCodeLikeTargetLabel,

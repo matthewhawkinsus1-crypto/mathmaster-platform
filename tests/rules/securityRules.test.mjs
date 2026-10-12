@@ -813,6 +813,8 @@ test('the collections that hold answers and credentials are unreachable from any
     'testCycleRecords/assignment-1__STUDENT_A',
     'testCycleCorrectionPlans/assignment-1__STUDENT_A',
     'testCycleRetestPlans/assignment-1__STUDENT_A',
+    // A class-wide operation's audit record: it names every student it touched.
+    'testCycleOperations/assignment-1__op-12345678',
     'classJoinCodes/code-1',
   ];
   for (const path of serverOnly) {
@@ -886,6 +888,20 @@ test('no client can write the recorded Test Cycle grade, not even the student wh
   await assertFails(updateDoc(doc(admin(), 'grades/STUDENT_A'), { testCycleGrades: forged }));
   // Removing it is no more allowed than rewriting it.
   await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), { testCycleGrades: {} }));
+  /*
+   * The same map carries the proof that a student was added to a Test on
+   * their own (`individuallyAssigned`): it is what lets the server accept
+   * their Review answers and hand them the assessment. A student who could
+   * write it could assign themselves any class's secure Test.
+   */
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(updateDoc(doc(client, 'grades/STUDENT_A'), {
+      'testCycleGrades.another-class-test': { individuallyAssigned: true },
+    }));
+    await assertFails(updateDoc(doc(client, 'grades/STUDENT_A'), {
+      'testCycleGrades.assignment-1.individuallyAssigned': true,
+    }));
+  }
 
   // The pin does not lock the document: the student's own engagement time,
   // the one field their client writes, still saves. (Their graded work

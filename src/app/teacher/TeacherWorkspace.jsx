@@ -3011,6 +3011,10 @@ export default function TeacherWorkspace({
           {teacherTab === 'exams' && (
             <TeacherSecureExamDashboard
               students={allStudents}
+              // The teacher's classes and address: what the Secure Test screen
+              // offers when adding a class or a student to a Test.
+              classes={classes}
+              teacherEmail={user.email || ''}
               classId={activeClass.classId || null}
               // The teacher's own Test Cycles, administered beside the
               // simulations they already run on this same secure runtime.

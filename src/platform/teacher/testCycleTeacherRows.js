@@ -27,11 +27,13 @@ export const TEACHER_BUCKET_LABEL = Object.freeze({
   complete: 'Complete',
   retestClosed: 'Retest closed',
   needsAttention: 'Needs attention — Test locked',
+  // Never started the Test before its class-time window closed.
+  missedTest: 'Missed Test — Retest at home',
 });
 
 /** The order a teacher scans for "who needs me?". */
 export const TEACHER_BUCKET_ORDER = Object.freeze([
-  'needsAttention', 'awaitingRelease', 'retestAwaitingRelease', 'testing', 'readyForTest', 'inReview', 'notStarted',
+  'needsAttention', 'awaitingRelease', 'retestAwaitingRelease', 'testing', 'missedTest', 'readyForTest', 'inReview', 'notStarted',
   'inCorrections', 'retestOpen', 'passed', 'complete', 'retestClosed',
 ]);
 
@@ -84,9 +86,15 @@ export const describeTeacherRow = (row = {}, { external = false } = {}) => {
   // No session is "Not opened" whatever the stage. A student whose Review was
   // waived (or finished) before sessions were opened is at the Test stage with
   // nothing to enter, and a bare dash there hid that the teacher still owes them one.
-  const testText = !test.examSessionId
-    ? 'Not opened'
-    : sessionText(test, { opened: row.stage === 'test' ? 'Ready' : 'Opened' }, 'test');
+  // A missed Test is said as one, whether or not a session was ever opened;
+  // and a session waiting on its class-time window is not "Ready".
+  const testText = row.missedTest
+    ? 'Missed'
+    : !test.examSessionId
+      ? 'Not opened'
+      : row.windowClosed === 'test' && test.state === 'assigned'
+        ? 'Opened · waits for class time'
+        : sessionText(test, { opened: row.stage === 'test' ? 'Ready' : 'Opened' }, 'test');
 
   let correctionsText = '—';
   if (controls.correctionsWaived || corrections.waived) correctionsText = 'Waived';
@@ -96,7 +104,9 @@ export const describeTeacherRow = (row = {}, { external = false } = {}) => {
 
   const retestText = controls.retestDisabled && retest.state !== 'released'
     ? 'Closed'
-    : sessionText(retest, { opened: 'Ready' }, 'retest');
+    : row.windowClosed === 'followUp' && retest.state === 'assigned'
+      ? 'Opened · home window closed'
+      : sessionText(retest, { opened: 'Ready' }, 'retest');
 
   if (external) {
     return {
@@ -165,6 +175,7 @@ const externalActionsForRow = (row, actions) => {
       confirm: true,
     });
   }
+  actions.push(adjustGradeAction(row));
   return actions;
 };
 
@@ -213,12 +224,50 @@ export const teacherActionsForRow = (row = {}, { external = false } = {}) => {
       key: 'waiveReview',
       action: 'waiveReview',
       label: 'Waive Review',
-      detail: test.examSessionId
-        ? 'Lets this student start the Test without finishing Review.'
-        : 'Lets this student skip Review. Their Test is not open yet, so open it afterwards with "Open this student\'s Test session".',
+      detail: row.missedTest
+        ? 'Lets this student start the Retest without finishing Review. They missed the Test, so the Retest is opened for them.'
+        : test.examSessionId
+          ? 'Lets this student start the Test without finishing Review.'
+          : 'Lets this student skip Review. Their Test is not open yet, so open it afterwards with "Open this student\'s Test session".',
       // Said after it succeeds: the waiver alone does not let them start.
-      doneNote: test.examSessionId ? null : 'Their Test is not open yet. Use "Open this student\'s Test session" below so they can start it.',
+      doneNote: row.missedTest || test.examSessionId ? null : 'Their Test is not open yet. Use "Open this student\'s Test session" below so they can start it.',
     });
+  }
+  /*
+   * THE WINDOWS, FOR ONE STUDENT. A student who has not started the Test and
+   * cannot start it now (it has not opened for their class, or it has closed
+   * and they missed it) can be given a window of their own. A student whose
+   * Retest has not been started, submitted or released can still be sent back
+   * to the original Test this way: starting it closes the Retest that stood in.
+   */
+  const testNotStarted = !['inProgress', 'submitted', 'released'].includes(test.state);
+  const retestNotStarted = !['inProgress', 'submitted', 'released'].includes(retest.state);
+  if (testNotStarted && retestNotStarted && (row.missedTest || row.windowClosed === 'test')) {
+    actions.push({
+      key: 'reopenTest',
+      kind: 'reopenTest',
+      label: row.missedTest ? 'Reopen the Test for this student' : 'Open the Test for this student at another time',
+      detail: row.missedTest
+        ? 'They take the original Test, between two times you choose, instead of the Retest. Starting it closes the Retest that was opened in its place.'
+        : 'Lets this student start the Test between two times you choose, outside their class period.',
+    });
+  }
+  // Longer for Corrections and the Retest, for this student only.
+  const inFollowUp = ['corrections', 'retest', 'retestReady'].includes(stage) || row.missedTest;
+  if (inFollowUp && retest.state !== 'released' && retest.state !== 'submitted' && row.schedule?.followUp?.state !== 'unset') {
+    actions.push({
+      key: 'extendHome',
+      kind: 'extendHome',
+      label: row.windowClosed === 'followUp' ? 'Reopen Corrections and the Retest for this student' : 'Give this student longer for Corrections and the Retest',
+      detail: 'Sets a closing time for this student only. It can only give them longer than the class has.',
+    });
+  }
+  // A student who missed the Test has no released Test, so the two retest
+  // controls below (which wait for one) would never be offered to them.
+  if (row.missedTest && retest.state !== 'released') {
+    actions.push(controls.retestDisabled
+      ? { key: 'unlockRetest', action: 'unlockRetest', label: 'Reopen retest', detail: 'This student can take the Retest again.' }
+      : { key: 'disableRetest', action: 'disableRetest', label: 'Close retest', detail: 'This student can no longer retest. With no Test and no Retest, no grade is recorded unless you set one.', confirm: true });
   }
   /*
    * Waiving Review (or finishing it) before any Test session exists leaves the
@@ -269,5 +318,22 @@ export const teacherActionsForRow = (row = {}, { external = false } = {}) => {
     actions.push({ key: 'resetRetest', action: 'resetSecureSession', stage: 'retest', label: 'Reset Retest session', detail: 'Discards this retest and issues a new one.', confirm: true });
   }
   if (testReleased) actions.push({ key: 'plans', kind: 'plans', label: 'View correction and retest plans' });
+  actions.push(adjustGradeAction(row));
   return actions;
 };
+
+/*
+ * A grade set by hand is offered for every student: it is how a teacher uses
+ * the Review score, or the Retest's actual score, for this assessment. The
+ * panel names the sources and what each would record before anything is saved.
+ */
+function adjustGradeAction(row) {
+  return {
+    key: 'adjustGrade',
+    kind: 'adjustGrade',
+    label: row.gradeAdjustment ? 'Change or remove the grade you set' : 'Set this grade by hand',
+    detail: row.gradeAdjustment
+      ? 'You set this student\'s recorded grade. Change where it comes from, or remove it to return to the grade rule.'
+      : 'Record the Review score, the actual Retest score, or a grade you enter. The secure scores are kept as they are, and the change is logged.',
+  };
+}

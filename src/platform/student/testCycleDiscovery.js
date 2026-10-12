@@ -355,6 +355,20 @@ export const testSkillsSection = (card = {}) => {
     questionCount: count(skill?.questionCount),
   })).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true, sensitivity: 'base' })
     || left.key.localeCompare(right.key));
+  /*
+   * A student who missed the Test takes a Retest that is the WHOLE Test (there
+   * are no missed skills of theirs to lean on), so it is listed as the Test
+   * is: every skill, with its count. Telling them it was "mostly the ones you
+   * missed" would be describing answers they never gave.
+   */
+  if (!external && card?.schedule?.missedTest === true && [S.REVIEW, S.RETEST_READY, S.RETEST].includes(stage)) {
+    return {
+      title: 'What\'s on your Retest',
+      note: 'You did not take the Test, so your Retest covers every skill that was on it.',
+      showCounts: true,
+      rows,
+    };
+  }
   if ([S.REVIEW, S.TEST].includes(stage)) {
     return { title: `What's on your ${external ? 'Retest' : 'Test'}`, note: null, showCounts: true, rows };
   }
