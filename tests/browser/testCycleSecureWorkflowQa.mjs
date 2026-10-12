@@ -639,8 +639,10 @@ try {
 } finally {
   await browser.close().catch(() => {});
   bridge.close();
-  killAll();
+  // The emulator first, by asking the CLI: a SIGKILL of its group would leave
+  // the Java process holding the port for the next emulator run.
   await stopEmulator();
+  killAll();
 }
 
 console.log(`\n${passes.length} passed, ${findings.length} findings. Screenshots: ${SHOTS}`);
