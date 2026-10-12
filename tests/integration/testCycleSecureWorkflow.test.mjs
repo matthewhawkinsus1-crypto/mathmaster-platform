@@ -506,6 +506,9 @@ test('adding a class and a student keeps every existing session, record and answ
   // A student nobody added still cannot.
   assert.equal((await refusal(card(id('outsider'), MAIN)))?.code, 'permission-denied');
 
+  // An unknown "sits with" class is refused; none at all means the Test's first class.
+  assert.equal((await refusal(fns.updateTestCycleAudience.run(teacherRequest({ assignmentId: MAIN, addStudentIds: [id('outsider')], sitsWithClassId: CLASS_C }))))?.code, 'invalid-argument');
+
   // Adding the same again changes nothing and says so.
   const repeat = await fns.updateTestCycleAudience.run(teacherRequest({ assignmentId: MAIN, addClassIds: [CLASS_B], addStudentIds: [id('individual')] }));
   assert.deepEqual(repeat.counts, { classesAdded: 0, studentsAdded: 0, alreadyAssigned: 2, failed: 0 });

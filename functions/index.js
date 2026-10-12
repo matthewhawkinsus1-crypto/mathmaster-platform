@@ -24704,10 +24704,14 @@ exports.updateTestCycleAudience = onCall(TEST_CYCLE_ACTION_OPTIONS, async (reque
   const classIdsAfter = [...audienceClassIds, ...classesToAdd.map((entry) => entry.classId)];
 
   // --- students ------------------------------------------------------------
-  const sitsWithClassId = String(request.data?.sitsWithClassId || "").trim() || null;
-  if (sitsWithClassId && !classIdsAfter.includes(sitsWithClassId)) {
+  // The assigned class whose Test window an added student follows. Named by
+  // the teacher, or the Test's first class: a student following no class would
+  // have no class-time window at all, however the Test's classes are limited.
+  const requestedSitsWith = String(request.data?.sitsWithClassId || "").trim() || null;
+  if (requestedSitsWith && !classIdsAfter.includes(requestedSitsWith)) {
     throw new HttpsError("invalid-argument", "Students can only sit the Test with a class that is assigned it.");
   }
+  const sitsWithClassId = requestedSitsWith || classIdsAfter[0] || null;
   const identity = await studentIdentity();
   const studentResults = [];
   const studentsToAdd = [];
