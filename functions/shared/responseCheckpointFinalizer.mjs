@@ -131,7 +131,14 @@ export const verifyCheckpointAuthorization = ({
   if (claimedClassId !== authoritativeClassId) return { ok: false, reason: 'class-mismatch' };
 
   const assignedClassIds = list(assignment.assignedClassIds).map(text).filter(Boolean);
-  if (!assignedClassIds.includes(authoritativeClassId)) return { ok: false, reason: 'assignment-not-assigned-to-class' };
+  // A student added to a Test Cycle individually is assigned it without their
+  // class being: the server-written proof is on their own grade document
+  // (index.js `studentIndividuallyAssigned`), so their Review answers are
+  // finalized like anyone else's.
+  const individuallyAssigned = gradeDocument.testCycleGrades?.[text(checkpoint.assignmentId)]?.individuallyAssigned === true;
+  if (!assignedClassIds.includes(authoritativeClassId) && !individuallyAssigned) {
+    return { ok: false, reason: 'assignment-not-assigned-to-class' };
+  }
 
   const questionIndex = Number(checkpoint.questionIndex);
   if (!Number.isInteger(questionIndex) || questionIndex < 0) return { ok: false, reason: 'invalid-question-index' };

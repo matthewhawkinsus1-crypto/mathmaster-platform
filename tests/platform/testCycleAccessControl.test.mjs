@@ -186,8 +186,10 @@ test('batch assignment cannot reach outside the assignment audience', () => {
   // thing as the class this cycle was assigned to.
   assert.match(assign, /if \(requestedClassId && !audienceClassIds\.includes\(requestedClassId\)\)/);
   assert.match(assign, /not assigned this Test Cycle/);
-  // Named students are checked, not trusted.
-  assert.match(assign, /studentMatchesAssignmentAudience\(\{ assignment, classId: data\?\.classId \|\| null \}\)/);
+  // Named students are checked, not trusted: by their class, or by the
+  // server-written proof on their own grade row that they were added to this
+  // Test individually (the predicate reads both from `data`).
+  assert.match(assign, /studentMatchesAssignmentAudience\(\{ assignment, classId: data\?\.classId \|\| null, gradeData: data, assignmentId \}\)/);
   // And the default audience is the assignment's own.
   assert.match(assign, /requestedClassId \? \[requestedClassId\] : audienceClassIds/);
 });
