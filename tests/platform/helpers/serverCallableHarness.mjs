@@ -11,8 +11,9 @@
 //
 // The stand-in models only what these callables use, and is strict about it:
 // select() and field masks return ONLY the listed fields, update() of a missing
-// document throws, where() supports '==' and 'in', and every read and write is
-// recorded so a test can prove what was — and was not — loaded or changed.
+// document throws, where() supports '==', 'in' and 'array-contains', a
+// document's subcollection is stored under its full path, and every read and
+// write is recorded so a test can prove what was — and was not — loaded or changed.
 // tests/platform/studentIdentityContract.test.mjs keeps its own, smaller copy.
 
 import assert from 'node:assert/strict';
@@ -40,17 +41,24 @@ export const project = (data, fields) => (fields
   : clone(data));
 
 class FakeDocRef {
+  // `collectionPath`, not `collection`: an own property of that name would hide
+  // the collection() method below, as it would on a real DocumentReference.
   constructor(db, collection, id) {
-    Object.assign(this, { db, collection, id });
+    Object.assign(this, { db, collectionPath: collection, id });
   }
 
   get path() {
-    return `${this.collection}/${this.id}`;
+    return `${this.collectionPath}/${this.id}`;
+  }
+
+  /** A subcollection: its documents are stored under the full path ("rooms/r1/players"). */
+  collection(name) {
+    return new FakeQuery(this.db, `${this.path}/${name}`);
   }
 
   async get() {
-    this.db.reads.push({ collection: this.collection, id: this.id, fields: null, via: 'doc.get' });
-    return this.db.snapshot(this.collection, this.id, null);
+    this.db.reads.push({ collection: this.collectionPath, id: this.id, fields: null, via: 'doc.get' });
+    return this.db.snapshot(this.collectionPath, this.id, null);
   }
 
   async set(payload, options = {}) {
@@ -82,7 +90,7 @@ class FakeQuery {
   }
 
   where(field, op, value) {
-    assert.ok(['==', 'in'].includes(op), `where('${field}', '${op}') is not modelled by this stand-in`);
+    assert.ok(['==', 'in', 'array-contains'].includes(op), `where('${field}', '${op}') is not modelled by this stand-in`);
     if (op === 'in') {
       assert.ok(Array.isArray(value) && value.length > 0 && value.length <= 30, 'Firestore `in` takes 1-30 values');
     }
@@ -105,9 +113,11 @@ class FakeQuery {
   }
 
   matches(data) {
-    return this.filters.every(({ field, op, value }) => (op === 'in'
-      ? value.some((entry) => entry === data[field])
-      : data[field] === value));
+    return this.filters.every(({ field, op, value }) => {
+      if (op === 'in') return value.some((entry) => entry === data[field]);
+      if (op === 'array-contains') return Array.isArray(data[field]) && data[field].includes(value);
+      return data[field] === value;
+    });
   }
 
   run(via) {
@@ -136,6 +146,9 @@ export class FakeFirestore {
     this.reads = [];
     this.writes = [];
     this.autoId = 0;
+    // Each batch or transaction commit gets one id; its writes carry it as
+    // `group`, so a test can prove writes landed together (direct writes: null).
+    this.commitGroups = 0;
   }
 
   docsOf(name) {
@@ -179,8 +192,8 @@ export class FakeFirestore {
     const options = refs.length && !(refs.at(-1) instanceof FakeDocRef) ? refs.pop() : {};
     const fields = options?.fieldMask ? [...options.fieldMask] : null;
     return refs.map((ref) => {
-      this.reads.push({ collection: ref.collection, id: ref.id, fields, via });
-      return this.snapshot(ref.collection, ref.id, fields);
+      this.reads.push({ collection: ref.collectionPath, id: ref.id, fields, via });
+      return this.snapshot(ref.collectionPath, ref.id, fields);
     });
   }
 
@@ -195,7 +208,10 @@ export class FakeFirestore {
       set: (ref, payload, options = {}) => { pending.push({ op: options?.merge ? 'merge' : 'set', ref, payload }); return batch; },
       update: (ref, payload) => { pending.push({ op: 'update', ref, payload }); return batch; },
       delete: (ref) => { pending.push({ op: 'delete', ref, payload: {} }); return batch; },
-      commit: async () => { pending.forEach((write) => this.commit(write)); },
+      commit: async () => {
+        const group = `batch-${this.commitGroups += 1}`;
+        pending.forEach((write) => this.commit({ ...write, group }));
+      },
     };
     return batch;
   }
@@ -208,8 +224,8 @@ export class FakeFirestore {
       async get(target) {
         assert.ok(!wrote, 'a Firestore transaction must finish its reads before it writes');
         if (target instanceof FakeQuery) return target.run('transaction.get(query)');
-        db.reads.push({ collection: target.collection, id: target.id, fields: null, via: 'transaction.get' });
-        return db.snapshot(target.collection, target.id, null);
+        db.reads.push({ collection: target.collectionPath, id: target.id, fields: null, via: 'transaction.get' });
+        return db.snapshot(target.collectionPath, target.id, null);
       },
       async getAll(...args) {
         assert.ok(!wrote, 'a Firestore transaction must finish its reads before it writes');
@@ -225,20 +241,26 @@ export class FakeFirestore {
         pending.push({ op: options?.merge ? 'merge' : 'set', ref, payload });
         return transaction;
       },
+      delete(ref) {
+        wrote = true;
+        pending.push({ op: 'delete', ref, payload: {} });
+        return transaction;
+      },
     };
     const result = await callback(transaction);
-    pending.forEach((write) => this.commit(write));
+    const group = `transaction-${this.commitGroups += 1}`;
+    pending.forEach((write) => this.commit({ ...write, group }));
     return result;
   }
 
-  commit({ op, ref, payload }) {
-    const docs = this.docsOf(ref.collection);
-    this.writes.push({ op, collection: ref.collection, id: ref.id, keys: Object.keys(payload) });
+  commit({ op, ref, payload, group = null }) {
+    const docs = this.docsOf(ref.collectionPath);
+    this.writes.push({ op, collection: ref.collectionPath, id: ref.id, keys: Object.keys(payload), group });
     if (op === 'delete') {
       docs.delete(ref.id);
       return;
     }
-    if (op === 'update') assert.ok(docs.has(ref.id), `update() of missing ${ref.collection}/${ref.id} would fail in Firestore`);
+    if (op === 'update') assert.ok(docs.has(ref.id), `update() of missing ${ref.collectionPath}/${ref.id} would fail in Firestore`);
     const next = op === 'set' ? {} : { ...docs.get(ref.id) };
     Object.entries(payload).forEach(([key, value]) => {
       assert.ok(!key.includes('.'), 'dotted update paths are not modelled by this stand-in');

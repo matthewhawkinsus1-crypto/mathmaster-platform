@@ -2627,6 +2627,9 @@ function QuestionEngineBody({
         </section>
       )}
 
+      {/* While outcome feedback is held (a quiz or test before the teacher
+          releases it), the bar says the question is closed either way: its
+          words must not carry the verdict the rest of the screen withholds. */}
       {locked && !sectionComplete && typeof onNextQuestion === 'function' && (
         <div role="navigation" aria-label="Continue to the next question" style={{ margin: '16px auto 6px', maxWidth: '700px', position: 'relative', zIndex: 50 }}>
           <button
@@ -2652,7 +2655,7 @@ function QuestionEngineBody({
             }}
           >
             <span>
-              <span style={{ display: 'block', fontSize: '11px', fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.88 }}>{isCorrect ? 'You got it — keep going' : 'This question is closed — keep going'}</span>
+              <span style={{ display: 'block', fontSize: '11px', fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.88 }}>{isCorrect && !terminalFeedbackHidden ? 'You got it — keep going' : 'This question is closed — keep going'}</span>
               <span style={{ display: 'block', marginTop: '3px', fontSize: '21px', fontWeight: 950 }}>Next Question</span>
               {(nextQuestionLabel || nextQuestionSectionLabel) && (
                 <span style={{ display: 'block', marginTop: '2px', fontSize: '13px', fontWeight: 750, opacity: 0.92 }}>
