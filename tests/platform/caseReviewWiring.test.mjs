@@ -12,7 +12,10 @@ import { caseReviewWindow } from '../../src/platform/caseReview/caseReviewStore.
 import { CASE_EVIDENCE_LIMITS } from '../../functions/shared/caseReviewEvidence.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
-const app = read('src/App.jsx');
+const appShell = read('src/App.jsx');
+// The teacher's screen (drawer, case review, support report) is its own
+// lazily loaded module since G2; App renders it.
+const app = read('src/app/teacher/TeacherWorkspace.jsx');
 const drawer = read('src/components/teacher/StudentProfileDrawer.jsx');
 const view = read('src/components/teacher/caseReview/StudentCaseReviewView.jsx');
 const store = read('src/platform/caseReview/caseReviewStore.js');
@@ -25,10 +28,12 @@ const caseComponents = readdirSync(caseComponentDir).filter((name) => name.endsW
 test('App loads the case review lazily and mounts it between the drawer and the Support Evidence Report', () => {
   // Declared lazily in app/lazyScreens.js since the App split; App imports it from there.
   assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /export const StudentCaseReviewView = lazy\(\(\) => import\('\.\.\/components\/teacher\/caseReview\/StudentCaseReviewView\.jsx'\)\);/);
-  assert.match(app, /\bStudentCaseReviewView,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
-  const executable = executableSource(app);
-  assert.doesNotMatch(executable, /import StudentCaseReviewView from/, 'never imported eagerly');
-  assert.doesNotMatch(executable, /from '\.\/platform\/caseReview\//, 'no case review module in the main bundle');
+  assert.match(app, /^import \{[^}]*\bStudentCaseReviewView\b[^}]*\} from '\.\.\/lazyScreens\.js';$/m);
+  for (const source of [app, appShell]) {
+    const executable = executableSource(source);
+    assert.doesNotMatch(executable, /import StudentCaseReviewView from/, 'never imported eagerly');
+    assert.doesNotMatch(executable, /from '(?:\.\/|(?:\.\.\/)+)platform\/caseReview\//, 'no case review module in the main bundle');
+  }
   const mountAt = app.indexOf('<StudentCaseReviewView');
   assert.ok(mountAt > app.indexOf('<StudentProfileDrawer'), 'after the drawer, so it stacks above the student it was opened from');
   assert.ok(mountAt < app.indexOf('<SupportEvidenceReportView'), 'before the support report, which it can open on top of itself');

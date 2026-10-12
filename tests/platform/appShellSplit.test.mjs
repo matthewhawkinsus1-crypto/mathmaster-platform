@@ -31,8 +31,10 @@ test('lint refuses free identifiers in App and every moved module, and browser-g
   }
 });
 
-const importedFrom = (module) => {
-  const match = app.match(new RegExp(`import \\{([^}]*)\\} from '${module.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';`));
+const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+const teacherWorkspaceCode = executableSource(teacherWorkspace);
+const importedFrom = (module, source = app) => {
+  const match = source.match(new RegExp(`import \\{([^}]*)\\} from '${module.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';`));
   return match ? match[1].split(',').map((name) => name.trim()).filter(Boolean) : [];
 };
 const exportsOf = (path) => [...read(path).matchAll(/^export const ([A-Za-z0-9_$]+)/gm)].map((match) => match[1]);
@@ -44,11 +46,15 @@ test('every moved helper, scope table and lazy screen is imported by App and dec
     ['./app/lazyScreens.js', 'src/app/lazyScreens.js'],
   ]) {
     const exported = exportsOf(path);
-    const imported = importedFrom(module);
+    // Since G2 the teacher's screen (src/app/teacher/TeacherWorkspace.jsx)
+    // takes what only it uses; between them, App and it import exactly what
+    // the module exports.
+    const imported = [...new Set([...importedFrom(module), ...importedFrom(module.replace('./app/', '../'), teacherWorkspace)])];
     assert.ok(exported.length > 0, `${path} exports nothing`);
-    assert.deepEqual([...imported].sort(), [...exported].sort(), `${module}: App imports exactly what the module exports`);
+    assert.deepEqual([...imported].sort(), [...exported].sort(), `${module}: App and the teacher workspace import exactly what the module exports`);
     for (const name of exported) {
       assert.doesNotMatch(appCode, new RegExp(`^\\s*(?:const|let|function) ${name}\\b`, 'm'), `${name} is declared in App.jsx as well`);
+      assert.doesNotMatch(teacherWorkspaceCode, new RegExp(`^\\s*(?:const|let|function) ${name}\\b`, 'm'), `${name} is declared in TeacherWorkspace.jsx as well`);
     }
   }
 });
@@ -58,9 +64,92 @@ test('every screen in lazyScreens.js is a lazy import, so none joins the first l
   const declarations = [...screens.matchAll(/^export const ([A-Za-z0-9]+) = (.*)$/gm)];
   assert.ok(declarations.length >= 30);
   for (const [, name, value] of declarations) {
-    assert.match(value, /^lazy\(\(\) => import\('\.\.\/[^']+\.jsx'\)\);$/, `${name} is not a lazy import`);
+    // A screen (`lazy`), or a teacher-only panel (`teacherPanel`, the same
+    // lazy import inside its own Suspense boundary). GradebookClassChooser is
+    // a named export, so it is picked out of the loaded module.
+    assert.match(value, /^(?:lazy|teacherPanel)\(\(\) => import\('\.\.\/[^']+\.jsx'\)(?:\.then\(\(module\) => \(\{ default: module\.[A-Za-z]+ \}\)\))?\);$/, `${name} is not a lazy import`);
   }
-  assert.doesNotMatch(executableSource(screens), /^import (?!\{ lazy \} from 'react')/m, 'lazyScreens.js imports a screen eagerly');
+  assert.doesNotMatch(executableSource(screens), /^import (?!\{ Suspense, createElement, lazy \} from 'react')/m, 'lazyScreens.js imports a screen eagerly');
+});
+
+/*
+ * G2: the teacher-only panels App drew from static imports (and the modules
+ * only they reach) left student Home's first load. A panel is the same lazy
+ * import wrapped in its own Suspense boundary with nothing as its fallback:
+ * App's JSX is unchanged, and a panel still loading never suspends up to
+ * AppShell's boundary, which would hide the whole teacher workspace.
+ */
+const TEACHER_PANELS = {
+  SupportEvidenceReportView: 'components/teacher/SupportEvidenceReportView.jsx',
+  ClassContextBar: 'components/teacher/ClassContextBar.jsx',
+  WeeklyPathGradePanel: 'components/teacher/WeeklyPathGradePanel.jsx',
+  ClassroomSyncReview: 'components/teacher/ClassroomSyncReview.jsx',
+  TeacherQuickSearch: 'components/teacher/TeacherQuickSearch.jsx',
+  StudentProfileDrawer: 'components/teacher/StudentProfileDrawer.jsx',
+  AssignmentHub: 'components/teacher/AssignmentHub.jsx',
+  GradebookAssignmentBar: 'components/teacher/GradebookAssignmentBar.jsx',
+  GradebookClassChooser: 'components/teacher/GradebookAssignmentBar.jsx',
+  StudentResponseInspector: 'components/teacher/StudentResponseInspector.jsx',
+  AssignmentGradeOverrideControls: 'components/teacher/AssignmentGradeOverrideControls.jsx',
+  SectionRecoveryAuditTrail: 'components/teacher/SectionRecoveryAuditTrail.jsx',
+  StudentDolRecoveryRow: 'components/teacher/StudentDolRecoveryRow.jsx',
+  ClassRewardCatalogEditor: 'components/rewards/ClassRewardCatalogEditor.jsx',
+  ClassRewardRequestsPanel: 'components/rewards/ClassRewardRequestsPanel.jsx',
+  WeeklyPathControls: 'components/teacher/WeeklyPathControls.jsx',
+  SignInAccess: 'SignInAccess.jsx',
+  ClassesAdmin: 'components/admin/ClassesAdmin.jsx',
+  PreproductionReset: 'components/admin/PreproductionReset.jsx',
+  AssignmentAiHealth: 'components/admin/AssignmentAiHealth.jsx',
+  PathCoverageAudit: 'components/teacher/PathCoverageAudit.jsx',
+  AttendanceHistoryPanel: 'components/teacher/AttendanceHistoryPanel.jsx',
+  ParentContactCenter: 'components/teacher/ParentContactCenter.jsx',
+  TeacherActionCenter: 'components/teacher/TeacherActionCenter.jsx',
+};
+
+test('the teacher-only panels load on demand, each inside its own Suspense boundary', () => {
+  const screens = executableSource(read('src/app/lazyScreens.js'));
+  const helper = screens.match(/const teacherPanel = \(load\) => \{\s*const Lazy = lazy\(load\);\s*const Panel = \(props\) => createElement\(Suspense, \{ fallback: null \}, createElement\(Lazy, props\)\);\s*return Panel;\s*\};/);
+  assert.ok(helper, 'teacherPanel: lazy, inside Suspense with no fallback, every prop passed through');
+  // Taken by App or, since the teacher's screen left App, by TeacherWorkspace.
+  const imported = [...importedFrom('./app/lazyScreens.js'), ...importedFrom('../lazyScreens.js', teacherWorkspace)];
+  for (const [name, path] of Object.entries(TEACHER_PANELS)) {
+    assert.match(screens, new RegExp(`^export const ${name} = teacherPanel\\(\\(\\) => import\\('\\.\\./${path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}'\\)`, 'm'), `${name} loads ${path} on demand`);
+    assert.ok(imported.includes(name), `App or the teacher workspace takes ${name} from lazyScreens.js`);
+    // No static import of the component's file is left in App or the workspace.
+    assert.doesNotMatch(app, new RegExp(`^import [^;]* from '\\./${path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';$`, 'm'), `App still imports ${path} statically`);
+    assert.doesNotMatch(teacherWorkspace, new RegExp(`^import [^;]* from '\\.\\./\\.\\./${path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}';$`, 'm'), `TeacherWorkspace imports ${path} statically`);
+  }
+});
+
+/*
+ * G2: the teacher's whole screen — App's `if (user.role === 'teacher')`
+ * branch — is src/app/teacher/TeacherWorkspace.jsx, loaded on demand. Moved
+ * verbatim; every input is explicit. App passes each prop as `name={name}`, so
+ * the workspace reads exactly what the branch read. A prop App forgot is
+ * undefined at runtime with nothing to catch it: the two lists must agree.
+ */
+test('the teacher workspace is App\'s teacher branch, given every input it reads by name', () => {
+  const screens = read('src/app/lazyScreens.js');
+  assert.match(screens, /^export const TeacherWorkspace = lazy\(\(\) => import\('\.\.\/app\/teacher\/TeacherWorkspace\.jsx'\)\);$/m);
+  assert.ok(importedFrom('./app/lazyScreens.js').includes('TeacherWorkspace'));
+  const signature = teacherWorkspace.match(/^export default function TeacherWorkspace\(\{\n([\s\S]*?)\n\}\) \{$/m);
+  assert.ok(signature, 'the workspace destructures its props by name');
+  const props = signature[1].split('\n').map((line) => line.trim().replace(/,$/, ''));
+  assert.ok(props.length > 200 && props.every((name) => /^[A-Za-z_$][\w$]*$/.test(name)), 'one plain name per line');
+  const branch = appCode.match(/\n {2}if \(user\.role === 'teacher'\) \{\s*return \(\s*<TeacherWorkspace\n([\s\S]*?)\n {6}\/>\s*\);\s*\}\n/);
+  assert.ok(branch, 'App\'s teacher branch renders the workspace and nothing else');
+  const passed = branch[1].split('\n').map((line) => line.trim());
+  assert.deepEqual(passed, props.map((name) => `${name}={${name}}`), 'App passes exactly the props the workspace reads, each under its own name');
+  // The branch's position is unchanged: after the preview, before the student screens.
+  assert.ok(appCode.indexOf('if (isTeacherPreview) {') < branch.index);
+  assert.ok(branch.index < appCode.indexOf("if (user.role === 'student' && activeView === 'dashboard') {"));
+  // Every prop is something App declares or imports (nothing reaches the
+  // workspace as undefined).
+  for (const name of props) {
+    assert.match(app, new RegExp(`(?:\\bconst \\[?\\s*${name}\\b|\\bconst \\[[^\\]]*\\b${name}\\b[^\\]]*\\]|\\bconst \\{[^}]*\\b${name}\\b[^}]*\\}|\\bfunction ${name}\\(|^import [^;]*\\b${name}\\b[^;]*;|\\blet ${name}\\b)`, 'm'), `${name} is declared or imported in App`);
+  }
+  // Hooks stay in App: the branch had none, and the workspace calls none.
+  assert.doesNotMatch(teacherWorkspaceCode, /\buse[A-Z]\w*\(/);
 });
 
 test('the session gate renders for any screen that does not belong to the account signed in now', () => {
@@ -111,4 +200,28 @@ test('student Home prefetches the question runtime at idle, the chunk an assignm
   assert.match(effect, /import\('\.\/QuestionEngine\.jsx'\)/, 'the same module app/lazyScreens.js loads lazily');
   assert.match(effect, /requestIdleCallback\(prefetch/);
   assert.match(read('src/app/lazyScreens.js'), /export const QuestionEngine = lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\);/);
+});
+
+// G2 review: stylesheets App used to get through modules that moved with the
+// teacher's screen must still link BEFORE App.css, as at 805b69e2. App.css's
+// coarse-pointer `.mm-dashboard-content` rules (22px checkboxes, 12px cells,
+// 52px controls, large-screen headings) tie on specificity with rules in the
+// teacher sheets and win only by order. They reach App through one shared
+// module that App and the workspace both import, so the bundler gives it a
+// chunk of its own, linked before App's CSS. (Checked against the built
+// manifest at the time: the CSS App links, concatenated in order, equals
+// 805b69e2's.)
+test('the teacher and phone stylesheets link before App.css, in the order they had', () => {
+  const leading = read('src/app/shell/leadingStyles.js');
+  const sheets = [...executableSource(leading).matchAll(/^import '([^']+\.css)';$/gm)].map((match) => match[1]);
+  assert.deepEqual(sheets, [
+    '../../components/teacher/supportEvidence.css',
+    '../../components/teacher/teacherWorkspace.css',
+    '../../platform/mobile/MobileInteractionFoundation.css',
+  ]);
+  const shared = "import './app/shell/leadingStyles.js';";
+  assert.ok(app.indexOf(shared) > 0 && app.indexOf(shared) < app.indexOf("import './App.css';"), 'App imports them ahead of App.css');
+  assert.match(teacherWorkspace, /^import '\.\.\/shell\/leadingStyles\.js';$/m, 'the workspace shares the module, so it is its own chunk');
+  assert.doesNotMatch(executableSource(app), /^import '\.\/(?:components\/teacher\/(?:supportEvidence|teacherWorkspace)|platform\/mobile\/MobileInteractionFoundation)\.css';$/m,
+    'imported straight from App they would link after App.css');
 });

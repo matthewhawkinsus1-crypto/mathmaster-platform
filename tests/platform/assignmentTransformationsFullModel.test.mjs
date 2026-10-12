@@ -17,6 +17,7 @@ import { validateQuestionsSemantics } from '../../src/platform/contract/semantic
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 import { assertFirestoreSafeAssignmentPayload } from '../../src/assignmentBlueprint.js';
 import { generateQuestion } from '../../src/problemGenerator.js';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 test('full a f(b(x-h))+k model follows x reciprocal/opposite and y direct behavior', () => {
   const spec = normalizeTransformationSpec({
@@ -249,7 +250,7 @@ test('the audited Lesson 1 SAT template is instantiated before student delivery'
 });
 
 test('successful library creation no longer throws from a stale parsed variable', () => {
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  const app = appAndTeacherWorkspaceSource();
   const start = app.indexOf('const handleCreateAssignment = async');
   const end = app.indexOf('const updateExistingAssignmentFromReview', start);
   assert.ok(start >= 0 && end > start);

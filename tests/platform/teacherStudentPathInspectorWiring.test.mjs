@@ -4,7 +4,8 @@ import fs from 'node:fs';
 
 const roster = fs.readFileSync('src/components/teacher/StudentsRoster.jsx', 'utf8');
 const pathApp = fs.readFileSync('src/components/student/MyMathPathApp.jsx', 'utf8');
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+// The Students page is mounted by the teacher's screen, its own module since G2.
+const app = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
 
 test('Students roster embeds the real My Math Path app', () => {
   assert.match(roster, /import MyMathPathApp from '..\/student\/MyMathPathApp\.jsx'/);

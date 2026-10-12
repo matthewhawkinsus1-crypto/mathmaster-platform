@@ -53,6 +53,7 @@ import {
 import { projectSectionRecoveryForAssignment } from '../../src/platform/grading/sectionRecoveryGrades.js';
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const require = createRequire(import.meta.url);
 const { projectRecoveredGradeInputs, recoveryChangedAssignmentIds, warmupChallengeCreditSignature } = require('../../functions/lib/sectionRecoveryGrades.js');
@@ -881,11 +882,13 @@ test('the Live Challenge Warm-Up grade reaches the student Grade Center and both
 });
 
 test('the gradebook detail renders the Recovery audit trail and the section marker, each imported', () => {
-  const app = componentSource('src/App.jsx');
-  assert.match(app, /^import SectionRecoveryAuditTrail from '\.\/components\/teacher\/SectionRecoveryAuditTrail\.jsx';$/m);
+  // The gradebook is the teacher's screen, its own module since G2.
+  const app = componentSource('src/app/teacher/TeacherWorkspace.jsx');
+  // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'SectionRecoveryAuditTrail', 'src/components/teacher/SectionRecoveryAuditTrail.jsx'));
   // Every helper the gradebook row calls is imported where it is used: a call
   // with no import is a runtime ReferenceError no check catches (AGENTS.md).
-  const auditImport = app.match(/^import \{([^}]*)\} from '\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
+  const auditImport = app.match(/^import \{([^}]*)\} from '\.\.\/\.\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
   assert.ok(auditImport, 'the gradebook imports the Recovery audit helpers');
   ['completedRecoverySections', 'warmupChallengeCounts', 'heldRecoverySections'].forEach((name) => {
     assert.match(auditImport[1], new RegExp(`\\b${name}\\b`), `${name} is imported`);

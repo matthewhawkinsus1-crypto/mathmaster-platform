@@ -39,6 +39,7 @@ import {
 import { MAX_STUDENTS_PER_CHANGE } from '../../functions/shared/studentAssignmentOverrideStore.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { CLASS_ID, LEGACY_V6_DOL_OBJECT, legacyAssignment } from '../fixtures/studentAssignmentOverrideLegacyFixtures.mjs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const DELETE = Symbol('deleteField');
 const students = (count, classId = 'class-a', prefix = 's') => Array.from({ length: count }, (_, index) => ({ id: `${prefix}${index + 1}`, classId }));
@@ -172,7 +173,7 @@ test('a removed field is deleted, and only with the deleteField sentinel', () =>
 
 /* --------------------------------------------- App.jsx: the wiring itself */
 
-const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+const app = appAndTeacherWorkspaceSource();
 const code = executableSource(app);
 
 test('App: the per-student grant goes to the callable, and is imported next to where it is used', () => {

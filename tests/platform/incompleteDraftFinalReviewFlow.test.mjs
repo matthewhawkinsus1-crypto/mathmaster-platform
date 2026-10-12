@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const storeSource = readFileSync(new URL('../../src/platform/preflight/incompleteAssignmentDraftStore.js', import.meta.url), 'utf8');
 const intakeSource = readFileSync(new URL('../../src/AssignmentIntake.jsx', import.meta.url), 'utf8');
-const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+const appSource = appAndTeacherWorkspaceSource();
 
 test('draft store persists explicit final review instead of leaving finalize helper unused', () => {
   assert.match(storeSource, /finalizeIncompleteAssignmentReview/);

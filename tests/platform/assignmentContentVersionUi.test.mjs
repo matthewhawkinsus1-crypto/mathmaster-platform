@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 test('Full Assignment Audit offers corrected content release creation', async () => {
   const source = await readFile('src/components/teacher/FullAssignmentAudit.jsx', 'utf8');
@@ -21,8 +22,9 @@ test('Library shows Content version and hides superseded siblings by default', a
 
 
 test('assigned copy exposes V2 preview and fundamental repair choices', async () => {
+  // The teacher's screen lives in its own module since G2.
   const [appSource, modalSource] = await Promise.all([
-    readFile('src/App.jsx', 'utf8'),
+    readFile('src/app/teacher/TeacherWorkspace.jsx', 'utf8'),
     readFile('src/components/teacher/AssignmentContentUpgradeModal.jsx', 'utf8'),
   ]);
   assert.match(appSource, /latestCurrentLibraryRelease/);
@@ -35,14 +37,14 @@ test('assigned copy exposes V2 preview and fundamental repair choices', async ()
 });
 
 test('Library delivery carries lineage while ordinary Duplicate starts a new family', async () => {
-  const appSource = await readFile('src/App.jsx', 'utf8');
+  const appSource = appAndTeacherWorkspaceSource();
   assert.match(appSource, /sourceContentLineage/);
   assert.match(appSource, /contentLineage: assignmentPreflight\?\.sourceContentLineage/);
   assert.match(appSource, /contentLineage: _contentLineage/);
 });
 
 test('student gets a one-time preserved-work correction notice', async () => {
-  const appSource = await readFile('src/App.jsx', 'utf8');
+  const appSource = appAndTeacherWorkspaceSource();
   assert.match(appSource, /This assignment was corrected by your teacher\. Your previous work was preserved\./);
   assert.match(appSource, /mathmaster:content-upgrade-notice/);
 });
@@ -59,7 +61,9 @@ test('upgrade modal keeps success visible and shows actionable function errors a
 });
 
 test('post-upgrade refresh cannot turn a successful server commit into a fake failure', async () => {
-  const appSource = await readFile('src/App.jsx', 'utf8');
+  // The upgrade modal is mounted by the teacher's screen (its own module since G2).
+  const appSource = await readFile('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
+  assert.ok(appSource.includes('onUpgraded={async (result) => {'), 'the modal\'s onUpgraded callback');
   const start = appSource.indexOf('onUpgraded={async (result) => {');
   const end = appSource.indexOf('}}', start);
   const callback = appSource.slice(start, end + 2);

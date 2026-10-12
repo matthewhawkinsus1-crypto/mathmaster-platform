@@ -30,9 +30,12 @@ test('the picker sends the exact locally selected ids into the bulk move', () =>
 });
 
 test('Grades scopes the picker to the class already selected in the class bar', () => {
-  const start = appSource.indexOf('<MarkingPeriodSettings');
-  const end = appSource.indexOf('/>', start);
-  const wiring = appSource.slice(start, end);
+  // Mounted by the teacher's screen, its own module since G2.
+  const teacherSource = readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
+  const start = teacherSource.indexOf('<MarkingPeriodSettings');
+  assert.notEqual(start, -1, 'the picker is mounted');
+  const end = teacherSource.indexOf('/>', start);
+  const wiring = teacherSource.slice(start, end);
   assert.match(wiring, /assignments=\{assignmentsForSelectedClass\}/);
   assert.match(wiring, /classLabel=\{selectedGradebookClass\?\.name \|\| selectedGradebookPeriod\}/);
   assert.doesNotMatch(wiring, /selectedAssignmentIds=\{selectedAssignmentIds\}/);

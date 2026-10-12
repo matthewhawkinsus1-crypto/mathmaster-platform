@@ -32,7 +32,8 @@ test('assignment override helper accepts only active numeric server projection',
 
 test('Grade Center exposes the two explicit zero reasons and a restore path', () => {
   const controls = readFileSync(new URL('../../src/components/teacher/AssignmentGradeOverrideControls.jsx', import.meta.url), 'utf8');
-  const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  // The gradebook is the teacher's screen, its own module since G2.
+  const app = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
   assert.match(controls, /cellPhoneUse/);
   assert.match(controls, /academicDishonesty/);
   assert.match(controls, /restoreAutomatic/);

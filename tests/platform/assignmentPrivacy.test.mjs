@@ -39,6 +39,7 @@ import {
 } from '../../src/platform/assignments/studentAssignmentScope.js';
 import { analyzeAssignmentCompletion } from '../../src/platform/caseReview/completionAnalysis.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const require = createRequire(import.meta.url);
 const { prepareContentRelease } = require('../../functions/lib/assignmentContentVersion.js');
@@ -329,9 +330,11 @@ test('permanent deletion and the content release apply the rule', () => {
 });
 
 test('App: a student listens to their class; Duplicate copies no instance state', () => {
-  const app = read('src/App.jsx');
-  assert.match(app, /import \{ stripAssignmentInstanceState \} from '\.\.\/functions\/shared\/assignmentPrivacy\.mjs';/);
-  const duplicate = executableSource(region(app, 'const handleDuplicateAssignment', 'const handleToggleArchiveAssignment', 'handleDuplicateAssignment'));
+  const app = appAndTeacherWorkspaceSource();
+  // Duplicate moved with the teacher's screen (G2): imported next to its call there.
+  const teacherWorkspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  assert.match(teacherWorkspace, /^import \{ stripAssignmentInstanceState \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/assignmentPrivacy\.mjs';$/m);
+  const duplicate = executableSource(region(teacherWorkspace, 'const handleDuplicateAssignment', '\n  };', 'handleDuplicateAssignment'));
   assert.match(duplicate, /\} = stripAssignmentInstanceState\(assignment\);/);
   const listener = executableSource(region(app, 'const studentClassAssignmentsRef = useRef', 'const studentWorkedAssignmentKey', 'assignment listener'));
   // The student branch subscribes to its class and returns before the

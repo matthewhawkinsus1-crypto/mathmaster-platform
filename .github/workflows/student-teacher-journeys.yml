@@ -62,6 +62,10 @@ name: Student and Teacher Journeys
 #   process mode           tests/browser/lmrProcessMode.mjs
 #                          (the same board's facts established by a process,
 #                          verified, reused, then built on)
+#   prerequisite early     tests/browser/teacherWorkflow/prerequisiteEarlyJourneys.mjs
+#                          (a met prerequisite opens Classwork and Practice,
+#                          the server accepts the answer; Warm-Up and DOL stay
+#                          shut; without it the lesson still opens later)
 #   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
 #   real URLs              tests/browser/teacherWorkflow/appUrlJourneys.mjs
 #                          (its own job: refresh on every student screen and
@@ -148,6 +152,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
+      - name: A prerequisite met early opens Classwork and Practice (and nothing timed)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/prerequisiteEarlyJourneys.mjs
       - name: Warm-Up close and reopen, throttled Chromebook (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:

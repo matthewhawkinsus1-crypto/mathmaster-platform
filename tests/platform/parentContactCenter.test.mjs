@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft } from '../../src/platform/teacher/parentContactCenter.js';
 import { resolveContactEvents } from '../../src/platform/teacher/parentContactStore.js';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 test('contact history groups canonical student IDs and always resolves the current roster name', () => {
   const contacts = [
@@ -66,10 +67,15 @@ test('append-only resolution events clear linked outstanding follow-ups without 
 });
 
 test('runtime wiring imports the contact center and store next to their calls', async () => {
+  // The center is rendered by the teacher's screen, its own module since G2:
+  // it imports the center (loaded on demand) and the store calls it makes;
+  // App keeps the listener.
   const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(app, /import ParentContactCenter from '.\/components\/teacher\/ParentContactCenter\.jsx'/);
-  assert.match(app, /import \{ fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution, subscribeParentContacts \} from '.\/platform\/teacher\/parentContactStore\.js'/);
-  assert.match(app, /teacherTab === 'parentContacts'[\s\S]{0,500}<ParentContactCenter/);
+  const teacherWorkspace = await readFile(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'ParentContactCenter', 'src/components/teacher/ParentContactCenter.jsx'));
+  assert.match(teacherWorkspace, /import \{ fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution \} from '..\/..\/platform\/teacher\/parentContactStore\.js'/);
+  assert.match(app, /import \{ subscribeParentContacts \} from '.\/platform\/teacher\/parentContactStore\.js'/);
+  assert.match(teacherWorkspace, /teacherTab === 'parentContacts'[\s\S]{0,500}<ParentContactCenter/);
 });
 
 test('contact persistence is allow-listed and never serializes answer content', async () => {

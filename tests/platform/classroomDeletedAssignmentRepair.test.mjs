@@ -83,7 +83,8 @@ test('repost queues linked grade records through the existing release-signal tri
 test('browser exposes teacher repair controls for missing Classroom assignments', () => {
   const api = read('src/classroomApi.js');
   const manager = read('src/ClassroomManagerV2.jsx');
-  const app = read('src/App.jsx');
+  // App's handler, and the teacher's screen (its own module since G2) that offers it.
+  const app = `${read('src/App.jsx')}\n${read('src/app/teacher/TeacherWorkspace.jsx')}`;
 
   assert.match(api, /repairClassroomAssignmentPublications = call\("repairClassroomAssignmentPublications"\)/);
   assert.match(manager, /repairClassroomAssignmentPublications/);

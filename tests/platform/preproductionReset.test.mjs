@@ -205,6 +205,8 @@ test('teacher admin client exposes preview and reset only through the audited ca
 });
 
 test('root Administration exposes a dedicated pre-production reset tab and refreshes stale in-memory test data', () => {
+  // Administration is the teacher's screen, its own module since G2.
+  const app = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
   assert.match(app, /PreproductionReset/);
   assert.match(app, /\['reset', 'Pre-production reset'\]/);
   assert.match(app, /adminTab === 'reset'/);
@@ -217,6 +219,7 @@ test('root Administration exposes a dedicated pre-production reset tab and refre
   // student's complete grade history into the teacher shell.
   assert.match(app, /fetchTeacherRosterSummaries\(\)/);
   assert.doesNotMatch(app, /const fetchStudents\s*=\s*async/);
+  assert.doesNotMatch(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'), /const fetchStudents\s*=\s*async/);
 });
 
 test('reset panel requires exact phrases, disables bulk reset after locking, and explains Google Classroom limitation', () => {

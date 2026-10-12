@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { executableSource as executableSourceOf } from './helpers/sourceContract.mjs';
 
 /*
  * ONE RECONCILIATION TRIGGER, NOT TWO.
@@ -14,10 +15,17 @@ import fs from 'node:fs';
  * would let the two surfaces disagree about a student's deadline.
  */
 const appSource = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+// The two surfaces are mounted by the teacher's screen, its own module since
+// G2. App hands it the one handler by name.
+const teacherWorkspace = fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
 
 test('both attendance surfaces are wired to the same App.jsx handler', () => {
-  assert.match(appSource, /onRecordStudentSupportEvent=\{handleRecordStudentSupportEvent\}/);
-  assert.match(appSource, /onRecordCorrection=\{handleRecordStudentSupportEvent\}/);
+  assert.match(teacherWorkspace, /onRecordStudentSupportEvent=\{handleRecordStudentSupportEvent\}/);
+  assert.match(teacherWorkspace, /onRecordCorrection=\{handleRecordStudentSupportEvent\}/);
+  // …and that name is App's one handler, passed through unchanged.
+  assert.match(teacherWorkspace, /^export default function TeacherWorkspace\(\{[^)]*\n {2}handleRecordStudentSupportEvent,\n/m);
+  assert.match(appSource, /<TeacherWorkspace[^>]*\n {8}handleRecordStudentSupportEvent=\{handleRecordStudentSupportEvent\}\n/);
+  assert.doesNotMatch(executableSourceOf(teacherWorkspace), /const handleRecordStudentSupportEvent|const handleRecordAttendanceCorrection/);
   // The old, separate handler must be gone — not just unused, but removed,
   // so nobody can accidentally wire a surface back to a divergent copy.
   assert.doesNotMatch(appSource, /const handleRecordAttendanceCorrection/);

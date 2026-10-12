@@ -80,7 +80,8 @@ test('a saved session is restored only when validated, and a stale one is retire
 });
 
 test('marking periods reach Live Classroom', () => {
-  const homeCall = region(app, '<TeacherHome', '/>', 'TeacherHome call');
+  // Teacher Home is mounted by the teacher's screen, its own module since G2.
+  const homeCall = region(executableSource(fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8')), '<TeacherHome', '/>', 'TeacherHome call');
   assert.match(homeCall, /gradingPeriodSettings=\{gradingPeriodSettings\}/);
   const monitorCall = region(home, '<LiveClassMonitor', '/>', 'LiveClassMonitor call');
   assert.match(monitorCall, /gradingPeriodSettings=\{gradingPeriodSettings\}/);

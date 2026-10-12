@@ -8,6 +8,7 @@ import {
 import { region } from './helpers/sourceContract.mjs';
 import { describeWarmupControl } from '../../src/platform/teacher/classLessonControls.js';
 import { applyWarmupTeacherControl } from '../../functions/shared/sectionDeadline.mjs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -66,7 +67,7 @@ test('manual Warm-Up open is scoped to the real class and today', () => {
     assert.equal(warmup.instructionDatesByClassId['class-3'], '2026-08-31', `${action} makes today this class's Warm-Up day`);
     assert.equal(warmup.instructionDatesByClassId['class-5'], '2026-08-24', `${action} leaves the sibling class alone`);
   }
-  const app = read('src/App.jsx');
+  const app = appAndTeacherWorkspaceSource();
   const handler = region(app, 'const handleToggleWarmupForClass', 'const handleToggleSectionAccessForClass', 'teacher Warm-Up handler');
   assert.match(handler, /applyWarmupTeacherControl\(\{[\s\S]*?classId,[\s\S]*?dateKey,/);
   assert.match(app, /needsOpenToday/);
@@ -77,7 +78,7 @@ test('Warm-Up countdown is visible across teacher and student surfaces', () => {
   const home = read('src/TeacherHome.jsx');
   const workspace = read('src/ClassesWorkspace.jsx');
   const dashboard = read('src/components/student/StudentDashboardView.jsx');
-  const app = read('src/App.jsx');
+  const app = appAndTeacherWorkspaceSource();
 
   // Both teacher surfaces render the shared controls; the shared row shows the
   // countdown for whatever section is open, from the model's own endsAt.
@@ -96,7 +97,7 @@ test('Warm-Up countdown is visible across teacher and student surfaces', () => {
 });
 
 test('a reopened Warm-Up bypasses Practice Mode and reaches the canonical durable save path', () => {
-  const app = read('src/App.jsx');
+  const app = appAndTeacherWorkspaceSource();
   const submit = region(app, 'const handleGradeSubmit', 'const handleStepGrade', 'ordinary grade submit');
   assert.match(submit, /const teacherReopenedWarmupIsActive = activeQuestionRole === 'warmup'/);
   assert.match(submit, /warmupCaptureWasActive\(timedSectionAccess, submissionCapturedAt\)/);
@@ -112,7 +113,7 @@ test('a reopened Warm-Up bypasses Practice Mode and reaches the canonical durabl
 });
 
 test('teacher-reopened Warm-Up work remains canonical even if the assignment or section closes again before sync', () => {
-  const app = read('src/App.jsx');
+  const app = appAndTeacherWorkspaceSource();
   const submit = region(app, 'const handleGradeSubmit', 'const handleStepGrade', 'ordinary grade submit');
   const reconcile = region(app, 'const buildSubmissionEnvelopeForAction', 'const drainStudentOutbox', 'durable reconciliation');
 
@@ -167,7 +168,7 @@ test('a Warm-Up the teacher reopened keeps credit when the assignment closes aga
 });
 
 test('new assignments persist the ten-minute Warm-Up close default', () => {
-  const app = read('src/App.jsx');
+  const app = appAndTeacherWorkspaceSource();
   assert.match(app, /closeMinutesAfterStart: 10/);
   // A manual reopen runs to the end of the class period, and says so.
   const { warmup } = applyWarmupTeacherControl({

@@ -70,3 +70,68 @@ test('R2-m4: the copy the workspace now shows for each DOL state', () => {
   // Another day: nothing pending, so the workspace keeps the earlier receipt.
   assert.deepEqual(describeDolClose({ status: 'notToday', outcome: 'auto-submitted' }), { state: 'not-open', lockMessage: '', openNotice: '', closeReceipt: '' });
 });
+
+/*
+ * I item 4: a lesson whose prerequisite the student met opens Classwork and
+ * Practice early. assignmentLifecycle's sectionAccessForStudent binds the
+ * student's own Classwork grades once; App binds `getSectionAccessState` to it
+ * so every call (Home's providers, entry, the worksheet PDF, the workspace's
+ * locks and the capture proofs a submission carries to the server) sees them.
+ * The browser proof (the server accepting an early Classwork answer; DOL and
+ * Warm-Up staying shut; a student without the prerequisite still "opens
+ * later") is tests/browser/teacherWorkflow/prerequisiteEarlyJourneys.mjs.
+ */
+test('I item 4: getSectionAccessState is the signed-in student\'s binding everywhere in App', () => {
+  // Both imports, beside the binding that calls them.
+  const lifecycleImport = region(imports, 'import {\n  CLASS_PERIODS,', "} from './assignmentLifecycle';", 'the assignmentLifecycle import');
+  assert.match(lifecycleImport, /\n {2}getSectionAccessState as getSectionAccessStateForAnyone,\n/);
+  assert.match(lifecycleImport, /\n {2}sectionAccessForStudent,\n/);
+  assert.doesNotMatch(lifecycleImport, /\n {2}getSectionAccessState,\n/, 'the plain name is never imported: it would shadow the binding');
+  const binding = code.match(/const getSectionAccessState = useMemo\(\s*\(\) => sectionAccessForStudent\(user\?\.role === 'student' \? classworkGradesByAssignment : null\),\s*\[user\?\.role, classworkGradesByAssignment\],\s*\);/);
+  assert.ok(binding, 'the binding: the student\'s grades, re-bound when they or the role change');
+  // Declared after the state it reads and before its first use.
+  const at = binding.index;
+  assert.ok(code.indexOf('const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState(') < at);
+  assert.ok(code.indexOf('const [user, setUser] = useState(') < at);
+  const calls = [...code.matchAll(/\bgetSectionAccessState\(/g)].map((match) => match.index);
+  assert.ok(calls.length >= 7, `every section-access call (found ${calls.length})`);
+  assert.ok(calls.every((index) => index > at), 'no call before the binding');
+  // Home's dashboard model receives the binding, not the plain function.
+  const providers = region(code, 'function buildStudentDashboardNow() {', 'function studentUpNextDashboard() {', 'the dashboard providers');
+  assert.match(providers, /\n\s+getSectionAccessState,\n/);
+  // Both capture proofs (Submit and a counted step) record the bound state.
+  const proofs = [...code.matchAll(/captureSectionAccessProof\(\{\s*sectionAccess: getSectionAccessState\(\{/g)];
+  assert.equal(proofs.length, 2, 'both capture proofs ask the binding');
+  // The plain function is used exactly once: the teacher's own section
+  // toggle, which must never read a student's grades.
+  const plain = [...code.matchAll(/\bgetSectionAccessStateForAnyone\(/g)];
+  assert.equal(plain.length, 1);
+  const toggle = region(code, 'const handleToggleSectionAccessForClass = async', 'if (!state.enabled)', 'the teacher section toggle');
+  assert.match(toggle, /const state = getSectionAccessStateForAnyone\(\{ assignment, activityRole, classId, classPeriod, nowValue: Date\.now\(\) \}\);/);
+});
+
+test('I item 4: what the binding gives a student, a teacher and a preview', async () => {
+  const { getSectionAccessState, sectionAccessForStudent } = await import('../../src/assignmentLifecycle.js');
+  // A teacher, View as Student, or no grades loaded: the plain function.
+  assert.equal(sectionAccessForStudent(null), getSectionAccessState);
+  const NOW = Date.parse('2026-09-23T15:00:00Z');
+  const lesson = {
+    id: 'B1', schemaVersion: 5, assignedClassIds: ['class-a'], prerequisiteAssignmentId: 'A1',
+    releaseAt: '2026-09-30T13:00:00Z', dueAt: '2026-10-07T22:00:00Z', lateDueAt: '2026-10-14T22:00:00Z',
+    sections: [
+      { id: 'classwork', role: 'classwork', questions: [{ type: 'algebra', prompt: 'CW', equationLatex: 'x=1', activityRole: 'classwork' }] },
+      { id: 'practice', role: 'practice', questions: [{ type: 'algebra', prompt: 'P', equationLatex: 'x=2', activityRole: 'practice' }] },
+      { id: 'dol', role: 'dol', questions: [{ type: 'algebra', prompt: 'D', equationLatex: 'x=3', activityRole: 'dol' }] },
+    ],
+  };
+  const ask = (bound, role) => bound({ assignment: lesson, activityRole: role, classId: 'class-a', nowValue: NOW });
+  const met = sectionAccessForStudent({ A1: { score: 100 } });
+  const unmet = sectionAccessForStudent({ A1: { score: 60 } });
+  for (const role of ['classwork', 'practice']) {
+    assert.equal(ask(met, role).isOpen, true, `${role} opens early for the student who met it`);
+    assert.equal(ask(unmet, role).status, 'scheduled', `${role} still opens later without it`);
+    assert.equal(ask(getSectionAccessState, role).status, 'scheduled', `${role}: the teacher's plain view is unchanged`);
+  }
+  // A DOL is never a manual section: the binding cannot open it.
+  assert.equal(ask(met, 'dol').enabled, false);
+});

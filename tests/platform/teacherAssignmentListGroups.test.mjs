@@ -81,15 +81,18 @@ test('empty groups are not rendered', () => {
 });
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+// The Assignments tab and the class page are the teacher's screen, its own
+// module since G2; App keeps the class grade loader and hands it over by name.
+const teacherWorkspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
 
 test('the Assignments tab renders the grouped list, imported, flat only while searching or filtered', () => {
   // App.jsx is .jsx: nothing imports it, so a call without an import passes
   // every check and throws at runtime (AGENTS.md). Assert both.
-  assert.match(app, /import \{ groupAssignmentList \} from '\.\/platform\/teacher\/assignmentListGroups\.js';/);
-  const tab = executableSource(region(app, "{teacherTab === 'assignments' && (", "{teacherTab === 'students' && (", 'Assignments tab'));
+  assert.match(teacherWorkspace, /^import \{ groupAssignmentList \} from '\.\.\/\.\.\/platform\/teacher\/assignmentListGroups\.js';$/m);
+  const tab = executableSource(region(teacherWorkspace, "{teacherTab === 'assignments' && (", "{teacherTab === 'students' && (", 'Assignments tab'));
   assert.match(tab, /groupAssignmentList\(\{\s*assignments: visibleAssignments,/);
   assert.match(tab, /flat: assignmentListIsFiltered/);
-  assert.match(app, /const assignmentListIsFiltered = Boolean\(assignmentSearch\.trim\(\) \|\| libraryNavigation\?\.folder \|\| libraryNavigation\?\.smartView\);/);
+  assert.match(teacherWorkspace, /const assignmentListIsFiltered = Boolean\(assignmentSearch\.trim\(\) \|\| libraryNavigation\?\.folder \|\| libraryNavigation\?\.smartView\);/);
   assert.match(tab, /group\.assignments\.map\(renderAssignmentCard\)/);
   // The group holding the card being edited opens, so "Dates & classes" from
   // an assignment's hub never lands inside a folded group.
@@ -102,7 +105,8 @@ test('the hub can load one class\'s grades on the live screens, read-only', () =
   assert.match(loader, /studentsInClass\(\{ students: allStudents, classes, classId \}\)/);
   assert.match(loader, /getDoc\(doc\(db, 'grades', student\.id\)\)/);
   assert.doesNotMatch(loader, /updateDoc|setDoc|writeBatch|runTransaction/);
-  assert.match(app, /onLoadClassGrades=\{loadClassGradeRecords\}/);
+  assert.match(teacherWorkspace, /onLoadClassGrades=\{loadClassGradeRecords\}/);
+  assert.match(app, /\n {8}loadClassGradeRecords=\{loadClassGradeRecords\}\n/);
 });
 
 test('the class page lists its assignments with the same current-first grouping', () => {
@@ -110,6 +114,6 @@ test('the class page lists its assignments with the same current-first grouping'
   assert.match(page, /import \{ groupAssignmentList \} from '\.\/platform\/teacher\/assignmentListGroups\.js';/);
   assert.match(executableSource(page), /const assignmentGroups = groupAssignmentList\(\{ assignments: periodAssignments, nowValue, gradingPeriodSettings \}\);/);
   assert.match(executableSource(page), /return group\.folded \? \(\s*<details/);
-  const mount = region(app, '<ClassesWorkspace', '/>', 'ClassesWorkspace mount');
+  const mount = region(teacherWorkspace, '<ClassesWorkspace', '/>', 'ClassesWorkspace mount');
   assert.match(mount, /gradingPeriodSettings=\{gradingPeriodSettings\}/);
 });

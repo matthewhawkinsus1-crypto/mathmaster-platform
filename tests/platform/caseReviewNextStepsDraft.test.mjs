@@ -142,7 +142,8 @@ test('the case review restores the draft on open, keeps it as the teacher types,
 });
 
 test('App names the signed-in teacher; signing out, however it happens, clears the tab\'s account drafts', () => {
-  const app = read('src/App.jsx');
+  // Mounted by the teacher's screen, its own module since G2.
+  const app = read('src/app/teacher/TeacherWorkspace.jsx');
   const mount = region(app, '<StudentCaseReviewView', '/>', 'case review mount');
   assert.match(mount, /teacherUid=\{user\?\.uid \|\| ''\}/);
   const service = read('src/auth/authService.js');

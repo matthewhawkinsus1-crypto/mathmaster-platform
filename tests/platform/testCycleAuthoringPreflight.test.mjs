@@ -17,12 +17,13 @@ import {
 import { ACTIVITY_POLICIES, ACTIVITY_ROLES } from '../../src/platform/policies/activityPolicies.js';
 import { assertCapability, componentSource, region } from './helpers/sourceContract.mjs';
 import { teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const controls = componentSource('src/components/teacher/TestCycleControls.jsx');
 const card = componentSource('src/components/student/TestCycleCard.jsx');
 const lessonPreflight = componentSource('src/components/teacher/LessonPreflightModal.jsx');
-const app = componentSource('src/App.jsx');
+const app = appAndTeacherWorkspaceSource();
 
 /*
  * WHAT A TEST CYCLE MUST NOT BE ABLE TO PUBLISH, AND HOW A TEACHER ASSIGNS ONE.

@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+const app = appAndTeacherWorkspaceSource();
 
 test('Assignment Review groups validation blockers by exact question', () => {
   assert.match(modal, /groupQuestionPreflightIssues\(validationErrors, previewQuestions\)/);
@@ -45,7 +46,8 @@ test('representation audit follows repaired live questions instead of stale impo
 
 test('existing assignments with student evidence disable targeted question rewriting in review', () => {
   assert.match(app, /allowQuestionRepair:\s*!allStudents\.some/);
-  assert.match(app, /allowQuestionRepair=\{assignmentPreflight\.allowQuestionRepair !== false\}/);
+  // Passed to the Pre-Flight modal by the teacher's screen (its own module since G2).
+  assert.match(fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8'), /allowQuestionRepair=\{assignmentPreflight\.allowQuestionRepair !== false\}/);
   assert.match(modal, /allowQuestionRepair = true/);
   assert.match(modal, /disabled=\{!allowQuestionRepair\}/);
   assert.match(modal, /Student records already exist, so question content is locked/);

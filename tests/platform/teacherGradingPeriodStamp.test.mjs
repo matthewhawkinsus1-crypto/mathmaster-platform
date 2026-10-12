@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { currentGradingPeriodStamp, resolveAssignmentGradingPeriod } from '../../src/platform/student/gradingPeriods.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const settings = (currentPeriodId) => ({
   periods: [
@@ -42,8 +43,9 @@ test('after the rollover, stamped work stays in its period; only unstamped legac
 });
 
 test('assignment creation stamps it — only when it is actually assigned to a class', () => {
-  const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(app, /import \{[^}]*currentGradingPeriodStamp[^}]*\} from '\.\/platform\/student\/gradingPeriods\.js';/);
+  const app = appAndTeacherWorkspaceSource();
+  // Assignment creation moved with the teacher's screen (G2): imported there.
+  assert.match(readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'), /import \{[^}]*currentGradingPeriodStamp[^}]*\} from '\.\.\/\.\.\/platform\/student\/gradingPeriods\.js';/);
   const write = executableSource(region(app, 'const writeAssignmentVariant = async', 'assertFirestoreSafeAssignmentPayload(payload);', 'writeAssignmentVariant'));
   assert.match(write, /\.\.\.\(\(destination\.classIds \|\| \[\]\)\.length \? currentGradingPeriodStamp\(gradingPeriodSettings\) : \{\}\)/);
 });
