@@ -680,6 +680,18 @@ test('a student who missed the Test goes straight to a Retest at home; its actua
     [null, 100, 70, 70, true],
   );
   assert.equal((await readGradeDoc(absent)).testCycleGrades[WINDOWS].recordedGrade, 70);
+
+  // "Open eligible Test sessions" must not give a student who took the Retest
+  // in the Test's place a Test session, by either route. (Their unstarted
+  // original was reset away here to make them a student with none.)
+  const noTest = await db.collection('testCycleRecords').doc(`${WINDOWS}__${absent}`).get();
+  await noTest.ref.update({ 'test.examSessionId': null, 'test.state': 'none' });
+  const offered = await bulk(WINDOWS, 'openTestSessions', { kind: 'students', studentIds: [absent] });
+  assert.deepEqual([offered.counts.succeeded, offered.counts.notEligible, offered.tone], [0, 1, 'success']);
+  assert.match(offered.notEligible[0].detail, /missed the Test and are on the Retest that replaced it/);
+  const swept = await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: WINDOWS, classId: null, studentIds: [absent] }));
+  assert.deepEqual([swept.createdSessions, swept.skippedStudents], [0, [{ studentId: absent, reason: 'retestInPlaceOfTest' }]]);
+  assert.equal((await readRecord(WINDOWS, absent)).test.examSessionId, null);
 });
 
 test('a teacher sets the grade by hand from a named source, and every change is audited', async () => {

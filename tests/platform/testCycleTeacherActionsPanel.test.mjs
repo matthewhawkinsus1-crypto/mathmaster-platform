@@ -128,8 +128,9 @@ test('before any Test session exists, Waive Review says the Test still has to be
 test('a waived student with no Test session is offered their session on the row', () => {
   const waived = { ...notStarted, stage: 'test', bucket: 'readyForTest', teacherControls: { reviewWaived: true } };
   const keys = teacherActionsForRow(waived).map((item) => item.key);
-  // First: it is the step the student is waiting on.
-  assert.deepEqual(keys, ['openTest', 'requireReview']);
+  // First: it is the step the student is waiting on. (Setting a grade by hand
+  // is offered to every student, and always last.)
+  assert.deepEqual(keys, ['openTest', 'requireReview', 'adjustGrade']);
   assert.equal(describeTeacherRow(waived).testText, 'Not opened', 'not a bare dash');
   // So is a student who finished Review before sessions were opened.
   const reviewed = { ...notStarted, stage: 'test', review: { complete: true } };

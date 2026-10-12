@@ -17797,7 +17797,8 @@ function publicTestCycleSchedule(shared, schedule, { audience = "student", misse
     opensAt: status.opensAt ?? null,
     closesAt: status.closesAt ?? null,
     workFromHome: status.workFromHome === true,
-    ...describe(status, { timeZone, audience }),
+    // A student who missed the Test has a Retest and no Corrections.
+    ...describe(status, { timeZone, audience, retestOnly: missedTest === true }),
   });
   return {
     timeZone,
@@ -18396,6 +18397,17 @@ async function openTestSessionForStudent(db, {
     policy,
     mutate: (record, { transaction }) => {
       if (record.test.examSessionId) return { value: { reused: true } };
+      /*
+       * A STUDENT ON THE RETEST THAT REPLACED A MISSED TEST IS NOT GIVEN A TEST.
+       * They are sitting it, have submitted it, or have it released: a Test
+       * session opened now could never be entered, and would count them as
+       * "still to sit the Test" for every classmate waiting on the answers.
+       */
+      if (record.retest.withoutOriginal === true && [
+        shared.record.SESSION_STATE.IN_PROGRESS, shared.record.SESSION_STATE.SUBMITTED, shared.record.SESSION_STATE.RELEASED,
+      ].includes(record.retest.state)) {
+        return { value: { reused: false, notEligible: true, examSessionId: null } };
+      }
       const { ref, session } = buildCourseTestSession(db, {
         assignmentId,
         assignment,
@@ -18675,7 +18687,8 @@ exports.assignTestCycleSessions = onCall(TEST_CYCLE_SWEEP_OPTIONS, async (reques
       studentData,
       { originalScore: originalScores.get(studentId) },
     );
-    if (opened.reused) reused.push(studentId);
+    if (opened.notEligible) skipped.push({ studentId, reason: "retestInPlaceOfTest" });
+    else if (opened.reused) reused.push(studentId);
     else created.push({ studentId, examSessionId: opened.examSessionId || null });
   }
 
@@ -25148,6 +25161,9 @@ async function runTestCycleBulkStep(db, context, action, studentId) {
 
     if (record.test.examSessionId) return { outcome: BULK_OUTCOME.ALREADY_COMPLETE, detail: "Their Test session is already open." };
     const opened = await openTestSessionForStudent(db, context, studentId, gradeData);
+    if (opened.notEligible) {
+      return { outcome: BULK_OUTCOME.NOT_ELIGIBLE, detail: "They missed the Test and are on the Retest that replaced it." };
+    }
     return opened.reused
       ? { outcome: BULK_OUTCOME.ALREADY_COMPLETE, detail: "Their Test session is already open." }
       : { outcome: BULK_OUTCOME.SUCCEEDED, detail: null };

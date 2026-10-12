@@ -58,6 +58,13 @@ export const listTeacherTestCycleRecords = call('listTeacherTestCycleRecords');
 export const getTeacherTestCyclePlans = call('getTeacherTestCyclePlans');
 export const teacherTestCycleAction = call('teacherTestCycleAction');
 export const releaseTestCycleResults = call('releaseTestCycleResults');
+// The Secure Test screen's own actions (audience, windows, class-wide
+// operations, a grade set by hand): the real handlers, like everything above.
+export const updateTestCycleAudience = call('updateTestCycleAudience');
+export const updateTestCycleAvailability = call('updateTestCycleAvailability');
+export const adjustTestCycleGrade = call('adjustTestCycleGrade');
+export const runTestCycleBulkAction = call('runTestCycleBulkAction');
+export const getTestCycleOperation = call('getTestCycleOperation');
 export const releaseTestCycleAnswers = call('releaseTestCycleAnswers');
 export const updateTestCyclePolicy = call('updateTestCyclePolicy');
 // The same argument mapping as src/services/testCycleService.js: an unsaved

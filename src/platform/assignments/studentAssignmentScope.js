@@ -57,10 +57,43 @@ export const priorWorkAssignmentIds = ({ gradesByAssignment = {}, loadedIds = []
   return [...wanted].filter((id) => !loaded.has(id)).sort().slice(0, MAX_PRIOR_WORK_ASSIGNMENTS);
 };
 
-/** A stable key for "which assignments does this student have work on". */
-export const workedAssignmentKey = (gradesByAssignment = {}) => Object.keys(
-  gradesByAssignment && typeof gradesByAssignment === 'object' ? gradesByAssignment : {},
-).sort().join('|');
+/**
+ * A stable key for "which assignments does this student need by id": the ones
+ * they have work on, plus any named in `extraIds` (a Test they were added to
+ * on their own, before they have done anything on it).
+ */
+export const workedAssignmentKey = (gradesByAssignment = {}, extraIds = []) => [...new Set([
+  ...Object.keys(gradesByAssignment && typeof gradesByAssignment === 'object' ? gradesByAssignment : {}),
+  ...(extraIds || []).map(cleanId).filter(Boolean),
+])].sort().join('|');
+
+/*
+ * A TEST A STUDENT WAS ADDED TO ON THEIR OWN.
+ *
+ * A teacher can add one student to a secure Test without assigning their
+ * class. The class query above can never return that assignment, so it is read
+ * by id — and the proof that it is theirs is on the student's own grade
+ * document: `testCycleGrades[assignmentId].individuallyAssigned`, which only
+ * the server writes (firestore.rules refuses every client write to that map).
+ * The device marks its own copy of the assignment so every list that asks
+ * "is this for this student?" (assignmentIsForStudent) says yes. The mark is
+ * display only: the server decides again, from its own record, on every call.
+ */
+export const individuallyAssignedTestCycleIds = (testCycleGrades = {}) => Object.entries(
+  testCycleGrades && typeof testCycleGrades === 'object' ? testCycleGrades : {},
+)
+  .filter(([, projection]) => projection?.individuallyAssigned === true)
+  .map(([assignmentId]) => cleanId(assignmentId))
+  .filter(Boolean)
+  .sort();
+
+export const markIndividuallyAssigned = (assignments = [], assignmentIds = []) => {
+  const wanted = new Set((assignmentIds || []).map(cleanId).filter(Boolean));
+  if (!wanted.size) return assignments || [];
+  return (assignments || []).map((assignment) => (
+    assignment?.id && wanted.has(assignment.id) ? { ...assignment, assignedToStudentIndividually: true } : assignment
+  ));
+};
 
 /** One list, each assignment once (the class's live copy wins), sorted by due date like the old listener. */
 export const mergeStudentAssignments = (classAssignments = [], priorWorkAssignments = []) => {
@@ -117,7 +150,7 @@ export const fetchAssignmentsById = async (db, ids = [], { studentId = null } = 
 
 /** The student's class assignments once, plus their prior work by id. */
 export const fetchStudentAssignments = async ({
-  db, studentId = null, classId = null, gradesByAssignment = {}, extraIds = [],
+  db, studentId = null, classId = null, gradesByAssignment = {}, extraIds = [], individualAssignmentIds = [],
 } = {}) => {
   const classAssignments = cleanId(classId)
     ? (await getDocs(studentClassAssignmentsQuery(db, classId))).docs.map((snapshot) => snapshotToStudentAssignment(snapshot, studentId))
@@ -125,9 +158,9 @@ export const fetchStudentAssignments = async ({
   const priorIds = priorWorkAssignmentIds({
     gradesByAssignment,
     loadedIds: classAssignments.map((assignment) => assignment.id),
-    extraIds,
+    extraIds: [...(extraIds || []), ...(individualAssignmentIds || [])],
   });
-  const priorWork = await fetchAssignmentsById(db, priorIds, { studentId });
+  const priorWork = markIndividuallyAssigned(await fetchAssignmentsById(db, priorIds, { studentId }), individualAssignmentIds);
   return mergeStudentAssignments(classAssignments, priorWork);
 };
 

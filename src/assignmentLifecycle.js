@@ -283,7 +283,16 @@ const normalizeClassContext = (value) => {
 
 // Assignment audience is class-ID only. Bell periods are schedule metadata,
 // not identities: two real classes may share the same period label.
+//
+// One exception, on a STUDENT'S OWN DEVICE only: a secure Test the student was
+// added to individually. Their class is not assigned it, so their device reads
+// it by id and marks its own copy (`assignedToStudentIndividually`, set by
+// platform/assignments/studentAssignmentScope.js from the server-written proof
+// on their grade document). No stored assignment carries the mark, so a
+// teacher's screens — which read stored assignments — still ask only about the
+// class. It decides what is shown; the server decides what is allowed.
 export const assignmentIsForStudent = (assignment, classContext) => {
+  if (assignment?.assignedToStudentIndividually === true) return true;
   const { classId } = normalizeClassContext(classContext);
   const assignedClassIds = Array.isArray(assignment?.assignedClassIds)
     ? assignment.assignedClassIds.map((value) => String(value || '').trim()).filter(Boolean)

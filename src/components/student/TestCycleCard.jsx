@@ -4,6 +4,7 @@ import SecureExamReview from '../assessment/SecureExamReview.jsx';
 import TestCycleCorrections from './TestCycleCorrections.jsx';
 import { getStudentTestCycle } from '../../services/testCycleService.js';
 import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testCycle.js';
+import { studentScheduleBlocks } from '../../platform/student/testCycleScheduleView.js';
 import { formatDateTime } from '../../assignmentLifecycle.js';
 import {
   markTestCycleSeen,
@@ -90,6 +91,8 @@ const PHASE_STATUS_LABEL = {
   available: 'Available', locked: 'Locked', ready: 'Ready', inProgress: 'In progress',
   completed: 'Complete', pending: 'Pending', required: 'Required', notRequired: 'Not required',
   unavailable: 'Unavailable', closed: 'Closed',
+  // The Test's class-time window closed before it was started.
+  missed: 'Not taken',
 };
 
 const PHASE_STATUS_COLOR = {
@@ -98,6 +101,7 @@ const PHASE_STATUS_COLOR = {
   available: 'var(--mm-primary-text)',
   required: 'var(--mm-warning-text)',
   completed: 'var(--mm-success-text)',
+  missed: 'var(--mm-warning-text)',
 };
 
 const actionButtonStyle = ({ enabled, secure }) => ({
@@ -356,6 +360,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // Corrections, not after submitting, not once the cycle is finished.
   const sittingAhead = [TEST_CYCLE_STAGE.REVIEW, TEST_CYCLE_STAGE.TEST, TEST_CYCLE_STAGE.RETEST_READY, TEST_CYCLE_STAGE.RETEST].includes(card.stage);
   const reviewSkills = card.stage === TEST_CYCLE_STAGE.REVIEW ? reviewSkillRows(card.reviewBySkill) : [];
+  const scheduleBlocks = studentScheduleBlocks(card);
   const testSkills = testSkillsSection(card);
 
   return (
@@ -372,6 +377,23 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         <p role="status" style={{ margin: 0, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontWeight: 800 }}>
           Opens {formatDateTime(new Date(availability.opensAt).toISOString())}.
         </p>
+      )}
+
+      {/* When each part is open, in exact school times, and whether it can be
+          done from home. Only what is still ahead of this student is shown
+          (studentScheduleBlocks); nothing here grants entry — the server
+          checks the same windows when Start is pressed. */}
+      {scheduleBlocks.length > 0 && (
+        <div data-test-cycle-schedule="" style={{ display: 'grid', gap: 8, padding: '12px 14px', background: 'var(--mm-surface-sunken)', borderRadius: 10 }}>
+          {scheduleBlocks.map((block) => (
+            <div key={block.id} data-schedule-block={block.id} data-window-state={block.state} style={{ display: 'grid', gap: 2 }}>
+              <strong style={{ fontSize: 13, color: 'var(--mm-text-strong)' }}>{block.title}: {block.headline}</strong>
+              <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--mm-text)' }}>{block.detail}</span>
+              {block.home && <span style={{ fontSize: 13, lineHeight: 1.5, fontWeight: 700, color: 'var(--mm-text)' }}>{block.home}</span>}
+            </div>
+          ))}
+          <span style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>Times are school time. A window is when you can start; it is not a timer.</span>
+        </div>
       )}
 
       {card.stage === TEST_CYCLE_STAGE.REVIEW && review && review.total > 0 && (

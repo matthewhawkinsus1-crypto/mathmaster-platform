@@ -61,7 +61,6 @@ const bell = {
 };
 // Monday 12 Oct 2026 is an A day; Tuesday 13 is B; Wednesday 14 is A.
 const MON = '2026-10-12';
-const TUE = '2026-10-13';
 const WED = '2026-10-14';
 const FRI_UNSET = '2026-10-16';
 const FRI_SET = '2026-10-23';
@@ -306,6 +305,15 @@ test('both screens are told the exact times, in the school\'s zone, and whether 
   assert.equal(formatSchoolDateTime(Date.UTC(2026, 9, 14, 15, 15), TZ), 'Wed, Oct 14, 10:15 AM CDT');
   assert.equal(formatSchoolRange(at(2026, 10, 14, 22), at(2026, 10, 15, 1), TZ), 'Wed, Oct 14, 10:00 PM CDT – Thu, Oct 15, 1:00 AM CDT');
   assert.equal(formatSchoolDateTime(null, TZ), null);
+
+  // A student who missed the Test has a Retest and no Corrections to be told about.
+  assert.deepEqual(describeFollowUpWindow(closed.followUp, { timeZone: TZ, retestOnly: true }), {
+    state: 'open',
+    headline: 'Open now until Tue, Oct 20, 11:59 PM CDT',
+    detail: 'Closes Tue, Oct 20, 11:59 PM CDT (the assignment\'s final due date). A Retest started before then can be finished.',
+    home: 'You may take the Retest from home.',
+  });
+  assert.doesNotMatch(JSON.stringify(['unset', 'upcoming', 'open', 'closed'].map((state) => describeFollowUpWindow({ state, enforced: state !== 'unset', closesAt: at(2026, 10, 20, 9) }, { timeZone: TZ, retestOnly: true }))), /Corrections/);
 
   // Unset and always-open say so plainly.
   const unset = scheduleFor(assignment(), at(2026, 10, 14, 13));

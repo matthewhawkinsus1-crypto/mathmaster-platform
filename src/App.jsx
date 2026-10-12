@@ -79,6 +79,8 @@ import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIden
 import {
   fetchAssignmentsById,
   fetchStudentAssignments,
+  individuallyAssignedTestCycleIds,
+  markIndividuallyAssigned,
   mergeStudentAssignments,
   priorWorkAssignmentIds,
   subscribeStudentClassAssignments,
@@ -2077,7 +2079,11 @@ function App() {
 
   // Work a student did under an earlier class: read once per change in the
   // SET of assignments they have work on (not on every answer), by id.
-  const studentWorkedAssignmentKey = user?.role === 'student' ? workedAssignmentKey(tracker) : '';
+  // A Test the student was added to on their own is one of them too, from the
+  // moment the server says so and before they have done anything on it.
+  const studentIndividualTestIds = user?.role === 'student' ? individuallyAssignedTestCycleIds(testCycleGrades) : [];
+  const studentIndividualTestKey = studentIndividualTestIds.join('|');
+  const studentWorkedAssignmentKey = user?.role === 'student' ? workedAssignmentKey(tracker, studentIndividualTestIds) : '';
   useEffect(() => {
     if (user?.role !== 'student' || !studentWorkedAssignmentKey) return undefined;
     let cancelled = false;
@@ -2093,7 +2099,10 @@ function App() {
     fetchAssignmentsById(db, missing, { studentId: user.id })
       .then((fetched) => {
         if (cancelled || !fetched.length) return;
-        studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(studentPriorWorkAssignmentsRef.current, fetched);
+        studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(
+          studentPriorWorkAssignmentsRef.current,
+          markIndividuallyAssigned(fetched, studentIndividualTestKey ? studentIndividualTestKey.split('|') : []),
+        );
         publishStudentAssignments();
       })
       .catch((error) => console.warn('Could not load earlier-class assignments:', error));
@@ -3213,6 +3222,8 @@ function App() {
           classId: studentData.classId || null,
           gradesByAssignment: studentData.gradesByAssignment || {},
           extraIds: savedResumeTarget?.assignmentId ? [savedResumeTarget.assignmentId] : [],
+          // A secure Test this student was added to on their own.
+          individualAssignmentIds: individuallyAssignedTestCycleIds(studentData.testCycleGrades),
         });
         if (cancelled) return;
         const studentProfile = normalizeStudentProfile(studentData.profile || studentData);

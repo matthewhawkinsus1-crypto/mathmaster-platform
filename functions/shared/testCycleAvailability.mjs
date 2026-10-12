@@ -589,23 +589,32 @@ export const describeTestWindow = (status, { timeZone = null, audience = 'studen
   };
 };
 
-/** The home window for Corrections and the Retest, in the same two sentences. */
-export const describeFollowUpWindow = (followUp, { timeZone = null, audience = 'student' } = {}) => {
+/**
+ * The home window for Corrections and the Retest, in the same two sentences.
+ *
+ * `retestOnly`: for a student who missed the Test, who has a Retest and no
+ * Corrections — they are not told they may do Corrections that do not exist.
+ */
+export const describeFollowUpWindow = (followUp, { timeZone = null, audience = 'student', retestOnly = false } = {}) => {
   const state = followUp?.state || WINDOW_STATE.UNSET;
   const whose = audience === 'teacher' ? 'Students' : 'You';
   const closes = followUp?.closesAt ? formatSchoolDateTime(followUp.closesAt, timeZone) : null;
   const closeWhy = followUp?.closeSource === FOLLOW_UP_CLOSE.LATE_DUE
     ? ' (the assignment\'s final due date)'
     : followUp?.closeSource === 'studentOverride' ? ' (extended for this student)' : '';
+  const home = retestOnly
+    ? `${whose} may take the Retest from home.`
+    : `${whose} may do Corrections and the Retest from home.`;
   if (state === WINDOW_STATE.UNSET) {
     return {
       state,
       headline: 'No closing time is set',
-      detail: `Corrections and the Retest stay open until ${audience === 'teacher' ? 'you close' : 'your teacher closes'} them.`,
-      home: `${whose} may do Corrections and the Retest from home.`,
+      detail: retestOnly
+        ? `The Retest stays open until ${audience === 'teacher' ? 'you close' : 'your teacher closes'} it.`
+        : `Corrections and the Retest stay open until ${audience === 'teacher' ? 'you close' : 'your teacher closes'} them.`,
+      home,
     };
   }
-  const home = `${whose} may do Corrections and the Retest from home.`;
   if (state === WINDOW_STATE.UPCOMING) {
     return {
       state,
@@ -629,7 +638,9 @@ export const describeFollowUpWindow = (followUp, { timeZone = null, audience = '
     headline: `Closed ${closes}`,
     detail: audience === 'teacher'
       ? `It ended ${closes}${closeWhy}. Extend or reopen it for the class or for a student.`
-      : 'The time to do Corrections and the Retest has ended. Ask your teacher if you need it reopened.',
+      : retestOnly
+        ? 'The time to take the Retest has ended. Ask your teacher if you need it reopened.'
+        : 'The time to do Corrections and the Retest has ended. Ask your teacher if you need it reopened.',
     home: null,
   };
 };
