@@ -218,7 +218,10 @@ const screenTitle = { marginTop: 0, fontSize: 'clamp(24px, 6vw, 32px)', lineHeig
 // near-black on the pause screen's near-black — a title nobody could read.
 const pauseTitle = { ...screenTitle, color: 'inherit' };
 // Opaque. At 94% the question and the student's answers could still be read
-// through the pause, and ran through the words that say why it paused.
+// through the pause, and ran through the words that say why it paused. Dark in
+// both themes, like the 94% it replaces: the pause's own text is white, so a
+// surface token that turns light would leave it unreadable (the one literal
+// is recorded in scripts/theme-color-baseline.json).
 const PAUSE_SCREEN_BACKGROUND = '#202124';
 
 /*
