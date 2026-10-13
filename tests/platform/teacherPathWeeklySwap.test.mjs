@@ -17,7 +17,7 @@ import { chooseWeeklyAlternative, mergeWeeklyGoalSnapshot } from '../../src/plat
 import { teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { freezeWeeklyPathGoalProposal } from '../../functions/shared/weeklyPathSlotAuthority.mjs';
 import { collectWeeklyPathSessions } from '../../functions/shared/weeklyPathCompletion.mjs';
-import { gradeWeeklyGoal, matchWeeklyGoalCompletions } from '../../functions/shared/weeklyPathGrade.mjs';
+import { gradeWeeklyGoal, matchWeeklyGoalCompletions, weekKeyFor } from '../../functions/shared/weeklyPathGrade.mjs';
 import { topLevelFunction } from './helpers/serverCallableHarness.mjs';
 
 const require = createRequire(import.meta.url);
@@ -36,7 +36,12 @@ const SERVER_TOOLS = (() => {
 
 const SLOT_TEKS = 'A.5A';
 const SWAP_TEKS = 'A.5C';
-const WEEK = '2026-10-05';
+// THIS week, not the week these tests were written in. The simulator stamps a
+// finished session with the real clock, and a session only counts toward a
+// week inside that week's completion window (weeklyCompletionWindow: eight
+// days from its Monday, UTC). With the week fixed at 2026-10-05 the two tests
+// that finish a session began to fail for everyone at 2026-10-13T00:00Z.
+const WEEK = weekKeyFor(Date.now());
 
 const question = (teks, prompt) => ({ type: 'algebra', prompt, equationLatex: '2x + 5 = 13', teks });
 const ASSIGNMENTS = [{
