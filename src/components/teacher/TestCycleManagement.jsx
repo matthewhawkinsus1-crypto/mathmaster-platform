@@ -213,7 +213,14 @@ export const TestCycleWindowsPanel = ({ schedule, busy, unopenedCount = 0, onCha
       </div>
 
       <div style={card}>
-        <strong style={{ color: 'var(--mm-text-strong)' }}>Corrections and Retest close: {schedule.followUpClose.label}</strong>
+        {/* Nothing closes until a class has a Test window (or the Test is open
+            at any time): saying "close: Thursday" before then reads as a
+            deadline that is not in force. */}
+        <strong style={{ color: 'var(--mm-text-strong)' }}>
+          {anySet || anytime
+            ? `Corrections and Retest close: ${schedule.followUpClose.label}`
+            : `Corrections and Retest: no closing time yet. Once a Test day is set they close: ${schedule.followUpClose.label}`}
+        </strong>
         <p style={muted}>
           After the Test window closes, students who took the Test and need it do Corrections and the Retest from home; a student who did not take the Test goes straight to the Retest. By default they close at the assignment's final due date
           {schedule.followUpClose.lateDueLabel ? ` (${schedule.followUpClose.lateDueLabel})` : ''}.
@@ -320,7 +327,7 @@ export const TestCycleAudiencePanel = ({ listing, classes = [], students = [], r
             style={button('primary', !(busy || !addClassIds.length))}
             onClick={() => { onAdd({ addClassIds }); setAddClassIds([]); }}
           >
-            Add {addClassIds.length || ''} class{addClassIds.length === 1 ? '' : 'es'} to this Test
+            {addClassIds.length ? `Add ${addClassIds.length} class${addClassIds.length === 1 ? '' : 'es'} to this Test` : 'Add classes to this Test'}
           </button>
         </div>
       )}
@@ -331,7 +338,7 @@ export const TestCycleAudiencePanel = ({ listing, classes = [], students = [], r
             <select value={addStudentId} onChange={(event) => setAddStudentId(event.target.value)} style={input}>
               <option value="">Choose a student…</option>
               {studentOptions.map(({ studentId, student }) => (
-                <option key={studentId} value={studentId}>{formatStudentLabel(student)} · {student.classPeriod || 'Unassigned'}</option>
+                <option key={studentId} value={studentId}>{formatStudentLabel(student)} · {candidates.classNameOf(student) || 'Unassigned'}</option>
               ))}
             </select>
           </label>

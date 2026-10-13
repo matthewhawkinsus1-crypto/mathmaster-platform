@@ -14,6 +14,8 @@
 
 import { zonedInstant, zonedParts } from '../../../functions/shared/instructionalCalendar.mjs';
 import { BULK_ACTION, BULK_ACTION_LABEL } from '../../../functions/shared/testCycleBulk.mjs';
+import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
+import { SCHOOL_TIME_ZONE } from '../../../functions/shared/sectionDeadline.mjs';
 
 export { BULK_ACTION, BULK_ACTION_LABEL };
 
@@ -186,18 +188,55 @@ const REVIEW_STATUS_LABEL = Object.freeze({
 
 const trim = (value) => Number(Number(value).toFixed(2));
 
-export const describeReviewSummary = (review = {}) => {
+// "Oct 8, 10:28 AM": the saved time as the table has room for it, in SCHOOL
+// time. The full label, weekday and zone included, is the cell's tooltip.
+const shortSchoolTime = (instant, timeZone) => {
+  const at = Number(instant);
+  if (!Number.isFinite(at) || at <= 0) return null;
+  // Newer engines put a narrow no-break space before AM/PM; a plain space
+  // reads the same and matches every other time on the panel.
+  return new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    .format(new Date(at)).replace(/[\u202f\u00a0]/g, ' ');
+};
+
+export const describeReviewSummary = (review = {}, { timeZone = SCHOOL_TIME_ZONE, percentWithProgress = false } = {}) => {
   const total = Number(review.total) || 0;
   const status = REVIEW_STATUS_LABEL[review.status] || (review.complete ? 'Complete' : '—');
-  if (!total) return { status: REVIEW_STATUS_LABEL.noReview, progress: '—', points: '—', percent: null, saved: null, line: 'No Review questions' };
+  if (!total) return { status: REVIEW_STATUS_LABEL.noReview, progress: '—', points: '—', percent: null, saved: null, savedShort: null, lines: [], line: 'No Review questions' };
   const percent = review.percent === null || review.percent === undefined ? null : Number(review.percent);
+  const progress = `${Number(review.attempted) || 0}/${total}`;
+  const earned = trim(review.earnedPoints || 0);
+  const possible = trim(review.possiblePoints || 0);
+  const savedShort = shortSchoolTime(review.lastSavedAt, timeZone) || review.lastSavedLabel || null;
+  // "Oct 8, 10:28 AM" as two facts, so the date and the time each stay whole.
+  const savedFacts = savedShort
+    ? savedShort.split(', ').map((part, index, all) => `${index === 0 ? '· saved ' : ''}${part}${index < all.length - 1 ? ',' : ''}`)
+    : [];
   return {
     status,
-    progress: `${Number(review.attempted) || 0}/${total}`,
-    points: `${trim(review.earnedPoints || 0)}/${trim(review.possiblePoints || 0)} pts`,
+    progress,
+    points: `${earned}/${possible} pts`,
     percent,
     saved: review.lastSavedLabel || null,
-    line: `${status} · ${Number(review.attempted) || 0}/${total} answered · ${trim(review.earnedPoints || 0)}/${trim(review.possiblePoints || 0)} pts${percent === null ? '' : ` · ${percent}%`}`,
+    savedShort,
+    /*
+     * The table's short lines, under the cell's own "Done · 75%". Each inner
+     * string is one FACT that is never broken; a line wraps only between
+     * facts. As one sentence these wrapped at every space in a narrow column
+     * and made a row seven lines tall.
+     *
+     * The percent is on the cell's first line beside the status, so it is not
+     * repeated here — unless that line is already a mastery percent
+     * (`percentWithProgress`), where a second bare percent would be misread.
+     * The last line is when the work was saved; before anything is saved it
+     * is the status in words.
+     */
+    lines: [
+      [`${progress} answered`, percentWithProgress && percent !== null ? `· ${percent}%` : null].filter(Boolean),
+      [`${earned} / ${possible} pts`],
+      savedFacts.length ? savedFacts.map((fact) => fact.replace(/^· /, '')) : [status],
+    ],
+    line: `${status} · ${progress} answered · ${earned}/${possible} pts${percent === null ? '' : ` · ${percent}%`}`,
   };
 };
 
@@ -262,14 +301,24 @@ export const audienceCandidates = ({ classes = [], students = [], audienceClassI
   const assigned = new Set(list(audienceClassIds).map(clean));
   const me = clean(teacherEmail).toLowerCase();
   const onTable = new Set(list(rows).map((row) => clean(row?.studentId)));
-  const mine = (entry) => !me || clean(entry?.teacherOfRecord).toLowerCase() === me;
+  // The server lets the root administrator add any class (teacherOwnedClassIds
+  // returns "all of them"), so the list must not hide the classes they are
+  // not teacher of record for.
+  const mine = (entry) => !me || isRootAdminEmail(me) || clean(entry?.teacherOfRecord).toLowerCase() === me;
   const byId = new Map(list(classes).map((entry) => [clean(entry?.classId || entry?.id), entry]));
   const classLabel = (classId) => {
     const entry = byId.get(clean(classId));
     return entry ? clean(entry.name) || clean(entry.period) || clean(classId) : clean(classId);
   };
+  // A student's class by NAME when this teacher's class list has it, else the
+  // period on their record: two classes can meet in the same period.
+  const classNameOf = (student) => {
+    const entry = byId.get(clean(student?.classId));
+    return clean(entry?.name) || clean(student?.classPeriod) || clean(entry?.period) || '';
+  };
   return {
     classLabel,
+    classNameOf,
     assignedClasses: [...assigned].filter(Boolean).map((classId) => ({ classId, label: classLabel(classId) })),
     classes: list(classes)
       .map((entry) => ({ classId: clean(entry?.classId || entry?.id), label: clean(entry?.name) || clean(entry?.period), status: entry?.status, entry }))
@@ -279,6 +328,20 @@ export const audienceCandidates = ({ classes = [], students = [], audienceClassI
       .map((student) => ({ studentId: clean(student?.id ?? student?.studentId), classId: clean(student?.classId), student }))
       .filter(({ studentId, classId, student }) => studentId && !onTable.has(studentId) && !assigned.has(classId) && student?.status !== 'inactive'),
   };
+};
+
+/** "Added 1 student." — only what was added is counted; "0 classes" is noise. */
+export const describeAudienceAddition = (counts = {}, { noun = 'Test' } = {}) => {
+  const classes = Number(counts.classesAdded) || 0;
+  const students = Number(counts.studentsAdded) || 0;
+  const failed = Number(counts.failed) || 0;
+  const failedNote = failed ? ` ${failed} could not be added; see the list below.` : '';
+  const parts = [
+    classes ? `${classes} class${classes === 1 ? '' : 'es'}` : null,
+    students ? plural(students, 'student') : null,
+  ].filter(Boolean);
+  if (!parts.length) return `Nothing new was added: everyone asked for already has this ${noun}.${failedNote}`;
+  return `Added ${parts.join(' and ')}.${failedNote} Open ${noun} sessions for them when you are ready.`;
 };
 
 /** The evidence check before a delete, in the words the confirmation uses. */

@@ -21,6 +21,7 @@ import { describeTestCycleCallError } from '../../platform/teacher/testCycleCall
 import {
   BULK_ACTION,
   describeBulkPlan,
+  describeAudienceAddition,
   describeReviewSummary,
   driveBulkOperation,
   newBulkOperationId,
@@ -78,7 +79,9 @@ const rosterStudentLabel = (studentId, students, historicalName = '') => {
   return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(String(studentId ?? '')) : name;
 };
 
-const cell = { padding: '8px 10px', fontSize: 13, borderBottom: '1px solid var(--mm-border-soft)', textAlign: 'left', verticalAlign: 'top', color: 'var(--mm-text)' };
+// 5px at the sides, not 10: the columns share about 790px on a teacher's
+// laptop, and at 10px the padding alone took 200px of it.
+const cell = { padding: '8px 5px', fontSize: 13, borderBottom: '1px solid var(--mm-border-soft)', textAlign: 'left', verticalAlign: 'top', color: 'var(--mm-text)' };
 // The table scrolls sideways on an iPad or phone; the name stays put so the
 // grades and actions at the far end still say whose they are.
 const stickyCell = { position: 'sticky', left: 0, zIndex: 1, background: 'var(--mm-surface)' };
@@ -300,6 +303,9 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
   );
 
   const blocked = preflight?.blocked === true;
+  // Archived: students cannot see or start it, and the server refuses to open
+  // or waive anything on it, so the class-wide buttons are not offered.
+  const archived = listing?.availability?.reason === 'archived' || assignment?.archived === true;
   const summary = listing?.summary || {};
   const policy = listing?.policy || null;
   const delivery = listing?.delivery || null;
@@ -371,7 +377,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
   // An unfinished operation from an earlier visit is shown so it can be finished.
   const unfinishedOperation = !operation ? (listing?.operations || []).find((entry) => !entry.finished) || null : null;
 
-  const columns = ['Student', 'Where they are', 'Actions', 'Review', external ? 'Original' : 'Test', 'Corrections', 'Retest', external ? `Original (${scoreSource})` : 'Original Test', 'Retest raw', 'Retest capped', 'Recorded'];
+  const columns = ['Student', 'Where they are', 'Review', external ? 'Original' : 'Test', 'Corrections', 'Retest', external ? `Original (${scoreSource})` : 'Original Test', 'Retest raw', 'Retest capped', 'Recorded'];
   // A row's outcome is shown in its open panel; if that row is filtered out or
   // its panel closed, the outcome is shown at the top instead of being lost.
   const rowOutcomeOnRow = Boolean(rowOutcome)
@@ -416,7 +422,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
   );
 
   return (
-    <section data-test-cycle-teacher={assignmentId} style={{ padding: 'clamp(14px, 3vw, 18px)', border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', color: 'var(--mm-text)' }}>
+    <section data-test-cycle-teacher={assignmentId} style={{ minWidth: 0, padding: 'clamp(14px, 3vw, 18px)', border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', color: 'var(--mm-text)' }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
           <h2 style={{ margin: 0, fontSize: 'clamp(17px, 3vw, 21px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>Test Cycle · {assignment.title}</h2>
@@ -706,7 +712,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                   }
                   return result;
                 },
-                (result) => `Added ${result.counts.classesAdded} class${result.counts.classesAdded === 1 ? '' : 'es'} and ${result.counts.studentsAdded} student${result.counts.studentsAdded === 1 ? '' : 's'}.${result.counts.failed ? ` ${result.counts.failed} could not be added; see the list below.` : ''} Open ${noun} sessions for them when you are ready.`,
+                (result) => describeAudienceAddition(result.counts, { noun }),
                 { action: 'Adding to this Test', callable: 'updateTestCycleAudience' },
               )}
             />
@@ -738,7 +744,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
 
           {/* Class-wide actions: for the students ticked below, or for everyone
               when none is ticked. Each is one server operation. */}
-          {!external && rows.length > 0 && (
+          {!external && !archived && rows.length > 0 && (
             <div role="group" aria-label="Class-wide actions" data-test-cycle-bulk="" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
               <strong style={{ fontSize: 13, color: 'var(--mm-text-strong)' }}>
                 {selectedIds.length ? `${selectedIds.length} selected:` : 'Whole class:'}
@@ -750,8 +756,8 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                     key={plan.action}
                     type="button"
                     data-bulk-action={plan.action}
-                    disabled={busy || words.disabled || (plan.action === BULK_ACTION.OPEN_TEST_SESSIONS && blocked)}
-                    style={button(null, !(busy || words.disabled || (plan.action === BULK_ACTION.OPEN_TEST_SESSIONS && blocked)))}
+                    disabled={busy || words.disabled || blocked}
+                    style={button(null, !(busy || words.disabled || blocked))}
                     onClick={() => confirmBulk(plan)}
                   >
                     {words.button}
@@ -759,6 +765,9 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                 );
               })}
               {selectedIds.length > 0 && <button type="button" style={button()} onClick={() => setSelected(new Set())}>Clear selection</button>}
+              {/* The server refuses both on a Test that fails its preflight, so
+                  the reason is here rather than in an error after pressing. */}
+              {blocked && <span style={{ flexBasis: '100%', fontSize: 12.5, color: 'var(--mm-text-muted)' }}>Not available until this Test passes the secure preflight above.</span>}
             </div>
           )}
 
@@ -776,15 +785,22 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
             </div>
           )}
 
-          <div ref={scrollerRef} style={{ overflowX: 'auto', marginTop: 12 }}>
-            {/* 840, not 900: the columns' own minimum is about 845, and at 900 a
-                teacher's laptop with the sidebar open (an ~865px panel) had to
-                scroll sideways to reach the last column. */}
-            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 840 }}>
+          {/* 8px into the card's own padding on each side: the columns need the
+              room, and the cells' padding keeps the text clear of the border. */}
+          <div ref={scrollerRef} style={{ overflowX: 'auto', margin: '12px -8px 0' }}>
+            {/* On a teacher's laptop the page is 1126px wide whatever the
+                screen, and with the sidebar open this box is 790px. The ten
+                columns are kept to that: a wider table hides Recorded, the
+                last column, behind a sideways scroll. The floor is only for
+                a phone, where the table scrolls inside this box and the name
+                column stays put. */}
+            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 720 }}>
               <thead>
+                {/* Sentence case: in capitals "CORRECTIONS" and "RECORDED" are the
+                    widest words in their columns, and the table has none to spare. */}
                 <tr>
                   {columns.map((heading) => (
-                    <th key={heading} scope="col" style={{ ...cell, ...(heading === 'Student' ? stickyCell : null), fontSize: 11, textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
+                    <th key={heading} scope="col" style={{ ...cell, ...(heading === 'Student' ? stickyCell : null), fontSize: 11, color: 'var(--mm-text-muted)' }}>
                       {heading === 'Student' && !external ? (
                         <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <input
@@ -811,11 +827,20 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                   const name = rosterStudentLabel(row.studentId, students, row.studentName);
                   const actionsOpen = openActionsFor === row.studentId && actions.length > 0;
                   const panelId = `test-cycle-actions-${row.studentId}`;
-                  const reviewFacts = describeReviewSummary(row.review);
+                  // A mastery-gated Review's first line is already a percent
+                  // ("3/12 · 40% of 80%"); the Review score then goes below it.
+                  const masteryGated = row.review?.minimumMastery !== undefined && row.review?.minimumMastery !== null;
+                  const reviewFacts = describeReviewSummary(row.review, { percentWithProgress: masteryGated });
                   const formOpen = rowForm?.studentId === row.studentId ? rowForm : null;
                   return (
                     <React.Fragment key={row.studentId}>
                       <tr data-teacher-bucket={row.bucket} data-student-row={row.studentId}>
+                        {/* The student's own cell holds what is theirs: the tick box,
+                            the name, how they came to have this Test, and the
+                            toggle for their actions. The toggle used to be a column
+                            of its own; eleven columns do not fit the teacher's
+                            card, and here it stays on screen with the name
+                            however far the table is scrolled sideways. */}
                         <th scope="row" style={{ ...cell, ...stickyCell, fontWeight: 800 }}>
                           {external ? name : (
                             <label style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
@@ -832,17 +857,11 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                               <span>{name}</span>
                             </label>
                           )}
-                        </th>
-                        <td style={{ ...cell, fontWeight: described.needsRelease ? 900 : 600, color: described.needsRelease ? 'var(--mm-warning-text)' : 'var(--mm-text)' }}>
-                          {described.bucketLabel}
                           {row.individuallyAssigned && <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--mm-text-muted)' }}>Added individually</div>}
-                        </td>
-                        {/* Beside where the student is, not past the grades, so the
-                            toggle is on screen without scrolling the table sideways. */}
-                        <td style={cell}>
-                          {actions.length === 0 ? <span style={{ color: 'var(--mm-text-muted)' }}>—</span> : (
+                          {actions.length > 0 && (
                             <button
                               type="button"
+                              data-row-actions-toggle=""
                               aria-expanded={actionsOpen}
                               aria-controls={panelId}
                               onClick={() => {
@@ -852,21 +871,30 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                                 if (actionsOpen) setRowOutcome((current) => (current?.studentId === row.studentId ? null : current));
                                 setOpenActionsFor(actionsOpen ? null : row.studentId);
                               }}
-                              style={{ ...button(actionsOpen ? 'primary' : null), padding: '7px 10px', whiteSpace: 'nowrap' }}
+                              style={{ ...button(actionsOpen ? 'primary' : null), display: 'block', minHeight: 34, marginTop: 6, padding: '5px 8px', whiteSpace: 'nowrap' }}
                             >
                               {actionsOpen ? 'Close ▴' : 'Actions ▾'}
                             </button>
                           )}
+                        </th>
+                        <td style={{ ...cell, fontWeight: described.needsRelease ? 900 : 600, color: described.needsRelease ? 'var(--mm-warning-text)' : 'var(--mm-text)' }}>
+                          {described.bucketLabel}
                         </td>
                         {/* The Review as a grade: progress, points, percent and when
                             it was last saved, from the student's saved Review work.
                             Kept apart from the secure scores further along the row. */}
-                        <td style={cell} data-review-summary="">
+                        <td style={cell} data-review-summary="" title={Number(row.review?.total) > 0 ? `${reviewFacts.line}${reviewFacts.saved ? ` · saved ${reviewFacts.saved}` : ''}` : undefined}>
                           {described.reviewText}
-                          {Number(row.review?.total) > 0 && (
-                            <div style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
-                              {reviewFacts.progress} answered · {reviewFacts.points}{reviewFacts.percent === null ? '' : ` · ${reviewFacts.percent}%`}
-                              <br />{reviewFacts.status}{reviewFacts.saved ? ` · saved ${reviewFacts.saved}` : ''}
+                          {!masteryGated && reviewFacts.percent !== null && <> <span style={{ whiteSpace: 'nowrap' }}>· {reviewFacts.percent}%</span></>}
+                          {/* Short lines of whole facts (describeReviewSummary): a
+                              line wraps between facts, never inside one. */}
+                          {reviewFacts.lines.length > 0 && (
+                            <div style={{ fontSize: 11.5, lineHeight: 1.4, minWidth: 88, color: 'var(--mm-text-muted)' }}>
+                              {reviewFacts.lines.map((facts) => (
+                                <div key={facts.join(' ')}>
+                                  {facts.map((fact, index) => <React.Fragment key={fact}>{index > 0 ? ' ' : ''}<span style={{ whiteSpace: 'nowrap' }}>{fact}</span></React.Fragment>)}
+                                </div>
+                              ))}
                             </div>
                           )}
                         </td>

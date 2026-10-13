@@ -60,6 +60,25 @@ test('a refusal the server wrote is shown as written', () => {
   assert.match(describeTestCycleCallError(Object.assign(new Error('not-found'), { code: 'functions/not-found' }), { action: 'Waive Review' }), /^Waive Review did not complete \(not-found\)/);
 });
 
+test('a Test Cycle that is not ready is explained to the teacher, not in the words written for a student', () => {
+  // What the server sends for a cycle with no Test phase (seen in production on
+  // a broken import): one sentence for every caller, written for a student.
+  const notReady = (diagnosticCode) => Object.assign(
+    new Error('This assessment is not available yet. Your teacher has been notified.'),
+    { code: 'functions/failed-precondition', details: { diagnosticCode } },
+  );
+  for (const code of ['TEST_CYCLE_POLICY_MISSING', 'TEST_CYCLE_TEST_PHASE_MISSING']) {
+    const text = describeTestCycleCallError(notReady(code), { action: 'Waive Review', callable: 'runTestCycleBulkAction' });
+    assert.doesNotMatch(text, /Your teacher has been notified/, 'the teacher is the one reading this');
+    assert.match(text, /^Waive Review is not available: this Test Cycle cannot be assigned securely yet\./);
+    assert.match(text, /Fix what is listed under "Cannot be assigned securely yet"/);
+    assert.match(text, /Nothing was changed\./);
+  }
+  // Any other refusal with details still passes through as written.
+  const other = Object.assign(new Error('The Test window has not opened.'), { code: 'functions/failed-precondition', details: { window: 'test' } });
+  assert.equal(describeTestCycleCallError(other, { action: 'Open the Test' }), 'The Test window has not opened.');
+});
+
 test('every failure in the panel goes through the translation, row actions included', () => {
   const run = region(controls, 'const run = async (', 'const blocked = ', 'run');
   assert.match(run, /catch \(error\) \{[\s\S]*describeTestCycleCallError\(error, \{ action, callable \}\)/);
@@ -87,10 +106,17 @@ test('a student\'s actions open as a full-width row pinned inside the visible ta
   // What an action does is printed beside it, not only in a tooltip that
   // a Chromebook or iPad never shows.
   assert.match(panel, /\{item\.detail && <span[^>]*>\{item\.detail\}<\/span>\}/);
-  // The toggle sits beside "Where they are", ahead of the grade columns.
+  // The toggle is in the student's own cell, with the name: that cell is the
+  // one pinned while the table scrolls sideways, so the toggle is always on
+  // screen. It was a column of its own until the table outgrew the teacher's
+  // card and its last column, Recorded, was cut off.
   const headings = controls.match(/const columns = \[([^\]]+)\]/)[1];
-  assert.ok(headings.indexOf("'Actions'") < headings.indexOf("'Review'"), 'Actions comes before the grade columns');
-  assert.ok(headings.indexOf("'Actions'") > headings.indexOf("'Where they are'"));
+  assert.doesNotMatch(headings, /'Actions'/, 'no column is spent on the toggle');
+  const nameCell = region(controls, '<th scope="row" style={{ ...cell, ...stickyCell', '</th>', 'student cell');
+  assert.match(nameCell, /aria-expanded=\{actionsOpen\}\s*aria-controls=\{panelId\}/);
+  assert.match(nameCell, /\{actionsOpen \? 'Close ▴' : 'Actions ▾'\}/);
+  // How the student came to have the Test is said with the name too.
+  assert.match(nameCell, /\{row\.individuallyAssigned && <div[^>]*>Added individually<\/div>\}/);
 });
 
 test('a student\'s confirmation and outcome appear in that student\'s panel', () => {

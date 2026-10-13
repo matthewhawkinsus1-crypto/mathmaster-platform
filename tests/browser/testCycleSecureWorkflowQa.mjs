@@ -182,7 +182,9 @@ const world = (device) => {
       ben: [student('BEN'), 'Ben Okafor', 'a'],     // Review finished
       cy: [student('CY'), 'Cy Nguyen', 'a'],        // nothing done
       dee: [student('DEE'), 'Dee Alvarez', 'a'],    // missed the Test; Retest released
-      fay: [student('FAY'), 'Fay Coleman', 'b'],    // class B, added to the Test
+      // A surname as long as a real roster's longest: the name column's width is
+      // its longest word, and the table has to fit the teacher's column with it.
+      fay: [student('FAY'), 'Fay Weatherspoon', 'b'], // class B, added to the Test
       gus: [student('GUS'), 'Gus Petrov', 'b'],
       eli: [student('ELI'), 'Eli Brooks', 'c'],     // added individually
       sam: [student('SAM'), 'Sam Whitfield', 's'],  // the window journey
@@ -313,7 +315,10 @@ const open = async ({ query, device }) => {
   return page;
 };
 const studentPage = (device, studentId, assignmentId) => open({ device, query: `view=student&as=student&studentId=${studentId}&assignmentId=${assignmentId}` });
-const teacherPage = (device, assignmentId, classId) => open({ device, query: `view=teacher&roster=1&as=teacher&email=${encodeURIComponent(TEACHER)}&assignmentId=${assignmentId}&classId=${classId}` });
+const teacherPage = (device, assignmentId, classId, { column = 0 } = {}) => open({ device, query: `view=teacher&roster=1&as=teacher&email=${encodeURIComponent(TEACHER)}&assignmentId=${assignmentId}&classId=${classId}${column ? `&column=${column}` : ''}` });
+// The teacher shell's content column: #root is 1126px wide, and the sidebar
+// and the shell's padding leave 812px for a Secure Exams card on any laptop.
+const SHELL_COLUMN = 812;
 
 let shotIndex = 0;
 const shot = async (page, name) => {
@@ -364,6 +369,47 @@ const audit = async (page, label) => {
   check(result.unnamed.length === 0, `${label}: every input has a label`, result.unnamed.join(' | '));
 };
 
+/*
+ * The panel at the width the teacher's screen gives it.
+ *
+ * Every other check opens the panel across the whole window. On the real
+ * teacher screen it sits in an 812px column, and there the roster table once
+ * grew wider than the card, the card wider than the page, and the Recorded
+ * column was cut off with nothing to scroll.
+ */
+const shellColumnCheck = async (device, w) => {
+  const at = (label) => `teacher @${device}, in the ${SHELL_COLUMN}px content column: ${label}`;
+  const page = await teacherPage(device, w.teacherTest, w.classes.a, { column: SHELL_COLUMN });
+  await page.locator(`tr[data-student-row="${w.students.fay[0]}"]`).waitFor({ timeout: 180_000 });
+  const measured = await page.evaluate(() => {
+    const column = document.querySelector('[data-qa-shell-column]');
+    const card = column.querySelector('[data-test-cycle-teacher]');
+    const table = card.querySelector('table');
+    const scroller = table.parentElement;
+    const columnRight = column.getBoundingClientRect().right;
+    const scrollerRight = scroller.getBoundingClientRect().right;
+    const visible = (element) => { const rect = element.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; };
+    return {
+      columnWidth: column.getBoundingClientRect().width,
+      cardWidth: card.getBoundingClientRect().width,
+      tableWidth: table.getBoundingClientRect().width,
+      scrollerWidth: scroller.clientWidth,
+      sidewaysScroll: scroller.scrollWidth - scroller.clientWidth,
+      cutOffColumns: [...table.querySelectorAll('thead th')].filter((th) => th.getBoundingClientRect().right > scrollerRight + 1).map((th) => th.textContent.trim()),
+      cutOffControls: [...card.querySelectorAll('button, select, input')].filter(visible).filter((control) => control.getBoundingClientRect().right > columnRight + 1)
+        .map((control) => (control.textContent || control.getAttribute('aria-label') || control.tagName).trim().slice(0, 40)),
+      tallestRow: Math.max(...[...table.querySelectorAll('tbody > tr[data-student-row]')].map((tr) => tr.getBoundingClientRect().height)),
+      columns: [...table.querySelectorAll('thead th')].map((th) => `${th.textContent.trim()} ${Math.round(th.getBoundingClientRect().width)}`).join(', '),
+    };
+  });
+  log(`shell column @${device}: table ${Math.round(measured.tableWidth)}px in ${measured.scrollerWidth}px, tallest row ${Math.round(measured.tallestRow)}px; ${measured.columns}`);
+  check(measured.cardWidth <= measured.columnWidth + 1, at('the card is no wider than its column'), `card ${Math.round(measured.cardWidth)}px in a ${Math.round(measured.columnWidth)}px column`);
+  check(measured.cutOffControls.length === 0, at('no button or field reaches past the column\'s edge'), measured.cutOffControls.join(' | '));
+  check(measured.cutOffColumns.length === 0 && measured.sidewaysScroll <= 1, at('every column, Recorded included, is on screen without scrolling the table sideways'), `table ${Math.round(measured.tableWidth)}px in ${measured.scrollerWidth}px; cut off: ${measured.cutOffColumns.join(', ') || 'none'}; columns: ${measured.columns}`);
+  check(measured.tallestRow <= 125, at('a student\'s row is not stretched tall by the Review facts'), `tallest row ${Math.round(measured.tallestRow)}px`);
+  await shot(page, `${device}-teacher-shell-column`);
+};
+
 /* ------------------------------- journeys -------------------------------- */
 
 const teacherJourney = async (device, w) => {
@@ -375,14 +421,17 @@ const teacherJourney = async (device, w) => {
 
   // 1. The table: the Review as a grade, and a Retest with no original Test.
   const anaReview = await textOf(row('ana').locator('[data-review-summary]'));
-  check(/2\/2 answered · 1\.5\/2 pts · 75%/.test(anaReview), at('the Review cell shows answered, points and percent'), anaReview);
-  check(/Complete · saved .+ (AM|PM) C[DS]T/.test(anaReview), at('the Review cell shows status and when it was last saved, in school time'), anaReview);
+  check(/^Done · 75% 2\/2 answered 1\.5 \/ 2 pts/.test(anaReview), at('the Review cell shows status, percent, answered and points'), anaReview);
+  check(/saved \w{3} \d+, \d+:\d{2} (AM|PM)$/.test(anaReview), at('the Review cell shows when it was last saved'), anaReview);
+  const anaReviewTitle = await row('ana').locator('[data-review-summary]').getAttribute('title');
+  check(/saved .+ (AM|PM) C[DS]T/.test(anaReviewTitle || ''), at('the full saved time, with the school zone, is the cell\'s tooltip'), anaReviewTitle || '');
   check(/Not started/.test(await textOf(row('cy').locator('[data-review-summary]'))), at('a student who has done nothing reads "Not started"'));
   const deeCells = await row('dee').locator('td').allInnerTexts();
   check(deeCells.some((text) => text.trim() === 'Not taken'), at('a Retest with no original shows the Test as "Not taken"'), deeCells.join(' | '));
   check(deeCells.filter((text) => /^(100|70)%/.test(text.trim())).length >= 3, at('the actual Retest score (100%) sits beside the capped 70% and the recorded 70%'), deeCells.join(' | '));
   const windows = page.locator('[data-test-cycle-windows]');
   check(/No class-time window is set/.test(await textOf(windows)), at('a cycle with no Test day says so, and that nothing is enforced'));
+  check(/Corrections and Retest: no closing time yet\. Once a Test day is set they close: \w{3}, \w{3} \d+, /.test(await textOf(windows)), at('with no Test day, the home window\'s closing time is not presented as in force'), (await textOf(windows)).slice(0, 400));
   await shot(page, `${device}-teacher-1-table`);
   await audit(page, at('results table'));
 
@@ -391,7 +440,9 @@ const teacherJourney = async (device, w) => {
   const audience = page.locator('[data-test-cycle-audience]');
   await audience.waitFor();
   check(/Who is assigned · 4 students/.test(await textOf(audience)), at('the assigned classes and their sizes are listed'));
-  await audience.getByLabel(`Algebra I — ${w.periods.b}`).check();
+  // Exact: the student picker beside it now names each student's class, so
+  // the class's name is also inside that picker's own label.
+  await audience.getByLabel(`Algebra I — ${w.periods.b}`, { exact: true }).check();
   await audience.getByRole('button', { name: 'Add 1 class to this Test' }).click();
   await row('fay').waitFor({ timeout: 60_000 });
   check(await row('gus').isVisible(), at('the added class\'s students are on the table'));
@@ -624,6 +675,10 @@ try {
     log(`fixture seeded for ${device}`);
     // eslint-disable-next-line no-await-in-loop
     await teacherJourney(device, w);
+    // After the teacher's journey: the table now has the added class, a
+    // student added individually and a grade set by hand, so it is at its widest.
+    // eslint-disable-next-line no-await-in-loop
+    await shellColumnCheck(device, w);
     // eslint-disable-next-line no-await-in-loop
     await studentJourney(device, w);
   }

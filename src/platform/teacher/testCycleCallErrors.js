@@ -13,7 +13,9 @@
  * "Waive Review" was told "internal" and nothing else: not what failed,
  * whether anything changed, or what to try next.
  *
- * Three cases, told apart by what the client actually received:
+ * Four cases, told apart by what the client actually received:
+ *   - a Test Cycle that is not ready: the server's sentence is for students,
+ *     so the teacher is told what to fix instead;
  *   - no answer at all: lowercase "internal" (or unavailable / deadline);
  *   - an unhandled server error: "INTERNAL", which the callable wrapper sends;
  *   - a refusal the server wrote (HttpsError with a sentence): shown as-is,
@@ -24,6 +26,13 @@
 
 const NO_ANSWER_CODES = new Set(['unavailable', 'deadline-exceeded']);
 
+// The server's refusal for a Test Cycle that is not ready is one sentence for
+// every caller, and it is written for a student: "This assessment is not
+// available yet. Your teacher has been notified." A teacher who presses Waive
+// Review IS the teacher. The refusal carries which part is missing, so the
+// panel can say what to do about it.
+const CONTRACT_DIAGNOSTICS = new Set(['TEST_CYCLE_POLICY_MISSING', 'TEST_CYCLE_TEST_PHASE_MISSING']);
+
 const codeOf = (error) => String(error?.code || '').replace(/^functions\//, '').trim();
 
 export const describeTestCycleCallError = (error, { action = 'That action', callable = '' } = {}) => {
@@ -31,6 +40,10 @@ export const describeTestCycleCallError = (error, { action = 'That action', call
   const message = String(error?.message || '').replace(/^Firebase:\s*/i, '').trim();
   const fn = callable ? ` (Cloud Function "${callable}")` : '';
 
+  if (CONTRACT_DIAGNOSTICS.has(String(error?.details?.diagnosticCode || ''))) {
+    return `${action} is not available: this Test Cycle cannot be assigned securely yet. `
+      + 'Fix what is listed under "Cannot be assigned securely yet" on this Test, then try again. Nothing was changed.';
+  }
   // What the callable wrapper sends for an exception the handler did not catch.
   if (code === 'internal' && message === 'INTERNAL') {
     return `${action} failed with a server error${fn}. `
