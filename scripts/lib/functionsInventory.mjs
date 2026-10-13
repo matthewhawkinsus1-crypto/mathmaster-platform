@@ -39,8 +39,15 @@ const endpointRegion = (endpoint = {}) => {
   return typeof region === 'string' && region ? region : null;
 };
 
+// The memory the CLI will give the function, in MiB. null means the endpoint
+// declares none and gets the platform default (256 MiB), which this codebase
+// does not fit in (functions/index.js, FUNCTION_MEMORY_FLOOR).
+const endpointMemoryMb = (endpoint = {}) => (
+  Number.isFinite(endpoint.availableMemoryMb) ? endpoint.availableMemoryMb : null
+);
+
 /**
- * @returns {{ entry: string, functions: Array<{ name: string, trigger: string, region: string|null, labels: object }> }}
+ * @returns {{ entry: string, functions: Array<{ name: string, trigger: string, region: string|null, memoryMb: number|null, labels: object }> }}
  *          names sorted, so batching is deterministic from run to run. `labels`
  *          are the Cloud labels the CLI will set — including the deploy
  *          provenance labels (mm-git-sha, mm-tree) every function carries.
@@ -56,6 +63,7 @@ export const listDeployableFunctions = ({ codebaseDir = path.join(repoRoot, 'fun
       name,
       trigger: triggerKind(value.__endpoint),
       region: endpointRegion(value.__endpoint),
+      memoryMb: endpointMemoryMb(value.__endpoint),
       labels: { ...value.__endpoint.labels },
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
