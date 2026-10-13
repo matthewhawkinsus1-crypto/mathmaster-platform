@@ -65,9 +65,20 @@ const Teacher = () => {
     return () => { stopClasses(); stopStudents(); };
   }, [withRoster]);
   if (!assignment) return <p role="status">{params.get('deleted') === '1' ? 'This Test no longer exists.' : 'Loading assignment…'}</p>;
+  const controls = (
+    <TestCycleControls assignment={assignment} classId={params.get('classId')} students={students} classes={classes} teacherEmail={params.get('email') || ''} onPreview={(target) => setPreviewing(target)} />
+  );
+  // `column=812` puts the panel where the teacher's screen puts it. #root is
+  // 1126px wide on any laptop; the sidebar and the shell's padding leave an
+  // 812px content column, and the Secure Exams screen lays its cards out in a
+  // grid there. A panel given the whole window (as below, without `column`)
+  // never meets that width, which is how a table wider than the column once
+  // reached production with its last column cut off. The grid here is a bare
+  // `display: grid` on purpose: the card must hold its own width.
+  const column = Number(params.get('column')) || 0;
   return (
     <main style={{ padding: 16, boxSizing: 'border-box', background: 'var(--mm-surface-sunken)', minHeight: '100vh' }}>
-      <TestCycleControls assignment={assignment} classId={params.get('classId')} students={students} classes={classes} teacherEmail={params.get('email') || ''} onPreview={(target) => setPreviewing(target)} />
+      {column > 0 ? <div data-qa-shell-column="" style={{ width: column, overflowX: 'clip' }}><section style={{ display: 'grid', gap: 18 }}>{controls}</section></div> : controls}
       {previewing && <TestCyclePreview assignment={previewing} onClose={() => setPreviewing(null)} onPreviewReview={() => { window.__qa.reviewOpened += 1; }} />}
     </main>
   );

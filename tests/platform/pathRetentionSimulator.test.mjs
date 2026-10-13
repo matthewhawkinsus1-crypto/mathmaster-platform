@@ -15,13 +15,18 @@ import { PURPOSE } from '../../src/platform/path/recommendationV2.js';
 import { RETENTION_PROBE, retentionCheckOutcome } from '../../functions/shared/pathRetentionCheck.mjs';
 import { createTeacherPathRuntime } from '../../src/platform/simulation/teacherPathRuntime.js';
 import { collectWeeklyPathSessions } from '../../functions/shared/weeklyPathCompletion.mjs';
-import { matchWeeklyGoalCompletions } from '../../functions/shared/weeklyPathGrade.mjs';
+import { matchWeeklyGoalCompletions, weekKeyFor } from '../../functions/shared/weeklyPathGrade.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse('2026-10-07T15:00:00Z');
-const WEEK = '2026-10-05';
+// THIS week, not the week these tests were written in. The simulator stamps a
+// finished session with the real clock, and a session only counts toward a
+// week inside that week's completion window (weeklyCompletionWindow: eight
+// days from its Monday, UTC). With the week fixed at 2026-10-05 the two tests
+// that finish a session began to fail for everyone at 2026-10-13T00:00Z.
+const WEEK = weekKeyFor(Date.now());
 const ORIGIN = 'A.5C';
 
 const slot = (n, teks, purpose) => ({

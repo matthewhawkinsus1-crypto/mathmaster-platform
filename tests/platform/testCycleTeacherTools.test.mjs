@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {
   BULK_ACTION,
   audienceCandidates,
+  describeAudienceAddition,
   describeBulkPlan,
   describeLifecycleEvidence,
   describeOperation,
@@ -27,6 +28,7 @@ import {
 } from '../../src/platform/teacher/testCycleTeacherTools.js';
 import { TEACHER_BUCKET_LABEL, TEACHER_BUCKET_ORDER, describeTeacherRow, teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
 import { normalizeBulkOperationId, bulkOperationView, newBulkOperation, withBulkResult } from '../../functions/shared/testCycleBulk.mjs';
+import { ROOT_ADMIN_EMAIL } from '../../functions/shared/rolePolicy.mjs';
 
 const row = (studentId, extra = {}) => ({
   studentId, stage: 'review', review: { attempted: 0, total: 4 }, test: { state: 'none', examSessionId: null }, retest: { state: 'none', examSessionId: null },
@@ -137,14 +139,35 @@ test('a time a teacher types is read as school time, whatever zone the browser i
 });
 
 test('the Review reads as progress, points, percent, status and when it was last saved', () => {
-  assert.deepEqual(describeReviewSummary({ total: 4, attempted: 3, earnedPoints: 2.5, possiblePoints: 4, percent: 63, status: 'inProgress', lastSavedLabel: 'Fri, Oct 9, 10:04 AM CDT' }), {
+  const savedAt = Date.UTC(2026, 9, 9, 15, 4); // 10:04 AM in Chicago
+  assert.deepEqual(describeReviewSummary({ total: 4, attempted: 3, earnedPoints: 2.5, possiblePoints: 4, percent: 63, status: 'inProgress', lastSavedAt: savedAt, lastSavedLabel: 'Fri, Oct 9, 10:04 AM CDT' }), {
     status: 'In progress',
     progress: '3/4',
     points: '2.5/4 pts',
     percent: 63,
     saved: 'Fri, Oct 9, 10:04 AM CDT',
+    // The short form the table has room for, in SCHOOL time whatever this machine's zone is.
+    savedShort: 'Oct 9, 10:04 AM',
+    // Short lines of whole facts, under the cell's own "3/4 · 63%": a line
+    // wraps between facts, never inside one. The last is when it was saved.
+    lines: [
+      ['3/4 answered'],
+      ['2.5 / 4 pts'],
+      ['saved Oct 9,', '10:04 AM'],
+    ],
     line: 'In progress · 3/4 answered · 2.5/4 pts · 63%',
   });
+  // No instant on the row (an older server): the full label is still shown.
+  const older = describeReviewSummary({ total: 4, attempted: 1, status: 'inProgress', lastSavedLabel: 'Fri, Oct 9, 10:04 AM CDT' });
+  assert.equal(older.savedShort, 'Fri, Oct 9, 10:04 AM CDT');
+  assert.deepEqual(older.lines[2], ['saved Fri,', 'Oct 9,', '10:04 AM CDT']);
+  // A mastery-gated Review's first line is already a percent, so the Review
+  // score is said with the progress instead.
+  assert.deepEqual(describeReviewSummary({ total: 4, attempted: 3, earnedPoints: 2.5, possiblePoints: 4, percent: 63, status: 'inProgress' }, { percentWithProgress: true }).lines[0], ['3/4 answered', '· 63%']);
+  // Nothing saved yet: the last line is the status in words.
+  const untouched = describeReviewSummary({ total: 4, attempted: 0, earnedPoints: 0, possiblePoints: 4, status: 'notStarted', percent: null });
+  assert.deepEqual([untouched.savedShort, untouched.lines], [null, [['0/4 answered'], ['0 / 4 pts'], ['Not started']]]);
+  assert.deepEqual(describeReviewSummary({ total: 0 }).lines, []);
   assert.equal(describeReviewSummary({ total: 4, attempted: 0, earnedPoints: 0, possiblePoints: 4, percent: 0, status: 'waived' }).status, 'Waived');
   assert.equal(describeReviewSummary({ total: 0 }).line, 'No Review questions');
 });
@@ -189,6 +212,36 @@ test('the classes and students offered are the ones that can actually be added',
   // still checks whose student each one is.)
   assert.deepEqual(offered.students.map((entry) => entry.studentId), ['s7', 's8']);
   assert.equal(offered.classLabel('c9'), 'c9');
+  // A student is named with their CLASS when it is known: two classes can meet
+  // in the same period, and "Period 3" would not say which.
+  assert.equal(offered.classNameOf({ classId: 'c2', classPeriod: 'Period 2' }), 'Algebra I — 2nd');
+  assert.equal(offered.classNameOf({ classId: 'gone', classPeriod: 'Period 5' }), 'Period 5');
+  assert.equal(offered.classNameOf({}), '');
+});
+
+test('the root administrator is offered every class, as the server allows', () => {
+  // functions/index.js teacherOwnedClassIds returns "all of them" for the root
+  // administrator. A list that hid the classes they are not teacher of record
+  // for left them unable to add a class the server would have accepted.
+  const classes = [
+    { classId: 'c1', name: 'Algebra I — 1st', teacherOfRecord: ROOT_ADMIN_EMAIL },
+    { classId: 'c2', name: 'AI QA — Algebra II', teacherOfRecord: 'qa.teacher@school.org' },
+    { classId: 'c3', name: 'Algebra I — 4th', teacherOfRecord: '' },
+    { classId: 'c4', name: 'Old class', teacherOfRecord: 'qa.teacher@school.org', status: 'archived' },
+  ];
+  const asAdmin = audienceCandidates({ classes, students: [], audienceClassIds: ['c1'], rows: [], teacherEmail: ROOT_ADMIN_EMAIL.toUpperCase() });
+  assert.deepEqual(asAdmin.classes.map((entry) => entry.classId), ['c2', 'c3'], 'every class that is not assigned already and not archived');
+  // Any other teacher still sees only their own.
+  const asTeacher = audienceCandidates({ classes, students: [], audienceClassIds: [], rows: [], teacherEmail: 'qa.teacher@school.org' });
+  assert.deepEqual(asTeacher.classes.map((entry) => entry.classId), ['c2']);
+});
+
+test('what was added is said without counting what was not', () => {
+  assert.equal(describeAudienceAddition({ classesAdded: 0, studentsAdded: 1 }), 'Added 1 student. Open Test sessions for them when you are ready.');
+  assert.equal(describeAudienceAddition({ classesAdded: 2, studentsAdded: 0 }), 'Added 2 classes. Open Test sessions for them when you are ready.');
+  assert.equal(describeAudienceAddition({ classesAdded: 1, studentsAdded: 3, failed: 2 }, { noun: 'Retest' }), 'Added 1 class and 3 students. 2 could not be added; see the list below. Open Retest sessions for them when you are ready.');
+  // Everyone asked for already had it: not "Added 0 classes and 0 students".
+  assert.equal(describeAudienceAddition({ classesAdded: 0, studentsAdded: 0 }), 'Nothing new was added: everyone asked for already has this Test.');
 });
 
 test('the delete confirmation says what the evidence check found', () => {

@@ -330,10 +330,15 @@ test('the teacher panel shows the times, the Review as a grade, who is assigned,
   assert.match(management, /\{window\.home && <p style=\{\{ \.\.\.fact, fontWeight: 700 \}\}>\{window\.home\}<\/p>\}/);
 
   // The Review summary sits in the Review cell, apart from the secure scores.
-  const reviewCell = region(controls, '<td style={cell} data-review-summary="">', '</td>', 'review cell');
-  assert.match(reviewCell, /\{reviewFacts\.progress\} answered · \{reviewFacts\.points\}/);
-  assert.match(reviewCell, /reviewFacts\.percent/);
-  assert.match(reviewCell, /saved \$\{reviewFacts\.saved\}/);
+  const reviewCell = region(controls, '<td style={cell} data-review-summary=""', '</td>', 'review cell');
+  // The summary's lines come from describeReviewSummary; each fact is kept
+  // whole, so a narrow column wraps between facts and not inside one.
+  assert.match(reviewCell, /\{reviewFacts\.lines\.map\(\(facts\) => \(/);
+  // The Review score sits on the first line, beside the status ("Done · 75%").
+  assert.match(reviewCell, /\{described\.reviewText\}\s*\{!masteryGated && reviewFacts\.percent !== null && <> <span style=\{\{ whiteSpace: 'nowrap' \}\}>· \{reviewFacts\.percent\}%<\/span><\/>\}/);
+  assert.match(reviewCell, /<span style=\{\{ whiteSpace: 'nowrap' \}\}>\{fact\}<\/span>/);
+  // The full saved time, weekday and school zone included, is the tooltip.
+  assert.match(reviewCell, /title=\{Number\(row\.review\?\.total\) > 0 \? `\$\{reviewFacts\.line\}\$\{reviewFacts\.saved \? ` · saved \$\{reviewFacts\.saved\}` : ''\}` : undefined\}/);
   // A grade set by hand is marked on the recorded grade, and its source is in the panel.
   assert.match(controls, /\{row\.gradeAdjustment && <div[^>]*>Set by teacher<\/div>\}/);
   assert.match(controls, /adjustTestCycleGrade\(\{ assignmentId, studentId: row\.studentId, \.\.\.adjustment \}\)/);
@@ -344,6 +349,7 @@ test('the teacher panel shows the times, the Review as a grade, who is assigned,
   // Who is assigned, and adding to the same Test.
   assert.match(controls, /Who is assigned · \{listing\?\.audience\?\.studentCount \?\? rows\.length\}/);
   assert.match(controls, /await updateTestCycleAudience\(\{ assignmentId, \.\.\.addition \}\)/);
+  assert.match(controls, /\(result\) => describeAudienceAddition\(result\.counts, \{ noun \}\)/);
   // Nothing added is reported as a failure, not as "Added 0".
   assert.match(controls, /if \(result\.counts\.failed > 0 && result\.counts\.classesAdded \+ result\.counts\.studentsAdded === 0\) \{\s*throw new Error\(/);
 
