@@ -11,6 +11,9 @@ import {
   retestPolicyRelevant,
   reviewRequirementText,
   reviewSkillRows,
+  reviewWasWaived,
+  sittingFactsFor,
+  testCycleDueFacts,
   testReviewLabel,
   testReviewSessionIdFor,
   testSkillsSection,
@@ -133,7 +136,7 @@ const factStyle = { margin: 0, fontSize: 13, color: 'var(--mm-text-muted)', line
 // How often an open Test review asks whether it may still be shown.
 const TEST_REVIEW_RECHECK_MS = 30000;
 
-export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
+export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, lateDueAt = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
   /*
    * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
    * payload in exactly the shape the server returns. The card then makes NO
@@ -360,6 +363,12 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // Corrections, not after submitting, not once the cycle is finished.
   const sittingAhead = [TEST_CYCLE_STAGE.REVIEW, TEST_CYCLE_STAGE.TEST, TEST_CYCLE_STAGE.RETEST_READY, TEST_CYCLE_STAGE.RETEST].includes(card.stage);
   const reviewSkills = card.stage === TEST_CYCLE_STAGE.REVIEW ? reviewSkillRows(card.reviewBySkill) : [];
+  // Said as it is: a waived Review is not a finished one, a Retest is not
+  // called the Test or given the Test's length, and late work that is still
+  // open says until when (each from a tested helper in testCycleDiscovery.js).
+  const reviewWaived = reviewWasWaived(card);
+  const sitting = sittingFactsFor(card);
+  const due = testCycleDueFacts({ dueAt: card.dueAt, lateDueAt });
   const scheduleBlocks = studentScheduleBlocks(card);
   const testSkills = testSkillsSection(card);
 
@@ -411,7 +420,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
             <li key={phase.id} data-test-cycle-phase={phase.id} data-phase-status={phase.status} style={{ padding: '10px 12px', border: '1px solid var(--mm-border-soft)', borderRadius: 9, background: 'var(--mm-surface-sunken)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <strong style={{ color: 'var(--mm-text-strong)' }}>{phase.label}{phase.secure ? ' · Secure' : ''}</strong>
-                <span style={{ fontWeight: 800, color: PHASE_STATUS_COLOR[phase.status] || 'var(--mm-text-muted)' }}>{PHASE_STATUS_LABEL[phase.status] || phase.status}</span>
+                <span style={{ fontWeight: 800, color: PHASE_STATUS_COLOR[phase.status] || 'var(--mm-text-muted)' }}>{phase.id === 'review' && phase.status === 'completed' && reviewWaived ? 'Waived by your teacher' : (PHASE_STATUS_LABEL[phase.status] || phase.status)}</span>
               </div>
               {phase.reason && <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{phase.reason}</p>}
             </li>
@@ -421,7 +430,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
 
       {card.stage === TEST_CYCLE_STAGE.TEST && card.canEnter && card.actionLabel === 'Start Test' && (
         <p role="status" aria-live="polite" style={{ margin: 0, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800 }}>
-          Test unlocked — your Review is complete.
+          {reviewWaived ? 'Test unlocked — your teacher waived the rest of your Review.' : 'Test unlocked — your Review is complete.'}
         </p>
       )}
 
@@ -446,16 +455,20 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
                 (testCycleDeliveryFacts). Answers stay changeable until Submit:
                 every secure item is a draft until the session is finalized. */}
             {card.delivery.timed
-              ? `${noun} is timed: ${card.delivery.timeLimitMinutes} minutes once you start${Number(card.delivery.extendedTimeMultiplier) > 1 ? ', including your extended time' : ''}.`
-              : `${noun} is not timed.`}
-            {card.delivery.questionCount ? ` ${card.delivery.questionCount} questions. You can change your answers until you submit.` : ''}
+              ? `${sitting.noun} is timed: ${card.delivery.timeLimitMinutes} minutes once you start${Number(card.delivery.extendedTimeMultiplier) > 1 ? ', including your extended time' : ''}.`
+              : `${sitting.noun} is not timed.`}
+            {sitting.questionCount ? ` ${sitting.questionCount} questions. You can change your answers until you submit.` : ' You can change your answers until you submit.'}
           </p>
         )}
         {/* Only while a retest could still happen. A student who passed is not
             read a cap meant for a failing grade, and once the cycle is finished
             the breakdown above already shows the rule that was applied. */}
         {card.policy?.summary && retestPolicyRelevant(card) && <p style={factStyle}>{card.policy.summary}</p>}
-        {card.dueAt && <p style={factStyle}>Due {formatDateTime(card.dueAt)}.</p>}
+        {due.dueAt && (
+          <p data-test-cycle-due="" style={factStyle}>
+            Due {formatDateTime(due.dueAt)}.{due.finalLateDueAt ? ` Late work is still open: final late due ${formatDateTime(due.finalLateDueAt)}.` : ''}
+          </p>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
