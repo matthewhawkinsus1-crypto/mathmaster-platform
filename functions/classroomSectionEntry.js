@@ -41,6 +41,7 @@ const {
 } = require("./lib/classroomGradeRuntime");
 const { assignmentFeedbackIsHeld } = require("./lib/activityFeedback");
 const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
+const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTriggerCapacity");
 const {
   CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
   sectionGradeEvidenceFingerprint,
@@ -51,6 +52,18 @@ const MAX_CLASSROOM_COURSES_PER_BATCH = 20;
 const PUBLISH_LEASE_MS = 5 * 60 * 1000;
 const SECTION_CHECKPOINT_COLLECTION = "classroomSectionGradeCheckpointState";
 const SECTION_CHECKPOINT_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
+// The only assignment fields the checkpoint scheduler reads. An assignment
+// document carries its questions and can be over 1.5 MB; reading all of the
+// published ones in full every 5 minutes is what made a run outlast its limit.
+const SECTION_CHECKPOINT_ASSIGNMENT_FIELDS = Object.freeze([
+  "releaseAt",
+  "releaseDate",
+  "dueAt",
+  "dueDate",
+  "lateDueAt",
+  "lateDueDate",
+  "assignedClassIds",
+]);
 
 function requireTeacher(request) {
   if (!request?.auth) {
@@ -330,10 +343,14 @@ async function queueGradeSignalForAssignmentAudience({
 }) {
   const classIds = assignmentClassIds(assignment);
   if (!classIds.length) return 0;
+  // A grade document is a student's whole year (about 300 KB). Only its
+  // reference is needed to flag it, plus, for a reconcile, whether this one
+  // assignment has a saved tracker.
+  const projection = requireSavedTracker ? [new FieldPath("gradesByAssignment", assignmentId)] : [];
   const byPath = new Map();
   for (const classId of classIds) {
     // eslint-disable-next-line no-await-in-loop
-    const snapshot = await db.collection("grades").where("classId", "==", classId).get();
+    const snapshot = await db.collection("grades").where("classId", "==", classId).select(...projection).get();
     snapshot.docs.forEach((doc) => byPath.set(doc.ref.path, doc));
   }
   const gradeDocs = [...byPath.values()].filter((gradeDoc) => (
@@ -577,6 +594,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
   {
     document: "grades/{studentId}",
     secrets: GOOGLE_API_SECRETS,
+    ...CLASSROOM_GRADE_TRIGGER_CAPACITY,
   },
   async (event) => {
     const after = event.data?.after;
@@ -963,6 +981,9 @@ const syncSectionGradeToClassroom = onDocumentWritten(
 const queueClassroomSectionGradeCheckpoints = onSchedule({
   schedule: "every 5 minutes",
   invoker: "private",
+  // A catch-up flags several whole classes. A run cut off at the 60 s default
+  // carries on without CPU and overlaps the next one (Oct 14, 2026).
+  timeoutSeconds: 300,
 }, async () => {
   const db = getFirestore();
   const now = Date.now();
@@ -970,6 +991,7 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
   const publicationSnapshot = await db
     .collection("classroomLinks")
     .where("status", "==", "published")
+    .select("publicationKind", "courseworkId", "sectionGradePassbackEnabled", "assignmentId")
     .limit(1000)
     .get();
   const assignmentIds = [...new Set(publicationSnapshot.docs
@@ -982,7 +1004,8 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
   if (!assignmentIds.length) return;
 
   const assignmentSnapshots = await db.getAll(
-    ...assignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`))
+    ...assignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
+    { fieldMask: [...SECTION_CHECKPOINT_ASSIGNMENT_FIELDS] }
   );
 
   for (const assignmentSnapshot of assignmentSnapshots) {
