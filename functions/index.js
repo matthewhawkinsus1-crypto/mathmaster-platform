@@ -117,7 +117,21 @@ const { deployProvenance, deployProvenanceLabels } = require("./lib/deployProven
 // while the CLI discovers the functions. Global options apply to functions
 // defined AFTER this call, which is every function in this codebase: entry.js,
 // platformEntry.js and the Classroom section entry all load this file first.
-setGlobalOptions({ invoker: "public", labels: deployProvenanceLabels });
+//
+// MEMORY. Every function in this codebase loads the whole of it, and that
+// alone costs about 260–330 MiB once a handler has pulled in what it needs
+// (measured from production: 14 different functions were killed at the old
+// 256 MiB default with 257–334 MiB in use). A function left at the default
+// therefore dies part-way through a request, which the browser reports as a
+// bare "internal" with no CORS headers, a trigger drops its event, and a
+// scheduler never finishes: the Classroom section-grade checkpoint job ran out
+// of memory on every five-minute run for a week, and the callable that records
+// students' submitted answers thousands of times a school day. So 512 MiB is
+// the floor for all of them; a function that needs more says so itself
+// (TEST_CYCLE_PANEL_OPTIONS, the Path bank builders). Nothing may ask for less
+// (tests/platform/functionsMemoryFloor.test.mjs reads the real endpoints).
+const FUNCTION_MEMORY_FLOOR = "512MiB";
+setGlobalOptions({ invoker: "public", memory: FUNCTION_MEMORY_FLOOR, labels: deployProvenanceLabels });
 
 initializeApp();
 
@@ -21982,7 +21996,6 @@ exports.createAssignmentContentVersion = onCall(async (request) => {
 exports.assignmentAiSelfTest = onCall({
   secrets: ASSIGNMENT_AI_SECRETS,
   timeoutSeconds: 90,
-  memory: "256MiB",
 }, async (request) => {
   await requireRootAdmin(request);
   const requestedModel = assignmentAiModel();
