@@ -19,6 +19,7 @@ import {
   publishClassroomMaterial,
   storeLessonNotesPdf,
   retryClassroomGradeSync,
+  retryAllClassroomGradeSyncs,
   reconcileClassroomSectionGrades,
   saveClassroomCourseMapping,
   updateAssignmentClassroomPublications,
@@ -39,6 +40,7 @@ import ClassroomSectionGradeSelector from './components/ClassroomSectionGradeSel
 import ClassroomForceRepublishPreview from './components/ClassroomForceRepublishPreview';
 import {
   gradeSyncStudentDisplay,
+  gradeSyncErrorText,
   gradeSyncStatusLabel,
   retryEligibleGradeSyncs,
 } from './classroomGradeSyncUi';
@@ -92,6 +94,12 @@ export default function ClassroomManagerV2({
   const [mappings, setMappings] = useState([]);
   const [links, setLinks] = useState([]);
   const [gradeSyncs, setGradeSyncs] = useState([]);
+  // Grade pushes waiting in the server's paced queue (functions/lib/classroomPushQueue.js).
+  const [pushQueueWaiting, setPushQueueWaiting] = useState(0);
+  const applyGradeSyncResult = (result) => {
+    setGradeSyncs(result?.syncs || []);
+    setPushQueueWaiting(Number(result?.pushQueue?.waiting) || 0);
+  };
   const [selectedCourseIds, setSelectedCourseIds] = useState([]);
   const [rosterCourseId, setRosterCourseId] = useState('');
   const [roster, setRoster] = useState([]);
@@ -173,7 +181,7 @@ export default function ClassroomManagerV2({
       setLinks(linksResult.value?.links || []);
     }
     if (gradeResult.status === 'fulfilled') {
-      setGradeSyncs(gradeResult.value?.syncs || []);
+      applyGradeSyncResult(gradeResult.value);
     }
 
     const failures = [
@@ -464,7 +472,7 @@ export default function ClassroomManagerV2({
     const summary = response.summary || {};
     setStatus(`Published/connected ${Number(summary.published || 0) + Number(summary.alreadyPublished || 0)} Classroom assignment post(s)${dedupedLinks.length ? ' with the AI-prepared resources package' : ''}.`);
     setLinks((await listPublishedAssignments()).links || []);
-    setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+    applyGradeSyncResult(await listClassroomGradeSyncs());
   });
 
   const handleForceRepublish = () => run(async () => {
@@ -521,7 +529,7 @@ export default function ClassroomManagerV2({
       + (failed ? ' ' + failed + ' selected post' + (failed === 1 ? '' : 's') + ' failed.' : '')
     );
     setLinks((await listPublishedAssignments()).links || []);
-    setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+    applyGradeSyncResult(await listClassroomGradeSyncs());
   });
 
   const handlePublishMaterial = () => run(async () => {
@@ -913,7 +921,7 @@ export default function ClassroomManagerV2({
                       const failed = Number(summary.failed || 0);
                       const queuedGrades = Number(summary.queuedGrades || 0);
                       setLinks((await listPublishedAssignments()).links || []);
-                      setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+                      applyGradeSyncResult(await listClassroomGradeSyncs());
 
                       if (reposted > 0) {
                         setStatus(
@@ -982,7 +990,7 @@ export default function ClassroomManagerV2({
                           throw new Error(`Classroom removal finished with ${failed} failure${failed === 1 ? '' : 's'}.`);
                         }
                         setLinks((await listPublishedAssignments()).links || []);
-                        setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+                        applyGradeSyncResult(await listClassroomGradeSyncs());
                         setStatus('Removed the MathMaster-created assignment and Notes & Resources post from Google Classroom. The MathMaster assignment remains.');
                       });
                     }}>Remove from Classroom</button>
@@ -999,6 +1007,11 @@ export default function ClassroomManagerV2({
         <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
           MathMaster sends progress checkpoints while students work, a due-date checkpoint, and a final grade at completion or the final cutoff. Failures stay visible instead of disappearing silently.
         </p>
+        {pushQueueWaiting > 0 && (
+          <div role="status" style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 800, lineHeight: 1.45 }}>
+            {pushQueueWaiting} grade push{pushQueueWaiting === 1 ? '' : 'es'} waiting to send to Google Classroom. MathMaster sends them a minute's worth at a time to stay within Google's limit; refresh to see each result.
+          </div>
+        )}
         {retryableGradeSyncs.length > 0 && (
           <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-error-bg)', border: '1px solid var(--mm-error-border-soft)' }}>
             <div style={{ color: 'var(--mm-error-text)', fontSize: 12, fontWeight: 900 }}>
@@ -1012,16 +1025,11 @@ export default function ClassroomManagerV2({
               style={{ ...secondary, marginTop: 8, borderColor: '#a50e0e', color: 'var(--mm-error-text)', background: 'var(--mm-surface)' }}
               disabled={busy}
               onClick={() => run(async () => {
-                for (const sync of retryableGradeSyncs) {
-                  // eslint-disable-next-line no-await-in-loop
-                  await retryClassroomGradeSync({
-                    publicationId: sync.publicationId,
-                    studentId: sync.studentId,
-                    assignmentId: sync.assignmentId,
-                  });
-                }
-                setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
-                setStatus(`Retried ${retryableGradeSyncs.length} eligible grade passback failure${retryableGradeSyncs.length === 1 ? '' : 's'}.`);
+                // One call: the server queues every failed push this teacher
+                // owns, and sends them a minute's worth at a time.
+                const result = await retryAllClassroomGradeSyncs();
+                applyGradeSyncResult(await listClassroomGradeSyncs());
+                setStatus(`Queued ${result.queued} student grade${result.queued === 1 ? '' : 's'} (${result.failedRows} failed passback${result.failedRows === 1 ? '' : 's'}) to send to Google Classroom again. MathMaster sends them a minute's worth at a time to stay within Google's limit, so a large batch takes several minutes.`);
               })}
             >
               Retry all eligible failures
@@ -1049,8 +1057,8 @@ export default function ClassroomManagerV2({
                   const result = await reconcileClassroomSectionGrades({
                     assignmentId: selectedAssignment.id,
                   });
-                  setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
-                  setStatus(`Queued section-grade reconciliation for ${result.queuedStudents} student${result.queuedStudents === 1 ? '' : 's'} across ${result.publications} preserved Classroom publication${result.publications === 1 ? '' : 's'}. Their saved MathMaster work remains unchanged.`);
+                  applyGradeSyncResult(await listClassroomGradeSyncs());
+                  setStatus(`Queued section-grade reconciliation for ${result.queuedStudents} student${result.queuedStudents === 1 ? '' : 's'} across ${result.publications} preserved Classroom publication${result.publications === 1 ? '' : 's'}. MathMaster sends them a minute's worth at a time to stay within Google's limit. Their saved MathMaster work remains unchanged.`);
                 });
               }}
             >
@@ -1095,11 +1103,16 @@ export default function ClassroomManagerV2({
                         </div>
                       </td>
                       <td style={{ padding: 7 }}>
-                        <span style={sync.status === 'synced' ? okPill : sync.status?.startsWith('skipped') || sync.status === 'recovery-held' ? warnPill : badPill}>{statusLabel}</span>
+                        <span style={sync.status === 'synced' && !sync.queued ? okPill : sync.queued || sync.status?.startsWith('skipped') || ['recovery-held', 'rate-limited'].includes(sync.status) ? warnPill : badPill}>{statusLabel}</span>
+                        {gradeSyncErrorText(sync) && (
+                          <div style={{ marginTop: 4, maxWidth: 260, color: 'var(--mm-text-muted)', fontSize: 10.5, lineHeight: 1.35, overflowWrap: 'anywhere' }}>{gradeSyncErrorText(sync)}</div>
+                        )}
                       </td>
                       <td style={{ padding: 7 }}>
                         {sync.status === 'skipped-unlinked' ? (
                           <span style={{ color: 'var(--mm-warning-text)', fontSize: 11, fontWeight: 800 }}>Link roster first</span>
+                        ) : sync.queued || sync.status === 'rate-limited' ? (
+                          <span style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 800 }}>Sends automatically</span>
                         ) : sync.publicationId && sync.assignmentId && sync.studentId ? (
                           <button style={secondary} disabled={busy} onClick={() => run(async () => {
                             await retryClassroomGradeSync({
@@ -1109,7 +1122,7 @@ export default function ClassroomManagerV2({
                             });
                             setStatus(sync.status === 'synced'
                               ? 'Grade recalculation and resend queued from the student\'s saved MathMaster work.'
-                              : 'Grade retry queued. The passback trigger will run again.');
+                              : 'Grade retry queued. It goes to Google Classroom within a minute or two.');
                           })}>{sync.status === 'synced' ? 'Recalculate & resend' : 'Retry'}</button>
                         ) : null}
                       </td>

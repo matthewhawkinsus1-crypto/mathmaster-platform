@@ -14,7 +14,8 @@
 //
 // The scheduler and the teacher's "Reconcile section grades" now read only
 // references and the fields they decide on. The two triggers take at most 20
-// events an instance with 1 GiB.
+// events an instance with 1 GiB. Since Oct 14, 2026 both queue the students they
+// choose instead of signalling them at once (classroomPushPacing.test.mjs).
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -77,6 +78,7 @@ const fakeFirestore = (collections) => {
   const reads = [];
   const updates = [];
   const sets = [];
+  const queued = [];
   const ref = (docPath) => {
     const [collection, id] = docPath.split('/');
     return {
@@ -111,6 +113,7 @@ const fakeFirestore = (collections) => {
     reads,
     updates,
     sets,
+    queued,
     collection: (name) => query(name),
     doc: ref,
     async getAll(...args) {
@@ -125,9 +128,11 @@ const fakeFirestore = (collections) => {
     },
     batch() {
       const pending = [];
+      const pendingSets = [];
       return {
         update(docRef, fieldPath, value) { pending.push({ path: docRef.path, field: String(fieldPath), value }); },
-        async commit() { updates.push(...pending); },
+        set(docRef, data) { pendingSets.push({ path: docRef.path, data }); },
+        async commit() { updates.push(...pending); queued.push(...pendingSets); },
       };
     },
   };
@@ -185,11 +190,14 @@ test('the checkpoint scheduler reads references and dates, and still flags every
   assert.deepEqual(gradeReads.map((read) => read.filters[0].value).sort(), ['c1', 'c2']);
   for (const read of gradeReads) assert.deepEqual(read.fields, [], 'grade documents are read as references only');
 
-  // Every student of both assigned classes is flagged, with or without saved work.
-  assert.deepEqual(db.updates.map((u) => u.path).sort(), ['grades/s1', 'grades/s2', 'grades/s3']);
-  for (const u of db.updates) {
-    assert.equal(u.field, 'classroomReleaseSignals.asg1');
-    assert.equal(u.value.reason, 'final-deadline');
+  // Every student of both assigned classes is queued, with or without saved
+  // work, and no grade document is signalled directly.
+  assert.deepEqual(db.updates, []);
+  assert.deepEqual(db.queued.map((q) => q.data.studentId).sort(), ['s1', 's2', 's3']);
+  for (const q of db.queued) {
+    assert.match(q.path, /^classroomPushQueue\//);
+    assert.equal(q.data.assignmentId, 'asg1');
+    assert.equal(q.data.reason, 'final-deadline');
   }
   const state = db.sets.find((s) => s.path === 'classroomSectionGradeCheckpointState/asg1');
   assert.equal(state.data.queuedStudents, 3);
@@ -211,7 +219,8 @@ test('a teacher\'s reconcile reads only whether each student has saved work for 
     assert.deepEqual(read.fields?.map((segments) => segments.join('.')), ['gradesByAssignment.asg1']);
   }
   // s2 has saved work only for another assignment; s4 is in a class not assigned.
-  assert.deepEqual(db.updates.map((u) => u.path).sort(), ['grades/s1', 'grades/s3']);
-  assert.ok(db.updates.every((u) => u.value.reason === 'section-grade-reconcile'));
+  assert.deepEqual(db.updates, []);
+  assert.deepEqual(db.queued.map((q) => q.data.studentId).sort(), ['s1', 's3']);
+  assert.ok(db.queued.every((q) => q.data.reason === 'section-grade-reconcile'));
   assert.equal(result.queuedStudents, 2);
 });
