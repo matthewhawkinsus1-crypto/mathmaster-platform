@@ -116,7 +116,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: npm }
       - run: npm ci
-      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
       - run: npx playwright install --with-deps chromium
       - name: Start the harness server
         run: |
