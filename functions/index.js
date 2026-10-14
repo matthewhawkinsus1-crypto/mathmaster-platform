@@ -39,6 +39,7 @@ const studentWorkloadIndices = require("./lib/studentWorkloadIndices");
 const { studentRequiredIndices } = studentWorkloadIndices;
 const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
+const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTriggerCapacity");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
@@ -9770,6 +9771,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
   {
     document: "grades/{studentId}",
     secrets: GOOGLE_API_SECRETS,
+    ...CLASSROOM_GRADE_TRIGGER_CAPACITY,
   },
   async (event) => {
     const after = event.data?.after;

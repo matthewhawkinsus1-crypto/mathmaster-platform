@@ -46,8 +46,12 @@ const endpointMemoryMb = (endpoint = {}) => (
   Number.isFinite(endpoint.availableMemoryMb) ? endpoint.availableMemoryMb : null
 );
 
+// Events or requests one instance takes at once, and the run time limit in
+// seconds. null means the platform default (80 at a time, 60 s).
+const endpointNumber = (value) => (Number.isFinite(value) ? value : null);
+
 /**
- * @returns {{ entry: string, functions: Array<{ name: string, trigger: string, region: string|null, memoryMb: number|null, labels: object }> }}
+ * @returns {{ entry: string, functions: Array<{ name: string, trigger: string, region: string|null, memoryMb: number|null, concurrency: number|null, timeoutSeconds: number|null, labels: object }> }}
  *          names sorted, so batching is deterministic from run to run. `labels`
  *          are the Cloud labels the CLI will set — including the deploy
  *          provenance labels (mm-git-sha, mm-tree) every function carries.
@@ -64,6 +68,8 @@ export const listDeployableFunctions = ({ codebaseDir = path.join(repoRoot, 'fun
       trigger: triggerKind(value.__endpoint),
       region: endpointRegion(value.__endpoint),
       memoryMb: endpointMemoryMb(value.__endpoint),
+      concurrency: endpointNumber(value.__endpoint.concurrency),
+      timeoutSeconds: endpointNumber(value.__endpoint.timeoutSeconds),
       labels: { ...value.__endpoint.labels },
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
