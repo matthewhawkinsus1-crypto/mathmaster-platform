@@ -61,7 +61,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
-import { newSchoolContext } from './schoolClock.mjs';
+import { newSchoolContext, schoolNow } from './schoolClock.mjs';
 import {
   EXCLUDED_STUDENT_ID,
   HELD_STUDENT_ID,
@@ -605,7 +605,13 @@ journeys.P1 = async (viewport) => {
   const assignment = assignmentFrom(db, TARGETED_ASSIGNMENT_ID);
   const gradeData = db[`grades/${TARGETED_STUDENT_ID}`];
   const evidence = Object.entries(db).filter(([key]) => key.startsWith(`grades/${TARGETED_STUDENT_ID}/evidenceEvents/`)).map(([, value]) => value);
-  const contextOf = (misconceptionRecords) => recoveryContextFor({ assignment, gradeData, studentId: TARGETED_STUDENT_ID, nowValue: Date.now(), misconceptionRecords });
+  // Read at the harness's clock, the one the page built this fixture from
+  // (schoolClock.mjs: the most recent Wednesday 11:00 in Chicago). This
+  // runner's own clock is up to a week later, and the fixture's Recovery end
+  // date is five days after ITS now — so on the real clock the window had
+  // "ended" from every Monday night until Wednesday morning, Practice dealt
+  // nothing, and this journey failed on every branch (seen Oct 13, 2026).
+  const contextOf = (misconceptionRecords) => recoveryContextFor({ assignment, gradeData, studentId: TARGETED_STUDENT_ID, nowValue: schoolNow(), misconceptionRecords });
   const untargeted = nextRecoveryPracticeItem(contextOf(null));
   const targetedContext = contextOf(evidence);
   const dealt = nextRecoveryPracticeItem(targetedContext);

@@ -477,3 +477,53 @@ export const reviewSkillRows = (reviewBySkill) => (Array.isArray(reviewBySkill) 
       || (right.attempted - right.correct) - (left.attempted - left.correct)
       || left.order - right.order;
   });
+
+/**
+ * Was Review waived for this student?
+ *
+ * The server's Review gate is the student's own Review record
+ * (`reviewProgress.complete`), and only a teacher's waiver takes a student
+ * past Review with that gate unmet. The card said "your Review is complete"
+ * to a student who had answered 1 of 12 questions and been waived — which
+ * they knew was not true, on a card whose whole job is to be believed.
+ */
+export const reviewWasWaived = (card = {}) => {
+  const review = card?.reviewProgress;
+  if (!review || !(Number(review.total) > 0) || review.complete !== false) return false;
+  return clean(card?.stage) !== S.REVIEW;
+};
+
+/**
+ * Which secure sitting is ahead of this student, and how many questions the
+ * card may say it has.
+ *
+ * The delivery facts are the Test's. A Retest that follows a Test is built
+ * from what the student missed and can be shorter (7 questions after a
+ * 10-question Test), so its length is not said until its own start screen
+ * says it — the card read "Test is not timed. 10 questions." over a
+ * "Start Retest" button. An external-original cycle's one sitting IS its
+ * retest, and the facts describe exactly that sitting.
+ */
+export const sittingFactsFor = (card = {}) => {
+  const external = card?.policy?.external === true;
+  const retestAhead = !external && [S.RETEST_READY, S.RETEST].includes(clean(card?.stage));
+  const count = Number(card?.delivery?.questionCount);
+  return {
+    noun: external || retestAhead ? 'Retest' : 'Test',
+    questionCount: !retestAhead && Number.isInteger(count) && count > 0 ? count : null,
+  };
+};
+
+/**
+ * The dates on the card. Before the regular due date that date is all a
+ * student needs. After it, the card said only "Due Oct 9" on work Home was
+ * calling "late — still open", which reads as closed; so once the regular date
+ * has passed, the final late date is said too, while it is still ahead.
+ */
+export const testCycleDueFacts = ({ dueAt = null, lateDueAt = null, now = Date.now() } = {}) => {
+  const due = dueAt ? new Date(dueAt).getTime() : NaN;
+  if (!Number.isFinite(due)) return { dueAt: null, finalLateDueAt: null };
+  const late = lateDueAt ? new Date(lateDueAt).getTime() : NaN;
+  const lateOpen = Number.isFinite(late) && late > due && now > due && now <= late;
+  return { dueAt: new Date(due).toISOString(), finalLateDueAt: lateOpen ? new Date(late).toISOString() : null };
+};

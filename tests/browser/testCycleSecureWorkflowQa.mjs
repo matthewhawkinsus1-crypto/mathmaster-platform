@@ -614,6 +614,34 @@ const studentJourney = async (device, w) => {
   await page.locator('[data-secure-start-rules]').waitFor({ timeout: 60_000 });
   check(await page.getByText('This test is not timed. Take the time you need.').isVisible(), at('inside the window the secure Test opens, untimed'));
   await shot(page, `${device}-student-2-window-open`);
+  // Into the Test. Next and "Review and submit" sit under the question, so the
+  // page is at the bottom when they are pressed (Playwright scrolls a button
+  // into view before clicking it, as a student scrolls down to it). What opens
+  // next must open at its top.
+  await page.locator('[data-secure-start-rules]').locator('xpath=..').getByRole('button', { name: 'Start Test' }).click();
+  await page.locator('[data-secure-exam-status="in_progress"]').waitFor({ timeout: 60_000 });
+  await page.getByText(/Question 1 of \d+/).first().waitFor({ timeout: 60_000 });
+  const scrollTop = () => page.evaluate(() => Math.round(document.scrollingElement.scrollTop));
+  const scrollRoom = () => page.evaluate(() => Math.round(document.scrollingElement.scrollHeight - window.innerHeight));
+  await page.evaluate(() => window.scrollTo(0, document.scrollingElement.scrollHeight));
+  await page.getByRole('button', { name: 'Review and submit', exact: true }).click();
+  await page.getByText('Review your answers').waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(400);
+  check((await scrollTop()) === 0, at('the answer review before Submit opens at its top'), `scrollTop ${await scrollTop()}`);
+  await shot(page, `${device}-student-2b-answer-review`);
+  await page.getByRole('button', { name: 'Back to questions', exact: true }).click();
+  await page.getByText(/Question 1 of \d+/).first().waitFor({ timeout: 30_000 });
+  // A short window, so that question 2 is taller than the screen: a question
+  // that fits sits at the top whatever the page does, and the check below
+  // would pass without the behaviour it is here for.
+  await page.setViewportSize({ width: DEVICES[device].viewport.width, height: 420 });
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Next →', exact: true }).click();
+  await page.getByText(/Question 2 of \d+/).first().waitFor({ timeout: 60_000 });
+  await page.waitForTimeout(400);
+  const room = await scrollRoom();
+  check(room > 100, at('question 2 is taller than the window, so where it opens can be told'), `it can scroll ${room}px`);
+  check((await scrollTop()) === 0, at('the next question opens at its top, not where Next was pressed'), `scrollTop ${await scrollTop()} of ${room}`);
   await page.context().close();
 
   // 3. Uma never started. The day has passed: she goes straight to the Retest at home.

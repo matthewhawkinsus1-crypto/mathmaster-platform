@@ -217,6 +217,12 @@ const screenTitle = { marginTop: 0, fontSize: 'clamp(24px, 6vw, 32px)', lineHeig
 // takes the page's heading colour (index.css), which in the light theme is
 // near-black on the pause screen's near-black — a title nobody could read.
 const pauseTitle = { ...screenTitle, color: 'inherit' };
+// Opaque. At 94% the question and the student's answers could still be read
+// through the pause, and ran through the words that say why it paused. Dark in
+// both themes, like the 94% it replaces: the pause's own text is white, so a
+// surface token that turns light would leave it unreadable (the one literal
+// is recorded in scripts/theme-color-baseline.json).
+const PAUSE_SCREEN_BACKGROUND = '#202124';
 
 /*
  * KEYBOARD FOCUS STAYS IN THE TEST.
@@ -231,6 +237,22 @@ const pauseTitle = { ...screenTitle, color: 'inherit' };
  * it needs no trap of its own.)
  */
 const TABBABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), summary, math-field, [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+const leaveFullscreen = () => {
+  if (typeof document === 'undefined' || !document.fullscreenElement || typeof document.exitFullscreen !== 'function') return;
+  document.exitFullscreen().catch(() => { /* already left, or the browser refused: nothing to undo */ });
+};
+
+/*
+ * Put the top of the exam where it is when the exam first opens. The exam is
+ * the whole screen under the app's name bar, so that is the top of the page;
+ * if it is ever mounted further down a page, its own top is used instead.
+ */
+const scrollExamToTop = (root) => {
+  if (typeof window === 'undefined' || !root) return;
+  const pageTop = root.getBoundingClientRect().top + window.scrollY;
+  window.scrollTo({ top: pageTop < window.innerHeight ? 0 : pageTop, left: 0, behavior: 'instant' });
+};
+
 const focusGuardStyle = { position: 'fixed', top: 0, left: 0, width: 1, height: 0, padding: 0, overflow: 'hidden', outline: 'none' };
 
 export const SecureExamContainer = ({
@@ -354,6 +376,41 @@ export const SecureExamContainer = ({
     document.addEventListener('fullscreenchange', update);
     return () => document.removeEventListener('fullscreenchange', update);
   }, []);
+
+  /*
+   * FULL SCREEN BELONGS TO THE TEST.
+   *
+   * Start asks for it; nothing gave it back. A student who submitted was left
+   * in a full-screen browser on their card, their grades, everything after —
+   * until they found the key for it. So the browser is handed back when the
+   * test is turned in (by the student, the clock or the teacher) and whenever
+   * this screen is left. Both happen after the integrity logger has stopped
+   * listening: effect cleanups run before effects, and `fullscreenchange`
+   * arrives later still, so leaving here is never counted against the student.
+   */
+  const finished = Boolean(session?.examSessionId) && terminal.has(session.status);
+  useEffect(() => { if (finished) leaveFullscreen(); }, [finished]);
+  useEffect(() => () => leaveFullscreen(), []);
+
+  /*
+   * A NEW QUESTION OPENS AT ITS TOP.
+   *
+   * Next and Previous sit under the question, so the page was left scrolled
+   * where the student pressed them: on a 768px Chromebook every question
+   * opened at its last answer box, its prompt out of sight above. The same for
+   * the answer review before Submit and for a jump from the question list.
+   * Instant, not animated — nothing slides for a student who asked for reduced
+   * motion — and not on the first render, which the start screen leaves at the
+   * top already.
+   */
+  const shownRef = useRef(null);
+  useEffect(() => {
+    const shown = view.kind === 'question' ? `question:${position}` : view.kind;
+    const before = shownRef.current;
+    shownRef.current = shown;
+    if (before === null || before === shown) return;
+    scrollExamToTop(rootRef.current);
+  }, [position, view.kind]);
 
   // What a save tells the screen: the question list's states and the count.
   const mergeSaveResult = useCallback((result) => {
@@ -1079,7 +1136,7 @@ export const SecureExamContainer = ({
       </div>
     </div>
     {pause && (
-      <Dialog ref={pauseRef} role="alertdialog" closeOnEscape={false} returnFocus={false} aria-labelledby="secure-pause-title" aria-describedby="secure-pause-detail" data-secure-pause={pause} style={{ position: 'fixed', inset: 0, zIndex: PAUSE_LAYER, background: 'rgba(32,33,36,.94)', color: '#fff', display: 'grid', placeItems: 'center', padding: 24, outline: 'none' }}>
+      <Dialog ref={pauseRef} role="alertdialog" closeOnEscape={false} returnFocus={false} aria-labelledby="secure-pause-title" aria-describedby="secure-pause-detail" data-secure-pause={pause} style={{ position: 'fixed', inset: 0, zIndex: PAUSE_LAYER, background: PAUSE_SCREEN_BACKGROUND, color: '#fff', display: 'grid', placeItems: 'center', padding: 24, outline: 'none' }}>
         <div style={{ maxWidth: 520, textAlign: 'center' }}>
           {pause === 'teacher' ? (
             <>

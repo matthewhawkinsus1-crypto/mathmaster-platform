@@ -16,6 +16,7 @@
   "src/components/admin/ClassesAdmin.jsx:#fff": 1,
   "src/components/assessment/ExamPrepHeader.jsx:#202124": 1,
   "src/components/assessment/ExamPrepHeader.jsx:#fff": 2,
+  "src/components/assessment/SecureExamContainer.jsx:#202124": 1,
   "src/components/assessment/SecureExamContainer.jsx:#fff": 1,
   "src/components/assessment/StudentSecureExamDashboard.jsx:#fff": 2,
   "src/components/assessment/TeacherSecureExamDashboard.jsx:#fff": 1,

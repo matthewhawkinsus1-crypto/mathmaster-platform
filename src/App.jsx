@@ -10868,6 +10868,8 @@ function App() {
       );
     }
     if (studentDashboardMode === 'testCycle' && activeTestCycleAssignmentId) {
+      const activeTestCycleAssignment = assignments.find((assignment) => assignment.id === activeTestCycleAssignmentId) || null;
+      const activeTestCycleLateDueAt = activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null;
       return renderStudentIdentityShell(
         <>
           {renderStudentPackUpBanner()}
@@ -10878,6 +10880,9 @@ function App() {
                 assignmentId={activeTestCycleAssignmentId}
                 studentId={user.id}
                 studentProfile={user.profile}
+                // The class's final late date, so a card opened after the
+                // regular due date says the work is still open and until when.
+                lateDueAt={activeTestCycleLateDueAt}
                 // The grade document is already live (onSnapshot). Its Test
                 // Cycle projection changes when results are released or a
                 // retest opens, and its tracker when Review answers land; the

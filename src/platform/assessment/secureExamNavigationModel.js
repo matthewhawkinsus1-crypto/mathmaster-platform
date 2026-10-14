@@ -476,11 +476,15 @@ export function finishedSummary(session, { courseTest = false } = {}) {
   const navigation = readNavigation(session);
   const total = navigation.total || wholeNumber(session?.requiredQuestions) || 0;
   const answered = Math.min(total || Infinity, wholeNumber(session?.answeredQuestions) ?? 0);
+  // A Test Cycle's second secure sitting is its Retest, and the student's card
+  // calls it that everywhere else. "Test submitted" after a Retest reads as if
+  // the wrong thing had been turned in.
+  const retest = courseTest && session?.courseTest?.cycleStage === 'retest';
   const title = status === SESSION_STATUS.TIME_EXPIRED
     ? 'Time is up'
     : status === SESSION_STATUS.FORCE_SUBMITTED
-      ? 'Your teacher turned in your test'
-      : courseTest ? 'Test submitted' : 'Practice test submitted';
+      ? `Your teacher turned in your ${retest ? 'retest' : 'test'}`
+      : retest ? 'Retest submitted' : courseTest ? 'Test submitted' : 'Practice test submitted';
   const lead = status === SESSION_STATUS.TIME_EXPIRED
     ? 'Your saved answers were turned in when time ran out.'
     : status === SESSION_STATUS.FORCE_SUBMITTED
@@ -489,9 +493,11 @@ export function finishedSummary(session, { courseTest = false } = {}) {
   const counts = total ? ` You answered ${answered} of ${plural(total, 'question')}.` : '';
   const results = released
     ? ' Your results are ready.'
-    : courseTest
-      ? ' Your score appears after your teacher releases results.'
-      : ' Your teacher will release your results.';
+    : retest
+      ? ' Your final grade appears after your teacher releases retest results.'
+      : courseTest
+        ? ' Your score appears after your teacher releases results.'
+        : ' Your teacher will release your results.';
   return { title, message: `${lead}${counts}${results}`, canSeeResults: released };
 }
 
