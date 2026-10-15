@@ -389,7 +389,8 @@ export const checkRelations = (review, { prompt = '', givenScope = {} } = {}) =>
           // (a root of a negative, x>0 domains) is skipped, but at least two
           // points must be compared.
           const samples = [0.37, -1.73, 2.41, 1.19].map((seed) => Object.fromEntries(symbols.map((name, k) => [name, seed + k * 0.917])));
-          const real = samples.filter((scope) => evaluateNode(left, { ...givenScope, ...scope }) != null && evaluateNode(right, { ...givenScope, ...scope }) != null);
+          const isReal = (value) => typeof value === 'number';
+          const real = samples.filter((scope) => isReal(evaluateNode(left, { ...givenScope, ...scope })) && isReal(evaluateNode(right, { ...givenScope, ...scope })));
           if (real.length >= 2 && real.every(at)) checked += 1;
           else {
             const combos = assignmentsFor(symbols, stated);

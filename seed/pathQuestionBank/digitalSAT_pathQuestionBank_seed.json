@@ -66937,11 +66937,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Write it as one fraction and cancel what is above and below: $\\dfrac{x+{{p}}}{x+{{r}}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "As one fraction: $\\frac{x+{{p}}}{x+{{q}}}\\cdot\\frac{x+{{q}}}{x+{{r}}}=\\frac{(x+{{p}})(x+{{q}})}{(x+{{q}})(x+{{r}})}$.",
+          "The factor $x+{{q}}$ is above and below, so it cancels where the expression is defined: the result is $\\dfrac{x+{{p}}}{x+{{r}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Cancelling a factor that appears only once, or turning the result upside down.",
+        "answerSummary": "$\\dfrac{x+{{p}}}{x+{{r}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -67047,11 +67049,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Multiply by the reciprocal, then cancel $x+{{v}}$: $\\dfrac{x+{{u}}}{x+{{w}}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Dividing by a fraction is multiplying by its reciprocal: $\\frac{x+{{u}}}{x+{{v}}}\\div\\frac{x+{{w}}}{x+{{v}}}=\\frac{x+{{u}}}{x+{{v}}}\\cdot\\frac{x+{{v}}}{x+{{w}}}$.",
+          "Cancel $x+{{v}}$, which is above and below: the result is $\\dfrac{x+{{u}}}{x+{{w}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Turning the first fraction over instead of the second, which gives the reciprocal of the answer.",
+        "answerSummary": "$\\dfrac{x+{{u}}}{x+{{w}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -67186,11 +67190,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Same denominator: add the numerators, keep $x+{{p}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The denominators match, so add the numerators: $({{a}}x+{{b}})+({{c}}x+{{d}})={{A}}x+{{B}}$.",
+          "Keep the denominator: $\\frac{{{a}}x+{{b}}}{x+{{p}}}+\\frac{{{c}}x+{{d}}}{x+{{p}}}=\\dfrac{{{A}}x+{{B}}}{x+{{p}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Adding the denominators as well: a common denominator stays as it is.",
+        "answerSummary": "$\\dfrac{{{A}}x+{{B}}}{x+{{p}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -67325,11 +67331,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Same denominator: subtract the whole second numerator, keep $x+{{p}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Subtract the numerators, every term: $({{a}}x+{{b}})-({{c}}x+{{d}})={{A}}x+{{B}}$.",
+          "Keep the denominator: $\\frac{{{a}}x+{{b}}}{x+{{p}}}-\\frac{{{c}}x+{{d}}}{x+{{p}}}=\\dfrac{{{A}}x+{{B}}}{x+{{p}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Subtracting only the first term of the second numerator, or changing the denominator.",
+        "answerSummary": "$\\dfrac{{{A}}x+{{B}}}{x+{{p}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -67435,11 +67443,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Cancel the factor above and below: $\\dfrac{x+{{v}}}{x+{{w}}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The factor $x+{{u}}$ is in the numerator and in the denominator, and it is not 0 where the expression is defined.",
+          "Cancel it: $\\frac{(x+{{u}})(x+{{v}})}{(x+{{u}})(x+{{w}})}=\\dfrac{x+{{v}}}{x+{{w}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Cancelling a factor that appears only once, or turning the result upside down.",
+        "answerSummary": "$\\dfrac{x+{{v}}}{x+{{w}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -67547,11 +67557,14 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Use the common denominator $(x+{{p}})(x+{{q}})$, then add the numerators.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Rewrite over $(x+{{p}})(x+{{q}})$: $\\frac{1}{x+{{p}}}=\\frac{x+{{q}}}{(x+{{p}})(x+{{q}})}$ and $\\frac{1}{x+{{q}}}=\\frac{x+{{p}}}{(x+{{p}})(x+{{q}})}$.",
+          "Add the numerators: $(x+{{q}})+(x+{{p}})=2x+{{sum}}$.",
+          "So the sum is $\\dfrac{2x+{{sum}}}{(x+{{p}})(x+{{q}})}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Adding the denominators: fractions need a common denominator before their numerators are added.",
+        "answerSummary": "$\\dfrac{2x+{{sum}}}{(x+{{p}})(x+{{q}})}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -67663,11 +67676,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Write it as one fraction and cancel what is above and below: $\\dfrac{x+{{p}}}{x+{{s}}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "As one fraction: $\\frac{x+{{p}}}{x+{{q}}}\\cdot\\frac{x+{{q}}}{x+{{r}}}\\cdot\\frac{x+{{r}}}{x+{{s}}}=\\frac{(x+{{p}})(x+{{q}})(x+{{r}})}{(x+{{q}})(x+{{r}})(x+{{s}})}$.",
+          "The factors $x+{{q}}$ and $x+{{r}}$ are above and below, so they cancel where the expression is defined: the result is $\\dfrac{x+{{p}}}{x+{{s}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Cancelling a factor that appears only once, or turning the result upside down.",
+        "answerSummary": "$\\dfrac{x+{{p}}}{x+{{s}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -67934,11 +67949,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Take the square factors out of the root: ${{k}}x\\sqrt{{{m}}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "${{radCoef}}x^2={{k2}}\\cdot {{m}}\\cdot x^2$, and ${{k2}}x^2=({{k}}x)^2$.",
+          "For $x>0$: $\\sqrt{{{radCoef}}x^2}=\\sqrt{({{k}}x)^2}\\cdot\\sqrt{{{m}}}={{k}}x\\sqrt{{{m}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Putting {{k2}} outside the root instead of its square root {{k}}, or leaving $x^2$ outside.",
+        "answerSummary": "${{k}}x\\sqrt{{{m}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -68034,11 +68051,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Split a perfect square off under the root: $x\\sqrt{x}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$x^3=x^2\\cdot x$, and for $x\\ge0$, $\\sqrt{x^2}=x$.",
+          "So $\\sqrt{x^3}=\\sqrt{x^2}\\cdot\\sqrt{x}=x\\sqrt{x}$. Check at $x=4$: $\\sqrt{4^3}=8$ and $4\\sqrt{4}=8$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Writing $x^2\\sqrt{x}$, which is $\\sqrt{x^5}$, or $x^3$, which takes no root at all.",
+        "answerSummary": "$x\\sqrt{x}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -68148,11 +68167,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Combine the roots, simplify, then substitute: {{answer}}.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "For $x\\ge0$: $\\sqrt{{{a2}}x}\\cdot\\sqrt{x}=\\sqrt{{{a2}}x^2}={{a}}x$.",
+          "At $x={{xval}}$: ${{a}}\\cdot {{xval}}={{answer}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Multiplying {{a2}} by {{xval}} without taking the square root.",
+        "answerSummary": "${{answer}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -68230,11 +68251,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "$x^{3/2}$ is $x$ times $x^{1/2}$: $x\\sqrt{x}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Split the exponent: $\\frac{3}{2}=1+\\frac{1}{2}$, so $x^{3/2}=x\\cdot x^{1/2}=x\\sqrt{x}$.",
+          "Check at $x=4$: $4^{3/2}=8$ and $4\\sqrt{4}=8$. So $x^{3/2}=x\\sqrt{x}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Reading $x^{3/2}$ as $x^3$ or as $\\sqrt{x}$: the 3 is the power and the 2 is the root.",
+        "answerSummary": "$x\\sqrt{x}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -68342,11 +68365,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Take the square factors out of the root: ${{a}}x\\sqrt{x}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "${{a2}}x^3={{a2}}x^2\\cdot x$, and ${{a2}}x^2=({{a}}x)^2$.",
+          "For $x\\ge0$: $\\sqrt{{{a2}}x^3}=\\sqrt{({{a}}x)^2}\\cdot\\sqrt{x}={{a}}x\\sqrt{x}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Taking the root of the coefficient only, which leaves ${{a}}\\sqrt{x}$, or taking $x^2$ out of the root as $x^2$.",
+        "answerSummary": "${{a}}x\\sqrt{x}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -68466,11 +68491,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Simplify each root to a multiple of $\\sqrt{x}$, then add: ${{sum}}\\sqrt{x}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\sqrt{{{a2}}x}={{a}}\\sqrt{x}$ and $\\sqrt{{{b2}}x}={{b}}\\sqrt{x}$.",
+          "Like radicals add by their coefficients: ${{a}}\\sqrt{x}+{{b}}\\sqrt{x}={{sum}}\\sqrt{x}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Adding under one root, or multiplying the coefficients.",
+        "answerSummary": "${{sum}}\\sqrt{x}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
