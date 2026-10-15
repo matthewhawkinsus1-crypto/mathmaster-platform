@@ -853,7 +853,7 @@ export default function ClassroomManagerV2({
               <label style={{ ...label, marginTop: 8 }} htmlFor="classroom-topic-name">Classroom topic</label>
               <input id="classroom-topic-name" style={input} value={topicName} onChange={(e) => setTopicName(e.target.value)} />
               {topicStyle !== 'module' && (
-                <div style={{ fontSize: 11, color: 'var(--mm-text-muted)', marginTop: 4 }}>
+                <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', marginTop: 4 }}>
                   The week students first see the post: its scheduled release, otherwise today. Classroom lists the newest topic first.
                 </div>
               )}
