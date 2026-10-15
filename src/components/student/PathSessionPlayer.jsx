@@ -503,6 +503,12 @@ export const PathSessionPlayer = ({
   const attemptsAllowed = Number(questionInstance.attemptsAllowed) || activityPolicy.attempts || 3;
   const attemptsLeft = Math.max(0, attemptsAllowed - attemptsUsed);
   const finalized = gradingClosesQuestion(lastGradingResult);
+  // The header names the reviewed question while its review is on screen:
+  // when the grading closed it, or while the container holds for Continue.
+  // The container decides that hold from the whole response
+  // (responseClosesQuestion), so an older server that signals closure only
+  // with needsNextQuestion still counts, and so does a failed advance.
+  const reviewing = finalized || typeof onContinue === 'function';
 
   // A secure payload wins over a canonical one: if the server built a tool
   // payload it also kept the grading definition, and the verdict is its own.
@@ -518,7 +524,7 @@ export const PathSessionPlayer = ({
           assessmentFramework={assessmentFramework}
           weeklyGoalRequired={weeklyGoalRequired}
           onExit={onExit}
-          reviewing={gradingClosesQuestion(lastGradingResult)}
+          reviewing={reviewing}
         />
         <DecisionBanner notice={routeNotice} />
 
@@ -636,7 +642,7 @@ export const PathSessionPlayer = ({
         assessmentFramework={assessmentFramework}
         weeklyGoalRequired={weeklyGoalRequired}
         onExit={onExit}
-        reviewing={gradingClosesQuestion(lastGradingResult)}
+        reviewing={reviewing}
       />
       <DecisionBanner notice={routeNotice} />
 

@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { sessionHeaderQuestionNumber } from '../../src/platform/path/pathProgression.js';
+import { gradingClosesQuestion, responseClosesQuestion, sessionHeaderQuestionNumber } from '../../src/platform/path/pathProgression.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
@@ -37,5 +37,19 @@ test('the header names the question on screen: the reviewed one, then the next',
   assert.equal(sessionHeaderQuestionNumber({ total: 5, done: 5, reviewing: false }), 5, 'never past the last');
   const player = read('src/components/student/PathSessionPlayer.jsx');
   assert.match(player, /const current = sessionHeaderQuestionNumber\(\{ total, done, reviewing \}\);/);
-  assert.equal(player.split('reviewing={gradingClosesQuestion(lastGradingResult)}').length - 1, 2, 'both header call sites say when a review is on screen');
+  assert.equal(player.split('reviewing={reviewing}').length - 1, 2, 'both header call sites say when a review is on screen');
+});
+
+test('a review held for Continue counts, even when only needsNextQuestion closed the question (Codex review of #485)', () => {
+  // An older server may signal closure with needsNextQuestion alone and an
+  // empty grading. The container still holds for Continue (it decides from
+  // the whole response), and passes onContinue only while it holds.
+  assert.equal(responseClosesQuestion({ needsNextQuestion: true, grading: {} }), true);
+  assert.equal(gradingClosesQuestion({}), false, 'the grading alone would not say so');
+  const container = read('src/components/student/MyMathPathProductionContainer.jsx');
+  assert.match(container, /const questionClosed = responseClosesQuestion\(result\);/);
+  assert.match(container, /onContinue=\{awaitingContinue\s*\?/);
+  // So the player treats a held Continue as a review on screen.
+  const player = read('src/components/student/PathSessionPlayer.jsx');
+  assert.match(player, /const reviewing = finalized \|\| typeof onContinue === 'function';/);
 });
