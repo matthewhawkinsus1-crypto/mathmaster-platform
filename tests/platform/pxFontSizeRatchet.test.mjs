@@ -105,3 +105,16 @@ test('the residual patterns catch what they are for', () => {
   assert.deepEqual(hits("const promptSize = 'clamp(calc(20 * var(--mm-px)), 3vh, calc(30 * var(--mm-px)))';"), []);
   assert.deepEqual(hits('<div style={{ fontSize: `calc(${size} * var(--mm-px))` }} />'), []);
 });
+
+test('CI measures every swept surface at 200% text', () => {
+  // The browser check is what proves the sizes actually grow; it must run in
+  // CI (accessibility-certification.yml) and keep the surfaces job N added.
+  const workflow = readFileSync(path.join(root, '.github/workflows/accessibility-certification.yml'), 'utf8');
+  const runs = [...workflow.matchAll(/run: node tests\/browser\/studentShellLargeText\.mjs --check=([\w,]+)/g)].map((match) => match[1].split(','));
+  assert.ok(runs.some((checks) => checks.includes('text')), 'a CI step runs studentShellLargeText --check=text');
+  const harness = readFileSync(path.join(root, 'tests/browser/studentShellLargeText.mjs'), 'utf8');
+  const screens = harness.slice(harness.indexOf('export const LARGE_TEXT_SCREENS'), harness.indexOf('const runScenes'));
+  for (const id of ['more-tools', 'recovery', 'teacher']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
+  assert.match(screens, /^\s*\.\.\.SCREENS,/m, "the certification's student screens are measured too");
+  assert.match(harness, /for \(const screen of LARGE_TEXT_SCREENS\)/, 'runScenes walks the extended list');
+});
