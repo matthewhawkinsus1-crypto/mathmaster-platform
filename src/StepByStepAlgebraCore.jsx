@@ -35,7 +35,6 @@ import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
 import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
 import {
   chooseSimplifyPart,
-  migrateLegacySimplifyDraft,
   openSimplify,
   sanitizeSimplifyState,
   simplifyHasDecisions,
@@ -428,24 +427,9 @@ export default function StepByStepAlgebra({
   // Partial distribution (factor placements not yet committed) persists
   // across navigation, same as every other in-progress move.
   const [distributionState, setDistributionState] = useState(savedDraft?.distributionState || null);
-  // A draft saved before student push Q may still hold one of the old
-  // separate tools (Simplify arithmetic, Combine like terms). Its committed
-  // work is untouched; the open tool moves into the one Simplify slot, or
-  // closes cleanly when it no longer matches (simplifyState.js).
-  const migratedTools = useMemo(() => {
-    const draftEquation = savedDraft?.equation || initialEquation;
-    if (!savedDraft || !draftEquation?.left || !draftEquation?.right) return { structureTool: null, simplifyTool: null };
-    return migrateLegacySimplifyDraft(savedDraft, {
-      key: equationKey(draftEquation),
-      regions: [
-        { key: 'left', label: 'left side', expression: draftEquation.left, variable: draftEquation.variable || 'x' },
-        { key: 'right', label: 'right side', expression: draftEquation.right, variable: draftEquation.variable || 'x' },
-      ],
-    });
-  }, [savedDraft, initialEquation]);
   // Factor, Split fraction, Cancel factors, Arrange terms (the Rewrite menu):
   // one open tool at a time, persisted, undone one decision at a time.
-  const [structureTool, setStructureTool] = useState(migratedTools.structureTool || null);
+  const [structureTool, setStructureTool] = useState(savedDraft?.structureTool || null);
   const [pendingMove, setPendingMove] = useState(savedDraft?.pendingMove || null);
   const [crossedSides, setCrossedSides] = useState(savedDraft?.crossedSides || []);
   const [cancelledPairIds, setCancelledPairIds] = useState(savedDraft?.cancelledPairIds || {});
@@ -457,7 +441,9 @@ export default function StepByStepAlgebra({
   // the student chooses and simplifies, or a whole side they type. The
   // platform only checks; it never supplies a result. One plain-JSON slot,
   // persisted with the draft and undone one decision at a time.
-  const [simplifyTool, setSimplifyTool] = useState(migratedTools.simplifyTool || null);
+  // A draft saved with an old tool open (Simplify arithmetic, Combine like
+  // terms) arrives here already migrated (algebraDraftState.js).
+  const [simplifyTool, setSimplifyTool] = useState(savedDraft?.simplifyTool || null);
   const [rewriteMenuOpen, setRewriteMenuOpen] = useState(false);
   const [simplifyFocusSignal, setSimplifyFocusSignal] = useState(0);
   const simplifyButtonRef = useRef(null);
@@ -1064,7 +1050,6 @@ export default function StepByStepAlgebra({
       tone: 'success',
       text: `${result.step.description}. You did the algebra; MathMaster only checked it.`,
     });
-    window.requestAnimationFrame(() => simplifyButtonRef.current?.focus({ preventScroll: true }));
     return true;
   };
 

@@ -136,6 +136,20 @@ export default function SimplifyPanel({
     });
   }, [focusSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // After a commit the board changes and so do its parts. Focus goes to the
+  // first part that is left, or to Close when there is nothing left to
+  // compute, so a keyboard user carries straight on.
+  const refocusAfterCommit = useRef(false);
+  useEffect(() => {
+    if (!refocusAfterCommit.current) return;
+    refocusAfterCommit.current = false;
+    window.requestAnimationFrame(() => {
+      const first = parts[0] ? chipRefs.current.get(parts[0].id) : null;
+      setRovingIndex(0);
+      (first || closeRef.current)?.focus();
+    });
+  }, [parts]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const focusChip = (partId) => {
     window.requestAnimationFrame(() => chipRefs.current.get(partId)?.focus());
   };
@@ -158,7 +172,10 @@ export default function SimplifyPanel({
       if (partNeedsAnswer(part) && !partNeedsSigns(part)) setAnswerFocus((signal) => signal + 1);
       return;
     }
-    await onCommit?.(result);
+    // Armed before the commit: the host re-renders the new parts while it is
+    // still awaiting the save, and the refocus must already be waiting.
+    refocusAfterCommit.current = true;
+    if (!(await onCommit?.(result))) refocusAfterCommit.current = false;
   };
 
   const commitRegion = async () => {
@@ -170,7 +187,8 @@ export default function SimplifyPanel({
       setRegionFocus((signal) => signal + 1);
       return;
     }
-    await onCommit?.({
+    refocusAfterCommit.current = true;
+    const committed = await onCommit?.({
       ok: true,
       region: region.key,
       expression: result.expression,
@@ -181,6 +199,7 @@ export default function SimplifyPanel({
         parts: [`Simplified the ${region.label}`],
       },
     });
+    if (!committed) refocusAfterCommit.current = false;
   };
 
   const onToolbarKeyDown = (event) => {

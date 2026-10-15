@@ -1193,7 +1193,6 @@ export default function MultiRelationAlgebra({
     );
     if (!committed) return false;
     setMessage({ tone: 'success', text: `${result.step.description}. You did the algebra; MathMaster only checked it.` });
-    window.requestAnimationFrame(() => simplifyButtonRef.current?.focus({ preventScroll: true }));
     return true;
   };
 
