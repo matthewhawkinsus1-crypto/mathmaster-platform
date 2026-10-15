@@ -167,7 +167,7 @@ function useTimeAnnouncements(endMono, active) {
 const RUSH_CSS = `
 .mm-rush-shell {
   position: fixed; inset: 0; z-index: 9000;
-  display: grid; grid-template-rows: auto minmax(0, 1fr);
+  display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr);
   background: radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%);
   color: #eef1f6; font-family: "Segoe UI", system-ui, sans-serif;
   touch-action: manipulation; overscroll-behavior: none;
@@ -183,7 +183,7 @@ const RUSH_CSS = `
 .mm-rush-done { font-weight: 1000; font-size: calc(18 * var(--mm-px)); color: #81c995; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mm-rush-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; line-height: 1; font-variant-numeric: tabular-nums; }
 .mm-rush-clock-low { color: #ffb4ab; }
-.mm-rush-sync { font-size: calc(12 * var(--mm-px)); font-weight: 900; color: #fdd663; white-space: nowrap; }
+.mm-rush-sync { font-size: calc(12 * var(--mm-px)); font-weight: 900; color: #fdd663; }
 .mm-rush-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; background: transparent; color: #eef1f6; font-weight: 900; cursor: pointer; }
 .mm-rush-stage {
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; min-height: 0;
@@ -241,7 +241,7 @@ const RUSH_CSS = `
 }
 @media (max-width: 480px) {
   .mm-rush-chip { display: none; }
-  .mm-rush-bar { flex-wrap: nowrap; gap: 8px; }
+  .mm-rush-bar { gap: 8px; }
   .mm-rush-clock { font-size: calc(26 * var(--mm-px)); }
 }
 @media (max-height: 420px) {

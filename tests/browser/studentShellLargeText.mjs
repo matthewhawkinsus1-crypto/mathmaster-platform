@@ -125,7 +125,12 @@ const MEASURE = (rootSelector) => {
     // checks it on focus).
     if (element.matches('.mm-skip-link:not(:focus)')) continue;
     const rect = element.getBoundingClientRect();
+    // A position: fixed box (Graph Feature Rush's full-screen round) escapes
+    // the overflow of everything above it.
+    let escaped = getComputedStyle(element).position === 'fixed';
     for (let node = element.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+      if (escaped) break;
+      if (getComputedStyle(node).position === 'fixed') escaped = true;
       if (scrollable(node)) break;
       const style = getComputedStyle(node);
       if (!/hidden|clip/.test(style.overflowX + style.overflowY) || node === document.body) continue;
@@ -196,8 +201,30 @@ const teacherNav = (name, ready) => async (page) => {
   await page.getByText(ready).first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(900);
 };
+// A Graph Feature Rush round (student push N, review of #487): its sizes are
+// fluid — clamp(28px, 7vmin, 56px) is 54px on a Chromebook, so a viewport term
+// that ignored the text setting grew only to the new minimum. The round opens
+// on its "Loading…" card (this harness serves no rush graphs), which carries
+// that size.
+const liveChallenge = SCREENS.find((screen) => screen.id === 'live-challenge');
+const rushRound = async (page, origins, context) => {
+  await liveChallenge.scenes[0].run(page, origins, context);
+  const question = { questionInstanceId: 'challenge_a11y-room_r1', prompt: 'Tap each feature you are asked for.', challengeRound: 0 };
+  await page.evaluate(({ currentQuestion }) => {
+    const startsAt = Date.now() - 2000;
+    window.__mmHarnessStore.update('liveChallengeRooms/a11y-room', {
+      challengeMode: 'graphFeatureRush', status: 'running', currentRound: 0, currentQuestion, roundVersion: 1,
+      roundToken: 'a11y-rush-1', roundState: 'open', phase: 'answering', startsAt, endsAt: startsAt + 600_000,
+      roundStartedAt: startsAt, roundEndsAt: startsAt + 600_000,
+    });
+  }, { currentQuestion: question });
+  await page.locator('.mm-rush-overlay strong').first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1500);
+};
+
 export const LARGE_TEXT_SCREENS = [
   ...SCREENS,
+  { id: 'graph-feature-rush', open: liveChallenge.open, scenes: [{ id: 'round', run: rushRound }] },
   {
     id: 'more-tools',
     include: '.mathmaster-question-stage',

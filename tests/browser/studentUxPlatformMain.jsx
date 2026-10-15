@@ -52,7 +52,11 @@ import { SAMPLE_SPECS } from '../../src/dev/MathToolsLab.jsx';
 import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
 import FINAL_TEXT from '../../docs/assignments/algebra1-linear-multiple-representations-final-v5.json?raw';
 import '../../src/index.css';
+import { installTextScale } from '../../src/platform/layout/textScale.js';
 import '../../src/App.css';
+
+// As src/main.jsx: fluid font sizes follow the text-size setting (job N).
+installTextScale(window);
 
 // Vite's dev optimizer moves mathlive into .vite/deps without its fonts.
 MathfieldElement.fontsDirectory = '/node_modules/mathlive/fonts';
