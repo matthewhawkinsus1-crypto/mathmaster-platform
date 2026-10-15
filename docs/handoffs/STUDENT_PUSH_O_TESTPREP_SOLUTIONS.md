@@ -14,7 +14,7 @@ an independent oracle. ASVAB's 44 reviews were already specific and are out of s
 | Slice | Templates | State |
 | --- | --- | --- |
 | Digital SAT | 465 | **Done.** 465 of 465 authored, none declined, pending 0 (`tests/platform/ccmrSolutionReviews_digitalSAT.test.mjs`) |
-| ACT | 136 | Not started (see "What is left") |
+| ACT | 136 | **Done.** 136 of 136 authored, none declined, pending 0 (`tests/platform/ccmrSolutionReviews_act.test.mjs`) |
 | TSIA2 | 167 | Not started (see "What is left") |
 
 ## How it is built
@@ -33,7 +33,7 @@ an independent oracle. ASVAB's 44 reviews were already specific and are out of s
 
 ## Verification (pinned in CI)
 
-`tests/platform/ccmrSolutionReviews_digitalSAT.test.mjs` runs the shared checks in
+`tests/platform/ccmrSolutionReviews_digitalSAT.test.mjs` and `ccmrSolutionReviews_act.test.mjs` run the shared checks in
 `tests/platform/helpers/ccmrSolutionReviewOracle.mjs` on 24 draws per template, from the production seed:
 
 1. **Digest pin.** For every template, everything except `solutionReview` and `generator.derived` hashes to the
@@ -48,6 +48,8 @@ an independent oracle. ASVAB's 44 reviews were already specific and are out of s
 4. **Each review solves its own draw.** On every draw:
    - **Shape.** The clamps above.
    - **Display.** No `1x`, `−1x`, `+ 0`, `^1`, doubled sign, leftover `{{ }}`, NaN, Infinity or float artefact.
+     One exemption: math that restates the keyed option exactly as the question prints it. The ACT complex-sum
+     key prints `6 - 1i` for some draws, and a review cannot state that key any other way.
    - **Relations.** Every equation in the headline, steps and summary is recomputed with mathjs. Numeric chains
      must hold exactly, or within the tolerance a shown `\approx` allows. Symbolic identities are checked at four
      sample points. An equation in one variable is checked at the review's own stated value, unless it restates
@@ -59,7 +61,7 @@ an independent oracle. ASVAB's 44 reviews were already specific and are out of s
    - **Grading.** For number fields, the production grader (`mathPath.buildIssuePlan` / `gradeResponse`) accepts
      the stated answer.
    - A template must have at least one relation the oracle verified, unless it is listed as `VERBAL` with a reason.
-     These are 34 definitions or interpretations, such as "which criterion is SAS" or "what the intersection
+     These are 34 SAT and 4 ACT definitions or interpretations, such as "which criterion is SAS" or "what the intersection
      means". A `VERBAL` template that states a checkable relation fails.
 5. **Mutation check (scratch, not committed).** The test was pointed with `MM_CCMR_REVIEW_SEED` at mutated copies of
    the seed, and each mutation was caught:
@@ -67,12 +69,16 @@ an independent oracle. ASVAB's 44 reviews were already specific and are out of s
    - a distractor in the headline;
    - a `1x` display;
    - an answer summary naming a distractor.
+   The ACT copy also caught:
+   - a changed committed derived value (pin, draw and arithmetic checks);
+   - a wrong new derived value (arithmetic check);
+   - a `+ 0` display.
 
 **Assessment safety.** No prompt, choice, key, response field or grader changed, and the digest pin proves it. The
 review is published only where it was before: the Path recap after the item is answered, and the Live Challenge
 round record after the round closes. This job did not touch the reveal timing.
 
-**Gate on the SAT boundary.** `npm run test:platform` passed 11148 tests with 0 failures (after `npm ci` in
+**Gate.** `npm run test:platform` passed 11152 tests with 0 failures at the ACT boundary (after `npm ci` in
 `functions/`, which this container lacked). `npm run lint` raised no new findings. `npm run build` passed.
 `node scripts/build-ccmr-v2-1-production-release.mjs --check` reported 0 failures.
 
@@ -85,8 +91,21 @@ here and not fixed (no choice or key may change in this job):
   factor, so two choices are correct.
 - `mm_sat_A2_7D_challenge_quartic_factor_structure_v21`. The distractor `x+(a+1)` is a true factor whenever
   `x^2+bx+c` has the zero `-(a+1)`.
+- **ACT display (prompt or choice text, not the review):**
+  - `mm_act_fn_1_polynomial-evaluation` prints `1x^2`, `+ 1x`, `+ 0x` and `+ 0`.
+  - `mm_act_fn_2_piecewise-evaluation` prints `1x`.
+  - `mm_act_fn_3_greater-zero`, `mm_act_geo_3_ellipse-vertex`, `mm_act_geo_ch2_hyperbola-vertices-distance` and
+    `mm_act_fn_ch3_radical-rational-domain` print `(x + 0)`.
+  - `mm_act_fn_ch1_composition` prints `+ 0`.
+  - `mm_act_nq_3_complex-addition` and `mm_act_nq_ch1_complex-conjugates` print `1i`.
+  - Distractor labels with float artefacts, such as `16.666666666666668\%`:
+    - `mm_act_ies_rpp_5_percent-change`
+    - `mm_act_ies_rpp_ch2_ratio-partition-percent`
+    - `mm_act_ies_measurementunitsconversion_4_map-scale-distance`
+    - `mm_act_fn_ch2_inverse-linear`
+  The reviews avoid all of these forms.
 
-Both reviews explain the intended key correctly. Neither review names the distractor as wrong, so neither review
+The two SAT factor reviews explain the intended key correctly. Neither review names the distractor as wrong, so neither review
 is ever false.
 
 ## Deploy targets (owner, Cloud Shell; dry-run first)
@@ -114,9 +133,8 @@ Until the refresh runs, students keep seeing the generic solutions. Nothing brea
 
 ## What is left
 
-- **ACT (136) and TSIA2 (167).** Use the same method: copy the SAT test with `EXAM` changed, add pins (already in
-  the fixture for all three exams), and author the reviews in batches. Two draft files use a JSON layout the
-  scratch applier does not yet preserve (`ACT_NATIVE_algebra`, `TSIA2_NATIVE_simpleGraphsTables`).
+- **TSIA2 (167).** Use the same method: copy the ACT test with `EXAM` changed (the pins are already in the fixture)
+  and author the reviews in batches.
 
 ## Files outside the lane
 

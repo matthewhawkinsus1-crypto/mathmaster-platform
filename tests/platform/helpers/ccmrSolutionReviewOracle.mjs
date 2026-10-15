@@ -52,14 +52,20 @@ export const DISPLAY_BANS = [
   [/\d\.\d*?(\d)\1{5,}/, 'a floating-point artefact'],
 ];
 
-export const displayProblems = (review) => {
+// `verbatim`: math that restates the keyed option exactly as the question
+// prints it (a key "$6 - 1i$" can only be restated as printed), which the
+// review cannot write any other way and still state the key.
+export const displayProblems = (review, { verbatim = [] } = {}) => {
   const problems = [];
+  const squash = (math) => String(math).replace(/\s+/g, '');
+  const asPrinted = new Set(verbatim.flatMap((label) => mathSpans(String(label))).map(squash));
   for (const text of reviewTexts(review)) {
     const prose = text.replace(/\$[^$]*\$/g, ' ');
+    const spans = mathSpans(text).filter((math) => !asPrinted.has(squash(math)));
     for (const [pattern, label] of DISPLAY_BANS) {
       // Prose may say "1 hour" or "+ 0.5 points": only math is held to the
       // coefficient and zero-term rules.
-      const targets = /coefficient|zero term|exponent|in math/.test(label) ? mathSpans(text) : [...mathSpans(text), prose];
+      const targets = /coefficient|zero term|exponent|in math/.test(label) ? spans : [...spans, prose];
       for (const target of targets) if (pattern.test(target)) problems.push(`${label}: "${target}" in "${text}"`);
     }
   }

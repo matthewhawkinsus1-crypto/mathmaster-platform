@@ -166,12 +166,6 @@ test(`${EXAM}: each review solves its own draw and reaches the key`, async () =>
       const review = question.solutionReview;
       const problems = [...shapeProblems(review)];
       if (!problems.length) {
-        problems.push(...displayProblems(review));
-        // A review may restate the question's own equations (prompt or choices).
-        const given = [question.prompt, ...(question.choices || []).map((choice) => choice.label)].join(' ');
-        const relations = checkRelations(review, { prompt: given });
-        checked += relations.checked;
-        problems.push(...relations.problems);
         const field = question.responseFields[0];
         let key;
         let losers = [];
@@ -181,6 +175,12 @@ test(`${EXAM}: each review solves its own draw and reaches the key`, async () =>
         } else {
           key = String(field.expected);
         }
+        problems.push(...displayProblems(review, { verbatim: [key] }));
+        // A review may restate the question's own equations (prompt or choices).
+        const given = [question.prompt, ...(question.choices || []).map((choice) => choice.label)].join(' ');
+        const relations = checkRelations(review, { prompt: given });
+        checked += relations.checked;
+        problems.push(...relations.problems);
         problems.push(...keyProblems(review, { key, losers }));
         // A drawn prompt's review must use the draw: some number from it.
         if (/\{\{/.test(doc.prompt) && !mentionsDraw(review, question.prompt)) problems.push('mentions no value from its own prompt');
