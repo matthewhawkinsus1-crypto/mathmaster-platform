@@ -62876,11 +62876,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Add like terms: ${{A}}x^3+{{B}}x^2+{{C}}x+{{D}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Like terms: ${{a}}x^3+{{e}}x^3={{A}}x^3$, ${{b}}x^2+{{f}}x^2={{B}}x^2$, ${{c}}x+{{g}}x={{C}}x$ and ${{d}}+{{h}}={{D}}$.",
+          "So the sum is ${{A}}x^3+{{B}}x^2+{{C}}x+{{D}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Combining coefficients of different powers of $x$: only like terms add.",
+        "answerSummary": "${{A}}x^3+{{B}}x^2+{{C}}x+{{D}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -62985,7 +62987,9 @@
           "D": "-(p*r)",
           "Bw": "q+p",
           "Cw": "r+p*q",
-          "Dw": "p*r"
+          "Dw": "p*r",
+          "pq": "p*q",
+          "pr": "p*r"
         },
         "constraints": [
           "q!=p",
@@ -63013,11 +63017,14 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Distribute $x$ and $-{{p}}$ to every term: $x^3 {{B|signed}}x^2 {{C|signed}}x {{D|signed}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "$x(x^2+{{q}}x+{{r}})=x^3+{{q}}x^2+{{r}}x$ and $-{{p}}(x^2+{{q}}x+{{r}})=-{{p}}x^2-{{pq}}x-{{pr}}$.",
+          "Combine like terms: ${{q}}x^2-{{p}}x^2={{B}}x^2$ and ${{r}}x-{{pq}}x={{C}}x$.",
+          "So $(x-{{p}})(x^2+{{q}}x+{{r}})=x^3 {{B|signed}}x^2 {{C|signed}}x {{D|signed}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Distributing $-{{p}}$ to only the first term, which leaves $+{{pq}}x$ or $+{{pr}}$.",
+        "answerSummary": "$x^3 {{B|signed}}x^2 {{C|signed}}x {{D|signed}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -63310,7 +63317,11 @@
           "D": "m*d-h",
           "Aw": "m*a+e",
           "Bw": "m*b+f",
-          "Dw": "m*d+h"
+          "Dw": "m*d+h",
+          "ma": "m*a",
+          "mb": "m*b",
+          "mc": "m*c",
+          "md": "m*d"
         },
         "constraints": [
           "A!=0",
@@ -63339,11 +63350,14 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Distribute {{m}}, then subtract every term: ${{A}}x^3+{{B}}x^2+{{C}}x+{{D}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Distribute: ${{m}}({{a}}x^3+{{b}}x^2+{{c}}x+{{d}})={{ma}}x^3+{{mb}}x^2+{{mc}}x+{{md}}$.",
+          "Subtract each term of the second polynomial: ${{ma}}-{{e}}={{A}}$, ${{mb}}-{{f}}={{B}}$, ${{mc}}-{{g}}={{C}}$ and ${{md}}-{{h}}={{D}}$.",
+          "So the expression equals ${{A}}x^3+{{B}}x^2+{{C}}x+{{D}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Adding the second polynomial's terms instead of subtracting, or multiplying only its first term by {{m}}.",
+        "answerSummary": "${{A}}x^3+{{B}}x^2+{{C}}x+{{D}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -63481,11 +63495,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Add the $x^3$ terms and match coefficients: $k={{k}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Add like terms: ${{p}}x^3+{{q}}x^3={{k}}x^3$, ${{a}}x+{{c}}x={{L}}x$ and ${{b}}+{{d}}={{C}}$.",
+          "Equal for all $x$ means equal coefficients, so the $x^3$ coefficients match: $k={{k}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Adding all the coefficients together, or matching $k$ with the $x$-coefficient {{L}}.",
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -63617,11 +63633,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Multiply every term by ${{k}}x$: ${{A}}x^4+{{B}}x^3+{{C}}x^2+{{D}}x$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Each term is multiplied by {{k}} and gains one more factor of $x$.",
+          "${{k}}x({{a}}x^3+{{b}}x^2+{{c}}x+{{d}})={{A}}x^4+{{B}}x^3+{{C}}x^2+{{D}}x$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Multiplying only some of the terms by {{k}}, or not raising each power of $x$ by 1.",
+        "answerSummary": "${{A}}x^4+{{B}}x^3+{{C}}x^2+{{D}}x$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -63725,7 +63743,8 @@
           "D": "q*r",
           "B1": "p+r+1",
           "C1": "q+p*r+1",
-          "D1": "q*r+1"
+          "D1": "q*r+1",
+          "pr": "p*r"
         },
         "constraints": [
           "B!=0",
@@ -63751,11 +63770,14 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Multiply every term by $x$ and by {{r}}, then combine: $x^3+{{B}}x^2+{{C}}x+{{D}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Times $x$: $x^3+{{p}}x^2+{{q|coef}}x$. Times {{r}}: ${{r}}x^2+{{pr}}x+{{D}}$.",
+          "Combine like terms: ${{p}}x^2+{{r}}x^2={{B}}x^2$ and ${{q|coef}}x+{{pr}}x={{C}}x$.",
+          "So $(x^2+{{p}}x+{{q}})(x+{{r}})=x^3+{{B}}x^2+{{C}}x+{{D}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Multiplying only matching terms and skipping the cross products.",
+        "answerSummary": "$x^3+{{B}}x^2+{{C}}x+{{D}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -63940,11 +63962,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Subtract every term of the second polynomial: ${{A}}x^4+{{B}}x^3+{{C}}x^2+{{D}}x+{{E}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "The minus sign applies to every term: ${{a}}-{{f}}={{A}}$, ${{b}}-{{g}}={{B}}$, ${{c}}-{{h}}={{C}}$, ${{d}}-{{j}}={{D}}$ and ${{e}}-{{k}}={{E}}$.",
+          "So the difference is ${{A}}x^4+{{B}}x^3+{{C}}x^2+{{D}}x+{{E}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Adding some terms of the second polynomial instead of subtracting them.",
+        "answerSummary": "${{A}}x^4+{{B}}x^3+{{C}}x^2+{{D}}x+{{E}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -64077,11 +64101,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Cancel the factor the numerator and denominator share: ${{a}}x^2+{{b}}x-{{c}}$ is left.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "The factor $x^2-{{p}}x+{{q}}$ is both above and below the fraction bar, and it is not 0 wherever the expression is defined.",
+          "Cancel it: $\\frac{(x^2-{{p}}x+{{q}})({{a}}x^2+{{b}}x-{{c}})}{x^2-{{p}}x+{{q}}}={{a}}x^2+{{b}}x-{{c}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Cancelling only part of a factor (for example its $x$-terms), or changing the factor that is left.",
+        "answerSummary": "${{a}}x^2+{{b}}x-{{c}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -64196,11 +64222,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Cancel the common factor, then match coefficients: $k={{b}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Cancel $x+{{p}}$, which is not 0 because $x\\ne-{{p}}$: $\\frac{(x+{{p}})({{a}}x^2+{{b}}x+{{c}})}{x+{{p}}}={{a}}x^2+{{b}}x+{{c}}$.",
+          "Match with ${{a}}x^2+kx+{{c}}$: the $x$-coefficients are equal, so $k={{b}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Combining {{p}} with {{b}}: cancelling a factor leaves the other factor unchanged.",
+        "answerSummary": "$k={{b}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -64441,11 +64469,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Cancel the factor the numerator and denominator share: $x^2+{{q}}x+{{r}}$ is left.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "The factor $x+{{p}}$ is both above and below the fraction bar, and it is not 0 because $x\\ne-{{p}}$.",
+          "Cancel it: $\\frac{(x+{{p}})(x^2+{{q}}x+{{r}})}{x+{{p}}}=x^2+{{q}}x+{{r}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Cancelling only part of a factor (for example its $x$-terms), or changing the factor that is left.",
+        "answerSummary": "$x^2+{{q}}x+{{r}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -64586,11 +64616,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Divide each term by ${{k}}x$: ${{a}}x^2+{{b}}x+{{c}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "$\\frac{{{A}}x^3}{{{k}}x}={{a}}x^2$, $\\frac{{{B}}x^2}{{{k}}x}={{b}}x$ and $\\frac{{{C}}x}{{{k}}x}={{c}}$.",
+          "So the quotient is ${{a}}x^2+{{b}}x+{{c}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Dividing the coefficients but not the powers of $x$: dividing by $x$ lowers each exponent by 1.",
+        "answerSummary": "${{a}}x^2+{{b}}x+{{c}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -64709,11 +64741,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Multiply the quotient by the divisor; the constant term is $k={{k}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Multiply back: $(x+{{p}})(x^2+{{q}}x+{{r}})=x^3+{{A}}x^2+{{B}}x+{{k}}$.",
+          "The constant term of the product is ${{p}}\\cdot {{r}}={{k}}$, so $k={{k}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Adding {{p}} and {{r}} for the constant: the constant terms multiply.",
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -64826,11 +64860,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Cancel the factor the numerator and denominator share: $x^3+{{a}}x^2+{{b}}x+{{c}}$ is left.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "The factor $x+{{p}}$ is both above and below the fraction bar, and it is not 0 because $x\\ne-{{p}}$.",
+          "Cancel it: $\\frac{(x+{{p}})(x^3+{{a}}x^2+{{b}}x+{{c}})}{x+{{p}}}=x^3+{{a}}x^2+{{b}}x+{{c}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Cancelling only part of a factor (for example its $x$-terms), or changing the factor that is left.",
+        "answerSummary": "$x^3+{{a}}x^2+{{b}}x+{{c}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -64951,11 +64987,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Cancel the factor the numerator and denominator share: $x^2+{{r}}x+{{s}}$ is left.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "The factor $x^2+{{p}}x+{{q}}$ is both above and below the fraction bar, and it is not 0 wherever the expression is defined.",
+          "Cancel it: $\\frac{(x^2+{{p}}x+{{q}})(x^2+{{r}}x+{{s}})}{x^2+{{p}}x+{{q}}}=x^2+{{r}}x+{{s}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Cancelling only part of a factor (for example its $x$-terms), or changing the factor that is left.",
+        "answerSummary": "$x^2+{{r}}x+{{s}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
