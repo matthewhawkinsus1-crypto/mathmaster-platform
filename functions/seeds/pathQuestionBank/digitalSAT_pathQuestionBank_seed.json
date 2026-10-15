@@ -33610,7 +33610,8 @@
           "y1": "k-a0*dt*dt",
           "aneg": "-a0",
           "v1": "v+1",
-          "k1": "k+1"
+          "k1": "k+1",
+          "dt2": "dt*dt"
         },
         "constraints": [
           "k-a0*dt*dt>0",
@@ -33624,11 +33625,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "A maximum means the vertex is $({{v}},{{k}})$ and $a<0$: $h(t)={{aneg}}(t-{{v}})^2+{{k}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Maximum value {{k}} at $t={{v}}$: the vertex is $({{v}},{{k}})$ and the graph opens downward, so $h(t)=a(t-{{v}})^2+{{k}}$ with $a<0$.",
+          "Substitute $({{t1}},{{y1}})$: ${{y1}}=a({{t1}}-{{v}})^2+{{k}}=a\\cdot {{dt2}}+{{k}}$, so $a=\\frac{{{y1}}-{{k}}}{{{dt2}}}={{aneg}}$.",
+          "So the height can be modeled by $h(t)={{aneg}}(t-{{v}})^2+{{k}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Using a positive leading coefficient: that graph opens upward and has a minimum, not a maximum.",
+        "answerSummary": "$h(t)={{aneg}}(t-{{v}})^2+{{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -33735,7 +33739,9 @@
         "derived": {
           "x1": "h+dx",
           "y1": "a*dx*dx+k0",
-          "nh": "-h"
+          "nh": "-h",
+          "dx2": "dx*dx",
+          "ady": "a*dx*dx"
         },
         "constraints": [
           "nh!=0"
@@ -33748,11 +33754,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Substitute the point and solve for $k$: $k={{k0}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Substitute $({{x1}},{{y1}})$: ${{y1}}={{a}}({{x1}} {{nh|signed}})^2+k={{a}}\\cdot {{dx2}}+k={{ady}}+k$.",
+          "Subtract {{ady}}: $k={{y1}}-{{ady}}={{k0}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Forgetting to square $({{x1}} {{nh|signed}})$, or not multiplying the square by {{a}}.",
+        "answerSummary": "$k={{k0}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -33849,11 +33857,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Expand $(x-h)^2$ and match the $x$-terms: $h={{h0}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Expand: $(x-h)^2 {{k|signed}}=x^2-2hx+h^2 {{k|signed}}$.",
+          "Check the constants once $h$ is found: ${{h0}}^2 {{k|signed}}={{c}}$, as in the given quadratic.",
+          "Match the $x$-terms: $2h={{twoh}}$, so $h={{h0}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Answering {{twoh}}: the middle coefficient is $2h$, so $h$ is half of it.",
+        "answerSummary": "$h={{h0}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -33941,7 +33952,9 @@
         },
         "derived": {
           "b": "-2*a*h",
-          "nh": "-h"
+          "nh": "-h",
+          "nh2": "-2*h",
+          "h2": "h*h"
         },
         "constraints": [
           "nh!=0"
@@ -33954,11 +33967,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Expand the square and multiply by {{a}}: $b={{b}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Expand: $(x {{nh|signed}})^2=x^2 {{nh2|signed}}x+{{h2}}$.",
+          "Multiply by {{a}}: the $x$-term becomes ${{a}}\\cdot {{nh2|paren}}x={{b}}x$.",
+          "So $b={{b}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Forgetting the 2 in the middle term of a square, or not multiplying it by {{a}}.",
+        "answerSummary": "$b={{b}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -34046,7 +34062,10 @@
           "C": "a*h*h+k",
           "Bw": "2*a*h",
           "Cw": "a*h*h-k",
-          "A1": "a+1"
+          "A1": "a+1",
+          "twoh": "2*h",
+          "h2": "h*h",
+          "ah2": "a*h*h"
         },
         "constraints": [
           "A1!=0",
@@ -34069,11 +34088,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Expand the square, multiply by {{a}}, add {{k}}: ${{a}}x^2 {{B|signed}}x {{C|signed}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Expand: $(x-{{h}})^2=x^2-{{twoh}}x+{{h2}}$.",
+          "Multiply by {{a}}: ${{a}}x^2 {{B|signed}}x+{{ah2}}$. Then add {{k}}: ${{ah2}}+{{k}}={{C}}$.",
+          "So ${{a}}(x-{{h}})^2 {{k|signed}}={{a}}x^2 {{B|signed}}x {{C|signed}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Getting the sign of the middle term wrong ($+{{twoh}}x$ inside the square), or subtracting {{k}} instead of adding it.",
+        "answerSummary": "${{a}}x^2 {{B|signed}}x {{C|signed}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -34189,7 +34211,9 @@
           "k1": "k+1",
           "h1": "h+1",
           "nh": "-h",
-          "nh1": "-(h+1)"
+          "nh1": "-(h+1)",
+          "dx2": "dx*dx",
+          "ady": "a*dx*dx"
         },
         "constraints": [
           "h!=0",
@@ -34205,11 +34229,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Start from the vertex, then use the point to find $a$: $f(x)={{a|coef}}(x {{nh|signed}})^2 {{k|signed}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Vertex $({{h}},{{k}})$ gives $f(x)=a(x {{nh|signed}})^2 {{k|signed}}$.",
+          "Substitute $({{x1}},{{y1}})$: ${{y1}}=a({{x1}} {{nh|signed}})^2 {{k|signed}}=a\\cdot {{dx2}} {{k|signed}}$, so $a=\\frac{{{ady}}}{{{dx2}}}={{a}}$.",
+          "So the function is $f(x)={{a}}(x {{nh|signed}})^2 {{k|signed}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Writing the bracket as $(x {{h|signed}})$: vertex form uses $x-h$, so the vertex coordinate {{h}} appears with the opposite sign.",
+        "answerSummary": "$f(x)={{a}}(x {{nh|signed}})^2 {{k|signed}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -34318,7 +34345,9 @@
         "derived": {
           "x1": "h+dx",
           "y1": "a0*dx*dx+k",
-          "nh": "-h"
+          "nh": "-h",
+          "dx2": "dx*dx",
+          "ady": "y1-k"
         },
         "constraints": [
           "nh!=0"
@@ -34331,11 +34360,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Substitute the point and solve for $a$: $a={{a0}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Substitute $({{x1}},{{y1}})$: ${{y1}}=a({{x1}} {{nh|signed}})^2 {{k|signed}}=a\\cdot {{dx2}} {{k|signed}}$.",
+          "Subtract: ${{dx2|coef}}a={{y1}}-{{k|paren}}={{ady}}$, so $a=\\frac{{{ady}}}{{{dx2}}}={{a0}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Dividing {{y1}} by {{dx2}} before subtracting {{k}}, or forgetting to square $({{x1}} {{nh|signed}})$.",
+        "answerSummary": "$a={{a0}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -34437,11 +34468,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Vertex form $a(x-h)^2+k$ has vertex $(h,k)$: $({{h}},{{k}})$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Rewrite the bracket as $x-h$: $x {{nh|signed}}=x-{{h|paren}}$, so $h={{h}}$; the constant gives $k={{k}}$.",
+          "Check: at $x={{h}}$ the square is 0, so $y={{k}}$ there, the lowest point of the graph.",
+          "So the vertex is $({{h}},{{k}})$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Reading the sign in the bracket as the coordinate: $x {{nh|signed}}$ puts the vertex at $x={{h}}$, not at {{nh}}.",
+        "answerSummary": "$({{h}},{{k}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -34539,7 +34573,8 @@
           "r1": "mid-d",
           "r2": "mid+d",
           "f1": "-r1",
-          "f2": "-r2"
+          "f2": "-r2",
+          "s": "r1+r2"
         }
       },
       "attemptFeedback": [
@@ -34549,11 +34584,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The axis of symmetry is halfway between the zeros: $x={{mid}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "A parabola is symmetric, so its axis passes through the midpoint of the two zeros.",
+          "$x=\\frac{{{r1}}+{{r2|paren}}}{2}=\\frac{{{s}}}{2}={{mid}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Subtracting the zeros, or adding them without halving.",
+        "answerSummary": "$x={{mid}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -34637,7 +34674,8 @@
         "derived": {
           "yint": "a0*r1*r2",
           "f1": "-r1",
-          "f2": "-r2"
+          "f2": "-r2",
+          "rr": "r1*r2"
         },
         "constraints": [
           "f1!=0",
@@ -34651,11 +34689,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The $y$-intercept is $f(0)$; solve for $a$: $a={{a0}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "At $x=0$: $f(0)=a(0 {{f1|signed}})(0 {{f2|signed}})=a\\cdot {{f1}}\\cdot {{f2|paren}}={{rr}}a$.",
+          "The $y$-intercept is {{yint}}, so ${{rr}}a={{yint}}$ and $a=\\frac{{{yint}}}{{{rr}}}={{a0}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Losing the sign of the product: one zero is negative and one positive, so ${{f1}}\\cdot {{f2|paren}}$ is negative.",
+        "answerSummary": "$a={{a0}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -34883,11 +34923,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "A zero $r$ gives the factor $x-r$: $f(x)=(x {{f1|signed}})(x {{f2|signed}})$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Zero {{r1}} gives the factor $x-{{r1|paren}}=x {{f1|signed}}$; zero {{r2}} gives $x-{{r2|paren}}=x {{f2|signed}}$.",
+          "Check: $({{r1}} {{f1|signed}})({{r1}} {{f2|signed}})=0$ and $({{r2}} {{f1|signed}})({{r2}} {{f2|signed}})=0$.",
+          "With leading coefficient 1, $f(x)=(x {{f1|signed}})(x {{f2|signed}})$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Using $x+r$ for a zero $r$: $(x {{r1|signed}})(x {{r2|signed}})$ has zeros {{f1}} and {{f2}} instead.",
+        "answerSummary": "$f(x)=(x {{f1|signed}})(x {{f2|signed}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -35004,11 +35047,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Factors from the intercepts, no minus sign in front: $y=(x {{f1|signed}})(x {{f2|signed}})$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Crossing at $x={{r1}}$ and $x={{r2}}$ gives the factors $x {{f1|signed}}$ and $x {{f2|signed}}$. Check: $({{r1}} {{f1|signed}})({{r1}} {{f2|signed}})=0$.",
+          "Opening upward needs a positive leading coefficient, so there is no minus sign in front.",
+          "So the graph could be $y=(x {{f1|signed}})(x {{f2|signed}})$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Using the intercepts' own signs in the factors, or putting a minus sign in front, which makes the graph open downward.",
+        "answerSummary": "$y=(x {{f1|signed}})(x {{f2|signed}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -35110,7 +35156,8 @@
           "x0": "r2+1",
           "y0": "a0*(r2+1-r1)",
           "f1": "-r1",
-          "f2": "-r2"
+          "f2": "-r2",
+          "p1": "x0-r1"
         },
         "constraints": [
           "f1!=0",
@@ -35124,11 +35171,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Substitute the point and divide: $a={{a0}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Substitute $({{x0}},{{y0}})$: ${{y0}}=a({{x0}} {{f1|signed}})({{x0}} {{f2|signed}})$.",
+          "The brackets are ${{x0}} {{f1|signed}}={{p1}}$ and ${{x0}} {{f2|signed}}=1$, so ${{y0}}={{p1}}a$ and $a=\\frac{{{y0}}}{{{p1}}}={{a0}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Dividing {{y0}} by only one of the brackets, or substituting a zero instead of the point.",
+        "answerSummary": "$a={{a0}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -35206,7 +35255,8 @@
         "derived": {
           "b": "-(r1+r2)",
           "f1": "-r1",
-          "f2": "-r2"
+          "f2": "-r2",
+          "c": "r1*r2"
         }
       },
       "attemptFeedback": [
@@ -35216,11 +35266,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Write the factors and expand: $b={{b}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "The zeros give the factors: $(x {{f1|signed}})(x {{f2|signed}})$.",
+          "Expand: $(x {{f1|signed}})(x {{f2|signed}})=x^2 {{b|xterm}} {{c|signed}}$.",
+          "The $x$-coefficient is the sum of the constants in the factors: $b={{f1}}+{{f2|paren}}={{b}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Adding the zeros without changing the sign: $b$ is the negative of their sum.",
+        "answerSummary": "$b={{b}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -35320,11 +35373,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Set each factor equal to 0: the zeros are {{r1}} and {{r2}}.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "$f(x)=0$ exactly when one of the factors is 0; the constant {{a}} never is.",
+          "$x {{f1|signed}}=0$ gives $x={{r1}}$, and $x {{f2|signed}}=0$ gives $x={{r2}}$.",
+          "So the zeros are ${{r1}}$ and ${{r2}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Reading the numbers in the brackets as the zeros: $x {{f1|signed}}$ is 0 at $x={{r1}}$, the opposite sign.",
+        "answerSummary": "${{r1}}$ and ${{r2}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
