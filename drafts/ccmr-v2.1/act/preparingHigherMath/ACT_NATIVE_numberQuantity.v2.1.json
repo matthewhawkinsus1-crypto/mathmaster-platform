@@ -253,7 +253,7 @@
         "stemProfile": "complex-addition",
         "answerChoiceCount": 4
       },
-      "prompt": "What is the sum of $({{a}}+{{b}}i)$ and $({{c}}-{{d}}i)$?",
+      "prompt": "What is the sum of $({{a}}+{{b|coef}}i)$ and $({{c}}-{{d|coef}}i)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -288,7 +288,8 @@
           "i3": "b+d"
         },
         "constraints": [
-          "b!=d"
+          "b!=d",
+          "abs(b-d)!=1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -603,7 +604,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "What is the value of $({{a}}+{{b}}i)({{a}}-{{b}}i)$?",
+      "prompt": "What is the value of $({{a}}+{{b|coef}}i)({{a}}-{{b|coef}}i)$?",
       "generator": {
         "parameters": {
           "a": {

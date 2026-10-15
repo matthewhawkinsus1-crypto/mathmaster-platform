@@ -10178,7 +10178,7 @@
         "stemProfile": "polynomial-evaluation",
         "answerChoiceCount": 4
       },
-      "prompt": "For $f(x)={{a}}x^2 {{b|signed}}x {{c|signed}}$, what is $f({{t}})$?",
+      "prompt": "For $f(x)={{a|coef}}x^2 {{b|xterm}} {{c|term}}$, what is $f({{t}})$?",
       "generator": {
         "parameters": {
           "a": {
@@ -10255,8 +10255,8 @@
       "solutionReview": {
         "headline": "Substitute ${{t}}$ for $x$ and evaluate: {{answer}}.",
         "reasoning": [
-          "Replace each $x$ with ${{t}}$: ${{a}}({{t}})^2{{b|signed}}({{t}}){{c|term}}$.",
-          "Square first: ${{a}}({{t}})^2={{at2}}$, and ${{b}}({{t}})={{bt}}$.",
+          "Replace each $x$ with ${{t}}$: ${{a|coef}}({{t}})^2{{b|term}}({{t}}){{c|term}}$.",
+          "Square first: ${{a|coef}}({{t}})^2={{at2}}$, and ${{b|coef}}({{t}})={{bt}}$.",
           "${{at2}}{{bt|term}}{{c|term}}={{answer}}$."
         ],
         "commonError": "Multiplying by ${{t}}$ instead of squaring it in the first term.",
@@ -11367,7 +11367,7 @@
         "stemProfile": "piecewise-evaluation",
         "answerChoiceCount": 4
       },
-      "prompt": "A function is defined by $f(x)={{m}}x {{b|signed}}$ for $x<{{cut}}$ and $f(x)={{p}}x+{{q}}$ for $x\\ge {{cut}}$. What is $f({{x}})$?",
+      "prompt": "A function is defined by $f(x)={{m|coef}}x {{b|term}}$ for $x<{{cut}}$ and $f(x)={{p|coef}}x+{{q}}$ for $x\\ge {{cut}}$. What is $f({{x}})$?",
       "generator": {
         "parameters": {
           "cut": {
@@ -11449,7 +11449,7 @@
         "headline": "${{x}}\\ge {{cut}}$, so use the second rule: {{answer}}.",
         "reasoning": [
           "Pick the piece by the input: ${{x}}\\ge {{cut}}$, so the second rule applies.",
-          "${{p}}({{x}})+{{q}}={{answer}}$."
+          "${{p|coef}}({{x}})+{{q}}={{answer}}$."
         ],
         "commonError": "Using the first rule, which applies only when $x<{{cut}}$.",
         "answerSummary": "${{answer}}$"
@@ -12559,7 +12559,7 @@
         "stemProfile": "greater-zero",
         "answerChoiceCount": 4
       },
-      "prompt": "The function $f(x)=(x {{neg_r|signed}})(x {{neg_s|signed}})$ has 2 real zeros. What is the greater zero?",
+      "prompt": "The function $f(x)=(x {{neg_r|term}})(x {{neg_s|term}})$ has 2 real zeros. What is the greater zero?",
       "generator": {
         "parameters": {
           "r": {
@@ -12628,7 +12628,7 @@
         "headline": "Each factor gives a zero; the greater one is {{answer}}.",
         "reasoning": [
           "A product is zero when a factor is zero, so the zeros are {{r}} and {{s}}.",
-          "Check: ${{r}}{{neg_r|signed}}=0$ and ${{s}}{{neg_s|signed}}=0$.",
+          "Check: ${{r}}{{neg_r|term}}=0$ and ${{s}}{{neg_s|term}}=0$.",
           "Since ${{s}}>{{r}}$, the greater zero is {{answer}}."
         ],
         "commonError": "Reading the zeros with the signs shown in the factors, which flips them.",
@@ -16099,7 +16099,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "Let $f(x)={{a}}x {{b|signed}}$ and $g(x)={{c}}x {{d|signed}}$. What is $f(g({{t}}))$?",
+      "prompt": "Let $f(x)={{a|coef}}x {{b|term}}$ and $g(x)={{c|coef}}x {{d|term}}$. What is $f(g({{t}}))$?",
       "generator": {
         "parameters": {
           "a": {
@@ -16180,8 +16180,8 @@
       "solutionReview": {
         "headline": "Work from the inside out: {{answer}}.",
         "reasoning": [
-          "First $g({{t}})$: ${{c}}({{t}}){{d|term}}={{g}}$.",
-          "Then $f$ of that: ${{a}}({{g}}){{b|term}}={{answer}}$."
+          "First $g({{t}})$: ${{c|coef}}({{t}}){{d|term}}={{g}}$.",
+          "Then $f$ of that: ${{a|coef}}({{g}}){{b|term}}={{answer}}$."
         ],
         "commonError": "Evaluating $f$ first, which gives $g(f({{t}}))$.",
         "answerSummary": "${{answer}}$"
@@ -17292,7 +17292,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "For $f(x)={{a}}x {{b|signed}}$, $f({{x}})={{y}}$. What is $f^{-1}({{y}})$?",
+      "prompt": "For $f(x)={{a|coef}}x {{b|term}}$, $f({{x}})={{y}}$. What is $f^{-1}({{y}})$?",
       "generator": {
         "parameters": {
           "a": {
@@ -17316,7 +17316,8 @@
           "answer": "x",
           "d1": "y",
           "d2": "(y+b)/a",
-          "d3": "y-b"
+          "d3": "y-b",
+          "d2Shown": "round(d2*100)/100"
         },
         "constraints": [
           "answer!=d1",
@@ -17339,7 +17340,7 @@
         },
         {
           "id": "act-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "act-d3",
@@ -17364,7 +17365,7 @@
         "headline": "The inverse undoes $f$: $f^{-1}({{y}})={{answer}}$.",
         "reasoning": [
           "$f^{-1}(y)$ is the input that $f$ sends to $y$.",
-          "Check: ${{a}}({{x}}){{b|term}}={{y}}$, so $f$ sends ${{x}}$ to ${{y}}$.",
+          "Check: ${{a|coef}}({{x}}){{b|term}}={{y}}$, so $f$ sends ${{x}}$ to ${{y}}$.",
           "So $f^{-1}$ sends ${{y}}$ back to ${{answer}}$."
         ],
         "commonError": "Repeating the output ${{y}}$, or applying the steps of $f$ in the same order instead of undoing them.",
@@ -18476,7 +18477,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "For $h(x)=\\dfrac{\\sqrt{x {{neg_a|signed}}}}{x {{neg_b|signed}}}$, which of the following values is in the domain of $h$?",
+      "prompt": "For $h(x)=\\dfrac{\\sqrt{x {{neg_a|term}}}}{x {{neg_b|term}}}$, which of the following values is in the domain of $h$?",
       "generator": {
         "parameters": {
           "a": {
@@ -19484,7 +19485,7 @@
         "commonError": "Moving vertically by $b={{b}}$, which reaches an end of the minor axis instead.",
         "answerSummary": "$({{xp}},{{k}})$"
       },
-      "prompt": "The ellipse $\\dfrac{(x {{nh|signed}})^2}{{{a2}}}+\\dfrac{(y {{nk|signed}})^2}{{{b2}}}=1$ has $a>b$. Which point is a vertex on its major axis?",
+      "prompt": "The ellipse $\\dfrac{(x {{nh|term}})^2}{{{a2}}}+\\dfrac{(y {{nk|term}})^2}{{{b2}}}=1$ has $a>b$. Which point is a vertex on its major axis?",
       "generator": {
         "parameters": {
           "h": {
@@ -20799,7 +20800,7 @@
         "commonError": "Giving $a$ alone, which is the distance from the center to one vertex.",
         "answerSummary": "${{answer}}$"
       },
-      "prompt": "For the hyperbola $\\dfrac{(x {{nh|signed}})^2}{{{a2}}}-\\dfrac{(y {{nk|signed}})^2}{{{b2}}}=1$, what is the distance between its 2 vertices?",
+      "prompt": "For the hyperbola $\\dfrac{(x {{nh|term}})^2}{{{a2}}}-\\dfrac{(y {{nk|term}})^2}{{{b2}}}=1$, what is the distance between its 2 vertices?",
       "generator": {
         "parameters": {
           "h": {
@@ -26865,7 +26866,9 @@
           "ans": "miles*inches",
           "d1": "miles+inches",
           "d2": "miles/inches",
-          "d3": "inches/miles"
+          "d3": "inches/miles",
+          "d2Shown": "round(d2*100)/100",
+          "d3Shown": "round(d3*100)/100"
         },
         "constraints": [
           "miles!=inches"
@@ -26883,11 +26886,11 @@
         },
         {
           "id": "act-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "act-d3",
-          "label": "${{d3}}$"
+          "label": "${{d3Shown}}$"
         }
       ],
       "responseFields": [
@@ -41686,7 +41689,8 @@
           "new": "old*(100+p)/100",
           "d1": "new-old",
           "d2": "100*p/old",
-          "d3": "100*new/old"
+          "d3": "100*new/old",
+          "d2Shown": "round(d2*100)/100"
         },
         "constraints": [
           "new==floor(new)",
@@ -41710,7 +41714,7 @@
         },
         {
           "id": "act-d2",
-          "label": "${{d2}}\\%$"
+          "label": "${{d2Shown}}\\%$"
         },
         {
           "id": "act-d3",
@@ -42607,7 +42611,9 @@
           "d2": "100*r/b",
           "d3": "100*(r+b)/r",
           "rb": "r+b",
-          "rk": "r*k"
+          "rk": "r*k",
+          "d2Shown": "round(d2*100)/100",
+          "d3Shown": "round(d3*100)/100"
         },
         "constraints": [
           "r!=b",
@@ -42633,11 +42639,11 @@
         },
         {
           "id": "act-d2",
-          "label": "${{d2}}\\%$"
+          "label": "${{d2Shown}}\\%$"
         },
         {
           "id": "act-d3",
-          "label": "${{d3}}\\%$"
+          "label": "${{d3Shown}}\\%$"
         }
       ],
       "responseFields": [
@@ -44343,14 +44349,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Slope {{m}}, $y$-intercept {{b}}: $y={{m}}x+{{b}}$.",
+        "headline": "Slope {{m}}, $y$-intercept {{b}}: $y={{m|coef}}x+{{b}}$.",
         "reasoning": [
           "Slope: each step of 1 in $x$ raises $y$ by ${{y2}}-{{y1}}={{m}}$.",
           "Intercept: step back from $(1,{{y1}})$ to $x=0$: ${{y1}}-{{m}}={{b}}$.",
           "Check the third point: ${{m}}\\cdot 3+{{b}}={{y3}}$."
         ],
         "commonError": "Swapping the slope and the intercept.",
-        "answerSummary": "$y={{m}}x+{{b}}$"
+        "answerSummary": "$y={{m|coef}}x+{{b}}$"
       },
       "prompt": "The points $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, and $({{x3}},{{y3}})$ lie on a line. Which equation represents that line?",
       "generator": {
@@ -44384,19 +44390,19 @@
       "choices": [
         {
           "id": "act-correct",
-          "label": "$y={{m}}x+{{b}}$"
+          "label": "$y={{m|coef}}x+{{b}}$"
         },
         {
           "id": "act-d1",
-          "label": "$y={{mp1}}x+{{b}}$"
+          "label": "$y={{mp1|coef}}x+{{b}}$"
         },
         {
           "id": "act-d2",
-          "label": "$y={{m}}x+{{bp1}}$"
+          "label": "$y={{m|coef}}x+{{bp1}}$"
         },
         {
           "id": "act-d3",
-          "label": "$y={{b}}x+{{m}}$"
+          "label": "$y={{b|coef}}x+{{m}}$"
         }
       ],
       "responseFields": [
@@ -45487,14 +45493,14 @@
       "solutionReview": {
         "headline": "Undo the constant, then divide by {{a}}: $x={{x}}$.",
         "reasoning": [
-          "Move the constant to the other side: ${{a}}x={{c}}{{nb|term}}={{cb}}$.",
+          "Move the constant to the other side: ${{a|coef}}x={{c}}{{nb|term}}={{cb}}$.",
           "Divide both sides by {{a}}: $x=\\frac{ {{cb}} }{ {{a}} }={{x}}$.",
-          "Check: ${{a}}({{x}}){{b|term}}={{c}}$."
+          "Check: ${{a|coef}}({{x}}){{b|term}}={{c}}$."
         ],
         "commonError": "Dividing before moving the constant, or moving the constant with the wrong sign.",
         "answerSummary": "$x={{x}}$"
       },
-      "prompt": "What value of $x$ satisfies ${{a}}x+{{b}}={{c}}$?",
+      "prompt": "What value of $x$ satisfies ${{a|coef}}x {{b|term}}={{c}}$?",
       "generator": {
         "parameters": {
           "a": {
@@ -53926,7 +53932,7 @@
         "stemProfile": "complex-addition",
         "answerChoiceCount": 4
       },
-      "prompt": "What is the sum of $({{a}}+{{b}}i)$ and $({{c}}-{{d}}i)$?",
+      "prompt": "What is the sum of $({{a}}+{{b|coef}}i)$ and $({{c}}-{{d|coef}}i)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -53961,7 +53967,8 @@
           "i3": "b+d"
         },
         "constraints": [
-          "b!=d"
+          "b!=d",
+          "abs(b-d)!=1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -55641,7 +55648,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "What is the value of $({{a}}+{{b}}i)({{a}}-{{b}}i)$?",
+      "prompt": "What is the value of $({{a}}+{{b|coef}}i)({{a}}-{{b|coef}}i)$?",
       "generator": {
         "parameters": {
           "a": {
