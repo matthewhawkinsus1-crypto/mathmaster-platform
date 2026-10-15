@@ -127,8 +127,8 @@ the equation is solved (`x = …`), where no group remains.
   and `tests/tools/systemsSubstitutionParentheses`.
   - `stepAlgebraStepCredit`, `systemsBackSubstitutionSimplified`, `substitutedProductNotation` and
     `systemsWorkspace3x3Mode` pass unchanged.
-- **Gate (local):** `npm run test:platform` passes 11 263 tests with 0 failing (after merging main @ 86121b6) (`npm --prefix functions ci` first: 9
-  suites need the functions dependencies). `tests/tools` passes 1 628 with 0 failing. `npm run lint` and
+- **Gate (local):** `npm run test:platform` passes 11 269 tests with 0 failing (on 040b1b6, after merging main @ 50664ca) (`npm --prefix functions ci` first: 9
+  suites need the functions dependencies). `tests/tools` passes 1 628 with 0 failing. CI on c75cfdd, e62e285 and 040b1b6: every check suite green. `npm run lint` and
   `npm run build` both pass.
 - **Browser (Chromium, real QuestionEngine), run locally:**
   - `stepAlgebraStructureTools`: every old journey, plus the new ones:
