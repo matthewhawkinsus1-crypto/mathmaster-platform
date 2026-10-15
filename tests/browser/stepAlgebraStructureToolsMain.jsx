@@ -12,6 +12,11 @@
  *   Q2  stepAlgebra2 rewriteLinearForm factoredLinear: y = -6x + 12
  *   Q3  stepAlgebra2 rewriteLinearForm slope-intercept: 2x - 4y = 8
  *   Q4  stepAlgebra plain solve: 3x + 6 = 21 (regression)
+ *   Q5  the owner's case (job Q): 2x + y = 2 after y = -4x + 12 was
+ *       substituted for the added y, as the Systems Workspace writes it
+ *   Q6  the same case one Distribute later, as a draft saved before job Q
+ *       still holds it: 2x + (1)(-4x) + (1)(12) = 2
+ *   Q7  a subtracted variable: 3x - y = 4 after y = -4x + 12
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -28,6 +33,9 @@ const QUESTIONS = [
   Object.freeze({ questionId: 'st-q2-factored-neg', type: 'stepAlgebra2', mode: 'rewriteLinearForm', targetForm: 'factoredLinear', prompt: 'Write y = −6x + 12 in factored linear form.', equation: 'y = -6x + 12' }),
   Object.freeze({ questionId: 'st-q3-rewrite-slope', type: 'stepAlgebra2', mode: 'rewriteLinearForm', targetForm: 'slopeIntercept', prompt: 'Rewrite 2x − 4y = 8 in slope-intercept form.', equation: '2x - 4y = 8' }),
   Object.freeze({ questionId: 'st-q4-solve', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '3x + 6 = 21', solveFor: 'x' }),
+  Object.freeze({ questionId: 'st-q5-substituted', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '2 * x + 1 * (-4 * x + 12) = 2', solveFor: 'x' }),
+  Object.freeze({ questionId: 'st-q6-unit-products', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '2 * x + (1) * (-4 * x) + (1) * (12) = 2', solveFor: 'x' }),
+  Object.freeze({ questionId: 'st-q7-subtracted', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '3 * x - 1 * (-4 * x + 12) = 4', solveFor: 'x' }),
 ];
 
 const params = new URLSearchParams(window.location.search);

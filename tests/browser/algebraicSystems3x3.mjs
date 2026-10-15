@@ -212,6 +212,8 @@ const useFormAsToken = async (page) => {
 };
 
 /** R1: 2(-y - z + 6) - y + 3z = 9  ->  -3y + z = -3. */
+// A term is matched by its source text, which is written either way once
+// Simplify rebuilds a side: 2 (-z) as typed by distribution, 2 * -z after.
 const standardizeR1 = async (page, { pauseAfterDistribution = null } = {}) => {
   await page.locator('button', { hasText: 'Simplify R₁' }).click();
   await settle(page, 700);
@@ -219,8 +221,8 @@ const standardizeR1 = async (page, { pauseAfterDistribution = null } = {}) => {
   if (pauseAfterDistribution) await pauseAfterDistribution();
   const host = solver(page);
   await rewriteTerm(page, host, 'left', /^2 \(-y\)$/, '-2y');
-  await rewriteTerm(page, host, 'left', /2 \(-z\)$/, '-2z');
-  await rewriteTerm(page, host, 'left', /2 \(6\)$/, '12');
+  await rewriteTerm(page, host, 'left', /2 (\(-z\)|\* -z)$/, '-2z');
+  await rewriteTerm(page, host, 'left', /2 (\(6\)|\* 6)$/, '12');
   await combineLikeTerms(page, host, 'left', /y$/, '-3y');
   await combineLikeTerms(page, host, 'left', /z$/, 'z');
   await closeInlineModes(page, host);
@@ -238,8 +240,8 @@ const standardizeR2 = async (page, { pauseAfterDistribution = null } = {}) => {
   if (pauseAfterDistribution) await pauseAfterDistribution();
   const host = solver(page);
   await rewriteTerm(page, host, 'left', /^3 \(-y\)$/, '-3y');
-  await rewriteTerm(page, host, 'left', /3 \(-z\)$/, '-3z');
-  await rewriteTerm(page, host, 'left', /3 \(6\)$/, '18');
+  await rewriteTerm(page, host, 'left', /3 (\(-z\)|\* -z)$/, '-3z');
+  await rewriteTerm(page, host, 'left', /3 (\(6\)|\* 6)$/, '18');
   await combineLikeTerms(page, host, 'left', /y$/, '-y');
   await combineLikeTerms(page, host, 'left', /z$/, '-4z');
   await closeInlineModes(page, host);
@@ -272,7 +274,7 @@ const solveReducedSubsystem = async (page, journey, { pauseMidSolve = null } = {
   // -y - 4(-3 + 3y) = -14
   await distribute(page, host);
   await rewriteTerm(page, host, 'left', /-4 \(-3\)|4 \(-3\)/, '12');
-  await rewriteTerm(page, host, 'left', /4 \(3/, '-12y');
+  await rewriteTerm(page, host, 'left', /4 (\(3|\* 3)/, '-12y');
   await combineLikeTerms(page, host, 'left', /y$/, '-13y');
   await closeInlineModes(page, host);
   await balancedMove(page, host, 'Subtract', '12');
@@ -530,7 +532,11 @@ const runReset = async (context) => {
   await page.close();
 };
 
-/** Teacher Preview: a subtracted substitution keeps its group and offers the -1 to the student. */
+/**
+ * Teacher Preview: a subtracted substitution keeps its group, drawn -(…) with
+ * no factor of 1, and removing the parentheses asks the student for every
+ * changed sign (student push Q) — never a -1 to multiply.
+ */
 const runNegatedGroup = async (context) => {
   const journey = 'preview-negated-group';
   const page = await context.newPage();
@@ -552,9 +558,16 @@ const runNegatedGroup = async (context) => {
     await settle(page, 800);
     const standardizer = solver(page);
     observed.state = await mathState(standardizer);
-    observed.factor = await standardizer.locator('.algebra-inline-factor-token').first().evaluate((element) => [...element.querySelectorAll('math-span, math-div')].map((math) => math.textContent).join(' ') || element.textContent).catch(() => '');
-    expect(journey, /1\\left\(/.test(observed.state || ''), `the subtracted group was not kept whole: ${observed.state}`);
-    expect(journey, /-\s*1|−\s*1/.test(observed.factor), `the -1 factor was not offered for distribution: ${JSON.stringify(observed.factor)}`);
+    expect(journey, /-\\left\(- x- z\+6\\right\)/.test(observed.state || ''), `the subtracted group was not kept whole: ${observed.state}`);
+    expect(journey, !/1\\left\(/.test(observed.state || ''), `a factor of 1 is shown: ${observed.state}`);
+    expect(journey, (await standardizer.locator('.algebra-inline-factor-token, button.algebra-distribute-toggle').count()) === 0, 'a factor of -1 was offered to distribute');
+    await standardizer.locator('button.algebra-simplify-toggle').click();
+    await settle(page, 300);
+    await standardizer.locator('.mm-simplify-part[data-simplify-part="parentheses"]').click();
+    await settle(page, 300);
+    observed.signChoices = await standardizer.locator('.mm-simplify-signs button').count();
+    observed.signsChosen = await standardizer.locator('.mm-simplify-signs button[aria-pressed="true"]').count();
+    expect(journey, observed.signChoices === 6 && observed.signsChosen === 0, `the student was not asked for every sign: ${observed.signChoices} choices, ${observed.signsChosen} pre-chosen`);
     await shoot(page, 'preview-negated-group-kept-whole');
   });
   report.push(observed);

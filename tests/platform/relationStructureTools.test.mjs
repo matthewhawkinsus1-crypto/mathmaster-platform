@@ -59,7 +59,8 @@ test('the middle region of a compound inequality is distributable', () => {
   const candidates = relationDistributionCandidates(before.branches[0]);
   assert.deepEqual(candidates.map((entry) => entry.expressionIndex), [1]);
   const after = commitRelationDistribution(before, 0, 1, placeEverywhere(candidates[0].detected));
-  assert.equal(relationStateToText(after), '-2 < (3)(x) + (3)(1) <= 9');
+  // Times 1 is applied the moment it would appear (student push Q): 3, never (3)(1).
+  assert.equal(relationStateToText(after), '-2 < (3)(x) + 3 <= 9');
   assert.equal(equivalent(before, after), true);
 });
 
@@ -105,9 +106,14 @@ test('like terms: every unacceptable choice gets a plain reason and no state', (
 
 test('the relation workspace commits structure steps through its validated commit', () => {
   const core = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
-  assert.match(core, /import \{ RelationDistributionPanel, RelationLikeTermsPanel \} from '\.\/RelationStructureTools\.jsx'/);
+  assert.match(core, /import \{ RelationDistributionPanel \} from '\.\/RelationStructureTools\.jsx'/);
+  // Combining like terms is a part of the shared Simplify (job Q), committed
+  // through the same validated commit.
+  assert.match(core, /import SimplifyPanel from '\.\/platform\/algebra\/simplify\/SimplifyPanel\.jsx';/);
+  const simplifyStep = region(core, 'const commitSimplifyResult = async', '\n  };', 'the Simplify commit');
+  assert.match(simplifyStep, /commitState\(\s*next,[\s\S]*?result\.step\.kind,\s*\{ kind: 'equivalentRewrite' \},?\s*\)/);
   const commitStep = region(core, 'const commitStructureStep = async', '};', 'the structure commit');
   assert.match(commitStep, /commitState\(next, label, kind, \{ kind: 'equivalentRewrite' \}\)/, 'validated like every rewrite, recorded for Undo and history');
   assert.match(core, /<RelationDistributionPanel[\s\S]*?onCommit=\{commitStructureStep\}/);
-  assert.match(core, /<RelationLikeTermsPanel[\s\S]*?onCommit=\{commitStructureStep\}/);
+  assert.match(core, /<SimplifyPanel[\s\S]*?onCommit=\{commitSimplifyResult\}[\s\S]*?host="relation"/);
 });

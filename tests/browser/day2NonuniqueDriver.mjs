@@ -1,5 +1,5 @@
 // Reusable visible-control driver for issue #390. Never injects solved state.
-import { balancedMove, cancelFactor, setMathField, settle, simplifySide } from './stepAlgebraDriver.mjs';
+import { balancedMove, cancelFactor, setMathField, settle, simplifySide, simplifyProducts } from './stepAlgebraDriver.mjs';
 const workflow = page => page.locator('.mathmaster-reduction-workflow');
 const board = (page,key) => page.locator(`[data-round="${key}"]`);
 const expect = (journey, condition, message) => { if (!condition) throw new Error(`${journey}: ${message}`); };
@@ -127,31 +127,6 @@ const divideOut = async (page, divisor, result) => {
   if (await host.locator('math-field[aria-label="Right side: enter your simplification"]').count()) {
     await simplifySide(page, host, 'right', result);
   }
-};
-
-/** Every "a * b" product Step Algebra shows after a substitution, multiplied out by the student. */
-const simplifyProducts = async (page, host, products) => {
-  const PRODUCT = 'select to multiply its numbers';
-  for (const [match, value] of products) {
-    if (!(await host.locator(`[aria-label$="${PRODUCT}"]`).count())) {
-      const toggle = host.locator('button', { hasText: 'Simplify arithmetic' }).first();
-      if (!(await toggle.count())) return;
-      await toggle.click();
-      await settle(page, 250);
-    }
-    const term = host.locator(`[aria-label$="${PRODUCT}"]`).filter({ hasText: '' });
-    const labels = await term.evaluateAll((elements) => elements.map((element) => element.dataset.termText));
-    const index = labels.findIndex((label) => match.test(label));
-    if (index < 0) continue;
-    await term.nth(index).click();
-    await settle(page, 250);
-    await setMathField(page, host.locator('math-field[aria-label="Enter the product of these numbers"]'), value);
-    await host.getByRole('button', { name: 'Check', exact: true }).first().click();
-    await settle(page, 500);
-  }
-  const toggle = host.locator('button', { hasText: 'Simplify arithmetic' }).first();
-  if (await toggle.count() && (await toggle.getAttribute('aria-pressed')) === 'true') await toggle.click();
-  await settle(page, 200);
 };
 
 /** Back-substitute the 2×2's first value into R₁ or R₂ by select-then-place. */

@@ -790,8 +790,8 @@
   }
 
   /* A tool's live work region is brought into view with its top just under the
-     sticky stack. Centred, a solver's own mode buttons (Rewrite / Simplify,
-     Combine like terms) sat under the task card (live QA, 1536×900). */
+     sticky stack. Centred, a solver's own mode buttons (Simplify,
+     Rewrite) sat under the task card (live QA, 1536×900). */
   .mathmaster-desktop-question-content [data-work-view-focus="true"] {
     scroll-margin-top: calc(var(--mm-sticky-task-top, 0px) + var(--mm-sticky-task-height, 0px) + 8px);
   }

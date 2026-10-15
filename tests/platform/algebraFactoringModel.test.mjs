@@ -17,7 +17,7 @@ import {
   validateCommonFactor,
 } from '../../src/algebraFactoringModel.js';
 import { commitStructureTool, detectStructureTools, factoringOptionsFor } from '../../src/algebraStructureTools.js';
-import { commitArithmetic, openArithmetic, setArithmeticAnswer } from '../../src/algebraArithmeticModel.js';
+import { commitSimplifyPart, detectSimplifyParts } from '../../src/platform/algebra/simplify/simplifyEngine.js';
 
 const factored = (equation) => parseEquationInput({ equation, targetForm: 'factoredLinear' });
 // MathJS pads symbols with incidental spaces (" y"); compare the notation itself.
@@ -80,16 +80,18 @@ test('a partial common factor of 3 is accepted, and 5x - 15 stays factorable', (
   assert.equal(tex(nested.equation), 'y=3\\left(5\\left(x-3\\right)\\right)');
   assert.equal(isSolvedEquation(nested.equation), false);
 
-  // 3 × 5 is the student's arithmetic to state.
-  const arithmetic = detectStructureTools(nested.equation).arithmetic;
-  assert.equal(arithmetic.length, 1);
-  let state = openArithmetic(nested.equation);
-  assert.equal(commitArithmetic(nested.equation, setArithmeticAnswer(state, '8')).ok, false);
-  state = setArithmeticAnswer(state, '15');
-  const multiplied = commitArithmetic(nested.equation, state);
+  // 3 × 5 is the student's arithmetic to state — a product part of the one
+  // Simplify control now (student push Q), not a structure tool.
+  assert.equal(detectStructureTools(nested.equation).arithmetic, undefined);
+  const regions = ['left', 'right'].map((key) => ({ key, label: `${key} side`, expression: nested.equation[key], variable: 'x' }));
+  const products = detectSimplifyParts(regions).filter((part) => part.kind === 'product');
+  assert.equal(products.length, 1);
+  assert.equal(commitSimplifyPart(regions, products[0].id, { answer: '8' }).ok, false);
+  const multiplied = commitSimplifyPart(regions, products[0].id, { answer: '15' });
   assert.equal(multiplied.ok, true);
-  assert.equal(tex(multiplied.equation), 'y=15\\left(x-3\\right)');
-  assert.equal(isSolvedEquation(multiplied.equation), true);
+  const after = { ...nested.equation, [multiplied.region]: multiplied.expression };
+  assert.equal(tex(after), 'y=15\\left(x-3\\right)');
+  assert.equal(isSolvedEquation(after), true);
 });
 
 for (const [source, chosen, quotients, expected] of [

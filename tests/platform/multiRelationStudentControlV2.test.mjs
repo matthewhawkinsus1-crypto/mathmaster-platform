@@ -75,13 +75,14 @@ test('negative divide leaves relation symbols for the student to correct', () =>
   assert.equal(result.requiresInequalityFlip, true);
 });
 
-test('workspace includes visual drag stroke and click-to-select rewrite regions', () => {
+test('workspace includes visual drag stroke and click-to-select Simplify parts', () => {
   const src = multiRelationSource();
   assert.match(src, /dragStrokeRef/);
   assert.match(src, /document\.elementFromPoint/);
   assert.match(src, /stroke="#7b61ff"/);
-  assert.match(src, /selectRewriteTarget/);
-  assert.match(src, /Click any expression below to select it/);
+  // A highlighted term on the board chooses its Simplify part (job Q).
+  assert.match(src, /onSimplifyTerm=\{\(termIndex\) => chooseSimplifyFromTerm\(branchIndex, expressionIndex, termIndex\)\}/);
+  assert.match(src, /if \(simplifyTerms\.includes\(termIndex\)\) onSimplifyTerm\?\.\(termIndex\);/);
 });
 
 test('workspace asks student for relation symbols and absolute split structure', () => {

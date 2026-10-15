@@ -29,7 +29,8 @@ import { resolveSystemsWorkspaceMode } from '../../src/tools/systemsWorkspace/sy
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { detectDistributableGroup } from '../../src/algebraDistributionModel.js';
-import { parseEquationInput, splitAdditiveTerms } from '../../src/algebraAstEngine.js';
+import { expressionToLatex, parseEquationInput, splitAdditiveTerms } from '../../src/algebraAstEngine.js';
+import { detectSimplifyParts, partNeedsSigns } from '../../src/platform/algebra/simplify/simplifyEngine.js';
 
 const XYZ = ['x', 'y', 'z'];
 const SYSTEM = ['x + y + z = 6', '2x - y + 3z = 9', '3x + 2y - z = 4'];
@@ -105,16 +106,22 @@ test('substituting into each of two target equations keeps the expression groupe
 
 test('a group replacing a negated variable keeps an explicit -1 factor, so Step Algebra cannot flatten it', () => {
   // Step Algebra's term splitter reads -(6 - y - z) as -6 + y + z. As a
-  // product the group stays one term and the -1 is the student's to distribute.
+  // product the group stays one term. It is drawn -(6 - y - z) and removing
+  // the parentheses is the student's step: Simplify asks for every changed
+  // sign (student push Q), and Distribute no longer offers a factor of -1.
   const unary = substituteIntoEquation('-x + 4y - z = 4', 'x', '6 - y - z');
   assert.match(unary, /^-1 \* \(6 - y - z\) \+ 4 \* y - z = 4$/);
   const subtracted = substituteIntoEquation('2y - x = 1', 'x', '6 - y - z');
   assert.match(subtracted, /^2 \* y - 1 \* \(6 - y - z\) = 1$/);
   for (const text of [unary, subtracted]) {
     const equation = parseEquationInput({ equation: text, solveFor: 'y' });
-    const group = detectDistributableGroup(equation);
-    assert.ok(group, `no distribution offered for ${text}`);
-    assert.equal(group.factorText, '-1');
+    assert.equal(detectDistributableGroup(equation), null, `a factor of -1 offered to distribute in ${text}`);
+    const regions = [{ key: 'left', label: 'left side', expression: equation.left, variable: 'y' }];
+    const [part] = detectSimplifyParts(regions);
+    assert.equal(part?.kind, 'parentheses', `no Remove parentheses for ${text}`);
+    assert.equal(part.sign, -1);
+    assert.equal(partNeedsSigns(part), true, 'the changed signs are the student\'s to state');
+    assert.match(expressionToLatex(equation.left), /-\\left\(6- y- z\\right\)/, 'drawn as -(6 - y - z), never -1(...)');
     assert.ok(splitAdditiveTerms(equation.left).every((term) => !/^[+-]?\s*6$/.test(term.text)), 'the group was flattened');
   }
   // Numbers and single terms have nothing to distribute and are left alone.

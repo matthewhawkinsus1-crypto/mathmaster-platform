@@ -1,5 +1,7 @@
 import { applyBalancedOperation } from './algebraAstEngine.js';
 import { sanitizeStructureTool } from './algebraStructureTools.js';
+import { equationKey } from './algebraStructureToolState.js';
+import { migrateLegacySimplifyDraft } from './platform/algebra/simplify/simplifyState.js';
 
 // Increment this whenever the shape/meaning of a pending algebra move changes.
 // Saved equations are durable; cancellation/simplification UI is derived and
@@ -27,7 +29,38 @@ const cleanTransientState = (draft, equation) => ({
   // undecided choices, like a pending move: it goes. The work-step log is
   // committed history and stays.
   structureTool: null,
+  simplifyTool: null,
 });
+
+// The old like-terms fields are only ever READ now, to migrate a draft saved
+// before student push Q; nothing writes them again.
+const LEGACY_LIKE_TERMS_FIELDS = ['likeTermsOpen', 'likeTermsSide', 'selectedLikeTermIndices', 'likeTermsAnswer'];
+const withoutLegacyFields = (draft) => Object.fromEntries(
+  Object.entries(draft).filter(([field]) => !LEGACY_LIKE_TERMS_FIELDS.includes(field)),
+);
+
+/*
+ * A DRAFT SAVED WITH AN OLD TOOL OPEN STILL OPENS (student push Q).
+ *
+ * Simplify arithmetic, Combine like terms and Rewrite / Simplify are now one
+ * Simplify control. A draft that still holds `structureTool.kind ===
+ * 'arithmetic'` or the like-terms fields is moved into the one Simplify slot
+ * (simplifyState.js), or the old tool is closed cleanly when it no longer
+ * matches. The committed equation and the work-step log are never touched.
+ */
+const migrateOpenTools = (draft, equation) => {
+  const migrated = migrateLegacySimplifyDraft(draft, {
+    key: equationKey(equation),
+    regions: [
+      { key: 'left', label: 'left side', expression: equation.left, variable: equation.variable || 'x' },
+      { key: 'right', label: 'right side', expression: equation.right, variable: equation.variable || 'x' },
+    ],
+  });
+  return {
+    structureTool: sanitizeStructureTool(migrated.structureTool, equation),
+    simplifyTool: migrated.simplifyTool,
+  };
+};
 
 /*
  * A PENDING MOVE IS STORED AS WHAT THE STUDENT DID, NOT AS WHAT THE ENGINE MADE.
@@ -119,11 +152,15 @@ export const rehydrateAlgebraDraft = ({ draft, initialEquation }) => {
     return { ...cleanTransientState(draft, equation), workSteps: sanitizeWorkSteps(draft.workSteps) };
   }
 
-  // A structure tool is kept only while it is still about this exact equation.
-  const structureTool = sanitizeStructureTool(draft.structureTool, equation);
+  // A structure tool is kept only while it is still about this exact equation;
+  // an old Simplify arithmetic or Combine like terms tool moves into Simplify.
   const workSteps = sanitizeWorkSteps(draft.workSteps);
 
-  if (!draft.pendingMove) return { ...draft, equation, structureTool, workSteps };
+  if (!draft.pendingMove) {
+    let tools = { structureTool: null, simplifyTool: null };
+    try { tools = migrateOpenTools(draft, equation); } catch { /* close the old tools */ }
+    return { ...withoutLegacyFields(draft), equation, ...tools, workSteps };
+  }
 
   // Even within the same draft version, recompute the pending move from the
   // committed equation + operation + placement rather than trusting serialized
@@ -162,6 +199,7 @@ export const rehydrateAlgebraDraft = ({ draft, initialEquation }) => {
       selectedCancellationIndices: {},
       simplificationAnswers,
       structureTool: null,
+      simplifyTool: null,
       workSteps,
     };
   } catch {

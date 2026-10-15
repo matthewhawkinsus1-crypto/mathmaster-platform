@@ -38,7 +38,11 @@ test('Step Algebra commits the cancellation side from the same action instead of
   const source = fs.readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8');
   assert.match(source, /crossedSidesOverride/);
   assert.match(source, /commitMove\(pendingMove, \{ crossedSidesOverride: next \}\)/);
-  assert.match(source, /onSubmit=\{checkStudentRewrite\}/);
+  // Enter in Simplify's boxes checks the work (the shared panel, job Q).
+  const panel = fs.readFileSync(new URL('../../src/platform/algebra/simplify/SimplifyPanel.jsx', import.meta.url), 'utf8');
+  assert.match(panel, /onSubmit=\{commitPart\}/);
+  assert.match(panel, /onSubmit=\{commitRegion\}/);
+  assert.match(source, /<SimplifyPanel[\s\S]*?onCommit=\{commitSimplifyResult\}/);
 });
 
 
