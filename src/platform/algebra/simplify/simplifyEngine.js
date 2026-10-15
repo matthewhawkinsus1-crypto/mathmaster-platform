@@ -443,6 +443,10 @@ export const writtenTermProblem = (node) => {
   const written = sorted(writtenLiterals(node));
   // (1/2)x writes the 1 a numerator needs.
   if (written === sorted(canonical) || (d !== 1 && Math.abs(n) === 1 && written === sorted([...canonical, 1]))) return null;
+  // A coefficient may be one decimal equal to it: 2.5x and 0.35x are as
+  // simple as 5x/2 and 7x/20.
+  const literals = writtenLiterals(node);
+  if (literals.length === 1 && Math.abs(literals[0]) === Math.abs(n) / d) return null;
   return 'notLowestTerms';
 };
 

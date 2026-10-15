@@ -217,6 +217,36 @@ test('a whole side: equal, changed, and not leaving more to simplify', () => {
   assert.equal(checkRegionRewrite({ ...region, expression: 'x / 2' }, '(1/2)x').ok, true);
 });
 
+test('a terminating coefficient may be typed as one decimal, in every route (coordinator review)', () => {
+  const partOf = (left, kind, variable = 'x') => detectSimplifyParts(regionsOf(left, '4', variable)).find((part) => part.region === 'left' && part.kind === kind);
+  const typedOn = (left, kind, answer, variable = 'x') => {
+    const part = partOf(left, kind, variable);
+    assert.ok(part, `${left}: no ${kind} part`);
+    return commitSimplifyPart(regionsOf(left, '4', variable), part.id, { answer, signs: [] });
+  };
+  for (const [left, kind, right, wrong, variable] of [
+    ['0.5 * x + 2 * x', SIMPLIFY_PART_KINDS.LIKE_TERMS, '2.5x', '2.6x'],
+    ['0.25 * x + 0.1 * x', SIMPLIFY_PART_KINDS.LIKE_TERMS, '0.35x', '0.36x'],
+    ['0.25 * x + 0.25 * x', SIMPLIFY_PART_KINDS.LIKE_TERMS, '0.5x', '0.6x'],
+    ['-0.5 * x - 2 * x', SIMPLIFY_PART_KINDS.LIKE_TERMS, '-2.5x', '2.5x'],
+    ['1.2 * y + 0.3 * y', SIMPLIFY_PART_KINDS.LIKE_TERMS, '1.5y', '1.4y', 'y'],
+    ['(0.5) * (3) * x', SIMPLIFY_PART_KINDS.PRODUCT, '1.5x', '1.6x'],
+  ]) {
+    assert.equal(typedOn(left, kind, right, variable).ok, true, `${left} -> ${right}`);
+    assert.equal(typedOn(left, kind, wrong, variable).ok, false, `${left} -> ${wrong}`);
+  }
+  // Still one number only, and a fraction stays in lowest terms beside it.
+  assert.equal(typedOn('0.5 * x + 2 * x', SIMPLIFY_PART_KINDS.LIKE_TERMS, '5x/2').ok, true);
+  assert.equal(typedOn('0.5 * x + 2 * x', SIMPLIFY_PART_KINDS.LIKE_TERMS, '0.5(5)x').ok, false);
+  // The one decimal must be the coefficient itself: x/0.4 and 2.5x/1 are equal, not simplest.
+  assert.equal(typedOn('0.5 * x + 2 * x', SIMPLIFY_PART_KINDS.LIKE_TERMS, 'x/0.4').reason, 'notLowestTerms');
+  assert.equal(typedOn('0.5 * x + 2 * x', SIMPLIFY_PART_KINDS.LIKE_TERMS, '2.5x/1').ok, false);
+  const region = { key: 'left', label: 'left side', variable: 'x' };
+  assert.equal(checkRegionRewrite({ ...region, expression: '0.5 * x + 2 * x + 4' }, '2.5x + 4').ok, true);
+  assert.equal(checkRegionRewrite({ ...region, expression: '0.25 * x + 0.1 * x' }, '0.35x').ok, true);
+  assert.equal(checkRegionRewrite({ ...region, expression: '0.25 * x + 0.1 * x' }, '0.36x').ok, false);
+});
+
 test('every committed step reports a kind the server already accepts (Hosting-only)', () => {
   const parts = detectSimplifyParts(regionsOf('2 * x + (1) * (12) + 3 * (5 * x) + 1 * (x + 1)', '6 / 4 - 1 * (x - 2)'));
   const seen = new Set(parts.map((part) => part.kind));
