@@ -25600,11 +25600,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "12 inches in every foot: {{ans}} inches.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "One foot is 12 inches, so multiply the number of feet by 12.",
+          "${{ft}}\\cdot 12={{ans}}$ inches."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Adding 12 instead of multiplying by 12.",
+        "answerSummary": "${{ans}}$ inches"
       },
       "prompt": "A board is {{ft}} feet long. How many inches long is the board?",
       "generator": {
@@ -25978,11 +25980,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "1,000 milliliters in every liter: {{ans}} milliliters.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "\"Milli\" means one thousandth, so 1 liter is 1000 milliliters.",
+          "${{L}}\\cdot 1000={{ans}}$ milliliters."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Multiplying by 100, as if a liter were 100 milliliters.",
+        "answerSummary": "${{ans}}$ milliliters"
       },
       "prompt": "A container holds {{L}} liters. How many milliliters does it hold?",
       "generator": {
@@ -26348,11 +26352,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Divide the minutes by 60: $\\dfrac{{{num}}}{4}$ hours.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "One hour is 60 minutes, so divide the number of minutes by 60.",
+          "$\\frac{ {{minutes}} }{60}=\\frac{ {{num}} }{4}$ hours."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing by 100, as if an hour had 100 minutes.",
+        "answerSummary": "$\\dfrac{{{num}}}{4}$ hours"
       },
       "prompt": "A machine runs for {{minutes}} minutes. How many hours is this?",
       "generator": {
@@ -26727,11 +26733,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Each map inch is {{miles}} miles: {{ans}} miles.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Every inch on the map stands for {{miles}} miles, so multiply the map distance by {{miles}}.",
+          "${{inches}}\\cdot {{miles}}={{ans}}$ miles."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing the two numbers instead of multiplying.",
+        "answerSummary": "${{ans}}$ miles"
       },
       "prompt": "On a map, 1 inch represents {{miles}} miles. Two locations are {{inches}} inches apart on the map. How many miles apart are the locations?",
       "generator": {
@@ -27105,11 +27113,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "A square foot is $12\\cdot 12=144$ square inches: {{ans}} square inches.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "A square foot is 12 inches by 12 inches, so it is $12\\cdot 12=144$ square inches.",
+          "${{A}}\\cdot 144={{ans}}$ square inches."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Multiplying by 12, which converts lengths, not areas.",
+        "answerSummary": "${{ans}}$ square inches"
       },
       "prompt": "A rectangular surface has area {{A}} square feet. How many square inches is this area?",
       "generator": {
@@ -27476,11 +27486,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Miles to feet, then hours to minutes: {{ans}} feet per minute.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Miles to feet: ${{mph}}\\cdot 5280={{d1}}$ feet per hour.",
+          "Each hour is 60 minutes, so divide: $\\frac{ {{d1}} }{60}={{ans}}$ feet per minute."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Converting the miles but not the hours, which leaves the speed in feet per hour.",
+        "answerSummary": "${{ans}}$ feet per minute"
       },
       "prompt": "A vehicle travels at {{mph}} miles per hour. What is this speed in feet per minute? Use 1 mile = 5,280 feet and 1 hour = 60 minutes.",
       "generator": {
@@ -27853,11 +27865,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Dollars to cents, then pounds to ounces: {{centsPerOz}} cents per ounce.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "In cents, one pound costs ${{d1}}$ cents (100 cents per dollar).",
+          "A pound is 16 ounces, so divide: $\\frac{ {{d1}} }{16}={{centsPerOz}}$ cents per ounce."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Converting dollars to cents but not dividing by 16 ounces.",
+        "answerSummary": "${{centsPerOz}}$ cents"
       },
       "prompt": "A package costs ${{price}} per pound. What is the cost, in cents, per ounce? Use 16 ounces = 1 pound.",
       "generator": {
@@ -28230,11 +28244,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Yards to feet, then feet to inches: {{ans}} inches.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Yards to feet: ${{yards}}\\cdot 3={{d2}}$ feet.",
+          "Feet to inches: ${{d2}}\\cdot 12={{ans}}$ inches."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Doing only one of the two conversions.",
+        "answerSummary": "${{ans}}$ inches"
       },
       "prompt": "A cable is {{yards}} yards long. How many inches long is the cable? Use 3 feet = 1 yard and 12 inches = 1 foot.",
       "generator": {
@@ -28432,11 +28448,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Perimeter is twice the length plus twice the width: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "A rectangle has two sides of each length, so add all four sides.",
+          "$2\\cdot {{l}}+2\\cdot {{w}}={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Multiplying length by width, which gives the area, or adding just one length and one width.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A rectangle has length {{l}} units and width {{w}} units. What is its perimeter?",
       "generator": {
@@ -28648,11 +28666,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Half of base times height: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The area of a triangle is $\\frac{1}{2}$ of base times height.",
+          "$\\frac{1}{2}\\cdot {{b}}\\cdot {{h}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Forgetting the $\\frac{1}{2}$, which gives the area of a rectangle with those sides.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A triangle has base {{b}} units and height {{h}} units. What is its area, in square units?",
       "generator": {
@@ -28869,11 +28889,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Circumference is $2\\pi r$: ${{twoR}}\\pi$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The circumference of a circle is $2\\pi r$, twice the radius times $\\pi$.",
+          "With $r={{r}}$: $2\\cdot {{r}}={{twoR}}$, so the circumference is ${{twoR}}\\pi$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Using the radius instead of the diameter, which gives half the circumference.",
+        "answerSummary": "${{twoR}}\\pi$"
       },
       "prompt": "A circle has radius {{r}} units. Which expression gives its circumference?",
       "generator": {
@@ -29070,11 +29092,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Area is $\\pi r^2$: ${{r2}}\\pi$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The area of a circle is $\\pi r^2$, the radius squared times $\\pi$.",
+          "With $r={{r}}$: ${{r}}^2={{r2}}$, so the area is ${{r2}}\\pi$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Doubling the radius instead of squaring it, which gives the circumference.",
+        "answerSummary": "${{r2}}\\pi$"
       },
       "prompt": "A circle has radius {{r}} units. Which expression gives its area?",
       "generator": {
@@ -29271,11 +29295,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Whole sheet minus the piece removed: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Whole sheet: ${{L}}\\cdot {{W}}={{big}}$ square units.",
+          "Piece removed: ${{cL}}\\cdot {{cW}}={{cut}}$ square units.",
+          "Remaining: ${{big}}-{{cut}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the cut-out instead of subtracting it, or subtracting the side lengths before multiplying.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A rectangular sheet is {{L}} units by {{W}} units. A rectangular piece {{cL}} units by {{cW}} units is removed. What is the area of the remaining sheet?",
       "generator": {
@@ -29500,11 +29527,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Find the new sides first, then the perimeter: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "New length: ${{l}}+{{a}}={{la}}$. New width: ${{w}}+{{b}}={{wb}}$.",
+          "Perimeter: $2\\cdot {{la}}+2\\cdot {{wb}}={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding each increase only once instead of to both sides of each pair.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A rectangle is {{l}} units long and {{w}} units wide. Its length is increased by {{a}} units and its width by {{b}} units. What is the perimeter of the new rectangle?",
       "generator": {
@@ -29534,7 +29563,9 @@
           "ans": "2*(l+a)+2*(w+b)",
           "old": "2*l+2*w",
           "d2": "(l+a)*(w+b)",
-          "d3": "l+w+a+b"
+          "d3": "l+w+a+b",
+          "la": "l+a",
+          "wb": "w+b"
         },
         "constraints": [
           "l!=w",
@@ -29727,11 +29758,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Add the areas of the two rectangles: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "First rectangle: ${{l1}}\\cdot {{w1}}={{a1}}$ square units.",
+          "Second rectangle: ${{l2}}\\cdot {{w2}}={{a2}}$ square units.",
+          "They do not overlap, so the total is ${{a1}}+{{a2}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the lengths and the widths first and multiplying the sums, which counts area that is not in the figure.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A figure is made from two nonoverlapping rectangles. The first is {{l1}} by {{w1}} units, and the second is {{l2}} by {{w2}} units. What is the total area of the figure?",
       "generator": {
@@ -29954,11 +29988,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Perimeter minus the gate, times the price per foot: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Perimeter: $2\\cdot {{l}}+2\\cdot {{w}}={{per}}$ feet.",
+          "The gate needs no fencing: ${{per}}-{{g}}={{fenced}}$ feet.",
+          "Cost: ${{fenced}}\\cdot {{p}}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Fencing the gate too, or using the area instead of the perimeter.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "A rectangular garden is {{l}} feet long and {{w}} feet wide. Fencing costs ${{p}} per foot, but a {{g}}-foot-wide gate needs no fencing. What is the total cost of the fencing?",
       "generator": {
@@ -31572,11 +31609,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Distribute {{a}} to both terms in the parentheses: ${{ab}}+{{ac}}$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "The distributive property multiplies {{a}} by each term inside the parentheses.",
+          "${{a}}({{b}}+{{c}})={{a}}\\cdot {{b}}+{{a}}\\cdot {{c}}={{ab}}+{{ac}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Multiplying only the first term, which leaves the second term as {{c}}.",
+        "answerSummary": "${{ab}}+{{ac}}$"
       },
       "prompt": "Which expression is equivalent to ${{a}}({{b}}+{{c}})$?",
       "generator": {
@@ -32150,11 +32189,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Three negative factors give a negative product: ${{neg}}$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Multiply the sizes: ${{a}}\\cdot {{b}}\\cdot {{c}}={{p}}$.",
+          "Each pair of negatives makes a positive, so an odd number of negative factors leaves the product negative: $(-{{a}})(-{{b}})(-{{c}})={{neg}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Treating the product as positive because \"two negatives make a positive.\"",
+        "answerSummary": "${{neg}}$"
       },
       "prompt": "What is the value of $(-{{a}})(-{{b}})(-{{c}})$?",
       "generator": {
@@ -32731,11 +32772,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "A number and its additive inverse cancel, leaving $y$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Regroup with the commutative and associative properties: $(x+y)+(-x)=(x+(-x))+y$.",
+          "A number plus its additive inverse is $0$, so $(x+y)+(-x)=y$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Thinking $x+(-x)$ is $2x$, or that $-x$ changes the sign of $y$.",
+        "answerSummary": "$y$"
       },
       "prompt": "For real numbers $x$ and $y$, which expression is equivalent to $(x+y)+(-x)$?",
       "generator": {
@@ -33291,11 +33334,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "A nonzero number times its reciprocal is $1$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "$\\frac{b}{a}$ is the reciprocal of $\\frac{a}{b}$.",
+          "Multiply the numerators and the denominators: $\\frac{a}{b}\\cdot\\frac{b}{a}=\\frac{ab}{ba}=1$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Squaring one of the fractions instead of noticing that the factors cancel.",
+        "answerSummary": "$1$"
       },
       "prompt": "For nonzero real numbers $a$ and $b$, what is $\\dfrac{a}{b}\\cdot\\dfrac{b}{a}$?",
       "generator": {
@@ -33859,11 +33904,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Factor out the shared {{a}}: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Both products share the factor {{a}}: ${{a}}({{b}})+{{a}}({{c}})={{a}}({{b}}+{{c}})$.",
+          "${{a}}\\cdot {{bc}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Multiplying all three numbers together, or adding {{c}} without multiplying it by {{a}}.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "Which value is equal to ${{a}}({{b}})+{{a}}({{c}})$?",
       "generator": {
@@ -33888,7 +33935,8 @@
           "ans": "a*(b+c)",
           "d1": "a*b+c",
           "d2": "a+b+c",
-          "d3": "a*b*c"
+          "d3": "a*b*c",
+          "bc": "b+c"
         },
         "constraints": [
           "b!=c",
@@ -34445,11 +34493,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Add the coefficients first, then multiply once: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "${{p}}+{{q}}={{pq}}$.",
+          "${{pq}}\\cdot {{x}}={{ans}}$.",
+          "Check: ${{p}}\\cdot {{x}}+{{q}}\\cdot {{x}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Multiplying all three numbers, or multiplying only the first product by {{x}}.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "Without changing its value, ${{p}}({{x}})+{{q}}({{x}})$ can be rewritten as $( {{p}}+{{q}} )({{x}})$. What is the value of the expression?",
       "generator": {
@@ -34474,7 +34525,8 @@
           "ans": "(p+q)*x",
           "d1": "p+q+x",
           "d2": "p*q*x",
-          "d3": "p*x+q"
+          "d3": "p*x+q",
+          "pq": "p+q"
         },
         "constraints": [
           "p!=q",
@@ -35031,11 +35083,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "The reciprocals multiply to $1$, so only the sign and {{c}} remain: ${{negc}}$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "$\\frac{a}{b}\\cdot\\frac{b}{a}=1$, since the factors are reciprocals.",
+          "The leading minus sign stays: $-\\frac{a}{b}\\cdot\\frac{b}{a}=-1$.",
+          "So the value is $-({{c}})={{negc}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Dropping the leading minus sign, which gives {{posc}}.",
+        "answerSummary": "${{negc}}$"
       },
       "prompt": "For positive nonzero values $a$ and $b$, what is $-\\dfrac{a}{b}\\cdot\\dfrac{b}{a}\\cdot {{c}}$?",
       "generator": {
@@ -35613,11 +35668,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "The $uv$ terms cancel, leaving $u\\cdot {{k}}$: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Distribute: $u(v+{{k}})-uv=uv+{{k}}u-uv={{k}}u$.",
+          "With $u={{u}}$: ${{k}}\\cdot {{u}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Multiplying {{k}} by $v$ instead of by $u$.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "Let $u={{u}}$ and $v={{v}}$. What is the value of $u(v+{{k}})-uv$?",
       "generator": {
@@ -36060,11 +36117,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Change is the amount paid minus the total cost: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Total cost: ${{a}}+{{b}}={{d1}}$ dollars.",
+          "Change: ${{paid}}-{{d1}}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Subtracting only one item from the amount paid, or giving the total cost as the change.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "A customer buys items costing ${{a}} and ${{b}} and pays with ${{paid}}. How much change should the customer receive?",
       "generator": {
@@ -36508,11 +36567,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Subtract the drop, then add the rise: ${{ans}}^\\circ$C.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "A decrease subtracts and an increase adds, in order from the starting temperature.",
+          "${{start}}-{{drop}}+{{rise}}={{ans}}$, so the final temperature is ${{ans}}^\\circ$C."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding the decrease instead of subtracting it.",
+        "answerSummary": "${{ans}}^\\circ$C"
       },
       "prompt": "The temperature is {{start}}°C. It decreases {{drop}}°C and then increases {{rise}}°C. What is the final temperature?",
       "generator": {
@@ -36953,11 +37014,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Same denominator, so subtract the numerators: $\\dfrac{{{rem}}}{{{d}}}$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Both amounts are fractions of the same whole capacity, with denominator {{d}}.",
+          "$\\frac{ {{n}} }{ {{d}} }-\\frac{1}{ {{d}} }=\\frac{ {{rem}} }{ {{d}} }$ of the capacity remains."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding the used amount instead of subtracting it.",
+        "answerSummary": "$\\dfrac{{{rem}}}{{{d}}}$"
       },
       "prompt": "A container is $\\dfrac{{{n}}}{{{d}}}$ full. Then $\\dfrac{1}{{{d}}}$ of the container's total capacity is used. What fraction of the container's capacity remains?",
       "generator": {
@@ -37394,11 +37457,15 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Parentheses, then the exponent, then multiply, then add: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Parentheses first: ${{c}}-{{d}}={{diff}}$.",
+          "Exponent next: ${{diff}}^2={{sq}}$.",
+          "Then multiply: ${{b}}\\cdot {{sq}}={{bsq}}$.",
+          "Add last: ${{a}}+{{bsq}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding ${{a}}+{{b}}$ before multiplying, or doubling instead of squaring.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "What is the value of ${{a}}+{{b}}({{c}}-{{d}})^2$?",
       "generator": {
@@ -37429,7 +37496,9 @@
           "ans": "a+b*(c-d)*(c-d)",
           "d1": "(a+b)*(c-d)*(c-d)",
           "d2": "a+b*(c-d)*2",
-          "d3": "a+b*c-d*d"
+          "d3": "a+b*c-d*d",
+          "sq": "(c-d)*(c-d)",
+          "bsq": "b*(c-d)*(c-d)"
         },
         "constraints": [
           "ans!=d1",
@@ -37844,11 +37913,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "A fraction of a fraction is a product: $\\dfrac{{{num}}}{{{den}}}$ of the tank.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "The tank holds $\\frac{ {{a}} }{ {{d}} }$ of its capacity, and $\\frac{ {{b}} }{ {{d}} }$ of that water is removed.",
+          "\"Of\" means multiply: $\\frac{ {{a}} }{ {{d}} }\\cdot\\frac{ {{b}} }{ {{d}} }=\\frac{ {{num}} }{ {{den}} }$ of the capacity."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Subtracting or adding the fractions, which treats $\\frac{ {{b}} }{ {{d}} }$ as a part of the whole tank rather than of the water in it.",
+        "answerSummary": "$\\dfrac{{{num}}}{{{den}}}$"
       },
       "prompt": "A tank is $\\dfrac{{{a}}}{{{d}}}$ full. Then $\\dfrac{{{b}}}{{{d}}}$ of the water currently in the tank is removed. What fraction of the tank's capacity is removed?",
       "generator": {
@@ -38291,11 +38362,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Change is the amount paid minus tickets and fee: {{change}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Tickets: ${{n}}\\cdot {{price}}={{d2}}$ dollars.",
+          "With the fee: ${{d2}}+{{fee}}={{cost}}$ dollars.",
+          "Change: ${{paid}}-{{cost}}={{change}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Leaving out the service fee, or giving the ticket cost as the change.",
+        "answerSummary": "${{change}}$ dollars"
       },
       "prompt": "A group buys {{n}} tickets at ${{price}} each and pays one service fee of ${{fee}}. The group pays with ${{paid}}. How much change should it receive?",
       "generator": {
@@ -38745,11 +38819,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Withdrawals subtract and deposits add: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Apply each transaction in order to the starting balance of {{start}} dollars.",
+          "${{start}}-{{w}}+{{dep}}-{{fee}}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding a withdrawal as though it were a deposit.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "An account balance is ${{start}}. A withdrawal of ${{w}} is followed by a deposit of ${{dep}} and another withdrawal of ${{fee}}. What is the new balance?",
       "generator": {
@@ -39196,11 +39272,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Distance out minus distance back, in quarters: $\\dfrac{{{quarters}}}{4}$ miles.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Out: ${{whole}}+\\frac{ {{n}} }{4}=\\frac{ {{wq}} }{4}$ miles.",
+          "Back: ${{back}}=\\frac{ {{bq}} }{4}$ miles.",
+          "Distance from the start: $\\frac{ {{wq}} }{4}-\\frac{ {{bq}} }{4}=\\frac{ {{quarters}} }{4}$ miles."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding the walk back instead of subtracting it.",
+        "answerSummary": "$\\dfrac{{{quarters}}}{4}$ miles"
       },
       "prompt": "A hiker walks {{whole}} miles in the morning and $\\dfrac{{{n}}}{4}$ mile in the afternoon, then walks {{back}} miles back toward the starting point. How many miles from the starting point is the hiker?",
       "generator": {
@@ -39228,7 +39307,9 @@
           "quarters": "4*whole+n-4*back",
           "d1": "4*whole+n+4*back",
           "d2": "4*whole-n-4*back",
-          "d3": "4*whole+4*back-n"
+          "d3": "4*whole+4*back-n",
+          "wq": "4*whole+n",
+          "bq": "4*back"
         },
         "constraints": [
           "quarters>0",
@@ -39644,11 +39725,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Cost per item is total cost divided by the number of items: {{rate}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "A unit rate is the cost of one item.",
+          "$\\frac{ {{cost}} }{ {{qty}} }={{rate}}$ dollars per item."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding or subtracting the numbers instead of dividing the cost by the number of items.",
+        "answerSummary": "${{rate}}$ dollars per item"
       },
       "prompt": "{{qty}} items cost ${{cost}}. At the same rate, what is the cost per item?",
       "generator": {
@@ -40080,11 +40163,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "The batches are multiplied by {{k}}, so the flour is too: {{ans}} cups.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Scale factor for the batches: $\\frac{ {{scaleB}} }{ {{b}} }={{k}}$.",
+          "Flour scales by the same factor: ${{a}}\\cdot {{k}}={{ans}}$ cups."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding the extra batches to the cups of flour instead of scaling by a factor.",
+        "answerSummary": "${{ans}}$ cups"
       },
       "prompt": "A recipe uses {{a}} cups of flour for {{b}} batches. At the same rate, how many cups are needed for {{scaleB}} batches?",
       "generator": {
@@ -40526,11 +40611,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "{{p}}% means {{p}} hundredths, so multiply: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "{{p}}% of a number is $\\frac{ {{p}} }{100}$ times the number.",
+          "$\\frac{ {{p}} }{100}\\cdot {{whole}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Subtracting {{p}} from {{whole}}, which treats the percent as a number of units.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "What is {{p}}% of {{whole}}?",
       "generator": {
@@ -40972,11 +41059,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "The sale price is {{rest}}% of the original, so divide: {{orig}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "After a {{p}}% discount, the item costs $100-{{p}}={{rest}}$ percent of its original price.",
+          "So ${{sale}}=\\frac{ {{rest}} }{100}\\cdot$ original.",
+          "Original price: $\\frac{ {{sale}}\\cdot 100}{ {{rest}} }={{orig}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding {{p}}% of the sale price back on; the discount was {{p}}% of the original price, not of the sale price.",
+        "answerSummary": "${{orig}}$ dollars"
       },
       "prompt": "After a {{p}}% discount, an item costs ${{sale}}. What was the original price?",
       "generator": {
@@ -41006,7 +41096,8 @@
           "sale": "orig*(100-p)/100",
           "d1": "sale*(100+p)/100",
           "d2": "sale+p",
-          "d3": "orig-p"
+          "d3": "orig-p",
+          "rest": "100-p"
         },
         "constraints": [
           "sale==floor(sale)",
@@ -41422,11 +41513,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Percent increase is the change divided by the original amount: ${{p}}\\%$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Change: ${{new}}-{{old}}={{d1}}$.",
+          "Compare the change with the original amount: $\\frac{ {{d1}} }{ {{old}} }\\cdot 100={{p}}$, an increase of ${{p}}\\%$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Giving the change itself as the percent, or dividing by the new amount instead of the original.",
+        "answerSummary": "${{p}}\\%$"
       },
       "prompt": "A quantity increases from {{old}} to {{new}}. What is the percent increase?",
       "generator": {
@@ -41872,11 +41965,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Apply the two changes one after the other: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Increase by {{up}}%: ${{start}}\\cdot\\frac{ {{upp}} }{100}={{afterUp}}$ dollars.",
+          "Then decrease the new price by {{down}}%: ${{afterUp}}\\cdot\\frac{ {{downm}} }{100}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Combining the percents into one change of {{up}}% minus {{down}}%; the decrease applies to the increased price, not to {{start}}.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "A price of ${{start}} is increased by {{up}}% and then the new price is decreased by {{down}}%. What is the final price?",
       "generator": {
@@ -41916,7 +42011,9 @@
           "ans": "afterUp*(100-down)/100",
           "d1": "start*(100+up-down)/100",
           "d2": "start*(100-up-down)/100",
-          "d3": "afterUp*(100+down)/100"
+          "d3": "afterUp*(100+down)/100",
+          "upp": "100+up",
+          "downm": "100-down"
         },
         "constraints": [
           "ans==floor(ans)",
@@ -42333,11 +42430,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Red is {{r}} of every {{rb}} markers: ${{pct}}\\%$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "The ratio {{r}}:{{b}} splits the markers into ${{r}}+{{b}}={{rb}}$ equal parts, and {{r}} of them are red.",
+          "There are ${{rk}}$ red markers out of {{total}}, and $\\frac{ {{rk}} }{ {{total}} }=\\frac{ {{r}} }{ {{rb}} }$.",
+          "$\\frac{ {{r}} }{ {{rb}} }\\cdot 100={{pct}}$, so ${{pct}}\\%$ of the markers are red."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Comparing red to blue ({{r}} to {{b}}) instead of red to the total.",
+        "answerSummary": "${{pct}}\\%$"
       },
       "prompt": "The ratio of red to blue markers is {{r}}:{{b}}. There are {{total}} markers in all. What percent of the markers are red?",
       "generator": {
@@ -42367,7 +42467,9 @@
           "pct": "100*r/(r+b)",
           "d1": "100*b/(r+b)",
           "d2": "100*r/b",
-          "d3": "100*(r+b)/r"
+          "d3": "100*(r+b)/r",
+          "rb": "r+b",
+          "rk": "r*k"
         },
         "constraints": [
           "r!=b",
@@ -42786,11 +42888,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Discount first, then tax on the discounted price: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Discounted price: ${{price}}\\cdot\\frac{ {{keep}} }{100}={{discounted}}$ dollars.",
+          "With tax: ${{discounted}}\\cdot\\frac{ {{taxp}} }{100}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Netting the percents into one change, or applying the tax to the original price.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "An item costs ${{price}}. A {{disc}}% discount is applied, then {{tax}}% sales tax is applied to the discounted price. What is the final cost?",
       "generator": {
@@ -42828,7 +42932,9 @@
           "ans": "discounted*(100+tax)/100",
           "d1": "price*(100-disc+tax)/100",
           "d2": "price*(100+tax)/100",
-          "d3": "discounted-price*tax/100"
+          "d3": "discounted-price*tax/100",
+          "keep": "100-disc",
+          "taxp": "100+tax"
         },
         "constraints": [
           "ans==floor(ans)",
@@ -45218,11 +45324,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Undo the constant, then divide by {{a}}: $x={{x}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Move the constant to the other side: ${{a}}x={{c}}{{nb|term}}={{cb}}$.",
+          "Divide both sides by {{a}}: $x=\\frac{ {{cb}} }{ {{a}} }={{x}}$.",
+          "Check: ${{a}}({{x}}){{b|term}}={{c}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing before moving the constant, or moving the constant with the wrong sign.",
+        "answerSummary": "$x={{x}}$"
       },
       "prompt": "What value of $x$ satisfies ${{a}}x+{{b}}={{c}}$?",
       "generator": {
@@ -45247,7 +45356,9 @@
           "c": "a*x+b",
           "d1": "x+1",
           "d2": "x-1",
-          "d3": "x+a"
+          "d3": "x+a",
+          "nb": "-b",
+          "cb": "c-b"
         },
         "constraints": [
           "a!=1",
@@ -45582,11 +45693,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Undo the ${{k}}$, then pick a value strictly above the boundary: ${{good}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Subtract {{k}} from both sides: ${{T}}-{{k}}={{n}}$, so the inequality becomes $x>{{n}}$.",
+          "The inequality is strict, so $x={{n}}$ itself does not work.",
+          "Check ${{good}}$: ${{good}}+{{k}}={{gk}}$, and ${{gk}}>{{T}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Choosing the boundary value {{n}}, which makes the two sides equal rather than making the left side greater.",
+        "answerSummary": "$x={{good}}$"
       },
       "prompt": "Which value of $x$ satisfies $x+{{k}}>{{T}}$?",
       "generator": {
@@ -45607,7 +45721,8 @@
           "good": "n+1",
           "eq": "n",
           "low": "n-1",
-          "lower": "n-2"
+          "lower": "n-2",
+          "gk": "n+1+k"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -45937,11 +46052,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Subtract the fixed fee, then divide by the rate per mile: {{m}} miles.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "With $m$ miles, the cost is ${{f}}+{{r}}m={{total}}$.",
+          "Subtract the fee: ${{r}}m={{total}}-{{f}}={{rm}}$.",
+          "Divide by the rate: $m=\\frac{ {{rm}} }{ {{r}} }={{m}}$ miles."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing the whole total by the rate without first removing the fixed fee.",
+        "answerSummary": "${{m}}$ miles"
       },
       "prompt": "A ride costs a fixed fee of ${{f}} plus ${{r}} per mile. The total cost is ${{total}}. How many miles were traveled?",
       "generator": {
@@ -45966,7 +46084,8 @@
           "total": "f+r*m",
           "d1": "m+1",
           "d2": "m-1",
-          "d3": "m+r"
+          "d3": "m+r",
+          "rm": "r*m"
         },
         "constraints": [
           "r!=1"
@@ -46299,11 +46418,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Load plus boxes must be at most the capacity: ${{L}}+{{w}}b\\le {{C}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "With $b$ boxes the total weight is the load, {{L}} pounds, plus {{w}} pounds for each box: ${{L}}+{{w}}b$.",
+          "\"At most {{C}} pounds\" allows the total to equal {{C}}, so the symbol is $\\le$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Using $<$, which leaves out a load of exactly {{C}} pounds, or attaching $b$ to the wrong weight.",
+        "answerSummary": "${{L}}+{{w}}b\\le {{C}}$"
       },
       "prompt": "An elevator can carry at most {{C}} pounds. A load already weighs {{L}} pounds, and each box weighs {{w}} pounds. Which inequality represents the possible number of boxes $b$?",
       "generator": {
@@ -46656,11 +46777,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Substitute $x={{x}}$, then solve for $y$: $y={{y}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Substitute: ${{a}}\\cdot {{x}}+{{b}}y={{c}}$, so ${{ax}}+{{b}}y={{c}}$.",
+          "Subtract {{ax}}: ${{b}}y={{c}}-{{ax}}={{by}}$.",
+          "Divide by {{b}}: $y=\\frac{ {{by}} }{ {{b}} }={{y}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Forgetting to multiply $x$ by {{a}} before subtracting.",
+        "answerSummary": "$y={{y}}$"
       },
       "prompt": "The equation ${{a}}x+{{b}}y={{c}}$ is true. If $x={{x}}$, what is the value of $y$?",
       "generator": {
@@ -46690,7 +46814,9 @@
           "c": "a*x+b*y",
           "d1": "y+1",
           "d2": "y-1",
-          "d3": "y+b"
+          "d3": "y+b",
+          "ax": "a*x",
+          "by": "b*y"
         },
         "constraints": [
           "a!=b",
@@ -47025,11 +47151,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Undo the subtraction, then the multiplication, then the addition: $x={{x}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Add {{d}} to both sides: ${{a}}(x+{{k}})={{rhs}}+{{d}}={{rd}}$.",
+          "Divide by {{a}}: $x+{{k}}=\\frac{ {{rd}} }{ {{a}} }={{xk}}$.",
+          "Subtract {{k}}: $x={{xk}}-{{k}}={{x}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Stopping at $x+{{k}}$, or distributing {{a}} to $x$ only.",
+        "answerSummary": "$x={{x}}$"
       },
       "prompt": "What value of $x$ satisfies ${{a}}(x+{{k}})-{{d}}={{rhs}}$?",
       "generator": {
@@ -47059,7 +47188,9 @@
           "rhs": "a*(x+k)-d",
           "d1": "x+k",
           "d2": "x-k",
-          "d3": "x+a"
+          "d3": "x+a",
+          "rd": "a*(x+k)",
+          "xk": "x+k"
         },
         "constraints": [
           "k!=a",
@@ -47395,11 +47526,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Room left is the capacity minus the riders already on: {{ans}}.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "With $n$ more passengers the total is ${{p}}+n$, and \"at most {{C}}\" means ${{p}}+n\\le {{C}}$.",
+          "So $n\\le {{C}}-{{p}}$, and ${{C}}-{{p}}={{ans}}$.",
+          "Equality is allowed, so the greatest whole number is {{ans}}."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Treating \"at most\" as strictly less than, which gives one fewer.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "A bus can hold at most {{C}} passengers. There are already {{p}} passengers on the bus. What is the greatest whole number of additional passengers that can board?",
       "generator": {
@@ -47753,11 +47887,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Revenue equals cost when ${{p}}t={{F}}$: {{n}} tickets.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Selling $t$ tickets brings in ${{p}}t$ dollars, and the rental costs {{F}} dollars.",
+          "Set them equal: ${{p}}t={{F}}$.",
+          "Divide: $t=\\frac{ {{F}} }{ {{p}} }={{n}}$ tickets."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Adding the price to the answer, or rounding to the next ticket when the division is exact.",
+        "answerSummary": "${{n}}$ tickets"
       },
       "prompt": "A club pays ${{F}} to rent a room and charges ${{p}} per ticket. How many tickets must be sold for ticket revenue to equal the rental cost?",
       "generator": {
@@ -47962,11 +48099,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Volume is length times width times height: {{ans}} cubic units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The volume of a rectangular prism is $lwh$.",
+          "${{l}}\\cdot {{w}}\\cdot {{h}}={{ans}}$ cubic units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Stopping at the base area, or adding the dimensions instead of multiplying.",
+        "answerSummary": "${{ans}}$ cubic units"
       },
       "prompt": "A rectangular prism has length {{l}}, width {{w}}, and height {{h}} units. What is its volume, in cubic units?",
       "generator": {
@@ -48175,11 +48314,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Volume is $\\pi r^2h$: ${{coef}}\\pi$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The volume of a cylinder is the area of its circular base, $\\pi r^2$, times its height.",
+          "With $r={{r}}$ and $h={{h}}$: ${{r}}^2\\cdot {{h}}={{coef}}$, so the volume is ${{coef}}\\pi$ cubic units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Using $2\\pi r$ (the circumference) in place of the base area $\\pi r^2$.",
+        "answerSummary": "${{coef}}\\pi$"
       },
       "prompt": "A cylinder has radius {{r}} units and height {{h}} units. Which expression gives its volume?",
       "generator": {
@@ -48383,11 +48524,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Add the areas of all six faces: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "A closed box has three pairs of matching faces: ${{l}}\\cdot {{w}}={{lw}}$, ${{l}}\\cdot {{h}}={{lh}}$ and ${{w}}\\cdot {{h}}={{wh}}$ square units.",
+          "Each face appears twice: $2({{lw}}+{{lh}}+{{wh}})={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Counting each pair of faces only once, which gives half the surface area.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A closed rectangular prism has dimensions {{l}}, {{w}}, and {{h}} units. What is its surface area, in square units?",
       "generator": {
@@ -48412,7 +48555,10 @@
           "ans": "2*(l*w+l*h+w*h)",
           "d1": "l*w*h",
           "d2": "l*w+l*h+w*h",
-          "d3": "2*l+2*w+2*h"
+          "d3": "2*l+2*w+2*h",
+          "lw": "l*w",
+          "lh": "l*h",
+          "wh": "w*h"
         },
         "constraints": [
           "ans!=d1",
@@ -48596,11 +48742,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Volume of a cube is the edge cubed: {{ans}} cubic units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "All three dimensions of a cube equal the edge, so the volume is $s^3$.",
+          "${{s}}^3={{ans}}$ cubic units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Squaring the edge (one face) or using $6s^2$ (the surface area).",
+        "answerSummary": "${{ans}}$ cubic units"
       },
       "prompt": "A cube has edge length {{s}} units. What is its volume, in cubic units?",
       "generator": {
@@ -48799,11 +48947,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Six square faces: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Each face is a square: ${{s}}^2={{face}}$ square units.",
+          "A cube has 6 faces: $6\\cdot {{face}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Cubing the edge, which gives the volume.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A cube has edge length {{s}} units. What is its surface area, in square units?",
       "generator": {
@@ -48818,7 +48968,8 @@
           "ans": "6*s^2",
           "d1": "s^3",
           "d2": "s^2",
-          "d3": "4*s"
+          "d3": "4*s",
+          "face": "s*s"
         },
         "constraints": [
           "ans!=d1",
@@ -49003,11 +49154,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Add the two volumes: {{ans}} cubic units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "First prism: ${{l1}}\\cdot {{w1}}\\cdot {{h1}}={{v1}}$ cubic units.",
+          "Second prism: ${{l2}}\\cdot {{w2}}\\cdot {{h2}}={{v2}}$ cubic units.",
+          "They do not overlap, so the total is ${{v1}}+{{v2}}={{ans}}$ cubic units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding matching dimensions first and multiplying the sums, which is not the volume of either piece.",
+        "answerSummary": "${{ans}}$ cubic units"
       },
       "prompt": "A solid is made from two nonoverlapping rectangular prisms. One has dimensions {{l1}} by {{w1}} by {{h1}}, and the other has dimensions {{l2}} by {{w2}} by {{h2}}. What is the total volume?",
       "generator": {
@@ -49234,11 +49388,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Volume is base area times height, so divide: {{h}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "For a prism, volume $=$ base area $\\times$ height.",
+          "Height: $\\frac{ {{V}} }{ {{baseArea}} }={{h}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the base area as the height.",
+        "answerSummary": "${{h}}$ units"
       },
       "prompt": "A storage box has a rectangular base with area {{baseArea}} square units and volume {{V}} cubic units. What is the height of the box?",
       "generator": {
@@ -49448,11 +49604,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Surface area times the price per square foot: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The faces come in pairs: ${{l}}\\cdot {{w}}={{lw}}$, ${{l}}\\cdot {{h}}={{lh}}$ and ${{w}}\\cdot {{h}}={{wh}}$ square feet.",
+          "Surface area: $2({{lw}}+{{lh}}+{{wh}})={{sa}}$ square feet.",
+          "Cost: ${{sa}}\\cdot {{p}}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Pricing the volume instead of the outside surface, or counting each pair of faces once.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "A closed rectangular box has length {{l}} feet, width {{w}} feet, and height {{h}} feet. Covering the entire outside costs ${{p}} per square foot. What is the total covering cost?",
       "generator": {
@@ -49483,7 +49642,10 @@
           "ans": "2*(l*w+l*h+w*h)*p",
           "d1": "l*w*h*p",
           "d2": "(l*w+l*h+w*h)*p",
-          "d3": "(2*l+2*w+2*h)*p"
+          "d3": "(2*l+2*w+2*h)*p",
+          "lw": "l*w",
+          "lh": "l*h",
+          "wh": "w*h"
         },
         "constraints": [
           "ans!=d1",
@@ -49772,11 +49934,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Fixed fee plus the hourly rate times the hours: ${{f}}+{{r}}h$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "The fee of {{f}} dollars is paid once; the {{r}} dollars is paid for each of the $h$ hours, which is ${{r}}h$.",
+          "Total: ${{f}}+{{r}}h$.",
+          "Check with 2 hours: ${{f}}+{{r}}\\cdot 2={{f2}}$ dollars."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Multiplying the fixed fee by the hours instead of the hourly rate.",
+        "answerSummary": "${{f}}+{{r}}h$"
       },
       "prompt": "A service charges a fixed fee of ${{f}} plus ${{r}} for each hour $h$. Which expression gives the total charge, in dollars, for $h$ hours?",
       "generator": {
@@ -49793,7 +49958,8 @@
           }
         },
         "derived": {
-          "fr": "f*r"
+          "fr": "f*r",
+          "f2": "f+2*r"
         },
         "constraints": [
           "f!=r",
@@ -50078,11 +50244,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Form the product first, then add {{a}}: ${{b}}x+{{a}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "\"The product of {{b}} and $x$\" is ${{b}}x$.",
+          "\"{{a}} more than\" that product adds {{a}}: ${{b}}x+{{a}}$.",
+          "Check with $x=1$: ${{b}}\\cdot 1+{{a}}={{ab}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Adding {{a}} to $x$ before multiplying by {{b}}.",
+        "answerSummary": "${{b}}x+{{a}}$"
       },
       "prompt": "Which expression represents {{a}} more than the product of {{b}} and $x$?",
       "generator": {
@@ -50100,7 +50269,10 @@
         },
         "constraints": [
           "a!=b"
-        ]
+        ],
+        "derived": {
+          "ab": "a+b"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -50380,11 +50552,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Consecutive integers go up by 1: their sum is $3n+{{c}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "The three integers are $n+{{k}}$, $n+{{k1}}$ and $n+{{k2}}$.",
+          "Add them: $(n+{{k}})+(n+{{k1}})+(n+{{k2}})=3n+{{c}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Multiplying the integers instead of adding them, or adding 1 to only one of them.",
+        "answerSummary": "$3n+{{c}}$"
       },
       "prompt": "If the least of 3 consecutive integers is $n+{{k}}$, which expression represents their sum?",
       "generator": {
@@ -50398,7 +50572,9 @@
         "derived": {
           "c": "3*k+3",
           "d1c": "3*k+2",
-          "d2c": "k+3"
+          "d2c": "k+3",
+          "k1": "k+1",
+          "k2": "k+2"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -50679,11 +50855,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Average is the sum of all three values divided by 3.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Sum of the values: $x+{{a}}+{{b}}=x+{{ab}}$.",
+          "There are 3 values, so the whole sum is divided by 3: $\\dfrac{x+{{a}}+{{b}}}{3}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing only {{a}} and {{b}} by 3 and leaving $x$ undivided.",
+        "answerSummary": "$\\dfrac{x+{{a}}+{{b}}}{3}$"
       },
       "prompt": "The values in a data set are $x$, {{a}}, and {{b}}. Which expression gives the average of the 3 values?",
       "generator": {
@@ -50701,7 +50879,10 @@
         },
         "constraints": [
           "a!=b"
-        ]
+        ],
+        "derived": {
+          "ab": "a+b"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -50981,11 +51162,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Two widths plus two lengths: $4x+{{twok}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Perimeter is twice the width plus twice the length.",
+          "$2x+2(x+{{k}})=4x+{{twok}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Counting the width and the length only once each, or multiplying them (the area).",
+        "answerSummary": "$4x+{{twok}}$"
       },
       "prompt": "A rectangle has width $x$ and length $x+{{k}}$. Which expression gives the perimeter of the rectangle?",
       "generator": {
@@ -51279,11 +51462,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Each kind of ticket times its own price, then add.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Adult tickets bring in ${{a}}x$ dollars.",
+          "Student tickets bring in ${{b}}({{N}}-x)$ dollars.",
+          "Total revenue: ${{a}}x+{{b}}({{N}}-x)={{amb}}x+{{bN}}$ in expanded form."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Pairing the adult price with the student count.",
+        "answerSummary": "${{a}}x+{{b}}({{N}}-x)$"
       },
       "prompt": "A theater sells $x$ adult tickets at ${{a}} each and ${{N}}-x$ student tickets at ${{b}} each. Which expression gives the total ticket revenue?",
       "generator": {
@@ -51306,7 +51492,11 @@
         },
         "constraints": [
           "a!=b"
-        ]
+        ],
+        "derived": {
+          "amb": "a-b",
+          "bN": "b*N"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -51587,11 +51777,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Distance is rate times time for each leg, then add.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "First leg: ${{r1}}t$ miles.",
+          "Second leg: ${{r2}}(t+{{k}})$ miles.",
+          "Total: ${{r1}}t+{{r2}}(t+{{k}})={{rr}}t+{{r2k}}$ in expanded form."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Swapping the times so that each rate is paired with the other leg's hours.",
+        "answerSummary": "${{r1}}t+{{r2}}(t+{{k}})$"
       },
       "prompt": "A traveler moves at {{r1}} miles per hour for $t$ hours and then at {{r2}} miles per hour for $t+{{k}}$ hours. Which expression gives the total distance traveled?",
       "generator": {
@@ -51614,7 +51807,11 @@
         },
         "constraints": [
           "r1!=r2"
-        ]
+        ],
+        "derived": {
+          "rr": "r1+r2",
+          "r2k": "r2*k"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -51895,11 +52092,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Start with the budget, subtract the shirts and the one fee.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "The shirts cost ${{p}}x$ dollars, and the fee is {{f}} dollars, paid once.",
+          "Remaining: ${{B}}-{{p}}x-{{f}}={{Bf}}-{{p}}x$ after combining the constants."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Charging the delivery fee once per shirt.",
+        "answerSummary": "${{B}}-{{p}}x-{{f}}$"
       },
       "prompt": "A club starts with ${{B}}. It buys $x$ shirts at ${{p}} each and pays a one-time delivery fee of ${{f}}. Which expression gives the dollars remaining?",
       "generator": {
@@ -51922,7 +52121,10 @@
         },
         "constraints": [
           "p!=f"
-        ]
+        ],
+        "derived": {
+          "Bf": "B-f"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
