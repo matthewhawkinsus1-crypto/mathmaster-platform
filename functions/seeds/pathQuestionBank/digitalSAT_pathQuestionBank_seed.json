@@ -76865,11 +76865,13 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "The three angles of a triangle add to $180^\\circ$: $x={{answer}}$.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "The angles of any triangle add to $180^\\circ$, so ${{a}}+{{b}}+x=180$.",
+          "$180-{{a}}-{{b}}={{answer}}$, so $x={{answer}}$."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Adding the two given angles ({{dSum}}) instead of subtracting their sum from $180$.",
+        "answerSummary": "$x={{answer}}$"
       },
       "choices": [
         {
@@ -77012,7 +77014,8 @@
         "derived": {
           "mp2": "m+2",
           "k": "2*x-b",
-          "angle": "m*x+b"
+          "angle": "m*x+b",
+          "bk": "b+k"
         },
         "constraints": [
           "m*x+b<175",
@@ -77037,11 +77040,15 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Vertical angles are equal: set the two expressions equal, so $x={{x}}$.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "Vertical angles have equal measures, so ${{m}}x+{{b}}={{mp2}}x-{{k}}$.",
+          "Move the $x$-terms to one side and the constants to the other: ${{b}}+{{k}}=2x$.",
+          "$x=\\frac{ {{bk}} }{2}={{x}}$.",
+          "Check: ${{m}}\\cdot {{x}}+{{b}}={{angle}}$ and ${{mp2}}\\cdot {{x}}-{{k}}={{angle}}$, so both angles measure ${{angle}}^\\circ$."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Setting the two expressions to add to $180$, which is the rule for a linear pair, not for vertical angles.",
+        "answerSummary": "$x={{x}}$"
       },
       "alignmentKeys": [
         "texas:6.8A",
@@ -77180,11 +77187,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Corresponding angles along parallel lines are equal: ${{theta}}^\\circ$.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "When a transversal cuts two parallel lines, corresponding angles sit in the same position at each intersection and are equal.",
+          "So the corresponding angle also measures ${{theta}}^\\circ$.",
+          "The angle that forms a linear pair with it measures $180-{{theta}}={{supp}}$ degrees; that is the supplement, not the corresponding angle."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Taking the supplement because the lines are parallel; supplementary pairs are same-side interior angles or linear pairs.",
+        "answerSummary": "${{theta}}^\\circ$"
       },
       "choices": [
         {
@@ -77352,11 +77362,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "An exterior angle equals the sum of the two remote interior angles: {{answer}}.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "The interior angle next to the exterior angle is $180-{{a}}-{{b}}={{dAdjacent}}$ degrees.",
+          "The exterior angle forms a linear pair with it: $180-{{dAdjacent}}={{answer}}$.",
+          "That is the same as ${{a}}+{{b}}={{answer}}$, the sum of the remote interior angles."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Giving the adjacent interior angle ({{dAdjacent}}) instead of the exterior angle.",
+        "answerSummary": "${{answer}}^\\circ$"
       },
       "choices": [
         {
@@ -77516,11 +77529,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Two sides and the angle between them match: SAS.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "Both triangles have sides {{a}} and {{b}} that meet at an angle of ${{theta}}^\\circ$ ($\\angle B$ in one, $\\angle E$ in the other).",
+          "The given angle is the one between the two given sides, the included angle.",
+          "Two pairs of equal sides with an equal included angle is the Side-Angle-Side criterion."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Choosing SSS, which needs all three sides; only two sides are given.",
+        "answerSummary": "SAS"
       },
       "choices": [
         {
@@ -77669,7 +77685,10 @@
         "derived": {
           "angle1": "m*x+b",
           "c": "180-(m+n)*x-b",
-          "angle2": "n*x+c"
+          "angle2": "n*x+c",
+          "mn": "m+n",
+          "bc": "b+c",
+          "rest": "180-b-c"
         },
         "constraints": [
           "m*x+b>20",
@@ -77694,11 +77713,15 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Same-side interior angles add to $180^\\circ$: $x={{x}}$.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "Same-side interior angles along parallel lines are supplementary, so their measures add to $180$.",
+          "$({{m}}x{{b|signed}})+({{n}}x{{c|signed}})=180$, so ${{mn}}x{{bc|term}}=180$.",
+          "${{mn}}x={{rest}}$, so $x=\\frac{ {{rest}} }{ {{mn}} }={{x}}$.",
+          "Check: the angles are ${{angle1}}^\\circ$ and ${{angle2}}^\\circ$, and ${{angle1}}+{{angle2}}=180$."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Setting the two expressions equal, which is the rule for alternate interior angles, not same-side interior angles.",
+        "answerSummary": "$x={{x}}$"
       },
       "alignmentKeys": [
         "texas:6.8A",
@@ -77854,11 +77877,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Multiply by the scale factor {{k}}: {{answer}}.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "Corresponding sides of similar triangles are in one ratio, the scale factor.",
+          "Scale factor: $\\frac{ {{scaled}} }{ {{s}} }={{k}}$.",
+          "The side of length {{t}} corresponds to ${{t}}\\cdot {{k}}={{answer}}$ units."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Multiplying by the scale factor twice, which is how areas scale, not lengths.",
+        "answerSummary": "${{answer}}$ units"
       },
       "choices": [
         {
@@ -78033,11 +78059,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Perimeters scale like sides, by {{k}}: {{answer}}.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "In similar triangles every length, including the perimeter, scales by the same factor.",
+          "Scale factor: $\\frac{ {{largeP}} }{ {{P}} }={{k}}$.",
+          "The corresponding side is ${{s}}\\cdot {{k}}={{answer}}$ units."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Multiplying by the scale factor twice, which is how areas scale, not lengths.",
+        "answerSummary": "{{answer}} units"
       },
       "choices": [
         {
@@ -80389,7 +80418,8 @@
         "derived": {
           "a": "3*k",
           "b": "4*k",
-          "answer": "5*k"
+          "answer": "5*k",
+          "sq": "a*a+b*b"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -80408,11 +80438,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Pythagorean theorem: the hypotenuse is {{answer}}.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "For a right triangle, $c^2=a^2+b^2$, where $c$ is the hypotenuse.",
+          "${{a}}^2+{{b}}^2={{sq}}$.",
+          "$\\sqrt{ {{sq}} }={{answer}}$ units."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Adding the legs instead of their squares.",
+        "answerSummary": "${{answer}}$"
       },
       "alignmentKeys": [
         "texas:8.4A",
@@ -80497,7 +80530,8 @@
           }
         },
         "derived": {
-          "answer": "s"
+          "answer": "s",
+          "ss2": "2*s*s"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -80516,11 +80550,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "In a $45^\\circ$-$45^\\circ$-$90^\\circ$ triangle the hypotenuse is leg times $\\sqrt{2}$: $n={{answer}}$.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "Both legs are {{s}}, so by the Pythagorean theorem the hypotenuse is $\\sqrt{ {{s}}^2+{{s}}^2}=\\sqrt{ {{ss2}} }$.",
+          "$\\sqrt{ {{ss2}} }={{s}}\\sqrt{2}$.",
+          "So $n={{answer}}$."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Doubling the leg, or putting the $\\sqrt{2}$ on the leg instead of the hypotenuse.",
+        "answerSummary": "$n={{answer}}$"
       },
       "alignmentKeys": [
         "texas:8.4A",
@@ -80605,7 +80642,9 @@
           }
         },
         "derived": {
-          "answer": "s"
+          "answer": "s",
+          "s3": "3*s*s",
+          "hyp2": "2*s"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -80624,11 +80663,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "In a $30^\\circ$-$60^\\circ$-$90^\\circ$ triangle the longer leg is the short leg times $\\sqrt{3}$: $n={{answer}}$.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "The side opposite $30^\\circ$ is the short leg, {{s}}, and the hypotenuse is twice it: $2\\cdot {{s}}={{hyp2}}$.",
+          "The side opposite $60^\\circ$ is $\\sqrt{ {{hyp2}}^2-{{s}}^2}=\\sqrt{ {{s3}} }={{s}}\\sqrt{3}$.",
+          "So $n={{answer}}$."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Swapping the ratios and doubling the short leg for the $60^\\circ$ side.",
+        "answerSummary": "$n={{answer}}$"
       },
       "alignmentKeys": [
         "texas:8.4A",
@@ -80750,11 +80792,13 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Sine is opposite over hypotenuse: $\\dfrac{{{opp0}}}{{{c}}}$.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "The side opposite $\\theta$ is {{opp}} and the hypotenuse is {{hyp}}.",
+          "$\\sin\\theta=\\frac{ {{opp}} }{ {{hyp}} }=\\frac{ {{opp0}} }{ {{c}} }$ in lowest terms."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Using the adjacent side, which gives $\\cos\\theta$, or opposite over adjacent, which gives $\\tan\\theta$.",
+        "answerSummary": "$\\sin\\theta=\\dfrac{{{opp0}}}{{{c}}}$"
       },
       "choices": [
         {
@@ -80886,11 +80930,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "For complementary angles, $\\cos B=\\sin A$: $\\dfrac{{{opp0}}}{{{c}}}$.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "In a right triangle the leg opposite $A$ is the leg adjacent to $B$, since $A+B=90^\\circ$.",
+          "So $\\cos B$, adjacent over hypotenuse for $B$, is the same ratio as $\\sin A$, opposite over hypotenuse for $A$.",
+          "The other leg is $\\sqrt{ {{c}}^2-{{opp0}}^2}={{adj0}}$, but that one gives $\\cos A$, not $\\cos B$."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Using the other leg, which gives $\\cos A$ rather than $\\cos B$.",
+        "answerSummary": "$\\cos B=\\dfrac{{{opp0}}}{{{c}}}$"
       },
       "choices": [
         {
@@ -81041,11 +81088,13 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Height = distance × $\\tan\\theta$: {{answer}} meters.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "$\\tan\\theta$ is opposite over adjacent: the height over the horizontal distance.",
+          "So the height is ${{run}}\\cdot \\frac{ {{opp0}} }{ {{adj0}} }={{answer}}$ meters."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Giving the horizontal distance, or using the bare ratio {{opp0}} without scaling it to the distance.",
+        "answerSummary": "{{answer}} meters"
       },
       "choices": [
         {
@@ -81196,11 +81245,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Find the missing leg of the ratio triangle, then scale by {{k}}: {{answer}}.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "$\\cos\\theta=\\frac{ {{adj0}} }{ {{c}} }$ is adjacent over hypotenuse, so the opposite leg of that triangle is $\\sqrt{ {{c}}^2-{{adj0}}^2}={{opp0}}$.",
+          "The actual hypotenuse is {{hyp}}, so the scale factor is $\\frac{ {{hyp}} }{ {{c}} }={{k}}$.",
+          "The opposite side is ${{opp0}}\\cdot {{k}}={{answer}}$."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Stopping at {{opp0}}, the leg of the ratio triangle, without scaling it to the actual hypotenuse.",
+        "answerSummary": "${{answer}}$"
       },
       "choices": [
         {
@@ -81358,11 +81410,14 @@
         "Identify which geometric relationship is guaranteed before setting up an equation or proportion."
       ],
       "solutionReview": {
-        "headline": "Use the guaranteed geometric relationship.",
+        "headline": "Scale the opposite side by the same factor, {{scale}}: {{answer}}.",
         "reasoning": [
-          "Apply the relevant angle theorem, triangle relationship, congruence condition, or similarity ratio to the given information."
+          "Similar triangles scale every side by one factor.",
+          "Adjacent legs: $\\frac{ {{adj2}} }{ {{adj1}} }={{scale}}$.",
+          "Opposite side in the larger triangle: ${{opp1}}\\cdot {{scale}}={{answer}}$."
         ],
-        "answerSummary": "Verify that the result is consistent with the figure's angle or length relationships."
+        "commonError": "Adding the growth of the adjacent leg instead of multiplying by the scale factor.",
+        "answerSummary": "${{answer}}$"
       },
       "choices": [
         {

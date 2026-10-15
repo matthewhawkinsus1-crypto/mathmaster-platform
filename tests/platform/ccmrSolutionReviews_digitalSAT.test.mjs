@@ -49,7 +49,7 @@ const DECLINED = Object.freeze({
 
 // How many still publish their generic review (shrinks to 0 as the slices
 // land; a template is pending while its review hashes to the pinned generic).
-const EXPECTED_PENDING = 16;
+const EXPECTED_PENDING = 0;
 
 // Reviews whose reasoning is verbal (a definition or an interpretation) and so
 // states no relation for the arithmetic check. Everything else must have at
@@ -88,6 +88,7 @@ const VERBAL = new Set([
   'mm_sat_native_claim_ch2_assignment-without-random-sample_v21',
   'mm_sat_native_claim_ch3_random-sample-observational_v21',
   'mm_sat_native_prob_ch2_subgroup-conditional_v21',
+  'mm_sat_native_linesAnglesTriangles_5_sas-congruence_v21',
 ]);
 
 const stable = (value) => (Array.isArray(value)
