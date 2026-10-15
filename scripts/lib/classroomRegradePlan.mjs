@@ -41,6 +41,12 @@
  *                       to K
  *   unchanged / not-replayable   counted, not listed
  *
+ * JOB P's changes are attributed the same way (pDefectsOf): an answer typed
+ * in a spelling P's equivalence changes read, a number-line inequality with
+ * an exact endpoint, a line asked for its monotone intervals or range, and an
+ * exponential bridge written with `b`. Item 8 (a vertex or center keyed on a
+ * function that has none) changes no grader: those attempts are needs-teacher.
+ *
  * THE DEFECTS (DEFECT below), each recognised on the graded question and the
  * stored work, never inferred from the verdict change itself:
  *   2a–2f                   the first round (see each predicate)
@@ -195,6 +201,13 @@ export const DEFECT = Object.freeze({
   SIGN_RATIONAL_MODE_DROPPED: 'k-compiler-sign-chart-compiled-polynomial',
   SIGN_NUMERATOR_DROPPED: 'k-compiler-sign-chart-numerator-factors-dropped',
   SET_FIELD_FROM_PLACEHOLDER: 'k-compiler-set-field-from-template-placeholder',
+  // Job P: right answers that were marked wrong.
+  P_ANSWER_SPELLING: 'p-answer-equivalence-keypad-and-form-spelling',
+  P_INTERVAL_INEQUALITY_EXACT: 'p-number-line-inequality-exact-endpoint',
+  P_LINE_FEATURES: 'p-graph-line-monotone-and-horizontal-range',
+  P_BRIDGE_B_IS_BASE: 'p-exponential-bridge-b-is-the-base',
+  // Not a grading change: item 8 is listed for the owner, never re-graded.
+  P_FEATURE_NOT_ON_FUNCTION: 'p-graph-vertex-or-center-keyed-on-a-function-without-one',
 });
 
 export const NEEDS_TEACHER_REASON = Object.freeze({
@@ -213,6 +226,10 @@ export const NEEDS_TEACHER_REASON = Object.freeze({
   SIGN_DENOMINATOR_IGNORED_NO_SOURCE: 'sign-chart-denominator-ignored-no-v5-source',
   // No two snap-grid points are on the target line: no answer can be right.
   GRAPHING2_NO_GRID_ANSWER: 'graphing2-no-grid-point-on-target-line-void-question',
+  // Job P item 8: a "vertex" or "center" keyed at (h, k) on a function type
+  // that has none (exponential, logarithmic, a line ...). The verdict does not
+  // change; the owner decides whether the question should stand.
+  FEATURE_NOT_ON_FUNCTION: 'vertex-or-center-keyed-on-a-function-without-one-owner-decides',
   // Graded as z × w before; the lab never offered it, now ungraded.
   COMPLEX_OPERATION_NOT_OFFERED: 'complex-plane-operation-not-offered-now-ungraded',
 });
@@ -239,6 +256,13 @@ export const DEFAULT_TOOL_SCOPE = Object.freeze([
   'polynomialWorkshop:factorZero',
   'polynomialWorkshop:graphConnection',
   'polynomialWorkshop:rationalFeatures',
+  // Job P: the shared answer-equivalence layer (field-graded answers), the
+  // number line's inequality stage, and the graph-features grader.
+  'multiAnswer',
+  'orderedPair',
+  'intervalNumberLine',
+  'graphAnalysis',
+  'functionGraph',
 ]);
 
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -643,13 +667,80 @@ const suspectedDrops = (question, { tool, mode }) => {
   return drops;
 };
 
+// --- Job P ---------------------------------------------------------------------
+
+const stringsIn = (value, out = [], depth = 0) => {
+  if (depth > 6 || value == null) return out;
+  if (typeof value === 'string') out.push(value);
+  else if (Array.isArray(value)) value.forEach((entry) => stringsIn(entry, out, depth + 1));
+  else if (isObject(value)) Object.values(value).forEach((entry) => stringsIn(entry, out, depth + 1));
+  return out;
+};
+
+/*
+ * The spellings Job P's answer-equivalence changes read (functions/shared/
+ * answerEquivalence.mjs): %, $, `x =` before a number, π / \pi / pi, abs()
+ * and \lvert bars, a keypad radical (`2sqrt(3)`, `\sqrt3`), an exponent
+ * group in braces, \lor / \land / or / and, an ordered pair or interval with a
+ * fraction, an equation (sides swapped, terms reordered), a decimal (the SAT
+ * rule). Recognised in the typed work, never from the verdict change. Every
+ * P equivalence change only accepts more, so this can only explain a verdict
+ * that went up.
+ */
+const P_SPELLINGS = [
+  /%|\$/, /^\s*[a-z]\s*=/i, /π|\\pi|(?<![A-Za-z])pi(?![A-Za-z])/, /abs\s*\(|\\[lr]?vert|\|/,
+  /\dsqrt|\\sqrt\s*[A-Za-z0-9]/, /\^\{/, /\\lor|\\land|\bor\b|\band\b|∨|∧/,
+  /\(.*(?:\/|\\frac).*,|,.*(?:\/|\\frac).*[)\]]/, /=/, /^\s*-?\d*\.\d+\s*$/,
+];
+const pAnswerSpelling = (work) => stringsIn(work).some((value) => P_SPELLINGS.some((pattern) => pattern.test(value)));
+
+const lineSpec = (spec) => isObject(spec) && ['linear', 'line'].includes(spec.type);
+const graphSpec = (question) => question.functionSpec || question.function || null;
+const LINE_FEATURE_KINDS = new Set(['increasing', 'decreasing', 'constant', 'range']);
+const FEATURES_A_FUNCTION_HAS = Object.freeze({
+  vertex: new Set(['quadratic', 'absolute']),
+  center: new Set(['rational', 'cubic', 'cubeRoot']),
+});
+
+/** Job P item 8: the point requests keyed at (h, k) that the function type does not have. */
+export const featuresNotOnFunction = (question) => {
+  const spec = graphSpec(question);
+  if (!isObject(spec) || !spec.type) return [];
+  const requests = list(question.analysisRequests).length
+    ? list(question.analysisRequests)
+    : (question.analysisFeature || question.type === 'graphAnalysis' ? [{ feature: question.analysisFeature || 'vertex' }] : []);
+  return requests
+    .map((request) => request?.feature || request?.kind)
+    .filter((feature) => FEATURES_A_FUNCTION_HAS[feature] && !FEATURES_A_FUNCTION_HAS[feature].has(spec.type));
+};
+
+const pDefectsOf = ({ question, surface, work }) => {
+  const defects = [];
+  const { tool } = surface;
+  if (['multiAnswer', 'orderedPair'].includes(tool) && pAnswerSpelling(work)) defects.push(DEFECT.P_ANSWER_SPELLING);
+  if (tool === 'intervalNumberLine' && list(question.ask).includes('inequality')
+    && /\/|\\frac|sqrt|pi|π/.test(text(work?.inequality))) {
+    defects.push(DEFECT.P_INTERVAL_INEQUALITY_EXACT);
+  }
+  if (['graphAnalysis', 'functionGraph'].includes(tool) && lineSpec(graphSpec(question))
+    && list(question.analysisRequests).some((request) => LINE_FEATURE_KINDS.has(request?.kind))) {
+    defects.push(DEFECT.P_LINE_FEATURES);
+  }
+  if (tool === 'exponentialLogBridge') {
+    const fn = question.function || question.exponential;
+    if (isObject(fn) && (fn.type == null || fn.type === 'exponential') && fn.base == null && fn.b != null) defects.push(DEFECT.P_BRIDGE_B_IS_BASE);
+  }
+  if (['graphAnalysis', 'functionGraph'].includes(tool) && featuresNotOnFunction(question).length) defects.push(DEFECT.P_FEATURE_NOT_ON_FUNCTION);
+  return defects;
+};
+
 /**
  * Which of K's defects this graded question (and this work) falls under.
  * `surface` is questionSurface(question); `storedQuestion` is the assignment's
  * own copy (a Question Family template keeps the authored answer fields). The
  * compiler drops are only suspected here: confirmDrops settles them.
  */
-export const defectsOf = ({ question, surface, work = null, storedQuestion = null }) => {
+export const defectsOf = ({ question, surface, work = null, storedQuestion = null, submitted = null }) => {
   const defects = [];
   if (!isObject(question)) return defects;
   const { tool, mode } = surface || questionSurface(question);
@@ -714,6 +805,7 @@ export const defectsOf = ({ question, surface, work = null, storedQuestion = nul
     defects.push(DEFECT.SET_FIELD_FROM_PLACEHOLDER);
   }
   defects.push(...suspectedDrops(question, { tool, mode }));
+  defects.push(...pDefectsOf({ question, surface: { tool, mode }, work: work ?? submitted }));
   return defects;
 };
 
@@ -941,7 +1033,8 @@ export const planClassroomAttempt = ({
 
   const read = evidence?.submittedResponse ? readToolWork(evidence.submittedResponse) : { ok: false, work: null };
   const work = read.ok ? read.work : null;
-  let defects = defectsOf({ question: gradedQuestion, surface, work, storedQuestion: question });
+  // A field-graded answer is not tool work: Job P reads its typed fields.
+  let defects = defectsOf({ question: gradedQuestion, surface, work, storedQuestion: question, submitted: evidence?.submittedResponse?.fields || null });
 
   // The compiler defects: rebuild the lost fields from the V5 source, or hand
   // the attempt to the teacher.
@@ -990,6 +1083,9 @@ export const planClassroomAttempt = ({
   if (defects.includes(DEFECT.INVERSE_QUESTION_BRANCH)) needsTeacher = NEEDS_TEACHER_REASON.INVERSE_BOX_NEVER_SHOWN;
   if (isDol1AnalyzeCopy(gradedQuestion)) needsTeacher = NEEDS_TEACHER_REASON.DOL1_ITEM_MUST_BE_REPLACED;
   if (defects.includes(DEFECT.COMPLEX_OPERATION)) needsTeacher = NEEDS_TEACHER_REASON.COMPLEX_OPERATION_NOT_OFFERED;
+  // Job P item 8: the grader is unchanged; the attempt is listed so the owner
+  // can decide whether a question keyed on a feature its function lacks stands.
+  if (!needsTeacher && defects.includes(DEFECT.P_FEATURE_NOT_ON_FUNCTION)) needsTeacher = NEEDS_TEACHER_REASON.FEATURE_NOT_ON_FUNCTION;
 
   // The replay: against the rebuilt question when there is one (its stored
   // delivered instance is the lossy compile), else exactly as the inspector.
