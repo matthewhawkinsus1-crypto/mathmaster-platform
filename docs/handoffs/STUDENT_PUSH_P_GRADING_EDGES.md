@@ -211,7 +211,7 @@ Final gate on HEAD:
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11,171 pass, 0 fail |
+| `npm run test:platform` | 11,174 pass, 0 fail (after merging main at 891811f) |
 | `node --test tests/tools/*.test.mjs` | 1,627 pass, 0 fail |
 | `npm run test:authoring-v5` | 686 pass, 0 fail |
 | `npm run lint` | 0 errors (pre-existing warnings only) |
