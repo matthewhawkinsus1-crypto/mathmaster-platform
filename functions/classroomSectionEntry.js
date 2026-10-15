@@ -43,6 +43,12 @@ const { assignmentFeedbackIsHeld } = require("./lib/activityFeedback");
 const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
 const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTriggerCapacity");
 const {
+  classroomPushFailure,
+  classroomPushHeldForLimit,
+  clearedClassroomErrorFields,
+} = require("./lib/classroomPushErrors");
+const classroomPushQueue = require("./lib/classroomPushQueue");
+const {
   CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
   sectionGradeEvidenceFingerprint,
   sectionGradeSyncIsCurrent,
@@ -357,20 +363,14 @@ async function queueGradeSignalForAssignmentAudience({
     !requireSavedTracker
     || gradeDoc.data()?.gradesByAssignment?.[assignmentId] != null
   ));
-  const requestedAt = new Date().toISOString();
-  for (let offset = 0; offset < gradeDocs.length; offset += 400) {
-    const batch = db.batch();
-    gradeDocs.slice(offset, offset + 400).forEach((gradeDoc) => {
-      batch.update(
-        gradeDoc.ref,
-        new FieldPath("classroomReleaseSignals", assignmentId),
-        { requestedAt, reason }
-      );
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
-  }
-  return gradeDocs.length;
+  // Queued, not signalled: a whole class at once is more Classroom requests
+  // than Google allows a teacher in a minute (lib/classroomPushQueue.js).
+  return classroomPushQueue.enqueueClassroomPushes(db, {
+    assignmentId,
+    studentIds: gradeDocs.map((gradeDoc) => gradeDoc.id),
+    reason,
+    source: reason,
+  });
 }
 
 const reconcileClassroomSectionGrades = onCall(async (request) => {
@@ -620,6 +620,9 @@ const syncSectionGradeToClassroom = onDocumentWritten(
 
     const db = getFirestore();
     const classroomByTeacher = new Map();
+    // Once Google refuses a teacher for the per-minute limit, this push stops
+    // calling it for that teacher; the rest of the columns wait in the queue.
+    const teachersAtClassroomLimit = new Set();
 
     for (const assignmentId of assignmentIds) {
       // eslint-disable-next-line no-await-in-loop
@@ -660,7 +663,12 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       });
       const releaseSignal = signaledSet.has(assignmentId) ? afterSignals[assignmentId] : null;
       const signalReason = releaseSignalReason(releaseSignal);
-      const forceRetry = signalReason === "manual-retry" || signalReason === "section-grade-reconcile";
+      // A push queued again after Google's per-minute limit sends only the
+      // columns that did not go through; the rest are already current.
+      const quotaRetry = Math.max(0, Number(releaseSignal?.quotaRetry) || 0);
+      const forceRetry = (signalReason === "manual-retry" || signalReason === "section-grade-reconcile") && quotaRetry === 0;
+      const mayRequeue = quotaRetry < classroomPushQueue.MAX_QUOTA_RETRIES;
+      let requeueForLimit = false;
 
       // eslint-disable-next-line no-await-in-loop
       const publicationSnapshot = await db
@@ -842,6 +850,30 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           continue;
         }
 
+        if (teachersAtClassroomLimit.has(teacherUid)) {
+          // eslint-disable-next-line no-await-in-loop
+          await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            assignmentId,
+            courseId,
+            courseworkId: publication.courseworkId,
+            sectionKey: gradeResult.sectionKey,
+            sectionLabel: gradeResult.sectionLabel,
+            stage,
+            grade: gradeResult.grade,
+            classroomGrade,
+            maxPoints,
+            attempted: gradeResult.attempted,
+            total: gradeResult.total,
+            creditOnAttempted: gradeResult.creditOnAttempted,
+            isFinal,
+            studentVisible: releasePolicy.studentVisible,
+            returnedToStudent: false,
+            ...classroomPushHeldForLimit({ mayRequeue }),
+          });
+          requeueForLimit = requeueForLimit || mayRequeue;
+          continue;
+        }
+
         try {
           // eslint-disable-next-line no-await-in-loop
           const submission = await classroomLib.findSubmissionForStudent(classroom, {
@@ -895,6 +927,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -933,12 +966,22 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             syncedAt: new Date().toISOString(),
           });
         } catch (error) {
+          const failure = classroomPushFailure(error, { mayRequeue });
+          if (failure.quota) {
+            teachersAtClassroomLimit.add(teacherUid);
+            requeueForLimit = requeueForLimit || mayRequeue;
+          }
+          // Not `message`: the logger's own message field would replace it.
           logger.error("Section grade passback failed", {
             assignmentId,
             studentId: event.params.studentId,
             courseId,
             sectionKey: gradeResult.sectionKey,
-            message: error?.message || String(error),
+            step: failure.description.step,
+            httpStatus: failure.description.httpStatus,
+            googleStatus: failure.description.googleStatus,
+            reasons: failure.description.reasons,
+            error: failure.description.message,
           });
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
@@ -947,7 +990,6 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             courseworkId: publication.courseworkId,
             sectionKey: gradeResult.sectionKey,
             sectionLabel: gradeResult.sectionLabel,
-            status: "failed",
             stage,
             grade: gradeResult.grade,
             classroomGrade,
@@ -958,7 +1000,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             isFinal,
             studentVisible: releasePolicy.studentVisible,
             returnedToStudent: false,
-            error: String(error?.message || error),
+            ...failure.audit,
           });
         }
       }
@@ -973,6 +1015,16 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         });
         // eslint-disable-next-line no-await-in-loop
         await after.ref.update(...updateArgs);
+      }
+
+      if (requeueForLimit) {
+        // eslint-disable-next-line no-await-in-loop
+        await classroomPushQueue.requeueClassroomPushAfterQuota(db, {
+          assignmentId,
+          studentId: event.params.studentId,
+          reason: signalReason,
+          quotaRetry,
+        });
       }
     }
   }
@@ -1068,9 +1120,20 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
   }
 });
 
+// Releases queued Classroom grade pushes a minute's worth at a time.
+const drainClassroomPushQueue = onSchedule({
+  schedule: "every 1 minutes",
+  invoker: "private",
+  timeoutSeconds: 120,
+}, async () => {
+  const result = await classroomPushQueue.drainClassroomPushQueue(getFirestore());
+  if (result.due) logger.info("Classroom push queue", result);
+});
+
 module.exports = {
   publishAssignmentSectionsHandler,
   cloudFunctions: {
+    drainClassroomPushQueue,
     reconcileClassroomSectionGrades,
     resolveClassroomSectionLaunchToken,
     syncSectionGradeToClassroom,
