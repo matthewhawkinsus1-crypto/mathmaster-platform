@@ -81461,6 +81461,15 @@
           "expected": "{{answer}}"
         }
       ],
+      "solutionReview": {
+        "headline": "Find the size of one ratio part, then take {{a}} parts: {{answer}} units.",
+        "reasoning": [
+          "Ingredient B is {{b}} parts, so one part is $\\frac{{{bAmount}}}{{{b}}}={{k}}$ units.",
+          "Ingredient A is {{a}} parts: ${{a}}\\cdot {{k}}={{answer}}$ units."
+        ],
+        "commonError": "Using the ratio upside down: A to B is {{a}} to {{b}}, so A is less than B when {{a}} is less than {{b}}.",
+        "answerSummary": "{{answer}} units"
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -81602,6 +81611,15 @@
           "expected": "choice-a"
         }
       ],
+      "solutionReview": {
+        "headline": "Divide the total cost by the number of items: {{unit}} dollars.",
+        "reasoning": [
+          "The cost per item is the total cost divided by the number of items.",
+          "$\\frac{{{total}}}{{{count}}}={{unit}}$ dollars per item."
+        ],
+        "commonError": "Answering with the number of items {{count}}, or halving or doubling the cost per item.",
+        "answerSummary": "${{unit}}$ dollars"
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -81712,6 +81730,15 @@
           "expected": "{{answer}}"
         }
       ],
+      "solutionReview": {
+        "headline": "Each foot is 12 inches: {{answer}} inches.",
+        "reasoning": [
+          "Every foot is 12 inches, so multiply the number of feet by 12.",
+          "${{feet}}\\cdot 12={{answer}}$ inches."
+        ],
+        "commonError": "Dividing by 12: inches are smaller than feet, so there are more of them.",
+        "answerSummary": "{{answer}} inches"
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -81847,6 +81874,15 @@
           "expected": "choice-b"
         }
       ],
+      "solutionReview": {
+        "headline": "Multiply the map distance by the scale: {{answer}} miles.",
+        "reasoning": [
+          "Each inch on the map stands for {{milesPerInch}} miles.",
+          "{{mapDistance}} inches: ${{mapDistance}}\\cdot {{milesPerInch}}={{answer}}$ miles."
+        ],
+        "commonError": "Adding the scale and the map distance, or giving the map distance itself.",
+        "answerSummary": "${{answer}}$ miles"
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -81963,6 +81999,15 @@
           "expected": "{{answer}}"
         }
       ],
+      "solutionReview": {
+        "headline": "Density = mass ÷ volume: {{density}} grams per cubic centimeter.",
+        "reasoning": [
+          "Density is mass per unit of volume.",
+          "$\\frac{{{mass}}}{{{volume}}}={{density}}$ grams per cubic centimeter."
+        ],
+        "commonError": "Multiplying mass by volume, or dividing volume by mass.",
+        "answerSummary": "{{density}} grams per cubic centimeter"
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -82071,7 +82116,8 @@
           "answer": "22*q",
           "dMph": "15*q",
           "dQuadruple": "88*q",
-          "dSwing": "hi*(44*q)+(1-hi)*(11*q)"
+          "dSwing": "hi*(44*q)+(1-hi)*(11*q)",
+          "fph": "mph*5280"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -82101,6 +82147,15 @@
           "expected": "choice-a"
         }
       ],
+      "solutionReview": {
+        "headline": "Convert miles to feet and hours to seconds: {{answer}} feet per second.",
+        "reasoning": [
+          "Miles to feet: ${{mph}}\\cdot 5280={{fph}}$ feet per hour.",
+          "Hours to seconds: $\\frac{{{fph}}}{3600}={{answer}}$ feet per second."
+        ],
+        "commonError": "Multiplying by 3,600 instead of dividing, or converting only one of the units.",
+        "answerSummary": "${{answer}}$ feet per second"
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -82215,7 +82270,8 @@
           "answer": "a*k",
           "dOther": "b*k",
           "dTotal": "(a+b)*k",
-          "dRatioOnly": "a"
+          "dRatioOnly": "a",
+          "ab": "a+b"
         },
         "constraints": [
           "a!=b",
@@ -82254,6 +82310,15 @@
           "label": "{{dRatioOnly}}"
         }
       ],
+      "solutionReview": {
+        "headline": "The ratio splits the total into {{ab}} equal parts; A gets {{a}} of them: {{answer}} milliliters.",
+        "reasoning": [
+          "The ratio {{a}}:{{b}} splits the solution into ${{a}}+{{b}}={{ab}}$ equal parts.",
+          "Each part is $\\frac{{{total}}}{{{ab}}}={{k}}$ milliliters, so A is ${{a}}\\cdot {{k}}={{answer}}$ milliliters."
+        ],
+        "commonError": "Dividing the total by {{b}} instead of by {{ab}}: the parts are out of the whole, not out of B.",
+        "answerSummary": "{{answer}} milliliters"
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -82405,6 +82470,15 @@
           "expected": "choice-a"
         }
       ],
+      "solutionReview": {
+        "headline": "Find the gallons used, then multiply by the price: {{answer}} dollars.",
+        "reasoning": [
+          "Gallons needed: $\\frac{{{distance}}}{{{mpg}}}={{gallons}}$.",
+          "Cost: ${{gallons}}\\cdot {{price}}={{answer}}$ dollars."
+        ],
+        "commonError": "Multiplying the distance by the price: the price is per gallon, not per mile.",
+        "answerSummary": "${{answer}}$ dollars"
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
