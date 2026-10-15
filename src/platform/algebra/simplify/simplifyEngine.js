@@ -32,6 +32,7 @@ import {
   splitAdditiveTerms,
 } from '../../../algebraAstEngine.js';
 import {
+  exactMonomial,
   exactRationalFromExpression,
   exactRationalFromNode,
   makeRational,
@@ -94,12 +95,21 @@ export const signedFactors = (rawNode) => {
   }
   if (!hasSymbols(node)) {
     const value = exactRationalFromNode(node);
-    if (value) return [{ value, node }];
+    // `literal`: written as one number (3, 1/2). Anything else — 1/2 · 2,
+    // 2 + 3 — still has arithmetic in it, which is the student's.
+    if (value) return [{ value, node, literal: isWrittenNumber(node) }];
   }
   return [{ text: nodeText(node), node }];
 };
 
 const isOne = (value) => value && value.n === 1 && value.d === 1;
+
+function isWrittenNumber(rawNode) {
+  const node = unwrap(rawNode);
+  if (!node) return false;
+  if (node.type === 'OperatorNode' && node.fn === 'unaryMinus' && node.args?.length === 1) return isWrittenNumber(node.args[0]);
+  return Boolean(reducedNumberValue(node));
+}
 const isSum = (node) => {
   const inner = unwrap(node);
   return inner?.type === 'OperatorNode' && ['add', 'subtract'].includes(inner.fn) && inner.args?.length === 2;
@@ -153,11 +163,51 @@ const parenthesesPart = (term, node) => {
   return { sign, groupText, innerTerms: innerTerms.map((entry) => ({ sign: entry.sign < 0 ? -1 : 1, magnitude: entry.magnitudeText, latex: entry.magnitudeLatex })) };
 };
 
-const regionTermParts = (term) => {
+/**
+ * The additive chain as written, before the term splitter folds a leading
+ * minus into the term's sign: x - (-1)(x + 2) is the raw term (-1)(x + 2)
+ * after a minus, though the splitter reports + 1(x + 2). Same order as
+ * splitAdditiveTerms.
+ */
+const rawAdditiveTerms = (expression) => {
+  const terms = [];
+  const walk = (node, sign) => {
+    if (node?.type === 'OperatorNode' && node.fn === 'add' && node.args?.length === 2) { walk(node.args[0], sign); walk(node.args[1], sign); return; }
+    if (node?.type === 'OperatorNode' && node.fn === 'subtract' && node.args?.length === 2) { walk(node.args[0], sign); walk(node.args[1], -sign); return; }
+    if (node?.type === 'OperatorNode' && node.fn === 'unaryMinus' && node.args?.length === 1) { walk(node.args[0], -sign); return; }
+    if (node?.type === 'ParenthesisNode') { walk(node.content, sign); return; }
+    terms.push({ node, sign });
+  };
+  try { walk(parse(String(expression)), 1); } catch { return []; }
+  return terms;
+};
+
+/** A written (-1)(sum) after a minus: two signs the student multiplies. */
+const hiddenSignProduct = (raw) => {
+  if (!raw || raw.sign > 0) return false;
+  const inner = unwrap(raw.node);
+  if (inner?.type !== 'OperatorNode' || inner.fn !== 'multiply' || inner.args?.length !== 2 || !isSum(inner.args[1])) return false;
+  const unit = exactRationalFromNode(inner.args[0]);
+  return Boolean(unit && unit.n === -1 && unit.d === 1);
+};
+
+const regionTermParts = (term, raw = null) => {
   const node = termNode(term);
   if (!node) return null;
   const termSign = term.sign < 0 ? -1 : 1;
   const parentheses = parenthesesPart(term, node);
+  if (parentheses && hiddenSignProduct(raw)) {
+    // x - (-1)(x + 2): the sign product is the student's, (-1) × (-1).
+    const values = [makeRational(-1, 1), makeRational(-1, 1)];
+    return {
+      kind: SIMPLIFY_PART_KINDS.PRODUCT,
+      values,
+      rest: [parentheses.groupText],
+      latex: `-\\left(-1\\right)\\left(${safeLatex(parentheses.groupText)}\\right)`,
+      productLatex: values.map(describeValueLatex).join(' \\times '),
+      name: `product: minus negative 1 times the quantity ${spokenMathLabel(parentheses.groupText)}`,
+    };
+  }
   if (parentheses) {
     return {
       kind: SIMPLIFY_PART_KINDS.PARENTHESES,
@@ -171,42 +221,52 @@ const regionTermParts = (term) => {
   const rest = factors.filter((factor) => !factor.value).map((factor) => factor.text);
   const nonUnit = numbers.filter((factor) => !isOne(factor.value));
   const signedTermLatex = term.latex.replace(/^\+\s*/, '');
-  if (nonUnit.length >= 2) {
-    // The term's own sign travels on its first number: -3(2x) is (-3) × 2.
-    const values = nonUnit.map((factor, index) => (index === 0 && termSign < 0
-      ? makeRational(-factor.value.n, factor.value.d)
-      : factor.value));
+  const computed = numbers.some((factor) => !factor.literal && !factor.sign);
+  const hasUnit = numbers.some((factor) => isOne(factor.value) && factor.literal);
+  const name = `product: ${spokenMathLabel(term.text.replace(/^\+\s*/, ''))}`;
+  // The term's own sign travels on its first number when that number is
+  // positive: -3(2x) is (-3) × 2. A negative first number keeps its own sign
+  // and the term's minus becomes its own factor, (-1) × (-1) × 4: the sign
+  // product is always the student's.
+  const signed = (values) => {
+    if (termSign > 0 || !values.length) return values;
+    const [first, ...others] = values;
+    return first.n > 0 ? [makeRational(-first.n, first.d), ...others] : [makeRational(-1, 1), first, ...others];
+  };
+  if (nonUnit.length >= 2 || (computed && factors.length >= 2)) {
+    const values = signed(numbers.filter((factor) => !isOne(factor.value) || !factor.literal).map((factor) => factor.value));
     return {
       kind: SIMPLIFY_PART_KINDS.PRODUCT,
       values,
       rest,
       latex: signedTermLatex,
-      productLatex: values.map(describeValueLatex).join(' \\times '),
-      name: `product: ${spokenMathLabel(term.text.replace(/^\+\s*/, ''))}`,
+      // Arithmetic hidden inside a number (2 · 1/2) is shown as written.
+      productLatex: computed ? signedTermLatex : values.map(describeValueLatex).join(' \\times '),
+      name,
     };
   }
-  if (nonUnit.length === 1 && termSign < 0 && nonUnit[0].value.n < 0 && numbers.length > nonUnit.length) {
-    // (-1)(-4x): the 1 hides a sign product, (-1) × (-4). That is the
-    // student's step, never removed for them.
-    const values = [makeRational(-1, 1), nonUnit[0].value];
+  if (hasUnit && factors.length >= 2) {
+    // Only a factor of 1 is left: (1)(12), x · 1. Removing it is one press,
+    // but only while nothing else changes; a 1 beside a sign — (1)(-4x),
+    // or a minus folded in front — leaves the term for the student to write.
+    if (termSign > 0 && nonUnit.every((factor) => factor.value.n > 0)) {
+      return {
+        kind: SIMPLIFY_PART_KINDS.UNIT,
+        values: nonUnit.map((factor) => factor.value),
+        rest,
+        termSign,
+        latex: signedTermLatex,
+        name: `a factor of 1: ${spokenMathLabel(term.text.replace(/^\+\s*/, ''))}`,
+      };
+    }
+    const values = signed(nonUnit.length ? nonUnit.map((factor) => factor.value) : [makeRational(1, 1)]);
     return {
       kind: SIMPLIFY_PART_KINDS.PRODUCT,
       values,
       rest,
       latex: signedTermLatex,
-      productLatex: values.map(describeValueLatex).join(' \\times '),
-      name: `product: ${spokenMathLabel(term.text.replace(/^\+\s*/, ''))}`,
-    };
-  }
-  if (numbers.length > nonUnit.length && factors.length >= 2) {
-    // Only a factor of 1 is left to remove: (1)(12), (1)(-4x), x · 1.
-    return {
-      kind: SIMPLIFY_PART_KINDS.UNIT,
-      values: nonUnit.map((factor) => factor.value),
-      rest,
-      termSign,
-      latex: signedTermLatex,
-      name: `a factor of 1: ${spokenMathLabel(term.text.replace(/^\+\s*/, ''))}`,
+      productLatex: signedTermLatex,
+      name,
     };
   }
   const inner = unwrap(node);
@@ -256,8 +316,9 @@ export const detectSimplifyParts = (regions = []) => {
   regions.forEach((region) => {
     if (!region || region.expression == null || region.expression === '') return;
     const terms = splitAdditiveTerms(region.expression) || [];
+    const raw = rawAdditiveTerms(region.expression);
     terms.forEach((term, termIndex) => {
-      const part = regionTermParts(term);
+      const part = regionTermParts(term, raw.length === terms.length ? raw[termIndex] : null);
       if (part) parts.push({ ...part, variable: region.variable || 'x', region: region.key, regionLabel: region.label || region.key, termIndices: [termIndex] });
     });
     let groups = [];
@@ -346,6 +407,45 @@ const simplestTermProblem = (node) => {
   return null;
 };
 
+// Numbers written in a term, not counting exponents: 10x/2 has two, x^2 none.
+const writtenLiterals = (node, inExponent = false, found = []) => {
+  if (!node) return found;
+  if (node.type === 'ConstantNode' && !inExponent) found.push(Number(node.value));
+  if (node.type === 'OperatorNode' && node.fn === 'pow' && node.args?.length === 2) {
+    writtenLiterals(node.args[0], inExponent, found);
+    return found;
+  }
+  (node.args || (node.content ? [node.content] : [])).forEach((child) => writtenLiterals(child, inExponent, found));
+  return found;
+};
+
+const hasUnitExponent = (node) => node.filter((child) => child.type === 'OperatorNode' && child.fn === 'pow'
+  && unwrap(child.args?.[1])?.type === 'ConstantNode' && Number(unwrap(child.args[1]).value) === 1).length > 0;
+
+/**
+ * A single term written as simply as its value allows: x, -6x, 5x/2, (1/2)x —
+ * never 10x/2, 2x · 1, (2+3)x, 0/2 or x^1. A term that is not a monomial
+ * (15(x - 3)) is judged by its factors alone.
+ */
+export const writtenTermProblem = (node) => {
+  const factorProblem = simplestTermProblem(node);
+  if (factorProblem) return factorProblem;
+  if (hasUnitExponent(node)) return 'notSimplest';
+  const monomial = exactMonomial(node);
+  if (!monomial) return null;
+  // The numbers written must be exactly the reduced coefficient's: its
+  // numerator (left out when it is a 1 in front of letters) and denominator.
+  const { n, d } = monomial.coefficient;
+  const canonical = [];
+  if (Math.abs(n) !== 1 || !Object.keys(monomial.powers).length) canonical.push(Math.abs(n));
+  if (d !== 1) canonical.push(d);
+  const sorted = (values) => [...values].map((value) => Math.abs(value)).sort((a, b) => a - b).join(',');
+  const written = sorted(writtenLiterals(node));
+  // (1/2)x writes the 1 a numerator needs.
+  if (written === sorted(canonical) || (d !== 1 && Math.abs(n) === 1 && written === sorted([...canonical, 1]))) return null;
+  return 'notLowestTerms';
+};
+
 const productValue = (values) => values.reduce((acc, value) => multiplyRational(acc, value), makeRational(1, 1));
 
 /**
@@ -390,9 +490,10 @@ export const checkSimplifyPart = (part, { answer = '', signs = [] } = {}) => {
       const flipped = expected.n !== 0 && (typedValue ? rationalEquals(typedValue, negated) : equalsTerm(negated));
       return { ok: false, reason: flipped ? 'sign' : 'notEqual' };
     }
+    if ((splitAdditiveTerms(typed.expression) || []).length !== 1) return { ok: false, reason: 'notSingleTerm' };
     const problem = typedValue
       ? (reducedNumberValue(typed.node) || (unwrap(typed.node)?.fn === 'unaryMinus' && reducedNumberValue(unwrap(typed.node).args[0])) ? null : 'notSingleNumber')
-      : simplestTermProblem(typed.node);
+      : writtenTermProblem(typed.node);
     if (problem) return { ok: false, reason: problem };
     return { ok: true, items: [termFromValue(expected, part.rest)] };
   }
@@ -416,9 +517,9 @@ export const checkSimplifyPart = (part, { answer = '', signs = [] } = {}) => {
     const typedTerms = splitAdditiveTerms(typed.expression) || [];
     if (typedTerms.length !== 1) return { ok: false, reason: 'notSingleTerm' };
     const zero = exactRationalFromExpression(typed.expression);
-    if (zero && zero.n === 0) return { ok: true, items: [] };
+    if (zero && zero.n === 0) return reducedNumberValue(typed.node) ? { ok: true, items: [] } : { ok: false, reason: 'notLowestTerms' };
     if (monomialSignature(typedTerms[0].text) !== part.key) return { ok: false, reason: 'notSingleTerm' };
-    const problem = simplestTermProblem(typed.node);
+    const problem = writtenTermProblem(typed.node);
     if (problem) return { ok: false, reason: problem };
     // Stored with its multiplication written out (7 * x), as the engine's own
     // terms are, so the board draws 7x rather than a spaced 7 x.
@@ -440,7 +541,13 @@ const withoutZeroTerms = (items) => {
 
 /** The region's expression after replacing the part with checked items, proved equivalent. */
 export const applySimplifyItems = (region, part, items) => {
-  const current = sideItems(region.expression);
+  // The terms left alone are kept as written — (1)(-4x) stays (1)(-4x), not
+  // the splitter's flattened 1 * -4 * x — whenever the written chain lines up.
+  const split = sideItems(region.expression);
+  const raw = rawAdditiveTerms(region.expression);
+  const current = raw.length === split.length
+    ? raw.map((entry) => ({ sign: entry.sign, magnitude: entry.node.toString({ parenthesis: 'keep', implicit: 'show' }) }))
+    : split;
   const first = part.termIndices[0];
   const drop = new Set(part.termIndices);
   const next = [];
@@ -517,9 +624,26 @@ export const checkRegionRewrite = (region, answer, { read = null, equivalent = n
   } catch { equal = false; }
   if (!equal) return { ok: false, reason: 'notEquivalentSide' };
   if (compact(typed.expression) === compact(region.expression)) return { ok: false, reason: 'unchanged' };
-  const before = detectSimplifyParts([region]).length;
-  const after = detectSimplifyParts([{ ...region, expression: typed.expression }]).length;
-  if (after > before) return { ok: false, reason: 'moreToSimplify' };
+  const beforeParts = detectSimplifyParts([region]);
+  const afterParts = detectSimplifyParts([{ ...region, expression: typed.expression }]);
+  const likeTermCount = (parts) => parts.filter((part) => part.kind === SIMPLIFY_PART_KINDS.LIKE_TERMS)
+    .reduce((total, part) => total + part.termIndices.length, 0);
+  if (afterParts.length > beforeParts.length || likeTermCount(afterParts) > likeTermCount(beforeParts)) {
+    return { ok: false, reason: 'moreToSimplify' };
+  }
+  // Every term the student wrote anew is written simply: never 1x, 2x · 1,
+  // 10x/2 or (2 + 3)x. A term kept exactly as it was is left to its own part.
+  const compactTerm = (term) => {
+    try { return compact(parse(term.magnitudeText).toString({ parenthesis: 'auto', implicit: 'show' })); } catch { return compact(term.magnitudeText); }
+  };
+  const unchangedTerms = new Set((splitAdditiveTerms(region.expression) || []).map(compactTerm));
+  for (const term of splitAdditiveTerms(typed.expression) || []) {
+    if (unchangedTerms.has(compactTerm(term))) continue;
+    let node;
+    try { node = parse(term.magnitudeText); } catch { continue; }
+    const problem = writtenTermProblem(node);
+    if (problem) return { ok: false, reason: problem };
+  }
   // "+ 0" never reaches the board, whatever was typed.
   const items = sideItems(typed.expression);
   const kept = withoutZeroTerms(items);
@@ -544,6 +668,7 @@ export const SIMPLIFY_MESSAGES = Object.freeze({
   notLowestTerms: 'Write each number in lowest terms. Your equation has not been changed.',
   unitCoefficient: 'Leave out a coefficient of one: write x, not 1x. Your equation has not been changed.',
   notSingleTerm: 'Combine the terms into one term. Your equation has not been changed.',
+  notSimplest: 'Write it in simplest form. Your equation has not been changed.',
   signsMissing: 'Choose a sign for every term inside the parentheses.',
   signsWrong: 'Not every sign is right yet. A minus sign in front of parentheses changes the sign of every term inside. Your equation has not been changed.',
   notEquivalentSide: 'That is not equivalent to that side. Your equation has not been changed.',

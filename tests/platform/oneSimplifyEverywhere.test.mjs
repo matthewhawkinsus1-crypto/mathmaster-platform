@@ -149,6 +149,13 @@ test('rehydrating a draft migrates the open tool and keeps the committed work', 
   // A Simplify slot from another equation is never replayed.
   assert.equal(sanitizeSimplifyState(openSimplify('a = b'), key), null);
   assert.equal(sanitizeSimplifyState(openSimplify(key), key).kind, 'simplify');
+  // Device storage is re-typed, never trusted (verifier review).
+  const tampered = sanitizeSimplifyState({ ...openSimplify(key), answer: { x: 1 }, regionAnswer: 'y'.repeat(5000), signs: ['+', 1, -1, 7], partId: 42, undoStack: [null, 'x', { answer: 3 }] }, key);
+  assert.equal(tampered.answer, '');
+  assert.equal(tampered.regionAnswer.length, 500);
+  assert.deepEqual(tampered.signs, [0, 1, -1, 0]);
+  assert.equal(tampered.partId, null);
+  assert.deepEqual(tampered.undoStack.map((entry) => entry.answer), ['']);
 });
 
 test('the parts toolbar: arrows move and wrap, Home/End jump, Enter and Space open, Escape closes', () => {

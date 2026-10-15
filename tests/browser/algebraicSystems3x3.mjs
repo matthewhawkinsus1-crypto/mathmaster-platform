@@ -212,6 +212,8 @@ const useFormAsToken = async (page) => {
 };
 
 /** R1: 2(-y - z + 6) - y + 3z = 9  ->  -3y + z = -3. */
+// A term is matched by its source text, which is written either way once
+// Simplify rebuilds a side: 2 (-z) as typed by distribution, 2 * -z after.
 const standardizeR1 = async (page, { pauseAfterDistribution = null } = {}) => {
   await page.locator('button', { hasText: 'Simplify R₁' }).click();
   await settle(page, 700);
@@ -219,8 +221,8 @@ const standardizeR1 = async (page, { pauseAfterDistribution = null } = {}) => {
   if (pauseAfterDistribution) await pauseAfterDistribution();
   const host = solver(page);
   await rewriteTerm(page, host, 'left', /^2 \(-y\)$/, '-2y');
-  await rewriteTerm(page, host, 'left', /2 \(-z\)$/, '-2z');
-  await rewriteTerm(page, host, 'left', /2 \(6\)$/, '12');
+  await rewriteTerm(page, host, 'left', /2 (\(-z\)|\* -z)$/, '-2z');
+  await rewriteTerm(page, host, 'left', /2 (\(6\)|\* 6)$/, '12');
   await combineLikeTerms(page, host, 'left', /y$/, '-3y');
   await combineLikeTerms(page, host, 'left', /z$/, 'z');
   await closeInlineModes(page, host);
@@ -238,8 +240,8 @@ const standardizeR2 = async (page, { pauseAfterDistribution = null } = {}) => {
   if (pauseAfterDistribution) await pauseAfterDistribution();
   const host = solver(page);
   await rewriteTerm(page, host, 'left', /^3 \(-y\)$/, '-3y');
-  await rewriteTerm(page, host, 'left', /3 \(-z\)$/, '-3z');
-  await rewriteTerm(page, host, 'left', /3 \(6\)$/, '18');
+  await rewriteTerm(page, host, 'left', /3 (\(-z\)|\* -z)$/, '-3z');
+  await rewriteTerm(page, host, 'left', /3 (\(6\)|\* 6)$/, '18');
   await combineLikeTerms(page, host, 'left', /y$/, '-y');
   await combineLikeTerms(page, host, 'left', /z$/, '-4z');
   await closeInlineModes(page, host);
@@ -272,7 +274,7 @@ const solveReducedSubsystem = async (page, journey, { pauseMidSolve = null } = {
   // -y - 4(-3 + 3y) = -14
   await distribute(page, host);
   await rewriteTerm(page, host, 'left', /-4 \(-3\)|4 \(-3\)/, '12');
-  await rewriteTerm(page, host, 'left', /4 \(3/, '-12y');
+  await rewriteTerm(page, host, 'left', /4 (\(3|\* 3)/, '-12y');
   await combineLikeTerms(page, host, 'left', /y$/, '-13y');
   await closeInlineModes(page, host);
   await balancedMove(page, host, 'Subtract', '12');

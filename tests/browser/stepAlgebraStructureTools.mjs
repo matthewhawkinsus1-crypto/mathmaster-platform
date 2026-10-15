@@ -675,7 +675,8 @@ async function undoOneDecision(context) {
   await page.locator('.mm-simplify-box button', { hasText: 'Remove the 1' }).click();
   await settle(page, 900);
   const removed = compact(await state(page));
-  expect(journey, removed === '2x-4x+1\\left(12\\right)=2', `after removing one factor of 1: ${removed}`);
+  // (1)(12) is the plain factor of 1; (1)(-4x) is the student's to write.
+  expect(journey, removed === '2x+\\left(1\\right)\\left(-4x\\right)+12=2', `after removing one factor of 1: ${removed}`);
   await page.locator('button.algebra-simplify-toggle').click();
   await settle(page, 200);
   await undoButton(page).click();
@@ -717,7 +718,7 @@ async function legacyDrafts(context) {
   await page.locator('.mm-simplify-box button.algebra-inline-commit').click();
   await settle(page, 900);
   const after = compact(await state(page));
-  expect(journey, after === '-2x+1\\left(12\\right)=2', `after the migrated combination: ${after}`);
+  expect(journey, after === '-2x+\\left(1\\right)\\left(12\\right)=2', `after the migrated combination: ${after}`);
   const draft = await page.evaluate(() => JSON.parse(window.localStorage.getItem(Object.keys(window.localStorage).find((entry) => entry.endsWith(':step-algebra')))).value);
   expect(journey, !('likeTermsOpen' in draft) && draft.simplifyTool?.kind === 'simplify', 'the draft is still written with the old fields');
   report.push({ journey, committed, after });

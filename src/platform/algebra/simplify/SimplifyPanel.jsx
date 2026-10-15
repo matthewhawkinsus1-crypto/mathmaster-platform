@@ -97,6 +97,7 @@ export default function SimplifyPanel({
   // Bumped by the host when the student opens Simplify: focus moves to the
   // first part (or to Close when there is none). Never on a restored draft.
   focusSignal = 0,
+  onFocusConsumed = null,
   // How a typed whole region is read and compared, when the host reads
   // expressions its own way (checkRegionRewrite's `read` / `equivalent`).
   regionCheck = null,
@@ -117,9 +118,17 @@ export default function SimplifyPanel({
   useEffect(() => {
     if (rovingIndex >= parts.length) setRovingIndex(Math.max(0, parts.length - 1));
   }, [parts.length, rovingIndex]);
-  // Choosing a part (by tap or key) moves focus into its box.
+  // Choosing a part (by tap or key) moves focus into its box — never a part
+  // that was already chosen when the panel appeared (a restored draft, or the
+  // panel coming back after a balanced move): nothing moves focus by itself.
+  const chosenAtMount = useRef(part?.id || null);
   useEffect(() => {
     if (!part) return;
+    if (chosenAtMount.current && chosenAtMount.current === part.id) {
+      chosenAtMount.current = null;
+      return;
+    }
+    chosenAtMount.current = null;
     const index = parts.findIndex((entry) => entry.id === part.id);
     if (index >= 0) setRovingIndex(index);
     if (partNeedsSigns(part)) window.requestAnimationFrame(() => firstSignRef.current?.focus());
@@ -128,8 +137,11 @@ export default function SimplifyPanel({
   }, [part?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeRef = useRef(null);
+  // A focus request is consumed once (the host clears it), so the panel
+  // coming back after a balanced move never takes focus by itself.
   useEffect(() => {
     if (!focusSignal) return;
+    onFocusConsumed?.();
     window.requestAnimationFrame(() => {
       const first = parts[0] ? chipRefs.current.get(parts[0].id) : null;
       (first || closeRef.current)?.focus();

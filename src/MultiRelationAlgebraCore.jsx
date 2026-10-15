@@ -2025,6 +2025,7 @@ export default function MultiRelationAlgebra({
           host="relation"
           regionCheck={relationRegionCheck}
           focusSignal={simplifyFocusSignal}
+          onFocusConsumed={() => setSimplifyFocusSignal(0)}
           idPrefix={`${draftKey || 'relation'}-simplify`.replace(/[^a-zA-Z0-9_-]/g, '-')}
         />
       )}

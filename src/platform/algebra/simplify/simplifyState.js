@@ -18,6 +18,8 @@ import { SIMPLIFY_PART_KINDS, detectSimplifyParts } from './simplifyEngine.js';
 
 export const SIMPLIFY_TOOL = 'simplify';
 
+const MAX_TEXT = 500;
+
 export const openSimplify = (key) => ({
   kind: SIMPLIFY_TOOL,
   equationKey: String(key ?? ''),
@@ -67,11 +69,22 @@ export const undoSimplify = (state) => undoTransient(state);
 export const sanitizeSimplifyState = (state, key) => {
   if (!state || typeof state !== 'object' || state.kind !== SIMPLIFY_TOOL) return null;
   if (state.equationKey !== String(key ?? '')) return null;
+  // Device storage: every field is re-typed, never trusted.
+  const text = (value) => (typeof value === 'string' ? value.slice(0, MAX_TEXT) : '');
+  const clean = (entry) => ({
+    kind: SIMPLIFY_TOOL,
+    equationKey: String(key ?? ''),
+    partId: typeof entry?.partId === 'string' ? entry.partId.slice(0, MAX_TEXT) : null,
+    answer: text(entry?.answer),
+    signs: Array.isArray(entry?.signs) ? entry.signs.slice(0, 40).map((sign) => (sign === 1 || sign === -1 ? sign : 0)) : [],
+    region: typeof entry?.region === 'string' ? entry.region.slice(0, 40) : null,
+    regionAnswer: text(entry?.regionAnswer),
+  });
   return {
-    ...openSimplify(key),
-    ...state,
-    signs: Array.isArray(state.signs) ? state.signs : [],
-    undoStack: Array.isArray(state.undoStack) ? state.undoStack : [],
+    ...clean(state),
+    undoStack: (Array.isArray(state.undoStack) ? state.undoStack : [])
+      .filter((entry) => entry && typeof entry === 'object').slice(-40).map(clean),
+    lastActionKey: null,
   };
 };
 
@@ -131,6 +144,7 @@ export const migrateLegacySimplifyDraft = (draft, { key, regions }) => {
       };
     }
   }
+  if (result.simplifyTool) result.simplifyTool = sanitizeSimplifyState({ ...result.simplifyTool, kind: SIMPLIFY_TOOL }, key);
   return result;
 };
 

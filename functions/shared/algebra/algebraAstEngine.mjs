@@ -312,11 +312,18 @@ const unitValue = (node) => {
 const isGroupedSum = (node) => isParenthesis(node)
   && node.content?.type === 'OperatorNode' && ['add', 'subtract'].includes(node.content.fn);
 
-const unitFactorGroup = (fn, args) => {
+// -1(…) is drawn -(…) only where no sign stands straight before it: after a
+// + or a − it would read "+ -(…)" or "- -(…)", and folding that sign would do
+// a sign step for the student, so the -1 stays written there.
+const signBefore = (parent, argIndex) => Boolean(parent?.type === 'OperatorNode' && (
+  parent.fn === 'unaryMinus' || (['add', 'subtract'].includes(parent.fn) && argIndex > 0)
+));
+
+const unitFactorGroup = (fn, args, parent = null, argIndex = 0) => {
   if (fn !== 'multiply' || args.length !== 2 || !isGroupedSum(args[1])) return null;
   const unit = unitValue(args[0]);
   if (unit === 1) return args[1];
-  if (unit === -1) return new OperatorNode('-', 'unaryMinus', [args[1]]);
+  if (unit === -1 && !signBefore(parent, argIndex)) return new OperatorNode('-', 'unaryMinus', [args[1]]);
   return null;
 };
 
@@ -343,7 +350,7 @@ const withoutRedundantGrouping = (node, parent = null, argIndex = 0) => {
     // unit product, 1(-4x + 12) or -1(-4x + 12), so every term splitter keeps
     // the group as one term (student push Q). It is drawn as the group the
     // student substituted into: (-4x + 12), -(-4x + 12). Display only.
-    const unitGroup = unitFactorGroup(node.fn, args);
+    const unitGroup = unitFactorGroup(node.fn, args, parent, argIndex);
     if (unitGroup) return unitGroup;
     if (node.fn === 'unaryMinus' && args.length === 1 && only?.type === 'OperatorNode' && only.fn === 'multiply'
       && ['ConstantNode', 'SymbolNode'].includes(only.args?.[0]?.type)

@@ -2511,6 +2511,7 @@ export default function StepByStepAlgebra({
           collapseSignal={mathToolsCollapseSignal}
           boardHighlights={inlineExpressionTools}
           focusSignal={simplifyFocusSignal}
+          onFocusConsumed={() => setSimplifyFocusSignal(0)}
           idPrefix={`${localDraftKey || 'step-algebra'}-simplify`.replace(/[^a-zA-Z0-9_-]/g, '-')}
         />
       )}

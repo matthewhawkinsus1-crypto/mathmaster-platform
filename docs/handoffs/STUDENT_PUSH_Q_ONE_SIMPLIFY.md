@@ -53,7 +53,8 @@ the equation is solved (`x = …`), where no group remains.
 | 643e971 | The tests that pinned the old controls, each rewritten against the behaviour it protects. |
 | 56a66ea | Browser drivers, plus the new journeys. Drafts are migrated in `rehydrateAlgebraDraft`. After a commit, focus moves to the next part. |
 | 05d6c5d | The planner removes a substituted group before combining; dead CSS removed; this handoff and the screenshots. |
-| (next) | `compactStepStateKey` gives the old and new rendering of one state one key (coordinator review); merge of main. |
+| 745c0d8 | `compactStepStateKey` gives the old and new rendering of one state one key (coordinator review); merge of main @ 86121b6. |
+| (next) | The verifier's fixes (below). |
 | 09e7d6c | The static scan, migration, keyboard and ×1 tests. Engine fix: a minus sign is not a written 1 (`−y` is simplest, `−1y` is not; found by the 3×3 journey). Drivers for systems, relation and LMR. |
 
 ### How Simplify works
@@ -71,7 +72,7 @@ the equation is solved (`x = …`), where no group remains.
     change a sign, as in `(−1)(−4x)`, it is a product the student multiplies instead.
 - **Whole side.** Typed free-form, as Rewrite / Simplify was. It must be equal and different, and must not leave more
   to simplify than before (`x + x + 12` for `2x + 12` is refused).
-- **Banned forms.** `1x`, `−1x` and `+ 0` never reach the board. A typed `1x` is refused ("write x, not 1x"). A zero
+- **Banned forms.** `1x`, `−1x` and `+ 0` never reach the board. A typed `1x` is refused ("write x, not 1x"), in every box and in the whole-side route. A zero
   term is dropped. Product commits write `x`, not `1x`.
 - **Credit.** Every part reports a kind the server already accepts:
 
@@ -148,6 +149,27 @@ the equation is solved (`x = …`), where no group remains.
     - Three were timeouts while `assessmentLeakGates` ran in parallel (equation-mixed-one and the two
       fraction-coefficient journeys).
     - All four pass on a rerun (exit 0).
+
+## Independent verification (one adversarial verifier, on the final diff)
+
+The verifier fuzzed about 40 equation shapes with thousands of typed candidates. Every accepted commit was equal to
+its input (`rebuildSideSafely` guards it), migration survived malformed drafts, every step kind is a server kind, and
+the `algebraAstEngine` diff touches only LaTeX output. It confirmed these defects, all fixed in the commit after
+745c0d8:
+
+| Finding | Fix |
+| --- | --- |
+| The platform did arithmetic with no student input. `2·(1/2)x` became a one-press "Remove the 1"; `−(−1)(4)` asked "1 × 4"; `x − (−1)(−4x)` lost its sign step. | A number with arithmetic in it (`1/2·2`, `2+3`) makes the term a product the student types, shown as written. A negative first number is never folded into: the term's minus becomes its own factor, `(−1) × (−1) × 4`. A factor of 1 is a one-press removal only when no sign changes. A written `−(−1)(sum)` is a typed product (`rawAdditiveTerms` sees the minus that the shared splitter folds). |
+| The whole-side route let in `1x`, `−1x`, `2x·1`, `x+x+x+x+x`, `10x/2` and `(2+3)x`. | Every term the student writes anew must be written simply (`writtenTermProblem`: no unit coefficient, no second number, a coefficient in lowest terms, no `^1`). A rewrite must not hold more like terms than before. Terms kept as they were are left to their own parts. |
+| The like-terms box accepted `10x/12`, `2x/2`, `x^1` and `0/2`. | The same `writtenTermProblem` check. |
+| The product box reduced what was typed (`−12x/2`, `−6x+0`). | It must be one term, written simply. |
+| A double minus showed in LaTeX for `x − (−1)(x+2)`. | `−1(…)` is drawn `−(…)` only where no sign stands straight before it; otherwise it is drawn as on main. |
+| A restored Simplify slot was not type-checked. | `sanitizeSimplifyState` re-types every field: strings capped at 500 characters, signs ±1, the undo stack cleaned. |
+| A restored or remounted panel took focus. | A part chosen when the panel mounts does not move focus; the open-focus request is consumed once (`onFocusConsumed`). |
+
+All of these are pinned in `simplifyEngine.test.mjs` / `oneSimplifyEverywhere.test.mjs`. The verifier's first point,
+that `compactStepStateKey` changes server behaviour, was the coordinator's state-key fix, which it saw before commit.
+It is documented under Deploy. Left as is: `x·1` shows its prompt as `x1` (low; the term's own LaTeX).
 
 ## Calls I made (conservative, recorded here)
 

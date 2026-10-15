@@ -33,7 +33,12 @@ const commit = (left, right, id, work) => commitSimplifyPart(regionsOf(left, rig
 test('detection finds each kind of part from the math tree, in reading order', () => {
   const cases = [
     // The owner's case, as a draft from before job Q holds it.
-    ['2 * x + (1) * (-4 * x) + (1) * (12)', '2', ['left:likeTerms:0.1', 'left:unit:1', 'left:unit:2']],
+    // (1)(-4x) keeps a sign beside its 1, so the student writes the term;
+    // (1)(12) is a plain factor of 1, removed with one press.
+    ['2 * x + (1) * (-4 * x) + (1) * (12)', '2', ['left:likeTerms:0.1', 'left:product:1', 'left:unit:2']],
+    // Arithmetic hidden in a number, or a sign product behind a 1, is the student's.
+    ['2 * (1/2) * x', '3', ['left:product:0']],
+    ['-(-1) * (4)', '3', ['left:product:0']],
     // A substituted group after a plus and after a minus sign.
     ['2 * x + 1 * (-4 * x + 12)', '2', ['left:parentheses:1']],
     ['3 * x - 1 * (-4 * x + 12)', '4', ['left:parentheses:1']],
@@ -67,11 +72,12 @@ test('a substituted group is never a like term and never crosses into one', () =
 test('parts carry an accessible name, and board taps map to them', () => {
   const parts = detectSimplifyParts(regionsOf('2 * x + (1) * (-4 * x) + (1) * (12)', '2'));
   assert.match(parts[0].name, /^like terms: 2 times x and 1 times negative 4 times x$/);
-  assert.match(parts[1].name, /^a factor of 1: /);
+  assert.match(parts[1].name, /^product: 1 times negative 4 times x$/);
+  assert.match(parts[2].name, /^a factor of 1: /);
   assert.deepEqual(highlightedTermIndices(parts, 'left'), [0, 1, 2]);
   assert.deepEqual(highlightedTermIndices(parts, 'right'), []);
   // The middle term belongs to two parts; a repeated tap alternates.
-  assert.deepEqual(partsForTerm(parts, 'left', 1).map((part) => part.kind), ['likeTerms', 'unit']);
+  assert.deepEqual(partsForTerm(parts, 'left', 1).map((part) => part.kind), ['likeTerms', 'product']);
   const sub = detectSimplifyParts(regionsOf('3 * x - 1 * (-4 * x + 12)', '4'))[0];
   assert.equal(sub.name, 'parentheses: minus the quantity negative 4 times x plus 12');
 });
@@ -120,6 +126,16 @@ test('a product: the student states the product, checked exactly, with near miss
   assert.equal(commit('-3 * (2 * x)', '6', negative.id, { answer: '(-2)(3)x' }).reason, 'notSingleNumber');
   // A product of 0 leaves no "+ 0" on the board.
   assert.equal(commit('x + (0) * (5)', '3', 'left:product:1', { answer: '0' }).expression, 'x');
+  // The product box keeps what the student typed honest: no unreduced fraction, no extra term.
+  assert.equal(commit('-3 * (2 * x)', '6', negative.id, { answer: '-12x/2' }).reason, 'notLowestTerms');
+  assert.equal(commit('-3 * (2 * x)', '6', negative.id, { answer: '-6x+0' }).reason, 'notSingleTerm');
+  // A sign product is never done for the student: -(-1)(4) asks (-1) × (-1) × 4.
+  const signs = detectSimplifyParts(regionsOf('-(-1) * (4)', '3'))[0];
+  assert.equal(signs.productLatex, '\\left(-1\\right) \\times \\left(-1\\right) \\times 4');
+  // Arithmetic inside a number (2 · 1/2) is typed by the student, never one press.
+  const half = detectSimplifyParts(regionsOf('2 * (1/2) * x', '3'))[0];
+  assert.equal(half.kind, 'product');
+  assert.equal(partNeedsAnswer(half), true);
   // (-1)(-4x) keeps its sign step: the student states 4.
   assert.equal(commit('(-1) * (-4 * x)', '8', 'left:product:0', { answer: '4' }).expression, '4 * x');
   // A product of 1 never writes 1x: (1/2)(2)x -> x.
@@ -142,6 +158,12 @@ test('like terms: one simplest term equal to their sum; near misses refused', ()
   // A minus sign is not a written 1: -y is simplest, -1y is not (3x3 journey).
   assert.equal(commit('-3 * y + 2 * y', '7', 'left:likeTerms:0.1', { answer: '-y' }).ok, true);
   assert.equal(commit('-3 * y + 2 * y', '7', 'left:likeTerms:0.1', { answer: '-1y' }).reason, 'unitCoefficient');
+  // Written simply: 10x/12, 2x/2, x^1 and 0/2 are refused (verifier review).
+  assert.equal(commit('x / 2 + x / 3', '1', 'left:likeTerms:0.1', { answer: '10x/12' }).reason, 'notLowestTerms');
+  assert.equal(commit('x / 2 + x / 3', '1', 'left:likeTerms:0.1', { answer: '5x/6' }).ok, true);
+  assert.equal(commit('4 * x - 3 * x', '1', 'left:likeTerms:0.1', { answer: '\\frac{2x}{2}' }).reason, 'notLowestTerms');
+  assert.equal(commit('4 * x - 3 * x', '1', 'left:likeTerms:0.1', { answer: 'x^1' }).reason, 'notSimplest');
+  assert.equal(commit('2 * x - 2 * x', '1', 'left:likeTerms:0.1', { answer: '0/2' }).reason, 'notLowestTerms');
   // Terms that cancel leave no "+ 0" behind.
   assert.equal(commit('2 * x - 2 * x + 5', '0', 'left:likeTerms:0.1', { answer: '0' }).expression, '5');
   assert.equal(commit('2 * x - 2 * x', '5', 'left:likeTerms:0.1', { answer: '0' }).expression, '0');
@@ -179,10 +201,17 @@ test('a whole side: equal, changed, and not leaving more to simplify', () => {
   // Equal, but not simpler: x + x + 12 has like terms that 2x + 12 does not.
   assert.equal(checkRegionRewrite({ ...region, expression: '2 * x + 12' }, 'x + x + 12').reason, 'moreToSimplify');
   assert.equal(checkRegionRewrite({ ...region, expression: '2 * x + 12' }, '2(3)x - 4x + 12').reason, 'moreToSimplify');
-  // "+ 0" typed is removed before it reaches the board.
-  const zero = checkRegionRewrite(region, '-2x+12+0');
-  assert.equal(zero.ok, true);
-  assert.ok(splitAdditiveTerms(zero.expression).every((term) => term.magnitudeText !== '0'), zero.expression);
+  // "+ 0" typed is never accepted onto the board: it leaves a sum to compute.
+  assert.equal(checkRegionRewrite(region, '-2x+12+0').reason, 'moreToSimplify');
+  // Verifier review: new terms must be written simply, and a run of like terms is not simpler.
+  const sum = { ...region, expression: '2 * x + 3 * x' };
+  for (const [typed, reason] of [['x+x+x+x+x', 'moreToSimplify'], ['10x/2', 'notLowestTerms'], ['(2+3)x', 'notLowestTerms'], ['5x^1', 'notSimplest']]) {
+    assert.equal(checkRegionRewrite(sum, typed).reason, reason, typed);
+  }
+  assert.equal(checkRegionRewrite({ ...region, expression: '2 * x - x' }, '1x').reason, 'unitCoefficient');
+  assert.equal(checkRegionRewrite({ ...region, expression: '3 * x - 4 * x' }, '-1x').reason, 'unitCoefficient');
+  // A term kept exactly as it was is not judged again: 3(2x) is still its own part.
+  assert.equal(checkRegionRewrite({ ...region, expression: '3 * (2 * x) + 4 + 5' }, '3(2x)+9').ok, true);
   // A distribution or a reshaped fraction is not "more to simplify".
   assert.equal(checkRegionRewrite({ ...region, expression: '3 * (x + 2)' }, '3x + 6').ok, true);
   assert.equal(checkRegionRewrite({ ...region, expression: 'x / 2' }, '(1/2)x').ok, true);
