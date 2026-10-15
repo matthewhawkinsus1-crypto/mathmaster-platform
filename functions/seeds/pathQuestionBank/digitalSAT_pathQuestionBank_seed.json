@@ -6642,7 +6642,7 @@
         "headline": "Simplify each root to a multiple of $\\sqrt{{{m}}}$, then subtract: ${{coef}}\\sqrt{{{m}}}$.",
         "reasoning": [
           "$\\sqrt{{{rad1}}}=\\sqrt{{{a2}}\\cdot {{m}}}={{a}}\\sqrt{{{m}}}$ and $\\sqrt{{{rad2}}}=\\sqrt{{{b2}}\\cdot {{m}}}={{b}}\\sqrt{{{m}}}$.",
-          "Subtract the coefficients: ${{a}}\\sqrt{{{m}}}-{{b}}\\sqrt{{{m}}}={{coef}}\\sqrt{{{m}}}$."
+          "Subtract the coefficients: ${{a}}\\sqrt{{{m}}}-{{b}}\\sqrt{{{m}}}={{coef|coef}}\\sqrt{{{m}}}$."
         ],
         "commonError": "Subtracting under the root, or adding or multiplying the coefficients.",
         "answerSummary": "${{coef}}\\sqrt{{{m}}}$"
@@ -35986,7 +35986,7 @@
       "solutionReview": {
         "headline": "The square is never negative, so the least value is the constant: {{k}}.",
         "reasoning": [
-          "The square $(x {{nh|signed}})^2$ is never negative, and ${{a}}>0$, so ${{a}}(x {{nh|signed}})^2$ is at least 0.",
+          "The square $(x {{nh|signed}})^2$ is never negative, and ${{a}}>0$, so ${{a|coef}}(x {{nh|signed}})^2$ is at least 0.",
           "It equals 0 at $x={{h}}$, where $f({{h}})={{a}}\\cdot 0 {{k|signed}}={{k}}$.",
           "So the minimum value is {{k}}."
         ],
@@ -45599,7 +45599,7 @@
         "headline": "Write each graph's equation from its features; together they form the system.",
         "reasoning": [
           "Line: slope {{m}} and $y$-intercept {{b}} give $y={{m}}x+{{b}}$.",
-          "Parabola: vertex $({{h}},{{k}})$ and leading coefficient {{a}} give $y={{a}}(x-{{h}})^2+{{k}}$. Check: at $x={{h}}$, ${{a}}({{h}}-{{h}})^2+{{k}}={{k}}$.",
+          "Parabola: vertex $({{h}},{{k}})$ and leading coefficient {{a}} give $y={{a|coef}}(x-{{h}})^2+{{k}}$. Check: at $x={{h}}$, ${{a}}({{h}}-{{h}})^2+{{k}}={{k}}$.",
           "Points on both graphs satisfy both equations: $\\begin{cases}y={{m}}x+{{b}}\\\\y={{a}}(x-{{h}})^2+{{k}}\\end{cases}$."
         ],
         "commonError": "Writing $(x+{{h}})^2$ for a vertex at $x={{h}}$, or changing the sign of the intercept or of the leading coefficient.",
@@ -60777,7 +60777,7 @@
       "solutionReview": {
         "headline": "Cross-multiply and solve the linear equation: $x={{xsol}}$.",
         "reasoning": [
-          "Cross-multiply: ${{A}}(x {{nk|signed}})={{B}}(x {{nh|signed}})$.",
+          "Cross-multiply: ${{A|coef}}(x {{nk|signed}})={{B|coef}}(x {{nh|signed}})$.",
           "Expand and collect: $({{A}}-{{B}})x={{Ak}}-{{Bh|paren}}$, so $x=\\frac{{{num}}}{{{AB}}}={{xsol}}$.",
           "Neither denominator is 0 there, so $x={{xsol}}$."
         ],
@@ -81573,7 +81573,7 @@
           "Ingredient B is {{b}} parts, so one part is $\\frac{{{bAmount}}}{{{b}}}={{k}}$ units.",
           "Ingredient A is {{a}} parts: ${{a}}\\cdot {{k}}={{answer}}$ units."
         ],
-        "commonError": "Using the ratio upside down: A to B is {{a}} to {{b}}, so A is less than B when {{a}} is less than {{b}}.",
+        "commonError": "Using the ratio upside down, as B to A ({{b}} to {{a}}) instead of A to B ({{a}} to {{b}}).",
         "answerSummary": "{{answer}} units"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",

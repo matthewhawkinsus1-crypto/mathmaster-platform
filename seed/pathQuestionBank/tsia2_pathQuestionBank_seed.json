@@ -16584,7 +16584,7 @@
         "headline": "A drink bottle holds about half a liter: {{capacity}} milliliters.",
         "reasoning": [
           "Capacity is a volume, so kilograms (mass) and meters (length) are out.",
-          "{{capacity}} milliliters is $\\frac{ {{capacity}} }{1000}={{liters}}$ of a liter, a usual bottle size. {{capacity}} liters would fill a bathtub several times over."
+          "{{capacity}} milliliters is $\\frac{ {{capacity}} }{1000}={{liters}}$ of a liter, a usual bottle size. {{capacity}} liters would be far more than any drink bottle holds."
         ],
         "commonError": "Picking liters because liters measure volume, without checking the size.",
         "answerSummary": "{{capacity}} milliliters"
@@ -39453,7 +39453,7 @@
           "aboveValue": "upperValue+1",
           "farBelow": "floorValue-2",
           "sq": "round(sqrt(radicand)*1000)/1000",
-          "val": "round((multiplier*sqrt(radicand)-shift)*1000)/1000"
+          "val": "round((multiplier*round(sqrt(radicand)*1000)/1000-shift)*1000)/1000"
         },
         "constraints": [
           "radicand<(lower+1)*(lower+1)",

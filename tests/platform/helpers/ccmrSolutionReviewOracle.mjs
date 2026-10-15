@@ -38,7 +38,8 @@ export const mathSpans = (text) => String(text).split('$').filter((part, index) 
 // Forms a worked solution must never show. Checked inside math spans and in
 // prose (a review may write arithmetic undelimited).
 export const DISPLAY_BANS = [
-  [/(^|[^\d.\\a-zA-Z_{])1\s*[a-z](?![a-z])/, 'a coefficient of 1 ("1x")'],
+  // Also before a root, pi or a parenthesised variable expression ("1\\sqrt{3}", "1(x-2)^2").
+  [/(^|[^\d.\\a-zA-Z_{])1\s*(?:[a-z](?![a-z])|\\(?:sqrt|pi)(?![a-zA-Z])|\((?=\s*[a-z]))/, 'a coefficient of 1 ("1x")'],
   [/(^|[^\d.\\a-zA-Z_{])0\s*[a-z](?![a-z])/, 'a coefficient of 0 ("0x")'],
   // A zero added to a variable term ("3x + 0", "x - 0"); "6 - 0" in a
   // substituted formula is arithmetic, not a display fault.

@@ -84,6 +84,32 @@ final push, each exam was also run at 400 draws per template (`MM_REVIEW_DRAWS=4
    - a distractor `100%` and a `1` inside `1,000` read as stated options;
    - a prompt whose points read as thousands (`(2,100)`).
 
+**Independent adversarial verifier (one agent, final diff).**
+
+What it checked, with no problems found:
+- All 768 pinned documents match main once `solutionReview` and `generator.derived` are removed, and every derived
+  value on main is unchanged.
+- No new derived value shadows a parameter.
+- At 300 fresh seeds per template, every draw generates the same question as before.
+- At 200 fresh seeds per template, the oracle reports no failures.
+- A manual read of every draw-dependent prose claim against the parameter ranges found them all true. That covers
+  inequality directions, rounding, signs, "lowest terms", irrationality, and "which is greatest".
+
+What it found, all now fixed:
+- A coefficient 1 written before a root or a parenthesis in three SAT steps: `A_11A_4`, `A_7A_minimum-value` and
+  `A2_6I_challenge_1`. The oracle now bans `1\sqrt`, `1\pi` and `1(x…` as well. The stricter check also found
+  `A2_3A_properties-line-vertex-parabola`, which is fixed too.
+- A capacity claim that was false for low TSIA2 `cmu_7` draws.
+- A nonsensical conditional in the common error for SAT `rru_1`.
+- A `\approx` chain in TSIA2 `rim_6` whose last digit could disagree with its own rounded input.
+
+All three exams pass again at 400 draws per template.
+
+Exposure note for the coordinator, outside this lane and not changed here: `functions/lib/ccmrAssignmentBank.js`
+copies the raw template `solutionReview` into teacher-assignment question documents, as it always has. Those
+documents already carry `generator` and `answerFields`. The copied review is now a worked template rather than a
+generic sentence, so confirm that student payloads strip it.
+
 **Assessment safety.** No prompt, choice, key, response field or grader changed, and the digest pin proves it. The
 review is published only where it was before: the Path recap after the item is answered, and the Live Challenge
 round record after the round closes. This job did not touch the reveal timing.
@@ -131,6 +157,17 @@ here and not fixed (no choice or key may change in this job):
     - `mm_tsia2_qr_rim_5` (`1\sqrt{6}`);
     - `mm_tsia2_qr_rim_8` (`1\sqrt{11}`, and `/1`).
   - `mm_tsia2_ar_nee_1` prints `+ 0x + 0` in its key when `p+q=0`.
+  - `mm_tsia2_ar_lf_5` prints `f(x)=-3x + 0` in its key when `b=0`.
+  - `mm_tsia2_gsr_gac_6` prints `-7/1` in its key when `rise=1`.
+- **Digital SAT display (prompt or key):**
+  - `mm_sat_A_11A_4` prints `1\sqrt{3}` in its key.
+  - Prompts or keys print `1(x-h)^2` or `-1(...)` in:
+    - `A_6B` vertex-form-from-point and challenge-context-vertex-point;
+    - `A_8B_1`;
+    - `A2_4A` symmetric-three-points;
+    - the `A2_3A` line-and-quadratic challenge and properties items;
+    - `A_7A` minimum-value and challenge-max-value;
+    - `A_7C` reflection-maximum.
   The reviews avoid all of these forms. The only exception is where the keyed option itself prints them, and then
   the review restates the key exactly as printed.
 
