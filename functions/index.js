@@ -41,6 +41,12 @@ const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTriggerCapacity");
 const {
+  classroomPushFailure,
+  classroomPushHeldForLimit,
+  clearedClassroomErrorFields,
+} = require("./lib/classroomPushErrors");
+const classroomPushQueue = require("./lib/classroomPushQueue");
+const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
   LINK_ENCRYPTION_KEY,
@@ -8747,22 +8753,18 @@ async function queueRepostedAssignmentGrades({
   }
 
   const gradeRefs = studentIds.map((studentId) => db.doc(`grades/${studentId}`));
-  const gradeSnapshots = await db.getAll(...gradeRefs);
+  // Existence only: a grade document is a student's whole year.
+  const gradeSnapshots = await db.getAll(...gradeRefs, { fieldMask: [] });
   const existingGrades = gradeSnapshots.filter((snapshot) => snapshot.exists);
-  const queuedAt = new Date().toISOString();
 
-  for (let start = 0; start < existingGrades.length; start += 400) {
-    const batch = db.batch();
-    existingGrades.slice(start, start + 400).forEach((snapshot) => {
-      batch.update(
-        snapshot.ref,
-        new FieldPath("classroomReleaseSignals", String(assignmentId)),
-        queuedAt
-      );
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
-  }
+  // A reposted column has to receive every grade again, so these go as manual
+  // retries, queued a minute's worth at a time (lib/classroomPushQueue.js).
+  await classroomPushQueue.enqueueClassroomPushes(db, {
+    assignmentId: String(assignmentId),
+    studentIds: existingGrades.map((snapshot) => snapshot.id),
+    reason: "manual-retry",
+    source: "reposted-assignment",
+  });
 
   return {
     linkedStudents: studentIds.length,
@@ -9700,25 +9702,36 @@ async function writeGradeSyncAudit(db, publicationId, studentId, patch) {
 exports.listClassroomGradeSyncs = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
   const db = getFirestore();
-  const publicationSnap = await db.collection("classroomLinks").limit(500).get();
-  const publicationIds = new Set(
-    publicationSnap.docs
-      .filter((doc) => !doc.data().teacherUid || doc.data().teacherUid === teacherUid)
-      .map((doc) => doc.id)
-  );
-  if (!publicationIds.size) return { syncs: [] };
+  const publicationSnap = await db.collection("classroomLinks")
+    .select("teacherUid", "assignmentId")
+    .limit(2000)
+    .get();
+  const ownPublications = publicationSnap.docs
+    .filter((doc) => !doc.data().teacherUid || doc.data().teacherUid === teacherUid);
+  const publicationIds = new Set(ownPublications.map((doc) => doc.id));
+  if (!publicationIds.size) return { syncs: [], pushQueue: { waiting: 0 } };
+  const ownAssignments = new Set(ownPublications.map((doc) => String(doc.data().assignmentId || "")));
 
-  const syncSnap = await db.collection("classroomGradeSyncs").limit(500).get();
+  // The newest rows. Until Oct 14, 2026 this read any 500 of them, so the
+  // monitor (and "Retry all") could miss most of a day's failures.
+  const syncSnap = await db.collection("classroomGradeSyncs")
+    .orderBy("updatedAt", "desc")
+    .limit(500)
+    .get();
+  // Pushes waiting in the paced queue (lib/classroomPushQueue.js).
+  const waiting = (await classroomPushQueue.waitingClassroomPushes(db, { limit: 2000 }))
+    .filter((entry) => ownAssignments.has(entry.assignmentId));
+  const queuedPushes = new Set(waiting.map((entry) => `${entry.assignmentId}/${entry.studentId}`));
   const syncs = syncSnap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((item) => publicationIds.has(String(item.publicationId)))
     .map((item) => ({
       ...item,
+      queued: queuedPushes.has(`${item.assignmentId}/${item.studentId}`),
       updatedAt: serializableDate(item.updatedAt),
       syncedAt: serializableDate(item.syncedAt),
-    }))
-    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
-  return { syncs };
+    }));
+  return { syncs, pushQueue: { waiting: waiting.length } };
 });
 
 exports.retryClassroomGradeSync = onCall(async (request) => {
@@ -9752,19 +9765,75 @@ exports.retryClassroomGradeSync = onCall(async (request) => {
     );
   }
 
-  const gradeRef = db.doc(`grades/${String(studentId)}`);
-  const gradeSnap = await gradeRef.get();
+  // Existence only: a grade document is a student's whole year.
+  const [gradeSnap] = await db.getAll(db.doc(`grades/${String(studentId)}`), { fieldMask: [] });
   if (!gradeSnap.exists) {
     throw new HttpsError("not-found", "Student grade record not found.");
   }
-  await gradeRef.update(
-    new FieldPath("classroomReleaseSignals", String(assignmentId)),
-    {
-      requestedAt: new Date().toISOString(),
-      reason: "manual-retry",
-    }
-  );
+  // Queued like every other push, so retries cannot outrun Google's limit
+  // (lib/classroomPushQueue.js). It goes out within a minute when the queue is empty.
+  await classroomPushQueue.enqueueClassroomPushes(db, {
+    assignmentId: String(assignmentId),
+    studentIds: [String(studentId)],
+    reason: "manual-retry",
+    source: "teacher-retry",
+  });
   return { queued: true };
+});
+
+// "Retry all eligible failures": every failed push this teacher owns, queued
+// in one call. The browser used to call retryClassroomGradeSync once for each
+// failed row it had been sent (any 500 rows), and every call went to Google
+// at once: on Oct 14, 2026, 208 of them became about 2,000 Classroom requests
+// in 70 seconds against a limit of 600 a minute.
+exports.retryAllClassroomGradeSyncs = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const db = getFirestore();
+  const failedSnap = await db.collection("classroomGradeSyncs")
+    .where("status", "==", "failed")
+    .select("publicationId", "studentId", "assignmentId")
+    .get();
+  const rows = failedSnap.docs
+    .map((doc) => doc.data() || {})
+    .filter((row) => row.publicationId && row.studentId && row.assignmentId);
+  const publicationIds = [...new Set(rows.map((row) => String(row.publicationId)))];
+  const publications = new Map();
+  for (let start = 0; start < publicationIds.length; start += 100) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshots = await db.getAll(
+      ...publicationIds.slice(start, start + 100).map((id) => db.doc(`classroomLinks/${id}`)),
+      { fieldMask: ["teacherUid", "assignmentId"] }
+    );
+    snapshots.forEach((snapshot) => {
+      if (snapshot.exists) publications.set(snapshot.id, snapshot.data() || {});
+    });
+  }
+
+  // The same ownership rule as one row's retry.
+  const studentsByAssignment = new Map();
+  let failedRows = 0;
+  for (const row of rows) {
+    const publication = publications.get(String(row.publicationId));
+    if (!publication) continue;
+    if (publication.teacherUid && publication.teacherUid !== teacherUid) continue;
+    if (String(publication.assignmentId || "") !== String(row.assignmentId)) continue;
+    failedRows += 1;
+    const students = studentsByAssignment.get(String(row.assignmentId)) || new Set();
+    students.add(String(row.studentId));
+    studentsByAssignment.set(String(row.assignmentId), students);
+  }
+
+  let queued = 0;
+  for (const [assignmentId, students] of studentsByAssignment) {
+    // eslint-disable-next-line no-await-in-loop
+    queued += await classroomPushQueue.enqueueClassroomPushes(db, {
+      assignmentId,
+      studentIds: [...students],
+      reason: "manual-retry",
+      source: "teacher-retry-all",
+    });
+  }
+  return { failedRows, queued, assignments: studentsByAssignment.size };
 });
 
 exports.syncGradeToClassroom = onDocumentWritten(
@@ -9829,6 +9898,9 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
     const db = getFirestore();
     const classroomByTeacher = new Map();
+    // Once Google refuses a teacher for the per-minute limit, this push stops
+    // calling it for that teacher; the rest of the columns wait in the queue.
+    const teachersAtClassroomLimit = new Set();
 
     for (const assignmentId of changedAssignmentIds) {
       // eslint-disable-next-line no-await-in-loop
@@ -10014,7 +10086,12 @@ exports.syncGradeToClassroom = onDocumentWritten(
         assignment,
         nowValue: Date.now(),
       });
-      const forceRetry = releaseSignalReason(releaseSignal) === "manual-retry";
+      // A push queued again after Google's per-minute limit sends only the
+      // columns that did not go through; the rest are already current.
+      const quotaRetry = Math.max(0, Number(releaseSignal?.quotaRetry) || 0);
+      const forceRetry = releaseSignalReason(releaseSignal) === "manual-retry" && quotaRetry === 0;
+      const mayRequeue = quotaRetry < classroomPushQueue.MAX_QUOTA_RETRIES;
+      let requeueForLimit = false;
 
       // eslint-disable-next-line no-await-in-loop
       const publicationsSnap = await db
@@ -10245,6 +10322,28 @@ exports.syncGradeToClassroom = onDocumentWritten(
           continue;
         }
 
+        if (teachersAtClassroomLimit.has(classroomKey)) {
+          // eslint-disable-next-line no-await-in-loop
+          await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            assignmentId,
+            courseId,
+            courseworkId: publication.courseworkId,
+            stage,
+            grade,
+            classroomGrade,
+            maxPoints,
+            attempted: progress.attempted,
+            total: progress.total,
+            creditOnAttempted: progress.creditOnAttempted,
+            isFinal,
+            studentVisible: releasePolicy.studentVisible,
+            returnedToStudent: false,
+            ...classroomPushHeldForLimit({ mayRequeue }),
+          });
+          requeueForLimit = requeueForLimit || mayRequeue;
+          continue;
+        }
+
         try {
           // eslint-disable-next-line no-await-in-loop
           const submission = await classroomLib().findSubmissionForStudent(classroom, {
@@ -10300,6 +10399,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -10323,16 +10423,26 @@ exports.syncGradeToClassroom = onDocumentWritten(
             `Synced ${stage} grade ${grade} for student ${event.params.studentId} to course ${courseId}, courseWork ${publication.courseworkId}`
           );
         } catch (err) {
+          const failure = classroomPushFailure(err, { mayRequeue });
+          if (failure.quota) {
+            teachersAtClassroomLimit.add(classroomKey);
+            requeueForLimit = requeueForLimit || mayRequeue;
+          }
           logger.error(
             `Grade passback failed for student ${event.params.studentId}, assignment ${assignmentId}, course ${courseId}`,
-            err
+            {
+              step: failure.description.step,
+              httpStatus: failure.description.httpStatus,
+              googleStatus: failure.description.googleStatus,
+              reasons: failure.description.reasons,
+              error: failure.description.message,
+            }
           );
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
-            status: "failed",
             stage,
             grade,
             classroomGrade,
@@ -10343,9 +10453,19 @@ exports.syncGradeToClassroom = onDocumentWritten(
             isFinal,
             studentVisible: releasePolicy.studentVisible,
             returnedToStudent: false,
-            error: String(err.message || err),
+            ...failure.audit,
           });
         }
+      }
+
+      if (requeueForLimit) {
+        // eslint-disable-next-line no-await-in-loop
+        await classroomPushQueue.requeueClassroomPushAfterQuota(db, {
+          assignmentId,
+          studentId: event.params.studentId,
+          reason: releaseSignal ? releaseSignalReason(releaseSignal) : null,
+          quotaRetry,
+        });
       }
 
       if (successfulCourses.length) {
@@ -10393,25 +10513,22 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
 
     const assignmentId = event.params.assignmentId;
     const db = getFirestore();
-    const gradesSnap = await db.collection("grades").get();
+    // Only whether each student has this assignment: a grade document is a
+    // student's whole year.
+    const gradesSnap = await db.collection("grades")
+      .select(new FieldPath("gradesByAssignment", assignmentId))
+      .get();
     const targets = gradesSnap.docs.filter((gradeDoc) => (
       gradeDoc.data()?.gradesByAssignment?.[assignmentId] != null
     ));
 
-    for (let offset = 0; offset < targets.length; offset += 400) {
-      const batch = db.batch();
-      targets.slice(offset, offset + 400).forEach((gradeDoc) => {
-        batch.update(
-          gradeDoc.ref,
-          new FieldPath("classroomReleaseSignals", assignmentId),
-          {
-            requestedAt: new Date().toISOString(),
-            reason: "assessment-release",
-          }
-        );
-      });
-      await batch.commit();
-    }
+    // Queued, a minute's worth at a time (lib/classroomPushQueue.js).
+    await classroomPushQueue.enqueueClassroomPushes(db, {
+      assignmentId,
+      studentIds: targets.map((gradeDoc) => gradeDoc.id),
+      reason: "assessment-release",
+      source: "assessment-release",
+    });
     logger.info(`Queued released assessment grade passback for ${targets.length} student record(s) on assignment ${assignmentId}.`);
   }
 );
@@ -10429,27 +10546,22 @@ async function queueClassroomGradeSignalForAudience({
   const classIds = assignmentAudience(assignment).classIds;
   if (!classIds.length) return 0;
 
-  const gradeDocsByPath = new Map();
+  const studentIds = new Set();
   for (const classId of classIds) {
+    // References only: a grade document is a student's whole year.
     // eslint-disable-next-line no-await-in-loop
-    const snapshot = await db.collection("grades").where("classId", "==", classId).get();
-    snapshot.docs.forEach((gradeDoc) => gradeDocsByPath.set(gradeDoc.ref.path, gradeDoc));
+    const snapshot = await db.collection("grades").where("classId", "==", classId).select().get();
+    snapshot.docs.forEach((gradeDoc) => studentIds.add(gradeDoc.id));
   }
 
-  const gradeDocs = [...gradeDocsByPath.values()];
-  for (let start = 0; start < gradeDocs.length; start += 400) {
-    const batch = db.batch();
-    gradeDocs.slice(start, start + 400).forEach((gradeDoc) => {
-      batch.update(
-        gradeDoc.ref,
-        new FieldPath("classroomReleaseSignals", assignmentId),
-        { requestedAt, reason }
-      );
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
-  }
-  return gradeDocs.length;
+  // Queued, a minute's worth at a time (lib/classroomPushQueue.js).
+  return classroomPushQueue.enqueueClassroomPushes(db, {
+    assignmentId,
+    studentIds: [...studentIds],
+    reason,
+    requestedAt,
+    source: reason,
+  });
 }
 
 // Classroom itself marks an unsubmitted item Missing at the due time and may

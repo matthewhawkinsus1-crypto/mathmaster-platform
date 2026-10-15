@@ -1131,11 +1131,13 @@
         "Track equivalent operations and any restrictions introduced by roots, denominators, or systems."
       ],
       "solutionReview": {
-        "headline": "Solve the algebraic relationship.",
+        "headline": "Divide by {{a}}, then add {{b}}: $x={{answer}}$.",
         "reasoning": [
-          "Use an equivalent equation or expression and check the result in the original relationship."
+          "Divide both sides by {{a}}: $x-{{b}}=\\frac{ {{c}} }{ {{a}} }={{k}}$.",
+          "Add {{b}}: $x={{k}}+{{b}}={{answer}}$."
         ],
-        "answerSummary": "Verify that the selected answer satisfies all original conditions."
+        "commonError": "Stopping at $x-{{b}}={{k}}$ and giving {{k}} as $x$.",
+        "answerSummary": "$x={{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -2260,11 +2262,14 @@
         "Track equivalent operations and any restrictions introduced by roots, denominators, or systems."
       ],
       "solutionReview": {
-        "headline": "Solve the algebraic relationship.",
+        "headline": "Find two numbers with sum {{S}} and product {{P}}: the greater is {{answer}}.",
         "reasoning": [
-          "Use an equivalent equation or expression and check the result in the original relationship."
+          "If $x^2-{{S}}x+{{P}}=(x-m)(x-n)$, then $m+n={{S}}$ and $mn={{P}}$.",
+          "${{p}}+{{q}}={{S}}$ and ${{p}}\\cdot {{q}}={{P}}$, so $x^2-{{S}}x+{{P}}=(x-{{p}})(x-{{q}})$.",
+          "The solutions are {{p}} and {{q}}; the greater is {{answer}}."
         ],
-        "answerSummary": "Verify that the selected answer satisfies all original conditions."
+        "commonError": "Giving the sum {{S}} or the product {{P}} instead of a solution.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -3347,7 +3352,8 @@
           "answer": "b^2-a",
           "d1": "b-a",
           "d2": "b^2+a",
-          "d3": "b+a"
+          "d3": "b+a",
+          "b2": "b*b"
         },
         "constraints": [
           "answer>0",
@@ -3393,11 +3399,14 @@
         "Track equivalent operations and any restrictions introduced by roots, denominators, or systems."
       ],
       "solutionReview": {
-        "headline": "Solve the algebraic relationship.",
+        "headline": "Square both sides, then subtract {{a}}: $x={{answer}}$.",
         "reasoning": [
-          "Use an equivalent equation or expression and check the result in the original relationship."
+          "Square both sides: $x+{{a}}={{b}}^2={{b2}}$.",
+          "Subtract {{a}}: $x={{b2}}-{{a}}={{answer}}$.",
+          "Check: $\\sqrt{ {{answer}}+{{a}} }=\\sqrt{ {{b2}} }={{b}}$."
         ],
-        "answerSummary": "Verify that the selected answer satisfies all original conditions."
+        "commonError": "Subtracting {{a}} from {{b}} without squaring first.",
+        "answerSummary": "$x={{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -4525,11 +4534,13 @@
         "Track equivalent operations and any restrictions introduced by roots, denominators, or systems."
       ],
       "solutionReview": {
-        "headline": "Solve the algebraic relationship.",
+        "headline": "Same base, so the exponents are equal: $x={{answer}}$.",
         "reasoning": [
-          "Use an equivalent equation or expression and check the result in the original relationship."
+          "Both sides are powers of 2, so the exponents must match: $x+{{a}}={{b}}$.",
+          "$x={{b}}-{{a}}={{answer}}$."
         ],
-        "answerSummary": "Verify that the selected answer satisfies all original conditions."
+        "commonError": "Giving the exponent {{b}} itself as $x$, forgetting the $+{{a}}$.",
+        "answerSummary": "$x={{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -5610,7 +5621,8 @@
           "answer": "x",
           "d1": "y",
           "d2": "S",
-          "d3": "D"
+          "d3": "D",
+          "SD": "S+D"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -5647,11 +5659,14 @@
         "Track equivalent operations and any restrictions introduced by roots, denominators, or systems."
       ],
       "solutionReview": {
-        "headline": "Solve the algebraic relationship.",
+        "headline": "Add the equations to eliminate $y$: $x={{answer}}$.",
         "reasoning": [
-          "Use an equivalent equation or expression and check the result in the original relationship."
+          "Adding $x+y={{S}}$ and $2x-y={{D}}$ cancels $y$: $3x={{S}}+{{D}}={{SD}}$.",
+          "$x=\\frac{ {{SD}} }{3}={{answer}}$.",
+          "Check: $y={{S}}-{{answer}}={{y}}$, and $2\\cdot {{answer}}-{{y}}={{D}}$."
         ],
-        "answerSummary": "Verify that the selected answer satisfies all original conditions."
+        "commonError": "Giving $y$ instead of $x$.",
+        "answerSummary": "$x={{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -6780,11 +6795,13 @@
         "Track equivalent operations and any restrictions introduced by roots, denominators, or systems."
       ],
       "solutionReview": {
-        "headline": "Solve the algebraic relationship.",
+        "headline": "Equal fractions with numerator 1 have equal denominators: $x={{answer}}$.",
         "reasoning": [
-          "Use an equivalent equation or expression and check the result in the original relationship."
+          "Both fractions have numerator 1, so the denominators are equal: $x-{{a}}={{b}}$.",
+          "$x={{b}}+{{a}}={{answer}}$, and $x\\ne {{a}}$, so the fraction is defined."
         ],
-        "answerSummary": "Verify that the selected answer satisfies all original conditions."
+        "commonError": "Subtracting {{b}} instead of adding it.",
+        "answerSummary": "$x={{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -7909,11 +7926,14 @@
         "Track equivalent operations and any restrictions introduced by roots, denominators, or systems."
       ],
       "solutionReview": {
-        "headline": "Solve the algebraic relationship.",
+        "headline": "Expand: the middle coefficient is the sum of {{p}} and {{q}}, so $k={{answer}}$.",
         "reasoning": [
-          "Use an equivalent equation or expression and check the result in the original relationship."
+          "$(x-{{p}})(x-{{q}})=x^2-{{p}}x-{{q}}x+{{product}}$.",
+          "Combine the middle terms: $-({{p}}+{{q}})x$, and ${{p}}+{{q}}={{answer}}$.",
+          "Matching $x^2-kx+{{product}}$ gives $k={{answer}}$."
         ],
-        "answerSummary": "Verify that the selected answer satisfies all original conditions."
+        "commonError": "Taking the constant term {{product}} as $k$.",
+        "answerSummary": "$k={{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -9004,7 +9024,9 @@
           "answer": "x",
           "d1": "2*x",
           "d2": "2",
-          "d3": "x+1"
+          "d3": "x+1",
+          "df": "f2-f1",
+          "tot": "f1+(r2+2)*x"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -9041,11 +9063,15 @@
         "Track equivalent operations and any restrictions introduced by roots, denominators, or systems."
       ],
       "solutionReview": {
-        "headline": "Solve the algebraic relationship.",
+        "headline": "Set the two totals equal and solve: {{answer}} hours.",
         "reasoning": [
-          "Use an equivalent equation or expression and check the result in the original relationship."
+          "With $h$ hours: ${{f1}}+{{r1}}h={{f2}}+{{r2}}h$.",
+          "Collect terms: $({{r1}}-{{r2}})h={{f2}}-{{f1}}$, so $2h={{df}}$.",
+          "$h=\\frac{ {{df}} }{2}={{answer}}$ hours.",
+          "Check: ${{f1}}+{{r1}}\\cdot {{answer}}={{tot}}$ and ${{f2}}+{{r2}}\\cdot {{answer}}={{tot}}$."
         ],
-        "answerSummary": "Verify that the selected answer satisfies all original conditions."
+        "commonError": "Dividing the fee difference by one of the hourly rates instead of by the difference of the rates.",
+        "answerSummary": "${{answer}}$ hours"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -10152,7 +10178,7 @@
         "stemProfile": "polynomial-evaluation",
         "answerChoiceCount": 4
       },
-      "prompt": "For $f(x)={{a}}x^2 {{b|signed}}x {{c|signed}}$, what is $f({{t}})$?",
+      "prompt": "For $f(x)={{a|coef}}x^2 {{b|xterm}} {{c|term}}$, what is $f({{t}})$?",
       "generator": {
         "parameters": {
           "a": {
@@ -10180,7 +10206,9 @@
           "answer": "a*t^2+b*t+c",
           "d1": "a*t+b*t+c",
           "d2": "a*t^2+b+c",
-          "d3": "a+b+c"
+          "d3": "a+b+c",
+          "at2": "a*t^2",
+          "bt": "b*t"
         },
         "constraints": [
           "answer!=d1",
@@ -10225,11 +10253,14 @@
         "Track which input is being used and how the function rule or graph feature changes."
       ],
       "solutionReview": {
-        "headline": "Use the function relationship.",
+        "headline": "Substitute ${{t}}$ for $x$ and evaluate: {{answer}}.",
         "reasoning": [
-          "Apply the function rule, representation, inverse, composition, or transformation and verify the result."
+          "Replace each $x$ with ${{t}}$: ${{a|coef}}({{t}})^2{{b|term}}({{t}}){{c|term}}$.",
+          "Square first: ${{a|coef}}({{t}})^2={{at2}}$, and ${{b|coef}}({{t}})={{bt}}$.",
+          "${{at2}}{{bt|term}}{{c|term}}={{answer}}$."
         ],
-        "answerSummary": "Check the selected answer against the original function information."
+        "commonError": "Multiplying by ${{t}}$ instead of squaring it in the first term.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -11336,7 +11367,7 @@
         "stemProfile": "piecewise-evaluation",
         "answerChoiceCount": 4
       },
-      "prompt": "A function is defined by $f(x)={{m}}x {{b|signed}}$ for $x<{{cut}}$ and $f(x)={{p}}x+{{q}}$ for $x\\ge {{cut}}$. What is $f({{x}})$?",
+      "prompt": "A function is defined by $f(x)={{m|coef}}x {{b|term}}$ for $x<{{cut}}$ and $f(x)={{p|coef}}x+{{q}}$ for $x\\ge {{cut}}$. What is $f({{x}})$?",
       "generator": {
         "parameters": {
           "cut": {
@@ -11415,11 +11446,13 @@
         "Track which input is being used and how the function rule or graph feature changes."
       ],
       "solutionReview": {
-        "headline": "Use the function relationship.",
+        "headline": "${{x}}\\ge {{cut}}$, so use the second rule: {{answer}}.",
         "reasoning": [
-          "Apply the function rule, representation, inverse, composition, or transformation and verify the result."
+          "Pick the piece by the input: ${{x}}\\ge {{cut}}$, so the second rule applies.",
+          "${{p|coef}}({{x}})+{{q}}={{answer}}$."
         ],
-        "answerSummary": "Check the selected answer against the original function information."
+        "commonError": "Using the first rule, which applies only when $x<{{cut}}$.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -12526,7 +12559,7 @@
         "stemProfile": "greater-zero",
         "answerChoiceCount": 4
       },
-      "prompt": "The function $f(x)=(x {{neg_r|signed}})(x {{neg_s|signed}})$ has 2 real zeros. What is the greater zero?",
+      "prompt": "The function $f(x)=(x {{neg_r|term}})(x {{neg_s|term}})$ has 2 real zeros. What is the greater zero?",
       "generator": {
         "parameters": {
           "r": {
@@ -12592,11 +12625,14 @@
         "Track which input is being used and how the function rule or graph feature changes."
       ],
       "solutionReview": {
-        "headline": "Use the function relationship.",
+        "headline": "Each factor gives a zero; the greater one is {{answer}}.",
         "reasoning": [
-          "Apply the function rule, representation, inverse, composition, or transformation and verify the result."
+          "A product is zero when a factor is zero, so the zeros are {{r}} and {{s}}.",
+          "Check: ${{r}}{{neg_r|term}}=0$ and ${{s}}{{neg_s|term}}=0$.",
+          "Since ${{s}}>{{r}}$, the greater zero is {{answer}}."
         ],
-        "answerSummary": "Check the selected answer against the original function information."
+        "commonError": "Reading the zeros with the signs shown in the factors, which flips them.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -13772,11 +13808,13 @@
         "Track which input is being used and how the function rule or graph feature changes."
       ],
       "solutionReview": {
-        "headline": "Use the function relationship.",
+        "headline": "Right {{h}} and up {{k}}: $({{x1}},{{y1}})$.",
         "reasoning": [
-          "Apply the function rule, representation, inverse, composition, or transformation and verify the result."
+          "$f(x-{{h}})$ shifts the graph {{h}} units right, and $+{{k}}$ shifts it {{k}} units up.",
+          "New $x$: ${{p}}+{{h}}={{x1}}$. New $y$: ${{q}}+{{k}}={{y1}}$."
         ],
-        "answerSummary": "Check the selected answer against the original function information."
+        "commonError": "Shifting left for $x-{{h}}$; subtracting inside the function moves the graph right.",
+        "answerSummary": "$({{x1}},{{y1}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -14947,11 +14985,13 @@
         "Track which input is being used and how the function rule or graph feature changes."
       ],
       "solutionReview": {
-        "headline": "Use the function relationship.",
+        "headline": "A logarithm is an exponent: $n={{answer}}$.",
         "reasoning": [
-          "Apply the function rule, representation, inverse, composition, or transformation and verify the result."
+          "$\\log_{ {{b}} }{{x}}=n$ means ${{b}}^n={{x}}$.",
+          "${{b}}^{ {{n}} }={{x}}$, so $n={{answer}}$."
         ],
-        "answerSummary": "Check the selected answer against the original function information."
+        "commonError": "Multiplying the base by the exponent instead of raising it to the power.",
+        "answerSummary": "$n={{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -16059,7 +16099,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "Let $f(x)={{a}}x {{b|signed}}$ and $g(x)={{c}}x {{d|signed}}$. What is $f(g({{t}}))$?",
+      "prompt": "Let $f(x)={{a|coef}}x {{b|term}}$ and $g(x)={{c|coef}}x {{d|term}}$. What is $f(g({{t}}))$?",
       "generator": {
         "parameters": {
           "a": {
@@ -16138,11 +16178,13 @@
         "Track which input is being used and how the function rule or graph feature changes."
       ],
       "solutionReview": {
-        "headline": "Use the function relationship.",
+        "headline": "Work from the inside out: {{answer}}.",
         "reasoning": [
-          "Apply the function rule, representation, inverse, composition, or transformation and verify the result."
+          "First $g({{t}})$: ${{c|coef}}({{t}}){{d|term}}={{g}}$.",
+          "Then $f$ of that: ${{a|coef}}({{g}}){{b|term}}={{answer}}$."
         ],
-        "answerSummary": "Check the selected answer against the original function information."
+        "commonError": "Evaluating $f$ first, which gives $g(f({{t}}))$.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -17250,7 +17292,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "For $f(x)={{a}}x {{b|signed}}$, $f({{x}})={{y}}$. What is $f^{-1}({{y}})$?",
+      "prompt": "For $f(x)={{a|coef}}x {{b|term}}$, $f({{x}})={{y}}$. What is $f^{-1}({{y}})$?",
       "generator": {
         "parameters": {
           "a": {
@@ -17274,7 +17316,8 @@
           "answer": "x",
           "d1": "y",
           "d2": "(y+b)/a",
-          "d3": "y-b"
+          "d3": "y-b",
+          "d2Shown": "round(d2*100)/100"
         },
         "constraints": [
           "answer!=d1",
@@ -17297,7 +17340,7 @@
         },
         {
           "id": "act-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "act-d3",
@@ -17319,11 +17362,14 @@
         "Track which input is being used and how the function rule or graph feature changes."
       ],
       "solutionReview": {
-        "headline": "Use the function relationship.",
+        "headline": "The inverse undoes $f$: $f^{-1}({{y}})={{answer}}$.",
         "reasoning": [
-          "Apply the function rule, representation, inverse, composition, or transformation and verify the result."
+          "$f^{-1}(y)$ is the input that $f$ sends to $y$.",
+          "Check: ${{a|coef}}({{x}}){{b|term}}={{y}}$, so $f$ sends ${{x}}$ to ${{y}}$.",
+          "So $f^{-1}$ sends ${{y}}$ back to ${{answer}}$."
         ],
-        "answerSummary": "Check the selected answer against the original function information."
+        "commonError": "Repeating the output ${{y}}$, or applying the steps of $f$ in the same order instead of undoing them.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -18431,7 +18477,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "For $h(x)=\\dfrac{\\sqrt{x {{neg_a|signed}}}}{x {{neg_b|signed}}}$, which of the following values is in the domain of $h$?",
+      "prompt": "For $h(x)=\\dfrac{\\sqrt{x {{neg_a|term}}}}{x {{neg_b|term}}}$, which of the following values is in the domain of $h$?",
       "generator": {
         "parameters": {
           "a": {
@@ -18484,11 +18530,14 @@
         "Track which input is being used and how the function rule or graph feature changes."
       ],
       "solutionReview": {
-        "headline": "Use the function relationship.",
+        "headline": "The square root needs $x\\ge {{a}}$ and the denominator needs $x\\ne {{b}}$: {{answer}}.",
         "reasoning": [
-          "Apply the function rule, representation, inverse, composition, or transformation and verify the result."
+          "The expression under the square root must not be negative, so $x\\ge {{a}}$.",
+          "The denominator must not be zero, so $x\\ne {{b}}$.",
+          "${{answer}}$ works: under the root, ${{answer}}-{{a|paren}}=4$, which is not negative; in the denominator, ${{answer}}-{{b|paren}}=1$, which is not zero."
         ],
-        "answerSummary": "Check the selected answer against the original function information."
+        "commonError": "Choosing ${{b}}$, which satisfies the square root but makes the denominator zero.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -18755,11 +18804,13 @@
         "Identify the relevant length, angle, area, volume, coordinate, or conic relationship before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Scale factor {{k}} from $AB$ to $DE$, so $EF={{answer}}$.",
         "reasoning": [
-          "Apply the appropriate coordinate, similarity, trigonometric, conic, area, surface-area, or volume relationship."
+          "Corresponding sides of similar triangles share one scale factor: $\\frac{DE}{AB}=\\frac{ {{ka}} }{ {{a}} }={{k}}$.",
+          "$EF$ corresponds to $BC$: $EF={{b}}\\cdot {{k}}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected answer is consistent with the stated geometry."
+        "commonError": "Adding the scale factor instead of multiplying by it.",
+        "answerSummary": "$EF={{answer}}$"
       },
       "prompt": "Triangles $ABC$ and $DEF$ are similar. If $AB={{a}}$, $DE={{ka}}$, and $BC={{b}}$, what is $EF$?",
       "generator": {
@@ -19088,11 +19139,13 @@
         "Identify the relevant length, angle, area, volume, coordinate, or conic relationship before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Average the coordinates: $({{mx}},{{my}})$.",
         "reasoning": [
-          "Apply the appropriate coordinate, similarity, trigonometric, conic, area, surface-area, or volume relationship."
+          "$x$: $\\frac{ {{x1}}{{x2|signed}} }{2}=\\frac{ {{xsum}} }{2}={{mx}}$.",
+          "$y$: $\\frac{ {{y1}}{{y2|signed}} }{2}=\\frac{ {{ysum}} }{2}={{my}}$."
         ],
-        "answerSummary": "Check that the selected answer is consistent with the stated geometry."
+        "commonError": "Adding the coordinates without dividing by 2.",
+        "answerSummary": "$({{mx}},{{my}})$"
       },
       "prompt": "The endpoints of a segment are $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the midpoint of the segment?",
       "generator": {
@@ -19423,13 +19476,16 @@
         "Identify the relevant length, angle, area, volume, coordinate, or conic relationship before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "The major axis is horizontal; go $a={{a}}$ right of the center: $({{xp}},{{k}})$.",
         "reasoning": [
-          "Apply the appropriate coordinate, similarity, trigonometric, conic, area, surface-area, or volume relationship."
+          "The center is $({{h}},{{k}})$. The larger denominator, ${{a2}}={{a}}^2$, is under the $x$-term, so the major axis is horizontal.",
+          "Major-axis vertices are {{a}} units left and right of the center, at the same $y$-value {{k}}.",
+          "${{h}}+{{a}}={{xp}}$, so $({{xp}},{{k}})$ is a vertex."
         ],
-        "answerSummary": "Check that the selected answer is consistent with the stated geometry."
+        "commonError": "Moving vertically by $b={{b}}$, which reaches an end of the minor axis instead.",
+        "answerSummary": "$({{xp}},{{k}})$"
       },
-      "prompt": "The ellipse $\\dfrac{(x {{nh|signed}})^2}{{{a2}}}+\\dfrac{(y {{nk|signed}})^2}{{{b2}}}=1$ has $a>b$. Which point is a vertex on its major axis?",
+      "prompt": "The ellipse $\\dfrac{(x {{nh|term}})^2}{{{a2}}}+\\dfrac{(y {{nk|term}})^2}{{{b2}}}=1$ has $a>b$. Which point is a vertex on its major axis?",
       "generator": {
         "parameters": {
           "h": {
@@ -19759,11 +19815,14 @@
         "Identify the relevant length, angle, area, volume, coordinate, or conic relationship before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Two circular ends plus the curved side: $n={{answer}}$.",
         "reasoning": [
-          "Apply the appropriate coordinate, similarity, trigonometric, conic, area, surface-area, or volume relationship."
+          "Surface area $=2\\pi r^2+2\\pi rh$: two circles and the rectangle that wraps around.",
+          "Ends: $2\\cdot {{r}}^2={{tops}}$. Side: $2\\cdot {{r}}\\cdot {{h}}={{side}}$.",
+          "${{tops}}+{{side}}={{answer}}$, so the area is ${{answer}}\\pi$ and $n={{answer}}$."
         ],
-        "answerSummary": "Check that the selected answer is consistent with the stated geometry."
+        "commonError": "Leaving out one or both circular ends.",
+        "answerSummary": "$n={{answer}}$"
       },
       "prompt": "A closed right circular cylinder has radius {{r}} and height {{h}}. Its total surface area is $n\\pi$. What is the value of $n$?",
       "generator": {
@@ -19783,7 +19842,9 @@
           "answer": "2*r*r+2*r*h",
           "d1": "2*r*h",
           "d2": "r*r*h",
-          "d3": "r*r+2*r*h"
+          "d3": "r*r+2*r*h",
+          "tops": "2*r*r",
+          "side": "2*r*h"
         },
         "constraints": [
           "answer!=d1",
@@ -20086,11 +20147,13 @@
         "Identify the relevant length, angle, area, volume, coordinate, or conic relationship before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Tangent is opposite over adjacent: $\\dfrac{5}{12}$.",
         "reasoning": [
-          "Apply the appropriate coordinate, similarity, trigonometric, conic, area, surface-area, or volume relationship."
+          "$\\tan\\theta$ is the leg opposite $\\theta$ divided by the leg adjacent to it.",
+          "$\\frac{ {{opp}} }{ {{adj}} }=\\frac{5}{12}$ in lowest terms."
         ],
-        "answerSummary": "Check that the selected answer is consistent with the stated geometry."
+        "commonError": "Flipping the ratio (adjacent over opposite), or using the hypotenuse.",
+        "answerSummary": "$\\tan\\theta=\\dfrac{5}{12}$"
       },
       "prompt": "In a right triangle, relative to acute angle $\\theta$, the opposite leg has length {{opp}} and the adjacent leg has length {{adj}}. What is $\\tan\\theta$?",
       "generator": {
@@ -20399,11 +20462,14 @@
         "Identify the relevant length, angle, area, volume, coordinate, or conic relationship before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Outer cylinder minus the hollow inside: ${{diff}}\\pi({{h}})$.",
         "reasoning": [
-          "Apply the appropriate coordinate, similarity, trigonometric, conic, area, surface-area, or volume relationship."
+          "The material is the outer cylinder, $\\pi R^2h$, minus the empty core, $\\pi r^2h$: $\\pi(R^2-r^2)h$.",
+          "${{R}}^2-{{r}}^2={{R2}}-{{r2}}={{diff}}$.",
+          "So the volume is ${{diff}}\\pi({{h}})$."
         ],
-        "answerSummary": "Check that the selected answer is consistent with the stated geometry."
+        "commonError": "Adding the squared radii, or subtracting the radii before squaring.",
+        "answerSummary": "${{diff}}\\pi({{h}})$"
       },
       "prompt": "A cylindrical pipe has outer radius {{R}}, inner radius {{r}}, and length {{h}}. Which expression gives the volume of material in the pipe?",
       "generator": {
@@ -20725,13 +20791,16 @@
         "Identify the relevant length, angle, area, volume, coordinate, or conic relationship before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "The vertices are $a$ on each side of the center: {{answer}} apart.",
         "reasoning": [
-          "Apply the appropriate coordinate, similarity, trigonometric, conic, area, surface-area, or volume relationship."
+          "In $\\frac{(x-h)^2}{a^2}-\\frac{(y-k)^2}{b^2}=1$ the vertices are $a$ units left and right of the center.",
+          "$a^2={{a2}}$, so $a=\\sqrt{ {{a2}} }={{a}}$.",
+          "Distance between the vertices: $2\\cdot {{a}}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected answer is consistent with the stated geometry."
+        "commonError": "Giving $a$ alone, which is the distance from the center to one vertex.",
+        "answerSummary": "${{answer}}$"
       },
-      "prompt": "For the hyperbola $\\dfrac{(x {{nh|signed}})^2}{{{a2}}}-\\dfrac{(y {{nk|signed}})^2}{{{b2}}}=1$, what is the distance between its 2 vertices?",
+      "prompt": "For the hyperbola $\\dfrac{(x {{nh|term}})^2}{{{a2}}}-\\dfrac{(y {{nk|term}})^2}{{{b2}}}=1$, what is the distance between its 2 vertices?",
       "generator": {
         "parameters": {
           "h": {
@@ -21067,11 +21136,13 @@
         "Identify the relevant length, angle, area, volume, coordinate, or conic relationship before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Areas scale by the square of the side ratio: {{answer}}.",
         "reasoning": [
-          "Apply the appropriate coordinate, similarity, trigonometric, conic, area, surface-area, or volume relationship."
+          "Side ratio: $\\frac{ {{bigside}} }{ {{s}} }={{k}}$.",
+          "Area grows by the square of that ratio: ${{A}}\\cdot {{k}}^2={{answer}}$."
         ],
-        "answerSummary": "Check that the selected answer is consistent with the stated geometry."
+        "commonError": "Multiplying the area by the side ratio only once.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Two similar triangles have corresponding side lengths {{s}} and {{bigside}}. If the smaller triangle has area {{A}}, what is the area of the larger triangle?",
       "generator": {
@@ -21337,11 +21408,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Negative $x$ and positive $y$: Quadrant II.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The point $(-{{a}},{{b}})$ is {{a}} units left of the $y$-axis and {{b}} units above the $x$-axis.",
+          "Left and up is the upper-left region, Quadrant II (Quadrant I is upper right; the numbering goes counterclockwise)."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Numbering the quadrants clockwise.",
+        "answerSummary": "Quadrant II"
       },
       "prompt": "The point $(-{{a}},{{b}})$ is plotted in the coordinate plane, where {{a}} and {{b}} are positive. In which quadrant is the point?",
       "generator": {
@@ -21587,11 +21660,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Across the $x$-axis, keep $x$ and change the sign of $y$: $({{x}},{{ny}})$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Reflecting across the $x$-axis flips the point from above the axis to below it, the same distance away.",
+          "$P$ is {{y}} units above the axis, so its image is {{y}} units below, at $({{x}},{{ny}})$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Changing the sign of $x$, which reflects across the $y$-axis instead.",
+        "answerSummary": "$({{x}},{{ny}})$"
       },
       "prompt": "Point $P$ has coordinates $({{x}},{{y}})$. What are the coordinates of the reflection of $P$ across the $x$-axis?",
       "generator": {
@@ -21844,11 +21919,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Average the $x$-coordinates and the $y$-coordinates: $({{mx}},{{my}})$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "$x$: $\\frac{ {{x1}}{{x2|signed}} }{2}=\\frac{ {{sx}} }{2}={{mx}}$.",
+          "$y$: $\\frac{ {{y1}}{{y2|signed}} }{2}=\\frac{ {{sy}} }{2}={{my}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Averaging only one coordinate, or taking an endpoint as the midpoint.",
+        "answerSummary": "$({{mx}},{{my}})$"
       },
       "prompt": "What is the midpoint of the segment with endpoints $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$?",
       "generator": {
@@ -21892,7 +21969,9 @@
           "d2x": "x1+dx/2",
           "d2y": "y1+dy",
           "d3x": "x1+dx/2+1",
-          "d3y": "y1+dy/2+1"
+          "d3y": "y1+dy/2+1",
+          "sx": "x1+x2",
+          "sy": "y1+y2"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -22124,11 +22203,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Same $x$, so the distance is the change in $y$: {{gap}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "On a vertical line only $y$ changes.",
+          "Distance: ${{y2}}-{{y1|paren}}={{gap}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the sizes of the $y$-coordinates when the points are on the same side of the $x$-axis.",
+        "answerSummary": "${{gap}}$"
       },
       "prompt": "Points $A({{x}},{{y1}})$ and $B({{x}},{{y2}})$ lie on the same vertical line. What is the distance between the points?",
       "generator": {
@@ -22390,11 +22471,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Width times height from the coordinates: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Width: ${{x2}}-{{x1|paren}}={{w}}$. Height: ${{y2}}-{{y1|paren}}={{h}}$.",
+          "Area: ${{w}}\\cdot {{h}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the width and height, or computing the perimeter.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A rectangle has opposite vertices $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$, and its sides are parallel to the coordinate axes. What is the area of the rectangle?",
       "generator": {
@@ -22667,11 +22750,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The midpoint is halfway, so go the same distance again: $({{x2}},{{y2}})$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "From $A$ to the midpoint, $x$ changes by ${{mx}}-{{x1|paren}}={{dx}}$ and $y$ by ${{my}}-{{y1|paren}}={{dy}}$.",
+          "Repeat that change from the midpoint: ${{mx}}+{{dx}}={{x2}}$ and ${{my}}+{{dy}}={{y2}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the midpoint itself, or going the other way from $A$.",
+        "answerSummary": "$B({{x2}},{{y2}})$"
       },
       "prompt": "The midpoint of segment $AB$ is $({{mx}},{{my}})$. One endpoint is $A({{x1}},{{y1}})$. What are the coordinates of endpoint $B$?",
       "generator": {
@@ -22943,11 +23028,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Find the side lengths from the coordinates, then add all four sides: {{ans}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Width: ${{x2}}-{{x1|paren}}={{w}}$. Height: ${{y2}}-{{y1|paren}}={{h}}$.",
+          "Perimeter: $2\\cdot {{w}}+2\\cdot {{h}}={{ans}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Multiplying the sides, which gives the area.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "An axis-aligned rectangle has opposite vertices $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the perimeter of the rectangle?",
       "generator": {
@@ -23220,11 +23307,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Translate first, then flip the sign of $y$: $({{fx}},{{fy}})$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Translate: $x$ becomes ${{x}}+{{r}}={{fx}}$ and $y$ becomes ${{y}}+{{u}}={{d1y}}$.",
+          "Reflecting across the $x$-axis keeps $x$ and changes the sign of $y$: $({{fx}},{{d1y}})$ goes to $({{fx}},{{fy}})$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Skipping the reflection, or changing the sign of $x$ instead of $y$.",
+        "answerSummary": "$({{fx}},{{fy}})$"
       },
       "prompt": "Point $P({{x}},{{y}})$ is translated {{r}} units to the right and {{u}} units up, then reflected across the $x$-axis. What are the final coordinates?",
       "generator": {
@@ -23478,11 +23567,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "A linear pair adds to $180^\\circ$: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Angles that form a linear pair lie along a straight line, so they add to $180^\\circ$.",
+          "$180-{{a}}={{ans}}$, so the other angle is ${{ans}}^\\circ$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Subtracting from $90^\\circ$, which is the rule for complementary angles.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "Two angles form a linear pair. One angle measures {{a}}°. What is the measure of the other angle?",
       "generator": {
@@ -23723,11 +23814,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Vertical angles are equal: ${{a}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The angle next to the ${{a}}^\\circ$ angle forms a linear pair with it: $180-{{a}}={{d1}}$ degrees.",
+          "The vertical angle also forms a linear pair with that neighbor: $180-{{d1}}={{a}}$ degrees.",
+          "So the vertical angle measures ${{a}}^\\circ$, the same as the given angle."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the adjacent angle (the supplement) instead of the opposite one.",
+        "answerSummary": "${{a}}^\\circ$"
       },
       "prompt": "Two lines intersect. One of the angles formed measures {{a}}°. What is the measure of the vertical angle opposite it?",
       "generator": {
@@ -23967,11 +24061,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The angles of a triangle add to $180^\\circ$: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The three angles of any triangle add to $180^\\circ$.",
+          "$180-{{a}}-{{b}}={{ans}}$, so the third angle is ${{ans}}^\\circ$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the two given angles, or subtracting only one of them from 180.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "Two angles of a triangle measure {{a}}° and {{b}}°. What is the measure of the third angle?",
       "generator": {
@@ -24218,11 +24314,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The angles of a quadrilateral add to $360^\\circ$: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "A quadrilateral splits into two triangles, so its interior angles add to $2\\cdot 180=360$ degrees.",
+          "$360-{{a}}-{{b}}-{{c}}={{ans}}$, so the fourth angle is ${{ans}}^\\circ$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Using $180^\\circ$, the triangle sum, instead of $360^\\circ$.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "Three interior angles of a quadrilateral measure {{a}}°, {{b}}°, and {{c}}°. What is the measure of the fourth interior angle?",
       "generator": {
@@ -24476,11 +24574,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Corresponding angles along parallel lines are equal: ${{a}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Corresponding angles sit in the same position at each intersection, and parallel lines make them equal.",
+          "So the corresponding angle is ${{a}}^\\circ$. Its neighbor along the transversal is $180-{{a}}={{d1}}$ degrees; that is the supplement, not the corresponding angle."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Taking the supplement because the lines are parallel.",
+        "answerSummary": "${{a}}^\\circ$"
       },
       "prompt": "Two parallel lines are cut by a transversal. A pair of corresponding angles are formed. If one angle measures {{a}}°, what is the measure of its corresponding angle?",
       "generator": {
@@ -24721,11 +24821,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Vertical keeps the measure; a linear pair takes the supplement: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The second angle is vertical to the first, so it also measures ${{a}}^\\circ$.",
+          "The third angle forms a linear pair with the second: $180-{{a}}={{ans}}$ degrees."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Stopping at the vertical angle, which repeats the given ${{a}}^\\circ$.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "Two lines intersect. One angle measures {{a}}°. A second angle is vertical to the first, and a third angle forms a linear pair with the second. What is the measure of the third angle?",
       "generator": {
@@ -24967,11 +25069,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The exterior angle at the vertex equals the two base angles together: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Vertex angle: $180-2\\cdot {{b}}={{vertex}}$ degrees.",
+          "The exterior angle forms a linear pair with it: $180-{{vertex}}={{ans}}$ degrees.",
+          "That matches ${{b}}+{{b}}={{ans}}$, the two remote interior angles."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the vertex angle itself instead of the exterior angle beside it.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "An isosceles triangle has two base angles that each measure {{b}}°. What is the measure of the exterior angle adjacent to the vertex angle?",
       "generator": {
@@ -25213,11 +25318,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Interior and exterior angles at a vertex add to $180^\\circ$: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Each exterior angle measures $\\frac{360}{ {{n}} }={{ext}}$ degrees.",
+          "At each vertex the interior and exterior angles form a linear pair: $180-{{ext}}={{ans}}$ degrees."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the exterior angle as the interior angle.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "A regular polygon has {{n}} sides. Each exterior angle has measure $360/{{n}}$ degrees. What is the measure of each interior angle?",
       "generator": {
@@ -25600,11 +25707,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "12 inches in every foot: {{ans}} inches.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "One foot is 12 inches, so multiply the number of feet by 12.",
+          "${{ft}}\\cdot 12={{ans}}$ inches."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Adding 12 instead of multiplying by 12.",
+        "answerSummary": "${{ans}}$ inches"
       },
       "prompt": "A board is {{ft}} feet long. How many inches long is the board?",
       "generator": {
@@ -25978,11 +26087,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "1,000 milliliters in every liter: {{ans}} milliliters.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "\"Milli\" means one thousandth, so 1 liter is 1000 milliliters.",
+          "${{L}}\\cdot 1000={{ans}}$ milliliters."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Multiplying by 100, as if a liter were 100 milliliters.",
+        "answerSummary": "${{ans}}$ milliliters"
       },
       "prompt": "A container holds {{L}} liters. How many milliliters does it hold?",
       "generator": {
@@ -26348,11 +26459,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Divide the minutes by 60: $\\dfrac{{{num}}}{4}$ hours.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "One hour is 60 minutes, so divide the number of minutes by 60.",
+          "$\\frac{ {{minutes}} }{60}=\\frac{ {{num}} }{4}$ hours."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing by 100, as if an hour had 100 minutes.",
+        "answerSummary": "$\\dfrac{{{num}}}{4}$ hours"
       },
       "prompt": "A machine runs for {{minutes}} minutes. How many hours is this?",
       "generator": {
@@ -26727,11 +26840,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Each map inch is {{miles}} miles: {{ans}} miles.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Every inch on the map stands for {{miles}} miles, so multiply the map distance by {{miles}}.",
+          "${{inches}}\\cdot {{miles}}={{ans}}$ miles."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing the two numbers instead of multiplying.",
+        "answerSummary": "${{ans}}$ miles"
       },
       "prompt": "On a map, 1 inch represents {{miles}} miles. Two locations are {{inches}} inches apart on the map. How many miles apart are the locations?",
       "generator": {
@@ -26751,7 +26866,9 @@
           "ans": "miles*inches",
           "d1": "miles+inches",
           "d2": "miles/inches",
-          "d3": "inches/miles"
+          "d3": "inches/miles",
+          "d2Shown": "round(d2*100)/100",
+          "d3Shown": "round(d3*100)/100"
         },
         "constraints": [
           "miles!=inches"
@@ -26769,11 +26886,11 @@
         },
         {
           "id": "act-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "act-d3",
-          "label": "${{d3}}$"
+          "label": "${{d3Shown}}$"
         }
       ],
       "responseFields": [
@@ -27105,11 +27222,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "A square foot is $12\\cdot 12=144$ square inches: {{ans}} square inches.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "A square foot is 12 inches by 12 inches, so it is $12\\cdot 12=144$ square inches.",
+          "${{A}}\\cdot 144={{ans}}$ square inches."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Multiplying by 12, which converts lengths, not areas.",
+        "answerSummary": "${{ans}}$ square inches"
       },
       "prompt": "A rectangular surface has area {{A}} square feet. How many square inches is this area?",
       "generator": {
@@ -27476,11 +27595,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Miles to feet, then hours to minutes: {{ans}} feet per minute.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Miles to feet: ${{mph}}\\cdot 5280={{d1}}$ feet per hour.",
+          "Each hour is 60 minutes, so divide: $\\frac{ {{d1}} }{60}={{ans}}$ feet per minute."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Converting the miles but not the hours, which leaves the speed in feet per hour.",
+        "answerSummary": "${{ans}}$ feet per minute"
       },
       "prompt": "A vehicle travels at {{mph}} miles per hour. What is this speed in feet per minute? Use 1 mile = 5,280 feet and 1 hour = 60 minutes.",
       "generator": {
@@ -27853,11 +27974,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Dollars to cents, then pounds to ounces: {{centsPerOz}} cents per ounce.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "In cents, one pound costs ${{d1}}$ cents (100 cents per dollar).",
+          "A pound is 16 ounces, so divide: $\\frac{ {{d1}} }{16}={{centsPerOz}}$ cents per ounce."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Converting dollars to cents but not dividing by 16 ounces.",
+        "answerSummary": "${{centsPerOz}}$ cents"
       },
       "prompt": "A package costs ${{price}} per pound. What is the cost, in cents, per ounce? Use 16 ounces = 1 pound.",
       "generator": {
@@ -28230,11 +28353,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Yards to feet, then feet to inches: {{ans}} inches.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Yards to feet: ${{yards}}\\cdot 3={{d2}}$ feet.",
+          "Feet to inches: ${{d2}}\\cdot 12={{ans}}$ inches."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Doing only one of the two conversions.",
+        "answerSummary": "${{ans}}$ inches"
       },
       "prompt": "A cable is {{yards}} yards long. How many inches long is the cable? Use 3 feet = 1 yard and 12 inches = 1 foot.",
       "generator": {
@@ -28432,11 +28557,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Perimeter is twice the length plus twice the width: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "A rectangle has two sides of each length, so add all four sides.",
+          "$2\\cdot {{l}}+2\\cdot {{w}}={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Multiplying length by width, which gives the area, or adding just one length and one width.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A rectangle has length {{l}} units and width {{w}} units. What is its perimeter?",
       "generator": {
@@ -28648,11 +28775,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Half of base times height: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The area of a triangle is $\\frac{1}{2}$ of base times height.",
+          "$\\frac{1}{2}\\cdot {{b}}\\cdot {{h}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Forgetting the $\\frac{1}{2}$, which gives the area of a rectangle with those sides.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A triangle has base {{b}} units and height {{h}} units. What is its area, in square units?",
       "generator": {
@@ -28869,11 +28998,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Circumference is $2\\pi r$: ${{twoR}}\\pi$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The circumference of a circle is $2\\pi r$, twice the radius times $\\pi$.",
+          "With $r={{r}}$: $2\\cdot {{r}}={{twoR}}$, so the circumference is ${{twoR}}\\pi$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Using the radius instead of the diameter, which gives half the circumference.",
+        "answerSummary": "${{twoR}}\\pi$"
       },
       "prompt": "A circle has radius {{r}} units. Which expression gives its circumference?",
       "generator": {
@@ -29070,11 +29201,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Area is $\\pi r^2$: ${{r2}}\\pi$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The area of a circle is $\\pi r^2$, the radius squared times $\\pi$.",
+          "With $r={{r}}$: ${{r}}^2={{r2}}$, so the area is ${{r2}}\\pi$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Doubling the radius instead of squaring it, which gives the circumference.",
+        "answerSummary": "${{r2}}\\pi$"
       },
       "prompt": "A circle has radius {{r}} units. Which expression gives its area?",
       "generator": {
@@ -29271,11 +29404,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Whole sheet minus the piece removed: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Whole sheet: ${{L}}\\cdot {{W}}={{big}}$ square units.",
+          "Piece removed: ${{cL}}\\cdot {{cW}}={{cut}}$ square units.",
+          "Remaining: ${{big}}-{{cut}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the cut-out instead of subtracting it, or subtracting the side lengths before multiplying.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A rectangular sheet is {{L}} units by {{W}} units. A rectangular piece {{cL}} units by {{cW}} units is removed. What is the area of the remaining sheet?",
       "generator": {
@@ -29500,11 +29636,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Find the new sides first, then the perimeter: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "New length: ${{l}}+{{a}}={{la}}$. New width: ${{w}}+{{b}}={{wb}}$.",
+          "Perimeter: $2\\cdot {{la}}+2\\cdot {{wb}}={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding each increase only once instead of to both sides of each pair.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A rectangle is {{l}} units long and {{w}} units wide. Its length is increased by {{a}} units and its width by {{b}} units. What is the perimeter of the new rectangle?",
       "generator": {
@@ -29534,7 +29672,9 @@
           "ans": "2*(l+a)+2*(w+b)",
           "old": "2*l+2*w",
           "d2": "(l+a)*(w+b)",
-          "d3": "l+w+a+b"
+          "d3": "l+w+a+b",
+          "la": "l+a",
+          "wb": "w+b"
         },
         "constraints": [
           "l!=w",
@@ -29727,11 +29867,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Add the areas of the two rectangles: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "First rectangle: ${{l1}}\\cdot {{w1}}={{a1}}$ square units.",
+          "Second rectangle: ${{l2}}\\cdot {{w2}}={{a2}}$ square units.",
+          "They do not overlap, so the total is ${{a1}}+{{a2}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the lengths and the widths first and multiplying the sums, which counts area that is not in the figure.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A figure is made from two nonoverlapping rectangles. The first is {{l1}} by {{w1}} units, and the second is {{l2}} by {{w2}} units. What is the total area of the figure?",
       "generator": {
@@ -29954,11 +30097,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Perimeter minus the gate, times the price per foot: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Perimeter: $2\\cdot {{l}}+2\\cdot {{w}}={{per}}$ feet.",
+          "The gate needs no fencing: ${{per}}-{{g}}={{fenced}}$ feet.",
+          "Cost: ${{fenced}}\\cdot {{p}}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Fencing the gate too, or using the area instead of the perimeter.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "A rectangular garden is {{l}} feet long and {{w}} feet wide. Fencing costs ${{p}} per foot, but a {{g}}-foot-wide gate needs no fencing. What is the total cost of the fencing?",
       "generator": {
@@ -30105,11 +30251,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The ramp is the hypotenuse: {{ans}} feet.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The rise and the run are the legs of a right triangle, and the ramp is the hypotenuse.",
+          "${{rise}}^2+{{run}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{ans}}$ feet."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the rise and the run instead of their squares.",
+        "answerSummary": "${{ans}}$ feet"
       },
       "prompt": "A ramp rises {{rise}} feet while extending {{run}} feet horizontally. What is the length, in feet, of the ramp?",
       "generator": {
@@ -30126,7 +30275,8 @@
           "ans": "17*k",
           "d1": "23*k",
           "d2": "15*k",
-          "d3": "16*k"
+          "d3": "16*k",
+          "sum": "rise*rise+run*run"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30232,11 +30382,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Subtract the squares to find a leg: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "For a right triangle, $a^2+b^2=c^2$, so a missing leg is $\\sqrt{c^2-a^2}$.",
+          "${{c}}^2-{{a}}^2={{diff}}$.",
+          "$\\sqrt{ {{diff}} }={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the squares as if {{c}} were a leg.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A right triangle has hypotenuse {{c}} units and one leg {{a}} units. What is the length of the other leg?",
       "generator": {
@@ -30253,7 +30406,8 @@
           "c": "13*k",
           "d1": "8*k",
           "d2": "13*k",
-          "d3": "18*k"
+          "d3": "18*k",
+          "diff": "c*c-a*a"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30359,11 +30513,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The diagonal is the hypotenuse of a right triangle: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "A diagonal splits the rectangle into two right triangles with legs {{a}} and {{b}}.",
+          "${{a}}^2+{{b}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the length and the width instead of their squares.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A rectangle is {{a}} units long and {{b}} units wide. What is the length of its diagonal?",
       "generator": {
@@ -30380,7 +30537,8 @@
           "ans": "10*k",
           "d1": "14*k",
           "d2": "8*k",
-          "d3": "12*k"
+          "d3": "12*k",
+          "sum": "a*a+b*b"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30486,11 +30644,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The distance is the hypotenuse of the horizontal and vertical changes: {{ans}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Horizontal change: ${{x2}}-{{x|paren}}={{dx}}$. Vertical change: ${{y2}}-{{y|paren}}={{dy}}$.",
+          "${{dx}}^2+{{dy}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{ans}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the horizontal and vertical changes instead of combining their squares.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "What is the distance between the points $({{x}},{{y}})$ and $({{x2}},{{y2}})$?",
       "generator": {
@@ -30517,7 +30678,10 @@
           "ans": "5*k",
           "d1": "7*k",
           "d2": "4*k",
-          "d3": "3*k"
+          "d3": "3*k",
+          "dx": "x2-x",
+          "dy": "y2-y",
+          "sum": "(x2-x)^2+(y2-y)^2"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30623,11 +30787,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The ladder is the hypotenuse, so subtract squares: {{ans}} feet.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The wall, the ground and the ladder form a right triangle with the ladder as the hypotenuse.",
+          "${{c}}^2-{{a}}^2={{diff}}$.",
+          "$\\sqrt{ {{diff}} }={{ans}}$ feet up the wall."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the squares as though the ladder were a leg.",
+        "answerSummary": "${{ans}}$ feet"
       },
       "prompt": "A {{c}}-foot ladder reaches from the ground to a wall. The bottom of the ladder is {{a}} feet from the wall. How high up the wall does the ladder reach?",
       "generator": {
@@ -30644,7 +30811,8 @@
           "c": "13*k",
           "d1": "8*k",
           "d2": "13*k",
-          "d3": "18*k"
+          "d3": "18*k",
+          "diff": "c*c-a*a"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30751,11 +30919,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "East and north are perpendicular legs: {{ans}} blocks in a straight line.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The walk east and the walk north are the legs of a right triangle; the straight-line distance is the hypotenuse.",
+          "${{a}}^2+{{b}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{ans}}$ block lengths."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the two legs, which gives the walking distance, not the straight-line distance.",
+        "answerSummary": "${{ans}}$ block lengths"
       },
       "prompt": "A person walks {{a}} blocks east and then {{b}} blocks north. If each block is the same length and the streets are perpendicular, how many block lengths is the person from the starting point in a straight line?",
       "generator": {
@@ -30772,7 +30943,8 @@
           "ans": "15*k",
           "d1": "21*k",
           "d2": "12*k",
-          "d3": "18*k"
+          "d3": "18*k",
+          "sum": "a*a+b*b"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30879,11 +31051,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "A square's diagonal is the side times $\\sqrt{2}$: ${{s}}\\sqrt{2}$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The diagonal is the hypotenuse of a right triangle whose legs are both sides of the square.",
+          "$\\sqrt{ {{s}}^2+{{s}}^2}=\\sqrt{ {{ss2}} }={{s}}\\sqrt{2}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Doubling the side, which adds the legs instead of their squares.",
+        "answerSummary": "${{s}}\\sqrt{2}$"
       },
       "prompt": "A square has side length {{s}} units. Which expression gives the length of a diagonal of the square?",
       "generator": {
@@ -30896,7 +31070,8 @@
         },
         "derived": {
           "twoS": "2*s",
-          "s2": "s*s"
+          "s2": "s*s",
+          "ss2": "2*s*s"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -31003,11 +31178,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Find the hypotenuse first, then add all three sides: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Hypotenuse: $\\sqrt{ {{a}}^2+{{b}}^2}=\\sqrt{ {{sum}} }={{c}}$ units.",
+          "Perimeter: ${{a}}+{{b}}+{{c}}={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding only the two legs, or guessing the hypotenuse without the Pythagorean theorem.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A right triangle has legs {{a}} and {{b}} units long. What is the perimeter of the triangle?",
       "generator": {
@@ -31025,7 +31202,8 @@
           "ans": "40*k",
           "d1": "23*k",
           "d2": "31*k",
-          "d3": "34*k"
+          "d3": "34*k",
+          "sum": "a*a+b*b"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -31572,11 +31750,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Distribute {{a}} to both terms in the parentheses: ${{ab}}+{{ac}}$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "The distributive property multiplies {{a}} by each term inside the parentheses.",
+          "${{a}}({{b}}+{{c}})={{a}}\\cdot {{b}}+{{a}}\\cdot {{c}}={{ab}}+{{ac}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Multiplying only the first term, which leaves the second term as {{c}}.",
+        "answerSummary": "${{ab}}+{{ac}}$"
       },
       "prompt": "Which expression is equivalent to ${{a}}({{b}}+{{c}})$?",
       "generator": {
@@ -32150,11 +32330,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Three negative factors give a negative product: ${{neg}}$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Multiply the sizes: ${{a}}\\cdot {{b}}\\cdot {{c}}={{p}}$.",
+          "Each pair of negatives makes a positive, so an odd number of negative factors leaves the product negative: $(-{{a}})(-{{b}})(-{{c}})={{neg}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Treating the product as positive because \"two negatives make a positive.\"",
+        "answerSummary": "${{neg}}$"
       },
       "prompt": "What is the value of $(-{{a}})(-{{b}})(-{{c}})$?",
       "generator": {
@@ -32731,11 +32913,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "A number and its additive inverse cancel, leaving $y$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Regroup with the commutative and associative properties: $(x+y)+(-x)=(x+(-x))+y$.",
+          "A number plus its additive inverse is $0$, so $(x+y)+(-x)=y$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Thinking $x+(-x)$ is $2x$, or that $-x$ changes the sign of $y$.",
+        "answerSummary": "$y$"
       },
       "prompt": "For real numbers $x$ and $y$, which expression is equivalent to $(x+y)+(-x)$?",
       "generator": {
@@ -33291,11 +33475,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "A nonzero number times its reciprocal is $1$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "$\\frac{b}{a}$ is the reciprocal of $\\frac{a}{b}$.",
+          "Multiply the numerators and the denominators: $\\frac{a}{b}\\cdot\\frac{b}{a}=\\frac{ab}{ba}=1$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Squaring one of the fractions instead of noticing that the factors cancel.",
+        "answerSummary": "$1$"
       },
       "prompt": "For nonzero real numbers $a$ and $b$, what is $\\dfrac{a}{b}\\cdot\\dfrac{b}{a}$?",
       "generator": {
@@ -33859,11 +34045,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Factor out the shared {{a}}: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Both products share the factor {{a}}: ${{a}}({{b}})+{{a}}({{c}})={{a}}({{b}}+{{c}})$.",
+          "${{a}}\\cdot {{bc}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Multiplying all three numbers together, or adding {{c}} without multiplying it by {{a}}.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "Which value is equal to ${{a}}({{b}})+{{a}}({{c}})$?",
       "generator": {
@@ -33888,7 +34076,8 @@
           "ans": "a*(b+c)",
           "d1": "a*b+c",
           "d2": "a+b+c",
-          "d3": "a*b*c"
+          "d3": "a*b*c",
+          "bc": "b+c"
         },
         "constraints": [
           "b!=c",
@@ -34445,11 +34634,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Add the coefficients first, then multiply once: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "${{p}}+{{q}}={{pq}}$.",
+          "${{pq}}\\cdot {{x}}={{ans}}$.",
+          "Check: ${{p}}\\cdot {{x}}+{{q}}\\cdot {{x}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Multiplying all three numbers, or multiplying only the first product by {{x}}.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "Without changing its value, ${{p}}({{x}})+{{q}}({{x}})$ can be rewritten as $( {{p}}+{{q}} )({{x}})$. What is the value of the expression?",
       "generator": {
@@ -34474,7 +34666,8 @@
           "ans": "(p+q)*x",
           "d1": "p+q+x",
           "d2": "p*q*x",
-          "d3": "p*x+q"
+          "d3": "p*x+q",
+          "pq": "p+q"
         },
         "constraints": [
           "p!=q",
@@ -35031,11 +35224,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "The reciprocals multiply to $1$, so only the sign and {{c}} remain: ${{negc}}$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "$\\frac{a}{b}\\cdot\\frac{b}{a}=1$, since the factors are reciprocals.",
+          "The leading minus sign stays: $-\\frac{a}{b}\\cdot\\frac{b}{a}=-1$.",
+          "So the value is $-({{c}})={{negc}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Dropping the leading minus sign, which gives {{posc}}.",
+        "answerSummary": "${{negc}}$"
       },
       "prompt": "For positive nonzero values $a$ and $b$, what is $-\\dfrac{a}{b}\\cdot\\dfrac{b}{a}\\cdot {{c}}$?",
       "generator": {
@@ -35613,11 +35809,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "The $uv$ terms cancel, leaving $u\\cdot {{k}}$: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Distribute: $u(v+{{k}})-uv=uv+{{k}}u-uv={{k}}u$.",
+          "With $u={{u}}$: ${{k}}\\cdot {{u}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Multiplying {{k}} by $v$ instead of by $u$.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "Let $u={{u}}$ and $v={{v}}$. What is the value of $u(v+{{k}})-uv$?",
       "generator": {
@@ -36060,11 +36258,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Change is the amount paid minus the total cost: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Total cost: ${{a}}+{{b}}={{d1}}$ dollars.",
+          "Change: ${{paid}}-{{d1}}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Subtracting only one item from the amount paid, or giving the total cost as the change.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "A customer buys items costing ${{a}} and ${{b}} and pays with ${{paid}}. How much change should the customer receive?",
       "generator": {
@@ -36508,11 +36708,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Subtract the drop, then add the rise: ${{ans}}^\\circ$C.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "A decrease subtracts and an increase adds, in order from the starting temperature.",
+          "${{start}}-{{drop}}+{{rise}}={{ans}}$, so the final temperature is ${{ans}}^\\circ$C."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding the decrease instead of subtracting it.",
+        "answerSummary": "${{ans}}^\\circ$C"
       },
       "prompt": "The temperature is {{start}}°C. It decreases {{drop}}°C and then increases {{rise}}°C. What is the final temperature?",
       "generator": {
@@ -36953,11 +37155,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Same denominator, so subtract the numerators: $\\dfrac{{{rem}}}{{{d}}}$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Both amounts are fractions of the same whole capacity, with denominator {{d}}.",
+          "$\\frac{ {{n}} }{ {{d}} }-\\frac{1}{ {{d}} }=\\frac{ {{rem}} }{ {{d}} }$ of the capacity remains."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding the used amount instead of subtracting it.",
+        "answerSummary": "$\\dfrac{{{rem}}}{{{d}}}$"
       },
       "prompt": "A container is $\\dfrac{{{n}}}{{{d}}}$ full. Then $\\dfrac{1}{{{d}}}$ of the container's total capacity is used. What fraction of the container's capacity remains?",
       "generator": {
@@ -37394,11 +37598,15 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Parentheses, then the exponent, then multiply, then add: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Parentheses first: ${{c}}-{{d}}={{diff}}$.",
+          "Exponent next: ${{diff}}^2={{sq}}$.",
+          "Then multiply: ${{b}}\\cdot {{sq}}={{bsq}}$.",
+          "Add last: ${{a}}+{{bsq}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding ${{a}}+{{b}}$ before multiplying, or doubling instead of squaring.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "What is the value of ${{a}}+{{b}}({{c}}-{{d}})^2$?",
       "generator": {
@@ -37429,7 +37637,9 @@
           "ans": "a+b*(c-d)*(c-d)",
           "d1": "(a+b)*(c-d)*(c-d)",
           "d2": "a+b*(c-d)*2",
-          "d3": "a+b*c-d*d"
+          "d3": "a+b*c-d*d",
+          "sq": "(c-d)*(c-d)",
+          "bsq": "b*(c-d)*(c-d)"
         },
         "constraints": [
           "ans!=d1",
@@ -37844,11 +38054,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "A fraction of a fraction is a product: $\\dfrac{{{num}}}{{{den}}}$ of the tank.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "The tank holds $\\frac{ {{a}} }{ {{d}} }$ of its capacity, and $\\frac{ {{b}} }{ {{d}} }$ of that water is removed.",
+          "\"Of\" means multiply: $\\frac{ {{a}} }{ {{d}} }\\cdot\\frac{ {{b}} }{ {{d}} }=\\frac{ {{num}} }{ {{den}} }$ of the capacity."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Subtracting or adding the fractions, which treats $\\frac{ {{b}} }{ {{d}} }$ as a part of the whole tank rather than of the water in it.",
+        "answerSummary": "$\\dfrac{{{num}}}{{{den}}}$"
       },
       "prompt": "A tank is $\\dfrac{{{a}}}{{{d}}}$ full. Then $\\dfrac{{{b}}}{{{d}}}$ of the water currently in the tank is removed. What fraction of the tank's capacity is removed?",
       "generator": {
@@ -38291,11 +38503,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Change is the amount paid minus tickets and fee: {{change}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Tickets: ${{n}}\\cdot {{price}}={{d2}}$ dollars.",
+          "With the fee: ${{d2}}+{{fee}}={{cost}}$ dollars.",
+          "Change: ${{paid}}-{{cost}}={{change}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Leaving out the service fee, or giving the ticket cost as the change.",
+        "answerSummary": "${{change}}$ dollars"
       },
       "prompt": "A group buys {{n}} tickets at ${{price}} each and pays one service fee of ${{fee}}. The group pays with ${{paid}}. How much change should it receive?",
       "generator": {
@@ -38745,11 +38960,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Withdrawals subtract and deposits add: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Apply each transaction in order to the starting balance of {{start}} dollars.",
+          "${{start}}-{{w}}+{{dep}}-{{fee}}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding a withdrawal as though it were a deposit.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "An account balance is ${{start}}. A withdrawal of ${{w}} is followed by a deposit of ${{dep}} and another withdrawal of ${{fee}}. What is the new balance?",
       "generator": {
@@ -39196,11 +39413,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Distance out minus distance back, in quarters: $\\dfrac{{{quarters}}}{4}$ miles.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Out: ${{whole}}+\\frac{ {{n}} }{4}=\\frac{ {{wq}} }{4}$ miles.",
+          "Back: ${{back}}=\\frac{ {{bq}} }{4}$ miles.",
+          "Distance from the start: $\\frac{ {{wq}} }{4}-\\frac{ {{bq}} }{4}=\\frac{ {{quarters}} }{4}$ miles."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding the walk back instead of subtracting it.",
+        "answerSummary": "$\\dfrac{{{quarters}}}{4}$ miles"
       },
       "prompt": "A hiker walks {{whole}} miles in the morning and $\\dfrac{{{n}}}{4}$ mile in the afternoon, then walks {{back}} miles back toward the starting point. How many miles from the starting point is the hiker?",
       "generator": {
@@ -39228,7 +39448,9 @@
           "quarters": "4*whole+n-4*back",
           "d1": "4*whole+n+4*back",
           "d2": "4*whole-n-4*back",
-          "d3": "4*whole+4*back-n"
+          "d3": "4*whole+4*back-n",
+          "wq": "4*whole+n",
+          "bq": "4*back"
         },
         "constraints": [
           "quarters>0",
@@ -39644,11 +39866,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Cost per item is total cost divided by the number of items: {{rate}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "A unit rate is the cost of one item.",
+          "$\\frac{ {{cost}} }{ {{qty}} }={{rate}}$ dollars per item."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding or subtracting the numbers instead of dividing the cost by the number of items.",
+        "answerSummary": "${{rate}}$ dollars per item"
       },
       "prompt": "{{qty}} items cost ${{cost}}. At the same rate, what is the cost per item?",
       "generator": {
@@ -40080,11 +40304,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "The batches are multiplied by {{k}}, so the flour is too: {{ans}} cups.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Scale factor for the batches: $\\frac{ {{scaleB}} }{ {{b}} }={{k}}$.",
+          "Flour scales by the same factor: ${{a}}\\cdot {{k}}={{ans}}$ cups."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding the extra batches to the cups of flour instead of scaling by a factor.",
+        "answerSummary": "${{ans}}$ cups"
       },
       "prompt": "A recipe uses {{a}} cups of flour for {{b}} batches. At the same rate, how many cups are needed for {{scaleB}} batches?",
       "generator": {
@@ -40526,11 +40752,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "{{p}}% means {{p}} hundredths, so multiply: {{ans}}.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "{{p}}% of a number is $\\frac{ {{p}} }{100}$ times the number.",
+          "$\\frac{ {{p}} }{100}\\cdot {{whole}}={{ans}}$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Subtracting {{p}} from {{whole}}, which treats the percent as a number of units.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "What is {{p}}% of {{whole}}?",
       "generator": {
@@ -40972,11 +41200,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "The sale price is {{rest}}% of the original, so divide: {{orig}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "After a {{p}}% discount, the item costs $100-{{p}}={{rest}}$ percent of its original price.",
+          "So ${{sale}}=\\frac{ {{rest}} }{100}\\cdot$ original.",
+          "Original price: $\\frac{ {{sale}}\\cdot 100}{ {{rest}} }={{orig}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Adding {{p}}% of the sale price back on; the discount was {{p}}% of the original price, not of the sale price.",
+        "answerSummary": "${{orig}}$ dollars"
       },
       "prompt": "After a {{p}}% discount, an item costs ${{sale}}. What was the original price?",
       "generator": {
@@ -41006,7 +41237,8 @@
           "sale": "orig*(100-p)/100",
           "d1": "sale*(100+p)/100",
           "d2": "sale+p",
-          "d3": "orig-p"
+          "d3": "orig-p",
+          "rest": "100-p"
         },
         "constraints": [
           "sale==floor(sale)",
@@ -41422,11 +41654,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Percent increase is the change divided by the original amount: ${{p}}\\%$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Change: ${{new}}-{{old}}={{d1}}$.",
+          "Compare the change with the original amount: $\\frac{ {{d1}} }{ {{old}} }\\cdot 100={{p}}$, an increase of ${{p}}\\%$."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Giving the change itself as the percent, or dividing by the new amount instead of the original.",
+        "answerSummary": "${{p}}\\%$"
       },
       "prompt": "A quantity increases from {{old}} to {{new}}. What is the percent increase?",
       "generator": {
@@ -41455,7 +41689,8 @@
           "new": "old*(100+p)/100",
           "d1": "new-old",
           "d2": "100*p/old",
-          "d3": "100*new/old"
+          "d3": "100*new/old",
+          "d2Shown": "round(d2*100)/100"
         },
         "constraints": [
           "new==floor(new)",
@@ -41479,7 +41714,7 @@
         },
         {
           "id": "act-d2",
-          "label": "${{d2}}\\%$"
+          "label": "${{d2Shown}}\\%$"
         },
         {
           "id": "act-d3",
@@ -41872,11 +42107,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Apply the two changes one after the other: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Increase by {{up}}%: ${{start}}\\cdot\\frac{ {{upp}} }{100}={{afterUp}}$ dollars.",
+          "Then decrease the new price by {{down}}%: ${{afterUp}}\\cdot\\frac{ {{downm}} }{100}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Combining the percents into one change of {{up}}% minus {{down}}%; the decrease applies to the increased price, not to {{start}}.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "A price of ${{start}} is increased by {{up}}% and then the new price is decreased by {{down}}%. What is the final price?",
       "generator": {
@@ -41916,7 +42153,9 @@
           "ans": "afterUp*(100-down)/100",
           "d1": "start*(100+up-down)/100",
           "d2": "start*(100-up-down)/100",
-          "d3": "afterUp*(100+down)/100"
+          "d3": "afterUp*(100+down)/100",
+          "upp": "100+up",
+          "downm": "100-down"
         },
         "constraints": [
           "ans==floor(ans)",
@@ -42333,11 +42572,14 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Red is {{r}} of every {{rb}} markers: ${{pct}}\\%$.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "The ratio {{r}}:{{b}} splits the markers into ${{r}}+{{b}}={{rb}}$ equal parts, and {{r}} of them are red.",
+          "There are ${{rk}}$ red markers out of {{total}}, and $\\frac{ {{rk}} }{ {{total}} }=\\frac{ {{r}} }{ {{rb}} }$.",
+          "$\\frac{ {{r}} }{ {{rb}} }\\cdot 100={{pct}}$, so ${{pct}}\\%$ of the markers are red."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Comparing red to blue ({{r}} to {{b}}) instead of red to the total.",
+        "answerSummary": "${{pct}}\\%$"
       },
       "prompt": "The ratio of red to blue markers is {{r}}:{{b}}. There are {{total}} markers in all. What percent of the markers are red?",
       "generator": {
@@ -42367,7 +42609,11 @@
           "pct": "100*r/(r+b)",
           "d1": "100*b/(r+b)",
           "d2": "100*r/b",
-          "d3": "100*(r+b)/r"
+          "d3": "100*(r+b)/r",
+          "rb": "r+b",
+          "rk": "r*k",
+          "d2Shown": "round(d2*100)/100",
+          "d3Shown": "round(d3*100)/100"
         },
         "constraints": [
           "r!=b",
@@ -42393,11 +42639,11 @@
         },
         {
           "id": "act-d2",
-          "label": "${{d2}}\\%$"
+          "label": "${{d2Shown}}\\%$"
         },
         {
           "id": "act-d3",
-          "label": "${{d3}}\\%$"
+          "label": "${{d3Shown}}\\%$"
         }
       ],
       "responseFields": [
@@ -42786,11 +43032,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Discount first, then tax on the discounted price: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated quantities and foundational relationships in a sequence that preserves the meaning of the problem."
+          "Discounted price: ${{price}}\\cdot\\frac{ {{keep}} }{100}={{discounted}}$ dollars.",
+          "With tax: ${{discounted}}\\cdot\\frac{ {{taxp}} }{100}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check the final value against the original quantities and conditions."
+        "commonError": "Netting the percents into one change, or applying the tax to the original price.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "An item costs ${{price}}. A {{disc}}% discount is applied, then {{tax}}% sales tax is applied to the discounted price. What is the final cost?",
       "generator": {
@@ -42828,7 +43076,9 @@
           "ans": "discounted*(100+tax)/100",
           "d1": "price*(100-disc+tax)/100",
           "d2": "price*(100+tax)/100",
-          "d3": "discounted-price*tax/100"
+          "d3": "discounted-price*tax/100",
+          "keep": "100-disc",
+          "taxp": "100+tax"
         },
         "constraints": [
           "ans==floor(ans)",
@@ -43062,11 +43312,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Larger $x$ goes with larger $y$: a positive association.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Read the points in order of $x$: the $y$-values are {{y1}}, {{y2}}, {{y3}} and {{y4}}.",
+          "From $x=1$ to $x=4$, $y$ rises by ${{y4}}-{{y1}}={{rise}}$, and no later point is lower than an earlier one.",
+          "When $y$ tends to increase as $x$ increases, the association is positive."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Calling it constant or unrelated because the points do not lie exactly on a line.",
+        "answerSummary": "A positive association"
       },
       "prompt": "The data points are $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, $({{x3}},{{y3}})$, and $({{x4}},{{y4}})$. Which description best matches the association between $x$ and $y$?",
       "generator": {
@@ -43090,7 +43343,8 @@
           "y1": "m+b",
           "y2": "2*m+b+1",
           "y3": "3*m+b-1",
-          "y4": "4*m+b"
+          "y4": "4*m+b",
+          "rise": "y4-y1"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -43315,11 +43569,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Larger $x$ goes with smaller $y$: a downward trend.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Read the points in order of $x$: the $y$-values are {{y1}}, {{y2}}, {{y3}} and {{y4}}, each lower than the one before.",
+          "From $x=1$ to $x=4$, $y$ falls by ${{y1}}-{{y4}}={{fall}}$.",
+          "So as $x$ increases, $y$ tends to decrease."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Reading the trend from right to left, which reverses its direction.",
+        "answerSummary": "As $x$ increases, $y$ tends to decrease."
       },
       "prompt": "The points $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, $({{x3}},{{y3}})$, and $({{x4}},{{y4}})$ are plotted. Which description best matches the overall trend?",
       "generator": {
@@ -43343,7 +43600,8 @@
           "y1": "b-m",
           "y2": "b-2*m+1",
           "y3": "b-3*m-1",
-          "y4": "b-4*m"
+          "y4": "b-4*m",
+          "fall": "y1-y4"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -43568,11 +43826,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Substitute $x={{x}}$ into the line: $y={{ans}}$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The prediction is the line's $y$-value at $x={{x}}$.",
+          "$y={{m}}\\cdot {{x}}{{b|term}}={{ans}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the slope to $x$ instead of multiplying, or leaving out the intercept.",
+        "answerSummary": "$y={{ans}}$"
       },
       "prompt": "A line of best fit for a scatterplot is $y={{m}}x+{{b}}$. According to the line, what value of $y$ is predicted when $x={{x}}$?",
       "generator": {
@@ -43830,11 +44090,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Observed minus predicted: {{gap}} units above the line.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "At $x={{x}}$ the line gives {{pred}} and the point is at {{obs}}.",
+          "${{obs}}-{{pred}}={{gap}}$, so the point is {{gap}} units above the line."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the observed value itself, or adding the two values.",
+        "answerSummary": "${{gap}}$"
       },
       "prompt": "A line of best fit predicts $y={{pred}}$ when $x={{x}}$. The observed point at that $x$-value has $y={{obs}}$. How far above the line of best fit is the observed point?",
       "generator": {
@@ -44087,11 +44349,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Slope {{m}}, $y$-intercept {{b}}: $y={{m|coef}}x+{{b}}$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Slope: each step of 1 in $x$ raises $y$ by ${{y2}}-{{y1}}={{m}}$.",
+          "Intercept: step back from $(1,{{y1}})$ to $x=0$: ${{y1}}-{{m}}={{b}}$.",
+          "Check the third point: ${{m}}\\cdot 3+{{b}}={{y3}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Swapping the slope and the intercept.",
+        "answerSummary": "$y={{m|coef}}x+{{b}}$"
       },
       "prompt": "The points $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, and $({{x3}},{{y3}})$ lie on a line. Which equation represents that line?",
       "generator": {
@@ -44125,19 +44390,19 @@
       "choices": [
         {
           "id": "act-correct",
-          "label": "$y={{m}}x+{{b}}$"
+          "label": "$y={{m|coef}}x+{{b}}$"
         },
         {
           "id": "act-d1",
-          "label": "$y={{mp1}}x+{{b}}$"
+          "label": "$y={{mp1|coef}}x+{{b}}$"
         },
         {
           "id": "act-d2",
-          "label": "$y={{m}}x+{{bp1}}$"
+          "label": "$y={{m|coef}}x+{{bp1}}$"
         },
         {
           "id": "act-d3",
-          "label": "$y={{b}}x+{{m}}$"
+          "label": "$y={{b|coef}}x+{{m}}$"
         }
       ],
       "responseFields": [
@@ -44344,11 +44609,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Compare each model's distance from {{obs}}: Model A, by {{gap}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Model A's error: ${{obs}}-{{aPred}}={{e1}}$.",
+          "Model B's error: ${{bPred}}-{{obs}}={{eB}}$.",
+          "Model A is closer, by ${{eB}}-{{e1}}={{gap}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the two errors, or comparing the predictions with each other instead of with the observed value.",
+        "answerSummary": "Model A, by {{gap}}"
       },
       "prompt": "For $x={{x}}$, an observed point has $y={{obs}}$. Model A predicts {{aPred}} and model B predicts {{bPred}}. Which model has the smaller absolute prediction error, and by how much?",
       "generator": {
@@ -44378,7 +44646,8 @@
           "aPred": "obs-e1",
           "bPred": "obs+e1+extra",
           "gap": "extra",
-          "sumErr": "2*e1+extra"
+          "sumErr": "2*e1+extra",
+          "eB": "e1+extra"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -44604,11 +44873,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Keep adding the same step, {{d}}: {{ans}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The step between values is ${{y2}}-{{y1}}={{d}}$, and it is the same each time.",
+          "Next value: ${{y4}}+{{d}}={{ans}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Repeating the last value, or adding the step twice.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "For equally spaced $x$-values, the $y$-values are {{y1}}, {{y2}}, {{y3}}, and {{y4}}, increasing by the same amount each time. What value is predicted next if the trend continues?",
       "generator": {
@@ -44858,11 +45129,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Residual is observed minus predicted: ${{ans}}$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Observed {{obs}}, predicted {{pred}}.",
+          "${{obs}}-{{pred}}={{ans}}$; the residual is negative because the point lies below the line."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Subtracting in the other order, which gives the right size with the wrong sign.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "A line of best fit predicts $y={{pred}}$ at $x={{x}}$, but an outlying observed point has $y={{obs}}$. If residual is defined as observed minus predicted, what is the residual for this point?",
       "generator": {
@@ -45218,13 +45491,16 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Undo the constant, then divide by {{a}}: $x={{x}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Move the constant to the other side: ${{a|coef}}x={{c}}{{nb|term}}={{cb}}$.",
+          "Divide both sides by {{a}}: $x=\\frac{ {{cb}} }{ {{a}} }={{x}}$.",
+          "Check: ${{a|coef}}({{x}}){{b|term}}={{c}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing before moving the constant, or moving the constant with the wrong sign.",
+        "answerSummary": "$x={{x}}$"
       },
-      "prompt": "What value of $x$ satisfies ${{a}}x+{{b}}={{c}}$?",
+      "prompt": "What value of $x$ satisfies ${{a|coef}}x {{b|term}}={{c}}$?",
       "generator": {
         "parameters": {
           "a": {
@@ -45247,7 +45523,9 @@
           "c": "a*x+b",
           "d1": "x+1",
           "d2": "x-1",
-          "d3": "x+a"
+          "d3": "x+a",
+          "nb": "-b",
+          "cb": "c-b"
         },
         "constraints": [
           "a!=1",
@@ -45582,11 +45860,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Undo the ${{k}}$, then pick a value strictly above the boundary: ${{good}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Subtract {{k}} from both sides: ${{T}}-{{k}}={{n}}$, so the inequality becomes $x>{{n}}$.",
+          "The inequality is strict, so $x={{n}}$ itself does not work.",
+          "Check ${{good}}$: ${{good}}+{{k}}={{gk}}$, and ${{gk}}>{{T}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Choosing the boundary value {{n}}, which makes the two sides equal rather than making the left side greater.",
+        "answerSummary": "$x={{good}}$"
       },
       "prompt": "Which value of $x$ satisfies $x+{{k}}>{{T}}$?",
       "generator": {
@@ -45607,7 +45888,8 @@
           "good": "n+1",
           "eq": "n",
           "low": "n-1",
-          "lower": "n-2"
+          "lower": "n-2",
+          "gk": "n+1+k"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -45937,11 +46219,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Subtract the fixed fee, then divide by the rate per mile: {{m}} miles.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "With $m$ miles, the cost is ${{f}}+{{r}}m={{total}}$.",
+          "Subtract the fee: ${{r}}m={{total}}-{{f}}={{rm}}$.",
+          "Divide by the rate: $m=\\frac{ {{rm}} }{ {{r}} }={{m}}$ miles."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing the whole total by the rate without first removing the fixed fee.",
+        "answerSummary": "${{m}}$ miles"
       },
       "prompt": "A ride costs a fixed fee of ${{f}} plus ${{r}} per mile. The total cost is ${{total}}. How many miles were traveled?",
       "generator": {
@@ -45966,7 +46251,8 @@
           "total": "f+r*m",
           "d1": "m+1",
           "d2": "m-1",
-          "d3": "m+r"
+          "d3": "m+r",
+          "rm": "r*m"
         },
         "constraints": [
           "r!=1"
@@ -46299,11 +46585,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Load plus boxes must be at most the capacity: ${{L}}+{{w}}b\\le {{C}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "With $b$ boxes the total weight is the load, {{L}} pounds, plus {{w}} pounds for each box: ${{L}}+{{w}}b$.",
+          "\"At most {{C}} pounds\" allows the total to equal {{C}}, so the symbol is $\\le$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Using $<$, which leaves out a load of exactly {{C}} pounds, or attaching $b$ to the wrong weight.",
+        "answerSummary": "${{L}}+{{w}}b\\le {{C}}$"
       },
       "prompt": "An elevator can carry at most {{C}} pounds. A load already weighs {{L}} pounds, and each box weighs {{w}} pounds. Which inequality represents the possible number of boxes $b$?",
       "generator": {
@@ -46656,11 +46944,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Substitute $x={{x}}$, then solve for $y$: $y={{y}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Substitute: ${{a}}\\cdot {{x}}+{{b}}y={{c}}$, so ${{ax}}+{{b}}y={{c}}$.",
+          "Subtract {{ax}}: ${{b}}y={{c}}-{{ax}}={{by}}$.",
+          "Divide by {{b}}: $y=\\frac{ {{by}} }{ {{b}} }={{y}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Forgetting to multiply $x$ by {{a}} before subtracting.",
+        "answerSummary": "$y={{y}}$"
       },
       "prompt": "The equation ${{a}}x+{{b}}y={{c}}$ is true. If $x={{x}}$, what is the value of $y$?",
       "generator": {
@@ -46690,7 +46981,9 @@
           "c": "a*x+b*y",
           "d1": "y+1",
           "d2": "y-1",
-          "d3": "y+b"
+          "d3": "y+b",
+          "ax": "a*x",
+          "by": "b*y"
         },
         "constraints": [
           "a!=b",
@@ -47025,11 +47318,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Undo the subtraction, then the multiplication, then the addition: $x={{x}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Add {{d}} to both sides: ${{a}}(x+{{k}})={{rhs}}+{{d}}={{rd}}$.",
+          "Divide by {{a}}: $x+{{k}}=\\frac{ {{rd}} }{ {{a}} }={{xk}}$.",
+          "Subtract {{k}}: $x={{xk}}-{{k}}={{x}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Stopping at $x+{{k}}$, or distributing {{a}} to $x$ only.",
+        "answerSummary": "$x={{x}}$"
       },
       "prompt": "What value of $x$ satisfies ${{a}}(x+{{k}})-{{d}}={{rhs}}$?",
       "generator": {
@@ -47059,7 +47355,9 @@
           "rhs": "a*(x+k)-d",
           "d1": "x+k",
           "d2": "x-k",
-          "d3": "x+a"
+          "d3": "x+a",
+          "rd": "a*(x+k)",
+          "xk": "x+k"
         },
         "constraints": [
           "k!=a",
@@ -47395,11 +47693,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Room left is the capacity minus the riders already on: {{ans}}.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "With $n$ more passengers the total is ${{p}}+n$, and \"at most {{C}}\" means ${{p}}+n\\le {{C}}$.",
+          "So $n\\le {{C}}-{{p}}$, and ${{C}}-{{p}}={{ans}}$.",
+          "Equality is allowed, so the greatest whole number is {{ans}}."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Treating \"at most\" as strictly less than, which gives one fewer.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "A bus can hold at most {{C}} passengers. There are already {{p}} passengers on the bus. What is the greatest whole number of additional passengers that can board?",
       "generator": {
@@ -47753,11 +48054,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Revenue equals cost when ${{p}}t={{F}}$: {{n}} tickets.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Selling $t$ tickets brings in ${{p}}t$ dollars, and the rental costs {{F}} dollars.",
+          "Set them equal: ${{p}}t={{F}}$.",
+          "Divide: $t=\\frac{ {{F}} }{ {{p}} }={{n}}$ tickets."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Adding the price to the answer, or rounding to the next ticket when the division is exact.",
+        "answerSummary": "${{n}}$ tickets"
       },
       "prompt": "A club pays ${{F}} to rent a room and charges ${{p}} per ticket. How many tickets must be sold for ticket revenue to equal the rental cost?",
       "generator": {
@@ -47962,11 +48266,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Volume is length times width times height: {{ans}} cubic units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The volume of a rectangular prism is $lwh$.",
+          "${{l}}\\cdot {{w}}\\cdot {{h}}={{ans}}$ cubic units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Stopping at the base area, or adding the dimensions instead of multiplying.",
+        "answerSummary": "${{ans}}$ cubic units"
       },
       "prompt": "A rectangular prism has length {{l}}, width {{w}}, and height {{h}} units. What is its volume, in cubic units?",
       "generator": {
@@ -48175,11 +48481,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Volume is $\\pi r^2h$: ${{coef}}\\pi$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The volume of a cylinder is the area of its circular base, $\\pi r^2$, times its height.",
+          "With $r={{r}}$ and $h={{h}}$: ${{r}}^2\\cdot {{h}}={{coef}}$, so the volume is ${{coef}}\\pi$ cubic units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Using $2\\pi r$ (the circumference) in place of the base area $\\pi r^2$.",
+        "answerSummary": "${{coef}}\\pi$"
       },
       "prompt": "A cylinder has radius {{r}} units and height {{h}} units. Which expression gives its volume?",
       "generator": {
@@ -48383,11 +48691,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Add the areas of all six faces: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "A closed box has three pairs of matching faces: ${{l}}\\cdot {{w}}={{lw}}$, ${{l}}\\cdot {{h}}={{lh}}$ and ${{w}}\\cdot {{h}}={{wh}}$ square units.",
+          "Each face appears twice: $2({{lw}}+{{lh}}+{{wh}})={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Counting each pair of faces only once, which gives half the surface area.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A closed rectangular prism has dimensions {{l}}, {{w}}, and {{h}} units. What is its surface area, in square units?",
       "generator": {
@@ -48412,7 +48722,10 @@
           "ans": "2*(l*w+l*h+w*h)",
           "d1": "l*w*h",
           "d2": "l*w+l*h+w*h",
-          "d3": "2*l+2*w+2*h"
+          "d3": "2*l+2*w+2*h",
+          "lw": "l*w",
+          "lh": "l*h",
+          "wh": "w*h"
         },
         "constraints": [
           "ans!=d1",
@@ -48596,11 +48909,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Volume of a cube is the edge cubed: {{ans}} cubic units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "All three dimensions of a cube equal the edge, so the volume is $s^3$.",
+          "${{s}}^3={{ans}}$ cubic units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Squaring the edge (one face) or using $6s^2$ (the surface area).",
+        "answerSummary": "${{ans}}$ cubic units"
       },
       "prompt": "A cube has edge length {{s}} units. What is its volume, in cubic units?",
       "generator": {
@@ -48799,11 +49114,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Six square faces: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Each face is a square: ${{s}}^2={{face}}$ square units.",
+          "A cube has 6 faces: $6\\cdot {{face}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Cubing the edge, which gives the volume.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A cube has edge length {{s}} units. What is its surface area, in square units?",
       "generator": {
@@ -48818,7 +49135,8 @@
           "ans": "6*s^2",
           "d1": "s^3",
           "d2": "s^2",
-          "d3": "4*s"
+          "d3": "4*s",
+          "face": "s*s"
         },
         "constraints": [
           "ans!=d1",
@@ -49003,11 +49321,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Add the two volumes: {{ans}} cubic units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "First prism: ${{l1}}\\cdot {{w1}}\\cdot {{h1}}={{v1}}$ cubic units.",
+          "Second prism: ${{l2}}\\cdot {{w2}}\\cdot {{h2}}={{v2}}$ cubic units.",
+          "They do not overlap, so the total is ${{v1}}+{{v2}}={{ans}}$ cubic units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding matching dimensions first and multiplying the sums, which is not the volume of either piece.",
+        "answerSummary": "${{ans}}$ cubic units"
       },
       "prompt": "A solid is made from two nonoverlapping rectangular prisms. One has dimensions {{l1}} by {{w1}} by {{h1}}, and the other has dimensions {{l2}} by {{w2}} by {{h2}}. What is the total volume?",
       "generator": {
@@ -49234,11 +49555,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Volume is base area times height, so divide: {{h}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "For a prism, volume $=$ base area $\\times$ height.",
+          "Height: $\\frac{ {{V}} }{ {{baseArea}} }={{h}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the base area as the height.",
+        "answerSummary": "${{h}}$ units"
       },
       "prompt": "A storage box has a rectangular base with area {{baseArea}} square units and volume {{V}} cubic units. What is the height of the box?",
       "generator": {
@@ -49448,11 +49771,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Surface area times the price per square foot: {{ans}} dollars.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The faces come in pairs: ${{l}}\\cdot {{w}}={{lw}}$, ${{l}}\\cdot {{h}}={{lh}}$ and ${{w}}\\cdot {{h}}={{wh}}$ square feet.",
+          "Surface area: $2({{lw}}+{{lh}}+{{wh}})={{sa}}$ square feet.",
+          "Cost: ${{sa}}\\cdot {{p}}={{ans}}$ dollars."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Pricing the volume instead of the outside surface, or counting each pair of faces once.",
+        "answerSummary": "${{ans}}$ dollars"
       },
       "prompt": "A closed rectangular box has length {{l}} feet, width {{w}} feet, and height {{h}} feet. Covering the entire outside costs ${{p}} per square foot. What is the total covering cost?",
       "generator": {
@@ -49483,7 +49809,10 @@
           "ans": "2*(l*w+l*h+w*h)*p",
           "d1": "l*w*h*p",
           "d2": "(l*w+l*h+w*h)*p",
-          "d3": "(2*l+2*w+2*h)*p"
+          "d3": "(2*l+2*w+2*h)*p",
+          "lw": "l*w",
+          "lh": "l*h",
+          "wh": "w*h"
         },
         "constraints": [
           "ans!=d1",
@@ -49772,11 +50101,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Fixed fee plus the hourly rate times the hours: ${{f}}+{{r}}h$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "The fee of {{f}} dollars is paid once; the {{r}} dollars is paid for each of the $h$ hours, which is ${{r}}h$.",
+          "Total: ${{f}}+{{r}}h$.",
+          "Check with 2 hours: ${{f}}+{{r}}\\cdot 2={{f2}}$ dollars."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Multiplying the fixed fee by the hours instead of the hourly rate.",
+        "answerSummary": "${{f}}+{{r}}h$"
       },
       "prompt": "A service charges a fixed fee of ${{f}} plus ${{r}} for each hour $h$. Which expression gives the total charge, in dollars, for $h$ hours?",
       "generator": {
@@ -49793,7 +50125,8 @@
           }
         },
         "derived": {
-          "fr": "f*r"
+          "fr": "f*r",
+          "f2": "f+2*r"
         },
         "constraints": [
           "f!=r",
@@ -50078,11 +50411,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Form the product first, then add {{a}}: ${{b}}x+{{a}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "\"The product of {{b}} and $x$\" is ${{b}}x$.",
+          "\"{{a}} more than\" that product adds {{a}}: ${{b}}x+{{a}}$.",
+          "Check with $x=1$: ${{b}}\\cdot 1+{{a}}={{ab}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Adding {{a}} to $x$ before multiplying by {{b}}.",
+        "answerSummary": "${{b}}x+{{a}}$"
       },
       "prompt": "Which expression represents {{a}} more than the product of {{b}} and $x$?",
       "generator": {
@@ -50100,7 +50436,10 @@
         },
         "constraints": [
           "a!=b"
-        ]
+        ],
+        "derived": {
+          "ab": "a+b"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -50380,11 +50719,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Consecutive integers go up by 1: their sum is $3n+{{c}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "The three integers are $n+{{k}}$, $n+{{k1}}$ and $n+{{k2}}$.",
+          "Add them: $(n+{{k}})+(n+{{k1}})+(n+{{k2}})=3n+{{c}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Multiplying the integers instead of adding them, or adding 1 to only one of them.",
+        "answerSummary": "$3n+{{c}}$"
       },
       "prompt": "If the least of 3 consecutive integers is $n+{{k}}$, which expression represents their sum?",
       "generator": {
@@ -50398,7 +50739,9 @@
         "derived": {
           "c": "3*k+3",
           "d1c": "3*k+2",
-          "d2c": "k+3"
+          "d2c": "k+3",
+          "k1": "k+1",
+          "k2": "k+2"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -50679,11 +51022,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Average is the sum of all three values divided by 3.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Sum of the values: $x+{{a}}+{{b}}=x+{{ab}}$.",
+          "There are 3 values, so the whole sum is divided by 3: $\\dfrac{x+{{a}}+{{b}}}{3}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Dividing only {{a}} and {{b}} by 3 and leaving $x$ undivided.",
+        "answerSummary": "$\\dfrac{x+{{a}}+{{b}}}{3}$"
       },
       "prompt": "The values in a data set are $x$, {{a}}, and {{b}}. Which expression gives the average of the 3 values?",
       "generator": {
@@ -50701,7 +51046,10 @@
         },
         "constraints": [
           "a!=b"
-        ]
+        ],
+        "derived": {
+          "ab": "a+b"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -50981,11 +51329,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Two widths plus two lengths: $4x+{{twok}}$.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Perimeter is twice the width plus twice the length.",
+          "$2x+2(x+{{k}})=4x+{{twok}}$."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Counting the width and the length only once each, or multiplying them (the area).",
+        "answerSummary": "$4x+{{twok}}$"
       },
       "prompt": "A rectangle has width $x$ and length $x+{{k}}$. Which expression gives the perimeter of the rectangle?",
       "generator": {
@@ -51279,11 +51629,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Each kind of ticket times its own price, then add.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "Adult tickets bring in ${{a}}x$ dollars.",
+          "Student tickets bring in ${{b}}({{N}}-x)$ dollars.",
+          "Total revenue: ${{a}}x+{{b}}({{N}}-x)={{amb|coef}}x+{{bN}}$ in expanded form."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Pairing the adult price with the student count.",
+        "answerSummary": "${{a}}x+{{b}}({{N}}-x)$"
       },
       "prompt": "A theater sells $x$ adult tickets at ${{a}} each and ${{N}}-x$ student tickets at ${{b}} each. Which expression gives the total ticket revenue?",
       "generator": {
@@ -51306,7 +51659,11 @@
         },
         "constraints": [
           "a!=b"
-        ]
+        ],
+        "derived": {
+          "amb": "a-b",
+          "bN": "b*N"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -51587,11 +51944,14 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Distance is rate times time for each leg, then add.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "First leg: ${{r1}}t$ miles.",
+          "Second leg: ${{r2}}(t+{{k}})$ miles.",
+          "Total: ${{r1}}t+{{r2}}(t+{{k}})={{rr}}t+{{r2k}}$ in expanded form."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Swapping the times so that each rate is paired with the other leg's hours.",
+        "answerSummary": "${{r1}}t+{{r2}}(t+{{k}})$"
       },
       "prompt": "A traveler moves at {{r1}} miles per hour for $t$ hours and then at {{r2}} miles per hour for $t+{{k}}$ hours. Which expression gives the total distance traveled?",
       "generator": {
@@ -51614,7 +51974,11 @@
         },
         "constraints": [
           "r1!=r2"
-        ]
+        ],
+        "derived": {
+          "rr": "r1+r2",
+          "r2k": "r2*k"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -51895,11 +52259,13 @@
         "Translate the stated relationship into mathematics, keep units or constraints attached to the quantities, and verify the result in the original context."
       ],
       "solutionReview": {
-        "headline": "Connect the required steps.",
+        "headline": "Start with the budget, subtract the shirts and the one fee.",
         "reasoning": [
-          "Represent the stated relationships accurately, then use the foundational operations needed to answer the question."
+          "The shirts cost ${{p}}x$ dollars, and the fee is {{f}} dollars, paid once.",
+          "Remaining: ${{B}}-{{p}}x-{{f}}={{Bf}}-{{p}}x$ after combining the constants."
         ],
-        "answerSummary": "Check the result against the original quantities, units, and conditions."
+        "commonError": "Charging the delivery fee once per shirt.",
+        "answerSummary": "${{B}}-{{p}}x-{{f}}$"
       },
       "prompt": "A club starts with ${{B}}. It buys $x$ shirts at ${{p}} each and pays a one-time delivery fee of ${{f}}. Which expression gives the dollars remaining?",
       "generator": {
@@ -51922,7 +52288,10 @@
         },
         "constraints": [
           "p!=f"
-        ]
+        ],
+        "derived": {
+          "Bf": "B-f"
+        }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -52503,11 +52872,14 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Take the cube root, then square: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "The exponent $\\frac{2}{3}$ means the cube root, squared.",
+          "$\\sqrt[3]{ {{base}} }={{n}}$, since ${{n}}^3={{base}}$.",
+          "${{n}}^2={{answer}}$, so ${{base}}^{2/3}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Stopping at the cube root, or reading the exponent as multiplying by $\\frac{2}{3}$.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -53055,11 +53427,14 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "{{p}} is not a perfect square, so $\\sqrt{{{p}}}$ is irrational.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "A rational number is a ratio of integers. ${{p}}$ and $\\frac{ {{p}} }{2}$ are already ratios of integers, and $0.125=\\frac{1}{8}$.",
+          "The square root of a positive integer is rational only when the integer is a perfect square, and {{p}} is not one.",
+          "So $\\sqrt{{{p}}}$ is the irrational number."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Thinking a fraction or a terminating decimal is irrational because it is not a whole number.",
+        "answerSummary": "$\\sqrt{{{p}}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -53557,7 +53932,7 @@
         "stemProfile": "complex-addition",
         "answerChoiceCount": 4
       },
-      "prompt": "What is the sum of $({{a}}+{{b}}i)$ and $({{c}}-{{d}}i)$?",
+      "prompt": "What is the sum of $({{a}}+{{b|coef}}i)$ and $({{c}}-{{d|coef}}i)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -53592,7 +53967,8 @@
           "i3": "b+d"
         },
         "constraints": [
-          "b!=d"
+          "b!=d",
+          "abs(b-d)!=1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -53629,11 +54005,14 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Add the real parts and the imaginary parts separately.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "Real parts: ${{a}}+{{c}}={{real}}$.",
+          "Imaginary parts: ${{b}}-{{d}}={{imag}}$.",
+          "Sum: ${{real}} {{imag|signed}}i$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Adding {{d}} to the imaginary part; the second number's imaginary part is $-{{d}}$, so it is subtracted.",
+        "answerSummary": "${{real}} {{imag|signed}}i$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -54159,7 +54538,9 @@
           "answer": "p*r+q*s",
           "d1": "p*r",
           "d2": "q*s",
-          "d3": "p+q+r+s"
+          "d3": "p+q+r+s",
+          "pr": "p*r",
+          "qs": "q*s"
         },
         "constraints": [
           "answer!=d1",
@@ -54204,11 +54585,13 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Row 1 of $A$ times column 2 of $B$: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "The entry in row 1, column 2 of $AB$ pairs row 1 of $A$, $({{p}},{{q}})$, with column 2 of $B$, $({{r}},{{s}})$.",
+          "Multiply matching entries and add: ${{p}}\\cdot {{r}}+{{q}}\\cdot {{s}}={{pr}}+{{qs}}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Using only one of the two products, or adding the entries instead of multiplying them.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -54721,7 +55104,8 @@
           "answer": "5*k",
           "d1": "7*k",
           "d2": "12*k",
-          "d3": "k"
+          "d3": "k",
+          "sum": "x*x+y*y"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -54758,11 +55142,14 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Magnitude is $\\sqrt{x^2+y^2}$: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "The magnitude of $\\langle x,y\\rangle$ is its length, $\\sqrt{x^2+y^2}$.",
+          "${{x}}^2+{{y}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Adding the components instead of their squares.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -55261,7 +55648,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "What is the value of $({{a}}+{{b}}i)({{a}}-{{b}}i)$?",
+      "prompt": "What is the value of $({{a}}+{{b|coef}}i)({{a}}-{{b|coef}}i)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -55279,7 +55666,9 @@
           "answer": "a^2+b^2",
           "d1": "a^2-b^2",
           "d2": "(a+b)^2",
-          "d3": "a+b"
+          "d3": "a+b",
+          "a2": "a*a",
+          "b2": "b*b"
         },
         "constraints": [
           "answer!=d1",
@@ -55324,11 +55713,13 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Conjugates multiply to $a^2+b^2$: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "$(a+bi)(a-bi)=a^2-b^2i^2=a^2+b^2$, because $i^2=-1$.",
+          "Here $a={{a}}$ and $b={{b}}$: ${{a}}^2+{{b}}^2={{a2}}+{{b2}}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Treating $i^2$ as $1$, which gives $a^2-b^2$.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -55841,7 +56232,8 @@
           "answer": "x+3*y",
           "d1": "2*x+y",
           "d2": "x+y",
-          "d3": "3*x+y"
+          "d3": "3*x+y",
+          "y3": "3*y"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -55878,11 +56270,13 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Second row of the matrix times the vector: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "The second entry of the product pairs the second row, $(1,3)$, with the vector $({{x}},{{y}})$.",
+          "$1\\cdot {{x}}+3\\cdot {{y}}={{x}}+{{y3}}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Using the first row, $(2,1)$, which gives the first entry.",
+        "answerSummary": "${{answer}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -56431,11 +56825,13 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Miles to feet, then hours to minutes: {{answer}} feet.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "In one hour the vehicle goes ${{v}}\\cdot 5280={{d2}}$ feet.",
+          "One minute is $\\frac{1}{60}$ of an hour: $\\frac{ {{d2}} }{60}={{answer}}$ feet."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Converting only one unit: miles to feet or hours to minutes, but not both.",
+        "answerSummary": "${{answer}}$ feet"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -56695,11 +57091,13 @@
         "Distinguish observed data from summaries, and identify the correct sample space or sampling condition before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the data or probability relationship.",
+        "headline": "The four numbers must total $4\\cdot {{M}}$: $x={{answer}}$.",
         "reasoning": [
-          "Apply the appropriate measure of center or spread, data-collection principle, bivariate relationship, or probability rule."
+          "An average of {{M}} over 4 numbers means a total of $4\\cdot {{M}}={{tot}}$.",
+          "$x={{tot}}-{{a}}-{{b}}-{{c}}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected answer is supported by the data or sample space."
+        "commonError": "Subtracting the known numbers from the average instead of from the total.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "The average of the 4 numbers {{a}}, {{b}}, {{c}}, and $x$ is {{M}}. What is the value of $x$?",
       "generator": {
@@ -56729,7 +57127,8 @@
           "answer": "4*M-a-b-c",
           "d1": "M-a-b-c",
           "d2": "3*M-a-b-c",
-          "d3": "4*M+a+b+c"
+          "d3": "4*M+a+b+c",
+          "tot": "4*M"
         },
         "constraints": [
           "answer>0",
@@ -57026,11 +57425,14 @@
         "Distinguish observed data from summaries, and identify the correct sample space or sampling condition before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the data or probability relationship.",
+        "headline": "Set B's values sit farther from the shared average: B has more spread.",
         "reasoning": [
-          "Apply the appropriate measure of center or spread, data-collection principle, bivariate relationship, or probability rule."
+          "Both sets have average {{mu}}.",
+          "Every value in A is ${{mu}}-{{m1}}={{d}}$ from the average; every value in B is ${{mu}}-{{n1}}={{d2}}$ from it.",
+          "Standard deviation measures typical distance from the average, so Data set B has the greater standard deviation."
         ],
-        "answerSummary": "Check that the selected answer is supported by the data or sample space."
+        "commonError": "Comparing the averages, which are equal and say nothing about spread.",
+        "answerSummary": "Data set B has the greater standard deviation."
       },
       "prompt": "Data set A is ${{m1}}, {{m2}}, {{m3}}, {{m4}}$. Data set B is ${{n1}}, {{n2}}, {{n3}}, {{n4}}$. The 2 data sets have the same average. Which statement about their standard deviations is true?",
       "generator": {
@@ -57054,7 +57456,8 @@
           "n1": "mu-2*d",
           "n2": "mu-2*d",
           "n3": "mu+2*d",
-          "n4": "mu+2*d"
+          "n4": "mu+2*d",
+          "d2": "2*d"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -57342,11 +57745,13 @@
         "Distinguish observed data from summaries, and identify the correct sample space or sampling condition before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the data or probability relationship.",
+        "headline": "A random sample from everyone gives every student the same chance.",
         "reasoning": [
-          "Apply the appropriate measure of center or spread, data-collection principle, bivariate relationship, or probability rule."
+          "The other methods reach only some students: those in the library after school, an advanced class, or volunteers who choose to answer. Each group may study a different amount than the school as a whole.",
+          "Choosing at random from the full roster gives every student an equal chance, so the sample tends to represent the school. The best method: Randomly select {{n}} students from the full school roster."
         ],
-        "answerSummary": "Check that the selected answer is supported by the data or sample space."
+        "commonError": "Thinking a larger or more convenient group is representative even when it is not chosen at random.",
+        "answerSummary": "Randomly select {{n}} students from the full school roster."
       },
       "prompt": "A school wants to estimate the average number of hours students spend on homework each week. Which sampling method is most likely to produce a representative sample of the entire school?",
       "generator": {
@@ -57643,11 +58048,13 @@
         "Distinguish observed data from summaries, and identify the correct sample space or sampling condition before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the data or probability relationship.",
+        "headline": "Observed minus predicted: {{answer}} centimeters.",
         "reasoning": [
-          "Apply the appropriate measure of center or spread, data-collection principle, bivariate relationship, or probability rule."
+          "Predicted {{pred}} cm, observed {{obs}} cm.",
+          "${{obs}}-{{pred}}={{answer}}$ centimeters greater."
         ],
-        "answerSummary": "Check that the selected answer is supported by the data or sample space."
+        "commonError": "Giving the observed height itself instead of the difference.",
+        "answerSummary": "${{answer}}$ centimeters"
       },
       "prompt": "A model predicts that a plant will be {{pred}} centimeters tall after {{weeks}} weeks. The observed height is {{obs}} centimeters. How much greater is the observed height than the model prediction?",
       "generator": {
@@ -57961,11 +58368,14 @@
         "Distinguish observed data from summaries, and identify the correct sample space or sampling condition before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the data or probability relationship.",
+        "headline": "Count the marbles that are not green: $\\dfrac{{{non}}}{{{total}}}$.",
         "reasoning": [
-          "Apply the appropriate measure of center or spread, data-collection principle, bivariate relationship, or probability rule."
+          "Total marbles: ${{r}}+{{b}}+{{g}}={{total}}$.",
+          "Not green means red or blue: ${{r}}+{{b}}={{non}}$.",
+          "Probability: $\\dfrac{{{non}}}{{{total}}}$."
         ],
-        "answerSummary": "Check that the selected answer is supported by the data or sample space."
+        "commonError": "Giving the probability of green instead of not green.",
+        "answerSummary": "$\\dfrac{{{non}}}{{{total}}}$"
       },
       "prompt": "A bag contains {{r}} red, {{b}} blue, and {{g}} green marbles. One marble is chosen at random. What is the probability that the marble is not green?",
       "generator": {
@@ -58283,11 +58693,13 @@
         "Distinguish observed data from summaries, and identify the correct sample space or sampling condition before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the data or probability relationship.",
+        "headline": "Expected winnings minus the cost to play: {{answer}} dollars.",
         "reasoning": [
-          "Apply the appropriate measure of center or spread, data-collection principle, bivariate relationship, or probability rule."
+          "Expected winnings: $20\\cdot\\frac{1}{ {{n}} }={{winEV}}$ dollars per play.",
+          "The {{cost}}-dollar cost is paid every play: ${{winEV}}-{{cost}}={{answer}}$ dollars."
         ],
-        "answerSummary": "Check that the selected answer is supported by the data or sample space."
+        "commonError": "Leaving out the cost, or subtracting it only from the prize.",
+        "answerSummary": "${{answer}}$ dollars"
       },
       "prompt": "A game costs ${{cost}} to play. A player wins ${{prize}} with probability $1/{{n}}$ and wins $0 otherwise. What is the expected net value, in dollars, to the player for 1 play?",
       "generator": {
@@ -58610,11 +59022,13 @@
         "Distinguish observed data from summaries, and identify the correct sample space or sampling condition before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the data or probability relationship.",
+        "headline": "Only the yes answers count: $\\dfrac{{{ay}}}{{{yes}}}$.",
         "reasoning": [
-          "Apply the appropriate measure of center or spread, data-collection principle, bivariate relationship, or probability rule."
+          "The student is chosen from those who answered yes: ${{ay}}+{{by}}={{yes}}$ students.",
+          "Of those, {{ay}} are in group A, so the probability is $\\dfrac{{{ay}}}{{{yes}}}$."
         ],
-        "answerSummary": "Check that the selected answer is supported by the data or sample space."
+        "commonError": "Dividing by the size of group A or by all students instead of by the yes answers.",
+        "answerSummary": "$\\dfrac{{{ay}}}{{{yes}}}$"
       },
       "prompt": "In a survey, {{ay}} students in group A answered yes and {{an}} in group A answered no. In group B, {{by}} answered yes and {{bn}} answered no. If 1 student who answered yes is selected at random, what is the probability the student is from group A?",
       "generator": {
@@ -58940,11 +59354,13 @@
         "Distinguish observed data from summaries, and identify the correct sample space or sampling condition before calculating."
       ],
       "solutionReview": {
-        "headline": "Use the data or probability relationship.",
+        "headline": "Adding {{k}} shifts the average but not the spread: $({{newmu}},{{sd}})$.",
         "reasoning": [
-          "Apply the appropriate measure of center or spread, data-collection principle, bivariate relationship, or probability rule."
+          "Every value moves up by {{k}}, so the average does too: ${{mu}}+{{k}}={{newmu}}$.",
+          "The distances between values do not change, so the standard deviation stays {{sd}}."
         ],
-        "answerSummary": "Check that the selected answer is supported by the data or sample space."
+        "commonError": "Adding {{k}} to the standard deviation as well.",
+        "answerSummary": "$({{newmu}},{{sd}})$"
       },
       "prompt": "A data set has average {{mu}} and standard deviation {{sd}}. A new data set is formed by adding {{k}} to every value. Which pair gives the average and standard deviation of the new data set?",
       "generator": {

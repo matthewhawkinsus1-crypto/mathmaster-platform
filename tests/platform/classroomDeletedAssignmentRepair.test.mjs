@@ -76,8 +76,14 @@ test('repost queues linked grade records through the existing release-signal tri
   const src = read('functions/index.js');
   assert.match(src, /async function queueRepostedAssignmentGrades/);
   assert.match(src, /classroomRosterLinks/);
-  assert.match(src, /new FieldPath\("classroomReleaseSignals", String\(assignmentId\)\)/);
   assert.match(src, /queueRepostedAssignmentGrades\(\{/);
+  // Since Oct 14, 2026 through the paced queue, which writes the same signal
+  // a minute's worth at a time (tests/platform/classroomPushPacing.test.mjs).
+  const start = src.indexOf('async function queueRepostedAssignmentGrades');
+  const repost = src.slice(start, src.indexOf('\n}\n', start));
+  assert.match(repost, /classroomPushQueue\.enqueueClassroomPushes\(db, \{/);
+  assert.match(repost, /reason: "manual-retry"/);
+  assert.match(read('functions/lib/classroomPushQueue.js'), /new FieldPath\("classroomReleaseSignals", entry\.assignmentId\)/);
 });
 
 test('browser exposes teacher repair controls for missing Classroom assignments', () => {

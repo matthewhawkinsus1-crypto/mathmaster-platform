@@ -1,0 +1,2082 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I — Vertical and Horizontal Transformations of Linear Functions",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 2/Topic 2/Lesson 2",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "shared",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "shared",
+      "dol": "shared"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Hey, I Remember This! Key Characteristics of Lines",
+      "recommendedMinutes": 10,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "l2-wu-1",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "constructLine"
+          ],
+          "mode": "slopeIntercept",
+          "line": {
+            "m": 3,
+            "b": -8
+          },
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Hey, I remember this! Graph the linear function g(x) = 3x − 8. Start at the y-intercept, then use the slope."
+        },
+        {
+          "questionId": "l2-wu-2",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Describe the key characteristics of g(x) = 3x − 8, the line you just graphed.",
+          "function": {
+            "family": "linear",
+            "m": 3,
+            "b": -8
+          },
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "functions": [
+              {
+                "type": "line",
+                "m": 3,
+                "b": -8
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "domain",
+              "label": "Domain",
+              "type": "choice",
+              "options": [
+                "All real numbers",
+                "x ≥ 0",
+                "x ≥ 8/3",
+                "−10 ≤ x ≤ 10"
+              ],
+              "answer": "All real numbers"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "type": "choice",
+              "options": [
+                "All real numbers",
+                "y ≥ 0",
+                "y ≥ −8",
+                "−10 ≤ y ≤ 10"
+              ],
+              "answer": "All real numbers"
+            },
+            {
+              "id": "xint",
+              "label": "x-intercept (as an ordered pair)",
+              "answer": "(8/3, 0)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "yint",
+              "label": "y-intercept (as an ordered pair)",
+              "answer": "(0, -8)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "slope",
+              "label": "Slope",
+              "answer": "3"
+            },
+            {
+              "id": "behavior",
+              "label": "Increasing or decreasing?",
+              "type": "choice",
+              "options": [
+                "Increasing",
+                "Decreasing",
+                "Constant"
+              ],
+              "answer": "Increasing"
+            }
+          ],
+          "hints": [
+            "The x-intercept is where the output is 0: solve 0 = 3x − 8.",
+            "The y-intercept is the output when x = 0.",
+            "A positive slope means the line rises from left to right."
+          ]
+        },
+        {
+          "questionId": "l2-wu-3",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Describe the key characteristics of h(x) = −(2/3)x + 5.",
+          "function": {
+            "family": "linear",
+            "m": -0.6666666666666666,
+            "b": 5
+          },
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "functions": [
+              {
+                "type": "line",
+                "m": -0.6666666666666666,
+                "b": 5
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "domain",
+              "label": "Domain",
+              "type": "choice",
+              "options": [
+                "All real numbers",
+                "x ≥ 0",
+                "x ≤ 7.5",
+                "−10 ≤ x ≤ 10"
+              ],
+              "answer": "All real numbers"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "type": "choice",
+              "options": [
+                "All real numbers",
+                "y ≤ 5",
+                "y ≥ 0",
+                "−10 ≤ y ≤ 10"
+              ],
+              "answer": "All real numbers"
+            },
+            {
+              "id": "xint",
+              "label": "x-intercept (as an ordered pair)",
+              "answer": "(15/2, 0)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "yint",
+              "label": "y-intercept (as an ordered pair)",
+              "answer": "(0, 5)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "slope",
+              "label": "Slope",
+              "answer": "-2/3"
+            },
+            {
+              "id": "behavior",
+              "label": "Increasing or decreasing?",
+              "type": "choice",
+              "options": [
+                "Increasing",
+                "Decreasing",
+                "Constant"
+              ],
+              "answer": "Decreasing"
+            }
+          ],
+          "hints": [
+            "Solve 0 = −(2/3)x + 5 for the x-intercept. Multiply both sides by 3 first.",
+            "The y-intercept is the constant term.",
+            "A negative slope means the line falls from left to right."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Comparing Vertical and Horizontal Translations and Dilations",
+      "recommendedMinutes": 30,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "l2-cw-1",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": -3,
+            "k": 0
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              -1,
+              -1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -8,
+            "xMax": 8,
+            "yMin": -8,
+            "yMax": 8
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.1 — Translate the graph of f(x) = x LEFT 3 units. Call the new graph t(x). Plot the image of each labeled point S1–S5, in order (S1 → P1, S2 → P2, …).",
+          "hints": [
+            "Left 3 means subtract 3 from every x-coordinate.",
+            "The y-coordinates do not change for a horizontal translation.",
+            "S1 = (−2, −2) lands at (−5, −2)."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Move every point",
+                "instruction": "To translate a graph, move every point the same distance in the same direction. Left/right changes only the x-coordinate; up/down changes only the y-coordinate."
+              },
+              {
+                "title": "Worked example",
+                "instruction": "Translating f(x) = x right 5 units sends (−2, −2) to (3, −2): add 5 to the input, keep the output."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l2-cw-2",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": 0,
+            "k": 3
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              -1,
+              -1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -8,
+            "xMax": 8,
+            "yMin": -8,
+            "yMax": 8
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Translate the graph of f(x) = x UP 3 units. Call the new graph w(x). Plot the image of each labeled point S1–S5, in order.",
+          "hints": [
+            "Up 3 means add 3 to every y-coordinate.",
+            "The x-coordinates do not change for a vertical translation.",
+            "S1 = (−2, −2) lands at (−2, 1)."
+          ]
+        },
+        {
+          "questionId": "l2-cw-3",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Compare your two graphs: t(x) is f(x) = x translated left 3, and w(x) is f(x) = x translated up 3.",
+          "responses": [
+            {
+              "id": "hInputs",
+              "label": "Moving a graph left or right changes which values of the corresponding points?",
+              "type": "choice",
+              "options": [
+                "Input values (x)",
+                "Output values (y)",
+                "Both"
+              ],
+              "answer": "Input values (x)"
+            },
+            {
+              "id": "vOutputs",
+              "label": "Moving a graph up or down changes which values?",
+              "type": "choice",
+              "options": [
+                "Input values (x)",
+                "Output values (y)",
+                "Both"
+              ],
+              "answer": "Output values (y)"
+            },
+            {
+              "id": "tTerms",
+              "label": "Write t(x) in terms of f(x).",
+              "type": "choice",
+              "options": [
+                "f(x + 3)",
+                "f(x − 3)",
+                "f(x) + 3",
+                "f(x) − 3"
+              ],
+              "answer": "f(x + 3)"
+            },
+            {
+              "id": "wTerms",
+              "label": "Write w(x) in terms of f(x).",
+              "type": "choice",
+              "options": [
+                "f(x + 3)",
+                "f(x − 3)",
+                "f(x) + 3",
+                "f(x) − 3"
+              ],
+              "answer": "f(x) + 3"
+            },
+            {
+              "id": "tSimplified",
+              "label": "Simplify: t(x) =",
+              "answer": "x+3",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "compare",
+              "label": "What do you notice about the graphs of t(x) and w(x)?",
+              "type": "choice",
+              "options": [
+                "They are the same line.",
+                "They are parallel, different lines.",
+                "They intersect at exactly one point."
+              ],
+              "answer": "They are the same line."
+            }
+          ],
+          "hints": [
+            "Look at your two tables of points: which coordinate changed?",
+            "Left 3 is written inside the function: f(x + 3).",
+            "f(x + 3) = x + 3 and f(x) + 3 = x + 3."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Function notation",
+                "instruction": "y = f(x − c) moves the graph horizontally: right when c > 0, left when c < 0. So f(x + 3) = f(x − (−3)) moves left 3."
+              },
+              {
+                "title": "Outside vs. inside",
+                "instruction": "y = f(x) + d moves the graph vertically: up when d > 0, down when d < 0."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l2-cw-4",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": -4,
+            "k": 0
+          },
+          "sourcePoints": [
+            [
+              -1,
+              -3
+            ],
+            [
+              0,
+              -1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "sourceLabel": "j(x) = 2x − 1",
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Consider j(x) = 2x − 1. Translate j(x) LEFT 4 units to create r(x). Plot the image of each labeled point, in order.",
+          "hints": [
+            "Subtract 4 from each x-coordinate.",
+            "Keep each y-coordinate.",
+            "S1 = (−1, −3) lands at (−5, −3)."
+          ]
+        },
+        {
+          "questionId": "l2-cw-5",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Again use j(x) = 2x − 1. Let q(x) be j(x) shifted UP 4 units and r(x) be j(x) shifted LEFT 4 units.",
+          "responses": [
+            {
+              "id": "qTerms",
+              "label": "Write q(x) in terms of j(x).",
+              "type": "choice",
+              "options": [
+                "j(x) + 4",
+                "j(x + 4)",
+                "j(x − 4)",
+                "j(x) − 4"
+              ],
+              "answer": "j(x) + 4"
+            },
+            {
+              "id": "rTerms",
+              "label": "Write r(x) in terms of j(x).",
+              "type": "choice",
+              "options": [
+                "j(x) + 4",
+                "j(x + 4)",
+                "j(x − 4)",
+                "j(x) − 4"
+              ],
+              "answer": "j(x + 4)"
+            },
+            {
+              "id": "qSimplified",
+              "label": "Simplify: q(x) =",
+              "answer": "2x+3",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "rSimplified",
+              "label": "Simplify: r(x) =",
+              "answer": "2x+7",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "same",
+              "label": "Are q(x) and r(x) the same line?",
+              "type": "choice",
+              "options": [
+                "Yes, they are the same line.",
+                "No, they are parallel lines.",
+                "No, they intersect at one point."
+              ],
+              "answer": "No, they are parallel lines."
+            },
+            {
+              "id": "upEquivalent",
+              "label": "Shifting j(x) LEFT 4 units gives the same graph as shifting it UP how many units?",
+              "answer": "8"
+            }
+          ],
+          "hints": [
+            "q(x) = j(x) + 4 = (2x − 1) + 4.",
+            "r(x) = j(x + 4) = 2(x + 4) − 1. Distribute first.",
+            "Compare the y-intercepts of your two simplified equations."
+          ]
+        },
+        {
+          "questionId": "l2-cw-6",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Still using j(x) = 2x − 1: let b(x) be j(x) shifted RIGHT 2 units and v(x) be j(x) shifted DOWN 2 units.",
+          "responses": [
+            {
+              "id": "bSimplified",
+              "label": "Simplify: b(x) = j(x − 2) =",
+              "answer": "2x-5",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "vSimplified",
+              "label": "Simplify: v(x) = j(x) − 2 =",
+              "answer": "2x-3",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "same",
+              "label": "Do b(x) and v(x) have the same graph?",
+              "type": "choice",
+              "options": [
+                "Yes — they are the same line.",
+                "No — they are parallel lines 2 units apart.",
+                "No — they intersect at one point."
+              ],
+              "answer": "No — they are parallel lines 2 units apart."
+            },
+            {
+              "id": "rule",
+              "label": "For ANY linear function, does a shift right n units produce the same graph as a shift down n units?",
+              "type": "choice",
+              "options": [
+                "Always",
+                "Only when the slope is 1",
+                "Never"
+              ],
+              "answer": "Only when the slope is 1"
+            }
+          ],
+          "hints": [
+            "b(x) = 2(x − 2) − 1.",
+            "v(x) = (2x − 1) − 2.",
+            "For f(x) = x it worked because the slope is 1. Here the slope is 2."
+          ]
+        },
+        {
+          "questionId": "l2-cw-7",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 2,
+            "h": 0,
+            "k": 0
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              -1,
+              -1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -8,
+            "xMax": 8,
+            "yMin": -8,
+            "yMax": 8
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.2 — Change the OUTPUT values of f(x) = x by a factor of 2 to create a(x). Plot the image of each labeled point, in order.",
+          "hints": [
+            "Multiply each y-coordinate by 2.",
+            "Keep each x-coordinate.",
+            "S1 = (−2, −2) lands at (−2, −4)."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Vertical dilation",
+                "instruction": "y = a·f(x) multiplies every output by a. |a| > 1 stretches the graph vertically; 0 < |a| < 1 compresses it; a < 0 also reflects it across the x-axis."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l2-cw-8",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "b": 2
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              -1,
+              -1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -4,
+            "xMax": 4,
+            "yMin": -4,
+            "yMax": 4
+          },
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Change the INPUT values of f(x) = x by a factor of 1/2 to create b(x). Plot the image of each labeled point, in order. (The grid snaps to halves.)",
+          "snapStep": 0.5,
+          "hints": [
+            "Multiply each x-coordinate by 1/2.",
+            "Keep each y-coordinate.",
+            "S1 = (−2, −2) lands at (−1, −2)."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Horizontal dilation",
+                "instruction": "y = f(bx) multiplies every input by 1/b. |b| > 1 compresses the graph horizontally by a factor of 1/|b|; 0 < |b| < 1 stretches it; b < 0 also reflects it across the y-axis."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l2-cw-9",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "completeTable"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "c(x) changes the OUTPUT values of f(x) = x by a factor of 4/5. d(x) changes the INPUT values of f(x) = x by a factor of 5/4. Complete the table. Fractions or decimals are fine.",
+          "table": {
+            "columns": [
+              {
+                "key": "x",
+                "label": "x"
+              },
+              {
+                "key": "fx",
+                "label": "f(x)"
+              },
+              {
+                "key": "cx",
+                "label": "c(x)"
+              },
+              {
+                "key": "dx",
+                "label": "input of d"
+              },
+              {
+                "key": "dy",
+                "label": "d(x)"
+              }
+            ],
+            "rows": [
+              {
+                "x": -2,
+                "fx": -2,
+                "cx": null,
+                "dx": null,
+                "dy": -2
+              },
+              {
+                "x": -1,
+                "fx": -1,
+                "cx": null,
+                "dx": null,
+                "dy": -1
+              },
+              {
+                "x": 0,
+                "fx": 0,
+                "cx": null,
+                "dx": null,
+                "dy": 0
+              },
+              {
+                "x": 1,
+                "fx": 1,
+                "cx": null,
+                "dx": null,
+                "dy": 1
+              },
+              {
+                "x": 2,
+                "fx": 2,
+                "cx": null,
+                "dx": null,
+                "dy": 2
+              }
+            ],
+            "answers": {
+              "0:cx": "-8/5",
+              "1:cx": "-4/5",
+              "2:cx": "0",
+              "3:cx": "4/5",
+              "4:cx": "8/5",
+              "0:dx": "-5/2",
+              "1:dx": "-5/4",
+              "2:dx": "0",
+              "3:dx": "5/4",
+              "4:dx": "5/2"
+            }
+          },
+          "hints": [
+            "For c(x), multiply each output f(x) by 4/5.",
+            "For d(x), the outputs stay −2, −1, 0, 1, 2; multiply each input by 5/4.",
+            "(4/5)(−2) = −8/5 and (5/4)(−2) = −5/2."
+          ]
+        },
+        {
+          "questionId": "l2-cw-10",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Look back at a(x), b(x), c(x), and d(x). Then test the pattern on j(x) = 2x − 1.",
+          "responses": [
+            {
+              "id": "abSame",
+              "label": "Compare a(x) (outputs × 2) and b(x) (inputs × 1/2).",
+              "type": "choice",
+              "options": [
+                "They are the same line, y = 2x.",
+                "They are parallel, different lines.",
+                "They are different lines through the origin."
+              ],
+              "answer": "They are the same line, y = 2x."
+            },
+            {
+              "id": "cdSame",
+              "label": "Compare c(x) (outputs × 4/5) and d(x) (inputs × 5/4).",
+              "type": "choice",
+              "options": [
+                "They are the same line, y = (4/5)x.",
+                "They are parallel, different lines.",
+                "They are different lines through the origin."
+              ],
+              "answer": "They are the same line, y = (4/5)x."
+            },
+            {
+              "id": "factor",
+              "label": "For f(x) = x, changing the outputs by a factor of n gives the same graph as changing the inputs by a factor of …",
+              "type": "choice",
+              "options": [
+                "1/n",
+                "n",
+                "−n",
+                "n²"
+              ],
+              "answer": "1/n"
+            },
+            {
+              "id": "twoJ",
+              "label": "Simplify 2·j(x) =",
+              "answer": "4x-2",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "jTwoX",
+              "label": "Simplify j(2x) =",
+              "answer": "4x-1",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "holds",
+              "label": "So the dilation pattern holds for …",
+              "type": "choice",
+              "options": [
+                "every linear function",
+                "linear functions whose graphs pass through the origin",
+                "no linear functions"
+              ],
+              "answer": "linear functions whose graphs pass through the origin"
+            }
+          ],
+          "hints": [
+            "Compare the slopes and intercepts of each pair.",
+            "2·j(x) = 2(2x − 1). j(2x) replaces x with 2x: 2(2x) − 1.",
+            "A vertical dilation scales the y-intercept too; a horizontal dilation never moves the y-intercept."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Graphing Linear Transformations",
+      "recommendedMinutes": 38,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "l2-pr-1",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": 7,
+            "k": 0
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.3 — The parent function is f(x) = x. Graph g(x) = f(x − 7) by plotting the image of each labeled point S1–S3, in order.",
+          "hints": [
+            "Decide first: does this change the inputs (inside the parentheses) or the outputs (outside)?",
+            "Inside changes act on x in the opposite way you might expect: x − 7 moves right, x + 5 moves left, (1/2)x stretches by 2.",
+            "Outside changes act on y exactly as written."
+          ]
+        },
+        {
+          "questionId": "l2-pr-2",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 3,
+            "h": 0,
+            "k": 0
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.3 — The parent function is f(x) = x. Graph g(x) = 3f(x) by plotting the image of each labeled point S1–S3, in order.",
+          "hints": [
+            "Decide first: does this change the inputs (inside the parentheses) or the outputs (outside)?",
+            "Inside changes act on x in the opposite way you might expect: x − 7 moves right, x + 5 moves left, (1/2)x stretches by 2.",
+            "Outside changes act on y exactly as written."
+          ]
+        },
+        {
+          "questionId": "l2-pr-3",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": 0,
+            "k": 2
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 2,
+          "difficultyBand": 1,
+          "prompt": "Activity 2.3 — The parent function is f(x) = x. Graph g(x) = f(x) + 2 by plotting the image of each labeled point S1–S3, in order.",
+          "hints": [
+            "Decide first: does this change the inputs (inside the parentheses) or the outputs (outside)?",
+            "Inside changes act on x in the opposite way you might expect: x − 7 moves right, x + 5 moves left, (1/2)x stretches by 2.",
+            "Outside changes act on y exactly as written."
+          ]
+        },
+        {
+          "questionId": "l2-pr-4",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "b": 0.5
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 2.3 — The parent function is f(x) = x. Graph g(x) = f((1/2)x) by plotting the image of each labeled point S1–S3, in order.",
+          "hints": [
+            "Decide first: does this change the inputs (inside the parentheses) or the outputs (outside)?",
+            "Inside changes act on x in the opposite way you might expect: x − 7 moves right, x + 5 moves left, (1/2)x stretches by 2.",
+            "Outside changes act on y exactly as written."
+          ]
+        },
+        {
+          "questionId": "l2-pr-5",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": 0,
+            "k": -4
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 2,
+          "difficultyBand": 1,
+          "prompt": "Activity 2.3 — The parent function is f(x) = x. Graph g(x) = f(x) − 4 by plotting the image of each labeled point S1–S3, in order.",
+          "hints": [
+            "Decide first: does this change the inputs (inside the parentheses) or the outputs (outside)?",
+            "Inside changes act on x in the opposite way you might expect: x − 7 moves right, x + 5 moves left, (1/2)x stretches by 2.",
+            "Outside changes act on y exactly as written."
+          ]
+        },
+        {
+          "questionId": "l2-pr-6",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": -5,
+            "k": 0
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.3 — The parent function is f(x) = x. Graph g(x) = f(x + 5) by plotting the image of each labeled point S1–S3, in order.",
+          "hints": [
+            "Decide first: does this change the inputs (inside the parentheses) or the outputs (outside)?",
+            "Inside changes act on x in the opposite way you might expect: x − 7 moves right, x + 5 moves left, (1/2)x stretches by 2.",
+            "Outside changes act on y exactly as written."
+          ]
+        },
+        {
+          "questionId": "l2-pr-7",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Describe the transformation that maps f(x) = x onto four of the functions you just graphed. Choose the kind of change, then type how far (or the scale factor).",
+          "responses": [
+            {
+              "id": "p1kind",
+              "label": "g(x) = f(x − 7): which way does it move?",
+              "type": "choice",
+              "options": [
+                "Right",
+                "Left",
+                "Up",
+                "Down"
+              ],
+              "answer": "Right"
+            },
+            {
+              "id": "p1amt",
+              "label": "g(x) = f(x − 7): number of units",
+              "answer": "7"
+            },
+            {
+              "id": "p2kind",
+              "label": "g(x) = 3f(x): what kind of change?",
+              "type": "choice",
+              "options": [
+                "Vertical stretch",
+                "Vertical compression",
+                "Horizontal stretch",
+                "Horizontal compression"
+              ],
+              "answer": "Vertical stretch"
+            },
+            {
+              "id": "p2amt",
+              "label": "g(x) = 3f(x): by what factor?",
+              "answer": "3"
+            },
+            {
+              "id": "p4kind",
+              "label": "g(x) = f((1/2)x): what kind of change?",
+              "type": "choice",
+              "options": [
+                "Vertical stretch",
+                "Vertical compression",
+                "Horizontal stretch",
+                "Horizontal compression"
+              ],
+              "answer": "Horizontal stretch"
+            },
+            {
+              "id": "p4amt",
+              "label": "g(x) = f((1/2)x): by what factor?",
+              "answer": "2"
+            },
+            {
+              "id": "p6kind",
+              "label": "g(x) = f(x + 5): which way does it move?",
+              "type": "choice",
+              "options": [
+                "Right",
+                "Left",
+                "Up",
+                "Down"
+              ],
+              "answer": "Left"
+            },
+            {
+              "id": "p6amt",
+              "label": "g(x) = f(x + 5): number of units",
+              "answer": "5"
+            }
+          ],
+          "hints": [
+            "Changes inside the parentheses are horizontal; changes outside are vertical.",
+            "Inside, signs and factors act the opposite way: x − 7 moves right, and (1/2)x is a horizontal STRETCH by a factor of 2."
+          ]
+        },
+        {
+          "questionId": "l2-pr-8",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Show Me What You've Got! Each graph is a transformation of f(x) = x. Sort each graph to the equation, written in terms of f(x), that produces it.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "figures": [
+            {
+              "id": "k",
+              "function": {
+                "family": "linear",
+                "m": 1,
+                "b": 8
+              },
+              "category": "plus8"
+            },
+            {
+              "id": "h",
+              "function": {
+                "family": "linear",
+                "m": 2,
+                "b": 0
+              },
+              "category": "times2"
+            },
+            {
+              "id": "g",
+              "function": {
+                "family": "linear",
+                "m": 0.5,
+                "b": 0
+              },
+              "category": "half"
+            },
+            {
+              "id": "j",
+              "function": {
+                "family": "linear",
+                "m": 1,
+                "b": -7
+              },
+              "category": "minus7"
+            }
+          ],
+          "categories": [
+            {
+              "id": "plus8",
+              "label": "f(x) + 8"
+            },
+            {
+              "id": "times2",
+              "label": "2f(x)"
+            },
+            {
+              "id": "half",
+              "label": "(1/2)f(x)"
+            },
+            {
+              "id": "minus7",
+              "label": "f(x − 7)"
+            }
+          ],
+          "hints": [
+            "Read the slope and the y-intercept of each graph.",
+            "2f(x) is steeper than f(x); (1/2)f(x) is less steep; both pass through the origin.",
+            "f(x) + 8 crosses the y-axis at 8; f(x − 7) crosses the x-axis at 7."
+          ]
+        },
+        {
+          "questionId": "l2-pr-9",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": -2,
+            "h": 0,
+            "k": 0
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -7,
+            "xMax": 7,
+            "yMin": -7,
+            "yMax": 7
+          },
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A negative factor reflects. Graph g(x) = −2f(x), where f(x) = x, by plotting the image of each labeled point S1–S3, in order.",
+          "hints": [
+            "Multiply each y-coordinate by −2.",
+            "Keep each x-coordinate.",
+            "S1 = (−2, −2) lands at (−2, 4)."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Negative outside factor",
+                "instruction": "In y = a·f(x), a < 0 flips every output to the other side of the x-axis, and |a| stretches or compresses it."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l2-pr-10",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "pointMap"
+          },
+          "function": {
+            "family": "linear",
+            "a": 2,
+            "h": 1,
+            "k": 3
+          },
+          "parentPoint": [
+            2,
+            2
+          ],
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Combine transformations. g(x) = 2f(x − 1) + 3, where f(x) = x. Where does the point (2, 2) on f(x) land on g(x)?",
+          "hints": [
+            "Handle x and y separately.",
+            "x − 1 inside moves the point right 1: x becomes 2 + 1.",
+            "Outside, multiply the output by 2 and then add 3: y becomes 2·2 + 3."
+          ]
+        },
+        {
+          "questionId": "l2-pr-11",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Marcus says g(x) = f(x + 3), where f(x) = x, moves f(x) RIGHT 3 units, \"because +3 means the positive direction.\"",
+          "responses": [
+            {
+              "id": "correct",
+              "label": "Is Marcus correct?",
+              "type": "choice",
+              "options": [
+                "Yes — +3 inside the parentheses moves the line right 3.",
+                "No — +3 inside the parentheses moves the line left 3.",
+                "No — +3 inside the parentheses moves the line down 3."
+              ],
+              "answer": "No — +3 inside the parentheses moves the line left 3."
+            },
+            {
+              "id": "vertical",
+              "label": "For f(x) = x, which vertical shift produces the same graph?",
+              "type": "choice",
+              "options": [
+                "Up 3",
+                "Down 3",
+                "Up 1/3",
+                "No vertical translation does this"
+              ],
+              "answer": "Up 3"
+            },
+            {
+              "id": "simplified",
+              "label": "Simplify: g(x) =",
+              "answer": "x+3",
+              "gradingMode": "equivalentExpression"
+            }
+          ],
+          "hints": [
+            "Find the input that makes the inside equal 0: x + 3 = 0 when x = −3.",
+            "The point that was at the origin moves to x = −3."
+          ]
+        },
+        {
+          "questionId": "l2-pr-12",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Write each transformed function of f(x) = x in terms of f(x), then simplify it.",
+          "responses": [
+            {
+              "id": "gTerms",
+              "label": "g(x) is f(x) moved right 4 units and up 1 unit.",
+              "type": "choice",
+              "options": [
+                "f(x − 4) + 1",
+                "f(x + 4) + 1",
+                "f(x + 1) − 4",
+                "f(x) − 4 + 1"
+              ],
+              "answer": "f(x − 4) + 1"
+            },
+            {
+              "id": "gSimplified",
+              "label": "Simplify: g(x) =",
+              "answer": "x-3",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "hTerms",
+              "label": "h(x) is f(x) stretched vertically by a factor of 3, then moved down 2 units.",
+              "type": "choice",
+              "options": [
+                "3f(x) − 2",
+                "3f(x − 2)",
+                "f(3x) − 2",
+                "f(x) − 6"
+              ],
+              "answer": "3f(x) − 2"
+            },
+            {
+              "id": "hSimplified",
+              "label": "Simplify: h(x) =",
+              "answer": "3x-2",
+              "gradingMode": "equivalentExpression"
+            }
+          ],
+          "hints": [
+            "Right 4 goes inside as x − 4; up 1 goes outside as + 1.",
+            "Stretch by 3 multiplies the outputs, so the 3 goes outside.",
+            "Then replace f(·) with whatever is inside it."
+          ]
+        },
+        {
+          "questionId": "l2-pr-13",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Let j(x) = −x + 6. Let m(x) = j(x + 2) and n(x) = j(x) − 2.",
+          "responses": [
+            {
+              "id": "mSimplified",
+              "label": "Simplify: m(x) =",
+              "answer": "-x+4",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "nSimplified",
+              "label": "Simplify: n(x) =",
+              "answer": "-x+4",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "same",
+              "label": "Compare the graphs of m(x) and n(x).",
+              "type": "choice",
+              "options": [
+                "They are the same line.",
+                "They are parallel lines 2 units apart.",
+                "They intersect at one point."
+              ],
+              "answer": "They are the same line."
+            },
+            {
+              "id": "general",
+              "label": "For a line with slope m, a shift LEFT n units produces the same graph as which vertical shift?",
+              "type": "choice",
+              "options": [
+                "A vertical shift of m·n units (up if m·n > 0, down if m·n < 0)",
+                "Up n units, for every slope",
+                "Down n units, for every slope",
+                "No vertical translation ever produces the same graph"
+              ],
+              "answer": "A vertical shift of m·n units (up if m·n > 0, down if m·n < 0)"
+            }
+          ],
+          "hints": [
+            "m(x) = −(x + 2) + 6.",
+            "n(x) = (−x + 6) − 2.",
+            "Check the earlier cases: slope 1 moved left 3 = up 3; slope 2 moved left 4 = up 8."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Transformations of f(x) = x",
+      "recommendedMinutes": 12,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "l2-dol-1",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "plotTransform"
+          },
+          "function": {
+            "family": "linear",
+            "a": 1,
+            "h": -2,
+            "k": 0
+          },
+          "sourcePoints": [
+            [
+              -2,
+              -2
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "sourceLabel": "f(x) = x",
+          "graphBounds": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The parent function is f(x) = x. Graph g(x) = f(x + 2) by plotting the image of each labeled point S1–S3, in order."
+        },
+        {
+          "questionId": "l2-dol-2",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Let j(x) = 3x + 1 and r(x) = j(x − 2).",
+          "responses": [
+            {
+              "id": "describe",
+              "label": "How does the graph move from j(x) to r(x)?",
+              "type": "choice",
+              "options": [
+                "Right 2",
+                "Left 2",
+                "Down 2",
+                "Up 2"
+              ],
+              "answer": "Right 2"
+            },
+            {
+              "id": "simplified",
+              "label": "Simplify: r(x) =",
+              "answer": "3x-5",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "vertical",
+              "label": "Which vertical shift of j(x) gives the same graph as r(x)?",
+              "type": "choice",
+              "options": [
+                "Down 6",
+                "Down 2",
+                "Up 6",
+                "Up 2"
+              ],
+              "answer": "Down 6"
+            }
+          ]
+        },
+        {
+          "questionId": "l2-dol-3",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Essential Question: what effect do horizontal transformations have on linear functions, and how do they compare to vertical transformations?",
+          "responses": [
+            {
+              "id": "changes",
+              "label": "A horizontal change, f(x − c) or f(bx), acts on the …",
+              "type": "choice",
+              "options": [
+                "input values (x-coordinates)",
+                "output values (y-coordinates)",
+                "slope only",
+                "y-intercept only"
+              ],
+              "answer": "input values (x-coordinates)"
+            },
+            {
+              "id": "sameAs4f",
+              "label": "For f(x) = x, which function has the same graph as 4f(x)?",
+              "type": "choice",
+              "options": [
+                "f(4x)",
+                "f((1/4)x)",
+                "f(x + 4)",
+                "f(x) + 4"
+              ],
+              "answer": "f(4x)"
+            },
+            {
+              "id": "leftN",
+              "label": "For f(x) = x, moving the graph left n units gives the same graph as …",
+              "type": "choice",
+              "options": [
+                "moving it up n units",
+                "moving it down n units",
+                "moving it right n units",
+                "stretching it vertically by n"
+              ],
+              "answer": "moving it up n units"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

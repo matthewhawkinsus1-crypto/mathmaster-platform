@@ -19,6 +19,11 @@ export function gradeSyncStudentDisplay(sync = {}, students = []) {
 
 export function gradeSyncStatusLabel(sync = {}) {
   const status = clean(sync?.status).toLowerCase();
+  // Waiting in the server's paced queue (functions/lib/classroomPushQueue.js);
+  // the row's last result is replaced when the push runs.
+  if (sync?.queued === true) return 'Queued to send';
+  // Google refused it for its per-minute limit; it is queued again by itself.
+  if (status === 'rate-limited') return 'Waiting: Classroom limit';
   if (status === 'skipped-unlinked') return 'Needs roster link';
   if (status === 'failed') return 'Failed';
   if (status === 'synced') return 'Synced';
@@ -29,8 +34,22 @@ export function gradeSyncStatusLabel(sync = {}) {
   return status ? status.replaceAll('-', ' ') : 'Unknown';
 }
 
+// What Google said, for a row that did not go through. "Precondition check
+// failed." alone says little, so Google's status and reason come with it.
+export function gradeSyncErrorText(sync = {}) {
+  const status = clean(sync?.status).toLowerCase();
+  if (!['failed', 'rate-limited', 'auth-error'].includes(status)) return '';
+  const message = clean(sync?.error || sync?.message);
+  if (!message) return '';
+  const reasons = Array.isArray(sync?.errorReasons) ? sync.errorReasons.map(clean).filter(Boolean) : [];
+  const detail = [clean(sync?.errorStatus), ...reasons].filter(Boolean).join(', ');
+  const step = clean(sync?.errorStep).replaceAll('-', ' ');
+  return [message.slice(0, 200), detail && `(${detail})`, step && `at ${step}`].filter(Boolean).join(' ');
+}
+
 export function isGradeSyncRetryEligible(sync = {}) {
   return clean(sync?.status).toLowerCase() === 'failed'
+    && sync?.queued !== true
     && Boolean(clean(sync?.publicationId))
     && Boolean(clean(sync?.assignmentId))
     && Boolean(clean(sync?.studentId));

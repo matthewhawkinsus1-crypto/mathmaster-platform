@@ -103,11 +103,14 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Take the cube root, then square: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "The exponent $\\frac{2}{3}$ means the cube root, squared.",
+          "$\\sqrt[3]{ {{base}} }={{n}}$, since ${{n}}^3={{base}}$.",
+          "${{n}}^2={{answer}}$, so ${{base}}^{2/3}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Stopping at the cube root, or reading the exponent as multiplying by $\\frac{2}{3}$.",
+        "answerSummary": "${{answer}}$"
       }
     },
     {
@@ -200,11 +203,14 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "{{p}} is not a perfect square, so $\\sqrt{{{p}}}$ is irrational.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "A rational number is a ratio of integers. ${{p}}$ and $\\frac{ {{p}} }{2}$ are already ratios of integers, and $0.125=\\frac{1}{8}$.",
+          "The square root of a positive integer is rational only when the integer is a perfect square, and {{p}} is not one.",
+          "So $\\sqrt{{{p}}}$ is the irrational number."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Thinking a fraction or a terminating decimal is irrational because it is not a whole number.",
+        "answerSummary": "$\\sqrt{{{p}}}$"
       }
     },
     {
@@ -247,7 +253,7 @@
         "stemProfile": "complex-addition",
         "answerChoiceCount": 4
       },
-      "prompt": "What is the sum of $({{a}}+{{b}}i)$ and $({{c}}-{{d}}i)$?",
+      "prompt": "What is the sum of $({{a}}+{{b|coef}}i)$ and $({{c}}-{{d|coef}}i)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -282,7 +288,8 @@
           "i3": "b+d"
         },
         "constraints": [
-          "b!=d"
+          "b!=d",
+          "abs(b-d)!=1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -319,11 +326,14 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Add the real parts and the imaginary parts separately.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "Real parts: ${{a}}+{{c}}={{real}}$.",
+          "Imaginary parts: ${{b}}-{{d}}={{imag}}$.",
+          "Sum: ${{real}} {{imag|signed}}i$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Adding {{d}} to the imaginary part; the second number's imaginary part is $-{{d}}$, so it is subtracted.",
+        "answerSummary": "${{real}} {{imag|signed}}i$"
       }
     },
     {
@@ -394,7 +404,9 @@
           "answer": "p*r+q*s",
           "d1": "p*r",
           "d2": "q*s",
-          "d3": "p+q+r+s"
+          "d3": "p+q+r+s",
+          "pr": "p*r",
+          "qs": "q*s"
         },
         "constraints": [
           "answer!=d1",
@@ -439,11 +451,13 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Row 1 of $A$ times column 2 of $B$: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "The entry in row 1, column 2 of $AB$ pairs row 1 of $A$, $({{p}},{{q}})$, with column 2 of $B$, $({{r}},{{s}})$.",
+          "Multiply matching entries and add: ${{p}}\\cdot {{r}}+{{q}}\\cdot {{s}}={{pr}}+{{qs}}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Using only one of the two products, or adding the entries instead of multiplying them.",
+        "answerSummary": "${{answer}}$"
       }
     },
     {
@@ -501,7 +515,8 @@
           "answer": "5*k",
           "d1": "7*k",
           "d2": "12*k",
-          "d3": "k"
+          "d3": "k",
+          "sum": "x*x+y*y"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -538,11 +553,14 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Magnitude is $\\sqrt{x^2+y^2}$: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "The magnitude of $\\langle x,y\\rangle$ is its length, $\\sqrt{x^2+y^2}$.",
+          "${{x}}^2+{{y}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Adding the components instead of their squares.",
+        "answerSummary": "${{answer}}$"
       }
     },
     {
@@ -586,7 +604,7 @@
         "answerChoiceCount": 4,
         "authoredChallenge": true
       },
-      "prompt": "What is the value of $({{a}}+{{b}}i)({{a}}-{{b}}i)$?",
+      "prompt": "What is the value of $({{a}}+{{b|coef}}i)({{a}}-{{b|coef}}i)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -604,7 +622,9 @@
           "answer": "a^2+b^2",
           "d1": "a^2-b^2",
           "d2": "(a+b)^2",
-          "d3": "a+b"
+          "d3": "a+b",
+          "a2": "a*a",
+          "b2": "b*b"
         },
         "constraints": [
           "answer!=d1",
@@ -649,11 +669,13 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Conjugates multiply to $a^2+b^2$: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "$(a+bi)(a-bi)=a^2-b^2i^2=a^2+b^2$, because $i^2=-1$.",
+          "Here $a={{a}}$ and $b={{b}}$: ${{a}}^2+{{b}}^2={{a2}}+{{b2}}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Treating $i^2$ as $1$, which gives $a^2-b^2$.",
+        "answerSummary": "${{answer}}$"
       }
     },
     {
@@ -711,7 +733,8 @@
           "answer": "x+3*y",
           "d1": "2*x+y",
           "d2": "x+y",
-          "d3": "3*x+y"
+          "d3": "3*x+y",
+          "y3": "3*y"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -748,11 +771,13 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Second row of the matrix times the vector: {{answer}}.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "The second entry of the product pairs the second row, $(1,3)$, with the vector $({{x}},{{y}})$.",
+          "$1\\cdot {{x}}+3\\cdot {{y}}={{x}}+{{y3}}={{answer}}$."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Using the first row, $(2,1)$, which gives the first entry.",
+        "answerSummary": "${{answer}}$"
       }
     },
     {
@@ -846,11 +871,13 @@
         "Track signs, exponents, units, and matrix or vector positions carefully."
       ],
       "solutionReview": {
-        "headline": "Use the relevant number relationship.",
+        "headline": "Miles to feet, then hours to minutes: {{answer}} feet.",
         "reasoning": [
-          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+          "In one hour the vehicle goes ${{v}}\\cdot 5280={{d2}}$ feet.",
+          "One minute is $\\frac{1}{60}$ of an hour: $\\frac{ {{d2}} }{60}={{answer}}$ feet."
         ],
-        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+        "commonError": "Converting only one unit: miles to feet or hours to minutes, but not both.",
+        "answerSummary": "${{answer}}$ feet"
       }
     }
   ]
