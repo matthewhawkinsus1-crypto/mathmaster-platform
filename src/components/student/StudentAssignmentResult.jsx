@@ -188,7 +188,7 @@ export default function StudentAssignmentResult({
           {entry.frozen ? 'Recorded MathMaster result' : 'MathMaster result so far'}
           {sectionLabel ? ` · ${sectionLabel}` : ''}
         </div>
-        <h1 style={{ margin: '8px 0 4px', fontSize: 'clamp(calc(20 * var(--mm-px)), 6vw, calc(26 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+        <h1 style={{ margin: '8px 0 4px', fontSize: 'clamp(calc(20 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {entry.title}
         </h1>
         <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{statusLine}</div>
@@ -197,7 +197,7 @@ export default function StudentAssignmentResult({
           <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
             {entry.frozen ? 'Your grade · frozen' : 'Your grade'}
           </div>
-          <div style={{ marginTop: 4, fontSize: 'clamp(calc(28 * var(--mm-px)), 9vw, calc(40 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)', overflowWrap: 'anywhere' }}>
+          <div style={{ marginTop: 4, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(9vw * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)', overflowWrap: 'anywhere' }}>
             {gradeHeadline}
           </div>
           <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-primary-text)' }}>{entry.statusLabel}</div>

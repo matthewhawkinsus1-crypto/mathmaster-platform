@@ -379,7 +379,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         {card.secure && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-error-text)' }}>Secure · monitored</span>}
         {card.hintsAllowed && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-success-text)' }}>Help allowed</span>}
       </div>
-      <h2 ref={headingRef} tabIndex={-1} style={{ margin: 0, fontSize: 'clamp(calc(18 * var(--mm-px)), 4vw, calc(23 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{card.title}</h2>
+      <h2 ref={headingRef} tabIndex={-1} style={{ margin: 0, fontSize: 'clamp(calc(18 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(23 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{card.title}</h2>
       <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{card.detail}</p>
 
       {availability?.reason === 'scheduled' && availability.opensAt && (

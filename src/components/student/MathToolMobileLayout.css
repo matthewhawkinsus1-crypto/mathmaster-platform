@@ -66,7 +66,7 @@
   align-items: center;
   gap: 8px;
   color: var(--mm-primary-text);
-  font-size: clamp(0.72rem, 2.4vw, 0.82rem);
+  font-size: clamp(0.72rem, calc(2.4vw * var(--mm-text-scale, 1)), 0.82rem);
   font-weight: 900;
   letter-spacing: 0.05em;
 }
@@ -80,7 +80,7 @@
 
 .mathmaster-question-container .prompt-body {
   margin-top: 6px;
-  font-size: clamp(0.8rem, 2.5vw, 1rem);
+  font-size: clamp(0.8rem, calc(2.5vw * var(--mm-text-scale, 1)), 1rem);
 }
 
 .mathmaster-question-container .prompt-body .mathmaster-question-prompt {
@@ -464,7 +464,7 @@
     padding: 9px 11px max(9px, env(safe-area-inset-bottom));
     border-right: 2px solid var(--mm-border);
     background: var(--mm-surface-sunken);
-    font-size: clamp(0.78rem, 1.8vw, 0.92rem);
+    font-size: clamp(0.78rem, calc(1.8vw * var(--mm-text-scale, 1)), 0.92rem);
     overscroll-behavior: contain;
   }
 

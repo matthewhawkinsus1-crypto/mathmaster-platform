@@ -26,6 +26,10 @@
      did and grows with the setting (scripts/codemods/px-to-rem.mjs). */
   font: 112.5%/145% var(--sans);
   --mm-px: calc(1rem / 18);
+  /* The text-size setting as a number (1 at default, 2 at 200%), set from a
+     probe by src/platform/layout/textScale.js; a fluid size's viewport term is
+     written calc(4vw * var(--mm-text-scale, 1)) so it grows too. */
+  --mm-text-scale: 1;
   letter-spacing: 0.18px;
   color: var(--text);
   background: var(--bg);

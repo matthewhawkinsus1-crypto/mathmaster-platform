@@ -189,7 +189,7 @@ const RUSH_CSS = `
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; min-height: 0;
   padding: 10px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
-.mm-rush-prompt h2 { margin: 0; font-size: clamp(calc(21 * var(--mm-px)), 4.2vmin, calc(34 * var(--mm-px))); line-height: 1.15; font-weight: 800; color: #f7f9ff; }
+.mm-rush-prompt h2 { margin: 0; font-size: clamp(calc(21 * var(--mm-px)), calc(4.2vmin * var(--mm-text-scale, 1)), calc(34 * var(--mm-px))); line-height: 1.15; font-weight: 800; color: #f7f9ff; }
 .mm-rush-hint { margin: 4px 0 0; font-size: calc(13 * var(--mm-px)); color: #b9c4d8; }
 .mm-rush-graph-area { position: relative; min-height: 0; min-width: 0; display: grid; place-items: start center; }
 .mm-rush-graph-frame { position: relative; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
@@ -210,8 +210,8 @@ const RUSH_CSS = `
   position: absolute; inset: 0; display: grid; place-content: center; gap: 8px; text-align: center;
   border-radius: 12px; background: rgba(13,16,23,.86); color: #f7f9ff; padding: 16px;
 }
-.mm-rush-overlay strong { font-size: clamp(calc(28 * var(--mm-px)), 7vmin, calc(56 * var(--mm-px))); line-height: 1; }
-.mm-rush-count { font-size: clamp(calc(64 * var(--mm-px)), 18vmin, calc(140 * var(--mm-px))); font-weight: 1000; line-height: .9; font-variant-numeric: tabular-nums; color: #fff; animation: mmRushCountPop 420ms cubic-bezier(.2,.9,.3,1.3); }
+.mm-rush-overlay strong { font-size: clamp(calc(28 * var(--mm-px)), calc(7vmin * var(--mm-text-scale, 1)), calc(56 * var(--mm-px))); line-height: 1; }
+.mm-rush-count { font-size: clamp(calc(64 * var(--mm-px)), calc(18vmin * var(--mm-text-scale, 1)), calc(140 * var(--mm-px))); font-weight: 1000; line-height: .9; font-variant-numeric: tabular-nums; color: #fff; animation: mmRushCountPop 420ms cubic-bezier(.2,.9,.3,1.3); }
 .mm-rush-flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; box-shadow: inset 0 0 0 6px #81c995; animation: mmRushFlash 420ms ease-out forwards; }
 .mm-rush-banner { padding: 6px 10px; border-radius: 8px; background: rgba(253,214,99,.14); border: 1px solid rgba(253,214,99,.45); color: #fdd663; font-weight: 800; font-size: calc(13 * var(--mm-px)); }
 .mm-rush-alert { padding: 9px 12px; border-radius: 9px; background: #4a3708; color: #ffe9a8; border: 1px solid #f9ab00; font-weight: 800; }

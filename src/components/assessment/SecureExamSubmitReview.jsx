@@ -95,7 +95,7 @@ export default function SecureExamSubmitReview({
   return (
     <main data-secure-review={moduleEnd ? 'moduleEnd' : 'submit'} style={{ width: 'min(760px, 100%)', margin: '0 auto', padding: '24px 16px 48px', boxSizing: 'border-box' }}>
       <section aria-labelledby="secure-review-title" style={card}>
-        <h1 id="secure-review-title" ref={headingRef} tabIndex={-1} style={{ margin: '0 0 8px', fontSize: 'clamp(calc(21 * var(--mm-px)), 5vw, calc(27 * var(--mm-px)))', color: 'var(--mm-text-strong)', outline: 'none' }}>
+        <h1 id="secure-review-title" ref={headingRef} tabIndex={-1} style={{ margin: '0 0 8px', fontSize: 'clamp(calc(21 * var(--mm-px)), calc(5vw * var(--mm-text-scale, 1)), calc(27 * var(--mm-px)))', color: 'var(--mm-text-strong)', outline: 'none' }}>
           {moduleEnd ? `End of module ${finishing.number}` : 'Review your answers'}
         </h1>
         <p style={{ margin: 0, fontSize: 'calc(17 * var(--mm-px))', fontWeight: 800 }}>

@@ -425,7 +425,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
     <section data-test-cycle-teacher={assignmentId} style={{ minWidth: 0, padding: 'clamp(14px, 3vw, 18px)', border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', color: 'var(--mm-text)' }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
-          <h2 style={{ margin: 0, fontSize: 'clamp(calc(17 * var(--mm-px)), 3vw, calc(21 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>Test Cycle · {assignment.title}</h2>
+          <h2 style={{ margin: 0, fontSize: 'clamp(calc(17 * var(--mm-px)), calc(3vw * var(--mm-text-scale, 1)), calc(21 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>Test Cycle · {assignment.title}</h2>
           {pill && <span style={{ display: 'inline-block', marginTop: 6, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', padding: '4px 9px', borderRadius: 999, background: pill.bg, color: pill.color }}>{pill.label}</span>}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

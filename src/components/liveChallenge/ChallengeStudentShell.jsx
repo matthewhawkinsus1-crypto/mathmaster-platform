@@ -33,7 +33,7 @@ const quietPanel = { padding: 16, borderRadius: 14, background: 'rgba(255,255,25
 function Stat({ value, label }) {
   return (
     <div style={{ minWidth: 92 }}>
-      <div style={{ fontSize: 'clamp(calc(30 * var(--mm-px)), 8vw, calc(40 * var(--mm-px)))', fontWeight: 1000, color: '#f7f9ff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize: 'clamp(calc(30 * var(--mm-px)), calc(8vw * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', fontWeight: 1000, color: '#f7f9ff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       <div style={{ marginTop: 6, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: '#c3d2ea' }}>{label}</div>
     </div>
   );
@@ -58,7 +58,7 @@ export function StudentLobbyCard({ room, alias, joining = false, playerCount = 0
   return (
     <section data-mm-student-lobby="1" style={{ ...card, padding: 30 }}>
       <div style={eyebrow}>You are in as</div>
-      <div style={{ marginTop: 8, fontSize: 'clamp(calc(28 * var(--mm-px)), 8vw, calc(38 * var(--mm-px)))', fontWeight: 1000, color: '#fff', overflowWrap: 'anywhere' }}>{alias || 'Player'}</div>
+      <div style={{ marginTop: 8, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(8vw * var(--mm-text-scale, 1)), calc(38 * var(--mm-px)))', fontWeight: 1000, color: '#fff', overflowWrap: 'anywhere' }}>{alias || 'Player'}</div>
       <div style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '8px 16px', borderRadius: 999, background: 'rgba(0,0,0,.28)' }}>
         <span aria-hidden="true" className="mm-shell-pulse" style={{ width: 9, height: 9, borderRadius: '50%', background: '#81c995' }} />
         <span style={{ fontSize: 'calc(17 * var(--mm-px))', fontWeight: 800 }}>{joining ? 'Joining…' : `${playerCount} ${playerCount === 1 ? 'player' : 'players'} in`}</span>
@@ -109,7 +109,7 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
     <div style={{ display: 'grid', gap: 16 }}>
       <section aria-live="polite" data-mm-student-results={participated ? 'played' : 'none'} style={card}>
         <div style={eyebrow}>{guidance?.headline || 'Round results'}</div>
-        <div style={{ marginTop: 10, fontSize: 'clamp(calc(22 * var(--mm-px)), 6vw, calc(30 * var(--mm-px)))', fontWeight: 1000, color: '#fff' }}>{headline}</div>
+        <div style={{ marginTop: 10, fontSize: 'clamp(calc(22 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(30 * var(--mm-px)))', fontWeight: 1000, color: '#fff' }}>{headline}</div>
         {self && (participated || rushRound) && (
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 26, flexWrap: 'wrap' }}>
             {rushRound || self.completed !== null
@@ -193,7 +193,7 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
         <div style={{ ...eyebrow, color: '#b7e4c7' }}>Challenge complete</div>
         {selfRow && podium && (
           <div data-mm-final-headline="place" style={{ margin: '10px 0 4px' }}>
-            <div style={{ fontSize: 'clamp(calc(40 * var(--mm-px)), 12vw, calc(56 * var(--mm-px)))', fontWeight: 1000, color: '#fff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{selfRow.place.ordinal}</div>
+            <div style={{ fontSize: 'clamp(calc(40 * var(--mm-px)), calc(12vw * var(--mm-text-scale, 1)), calc(56 * var(--mm-px)))', fontWeight: 1000, color: '#fff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{selfRow.place.ordinal}</div>
             <div style={{ marginTop: 4, color: '#d7f5e1', fontWeight: 800 }}>
               {selfRow.tied ? `tied for ${ordinal(selfRow.rank)} ` : ''}of {totalPlayers} {totalPlayers === 1 ? 'player' : 'players'}
             </div>
@@ -202,7 +202,7 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
         )}
         {selfRow && !podium && (
           <div data-mm-final-headline="effort" style={{ margin: '10px 0 4px' }}>
-            <div style={{ fontSize: 'clamp(calc(30 * var(--mm-px)), 9vw, calc(44 * var(--mm-px)))', fontWeight: 1000, color: '#fff', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{didLine}</div>
+            <div style={{ fontSize: 'clamp(calc(30 * var(--mm-px)), calc(9vw * var(--mm-text-scale, 1)), calc(44 * var(--mm-px)))', fontWeight: 1000, color: '#fff', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{didLine}</div>
             {highlights.length > 0 && (
               <ul data-mm-final-highlights="1" style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 6 }}>
                 {highlights.map((line) => (

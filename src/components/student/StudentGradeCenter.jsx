@@ -68,7 +68,7 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
           <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
             {[courseLabel, periodLabel].filter(Boolean).join(' — ') || 'MathMaster'}
           </div>
-          <div style={{ marginTop: 6, fontSize: 'clamp(calc(30 * var(--mm-px)), 9vw, calc(44 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)' }}>
+          <div style={{ marginTop: 6, fontSize: 'clamp(calc(30 * var(--mm-px)), calc(9vw * var(--mm-text-scale, 1)), calc(44 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)' }}>
             {hidden ? '•••' : summary.score === null ? 'No graded work yet' : `${summary.score}%`}
           </div>
           <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Current MathMaster grade</div>
@@ -245,7 +245,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
           </div>
         </div>
         <div style={{ textAlign: 'right', minWidth: 0 }}>
-          <div style={{ fontSize: 'clamp(calc(18 * var(--mm-px)), 6vw, calc(24 * var(--mm-px)))', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>
+          <div style={{ fontSize: 'clamp(calc(18 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>
             {/*
               A status word where a percentage would be a lie. `displayGrade` is
               null for anything the model refused to count, so this branch can
@@ -419,7 +419,7 @@ export default function StudentGradeCenter({
           >
             ← Home
           </button>
-          <h1 style={{ margin: 0, fontSize: 'clamp(calc(20 * var(--mm-px)), 6vw, calc(26 * var(--mm-px)))', color: 'var(--mm-primary-text)' }}>My Grades</h1>
+          <h1 style={{ margin: 0, fontSize: 'clamp(calc(20 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', color: 'var(--mm-primary-text)' }}>My Grades</h1>
         </header>
 
         <PeriodSummary

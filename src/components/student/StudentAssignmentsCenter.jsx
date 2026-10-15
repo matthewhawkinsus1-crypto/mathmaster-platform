@@ -90,7 +90,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
         </div>
         <div style={{ textAlign: 'right', minWidth: 0 }}>
           {row.displayGrade !== null && (
-            <div style={{ fontSize: 'clamp(calc(17 * var(--mm-px)), 5.5vw, calc(22 * var(--mm-px)))', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>{row.displayGrade}%</div>
+            <div style={{ fontSize: 'clamp(calc(17 * var(--mm-px)), calc(5.5vw * var(--mm-text-scale, 1)), calc(22 * var(--mm-px)))', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>{row.displayGrade}%</div>
           )}
           {row.statusLabel && (
             <span style={{ display: 'inline-block', marginTop: 4, padding: '4px 9px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', background: tone.bg, color: tone.color }}>
@@ -205,7 +205,7 @@ export default function StudentAssignmentsCenter({
         />
 
         <header style={{ marginBottom: 14, textAlign: 'left' }}>
-          <h1 style={{ margin: 0, fontSize: 'clamp(calc(20 * var(--mm-px)), 6vw, calc(26 * var(--mm-px)))', color: 'var(--mm-primary-text)' }}>My Assignments</h1>
+          <h1 style={{ margin: 0, fontSize: 'clamp(calc(20 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', color: 'var(--mm-primary-text)' }}>My Assignments</h1>
           <p style={{ margin: '4px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Everything your teacher has assigned you — {totalCount} assignment{totalCount === 1 ? '' : 's'}, including finished and closed work.
           </p>

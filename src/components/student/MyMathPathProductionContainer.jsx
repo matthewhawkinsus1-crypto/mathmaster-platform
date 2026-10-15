@@ -709,7 +709,7 @@ export const MyMathPathProductionContainer = ({
         {/* Sized here: the global h1 is 56px with no line height, so a
             two-line title ("Current learning complete", "Retention check
             complete") drew its lines on top of each other. */}
-        <h1 style={{ color: weeklyTargetReached ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontSize: weeklyTargetReached ? 'clamp(calc(26 * var(--mm-px)), 7vw, calc(32 * var(--mm-px)))' : 'clamp(calc(24 * var(--mm-px)), 6vw, calc(30 * var(--mm-px)))', lineHeight: 1.2, letterSpacing: '-0.3px', margin: '0 0 12px' }}>
+        <h1 style={{ color: weeklyTargetReached ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontSize: weeklyTargetReached ? 'clamp(calc(26 * var(--mm-px)), calc(7vw * var(--mm-text-scale, 1)), calc(32 * var(--mm-px)))' : 'clamp(calc(24 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(30 * var(--mm-px)))', lineHeight: 1.2, letterSpacing: '-0.3px', margin: '0 0 12px' }}>
           {weeklyTargetReached
             ? 'Weekly target reached!'
             : paused

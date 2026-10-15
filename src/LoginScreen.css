@@ -115,7 +115,7 @@
 
 .mm-login__headline {
   margin: 0;
-  font-size: clamp(calc(30 * var(--mm-px)), 3.4vw, calc(46 * var(--mm-px)));
+  font-size: clamp(calc(30 * var(--mm-px)), calc(3.4vw * var(--mm-text-scale, 1)), calc(46 * var(--mm-px)));
   line-height: 1.1;
   letter-spacing: -0.02em;
   font-weight: 700;
@@ -125,7 +125,7 @@
 .mm-login__subhead {
   margin: 0;
   max-width: 46ch;
-  font-size: clamp(calc(15 * var(--mm-px)), 1.3vw, calc(18 * var(--mm-px)));
+  font-size: clamp(calc(15 * var(--mm-px)), calc(1.3vw * var(--mm-text-scale, 1)), calc(18 * var(--mm-px)));
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.86);
 }

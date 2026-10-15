@@ -176,7 +176,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
         <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
           Corrections · {doneCount} of {targets.length} complete
         </div>
-        <h1 tabIndex={-1} data-corrections-heading="" style={{ margin: '8px 0 6px', fontSize: 'clamp(calc(19 * var(--mm-px)), 4vw, calc(25 * var(--mm-px)))', overflowWrap: 'anywhere' }}>{activeTitle}</h1>
+        <h1 tabIndex={-1} data-corrections-heading="" style={{ margin: '8px 0 6px', fontSize: 'clamp(calc(19 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(25 * var(--mm-px)))', overflowWrap: 'anywhere' }}>{activeTitle}</h1>
         {/* Why this student is here, from the evidence, in a student's words
             (the plan's diagnosisDetail is the teacher's version, with standard
             codes). A mistake pattern is mentioned only when one was recorded:

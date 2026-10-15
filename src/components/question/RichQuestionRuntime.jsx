@@ -160,7 +160,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
         {policy.secure && <div style={sectionLabelStyle}>Secure exam question</div>}
         {/* Secure mode deliberately hides TEKS/domain labels while answering,
             but the mathematics itself must still render exactly as authored. */}
-        <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(calc(20 * var(--mm-px)), 4vw, calc(27 * var(--mm-px)))', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
+        <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(calc(20 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(27 * var(--mm-px)))', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
         {policy.secure && <SecureItemAccessSupports question={question} studentSupportProfile={rawStudentSupportProfile} />}
         {question.formulaLatex && <div style={{ background: 'var(--mm-surface-sunken)', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
         <PathQuestionStimulus stimulus={question.stimulus} />

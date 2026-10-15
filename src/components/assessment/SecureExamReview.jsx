@@ -239,7 +239,7 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0, flex: '1 1 320px' }}>
               <div style={eyebrow}>Released feedback</div>
-              <h1 ref={headingRef} tabIndex={-1} style={{ margin: '5px 0 4px', color: 'var(--mm-text-strong)', fontSize: 'clamp(calc(21 * var(--mm-px)), 5vw, calc(25 * var(--mm-px)))', overflowWrap: 'anywhere' }}>{review.session?.title || `${frameworkLabel} results`}</h1>
+              <h1 ref={headingRef} tabIndex={-1} style={{ margin: '5px 0 4px', color: 'var(--mm-text-strong)', fontSize: 'clamp(calc(21 * var(--mm-px)), calc(5vw * var(--mm-text-scale, 1)), calc(25 * var(--mm-px)))', overflowWrap: 'anywhere' }}>{review.session?.title || `${frameworkLabel} results`}</h1>
               <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>{review.solutionsHeld === true
                 ? 'Your test is finished. Your score, your answers and the skill each question tested are shown now. The correct answers and worked solutions appear once everyone has finished this test, or when your teacher releases them.'
                 : 'Your test is finished. The answers, the worked solutions and the skill each question tested are shown now, so you can learn from them.'}</p>

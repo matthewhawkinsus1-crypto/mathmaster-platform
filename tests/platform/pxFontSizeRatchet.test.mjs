@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PRINT_ONLY, runCodemod } from '../../scripts/codemods/px-to-rem.mjs';
+import { PRINT_ONLY, runCodemod, scaleFluidClamps } from '../../scripts/codemods/px-to-rem.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -27,7 +27,7 @@ const ALLOWED = Object.freeze({
   'src/components/student/CCMRReadinessWheel.jsx': { skipped: 2, why: 'SVG <text> labels inside the wheel: SVG text scales with its drawing' },
   'src/components/assessment/GraphingCalculatorPanel.jsx': { pragma: 1, why: 'JSXGraph tick labels: JSXGraph appends its own px unit to fontSize, so calc() would be invalid; the labels are part of the graph' },
   'src/components/teacher/caseReview/caseReview.css': { pragma: 1, why: 'the case-review print sheet (@media print): paper, like the PDF generators, not the screen' },
-  'src/components/liveChallenge/ChallengeShellParts.jsx': { pattern: 1, why: 'the 3·2·1·GO countdown digit: aria-hidden, already 88–260px; the live region under it carries the text and scales' },
+  'src/components/liveChallenge/ChallengeShellParts.jsx': { pattern: 2, why: 'the 3·2·1·GO countdown digit (its px bounds and its viewport term): aria-hidden, already 88–260px; the live region under it carries the text and scales' },
 });
 
 // Px font sizes the codemod cannot see: computed or held in a variable.
@@ -44,6 +44,15 @@ export const sizeKeysInPx = (source) => {
   if (!/fontSize:\s*\w+\.size\b/.test(source)) return 0;
   return [...source.matchAll(/\bsize:\s*([^,\n}]+)/g)]
     .filter(([, value]) => /^\d+(?:\.\d+)?\s*$/.test(value) || /^['"`][^'"`]*\d(?:\.\d+)?px/.test(value.trim())).length;
+};
+
+// A clamp(A, 4vw, B) font size held where the codemod cannot see it (a *Size
+// variable, a `size:` read as fontSize: style.size): its viewport term must be
+// written calc(4vw * var(--mm-text-scale, 1)), or it ignores the text setting.
+export const heldFluidSizes = (source) => {
+  const held = [...source.matchAll(/\b(?:const|let|var)\s+\w*[Ss]ize\w*\s*=(?!=)[^;\n]*/g)].map(([text]) => text);
+  if (/fontSize:\s*\w+\.size\b/.test(source)) held.push(...[...source.matchAll(/\bsize:\s*([^\n}]+)/g)].map(([, text]) => text));
+  return held.filter((text) => scaleFluidClamps(text) !== text).length;
 };
 
 const walk = (dir, out = []) => {
@@ -78,6 +87,7 @@ export const scanPxFontSizes = () => {
     if (file.endsWith('.css')) continue;
     for (const { name, re } of RESIDUAL) add(file, 'pattern', [...source.matchAll(re)].length, name);
     add(file, 'pattern', sizeKeysInPx(source), 'a px `size:` read as fontSize: style.size');
+    add(file, 'pattern', heldFluidSizes(source), 'a fluid size held in a variable whose viewport term ignores the text setting');
   }
   return found;
 };
@@ -86,7 +96,7 @@ test('no px font size in src/** outside the allow-list', () => {
   const problems = [];
   for (const [file, entry] of scanPxFontSizes()) {
     const allowed = ALLOWED[file] || {};
-    if (entry.codemod) problems.push(`${file}: ${entry.codemod} px font size(s) — run node scripts/codemods/px-to-rem.mjs --write --include-app-shell ${file}`);
+    if (entry.codemod) problems.push(`${file}: ${entry.codemod} font size(s) in px or with a viewport-only fluid term — run node scripts/codemods/px-to-rem.mjs --write --include-app-shell ${file}`);
     for (const key of ['skipped', 'pattern', 'pragma']) {
       if (entry[key] > (allowed[key] || 0)) problems.push(`${file}: ${entry[key]} ${key} (allowed ${allowed[key] || 0}) — ${entry.details.join('; ')}`);
     }
@@ -119,6 +129,10 @@ test('the residual patterns catch what they are for', () => {
   assert.equal(sizeKeysInPx(looks("'clamp(16px, 1.7vw, 24px)'")), 1);
   assert.equal(sizeKeysInPx(looks("'calc(15 * var(--mm-px))'")), 0);
   assert.equal(sizeKeysInPx('const pill = { size: 15 };'), 0, 'a size not read as a font size');
+  assert.equal(heldFluidSizes("const promptSize = long ? 'clamp(calc(20 * var(--mm-px)), 3vh, calc(30 * var(--mm-px)))' : '1rem';"), 1);
+  assert.equal(heldFluidSizes("const promptSize = 'clamp(calc(20 * var(--mm-px)), calc(3vh * var(--mm-text-scale, 1)), calc(30 * var(--mm-px)))';"), 0);
+  assert.equal(heldFluidSizes(looks("'clamp(1rem, 1.7vw, 2rem)'")), 1);
+  assert.equal(heldFluidSizes("const boxSize = 2; const pad = { padding: 'clamp(8px, 2vw, 16px)' };"), 0, 'not a font size');
 });
 
 test('CI measures every swept surface at 200% text', () => {
@@ -129,7 +143,7 @@ test('CI measures every swept surface at 200% text', () => {
   assert.ok(runs.some((checks) => checks.includes('text')), 'a CI step runs studentShellLargeText --check=text');
   const harness = readFileSync(path.join(root, 'tests/browser/studentShellLargeText.mjs'), 'utf8');
   const screens = harness.slice(harness.indexOf('export const LARGE_TEXT_SCREENS'), harness.indexOf('const runScenes'));
-  for (const id of ['more-tools', 'recovery', 'teacher']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
+  for (const id of ['more-tools', 'recovery', 'teacher', 'graph-feature-rush']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
   assert.match(screens, /^\s*\.\.\.SCREENS,/m, "the certification's student screens are measured too");
   assert.match(harness, /for \(const screen of LARGE_TEXT_SCREENS\)/, 'runScenes walks the extended list');
 });

@@ -8674,10 +8674,10 @@ function App() {
           textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: 'clamp(calc(24 * var(--mm-px)), 4vw, calc(42 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05 }}>
+        <div style={{ fontSize: 'clamp(calc(24 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(42 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05 }}>
           ⏰ PACK UP & RETURN TECHNOLOGY
         </div>
-        <div style={{ marginTop: 8, fontSize: 'clamp(calc(16 * var(--mm-px)), 2.2vw, calc(24 * var(--mm-px)))', fontWeight: 900 }}>
+        <div style={{ marginTop: 8, fontSize: 'clamp(calc(16 * var(--mm-px)), calc(2.2vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', fontWeight: 900 }}>
           Save your work, sign out, and return your device now. The bell is in{' '}
           <DOLCountdown endsAt={packUp.endsAt} />.
         </div>

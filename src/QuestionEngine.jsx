@@ -2504,8 +2504,8 @@ function QuestionEngineBody({
         {isCorrect && showOutcomeFeedback && (
           <div aria-label="Correct answer" role="status" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: 'rgba(230,244,234,0.10)' }}>
             <div style={{ transform: 'rotate(-8deg)', textAlign: 'center', color: 'rgba(24,128,56,0.16)', textShadow: '0 2px 18px rgba(24,128,56,0.12)' }}>
-              <div style={{ fontSize: 'clamp(calc(120 * var(--mm-px)), 24vw, calc(250 * var(--mm-px)))', fontWeight: 900, lineHeight: 0.72 }}>✓</div>
-              <div style={{ fontSize: 'clamp(calc(42 * var(--mm-px)), 8vw, calc(92 * var(--mm-px)))', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Correct</div>
+              <div style={{ fontSize: 'clamp(calc(120 * var(--mm-px)), calc(24vw * var(--mm-text-scale, 1)), calc(250 * var(--mm-px)))', fontWeight: 900, lineHeight: 0.72 }}>✓</div>
+              <div style={{ fontSize: 'clamp(calc(42 * var(--mm-px)), calc(8vw * var(--mm-text-scale, 1)), calc(92 * var(--mm-px)))', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Correct</div>
             </div>
           </div>
         )}
