@@ -173,6 +173,16 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     enlarged: 'Process Mode: whether the process workspace fills the screen. Presentation only.',
     coreUndo: 'Process Mode: the embedded Step Algebra workspace\'s Undo controller, for the Undo button. The workspace owns its history.',
   }),
+  // Every cell a student types, every judgment and every tapped element is
+  // draft-backed. What stays transient is which control is picked up and what
+  // the calculator last printed — the calculator only ever reads the
+  // draft-backed matrices, so pressing its button again reproduces it.
+  matrixLab: entry(['matrixLab/MatrixLab.jsx', 'matrixLab/MatrixCalculator.jsx', 'matrixLab/matrixLabUi.jsx'], {
+    activeId: 'Which element (a_ij) a tap will place next. Selection, not an answer; the tapped cells themselves are draft-backed.',
+    focus: 'Which product cell has focus, so its row and column light up. Presentation.',
+    result: 'What the matrix calculator last printed. Recomputed from the draft-backed matrices by pressing the command again.',
+    view: 'Whether the calculator shows fractions or decimals. Presentation.',
+  }),
 });
 
 export const getToolStatePersistence = (toolId) => TOOL_STATE_PERSISTENCE[toolId] || null;

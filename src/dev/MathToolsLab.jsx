@@ -70,6 +70,15 @@ export const SAMPLE_SPECS = {
     feedbackTiming:'checkpoint',
   },
   solutionReview2: { solutionSteps:['Identify the target.','Use a mathematically valid strategy.','Verify in the original problem.'] },
+  // The Matrix Lab's solve view: write A·X = B, then X = A⁻¹B on the calculator.
+  matrixLab: {
+    questionId:'preview-matrix-lab',
+    mode:'solve',
+    prompt:'Solve the system using technology with matrices.',
+    equations:['2x - 3y = 7','y + z = -5','x + 2y + 4z = -17'],
+    variables:['x','y','z'],
+    technology:{operations:['inverse','inverseTimes']},
+  },
 };
 
 export default function MathToolsLab() {

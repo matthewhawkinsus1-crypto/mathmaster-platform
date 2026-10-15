@@ -35,6 +35,7 @@ const TOOL_LOADERS = {
   linearTableWorkbench: () => import('./linearTableWorkbench/LinearTableWorkbench.jsx'),
   expressionMeaning: () => import('./expressionMeaning/ExpressionMeaning.jsx'),
   representationBridge: () => import('./representationBridge/RepresentationBridge.jsx'),
+  matrixLab: () => import('./matrixLab/MatrixLab.jsx'),
 };
 
 const TOOL_COMPONENTS = Object.fromEntries(

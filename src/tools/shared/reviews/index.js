@@ -20,6 +20,7 @@ import * as intervalNumberLineReview from './intervalNumberLineReview.js';
 import * as linearTableWorkbenchReview from './linearTableWorkbenchReview.js';
 import * as expressionMeaningReview from './expressionMeaningReview.js';
 import * as representationBridgeReview from './representationBridgeReview.js';
+import * as matrixLabReview from './matrixLabReview.js';
 
 const MODULES = [
   ['dataModelingLab', dataModelingLabReview],
@@ -39,6 +40,7 @@ const MODULES = [
   ['linearTableWorkbench', linearTableWorkbenchReview],
   ['expressionMeaning', expressionMeaningReview],
   ['representationBridge', representationBridgeReview],
+  ['matrixLab', matrixLabReview],
 ];
 
 const builderOf = (module) => Object.values(module).find((value) => typeof value === 'function') || null;

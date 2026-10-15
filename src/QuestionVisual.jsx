@@ -1,5 +1,7 @@
 import GraphDisplay from './GraphDisplay';
 import MathDisplay from './MathDisplay';
+import MatrixGrid from './components/common/MatrixGrid.jsx';
+import { readDisplayMatrices } from './platform/math/displayMatrices.js';
 import { questionAsksAboutQuadrants } from './platform/graph/quadrantLabels.js';
 
 // A question of any type may carry a `table` to show the student — a word
@@ -45,6 +47,10 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
     : authoredGraph;
   const mathSpec = question?.mathDisplay || question?.supportingMath;
   const displayTable = includeTable ? normalizeDisplayTable(question?.table) : null;
+  // Named matrices the question shows (a store's inventory, a system's
+  // coefficient matrix), in the authored layout: ["Nov", "+", "Dec"] draws the
+  // two matrices with a plus between them.
+  const matrixLayout = readDisplayMatrices(question);
 
   return (
     <>
@@ -71,6 +77,18 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
                 : mathSpec.ariaLabel || 'Supporting mathematical expression'
             }
           />
+        </div>
+      )}
+      {matrixLayout.length > 0 && (
+        <div
+          data-question-matrices="true"
+          style={{ margin: '22px auto', maxWidth: '100%', overflowX: 'auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'safe center', gap: '14px 18px' }}
+        >
+          {matrixLayout.map((entry, index) => (entry.kind === 'matrix' ? (
+            <MatrixGrid key={`${entry.name}-${index}`} {...entry.matrix} />
+          ) : (
+            <span key={`op-${index}`} aria-hidden="true" style={{ fontSize: 'calc(24 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-strong)' }}>{entry.text}</span>
+          )))}
         </div>
       )}
       {displayTable && (

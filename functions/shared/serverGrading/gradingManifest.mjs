@@ -38,6 +38,7 @@ import graphing2 from './declarations/graphing2.mjs';
 import intervalNumberLine from './declarations/intervalNumberLine.mjs';
 import inverseCompositionLab from './declarations/inverseCompositionLab.mjs';
 import linearTableWorkbench from './declarations/linearTableWorkbench.mjs';
+import matrixLab from './declarations/matrixLab.mjs';
 import openSortBoard from './declarations/openSortBoard.mjs';
 import parabolaGeometryLab from './declarations/parabolaGeometryLab.mjs';
 import polynomialWorkshop from './declarations/polynomialWorkshop.mjs';
@@ -89,6 +90,7 @@ export const TOOL_GRADING_DECLARATIONS = Object.freeze({
   linearTableWorkbench,
   expressionMeaning,
   representationBridge,
+  matrixLab,
 });
 
 export const REGISTRY_TOOL_IDS = Object.freeze(Object.keys(TOOL_GRADING_DECLARATIONS));

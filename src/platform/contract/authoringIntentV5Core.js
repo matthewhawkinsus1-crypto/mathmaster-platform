@@ -124,7 +124,28 @@ const ACTION_ALIASES = Object.freeze({
   interpretexpressionmeaning: 'interpretExpressionMeaning', mapexpressionmeaning: 'interpretExpressionMeaning', explainexpressionmeaning: 'interpretExpressionMeaning',
   connectlinearrepresentations: 'connectLinearRepresentations', representationbridge: 'connectLinearRepresentations', bridgerepresentations: 'connectLinearRepresentations',
   connectmultiplerepresentations: 'connectLinearRepresentations', multiplerepresentations: 'connectLinearRepresentations', linearmultiplerepresentations: 'connectLinearRepresentations',
+  // The Matrix Lab (Algebra II, A2.3B: solving systems with technology and matrices).
+  locatematrixelements: 'locateMatrixElements', readmatrix: 'locateMatrixElements', matrixdimensions: 'locateMatrixElements',
+  matrixelements: 'locateMatrixElements', identifymatrixelements: 'locateMatrixElements',
+  operateonmatrices: 'operateOnMatrices', multiplymatrices: 'operateOnMatrices', matrixmultiplication: 'operateOnMatrices',
+  addmatrices: 'operateOnMatrices', checkinversematrices: 'operateOnMatrices', verifymatrixinverse: 'operateOnMatrices',
+  writematrixequation: 'writeMatrixEquation', matrixequation: 'writeMatrixEquation',
+  solvematrixequation: 'solveMatrixEquation', solvewithmatrices: 'solveMatrixEquation', solvesystemwithmatrices: 'solveMatrixEquation',
+  completesingularsystem: 'completeSingularSystem', writethirdequation: 'completeSingularSystem', designsingularsystem: 'completeSingularSystem',
 });
+
+// Which Matrix Lab view each matrix action asks for. An authored `mode` wins.
+const MATRIX_LAB_ACTION_MODES = Object.freeze({
+  locateMatrixElements: 'locate',
+  operateOnMatrices: 'operate',
+  writeMatrixEquation: 'equation',
+  solveMatrixEquation: 'solve',
+  completeSingularSystem: 'completeSystem',
+});
+const matrixLabModeFor = (actions) => {
+  const action = actions.find((candidate) => MATRIX_LAB_ACTION_MODES[candidate]);
+  return action ? MATRIX_LAB_ACTION_MODES[action] : null;
+};
 
 const normalizeActions = (question = {}) => {
   const source = asArray(question.studentActions || question.actions || question.studentAction);
@@ -1060,6 +1081,10 @@ const readableInequalityIntent = (q = {}) => [q.inequality, q.inequalityText, q.
 const resolveIntentType = (q, actions) => {
   const hint = clean(q.toolHint || q.destination || q.intentType || q.questionType);
   if (hint) return hint;
+  // Matrix work is its own lab. It is decided before the systems rules below,
+  // which would otherwise send a system written as A·X = B to the Systems
+  // Workspace or to a symbolic answer box.
+  if (matrixLabModeFor(actions)) return 'matrixLab';
   if (q.labDefinition || actions.includes('modelingLab')) return 'modelingLab';
   if (actions.includes('calculateCorrelation')) return 'regressionCalculator';
   if (q.data || q.points && actions.some((a) => ['analyzeData','fitDataModel','predictFromModel'].includes(a))) return 'dataModelingLab';
@@ -1614,6 +1639,9 @@ const compileOne = (q, index, repairs) => {
         candidateGraphs: candidateGraphs.length ? candidateGraphs : undefined,
         visual: q.visual,
         mathDisplay: q.mathDisplay,
+        // Named matrices to show beside the fields (QuestionVisual).
+        matrices: q.matrices,
+        matrixLayout: q.matrixLayout,
         generator: q.generator,
       });
       break;
@@ -2047,6 +2075,33 @@ const compileOne = (q, index, repairs) => {
       });
       break;
     }
+    case 'matrixLab': {
+      out = copyCommon(q, {
+        type,
+        mode: q.mode || matrixLabModeFor(actions) || 'operate',
+        matrices: q.matrices,
+        matrix: q.matrix,
+        targets: q.targets,
+        askDimensions: q.askDimensions,
+        operation: q.operation,
+        left: q.left,
+        right: q.right,
+        askDefined: q.askDefined,
+        fillResult: q.fillResult,
+        showExpansion: q.showExpansion,
+        judgeInverse: q.judgeInverse,
+        resultName: q.resultName,
+        equations: q.equations,
+        variables: q.variables,
+        startFrom: q.startFrom,
+        buildEquation: q.buildEquation,
+        askInverse: q.askInverse,
+        variableMeanings: q.variableMeanings,
+        showEquations: q.showEquations,
+        technology: q.technology,
+      });
+      break;
+    }
     case 'expressionMeaning': {
       out = copyCommon(q, {
         type,
@@ -2211,4 +2266,5 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
   'proveConstantRate','interpretExpressionMeaning','connectLinearRepresentations',
+  'locateMatrixElements','operateOnMatrices','writeMatrixEquation','solveMatrixEquation','completeSingularSystem',
 ]);

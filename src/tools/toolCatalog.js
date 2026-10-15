@@ -30,6 +30,7 @@ export const TOOL_CATALOG = Object.freeze({
   linearTableWorkbench: { label: 'Linear Table Workbench', courses: ['Algebra I', 'Algebra II'] },
   expressionMeaning: { label: 'Expression Meaning', courses: ['Algebra I', 'Algebra II'] },
   representationBridge: { label: 'Representation Bridge', courses: ['Algebra I', 'Algebra II'] },
+  matrixLab: { label: 'Matrix Lab', courses: ['Algebra II'] },
 });
 
 export const TOOL_CATALOG_IDS = Object.freeze(Object.keys(TOOL_CATALOG));

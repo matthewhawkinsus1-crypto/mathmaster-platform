@@ -171,12 +171,19 @@ export const repairAllSafeTechnicalIssues = (assignmentV5) => {
 
   return {
     assignmentV5: repaired.value,
-    changed: repaired.repairCount > 0,
-    repairs: list(repaired.repairedPaths).map((path) => ({
-      repairCode: 'persistence.coordinatePairToPointObject',
-      path,
-      description: 'Stored a coordinate pair as a point object so Firestore can save it. The mathematics is unchanged.',
-    })),
+    changed: repaired.repairCount > 0 || list(repaired.matrixRowPaths).length > 0,
+    repairs: [
+      ...list(repaired.repairedPaths).map((path) => ({
+        repairCode: 'persistence.coordinatePairToPointObject',
+        path,
+        description: 'Stored a coordinate pair as a point object so Firestore can save it. The mathematics is unchanged.',
+      })),
+      ...list(repaired.matrixRowPaths).map((path) => ({
+        repairCode: 'persistence.matrixRowToCells',
+        path,
+        description: 'Stored a matrix row as { cells } so Firestore can save it. The matrix is unchanged.',
+      })),
+    ],
     // Named so the teacher can see what is left rather than assuming "Repair
     // All" finished the job.
     remainingUnsafePaths,

@@ -21,6 +21,7 @@ import graphing2 from './tools/graphing2.mjs';
 import intervalNumberLine from './tools/intervalNumberLine.mjs';
 import inverseCompositionLab from './tools/inverseCompositionLab.mjs';
 import linearTableWorkbench from './tools/linearTableWorkbench.mjs';
+import matrixLab from './tools/matrixLab.mjs';
 import openSortBoard from './tools/openSortBoard.mjs';
 import parabolaGeometryLab from './tools/parabolaGeometryLab.mjs';
 import polynomialWorkshop from './tools/polynomialWorkshop.mjs';
@@ -69,6 +70,7 @@ export const REGISTRY_TOOL_GRADERS = Object.freeze({
   intervalNumberLine,
   inverseCompositionLab,
   linearTableWorkbench,
+  matrixLab,
   openSortBoard,
   parabolaGeometryLab,
   polynomialWorkshop,
