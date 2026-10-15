@@ -140,3 +140,22 @@ test('PDF generators are never rewritten; a missing path is skipped with a note'
   for (const file of PRINT_ONLY) assert.equal(readText(path.join(root, file), 'utf8'), 'const s = { fontSize: 11 };');
   assert.ok(PRINT_ONLY.includes('src/platform/resources/assignmentWorksheetPdf.js') && PRINT_ONLY.includes('src/platform/resources/lessonNotesPdf.js'));
 });
+
+test("the worksheet visuals are paper: print-only, sized in px, drawn only by the PDF", async () => {
+  // A teacher's 200% browser text must not grow the visuals' fixed-layout
+  // tables inside a PDF whose other text stays in px (coordinator, #487).
+  const { PRINT_ONLY } = await import('../../scripts/codemods/px-to-rem.mjs');
+  const { readdirSync, statSync } = await import('node:fs');
+  const visuals = 'src/platform/resources/assignmentWorksheetVisuals.js';
+  assert.ok(PRINT_ONLY.includes(visuals));
+  const source = readFileSync(visuals, 'utf8');
+  assert.match(source, /tableLayout: 'fixed', fontSize: '12px'/);
+  assert.doesNotMatch(source, /--mm-px/);
+  // Whoever renders a visual must itself be print-only.
+  const files = [];
+  const walk = (dir) => readdirSync(dir).forEach((name) => { const file = `${dir}/${name}`; if (statSync(file).isDirectory()) walk(file); else if (/\.jsx?$/.test(name)) files.push(file); });
+  walk('src');
+  const renderers = files.filter((file) => /import\s*\{[^}]*\brenderWorksheetVisual\b[^}]*\}\s*from\s*'[^']*assignmentWorksheetVisuals\.js'/.test(readFileSync(file, 'utf8')));
+  assert.ok(renderers.length > 0, 'found the renderer');
+  for (const file of renderers) assert.ok(PRINT_ONLY.includes(file), `${file} renders worksheet visuals but is not print-only`);
+});

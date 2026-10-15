@@ -183,6 +183,9 @@ export const PRINT_ONLY = Object.freeze([
   'src/platform/resources/assignmentWorksheetPdf.js',
   'src/platform/resources/lessonNotesPdf.js',
   'src/platform/resources/assignmentWorksheetPdfModel.js',
+  // Rendered only by assignmentWorksheetPdf.js (DOM rasterised into the PDF):
+  // paper, not screen (job N; coordinator review of #487).
+  'src/platform/resources/assignmentWorksheetVisuals.js',
 ]);
 
 export const EXCLUDED = (relative) => (

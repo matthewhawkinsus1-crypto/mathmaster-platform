@@ -65,6 +65,7 @@ two fixes — the phone action bar and Live Challenge's answer card — hold).
   arithmetic (`calc(N * var(--mm-px))` is N px at default), but not measured
   at 200% in a browser.
 - **Wheel and graph labels** stay drawing-sized (see decisions).
+- **Worksheet PDF visuals** (`assignmentWorksheetVisuals.js`) stay in px: they are paper, rendered only by the PDF generator; added to the codemod's `PRINT_ONLY` after the coordinator's review of #487, pinned in `pxToRemCodemod.test.mjs`.
 
 ## Files outside src/** and this job's tests
 
