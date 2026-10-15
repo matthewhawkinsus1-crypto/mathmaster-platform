@@ -21337,11 +21337,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Negative $x$ and positive $y$: Quadrant II.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The point $(-{{a}},{{b}})$ is {{a}} units left of the $y$-axis and {{b}} units above the $x$-axis.",
+          "Left and up is the upper-left region, Quadrant II (Quadrant I is upper right; the numbering goes counterclockwise)."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Numbering the quadrants clockwise.",
+        "answerSummary": "Quadrant II"
       },
       "prompt": "The point $(-{{a}},{{b}})$ is plotted in the coordinate plane, where {{a}} and {{b}} are positive. In which quadrant is the point?",
       "generator": {
@@ -21587,11 +21589,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Across the $x$-axis, keep $x$ and change the sign of $y$: $({{x}},{{ny}})$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Reflecting across the $x$-axis flips the point from above the axis to below it, the same distance away.",
+          "$P$ is {{y}} units above the axis, so its image is {{y}} units below, at $({{x}},{{ny}})$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Changing the sign of $x$, which reflects across the $y$-axis instead.",
+        "answerSummary": "$({{x}},{{ny}})$"
       },
       "prompt": "Point $P$ has coordinates $({{x}},{{y}})$. What are the coordinates of the reflection of $P$ across the $x$-axis?",
       "generator": {
@@ -21844,11 +21848,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Average the $x$-coordinates and the $y$-coordinates: $({{mx}},{{my}})$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "$x$: $\\frac{ {{x1}}{{x2|signed}} }{2}=\\frac{ {{sx}} }{2}={{mx}}$.",
+          "$y$: $\\frac{ {{y1}}{{y2|signed}} }{2}=\\frac{ {{sy}} }{2}={{my}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Averaging only one coordinate, or taking an endpoint as the midpoint.",
+        "answerSummary": "$({{mx}},{{my}})$"
       },
       "prompt": "What is the midpoint of the segment with endpoints $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$?",
       "generator": {
@@ -21892,7 +21898,9 @@
           "d2x": "x1+dx/2",
           "d2y": "y1+dy",
           "d3x": "x1+dx/2+1",
-          "d3y": "y1+dy/2+1"
+          "d3y": "y1+dy/2+1",
+          "sx": "x1+x2",
+          "sy": "y1+y2"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -22124,11 +22132,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Same $x$, so the distance is the change in $y$: {{gap}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "On a vertical line only $y$ changes.",
+          "Distance: ${{y2}}-{{y1|paren}}={{gap}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the sizes of the $y$-coordinates when the points are on the same side of the $x$-axis.",
+        "answerSummary": "${{gap}}$"
       },
       "prompt": "Points $A({{x}},{{y1}})$ and $B({{x}},{{y2}})$ lie on the same vertical line. What is the distance between the points?",
       "generator": {
@@ -22390,11 +22400,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Width times height from the coordinates: {{ans}} square units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Width: ${{x2}}-{{x1|paren}}={{w}}$. Height: ${{y2}}-{{y1|paren}}={{h}}$.",
+          "Area: ${{w}}\\cdot {{h}}={{ans}}$ square units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the width and height, or computing the perimeter.",
+        "answerSummary": "${{ans}}$ square units"
       },
       "prompt": "A rectangle has opposite vertices $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$, and its sides are parallel to the coordinate axes. What is the area of the rectangle?",
       "generator": {
@@ -22667,11 +22679,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The midpoint is halfway, so go the same distance again: $({{x2}},{{y2}})$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "From $A$ to the midpoint, $x$ changes by ${{mx}}-{{x1|paren}}={{dx}}$ and $y$ by ${{my}}-{{y1|paren}}={{dy}}$.",
+          "Repeat that change from the midpoint: ${{mx}}+{{dx}}={{x2}}$ and ${{my}}+{{dy}}={{y2}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the midpoint itself, or going the other way from $A$.",
+        "answerSummary": "$B({{x2}},{{y2}})$"
       },
       "prompt": "The midpoint of segment $AB$ is $({{mx}},{{my}})$. One endpoint is $A({{x1}},{{y1}})$. What are the coordinates of endpoint $B$?",
       "generator": {
@@ -22943,11 +22957,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Find the side lengths from the coordinates, then add all four sides: {{ans}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Width: ${{x2}}-{{x1|paren}}={{w}}$. Height: ${{y2}}-{{y1|paren}}={{h}}$.",
+          "Perimeter: $2\\cdot {{w}}+2\\cdot {{h}}={{ans}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Multiplying the sides, which gives the area.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "An axis-aligned rectangle has opposite vertices $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the perimeter of the rectangle?",
       "generator": {
@@ -23220,11 +23236,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Translate first, then flip the sign of $y$: $({{fx}},{{fy}})$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Translate: $x$ becomes ${{x}}+{{r}}={{fx}}$ and $y$ becomes ${{y}}+{{u}}={{d1y}}$.",
+          "Reflecting across the $x$-axis keeps $x$ and changes the sign of $y$: $({{fx}},{{d1y}})$ goes to $({{fx}},{{fy}})$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Skipping the reflection, or changing the sign of $x$ instead of $y$.",
+        "answerSummary": "$({{fx}},{{fy}})$"
       },
       "prompt": "Point $P({{x}},{{y}})$ is translated {{r}} units to the right and {{u}} units up, then reflected across the $x$-axis. What are the final coordinates?",
       "generator": {
@@ -23478,11 +23496,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "A linear pair adds to $180^\\circ$: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Angles that form a linear pair lie along a straight line, so they add to $180^\\circ$.",
+          "$180-{{a}}={{ans}}$, so the other angle is ${{ans}}^\\circ$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Subtracting from $90^\\circ$, which is the rule for complementary angles.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "Two angles form a linear pair. One angle measures {{a}}°. What is the measure of the other angle?",
       "generator": {
@@ -23723,11 +23743,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Vertical angles are equal: ${{a}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The angle next to the ${{a}}^\\circ$ angle forms a linear pair with it: $180-{{a}}={{d1}}$ degrees.",
+          "The vertical angle also forms a linear pair with that neighbor: $180-{{d1}}={{a}}$ degrees.",
+          "So the vertical angle measures ${{a}}^\\circ$, the same as the given angle."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the adjacent angle (the supplement) instead of the opposite one.",
+        "answerSummary": "${{a}}^\\circ$"
       },
       "prompt": "Two lines intersect. One of the angles formed measures {{a}}°. What is the measure of the vertical angle opposite it?",
       "generator": {
@@ -23967,11 +23990,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The angles of a triangle add to $180^\\circ$: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The three angles of any triangle add to $180^\\circ$.",
+          "$180-{{a}}-{{b}}={{ans}}$, so the third angle is ${{ans}}^\\circ$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the two given angles, or subtracting only one of them from 180.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "Two angles of a triangle measure {{a}}° and {{b}}°. What is the measure of the third angle?",
       "generator": {
@@ -24218,11 +24243,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The angles of a quadrilateral add to $360^\\circ$: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "A quadrilateral splits into two triangles, so its interior angles add to $2\\cdot 180=360$ degrees.",
+          "$360-{{a}}-{{b}}-{{c}}={{ans}}$, so the fourth angle is ${{ans}}^\\circ$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Using $180^\\circ$, the triangle sum, instead of $360^\\circ$.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "Three interior angles of a quadrilateral measure {{a}}°, {{b}}°, and {{c}}°. What is the measure of the fourth interior angle?",
       "generator": {
@@ -24476,11 +24503,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Corresponding angles along parallel lines are equal: ${{a}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Corresponding angles sit in the same position at each intersection, and parallel lines make them equal.",
+          "So the corresponding angle is ${{a}}^\\circ$. Its neighbor along the transversal is $180-{{a}}={{d1}}$ degrees; that is the supplement, not the corresponding angle."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Taking the supplement because the lines are parallel.",
+        "answerSummary": "${{a}}^\\circ$"
       },
       "prompt": "Two parallel lines are cut by a transversal. A pair of corresponding angles are formed. If one angle measures {{a}}°, what is the measure of its corresponding angle?",
       "generator": {
@@ -24721,11 +24750,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Vertical keeps the measure; a linear pair takes the supplement: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The second angle is vertical to the first, so it also measures ${{a}}^\\circ$.",
+          "The third angle forms a linear pair with the second: $180-{{a}}={{ans}}$ degrees."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Stopping at the vertical angle, which repeats the given ${{a}}^\\circ$.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "Two lines intersect. One angle measures {{a}}°. A second angle is vertical to the first, and a third angle forms a linear pair with the second. What is the measure of the third angle?",
       "generator": {
@@ -24967,11 +24998,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The exterior angle at the vertex equals the two base angles together: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Vertex angle: $180-2\\cdot {{b}}={{vertex}}$ degrees.",
+          "The exterior angle forms a linear pair with it: $180-{{vertex}}={{ans}}$ degrees.",
+          "That matches ${{b}}+{{b}}={{ans}}$, the two remote interior angles."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the vertex angle itself instead of the exterior angle beside it.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "An isosceles triangle has two base angles that each measure {{b}}°. What is the measure of the exterior angle adjacent to the vertex angle?",
       "generator": {
@@ -25213,11 +25247,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Interior and exterior angles at a vertex add to $180^\\circ$: ${{ans}}^\\circ$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Each exterior angle measures $\\frac{360}{ {{n}} }={{ext}}$ degrees.",
+          "At each vertex the interior and exterior angles form a linear pair: $180-{{ext}}={{ans}}$ degrees."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the exterior angle as the interior angle.",
+        "answerSummary": "${{ans}}^\\circ$"
       },
       "prompt": "A regular polygon has {{n}} sides. Each exterior angle has measure $360/{{n}}$ degrees. What is the measure of each interior angle?",
       "generator": {
@@ -30142,11 +30178,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The ramp is the hypotenuse: {{ans}} feet.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The rise and the run are the legs of a right triangle, and the ramp is the hypotenuse.",
+          "${{rise}}^2+{{run}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{ans}}$ feet."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the rise and the run instead of their squares.",
+        "answerSummary": "${{ans}}$ feet"
       },
       "prompt": "A ramp rises {{rise}} feet while extending {{run}} feet horizontally. What is the length, in feet, of the ramp?",
       "generator": {
@@ -30163,7 +30202,8 @@
           "ans": "17*k",
           "d1": "23*k",
           "d2": "15*k",
-          "d3": "16*k"
+          "d3": "16*k",
+          "sum": "rise*rise+run*run"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30269,11 +30309,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Subtract the squares to find a leg: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "For a right triangle, $a^2+b^2=c^2$, so a missing leg is $\\sqrt{c^2-a^2}$.",
+          "${{c}}^2-{{a}}^2={{diff}}$.",
+          "$\\sqrt{ {{diff}} }={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the squares as if {{c}} were a leg.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A right triangle has hypotenuse {{c}} units and one leg {{a}} units. What is the length of the other leg?",
       "generator": {
@@ -30290,7 +30333,8 @@
           "c": "13*k",
           "d1": "8*k",
           "d2": "13*k",
-          "d3": "18*k"
+          "d3": "18*k",
+          "diff": "c*c-a*a"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30396,11 +30440,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The diagonal is the hypotenuse of a right triangle: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "A diagonal splits the rectangle into two right triangles with legs {{a}} and {{b}}.",
+          "${{a}}^2+{{b}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the length and the width instead of their squares.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A rectangle is {{a}} units long and {{b}} units wide. What is the length of its diagonal?",
       "generator": {
@@ -30417,7 +30464,8 @@
           "ans": "10*k",
           "d1": "14*k",
           "d2": "8*k",
-          "d3": "12*k"
+          "d3": "12*k",
+          "sum": "a*a+b*b"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30523,11 +30571,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The distance is the hypotenuse of the horizontal and vertical changes: {{ans}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Horizontal change: ${{x2}}-{{x|paren}}={{dx}}$. Vertical change: ${{y2}}-{{y|paren}}={{dy}}$.",
+          "${{dx}}^2+{{dy}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{ans}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the horizontal and vertical changes instead of combining their squares.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "What is the distance between the points $({{x}},{{y}})$ and $({{x2}},{{y2}})$?",
       "generator": {
@@ -30554,7 +30605,10 @@
           "ans": "5*k",
           "d1": "7*k",
           "d2": "4*k",
-          "d3": "3*k"
+          "d3": "3*k",
+          "dx": "x2-x",
+          "dy": "y2-y",
+          "sum": "(x2-x)^2+(y2-y)^2"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30660,11 +30714,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "The ladder is the hypotenuse, so subtract squares: {{ans}} feet.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The wall, the ground and the ladder form a right triangle with the ladder as the hypotenuse.",
+          "${{c}}^2-{{a}}^2={{diff}}$.",
+          "$\\sqrt{ {{diff}} }={{ans}}$ feet up the wall."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the squares as though the ladder were a leg.",
+        "answerSummary": "${{ans}}$ feet"
       },
       "prompt": "A {{c}}-foot ladder reaches from the ground to a wall. The bottom of the ladder is {{a}} feet from the wall. How high up the wall does the ladder reach?",
       "generator": {
@@ -30681,7 +30738,8 @@
           "c": "13*k",
           "d1": "8*k",
           "d2": "13*k",
-          "d3": "18*k"
+          "d3": "18*k",
+          "diff": "c*c-a*a"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30788,11 +30846,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "East and north are perpendicular legs: {{ans}} blocks in a straight line.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The walk east and the walk north are the legs of a right triangle; the straight-line distance is the hypotenuse.",
+          "${{a}}^2+{{b}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{ans}}$ block lengths."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the two legs, which gives the walking distance, not the straight-line distance.",
+        "answerSummary": "${{ans}}$ block lengths"
       },
       "prompt": "A person walks {{a}} blocks east and then {{b}} blocks north. If each block is the same length and the streets are perpendicular, how many block lengths is the person from the starting point in a straight line?",
       "generator": {
@@ -30809,7 +30870,8 @@
           "ans": "15*k",
           "d1": "21*k",
           "d2": "12*k",
-          "d3": "18*k"
+          "d3": "18*k",
+          "sum": "a*a+b*b"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -30916,11 +30978,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "A square's diagonal is the side times $\\sqrt{2}$: ${{s}}\\sqrt{2}$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The diagonal is the hypotenuse of a right triangle whose legs are both sides of the square.",
+          "$\\sqrt{ {{s}}^2+{{s}}^2}=\\sqrt{ {{ss2}} }={{s}}\\sqrt{2}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Doubling the side, which adds the legs instead of their squares.",
+        "answerSummary": "${{s}}\\sqrt{2}$"
       },
       "prompt": "A square has side length {{s}} units. Which expression gives the length of a diagonal of the square?",
       "generator": {
@@ -30933,7 +30997,8 @@
         },
         "derived": {
           "twoS": "2*s",
-          "s2": "s*s"
+          "s2": "s*s",
+          "ss2": "2*s*s"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -31040,11 +31105,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Find the hypotenuse first, then add all three sides: {{ans}} units.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Hypotenuse: $\\sqrt{ {{a}}^2+{{b}}^2}=\\sqrt{ {{sum}} }={{c}}$ units.",
+          "Perimeter: ${{a}}+{{b}}+{{c}}={{ans}}$ units."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding only the two legs, or guessing the hypotenuse without the Pythagorean theorem.",
+        "answerSummary": "${{ans}}$ units"
       },
       "prompt": "A right triangle has legs {{a}} and {{b}} units long. What is the perimeter of the triangle?",
       "generator": {
@@ -31062,7 +31129,8 @@
           "ans": "40*k",
           "d1": "23*k",
           "d2": "31*k",
-          "d3": "34*k"
+          "d3": "34*k",
+          "sum": "a*a+b*b"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -43168,11 +43236,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Larger $x$ goes with larger $y$: a positive association.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Read the points in order of $x$: the $y$-values are {{y1}}, {{y2}}, {{y3}} and {{y4}}.",
+          "From $x=1$ to $x=4$, $y$ rises by ${{y4}}-{{y1}}={{rise}}$, and no later point is lower than an earlier one.",
+          "When $y$ tends to increase as $x$ increases, the association is positive."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Calling it constant or unrelated because the points do not lie exactly on a line.",
+        "answerSummary": "A positive association"
       },
       "prompt": "The data points are $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, $({{x3}},{{y3}})$, and $({{x4}},{{y4}})$. Which description best matches the association between $x$ and $y$?",
       "generator": {
@@ -43196,7 +43267,8 @@
           "y1": "m+b",
           "y2": "2*m+b+1",
           "y3": "3*m+b-1",
-          "y4": "4*m+b"
+          "y4": "4*m+b",
+          "rise": "y4-y1"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -43421,11 +43493,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Larger $x$ goes with smaller $y$: a downward trend.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Read the points in order of $x$: the $y$-values are {{y1}}, {{y2}}, {{y3}} and {{y4}}, each lower than the one before.",
+          "From $x=1$ to $x=4$, $y$ falls by ${{y1}}-{{y4}}={{fall}}$.",
+          "So as $x$ increases, $y$ tends to decrease."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Reading the trend from right to left, which reverses its direction.",
+        "answerSummary": "As $x$ increases, $y$ tends to decrease."
       },
       "prompt": "The points $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, $({{x3}},{{y3}})$, and $({{x4}},{{y4}})$ are plotted. Which description best matches the overall trend?",
       "generator": {
@@ -43449,7 +43524,8 @@
           "y1": "b-m",
           "y2": "b-2*m+1",
           "y3": "b-3*m-1",
-          "y4": "b-4*m"
+          "y4": "b-4*m",
+          "fall": "y1-y4"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -43674,11 +43750,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Substitute $x={{x}}$ into the line: $y={{ans}}$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The prediction is the line's $y$-value at $x={{x}}$.",
+          "$y={{m}}\\cdot {{x}}{{b|term}}={{ans}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the slope to $x$ instead of multiplying, or leaving out the intercept.",
+        "answerSummary": "$y={{ans}}$"
       },
       "prompt": "A line of best fit for a scatterplot is $y={{m}}x+{{b}}$. According to the line, what value of $y$ is predicted when $x={{x}}$?",
       "generator": {
@@ -43936,11 +44014,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Observed minus predicted: {{gap}} units above the line.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "At $x={{x}}$ the line gives {{pred}} and the point is at {{obs}}.",
+          "${{obs}}-{{pred}}={{gap}}$, so the point is {{gap}} units above the line."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Giving the observed value itself, or adding the two values.",
+        "answerSummary": "${{gap}}$"
       },
       "prompt": "A line of best fit predicts $y={{pred}}$ when $x={{x}}$. The observed point at that $x$-value has $y={{obs}}$. How far above the line of best fit is the observed point?",
       "generator": {
@@ -44193,11 +44273,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Slope {{m}}, $y$-intercept {{b}}: $y={{m}}x+{{b}}$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Slope: each step of 1 in $x$ raises $y$ by ${{y2}}-{{y1}}={{m}}$.",
+          "Intercept: step back from $(1,{{y1}})$ to $x=0$: ${{y1}}-{{m}}={{b}}$.",
+          "Check the third point: ${{m}}\\cdot 3+{{b}}={{y3}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Swapping the slope and the intercept.",
+        "answerSummary": "$y={{m}}x+{{b}}$"
       },
       "prompt": "The points $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, and $({{x3}},{{y3}})$ lie on a line. Which equation represents that line?",
       "generator": {
@@ -44450,11 +44533,14 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Compare each model's distance from {{obs}}: Model A, by {{gap}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Model A's error: ${{obs}}-{{aPred}}={{e1}}$.",
+          "Model B's error: ${{bPred}}-{{obs}}={{eB}}$.",
+          "Model A is closer, by ${{eB}}-{{e1}}={{gap}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Adding the two errors, or comparing the predictions with each other instead of with the observed value.",
+        "answerSummary": "Model A, by {{gap}}"
       },
       "prompt": "For $x={{x}}$, an observed point has $y={{obs}}$. Model A predicts {{aPred}} and model B predicts {{bPred}}. Which model has the smaller absolute prediction error, and by how much?",
       "generator": {
@@ -44484,7 +44570,8 @@
           "aPred": "obs-e1",
           "bPred": "obs+e1+extra",
           "gap": "extra",
-          "sumErr": "2*e1+extra"
+          "sumErr": "2*e1+extra",
+          "eB": "e1+extra"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -44710,11 +44797,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Keep adding the same step, {{d}}: {{ans}}.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "The step between values is ${{y2}}-{{y1}}={{d}}$, and it is the same each time.",
+          "Next value: ${{y4}}+{{d}}={{ans}}$."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Repeating the last value, or adding the step twice.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "For equally spaced $x$-values, the $y$-values are {{y1}}, {{y2}}, {{y3}}, and {{y4}}, increasing by the same amount each time. What value is predicted next if the trend continues?",
       "generator": {
@@ -44964,11 +45053,13 @@
         "Identify the relevant geometric property or measurement formula, then apply every stated condition."
       ],
       "solutionReview": {
-        "headline": "Connect the geometric relationships.",
+        "headline": "Residual is observed minus predicted: ${{ans}}$.",
         "reasoning": [
-          "Use the stated dimensions, angle relationships, or measurement formulas in the order required by the problem."
+          "Observed {{obs}}, predicted {{pred}}.",
+          "${{obs}}-{{pred}}={{ans}}$; the residual is negative because the point lies below the line."
         ],
-        "answerSummary": "Check that the result satisfies the original geometric conditions and units."
+        "commonError": "Subtracting in the other order, which gives the right size with the wrong sign.",
+        "answerSummary": "${{ans}}$"
       },
       "prompt": "A line of best fit predicts $y={{pred}}$ at $x={{x}}$, but an outlying observed point has $y={{obs}}$. If residual is defined as observed minus predicted, what is the residual for this point?",
       "generator": {

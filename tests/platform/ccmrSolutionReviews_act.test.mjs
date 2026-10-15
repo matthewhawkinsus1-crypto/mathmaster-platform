@@ -44,13 +44,15 @@ const DECLINED = Object.freeze({
 
 // How many still publish their generic review (shrinks to 0 as the slices
 // land; a template is pending while its review hashes to the pinned generic).
-const EXPECTED_PENDING = 72;
+const EXPECTED_PENDING = 40;
 
 // Reviews whose reasoning is verbal (a definition or an interpretation) and so
 // states no relation for the arithmetic check. Everything else must have at
 // least one relation verified across its draws.
 const VERBAL = new Set([
   'mm_act_ies_simpleequationsinequalities_4_capacity-inequality_v21',
+  'mm_act_ies_coordinateplane_1_quadrant-identification_v21',
+  'mm_act_ies_coordinateplane_2_reflection-across-x-axis_v21',
 ]);
 
 const stable = (value) => (Array.isArray(value)
