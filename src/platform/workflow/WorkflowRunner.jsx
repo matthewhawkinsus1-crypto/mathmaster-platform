@@ -13,7 +13,8 @@ import AxisSetupStage from './AxisSetupStage';
 import FigureMatchStage from './FigureMatchStage';
 import GraphFeatureSelectStage from './GraphFeatureSelectStage';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
-import { previewFigures } from './choicePreview';
+import { choicePreviewLabel, previewFigures, previewGivenEvaluators } from './choicePreview';
+import { evaluateStaticGraphFunction } from '../../graphSpecUtils';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
@@ -171,18 +172,17 @@ function PointInputStage({ stage, value, onChange, disabled }) {
 function ChoicePreviewGraph({ stage, value }) {
   const config = isObject(stage?.previewOnGraph) ? stage.previewOnGraph : null;
   const graph = isObject(config?.graph) ? config.graph : (isObject(config) ? config : {});
-  const model = typeof graph.model === 'string' ? graph.model.trim() : '';
+  // The given graph (an expression model and/or structured functions) under the
+  // preview, and the selected choice's LABEL: an { id, label } choice stores its
+  // id, which draws nothing (functions/shared/toolMath/workflow/choicePreview.mjs).
+  const functions = useMemo(() => previewGivenEvaluators({
+    graph: isObject(config?.graph) ? config.graph : (isObject(config) ? config : {}),
+    evaluateModel: evaluateModelAt,
+    evaluateSpec: evaluateStaticGraphFunction,
+  }), [config]);
+  const shown = choicePreviewLabel(stage, value);
 
-  const functions = useMemo(() => {
-    if (!model) return [];
-    const evaluate = (x) => {
-      const y = evaluateModelAt(model, x);
-      return Number.isFinite(y) ? y : Number.NaN;
-    };
-    return Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1)) ? [evaluate] : [];
-  }, [model]);
-
-  const figures = previewFigures(value);
+  const figures = previewFigures(shown);
   const given = Array.isArray(graph.points) ? graph.points : [];
   const viewWindow = {
     xMin: Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10,
@@ -206,11 +206,11 @@ function ChoicePreviewGraph({ stage, value }) {
         lines={figures.lines}
         verticalLines={figures.verticalLines}
         horizontalLines={figures.horizontalLines}
-        ariaLabel={value ? `Graph showing the option you selected, ${value}` : 'Graph'}
+        ariaLabel={shown ? `Graph showing the option you selected, ${shown}` : 'Graph'}
       />
       <p style={{ margin: '6px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }} aria-live="polite">
-        {value
-          ? `Showing ${value} on the graph. Try another option to see what it looks like.`
+        {shown
+          ? `Showing ${shown} on the graph. Try another option to see what it looks like.`
           : 'Choose an option to see it drawn on the graph.'}
       </p>
     </div>

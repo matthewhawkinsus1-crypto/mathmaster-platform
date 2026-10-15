@@ -118,3 +118,42 @@ export const previewFigures = (label) => {
     horizontalLines: [],
   };
 };
+
+/**
+ * The text of the selected choice. A step's choices are plain strings or
+ * { id, label } objects, and for an object the step stores the id. Drawing the
+ * id drew nothing (Oct 2026, Algebra I M2 T2 L3: picking "y = 4" told the
+ * student "Showing c on the graph" over an empty grid), while validation
+ * checked the labels and passed.
+ */
+export const choicePreviewLabel = (stage, value) => {
+  if (value === null || value === undefined || value === '') return '';
+  const choices = Array.isArray(stage?.choices) ? stage.choices : [];
+  const match = choices.find((choice) => (
+    choice && typeof choice === 'object' && String(choice.id) === String(value)
+  ));
+  return match ? String(match.label ?? match.id) : String(value);
+};
+
+/**
+ * What the step is about, drawn under whichever option is previewed: an
+ * expression `model`, and any structured `functions` ({ type: 'line', m, b } and
+ * the other static-graph families). A step that says "the graph shows
+ * y = −(1/2)x + 4" has to show it; only `model` was drawn before.
+ * The evaluators are passed in so this module stays free of browser code.
+ */
+export const previewGivenEvaluators = ({ graph = {}, evaluateModel = null, evaluateSpec = null } = {}) => {
+  const drawable = (evaluate) => Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1));
+  const evaluators = [];
+  const model = typeof graph?.model === 'string' ? graph.model.trim() : '';
+  if (model && evaluateModel) {
+    const evaluate = (x) => { const y = evaluateModel(model, x); return Number.isFinite(y) ? y : Number.NaN; };
+    if (drawable(evaluate)) evaluators.push(evaluate);
+  }
+  for (const spec of Array.isArray(graph?.functions) ? graph.functions : []) {
+    if (!spec || typeof spec !== 'object' || !evaluateSpec) continue;
+    const evaluate = (x) => { const y = evaluateSpec(spec, x); return Number.isFinite(y) ? y : Number.NaN; };
+    if (drawable(evaluate)) evaluators.push(evaluate);
+  }
+  return evaluators;
+};

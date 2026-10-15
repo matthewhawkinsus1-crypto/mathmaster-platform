@@ -52,8 +52,20 @@ export const SPEECH_LANGUAGES = Object.freeze(Object.keys(WORDS));
 const wordsFor = (language) => WORDS[String(language || 'en').toLowerCase().split('-')[0]] || WORDS.en;
 
 // One-letter names that are functions when followed by "(": f(x), g(2), C(n).
-// x, y, a, b, c, n, k, m are left alone so x(x + 1) is still a product.
-const FUNCTION_LETTERS = 'fghpqrstuvwCPAVRNTDHGF';
+// x, y, a, b, c, n, k, m are left alone so x(x + 1) is still a product. j is a
+// function: Algebra I names a fourth function j(x) far more often than it
+// multiplies by a variable j (Oct 2026: "j times the quantity x equals 2x − 1").
+const FUNCTION_LETTERS = 'fghjpqrstuvwCPAVRNTDHGF';
+
+// f(x − 7) and f(x) − 7 are opposite transformations, so the words must differ:
+// an input of more than one term is "the quantity", as a bracket is everywhere
+// else ("f of the quantity x minus 7" against "f of x minus 7").
+const functionApplicationSpeech = (w) => (match, before, name, argument) => (
+  // An operator after the first character: f(−3) is one term, f(x − 3) is two.
+  /.[\s+\-−*/·=<>]/.test(argument.trim())
+    ? `${before} ${name} ${w.of} ${w.quantity} ${argument} `
+    : `${before} ${name} ${w.of} ${argument} `
+);
 
 // The argument of a LaTeX command, braces balanced: `\frac{x^{2}+1}{3}` has
 // numerator `x^{2}+1`. Returns [argument, indexAfter] or null.
@@ -191,7 +203,7 @@ const plainMathToSpeech = (raw, w) => {
   ));
   text = text
     .replace(/\|([^|]+)\|/g, ` ${w.abs} $1 `)
-    .replace(new RegExp(`(^|[^A-Za-z])([${FUNCTION_LETTERS}])\\(([^()]+)\\)`, 'g'), `$1 $2 ${w.of} $3 `)
+    .replace(new RegExp(`(^|[^A-Za-z])([${FUNCTION_LETTERS}])\\(([^()]+)\\)`, 'g'), functionApplicationSpeech(w))
     .replace(/(?:√|\bsqrt)\s*\(([^()]+)\)/g, ` ${w.squareRoot} $1 `)
     .replace(/√\s*([A-Za-z0-9.]+)/g, ` ${w.squareRoot} $1 `)
     .replace(/\^\(?-1\)?/g, ` ${w.inverse} `)

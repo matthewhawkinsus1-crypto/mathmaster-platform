@@ -106,3 +106,24 @@ test('a bracket after an operator is a quantity, not a product', () => {
   assert.equal(mathToSpeech('x + (2 - x)', { language: 'es' }), 'x más la cantidad 2 menos x');
   assert.equal(mathToSpeech('3 * (x + 1)', { language: 'es' }), '3 por la cantidad x más 1');
 });
+
+// FUNCTION NOTATION, READ ALOUD. Found doing Algebra I M2 T2 L2 as a student
+// (docs/qa/algebra1-m2t2-student-walkthrough.md): "Graph g(x) = f(x − 7)" and
+// "Graph g(x) = f(x) − 4" were both read "g of x equals f of x minus …", so a
+// student listening could not tell a shift right from a shift down — the one
+// distinction that lesson teaches. And j(x) was read "j times the quantity x".
+test('an input of more than one term is spoken as a quantity, so f(x − 7) and f(x) − 7 sound different', () => {
+  assert.equal(mathToSpeech('g(x) = f(x − 7)'), 'g of x equals f of the quantity x minus 7');
+  assert.equal(mathToSpeech('g(x) = f(x) − 7'), 'g of x equals f of x minus 7');
+  assert.notEqual(mathToSpeech('3f(x − 2)'), mathToSpeech('3f(x) − 2'));
+  assert.notEqual(mathToSpeech('f(x + 4) + 1'), mathToSpeech('f(x) + 4 + 1'));
+  assert.equal(mathToSpeech('f(−3)'), 'f of negative 3', 'one signed term is not a quantity');
+  assert.equal(mathToSpeech('h(2x)'), 'h of 2x');
+  assert.equal(mathToSpeech('y − 2 = m(x − 6)'), 'y minus 2 equals m times the quantity x minus 6', 'point-slope m(…) is still a product');
+  assert.equal(mathToSpeech('g(x) = f(x − 7)', { language: 'es' }), 'g de x es igual a f de la cantidad x menos 7');
+});
+
+test('j(x) is a function, not j times x', () => {
+  assert.equal(mathToSpeech('j(x) = 2x − 1'), 'j of x equals 2x minus 1');
+  assert.equal(mathToSpeech('q(x) = j(x) + 4'), 'q of x equals j of x plus 4');
+});
