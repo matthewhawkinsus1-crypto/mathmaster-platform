@@ -68,7 +68,7 @@ export const MyMathPathDashboard = ({
   return (
     <section style={{ maxWidth: '980px', margin: '0 auto', padding: '24px 18px 42px' }}>
       <header style={{ marginBottom: '20px', textAlign: 'left' }}>
-        <h1 style={{ margin: 0, fontSize: '28px', lineHeight: 1.2, color: 'var(--mm-text-strong)' }}>Welcome back, {studentName}!</h1>
+        <h1 style={{ margin: 0, fontSize: 'calc(28 * var(--mm-px))', lineHeight: 1.2, color: 'var(--mm-text-strong)' }}>Welcome back, {studentName}!</h1>
         <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)' }}>Your {courseLabel} skills, and what to work on next.</p>
       </header>
 
@@ -105,13 +105,13 @@ export const MyMathPathDashboard = ({
           focus card would drift down the page with it. */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '22px', alignItems: 'start' }}>
         <div style={{ minWidth: 0, padding: '18px', border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface)' }}>
-          <h2 style={{ margin: '0 0 10px', fontSize: '18px', color: 'var(--mm-text)', textAlign: 'left' }}>Your skills map</h2>
+          <h2 style={{ margin: '0 0 10px', fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text)', textAlign: 'left' }}>Your skills map</h2>
           <MyMathPathWheel masteryProfilesByTEKS={masteryProfilesByTEKS} skillProgressByTEKS={skillProgressByTEKS} onSelectTEKS={setSelectedTeks} courseId={courseId} />
         </div>
 
         <div style={{ display: 'grid', gap: '13px' }}>
           <div style={{ padding: '22px', border: '1px solid var(--mm-tint-border)', borderRadius: '12px', background: 'var(--mm-surface-tint)', textAlign: 'left' }}>
-            <div style={{ color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{focus?.isRetentionCheck ? 'Priority verification focus' : 'Recommended next focus'}</div>
+            <div style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{focus?.isRetentionCheck ? 'Priority verification focus' : 'Recommended next focus'}</div>
             {focus ? (
               <>
                 <h2 style={{ margin: '7px 0 5px', color: 'var(--mm-text-strong)' }}>{studentLabelForTeks(activeFocusTeks)}</h2>
@@ -120,7 +120,7 @@ export const MyMathPathDashboard = ({
                     sentence the Path map's retention card uses. A hand-written
                     fallback here would be a second voice explaining a decision
                     it did not make. */}
-                <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: '14px' }}>
+                <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>
                   {focus.isRetentionCheck
                     ? (focus.concern ? RETENTION_REASON.concern : RETENTION_REASON.due)
                     : activeProfile?.recommendation?.reason
@@ -130,12 +130,12 @@ export const MyMathPathDashboard = ({
                 <button type="button" onClick={() => onStartSession?.(focus.teksCode, focus.launch)} style={{ width: '100%', minHeight: 44, padding: '11px 15px', border: 0, borderRadius: '7px', background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>{focus.buttonLabel}</button>
               </>
             ) : (
-              <p style={{ margin: '7px 0 0', color: 'var(--mm-text-muted)', fontSize: '14px' }}>
+              <p style={{ margin: '7px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>
                 Choose any part of the wheel to practise. Your Path will suggest a focus once your class position is set.
               </p>
             )}
           </div>
-          <div style={{ padding: '15px', border: '1px solid var(--mm-border)', borderRadius: '9px', background: 'var(--mm-surface)', textAlign: 'left', fontSize: '12px', lineHeight: 1.7 }}>
+          <div style={{ padding: '15px', border: '1px solid var(--mm-border)', borderRadius: '9px', background: 'var(--mm-surface)', textAlign: 'left', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.7 }}>
             {/* The legend used the same green glyph for two different states
                 and named a fourth state ("Needs work") that never appears —
                 the wheel says "Needs Attention". It then drew Secure as a blue

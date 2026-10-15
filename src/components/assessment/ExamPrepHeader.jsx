@@ -101,25 +101,25 @@ export const ExamPrepHeader = ({
               aria-expanded={navigatorOpen}
               aria-controls={navigatorOpen && navigatorId ? navigatorId : undefined}
               data-secure-navigator-toggle=""
-              style={{ ...control, padding: '6px 11px', fontSize: 14 }}
+              style={{ ...control, padding: '6px 11px', fontSize: 'calc(14 * var(--mm-px))' }}
             >
               {position} <span aria-hidden="true">▾</span>
             </button>
           )
-          : <div style={{ fontSize: 12, color: '#bdc1c6' }}>{position}</div>}
+          : <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: '#bdc1c6' }}>{position}</div>}
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" data-secure-timer="" aria-label={timerLabel} onClick={() => setTimerHidden((value) => !value)} disabled={forceVisible || secondsRemaining == null} style={{ ...control, fontWeight: 700, cursor: forceVisible || secondsRemaining == null ? 'default' : 'pointer' }}>
           {secondsRemaining == null ? 'Untimed' : timerHidden && !forceVisible ? 'Show timer' : `${formatTime(secondsRemaining)}${clockPaused ? ' · stopped' : ''}`}
         </button>
-        {extendedTime && secondsRemaining != null && <span style={{ padding: '7px 10px', borderRadius: 7, background: '#303134', color: '#e8eaed', fontSize: 12 }}>Includes your extended time</span>}
+        {extendedTime && secondsRemaining != null && <span style={{ padding: '7px 10px', borderRadius: 7, background: '#303134', color: '#e8eaed', fontSize: 'calc(12 * var(--mm-px))' }}>Includes your extended time</span>}
         {onToggleReviewFlag && (
           <button type="button" onClick={onToggleReviewFlag} aria-pressed={reviewFlagged} style={{ ...control, background: reviewFlagged ? 'var(--mm-warning-soft)' : '#303134', color: reviewFlagged ? 'var(--mm-warning-text)' : '#fff' }}>
             {reviewFlagged ? '★ Marked for review' : '☆ Mark for review'}
           </button>
         )}
         {tools}
-        {!tools && policy.examType !== 'courseTest' && policy.formulaSheet === 'none' && <span style={{ padding: '7px 10px', borderRadius: 7, background: '#303134', color: '#e8eaed', fontSize: 12 }}>No formula sheet</span>}
+        {!tools && policy.examType !== 'courseTest' && policy.formulaSheet === 'none' && <span style={{ padding: '7px 10px', borderRadius: 7, background: '#303134', color: '#e8eaed', fontSize: 'calc(12 * var(--mm-px))' }}>No formula sheet</span>}
       </div>
     </header>
   );

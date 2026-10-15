@@ -158,7 +158,7 @@ export function ToastProvider({ children }) {
               padding: '26px 28px', textAlign: 'left',
             }}
           >
-            <h2 id="mm-confirm-title" style={{ margin: 0, fontSize: '19px', color: 'var(--mm-ink)' }}>
+            <h2 id="mm-confirm-title" style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-ink)' }}>
               {confirmState.title}
             </h2>
             {confirmState.message && (

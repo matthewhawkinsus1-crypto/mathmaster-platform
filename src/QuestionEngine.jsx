@@ -1867,7 +1867,7 @@ function QuestionEngineBody({
           return (
             <div>
               <LiteralGrader {...commonModuleProps} />
-              <p style={{ margin: '12px auto 0', maxWidth: 680, color: 'var(--mm-warning-text)', fontSize: 13, lineHeight: 1.55 }}>
+              <p style={{ margin: '12px auto 0', maxWidth: 680, color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
                 This question asked to be solved on the balance workspace, but {literalWorkspace.reason}, so it is
                 shown as a written answer instead.
               </p>
@@ -1917,7 +1917,7 @@ function QuestionEngineBody({
             <p style={{ margin: '10px 0 0', lineHeight: 1.55 }}>
               It uses a question type this version of MathMaster does not know how to show. Nothing you did caused this and your grade is not affected — let your teacher know.
             </p>
-            <p style={{ margin: '10px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
+            <p style={{ margin: '10px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
               Details for your teacher: unsupported question type &ldquo;{String(processedQuestion.type)}&rdquo;.
             </p>
           </div>
@@ -2221,7 +2221,7 @@ function QuestionEngineBody({
       {/* One quiet line in the student's words. It was a full-weight banner in
           grading vocabulary ("records the daily DOL grade during the active
           class window"), louder than the task it sat under. */}
-      {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '7px 12px', borderRadius: '10px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: '14px', fontWeight: 800 }}>DOL exit ticket · this question counts toward today&apos;s DOL grade.</div>}
+      {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '7px 12px', borderRadius: '10px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800 }}>DOL exit ticket · this question counts toward today&apos;s DOL grade.</div>}
       {questionGradeWeight !== 1 && (
         <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '9px 13px', borderRadius: '10px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>
           Grade weight ×{questionGradeWeight} · this question counts {questionGradeWeight} times a standard-weight question in this section&apos;s grade and in the assignment grade.
@@ -2230,7 +2230,7 @@ function QuestionEngineBody({
 
       {formulaAnchor && supportPresentation.inclusion && (
         <aside style={{ position: 'sticky', top: '8px', zIndex: 4, margin: '0 0 12px auto', width: 'fit-content', maxWidth: '100%', padding: '10px 14px', borderRadius: '10px', background: 'var(--mm-warning-soft)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', boxShadow: '0 4px 12px rgba(95,68,0,0.12)' }}>
-          <strong style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>Formula anchor</strong>
+          <strong style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', marginBottom: '4px' }}>Formula anchor</strong>
           <MathDisplay value={formulaAnchor} format="latex" />
         </aside>
       )}
@@ -2489,7 +2489,7 @@ function QuestionEngineBody({
           // only by choosing the right step (no attempt spent).
           <section ref={scaffoldRef} role="region" aria-label="Productive struggle scaffold" data-scaffold="" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
             <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
-              <div style={{ fontSize: '12px', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
+              <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
               <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}>{scaffold.prompt}</h2>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {(scaffold.options || []).map((option) => (
@@ -2504,8 +2504,8 @@ function QuestionEngineBody({
         {isCorrect && showOutcomeFeedback && (
           <div aria-label="Correct answer" role="status" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: 'rgba(230,244,234,0.10)' }}>
             <div style={{ transform: 'rotate(-8deg)', textAlign: 'center', color: 'rgba(24,128,56,0.16)', textShadow: '0 2px 18px rgba(24,128,56,0.12)' }}>
-              <div style={{ fontSize: 'clamp(120px, 24vw, 250px)', fontWeight: 900, lineHeight: 0.72 }}>✓</div>
-              <div style={{ fontSize: 'clamp(42px, 8vw, 92px)', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Correct</div>
+              <div style={{ fontSize: 'clamp(calc(120 * var(--mm-px)), calc(24vw * var(--mm-text-scale, 1)), calc(250 * var(--mm-px)))', fontWeight: 900, lineHeight: 0.72 }}>✓</div>
+              <div style={{ fontSize: 'clamp(calc(42 * var(--mm-px)), calc(8vw * var(--mm-text-scale, 1)), calc(92 * var(--mm-px)))', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Correct</div>
             </div>
           </div>
         )}
@@ -2515,7 +2515,7 @@ function QuestionEngineBody({
       </WorkViewCapabilityProvider>
         )}
         actionButtons={!locked && shouldShowSubmit ? (
-        <button ref={submitButtonRef} type="button" className="mathmaster-bar-submit" aria-label={submitLabel} onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: submitDisabled ? 'var(--mm-disabled-text)' : 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
+        <button ref={submitButtonRef} type="button" className="mathmaster-bar-submit" aria-label={submitLabel} onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: 'calc(16 * var(--mm-px))', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: submitDisabled ? 'var(--mm-disabled-text)' : 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
           {/* A phone's one-row bar now carries a Hint control too: "Submit"
               alone fits beside five icons where "Submit An…" was cut off.
               The full label stays the button's accessible name. */}
@@ -2534,7 +2534,7 @@ function QuestionEngineBody({
           className="mathmaster-bar-continue"
           onClick={barContinueAction.onClick}
           aria-label={barContinueAction.label}
-          style={{ minHeight: '44px', padding: '12px 20px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: '#1a73e8', color: 'white', cursor: 'pointer', boxShadow: '0 4px 6px rgba(26, 115, 232, 0.2)', whiteSpace: 'nowrap' }}
+          style={{ minHeight: '44px', padding: '12px 20px', fontSize: 'calc(16 * var(--mm-px))', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: '#1a73e8', color: 'white', cursor: 'pointer', boxShadow: '0 4px 6px rgba(26, 115, 232, 0.2)', whiteSpace: 'nowrap' }}
         >
           {barActionLabel(barContinueAction.label)}
         </button>
@@ -2557,7 +2557,7 @@ function QuestionEngineBody({
       {/* A question the server cannot grade is not quietly marked wrong: the
           student is told it was not submitted, which is what happened. */}
       {feedback?.blocked && (
-        <div role="alert" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontSize: '15px', fontWeight: 'bold' }}>
+        <div role="alert" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 'bold' }}>
           {feedback.message}
         </div>
       )}
@@ -2569,7 +2569,7 @@ function QuestionEngineBody({
           A registry tool that showed its own verdict shows this outcome beside
           it instead (`outcomeInTool`, PQ-022): one place, one announcement. */}
       {feedback && !feedback.blocked && showOutcomeFeedback && !outcomeInTool && (
-        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)', color: feedback.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-danger)', fontSize: '16px', fontWeight: 'bold' }}>
+        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)', color: feedback.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-danger)', fontSize: 'calc(16 * var(--mm-px))', fontWeight: 'bold' }}>
           {attemptOutcomeText}
           {!feedback.isCorrect && isComposed && workflowSubmissionReview?.parts?.some((part) => part?.graded !== false && !part?.isCorrect) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>
@@ -2655,22 +2655,22 @@ function QuestionEngineBody({
             }}
           >
             <span>
-              <span style={{ display: 'block', fontSize: '11px', fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.88 }}>{isCorrect && !terminalFeedbackHidden ? 'You got it — keep going' : 'This question is closed — keep going'}</span>
-              <span style={{ display: 'block', marginTop: '3px', fontSize: '21px', fontWeight: 950 }}>Next Question</span>
+              <span style={{ display: 'block', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.88 }}>{isCorrect && !terminalFeedbackHidden ? 'You got it — keep going' : 'This question is closed — keep going'}</span>
+              <span style={{ display: 'block', marginTop: '3px', fontSize: 'calc(21 * var(--mm-px))', fontWeight: 950 }}>Next Question</span>
               {(nextQuestionLabel || nextQuestionSectionLabel) && (
-                <span style={{ display: 'block', marginTop: '2px', fontSize: '13px', fontWeight: 750, opacity: 0.92 }}>
+                <span style={{ display: 'block', marginTop: '2px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 750, opacity: 0.92 }}>
                   {nextQuestionSectionLabel ? `${nextQuestionSectionLabel} · ` : ''}{nextQuestionLabel}
                 </span>
               )}
-              <span style={{ display: 'block', marginTop: '5px', fontSize: '12px', fontWeight: 800, opacity: 0.9 }}>{ENTER_TO_CONTINUE_HINT}</span>
+              <span style={{ display: 'block', marginTop: '5px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, opacity: 0.9 }}>{ENTER_TO_CONTINUE_HINT}</span>
             </span>
-            <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: '30px', lineHeight: 1, fontWeight: 950 }}>→</span>
+            <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 'calc(30 * var(--mm-px))', lineHeight: 1, fontWeight: 950 }}>→</span>
           </button>
         </div>
       )}
 
       {terminalFeedbackHidden && (
-        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)', fontSize: '15px', fontWeight: 'bold' }}>
+        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 'bold' }}>
           {heldFeedbackMessage}
         </div>
       )}

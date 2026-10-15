@@ -92,7 +92,7 @@ function HeldRecoveryResolution({ student, assignment, row }) {
       {pending && (
         <div role="group" aria-label={actionLabel(row, pending)} style={{ display: 'grid', gap: 6, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-muted)', border: '1px solid var(--mm-border)' }}>
           <span>{row.legacyNotice ? LEGACY_CONFIRM : ACTION_CONFIRM[pending]}</span>
-          <label style={{ fontSize: 12 }}>
+          <label style={{ fontSize: 'calc(12 * var(--mm-px))' }}>
             Optional note (kept in the audit trail)
             <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: 44, marginTop: 4, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)' }} />
           </label>
@@ -104,7 +104,7 @@ function HeldRecoveryResolution({ student, assignment, row }) {
           </div>
         </div>
       )}
-      {message && <p role="status" style={{ margin: 0, fontSize: 12.5, color: 'var(--mm-text-muted)' }}>{message}</p>}
+      {message && <p role="status" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{message}</p>}
     </div>
   );
 }
@@ -120,7 +120,7 @@ export default function SectionRecoveryAuditTrail({ student, assignment }) {
       style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', display: 'grid', gap: 8, textAlign: 'left' }}
     >
       {challenge && (
-        <div data-warmup-challenge-audit="true" style={{ display: 'grid', gap: 3, fontSize: 12.5, color: 'var(--mm-text)' }}>
+        <div data-warmup-challenge-audit="true" style={{ display: 'grid', gap: 3, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)' }}>
           <strong style={{ color: 'var(--mm-text-strong)' }}>{challenge.label}</strong>
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
             <span>Challenge <strong>{challenge.challenge}</strong></span>
@@ -130,9 +130,9 @@ export default function SectionRecoveryAuditTrail({ student, assignment }) {
           <div style={{ color: 'var(--mm-text-muted)' }}>{challenge.reason}</div>
         </div>
       )}
-      {rows.length > 0 && <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>Practice-based Recovery</div>}
+      {rows.length > 0 && <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>Practice-based Recovery</div>}
       {rows.map((row) => (
-        <div key={row.section} data-recovery-audit-section={row.section} data-recovery-audit-status={row.status} data-recovery-awaiting={row.awaitingStudent ? 'student' : undefined} style={{ display: 'grid', gap: 3, fontSize: 12.5, color: 'var(--mm-text)' }}>
+        <div key={row.section} data-recovery-audit-section={row.section} data-recovery-audit-status={row.status} data-recovery-awaiting={row.awaitingStudent ? 'student' : undefined} style={{ display: 'grid', gap: 3, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)' }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
             <strong style={{ color: 'var(--mm-text-strong)' }}>{row.label}</strong>
             <span style={{ color: row.held || row.legacyNotice ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)', fontWeight: row.held || row.legacyNotice ? 800 : 400 }}>{row.statusLabel}{row.typeLabel ? ` · ${row.typeLabel}` : ''}</span>

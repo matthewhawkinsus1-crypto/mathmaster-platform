@@ -76,7 +76,7 @@ export const toneChip = (tone, size = 'normal') => ({
   gap: 5,
   padding: size === 'small' ? '2px 8px' : '4px 10px',
   borderRadius: 999,
-  fontSize: size === 'small' ? 10.5 : 11.5,
+  fontSize: size === 'small' ? 'calc(10.5 * var(--mm-px))' : 'calc(11.5 * var(--mm-px))',
   fontWeight: 900,
   letterSpacing: '.02em',
   lineHeight: 1.55,

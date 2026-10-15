@@ -167,7 +167,7 @@ function StagedAdditivePreview({
         gap: 2,
         color: 'var(--mm-primary-text)',
         fontWeight: 900,
-        fontSize: compact ? 16 : 24,
+        fontSize: compact ? 'calc(16 * var(--mm-px))' : 'calc(24 * var(--mm-px))',
         whiteSpace: 'nowrap',
       }}
     >
@@ -217,7 +217,7 @@ function PlacementMiniMenu({
             borderRadius: 7,
             background: 'var(--mm-surface)',
             color: 'var(--mm-primary-text)',
-            fontSize: 11,
+            fontSize: 'calc(11 * var(--mm-px))',
             fontWeight: 800,
             cursor: 'pointer',
           }}
@@ -283,7 +283,7 @@ function AdditiveExpressionRegion({
     // still negative three-halves. Keep staging interactive, but use one
     // canonical sign renderer once the balanced operation is committed.
     return (
-      <span style={{ fontSize: 30, minWidth: 70, textAlign: 'center' }}>
+      <span style={{ fontSize: 'calc(30 * var(--mm-px))', minWidth: 70, textAlign: 'center' }}>
         <MathDisplay value={relationExpressionToLatex(expression)} format="latex" inline />
       </span>
     );
@@ -405,7 +405,7 @@ function AdditiveExpressionRegion({
                   opacity: activeBranch ? 1 : 0.8,
                 }}
               >
-                <span style={{ fontSize: 30 }}>
+                <span style={{ fontSize: 'calc(30 * var(--mm-px))' }}>
                   <MathDisplay value={visibleTermLatex} format="latex" inline />
                 </span>
               </button>
@@ -435,7 +435,7 @@ function AdditiveExpressionRegion({
                   color: 'var(--mm-primary-text)',
                                 }}
               >
-                <span aria-hidden="true" style={{ fontSize: 11, fontWeight: 900 }}>↓</span>
+                <span aria-hidden="true" style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>↓</span>
                 <StagedAdditivePreview
                   operation={operation}
                   operandLatex={operandLatex}
@@ -479,7 +479,7 @@ function FractionCancellationRegion({
 
   if (!model || model.kind !== 'fraction') {
     return (
-      <span style={{ fontSize: 30, minWidth: 70, textAlign: 'center' }}>
+      <span style={{ fontSize: 'calc(30 * var(--mm-px))', minWidth: 70, textAlign: 'center' }}>
         <MathDisplay value={relationExpressionToLatex(expression)} format="latex" inline />
       </span>
     );
@@ -523,7 +523,7 @@ function FractionCancellationRegion({
                   cursor: rewriteMode ? 'text' : 'pointer',
         }}
       >
-        <span style={{ fontSize: 24, color: 'var(--mm-text-strong)' }}>
+        <span style={{ fontSize: 'calc(24 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
           <MathDisplay
             value={factor.latex || expressionToLatex(factor.text)}
             format="latex"
@@ -1688,7 +1688,7 @@ export default function MultiRelationAlgebra({
                 borderRadius: 999,
                 background: 'var(--mm-primary-soft)',
                 color: 'var(--mm-primary-text)',
-                fontSize: 11,
+                fontSize: 'calc(11 * var(--mm-px))',
                 fontWeight: 900,
                 whiteSpace: 'nowrap',
               }}
@@ -1719,7 +1719,7 @@ export default function MultiRelationAlgebra({
                 padding: '5px 9px',
               }}
             >
-              <span style={{ fontSize: 16, marginRight: 3 }}>{item.symbol}</span>
+              <span style={{ fontSize: 'calc(16 * var(--mm-px))', marginRight: 3 }}>{item.symbol}</span>
               {item.label}
             </button>
           ))}
@@ -1790,7 +1790,7 @@ export default function MultiRelationAlgebra({
           style={{
             marginTop: 5,
             textAlign: 'center',
-            fontSize: 10.5,
+            fontSize: 'calc(10.5 * var(--mm-px))',
             color: 'var(--mm-text-muted)',
             lineHeight: 1.3,
           }}
@@ -1893,7 +1893,7 @@ export default function MultiRelationAlgebra({
                 color: 'var(--mm-text-muted)',
                 background: 'var(--mm-surface)',
                 borderRadius: 8,
-                fontSize: 12,
+                fontSize: 'calc(12 * var(--mm-px))',
                 fontWeight: 700,
                           }}
             >
@@ -1914,7 +1914,7 @@ export default function MultiRelationAlgebra({
           {stepCreditPercent > 0 && showImmediateFeedback && (
             <span
               title="Credit earned from valid algebra steps so far. Finishing the problem correctly earns full credit."
-              style={{ minHeight: 36, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 900 }}
+              style={{ minHeight: 36, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}
             >
               Step credit {stepCreditPercent}%
             </span>
@@ -1944,7 +1944,7 @@ export default function MultiRelationAlgebra({
           <span
             style={{
               color: 'var(--mm-text-muted)',
-              fontSize: 11,
+              fontSize: 'calc(11 * var(--mm-px))',
               fontWeight: 800,
               marginRight: 2,
             }}
@@ -1965,7 +1965,7 @@ export default function MultiRelationAlgebra({
                 borderRadius: 8,
                 background: 'var(--mm-surface)',
                 color: 'var(--mm-primary-text)',
-                fontSize: 12,
+                fontSize: 'calc(12 * var(--mm-px))',
                 fontWeight: 800,
                 cursor: disabled || relationState.special ? 'not-allowed' : 'pointer',
                 opacity: disabled || relationState.special ? 0.6 : 1,
@@ -1979,7 +1979,7 @@ export default function MultiRelationAlgebra({
             style={{
               width: '100%',
               color: 'var(--mm-text-muted)',
-              fontSize: 10.5,
+              fontSize: 'calc(10.5 * var(--mm-px))',
               lineHeight: 1.3,
             }}
           >
@@ -2021,7 +2021,7 @@ export default function MultiRelationAlgebra({
             background: 'var(--mm-surface-tint)',
           }}
         >
-          <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13 }}>Rewrite</strong>
+          <strong style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Rewrite</strong>
           <span
             style={{
               minHeight: 34,
@@ -2032,7 +2032,7 @@ export default function MultiRelationAlgebra({
               border: '1px solid var(--mm-primary-border)',
               background: 'var(--mm-surface)',
               color: 'var(--mm-text)',
-              fontSize: 12,
+              fontSize: 'calc(12 * var(--mm-px))',
               fontWeight: 800,
             }}
           >
@@ -2076,7 +2076,7 @@ export default function MultiRelationAlgebra({
           </button>
           <button type="button" onClick={() => setRewriteOpen(false)} style={buttonStyle(false)}>×</button>
 
-          <span style={{ width: '100%', color: 'var(--mm-text-muted)', fontSize: 11 }}>
+          <span style={{ width: '100%', color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>
             Click any expression below to select it. Type your equivalent expression, then press Enter or Check. MathMaster only checks it.
           </span>
         </div>
@@ -2097,7 +2097,7 @@ export default function MultiRelationAlgebra({
             background: 'var(--mm-surface-tint)',
           }}
         >
-          <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13 }}>Reverse absolute value</strong>
+          <strong style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Reverse absolute value</strong>
           <button
             type="button"
             onClick={() => applyAbsoluteSplitChoice('or')}
@@ -2133,7 +2133,7 @@ export default function MultiRelationAlgebra({
                 borderTop: '1px solid var(--mm-tint-border)',
               }}
             >
-              <div className="multi-relation-absolute-split-instructions" style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.4 }}>
+              <div className="multi-relation-absolute-split-instructions" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.4 }}>
                 {absoluteSplitStructure === 'or'
                   ? absoluteSplitModel.relation === '='
                     ? 'Type the right side of both equations. The platform will not create the positive/negative pair for you.'
@@ -2161,7 +2161,7 @@ export default function MultiRelationAlgebra({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'flex-end',
-                        fontSize: 22,
+                        fontSize: 'calc(22 * var(--mm-px))',
                         color: 'var(--mm-text-strong)',
                       }}
                     >
@@ -2173,7 +2173,7 @@ export default function MultiRelationAlgebra({
                     </div>
 
                     {absoluteSplitModel.relation === '=' ? (
-                      <span style={{ color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 22 }}>=</span>
+                      <span style={{ color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 'calc(22 * var(--mm-px))' }}>=</span>
                     ) : (
                       <select
                         value={absoluteSplitRelations[index] || ''}
@@ -2184,7 +2184,7 @@ export default function MultiRelationAlgebra({
                           )));
                         }}
                         aria-label={`Branch ${branchLabel(index)} inequality symbol`}
-                        style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 18, fontWeight: 900 }}
+                        style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900 }}
                       >
                         <option value="">?</option>
                         {['<', '<=', '>', '>='].map((choice) => (
@@ -2237,21 +2237,21 @@ export default function MultiRelationAlgebra({
                     value={absoluteSplitRelations[0] || ''}
                     onChange={(event) => setAbsoluteSplitRelations((current) => [event.target.value, current[1]])}
                     aria-label="Left inequality symbol"
-                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 18, fontWeight: 900 }}
+                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900 }}
                   >
                     <option value="">?</option>
                     {['<', '<=', '>', '>='].map((choice) => (
                       <option key={choice} value={choice}>{RELATION_GLYPH[choice]}</option>
                     ))}
                   </select>
-                  <div style={{ textAlign: 'center', fontSize: 22, color: 'var(--mm-text-strong)' }}>
+                  <div style={{ textAlign: 'center', fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
                     <MathDisplay value={relationExpressionToLatex(absoluteSplitModel.inner)} format="latex" inline />
                   </div>
                   <select
                     value={absoluteSplitRelations[1] || ''}
                     onChange={(event) => setAbsoluteSplitRelations((current) => [current[0], event.target.value])}
                     aria-label="Right inequality symbol"
-                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 18, fontWeight: 900 }}
+                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900 }}
                   >
                     <option value="">?</option>
                     {['<', '<=', '>', '>='].map((choice) => (
@@ -2307,7 +2307,7 @@ export default function MultiRelationAlgebra({
 
 
       {relationState.special ? (
-        <div style={{ padding: 28, border: '2px solid var(--mm-success-border)', borderRadius: 14, textAlign: 'center', background: 'var(--mm-success-subtle)', fontSize: 24, fontWeight: 800 }}>
+        <div style={{ padding: 28, border: '2px solid var(--mm-success-border)', borderRadius: 14, textAlign: 'center', background: 'var(--mm-success-subtle)', fontSize: 'calc(24 * var(--mm-px))', fontWeight: 800 }}>
           {relationState.special === 'noSolution' ? 'No solution' : 'All real numbers'}
         </div>
       ) : (
@@ -2447,7 +2447,7 @@ export default function MultiRelationAlgebra({
                             >
                               {placementByKey[key]?.kind === 'whole-operation'
                                 ? (
-                                  <span style={{ fontSize: 20, color: 'var(--mm-text-strong)' }}>
+                                  <span style={{ fontSize: 'calc(20 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
                                     <MathDisplay value={operand} format="latex" inline />
                                   </span>
                                 )
@@ -2482,7 +2482,7 @@ export default function MultiRelationAlgebra({
                                 ? 'var(--mm-primary-soft)'
                                 : 'var(--mm-surface)',
                               color: 'var(--mm-primary-text)',
-                              fontSize: 11,
+                              fontSize: 'calc(11 * var(--mm-px))',
                               fontWeight: 800,
                               cursor: 'pointer',
                             }}
@@ -2506,7 +2506,7 @@ export default function MultiRelationAlgebra({
 
                         if (!needsChoice) {
                           return (
-                            <span style={{ fontSize: 30, fontWeight: 900, color: 'var(--mm-primary-text)' }}>
+                            <span style={{ fontSize: 'calc(30 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)' }}>
                               {RELATION_GLYPH[relation] || relation}
                             </span>
                           );
@@ -2528,7 +2528,7 @@ export default function MultiRelationAlgebra({
                                 border: '2px solid #f9ab00',
                                 background: 'var(--mm-warning-bg)',
                                 color: 'var(--mm-primary-text)',
-                                fontSize: 30,
+                                fontSize: 'calc(30 * var(--mm-px))',
                                 fontWeight: 900,
                                 cursor: 'pointer',
                               }}
@@ -2560,7 +2560,7 @@ export default function MultiRelationAlgebra({
                                       event.stopPropagation();
                                       chooseRelationSymbol(branchIndex, expressionIndex, choice);
                                     }}
-                                    style={{ ...buttonStyle(false), minWidth: 38, padding: '4px 7px', fontSize: 18 }}
+                                    style={{ ...buttonStyle(false), minWidth: 38, padding: '4px 7px', fontSize: 'calc(18 * var(--mm-px))' }}
                                   >
                                     {RELATION_GLYPH[choice]}
                                   </button>
@@ -2578,7 +2578,7 @@ export default function MultiRelationAlgebra({
               {relationState.branches.length > 1 && (
                 <div
                   className={`multi-relation-branch-status${denseWorkspace ? ' multi-relation-branch-status--dense' : ''}`}
-                  style={{ textAlign: 'center', fontSize: 11, color: activeBranch === branchIndex ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', marginTop: 3 }}
+                  style={{ textAlign: 'center', fontSize: 'calc(11 * var(--mm-px))', color: activeBranch === branchIndex ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', marginTop: 3 }}
                 >
                   {denseWorkspace
                     ? <>Branch {branchLabel(branchIndex)}{activeBranch === branchIndex ? ' · active' : ''}</>
@@ -2592,7 +2592,7 @@ export default function MultiRelationAlgebra({
 
       {relationState.branches.length === 1 && operationDock}
 
-      <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 11, lineHeight: 1.35 }}>
+      <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.35 }}>
         Cancellation works directly on visible matching opposite terms and common numerator/denominator factors.
         Click two items, or press and drag from one item into its matching partner. Turn on Cancellation hints only when you want visual cues.
       </div>
@@ -2635,7 +2635,7 @@ export default function MultiRelationAlgebra({
         >
           <div
             style={{
-              fontSize: 15,
+              fontSize: 'calc(15 * var(--mm-px))',
               fontWeight: 900,
               marginBottom: 9,
               textAlign: 'center',
@@ -2661,7 +2661,7 @@ export default function MultiRelationAlgebra({
                   <span
                     style={{
                       color: 'var(--mm-text-muted)',
-                      fontSize: 12,
+                      fontSize: 'calc(12 * var(--mm-px))',
                       fontWeight: 900,
                     }}
                   >
@@ -2681,15 +2681,15 @@ export default function MultiRelationAlgebra({
                     color: 'var(--mm-text-strong)',
                   }}
                 >
-                  <span style={{ fontSize: 24 }}>
+                  <span style={{ fontSize: 'calc(24 * var(--mm-px))' }}>
                     <MathDisplay
                       value={expressionToLatex(relationState.variable)}
                       format="latex"
                       inline
                     />
                   </span>
-                  <span style={{ color: 'var(--mm-primary-text)', fontSize: 22, fontWeight: 900 }}>=</span>
-                  <span style={{ fontSize: 24 }}>
+                  <span style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900 }}>=</span>
+                  <span style={{ fontSize: 'calc(24 * var(--mm-px))' }}>
                     <MathDisplay
                       value={relationExpressionToLatex(expression)}
                       format="latex"
@@ -2706,7 +2706,7 @@ export default function MultiRelationAlgebra({
               marginTop: 9,
               textAlign: 'center',
               color: 'var(--mm-success)',
-              fontSize: 11.5,
+              fontSize: 'calc(11.5 * var(--mm-px))',
               lineHeight: 1.4,
             }}
           >
@@ -2738,7 +2738,7 @@ export default function MultiRelationAlgebra({
           <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)', marginBottom: 6 }}>
             Check each candidate in the original equation
           </div>
-          <div style={{ color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.45, marginBottom: 12 }}>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45, marginBottom: 12 }}>
             Solving the two branches can create a candidate that does not satisfy the original absolute-value equation.
             Substitute each value back and decide whether it is a valid solution or extraneous.
           </div>
@@ -2761,7 +2761,7 @@ export default function MultiRelationAlgebra({
                     background: 'var(--mm-surface)',
                   }}
                 >
-                  <div style={{ fontSize: 21, fontWeight: 800 }}>
+                  <div style={{ fontSize: 'calc(21 * var(--mm-px))', fontWeight: 800 }}>
                     <MathDisplay
                       value={`${expressionToLatex(relationState.variable)} = ${relationExpressionToLatex(expression)}`}
                       format="latex"
@@ -2861,7 +2861,7 @@ export default function MultiRelationAlgebra({
           />
           {representationStage.recordedNotice ? (
             // The same line for a right and a wrong graph.
-            <p role="status" data-representation-recorded="true" style={{ margin: '10px 0 0', color: 'var(--mm-primary-text)', fontSize: 13, fontWeight: 700 }}>
+            <p role="status" data-representation-recorded="true" style={{ margin: '10px 0 0', color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>
               {requiresIntervalNotation
                 ? 'Your graph and interval notation are recorded. They are graded when you submit — if you change either, press Check again.'
                 : 'Your graph is recorded. It is graded when you submit — if you change it, press Check again.'}

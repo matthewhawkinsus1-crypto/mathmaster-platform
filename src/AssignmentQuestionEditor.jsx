@@ -358,8 +358,8 @@ export default function AssignmentQuestionEditor(props) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
-          <h3 style={{ margin: 0, color: 'var(--mm-primary-text)', fontSize: 17 }}>Repair Center · teacher flags</h3>
-          <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 12 }}>
+          <h3 style={{ margin: 0, color: 'var(--mm-primary-text)', fontSize: 'calc(17 * var(--mm-px))' }}>Repair Center · teacher flags</h3>
+          <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
             {reviewLoading
               ? 'Loading private teacher flags…'
               : `${openFlaggedQuestionIds.length} flagged question${openFlaggedQuestionIds.length === 1 ? '' : 's'} · revision ${baseRevision}`}
@@ -396,7 +396,7 @@ export default function AssignmentQuestionEditor(props) {
       </div>
 
       {!reviewLoading && !openFlaggedQuestionIds.length && (
-        <div style={{ marginTop: 9, padding: 9, borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
+        <div style={{ marginTop: 9, padding: 9, borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
           No open teacher flags yet. Use View as Student → Teacher review to flag questions and write the exact repair notes. They will appear here automatically.
         </div>
       )}
@@ -409,10 +409,10 @@ export default function AssignmentQuestionEditor(props) {
                 const shot = flag.screenshotId ? screenshotsById[flag.screenshotId] : null;
                 return (
                   <div key={flag.id} style={{ padding: 10, border: '1px solid var(--mm-tint-border)', borderRadius: 9, background: 'var(--mm-surface)' }}>
-                    <div style={{ fontSize: 11.5, fontWeight: 900, color: 'var(--mm-warning-text)' }}>
+                    <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-warning-text)' }}>
                       {flag.scope === 'question' ? `Question ${flag.targetId}` : `${flag.scope} note`} · {flag.category || 'review'}
                     </div>
-                    <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.45 }}>{flag.note || 'Teacher review requested'}</div>
+                    <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45 }}>{flag.note || 'Teacher review requested'}</div>
                     {flag.screenshotId && (
                       shot
                         ? (
@@ -424,7 +424,7 @@ export default function AssignmentQuestionEditor(props) {
                             />
                           </a>
                         )
-                        : <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--mm-text-muted)' }}>Loading screenshot…</div>
+                        : <div style={{ marginTop: 6, fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Loading screenshot…</div>
                     )}
                   </div>
                 );
@@ -438,7 +438,7 @@ export default function AssignmentQuestionEditor(props) {
               value={pastedRepair}
               onChange={(event) => setPastedRepair(event.target.value)}
               placeholder="Paste one repaired question JSON or the batch repair response here."
-              style={{ width: '100%', minHeight: 120, boxSizing: 'border-box', marginTop: 8, padding: 9, border: '1px solid var(--mm-border)', borderRadius: 8, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 }}
+              style={{ width: '100%', minHeight: 120, boxSizing: 'border-box', marginTop: 8, padding: 9, border: '1px solid var(--mm-border)', borderRadius: 8, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 'calc(12 * var(--mm-px))' }}
             />
             <button
               type="button"
@@ -457,7 +457,7 @@ export default function AssignmentQuestionEditor(props) {
                 {stagedRepair.questionResults.map((result) => (
                   <div key={result.questionId} style={{ padding: 8, borderRadius: 8, background: 'var(--mm-surface-sunken)' }}>
                     <div style={{ fontWeight: 900 }}>Question ID {result.questionId}</div>
-                    <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 12 }}>
+                    <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                       {result.diff.length} changed field{result.diff.length === 1 ? '' : 's'}
                       {result.changeSummary?.length ? ` · ${result.changeSummary.join(' · ')}` : ''}
                       {result.diff.length ? ` · ${result.diff.slice(0, 5).map((change) => change.path || '(root)').join(' · ')}${result.diff.length > 5 ? ' · …' : ''}` : ''}
@@ -466,7 +466,7 @@ export default function AssignmentQuestionEditor(props) {
                 ))}
               </div>
               {stagedRepair.validation?.newBlockingDiagnostics?.length > 0 && (
-                <div style={{ marginTop: 8, color: 'var(--mm-error-text)', fontSize: 12 }}>
+                <div style={{ marginTop: 8, color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))' }}>
                   {stagedRepair.validation.newBlockingDiagnostics.map((item) => item.message || item.code).filter(Boolean).join(' · ')}
                 </div>
               )}
@@ -478,7 +478,7 @@ export default function AssignmentQuestionEditor(props) {
               >
                 Apply Repairs
               </button>
-              <div style={{ marginTop: 7, color: 'var(--mm-text-muted)', fontSize: 11, lineHeight: 1.4 }}>
+              <div style={{ marginTop: 7, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.4 }}>
                 Applying does not resolve teacher flags. Verify the corrected questions in View as Student before closing the flags.
                 {hasLiveProtection ? ' Because student history exists, MathMaster will also refuse any uploaded rewrite that changes the protected mathematical task.' : ''}
               </div>
@@ -487,7 +487,7 @@ export default function AssignmentQuestionEditor(props) {
         </>
       )}
 
-      {message && <div role="status" style={{ marginTop: 10, padding: 9, borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.45 }}>{message}</div>}
+      {message && <div role="status" style={{ marginTop: 10, padding: 9, borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45 }}>{message}</div>}
       <FullAssignmentAudit assignmentV5={assignmentV5} repairCenterModel={buildAssignmentRepairCenterModel({ assignmentV5, diagnostics: [], teacherReviewContext })} assignmentId={assignmentId} baseRevision={baseRevision} authorized={fullAuditAuthorized} activityStatus={studentActivityStatus} />
     </section>
   );

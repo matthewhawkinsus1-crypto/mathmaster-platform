@@ -111,7 +111,7 @@ function LessonCard({ lesson, classContext, classKey, handlers, busy, schedule, 
       <div className="tw-row" style={{ justifyContent: 'space-between', marginBottom: rows.length ? 8 : 0 }}>
         <div style={{ minWidth: 0 }}>
           {onOpenAssignment
-            ? <button type="button" className="tw-link" style={{ fontSize: 15 }} onClick={() => onOpenAssignment(assignment.id, classContext.classId)}>{assignment.title}</button>
+            ? <button type="button" className="tw-link" style={{ fontSize: 'calc(15 * var(--mm-px))' }} onClick={() => onOpenAssignment(assignment.id, classContext.classId)}>{assignment.title}</button>
             : <strong style={{ color: 'var(--mm-text-strong)' }}>{assignment.title}</strong>}
           <div className="tw-small tw-muted">
             {lifecycle.isScheduled ? `Opens ${formatDateTime(assignment.releaseAt || assignment.releaseDate)}` : lifecycle.isLate ? `Late window until ${formatDateTime(assignment.lateDueAt || assignment.lateDueDate)}` : lifecycle.isClosed ? 'Closed — practice only' : `Due ${formatDateTime(assignment.dueAt || assignment.dueDate)}`}

@@ -437,7 +437,7 @@ export default function LinearInterceptsOrchestrator({
             width: 52, height: 52, borderRadius: 14,
             border: zeroArmed ? '3px solid #174ea6' : '2px solid var(--mm-primary-border)',
             background: zeroArmed ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)',
-            fontSize: 26, fontWeight: 950, cursor: 'grab',
+            fontSize: 'calc(26 * var(--mm-px))', fontWeight: 950, cursor: 'grab',
           }}
         >
           0

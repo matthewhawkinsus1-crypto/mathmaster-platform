@@ -81,12 +81,12 @@ const rosterStudentLabel = (studentId, students, historicalName = '') => {
 
 // 5px at the sides, not 10: the columns share about 790px on a teacher's
 // laptop, and at 10px the padding alone took 200px of it.
-const cell = { padding: '8px 5px', fontSize: 13, borderBottom: '1px solid var(--mm-border-soft)', textAlign: 'left', verticalAlign: 'top', color: 'var(--mm-text)' };
+const cell = { padding: '8px 5px', fontSize: 'calc(13 * var(--mm-px))', borderBottom: '1px solid var(--mm-border-soft)', textAlign: 'left', verticalAlign: 'top', color: 'var(--mm-text)' };
 // The table scrolls sideways on an iPad or phone; the name stays put so the
 // grades and actions at the far end still say whose they are.
 const stickyCell = { position: 'sticky', left: 0, zIndex: 1, background: 'var(--mm-surface)' };
 const button = (tone, enabled = true) => ({
-  minHeight: 40, padding: '7px 12px', borderRadius: 8, fontWeight: 800, fontSize: 13,
+  minHeight: 40, padding: '7px 12px', borderRadius: 8, fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
   cursor: enabled ? 'pointer' : 'not-allowed',
   border: tone === 'primary' ? 0 : '1px solid var(--mm-border-strong)',
   background: !enabled ? 'var(--mm-surface-control-strong)' : tone === 'primary' ? 'var(--mm-primary)' : 'var(--mm-surface)',
@@ -110,9 +110,9 @@ const PolicyEditor = ({ policy, busy, onSave, onCancel }) => {
     correctionsRequiredForRetest: policy.correctionsRequiredForRetest,
   }));
   const locks = policy.locks || {};
-  const field = { display: 'grid', gap: 4, fontSize: 13, fontWeight: 800, color: 'var(--mm-text)' };
-  const input = { minHeight: 40, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-input-bg)', color: 'var(--mm-input-text)', fontSize: 14, maxWidth: 220 };
-  const lockNote = (key) => locks[key] && <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--mm-text-muted)' }}>Locked: {locks[key]}</span>;
+  const field = { display: 'grid', gap: 4, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)' };
+  const input = { minHeight: 40, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-input-bg)', color: 'var(--mm-input-text)', fontSize: 'calc(14 * var(--mm-px))', maxWidth: 220 };
+  const lockNote = (key) => locks[key] && <span style={{ fontWeight: 600, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Locked: {locks[key]}</span>;
   return (
     <form
       onSubmit={(event) => { event.preventDefault(); onSave(draft); }}
@@ -143,7 +143,7 @@ const PolicyEditor = ({ policy, busy, onSave, onCancel }) => {
         Corrections must be finished before the retest
       </label>
       {lockNote('correctionsRequiredForRetest')}
-      <p style={{ margin: 0, fontSize: 12.5, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
+      <p style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
         Whatever you choose, a retest can only raise a recorded grade — never lower it.
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -387,7 +387,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
   const statusLine = (outcome) => (
     <p
       role={outcome.tone === 'error' ? 'alert' : 'status'}
-      style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 700, lineHeight: 1.5, color: outcome.tone === 'error' ? 'var(--mm-error-text)' : 'var(--mm-primary-text)' }}
+      style={{ margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, lineHeight: 1.5, color: outcome.tone === 'error' ? 'var(--mm-error-text)' : 'var(--mm-primary-text)' }}
     >
       {outcome.text}
     </p>
@@ -425,8 +425,8 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
     <section data-test-cycle-teacher={assignmentId} style={{ minWidth: 0, padding: 'clamp(14px, 3vw, 18px)', border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', color: 'var(--mm-text)' }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
-          <h2 style={{ margin: 0, fontSize: 'clamp(17px, 3vw, 21px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>Test Cycle · {assignment.title}</h2>
-          {pill && <span style={{ display: 'inline-block', marginTop: 6, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', padding: '4px 9px', borderRadius: 999, background: pill.bg, color: pill.color }}>{pill.label}</span>}
+          <h2 style={{ margin: 0, fontSize: 'clamp(calc(17 * var(--mm-px)), calc(3vw * var(--mm-text-scale, 1)), calc(21 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>Test Cycle · {assignment.title}</h2>
+          {pill && <span style={{ display: 'inline-block', marginTop: 6, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', padding: '4px 9px', borderRadius: 999, background: pill.bg, color: pill.color }}>{pill.label}</span>}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {onPreview && <button type="button" onClick={() => onPreview(assignment)} style={button()}>Preview as student</button>}
@@ -448,7 +448,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
           {external && (
             <fieldset style={{ margin: '12px 0', border: '1px solid var(--mm-border)', borderRadius: 8, textAlign: 'left' }}>
               <legend style={{ fontWeight: 800 }}>Original {scoreSource} scores (%)</legend>
-              <p style={{ fontSize: 13, margin: '0 0 8px' }}>Blank scores stay unassigned. Scores of {policy?.passingScore ?? 70} or higher are not eligible. An original score is kept once its session is opened.</p>
+              <p style={{ fontSize: 'calc(13 * var(--mm-px))', margin: '0 0 8px' }}>Blank scores stay unassigned. Scores of {policy?.passingScore ?? 70} or higher are not eligible. An original score is kept once its session is opened.</p>
               <div style={{ display: 'grid', gap: 8 }}>
                 {students.map((student) => {
                   const id = studentIdOf(student);
@@ -477,10 +477,10 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
           {policy && (
             <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', display: 'grid', gap: 6 }}>
               <strong style={{ color: 'var(--mm-text-strong)' }}>Retest policy · {policy.ruleLabel}</strong>
-              <span style={{ fontSize: 13, lineHeight: 1.5 }}>{policy.summary}</span>
-              {policy.example && <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>Example: {policy.example.sentence}</span>}
+              <span style={{ fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>{policy.summary}</span>
+              {policy.example && <span style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Example: {policy.example.sentence}</span>}
               {delivery && (
-                <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
+                <span style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                   {delivery.timed ? `Timed: ${delivery.timeLimitMinutes} minutes, enforced by the server.` : `Not timed. No clock runs during the ${noun}.`}
                   {delivery.questionCount ? ` ${delivery.questionCount} secure questions per student, randomized from approved families.` : ''}
                   {` Review ${policy.reviewRequired ? `must be finished before the ${noun}` : 'is optional'}${policy.reviewMinimumMastery !== null && policy.reviewMinimumMastery !== undefined ? `, with at least ${policy.reviewMinimumMastery}% mastery` : ''}.`}
@@ -506,11 +506,11 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
               cannot issue equivalent secure coverage must not reach a classroom. */}
           {preflight && (
             <div style={{ margin: '12px 0', padding: '11px 13px', borderRadius: 9, textAlign: 'left', background: blocked ? 'var(--mm-error-bg)' : 'var(--mm-success-bg)', border: `1px solid ${blocked ? 'var(--mm-error-border-soft)' : 'var(--mm-success-border)'}` }}>
-              <strong style={{ fontSize: 13, color: blocked ? 'var(--mm-error-text)' : 'var(--mm-success-text)' }}>
+              <strong style={{ fontSize: 'calc(13 * var(--mm-px))', color: blocked ? 'var(--mm-error-text)' : 'var(--mm-success-text)' }}>
                 {blocked ? 'Cannot be assigned securely yet' : 'Secure preflight passed'}
               </strong>
               {/* The ✓ / ✗ is the bullet: list markers beside centred text read as a stray column. */}
-              <ul style={{ margin: '7px 0 0', padding: 0, listStyle: 'none', fontSize: 12.5, lineHeight: 1.5 }}>
+              <ul style={{ margin: '7px 0 0', padding: 0, listStyle: 'none', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
                 {(preflight.checks || []).map((check) => (
                   <li key={check.id} style={{ color: check.passed ? 'var(--mm-text)' : 'var(--mm-error-text)' }}>
                     {check.passed ? '✓' : '✗'} {check.label}
@@ -518,10 +518,10 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                 ))}
               </ul>
               {(preflight.errors || []).map((error) => (
-                <p key={error} style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--mm-error-text)' }}>{error}</p>
+                <p key={error} style={{ margin: '6px 0 0', fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-error-text)' }}>{error}</p>
               ))}
               {(preflight.warnings || []).map((warning) => (
-                <p key={warning} style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--mm-warning-text)' }}>{warning}</p>
+                <p key={warning} style={{ margin: '6px 0 0', fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>{warning}</p>
               ))}
               {/* THE BLUEPRINT'S SECURE RENDERING CONTRACT. Not only standards and
                   counts: which MathMaster tool each target is answered with, and
@@ -530,14 +530,14 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                   never a wide table: no sideways scrolling on a phone. */}
               {Array.isArray(preflight.secureRendering) && preflight.secureRendering.length > 0 && (
                 <details style={{ marginTop: 9 }}>
-                  <summary style={{ cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: 'var(--mm-text)' }}>
+                  <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)' }}>
                     Blueprint targets and their tools ({preflight.secureRendering.length})
                   </summary>
                   <ul style={{ margin: '7px 0 0', padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
                     {preflight.secureRendering.map((target) => {
                       const certified = Object.values(target.modes || {}).every(Boolean);
                       return (
-                        <li key={target.targetId} data-blueprint-target={target.targetId} style={{ padding: '7px 9px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>
+                        <li key={target.targetId} data-blueprint-target={target.targetId} style={{ padding: '7px 9px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>
                           <strong>{target.alignmentKey || target.targetId}</strong> · {target.questionCount} question{target.questionCount === 1 ? '' : 's'} · DOK {target.dok} · difficulty {target.difficultyBand} · {target.representation}
                           <div>
                             Tool: {(target.toolLabels || []).join(', ') || '—'}
@@ -746,7 +746,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
               when none is ticked. Each is one server operation. */}
           {!external && !archived && rows.length > 0 && (
             <div role="group" aria-label="Class-wide actions" data-test-cycle-bulk="" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
-              <strong style={{ fontSize: 13, color: 'var(--mm-text-strong)' }}>
+              <strong style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
                 {selectedIds.length ? `${selectedIds.length} selected:` : 'Whole class:'}
               </strong>
               {[waivePlan, openPlan].map((plan) => {
@@ -767,7 +767,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
               {selectedIds.length > 0 && <button type="button" style={button()} onClick={() => setSelected(new Set())}>Clear selection</button>}
               {/* The server refuses both on a Test that fails its preflight, so
                   the reason is here rather than in an error after pressing. */}
-              {blocked && <span style={{ flexBasis: '100%', fontSize: 12.5, color: 'var(--mm-text-muted)' }}>Not available until this Test passes the secure preflight above.</span>}
+              {blocked && <span style={{ flexBasis: '100%', fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Not available until this Test passes the secure preflight above.</span>}
             </div>
           )}
 
@@ -776,9 +776,9 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
               the one that waits on the teacher. */}
           {rows.length > 0 && (
             <div role="group" aria-label="Filter students by stage" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
-              <button type="button" aria-pressed={bucketFilter === 'all'} onClick={() => setBucketFilter('all')} style={{ ...button(bucketFilter === 'all' ? 'primary' : null), minHeight: 34, fontSize: 12 }}>All · {rows.length}</button>
+              <button type="button" aria-pressed={bucketFilter === 'all'} onClick={() => setBucketFilter('all')} style={{ ...button(bucketFilter === 'all' ? 'primary' : null), minHeight: 34, fontSize: 'calc(12 * var(--mm-px))' }}>All · {rows.length}</button>
               {TEACHER_BUCKET_ORDER.filter((bucket) => summary[bucket] > 0).map((bucket) => (
-                <button key={bucket} type="button" aria-pressed={bucketFilter === bucket} onClick={() => setBucketFilter(bucket)} style={{ ...button(bucketFilter === bucket ? 'primary' : null), minHeight: 34, fontSize: 12 }}>
+                <button key={bucket} type="button" aria-pressed={bucketFilter === bucket} onClick={() => setBucketFilter(bucket)} style={{ ...button(bucketFilter === bucket ? 'primary' : null), minHeight: 34, fontSize: 'calc(12 * var(--mm-px))' }}>
                   {(external ? describeTeacherRow({ bucket }, { external }).bucketLabel : TEACHER_BUCKET_LABEL[bucket])} · {summary[bucket]}
                 </button>
               ))}
@@ -800,7 +800,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                     widest words in their columns, and the table has none to spare. */}
                 <tr>
                   {columns.map((heading) => (
-                    <th key={heading} scope="col" style={{ ...cell, ...(heading === 'Student' ? stickyCell : null), fontSize: 11, color: 'var(--mm-text-muted)' }}>
+                    <th key={heading} scope="col" style={{ ...cell, ...(heading === 'Student' ? stickyCell : null), fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                       {heading === 'Student' && !external ? (
                         <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <input
@@ -857,7 +857,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                               <span>{name}</span>
                             </label>
                           )}
-                          {row.individuallyAssigned && <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--mm-text-muted)' }}>Added individually</div>}
+                          {row.individuallyAssigned && <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-muted)' }}>Added individually</div>}
                           {actions.length > 0 && (
                             <button
                               type="button"
@@ -889,7 +889,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                           {/* Short lines of whole facts (describeReviewSummary): a
                               line wraps between facts, never inside one. */}
                           {reviewFacts.lines.length > 0 && (
-                            <div style={{ fontSize: 11.5, lineHeight: 1.4, minWidth: 88, color: 'var(--mm-text-muted)' }}>
+                            <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.4, minWidth: 88, color: 'var(--mm-text-muted)' }}>
                               {reviewFacts.lines.map((facts) => (
                                 <div key={facts.join(' ')}>
                                   {facts.map((fact, index) => <React.Fragment key={fact}>{index > 0 ? ' ' : ''}<span style={{ whiteSpace: 'nowrap' }}>{fact}</span></React.Fragment>)}
@@ -907,7 +907,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                         {/* The recorded grade says where it came from when it is not the rule's. */}
                         <td style={{ ...cell, fontWeight: 900 }} title={row.gradeReason || ''} data-recorded-grade="">
                           {percent(row.recordedGrade)}
-                          {row.gradeAdjustment && <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--mm-warning-text)' }}>Set by teacher</div>}
+                          {row.gradeAdjustment && <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-warning-text)' }}>Set by teacher</div>}
                         </td>
                       </tr>
                       {actionsOpen && (
@@ -922,7 +922,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                               <strong style={{ color: 'var(--mm-text-strong)' }}>Actions for {name}</strong>
                               {rowOutcomeOnRow && rowOutcome.studentId === row.studentId && statusLine(rowOutcome)}
                               {row.gradeReason && (row.gradeAdjustment || row.retestWithoutOriginal) && (
-                                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: 'var(--mm-text)' }}>{row.gradeReason}</p>
+                                <p style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{row.gradeReason}</p>
                               )}
                               {formOpen?.kind === 'adjustGrade' ? (
                                 <TestCycleGradeForm
@@ -993,7 +993,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                                       >
                                         {item.label}
                                       </button>
-                                      {item.detail && <span style={{ flex: '1 1 240px', fontSize: 12.5, lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>{item.detail}</span>}
+                                      {item.detail && <span style={{ flex: '1 1 240px', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>{item.detail}</span>}
                                     </li>
                                   ))}
                                 </ul>
@@ -1017,12 +1017,12 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
               "the algorithm decided". */}
           {plans && (
             <div style={{ marginTop: 18, padding: 14, borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
-              <h3 style={{ marginTop: 0, fontSize: 15 }}>Generated plans · {rosterStudentLabel(plans.studentId, students, plans.studentName)}</h3>
+              <h3 style={{ marginTop: 0, fontSize: 'calc(15 * var(--mm-px))' }}>Generated plans · {rosterStudentLabel(plans.studentId, students, plans.studentName)}</h3>
               {plans.corrections ? (
                 <>
-                  <h4 style={{ marginBottom: 4, fontSize: 13 }}>Corrections, mapped to the failed Test evidence</h4>
+                  <h4 style={{ marginBottom: 4, fontSize: 'calc(13 * var(--mm-px))' }}>Corrections, mapped to the failed Test evidence</h4>
                   {plans.corrections.targets.map((target) => (
-                    <div key={target.correctionId} style={{ fontSize: 12.5, lineHeight: 1.55, marginBottom: 7 }}>
+                    <div key={target.correctionId} style={{ fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55, marginBottom: 7 }}>
                       <strong>{target.label}</strong> · {target.diagnosisDetail}
                       <div style={{ color: 'var(--mm-text-muted)' }}>
                         Missed {target.missed} of {target.attempted} · {target.correctResponses || 0}/{target.requiredCorrectResponses} corrected
@@ -1030,18 +1030,18 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                     </div>
                   ))}
                 </>
-              ) : <p style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>No correction plan — this student did not fail the Test.</p>}
+              ) : <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No correction plan — this student did not fail the Test.</p>}
               {plans.retest ? (
                 <>
-                  <h4 style={{ marginBottom: 4, fontSize: 13 }}>Retest targeting</h4>
-                  <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: 0 }}>
+                  <h4 style={{ marginBottom: 4, fontSize: 'calc(13 * var(--mm-px))' }}>Retest targeting</h4>
+                  <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55, margin: 0 }}>
                     {plans.retest.audit.questionCount} questions ({plans.retest.audit.targetedQuestionCount} targeted at weak
                     skills, {plans.retest.audit.anchorQuestionCount} anchor coverage —{' '}
                     {Math.round(plans.retest.audit.actualWeakShare * 100)}% / {Math.round(plans.retest.audit.actualAnchorShare * 100)}%),
                     against {plans.retest.audit.originalQuestionCount} on the original Test.
                   </p>
                 </>
-              ) : <p style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>No retest plan has been generated yet.</p>}
+              ) : <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No retest plan has been generated yet.</p>}
               <button type="button" onClick={() => setPlans(null)} style={{ ...button(), marginTop: 10 }}>Close plans</button>
             </div>
           )}

@@ -56,19 +56,19 @@ export default function GradeSectionBreakdown({ sections = {}, shares = null, hi
               border: excused ? '1px solid var(--mm-accent-border)' : '1px solid var(--mm-border-soft)', minWidth: 0,
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
+            <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
               {SECTION_LABEL[key]}
             </div>
-            <div style={{ marginTop: 2, fontSize: excused || noEvidence || hidden ? 13 : 18, fontWeight: 900, color: excused ? 'var(--mm-accent-text)' : noEvidence ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+            <div style={{ marginTop: 2, fontSize: excused || noEvidence || hidden ? 'calc(13 * var(--mm-px))' : 'calc(18 * var(--mm-px))', fontWeight: 900, color: excused ? 'var(--mm-accent-text)' : noEvidence ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
               {hidden ? '••' : excused ? '✓ Excused (Practice Pass)' : noEvidence ? 'Not attempted' : `${split.score}%`}
             </div>
             {!excused && Number.isFinite(Number(shares?.[key]?.sharePercent)) && Number(shares?.[key]?.possibleWeight) > 0 && (
-              <div data-section-share={key} style={{ marginTop: 2, fontSize: 11, color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
+              <div data-section-share={key} style={{ marginTop: 2, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
                 {shares[key].sharePercent}% of this grade
               </div>
             )}
             {!hidden && !noEvidence && !excused && Number(split.unanswered) > 0 && (
-              <div style={{ marginTop: 2, fontSize: 11, color: 'var(--mm-text-muted)' }}>
+              <div style={{ marginTop: 2, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                 {split.attempted} of {split.total} answered
               </div>
             )}

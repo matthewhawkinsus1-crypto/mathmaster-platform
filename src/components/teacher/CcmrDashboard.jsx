@@ -57,13 +57,13 @@ export default function CcmrDashboard({
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 6 }}>
         <div>
           <h3 style={{ margin: 0 }}>Course knowledge and transfer</h3>
-          <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13.5, maxWidth: '68ch', lineHeight: 1.5 }}>
+          <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13.5 * var(--mm-px))', maxWidth: '68ch', lineHeight: 1.5 }}>
             The left number is what a student can do when the question is asked the way this course asks it.
             The right is what they can do when the same mathematics turns up in exam phrasing. They are shown
             apart because the students where they disagree are the ones a single readiness score would hide.
           </p>
         </div>
-        <label style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
+        <label style={{ marginLeft: 'auto', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
           Exam context
           <select
             value={framework}
@@ -81,8 +81,8 @@ export default function CcmrDashboard({
             const tone = STATE_TONE[finding.state];
             return (
               <div key={finding.state} style={{ padding: '12px 14px', borderRadius: 9, background: tone.bg, border: `1px solid ${tone.border}`, borderLeft: `3px solid ${tone.fg}` }}>
-                <div style={{ fontWeight: 800, fontSize: 14 }}>{finding.headline}</div>
-                <p style={{ margin: '4px 0 8px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>{finding.detail}</p>
+                <div style={{ fontWeight: 800, fontSize: 'calc(14 * var(--mm-px))' }}>{finding.headline}</div>
+                <p style={{ margin: '4px 0 8px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, maxWidth: '70ch' }}>{finding.detail}</p>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {finding.students.map((row) => (
                     <StudentNameLink
@@ -91,7 +91,7 @@ export default function CcmrDashboard({
                       studentName={row.studentName}
                       profile={profilesByStudentId[row.studentId]}
                       onOpen={onOpenStudent}
-                      style={{ fontSize: 12.5, padding: '4px 8px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)' }}
+                      style={{ fontSize: 'calc(12.5 * var(--mm-px))', padding: '4px 8px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)' }}
                     />
                   ))}
                 </div>
@@ -102,7 +102,7 @@ export default function CcmrDashboard({
       )}
 
       <div style={{ overflowX: 'auto', border: '1px solid var(--mm-border)', borderRadius: 10 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
           <thead>
             <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>
               <th style={{ padding: 11 }}>Student</th>
@@ -143,7 +143,7 @@ export default function CcmrDashboard({
                     {row.transferAttempts || '—'}
                   </td>
                   <td style={{ padding: 11 }}>
-                    <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 999, background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`, fontSize: 11, fontWeight: 900 }}>
+                    <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 999, background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>
                       {CCMR_STATE_LABEL[row.state]}
                     </span>
                   </td>

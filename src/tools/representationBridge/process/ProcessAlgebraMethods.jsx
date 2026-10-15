@@ -117,7 +117,7 @@ const goalChip = (done, label) => (
     key={label}
     style={{
       display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999,
-      background: done ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: done ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontWeight: 800, fontSize: 12,
+      background: done ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: done ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))',
     }}
   >
     {done ? '✓' : '○'} {label}
@@ -205,7 +205,7 @@ export function SubstituteZeroMethod({ env, option, target, facts, ev, setEv, fi
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
       {sourceLine ? <p style={{ ...muted, color: 'var(--mm-text)' }}>{sourceLine}</p> : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mm-text)' }}>
+        <span style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>
           {target === 'xIntercept' ? 'At the x-intercept, which variable is 0?' : 'At the y-intercept, which variable is 0?'}
         </span>
         <ChoiceChips

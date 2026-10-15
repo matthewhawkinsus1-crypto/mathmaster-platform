@@ -60,7 +60,7 @@ export default function MultilingualSupportOverlay({
             onClick={toggleTranslation}
             aria-pressed={showSpanish}
             style={{
-              minHeight: '38px', padding: '0 12px', fontSize: '13px', borderRadius: '999px',
+              minHeight: '38px', padding: '0 12px', fontSize: 'calc(13 * var(--mm-px))', borderRadius: '999px',
               border: '1px solid var(--mm-primary, #1a73e8)',
               background: showSpanish ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
               color: 'var(--mm-primary)', cursor: 'pointer', fontWeight: 700,
@@ -75,7 +75,7 @@ export default function MultilingualSupportOverlay({
             type="button"
             onClick={() => openGlossaryTerm(term)}
             style={{
-              minHeight: '38px', padding: '0 10px', fontSize: '12px', borderRadius: '999px',
+              minHeight: '38px', padding: '0 10px', fontSize: 'calc(12 * var(--mm-px))', borderRadius: '999px',
               border: '1px dashed var(--mm-success, #188038)', background: 'var(--mm-surface)',
               color: 'var(--mm-success-text)', cursor: 'pointer', fontWeight: 700,
             }}
@@ -85,10 +85,10 @@ export default function MultilingualSupportOverlay({
         ))}
       </div>
 
-      <div style={{ fontSize: '15px', lineHeight: 1.55, color: 'var(--mm-ink, var(--mm-text-strong))' }}>
+      <div style={{ fontSize: 'calc(15 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-ink, var(--mm-text-strong))' }}>
         {showSpanish && spanishTranslationText ? (
           <div style={{ background: 'var(--mm-surface-sunken)', padding: '12px', borderRadius: '8px', borderLeft: '4px solid var(--mm-primary, #1a73e8)' }}>
-            <span style={{ fontSize: '11px', color: 'var(--mm-primary)', fontWeight: 900, display: 'block', marginBottom: '4px', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-primary)', fontWeight: 900, display: 'block', marginBottom: '4px', textTransform: 'uppercase' }}>
               Español · traducción de apoyo
             </span>
             {spanishTranslationText}
@@ -101,11 +101,11 @@ export default function MultilingualSupportOverlay({
       {selectedTerm && (
         <div
           role="note"
-          style={{ marginTop: '10px', padding: '12px 14px', background: 'var(--mm-success-soft, var(--mm-success-bg))', borderRadius: '8px', border: '1px solid var(--mm-success-border)', fontSize: '13px' }}
+          style={{ marginTop: '10px', padding: '12px 14px', background: 'var(--mm-success-soft, var(--mm-success-bg))', borderRadius: '8px', border: '1px solid var(--mm-success-border)', fontSize: 'calc(13 * var(--mm-px))' }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontWeight: 900, color: 'var(--mm-success-text)' }}>
             <span>📖 {selectedTerm.key} · {selectedTerm.termEs}</span>
-            <button type="button" onClick={() => setSelectedTerm(null)} aria-label="Close glossary" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '15px' }}>✕</button>
+            <button type="button" onClick={() => setSelectedTerm(null)} aria-label="Close glossary" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 'calc(15 * var(--mm-px))' }}>✕</button>
           </div>
           <div style={{ marginTop: '5px', color: 'var(--mm-ink, var(--mm-text-strong))' }}>{selectedTerm.def}</div>
         </div>

@@ -626,7 +626,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                 ○ Open
               </button>
 
-              <span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                 Next endpoint
               </span>
             </div>
@@ -664,7 +664,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   borderRadius: 8,
                   background: 'var(--mm-surface)',
                   color: 'var(--mm-text-strong)',
-                  fontSize: 16,
+                  fontSize: 'calc(16 * var(--mm-px))',
                                 }}
               />
 
@@ -677,7 +677,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               </button>
             </div>
 
-            <div style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 11.5 }}>
+            <div style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))' }}>
               {endpointError || `Click/drag snap: ${snapLabel}. Exact entry is not limited to visible tick marks.`}
             </div>
           </div>
@@ -943,7 +943,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             {endpointAnnouncement}
           </p>
 
-          <p aria-live="polite" style={{ marginTop: 9, fontSize: 12.5, color: 'var(--mm-text-muted)', lineHeight: 1.4 }}>
+          <p aria-live="polite" style={{ marginTop: 9, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.4 }}>
             {pending != null
               ? `${pending.closed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(pending.value)}. Place a second endpoint or choose a ray.`
               : drawn.length
@@ -956,7 +956,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
         <Panel title={responsePanelTitle}>
           {asksInterval && (
-            <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
+            <div style={{ display: 'block', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               <div style={{ marginBottom: 6 }}>Interval notation</div>
               <MathInput
                 value={notation}
@@ -973,7 +973,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           )}
 
           {asksInequality && (
-            <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
+            <div style={{ display: 'block', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               <div style={{ marginBottom: 6 }}>Inequality</div>
               <MathInput
                 value={inequality}

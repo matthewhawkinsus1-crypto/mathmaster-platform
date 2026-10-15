@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  EXCLUDED, convertCssValue, convertJsFontValue, pxExpression, transformCss, transformJs,
+  EXCLUDED, scaleFluidClamps, convertCssValue, convertJsFontValue, pxExpression, transformCss, transformJs,
 } from '../../scripts/codemods/px-to-rem.mjs';
 
 const px = (n) => `'${pxExpression(n)}'`;
@@ -66,7 +66,38 @@ test('CSS: font-size and line-height in px, !important kept, everything else unt
   const css = '.a { font-size: 14px; line-height: 20px; padding: 4px; }\n.b{font-size:12px!important}\n@media (max-width: 480px) { .c { font-size: clamp(12px, 3vw, 18px); } }\n.d { font-size: 1.1rem; }';
   const { output, changes } = transformCss(css);
   assert.equal(changes, 4);
-  assert.equal(output, `.a { font-size: ${pxExpression(14)}; line-height: ${pxExpression(20)}; padding: 4px; }\n.b{font-size:${pxExpression(12)}!important}\n@media (max-width: 480px) { .c { font-size: clamp(${pxExpression(12)}, 3vw, ${pxExpression(18)}); } }\n.d { font-size: 1.1rem; }`);
+  assert.equal(output, `.a { font-size: ${pxExpression(14)}; line-height: ${pxExpression(20)}; padding: 4px; }\n.b{font-size:${pxExpression(12)}!important}\n@media (max-width: 480px) { .c { font-size: clamp(${pxExpression(12)}, calc(3vw * var(--mm-text-scale, 1)), ${pxExpression(18)}); } }\n.d { font-size: 1.1rem; }`);
+});
+
+test('a stylesheet held in a JS template literal is converted; an interpolated template is not', () => {
+  // Live Challenge injects its CSS as <style>{RUSH_CSS}</style> (job N).
+  const js = 'const RUSH_CSS = `\n.chip { font-size: 13px; padding: 4px 10px; }\n.clock { font-size: clamp(21px, 4vmin, 34px); line-height: 1; }\n`;\nconst label = `${n}px`;\nconst dynamic = `\n.x { font-size: ${size}px; }\n`;';
+  const { output, changes } = transformJs(js);
+  assert.equal(changes, 2);
+  assert.match(output, new RegExp(`\\.chip \\{ font-size: ${pxExpression(13).replace(/[()*]/g, '\\$&')}; padding: 4px 10px; \\}`));
+  assert.match(output, /\.clock \{ font-size: clamp\(calc\(21 \* var\(--mm-px\)\), calc\(4vmin \* var\(--mm-text-scale, 1\)\), calc\(34 \* var\(--mm-px\)\)\); line-height: 1; \}/);
+  assert.match(output, /const label = `\$\{n\}px`;/, 'not a stylesheet');
+  assert.match(output, /\.x \{ font-size: \$\{size\}px; \}/, 'interpolated: left for a human');
+  assert.deepEqual(transformJs(output), { output, changes: 0, skipped: 0 }, 'idempotent');
+});
+
+test("a fluid font size's viewport term follows the text setting too (coordinator, #487)", () => {
+  // clamp(21px, 4.2vmin, 34px) is 32.3px on a 1366×768 Chromebook; with only
+  // its bounds in --mm-px it was clamp(42, 32.3, 68) = 42px at 200% text.
+  const scaled = (term) => `calc(${term} * var(--mm-text-scale, 1))`;
+  assert.equal(scaleFluidClamps('clamp(calc(21 * var(--mm-px)), 4.2vmin, calc(34 * var(--mm-px)))'), `clamp(calc(21 * var(--mm-px)), ${scaled('4.2vmin')}, calc(34 * var(--mm-px)))`);
+  assert.equal(scaleFluidClamps('clamp(1.35rem, 5vw, 2rem)'), `clamp(1.35rem, ${scaled('5vw')}, 2rem)`, 'rem bounds too');
+  assert.equal(scaleFluidClamps("a ? 'clamp(1rem,3dvh,2rem)' : 'clamp(1rem, 2cqi, 2rem)'"), `a ? 'clamp(1rem,${scaled('3dvh')},2rem)' : 'clamp(1rem, ${scaled('2cqi')}, 2rem)'`);
+  for (const untouched of ['clamp(1rem, 1rem + 2vw, 2rem)', 'clamp(12px, 50%, 20px)', '1.2em', 'min(4vw, 20px)']) assert.equal(scaleFluidClamps(untouched), untouched);
+  // Only font sizes: a padding or line-height clamp is not text.
+  const js = "const a = { fontSize: 'clamp(1rem, 4vw, 2rem)', padding: 'clamp(18px, 5vw, 30px)' };";
+  const { output, changes } = transformJs(js);
+  assert.equal(output, `const a = { fontSize: 'clamp(1rem, ${scaled('4vw')}, 2rem)', padding: 'clamp(18px, 5vw, 30px)' };`);
+  assert.equal(changes, 1);
+  const css = transformCss('.a { font-size: clamp(1rem, 4vw, 2rem); padding: clamp(8px, 2vw, 16px); line-height: clamp(1.2, 1vw, 1.5); }');
+  assert.equal(css.output, `.a { font-size: clamp(1rem, ${scaled('4vw')}, 2rem); padding: clamp(8px, 2vw, 16px); line-height: clamp(1.2, 1vw, 1.5); }`);
+  assert.deepEqual(transformJs(output), { output, changes: 0, skipped: 0 }, 'idempotent');
+  assert.deepEqual(transformCss(css.output).changes, 0, 'idempotent (CSS)');
 });
 
 test('idempotent: a second run changes nothing', () => {
@@ -127,4 +158,23 @@ test('PDF generators are never rewritten; a missing path is skipped with a note'
   }
   for (const file of PRINT_ONLY) assert.equal(readText(path.join(root, file), 'utf8'), 'const s = { fontSize: 11 };');
   assert.ok(PRINT_ONLY.includes('src/platform/resources/assignmentWorksheetPdf.js') && PRINT_ONLY.includes('src/platform/resources/lessonNotesPdf.js'));
+});
+
+test("the worksheet visuals are paper: print-only, sized in px, drawn only by the PDF", async () => {
+  // A teacher's 200% browser text must not grow the visuals' fixed-layout
+  // tables inside a PDF whose other text stays in px (coordinator, #487).
+  const { PRINT_ONLY } = await import('../../scripts/codemods/px-to-rem.mjs');
+  const { readdirSync, statSync } = await import('node:fs');
+  const visuals = 'src/platform/resources/assignmentWorksheetVisuals.js';
+  assert.ok(PRINT_ONLY.includes(visuals));
+  const source = readFileSync(visuals, 'utf8');
+  assert.match(source, /tableLayout: 'fixed', fontSize: '12px'/);
+  assert.doesNotMatch(source, /--mm-px/);
+  // Whoever renders a visual must itself be print-only.
+  const files = [];
+  const walk = (dir) => readdirSync(dir).forEach((name) => { const file = `${dir}/${name}`; if (statSync(file).isDirectory()) walk(file); else if (/\.jsx?$/.test(name)) files.push(file); });
+  walk('src');
+  const renderers = files.filter((file) => /import\s*\{[^}]*\brenderWorksheetVisual\b[^}]*\}\s*from\s*'[^']*assignmentWorksheetVisuals\.js'/.test(readFileSync(file, 'utf8')));
+  assert.ok(renderers.length > 0, 'found the renderer');
+  for (const file of renderers) assert.ok(PRINT_ONLY.includes(file), `${file} renders worksheet visuals but is not print-only`);
 });

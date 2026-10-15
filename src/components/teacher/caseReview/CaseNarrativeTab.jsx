@@ -76,7 +76,7 @@ export default function CaseNarrativeTab({ model }) {
         </div>
         {groups.length ? groups.map((group) => (
           <div key={group.key} className="cr-section" data-fact-category={group.key}>
-            <h3 style={{ margin: '6px 0 0', fontSize: 14 }}>{group.label}</h3>
+            <h3 style={{ margin: '6px 0 0', fontSize: 'calc(14 * var(--mm-px))' }}>{group.label}</h3>
             <ul className="cr-facts">
               {group.facts.map((fact) => <FactItem key={fact.key} fact={fact} onCopy={(text) => copy(text, 'Fact copied.')} />)}
             </ul>

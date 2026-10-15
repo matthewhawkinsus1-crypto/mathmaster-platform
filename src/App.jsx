@@ -8674,10 +8674,10 @@ function App() {
           textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 1000, lineHeight: 1.05 }}>
+        <div style={{ fontSize: 'clamp(calc(24 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(42 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05 }}>
           ⏰ PACK UP & RETURN TECHNOLOGY
         </div>
-        <div style={{ marginTop: 8, fontSize: 'clamp(16px, 2.2vw, 24px)', fontWeight: 900 }}>
+        <div style={{ marginTop: 8, fontSize: 'clamp(calc(16 * var(--mm-px)), calc(2.2vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', fontWeight: 900 }}>
           Save your work, sign out, and return your device now. The bell is in{' '}
           <DOLCountdown endsAt={packUp.endsAt} />.
         </div>
@@ -8756,7 +8756,7 @@ function App() {
         <strong>🔥 WARM-UP ACTIVE</strong>
         <span>{assignment.title}</span>
         {!support.hideCountdowns && (
-          <strong style={{ fontSize: 20 }}>
+          <strong style={{ fontSize: 'calc(20 * var(--mm-px))' }}>
             <DOLCountdown endsAt={state.endsAt} /> remaining
           </strong>
         )}
@@ -8818,7 +8818,7 @@ function App() {
           }}
         >
           <h2 id="mathmaster-idle-title" style={{ color: 'var(--mm-danger)', marginTop: 0 }}>Are you still working?</h2>
-          <p id="mathmaster-idle-detail" style={{ color: 'var(--mm-text-muted)', fontSize: '16px', marginBottom: '30px' }}>
+          <p id="mathmaster-idle-detail" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(16 * var(--mm-px))', marginBottom: '30px' }}>
             Your timer has been paused due to inactivity. Your work stays where you left it.
           </p>
           <button
@@ -8833,7 +8833,7 @@ function App() {
             style={{
               padding: '12px 24px',
               minHeight: '44px',
-              fontSize: '16px',
+              fontSize: 'calc(16 * var(--mm-px))',
               background: '#1a73e8',
               color: '#fff',
               border: 'none',
@@ -8896,7 +8896,7 @@ function App() {
               style={{
                 color: 'var(--mm-danger)',
                 fontWeight: 'bold',
-                fontSize: '13px',
+                fontSize: 'calc(13 * var(--mm-px))',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
                 marginBottom: '8px',
@@ -8976,7 +8976,7 @@ function App() {
                     border: titleMatches
                       ? '2px solid #188038'
                       : '2px solid var(--mm-border)',
-                    fontSize: '16px',
+                    fontSize: 'calc(16 * var(--mm-px))',
                     outline: 'none',
                   }}
                 />
@@ -9175,7 +9175,7 @@ function App() {
             <h2 id="export-json-title" style={{ margin: 0, color: 'var(--mm-text-strong)' }}>
               Export Current Content V{contentVersionOf(exportJsonAssignment)} &middot; {exportJsonAssignment.title}
             </h2>
-            <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: '13px' }}>
+            <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
               This is a portable MathMaster assignment. You can copy it into another MathMaster authoring workflow and bring it back through Assignment Creator. Student/class dates and publication records stay out of the portable assignment.
             </p>
           </div>
@@ -9184,7 +9184,7 @@ function App() {
               readOnly
               value={exportedText}
               onFocus={(event) => event.target.select()}
-              style={{ width: '100%', height: '360px', padding: '12px', borderRadius: '8px', border: '1px solid var(--mm-border)', fontFamily: 'monospace', fontSize: '12px', boxSizing: 'border-box', resize: 'vertical' }}
+              style={{ width: '100%', height: '360px', padding: '12px', borderRadius: '8px', border: '1px solid var(--mm-border)', fontFamily: 'monospace', fontSize: 'calc(12 * var(--mm-px))', boxSizing: 'border-box', resize: 'vertical' }}
             />
           </div>
           <div style={{ padding: '18px 28px', borderTop: '1px solid var(--mm-border-soft)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -9255,7 +9255,7 @@ function App() {
               <h2 id="student-work-title" style={{ margin: 0, color: 'var(--mm-text-strong)' }}>
                 Student Scratchpad
               </h2>
-              <div style={{ color: 'var(--mm-text-muted)', marginTop: '5px', fontSize: '14px' }}>
+              <div style={{ color: 'var(--mm-text-muted)', marginTop: '5px', fontSize: 'calc(14 * var(--mm-px))' }}>
                 {formatStudentName(allStudents.find((student) => student.id === teacherScratchpadDialog.studentId), { lastFirst: false })} · Question{' '}
                 {teacherScratchpadDialog.questionIndex + 1}
               </div>
@@ -9289,7 +9289,7 @@ function App() {
                 ).map((page, index, all) => (
                   <figure key={index} style={{ margin: 0 }}>
                     {all.length > 1 && (
-                      <figcaption style={{ marginBottom: '6px', textAlign: 'left', fontSize: '12px', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
+                      <figcaption style={{ marginBottom: '6px', textAlign: 'left', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
                         Page {index + 1} of {all.length}
                       </figcaption>
                     )}
@@ -9759,7 +9759,7 @@ function App() {
             <section
               role="status"
               aria-label="Live Teaching"
-              style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '10px', background: '#137333', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', fontWeight: 800, fontSize: '13px' }}
+              style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '10px', background: '#137333', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}
             >
               <span>🔴 LIVE TEACHING · Teacher exemplar — {describeClassworkPace({ assignment, classworkQuestionPosition: liveTeachingSession?.classworkQuestionPosition ?? null })}. No student data is affected.</span>
               {questions[currentQuestionIndex]?.instructionalPhase && (
@@ -9771,7 +9771,7 @@ function App() {
               {Number(liveTeachingSession?.timer?.durationSeconds || 0) > Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0) && (
                 <strong
                   aria-label="Live timer has been extended beyond the authored plan"
-                  style={{ padding: '3px 7px', borderRadius: 999, background: '#fdd663', color: 'var(--mm-warning-text)', fontSize: 11 }}
+                  style={{ padding: '3px 7px', borderRadius: 999, background: '#fdd663', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}
                 >
                   EXTENDED +{Math.floor((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) / 60)}:{String((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) % 60).padStart(2, '0')}
                 </strong>
@@ -9785,14 +9785,14 @@ function App() {
                 <button
                   type="button"
                   onClick={() => teachAssignmentLive(assignment.id, { forceRestart: true })}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-soft)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-soft)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer', fontSize: 'calc(12 * var(--mm-px))' }}
                 >
                   Restart Fresh
                 </button>
                 <button
                   type="button"
                   onClick={() => { leaveAssignment(); endLiveTeaching(); }}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-success-text)', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-success-text)', fontWeight: 900, cursor: 'pointer', fontSize: 'calc(12 * var(--mm-px))' }}
                 >
                   End Teaching
                 </button>
@@ -9801,20 +9801,20 @@ function App() {
           )}
           {!preview && shouldShowChallengeHandoffBanner({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: 'var(--mm-primary-soft)', border: '3px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', textAlign: 'left' }}>
-              <div><strong style={{ display: 'block', fontSize: '20px' }}>⚡ Live Challenge has started</strong><span>{liveChallengeInvite.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.</span></div>
+              <div><strong style={{ display: 'block', fontSize: 'calc(20 * var(--mm-px))' }}>⚡ Live Challenge has started</strong><span>{liveChallengeInvite.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.</span></div>
               <button type="button" onClick={() => { leaveAssignment(); setStudentDashboardMode('liveChallenge'); }} style={{ padding: '11px 17px', border: 0, borderRadius: '9px', background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Join Live Challenge</button>
             </section>
           )}
           {lifecycle.isLate && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: 'var(--mm-warning-soft)', border: '2px solid #f9ab00', color: 'var(--mm-warning-text)', textAlign: 'left' }}>
-              <strong style={{ display: 'block', fontSize: '20px' }}>Late submission window</strong>
+              <strong style={{ display: 'block', fontSize: 'calc(20 * var(--mm-px))' }}>Late submission window</strong>
               <span>The regular deadline passed. You have <strong>{formatRemainingTime(lifecycle.millisecondsRemaining)}</strong> before this assignment closes permanently on {studentDueDateLines(assignment, lifecycle).finalText}.</span>
             </section>
           )}
 
           {lifecycle.isPracticeOnly && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: 'var(--mm-surface-control)', border: '2px solid #5f6368', color: 'var(--mm-text)', textAlign: 'left' }}>
-              <strong style={{ display: 'block', fontSize: '20px' }}>Practice Mode — grading window ended</strong>
+              <strong style={{ display: 'block', fontSize: 'calc(20 * var(--mm-px))' }}>Practice Mode — grading window ended</strong>
               <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Your practice is saved, so you can pick it up again on another Chromebook, and your teacher can see it when they review your work.</span>
             </section>
           )}
@@ -9822,9 +9822,9 @@ function App() {
           {!preview && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '20px 22px', borderRadius: '14px', background: 'var(--mm-accent-soft)', border: '2px solid #9334e6', color: 'var(--mm-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', textAlign: 'left' }}>
               <div>
-                <strong style={{ display: 'block', fontSize: '22px' }}>DOL is available now</strong>
+                <strong style={{ display: 'block', fontSize: 'calc(22 * var(--mm-px))' }}>DOL is available now</strong>
                 <span>The entire DOL section is open. Complete all {(dolState.questionIndices || [dolState.questionIndex]).length} question{(dolState.questionIndices || [dolState.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</span>
-                {!supportPresentation.hideCountdowns && <div style={{ marginTop: '7px', fontWeight: 900, fontSize: '18px' }}><DOLCountdown endsAt={dolState.endsAt} /> remaining</div>}
+                {!supportPresentation.hideCountdowns && <div style={{ marginTop: '7px', fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}><DOLCountdown endsAt={dolState.endsAt} /> remaining</div>}
               </div>
               <button type="button" onClick={() => changeQuestion((dolState.questionIndices || [dolState.questionIndex])[0])} style={{ padding: '12px 18px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Start DOL Section</button>
             </section>
@@ -9843,19 +9843,19 @@ function App() {
                   <button
                     type="button"
                     onClick={() => startTeacherPreview(assignment.id)}
-                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1a73e8', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1a73e8', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer', fontSize: 'calc(12 * var(--mm-px))' }}
                   >
                     ↻ Restart Preview Fresh
                   </button>
                 )}
               </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: '23px' }}>{assignment.title}</h1>
-                <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
-                {assignmentHasClasswork && assignment?.guidedNotesBySection?.classwork !== 'off' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900 }}>GUIDED NOTES · CLASSWORK</span>}
-                <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: '11px', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>
+                <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 'calc(23 * var(--mm-px))' }}>{assignment.title}</h1>
+                <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
+                {assignmentHasClasswork && assignment?.guidedNotesBySection?.classwork !== 'off' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>GUIDED NOTES · CLASSWORK</span>}
+                <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>
               </div>
-              <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginTop: '7px', lineHeight: 1.5 }}>
+              <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '7px', lineHeight: 1.5 }}>
                 {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText}<br />{dates.finalLabel}: {dates.finalText}</>; })()}
               </div>
               {/* A student who opens the assignment from a Google Classroom link
@@ -9878,20 +9878,20 @@ function App() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
               <div style={{ textAlign: 'right', minWidth: 190 }}>
-                <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 900 }}>
+                <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 900 }}>
                   {preview
                     ? 'Preview progress'
                     : lifecycle.isPracticeOnly
                       ? 'Frozen recorded grade'
                       : 'Grade so far'}
                 </div>
-                <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : recordedGrade >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>
+                <div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : recordedGrade >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>
                   {preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}
                 </div>
                 {/* Only a grade the student can actually see in Classroom, in
                     plain words — never a teacher draft or sync stage. */}
                 {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && classroomReceiptStudentVisible && (
-                  <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: classroomReceiptFinal ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800 }}>
+                  <div style={{ marginTop: 5, fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.35, color: classroomReceiptFinal ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800 }}>
                     Google Classroom shows {classroomReceiptGrade}%{classroomReceiptFinal ? ' (final)' : ' (not final yet)'}
                     {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Classroom will catch up with your newer grade.</> : null}
                   </div>
@@ -9899,8 +9899,8 @@ function App() {
               </div>
               {!preview && assignmentHasClasswork && (
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 900 }}>Daily classwork</div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, color: classworkGradesByAssignment?.[assignment.id]?.score === 100 ? 'var(--mm-success)' : 'var(--mm-warning-text)' }}>{classworkGradesByAssignment?.[assignment.id]?.score === 100 ? '100 — prerequisite met' : 'In progress'}</div>
+                  <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 900 }}>Daily classwork</div>
+                  <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900, color: classworkGradesByAssignment?.[assignment.id]?.score === 100 ? 'var(--mm-success)' : 'var(--mm-warning-text)' }}>{classworkGradesByAssignment?.[assignment.id]?.score === 100 ? '100 — prerequisite met' : 'In progress'}</div>
                 </div>
               )}
             </div>
@@ -10080,11 +10080,11 @@ function App() {
               return (
                 <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionMeta.label} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${section.complete ? '#188038' : sectionMeta.border}`, background: sectionMeta.background, boxShadow: section.complete ? '0 0 0 3px rgba(24,128,56,0.12)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', color: sectionMeta.color, flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionMeta.label}</strong>
+                    <strong style={{ fontSize: 'calc(15 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionMeta.label}</strong>
                     {section.complete ? (
-                      <span aria-label={`${sectionMeta.label} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: '12px', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionMeta.label.toUpperCase()} COMPLETE</span>
+                      <span aria-label={`${sectionMeta.label} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionMeta.label.toUpperCase()} COMPLETE</span>
                     ) : (
-                      <span style={{ fontSize: '12px', fontWeight: 800 }}>{section.entries.length} question{section.entries.length === 1 ? '' : 's'}</span>
+                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.entries.length} question{section.entries.length === 1 ? '' : 's'}</span>
                     )}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: '10px' }}>
@@ -10141,11 +10141,11 @@ function App() {
                             opacity: sectionUnavailable ? 0.7 : 1,
                           }}
                         >
-                          <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
-                          <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: '10px', fontWeight: 900 }}>{sectionMeta.label}</div>
-                          {cardAssessmentLabel && <div aria-label={`${cardAssessmentLabel} question`} style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: '10px', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
-                          <div style={{ fontSize: '12px', marginTop: '7px', fontWeight: 'bold' }}>{sectionUnavailable ? lockedLabel : cardState.label}</div>
-                          {record.totalAttempts > 0 && <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}
+                          <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
+                          <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>{sectionMeta.label}</div>
+                          {cardAssessmentLabel && <div aria-label={`${cardAssessmentLabel} question`} style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
+                          <div style={{ fontSize: 'calc(12 * var(--mm-px))', marginTop: '7px', fontWeight: 'bold' }}>{sectionUnavailable ? lockedLabel : cardState.label}</div>
+                          {record.totalAttempts > 0 && <div style={{ fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}
                         </button>
                       );
                     })}
@@ -10242,7 +10242,7 @@ function App() {
                 every other state names where the work actually is and whether
                 anything is still to come. */}
             {!preview && studentPersistenceStatus !== 'idle' && (
-              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
+              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                 {studentPersistenceStatus === 'capturing'
                   ? 'Saving…'
                   : studentPersistenceStatus === 'queued' || studentPersistenceStatus === 'syncing'
@@ -10261,16 +10261,16 @@ function App() {
               </p>
             )}
             {!preview && studentReportingError && (
-              <p role="status" style={{ margin: '2px 4px 0', color: 'var(--mm-warning-text)', fontSize: 11 }}>
+              <p role="status" style={{ margin: '2px 4px 0', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}>
                 Device reporting unavailable ({studentReportingError}); locally saved work is unchanged.
               </p>
             )}
             {/* "When time ends" is a promise only an open window can keep. */}
             {!preview && runtimeActivityRole === 'dol' && currentDolCopy?.openNotice && (
-              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>{currentDolCopy.openNotice}</p>
+              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{currentDolCopy.openNotice}</p>
             )}
             {!preview && runtimeActivityRole === 'warmup' && warmupState.status === 'active' && (
-              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>Your latest completed response will be submitted automatically when time ends.</p>
+              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Your latest completed response will be submitted automatically when time ends.</p>
             )}
             {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
                 Never "submitted" for a response that was not complete — the
@@ -10281,7 +10281,7 @@ function App() {
                 says who closed it (describeDolClose); on another day, and for
                 a Warm-Up, the receipt reads as before. */}
             {!preview && currentCheckpointOutcome && !currentSectionOpenNow && (
-              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
+              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                 {currentDolCopy?.closeReceipt || (currentCheckpointOutcome === 'auto-submitted'
                   ? 'Time ended. Your latest completed response was submitted automatically.'
                   : currentCheckpointOutcome === 'explicitly-submitted'
@@ -10326,15 +10326,15 @@ function App() {
       />
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED && (
         <section role="dialog" aria-label="Student Spotlight request" style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>
-          <strong style={{ display: 'block', fontSize: 18 }}>{studentSpotlightRequest.teacherLabel || 'Your teacher'} would like to show your current MathMaster work to the class.</strong>
-          <div style={{ marginTop: 5, fontSize: 13 }}>Nothing is visible unless you choose Present Now. This does not share your Chromebook screen.</div>
+          <strong style={{ display: 'block', fontSize: 'calc(18 * var(--mm-px))' }}>{studentSpotlightRequest.teacherLabel || 'Your teacher'} would like to show your current MathMaster work to the class.</strong>
+          <div style={{ marginTop: 5, fontSize: 'calc(13 * var(--mm-px))' }}>Nothing is visible unless you choose Present Now. This does not share your Chromebook screen.</div>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}><button type="button" onClick={() => respondToSpotlight(true)} style={{ padding: '9px 14px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900 }}>Present Now</button><button type="button" onClick={() => respondToSpotlight(false)} style={{ padding: '9px 14px', border: '1px solid #681da8', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Not Now</button></div>
         </section>
       )}
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.ACCEPTED && (
         <section role="status" style={{ margin: '10px auto', maxWidth: 760, padding: '10px 14px', borderRadius: 10, background: '#681da8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><strong>Presenting to class</strong><button type="button" onClick={stopStudentSpotlight} style={{ padding: '7px 11px', border: '1px solid var(--mm-border-soft)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Stop Presenting</button></section>
       )}
-      {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: 'var(--mm-text-muted)', fontSize: 12 }}>{studentSpotlightMessage}</div>}
+      {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{studentSpotlightMessage}</div>}
       {/* Where the skip link lands: focus here, the next Tab enters the screen. */}
       <div id={MAIN_CONTENT_ID} tabIndex={-1} />
       {content}

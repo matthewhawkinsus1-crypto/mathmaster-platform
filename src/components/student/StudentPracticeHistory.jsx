@@ -10,7 +10,7 @@ import {
   summarizePracticeByWeek,
 } from '../../platform/mastery/practiceHistoryPresentation.js';
 
-const chipStyle = { display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 800 };
+const chipStyle = { display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: '999px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800 };
 
 export const StudentPracticeHistory = ({
   evidenceEvents = [], availableTeks = [], loading = false, error = null,
@@ -40,10 +40,10 @@ export const StudentPracticeHistory = ({
     <section style={{ maxWidth: '980px', margin: '0 auto', padding: '24px 18px 42px', textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
         <div>
-          <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: '26px' }}>Practice History</h1>
+          <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 'calc(26 * var(--mm-px))' }}>Practice History</h1>
           <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)' }}>Every answer you have checked, newest first.</p>
         </div>
-        <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--mm-text)' }}>
+        <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)' }}>
           Skill
           <select value={teksFilter} onChange={(event) => setTeksFilter(event.target.value)} style={{ display: 'block', minWidth: '180px', maxWidth: '100%', minHeight: '44px', marginTop: '5px', padding: '9px 10px', border: '1px solid var(--mm-border)', borderRadius: '7px', background: 'var(--mm-surface)' }}>
             <option value="all">All skills</option>
@@ -63,26 +63,26 @@ export const StudentPracticeHistory = ({
           ['Independent', report.independentEvents],
         ].map(([label, value]) => (
           <div key={label} style={{ padding: '14px 16px', border: '1px solid var(--mm-border)', borderRadius: '9px', background: 'var(--mm-surface)' }}>
-            <div style={{ color: 'var(--mm-text-muted)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase' }}>{label}</div>
-            <div style={{ marginTop: '3px', color: 'var(--mm-text-strong)', fontSize: '22px', fontWeight: 900 }}>{value}</div>
+            <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, textTransform: 'uppercase' }}>{label}</div>
+            <div style={{ marginTop: '3px', color: 'var(--mm-text-strong)', fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900 }}>{value}</div>
           </div>
         ))}
       </div>
 
       {capNotice && (
-        <p role="status" style={{ margin: '-10px 0 18px', padding: '10px 12px', borderRadius: '8px', background: 'var(--mm-surface-tint)', color: 'var(--mm-primary-text)', fontSize: '13px', lineHeight: 1.5 }}>
+        <p role="status" style={{ margin: '-10px 0 18px', padding: '10px 12px', borderRadius: '8px', background: 'var(--mm-surface-tint)', color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
           {capNotice}
         </p>
       )}
 
       {weeks.length > 0 && (
         <section aria-labelledby="practice-by-week" style={{ marginBottom: '26px' }}>
-          <h2 id="practice-by-week" style={{ margin: '0 0 10px', fontSize: '15px', color: 'var(--mm-text)' }}>By week</h2>
+          <h2 id="practice-by-week" style={{ margin: '0 0 10px', fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text)' }}>By week</h2>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '8px' }}>
             {weeks.map((week) => (
               <li key={week.weekKey} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px 14px', flexWrap: 'wrap', padding: '10px 14px', border: '1px solid var(--mm-border)', borderRadius: '9px', background: 'var(--mm-surface)' }}>
                 <strong style={{ color: 'var(--mm-text-strong)' }}>{week.label}</strong>
-                <span style={{ color: 'var(--mm-text)', fontSize: '13px' }}>
+                <span style={{ color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
                   {week.answers} {week.answers === 1 ? 'answer' : 'answers'} · {week.accuracy}% correct · {week.onYourOwn} on your own
                   {week.partial && <span style={{ ...chipStyle, marginLeft: '8px', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)' }}>Older answers not shown</span>}
                 </span>
@@ -98,7 +98,7 @@ export const StudentPracticeHistory = ({
         </div>
       ) : Object.entries(report.groupedByDate).map(([dateLabel, items]) => (
         <div key={dateLabel} style={{ marginBottom: '26px' }}>
-          <h2 style={{ margin: '0 0 10px', fontSize: '15px', color: 'var(--mm-text)' }}>{dateLabel}</h2>
+          <h2 style={{ margin: '0 0 10px', fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text)' }}>{dateLabel}</h2>
           <div style={{ display: 'grid', gap: '10px' }}>
             {items.map((item) => (
               <article key={item.eventKey} style={{ padding: '15px 17px', border: '1px solid var(--mm-border)', borderRadius: '10px', background: 'var(--mm-surface)' }}>
@@ -109,19 +109,19 @@ export const StudentPracticeHistory = ({
                       <span style={{ ...chipStyle, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{item.activityRoleName}</span>
                       <span style={{ ...chipStyle, background: item.classification.isIndependent ? 'var(--mm-success-bg)' : 'var(--mm-warning-soft)', color: item.classification.isIndependent ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>{studentAttemptLabel(item.classification)}</span>
                     </div>
-                    <div style={{ marginTop: '7px', color: 'var(--mm-text-muted)', fontSize: '12px' }}>
+                    <div style={{ marginTop: '7px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                       {/* DOK and difficulty band are how the platform reasons
                           about a question. They tell a student nothing about
                           their own learning and read as a grade on the work. */}
                       {item.dateFormatted} · Attempt {item.attemptNumber}
                     </div>
                   </div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: item.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>
+                  <div style={{ fontSize: 'calc(20 * var(--mm-px))', fontWeight: 900, color: item.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>
                     {Math.round(item.score * 100)}% {item.isCorrect ? '✓' : ''}
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '8px', marginTop: '12px', paddingTop: '11px', borderTop: '1px solid var(--mm-border-soft)', fontSize: '12px', color: 'var(--mm-text)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '8px', marginTop: '12px', paddingTop: '11px', borderTop: '1px solid var(--mm-border-soft)', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)' }}>
                   {/* Family and instance ids are database keys. What a student
                       wants from their own history is what kind of work it was
                       and what help was on the table — by the names they saw,

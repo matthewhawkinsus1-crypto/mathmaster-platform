@@ -19,7 +19,7 @@ const inputStyle = {
   border: '1px solid var(--mm-tint-border)',
   borderRadius: 8,
   boxSizing: 'border-box',
-  fontSize: 17,
+  fontSize: 'calc(17 * var(--mm-px))',
 };
 
 const actionStyle = {
@@ -97,7 +97,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
       />
 
       <Panel title="Functions">
-        <div style={{ display: 'grid', gap: 8, fontSize: 20, fontWeight: 800 }}>
+        <div style={{ display: 'grid', gap: 8, fontSize: 'calc(20 * var(--mm-px))', fontWeight: 800 }}>
           <MathDisplay value={`f(x)=${answers.f.expression}`} />
           <MathDisplay value={`g(x)=${answers.g.expression}`} />
         </div>
@@ -134,7 +134,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
                     placeholder="Example: 2, -5"
                     aria-label="Excluded denominator values"
                   />
-                  <span style={{ display: 'block', marginTop: 5, color: 'var(--mm-text-muted)', fontWeight: 500, fontSize: 13 }}>
+                  <span style={{ display: 'block', marginTop: 5, color: 'var(--mm-text-muted)', fontWeight: 500, fontSize: 'calc(13 * var(--mm-px))' }}>
                     Enter all values excluded by the original denominator, separated by commas. Leave blank only when there are none.
                   </span>
                 </label>

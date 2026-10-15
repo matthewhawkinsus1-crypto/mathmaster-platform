@@ -13,11 +13,15 @@ import { getMathMasterBuildInfo } from './platform/runtime/buildInfo.js';
 import { installPerformanceDiagnostics, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { installMathMasterTheme } from './theme/mathMasterTheme.js';
 import { installPinchZoomRootFlag } from './platform/layout/pinchZoomReveal.js';
+import { installTextScale } from './platform/layout/textScale.js';
 
 installMathMasterTheme();
 // html[data-mm-pinch-zoomed] for the whole app, so typing while zoomed does not
 // jump the page (index.css, platform/layout/pinchZoomReveal.js).
 installPinchZoomRootFlag(window);
+// --mm-text-scale: the browser text-size setting as a number, so fluid font
+// sizes (clamp with a viewport term) grow with it too (WCAG 1.4.4).
+installTextScale(window);
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

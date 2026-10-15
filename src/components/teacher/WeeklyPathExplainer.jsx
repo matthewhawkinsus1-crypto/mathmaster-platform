@@ -22,12 +22,12 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 // just what it chose.
 
 const panel = { border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 14 };
-const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: 'var(--mm-primary-text)' };
-const note = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' };
-const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 };
+const heading = { margin: '0 0 4px', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)' };
+const note = { color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, margin: '0 0 12px' };
+const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 'calc(12 * var(--mm-px))' };
 const step = {
   padding: '3px 9px', borderRadius: 999, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)',
-  fontSize: 10.5, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase',
+  fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase',
 };
 
 const readable = (value) => String(value || '').replace(/_/g, ' ');
@@ -37,7 +37,7 @@ function StepHeader({ index, title, detail }) {
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={step}>Step {index}</span>
-        <strong style={{ fontSize: 14.5, color: 'var(--mm-text-strong)' }}>{title}</strong>
+        <strong style={{ fontSize: 'calc(14.5 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{title}</strong>
       </div>
       {detail && <div style={{ ...note, margin: '5px 0 0' }}>{detail}</div>}
     </div>
@@ -189,7 +189,7 @@ export default function WeeklyPathExplainer({
         <ol style={{ margin: 0, paddingLeft: 20 }}>
           {goal.sessions.map((session) => (
             <li key={session.slot} style={{ marginBottom: 12 }}>
-              <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 14 }}>
+              <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))' }}>
                 {session.teksCode}
                 <span style={{ ...note, display: 'inline', margin: '0 0 0 8px', fontWeight: 700 }}>
                   {session.studentLabel}
@@ -246,11 +246,11 @@ export default function WeeklyPathExplainer({
           detail={`${plan.considered.length} candidates came out of the curriculum engine. These are the rows the week was chosen from.`}
         />
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12.5 * var(--mm-px))' }}>
             <thead>
               <tr style={{ background: 'var(--mm-surface-sunken)' }}>
                 {['TEKS', 'Engine status', 'Lifecycle', 'Purpose', 'DOK', 'Band', 'Score', 'Eligible'].map((head) => (
-                  <th key={head} style={{ textAlign: 'left', padding: 7, fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{head}</th>
+                  <th key={head} style={{ textAlign: 'left', padding: 7, fontSize: 'calc(10.5 * var(--mm-px))', letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{head}</th>
                 ))}
               </tr>
             </thead>
@@ -279,7 +279,7 @@ export default function WeeklyPathExplainer({
             style={{
               appearance: 'none', fontFamily: 'inherit', marginTop: 10, minHeight: 40,
               padding: '8px 14px', borderRadius: 8, border: '1px solid var(--mm-tint-border)',
-              background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer', fontSize: 13,
+              background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer', fontSize: 'calc(13 * var(--mm-px))',
             }}
           >
             {showAllConsidered ? 'Show the top 10 only' : `Show all ${plan.considered.length}`}

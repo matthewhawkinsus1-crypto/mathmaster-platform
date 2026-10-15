@@ -6,7 +6,7 @@ export default function ClassCourseSettings({ classPeriods = [], courseProfiles 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
           <h3 style={{ margin: 0 }}>Course & rigor by class</h3>
-          <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, maxWidth: 760, lineHeight: 1.5 }}>
+          <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', maxWidth: 760, lineHeight: 1.5 }}>
             Honors is a class-level promise of rigor. Advanced readiness remains evidence-driven for each student and does not change course placement.
           </p>
         </div>
@@ -24,7 +24,7 @@ export default function ClassCourseSettings({ classPeriods = [], courseProfiles 
                   <td style={{ padding: 10, fontWeight: 900 }}>{period}</td>
                   <td><select value={profile.course || 'algebra1'} onChange={(event) => onChange(period, { course: event.target.value })} style={{ minWidth: 145, padding: 8, border: '1px solid var(--mm-border)', borderRadius: 7 }}>{COURSE_OPTIONS.map((course) => <option key={course.id} value={course.id}>{course.label}</option>)}</select></td>
                   <td><select value={profile.courseLevel || 'standard'} onChange={(event) => onChange(period, { courseLevel: event.target.value })} style={{ minWidth: 130, padding: 8, border: '1px solid var(--mm-border)', borderRadius: 7 }}><option value="standard">Standard</option><option value="honors">Honors</option></select></td>
-                  <td style={{ color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.45 }}>{profile.courseLevel === 'honors' ? <>{sequence?.totalQuestions ? <>Recent sequence: <strong>{sequence.percentages.core}% core · {sequence.percentages.prerequisite}% prerequisite · {sequence.percentages.ccmr}% CCMR</strong><br /></> : null}<span>Rolling planning target: ~75% core · 10% prerequisite · 15% CCMR. Short Warm-Ups/DOLs can stay narrow.</span></> : 'Students can still receive individual enrichment when evidence shows advanced readiness.'}</td>
+                  <td style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>{profile.courseLevel === 'honors' ? <>{sequence?.totalQuestions ? <>Recent sequence: <strong>{sequence.percentages.core}% core · {sequence.percentages.prerequisite}% prerequisite · {sequence.percentages.ccmr}% CCMR</strong><br /></> : null}<span>Rolling planning target: ~75% core · 10% prerequisite · 15% CCMR. Short Warm-Ups/DOLs can stay narrow.</span></> : 'Students can still receive individual enrichment when evidence shows advanced readiness.'}</td>
                 </tr>
               );
             })}

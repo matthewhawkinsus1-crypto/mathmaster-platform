@@ -36,8 +36,8 @@ export default function AdaptivePreview({
   if (!preview.rows.length) {
     return (
       <section style={{ padding: '15px 17px', border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)' }}>
-        <h4 style={{ margin: 0, fontSize: 15 }}>Adaptive preview</h4>
-        <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{preview.summary.headline}</p>
+        <h4 style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))' }}>Adaptive preview</h4>
+        <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{preview.summary.headline}</p>
       </section>
     );
   }
@@ -45,17 +45,17 @@ export default function AdaptivePreview({
   return (
     <section style={{ border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)', overflow: 'hidden' }}>
       <header style={{ padding: '15px 17px 12px', borderBottom: '1px solid var(--mm-border-soft)' }}>
-        <h4 style={{ margin: 0, fontSize: 15 }}>Adaptive preview</h4>
-        <p style={{ margin: '5px 0 0', fontSize: 13.5, color: 'var(--mm-text-strong)', lineHeight: 1.5, maxWidth: '68ch' }}>
+        <h4 style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))' }}>Adaptive preview</h4>
+        <p style={{ margin: '5px 0 0', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text-strong)', lineHeight: 1.5, maxWidth: '68ch' }}>
           {preview.summary.headline}
         </p>
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5, maxWidth: '68ch' }}>
+        <p style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5, maxWidth: '68ch' }}>
           Run through the real adaptation engine against three simulated students, not a demonstration.
           If this preview shows nothing changing, nothing will change for your class either.
         </p>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 11 }}>
           {preview.students.map((student) => (
-            <div key={student.id} style={{ fontSize: 12 }}>
+            <div key={student.id} style={{ fontSize: 'calc(12 * var(--mm-px))' }}>
               <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>{student.label}</div>
               <div style={{ color: 'var(--mm-text-muted)', maxWidth: 210, lineHeight: 1.4 }}>{student.note}</div>
             </div>
@@ -64,7 +64,7 @@ export default function AdaptivePreview({
       </header>
 
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 620 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12.5 * var(--mm-px))', minWidth: 620 }}>
           <thead>
             <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>
               <th style={{ padding: '9px 11px' }}>Question</th>
@@ -88,14 +88,14 @@ export default function AdaptivePreview({
                       <div style={{ fontWeight: 800 }}>
                         Q{row.index + 1} · {row.activityRole}
                       </div>
-                      <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.4 }}>{row.prompt || '—'}</div>
-                      <span style={{ display: 'inline-block', marginTop: 4, padding: '2px 7px', borderRadius: 999, background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`, fontSize: 10, fontWeight: 900 }}>
+                      <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.4 }}>{row.prompt || '—'}</div>
+                      <span style={{ display: 'inline-block', marginTop: 4, padding: '2px 7px', borderRadius: 999, background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>
                         {row.varies ? 'VARIES' : 'SAME FOR ALL'}
                       </span>
                     </td>
                     <td style={{ padding: '9px 11px', color: 'var(--mm-text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                       DOK {row.assignedDok} · Band {row.assignedBand}
-                      <div style={{ fontSize: 10.5, marginTop: 2 }}>{row.variationMode}</div>
+                      <div style={{ fontSize: 'calc(10.5 * var(--mm-px))', marginTop: 2 }}>{row.variationMode}</div>
                     </td>
                     {row.deliveries.map((delivery) => (
                       <td
@@ -116,7 +116,7 @@ export default function AdaptivePreview({
                         type="button"
                         onClick={() => setOpenRow(expanded ? null : row.questionId)}
                         aria-expanded={expanded}
-                        style={{ padding: '5px 9px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}
+                        style={{ padding: '5px 9px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(11.5 * var(--mm-px))', cursor: 'pointer' }}
                       >
                         {expanded ? 'Hide' : 'Why'}
                       </button>
@@ -127,7 +127,7 @@ export default function AdaptivePreview({
                       <td colSpan={3 + preview.students.length} style={{ padding: '11px 13px' }}>
                         <div style={{ display: 'grid', gap: 7 }}>
                           {row.deliveries.map((delivery) => (
-                            <div key={delivery.studentId} style={{ fontSize: 12, lineHeight: 1.5 }}>
+                            <div key={delivery.studentId} style={{ fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
                               <strong>{delivery.label}:</strong>{' '}
                               {/* The engine's own words, not a rewrite of them. */}
                               <span style={{ color: 'var(--mm-text-muted)' }}>{delivery.reason || 'Delivered exactly as authored.'}</span>

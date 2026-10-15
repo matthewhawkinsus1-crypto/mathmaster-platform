@@ -13,7 +13,7 @@ export const RetentionQuickCheckBanner = ({ pendingProbes = [], onLaunchQuickChe
     <section style={{ marginBottom: '20px', padding: '15px 18px', borderRadius: '9px', border: `1px solid ${concern ? 'var(--mm-error-border-soft)' : '#fdd663'}`, borderLeft: `6px solid ${concern ? '#d93025' : '#f29900'}`, background: concern ? 'var(--mm-error-bg)' : 'var(--mm-warning-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', textAlign: 'left' }}>
       <div style={{ flex: '1 1 420px' }}>
         <div style={{ fontWeight: 900, color: concern ? 'var(--mm-error-text)' : 'var(--mm-warning-text)' }}>{concern ? 'Retention concern' : 'Quick retention check due'}{pendingProbes.length > 1 ? ` · +${pendingProbes.length - 1} more` : ''}</div>
-        <div style={{ marginTop: '4px', color: 'var(--mm-text)', fontSize: '13px' }}><strong>{studentLabelForTeks(primary.teksCode)}:</strong> {primary.reason}</div>
+        <div style={{ marginTop: '4px', color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}><strong>{studentLabelForTeks(primary.teksCode)}:</strong> {primary.reason}</div>
       </div>
       {/* The same launch as every other retention entry point: a two-question
           retentionProbe, the only session that moves the retention schedule. */}

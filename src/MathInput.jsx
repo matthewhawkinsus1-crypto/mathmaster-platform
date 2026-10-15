@@ -585,7 +585,7 @@ export default function MathInput({
           maxWidth: '100%',
           minWidth: 0,
           minHeight: compact ? '44px' : '54px',
-          fontSize: compact ? '20px' : '24px',
+          fontSize: compact ? 'calc(20 * var(--mm-px))' : 'calc(24 * var(--mm-px))',
           padding: compact ? '8px 10px' : '12px 14px',
           borderRadius: '8px',
           border: `2px solid ${borderColor}`,
@@ -624,7 +624,7 @@ export default function MathInput({
             background: toolsVisible ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
             color: 'var(--mm-primary-text)',
             fontWeight: 800,
-            fontSize: 15,
+            fontSize: 'calc(15 * var(--mm-px))',
             fontFamily: 'serif',
             cursor: 'pointer',
           }}
@@ -653,7 +653,7 @@ export default function MathInput({
             background: 'var(--mm-primary-subtle)',
           }}
         >
-          <div style={{ gridColumn: '1 / -1', color: 'var(--mm-primary-text)', fontSize: '12px', fontWeight: 900, textAlign: 'left' }}>Needed for this answer</div>
+          <div style={{ gridColumn: '1 / -1', color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textAlign: 'left' }}>Needed for this answer</div>
           {requiredTools.map((tool) => (
             <button
               type="button"
@@ -670,7 +670,7 @@ export default function MathInput({
                 borderRadius: '8px',
                 background: 'var(--mm-surface)',
                 color: 'var(--mm-primary-text)',
-                fontSize: '21px',
+                fontSize: 'calc(21 * var(--mm-px))',
                 fontWeight: 900,
                 cursor: 'pointer',
               }}
@@ -682,7 +682,7 @@ export default function MathInput({
       )}
 
       {isMobile && unservedRequiredSymbols.length > 0 && (
-        <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: '12px', fontWeight: 700 }}>
+        <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700 }}>
           Additional symbol needed: {unservedRequiredSymbols.join(', ')}. Your device keyboard remains available.
         </div>
       )}
@@ -725,7 +725,7 @@ export default function MathInput({
                 borderRadius: '7px',
                 background: 'var(--mm-surface)',
                 color: 'var(--mm-text-strong)',
-                fontSize: '18px',
+                fontSize: 'calc(18 * var(--mm-px))',
                 fontWeight: 'bold',
                 cursor: 'pointer',
                 ...(isMobile && tool.action === 'deleteBackward' ? {

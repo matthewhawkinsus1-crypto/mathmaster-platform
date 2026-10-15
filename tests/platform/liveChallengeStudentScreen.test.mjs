@@ -60,7 +60,12 @@ test('the final card leads with the place only for a podium finish', () => {
   assert.match(finalCard, /const placeIsPrivate = Boolean\(selfRow\) && finalPlaceIsPrivate\(\{ rank: selfRow\.rank, fullStandings \}\);/);
   assert.match(finished, /fullStandings=\{roomShowsFullStandings\(room\)\}/);
   assert.match(effortBranch, /highlights\.map\(/, 'what they earned and beat');
-  assert.doesNotMatch(executableSource(effortBranch), /place\.ordinal|fontSize: 'clamp\(40px/, 'never the big place');
+  // The big place's size (40–56px at the default text size, in --mm-px since
+  // the large-text sweep) is the podium's alone.
+  const bigPlace = /fontSize: 'clamp\(calc\(40 \* var\(--mm-px\)\)/;
+  assert.match(podiumBranch, bigPlace);
+  assert.doesNotMatch(executableSource(effortBranch), /place\.ordinal/, 'never the big place');
+  assert.doesNotMatch(executableSource(effortBranch), bigPlace, 'never the big place size');
   // Confetti is podium-only, by the same rule.
   assert.match(finished, /\{finalSelf && finalHeadline && <Confetti /);
   assert.match(finished, /highlights=\{recapHighlights\(recap\)\}/);

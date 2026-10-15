@@ -41,7 +41,7 @@ const TONE = {
 const actionButton = (primary) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 16px', borderRadius: 10,
-  fontWeight: 900, fontSize: 14, cursor: 'pointer', flex: '1 1 auto',
+  fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))', cursor: 'pointer', flex: '1 1 auto',
   border: primary ? 0 : '2px solid var(--mm-border)',
   background: primary ? '#174ea6' : 'var(--mm-surface)',
   color: primary ? '#fff' : 'var(--mm-text)',
@@ -65,13 +65,13 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
+          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
             {[courseLabel, periodLabel].filter(Boolean).join(' — ') || 'MathMaster'}
           </div>
-          <div style={{ marginTop: 6, fontSize: 'clamp(30px, 9vw, 44px)', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)' }}>
+          <div style={{ marginTop: 6, fontSize: 'clamp(calc(30 * var(--mm-px)), calc(9vw * var(--mm-text-scale, 1)), calc(44 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)' }}>
             {hidden ? '•••' : summary.score === null ? 'No graded work yet' : `${summary.score}%`}
           </div>
-          <div style={{ marginTop: 4, fontSize: 13, color: 'var(--mm-text-muted)' }}>Current MathMaster grade</div>
+          <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Current MathMaster grade</div>
         </div>
         <button
           type="button"
@@ -95,7 +95,7 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
       <ul
         style={{
           listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'flex',
-          flexWrap: 'wrap', gap: 8, fontSize: 13, fontWeight: 800, color: 'var(--mm-text)',
+          flexWrap: 'wrap', gap: 8, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)',
         }}
       >
         <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>{summary.graded} graded</li>
@@ -132,14 +132,14 @@ function GradeMath({ summary }) {
           appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
           minHeight: MIN_TOUCH_TARGET_PX, padding: '8px 12px', borderRadius: 10,
           border: '2px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)',
-          fontWeight: 900, fontSize: 14, cursor: 'pointer', textAlign: 'left', overflowWrap: 'anywhere',
+          fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))', cursor: 'pointer', textAlign: 'left', overflowWrap: 'anywhere',
         }}
       >
         <span aria-hidden="true" style={{ display: 'inline-block', marginRight: 8, transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
         How this grade is figured
       </button>
       {open && (
-        <div id="grade-math-body" data-grade-math style={{ marginTop: 10, fontSize: 14, lineHeight: 1.5, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>
+        <div id="grade-math-body" data-grade-math style={{ marginTop: 10, fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>
           <p style={{ margin: 0, fontWeight: 800 }}>{math.headline}</p>
           {math.lines.map((line) => (
             <p key={line} style={{ margin: '6px 0 0' }}>{line}</p>
@@ -168,11 +168,11 @@ function WaysToRaise({ ways, onWayAction }) {
         padding: '14px 16px', marginBottom: 18, textAlign: 'left',
       }}
     >
-      <h2 id="ways-to-raise-heading" style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+      <h2 id="ways-to-raise-heading" style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
         Ways to raise your grade{ways.length ? ` (${ways.length})` : ''}
       </h2>
       {ways.length === 0 ? (
-        <p style={{ margin: '8px 0 0', fontSize: 14, color: 'var(--mm-text-muted)' }}>
+        <p style={{ margin: '8px 0 0', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
           You're all caught up — nothing to make up right now.
         </p>
       ) : (
@@ -186,7 +186,7 @@ function WaysToRaise({ ways, onWayAction }) {
               background: way.urgency === 'high' ? 'var(--mm-warning-soft)' : 'var(--mm-surface-sunken)',
               color: 'var(--mm-text)', textAlign: 'left', boxSizing: 'border-box',
             };
-            const text = <span style={{ flex: '1 1 200px', minWidth: 0, fontSize: 14, fontWeight: 700, overflowWrap: 'anywhere' }}>{way.text}</span>;
+            const text = <span style={{ flex: '1 1 200px', minWidth: 0, fontSize: 'calc(14 * var(--mm-px))', fontWeight: 700, overflowWrap: 'anywhere' }}>{way.text}</span>;
             return (
               <li key={way.id || `${way.kind}:${way.assignmentId}`} style={{ minWidth: 0 }}>
                 {/*
@@ -205,7 +205,7 @@ function WaysToRaise({ ways, onWayAction }) {
                     style={{ appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit', cursor: 'pointer', ...rowStyle }}
                   >
                     {text}
-                    <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-primary-text)', whiteSpace: 'nowrap' }}>{way.actionLabel} →</span>
+                    <span style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)', whiteSpace: 'nowrap' }}>{way.actionLabel} →</span>
                   </button>
                 )}
               </li>
@@ -238,14 +238,14 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
     >
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{entry.title}</h3>
-          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+          <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{entry.title}</h3>
+          <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Due {formatDateTime(entry.dueAt)}
             {entry.frozen ? ` · Closed ${formatDateTime(entry.lateDueAt)}` : ''}
           </div>
         </div>
         <div style={{ textAlign: 'right', minWidth: 0 }}>
-          <div style={{ fontSize: 'clamp(18px, 6vw, 24px)', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>
+          <div style={{ fontSize: 'clamp(calc(18 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>
             {/*
               A status word where a percentage would be a lie. `displayGrade` is
               null for anything the model refused to count, so this branch can
@@ -253,14 +253,14 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
             */}
             {hidden ? '••' : entry.displayGrade === null ? '—' : `${entry.displayGrade}%`}
           </div>
-          <span style={{ display: 'inline-block', marginTop: 4, padding: '4px 9px', borderRadius: 999, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', background: tone.bg, color: tone.color }}>
+          <span style={{ display: 'inline-block', marginTop: 4, padding: '4px 9px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', background: tone.bg, color: tone.color }}>
             {entry.statusLabel}
           </span>
         </div>
       </div>
 
       {actions.waitText && (
-        <p data-wait-line style={{ margin: '10px 0 0', fontSize: 13, fontWeight: 800, color: 'var(--mm-text)' }}>{actions.waitText}</p>
+        <p data-wait-line style={{ margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)' }}>{actions.waitText}</p>
       )}
 
       {/*
@@ -268,11 +268,11 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
         label only, from the model — never the teacher's note or name.
       */}
       {entry.teacherGradeText && (
-        <p data-teacher-grade style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5, fontWeight: 800, color: 'var(--mm-text)' }}>{entry.teacherGradeText}</p>
+        <p data-teacher-grade style={{ margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, fontWeight: 800, color: 'var(--mm-text)' }}>{entry.teacherGradeText}</p>
       )}
 
       {entry.exclusionText && (
-        <p style={{ margin: '10px 0 0', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{entry.exclusionText}</p>
+        <p style={{ margin: '10px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{entry.exclusionText}</p>
       )}
 
       <GradeSectionBreakdown sections={entry.sections} shares={entry.sectionShares} hidden={hidden} compact />
@@ -321,11 +321,11 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayBy
           background: 'transparent', cursor: 'pointer', textAlign: 'left',
         }}
       >
-        <span aria-hidden="true" style={{ color: 'var(--mm-primary-text)', fontSize: 13, transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
-        <span style={{ fontWeight: 900, fontSize: 15, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+        <span aria-hidden="true" style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
+        <span style={{ fontWeight: 900, fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {group.period.label}
         </span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
+        <span style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
           {hidden ? '••' : group.summary.score === null ? 'No grade yet' : `${group.summary.score}%`}
           {' · '}
           {group.entries.length} assignment{group.entries.length === 1 ? '' : 's'}
@@ -336,7 +336,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayBy
           enrolled, which is the whole reason this is not assignment.archived.
         */}
         {group.period.archived && (
-          <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 900, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)' }}>CLOSED</span>
+          <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)' }}>CLOSED</span>
         )}
       </button>
       {open && (
@@ -419,7 +419,7 @@ export default function StudentGradeCenter({
           >
             ← Home
           </button>
-          <h1 style={{ margin: 0, fontSize: 'clamp(20px, 6vw, 26px)', color: 'var(--mm-primary-text)' }}>My Grades</h1>
+          <h1 style={{ margin: 0, fontSize: 'clamp(calc(20 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', color: 'var(--mm-primary-text)' }}>My Grades</h1>
         </header>
 
         <PeriodSummary
@@ -440,7 +440,7 @@ export default function StudentGradeCenter({
 
         {pastPeriodGroups.length > 0 && (
           <>
-            <h2 style={{ margin: '22px 0 6px', fontSize: 15, color: 'var(--mm-text)' }}>Past Marking Periods</h2>
+            <h2 style={{ margin: '22px 0 6px', fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text)' }}>Past Marking Periods</h2>
             {pastPeriodGroups.map((group) => (
               <PeriodGroup
                 key={group.period.id}

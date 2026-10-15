@@ -35,15 +35,15 @@ export default function StudentSpotlightView({ request, frame, onStop }) {
     <section aria-label="Student Spotlight projector view" style={{ marginBottom: 16, padding: 24, borderRadius: 16, background: '#17131f', color: '#fff', minHeight: 260 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start' }}>
         <div>
-          <div style={{ color: '#d7b9ff', fontSize: 12, fontWeight: 900, letterSpacing: '.1em' }}>STUDENT SPOTLIGHT · PRESENTING WITH CONSENT</div>
-          <h2 style={{ margin: '6px 0 2px', fontSize: 30 }}>{request?.studentLabel || 'Student'}</h2>
+          <div style={{ color: '#d7b9ff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, letterSpacing: '.1em' }}>STUDENT SPOTLIGHT · PRESENTING WITH CONSENT</div>
+          <h2 style={{ margin: '6px 0 2px', fontSize: 'calc(30 * var(--mm-px))' }}>{request?.studentLabel || 'Student'}</h2>
           <div style={{ color: '#d8d2df' }}>{frame?.assignmentTitle || 'Waiting for current MathMaster work…'}</div>
         </div>
         <button type="button" onClick={onStop} style={{ padding: '9px 13px', borderRadius: 7, border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 800, cursor: 'pointer' }}>Stop Spotlight</button>
       </div>
       {frame ? (
         <div style={{ marginTop: 24, display: 'grid', gap: 16 }}>
-          <div style={{ padding: 18, borderRadius: 12, background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 21, lineHeight: 1.45 }}><MathText>{frame.question?.prompt || 'Current question'}</MathText></div>
+          <div style={{ padding: 18, borderRadius: 12, background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 'calc(21 * var(--mm-px))', lineHeight: 1.45 }}><MathText>{frame.question?.prompt || 'Current question'}</MathText></div>
           <div style={panelStyle}>
             <strong style={{ display: 'block', marginBottom: 10, color: '#d7b9ff' }}>Current student work</strong>
             {Array.isArray(frame.work?.parts) && frame.work.parts.length > 0

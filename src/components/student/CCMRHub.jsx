@@ -86,7 +86,7 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
   // A disabled button must look disabled: "Save date" is off until the date
   // actually changes, and a bright blue button that does nothing reads as broken.
   const buttonStyle = (primary, disabled = false) => ({
-    minHeight: TAP, padding: '8px 14px', borderRadius: 8, fontWeight: 850, fontSize: 13,
+    minHeight: TAP, padding: '8px 14px', borderRadius: 8, fontWeight: 850, fontSize: 'calc(13 * var(--mm-px))',
     cursor: disabled ? 'not-allowed' : 'pointer',
     border: primary && !disabled ? 0 : '1px solid var(--mm-border)',
     background: primary && !disabled ? '#1a73e8' : 'var(--mm-surface)',
@@ -97,10 +97,10 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
   return (
     <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border)' }}>
       <fieldset disabled={locked} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
-        <legend style={{ padding: 0, margin: '0 0 8px', fontWeight: 800, fontSize: 13, color: 'var(--mm-text)' }}>I&apos;m preparing for:</legend>
+        <legend style={{ padding: 0, margin: '0 0 8px', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>I&apos;m preparing for:</legend>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {ASSESSMENT_FRAMEWORKS.map((id) => (
-            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontSize: 13, fontWeight: 700, cursor: readOnly ? 'default' : 'pointer', minHeight: TAP, boxSizing: 'border-box' }}>
+            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, cursor: readOnly ? 'default' : 'pointer', minHeight: TAP, boxSizing: 'border-box' }}>
               <input
                 type="checkbox"
                 checked={goals.includes(id)}
@@ -113,7 +113,7 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
           ))}
         </div>
       </fieldset>
-      <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
+      <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
         {readOnly
           ? 'Teacher read-only view: these are the student’s current CCMR goals. Goals cannot be changed here.'
           : 'Choosing one moves it up your list. It never locks the others away.'}
@@ -122,13 +122,13 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
       {(goals.length > 0 || savedDate) && (
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--mm-border)' }}>
           {readOnly ? (
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--mm-text)' }}>
+            <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
               <strong>Test date:</strong>{' '}
               {described.test ? `${described.test.dateLabel} · ${described.test.testName}` : 'none set'}
             </p>
           ) : (
             <fieldset disabled={locked} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
-              <legend style={{ padding: 0, margin: '0 0 6px', fontWeight: 800, fontSize: 13, color: 'var(--mm-text)' }}>My test date (optional)</legend>
+              <legend style={{ padding: 0, margin: '0 0 6px', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>My test date (optional)</legend>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                 {goals.length > 1 && (
                   <select
@@ -163,8 +163,8 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
                   </button>
                 )}
               </div>
-              {problem && <p role="alert" style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-error-text)' }}>{problem}</p>}
-              <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+              {problem && <p role="alert" style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-error-text)' }}>{problem}</p>}
+              <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
                 When your weekly Path includes test practice, it leans toward this test in the four weeks before it.
               </p>
             </fieldset>
@@ -172,7 +172,7 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
           {described.lines.length > 0 && (
             <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 4 }}>
               {described.lines.map((line) => (
-                <li key={line.framework} style={{ fontSize: 12.5, fontWeight: line.isTest ? 850 : 700, color: line.isTest ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>
+                <li key={line.framework} style={{ fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: line.isTest ? 850 : 700, color: line.isTest ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>
                   {line.text}
                 </li>
               ))}
@@ -181,7 +181,7 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
         </div>
       )}
 
-      <p role="status" aria-live="polite" style={{ margin: status ? '8px 0 0' : 0, fontSize: 12, fontWeight: 700, color: statusIsError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)' }}>
+      <p role="status" aria-live="polite" style={{ margin: status ? '8px 0 0' : 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: statusIsError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)' }}>
         {status}
       </p>
     </div>
@@ -203,35 +203,35 @@ function SkillRow({ item, onPractise, showFramework = false, readOnly = false })
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-          <span style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: toneTextColor(style.chip) }}>
+          <span style={{ fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: toneTextColor(style.chip) }}>
             {showFramework ? `${FRAMEWORK_LABELS[item.framework]} · ${style.label}` : style.label}
           </span>
-          <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 15, margin: '3px 0' }}>{item.label}</span>
-          <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+          <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 'calc(15 * var(--mm-px))', margin: '3px 0' }}>{item.label}</span>
+          <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
             {explainAssessmentRecommendation(item)}
           </span>
           {primary && (
-            <span style={{ display: 'block', color: 'var(--mm-accent-text)', fontSize: 11.5, lineHeight: 1.45, marginTop: 6, fontWeight: 850 }}>
+            <span style={{ display: 'block', color: 'var(--mm-accent-text)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.45, marginTop: 6, fontWeight: 850 }}>
               {referenceLabel(primary)}
             </span>
           )}
-          <span style={{ display: 'block', color: 'var(--mm-text)', fontSize: 11, marginTop: 5, fontWeight: 700 }}>
+          <span style={{ display: 'block', color: 'var(--mm-text)', fontSize: 'calc(11 * var(--mm-px))', marginTop: 5, fontWeight: 700 }}>
             Course: {item.coreMastery == null ? 'no evidence yet' : `${Math.round(item.coreMastery * 100)}%`}
             {' · '}
             {item.assessmentProficiency == null || item.evidenceBasis !== 'direct'
               ? 'this format: not practised yet'
               : `this format: ${Math.round(item.assessmentProficiency * 100)}%${item.provisional ? ' (early)' : ''}`}
           </span>
-          <span style={{ display: 'block', color: item.status === READINESS.MAINTENANCE ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 11.5, marginTop: 5, fontWeight: 900 }}>
+          <span style={{ display: 'block', color: item.status === READINESS.MAINTENANCE ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11.5 * var(--mm-px))', marginTop: 5, fontWeight: 900 }}>
             {stage.label} · {stage.actionLabel}
           </span>
         </div>
         {item.status === READINESS.NOT_AVAILABLE ? (
-          <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)', fontWeight: 850, fontSize: 12 }}>
+          <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)', fontWeight: 850, fontSize: 'calc(12 * var(--mm-px))' }}>
             Not available
           </span>
         ) : readOnly ? (
-          <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)', fontWeight: 850, fontSize: 12 }}>
+          <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)', fontWeight: 850, fontSize: 'calc(12 * var(--mm-px))' }}>
             Student can practise this
           </span>
         ) : (
@@ -242,7 +242,7 @@ function SkillRow({ item, onPractise, showFramework = false, readOnly = false })
       </div>
       {item.references?.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <button type="button" onClick={() => setShowReference((value) => !value)} style={{ minHeight: TAP, display: 'inline-flex', alignItems: 'center', padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850, cursor: 'pointer' }}>
+          <button type="button" onClick={() => setShowReference((value) => !value)} style={{ minHeight: TAP, display: 'inline-flex', alignItems: 'center', padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 850, cursor: 'pointer' }}>
             {showReference ? 'Hide official standard connection' : 'Dig deeper into the standard connection'}
           </button>
           {showReference && <div style={{ marginTop: 8 }}><CcmrReferenceList references={item.references} /></div>}
@@ -264,8 +264,8 @@ function PathwayCard({ framework, summary, active, onSelect }) {
         background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', cursor: 'pointer',
       }}
     >
-      <span style={{ display: 'block', fontWeight: 900, fontSize: 16, color: 'var(--mm-text-strong)' }}>{profile?.displayName || FRAMEWORK_LABELS[framework]}</span>
-      <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+      <span style={{ display: 'block', fontWeight: 900, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{profile?.displayName || FRAMEWORK_LABELS[framework]}</span>
+      <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', marginTop: 4, lineHeight: 1.5 }}>
         {summary.readySkills} skill{summary.readySkills === 1 ? '' : 's'} ready
         {' · '}
         {summary.practisedSkills} practised
@@ -273,7 +273,7 @@ function PathwayCard({ framework, summary, active, onSelect }) {
         {summary.maintainedSkills ? ` · ${summary.maintainedSkills} challenge complete` : ''}
       </span>
       {summary.transferGaps > 0 && (
-        <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, color: 'var(--mm-error-text)', background: 'var(--mm-error-bg)' }}>
+        <span style={{ display: 'inline-block', marginTop: 6, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900, padding: '2px 8px', borderRadius: 999, color: 'var(--mm-error-text)', background: 'var(--mm-error-bg)' }}>
           {summary.transferGaps} to transfer
         </span>
       )}
@@ -356,7 +356,7 @@ export default function CCMRHub({
   if (!pathOptions) {
     return (
       <section style={{ padding: 16, border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', textAlign: 'left' }}>
-        <h2 style={{ margin: '0 0 8px', fontSize: 18, color: 'var(--mm-primary-text)' }}>College, Career &amp; Military Readiness</h2>
+        <h2 style={{ margin: '0 0 8px', fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-primary-text)' }}>College, Career &amp; Military Readiness</h2>
         <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>
           MathMaster is still resolving your course path, so there is nothing to recommend here yet.
         </p>
@@ -366,8 +366,8 @@ export default function CCMRHub({
 
   return (
     <section style={{ textAlign: 'left' }}>
-      <h2 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--mm-primary-text)' }}>College, Career &amp; Military Readiness</h2>
-      <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 }}>
+      <h2 style={{ margin: '0 0 4px', fontSize: 'calc(20 * var(--mm-px))', color: 'var(--mm-primary-text)' }}>College, Career &amp; Military Readiness</h2>
+      <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>
         The same mathematics you are already learning, in the formats these assessments use.
         Your course path is still your main path — this is here when you want it.
       </p>
@@ -383,7 +383,7 @@ export default function CCMRHub({
       />
 
       <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)' }}>
-        <label htmlFor="ccmr-standard-search" style={{ display: 'block', marginBottom: 6, fontWeight: 850, fontSize: 13, color: 'var(--mm-text)' }}>Find practice by CCMR standard or skill</label>
+        <label htmlFor="ccmr-standard-search" style={{ display: 'block', marginBottom: 6, fontWeight: 850, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>Find practice by CCMR standard or skill</label>
         <input
           id="ccmr-standard-search"
           type="search"
@@ -392,7 +392,7 @@ export default function CCMRHub({
           placeholder="Try ACT F 502, recursive sequence, SAT nonlinear functions, TSIA2 Algebraic Reasoning, or ASVAB MK"
           style={{ width: '100%', minHeight: TAP, boxSizing: 'border-box', padding: '9px 11px', border: '1px solid var(--mm-border)', borderRadius: 9, font: 'inherit' }}
         />
-        <p style={{ margin: '7px 0 0', color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.5 }}>
+        <p style={{ margin: '7px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.5 }}>
           Search uses the official identifier each assessment actually publishes. ACT has numbered CCRS standards; Digital SAT and TSIA2 use official skill names; ASVAB uses AR/MK subtest codes.
         </p>
       </div>
@@ -401,11 +401,11 @@ export default function CCMRHub({
         <section style={{ marginBottom: 18, padding: 14, borderRadius: 12, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 10 }}>
             <strong style={{ color: 'var(--mm-primary-text)' }}>Practice matches</strong>
-            <span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>{searchResults.length} matching course skill{searchResults.length === 1 ? '' : 's'}</span>
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{searchResults.length} matching course skill{searchResults.length === 1 ? '' : 's'}</span>
           </div>
           {searchResults.length
             ? searchResults.map((item) => <SkillRow key={`search:${item.framework}:${item.skillId}`} item={item} onPractise={onPractise} showFramework readOnly={readOnly} />)
-            : <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 }}>No course skill matches that standard or skill. Try a broader term or another assessment identifier.</p>}
+            : <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>No course skill matches that standard or skill. Try a broader term or another assessment identifier.</p>}
         </section>
       )}
 
@@ -431,22 +431,22 @@ export default function CCMRHub({
       {active && (
         <div style={{ border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 17, color: 'var(--mm-primary-text)' }}>{active.profile?.displayName} Math</h3>
+            <h3 style={{ margin: 0, fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-primary-text)' }}>{active.profile?.displayName} Math</h3>
             {/* §17 — never trapped in one pathway. */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {offered.filter((id) => id !== framework).map((id) => (
-                <button key={id} type="button" onClick={() => { setFramework(id); setDomainId(null); }} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: TAP }}>
+                <button key={id} type="button" onClick={() => { setFramework(id); setDomainId(null); }} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))', cursor: 'pointer', minHeight: TAP }}>
                   Switch to {FRAMEWORK_LABELS[id]}
                 </button>
               ))}
-              <button type="button" onClick={() => onReturnToCourse?.()} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: TAP }}>
+              <button type="button" onClick={() => onReturnToCourse?.()} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))', cursor: 'pointer', minHeight: TAP }}>
                 Back to course path
               </button>
             </div>
           </div>
 
           {active.profile && (
-            <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.55 }}>
+            <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.55 }}>
               {active.profile.totalQuestions} questions
               {active.profile.secondsPerQuestion ? ` · about ${active.profile.secondsPerQuestion}s each` : ' · untimed'}
               {' · '}
@@ -468,10 +468,10 @@ export default function CCMRHub({
 
           {domainId && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-              <span style={{ fontSize: 12, color: 'var(--mm-text)', fontWeight: 800 }}>
+              <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', fontWeight: 800 }}>
                 Showing {activeDomainTitle} only
               </span>
-              <button type="button" onClick={() => setDomainId(null)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: TAP }}>
+              <button type="button" onClick={() => setDomainId(null)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))', cursor: 'pointer', minHeight: TAP }}>
                 Show every part of the test
               </button>
             </div>
@@ -483,7 +483,7 @@ export default function CCMRHub({
               : active[bucket];
             return items.length ? (
               <div key={bucket} style={{ marginBottom: 14 }}>
-                <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--mm-text-muted)' }}>{title}</p>
+                <p style={{ margin: '0 0 8px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--mm-text-muted)' }}>{title}</p>
                 {items.map((item) => (
                   <SkillRow key={item.skillId} item={item} onPractise={onPractise} readOnly={readOnly} />
                 ))}
@@ -492,7 +492,7 @@ export default function CCMRHub({
           })}
 
           {domainId && !BUCKET_TITLES.some(([bucket]) => active[bucket].some((item) => item.domainId === domainId)) && (
-            <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 }}>
+            <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>
               Nothing in {activeDomainTitle} is matched to your skills yet. It will fill in as your class moves
               through the year.
             </p>

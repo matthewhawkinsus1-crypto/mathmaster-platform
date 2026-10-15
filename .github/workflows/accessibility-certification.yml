@@ -21,6 +21,8 @@ on:
       - "tests/browser/calculatorKeyboard*"
       - "tests/browser/hostAccessibility*"
       - "tests/browser/studentShellLargeText*"
+      - "tests/browser/recoveryDiscovery*"
+      - "scripts/codemods/**"
       - "tests/browser/contrastReview*"
       - "tests/browser/toolKeyboard*"
       - "tests/browser/liveChallengeChoiceKeyboard*"
@@ -64,7 +66,7 @@ jobs:
 
   browser-accessibility:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -132,6 +134,17 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: node tests/browser/studentShellLargeText.mjs --check=targets,s5
+      # WCAG 1.4.4 / 1.4.10 / 1.4.12 after the px→rem sweep (student push N):
+      # every scene (student screens, tools, Recovery, the teacher workspace)
+      # at 200% browser text, at 320px and with text spacing — nothing
+      # clipped, off screen or left unscaled.
+      - name: Large text, reflow and text spacing
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/studentShellLargeText.mjs --check=text
       - name: Contrast over gradients (axe's undecided nodes, measured)
         if: always()
         env:

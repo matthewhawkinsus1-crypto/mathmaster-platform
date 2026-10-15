@@ -41,7 +41,7 @@ export default function PracticeAsMenu({
 
   return (
     <div style={{ marginTop: 12 }}>
-      <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--mm-text-muted)' }}>
+      <p style={{ margin: '0 0 8px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--mm-text-muted)' }}>
         {options.masteredAndBranchable ? 'Apply your mastery' : 'Practice this skill as…'}
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 8 }}>
@@ -54,8 +54,8 @@ export default function PracticeAsMenu({
             background: activeFramework === 'course' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', cursor: 'pointer',
           }}
         >
-          <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 14 }}>Course Practice</span>
-          <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 2 }}>The usual way this skill appears in class.</span>
+          <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))' }}>Course Practice</span>
+          <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', marginTop: 2 }}>The usual way this skill appears in class.</span>
         </button>
 
         {available.map((pathway) => {
@@ -71,23 +71,23 @@ export default function PracticeAsMenu({
                 style={{ width: '100%', textAlign: 'left', padding: '11px 13px', minHeight: 76, border: 0, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 14 }}>{pathway.label}</span>
-                  <span style={{ fontSize: 10, fontWeight: 900, padding: '1px 7px', borderRadius: 999, color: note.color, background: note.background }}>
+                  <span style={{ fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))' }}>{pathway.label}</span>
+                  <span style={{ fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900, padding: '1px 7px', borderRadius: 999, color: note.color, background: note.background }}>
                     {note.text}
                   </span>
                 </span>
-                <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 2 }}>{pathway.blurb}</span>
+                <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', marginTop: 2 }}>{pathway.blurb}</span>
                 {primary && (
-                  <span style={{ display: 'block', color: 'var(--mm-accent-text)', fontSize: 11.5, marginTop: 5, fontWeight: 850 }}>
+                  <span style={{ display: 'block', color: 'var(--mm-accent-text)', fontSize: 'calc(11.5 * var(--mm-px))', marginTop: 5, fontWeight: 850 }}>
                     {referenceLabel(primary)}
                   </span>
                 )}
-                <span style={{ display: 'block', color: 'var(--mm-text)', fontSize: 11, marginTop: 4, fontWeight: 700 }}>
+                <span style={{ display: 'block', color: 'var(--mm-text)', fontSize: 'calc(11 * var(--mm-px))', marginTop: 4, fontWeight: 700 }}>
                   {pathway.practised && pathway.proficiency != null
                     ? `${Math.round(pathway.proficiency * 100)}% in this format`
                     : 'Not practised in this format yet'}
                 </span>
-                <span style={{ display: 'block', color: pathway.status === READINESS.MAINTENANCE ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 11, marginTop: 4, fontWeight: 850 }}>
+                <span style={{ display: 'block', color: pathway.status === READINESS.MAINTENANCE ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', marginTop: 4, fontWeight: 850 }}>
                   {stage.actionLabel}
                 </span>
               </button>
@@ -96,7 +96,7 @@ export default function PracticeAsMenu({
                   <button
                     type="button"
                     onClick={() => setExpandedFramework(expanded ? null : pathway.framework)}
-                    style={{ padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850, cursor: 'pointer' }}
+                    style={{ padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 850, cursor: 'pointer' }}
                   >
                     {expanded ? 'Hide standard connection' : 'See standard connection'}
                   </button>

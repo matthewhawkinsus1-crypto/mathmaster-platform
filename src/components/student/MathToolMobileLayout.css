@@ -66,7 +66,7 @@
   align-items: center;
   gap: 8px;
   color: var(--mm-primary-text);
-  font-size: clamp(0.72rem, 2.4vw, 0.82rem);
+  font-size: clamp(0.72rem, calc(2.4vw * var(--mm-text-scale, 1)), 0.82rem);
   font-weight: 900;
   letter-spacing: 0.05em;
 }
@@ -80,7 +80,7 @@
 
 .mathmaster-question-container .prompt-body {
   margin-top: 6px;
-  font-size: clamp(0.8rem, 2.5vw, 1rem);
+  font-size: clamp(0.8rem, calc(2.5vw * var(--mm-text-scale, 1)), 1rem);
 }
 
 .mathmaster-question-container .prompt-body .mathmaster-question-prompt {
@@ -180,7 +180,7 @@
 .mathmaster-question-container textarea,
 .mathmaster-question-container math-field {
   max-width: 100%;
-  font-size: max(16px, 1em);
+  font-size: max(calc(16 * var(--mm-px)), 1em);
   min-height: 44px;
 }
 
@@ -207,7 +207,7 @@
    it shares the opener's row: the header is as tall as the opener's row and the
    name sits level with it, two lines at most. */
 .mathmaster-question-container .mathmaster-tool-shell-header h2 {
-  font-size: 13px !important;
+  font-size: calc(13 * var(--mm-px)) !important;
   line-height: 1.25;
   text-align: left;
   display: -webkit-box;
@@ -464,7 +464,7 @@
     padding: 9px 11px max(9px, env(safe-area-inset-bottom));
     border-right: 2px solid var(--mm-border);
     background: var(--mm-surface-sunken);
-    font-size: clamp(0.78rem, 1.8vw, 0.92rem);
+    font-size: clamp(0.78rem, calc(1.8vw * var(--mm-text-scale, 1)), 0.92rem);
     overscroll-behavior: contain;
   }
 
@@ -591,7 +591,7 @@
   .mathmaster-question-container.mode-landscape .algebra-rail-tile {
     width: 44px !important;
     height: 44px !important;
-    font-size: 17px !important;
+    font-size: calc(17 * var(--mm-px)) !important;
   }
 
   .mathmaster-question-container.mode-landscape .algebra-equation-stage {
@@ -601,7 +601,7 @@
   }
 
   .mathmaster-question-container.mode-landscape .algebra-equation-side {
-    font-size: 18px !important;
+    font-size: calc(18 * var(--mm-px)) !important;
   }
 
   .mathmaster-question-container.mode-landscape .algebra-equation-box {
@@ -726,7 +726,7 @@
 }
 
 .mathmaster-mobile-numeric-keypad .mathmaster-keypad-fraction {
-  font-size: 22px;
+  font-size: calc(22 * var(--mm-px));
 }
 
 .mathmaster-mobile-numeric-keypad button {
@@ -735,7 +735,7 @@
   border-radius: 8px;
   background: var(--mm-surface);
   color: var(--mm-text-strong);
-  font-size: 18px;
+  font-size: calc(18 * var(--mm-px));
   font-weight: 800;
 }
 
