@@ -22,6 +22,15 @@ const nonEmptyArray = (value) => Array.isArray(value) && value.length > 0;
 const get = (question, path) => path.split('.').reduce((node, key) => (node == null ? undefined : node[key]), question);
 const has = (value) => value !== undefined && value !== null && value !== '';
 
+// An algebraic term the operator list below cannot see. That list has no minus,
+// because a hyphenated word ("x-intercept", "e-mail") must stay a word, so an
+// expression whose only operator is a minus — "2x-5", "x-3", "-x" — or a bare
+// coefficient — "4x" — read as a one-word category and drew a warning telling
+// the author to make a simplified expression a multiple-choice field. A minus
+// between a number, a lone variable or a bracket, or a number written against
+// a lone variable, is mathematics.
+const ALGEBRAIC_TERM = /(?:^|[\d)]|(?<![A-Za-z])[A-Za-z])\s*[-−]\s*(?:[\d(]|[A-Za-z](?![A-Za-z]))|\d\s*[A-Za-z](?![A-Za-z])/;
+
 const looksLikeFiniteCategoryField = (field) => {
   if (!isObject(field) || field.type === 'choice' || field.type === 'text' || field.inputMode === 'text') return false;
   const accepted = nonEmptyArray(field.acceptedAnswers)
@@ -32,7 +41,7 @@ const looksLikeFiniteCategoryField = (field) => {
   if (!accepted.length || accepted.length > 6) return false;
   return accepted.every((value) => {
     const text = String(value ?? '').trim();
-    if (!text || /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/.test(text)) return false;
+    if (!text || /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/.test(text) || ALGEBRAIC_TERM.test(text)) return false;
     const words = text.match(/[A-Za-z]+/g) || [];
     return words.length >= 1 && words.length <= 3;
   });
