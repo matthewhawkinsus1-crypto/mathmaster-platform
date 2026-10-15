@@ -19,9 +19,9 @@ import {
 // stable (memoized) — a new function is a new read.
 
 const CARD = { minWidth: 0, padding: 18, border: '1px solid var(--mm-border-soft)', borderRadius: 16, background: 'var(--mm-surface)', textAlign: 'left' };
-const MUTED = { margin: 0, color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 };
-const H2 = { margin: '0 0 12px', fontSize: 18, color: 'var(--mm-text-strong)' };
-const H3 = { margin: '18px 0 8px', fontSize: 14, color: 'var(--mm-text)' };
+const MUTED = { margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 };
+const H2 = { margin: '0 0 12px', fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' };
+const H3 = { margin: '18px 0 8px', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' };
 const BUTTON = {
   minHeight: 44, padding: '10px 16px', border: '1px solid var(--mm-tint-border)', borderRadius: 10,
   background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer',
@@ -39,7 +39,7 @@ const TONE = {
 
 function Chip({ tone = 'flat', children }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid', borderRadius: 999, fontSize: 12, fontWeight: 850, whiteSpace: 'nowrap', ...(TONE[tone] || TONE.flat) }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid', borderRadius: 999, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 850, whiteSpace: 'nowrap', ...(TONE[tone] || TONE.flat) }}>
       {children}
     </span>
   );
@@ -88,13 +88,13 @@ function LoadState({ status, unavailable, onRetry, what }) {
 function GrowthTile({ tile, baselineLabel }) {
   return (
     <div style={{ minWidth: 0, padding: '12px 14px', border: '1px solid var(--mm-border-soft)', borderRadius: 12, background: 'var(--mm-surface-tint)' }}>
-      <div style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase' }}>{tile.label}</div>
+      <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase' }}>{tile.label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-        <strong style={{ fontSize: 26, lineHeight: 1.15, color: 'var(--mm-text-strong)' }}>{tile.now}</strong>
+        <strong style={{ fontSize: 'calc(26 * var(--mm-px))', lineHeight: 1.15, color: 'var(--mm-text-strong)' }}>{tile.now}</strong>
         {tile.changeLabel && <Chip tone={tile.direction}>{tile.changeLabel}</Chip>}
       </div>
       {baselineLabel && <div style={{ ...MUTED, marginTop: 2 }}>{baselineLabel}: {tile.previous}</div>}
-      {tile.note && <div style={{ ...MUTED, marginTop: 2, fontSize: 12 }}>{tile.note}</div>}
+      {tile.note && <div style={{ ...MUTED, marginTop: 2, fontSize: 'calc(12 * var(--mm-px))' }}>{tile.note}</div>}
     </div>
   );
 }
@@ -122,7 +122,7 @@ function GrowthCard({ state, now, onRetry, unavailable }) {
             {growth.movers.map((mover) => (
               <li key={mover.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px 12px', flexWrap: 'wrap', padding: '10px 12px', border: '1px solid var(--mm-border-soft)', borderRadius: 10 }}>
                 <span style={{ minWidth: 0, overflowWrap: 'anywhere', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{mover.label}</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 13 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
                   {mover.before}% → {mover.after}%
                   <Chip tone={mover.direction}>{mover.changeLabel}</Chip>
                 </span>
@@ -155,9 +155,9 @@ function WeeklyCard({ state, onRetry, unavailable, onOpenPath }) {
       {weekly && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px 14px', flexWrap: 'wrap', padding: 14, border: '1px solid', borderRadius: 12, ...(streak.count ? TONE.hit : TONE.open) }}>
-            <span aria-hidden="true" style={{ fontSize: 28 }}>{streak.count ? '🔥' : '🎯'}</span>
+            <span aria-hidden="true" style={{ fontSize: 'calc(28 * var(--mm-px))' }}>{streak.count ? '🔥' : '🎯'}</span>
             <div style={{ minWidth: 0, flex: '1 1 200px' }}>
-              <div><strong style={{ fontSize: 28, lineHeight: 1.1 }}>{streak.value}</strong> <span style={{ fontWeight: 850 }}>{streak.label}</span></div>
+              <div><strong style={{ fontSize: 'calc(28 * var(--mm-px))', lineHeight: 1.1 }}>{streak.value}</strong> <span style={{ fontWeight: 850 }}>{streak.label}</span></div>
               <div style={{ ...MUTED, color: 'var(--mm-text)' }}>{streak.detail}</div>
             </div>
             {weekly.weeksCounted > 0 && (
@@ -179,9 +179,9 @@ function WeeklyCard({ state, onRetry, unavailable, onOpenPath }) {
                 </div>
                 {row.grade !== null && (
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase' }}>Grade</div>
-                    <strong style={{ fontSize: 20, color: row.passing ? 'var(--mm-success-text)' : 'var(--mm-text-strong)' }}>{row.grade}</strong>
-                    {row.gradeNote && <div data-grade-source style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.35 }}>{row.gradeNote}</div>}
+                    <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase' }}>Grade</div>
+                    <strong style={{ fontSize: 'calc(20 * var(--mm-px))', color: row.passing ? 'var(--mm-success-text)' : 'var(--mm-text-strong)' }}>{row.grade}</strong>
+                    {row.gradeNote && <div data-grade-source style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.35 }}>{row.gradeNote}</div>}
                   </div>
                 )}
               </li>
@@ -194,7 +194,7 @@ function WeeklyCard({ state, onRetry, unavailable, onOpenPath }) {
             </p>
           )}
           {weekly.rows.some((row) => row.grade !== null) && (
-            <p style={{ ...MUTED, marginTop: 10, fontSize: 12 }}>
+            <p style={{ ...MUTED, marginTop: 10, fontSize: 'calc(12 * var(--mm-px))' }}>
               &ldquo;Sent to Google Classroom&rdquo; is the exact grade your teacher&apos;s gradebook received for that week. &ldquo;Not sent&rdquo; is your MathMaster weekly grade for a week that was not sent to Classroom.
             </p>
           )}
@@ -225,8 +225,8 @@ export default function MyMathPathProgress({
   return (
     <section style={{ boxSizing: 'border-box', maxWidth: 980, margin: '0 auto', padding: '24px 16px 42px', textAlign: 'left' }}>
       <header style={{ marginBottom: 16 }}>
-        <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 26 }}>My Progress</h1>
-        <p style={{ ...MUTED, marginTop: 5, fontSize: 14 }}>How your skills have grown, and the weeks you&apos;ve hit.</p>
+        <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 'calc(26 * var(--mm-px))' }}>My Progress</h1>
+        <p style={{ ...MUTED, marginTop: 5, fontSize: 'calc(14 * var(--mm-px))' }}>How your skills have grown, and the weeks you&apos;ve hit.</p>
       </header>
       <div style={{ display: 'grid', gap: 16 }}>
         <GrowthCard state={masteryState} now={openedAt} onRetry={retryMastery} unavailable={masteryUnavailableMessage} />

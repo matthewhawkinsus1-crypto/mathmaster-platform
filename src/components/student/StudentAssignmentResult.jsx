@@ -54,7 +54,7 @@ import { formatDateTime } from '../../assignmentLifecycle';
 const actionStyle = (primary) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, padding: '12px 18px', borderRadius: 10,
-  fontWeight: 900, fontSize: 15, cursor: 'pointer', flex: '1 1 180px',
+  fontWeight: 900, fontSize: 'calc(15 * var(--mm-px))', cursor: 'pointer', flex: '1 1 180px',
   border: primary ? 0 : '2px solid var(--mm-border)',
   background: primary ? '#174ea6' : 'var(--mm-surface)',
   color: primary ? '#fff' : 'var(--mm-text)',
@@ -111,7 +111,7 @@ export default function StudentAssignmentResult({
     return (
       <main style={{ minHeight: '100vh', background: 'var(--mm-surface-control)', padding: '28px 16px', fontFamily: '"Segoe UI", sans-serif' }}>
         <section style={{ maxWidth: 680, margin: '0 auto', padding: 22, borderRadius: 14, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', textAlign: 'left' }}>
-          <h1 style={{ marginTop: 0, fontSize: 21, color: 'var(--mm-text-strong)' }}>That assignment is not available</h1>
+          <h1 style={{ marginTop: 0, fontSize: 'calc(21 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>That assignment is not available</h1>
           <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
             This assignment is not assigned to your MathMaster class, or it has been removed. Your other grades are still here.
           </p>
@@ -178,38 +178,38 @@ export default function StudentAssignmentResult({
             appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
             minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 14px', marginBottom: 12,
             borderRadius: 10, border: '2px solid var(--mm-border)', background: 'var(--mm-surface)',
-            color: 'var(--mm-text)', fontWeight: 900, fontSize: 14, cursor: 'pointer',
+            color: 'var(--mm-text)', fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))', cursor: 'pointer',
           }}
         >
           {backLabel}
         </button>
 
-        <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
+        <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
           {entry.frozen ? 'Recorded MathMaster result' : 'MathMaster result so far'}
           {sectionLabel ? ` · ${sectionLabel}` : ''}
         </div>
-        <h1 style={{ margin: '8px 0 4px', fontSize: 'clamp(20px, 6vw, 26px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+        <h1 style={{ margin: '8px 0 4px', fontSize: 'clamp(calc(20 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {entry.title}
         </h1>
-        <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>{statusLine}</div>
+        <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{statusLine}</div>
 
         <div style={{ marginTop: 16, padding: '16px 16px 14px', borderRadius: 12, background: 'var(--mm-primary-soft)' }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
+          <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
             {entry.frozen ? 'Your grade · frozen' : 'Your grade'}
           </div>
-          <div style={{ marginTop: 4, fontSize: 'clamp(28px, 9vw, 40px)', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)', overflowWrap: 'anywhere' }}>
+          <div style={{ marginTop: 4, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(9vw * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)', overflowWrap: 'anywhere' }}>
             {gradeHeadline}
           </div>
-          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 800, color: 'var(--mm-primary-text)' }}>{entry.statusLabel}</div>
+          <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-primary-text)' }}>{entry.statusLabel}</div>
           {entry.exclusionText && (
-            <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text)' }}>{entry.exclusionText}</p>
+            <p style={{ margin: '8px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{entry.exclusionText}</p>
           )}
         </div>
 
         {/* WHAT TO DO NOW, from the one "Today" rule. */}
         {step.kind === RESULT_STEP.CONTINUE && (
           <div data-result-next="continue" style={{ marginTop: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid var(--mm-primary)', background: 'var(--mm-surface)' }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: 'var(--mm-text-strong)' }}>This assignment is open — you can work on it now.</div>
+            <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-strong)' }}>This assignment is open — you can work on it now.</div>
             <button
               type="button"
               style={{ ...actionStyle(true), marginTop: 10, width: '100%' }}
@@ -220,17 +220,17 @@ export default function StudentAssignmentResult({
           </div>
         )}
         {step.kind === RESULT_STEP.RECOVERY && (
-          <p data-result-next="recovery" style={{ margin: '16px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-primary-soft)', fontSize: 14, fontWeight: 800, lineHeight: 1.5, color: 'var(--mm-primary-text)' }}>
+          <p data-result-next="recovery" style={{ margin: '16px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-primary-soft)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800, lineHeight: 1.5, color: 'var(--mm-primary-text)' }}>
             A Recovery is ready{todayEntry?.lesson?.recoverySection?.label ? ` for ${todayEntry.lesson.recoverySection.label}` : ''}. Start it from the Recovery panel on this page.
           </p>
         )}
         {step.kind === RESULT_STEP.WAITING && (
           <div data-result-next="waiting" style={{ marginTop: 16, padding: '14px 16px', borderRadius: 12, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
-            <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--mm-text-strong)' }}>Nothing here is open right now</div>
+            <div style={{ fontSize: 'calc(15 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-strong)' }}>Nothing here is open right now</div>
             {step.waitText && (
-              <p data-result-wait style={{ margin: '6px 0 0', fontSize: 14, fontWeight: 800, lineHeight: 1.5, color: 'var(--mm-text)' }}>{step.waitText}.</p>
+              <p data-result-wait style={{ margin: '6px 0 0', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800, lineHeight: 1.5, color: 'var(--mm-text)' }}>{step.waitText}.</p>
             )}
-            <p style={{ margin: '6px 0 0', fontSize: 13, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
+            <p style={{ margin: '6px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
               {step.upNext ? 'Until then, Up next below is open now.' : 'Until then, Home shows what is open now, including My Math Path.'}
             </p>
           </div>
@@ -242,7 +242,7 @@ export default function StudentAssignmentResult({
                 key={section.role}
                 data-section-state={section.state}
                 style={{
-                  padding: '8px 12px', borderRadius: 10, fontSize: 14, lineHeight: 1.45, overflowWrap: 'anywhere',
+                  padding: '8px 12px', borderRadius: 10, fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, overflowWrap: 'anywhere',
                   background: section.open ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                   border: '1px solid var(--mm-border-soft)', color: 'var(--mm-text)',
                 }}
@@ -260,7 +260,7 @@ export default function StudentAssignmentResult({
         {/* Feedback/release state, said plainly, because "no number yet" and
             "you scored nothing" are opposite messages. */}
         {entry.feedbackHeld && (
-          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-warning-text)' }}>
+          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-warning-text)' }}>
             Your teacher is holding feedback on this assignment. Your work is recorded — the grade appears here as soon as it is released, and it is not counted as a zero in the meantime.
           </p>
         )}
@@ -271,7 +271,7 @@ export default function StudentAssignmentResult({
             and neither is the sync's vocabulary ("teacher draft",
             "checkpoint"). */}
         {receipt.present && receipt.grade !== null && receipt.studentVisible && !entry.feedbackHeld && (
-          <p data-classroom-receipt style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text)' }}>
+          <p data-classroom-receipt style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text)' }}>
             Google Classroom shows {receipt.grade}%{receipt.isFinal ? ' (final)' : ''}.
             {!receipt.isFinal && !receipt.matchesMathMaster && (
               <> Your MathMaster grade has changed since then; Google Classroom catches up at its next update.</>
@@ -280,12 +280,12 @@ export default function StudentAssignmentResult({
         )}
 
         {entry.frozen && !reviewPanel && (
-          <p style={{ margin: '14px 0 0', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
+          <p style={{ margin: '14px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
             This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade, your evidence, your mastery, or your Google Classroom score.
           </p>
         )}
         {entry.frozen && reviewPanel && (
-          <p style={{ margin: '14px 0 0', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
+          <p style={{ margin: '14px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
             This assignment is past its final deadline, so the grade above can no longer change. Trying it again changes nothing here — not this grade, your mastery, or your Google Classroom score.
           </p>
         )}
@@ -302,12 +302,12 @@ export default function StudentAssignmentResult({
             data-result-up-next
             style={{ marginTop: 18, padding: '14px 16px', borderRadius: 12, border: '2px solid var(--mm-primary)', background: 'var(--mm-primary-soft)', minWidth: 0 }}
           >
-            <h2 style={{ margin: 0, fontSize: 12, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>Up next</h2>
-            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 900, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+            <h2 style={{ margin: 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>Up next</h2>
+            <div style={{ marginTop: 6, fontSize: 'calc(16 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
               {step.upNext.assignment?.title || step.upNext.headline}
             </div>
             {step.upNext.headline && (
-              <div style={{ marginTop: 2, fontSize: 13, lineHeight: 1.45, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>{step.upNext.headline}</div>
+              <div style={{ marginTop: 2, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>{step.upNext.headline}</div>
             )}
             <button
               type="button"

@@ -351,7 +351,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             <div key={equation} className="mathmaster-reduction-equation-card" style={{ borderLeft: `4px solid ${PLANE_COLORS[index % PLANE_COLORS.length]}` }}>
               <span className="mathmaster-reduction-equation-label">Plane {index + 1}</span>
               <MathDisplay value={equation} format="ascii-math" />
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 13 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 'calc(13 * var(--mm-px))' }}>
                 <input type="checkbox" checked={Boolean(visiblePlanes[index])} onChange={() => togglePlane(index)} />
                 Show plane {index + 1}
               </label>

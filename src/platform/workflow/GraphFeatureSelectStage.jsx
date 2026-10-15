@@ -272,7 +272,7 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
         ) : null}
       </div>
 
-      <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }} aria-live="polite">
+      <p style={{ margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }} aria-live="polite">
         {none
           ? noneButtonLabel(stage)
           : `${selections.length} of ${selectionCount} marked.`}

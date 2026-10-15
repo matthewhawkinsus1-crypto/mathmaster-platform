@@ -98,7 +98,7 @@ const inputStyle = {
   marginTop: 6,
   // 16px keeps iOS from zooming the whole page in when a field is focused,
   // which on the old layout left the teacher scrolled sideways with no way back.
-  fontSize: 16,
+  fontSize: 'calc(16 * var(--mm-px))',
   minHeight: 44,
   padding: '10px',
   border: '1px solid var(--mm-border)',
@@ -1016,7 +1016,7 @@ export const LessonPreflightModal = ({
       <RepresentationAudit questions={previewQuestions} warnings={authoringWarnings} />
       <SectionBalanceRigorAudit assignmentV5={effectiveAssignmentV5} />
 
-      <div style={{ padding: '12px 14px', marginBottom: 16, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
+      <div style={{ padding: '12px 14px', marginBottom: 16, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)', borderRadius: 9, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
         <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and two-page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
         {(publishingIntent.classroomPackage || publishingIntent.lessonResources?.notesPdf) && (
           <div style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-text)' }}>
@@ -1061,7 +1061,7 @@ export const LessonPreflightModal = ({
           </div>
         )}
         {publishingAiMessage && (
-          <div role="status" style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: notesNeedAuthoring ? 'var(--mm-warning-soft)' : 'var(--mm-success-bg)', color: notesNeedAuthoring ? 'var(--mm-warning-text)' : 'var(--mm-success-text)', fontSize: 12.5 }}>
+          <div role="status" style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: notesNeedAuthoring ? 'var(--mm-warning-soft)' : 'var(--mm-success-bg)', color: notesNeedAuthoring ? 'var(--mm-warning-text)' : 'var(--mm-success-text)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
             {publishingAiMessage}
           </div>
         )}
@@ -1086,10 +1086,10 @@ export const LessonPreflightModal = ({
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 11 }}>
           <button type="button" onClick={() => setSelectedClassIds(activeClassChoices.map((entry) => entry.classId))} disabled={!activeClassChoices.length} style={{ minHeight: 44, padding: '7px 13px' }}>Select all</button>
           <button type="button" onClick={() => setSelectedClassIds([])} style={{ minHeight: 44, padding: '7px 13px' }}>Clear</button>
-          <span style={{ alignSelf: 'center', color: 'var(--mm-text-muted)', fontSize: 12 }}>{(draft.assignedClassIds || []).length} selected</span>
+          <span style={{ alignSelf: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{(draft.assignedClassIds || []).length} selected</span>
         </div>
         {!activeClassChoices.length && (
-          <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12 }}>
+          <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))' }}>
             No active MathMaster classes are available. Save this assignment to the Library, then create or restore a class before assigning it.
           </div>
         )}
@@ -1104,30 +1104,30 @@ export const LessonPreflightModal = ({
             );
           })}
         </div>
-        <div style={{ marginTop: 9, color: 'var(--mm-text-muted)', fontSize: 12 }}>Assignments are targeted by MathMaster class ID. Period is derived from the selected class only for bell-schedule timing.</div>
+        <div style={{ marginTop: 9, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Assignments are targeted by MathMaster class ID. Period is derived from the selected class only for bell-schedule timing.</div>
       </fieldset>
 
       <fieldset style={{ ...fieldsetStyle, border: `1px solid ${honorsSelected ? 'var(--mm-accent-border)' : 'var(--mm-border)'}`, background: honorsSelected ? 'var(--mm-accent-subtle)' : 'var(--mm-surface)' }}>
         <legend style={legendStyle}>Course rigor destinations</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-          <span style={{ padding: '4px 9px', borderRadius: 999, background: 'var(--mm-surface-control)', fontSize: 11, fontWeight: 900 }}>STANDARD: {rigorDestinations.standard.join(', ') || 'none'}</span>
-          <span style={{ padding: '4px 9px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: 11, fontWeight: 900 }}>HONORS: {rigorDestinations.honors.join(', ') || 'none'}</span>
+          <span style={{ padding: '4px 9px', borderRadius: 999, background: 'var(--mm-surface-control)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>STANDARD: {rigorDestinations.standard.join(', ') || 'none'}</span>
+          <span style={{ padding: '4px 9px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>HONORS: {rigorDestinations.honors.join(', ') || 'none'}</span>
         </div>
-        <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>{honorsSelected ? 'Honors periods are validated from the saved class designation. When Standard and Honors destinations are selected together, MathMaster creates destination variants from this one source assignment.' : 'No selected class is designated Honors. Standard validation applies.'}</p>
-        {honorsSelected && honorsReport.isNarrowCheckpoint && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 12, lineHeight: 1.5 }}><strong>Narrow Honors checkpoint.</strong> Warm-Ups and DOLs with three or fewer items may stay focused on the current TEKS. Depth, prerequisite repair, and CCMR are balanced across the recent Honors sequence instead of forced into every short check.</div>}
+        <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>{honorsSelected ? 'Honors periods are validated from the saved class designation. When Standard and Honors destinations are selected together, MathMaster creates destination variants from this one source assignment.' : 'No selected class is designated Honors. Standard validation applies.'}</p>
+        {honorsSelected && honorsReport.isNarrowCheckpoint && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}><strong>Narrow Honors checkpoint.</strong> Warm-Ups and DOLs with three or fewer items may stay focused on the current TEKS. Depth, prerequisite repair, and CCMR are balanced across the recent Honors sequence instead of forced into every short check.</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: 7 }}>{[
           ['coreTeks', 'Core TEKS'], ['higherOrderReasoning', 'Higher-order reasoning'], ['multipleRepresentations', 'Multiple representations'], ['justification', 'Explanation / justification'], ['modelingApplication', 'Modeling / application'], ['ccmrEnrichment', 'Authentic CCMR Practice'],
         ].map(([key, label]) => {
           const present = honorsReport.checks[key];
           const queuedAtPublish = key === 'ccmrEnrichment' && !present;
           return (
-            <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: present ? 'var(--mm-success-bg)' : queuedAtPublish ? 'var(--mm-primary-soft)' : 'var(--mm-warning-soft)', color: present ? 'var(--mm-success-text)' : queuedAtPublish ? 'var(--mm-primary-text)' : 'var(--mm-warning-text)', fontWeight: 800, fontSize: 12 }}>
+            <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: present ? 'var(--mm-success-bg)' : queuedAtPublish ? 'var(--mm-primary-soft)' : 'var(--mm-warning-soft)', color: present ? 'var(--mm-success-text)' : queuedAtPublish ? 'var(--mm-primary-text)' : 'var(--mm-warning-text)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))' }}>
               {present ? '✓' : queuedAtPublish ? '↻' : '!'} {queuedAtPublish ? 'Audited CCMR at publish' : label}
             </div>
           );
         })}</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.checks.ccmrEnrichment && (
-          <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5, lineHeight: 1.55 }}>
+          <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55 }}>
             <strong>Audited CCMR Practice will be sourced at publish.</strong> Because an Honors destination is selected, MathMaster will replace matching Practice work with an audited CCMR Fidelity V2.1 family on the same lesson TEKS. Standard destinations keep the regular course Practice. Exam-looking wording by itself never counts as authentic CCMR.
           </div>
         )}
@@ -1136,7 +1136,7 @@ export const LessonPreflightModal = ({
             {honorsReport.checks.coreTeks && (
               <div style={{ padding: '10px 11px', borderRadius: 9, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
                 <strong style={{ color: 'var(--mm-primary-text)' }}>Fastest option — no AI required</strong>
-                <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
+                <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
                   {localHonorsRecipe.status === 'ready'
                     ? describeHonorsRecipeForTeacher(localHonorsRecipe)
                     : localHonorsRecipe.teacherMessage}
@@ -1179,18 +1179,18 @@ export const LessonPreflightModal = ({
                 style={{ display: 'none' }}
               />
             </div>
-            <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.45 }}>
+            <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.45 }}>
               Outside-AI imports go through the same MathMaster safety gate as the embedded AI. Existing questions cannot be silently rewritten, removed, or reordered just to make the Honors check turn green.
             </div>
           </div>
         )}
         {honorsAiMessage && (
-          <div role="status" style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--mm-accent-soft)', border: '1px solid var(--mm-accent-border)', color: 'var(--mm-accent-text)', fontSize: 12.5, lineHeight: 1.5 }}>
+          <div role="status" style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--mm-accent-soft)', border: '1px solid var(--mm-accent-border)', color: 'var(--mm-accent-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
             {honorsAiMessage}
           </div>
         )}
-        {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 12 }}><strong>MathMaster depth extension prepared.</strong> It adds self-graded Honors depth for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
-        {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: 'var(--mm-success-text)', fontWeight: 800, fontSize: 12 }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
+        {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 'calc(12 * var(--mm-px))' }}><strong>MathMaster depth extension prepared.</strong> It adds self-graded Honors depth for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
+        {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: 'var(--mm-success-text)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))' }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
       </fieldset>
     </section>
   );
@@ -1205,7 +1205,7 @@ export const LessonPreflightModal = ({
           Warm-Up, Classwork, Practice, DOL, Quiz, and Test behavior comes from the sections already built into the assignment. You no longer need to choose a second Classwork/Practice designation here.
         </p>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 11, fontWeight: 900 }}>{humanRole(role)}</span>)}
+          {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{humanRole(role)}</span>)}
         </div>
       </div>
 
@@ -1222,7 +1222,7 @@ export const LessonPreflightModal = ({
           }}
         >
           <strong>Classwork planned time: {formatPlannedTime(classworkPacing.totalSeconds)} / 20:00</strong>
-          <div style={{ marginTop: 4, fontSize: 12, lineHeight: 1.45 }}>
+          <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
             {classworkPacing.hasAuthoredTiming
               ? (classworkPacing.isWithinBudget
                 ? `${formatPlannedTime(classworkPacing.remainingSeconds)} remains in the authored 20-minute Classwork budget. Live teacher extensions can go beyond this without changing the authored plan.`
@@ -1234,7 +1234,7 @@ export const LessonPreflightModal = ({
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Question versions by section</legend>
-        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
           Choose independently for each assignment section. <strong>Same questions</strong> gives everyone the
           identical version. <strong>Different versions</strong> keeps the task, the depth and the complexity
           identical and changes only the numbers. <strong>Pitched to the student</strong> keeps the standard you
@@ -1257,7 +1257,7 @@ export const LessonPreflightModal = ({
                   {!isAssessment && <option value="adaptive">Pitched to the student</option>}
                 </select>
                 {isAssessment && (
-                  <span style={{ display: 'block', marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 11, lineHeight: 1.45 }}>
+                  <span style={{ display: 'block', marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.45 }}>
                     Assessment sections keep one rigor for everyone, so the results stay comparable.
                   </span>
                 )}
@@ -1284,7 +1284,7 @@ export const LessonPreflightModal = ({
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Printable and shareable outputs</legend>
-        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
           PDFs are optional and can be enabled or disabled at any time. Enabling one immediately adds its
           representation and page-fit safety checks; leaving PDFs off never blocks the digital Library copy.
         </p>
@@ -1307,12 +1307,12 @@ export const LessonPreflightModal = ({
               />
               <span>
                 <strong style={{ display: 'block', color: 'var(--mm-text-strong)' }}>{label}</strong>
-                <span style={{ display: 'block', marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.4 }}>{description}</span>
+                <span style={{ display: 'block', marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.4 }}>{description}</span>
               </span>
             </label>
           ))}
         </div>
-        <div style={{ marginTop: 10, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface-tint)', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 10, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface-tint)', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
           Student IEP/504/EB access supports remain automatic and server-resolved. Changing an output does not change the assessed standard.
         </div>
       </fieldset>
@@ -1320,7 +1320,7 @@ export const LessonPreflightModal = ({
       {activityRoles.some((role) => ['classwork', 'practice'].includes(role)) && (
         <fieldset style={fieldsetStyle}>
           <legend style={legendStyle}>Guided Notes by section</legend>
-          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
             Guided Notes should teach the mathematics, not narrate the interface. Automatic uses authored notes when present and otherwise builds tool/workflow-aware guidance. Authored only hides the panel unless the assignment includes meaningful notes. Off removes the panel entirely.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: 12 }}>
@@ -1335,7 +1335,7 @@ export const LessonPreflightModal = ({
               </label>
             ))}
           </div>
-          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
             Recommended default: Classwork = Automatic; Practice = Off. Generic filler such as “Read the question” is suppressed even in Automatic mode.
           </p>
         </fieldset>
@@ -1344,7 +1344,7 @@ export const LessonPreflightModal = ({
       {activityRoles.some((role) => ['classwork', 'practice'].includes(role)) && (
         <fieldset style={fieldsetStyle}>
           <legend style={legendStyle}>Teacher section access controls</legend>
-          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
             Classwork and Practice can open automatically, or start locked until you release that section from the Live Class Hub. Either way, you can later open, close, or reopen the section for one class period without affecting your other classes.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: 12 }}>
@@ -1358,7 +1358,7 @@ export const LessonPreflightModal = ({
               </label>
             ))}
           </div>
-          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
             These controls affect new graded responses only. After the final cutoff, the assignment enters ungraded Practice Mode and all sections become available for review/practice.
           </p>
         </fieldset>
@@ -1375,11 +1375,11 @@ export const LessonPreflightModal = ({
                 <label style={labelStyle}>Open before class (minutes)<input type="number" min="0" max="30" value={draft.warmupMinutesBeforeStart ?? 7} onChange={(event) => setField('warmupMinutesBeforeStart', event.target.value)} style={inputStyle} /></label>
               </div>
             )}
-            {draft.warmupEnabled !== false && <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>The Warm-Up opens {draft.warmupMinutesBeforeStart ?? 7} minutes before that class begins, only on its instructional date. You can close it early from the Live Class Hub; students keep their saved work but the section becomes read-only.</p>}
+            {draft.warmupEnabled !== false && <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>The Warm-Up opens {draft.warmupMinutesBeforeStart ?? 7} minutes before that class begins, only on its instructional date. You can close it early from the Live Class Hub; students keep their saved work but the section becomes read-only.</p>}
             {draft.warmupEnabled !== false && draft.assignedClassPeriods.length > 0 && (
               <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Different Warm-Up date for a specific class (optional)</summary>
-                <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>Useful for A-Day/B-Day sections that receive this same bundled lesson on different dates. Leaving a class unchanged uses the default Warm-Up date above.</p>
+                <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>Useful for A-Day/B-Day sections that receive this same bundled lesson on different dates. Leaving a class unchanged uses the default Warm-Up date above.</p>
                 <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
                   {draft.assignedClassPeriods.map((period) => (
                     <label key={period} style={labelStyle}>{period}<input type="date" value={draft.warmupInstructionDatesByClassPeriod?.[period] || resolvedWarmupInstructionDate} onChange={(event) => setWarmupClassDate(period, event.target.value)} style={inputStyle} /></label>
@@ -1405,11 +1405,11 @@ export const LessonPreflightModal = ({
                 <label style={labelStyle}>Close before the bell (minutes)<input type="number" min="0" max="15" value={draft.dolCloseMinutesBeforeEnd ?? 5} onChange={(event) => setField('dolCloseMinutesBeforeEnd', event.target.value)} style={inputStyle} /></label>
               </div>
             )}
-            {draft.dolEnabled && <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>The DOL opens {dolOpensMinutesBeforeEnd} minutes before the bell, gives students {dolWorkMinutes} minutes to work, and closes {dolCloseMinutesBeforeEnd} minutes before class ends so technology can be returned. If you unlock it early from the live class controls, the same {dolWorkMinutes}-minute timer starts then but still cannot run into the final {dolCloseMinutesBeforeEnd}-minute pack-up window.</p>}
+            {draft.dolEnabled && <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>The DOL opens {dolOpensMinutesBeforeEnd} minutes before the bell, gives students {dolWorkMinutes} minutes to work, and closes {dolCloseMinutesBeforeEnd} minutes before class ends so technology can be returned. If you unlock it early from the live class controls, the same {dolWorkMinutes}-minute timer starts then but still cannot run into the final {dolCloseMinutesBeforeEnd}-minute pack-up window.</p>}
             {draft.dolEnabled && draft.assignedClassPeriods.length > 0 && (
               <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Different DOL date for a specific class (optional)</summary>
-                <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>Use this when A-Day and B-Day sections receive the same bundled lesson on different calendar dates. Leaving a class unchanged uses the default DOL date above.</p>
+                <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>Use this when A-Day and B-Day sections receive the same bundled lesson on different calendar dates. Leaving a class unchanged uses the default DOL date above.</p>
                 <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
                   {draft.assignedClassPeriods.map((period) => (
                     <label key={period} style={labelStyle}>{period}<input type="date" value={draft.dolInstructionDatesByClassPeriod?.[period] || resolvedDOLInstructionDate} onChange={(event) => setDOLClassDate(period, event.target.value)} style={inputStyle} /></label>
@@ -1425,11 +1425,11 @@ export const LessonPreflightModal = ({
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Google Classroom posts</legend>
-        <p style={{ margin: '0 0 12px', color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 12px', color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
           Each assignment section gets its own Google Classroom post and grade column. Titles start with the section name, followed by the assignment name, so student gradebooks stay easy to scan.
         </p>
         <label style={labelStyle}>Separate Practice due date (optional)<input type="datetime-local" value={draft.homeworkDueAt || ''} onChange={(event) => setField('homeworkDueAt', event.target.value)} style={inputStyle} /></label>
-        <div style={{ marginTop: 8, color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>{publicationPlan.summary}</div>
+        <div style={{ marginTop: 8, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>{publicationPlan.summary}</div>
       </fieldset>
 
       <details style={{ ...fieldsetStyle, padding: 0 }}>
@@ -1441,10 +1441,10 @@ export const LessonPreflightModal = ({
             <article key={post.postId} style={{ border: '1px solid var(--mm-border)', borderRadius: 9, padding: 14, background: 'var(--mm-surface)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 8 }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1a73e8', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>📋</div>
-                <div style={{ minWidth: 0 }}><strong>{post.title}</strong><div style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>Due {post.dueDate || 'not set'} · {post.maxPoints} pts · {post.gradingMode}</div></div>
+                <div style={{ minWidth: 0 }}><strong>{post.title}</strong><div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Due {post.dueDate || 'not set'} · {post.maxPoints} pts · {post.gradingMode}</div></div>
               </div>
               <p style={{ color: 'var(--mm-text)', margin: '8px 0 10px', lineHeight: 1.5 }}>{post.description}</p>
-              <div style={{ fontSize: 12, padding: '9px 11px', background: 'var(--mm-surface-sunken)', borderRadius: 7 }}><strong>Sections:</strong> {post.activities.map((activity) => `${activity.title} (${activity.role})`).join(' + ')}</div>
+              <div style={{ fontSize: 'calc(12 * var(--mm-px))', padding: '9px 11px', background: 'var(--mm-surface-sunken)', borderRadius: 7 }}><strong>Sections:</strong> {post.activities.map((activity) => `${activity.title} (${activity.role})`).join(' + ')}</div>
             </article>
           ))}
         </div>
@@ -1454,12 +1454,12 @@ export const LessonPreflightModal = ({
 
   const demoControls = (
     <>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Section</label>
+      <label style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, marginBottom: 4 }}>Section</label>
       <select value={demoActivityIndex} onChange={(event) => { setDemoActivityIndex(Number(event.target.value)); setDemoQuestionIndex(0); }} style={{ ...inputStyle, marginBottom: 14 }}>
         {activities.map((activity, index) => <option key={activity.id || activity.sectionId} value={index}>{activity.title} ({activity.role.toUpperCase()})</option>)}
       </select>
       {currentPolicy && (
-        <div style={{ background: 'var(--mm-surface)', padding: 10, borderRadius: 6, border: '1px solid var(--mm-border)', marginBottom: 14, fontSize: 12, lineHeight: 1.55 }}>
+        <div style={{ background: 'var(--mm-surface)', padding: 10, borderRadius: 6, border: '1px solid var(--mm-border)', marginBottom: 14, fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.55 }}>
           <strong style={{ color: 'var(--mm-primary)' }}>Enforced section policy</strong>
           <div>Attempts: {currentPolicy.attempts}</div>
           <div>Feedback: <code>{currentPolicy.feedback}</code></div>
@@ -1468,8 +1468,8 @@ export const LessonPreflightModal = ({
           <div>Replacement: {currentPolicy.allowReplacement ? 'Allowed' : 'Disabled'}</div>
         </div>
       )}
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, fontSize: 13 }}><input type="checkbox" style={checkboxStyle} checked={demoCalculator} onChange={(event) => setDemoCalculator(event.target.checked)} /> Calculator accommodation</label>
-      <label style={{ display: 'block', fontSize: 13, fontWeight: 800 }}>Language<select value={demoTranslation} onChange={(event) => setDemoTranslation(event.target.value)} style={inputStyle}><option value="en">English</option><option value="es">Español (authored translation)</option></select></label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, fontSize: 'calc(13 * var(--mm-px))' }}><input type="checkbox" style={checkboxStyle} checked={demoCalculator} onChange={(event) => setDemoCalculator(event.target.checked)} /> Calculator accommodation</label>
+      <label style={{ display: 'block', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800 }}>Language<select value={demoTranslation} onChange={(event) => setDemoTranslation(event.target.value)} style={inputStyle}><option value="en">English</option><option value="es">Español (authored translation)</option></select></label>
     </>
   );
 
@@ -1503,10 +1503,10 @@ export const LessonPreflightModal = ({
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, borderBottom: '1px solid var(--mm-border-soft)', paddingBottom: 10 }}>
             <div style={{ textAlign: 'left' }}>
-              <span style={{ fontSize: 11, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '3px 8px', borderRadius: 12, fontWeight: 800 }}>{currentActivity.role.toUpperCase()} MODE</span>
-              <h3 style={{ margin: '4px 0 0', fontSize: 17 }}>{currentActivity.title}</h3>
+              <span style={{ fontSize: 'calc(11 * var(--mm-px))', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '3px 8px', borderRadius: 12, fontWeight: 800 }}>{currentActivity.role.toUpperCase()} MODE</span>
+              <h3 style={{ margin: '4px 0 0', fontSize: 'calc(17 * var(--mm-px))' }}>{currentActivity.title}</h3>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>Question {demoQuestionIndex + 1} of {questions.length}</div>
+            <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Question {demoQuestionIndex + 1} of {questions.length}</div>
           </div>
           <MathMasterToolWrapper
             key={`${currentActivity.id || currentActivity.sectionId}-${currentQuestion.questionId || demoQuestionIndex}-${demoCalculator}-${demoTranslation}`}
@@ -1531,16 +1531,16 @@ export const LessonPreflightModal = ({
       {(preflightModel.questionGeneration?.notes?.length > 0 || preflightModel.questionGeneration?.warnings?.length > 0) && (
         <div data-question-generation-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
           <strong style={{ color: 'var(--mm-info-text)' }}>Question versions and Recovery</strong>
-          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
             MathMaster generated sample versions of each question, checked that their answers grade correctly, and checked whether a fresh Recovery can be made for the Warm-Up and DOL.
           </p>
           {preflightModel.questionGeneration.notes.length > 0 && (
-            <ul style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 13, lineHeight: 1.5 }}>
+            <ul style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
               {preflightModel.questionGeneration.notes.map((note) => <li key={note}>{note}</li>)}
             </ul>
           )}
           {preflightModel.questionGeneration.warnings.length > 0 && (
-            <ul data-question-generation-warnings="true" style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+            <ul data-question-generation-warnings="true" style={{ margin: 0, paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.questionGeneration.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
           )}
@@ -1550,22 +1550,22 @@ export const LessonPreflightModal = ({
       {preflightModel.questionValues?.rows?.length > 0 && (
         <div data-question-value-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
           <strong style={{ color: 'var(--mm-info-text)' }}>Question values</strong>
-          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
             How much each question counts toward the assignment grade. ×1 is one standard question; MathMaster set any value the assignment did not, from the work the question asks for. Change a value in the question editor.
           </p>
           {preflightModel.questionValues.notes.length > 0 && (
-            <ul style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 13, lineHeight: 1.5 }}>
+            <ul style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
               {preflightModel.questionValues.notes.map((note) => <li key={note}>{note}</li>)}
             </ul>
           )}
           {preflightModel.questionValues.warnings.length > 0 && (
-            <ul data-question-value-warnings="true" style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+            <ul data-question-value-warnings="true" style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.questionValues.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
           )}
           <details>
-            <summary style={{ cursor: 'pointer', fontSize: 12.5, fontWeight: 800 }}>Every question's value</summary>
-            <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12.5, lineHeight: 1.5 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>Every question's value</summary>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
               {preflightModel.questionValues.rows.map((row) => (
                 <li key={`${row.questionIndex}-${row.questionId || ''}`} data-question-value-source={row.source}>
                   <strong>{row.label}</strong> ×{row.value} — {row.sentence}
@@ -1579,10 +1579,10 @@ export const LessonPreflightModal = ({
       {preflightModel.toolContract?.findings?.length > 0 && (
         <div data-tool-contract-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-primary-border)', borderRadius: 10, background: 'var(--mm-surface-tint)' }}>
           <strong style={{ color: 'var(--mm-primary-text)' }}>Question and tool check</strong>
-          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
             MathMaster checked that each question opens a tool that can do what it asks. A safe repair keeps the same mathematics and only moves it to the workspace students already see.
           </p>
-          <ul style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-text-strong)' }}>
+          <ul style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-strong)' }}>
             {preflightModel.toolContract.findings.map((finding) => (
               <li key={`${finding.questionIndex}:${finding.rule}`} data-tool-contract-rule={finding.rule}>{finding.message}</li>
             ))}
@@ -1597,8 +1597,8 @@ export const LessonPreflightModal = ({
             </button>
           )}
           <details style={{ marginTop: 10 }}>
-            <summary style={{ cursor: 'pointer', fontSize: 12, color: 'var(--mm-text-muted)' }}>Developer details</summary>
-            <pre style={{ margin: '8px 0 0', padding: 10, borderRadius: 8, background: '#202124', color: '#e8eaed', fontSize: 11.5, whiteSpace: 'pre-wrap' }}>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Developer details</summary>
+            <pre style={{ margin: '8px 0 0', padding: 10, borderRadius: 8, background: '#202124', color: '#e8eaed', fontSize: 'calc(11.5 * var(--mm-px))', whiteSpace: 'pre-wrap' }}>
               {JSON.stringify(preflightModel.toolContract.findings.map(({ questionId, questionNumber, rule, severity, expected, actual, recommendedRepair }) => ({
                 questionId, questionNumber, rule, severity, expected, actual,
                 recommendedRepair: recommendedRepair ? { kind: recommendedRepair.kind, safe: recommendedRepair.safe, description: recommendedRepair.description } : null,
@@ -1611,11 +1611,11 @@ export const LessonPreflightModal = ({
       {questionRepairIssues.length > 0 && (
         <div style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-error-border-soft)', borderRadius: 10, background: 'var(--mm-error-subtle)' }}>
           <strong style={{ color: 'var(--mm-error-text)' }}>Questions MathMaster can target directly</strong>
-          <p style={{ margin: '5px 0 11px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
+          <p style={{ margin: '5px 0 11px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
             Each button builds a repair request for only that question. Other assignment blockers stay untouched.
           </p>
           {!allowQuestionRepair && (
-            <div style={{ margin: '0 0 11px', padding: '9px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5, lineHeight: 1.5 }}>
+            <div style={{ margin: '0 0 11px', padding: '9px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
               Student records already exist, so question content is locked to preserve historical evidence. Duplicate the assignment to repair or rewrite its questions.
             </div>
           )}
@@ -1625,10 +1625,10 @@ export const LessonPreflightModal = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                   <div style={{ flex: '1 1 420px', minWidth: 0 }}>
                     <strong>Question {issue.questionNumber}</strong>
-                    <div style={{ marginTop: 4, color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.45 }}>
+                    <div style={{ marginTop: 4, color: 'var(--mm-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45 }}>
                       {String(issue.question?.prompt || issue.question?.scenario || issue.question?.title || '').replace(/\s+/g, ' ').slice(0, 180) || 'Question content'}
                     </div>
-                    <ul style={{ margin: '7px 0 0', paddingLeft: 18, color: 'var(--mm-error-text)', fontSize: 12, lineHeight: 1.45 }}>
+                    <ul style={{ margin: '7px 0 0', paddingLeft: 18, color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
                       {issue.errors.map((message) => <li key={message}>{message}</li>)}
                     </ul>
                   </div>
@@ -1644,13 +1644,13 @@ export const LessonPreflightModal = ({
                 </div>
                 {repairTargetIndex === issue.questionIndex && (
                   <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid var(--mm-border-soft)' }}>
-                    <label style={{ display: 'block', fontWeight: 800, fontSize: 12.5 }}>
+                    <label style={{ display: 'block', fontWeight: 800, fontSize: 'calc(12.5 * var(--mm-px))' }}>
                       Anything else you want the AI to know? <span style={{ fontWeight: 500, color: 'var(--mm-text-muted)' }}>(optional)</span>
                       <textarea
                         value={repairInstruction}
                         onChange={(event) => setRepairInstruction(event.target.value)}
                         placeholder="Example: Keep the graph and same TEKS. The issue is only that an equivalent answer is being rejected."
-                        style={{ display: 'block', width: '100%', minHeight: 82, boxSizing: 'border-box', marginTop: 6, padding: 10, border: '1px solid var(--mm-border)', borderRadius: 7, fontFamily: 'inherit', fontSize: 14 }}
+                        style={{ display: 'block', width: '100%', minHeight: 82, boxSizing: 'border-box', marginTop: 6, padding: 10, border: '1px solid var(--mm-border)', borderRadius: 7, fontFamily: 'inherit', fontSize: 'calc(14 * var(--mm-px))' }}
                       />
                     </label>
                     <div style={{ display: 'flex', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
@@ -1676,7 +1676,7 @@ export const LessonPreflightModal = ({
       )}
 
       {repairMessage && (
-        <div role="status" style={{ marginBottom: 14, padding: '10px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.45 }}>
+        <div role="status" style={{ marginBottom: 14, padding: '10px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45 }}>
           {repairMessage}
         </div>
       )}
@@ -1685,7 +1685,7 @@ export const LessonPreflightModal = ({
         {activities.map((activity) => (
           <div key={activity.id || activity.sectionId} style={{ padding: 11, border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
             <strong>{humanRole(activity.role)}</strong>
-            <div style={{ fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
               {activity.isModelingLab ? `DOK ${activity.labDefinition?.dokLevel || 3} modeling lab` : `${activity.questions.length} question${activity.questions.length === 1 ? '' : 's'}`} · {activity.policy.attemptsAllowed} attempt{activity.policy.attemptsAllowed === 1 ? '' : 's'} · {activity.policy.feedbackMode}
             </div>
           </div>
@@ -1717,7 +1717,7 @@ export const LessonPreflightModal = ({
               </ul>
               {canManageSecureBank ? (
                 <>
-                  <label style={{ display: 'grid', gap: 6, fontWeight: 800, fontSize: 13 }}>
+                  <label style={{ display: 'grid', gap: 6, fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>
                     Import {familiesToRegister.length === 1 ? 'it' : 'them'} from this Test's secure-families file
                     <input
                       type="file"
@@ -1728,7 +1728,7 @@ export const LessonPreflightModal = ({
                         event.target.value = '';
                         registerSecureFamilies(file);
                       }}
-                      style={{ fontSize: 14, minHeight: 44 }}
+                      style={{ fontSize: 'calc(14 * var(--mm-px))', minHeight: 44 }}
                     />
                   </label>
                   <small style={{ color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
@@ -1750,7 +1750,7 @@ export const LessonPreflightModal = ({
               {familyRegistration.message && <div role="status" style={{ fontWeight: 700, color: 'var(--mm-primary-text)' }}>{familyRegistration.message}</div>}
               {familyRegistration.error && <div role="alert" style={{ fontWeight: 700, color: 'var(--mm-error-text)' }}>{familyRegistration.error}</div>}
               {familyRegistration.rejected.map((entry, index) => (
-                <div key={`${entry.id || 'rejected'}-${index}`} style={{ fontSize: 13, color: 'var(--mm-error-text)' }}>
+                <div key={`${entry.id || 'rejected'}-${index}`} style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-error-text)' }}>
                   <code>{entry.id || '(no id)'}</code>: {entry.reason}{entry.detail ? ` — ${entry.detail}` : ''}{entry.propertyPath ? ` (at ${entry.propertyPath})` : ''}
                 </div>
               ))}
@@ -1779,7 +1779,7 @@ export const LessonPreflightModal = ({
           type="button"
           onClick={() => setPreviewOpen((current) => !current)}
           aria-expanded={previewOpen}
-          style={{ width: '100%', minHeight: 48, padding: '12px 15px', border: 0, borderBottom: previewOpen ? '1px solid var(--mm-border)' : 0, background: 'var(--mm-surface-sunken)', fontWeight: 800, textAlign: 'left', cursor: 'pointer', fontSize: 15 }}
+          style={{ width: '100%', minHeight: 48, padding: '12px 15px', border: 0, borderBottom: previewOpen ? '1px solid var(--mm-border)' : 0, background: 'var(--mm-surface-sunken)', fontWeight: 800, textAlign: 'left', cursor: 'pointer', fontSize: 'calc(15 * var(--mm-px))' }}
         >
           {previewOpen ? '▾' : '▸'} {previewOpen ? 'Hide the student preview' : 'Open the student preview'}
         </button>
@@ -1840,12 +1840,12 @@ export const LessonPreflightModal = ({
       >
         <header style={{ padding: isNarrow ? '12px 14px' : '15px 20px', background: '#1a73e8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontSize: isNarrow ? 17 : 20 }}>{isUpdateMode ? 'Review assignment setup' : 'Review assignment'}</h3>
-            <span style={{ fontSize: 12, opacity: 0.92, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <h3 style={{ margin: 0, fontSize: isNarrow ? 'calc(17 * var(--mm-px))' : 'calc(20 * var(--mm-px))' }}>{isUpdateMode ? 'Review assignment setup' : 'Review assignment'}</h3>
+            <span style={{ fontSize: 'calc(12 * var(--mm-px))', opacity: 0.92, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {draft.title || 'Untitled assignment'}{sourceLabel ? ` · ${sourceLabel}` : ''}
             </span>
           </div>
-          <button type="button" aria-label="Close pre-flight" onClick={onClose} disabled={busy} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 24, cursor: 'pointer', minHeight: 44, minWidth: 44, flexShrink: 0 }}>✕</button>
+          <button type="button" aria-label="Close pre-flight" onClick={onClose} disabled={busy} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 'calc(24 * var(--mm-px))', cursor: 'pointer', minHeight: 44, minWidth: 44, flexShrink: 0 }}>✕</button>
         </header>
 
         {/* The step rail doubles as the blocker summary: a step with an unresolved
@@ -1871,7 +1871,7 @@ export const LessonPreflightModal = ({
                   background: isActive ? 'var(--mm-surface)' : 'transparent',
                   cursor: 'pointer',
                   fontWeight: 800,
-                  fontSize: 13,
+                  fontSize: 'calc(13 * var(--mm-px))',
                   color: isActive ? 'var(--mm-primary)' : 'var(--mm-text)',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                 }}
@@ -1879,12 +1879,12 @@ export const LessonPreflightModal = ({
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
                   {isNarrow ? step.label : `${index + 1}. ${step.label}`}
                   {problems > 0 && (
-                    <span aria-label={`${problems} to fix`} style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#d93025', color: '#fff', fontSize: 11, fontWeight: 900, display: 'grid', placeItems: 'center' }}>
+                    <span aria-label={`${problems} to fix`} style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#d93025', color: '#fff', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, display: 'grid', placeItems: 'center' }}>
                       {problems}
                     </span>
                   )}
                 </span>
-                {!isNarrow && <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--mm-text-muted)' }}>{step.hint}</span>}
+                {!isNarrow && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 500, color: 'var(--mm-text-muted)' }}>{step.hint}</span>}
               </button>
             );
           })}
@@ -1904,7 +1904,7 @@ export const LessonPreflightModal = ({
         </div>
 
         <footer style={{ padding: isNarrow ? '10px 14px calc(10px + env(safe-area-inset-bottom))' : '13px 18px', borderTop: '1px solid var(--mm-border)', background: 'var(--mm-surface-sunken)', display: 'flex', flexDirection: isNarrow ? 'column' : 'row', justifyContent: 'space-between', alignItems: isNarrow ? 'stretch' : 'center', gap: 10 }}>
-          <span style={{ fontSize: 12, color: readiness.total === 0 ? 'var(--mm-text-muted)' : 'var(--mm-error-text)', textAlign: isNarrow ? 'center' : 'left' }}>
+          <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: readiness.total === 0 ? 'var(--mm-text-muted)' : 'var(--mm-error-text)', textAlign: isNarrow ? 'center' : 'left' }}>
             {readiness.total === 0
               ? (isUpdateMode ? 'Ready to save. These reviewed choices will update this assignment.' : 'Ready to create. These reviewed choices are what MathMaster will publish.')
               : `${readiness.total} thing${readiness.total === 1 ? '' : 's'} still to fix${readiness.firstBlockedStep && readiness.firstBlockedStep !== activeStep ? ` — see step ${stepIndex(readiness.firstBlockedStep) + 1}` : ''}.`}
@@ -1968,7 +1968,7 @@ export const LessonPreflightModal = ({
 
           {/* Why the button says what it says. Without this a teacher who
               forgot to tick a class reads "Save to Library" as a bug. */}
-          <div style={{ marginTop: 8, color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5, textAlign: isNarrow ? 'center' : 'right' }}>
+          <div style={{ marginTop: 8, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, textAlign: isNarrow ? 'center' : 'right' }}>
             {isUpdateMode
               ? 'Updates this assignment after the same MathMaster checks used when it was created. It does not create a second copy.'
               : action.hint}

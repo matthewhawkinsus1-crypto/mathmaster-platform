@@ -17,10 +17,10 @@ const CARD = {
   border: '1px solid var(--mm-border-soft)', borderRadius: 14, background: 'var(--mm-surface)', padding: 16,
 };
 const LABEL = {
-  fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)',
+  fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)',
 };
-const VALUE = { fontSize: 15, fontWeight: 800, color: 'var(--mm-text-strong)', marginTop: 3 };
-const MUTED = { color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.6 };
+const VALUE = { fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)', marginTop: 3 };
+const MUTED = { color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.6 };
 
 const pct = (value) => (value == null ? '—' : `${Math.round(Number(value) * 100)}%`);
 
@@ -47,7 +47,7 @@ function DokTable({ dokProfile }) {
   if (!any) return <div style={MUTED}>No cognitive-demand evidence yet.</div>;
 
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
       <thead>
         <tr>
           {['Depth of Knowledge', 'Accuracy', 'Attempts', ''].map((head) => (
@@ -82,7 +82,7 @@ function SessionRow({ session }) {
   return (
     <li style={{ padding: '11px 0', borderTop: '1px solid var(--mm-border-soft)', listStyle: 'none' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
-        <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 14 }}>
+        <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))' }}>
           {session.teksCode}
           <span style={{ ...MUTED, fontWeight: 700, marginLeft: 8 }}>{session.purposeLabel}</span>
         </div>
@@ -111,7 +111,7 @@ export default function StudentLearningProfileView({
   if (!profile) {
     return (
       <section style={CARD}>
-        <h3 style={{ margin: 0, fontSize: 17 }}>{studentName}</h3>
+        <h3 style={{ margin: 0, fontSize: 'calc(17 * var(--mm-px))' }}>{studentName}</h3>
         <p style={{ ...MUTED, marginTop: 8 }}>
           No learning profile has been built yet. MathMaster does not classify a student before it has
           enough evidence to be right about them.
@@ -129,13 +129,13 @@ export default function StudentLearningProfileView({
     <section style={{ display: 'grid', gap: 14 }}>
       <header style={{ ...CARD, display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 19, color: 'var(--mm-text-strong)' }}>{studentName}</h3>
+          <h3 style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{studentName}</h3>
           <div style={{ marginTop: 8 }}>
             <StudentPerformanceBadge profile={profile} />
           </div>
         </div>
         {onClose && (
-          <button type="button" onClick={onClose} aria-label="Close learning profile" style={{ appearance: 'none', border: 0, background: 'transparent', fontSize: 20, cursor: 'pointer', color: 'var(--mm-text-muted)', fontFamily: 'inherit' }}>✕</button>
+          <button type="button" onClick={onClose} aria-label="Close learning profile" style={{ appearance: 'none', border: 0, background: 'transparent', fontSize: 'calc(20 * var(--mm-px))', cursor: 'pointer', color: 'var(--mm-text-muted)', fontFamily: 'inherit' }}>✕</button>
         )}
       </header>
 
@@ -189,7 +189,7 @@ export default function StudentLearningProfileView({
           <div style={{ ...LABEL, marginBottom: 8 }}>What the evidence suggests</div>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 7 }}>
             {gaps.map((gap) => (
-              <li key={`${gap.type}-${gap.framework || ''}`} style={{ color: 'var(--mm-text-strong)', fontSize: 13.5, lineHeight: 1.6 }}>
+              <li key={`${gap.type}-${gap.framework || ''}`} style={{ color: 'var(--mm-text-strong)', fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.6 }}>
                 <strong>{gap.label}</strong>
                 <span style={{ ...MUTED, display: 'block' }}>{gap.detail}</span>
               </li>
@@ -218,7 +218,7 @@ export default function StudentLearningProfileView({
           <div style={{ ...LABEL, marginBottom: 8 }}>Deliberately held back this week</div>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 5 }}>
             {suppressed.slice(0, 8).map((entry) => (
-              <li key={entry.skillId} style={{ ...MUTED, fontSize: 13 }}>
+              <li key={entry.skillId} style={{ ...MUTED, fontSize: 'calc(13 * var(--mm-px))' }}>
                 <strong style={{ color: 'var(--mm-text-strong)' }}>{entry.teksCode}</strong>
                 {' — '}
                 {entry.eligibility.reason === 'cooling_down'

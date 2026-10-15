@@ -35,18 +35,18 @@ import { compareStudentsByName, formatStudentLabel } from '../../platform/studen
  */
 
 const button = (tone, enabled = true) => ({
-  minHeight: 40, padding: '7px 12px', borderRadius: 8, fontWeight: 800, fontSize: 13,
+  minHeight: 40, padding: '7px 12px', borderRadius: 8, fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
   cursor: enabled ? 'pointer' : 'not-allowed',
   border: tone === 'primary' ? 0 : '1px solid var(--mm-border-strong)',
   background: !enabled ? 'var(--mm-surface-control-strong)' : tone === 'primary' ? 'var(--mm-primary)' : 'var(--mm-surface)',
   color: !enabled ? 'var(--mm-disabled-text)' : tone === 'primary' ? 'var(--mm-on-primary)' : 'var(--mm-text)',
 });
 const panel = { marginTop: 12, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', display: 'grid', gap: 8, textAlign: 'left' };
-const heading = { margin: 0, fontSize: 15, color: 'var(--mm-text-strong)' };
-const muted = { margin: 0, fontSize: 12.5, lineHeight: 1.5, color: 'var(--mm-text-muted)' };
-const fact = { margin: 0, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-text)' };
-const field = { display: 'grid', gap: 4, fontSize: 13, fontWeight: 800, color: 'var(--mm-text)' };
-const input = { minHeight: 40, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-input-bg)', color: 'var(--mm-input-text)', fontSize: 14, maxWidth: 280, boxSizing: 'border-box' };
+const heading = { margin: 0, fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)' };
+const muted = { margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' };
+const fact = { margin: 0, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' };
+const field = { display: 'grid', gap: 4, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)' };
+const input = { minHeight: 40, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-input-bg)', color: 'var(--mm-input-text)', fontSize: 'calc(14 * var(--mm-px))', maxWidth: 280, boxSizing: 'border-box' };
 const formRow = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end' };
 const card = { padding: '10px 12px', borderRadius: 9, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'grid', gap: 6 };
 
@@ -57,13 +57,13 @@ const STATE_TONE = {
   unset: { background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' },
   alwaysOpen: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
 };
-const pill = (state) => ({ display: 'inline-block', fontSize: 12, fontWeight: 800, padding: '3px 9px', borderRadius: 999, ...(STATE_TONE[state] || STATE_TONE.closed) });
+const pill = (state) => ({ display: 'inline-block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, padding: '3px 9px', borderRadius: 999, ...(STATE_TONE[state] || STATE_TONE.closed) });
 
 /** One window (the Test's, or the home window) as two sentences and a home line. */
 const WindowFacts = ({ title, window }) => (
   <div style={{ display: 'grid', gap: 2 }} data-window-state={window.state}>
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      <strong style={{ fontSize: 13, color: 'var(--mm-text-strong)' }}>{title}</strong>
+      <strong style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{title}</strong>
       <span style={pill(window.state)}>{window.headline}</span>
     </div>
     <p style={fact}>{window.detail}</p>
@@ -311,7 +311,7 @@ export const TestCycleAudiencePanel = ({ listing, classes = [], students = [], r
           <fieldset style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 4 }}>
             <legend style={{ ...field, padding: 0 }}>Add classes</legend>
             {candidates.classes.map((entry) => (
-              <label key={entry.classId} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--mm-text)', minHeight: 32 }}>
+              <label key={entry.classId} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', minHeight: 32 }}>
                 <input
                   type="checkbox"
                   checked={addClassIds.includes(entry.classId)}
@@ -405,14 +405,14 @@ export const TestCycleOperationStatus = ({ operation, nameOf, busy, onContinue, 
         <progress value={counts.total - counts.pending} max={counts.total || 1} aria-label={`${described.actionLabel} progress`} style={{ width: '100%' }} />
       )}
       {described.failures.length > 0 && (
-        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-error-text)' }} data-operation-failures="">
+        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-error-text)' }} data-operation-failures="">
           {described.failures.map((entry) => <li key={entry.studentId}><strong>{entry.name}</strong>: {entry.detail}</li>)}
         </ul>
       )}
       {described.notEligible.length > 0 && (
         <details open={described.notEligible.length <= 5}>
-          <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>{described.notEligible.length} not eligible</summary>
-          <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-text)' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>{described.notEligible.length} not eligible</summary>
+          <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>
             {described.notEligible.map((entry) => <li key={entry.studentId}><strong>{entry.name}</strong>: {entry.detail}</li>)}
           </ul>
         </details>
@@ -459,7 +459,7 @@ export const TestCycleGradeForm = ({ row, name, busy, onSave, onClear, onCancel 
       <fieldset style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 8 }}>
         <legend style={{ ...field, padding: 0 }}>Where the grade comes from</legend>
         {choices.map((choice) => (
-          <label key={choice.source} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, color: 'var(--mm-text)' }}>
+          <label key={choice.source} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
             <input type="radio" name={groupName} checked={source === choice.source} onChange={() => { setSource(choice.source); setProblem(null); }} />
             <span><strong>{choice.label}</strong><br /><span style={{ color: 'var(--mm-text-muted)' }}>{choice.detail}</span></span>
           </label>
@@ -582,7 +582,7 @@ export const TestCycleLifecyclePanel = ({ assignment, availability, busy, eviden
             <>
               <p style={{ margin: 0, lineHeight: 1.5, fontWeight: 700 }}>This cannot be undone. Archive it instead if you might need it again.</p>
               {described.classroomPublications > 0 && (
-                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13 }}>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 'calc(13 * var(--mm-px))' }}>
                   <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
                   I understand its Google Classroom post stays in Classroom.
                 </label>

@@ -25,7 +25,16 @@
  *                             lineHeight: '20px' (a NUMBER lineHeight is a
  *                             unitless multiplier and already scales)
  *   CSS declarations          font-size: 14px  and  line-height: 20px
- *                             (px inside clamp()/calc()/max()/min() too)
+ *                             (px inside clamp()/calc()/max()/min() too), in
+ *                             .css files and in a stylesheet held in a JS
+ *                             template literal (`const CSS = \`\n.a { … }\``,
+ *                             no `${…}` inside; job N)
+ *
+ *   Fluid font sizes          clamp(A, 4.2vmin, B): the viewport term becomes
+ *                             calc(4.2vmin * var(--mm-text-scale, 1)), so the
+ *                             preferred size grows with the setting as well as
+ *                             its bounds (--mm-text-scale is 1 at the default
+ *                             size; src/platform/layout/textScale.js; job N)
  *
  * What it leaves alone:
  *   - src/App.jsx, src/app/** and src/App.css (job G's; re-run after G lands)
@@ -58,8 +67,53 @@ export const convertCssValue = (value) => String(value).replace(new RegExp(Strin
   Number(number) === 0 ? `${lead}0` : `${lead}${pxExpression(number)}`
 ));
 
+export const TEXT_SCALE = 'var(--mm-text-scale, 1)';
+const VIEWPORT_TERM = new RegExp(String.raw`^-?(?:${NUMBER})(?:vw|vh|vmin|vmax|svw|svh|dvw|dvh|lvw|lvh|cqw|cqh|cqi|cqb|cqmin|cqmax)$`);
+
+/**
+ * clamp(A, 4vw, B) → clamp(A, calc(4vw * var(--mm-text-scale, 1)), B): a
+ * clamp's preferred term that is a bare viewport length. Anything else (a
+ * calc, rem, px) is left as it is; already-scaled terms are not bare, so a
+ * second run changes nothing.
+ */
+export const scaleFluidClamps = (value) => {
+  const text = String(value);
+  let output = '';
+  let cursor = 0;
+  for (let open = text.indexOf('clamp(', cursor); open >= 0; open = text.indexOf('clamp(', cursor)) {
+    const args = [];
+    let depth = 0;
+    let start = open + 6;
+    let close = -1;
+    for (let index = start; index < text.length; index += 1) {
+      const char = text[index];
+      if (char === '(') depth += 1;
+      else if (char === ')') {
+        if (depth === 0) { args.push([start, index]); close = index; break; }
+        depth -= 1;
+      } else if (char === ',' && depth === 0) { args.push([start, index]); start = index + 1; }
+    }
+    if (close < 0) break;
+    if (args.length === 3) {
+      const [from, to] = args[1];
+      const middle = text.slice(from, to);
+      const term = middle.trim();
+      if (VIEWPORT_TERM.test(term)) {
+        const lead = middle.slice(0, middle.indexOf(term));
+        const tail = middle.slice(middle.indexOf(term) + term.length);
+        output += `${text.slice(cursor, from)}${lead}calc(${term} * ${TEXT_SCALE})${tail}`;
+        cursor = to;
+        continue;
+      }
+    }
+    output += text.slice(cursor, open + 6);
+    cursor = open + 6;
+  }
+  return output + text.slice(cursor);
+};
+
 // ---- CSS ---------------------------------------------------------------------
-const CSS_PROPERTY = /(^|[;{\s])(font-size|line-height)(\s*:\s*)([^;{}]*?\d[^;{}]*?px[^;{}]*?)(\s*(?:!important)?\s*)(?=;|})/g;
+const CSS_PROPERTY = /(^|[;{\s])(font-size|line-height)(\s*:\s*)([^;{}]*?(?:\d[^;{}]*?px|clamp\()[^;{}]*?)(\s*(?:!important)?\s*)(?=;|})/g;
 
 export const transformCss = (source) => {
   if (source.includes('px-to-rem: off')) return { output: source, changes: 0, skipped: 0 };
@@ -67,8 +121,8 @@ export const transformCss = (source) => {
   const output = source.split('\n').map((line) => {
     if (line.includes('px-to-rem-ignore')) return line;
     return line.replace(CSS_PROPERTY, (all, lead, property, colon, value, tail) => {
-      if (/var\(--mm-px\)/.test(value) && !/\dpx/.test(value.replace(/var\(--mm-px\)/g, ''))) return all;
-      const next = convertCssValue(value);
+      const converted = /var\(--mm-px\)/.test(value) && !/\dpx/.test(value.replace(/var\(--mm-px\)/g, '')) ? value : convertCssValue(value);
+      const next = property === 'font-size' ? scaleFluidClamps(converted) : converted;
       if (next === value) return all;
       changes += 1;
       return `${lead}${property}${colon}${next}${tail}`;
@@ -151,7 +205,7 @@ export const transformJs = (source) => {
     const lineEnd = source.indexOf('\n', match.index);
     const line = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd);
     if (line.includes('px-to-rem-ignore')) continue;
-    const next = match[1] === 'fontSize' ? convertJsFontValue(value) : convertJsLineHeightValue(value);
+    const next = match[1] === 'fontSize' ? scaleFluidClamps(convertJsFontValue(value)) : convertJsLineHeightValue(value);
     if (next === value) continue;
     if (drawsSvgText) {
       const literal = styleLiteralAt(source, match.index);
@@ -162,6 +216,14 @@ export const transformJs = (source) => {
     changes += 1;
   }
   output += source.slice(cursor);
+  // A stylesheet in a template literal (Live Challenge's injected <style>s):
+  // `= \`` then a newline, CSS, the closing backtick; nothing interpolated.
+  output = output.replace(/(=\s*)`(\n[^`]*)`/g, (all, lead, css) => {
+    if (css.includes('${') || !/(font-size|line-height)\s*:/.test(css)) return all;
+    const result = transformCss(css);
+    changes += result.changes;
+    return `${lead}\`${result.output}\``;
+  });
   return { output, changes, skipped };
 };
 
@@ -172,6 +234,9 @@ export const PRINT_ONLY = Object.freeze([
   'src/platform/resources/assignmentWorksheetPdf.js',
   'src/platform/resources/lessonNotesPdf.js',
   'src/platform/resources/assignmentWorksheetPdfModel.js',
+  // Rendered only by assignmentWorksheetPdf.js (DOM rasterised into the PDF):
+  // paper, not screen (job N; coordinator review of #487).
+  'src/platform/resources/assignmentWorksheetVisuals.js',
 ]);
 
 export const EXCLUDED = (relative) => (

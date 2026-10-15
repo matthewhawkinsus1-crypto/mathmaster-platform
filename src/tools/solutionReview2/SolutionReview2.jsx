@@ -79,16 +79,16 @@ export default function SolutionReview2({ questionData = {}, attemptRecord = {},
 
           <dl style={{ margin: '14px 0 0', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
             {record.attemptNumber != null ? <>
-              <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Attempt</dt>
+              <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Attempt</dt>
               <dd style={{ margin: 0, fontWeight: 700 }}>{record.attemptNumber}</dd>
             </> : null}
             {scoreText ? <>
-              <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Credit earned</dt>
+              <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Credit earned</dt>
               <dd style={{ margin: 0, fontWeight: 700 }}>{scoreText}</dd>
             </> : null}
             {responseEntries.map((entry) => (
               <React.Fragment key={entry.label}>
-                <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{entry.label}</dt>
+                <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{entry.label}</dt>
                 <dd style={{ margin: 0, fontWeight: 700 }}>{entry.value}</dd>
               </React.Fragment>
             ))}
@@ -109,7 +109,7 @@ export default function SolutionReview2({ questionData = {}, attemptRecord = {},
           </ol>}
           {misconceptions.length ? (
             <>
-              <h4 style={{ margin: '16px 0 6px', fontSize: 14, color: 'var(--mm-warning-text)' }}>Common traps on this one</h4>
+              <h4 style={{ margin: '16px 0 6px', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>Common traps on this one</h4>
               <ul style={{ lineHeight: 1.7, paddingLeft: 20, margin: 0, color: 'var(--mm-text)' }}>
                 {misconceptions.map((item, index) => <li key={index}>{item}</li>)}
               </ul>

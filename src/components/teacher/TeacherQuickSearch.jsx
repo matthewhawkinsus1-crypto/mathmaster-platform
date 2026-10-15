@@ -103,18 +103,18 @@ export default function TeacherQuickSearch({
           aria-label="Search"
           style={{
             width: '100%', padding: '17px 20px', border: 0, borderBottom: '1px solid var(--mm-border-soft)',
-            fontSize: 17, outline: 'none', boxSizing: 'border-box',
+            fontSize: 'calc(17 * var(--mm-px))', outline: 'none', boxSizing: 'border-box',
           }}
         />
 
         {query.trim().length >= 2 && !results.length && (
-          <p style={{ margin: 0, padding: '18px 20px', color: 'var(--mm-text-muted)', fontSize: 13.5 }}>
+          <p style={{ margin: 0, padding: '18px 20px', color: 'var(--mm-text-muted)', fontSize: 'calc(13.5 * var(--mm-px))' }}>
             Nothing matches that. Try a surname, a class name, or a TEKS code such as A.5C.
           </p>
         )}
 
         {query.trim().length < 2 && (
-          <p style={{ margin: 0, padding: '16px 20px', color: 'var(--mm-text-muted)', fontSize: 13 }}>
+          <p style={{ margin: 0, padding: '16px 20px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
             Type at least two characters. A full student ID or TEKS code goes straight to the top.
           </p>
         )}
@@ -136,18 +136,18 @@ export default function TeacherQuickSearch({
                     padding: '11px 20px', border: 0, background: active ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer',
                   }}
                 >
-                  <span style={{ padding: '2px 8px', borderRadius: 999, background: tone.bg, color: tone.fg, fontSize: 10.5, fontWeight: 900, whiteSpace: 'nowrap' }}>
+                  <span style={{ padding: '2px 8px', borderRadius: 999, background: tone.bg, color: tone.fg, fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 900, whiteSpace: 'nowrap' }}>
                     {RESULT_KIND_LABEL[result.kind]}
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{result.title}</span>
                     {result.subtitle && (
-                      <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {result.subtitle}
                       </span>
                     )}
                   </span>
-                  {active && <span style={{ color: 'var(--mm-text-subtle)', fontSize: 11, fontWeight: 800 }}>ENTER</span>}
+                  {active && <span style={{ color: 'var(--mm-text-subtle)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800 }}>ENTER</span>}
                 </button>
               </li>
             );

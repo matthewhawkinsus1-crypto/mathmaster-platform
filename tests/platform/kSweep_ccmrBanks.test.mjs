@@ -388,10 +388,11 @@ test('Assignments: a Digital SAT student-produced response is a number box, not 
   assert.equal(field.answerFormat, 'number');
 });
 
-// Still outside: the interaction contract infers required keypad symbols from
-// the template text '{{a}}' before the generator substitutes the number
-// (src/platform/interaction/answerEntryTools.js inferRequiredAnswerSymbols),
-// so the number box still lists '{', '}' and 'a' as required symbols.
-test('Assignments: a Digital SAT student-produced response requires no set or letter keys', { skip: 'interaction inferRequiredAnswerSymbols reads the template "{{a}}"; reported to the interaction owner' }, () => {
+// The interaction contract infers required keypad symbols from the template
+// text '{{a}}' before the generator substitutes the number
+// (src/platform/interaction/answerEntryTools.js inferRequiredAnswerSymbols).
+// It used to list '{', '}' and 'a' as required symbols on a number box; a
+// placeholder now reads as a number there (Job P).
+test('Assignments: a Digital SAT student-produced response requires no set or letter keys', () => {
   assert.deepEqual(sprField().requiredSymbols ?? [], []);
 });

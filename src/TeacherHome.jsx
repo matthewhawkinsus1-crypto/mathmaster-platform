@@ -181,7 +181,7 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
     <div style={{ textAlign: 'left' }}>
       <div className="tw-row" style={{ justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
         <h2 style={{ margin: 0 }}>{greetingFor(now)}</h2>
-        <span className="tw-muted" style={{ fontSize: 14 }}>
+        <span className="tw-muted" style={{ fontSize: 'calc(14 * var(--mm-px))' }}>
           {now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} · {todaysClasses.length} class{todaysClasses.length === 1 ? '' : 'es'} today
         </span>
       </div>
@@ -227,8 +227,8 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
               <div className="tw-small tw-muted" style={{ fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase' }}>
                 {currentClass.isNow ? 'In session now' : 'Viewing'}
               </div>
-              <h2 id="home-class-now" style={{ margin: 0, fontSize: 20 }}>
-                <button type="button" className="tw-link" style={{ fontSize: 20 }} onClick={() => onSelectPeriod({ classId: currentClass.classId || null, classPeriod: currentClass.period })}>{liveClassLabel}</button>
+              <h2 id="home-class-now" style={{ margin: 0, fontSize: 'calc(20 * var(--mm-px))' }}>
+                <button type="button" className="tw-link" style={{ fontSize: 'calc(20 * var(--mm-px))' }} onClick={() => onSelectPeriod({ classId: currentClass.classId || null, classPeriod: currentClass.period })}>{liveClassLabel}</button>
               </h2>
               <div className="tw-small tw-muted">{timeRange(currentClass.window)} · {currentClass.studentCount} student{currentClass.studentCount === 1 ? '' : 's'}</div>
             </div>
@@ -341,7 +341,7 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
         <summary>Submission recovery <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>restore a student&apos;s saved work for any active class</span></summary>
         <div className="tw-disclosure__body">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-          <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)' }}>
+          <label style={{ display: 'grid', gap: 6, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)' }}>
             Class
             <select
               value={recoveryClassId}
@@ -354,7 +354,7 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
               ))}
             </select>
           </label>
-          <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)' }}>
+          <label style={{ display: 'grid', gap: 6, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)' }}>
             Assignment
             <select
               value={recoveryAssignmentId}

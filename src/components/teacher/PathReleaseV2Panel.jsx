@@ -99,7 +99,7 @@ export default function PathReleaseV2Panel() {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div>
           <h3 style={{ margin: 0 }}>Course Path release</h3>
-          <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
+          <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, maxWidth: 760 }}>
             Grade 6, Grade 7, Grade 8, Algebra I and Algebra II built-in content is published as one certified
             release. It was compiled, Firestore-certified and proved issuable by the production issuer before it
             was deployed, so publishing compares it with production and writes only what actually changed.
@@ -110,11 +110,11 @@ export default function PathReleaseV2Panel() {
         </button>
       </div>
 
-      <p role="status" style={{ margin: '14px 0 4px', fontWeight: 900, fontSize: 15, color: palette.color }}>
+      <p role="status" style={{ margin: '14px 0 4px', fontWeight: 900, fontSize: 'calc(15 * var(--mm-px))', color: palette.color }}>
         {loading ? 'Checking the deployed release…' : (status?.label || 'Unknown release state')}
       </p>
 
-      <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 14px', margin: '10px 0 0', fontSize: 13 }}>
+      <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 14px', margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))' }}>
         <dt style={{ color: 'var(--mm-text-muted)' }}>Deployed (certified)</dt>
         <dd style={{ margin: 0 }}>
           <code>{status?.deployed?.releaseId || DEPLOYED_COURSE_PATH_RELEASE.releaseId || '—'}</code>
@@ -137,12 +137,12 @@ export default function PathReleaseV2Panel() {
       {status?.status === 'deployment-mismatch' && status.mismatch ? (
         <div role="alert" style={{ marginTop: 14, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-error-border-soft)' }}>
           <strong style={{ color: 'var(--mm-error-text)' }}>Hosting and path-admin were deployed from different builds.</strong>
-          <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 13, lineHeight: 1.6 }}>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>
             <li>This page was built for <code>{status.mismatch.browserReleaseId || 'no release'}</code>.</li>
             <li>The server has <code>{status.mismatch.serverReleaseId || 'no release'}</code>.</li>
             <li>Differs: {status.mismatch.differs.join(', ')}.</li>
           </ul>
-          <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+          <p style={{ margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Deploy Hosting and the path-admin codebase from the same build, then reload this page.
           </p>
         </div>
@@ -156,7 +156,7 @@ export default function PathReleaseV2Panel() {
             const staging = phase === 'staging' && (progress?.totalChunks || status?.job?.totalChunks);
             return (
               <li key={phase} style={{
-                fontSize: 13, fontWeight: isCurrent ? 900 : 600,
+                fontSize: 'calc(13 * var(--mm-px))', fontWeight: isCurrent ? 900 : 600,
                 color: isCurrent ? 'var(--mm-primary-text)' : reached ? 'var(--mm-success-text)' : 'var(--mm-text-subtle)',
               }}>
                 {reached ? '●' : '○'} {RELEASE_PHASE_MESSAGES[phase]}
@@ -170,7 +170,7 @@ export default function PathReleaseV2Panel() {
       ) : null}
 
       {status?.job?.counts ? (
-        <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-text)' }}>
+        <p style={{ margin: '12px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
           Change plan: {describeReleaseCounts(status.job.counts)}
         </p>
       ) : null}
@@ -192,13 +192,13 @@ export default function PathReleaseV2Panel() {
       </div>
 
       {status?.status === 'current' ? (
-        <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-success-text)', fontWeight: 700 }}>
+        <p style={{ margin: '12px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-success-text)', fontWeight: 700 }}>
           Production is current. Republishing this release would write no question documents.
         </p>
       ) : null}
 
       {result?.ok && result.status === 'already-active' ? (
-        <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-success-text)', fontWeight: 700 }}>
+        <p style={{ margin: '12px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-success-text)', fontWeight: 700 }}>
           Production is already serving this certified release.
         </p>
       ) : null}
@@ -206,8 +206,8 @@ export default function PathReleaseV2Panel() {
       {result?.ok && result.status === 'complete' ? (
         <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-success-border)' }}>
           <strong style={{ color: 'var(--mm-success-text)' }}>Release complete.</strong>
-          <p style={{ margin: '6px 0 0', fontSize: 13 }}>{describeReleaseCounts(result.counts)}</p>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+          <p style={{ margin: '6px 0 0', fontSize: 'calc(13 * var(--mm-px))' }}>{describeReleaseCounts(result.counts)}</p>
+          <p style={{ margin: '4px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Coverage rebuilt for {result.coverage?.courses?.join(', ') || 'no courses'}
             {result.coverage?.skipped?.length ? ` · unchanged: ${result.coverage.skipped.join(', ')}` : ''}
             {typeof result.coverage?.issuerRuns === 'number' ? ` · issuer runs: ${result.coverage.issuerRuns}` : ''}
@@ -218,10 +218,10 @@ export default function PathReleaseV2Panel() {
       {diagnostic ? (
         <div role="alert" style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-error-border-soft)' }}>
           <strong style={{ color: 'var(--mm-error-text)' }}>{diagnostic.headline}</strong>
-          {diagnostic.where ? <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--mm-text)' }}>{diagnostic.where}</p> : null}
-          {diagnostic.code ? <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--mm-text-muted)' }}><code>{diagnostic.code}</code></p> : null}
+          {diagnostic.where ? <p style={{ margin: '6px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>{diagnostic.where}</p> : null}
+          {diagnostic.code ? <p style={{ margin: '4px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}><code>{diagnostic.code}</code></p> : null}
           {diagnostic.nextAction ? (
-            <p style={{ margin: '8px 0 0', fontSize: 13 }}>
+            <p style={{ margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))' }}>
               <strong>{diagnostic.recoverable ? 'Recoverable.' : 'Not recoverable without a rebuild.'}</strong>{' '}
               {diagnostic.nextAction}
             </p>
@@ -230,7 +230,7 @@ export default function PathReleaseV2Panel() {
       ) : null}
 
       {error ? (
-        <p role="alert" style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</p>
+        <p role="alert" style={{ margin: '12px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</p>
       ) : null}
     </section>
   );

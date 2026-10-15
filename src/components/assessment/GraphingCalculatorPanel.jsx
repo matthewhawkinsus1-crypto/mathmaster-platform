@@ -88,7 +88,7 @@ const BUTTON = {
   background: 'var(--mm-surface)',
   color: 'var(--mm-text-strong)',
   fontWeight: 800,
-  fontSize: 15,
+  fontSize: 'calc(15 * var(--mm-px))',
   cursor: 'pointer',
 };
 
@@ -112,14 +112,14 @@ const INPUT = {
   borderStyle: 'solid',
   borderColor: 'var(--mm-control-border, var(--mm-border))',
   borderRadius: 8,
-  fontSize: 17,
+  fontSize: 'calc(17 * var(--mm-px))',
   fontFamily: 'inherit',
   background: 'var(--mm-surface)',
   color: 'var(--mm-text-strong)',
   minWidth: 0,
 };
 
-const SECTION_LABEL = { fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' };
+const SECTION_LABEL = { fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' };
 
 // Keys a phone keyboard hides behind a symbol page.
 const ENTRY_KEYS = Object.freeze([
@@ -306,7 +306,8 @@ export default function GraphingCalculatorPanel({
           minorTicks: 0,
           insertTicks: true,
           ticksDistance: 2,
-          label: { strokeColor: textColor, fontSize: 11, highlight: false },
+          // JSXGraph appends its own px unit to fontSize; tick labels scale with the graph.
+          label: { strokeColor: textColor, fontSize: 11, highlight: false }, // px-to-rem-ignore
         },
       };
       board = JXG.JSXGraph.initBoard(box, {
@@ -506,7 +507,7 @@ export default function GraphingCalculatorPanel({
           }}
         >
           <header style={{ position: 'sticky', top: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', background: 'var(--mm-surface-raised, var(--mm-surface))', borderBottom: '1px solid var(--mm-border)' }}>
-            <h2 id={`${baseId}-title`} style={{ margin: 0, fontSize: 18, color: 'var(--mm-text-strong)' }}>Graphing calculator</h2>
+            <h2 id={`${baseId}-title`} style={{ margin: 0, fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Graphing calculator</h2>
             <button type="button" onClick={close} aria-label="Close graphing calculator" style={BUTTON}>
               <span aria-hidden="true">✕</span><span style={{ marginLeft: 6 }}>Close</span>
             </button>
@@ -515,7 +516,7 @@ export default function GraphingCalculatorPanel({
           <div style={{ padding: '12px 14px 22px', display: 'grid', gap: 14 }}>
             <div>
               <div id={`${baseId}-lines-label`} style={SECTION_LABEL}>Lines</div>
-              <p style={{ margin: '2px 0 8px', fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
+              <p style={{ margin: '2px 0 8px', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
                 Type y = … to graph, x = … for a vertical line, or a calculation to get its value.
               </p>
               <ol aria-labelledby={`${baseId}-lines-label`} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 10 }}>
@@ -563,7 +564,7 @@ export default function GraphingCalculatorPanel({
                         <div
                           id={`${inputId}-status`}
                           data-graphing-status={entry.kind}
-                          style={{ gridColumn: '2 / 4', fontSize: 13.5, lineHeight: 1.4, fontWeight: entry.kind === ENTRY_KINDS.VALUE ? 900 : 600, color: entry.kind === ENTRY_KINDS.ERROR ? 'var(--mm-warning-text)' : entry.kind === ENTRY_KINDS.VALUE ? 'var(--mm-text-strong)' : 'var(--mm-text-muted)' }}
+                          style={{ gridColumn: '2 / 4', fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.4, fontWeight: entry.kind === ENTRY_KINDS.VALUE ? 900 : 600, color: entry.kind === ENTRY_KINDS.ERROR ? 'var(--mm-warning-text)' : entry.kind === ENTRY_KINDS.VALUE ? 'var(--mm-text-strong)' : 'var(--mm-text-muted)' }}
                         >
                           {status}
                         </div>
@@ -581,7 +582,7 @@ export default function GraphingCalculatorPanel({
                     // Keep the caret (and a phone's keyboard) in the line.
                     onPointerDown={(event) => event.preventDefault()}
                     onClick={() => insertKey(key.text)}
-                    style={{ ...BUTTON, padding: 0, fontFamily: 'serif', fontSize: 17 }}
+                    style={{ ...BUTTON, padding: 0, fontFamily: 'serif', fontSize: 'calc(17 * var(--mm-px))' }}
                   >
                     {key.label}
                   </button>
@@ -598,7 +599,7 @@ export default function GraphingCalculatorPanel({
                       type="button"
                       aria-pressed={angleMode === mode}
                       onClick={() => setAngleMode(mode)}
-                      style={{ ...BUTTON, fontSize: 13.5, background: angleMode === mode ? 'var(--mm-primary-soft)' : BUTTON.background, color: angleMode === mode ? 'var(--mm-primary-text)' : BUTTON.color }}
+                      style={{ ...BUTTON, fontSize: 'calc(13.5 * var(--mm-px))', background: angleMode === mode ? 'var(--mm-primary-soft)' : BUTTON.background, color: angleMode === mode ? 'var(--mm-primary-text)' : BUTTON.color }}
                     >
                       {mode === ANGLE_MODES.RADIANS ? 'Radians' : 'Degrees'}
                     </button>
@@ -619,7 +620,7 @@ export default function GraphingCalculatorPanel({
                   style={{ width: '100%', height: narrow ? 250 : 300, position: 'relative', overflow: 'hidden', touchAction: 'none', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', boxSizing: 'border-box' }}
                 />
                 {graphState !== 'ready' && (
-                  <div role="status" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 14 }}>
+                  <div role="status" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>
                     {graphState === 'failed' ? (
                       <div>
                         <p style={{ margin: '0 0 8px' }}>The graph could not load. Your lines, the table and the trace still work.</p>
@@ -634,7 +635,7 @@ export default function GraphingCalculatorPanel({
               <div role="group" aria-label="Move and zoom the graph" style={{ display: 'grid', gridTemplateColumns: `repeat(${narrow ? 4 : 7}, minmax(0, 1fr))`, gap: 6, marginTop: 8 }}>
                 <button type="button" aria-label="Zoom in" onClick={() => applyView(zoomViewport(view, 0.5))} style={BUTTON}>+</button>
                 <button type="button" aria-label="Zoom out" onClick={() => applyView(zoomViewport(view, 2))} style={BUTTON}>−</button>
-                <button type="button" aria-label="Reset the view" onClick={() => applyView([...DEFAULT_VIEWPORT])} style={{ ...BUTTON, padding: '0 6px', fontSize: 13.5, gridColumn: narrow ? 'span 2' : undefined }}>Reset</button>
+                <button type="button" aria-label="Reset the view" onClick={() => applyView([...DEFAULT_VIEWPORT])} style={{ ...BUTTON, padding: '0 6px', fontSize: 'calc(13.5 * var(--mm-px))', gridColumn: narrow ? 'span 2' : undefined }}>Reset</button>
                 <button type="button" aria-label="Move left" onClick={() => applyView(panViewport(view, -0.25, 0))} style={BUTTON}>←</button>
                 <button type="button" aria-label="Move right" onClick={() => applyView(panViewport(view, 0.25, 0))} style={BUTTON}>→</button>
                 <button type="button" aria-label="Move up" onClick={() => applyView(panViewport(view, 0, 0.25))} style={BUTTON}>↑</button>
@@ -644,7 +645,7 @@ export default function GraphingCalculatorPanel({
 
             <div>
               <div style={SECTION_LABEL}>Trace</div>
-              <label htmlFor={`${baseId}-trace`} style={{ display: 'block', marginTop: 4, fontSize: 14, fontWeight: 700, color: 'var(--mm-text)' }}>Find y when x =</label>
+              <label htmlFor={`${baseId}-trace`} style={{ display: 'block', marginTop: 4, fontSize: 'calc(14 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>Find y when x =</label>
               <input
                 id={`${baseId}-trace`}
                 type="text"
@@ -655,7 +656,7 @@ export default function GraphingCalculatorPanel({
                 style={{ ...INPUT, marginTop: 6, maxWidth: 200 }}
               />
               {traceValue !== null && (
-                <ul aria-live="polite" style={{ margin: '8px 0 0', paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 4, fontSize: 14.5 }}>
+                <ul aria-live="polite" style={{ margin: '8px 0 0', paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 4, fontSize: 'calc(14.5 * var(--mm-px))' }}>
                   {!Number.isFinite(traceValue) && <li style={{ color: 'var(--mm-warning-text)' }}>Type a number for x.</li>}
                   {Number.isFinite(traceValue) && !graphable.length && <li style={{ color: 'var(--mm-text-muted)' }}>Graph a line first.</li>}
                   {Number.isFinite(traceValue) && graphable.map(({ line, index, entry }) => (
@@ -673,7 +674,7 @@ export default function GraphingCalculatorPanel({
               {graphable.length ? (
                 <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
-                    <label style={{ fontSize: 13, fontWeight: 700 }}>
+                    <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>
                       Line
                       <select
                         value={tableEntry?.line.id ?? ''}
@@ -683,18 +684,18 @@ export default function GraphingCalculatorPanel({
                         {graphable.map(({ line, index }) => <option key={line.id} value={line.id}>Line {index + 1}</option>)}
                       </select>
                     </label>
-                    <label style={{ fontSize: 13, fontWeight: 700 }}>
+                    <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>
                       Start at x =
                       <input type="text" inputMode="decimal" autoComplete="off" value={tableStart} onChange={(event) => setTableStart(event.target.value.slice(0, 24))} style={{ ...INPUT, marginTop: 4 }} />
                     </label>
-                    <label style={{ fontSize: 13, fontWeight: 700 }}>
+                    <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>
                       Step
                       <input type="text" inputMode="decimal" autoComplete="off" value={tableStep} onChange={(event) => setTableStep(event.target.value.slice(0, 24))} style={{ ...INPUT, marginTop: 4 }} />
                     </label>
                   </div>
                   {tableRows.length ? (
-                    <table data-graphing-table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 360, fontSize: 15, fontVariantNumeric: 'tabular-nums' }}>
-                      <caption style={{ textAlign: 'left', fontSize: 13, color: 'var(--mm-text-muted)', paddingBottom: 4 }}>Values for line {tableEntry.index + 1}</caption>
+                    <table data-graphing-table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 360, fontSize: 'calc(15 * var(--mm-px))', fontVariantNumeric: 'tabular-nums' }}>
+                      <caption style={{ textAlign: 'left', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', paddingBottom: 4 }}>Values for line {tableEntry.index + 1}</caption>
                       <thead>
                         <tr>
                           <th scope="col" style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid var(--mm-border)' }}>x</th>
@@ -710,9 +711,9 @@ export default function GraphingCalculatorPanel({
                         ))}
                       </tbody>
                     </table>
-                  ) : <p role="status" style={{ margin: 0, fontSize: 13.5, color: 'var(--mm-warning-text)' }}>Type a number to start at and a step that is not 0.</p>}
+                  ) : <p role="status" style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>Type a number to start at and a step that is not 0.</p>}
                 </div>
-              ) : <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--mm-text-muted)' }}>Graph a line first.</p>}
+              ) : <p style={{ margin: '8px 0 0', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Graph a line first.</p>}
             </details>
           </div>
           <div aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{announcement}</div>

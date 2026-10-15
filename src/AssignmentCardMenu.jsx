@@ -108,7 +108,7 @@ export default function AssignmentCardMenu({ items, ariaLabel = 'More actions' }
               background: 'transparent',
               color: item.disabled ? '#bdc1c6' : item.tone === 'danger' ? 'var(--mm-danger)' : 'var(--mm-text)',
               fontWeight: item.tone === 'danger' ? 'bold' : 600,
-              fontSize: mobileInteraction.isMobile ? '15px' : '13px',
+              fontSize: mobileInteraction.isMobile ? 'calc(15 * var(--mm-px))' : 'calc(13 * var(--mm-px))',
               cursor: item.disabled ? 'not-allowed' : 'pointer',
             }}
             onMouseEnter={(event) => { if (!item.disabled) event.currentTarget.style.background = 'var(--mm-surface-hover)'; }}
@@ -136,7 +136,7 @@ export default function AssignmentCardMenu({ items, ariaLabel = 'More actions' }
           borderRadius: '8px',
           background: open ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
           color: 'var(--mm-text)',
-          fontSize: '18px',
+          fontSize: 'calc(18 * var(--mm-px))',
           fontWeight: 900,
           cursor: 'pointer',
           lineHeight: 1,

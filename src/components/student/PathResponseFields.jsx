@@ -46,7 +46,7 @@ const FIELD_BASE = {
   padding: '11px 13px',
   border: '2px solid var(--mm-border)',
   borderRadius: 9,
-  fontSize: 18,
+  fontSize: 'calc(18 * var(--mm-px))',
   lineHeight: 1.35,
   background: 'var(--mm-surface)',
   color: 'var(--mm-text-strong)',
@@ -54,7 +54,7 @@ const FIELD_BASE = {
 
 const LABEL = {
   display: 'block',
-  fontSize: 13,
+  fontSize: 'calc(13 * var(--mm-px))',
   fontWeight: 800,
   color: 'var(--mm-text)',
   marginBottom: 5,
@@ -62,7 +62,7 @@ const LABEL = {
 
 const HINT = {
   display: 'block',
-  fontSize: 12,
+  fontSize: 'calc(12 * var(--mm-px))',
   color: 'var(--mm-text-muted)',
   marginTop: 5,
   lineHeight: 1.5,
@@ -106,7 +106,7 @@ function ChoiceGroup({ field, choices, value, onChange, disabled }) {
                 background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                 color: 'var(--mm-text-strong)',
                 font: 'inherit',
-                fontSize: 16,
+                fontSize: 'calc(16 * var(--mm-px))',
                 cursor: disabled ? 'not-allowed' : 'pointer',
               }}
             >
@@ -121,7 +121,7 @@ function ChoiceGroup({ field, choices, value, onChange, disabled }) {
                   background: selected ? '#1a73e8' : 'var(--mm-surface)',
                   color: '#fff',
                   fontWeight: 900,
-                  fontSize: 13,
+                  fontSize: 'calc(13 * var(--mm-px))',
                   display: 'grid',
                   placeItems: 'center',
                 }}

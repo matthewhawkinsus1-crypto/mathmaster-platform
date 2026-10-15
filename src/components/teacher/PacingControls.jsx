@@ -25,17 +25,17 @@ import {
 // so the course is resolved from the selected class rather than fixed here.
 
 const panel = { border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
-const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: 'var(--mm-primary-text)' };
-const note = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
+const heading = { margin: '0 0 4px', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)' };
+const note = { color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, margin: '0 0 14px' };
 const control = {
-  minHeight: 44, fontSize: 15, padding: '9px 10px', border: '1px solid var(--mm-border)',
+  minHeight: 44, fontSize: 'calc(15 * var(--mm-px))', padding: '9px 10px', border: '1px solid var(--mm-border)',
   borderRadius: 8, boxSizing: 'border-box', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
 };
 const chipButton = (active) => ({
   minHeight: 40, padding: '7px 12px', borderRadius: 999, cursor: 'pointer',
   border: `1px solid ${active ? '#1a73e8' : 'var(--mm-tint-border)'}`,
   background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 13,
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
 });
 
 const ACTION_LABEL = {
@@ -197,7 +197,7 @@ export default function PacingControls({
           MathMaster runs this class autonomously by default. Use these controls only when you want to override
           where the class sits in the course. Pacing affects timing; prerequisites and mastery still decide readiness.
         </p>
-        <div style={{ padding: '10px 12px', borderRadius: 8, background: storedPacing ? 'var(--mm-primary-subtle)' : 'var(--mm-success-bg)', color: storedPacing ? 'var(--mm-primary-text)' : 'var(--mm-success-text)', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+        <div style={{ padding: '10px 12px', borderRadius: 8, background: storedPacing ? 'var(--mm-primary-subtle)' : 'var(--mm-success-bg)', color: storedPacing ? 'var(--mm-primary-text)' : 'var(--mm-success-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, marginBottom: 14 }}>
           <strong>{storedPacing ? 'Manual pacing override is active.' : 'Automatic pacing is active.'}</strong>{' '}
           {storedPacing
             ? 'Students still route autonomously from mastery and prerequisites; this class position only changes the timing window.'
@@ -213,13 +213,13 @@ export default function PacingControls({
           )}
         </div>
         {isProvisional ? (
-          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, marginBottom: 14 }}>
             <strong>Provisional pacing.</strong> No district scope-and-sequence is loaded for this
             course, so windows are spread evenly as a placeholder. Positions you set here are real;
             the skill-to-window map underneath is not.
           </div>
         ) : (
-          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, marginBottom: 14 }}>
             <strong>2026-27 district calendar is active.</strong>
             {calendarToday?.current?.length
               ? ` Today your classes are on ${calendarToday.current.filter((w) => w.curriculumType === 'module' || w.curriculumType === 'review').map((w) => w.title).join(', ') || 'scheduled work'}.`
@@ -244,7 +244,7 @@ export default function PacingControls({
                 </option>
               ))}
             </select>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 12, fontWeight: 700, color: 'var(--mm-text-muted)' }}>
+            <span style={{ display: 'block', marginTop: 6, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-muted)' }}>
               {classProfile?.courseLabel
                 ? `Pacing, skills and preview below are ${classProfile.courseLabel}.`
                 : 'No course set for this class, so Algebra I is assumed.'}
@@ -323,15 +323,15 @@ export default function PacingControls({
                 }}
               >
                 <div style={{ minWidth: 220, flex: 1 }}>
-                  <strong style={{ fontSize: 13 }}>{described.shortLabel}</strong>
-                  <div style={{ fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{skill.title}</div>
+                  <strong style={{ fontSize: 'calc(13 * var(--mm-px))' }}>{described.shortLabel}</strong>
+                  <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{skill.title}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {OVERRIDE_ACTIONS.map((action) => (
                     <button
                       key={action} type="button" disabled={busy}
                       onClick={() => applyOverride(skill.skillId, action)}
-                      style={{ ...chipButton(active?.action === action), minHeight: 36, fontSize: 12 }}
+                      style={{ ...chipButton(active?.action === action), minHeight: 36, fontSize: 'calc(12 * var(--mm-px))' }}
                       aria-pressed={active?.action === action}
                     >
                       {ACTION_LABEL[action]}
@@ -342,7 +342,7 @@ export default function PacingControls({
             );
           })}
           {filteredSkills.length === 0 && (
-            <div style={{ padding: 16, color: 'var(--mm-text-muted)', fontSize: 13 }}>No skills match that filter.</div>
+            <div style={{ padding: 16, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>No skills match that filter.</div>
           )}
         </div>
       </div>
@@ -365,7 +365,7 @@ export default function PacingControls({
 
         {previewOpen && (
           <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
-            <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
+            <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
               Confidence: <strong>{preview.confidence.level}</strong> — {preview.confidence.message}
             </div>
             {PREVIEW_ORDER.map((key) => {
@@ -374,10 +374,10 @@ export default function PacingControls({
               const style = STATUS_STYLE[key] || STATUS_STYLE.available;
               return (
                 <div key={key}>
-                  <div style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', ...style }}>
+                  <div style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', ...style }}>
                     {key} · {rows.length}
                   </div>
-                  <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 13, lineHeight: 1.6 }}>
+                  <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>
                     {rows.slice(0, 6).map((row) => (
                       <li key={row.skillId}>
                         <strong>{describeSkill(row.skillId).shortLabel}</strong> — {explainForStudent(row)}

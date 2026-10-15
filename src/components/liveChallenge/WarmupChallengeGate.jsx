@@ -66,15 +66,15 @@ export default function WarmupChallengeGate({
           textAlign: 'left',
           boxShadow: '0 24px 80px rgba(0,0,0,.35)',
         }}>
-          <strong style={{ display: 'block', fontSize: 24, marginBottom: 10 }}>
+          <strong style={{ display: 'block', fontSize: 'calc(24 * var(--mm-px))', marginBottom: 10 }}>
             {teacherChoicePending ? '⚡ Your teacher is choosing today’s Warm-Up' : '⚡ Today’s Warm-Up is a Live Challenge'}
           </strong>
           {teacherChoicePending ? (
-            <span style={{ fontSize: 17, lineHeight: 1.55 }}>
+            <span style={{ fontSize: 'calc(17 * var(--mm-px))', lineHeight: 1.55 }}>
               Stay here for a moment. Your teacher will choose either the Live Challenge or the standard Warm-Up for the class. You do not need to start either one yet.
             </span>
           ) : (
-            <span style={{ fontSize: 17, lineHeight: 1.55 }}>
+            <span style={{ fontSize: 'calc(17 * var(--mm-px))', lineHeight: 1.55 }}>
               Stay on this screen. The game starts as soon as your teacher opens it. You do not need to join anything or type a code. If your teacher switches back to the standard Warm-Up, this screen will release automatically.
             </span>
           )}

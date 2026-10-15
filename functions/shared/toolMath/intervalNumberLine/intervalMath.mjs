@@ -420,12 +420,75 @@ const tidyInequalityText = (text) => LATEX_INEQUALITY_SYMBOLS
   .replace(/[−–—]/g, '-')
   .toLowerCase();
 
+/*
+ * The same sentence with exact endpoints (Job P). The tool writes each
+ * endpoint to four places, so for x > 1/3 it expected `x > 0.3333`: the
+ * rounded number was accepted and the exact one, `x > 1/3` or
+ * `x > \frac{1}{3}`, was marked wrong. An endpoint is now also read as a
+ * number (parseExactNumberLineValue: fractions, \frac, sqrt, pi) and compared
+ * with the expected endpoint itself.
+ *
+ * Only the endpoints are read differently. The sentence keeps the tool's own
+ * shape, clause for clause and in the tool's order: `x > a` / `x < b` for a
+ * ray, `a < x < b` for a segment, the same relation symbols, joined by "or".
+ * So a reordered or reversed sentence, a wrong relation and an approximate
+ * endpoint are exactly as wrong as before.
+ */
+const RELATION_SYMBOL = /(≤|≥|<|>)/;
+
+const studentInequalityClauses = (studentText, variable) => {
+  const text = LATEX_INEQUALITY_SYMBOLS
+    .reduce((source, [pattern, symbol]) => source.replace(pattern, symbol), String(studentText || ''))
+    .replace(/[−–—]/g, '-')
+    .replace(/<=/g, '≤')
+    .replace(/>=/g, '≥')
+    .trim();
+  if (!text) return null;
+  const name = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.split(/\s*\bor\b\s*/i).map((clause) => {
+    const compact = clause.trim();
+    const ray = compact.match(new RegExp(`^${name}\\s*${RELATION_SYMBOL.source}\\s*(.+)$`, 'i'));
+    if (ray) return { shape: 'ray', relations: [ray[1]], endpoints: [ray[2]] };
+    const segment = compact.match(new RegExp(`^(.+?)\\s*${RELATION_SYMBOL.source}\\s*${name}\\s*${RELATION_SYMBOL.source}\\s*(.+)$`, 'i'));
+    if (segment) return { shape: 'segment', relations: [segment[2], segment[3]], endpoints: [segment[1], segment[4]] };
+    return null;
+  });
+};
+
+const inequalityMatchesWithExactEndpoints = (studentText, expectedIntervals, variable) => {
+  const expected = normalizeIntervals(expectedIntervals);
+  if (!expected.length) return false;
+  const clauses = studentInequalityClauses(studentText, variable);
+  if (!clauses || clauses.length !== expected.length) return false;
+  return expected.every((interval, index) => {
+    const clause = clauses[index];
+    if (!clause) return false;
+    const { min, max, minClosed, maxClosed } = interval;
+    // "all real numbers" has no endpoint; the literal comparison owns it.
+    if (min === -INF && max === INF) return false;
+    let wanted;
+    if (min === -INF) wanted = { shape: 'ray', relations: [maxClosed ? '≤' : '<'], endpoints: [max] };
+    else if (max === INF) wanted = { shape: 'ray', relations: [minClosed ? '≥' : '>'], endpoints: [min] };
+    else wanted = { shape: 'segment', relations: [minClosed ? '≤' : '<', maxClosed ? '≤' : '<'], endpoints: [min, max] };
+    if (clause.shape !== wanted.shape) return false;
+    if (clause.relations.some((relation, at) => relation !== wanted.relations[at])) return false;
+    // Each endpoint as the tool writes it (four places), or exactly.
+    return clause.endpoints.every((raw, at) => {
+      if (tidyInequalityText(raw) === tidyInequalityText(formatEndpoint(wanted.endpoints[at]))) return true;
+      const value = parseExactNumberLineValue(raw);
+      return value !== null && sameEndpoint(value, wanted.endpoints[at]);
+    });
+  });
+};
+
 /**
  * The tool's inequality stage: the student's sentence, with MathLive's LaTeX
  * relation commands read as the symbols they display, whitespace removed,
  * dashes unified and case folded, must equal the sentence the tool writes for
- * the expected intervals (`intervalsToInequality`).
+ * the expected intervals (`intervalsToInequality`) — or say the same sentence
+ * with an exact endpoint where the tool writes a rounded one (above).
  */
 export const inequalityTextMatches = (studentText, expectedIntervals, variable = 'x') => (
   tidyInequalityText(studentText) === tidyInequalityText(intervalsToInequality(expectedIntervals, variable))
+  || inequalityMatchesWithExactEndpoints(studentText, expectedIntervals, variable)
 );

@@ -334,7 +334,7 @@ function FactorControls({ tool, equation, side, update, notify, onCommit, disabl
             value={`\\frac{${list.terms[termIndex].sign < 0 ? '-' : ''}${list.terms[termIndex].magnitudeLatex}}{${tool.pulled.latex}}`}
             format="latex"
             inline
-            style={{ fontSize: 19 }}
+            style={{ fontSize: 'calc(19 * var(--mm-px))' }}
             ariaLabel={`${termLabel(termIndex)} divided by ${tool.pulled.text}`}
           />
           <span aria-hidden="true" className="algebra-structure-equals">=</span>
@@ -630,7 +630,7 @@ function ArithmeticControls({ tool, equation, side, update, notify, onCommit, di
   };
   return (
     <div className="algebra-inline-mode-controls algebra-inline-editor algebra-structure-controls">
-      <MathDisplay value={`${active.productLatex} =`} format="latex" inline style={{ fontSize: 18 }} ariaLabel="Multiply these numbers" />
+      <MathDisplay value={`${active.productLatex} =`} format="latex" inline style={{ fontSize: 'calc(18 * var(--mm-px))' }} ariaLabel="Multiply these numbers" />
       <MathInput
         value={tool.answer || ''}
         onChange={(value) => {

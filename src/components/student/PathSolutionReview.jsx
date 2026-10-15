@@ -24,7 +24,7 @@ const card = {
 
 const heading = {
   margin: '0 0 4px',
-  fontSize: 12,
+  fontSize: 'calc(12 * var(--mm-px))',
   fontWeight: 900,
   letterSpacing: '.06em',
   textTransform: 'uppercase',
@@ -42,7 +42,7 @@ export const PathSolutionReview = ({ review, wasCorrect = false }) => {
     <section style={card} aria-label="How this question works">
       <h2 style={heading}>{wasCorrect ? 'Why that works' : 'How this one works'}</h2>
       {review.headline && (
-        <MathText as="p" style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 800, color: 'var(--mm-text-strong)', lineHeight: 1.5 }}>
+        <MathText as="p" style={{ margin: '0 0 10px', fontSize: 'calc(16 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)', lineHeight: 1.5 }}>
           {review.headline}
         </MathText>
       )}
@@ -50,7 +50,7 @@ export const PathSolutionReview = ({ review, wasCorrect = false }) => {
       {review.reasoning?.length > 0 && (
         <ol style={{ margin: '0 0 10px', paddingLeft: 20, display: 'grid', gap: 7 }}>
           {review.reasoning.map((line, index) => (
-            <li key={`r-${index}`} style={{ fontSize: 15, color: 'var(--mm-text)', lineHeight: 1.6 }}>
+            <li key={`r-${index}`} style={{ fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.6 }}>
               <MathText>{line}</MathText>
             </li>
           ))}
@@ -58,19 +58,19 @@ export const PathSolutionReview = ({ review, wasCorrect = false }) => {
       )}
 
       {review.answerSummary && (
-        <p style={{ margin: '0 0 10px', padding: '9px 12px', borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 15, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 10px', padding: '9px 12px', borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 'calc(15 * var(--mm-px))', lineHeight: 1.5 }}>
           <MathText>{review.answerSummary}</MathText>
         </p>
       )}
 
       {review.commonError && (
-        <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 10px', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
           <strong>Watch out: </strong><MathText>{review.commonError}</MathText>
         </p>
       )}
 
       {review.connection && (
-        <p style={{ margin: 0, fontSize: 14, color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>
+        <p style={{ margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>
           <MathText>{review.connection}</MathText>
         </p>
       )}

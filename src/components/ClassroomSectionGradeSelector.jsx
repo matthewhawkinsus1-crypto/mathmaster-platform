@@ -41,7 +41,7 @@ export default function ClassroomSectionGradeSelector({
           );
         })}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--mm-text-subtle)', lineHeight: 1.4 }}>
+      <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-subtle)', lineHeight: 1.4 }}>
         Whole assignment creates one overall Classroom grade. Choose individual sections to create separate
         grade slots. Only sections with included questions appear.
       </div>

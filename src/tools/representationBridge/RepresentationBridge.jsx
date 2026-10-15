@@ -26,7 +26,7 @@ import {
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
-const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 15 };
+const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
 const formatCoord = (value) => (Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000));
 
 const DIMENSION_LABEL = { unit: 'Unit', contextMeaning: 'Contextual meaning', mathRole: 'Mathematical role' };
@@ -372,8 +372,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
 
       <Panel title="Context">
         <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px' }}>
-          {context.inputLabel ? (<><dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Input</dt><dd style={{ margin: 0 }}>{context.inputLabel}{context.inputUnit ? ` (${context.inputUnit})` : ''}</dd></>) : null}
-          {context.outputLabel ? (<><dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Output</dt><dd style={{ margin: 0 }}>{context.outputLabel}{context.outputUnit ? ` (${context.outputUnit})` : ''}</dd></>) : null}
+          {context.inputLabel ? (<><dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Input</dt><dd style={{ margin: 0 }}>{context.inputLabel}{context.inputUnit ? ` (${context.inputUnit})` : ''}</dd></>) : null}
+          {context.outputLabel ? (<><dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Output</dt><dd style={{ margin: 0 }}>{context.outputLabel}{context.outputUnit ? ` (${context.outputUnit})` : ''}</dd></>) : null}
         </dl>
       </Panel>
 
@@ -397,7 +397,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
                     background: selected ? 'var(--mm-primary-subtle)' : highlightBackground(true, startMatch || zeroMatch) || 'var(--mm-surface)',
                   }}
                 >
-                  <div style={{ fontSize: 11, color: 'var(--mm-text-muted)', fontWeight: 700 }}>Row {index + 1}</div>
+                  <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', fontWeight: 700 }}>Row {index + 1}</div>
                   <div>({formatCoord(row.x)}, {formatCoord(row.y)})</div>
                 </button>
               );
@@ -409,15 +409,15 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
               <div style={{ fontWeight: 800, marginBottom: 8 }}>Interval: Row {rowI + 1} → Row {rowJ + 1}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
                 <label>
-                  <span style={{ fontWeight: 800, fontSize: 13 }}>Δx</span>
+                  <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Δx</span>
                   <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingDx} onChange={(event) => { setStagingDx(event.target.value); clearFeedback(); }} aria-label="Change in x for this interval" />
                 </label>
                 <label>
-                  <span style={{ fontWeight: 800, fontSize: 13 }}>Δy</span>
+                  <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Δy</span>
                   <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingDy} onChange={(event) => { setStagingDy(event.target.value); clearFeedback(); }} aria-label="Change in y for this interval" />
                 </label>
                 <label>
-                  <span style={{ fontWeight: 800, fontSize: 13 }}>Δy/Δx</span>
+                  <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Δy/Δx</span>
                   <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingRate} onChange={(event) => { setStagingRate(event.target.value); clearFeedback(); }} aria-label="Rate of change for this interval" />
                 </label>
               </div>
@@ -428,7 +428,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           ) : selectedRows.length === 1 ? <p style={{ color: 'var(--mm-text-muted)' }}>Row {selectedRows[0] + 1} selected. Tap a second row to form an interval.</p> : null}
 
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Recorded intervals ({tableEvidence.length}, need {requiredComparisons})</div>
+            <div style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', marginBottom: 6 }}>Recorded intervals ({tableEvidence.length}, need {requiredComparisons})</div>
             {tableEvidence.length ? (
               <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
                 {tableEvidence.map((entry, index) => {
@@ -465,10 +465,10 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
               </button>
             ))}
           </div>
-          {!readyToConclude ? <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Record {requiredComparisons - distinctPairCount} more interval(s) before concluding.</p> : null}
+          {!readyToConclude ? <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Record {requiredComparisons - distinctPairCount} more interval(s) before concluding.</p> : null}
 
           <label style={{ display: 'block', maxWidth: 220 }}>
-            <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>m (your slope)</span>
+            <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>m (your slope)</span>
             <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={studentSlope} onChange={(event) => { setStudentSlope(event.target.value); clearFeedback(); }} aria-label="Your slope m" />
           </label>
 
@@ -483,19 +483,19 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
         <Panel title="Equations">
           <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 10, padding: 12, marginBottom: 12, opacity: stageBlocked('generalForm') ? 0.7 : 1 }}>
             <div style={{ fontWeight: 800, marginBottom: 8 }}>General form: y = mx + b</div>
-            {stageBlocked('generalForm') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 13 }}>Check the table/rate stage first.</p> : null}
-            <p style={{ fontSize: 13, color: 'var(--mm-text-muted)', margin: '0 0 8px' }}>Your slope from the table stage: <strong>{studentSlope || '—'}</strong>. Determine b yourself — it is never filled in for you.</p>
+            {stageBlocked('generalForm') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Check the table/rate stage first.</p> : null}
+            <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: '0 0 8px' }}>Your slope from the table stage: <strong>{studentSlope || '—'}</strong>. Determine b yourself — it is never filled in for you.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
               <label>
-                <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>m</span>
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>m</span>
                 <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalM} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralM(event.target.value); clearFeedback(); }} aria-label="Slope m in general form" />
               </label>
               <label>
-                <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'start') ? 'var(--mm-warning-text)' : undefined }}>b {revealed.start && activeHighlight === 'start' ? `(= ${generalB})` : ''}</span>
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'start') ? 'var(--mm-warning-text)' : undefined }}>b {revealed.start && activeHighlight === 'start' ? `(= ${generalB})` : ''}</span>
                 <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'start') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalB} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralB(event.target.value); clearFeedback(); }} aria-label="y-intercept b in general form" />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
-                <span style={{ fontWeight: 800, fontSize: 13 }}>Equation</span>
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Equation</span>
                 <input style={input} value={generalEquation} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralEquation(event.target.value); clearFeedback(); }} placeholder="y = mx + b" aria-label="Equation in general/slope-intercept form" />
               </label>
             </div>
@@ -509,19 +509,19 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
 
           <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 10, padding: 12, opacity: stageBlocked('factoredForm') ? 0.7 : 1 }}>
             <div style={{ fontWeight: 800, marginBottom: 8 }}>Factored linear form: y = a(x − c)</div>
-            {stageBlocked('factoredForm') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 13 }}>Check the general form stage first.</p> : null}
-            <p style={{ fontSize: 13, color: 'var(--mm-text-muted)', margin: '0 0 8px' }}>Rewrite your own general-form equation: a is the rate, c is the zero/x-intercept.</p>
+            {stageBlocked('factoredForm') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Check the general form stage first.</p> : null}
+            <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: '0 0 8px' }}>Rewrite your own general-form equation: a is the rate, c is the zero/x-intercept.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
               <label>
-                <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>a</span>
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>a</span>
                 <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredA} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredA(event.target.value); clearFeedback(); }} aria-label="Coefficient a in factored form" />
               </label>
               <label>
-                <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'zero') ? 'var(--mm-warning-text)' : undefined }}>c {revealed.zero && activeHighlight === 'zero' ? `(= ${factoredC})` : ''}</span>
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'zero') ? 'var(--mm-warning-text)' : undefined }}>c {revealed.zero && activeHighlight === 'zero' ? `(= ${factoredC})` : ''}</span>
                 <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'zero') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredC} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredC(event.target.value); clearFeedback(); }} aria-label="Zero c in factored form" />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
-                <span style={{ fontWeight: 800, fontSize: 13 }}>Equation</span>
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Equation</span>
                 <input style={input} value={factoredEquation} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredEquation(event.target.value); clearFeedback(); }} placeholder="y = a(x - c)" aria-label="Equation in factored linear form" />
               </label>
             </div>
@@ -537,8 +537,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
 
       <div style={gridTwoColumn}>
         <Panel title="Graph">
-          {stageBlocked('graph') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 13 }}>Check the factored form stage first.</p> : null}
-          <p style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>Plot the x-intercept from your factored form, then a second point using the slope. {activeHighlight === 'zero' ? 'Highlighted: the x-intercept is where the line crosses the x-axis.' : ''} {activeHighlight === 'start' ? 'Highlighted: the y-intercept is where the line crosses the y-axis.' : ''}</p>
+          {stageBlocked('graph') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Check the factored form stage first.</p> : null}
+          <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Plot the x-intercept from your factored form, then a second point using the slope. {activeHighlight === 'zero' ? 'Highlighted: the x-intercept is where the line crosses the x-axis.' : ''} {activeHighlight === 'start' ? 'Highlighted: the y-intercept is where the line crosses the y-axis.' : ''}</p>
           <CoordinatePlane
             {...graphBounds}
             onPlot={stageBlocked('graph') ? undefined : plotPoint}
@@ -561,7 +561,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
         </Panel>
 
         <Panel title="What the parts mean">
-          {stageBlocked('meaning') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 13 }}>Check the graph stage first.</p> : null}
+          {stageBlocked('meaning') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Check the graph stage first.</p> : null}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             {MEANING_ROWS.map((rowId) => {
               const given = meaningAssignments[rowId] || {};
@@ -591,7 +591,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
             const currentValue = meaningAssignments[activeMeaningRow]?.[dimension] || '';
             return (
               <div key={dimension} style={{ marginBottom: 12 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>{DIMENSION_LABEL[dimension]}</div>
+                <div style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', marginBottom: 6 }}>{DIMENSION_LABEL[dimension]}</div>
                 <div role="group" aria-label={DIMENSION_LABEL[dimension]} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {bank.map((option) => {
                     const selected = currentValue === option;
@@ -638,7 +638,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every representation agrees' : 'Some representations need another look'}</ResultPill> : null}
       </div>
       {feedbackTiming === 'checkpoint' && !readyToSubmit ? (
-        <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
+        <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
           {stageGate.verdictsShown
             ? 'Check every required stage above before submitting the whole bridge.'
             : 'Finish every required stage above before submitting the whole bridge.'}

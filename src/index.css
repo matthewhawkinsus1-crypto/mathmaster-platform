@@ -26,6 +26,10 @@
      did and grows with the setting (scripts/codemods/px-to-rem.mjs). */
   font: 112.5%/145% var(--sans);
   --mm-px: calc(1rem / 18);
+  /* The text-size setting as a number (1 at default, 2 at 200%), set from a
+     probe by src/platform/layout/textScale.js; a fluid size's viewport term is
+     written calc(4vw * var(--mm-text-scale, 1)) so it grows too. */
+  --mm-text-scale: 1;
   letter-spacing: 0.18px;
   color: var(--text);
   background: var(--bg);
@@ -91,21 +95,21 @@ h2 {
 }
 
 h1 {
-  font-size: 56px;
+  font-size: calc(56 * var(--mm-px));
   letter-spacing: -1.68px;
   margin: 32px 0;
   @media (max-width: 1024px) {
-    font-size: 36px;
+    font-size: calc(36 * var(--mm-px));
     margin: 20px 0;
   }
 }
 h2 {
-  font-size: 24px;
+  font-size: calc(24 * var(--mm-px));
   line-height: 118%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
   @media (max-width: 1024px) {
-    font-size: 20px;
+    font-size: calc(20 * var(--mm-px));
   }
 }
 p {
@@ -121,7 +125,7 @@ code,
 }
 
 code {
-  font-size: 15px;
+  font-size: calc(15 * var(--mm-px));
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
@@ -395,7 +399,7 @@ body :is(
 
 .mathmaster-question-task-context .mathmaster-reference-statement,
 .mathmaster-question-task-context .mathmaster-reference-statement.is-emphasis {
-  font-size: 15px;
+  font-size: calc(15 * var(--mm-px));
   line-height: 1.42;
   font-weight: 650;
 }
@@ -403,7 +407,7 @@ body :is(
 .mathmaster-reference-info-kicker {
   margin-bottom: 7px;
   color: var(--mm-warning-text);
-  font-size: 11px;
+  font-size: calc(11 * var(--mm-px));
   font-weight: 950;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -412,7 +416,7 @@ body :is(
 .mathmaster-reference-info-title {
   margin-bottom: 7px;
   color: var(--mm-warning-text);
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   font-weight: 900;
 }
 
@@ -423,13 +427,13 @@ body :is(
 
 .mathmaster-reference-statement {
   color: var(--mm-text-strong);
-  font-size: 18px;
+  font-size: calc(18 * var(--mm-px));
   font-weight: 650;
   line-height: 1.55;
 }
 
 .mathmaster-reference-statement.is-emphasis {
-  font-size: 19px;
+  font-size: calc(19 * var(--mm-px));
   font-weight: 760;
 }
 
@@ -437,7 +441,7 @@ body :is(
   display: inline-block;
   margin-right: 7px;
   color: var(--mm-warning-text);
-  font-size: 12px;
+  font-size: calc(12 * var(--mm-px));
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -452,7 +456,7 @@ body :is(
 
   .mathmaster-reference-statement,
   .mathmaster-reference-statement.is-emphasis {
-    font-size: 16px;
+    font-size: calc(16 * var(--mm-px));
     line-height: 1.48;
   }
 }

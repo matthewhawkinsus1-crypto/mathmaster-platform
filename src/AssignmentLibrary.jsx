@@ -116,8 +116,8 @@ export default function AssignmentLibrary(props) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div>
-            <strong style={{ color: 'var(--mm-primary-text)', fontSize: 16 }}>Library Repair Center</strong>
-            <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 12 }}>
+            <strong style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(16 * var(--mm-px))' }}>Library Repair Center</strong>
+            <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
               Choose any saved Library lesson. MathMaster opens its protected assignment view so teacher flags, AI repair uploads, and any existing student history use the same safe repair rules.
             </div>
           </div>
@@ -145,7 +145,7 @@ export default function AssignmentLibrary(props) {
             </button>
           </div>
         </div>
-        {message && <div role="status" style={{ marginTop: 9, color: 'var(--mm-text)', fontSize: 12 }}>{message}</div>}
+        {message && <div role="status" style={{ marginTop: 9, color: 'var(--mm-text)', fontSize: 'calc(12 * var(--mm-px))' }}>{message}</div>}
       </section>
 
       <AssignmentLibraryBase {...props} />

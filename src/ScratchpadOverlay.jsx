@@ -432,8 +432,8 @@ export default function ScratchpadOverlay({
         }}
       >
         <div>
-          <strong style={{ fontSize: '18px', color: 'var(--mm-text-strong)' }}>Student Scratchpad</strong>
-          <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)', marginTop: '2px' }}>
+          <strong style={{ fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Student Scratchpad</strong>
+          <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', marginTop: '2px' }}>
             {readOnly
               ? 'This saved scratchpad is read-only because the question is locked.'
               : dirty
@@ -451,7 +451,7 @@ export default function ScratchpadOverlay({
           >
             ‹
           </button>
-          <span aria-live="polite" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mm-text)', minWidth: '86px', textAlign: 'center' }}>
+          <span aria-live="polite" style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)', minWidth: '86px', textAlign: 'center' }}>
             Page {pageIndex + 1} of {pageCount}
           </span>
           <button
@@ -502,11 +502,11 @@ export default function ScratchpadOverlay({
             backdropFilter: 'blur(4px)',
             pointerEvents: 'none',
             color: 'var(--mm-text)',
-            fontSize: '13px',
+            fontSize: 'calc(13 * var(--mm-px))',
           }}
         >
           <strong style={{ color: 'var(--mm-primary-text)' }}>Current question</strong>
-          <QuestionPrompt variant="plain" style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.45, color: 'var(--mm-text)', textAlign: 'left' }}>
+          <QuestionPrompt variant="plain" style={{ margin: '4px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)', textAlign: 'left' }}>
             {compactQuestion}
           </QuestionPrompt>
         </div>
@@ -574,7 +574,7 @@ export default function ScratchpadOverlay({
         <button type="button" onClick={() => save({ close: false })} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save'}</button>
         <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: saving ? '#dadce0' : '#188038', color: '#fff', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save & Close'}</button>
         </>}
-        {message && <span role="status" style={{ width: '100%', textAlign: 'center', color: message.includes('could not') || message.includes('too detailed') ? 'var(--mm-danger)' : 'var(--mm-success-text)', fontWeight: 'bold', fontSize: '13px' }}>{message}</span>}
+        {message && <span role="status" style={{ width: '100%', textAlign: 'center', color: message.includes('could not') || message.includes('too detailed') ? 'var(--mm-danger)' : 'var(--mm-success-text)', fontWeight: 'bold', fontSize: 'calc(13 * var(--mm-px))' }}>{message}</span>}
       </footer>
 
       {confirmingClose && (
@@ -586,7 +586,7 @@ export default function ScratchpadOverlay({
           style={{ position: 'absolute', inset: 0, zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.45)', padding: '20px' }}
         >
           <div style={{ width: 'min(460px, 100%)', padding: '22px 24px', borderRadius: '16px', background: 'var(--mm-surface)', boxShadow: '0 20px 60px rgba(15,23,42,0.35)', textAlign: 'left' }}>
-            <h2 style={{ margin: '0 0 8px', fontSize: '18px', color: 'var(--mm-text-strong)' }}>Save your work first?</h2>
+            <h2 style={{ margin: '0 0 8px', fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Save your work first?</h2>
             <p style={{ margin: '0 0 18px', color: 'var(--mm-text)', lineHeight: 1.5 }}>
               {pageCount === 1
                 ? 'You have drawn on this scratchpad since it was last saved. Closing without saving deletes it.'

@@ -126,7 +126,7 @@ export default function StudentSupportEvidencePanel({
   return (
     <section className="se-stack" style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--mm-divider, var(--mm-border-soft))' }} aria-labelledby={`supports-evidence-${studentId}`} data-student-support-evidence={studentId}>
       <div className="tw-row" style={{ justifyContent: 'space-between' }}>
-        <h3 id={`supports-evidence-${studentId}`} style={{ margin: 0, fontSize: 16 }}>Supports &amp; evidence</h3>
+        <h3 id={`supports-evidence-${studentId}`} style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))' }}>Supports &amp; evidence</h3>
         <div className="tw-row">
           {onOpenReport && <button type="button" className="tw-btn tw-btn--sm tw-btn--primary" onClick={() => onOpenReport(studentId)}>Support evidence report</button>}
           <button type="button" className="tw-btn tw-btn--sm" onClick={() => setEditorOpen(true)}>{hasProfile ? 'Edit support profile' : 'Add support profile'}</button>

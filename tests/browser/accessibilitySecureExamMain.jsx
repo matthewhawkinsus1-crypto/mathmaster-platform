@@ -15,7 +15,11 @@ import { createRoot } from 'react-dom/client';
 import { MathfieldElement } from 'mathlive';
 import TestCycleCard from '../../src/components/student/TestCycleCard.jsx';
 import '../../src/index.css';
+import { installTextScale } from '../../src/platform/layout/textScale.js';
 import '../../src/App.css';
+
+// As src/main.jsx: fluid font sizes follow the text-size setting (job N).
+installTextScale(window);
 
 // Vite's dev optimizer moves mathlive into .vite/deps without its fonts.
 MathfieldElement.fontsDirectory = '/node_modules/mathlive/fonts';
