@@ -107,9 +107,9 @@ const journey = (viewport, viewportName, extra = {}) => async (browser) => {
   // request (the harness page has none) is not the lesson's, so it is the one
   // 404 left out; the console line it raises names no URL and is skipped too.
   page.on('response', (response) => {
-    if (response.status() >= 400 && !/\/favicon\.ico$/.test(new URL(response.url()).pathname)) errors.push(`${response.status()} ${response.url()}`);
+    if (response.status() >= 400 && !new URL(response.url()).pathname.endsWith('/favicon.ico')) errors.push(`${response.status()} ${response.url()}`);
   });
-  page.on('console', (message) => { if (message.type() === 'error' && !/^Failed to load resource/.test(message.text())) errors.push(message.text()); });
+  page.on('console', (message) => { if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) errors.push(message.text()); });
   await open(page, `${viewportName}-${Date.now()}`);
   await visit(page, lesson, viewportName);
   check(errors.length === 0, `${lesson} @${viewportName}: no page or console errors (${errors.slice(0, 3).join(' | ')})`);
