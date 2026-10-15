@@ -204,10 +204,11 @@ export const parseCanonicalIntervalNotation = (value) => {
   if (!pieces.length) return null;
   const parsed = [];
   for (const piece of pieces) {
-    // An endpoint is ±∞, a decimal, or an exact fraction: `1/2`, `-3/4` or
-    // `\frac{1}{2}`. A fraction endpoint used to make the whole answer
+    // An endpoint is ±∞, a decimal, or an exact fraction: `1/2`, `-3/4`,
+    // `\frac{1}{2}`, or the keypad's `\frac{-1}{2}` (a sign inside the fraction;
+    // asNumber settles it). A fraction endpoint used to make the whole answer
     // unreadable, so `(1/2, 3]` was wrong even typed exactly as the key (Job P).
-    const match = piece.match(/^([[(])\s*(-?∞|-?\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?|-?\\frac\{\d+(?:\.\d+)?\}\{\d+(?:\.\d+)?\})\s*,\s*(-?∞|-?\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?|-?\\frac\{\d+(?:\.\d+)?\}\{\d+(?:\.\d+)?\})\s*([\])])$/);
+    const match = piece.match(/^([[(])\s*(-?∞|-?\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?|-?\\frac\{-?\d+(?:\.\d+)?\}\{-?\d+(?:\.\d+)?\})\s*,\s*(-?∞|-?\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?|-?\\frac\{-?\d+(?:\.\d+)?\}\{-?\d+(?:\.\d+)?\})\s*([\])])$/);
     if (!match) return null;
     const endpoint = (token) => {
       if (token.includes('∞')) return token.startsWith('-') ? -Infinity : Infinity;

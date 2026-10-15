@@ -50,6 +50,9 @@ test('item 2: interval notation with fraction endpoints, typed exactly as the ke
     ['(1/2, 3]', '\\left(\\frac{1}{2},3\\right]'],
     ['[-3/4, \\infty)', '[-0.75,∞)'],
     ['(-inf, -2/3) U (5/2, inf)', '(-∞,-\\frac{2}{3})\\cup(\\frac{5}{2},\\infty)'],
+    // The keypad puts the sign inside the fraction (Codex review of #484).
+    ['(-1/2, 3]', '(\\frac{-1}{2},3]'],
+    ['(-1/2, 3]', '(\\frac{1}{-2},3]'],
   ]) {
     assert.equal(sameIntervalNotation(response, key, 0), true, `${response} for ${key}`);
     assert.equal(await pathVerdict(key, response, { equivalence: 'interval' }), true, `Path: ${response} for ${key}`);
@@ -60,6 +63,8 @@ test('item 2: interval notation with fraction endpoints, typed exactly as the ke
     ['(1/3, 3]', '(0.3333, 3]'], // the Path's tolerance is 0: a rounded third is not a third
     ['(1/2, 3]', '(1/2, 3)'],
     ['(1/2, 3]', '(1/0, 3]'],
+    ['(1/2, 3]', '(\\frac{-1}{2},3]'],
+    ['(-1/2, 3]', '(\\frac{-1}{0},3]'],
   ]) {
     assert.equal(await pathVerdict(key, response, { equivalence: 'interval' }), false, `Path: ${response} must stay wrong for ${key}`);
   }
