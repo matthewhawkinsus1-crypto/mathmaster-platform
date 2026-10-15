@@ -16581,7 +16581,7 @@
         "A single drink bottle holds less than a liter or about that amount, not hundreds of liters."
       ],
       "solutionReview": {
-        "headline": "A drink bottle holds about half a liter: {{capacity}} milliliters.",
+        "headline": "A drink bottle holds less than a liter: {{capacity}} milliliters.",
         "reasoning": [
           "Capacity is a volume, so kilograms (mass) and meters (length) are out.",
           "{{capacity}} milliliters is $\\frac{ {{capacity}} }{1000}={{liters}}$ of a liter, a usual bottle size. {{capacity}} liters would be far more than any drink bottle holds."
@@ -43172,7 +43172,7 @@
         "headline": "It must be within 0.05 of {{targetValue}}: {{value}}.",
         "reasoning": [
           "A number rounds to {{targetValue}} at the nearest tenth when it is no more than 0.05 below it and less than 0.05 above it.",
-          "${{targetValue}}-0.05<{{value}}<{{targetValue}}+0.05$, so {{value}} rounds to {{targetValue}}."
+          "${{targetValue}}-0.05\\le {{value}}<{{targetValue}}+0.05$, so {{value}} rounds to {{targetValue}}."
         ],
         "commonError": "Choosing a value that is 0.06 or more away, which rounds to the neighboring tenth.",
         "answerSummary": "${{value}}$"
