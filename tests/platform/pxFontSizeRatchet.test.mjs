@@ -26,6 +26,7 @@ const ALLOWED = Object.freeze({
   'src/components/student/MyMathPathWheel.jsx': { skipped: 4, why: 'SVG <text> labels inside the wheel: SVG text scales with its drawing, not the text setting' },
   'src/components/student/CCMRReadinessWheel.jsx': { skipped: 2, why: 'SVG <text> labels inside the wheel: SVG text scales with its drawing' },
   'src/components/assessment/GraphingCalculatorPanel.jsx': { pragma: 1, why: 'JSXGraph tick labels: JSXGraph appends its own px unit to fontSize, so calc() would be invalid; the labels are part of the graph' },
+  'src/components/teacher/caseReview/caseReview.css': { pragma: 1, why: 'the case-review print sheet (@media print): paper, like the PDF generators, not the screen' },
   'src/components/liveChallenge/ChallengeShellParts.jsx': { pattern: 1, why: 'the 3·2·1·GO countdown digit: aria-hidden, already 88–260px; the live region under it carries the text and scales' },
 });
 
@@ -36,6 +37,14 @@ const RESIDUAL = [
   { name: 'a px font size set on .style', re: /\.style\.(?:fontSize|lineHeight)\s*=\s*['"`][^'"`]*\dpx/g },
   { name: 'a px font shorthand', re: /\bfont:\s*['"`][^'"`]*\d(?:\.\d+)?px/g },
 ];
+
+// A look table read as `fontSize: style.size` (Live Challenge standings): in a
+// file that does that, every `size:` value is a font size and must not be px.
+export const sizeKeysInPx = (source) => {
+  if (!/fontSize:\s*\w+\.size\b/.test(source)) return 0;
+  return [...source.matchAll(/\bsize:\s*([^,\n}]+)/g)]
+    .filter(([, value]) => /^\d+(?:\.\d+)?\s*$/.test(value) || /^['"`][^'"`]*\d(?:\.\d+)?px/.test(value.trim())).length;
+};
 
 const walk = (dir, out = []) => {
   for (const name of readdirSync(dir)) {
@@ -68,6 +77,7 @@ export const scanPxFontSizes = () => {
     add(file, 'pragma', source.includes('px-to-rem: off') ? 1000 : 0, 'a whole-file px-to-rem: off');
     if (file.endsWith('.css')) continue;
     for (const { name, re } of RESIDUAL) add(file, 'pattern', [...source.matchAll(re)].length, name);
+    add(file, 'pattern', sizeKeysInPx(source), 'a px `size:` read as fontSize: style.size');
   }
   return found;
 };
@@ -104,6 +114,11 @@ test('the residual patterns catch what they are for', () => {
   assert.deepEqual(hits("padding: size === 'small' ? '2px 8px' : '4px 10px',"), [], 'a comparison is not a size');
   assert.deepEqual(hits("const promptSize = 'clamp(calc(20 * var(--mm-px)), 3vh, calc(30 * var(--mm-px)))';"), []);
   assert.deepEqual(hits('<div style={{ fontSize: `calc(${size} * var(--mm-px))` }} />'), []);
+  const looks = (size) => `const LOOKS = { student: { size: ${size}, rowHeight: 40 } };\nconst Row = ({ style }) => <li style={{ fontSize: style.size }} />;`;
+  assert.equal(sizeKeysInPx(looks('15')), 1);
+  assert.equal(sizeKeysInPx(looks("'clamp(16px, 1.7vw, 24px)'")), 1);
+  assert.equal(sizeKeysInPx(looks("'calc(15 * var(--mm-px))'")), 0);
+  assert.equal(sizeKeysInPx('const pill = { size: 15 };'), 0, 'a size not read as a font size');
 });
 
 test('CI measures every swept surface at 200% text', () => {

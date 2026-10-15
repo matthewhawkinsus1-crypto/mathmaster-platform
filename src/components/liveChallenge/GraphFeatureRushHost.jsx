@@ -30,7 +30,7 @@ const LOOKS = Object.freeze({
     bar: 'linear-gradient(90deg, #1a73e8, #8ab4f8)',
     accent: 'var(--mm-primary)',
     good: 'var(--mm-success-text)',
-    size: 14,
+    size: 'calc(14 * var(--mm-px))',
   }),
   projector: Object.freeze({
     text: '#f7f9ff',
@@ -41,7 +41,7 @@ const LOOKS = Object.freeze({
     bar: 'linear-gradient(90deg, #5ee7ff, #b8c8ff)',
     accent: '#9cb8ff',
     good: '#8df7c9',
-    size: 18,
+    size: 'calc(18 * var(--mm-px))',
   }),
 });
 

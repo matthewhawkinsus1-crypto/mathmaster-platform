@@ -28,7 +28,7 @@ export const SHELL_LOOKS = Object.freeze({
     up: 'var(--mm-success-text)',
     down: 'var(--mm-error-text)',
     gold: '#b06000',
-    size: 15,
+    size: 'calc(15 * var(--mm-px))',
     rowHeight: 40,
   }),
   projector: Object.freeze({
@@ -43,7 +43,7 @@ export const SHELL_LOOKS = Object.freeze({
     up: '#8df7c9',
     down: '#ffb4ab',
     gold: '#ffd166',
-    size: 'clamp(16px, 1.7vw, 24px)',
+    size: 'clamp(calc(16 * var(--mm-px)), 1.7vw, calc(24 * var(--mm-px)))',
     rowHeight: 'clamp(40px, 6vh, 56px)',
   }),
   student: Object.freeze({
@@ -58,7 +58,7 @@ export const SHELL_LOOKS = Object.freeze({
     up: '#81c995',
     down: '#ffb4ab',
     gold: '#fdd663',
-    size: 15,
+    size: 'calc(15 * var(--mm-px))',
     rowHeight: 40,
   }),
 });
