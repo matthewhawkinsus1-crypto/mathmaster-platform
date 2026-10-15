@@ -33,11 +33,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Red out of the whole: $\\frac{ {{red}} }{ {{total}} }$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "There are ${{red}}+{{blue}}={{total}}$ tiles in all.",
+          "{{red}} of the {{total}} are red, so the fraction is $\\frac{ {{red}} }{ {{total}} }$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Comparing red to blue ($\\frac{ {{red}} }{ {{blue}} }$) instead of red to all tiles.",
+        "answerSummary": "$\\frac{ {{red}} }{ {{total}} }$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -131,11 +133,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Scale the height by the same factor as the width: {{newHeight}} inches.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "Scale factor: $\\frac{ {{newWidth}} }{ {{width}} }={{scale}}$.",
+          "New height: ${{height}}\\cdot {{scale}}={{newHeight}}$ inches."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Adding the change in width to the height instead of multiplying by the scale factor.",
+        "answerSummary": "${{newHeight}}$ inches"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -244,11 +248,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "{{percent}}% of {{total}}: {{answer}} people.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "{{percent}}% means $\\frac{ {{percent}} }{100}$.",
+          "$\\frac{ {{percent}} }{100}\\cdot {{total}}={{answer}}$ people."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Giving the people who did not select the response, or the percent itself.",
+        "answerSummary": "${{answer}}$ people"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -358,11 +364,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Part over whole, times 100: ${{percent}}\\%$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "Student tickets as a fraction of all tickets: $\\frac{ {{part}} }{ {{total}} }$.",
+          "$\\frac{ {{part}} }{ {{total}} }\\cdot 100={{percent}}$, so ${{percent}}\\%$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Giving the percent of tickets that were not student tickets.",
+        "answerSummary": "${{percent}}\\%$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -472,11 +480,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "The denominator is multiplied by {{k}}, so the numerator is too: $x={{answer}}$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "${{c}}={{b}}\\cdot {{k}}$, so the equivalent fraction multiplies the top by {{k}} as well.",
+          "$x={{a}}\\cdot {{k}}={{answer}}$. Check: $\\frac{ {{answer}} }{ {{c}} }=\\frac{ {{a}} }{ {{b}} }$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Adding the same amount to the numerator and the denominator instead of multiplying.",
+        "answerSummary": "$x={{answer}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -584,11 +594,14 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Add the red beads, then simplify: ${{ratioRed}}:{{ratioBlue}}$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "Red beads after adding: ${{redStart}}+{{addRed}}={{newRed}}$.",
+          "The ratio is {{newRed}} to {{blueCount}}; dividing both by {{scale}} gives $\\frac{ {{newRed}} }{ {{blueCount}} }=\\frac{ {{ratioRed}} }{ {{ratioBlue}} }$.",
+          "In simplest form: ${{ratioRed}}:{{ratioBlue}}$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Using the red count from before the beads were added.",
+        "answerSummary": "${{ratioRed}}:{{ratioBlue}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -699,11 +712,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "A percent of a percent multiplies: ${{answer}}\\%$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "{{secondPercent}}% of the {{firstPercent}}% meet both conditions.",
+          "$\\frac{ {{firstPercent}} }{100}\\cdot\\frac{ {{secondPercent}} }{100}=\\frac{ {{answer}} }{100}$, which is ${{answer}}\\%$ of the whole group."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Adding the percents, or giving the second percent as a share of the whole group.",
+        "answerSummary": "${{answer}}\\%$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -820,11 +835,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Concentrate over the new total: about ${{answer}}\\%$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "New total: ${{concentrateCount}}+{{waterCount}}+{{addedWater}}={{total}}$ cups.",
+          "Concentrate share: $\\frac{ {{concentrateCount}} }{ {{total}} }\\cdot 100\\approx {{answer}}$, so about ${{answer}}\\%$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Leaving the added water out of the total.",
+        "answerSummary": "${{answer}}\\%$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
