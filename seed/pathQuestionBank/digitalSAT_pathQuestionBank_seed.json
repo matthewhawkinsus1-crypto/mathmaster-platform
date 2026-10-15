@@ -43672,11 +43672,13 @@
         "Identify how the function behaves on the stated inputs, then use that behavior to determine its range, extreme value, or matching representation."
       ],
       "solutionReview": {
-        "headline": "Analyze the nonlinear function.",
+        "headline": "$|x|$ is largest at the endpoint farthest from 0: {{ans}}.",
         "reasoning": [
-          "Connect the equation with its values and key graph behavior on the stated interval."
+          "$|x|$ is the distance from 0, so on an interval it is largest at the endpoint farthest from 0.",
+          "$|-{{a}}|={{a}}$ and $|{{b}}|={{b}}$, so the maximum value is {{ans}}."
         ],
-        "answerSummary": "Check the requested feature against the original function and any stated interval."
+        "commonError": "Taking the right endpoint {{b}} automatically, or using $-{{a}}$ itself: $|x|$ is never negative.",
+        "answerSummary": "The maximum value is ${{ans}}$."
       },
       "prompt": "For $p(x)=|x|$, the domain is restricted to $-{{a}}\\le x\\le {{b}}$. What is the maximum value of $p$ on this interval?",
       "generator": {
@@ -43766,11 +43768,14 @@
         "Identify how the function behaves on the stated inputs, then use that behavior to determine its range, extreme value, or matching representation."
       ],
       "solutionReview": {
-        "headline": "Analyze the nonlinear function.",
+        "headline": "Each output is the cube root of its input: $f(x)=\\sqrt[3]{x}$.",
         "reasoning": [
-          "Connect the equation with its values and key graph behavior on the stated interval."
+          "Check each value with $\\sqrt[3]{x}$: $\\sqrt[3]{-{{R3}}}=-{{r}}$, $\\sqrt[3]{0}=0$ and $\\sqrt[3]{{{R3}}}={{r}}$.",
+          "$x^3$ would make the outputs far larger, $|x|$ gives a positive output at $-{{R3}}$, and $\\frac{1}{x}$ is undefined at 0.",
+          "So the function is $f(x)=\\sqrt[3]{x}$."
         ],
-        "answerSummary": "Check the requested feature against the original function and any stated interval."
+        "commonError": "Matching only the positive values: the negative input must give the negative output $-{{r}}$.",
+        "answerSummary": "$f(x)=\\sqrt[3]{x}$"
       },
       "prompt": "A function satisfies $f(-{{R3}})=-{{r}}$, $f(0)=0$, and $f({{R3}})={{r}}$. Which function is consistent with these values?",
       "generator": {
@@ -43870,11 +43875,14 @@
         "Identify how the function behaves on the stated inputs, then use that behavior to determine its range, extreme value, or matching representation."
       ],
       "solutionReview": {
-        "headline": "Analyze the nonlinear function.",
+        "headline": "Only $\\frac{{{a}}}{x}$ approaches both axes without touching them.",
         "reasoning": [
-          "Connect the equation with its values and key graph behavior on the stated interval."
+          "$\\frac{{{a}}}{x}$ is undefined at $x=0$ and grows without bound near it, so the $y$-axis is a vertical asymptote.",
+          "As $x$ grows, $\\frac{{{a}}}{x}$ approaches 0 (for example $\\frac{{{a}}}{1000}={{a1000}}$), so the $x$-axis is a horizontal asymptote.",
+          "The other choices have no asymptotes, so the answer is $f(x)=\\dfrac{{{a}}}{x}$."
         ],
-        "answerSummary": "Check the requested feature against the original function and any stated interval."
+        "commonError": "Choosing $\\sqrt{x}+{{a}}$ because its graph starts at the $y$-axis: touching an axis at one point is not approaching it.",
+        "answerSummary": "$f(x)=\\dfrac{{{a}}}{x}$"
       },
       "prompt": "Which function has both the $x$-axis and the $y$-axis as asymptotes?",
       "generator": {
@@ -43884,6 +43892,9 @@
             "min": 2,
             "max": 8
           }
+        },
+        "derived": {
+          "a1000": "a/1000"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -43971,11 +43982,14 @@
         "Identify how the function behaves on the stated inputs, then use that behavior to determine its range, extreme value, or matching representation."
       ],
       "solutionReview": {
-        "headline": "Analyze the nonlinear function.",
+        "headline": "Each output is the square root of its input: $f(x)=\\sqrt{x}$.",
         "reasoning": [
-          "Connect the equation with its values and key graph behavior on the stated interval."
+          "$\\sqrt{0}=0$, $\\sqrt{{{R2}}}={{r}}$ and $\\sqrt{{{S2}}}={{s}}$: all three values match.",
+          "$\\sqrt{x}$ has no real outputs for negative inputs, while $x^2$, $|x|$ and $\\sqrt[3]{x}$ accept them (and do not give these values).",
+          "So the function is $f(x)=\\sqrt{x}$."
         ],
-        "answerSummary": "Check the requested feature against the original function and any stated interval."
+        "commonError": "Choosing $\\sqrt[3]{x}$: it accepts negative inputs, and its value at {{R2}} is not {{r}}.",
+        "answerSummary": "$f(x)=\\sqrt{x}$"
       },
       "prompt": "A function satisfies $f(0)=0$, $f({{R2}})={{r}}$, and $f({{S2}})={{s}}$. Which function is consistent with these values and has no real outputs for negative inputs?",
       "generator": {
@@ -44076,11 +44090,13 @@
         "Identify how the function behaves on the stated inputs, then use that behavior to determine its range, extreme value, or matching representation."
       ],
       "solutionReview": {
-        "headline": "Analyze the nonlinear function.",
+        "headline": "The cube root increases, so take the cube root of each endpoint: $-{{L}}\\le h(x)\\le {{R}}$.",
         "reasoning": [
-          "Connect the equation with its values and key graph behavior on the stated interval."
+          "$\\sqrt[3]{x}$ increases, so its range runs from $\\sqrt[3]{-{{L3}}}=-{{L}}$ to $\\sqrt[3]{{{R3}}}={{R}}$.",
+          "So the range is $-{{L}}\\le h(x)\\le {{R}}$."
         ],
-        "answerSummary": "Check the requested feature against the original function and any stated interval."
+        "commonError": "Keeping the domain endpoints, or starting the range at 0: the cube root of a negative number is negative.",
+        "answerSummary": "$-{{L}}\\le h(x)\\le {{R}}$"
       },
       "prompt": "For $h(x)=\\sqrt[3]{x}$, the domain is restricted to $-{{L3}}\\le x\\le {{R3}}$. Which statement gives the range of $h$ on this interval?",
       "generator": {
@@ -44188,11 +44204,13 @@
         "Identify how the function behaves on the stated inputs, then use that behavior to determine its range, extreme value, or matching representation."
       ],
       "solutionReview": {
-        "headline": "Analyze the nonlinear function.",
+        "headline": "$x^3$ increases, so the maximum is at the right endpoint: {{ans}}.",
         "reasoning": [
-          "Connect the equation with its values and key graph behavior on the stated interval."
+          "$x^3$ increases everywhere, so on this interval the maximum is at the right endpoint, $x={{b}}$.",
+          "$g({{b}})={{b}}^3={{ans}}$."
         ],
-        "answerSummary": "Check the requested feature against the original function and any stated interval."
+        "commonError": "Using the left endpoint because {{a}} is larger: $(-{{a}})^3={{na3}}$ is negative.",
+        "answerSummary": "The maximum value is ${{ans}}$."
       },
       "prompt": "For $g(x)=x^3$, the domain is restricted to $-{{a}}\\le x\\le {{b}}$. What is the maximum value of $g$ on this interval?",
       "generator": {
@@ -44209,7 +44227,8 @@
           }
         },
         "derived": {
-          "ans": "b*b*b"
+          "ans": "b*b*b",
+          "na3": "-(a*a*a)"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -44278,11 +44297,13 @@
         "Identify how the function behaves on the stated inputs, then use that behavior to determine its range, extreme value, or matching representation."
       ],
       "solutionReview": {
-        "headline": "Analyze the nonlinear function.",
+        "headline": "For $x>0$, $\\frac{{{k}}}{x}$ decreases, so the minimum is at $x={{b}}$: {{m}}.",
         "reasoning": [
-          "Connect the equation with its values and key graph behavior on the stated interval."
+          "For positive $x$, $\\frac{{{k}}}{x}$ gets smaller as $x$ gets larger, so the minimum on the interval is at its right endpoint, $x={{b}}$.",
+          "$q({{b}})=\\frac{{{k}}}{{{b}}}={{m}}$."
         ],
-        "answerSummary": "Check the requested feature against the original function and any stated interval."
+        "commonError": "Evaluating at the left endpoint {{a}}, which gives the maximum, not the minimum.",
+        "answerSummary": "The minimum value is ${{m}}$."
       },
       "prompt": "For $q(x)=\\dfrac{{{k}}}{x}$, the domain is restricted to ${{a}}\\le x\\le {{b}}$, where $a>0$. What is the minimum value of $q$ on this interval?",
       "generator": {
@@ -44373,11 +44394,13 @@
         "Identify how the function behaves on the stated inputs, then use that behavior to determine its range, extreme value, or matching representation."
       ],
       "solutionReview": {
-        "headline": "Analyze the nonlinear function.",
+        "headline": "$\\sqrt{x}$ increases, so the range runs from $\\sqrt{0}$ to $\\sqrt{{{R2}}}$: $0\\le f(x)\\le {{r}}$.",
         "reasoning": [
-          "Connect the equation with its values and key graph behavior on the stated interval."
+          "$\\sqrt{x}$ increases, so on this interval its smallest value is $\\sqrt{0}=0$ and its largest is $\\sqrt{{{R2}}}={{r}}$.",
+          "So the range is $0\\le f(x)\\le {{r}}$."
         ],
-        "answerSummary": "Check the requested feature against the original function and any stated interval."
+        "commonError": "Using the domain endpoint {{R2}} as the top of the range, or including negative outputs: a square root is never negative.",
+        "answerSummary": "$0\\le f(x)\\le {{r}}$"
       },
       "prompt": "For $f(x)=\\sqrt{x}$, the domain is restricted to $0\\le x\\le {{R2}}$. Which statement gives the range of $f$ on this interval?",
       "generator": {
@@ -44476,11 +44499,14 @@
         "Write one equation for each relationship. A common solution must satisfy both equations."
       ],
       "solutionReview": {
-        "headline": "Formulate the linear–quadratic system.",
+        "headline": "Break-even means cost and revenue are the same amount $y$.",
         "reasoning": [
-          "Represent the line and the quadratic separately, then place the two equations in one system so their common solutions describe the requested intersection or condition."
+          "At a break-even quantity, the cost and the revenue equal the same dollar amount $y$.",
+          "So $y={{m}}x+{{b}}$ (cost) and $y={{aneg}}x^2+{{p}}x$ (revenue, keeping the minus sign on the $x^2$ term).",
+          "The system is $\\begin{cases}y={{m}}x+{{b}}\\\\y={{aneg}}x^2+{{p}}x\\end{cases}$."
         ],
-        "answerSummary": "The correct system contains one linear equation and one quadratic equation matching the given information."
+        "commonError": "Dropping the minus sign on the $x^2$ term of the revenue, or changing a coefficient.",
+        "answerSummary": "$\\begin{cases}y={{m}}x+{{b}}\\\\y={{aneg}}x^2+{{p}}x\\end{cases}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A company's cost for producing $x$ units is $C={{m}}x+{{b}}$. Its revenue is $R=-{{a}}x^2+{{p}}x$. Which system can be used to determine a break-even quantity $x$ and the common dollar amount $y$?",
@@ -44609,11 +44635,14 @@
         "Write one equation for each relationship. A common solution must satisfy both equations."
       ],
       "solutionReview": {
-        "headline": "Formulate the linear–quadratic system.",
+        "headline": "Zeros 0 and {{T}} give $qx({{T}}-x)$; the height at $x={{m}}$ gives $q$.",
         "reasoning": [
-          "Represent the line and the quadratic separately, then place the two equations in one system so their common solutions describe the requested intersection or condition."
+          "An arch with zeros 0 and {{T}} is $y=qx({{T}}-x)$ for some number $q$.",
+          "Height {{H}} at $x={{m}}$: ${{H}}=q\\cdot {{m}}({{T}}-{{m}})={{mm}}q$, so $q=\\frac{{{H}}}{{{mm}}}={{q}}$. The cable is $y={{s}}x+{{b}}$.",
+          "So the system is $\\begin{cases}y={{s}}x+{{b}}\\\\y={{q}}x({{T}}-x)\\end{cases}$."
         ],
-        "answerSummary": "The correct system contains one linear equation and one quadratic equation matching the given information."
+        "commonError": "Putting a minus sign in front: written as $x({{T}}-x)$, the arch already opens downward, so $q$ is positive.",
+        "answerSummary": "$\\begin{cases}y={{s}}x+{{b}}\\\\y={{q}}x({{T}}-x)\\end{cases}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "An arch is modeled by a parabola with zeros $x=0$ and $x={{T}}$ and height {{H}} at $x={{m}}$, where ${{m}}$ is halfway between the zeros. A support cable is modeled by the line through $(0,{{b}})$ with slope {{s}}. Which system represents the arch and cable?",
@@ -44651,7 +44680,8 @@
           "H": "q*m*m",
           "qneg": "-q",
           "s1": "s+1",
-          "T1": "2*m+1"
+          "T1": "2*m+1",
+          "mm": "m*m"
         },
         "constraints": [
           "qneg!=0",
@@ -44746,11 +44776,14 @@
         "Write one equation for each relationship. A common solution must satisfy both equations."
       ],
       "solutionReview": {
-        "headline": "Formulate the linear–quadratic system.",
+        "headline": "Find the line from its two points and the parabola from its vertex and point.",
         "reasoning": [
-          "Represent the line and the quadratic separately, then place the two equations in one system so their common solutions describe the requested intersection or condition."
+          "Line: slope $\\frac{{{y2}}-{{y1}}}{3-1}={{m}}$, and $b={{y1}}-{{m}}={{b}}$, so $y={{m}}x+{{b}}$.",
+          "Parabola: $y=a(x-{{h}})^2+{{k}}$. At $({{xp}},{{yp}})$: ${{yp}}=a({{xp}}-{{h}})^2+{{k}}=4a+{{k}}$, so $a=\\frac{{{yp}}-{{k}}}{4}={{a}}$.",
+          "So the system is $\\begin{cases}y={{m}}x+{{b}}\\\\y={{a}}(x-{{h}})^2+{{k}}\\end{cases}$."
         ],
-        "answerSummary": "The correct system contains one linear equation and one quadratic equation matching the given information."
+        "commonError": "Using the rise {{rise}} as the slope without dividing by the run 2, or writing $(x+{{h}})^2$ for a vertex at $x={{h}}$.",
+        "answerSummary": "$\\begin{cases}y={{m}}x+{{b}}\\\\y={{a}}(x-{{h}})^2+{{k}}\\end{cases}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. A parabola has vertex $({{h}},{{k}})$ and passes through $({{xp}},{{yp}})$. Which system represents the two graphs?",
@@ -44791,7 +44824,8 @@
           "yp": "4*a+k",
           "nh": "-h",
           "m1": "m+1",
-          "a1": "a+1"
+          "a1": "a+1",
+          "rise": "y2-y1"
         },
         "constraints": [
           "m1!=0",
@@ -44883,11 +44917,14 @@
         "Write one equation for each relationship. A common solution must satisfy both equations."
       ],
       "solutionReview": {
-        "headline": "Formulate the linear–quadratic system.",
+        "headline": "Solve the line for $y$; use the zeros and the $y$-intercept for the quadratic.",
         "reasoning": [
-          "Represent the line and the quadratic separately, then place the two equations in one system so their common solutions describe the requested intersection or condition."
+          "Solve ${{A}}x+y={{C}}$ for $y$: $y=-{{A}}x+{{C}}$, which is $y={{m}}x+{{b}}$.",
+          "Zeros {{r1}} and {{r2}} give $y=a(x {{f1|signed}})(x {{f2|signed}})$. At $x=0$: $a\\cdot {{f1}}\\cdot {{f2|paren}}={{y0}}$, so $a=\\frac{{{y0}}}{{{rr}}}={{a}}$.",
+          "So the system is $\\begin{cases}y={{m}}x+{{b}}\\\\y={{a}}(x {{f1|signed}})(x {{f2|signed}})\\end{cases}$."
         ],
-        "answerSummary": "The correct system contains one linear equation and one quadratic equation matching the given information."
+        "commonError": "Keeping the slope as {{A}}: moving ${{A}}x$ to the other side makes it $-{{A}}x$.",
+        "answerSummary": "$\\begin{cases}y={{m}}x+{{b}}\\\\y={{a}}(x {{f1|signed}})(x {{f2|signed}})\\end{cases}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A line satisfies ${{A}}x+y={{C}}$. A quadratic function has zeros {{r1}} and {{r2}} and $y$-intercept {{y0}}. Which system represents the line and quadratic?",
@@ -44929,7 +44966,8 @@
           "f2": "-r2",
           "y0": "a*r1*r2",
           "a1": "a+1",
-          "C1": "C+1"
+          "C1": "C+1",
+          "rr": "r1*r2"
         },
         "constraints": [
           "C1!=0",
@@ -45024,11 +45062,14 @@
         "Write one equation for each relationship. A common solution must satisfy both equations."
       ],
       "solutionReview": {
-        "headline": "Formulate the linear–quadratic system.",
+        "headline": "Find the slope and the parabola's coefficient from the given points.",
         "reasoning": [
-          "Represent the line and the quadratic separately, then place the two equations in one system so their common solutions describe the requested intersection or condition."
+          "Line: slope $\\frac{{{y1}}-{{b}}}{1-0}={{m}}$ and $y$-intercept {{b}}, so $y={{m}}x+{{b}}$.",
+          "Parabola: vertex $(0,{{c}})$ gives $y=ax^2+{{c}}$; through $(1,{{c1}})$, $a={{c1}}-{{c}}={{a}}$.",
+          "So the system is $\\begin{cases}y={{m}}x+{{b}}\\\\y={{a}}x^2+{{c}}\\end{cases}$."
         ],
-        "answerSummary": "The correct system contains one linear equation and one quadratic equation matching the given information."
+        "commonError": "Swapping the constants: {{b}} belongs to the line and {{c}} to the parabola.",
+        "answerSummary": "$\\begin{cases}y={{m}}x+{{b}}\\\\y={{a}}x^2+{{c}}\\end{cases}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A line passes through $(0,{{b}})$ and $(1,{{y1}})$. A parabola has vertex $(0,{{c}})$ and passes through $(1,{{c1}})$. Which system represents the two graphs?",
@@ -45157,11 +45198,14 @@
         "Write one equation for each relationship. A common solution must satisfy both equations."
       ],
       "solutionReview": {
-        "headline": "Formulate the linear–quadratic system.",
+        "headline": "Slope and intercept for the line; one factor per zero for the quadratic.",
         "reasoning": [
-          "Represent the line and the quadratic separately, then place the two equations in one system so their common solutions describe the requested intersection or condition."
+          "Line: slope $\\frac{{{y2}}-{{b}}}{2-0}={{m}}$ and $y$-intercept {{b}}, so $y={{m}}x+{{b}}$.",
+          "Monic quadratic with zeros {{r1}} and {{r2}}: $y=(x {{f1|signed}})(x {{f2|signed}})$. Check: $({{r1}} {{f1|signed}})({{r1}} {{f2|signed}})=0$.",
+          "So the system is $\\begin{cases}y={{m}}x+{{b}}\\\\y=(x {{f1|signed}})(x {{f2|signed}})\\end{cases}$."
         ],
-        "answerSummary": "The correct system contains one linear equation and one quadratic equation matching the given information."
+        "commonError": "Writing the factors as $(x {{r1|signed}})(x {{r2|signed}})$: a zero $r$ gives the factor $x-r$.",
+        "answerSummary": "$\\begin{cases}y={{m}}x+{{b}}\\\\y=(x {{f1|signed}})(x {{f2|signed}})\\end{cases}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A line passes through $(0,{{b}})$ and $(2,{{y2}})$. A monic quadratic has zeros {{r1}} and {{r2}}. Which system represents the line and the quadratic?",
@@ -45290,11 +45334,14 @@
         "Write one equation for each relationship. A common solution must satisfy both equations."
       ],
       "solutionReview": {
-        "headline": "Formulate the linear–quadratic system.",
+        "headline": "Revenue is units times price; break-even sets it equal to cost.",
         "reasoning": [
-          "Represent the line and the quadratic separately, then place the two equations in one system so their common solutions describe the requested intersection or condition."
+          "Revenue is the number sold times the price per unit: $y=x({{p0}}-{{d}}x)$. Cost: $y={{m}}x+{{b}}$.",
+          "Break-even points are where the cost and the revenue are the same amount $y$.",
+          "So the system is $\\begin{cases}y={{m}}x+{{b}}\\\\y=x({{p0}}-{{d}}x)\\end{cases}$."
         ],
-        "answerSummary": "The correct system contains one linear equation and one quadratic equation matching the given information."
+        "commonError": "Using the price ${{p0}}-{{d}}x$ alone as the revenue: it must be multiplied by the number of units $x$.",
+        "answerSummary": "$\\begin{cases}y={{m}}x+{{b}}\\\\y=x({{p0}}-{{d}}x)\\end{cases}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A product sells for ${{p0}}-{{d}}x$ dollars per unit when $x$ units are sold, so revenue is the product of the number sold and the price per unit. The total cost is ${{m}}x+{{b}}$. Which system represents break-even points?",
@@ -45420,11 +45467,14 @@
         "Write one equation for each relationship. A common solution must satisfy both equations."
       ],
       "solutionReview": {
-        "headline": "Formulate the linear–quadratic system.",
+        "headline": "Write each graph's equation from its features; together they form the system.",
         "reasoning": [
-          "Represent the line and the quadratic separately, then place the two equations in one system so their common solutions describe the requested intersection or condition."
+          "Line: slope {{m}} and $y$-intercept {{b}} give $y={{m}}x+{{b}}$.",
+          "Parabola: vertex $({{h}},{{k}})$ and leading coefficient {{a}} give $y={{a}}(x-{{h}})^2+{{k}}$. Check: at $x={{h}}$, ${{a}}({{h}}-{{h}})^2+{{k}}={{k}}$.",
+          "Points on both graphs satisfy both equations: $\\begin{cases}y={{m}}x+{{b}}\\\\y={{a}}(x-{{h}})^2+{{k}}\\end{cases}$."
         ],
-        "answerSummary": "The correct system contains one linear equation and one quadratic equation matching the given information."
+        "commonError": "Writing $(x+{{h}})^2$ for a vertex at $x={{h}}$, or changing the sign of the intercept or of the leading coefficient.",
+        "answerSummary": "$\\begin{cases}y={{m}}x+{{b}}\\\\y={{a}}(x-{{h}})^2+{{k}}\\end{cases}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A line has slope {{m}} and $y$-intercept {{b}}. A parabola has vertex $({{h}},{{k}})$ and leading coefficient {{a}}. Which system represents points that lie on both graphs?",
