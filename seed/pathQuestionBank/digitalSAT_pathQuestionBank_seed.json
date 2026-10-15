@@ -35499,11 +35499,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The axis of symmetry is the vertical line through the vertex: $x={{h}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Rewrite the bracket as $x-h$: $x {{nh|signed}}=x-{{h|paren}}$, so the vertex is $({{h}},{{k}})$.",
+          "The axis of symmetry is the vertical line through the vertex: $x={{h}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Writing $y={{h}}$ (a horizontal line), or $x={{hn}}$ (the number shown in the bracket).",
+        "answerSummary": "$x={{h}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -35716,11 +35718,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The graph opens downward, so the vertex value {{k}} is the maximum.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "The leading coefficient {{aneg}} is negative, so the graph opens downward and its vertex is the highest point.",
+          "At $x={{h}}$ the square is 0: $f({{h}})={{aneg}}\\cdot 0+{{k}}={{k}}$. Anywhere else a positive amount is subtracted from {{k}}.",
+          "So the maximum value is {{k}}."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Answering {{h}}, the $x$-coordinate of the vertex: the maximum is the output there.",
+        "answerSummary": "The maximum value is ${{k}}$."
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -35800,7 +35805,8 @@
           "r1": "mid-d",
           "r2": "mid+d",
           "f1": "-(mid-d)",
-          "f2": "-(mid+d)"
+          "f2": "-(mid+d)",
+          "s": "r1+r2"
         },
         "constraints": [
           "f1!=0",
@@ -35814,11 +35820,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The vertex lies halfway between the zeros: $x={{mid}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "A parabola is symmetric about the vertical line through its vertex, which is halfway between the zeros.",
+          "$x=\\frac{{{r1}}+{{r2|paren}}}{2}=\\frac{{{s}}}{2}={{mid}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Subtracting the zeros, or adding them without halving.",
+        "answerSummary": "$x={{mid}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -35915,11 +35923,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The square is never negative, so the least value is the constant: {{k}}.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "The square $(x {{nh|signed}})^2$ is never negative, and ${{a}}>0$, so ${{a}}(x {{nh|signed}})^2$ is at least 0.",
+          "It equals 0 at $x={{h}}$, where $f({{h}})={{a}}\\cdot 0 {{k|signed}}={{k}}$.",
+          "So the minimum value is {{k}}."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Giving the $x$-coordinate {{h}} of the vertex instead of the function value {{k}} there.",
+        "answerSummary": "The minimum value is ${{k}}$."
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -36021,11 +36032,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Vertex form $a(x-h)^2+k$ has vertex $(h,k)$: $({{h}},{{k}})$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Rewrite the bracket as $x-h$: $x {{nh|signed}}=x-{{h|paren}}$, so $h={{h}}$; the constant gives $k={{k}}$.",
+          "Check: at $x={{h}}$ the square is 0 and $f({{h}})={{k}}$, the lowest point of the graph.",
+          "So the vertex is $({{h}},{{k}})$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Reading the sign in the bracket as the coordinate: $x {{nh|signed}}$ puts the vertex at $x={{h}}$, not at {{hn}}.",
+        "answerSummary": "$({{h}},{{k}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -36150,11 +36164,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The $y$-intercept is where $x=0$: $(0,{{c}})$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Set $x=0$: $y={{a}}(0)^2 {{b|signed}}(0) {{c|signed}}={{c}}$.",
+          "So the $y$-intercept is $(0,{{c}})$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Writing $({{c}},0)$, which is on the $x$-axis, or changing the sign of {{c}}.",
+        "answerSummary": "$(0,{{c}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -36267,11 +36283,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Set each factor equal to 0: $({{r1}},0)$ and $({{r2}},0)$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "An $x$-intercept has $y=0$, so one of the factors must be 0.",
+          "$x {{f1|signed}}=0$ gives $x={{r1}}$, and $x {{f2|signed}}=0$ gives $x={{r2}}$.",
+          "So the $x$-intercepts are $({{r1}},0)$ and $({{r2}},0)$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Using the numbers in the brackets with their own signs, or writing the points with $x=0$, which puts them on the $y$-axis.",
+        "answerSummary": "$({{r1}},0)$ and $({{r2}},0)$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -36368,7 +36387,9 @@
         },
         "derived": {
           "P": "r1*r2",
-          "b": "-(r1+r2)"
+          "b": "-(r1+r2)",
+          "nr1": "-r1",
+          "nr2": "-r2"
         },
         "constraints": [
           "P!=0"
@@ -36381,11 +36402,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Write the factors from the zeros and expand: $b={{b}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Zeros {{r1}} and {{r2}} give the factors $x {{nr1|signed}}$ and $x {{nr2|signed}}$.",
+          "Expand: $(x {{nr1|signed}})(x {{nr2|signed}})=x^2 {{b|xterm}} {{P|signed}}$, which matches the constant {{P}}.",
+          "The $x$-coefficient is ${{nr1}}+{{nr2|paren}}={{b}}$, so $b={{b}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Adding the zeros without changing the sign: $b$ is the negative of their sum.",
+        "answerSummary": "$b={{b}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -36469,11 +36493,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "$f({{r}})=0$ means {{r}} is a zero, so $x-{{r}}$ is a factor.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "By the factor theorem, if $f(r)=0$ then $x-r$ is a factor of $f(x)$.",
+          "Here {{r}} is a zero, and $x-{{r}}$ is the factor that is 0 there: ${{r}}-{{r}}=0$.",
+          "So $x-{{r}}$ must be a factor."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Choosing $x+{{r}}$: that factor is 0 at $x=-{{r}}$, not at {{r}}.",
+        "answerSummary": "$x-{{r}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -36593,11 +36620,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The factor {{a}} is never 0; set each bracket equal to 0: {{r1}} and {{r2}}.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "A product is 0 only when a factor is 0, and {{a}} is not 0.",
+          "$x {{f1|signed}}=0$ gives $x={{r1}}$, and $x {{f2|signed}}=0$ gives $x={{r2}}$.",
+          "So the solutions are ${{r1}}$ and ${{r2}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Reading the numbers in the brackets as the solutions: $x {{f1|signed}}$ is 0 at $x={{r1}}$, the opposite sign.",
+        "answerSummary": "${{r1}}$ and ${{r2}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -36841,11 +36871,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The constants multiply to {{prod}} and add to $-{{sum}}$: the other factor is $x-{{q}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "In $(x-{{p}})(x-c)$ the constants multiply to {{prod}}, so $c=\\frac{{{prod}}}{{{p}}}={{q}}$.",
+          "Check the middle term: $-{{p}}-{{q}}=-{{sum}}$, and $(x-{{p}})(x-{{q}})=x^2-{{sum}}x+{{prod}}$.",
+          "So the other factor is $x-{{q}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Using $x+{{q}}$: with a positive constant and a negative middle term, both factors subtract.",
+        "answerSummary": "$x-{{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -36959,11 +36992,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Factor, then multiply the zeros: $rs={{P}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "$x^2-{{S}}x+{{P}}=(x-{{r}})(x-{{s}})$, so the zeros are $r={{r}}$ and $s={{s}}$.",
+          "$rs={{r}}\\cdot {{s}}={{P}}$: for a monic quadratic, the product of the zeros is the constant term."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Giving the sum {{S}} of the zeros instead of their product.",
+        "answerSummary": "$rs={{P}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -37057,11 +37092,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Factor, then add the zeros: $r+s={{S}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "$x^2-{{S}}x+{{P}}=(x-{{r}})(x-{{s}})$, so the zeros are $r={{r}}$ and $s={{s}}$.",
+          "$r+s={{r}}+{{s}}={{S}}$: for a monic quadratic, the sum of the zeros is the opposite of the $x$-coefficient."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Giving the product {{P}}, or $-{{S}}$ with the sign of the coefficient.",
+        "answerSummary": "$r+s={{S}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -37161,11 +37198,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "A zero $r$ gives the factor $x-r$: $(x {{f1|signed}})(x {{f2|signed}})$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Zero {{r1}} gives $x-{{r1|paren}}=x {{f1|signed}}$; zero {{r2}} gives $x-{{r2|paren}}=x {{f2|signed}}$.",
+          "Check: $({{r1}} {{f1|signed}})({{r1}} {{f2|signed}})=0$ and $({{r2}} {{f1|signed}})({{r2}} {{f2|signed}})=0$.",
+          "Monic means leading coefficient 1, so the quadratic is $(x {{f1|signed}})(x {{f2|signed}})$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Using $x+r$ for a zero $r$: $(x {{r1|signed}})(x {{r2|signed}})$ has the zeros {{f1}} and {{f2}} instead.",
+        "answerSummary": "$(x {{f1|signed}})(x {{f2|signed}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -37289,11 +37329,13 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Subtract like terms: $g(t)-f(t)={{gap}}t^2$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "$g(t)-f(t)={{b}}t^2-{{a}}t^2$.",
+          "These are like terms: ${{b}}t^2-{{a}}t^2=({{b}}-{{a}})t^2={{gap}}t^2$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Adding the coefficients instead of subtracting, or dropping the square on $t$.",
+        "answerSummary": "${{gap}}t^2$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -37521,11 +37563,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Vertex form $a(x-h)^2+k$ has vertex $(h,k)$: $({{h}},{{k}})$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Rewrite the bracket as $x-h$: $x {{nh|signed}}=x-{{h|paren}}$, so $h={{h}}$; the constant gives $k={{k}}$.",
+          "Check: at $x={{h}}$ the square is 0, so $y={{a}}\\cdot 0 {{k|signed}}={{k}}$ there.",
+          "So the vertex is $({{h}},{{k}})$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Reading the sign in the bracket as the coordinate: $x {{nh|signed}}$ puts the vertex at $x={{h}}$, not at {{hn}}.",
+        "answerSummary": "$({{h}},{{k}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -37637,11 +37682,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "For $x\\ne0$, $x^2>0$, so the larger coefficient gives the larger output.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "For any input $x\\ne0$, $x^2$ is positive, and ${{b}}>{{a}}$.",
+          "So ${{b}}x^2$ is greater than ${{a}}x^2$; at $x=1$, for example, ${{b}}\\cdot 1^2={{b}}$ and ${{a}}\\cdot 1^2={{a}}$. Both vertices are $(0,0)$.",
+          "For the same nonzero input, $g$ has the greater output."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Thinking the larger coefficient gives a wider graph, or a different vertex. It gives a narrower graph with the same vertex.",
+        "answerSummary": "For the same nonzero input, $g$ has the greater output."
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -37741,11 +37789,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Subtracting {{h}} inside the square shifts the graph {{h}} units right: $({{h}},0)$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Replacing $x$ with $x-{{h}}$ moves every point of $y=x^2$ {{h}} units to the right.",
+          "Check: $(x-{{h}})^2$ is 0 only at $x={{h}}$, since $({{h}}-{{h}})^2=0$; every other output is positive.",
+          "So the vertex moves from the origin to $({{h}},0)$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Shifting left because of the minus sign: $x-{{h}}$ moves the graph right.",
+        "answerSummary": "$({{h}},0)$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -37858,11 +37909,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The negative leading coefficient makes the vertex a maximum: {{k}}.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "The coefficient $-{{a}}$ is negative, so the graph opens downward and the vertex is the highest point.",
+          "The vertex is $({{h}},{{k}})$: at $x={{h}}$ the square is 0 and $f({{h}})=-{{a}}\\cdot 0+{{k}}={{k}}$.",
+          "The function has a maximum value of {{k}}."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Calling {{h}} the maximum (it is where the maximum happens), or writing the axis of symmetry as $y={{h}}$; the axis is the vertical line $x={{h}}$.",
+        "answerSummary": "The function has a maximum value of {{k}}."
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -37977,11 +38031,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Scaling by {{a}} keeps the point where the square is 0: $x={{h}}$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Multiplying by {{a}} stretches the graph vertically but does not move the point where the square is 0.",
+          "Both are smallest where $x {{nh|signed}}=0$, at $x={{h}}$: $({{h}} {{nh|signed}})^2 {{k|signed}}={{k}}$ for $f$, and the same for $g$.",
+          "So the $x$-coordinate of the vertex is {{h}}."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Using the number shown in the bracket, {{nh}}, as the coordinate.",
+        "answerSummary": "$x={{h}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -38063,11 +38120,14 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Adding {{k}} outside shifts the graph up {{k}} units: $(0,{{k}})$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Adding {{k}} to every output moves the graph of $y=x^2$ up {{k}} units.",
+          "$x^2$ is smallest at $x=0$, where $y=0^2+{{k}}={{k}}$.",
+          "So the vertex is $(0,{{k}})$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "commonError": "Writing $({{k}},0)$: a constant added outside the square moves the graph up, not sideways.",
+        "answerSummary": "$(0,{{k}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
