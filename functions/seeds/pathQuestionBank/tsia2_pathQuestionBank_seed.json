@@ -15944,11 +15944,14 @@
         "Choose a metric length unit that fits the size of a tall object."
       ],
       "solutionReview": {
-        "headline": "Match the unit to the size and quantity being measured.",
+        "headline": "A flagpole is several meters tall: meters.",
         "reasoning": [
-          "Meters are commonly used for the height of objects such as flagpoles."
+          "Height is a length, so the unit must measure length; liters measure volume and kilograms measure mass.",
+          "Each of the {{count}} flagpoles is a few meters to tens of meters tall; millimeters would give very large numbers.",
+          "So meters fit best."
         ],
-        "answerSummary": "Meters are an appropriate metric length unit here."
+        "commonError": "Picking millimeters because it is also a length unit; it is far too small for a flagpole.",
+        "answerSummary": "meters"
       },
       "prompt": "A school records the heights of {{count}} flagpoles. Which metric unit is most appropriate for these measurements?",
       "generator": {
@@ -16047,11 +16050,14 @@
         "Choose a customary length unit suited to long road distances."
       ],
       "solutionReview": {
-        "headline": "Use a customary unit for a long distance.",
+        "headline": "Distances between towns are measured in miles.",
         "reasoning": [
-          "Miles are commonly used for road distances between towns or cities."
+          "A distance needs a length unit; ounces measure weight and gallons measure volume.",
+          "Routes between nearby towns are several miles long, so for all {{routes}} routes inches would give huge, impractical numbers.",
+          "So miles fit best."
         ],
-        "answerSummary": "Miles fit the quantity and scale being measured."
+        "commonError": "Picking inches because it is a length unit; it is far too small for road distances.",
+        "answerSummary": "miles"
       },
       "prompt": "A road guide lists distances among {{routes}} routes connecting nearby towns. Which customary unit is most appropriate for these distances?",
       "generator": {
@@ -16150,11 +16156,13 @@
         "For a small amount of liquid, choose a small metric capacity unit."
       ],
       "solutionReview": {
-        "headline": "Match a small liquid volume with a small capacity unit.",
+        "headline": "A small liquid volume is measured in milliliters.",
         "reasoning": [
-          "Milliliters are commonly used for small liquid amounts."
+          "Volume of a liquid needs a capacity unit; kilograms measure mass and centimeters measure length.",
+          "Each of the {{doses}} doses is small, a fraction of a liter, so milliliters fit best."
         ],
-        "answerSummary": "Milliliters are appropriate for small liquid doses."
+        "commonError": "Picking liters; a liter is much larger than a single small dose.",
+        "answerSummary": "milliliters"
       },
       "prompt": "A nurse records the volume of each of {{doses}} small liquid doses. Which metric unit is most appropriate for these measurements?",
       "generator": {
@@ -16253,11 +16261,13 @@
         "Choose a metric mass unit suited to an object that can be carried by hand."
       ],
       "solutionReview": {
-        "headline": "Choose a unit of mass with an appropriate scale.",
+        "headline": "Mass of a textbook: kilograms.",
         "reasoning": [
-          "Kilograms are a reasonable metric unit for the mass of textbooks."
+          "Mass needs a mass unit; meters and millimeters measure length and liters measure volume.",
+          "A textbook has a mass of about one or two kilograms, so kilograms fit the {{books}} textbooks."
         ],
-        "answerSummary": "Kilograms measure mass and fit the scale of the objects."
+        "commonError": "Choosing a length or volume unit for a mass.",
+        "answerSummary": "kilograms"
       },
       "prompt": "A library records the masses of {{books}} textbooks. Which metric unit is most appropriate for these measurements?",
       "generator": {
@@ -16356,11 +16366,13 @@
         "A thin object calls for a small unit of length."
       ],
       "solutionReview": {
-        "headline": "Use a small metric length unit.",
+        "headline": "A notebook is only a few millimeters thick: millimeters.",
         "reasoning": [
-          "Millimeters are suitable for measuring the thickness of a notebook."
+          "Thickness is a length, so liters and kilograms are out.",
+          "Each of the {{notebooks}} notebooks is a few millimeters thick; kilometers are far too large."
         ],
-        "answerSummary": "Millimeters fit both the type and scale of the measurement."
+        "commonError": "Choosing kilometers because it is a length unit, without checking its size.",
+        "answerSummary": "millimeters"
       },
       "prompt": "A publisher checks the thicknesses of {{notebooks}} notebooks. Which metric unit is most appropriate for these measurements?",
       "generator": {
@@ -16460,11 +16472,13 @@
         "Consider both the kind of measurement and the size of a typical adult."
       ],
       "solutionReview": {
-        "headline": "Choose a reasonable unit and scale.",
+        "headline": "An adult is about 5 to 7 feet tall: {{height}} feet.",
         "reasoning": [
-          "A typical adult height is measured in a small number of feet, not in inches of the same number or in very large distance units."
+          "Height is a length, so gallons (volume) are out.",
+          "{{height}} feet is ${{height}}\\cdot 12={{inches}}$ inches, a typical adult height. {{height}} inches would be a small doll, and {{height}} miles far too tall."
         ],
-        "answerSummary": "The feet measurement is reasonable for an adult height."
+        "commonError": "Picking inches because the number looks right without its unit.",
+        "answerSummary": "{{height}} feet"
       },
       "prompt": "Which of the following could reasonably be the height of an adult?",
       "generator": {
@@ -16474,6 +16488,9 @@
             "min": 5,
             "max": 7
           }
+        },
+        "derived": {
+          "inches": "height*12"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -16564,11 +16581,13 @@
         "A single drink bottle holds less than a liter or about that amount, not hundreds of liters."
       ],
       "solutionReview": {
-        "headline": "Match the value to a realistic capacity unit.",
+        "headline": "A drink bottle holds about half a liter: {{capacity}} milliliters.",
         "reasoning": [
-          "Hundreds of milliliters is a reasonable capacity for a drink bottle."
+          "Capacity is a volume, so kilograms (mass) and meters (length) are out.",
+          "{{capacity}} milliliters is $\\frac{ {{capacity}} }{1000}={{liters}}$ of a liter, a usual bottle size. {{capacity}} liters would fill a bathtub several times over."
         ],
-        "answerSummary": "The milliliter measurement has a reasonable scale."
+        "commonError": "Picking liters because liters measure volume, without checking the size.",
+        "answerSummary": "{{capacity}} milliliters"
       },
       "prompt": "Which of the following could reasonably be the capacity of a drink bottle?",
       "generator": {
@@ -16578,6 +16597,9 @@
             "min": 250,
             "max": 900
           }
+        },
+        "derived": {
+          "liters": "capacity/1000"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -16668,11 +16690,13 @@
         "Area is measured in square units."
       ],
       "solutionReview": {
-        "headline": "Match a two-dimensional quantity with square units.",
+        "headline": "Area is measured in square units: {{area}} square feet.",
         "reasoning": [
-          "A room floor is a two-dimensional region, so its size is described with square units."
+          "Area counts squares that cover the floor, so it needs square units.",
+          "Feet measure length, cubic feet measure volume and ounces measure weight; only square feet measure area, and {{area}} square feet is a reasonable room size."
         ],
-        "answerSummary": "Square feet are appropriate for the floor area."
+        "commonError": "Using plain feet, which measure length rather than area.",
+        "answerSummary": "{{area}} square feet"
       },
       "prompt": "A room has a floor area of about {{area}} units. Which choice gives a reasonable measurement for that area?",
       "generator": {
@@ -16855,11 +16879,14 @@
         "Average the two x-coordinates and average the two y-coordinates."
       ],
       "solutionReview": {
-        "headline": "Average corresponding coordinates.",
+        "headline": "Average the coordinates: ({{midX}}, {{midY}}).",
         "reasoning": [
-          "The midpoint lies halfway between the endpoint x-values and halfway between the endpoint y-values."
+          "$x$: $\\frac{ {{x1}}+{{x2|paren}} }{2}=\\frac{ {{sx}} }{2}={{midX}}$.",
+          "$y$: $\\frac{ {{y1}}+{{y2|paren}} }{2}=\\frac{ {{sy}} }{2}={{midY}}$.",
+          "So the midpoint is ({{midX}}, {{midY}})."
         ],
-        "answerSummary": "The midpoint is the ordered pair of the two coordinate averages."
+        "commonError": "Taking an endpoint, or averaging only one coordinate.",
+        "answerSummary": "({{midX}}, {{midY}})"
       },
       "prompt": "The endpoints of a segment are ({{x1}}, {{y1}}) and ({{x2}}, {{y2}}). What are the coordinates of the midpoint of the segment?",
       "generator": {
@@ -16895,7 +16922,9 @@
           "d2x": "midX",
           "d2y": "midY+dy",
           "d3x": "midX+dx",
-          "d3y": "midY+dy"
+          "d3y": "midY+dy",
+          "sx": "x1+x2",
+          "sy": "y1+y2"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -17069,11 +17098,13 @@
         "Slope is vertical change divided by horizontal change."
       ],
       "solutionReview": {
-        "headline": "Compare the changes in y and x.",
+        "headline": "Slope is rise over run: {{rise}}/{{run}}.",
         "reasoning": [
-          "Subtract the y-coordinates in the same order as the x-coordinates, then divide."
+          "Rise: ${{y2}}-{{y1|paren}}={{rise}}$. Run: ${{x2}}-{{x1|paren}}={{run}}$.",
+          "Slope: $\\frac{ {{rise}} }{ {{run}} }$, written {{rise}}/{{run}}."
         ],
-        "answerSummary": "The slope is rise over run."
+        "commonError": "Putting the change in $x$ on top (run over rise).",
+        "answerSummary": "{{rise}}/{{run}}"
       },
       "prompt": "What is the slope of the line that passes through ({{x1}}, {{y1}}) and ({{x2}}, {{y2}})?",
       "generator": {
@@ -17278,11 +17309,14 @@
         "Use the horizontal and vertical changes as the legs of a right triangle."
       ],
       "solutionReview": {
-        "headline": "Use coordinate differences with the Pythagorean relationship.",
+        "headline": "Use the Pythagorean theorem on the coordinate changes: {{answer}}.",
         "reasoning": [
-          "The horizontal and vertical changes form perpendicular legs; the point-to-point distance is the hypotenuse."
+          "Horizontal change: ${{x2}}-{{x1|paren}}={{dx}}$. Vertical change: ${{y2}}-{{y1|paren}}={{dy}}$.",
+          "${{dx}}^2+{{dy}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{answer}}$."
         ],
-        "answerSummary": "Compute the square root of the sum of the squared coordinate changes."
+        "commonError": "Adding the two changes instead of combining their squares.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Points A and B have coordinates ({{x1}}, {{y1}}) and ({{x2}}, {{y2}}), respectively. What is the distance from A to B?",
       "generator": {
@@ -17309,7 +17343,10 @@
           "answer": "5*scale",
           "d1": "7*scale",
           "d2": "4*scale",
-          "d3": "6*scale"
+          "d3": "6*scale",
+          "dx": "3*scale",
+          "dy": "4*scale",
+          "sum": "25*scale*scale"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -17483,11 +17520,13 @@
         "In standard form, the number on the right side is the square of the radius."
       ],
       "solutionReview": {
-        "headline": "Take the square root of the right side.",
+        "headline": "The right side is $r^2$, so take its square root: {{answer}}.",
         "reasoning": [
-          "For (x - h)² + (y - k)² = r², the radius is r, not r²."
+          "A circle $(x-h)^2+(y-k)^2=r^2$ has radius $r$.",
+          "Here $r^2={{r2}}$, so $r=\\sqrt{ {{r2}} }={{answer}}$."
         ],
-        "answerSummary": "The radius is the positive square root of the constant on the right."
+        "commonError": "Giving {{r2}}, which is the radius squared.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A circle in the xy-plane is defined by (x - {{h}})² + (y - {{k}})² = {{r2}}. What is the radius of the circle?",
       "generator": {
@@ -17687,11 +17726,14 @@
         "A horizontal base lets you read the base length and vertical height directly from coordinate differences."
       ],
       "solutionReview": {
-        "headline": "Use coordinate differences to obtain base and height.",
+        "headline": "Half of base times height: {{answer}}.",
         "reasoning": [
-          "The first two vertices form a horizontal base. The third vertex is the stated vertical distance above that line."
+          "A and B share the $y$-value {{yBase}}, so $AB$ is a horizontal base of length ${{x2}}-{{x1}}={{base}}$.",
+          "The height is the vertical distance from C to that base: ${{topY}}-{{yBase}}={{height}}$.",
+          "Area: $\\frac{1}{2}\\cdot {{base}}\\cdot {{height}}={{answer}}$."
         ],
-        "answerSummary": "Use one-half times base times height."
+        "commonError": "Forgetting the $\\frac{1}{2}$.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Triangle ABC has vertices A({{x1}}, {{yBase}}), B({{x2}}, {{yBase}}), and C({{topX}}, {{topY}}). What is the area of triangle ABC?",
       "generator": {
@@ -17908,11 +17950,13 @@
         "Nonvertical perpendicular lines have slopes that are negative reciprocals."
       ],
       "solutionReview": {
-        "headline": "Use the negative reciprocal.",
+        "headline": "Perpendicular slopes are negative reciprocals: -{{run}}/{{rise}}.",
         "reasoning": [
-          "Reverse numerator and denominator and change the sign."
+          "Flip the fraction and change its sign: the negative reciprocal of {{rise}}/{{run}} is $-\\frac{ {{run}} }{ {{rise}} }$.",
+          "Check: $\\frac{ {{rise}} }{ {{run}} }\\cdot\\frac{ -{{run}} }{ {{rise}} }=-1$, as perpendicular slopes must multiply to $-1$."
         ],
-        "answerSummary": "The product of the two slopes is -1."
+        "commonError": "Flipping the fraction without changing its sign, or changing the sign without flipping it.",
+        "answerSummary": "-{{run}}/{{rise}}"
       },
       "prompt": "Line ℓ has slope {{rise}}/{{run}}. A second line is perpendicular to ℓ. Which ratio is the slope of the second line?",
       "generator": {
@@ -18104,11 +18148,14 @@
         "A circle with center (h, k) and radius r has equation (x - h)² + (y - k)² = r²."
       ],
       "solutionReview": {
-        "headline": "Place the center coordinates inside the squared differences.",
+        "headline": "Subtract the center inside the squares and square the radius: $r^2={{r2}}$.",
         "reasoning": [
-          "The center values appear with opposite signs inside the parentheses, and the right side is the square of the radius."
+          "A circle with center $(h,k)$ and radius $r$ is $(x-h)^2+(y-k)^2=r^2$.",
+          "Here $h={{h}}$, $k={{k}}$ and ${{radius}}^2={{r2}}$.",
+          "So the equation is (x - {{h}})² + (y - {{k}})² = {{r2}}."
         ],
-        "answerSummary": "Use the standard form of a circle."
+        "commonError": "Using the radius instead of its square on the right side.",
+        "answerSummary": "(x - {{h}})² + (y - {{k}})² = {{r2}}"
       },
       "prompt": "A circle has center ({{h}}, {{k}}) and radius {{radius}}. Which equation represents the circle?",
       "generator": {
@@ -18308,11 +18355,13 @@
         "Use the horizontal segment as the base, then solve the triangle area relationship for the vertical height."
       ],
       "solutionReview": {
-        "headline": "Use area to recover the missing coordinate.",
+        "headline": "Area is half of base times height, so solve for the height: $y={{answer}}$.",
         "reasoning": [
-          "The base lies on the x-axis, so the positive y-coordinate of the third vertex is the triangle's height."
+          "PQ lies on the $x$-axis with length {{base}}, and the height is the $y$-coordinate of R.",
+          "$\\frac{1}{2}\\cdot {{base}}\\cdot y={{area}}$, so $y=\\frac{2\\cdot {{area}}}{ {{base}} }={{answer}}$."
         ],
-        "answerSummary": "Solve A = one-half bh for h."
+        "commonError": "Forgetting the $\\frac{1}{2}$, which gives half the height.",
+        "answerSummary": "$y={{answer}}$"
       },
       "prompt": "Triangle PQR has vertices P(0, 0), Q({{base}}, 0), and R({{baseHalf}}, y), where y > 0. The area of the triangle is {{area}} square units. What is the value of y?",
       "generator": {
@@ -18431,11 +18480,13 @@
         "There are 12 inches in 1 foot."
       ],
       "solutionReview": {
-        "headline": "Convert inches to feet.",
+        "headline": "12 inches make a foot, so divide by 12: {{answer}} feet.",
         "reasoning": [
-          "Divide the number of inches by 12."
+          "Going from a smaller unit to a larger one gives a smaller number, so divide.",
+          "$\\frac{ {{inches}} }{12}={{answer}}$ feet."
         ],
-        "answerSummary": "The selected number of feet represents the same length."
+        "commonError": "Multiplying by 12, which converts feet to inches instead.",
+        "answerSummary": "${{answer}}$ feet"
       },
       "prompt": "A board is {{inches}} inches long. How many feet long is the board?",
       "generator": {
@@ -18548,11 +18599,13 @@
         "There are 3 feet in 1 yard."
       ],
       "solutionReview": {
-        "headline": "Convert feet to yards.",
+        "headline": "3 feet make a yard, so divide by 3: {{answer}} yards.",
         "reasoning": [
-          "Divide the number of feet by 3."
+          "A yard is larger than a foot, so the number of yards is smaller.",
+          "$\\frac{ {{feet}} }{3}={{answer}}$ yards."
         ],
-        "answerSummary": "The selected number of yards represents the same length."
+        "commonError": "Multiplying by 3 instead of dividing.",
+        "answerSummary": "${{answer}}$ yards"
       },
       "prompt": "A rope measures {{feet}} feet. What is its length in yards?",
       "generator": {
@@ -18665,11 +18718,13 @@
         "There are 100 centimeters in 1 meter."
       ],
       "solutionReview": {
-        "headline": "Convert centimeters to meters.",
+        "headline": "100 centimeters make a meter, so divide by 100: {{answer}} meters.",
         "reasoning": [
-          "Divide the number of centimeters by 100."
+          "A meter is 100 centimeters, so divide the number of centimeters by 100.",
+          "$\\frac{ {{centimeters}} }{100}={{answer}}$ meters."
         ],
-        "answerSummary": "The selected number of meters represents the same distance."
+        "commonError": "Dividing by 10, as if a meter were 10 centimeters.",
+        "answerSummary": "${{answer}}$ meters"
       },
       "prompt": "A hallway is {{centimeters}} centimeters long. How many meters long is the hallway?",
       "generator": {
@@ -18782,11 +18837,13 @@
         "There are 1,000 milliliters in 1 liter."
       ],
       "solutionReview": {
-        "headline": "Convert liters to milliliters.",
+        "headline": "1,000 milliliters in every liter: {{answer}} milliliters.",
         "reasoning": [
-          "Multiply the number of liters by 1,000."
+          "A liter is 1000 milliliters, so multiply the number of liters by 1000.",
+          "${{liters}}\\cdot 1000={{answer}}$ milliliters."
         ],
-        "answerSummary": "The selected number of milliliters represents the same volume."
+        "commonError": "Multiplying by 100 instead of 1000.",
+        "answerSummary": "${{answer}}$ milliliters"
       },
       "prompt": "A tank contains {{liters}} liters of liquid. Which amount, in milliliters, is equal to this volume?",
       "generator": {
@@ -18899,11 +18956,13 @@
         "There are 60 minutes in 1 hour."
       ],
       "solutionReview": {
-        "headline": "Convert hours to minutes.",
+        "headline": "60 minutes in every hour: {{answer}} minutes.",
         "reasoning": [
-          "Multiply the number of hours by 60."
+          "Each hour is 60 minutes, so multiply the number of hours by 60.",
+          "${{hours}}\\cdot 60={{answer}}$ minutes."
         ],
-        "answerSummary": "The selected number of minutes represents the same amount of time."
+        "commonError": "Multiplying by 100, as if an hour had 100 minutes.",
+        "answerSummary": "${{answer}}$ minutes"
       },
       "prompt": "A process lasts {{hours}} hours. How many minutes does the process last?",
       "generator": {
@@ -19017,11 +19076,13 @@
         "Convert yards to feet and then feet to inches, or use 36 inches per yard."
       ],
       "solutionReview": {
-        "headline": "Use both customary conversion factors.",
+        "headline": "Yards to feet, then feet to inches: {{answer}} inches.",
         "reasoning": [
-          "Each yard contains 3 feet, and each foot contains 12 inches, so each yard contains 36 inches."
+          "Yards to feet: ${{yards}}\\cdot 3={{ft}}$ feet.",
+          "Feet to inches: ${{ft}}\\cdot 12={{answer}}$ inches."
         ],
-        "answerSummary": "The selected number of inches represents the same length."
+        "commonError": "Doing only one of the two conversions.",
+        "answerSummary": "${{answer}}$ inches"
       },
       "prompt": "A strip of material is {{yards}} yards long. What is the length of the strip in inches?",
       "generator": {
@@ -19036,7 +19097,8 @@
           "answer": "yards*36",
           "d1": "yards*12",
           "d2": "yards*3",
-          "d3": "answer+12"
+          "d3": "answer+12",
+          "ft": "yards*3"
         },
         "constraints": [
           "answer!=d1",
@@ -19135,11 +19197,13 @@
         "For area, the linear conversion factor must be applied in both dimensions."
       ],
       "solutionReview": {
-        "headline": "Square the length conversion factor.",
+        "headline": "A square foot is $12\\cdot 12=144$ square inches: {{answer}} square inches.",
         "reasoning": [
-          "One square foot is a 12-inch by 12-inch square, so it contains 144 square inches."
+          "A square foot is 12 inches on each side, so it holds $12\\cdot 12=144$ square inches.",
+          "${{squareFeet}}\\cdot 144={{answer}}$ square inches."
         ],
-        "answerSummary": "Multiply the square-foot measure by 144."
+        "commonError": "Multiplying by 12, which converts lengths, not areas.",
+        "answerSummary": "${{answer}}$ square inches"
       },
       "prompt": "A rectangular surface has area {{squareFeet}} square feet. What is this area in square inches?",
       "generator": {
@@ -19253,11 +19317,13 @@
         "Multiply the drawing length by the real-world distance represented by each drawing unit."
       ],
       "solutionReview": {
-        "headline": "Apply the scale factor.",
+        "headline": "Each centimeter on the drawing is {{scale}} meters: {{answer}} meters.",
         "reasoning": [
-          "Each unit on the drawing represents the stated number of real-world units, so multiply by the drawing length."
+          "Every centimeter on the drawing stands for {{scale}} meters, so multiply.",
+          "${{mapLength}}\\cdot {{scale}}={{answer}}$ meters."
         ],
-        "answerSummary": "The selected distance is the real-world length represented by the drawing."
+        "commonError": "Adding the two numbers instead of multiplying.",
+        "answerSummary": "${{answer}}$ meters"
       },
       "prompt": "On a scale drawing, 1 centimeter represents {{scale}} meters. Two points are {{mapLength}} centimeters apart on the drawing. What is the actual distance between the points, in meters?",
       "generator": {
@@ -19473,11 +19539,13 @@
         "A rectangle has two sides of each length."
       ],
       "solutionReview": {
-        "headline": "Find the distance around the rectangle.",
+        "headline": "Perimeter is twice the length plus twice the width: {{answer}} feet.",
         "reasoning": [
-          "Add two lengths and two widths."
+          "A rectangle has two sides of each length.",
+          "$2({{length}}+{{width}})={{answer}}$ feet."
         ],
-        "answerSummary": "The perimeter is twice the sum of the length and width."
+        "commonError": "Adding one length and one width only, or multiplying them (the area).",
+        "answerSummary": "${{answer}}$ feet"
       },
       "prompt": "A rectangular garden is {{length}} feet long and {{width}} feet wide. What is the perimeter of the garden, in feet?",
       "generator": {
@@ -19693,11 +19761,13 @@
         "The area of a triangle is one-half the product of its base and height."
       ],
       "solutionReview": {
-        "headline": "Use the triangle area relationship.",
+        "headline": "Half of base times height: {{answer}} square centimeters.",
         "reasoning": [
-          "Multiply the base by the perpendicular height and divide by 2."
+          "The area of a triangle is $\\frac{1}{2}$ of base times height.",
+          "$\\frac{1}{2}\\cdot {{base}}\\cdot {{height}}={{answer}}$ square centimeters."
         ],
-        "answerSummary": "The selected value is the area in square units."
+        "commonError": "Forgetting the $\\frac{1}{2}$.",
+        "answerSummary": "${{answer}}$ square centimeters"
       },
       "prompt": "A triangle has a base of {{base}} centimeters and a height of {{height}} centimeters. What is its area, in square centimeters?",
       "generator": {
@@ -19914,11 +19984,13 @@
         "For a circle of radius r, the circumference is 2πr."
       ],
       "solutionReview": {
-        "headline": "Use the circumference relationship.",
+        "headline": "Circumference is $2\\pi r$: {{answerCoeff}}π meters.",
         "reasoning": [
-          "Multiply the radius by 2π."
+          "The circumference of a circle is $2\\pi r$.",
+          "With $r={{radius}}$: $2\\cdot {{radius}}={{answerCoeff}}$, so the circumference is {{answerCoeff}}π meters."
         ],
-        "answerSummary": "Keep π in the exact circumference."
+        "commonError": "Using $\\pi r^2$, which gives the area.",
+        "answerSummary": "{{answerCoeff}}π"
       },
       "prompt": "A circular track has radius {{radius}} meters. Which value is its circumference, in meters?",
       "generator": {
@@ -20129,11 +20201,13 @@
         "For a circle of radius r, the area is πr²."
       ],
       "solutionReview": {
-        "headline": "Use the circle area relationship.",
+        "headline": "Area is $\\pi r^2$: {{answerCoeff}}π square feet.",
         "reasoning": [
-          "Square the radius and multiply by π."
+          "The area of a circle is $\\pi r^2$.",
+          "With $r={{radius}}$: ${{radius}}^2={{answerCoeff}}$, so the area is {{answerCoeff}}π square feet."
         ],
-        "answerSummary": "Keep π in the exact area."
+        "commonError": "Doubling the radius instead of squaring it, which gives the circumference.",
+        "answerSummary": "{{answerCoeff}}π"
       },
       "prompt": "The radius of a circular table is {{radius}} feet. Which value is the area of the tabletop, in square feet?",
       "generator": {
@@ -20344,11 +20418,13 @@
         "Volume of a rectangular prism is length × width × height."
       ],
       "solutionReview": {
-        "headline": "Use all three dimensions.",
+        "headline": "Length times width times height: {{answer}} cubic inches.",
         "reasoning": [
-          "Multiply the length, width, and height."
+          "The volume of a rectangular box is length times width times height.",
+          "${{length}}\\cdot {{width}}\\cdot {{height}}={{answer}}$ cubic inches."
         ],
-        "answerSummary": "The result is measured in cubic units."
+        "commonError": "Stopping at the base area, or computing the surface area.",
+        "answerSummary": "${{answer}}$ cubic inches"
       },
       "prompt": "A rectangular storage box is {{length}} inches long, {{width}} inches wide, and {{height}} inches high. What is its volume, in cubic inches?",
       "generator": {
@@ -20570,11 +20646,13 @@
         "A rectangular prism has two faces for each pair of dimensions."
       ],
       "solutionReview": {
-        "headline": "Account for all six faces.",
+        "headline": "Add the areas of all six faces: {{answer}}.",
         "reasoning": [
-          "Add twice each of lw, lh, and wh."
+          "The faces come in three matching pairs: ${{length}}\\cdot {{width}}={{lw}}$, ${{length}}\\cdot {{height}}={{lh}}$ and ${{width}}\\cdot {{height}}={{wh}}$.",
+          "Each face appears twice: $2({{lw}}+{{lh}}+{{wh}})={{answer}}$."
         ],
-        "answerSummary": "The result is the total exterior area."
+        "commonError": "Counting each pair of faces only once, or computing the volume.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A closed rectangular prism has length {{length}}, width {{width}}, and height {{height}}. What is its total surface area?",
       "generator": {
@@ -20599,7 +20677,10 @@
           "answer": "2*(length*width+length*height+width*height)",
           "d1": "length*width*height",
           "d2": "2*length*width",
-          "d3": "length*width+length*height+width*height"
+          "d3": "length*width+length*height+width*height",
+          "lw": "length*width",
+          "lh": "length*height",
+          "wh": "width*height"
         },
         "constraints": [
           "answer!=d1",
@@ -20796,11 +20877,14 @@
         "Find the area of the outer rectangle, then subtract the rectangular cutout."
       ],
       "solutionReview": {
-        "headline": "Subtract the missing rectangular part.",
+        "headline": "Whole sheet minus the corner removed: {{answer}}.",
         "reasoning": [
-          "Compute the outer rectangle area and remove the cutout area."
+          "Whole sheet: ${{outerLength}}\\cdot {{outerWidth}}={{whole}}$ square units.",
+          "Corner removed: ${{cutLength}}\\cdot {{cutWidth}}={{cut}}$ square units.",
+          "Remaining: ${{whole}}-{{cut}}={{answer}}$ square units."
         ],
-        "answerSummary": "The remaining area is the composite region."
+        "commonError": "Giving the whole sheet's area without removing the corner.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A rectangular sheet measuring {{outerLength}} units by {{outerWidth}} units has a {{cutLength}}-unit by {{cutWidth}}-unit rectangle removed from one corner. What is the area of the remaining sheet?",
       "generator": {
@@ -20832,7 +20916,9 @@
           "answer": "outerLength*outerWidth-cutLength*cutWidth",
           "d1": "outerLength*outerWidth",
           "d2": "cutLength*cutWidth",
-          "d3": "answer-cutLength"
+          "d3": "answer-cutLength",
+          "whole": "outerLength*outerWidth",
+          "cut": "cutLength*cutWidth"
         },
         "constraints": [
           "answer!=d1",
@@ -21029,11 +21115,13 @@
         "For a rectangle, area equals length times width."
       ],
       "solutionReview": {
-        "headline": "Recover the missing dimension.",
+        "headline": "Area is length times width, so divide: {{answer}} units.",
         "reasoning": [
-          "Divide the area by the known length."
+          "Length times width is {{area}}, so width is area divided by length.",
+          "$\\frac{ {{area}} }{ {{length}} }={{answer}}$ units."
         ],
-        "answerSummary": "The quotient is the missing width."
+        "commonError": "Halving the area, or subtracting the length from it.",
+        "answerSummary": "${{answer}}$ units"
       },
       "prompt": "A rectangle has area {{area}} square units and length {{length}} units. What is its width, in units?",
       "generator": {
@@ -21166,11 +21254,14 @@
         "For a right triangle with legs a and b and hypotenuse c, a² + b² = c²."
       ],
       "solutionReview": {
-        "headline": "Use the Pythagorean relationship.",
+        "headline": "Pythagorean theorem: the hypotenuse is {{answer}}.",
         "reasoning": [
-          "Square both leg lengths, add, and take the square root to obtain the hypotenuse."
+          "For a right triangle, $c^2=a^2+b^2$.",
+          "${{legA}}^2+{{legB}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }={{answer}}$ units."
         ],
-        "answerSummary": "The hypotenuse is the side opposite the right angle."
+        "commonError": "Adding the legs instead of their squares.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "The legs of a right triangle measure {{legA}} units and {{legB}} units. What is the length of the hypotenuse?",
       "generator": {
@@ -21187,7 +21278,8 @@
           "answer": "5*scale",
           "d1": "7*scale",
           "d2": "4*scale",
-          "d3": "6*scale"
+          "d3": "6*scale",
+          "sum": "legA*legA+legB*legB"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -21291,11 +21383,14 @@
         "Use c = √(a² + b²), then round only at the end."
       ],
       "solutionReview": {
-        "headline": "Square, add, and take the square root.",
+        "headline": "The third side is the hypotenuse: about {{answer}} inches.",
         "reasoning": [
-          "The hypotenuse is the square root of the sum of the squares of the two legs."
+          "The perpendicular sides are the legs, so the third side is the hypotenuse, $\\sqrt{a^2+b^2}$.",
+          "${{legA}}^2+{{legB}}^2={{sum}}$.",
+          "$\\sqrt{ {{sum}} }\\approx {{answer}}$ inches, to the nearest hundredth."
         ],
-        "answerSummary": "Round the final length to the nearest hundredth."
+        "commonError": "Subtracting the squares, which is how to find a leg, not the hypotenuse.",
+        "answerSummary": "${{answer}}$ inches"
       },
       "prompt": "A right triangular brace has perpendicular sides of {{legA}} inches and {{legB}} inches. To the nearest hundredth of an inch, how long is the third side?",
       "generator": {
@@ -21315,7 +21410,8 @@
           "answer": "round(sqrt(legA^2+legB^2)*100)/100",
           "d1": "legA+legB",
           "d2": "round(sqrt(abs(legA^2-legB^2))*100)/100",
-          "d3": "legA*legB"
+          "d3": "legA*legB",
+          "sum": "legA*legA+legB*legB"
         },
         "constraints": [
           "answer!=d1",
@@ -21427,11 +21523,13 @@
         "For an acute angle in a right triangle, sine is opposite divided by hypotenuse."
       ],
       "solutionReview": {
-        "headline": "Identify opposite and hypotenuse.",
+        "headline": "Sine is opposite over hypotenuse.",
         "reasoning": [
-          "The sine of the angle is the length of the opposite side divided by the hypotenuse."
+          "The side opposite θ is {{opposite}} and the hypotenuse is {{hypotenuse}}.",
+          "$\\sin\\theta=\\frac{ {{opposite}} }{ {{hypotenuse}} }=\\frac{3}{5}$, written {{opposite}}/{{hypotenuse}}."
         ],
-        "answerSummary": "Use opposite/hypotenuse."
+        "commonError": "Using the adjacent leg (cosine) or opposite over adjacent (tangent).",
+        "answerSummary": "{{opposite}}/{{hypotenuse}}"
       },
       "prompt": "In a right triangle, the side opposite angle θ is {{opposite}} units long, the adjacent leg is {{adjacent}} units long, and the hypotenuse is {{hypotenuse}} units long. Which ratio represents sin θ?",
       "generator": {
@@ -21549,11 +21647,13 @@
         "For an acute angle in a right triangle, cosine is adjacent divided by hypotenuse."
       ],
       "solutionReview": {
-        "headline": "Identify adjacent and hypotenuse.",
+        "headline": "Cosine is adjacent over hypotenuse.",
         "reasoning": [
-          "The cosine of the angle is the length of the adjacent leg divided by the hypotenuse."
+          "The leg adjacent to α is {{adjacent}} and the hypotenuse is {{hypotenuse}}.",
+          "$\\cos\\alpha=\\frac{ {{adjacent}} }{ {{hypotenuse}} }=\\frac{12}{13}$, written {{adjacent}}/{{hypotenuse}}."
         ],
-        "answerSummary": "Use adjacent/hypotenuse."
+        "commonError": "Using the opposite leg, which gives the sine.",
+        "answerSummary": "{{adjacent}}/{{hypotenuse}}"
       },
       "prompt": "Relative to angle α in a right triangle, the adjacent leg measures {{adjacent}} units, the opposite leg measures {{opposite}} units, and the hypotenuse measures {{hypotenuse}} units. Which ratio represents cos α?",
       "generator": {
@@ -21671,11 +21771,13 @@
         "For an acute angle in a right triangle, tangent is opposite divided by adjacent."
       ],
       "solutionReview": {
-        "headline": "Use the two legs relative to the angle.",
+        "headline": "Tangent is opposite over adjacent.",
         "reasoning": [
-          "The tangent of the angle is opposite divided by adjacent."
+          "The leg opposite β is {{opposite}} and the leg adjacent to it is {{adjacent}}.",
+          "$\\tan\\beta=\\frac{ {{opposite}} }{ {{adjacent}} }=\\frac{8}{15}$, written {{opposite}}/{{adjacent}}."
         ],
-        "answerSummary": "Use opposite/adjacent."
+        "commonError": "Flipping the ratio, or using the hypotenuse.",
+        "answerSummary": "{{opposite}}/{{adjacent}}"
       },
       "prompt": "For angle β in a right triangle, the opposite leg is {{opposite}} units, the adjacent leg is {{adjacent}} units, and the hypotenuse is {{hypotenuse}} units. Which ratio represents tan β?",
       "generator": {
@@ -21794,11 +21896,13 @@
         "tan θ = opposite/adjacent."
       ],
       "solutionReview": {
-        "headline": "Use the tangent ratio as a proportion.",
+        "headline": "Opposite = tan θ × adjacent: {{answer}} units.",
         "reasoning": [
-          "Match the given tangent numerator to the opposite side and denominator to the adjacent side, then apply the same scale factor."
+          "Tangent is opposite over adjacent, so the opposite leg is $\\tan\\theta$ times the adjacent leg.",
+          "$\\frac{ {{ratioNum}} }{ {{ratioDen}} }\\cdot {{adjacent}}={{answer}}$ units."
         ],
-        "answerSummary": "The opposite side uses the same proportional scale."
+        "commonError": "Dividing the adjacent leg by the ratio instead of multiplying.",
+        "answerSummary": "${{answer}}$ units"
       },
       "prompt": "For an acute angle θ in a right triangle, tan θ = {{ratioNum}}/{{ratioDen}}. The leg adjacent to θ is {{adjacent}} units long. What is the length of the leg opposite θ?",
       "generator": {
@@ -21938,11 +22042,13 @@
         "sin θ = opposite/hypotenuse."
       ],
       "solutionReview": {
-        "headline": "Use the sine ratio as a proportion.",
+        "headline": "Hypotenuse = opposite ÷ sin θ: {{answer}} units.",
         "reasoning": [
-          "The ratio numerator corresponds to the opposite side and the denominator to the hypotenuse. Apply the same scale factor to both."
+          "Sine is opposite over hypotenuse, so the hypotenuse is the opposite side divided by $\\sin\\theta$.",
+          "$\\frac{ {{opposite}}\\cdot {{ratioDen}} }{ {{ratioNum}} }={{answer}}$ units."
         ],
-        "answerSummary": "The denominator-scaled length is the hypotenuse."
+        "commonError": "Multiplying the opposite side by the ratio instead of dividing by it.",
+        "answerSummary": "${{answer}}$ units"
       },
       "prompt": "In a right triangle, sin θ = {{ratioNum}}/{{ratioDen}}. The side opposite θ measures {{opposite}} units. What is the length of the hypotenuse?",
       "generator": {
@@ -22082,11 +22188,13 @@
         "Find the missing side with the Pythagorean relationship before adding all three sides."
       ],
       "solutionReview": {
-        "headline": "Find the third side, then add all sides.",
+        "headline": "Find the hypotenuse, then add all three sides: {{answer}} inches.",
         "reasoning": [
-          "The given legs form a scaled 5-12-13 right triangle. After finding the hypotenuse, add all three side lengths."
+          "Hypotenuse: $\\sqrt{ {{legA}}^2+{{legB}}^2}=\\sqrt{ {{sum}} }={{hypotenuse}}$ inches.",
+          "Perimeter: ${{legA}}+{{legB}}+{{hypotenuse}}={{answer}}$ inches."
         ],
-        "answerSummary": "The perimeter is the sum of both legs and the hypotenuse."
+        "commonError": "Adding only the two given sides.",
+        "answerSummary": "${{answer}}$ inches"
       },
       "prompt": "A right triangular frame has perpendicular sides measuring {{legA}} inches and {{legB}} inches. What is the perimeter of the frame, in inches?",
       "generator": {
@@ -22104,7 +22212,8 @@
           "answer": "30*scale",
           "d1": "17*scale",
           "d2": "18*scale",
-          "d3": "25*scale"
+          "d3": "25*scale",
+          "sum": "legA*legA+legB*legB"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -22278,11 +22387,14 @@
         "A translation changes each coordinate by the stated horizontal or vertical amount."
       ],
       "solutionReview": {
-        "headline": "Apply the horizontal and vertical changes.",
+        "headline": "Right adds to $x$, up adds to $y$: ({{xOut}}, {{yOut}}).",
         "reasoning": [
-          "Add the horizontal change to the x-coordinate and the vertical change to the y-coordinate."
+          "Right {{dx}}: ${{x}}+{{dx}}={{xOut}}$.",
+          "Up {{dy}}: ${{y}}+{{dy}}={{yOut}}$.",
+          "The image is ({{xOut}}, {{yOut}})."
         ],
-        "answerSummary": "The resulting ordered pair is the image of the point."
+        "commonError": "Subtracting for a move right or up.",
+        "answerSummary": "({{xOut}}, {{yOut}})"
       },
       "prompt": "Point P has coordinates ({{x}}, {{y}}). It is translated {{dx}} units to the right and {{dy}} units up. Which ordered pair gives the image of P?",
       "generator": {
@@ -22490,11 +22602,13 @@
         "Reflecting across the y-axis changes the sign of the x-coordinate."
       ],
       "solutionReview": {
-        "headline": "Keep y and reverse the sign of x.",
+        "headline": "Across the $y$-axis, change the sign of $x$: ({{xOut}}, {{yOut}}).",
         "reasoning": [
-          "Points on opposite sides of the y-axis have opposite x-coordinates and the same y-coordinate."
+          "A reflection across the $y$-axis keeps $y$ and sends $x$ to the same distance on the other side.",
+          "$x$: $-({{x}})={{xOut}}$; $y$ stays {{y}}. The image is ({{xOut}}, {{yOut}})."
         ],
-        "answerSummary": "The reflected point has coordinates (-x, y)."
+        "commonError": "Changing the sign of $y$, which reflects across the $x$-axis instead.",
+        "answerSummary": "({{xOut}}, {{yOut}})"
       },
       "prompt": "Point Q has coordinates ({{x}}, {{y}}). What are the coordinates of its image after reflection across the y-axis?",
       "generator": {
@@ -22692,11 +22806,13 @@
         "A 90-degree counterclockwise rotation about the origin maps (x, y) to (-y, x)."
       ],
       "solutionReview": {
-        "headline": "Swap the coordinates and negate the new x-coordinate.",
+        "headline": "A $90^\\circ$ counterclockwise turn sends $(x, y)$ to $(-y, x)$: ({{xOut}}, {{yOut}}).",
         "reasoning": [
-          "For a 90-degree counterclockwise rotation, (x, y) becomes (-y, x)."
+          "Rotating $90^\\circ$ counterclockwise about the origin sends $(x,y)$ to $(-y,x)$.",
+          "New $x$: $-({{y}})={{xOut}}$. New $y$: {{x}}. The image is ({{xOut}}, {{yOut}})."
         ],
-        "answerSummary": "The resulting ordered pair is the rotated image."
+        "commonError": "Using the clockwise rule $(y,-x)$.",
+        "answerSummary": "({{xOut}}, {{yOut}})"
       },
       "prompt": "Point R({{x}}, {{y}}) is rotated 90° counterclockwise about the origin. What are the coordinates of the image of R?",
       "generator": {
@@ -22894,11 +23010,13 @@
         "A dilation centered at the origin multiplies both coordinates by the scale factor."
       ],
       "solutionReview": {
-        "headline": "Multiply both coordinates by the scale factor.",
+        "headline": "Multiply both coordinates by {{scale}}: ({{xOut}}, {{yOut}}).",
         "reasoning": [
-          "A dilation from the origin scales horizontal and vertical distances by the same factor."
+          "A dilation about the origin multiplies each coordinate by the scale factor.",
+          "${{scale}}\\cdot {{x}}={{xOut}}$ and ${{scale}}\\cdot {{y}}={{yOut}}$, so the image is ({{xOut}}, {{yOut}})."
         ],
-        "answerSummary": "Both coordinates of the image are scaled."
+        "commonError": "Scaling only one coordinate.",
+        "answerSummary": "({{xOut}}, {{yOut}})"
       },
       "prompt": "A dilation centered at the origin has scale factor {{scale}}. If S({{x}}, {{y}}) is dilated, which ordered pair gives the image of S?",
       "generator": {
@@ -23101,11 +23219,13 @@
         "For a regular polygon, the number of lines of symmetry equals the number of sides."
       ],
       "solutionReview": {
-        "headline": "Use the symmetry of a regular polygon.",
+        "headline": "A regular polygon has as many lines of symmetry as sides: {{answer}}.",
         "reasoning": [
-          "Each side or vertex has a corresponding symmetry axis, giving one line of symmetry per side."
+          "In a regular polygon every side and every angle match, so each vertex (or side midpoint) lines up with the center to give a line of symmetry.",
+          "There is one such line for each side, so a regular polygon with {{sides}} sides has {{answer}} lines of symmetry."
         ],
-        "answerSummary": "A regular n-gon has n lines of symmetry."
+        "commonError": "Counting only the lines through vertices, which misses those through side midpoints when the number of sides is even.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A regular polygon has {{sides}} sides. How many lines of symmetry does the polygon have?",
       "generator": {
@@ -23295,11 +23415,14 @@
         "Perform the reflection first, then apply the translation to the reflected coordinates."
       ],
       "solutionReview": {
-        "headline": "Apply the transformations in the stated order.",
+        "headline": "Reflect first, then translate: ({{xOut}}, {{yOut}}).",
         "reasoning": [
-          "Reflection across the x-axis changes y to -y. Then add the horizontal and vertical translation amounts."
+          "Reflecting across the $x$-axis sends $({{x}}, {{y}})$ to $({{x}}, -{{y}})$.",
+          "Then right {{dx}} and up {{dy}}: ${{x}}+{{dx}}={{xOut}}$ and $-{{y}}+{{dy}}={{yOut}}$.",
+          "The final point is ({{xOut}}, {{yOut}})."
         ],
-        "answerSummary": "The final ordered pair comes from both transformations."
+        "commonError": "Skipping the reflection, which leaves the $y$-coordinate positive.",
+        "answerSummary": "({{xOut}}, {{yOut}})"
       },
       "prompt": "Point T({{x}}, {{y}}) is first reflected across the x-axis and then translated {{dx}} units to the right and {{dy}} units up. What are the final coordinates of T?",
       "generator": {
@@ -23508,11 +23631,13 @@
         "First determine the missing side of the first triangle. Corresponding sides of congruent triangles have equal lengths."
       ],
       "solutionReview": {
-        "headline": "Recover the side length, then use congruence.",
+        "headline": "Find AB from the perimeter; congruent sides match: DE = {{answer}}.",
         "reasoning": [
-          "Subtract the two known side lengths from the perimeter to find the third side. The corresponding side in a congruent triangle has that same length."
+          "$AB={{perimeter}}-{{sideB}}-{{sideC}}={{answer}}$ units.",
+          "Corresponding sides of congruent triangles are equal, so $DE=AB={{answer}}$ units."
         ],
-        "answerSummary": "Congruence preserves corresponding side lengths."
+        "commonError": "Giving one of the other sides, or the whole perimeter.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Triangle ABC is congruent to triangle DEF, and side AB corresponds to side DE. Triangle ABC has perimeter {{perimeter}} units. The other two sides of triangle ABC measure {{sideB}} units and {{sideC}} units. What is the length of DE?",
       "generator": {
@@ -23718,11 +23843,13 @@
         "Corresponding side lengths in similar triangles have the same scale factor."
       ],
       "solutionReview": {
-        "headline": "Use the common scale factor.",
+        "headline": "Multiply by the scale factor {{scale}}: {{answer}} units.",
         "reasoning": [
-          "The larger known side is the smaller known side multiplied by the scale factor. Apply that same factor to the other corresponding side."
+          "Scale factor: $\\frac{ {{largeKnown}} }{ {{smallKnown}} }={{scale}}$.",
+          "Corresponding side: ${{smallTarget}}\\cdot {{scale}}={{answer}}$ units."
         ],
-        "answerSummary": "Multiply the smaller target side by the similarity scale factor."
+        "commonError": "Adding the scale factor instead of multiplying by it.",
+        "answerSummary": "${{answer}}$ units"
       },
       "prompt": "Two triangles are similar. A side of the smaller triangle measuring {{smallKnown}} units corresponds to a side of the larger triangle measuring {{largeKnown}} units. Another side of the smaller triangle measures {{smallTarget}} units. What is the length of its corresponding side in the larger triangle?",
       "generator": {
@@ -25808,11 +25935,13 @@
         "When group sizes differ, compare successes as a fraction of each group's total rather than comparing raw success counts."
       ],
       "solutionReview": {
-        "headline": "Compare rates, not just counts.",
+        "headline": "Compare success rates, not counts: Group A had the greater success rate.",
         "reasoning": [
-          "Group B can have more successes but still have a smaller success rate because Group B is twice as large."
+          "Group A: $\\frac{ {{successA}} }{ {{totalA}} }={{rateA}}$. Group B: $\\frac{ {{successB}} }{ {{totalB}} }={{rateB}}$.",
+          "${{rateA}}>{{rateB}}$, even though Group B is larger, so Group A had the greater success rate."
         ],
-        "answerSummary": "Group A has the greater success rate."
+        "commonError": "Comparing the numbers of successes, which favors the larger group.",
+        "answerSummary": "Group A had the greater success rate"
       },
       "prompt": "Group A has {{successA}} successes among {{totalA}} trials. Group B has {{successB}} successes among {{totalB}} trials. Which group has the greater success rate?",
       "generator": {
@@ -25838,7 +25967,9 @@
           "successA": "aRateUnits*scale",
           "totalB": "20*scale",
           "successB": "2*bRateUnits*scale",
-          "advantage": "successA*totalB-successB*totalA"
+          "advantage": "successA*totalB-successB*totalA",
+          "rateA": "aRateUnits/10",
+          "rateB": "bRateUnits/10"
         }
       },
       "choices": [
@@ -28571,11 +28702,13 @@
         "An event and its complement have probabilities that total 100%."
       ],
       "solutionReview": {
-        "headline": "Subtract from 100%.",
+        "headline": "An event and its complement add to 100%: {{answer}}%.",
         "reasoning": [
-          "The event and its complement must account for all outcomes."
+          "The delivery either arrives before noon or it does not, so the two probabilities add to 100%.",
+          "$100-{{eventPercent}}={{answer}}$, so the probability is {{answer}}%."
         ],
-        "answerSummary": "The complement is 100% minus the given probability."
+        "commonError": "Repeating the given probability instead of subtracting it from 100%.",
+        "answerSummary": "{{answer}}%"
       },
       "prompt": "The probability that a delivery arrives before noon is {{eventPercent}}%. What is the probability that it does not arrive before noon?",
       "generator": {
@@ -28702,11 +28835,13 @@
         "Use the multiplication principle when one choice is made from each of two groups."
       ],
       "solutionReview": {
-        "headline": "Multiply the numbers of choices.",
+        "headline": "Each entree pairs with every drink: {{answer}} combinations.",
         "reasoning": [
-          "Each entree can be paired with every drink."
+          "For each of the {{firstOutcomes}} entrees there are {{secondOutcomes}} drink choices.",
+          "${{firstOutcomes}}\\cdot {{secondOutcomes}}={{answer}}$ combinations."
         ],
-        "answerSummary": "Multiply the two numbers of choices."
+        "commonError": "Adding the numbers of choices instead of multiplying.",
+        "answerSummary": "{{answer}} combinations"
       },
       "prompt": "A meal includes one choice from {{firstOutcomes}} entrees and one choice from {{secondOutcomes}} drinks. How many different entree-and-drink combinations are possible?",
       "generator": {
@@ -28839,11 +28974,13 @@
         "List the six equally likely results and count those meeting the condition."
       ],
       "solutionReview": {
-        "headline": "Count outcomes at or above the threshold.",
+        "headline": "Count the outcomes from {{threshold}} through 6, out of 6: {{favorable}}/6.",
         "reasoning": [
-          "A fair six-sided number cube has six equally likely outcomes."
+          "\"At least {{threshold}}\" means {{threshold}} or more. The outcomes from {{threshold}} to 6 number $6-{{threshold}}+1={{favorable}}$.",
+          "All 6 outcomes are equally likely, so the probability is $\\frac{ {{favorable}} }{6}$, written {{favorable}}/6."
         ],
-        "answerSummary": "The probability is the qualifying outcomes divided by 6."
+        "commonError": "Leaving out {{threshold}} itself, or using the threshold as the count.",
+        "answerSummary": "{{favorable}}/6"
       },
       "prompt": "A fair six-sided number cube is rolled once. What is the probability that the number rolled is at least {{threshold}}?",
       "generator": {
@@ -28959,11 +29096,13 @@
         "Experimental probability is observed successes divided by the total number of observations."
       ],
       "solutionReview": {
-        "headline": "Use the observed relative frequency.",
+        "headline": "Experimental probability is successes over trials: {{successes}}/{{trials}}.",
         "reasoning": [
-          "The number choosing option A is the favorable count in the sample."
+          "Experimental probability uses what was observed: the number choosing option A divided by everyone in the sample.",
+          "The sample has ${{successes}}+{{failures}}={{trials}}$ customers, and {{successes}} chose A, so the probability is {{successes}}/{{trials}}."
         ],
-        "answerSummary": "Divide observed successes by all observations."
+        "commonError": "Using the customers who did not choose option A, which gives the complement.",
+        "answerSummary": "{{successes}}/{{trials}}"
       },
       "prompt": "In a sample, {{successes}} of {{trials}} customers chose option A. Based on this sample, what is the experimental probability that a customer chose option A?",
       "generator": {
@@ -29091,11 +29230,13 @@
         "For independent events, multiply the probabilities of the two events."
       ],
       "solutionReview": {
-        "headline": "Find each red probability, then multiply.",
+        "headline": "Independent spins: multiply the two red probabilities.",
         "reasoning": [
-          "The sample-space denominator is the product of the numbers of sections on the two spinners."
+          "Spinner A: {{favorableA}} red of ${{favorableA}}+{{otherA}}={{totalA}}$ sections. Spinner B: {{favorableB}} red of ${{favorableB}}+{{otherB}}={{totalB}}$ sections.",
+          "Both red: $\\frac{ {{favorableA}} }{ {{totalA}} }\\cdot\\frac{ {{favorableB}} }{ {{totalB}} }=\\frac{ {{answerNumerator}} }{ {{answerDenominator}} }$, written {{answerNumerator}}/{{answerDenominator}}."
         ],
-        "answerSummary": "Multiply the two independent red probabilities."
+        "commonError": "Adding the red counts instead of multiplying the probabilities.",
+        "answerSummary": "{{answerNumerator}}/{{answerDenominator}}"
       },
       "prompt": "Spinner A has {{favorableA}} red sections and {{otherA}} nonred sections of equal size. Spinner B has {{favorableB}} red sections and {{otherB}} nonred sections of equal size. Each spinner is spun once. What is the probability that both results are red?",
       "generator": {
@@ -29386,11 +29527,13 @@
         "After one red card is selected, both the red-card count and total-card count decrease by 1."
       ],
       "solutionReview": {
-        "headline": "Adjust the second draw.",
+        "headline": "Without replacement, the second draw has one fewer red and one fewer card.",
         "reasoning": [
-          "Multiply red over total by one-less-red over one-less-total."
+          "First card red: {{target}} of {{total}}. Then {{tm1}} red cards remain among {{totm1}}.",
+          "$\\frac{ {{target}} }{ {{total}} }\\cdot\\frac{ {{tm1}} }{ {{totm1}} }=\\frac{ {{answerNumerator}} }{ {{answerDenominator}} }$, written {{answerNumerator}}/{{answerDenominator}}."
         ],
-        "answerSummary": "Account for the changed sample space on the second draw."
+        "commonError": "Using $\\frac{ {{target}} }{ {{total}} }$ for both draws, as if the first card were put back.",
+        "answerSummary": "{{answerNumerator}}/{{answerDenominator}}"
       },
       "prompt": "A box contains {{target}} red cards and {{other}} white cards. Two cards are selected at random without replacement. What is the probability that both cards are red?",
       "generator": {
@@ -29412,7 +29555,9 @@
           "answerDenominator": "total*(total-1)",
           "d1Numerator": "target*target",
           "d2Denominator": "total*total",
-          "d3Numerator": "target*other"
+          "d3Numerator": "target*other",
+          "tm1": "target-1",
+          "totm1": "target+other-1"
         },
         "constraints": [
           "other!=target",
@@ -29587,11 +29732,13 @@
         "Ask whether the recorded values name groups or measure an amount."
       ],
       "solutionReview": {
-        "headline": "The responses name categories.",
+        "headline": "An activity is a name, not a number: Categorical.",
         "reasoning": [
-          "Preferred after-school activity describes a label or group rather than a numerical measurement."
+          "Each of the {{students}} answers is an activity such as soccer or band; it puts the student in a group.",
+          "Data that sort individuals into groups are categorical; averaging activity names would make no sense."
         ],
-        "answerSummary": "The variable is categorical."
+        "commonError": "Calling it numerical because the activities can be counted; the counts summarize the data, but each answer is a category.",
+        "answerSummary": "Categorical"
       },
       "prompt": "A survey of {{students}} students records each student's preferred after-school activity. Which type of data is recorded for preferred after-school activity?",
       "generator": {
@@ -29767,11 +29914,13 @@
         "A numerical count is quantitative data."
       ],
       "solutionReview": {
-        "headline": "The responses are numerical counts.",
+        "headline": "A number of books is a count you can average: Quantitative.",
         "reasoning": [
-          "The number of books read measures how many books each student read."
+          "Each of the {{students}} students gets a number: how many books they read in {{months}} month(s).",
+          "Numbers that measure an amount, where arithmetic such as an average makes sense, are quantitative data."
         ],
-        "answerSummary": "The variable is quantitative."
+        "commonError": "Treating the counts as labels; here the numbers measure an amount.",
+        "answerSummary": "Quantitative"
       },
       "prompt": "For each of {{students}} students, a researcher records the number of books the student read during {{months}} months. Which type of data is recorded for number of books read?",
       "generator": {
@@ -29952,11 +30101,14 @@
         "Separate bars are useful for comparing frequencies of distinct categories."
       ],
       "solutionReview": {
-        "headline": "Use separate bars for categories.",
+        "headline": "Counts for separate categories: Bar graph.",
         "reasoning": [
-          "The data give counts for three distinct transportation categories."
+          "The data are counts for three categories (walk, bus, car), with ${{countA}}+{{countB}}+{{countC}}={{total}}$ students in all.",
+          "A bar graph draws one bar per category, so the {{countA}}, {{countB}} and {{countC}} can be compared directly.",
+          "Histograms, scatterplots and number lines are for numerical data, not categories."
         ],
-        "answerSummary": "A bar graph is appropriate."
+        "commonError": "Choosing a histogram, which is for numerical intervals, not named categories.",
+        "answerSummary": "Bar graph"
       },
       "prompt": "A survey records {{countA}} students who walk to school, {{countB}} who ride a bus, and {{countC}} who arrive by car, for a total of {{total}} students. Which display is most appropriate for comparing the counts of the three transportation categories?",
       "generator": {
@@ -30145,11 +30297,14 @@
         "A dot plot can display each value in a small numerical data set."
       ],
       "solutionReview": {
-        "headline": "Preserve the individual numerical values.",
+        "headline": "One dot per value on a number line: Dot plot.",
         "reasoning": [
-          "A dot plot shows the location and frequency of values in a small quantitative data set."
+          "The five values, {{v1}} to {{v5}} minutes, are numerical, and the question asks to show each one at its place on a scale.",
+          "A dot plot places a dot for each value above a number line, so every value and its position stay visible.",
+          "Pie charts and pictographs show parts or counts of categories, and a two-way table shows two categorical variables."
         ],
-        "answerSummary": "A dot plot is appropriate."
+        "commonError": "Choosing a pie chart, which shows parts of a whole rather than individual values.",
+        "answerSummary": "Dot plot"
       },
       "prompt": "The data values are {{v1}}, {{v2}}, {{v3}}, {{v4}}, and {{v5}} minutes. Which display would show the individual numerical values and their positions on a number scale?",
       "generator": {
@@ -30337,11 +30492,13 @@
         "A histogram displays frequencies for numerical intervals."
       ],
       "solutionReview": {
-        "headline": "The values are grouped into numerical intervals.",
+        "headline": "Frequencies over consecutive numerical intervals: Histogram.",
         "reasoning": [
-          "The four frequencies describe adjacent intervals of a quantitative variable."
+          "The four 10-minute intervals are adjacent ranges of a numerical variable, holding ${{f1}}+{{f2}}+{{f3}}+{{f4}}={{total}}$ trips.",
+          "A histogram draws touching bars over consecutive intervals, with heights {{f1}}, {{f2}}, {{f3}} and {{f4}}."
         ],
-        "answerSummary": "A histogram is appropriate."
+        "commonError": "Choosing a pie chart, which hides the order of the intervals.",
+        "answerSummary": "Histogram"
       },
       "prompt": "Travel times are grouped into four consecutive 10-minute intervals with frequencies {{f1}}, {{f2}}, {{f3}}, and {{f4}}, for a total of {{total}} trips. Which display is most appropriate for showing the frequencies across these numerical intervals?",
       "generator": {
@@ -30536,11 +30693,13 @@
         "A number can serve as a label rather than a measurement."
       ],
       "solutionReview": {
-        "headline": "The digits identify groups rather than measure quantity.",
+        "headline": "A route number names a route: Categorical.",
         "reasoning": [
-          "A route number names a route; arithmetic with the route numbers has no statistical meaning."
+          "The {{codeDigits}}-digit route number is a label; adding or averaging route numbers has no meaning.",
+          "A variable that identifies groups is categorical, even when its labels are written with digits."
         ],
-        "answerSummary": "Route number is categorical data."
+        "commonError": "Calling it numerical because it is written with digits.",
+        "answerSummary": "Categorical"
       },
       "prompt": "Each bus route is assigned a {{codeDigits}}-digit route number. A data set records the route number used by each rider. How should the variable route number be classified?",
       "generator": {
@@ -30717,11 +30876,13 @@
         "A line graph emphasizes how a numerical value changes in time order."
       ],
       "solutionReview": {
-        "headline": "Keep the observations in time order.",
+        "headline": "Change over consecutive days: Line graph.",
         "reasoning": [
-          "The purpose is to show change from one consecutive day to the next."
+          "The {{days}} temperatures are in time order, and the question asks how they change from day to day.",
+          "A line graph plots each day in order and joins the points, so rises and falls are easy to see."
         ],
-        "answerSummary": "A line graph is appropriate."
+        "commonError": "Choosing a pie chart, which shows parts of a whole and loses the time order.",
+        "answerSummary": "Line graph"
       },
       "prompt": "A weather station records the daily high temperature for {{days}} consecutive days. Which display is most appropriate for showing how the temperature changes over the sequence of days?",
       "generator": {
@@ -30898,11 +31059,13 @@
         "Classify the variables represented by the row and column headings, not the frequency counts inside the table."
       ],
       "solutionReview": {
-        "headline": "Separate variables from frequencies.",
+        "headline": "Grade level and lunch preference are both groups: Both variables are categorical.",
         "reasoning": [
-          "Grade level and lunch preference both identify categories; the numbers in the cells are counts."
+          "Grade level (9th or 10th) and lunch preference (school or packed) each sort students into groups.",
+          "The numbers {{a1}}, {{a2}}, {{b1}} and {{b2}} are counts of students in each pair of groups, with ${{a1}}+{{a2}}+{{b1}}+{{b2}}={{total}}$; they are not values of either variable."
         ],
-        "answerSummary": "Both variables are categorical."
+        "commonError": "Calling grade level numerical because 9 and 10 are numbers; here they name groups.",
+        "answerSummary": "Both variables are categorical"
       },
       "prompt": "A two-way table summarizes {{total}} students by grade level (9th or 10th) and lunch preference (school lunch or packed lunch). The four cell counts are {{a1}}, {{a2}}, {{b1}}, and {{b2}}. How should the two variables grade level and lunch preference be classified?",
       "generator": {

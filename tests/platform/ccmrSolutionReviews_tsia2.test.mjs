@@ -44,12 +44,24 @@ const DECLINED = Object.freeze({
 
 // How many still publish their generic review (shrinks to 0 as the slices
 // land; a template is pending while its review hashes to the pinned generic).
-const EXPECTED_PENDING = 119;
+const EXPECTED_PENDING = 56;
 
 // Reviews whose reasoning is verbal (a definition or an interpretation) and so
 // states no relation for the arithmetic check. Everything else must have at
 // least one relation verified across its draws.
 const VERBAL = new Set([
+  'mm_tsia2_gsr_cmu_1_v21',
+  'mm_tsia2_gsr_cmu_2_v21',
+  'mm_tsia2_gsr_cmu_3_v21',
+  'mm_tsia2_gsr_cmu_4_v21',
+  'mm_tsia2_gsr_cmu_5_v21',
+  'mm_tsia2_gsr_cmu_8_v21',
+  'mm_tsia2_gsr_tcss_5_v21',
+  'mm_tsia2_psr_repr_1_v21',
+  'mm_tsia2_psr_repr_2_v21',
+  'mm_tsia2_psr_repr_4_v21',
+  'mm_tsia2_psr_repr_6_v21',
+  'mm_tsia2_psr_repr_7_v21',
 ]);
 
 const stable = (value) => (Array.isArray(value)
