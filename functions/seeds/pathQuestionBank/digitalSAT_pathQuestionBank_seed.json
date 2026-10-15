@@ -65093,7 +65093,10 @@
           }
         },
         "derived": {
-          "k": "p*p*p-b*p*p+c*p"
+          "k": "p*p*p-b*p*p+c*p",
+          "p3": "p*p*p",
+          "bp2": "b*p*p",
+          "cp": "c*p"
         },
         "constraints": [
           "p*p*p-b*p*p+c*p>0"
@@ -65106,11 +65109,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "$x+{{p}}$ is a factor, so $P(-{{p}})=0$: $k={{k}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "By the factor theorem, $P(-{{p}})=0$: $(-{{p}})^3+{{b}}(-{{p}})^2+{{c}}(-{{p}})+k=0$.",
+          "That is $-{{p3}}+{{bp2}}-{{cp}}+k=0$, so $k={{p3}}-{{bp2}}+{{cp}}={{k}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Substituting $x={{p}}$ instead of $x=-{{p}}$: the factor $x+{{p}}$ is 0 at $x=-{{p}}$.",
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -65209,11 +65214,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "$x^2-{{a2}}$ is a difference of squares, so $x-{{a}}$ is a factor.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "$x^2-{{a2}}=(x-{{a}})(x+{{a}})$, a difference of squares.",
+          "So $P(x)=(x-{{a}})(x+{{a}})(x^2+{{b}}x+{{c}})$, and $x-{{a}}$ must be a linear factor."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Choosing $x-{{a2}}$: the factors of $x^2-{{a2}}$ use the square root {{a}}, not {{a2}}.",
+        "answerSummary": "$x-{{a}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -65331,11 +65338,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "The quadratic's zeros {{q}} and {{r}} give factors: $x-{{q}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "A quadratic with zeros {{q}} and {{r}} is $(x-{{q}})(x-{{r}})$; check: ${{q}}+{{r}}={{sum}}$ and ${{q}}\\cdot {{r}}={{prod}}$.",
+          "So the cubic is $(x-{{p}})(x-{{q}})(x-{{r}})$, and $x-{{q}}$ is another linear factor."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Using $x+{{q}}$: a zero {{q}} gives the factor $x-{{q}}$.",
+        "answerSummary": "$x-{{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -65448,11 +65457,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Read the linear factors straight from the product: $x+{{q}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "$P(x)$ is already a product of linear factors: $x-{{p}}$, $x+{{q}}$ and $x-{{r}}$.",
+          "Of the choices, $x+{{q}}$ is one of them; it is 0 at $x=-{{q}}$, a zero of $P$: $-{{q}}+{{q}}=0$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Changing the sign: $x-{{q}}$ would be 0 at $x={{q}}$, which is not a zero of $P$.",
+        "answerSummary": "$x+{{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -65563,11 +65574,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "A zero $r$ gives the factor $x-r$: $x-{{r1}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "By the factor theorem, if $r$ is a zero of a polynomial, then $x-r$ is a factor.",
+          "The zero {{r1}} gives the factor $x-{{r1}}$, which is 0 at $x={{r1}}$: ${{r1}}-{{r1}}=0$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Using $x+{{r1}}$: that factor is 0 at $x=-{{r1}}$, which is not a zero of the polynomial.",
+        "answerSummary": "$x-{{r1}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -65667,11 +65680,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "$P({{r}})=0$ means $x-{{r}}$ is a factor.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "By the factor theorem, if $P(r)=0$ then $x-r$ is a factor of $P(x)$.",
+          "Here {{r}} is a zero, and $x-{{r}}$ is the factor that is 0 there: ${{r}}-{{r}}=0$. So $x-{{r}}$ must be a factor."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Choosing $x+{{r}}$: that factor is 0 at $x=-{{r}}$, not at {{r}}.",
+        "answerSummary": "$x-{{r}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -65775,7 +65790,8 @@
           }
         },
         "derived": {
-          "bp": "b+1"
+          "bp": "b+1",
+          "val": "(b+1-a)*(b+1+c)*(b+1+d)"
         }
       },
       "attemptFeedback": [
@@ -65785,11 +65801,14 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "$x-{{bp}}$ is not one of the four factors.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "The linear factors of $P(x)$ are $x-{{a}}$, $x-{{b}}$, $x+{{c}}$ and $x+{{d}}$.",
+          "$x-{{bp}}$ would need ${{bp}}$ to be a zero, but $({{bp}}-{{a}})({{bp}}-{{b}})({{bp}}+{{c}})({{bp}}+{{d}})={{val}}$, not 0.",
+          "So the expression that is NOT a factor is $x-{{bp}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Choosing one of the factors that appears in the product: the question asks for the one that does not.",
+        "answerSummary": "$x-{{bp}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -65888,7 +65907,10 @@
           }
         },
         "derived": {
-          "c": "a*a*a-r*a*a+k0*a"
+          "c": "a*a*a-r*a*a+k0*a",
+          "a3": "a*a*a",
+          "ra2": "r*a*a",
+          "ka": "k0*a"
         },
         "constraints": [
           "a*a*a-r*a*a+k0*a>0"
@@ -65901,11 +65923,14 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "$x-{{a}}$ is a factor, so $P({{a}})=0$: $k={{k0}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "By the factor theorem, $P({{a}})=0$: ${{a}}^3-{{r}}\\cdot {{a}}^2+k\\cdot {{a}}-{{c}}=0$.",
+          "That is ${{a3}}-{{ra2}}+{{a}}k-{{c}}=0$, so ${{a}}k={{c}}-{{a3}}+{{ra2}}={{ka}}$.",
+          "So $k=\\frac{{{ka}}}{{{a}}}={{k0}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Substituting $x=-{{a}}$: the factor $x-{{a}}$ means $P({{a}})=0$.",
+        "answerSummary": "$k={{k0}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -66101,7 +66126,8 @@
         },
         "derived": {
           "a2": "a*a",
-          "a6": "a*a*a*a*a*a"
+          "a6": "a*a*a*a*a*a",
+          "a3": "a*a*a"
         },
         "constraints": [
           "a2!=0"
@@ -66114,11 +66140,14 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Difference of squares, then a difference and a sum of cubes.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Difference of squares first: $x^6-{{a6}}=(x^3-{{a3}})(x^3+{{a3}})$.",
+          "Then $x^3-{{a3}}=(x-{{a}})(x^2+{{a}}x+{{a2}})$ and $x^3+{{a3}}=(x+{{a}})(x^2-{{a}}x+{{a2}})$.",
+          "The two quadratics have no real zeros, so the complete factorization is $(x-{{a}})(x+{{a}})(x^2+{{a}}x+{{a2}})(x^2-{{a}}x+{{a2}})$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Factoring only one of the cubes, which leaves out a quadratic factor.",
+        "answerSummary": "$(x-{{a}})(x+{{a}})(x^2+{{a}}x+{{a2}})(x^2-{{a}}x+{{a2}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -66239,11 +66268,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Both terms are cubes: $({{m}}x-{{n}})({{m2}}x^2+{{mn}}x+{{n2}})$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "${{m3}}x^3=({{m}}x)^3$ and ${{n3}}={{n}}^3$: a difference of cubes.",
+          "Use $u^3-v^3=(u-v)(u^2+uv+v^2)$ with $u$ as ${{m}}x$ and $v$ as {{n}}: ${{m3}}x^3-{{n3}}=({{m}}x-{{n}})({{m2}}x^2+{{mn}}x+{{n2}})$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Using {{m2}} as the coefficient in the binomial, or the wrong signs for a difference of cubes.",
+        "answerSummary": "$({{m}}x-{{n}})({{m2}}x^2+{{mn}}x+{{n2}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -66346,11 +66377,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Multiply out the right side: $k={{k}}$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Multiply out: $(x-{{a}})(x^2+{{a}}x+{{a2}})=x^3-{{k}}$; the $x^2$ and $x$ terms cancel.",
+          "So $k={{a}}^3={{k}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Answering {{a2}} or {{a}}: the constant of the product is ${{a}}\\cdot {{a2}}={{k}}$.",
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -66436,11 +66469,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Difference of cubes: $(x-{{a}})(x^2+{{a}}x+{{a2}})$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Difference of cubes: $u^3-v^3=(u-v)(u^2+uv+v^2)$.",
+          "Here ${{a3}}={{a}}^3$, so $x^3-{{a3}}=(x-{{a}})(x^2+{{a}}x+{{a2}})$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Getting the signs wrong: for a difference, the binomial subtracts and the middle term of the quadratic is positive.",
+        "answerSummary": "$(x-{{a}})(x^2+{{a}}x+{{a2}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -66561,11 +66596,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Group in pairs; both pairs share $x+{{p}}$: $(x+{{p}})({{a}}x^2+{{b}})$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Group in pairs: ${{a}}x^3+{{ap}}x^2={{a}}x^2(x+{{p}})$ and ${{b}}x+{{bp}}={{b}}(x+{{p}})$.",
+          "Factor out the common $x+{{p}}$: ${{a}}x^3+{{ap}}x^2+{{b}}x+{{bp}}=(x+{{p}})({{a}}x^2+{{b}})$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Writing ${{a}}x+{{b}}$ for the second factor: the first pair leaves ${{a}}x^2$, not ${{a}}x$.",
+        "answerSummary": "$(x+{{p}})({{a}}x^2+{{b}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -66676,11 +66713,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Group in pairs; both pairs share $x+{{p}}$: $(x+{{p}})(x^3+{{q}})$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Group in pairs: $x^4+{{p}}x^3=x^3(x+{{p}})$ and ${{q}}x+{{pq}}={{q}}(x+{{p}})$.",
+          "Factor out the common $x+{{p}}$: $x^4+{{p}}x^3+{{q}}x+{{pq}}=(x+{{p}})(x^3+{{q}})$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Changing a constant in a factor: multiplying back must give exactly {{pq}} as the constant term.",
+        "answerSummary": "$(x+{{p}})(x^3+{{q}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -66786,11 +66825,13 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Sum of cubes: $(x+{{b}})(x^2-{{b}}x+{{b2}})$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "Sum of cubes: $u^3+v^3=(u+v)(u^2-uv+v^2)$.",
+          "Here ${{b3}}={{b}}^3$, so $x^3+{{b3}}=(x+{{b}})(x^2-{{b}}x+{{b2}})$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "commonError": "Getting the signs wrong: for a sum, the binomial adds and the middle term of the quadratic is negative.",
+        "answerSummary": "$(x+{{b}})(x^2-{{b}}x+{{b2}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
