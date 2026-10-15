@@ -47197,11 +47197,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "\"At least\" gives $\\ge$; \"no more than\" gives $\\le$.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "\"At least {{minimum}} tickets\": the number sold, $x+y$, is {{minimum}} or more, so $x+y\\ge {{minimum}}$.",
+          "\"No more than {{revenue}} dollars\": the money collected, ${{standard}}x+{{student}}y$, is at most {{revenue}}, and ticket counts are never negative.",
+          "So the system is $x+y\\ge {{minimum}},\\; {{standard}}x+{{student}}y\\le {{revenue}},\\; x\\ge0,\\; y\\ge0$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Writing equations instead of inequalities, or reversing one symbol: \"at least\" sets a minimum and \"no more than\" sets a maximum.",
+        "answerSummary": "$x+y\\ge {{minimum}},\\; {{standard}}x+{{student}}y\\le {{revenue}},\\; x\\ge0,\\; y\\ge0$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -47332,11 +47335,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Each resource used is at most what is available: two $\\le$ constraints.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "Wood: each table uses {{woodT}} units and each shelf {{woodS}}, so ${{woodT}}x+{{woodS}}y$ units are used, at most {{woodMax}}.",
+          "Labor: ${{laborT}}x+{{laborS}}y$ hours are used, at most {{laborMax}}; the numbers of tables and shelves are never negative.",
+          "So the system is ${{woodT}}x+{{woodS}}y\\le {{woodMax}},\\; {{laborT}}x+{{laborS}}y\\le {{laborMax}},\\; x\\ge0,\\; y\\ge0$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Using $\\ge$ for a limit, or equations. \"At most\" means the amount used can be less than what is available.",
+        "answerSummary": "${{woodT}}x+{{woodS}}y\\le {{woodMax}},\\; {{laborT}}x+{{laborS}}y\\le {{laborMax}},\\; x\\ge0,\\; y\\ge0$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -47453,11 +47459,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "\"On or above\" is $\\ge$; \"strictly below\" is $<$.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "\"On or above $y={{m1}}x+{{b1}}$\" includes the line itself: $y\\ge {{m1}}x+{{b1}}$.",
+          "\"Strictly below $y={{m2}}x+{{b2}}$\" leaves the line out: $y<{{m2}}x+{{b2}}$.",
+          "So the system is $y\\ge {{m1}}x+{{b1}}$ and $y<{{m2}}x+{{b2}}$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Swapping which line gets the strict symbol. \"On or\" adds the equals part; \"strictly\" removes it.",
+        "answerSummary": "$y\\ge {{m1}}x+{{b1}}$ and $y<{{m2}}x+{{b2}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -47582,11 +47591,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Both nutrients have minimums: two $\\ge$ constraints.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "Protein: $x$ servings of $A$ and $y$ of $B$ give ${{pA}}x+{{pB}}y$ grams, at least {{pMin}}.",
+          "Fiber: ${{fA}}x+{{fB}}y$ grams, at least {{fMin}}; servings are never negative.",
+          "So the system is ${{pA}}x+{{pB}}y\\ge {{pMin}},\\; {{fA}}x+{{fB}}y\\ge {{fMin}},\\; x\\ge0,\\; y\\ge0$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Using $\\le$ for a requirement. \"At least\" sets a floor: more protein or fiber is allowed.",
+        "answerSummary": "${{pA}}x+{{pB}}y\\ge {{pMin}},\\; {{fA}}x+{{fB}}y\\ge {{fMin}},\\; x\\ge0,\\; y\\ge0$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -47702,11 +47714,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Translate each condition: at least $\\to\\ge$, no more than $\\to\\le$.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "Signs ordered: $x+y\\ge {{countMin}}$. Money spent: ${{small}}x+{{large}}y\\le {{budget}}$.",
+          "Large signs: no more than {{largeMax}}, so $y\\le {{largeMax}}$; counts are never negative.",
+          "So the system is $x+y\\ge {{countMin}},\\; {{small}}x+{{large}}y\\le {{budget}},\\; y\\le {{largeMax}},\\; x\\ge0,\\; y\\ge0$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Reversing one symbol, for example writing $y\\ge {{largeMax}}$ for \"no more than {{largeMax}} large signs\".",
+        "answerSummary": "$x+y\\ge {{countMin}},\\; {{small}}x+{{large}}y\\le {{budget}},\\; y\\le {{largeMax}},\\; x\\ge0,\\; y\\ge0$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -47840,11 +47855,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Two capacity limits ($\\le$) and one minimum ($\\ge$).",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "Storage: ${{spaceA}}x+{{spaceB}}y\\le {{spaceMax}}$. Maintenance: ${{hoursA}}x+{{hoursB}}y\\le {{hoursMax}}$.",
+          "At least {{unitsMin}} units: $x+y\\ge {{unitsMin}}$; numbers of units are never negative.",
+          "So the system is ${{spaceA}}x+{{spaceB}}y\\le {{spaceMax}},\\; {{hoursA}}x+{{hoursB}}y\\le {{hoursMax}},\\; x+y\\ge {{unitsMin}},\\; x,y\\ge0$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Turning the minimum of {{unitsMin}} units into $\\le$, or a capacity into $\\ge$.",
+        "answerSummary": "${{spaceA}}x+{{spaceB}}y\\le {{spaceMax}},\\; {{hoursA}}x+{{hoursB}}y\\le {{hoursMax}},\\; x+y\\ge {{unitsMin}},\\; x,y\\ge0$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -47966,11 +47984,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Solid below is $\\le$, dashed above is $>$, right of the $y$-axis is $x\\ge0$.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "Below the solid line ${{A}}x+{{B}}y={{C}}$, including it: ${{A}}x+{{B}}y\\le {{C}}$ (the origin side, since $0\\le {{C}}$).",
+          "Above the dashed line $y={{m}}x+{{b}}$, not including it: $y>{{m}}x+{{b}}$. To the right of the $y$-axis: $x\\ge0$.",
+          "So the system is ${{A}}x+{{B}}y\\le {{C}},\\; y>{{m}}x+{{b}},\\; x\\ge0$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Giving the dashed line an \"or equal to\" symbol, or the solid one a strict symbol. Solid lines are included; dashed lines are not.",
+        "answerSummary": "${{A}}x+{{B}}y\\le {{C}},\\; y>{{m}}x+{{b}},\\; x\\ge0$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -48087,11 +48108,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Two minimums ($\\ge$) and one budget limit ($\\le$).",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "At least {{totalMin}} hours: $x+y\\ge {{totalMin}}$. Budget: ${{costF}}x+{{costL}}y\\le {{budget}}$.",
+          "At least {{labMin}} laboratory hours: $y\\ge {{labMin}}$; hours are never negative.",
+          "So the system is $x+y\\ge {{totalMin}},\\; {{costF}}x+{{costL}}y\\le {{budget}},\\; y\\ge {{labMin}},\\; x,y\\ge0$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Writing $y\\le {{labMin}}$: \"at least {{labMin}} laboratory hours\" is a minimum.",
+        "answerSummary": "$x+y\\ge {{totalMin}},\\; {{costF}}x+{{costL}}y\\le {{budget}},\\; y\\ge {{labMin}},\\; x,y\\ge0$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -48177,7 +48201,9 @@
           "xneg": "-x",
           "yneg": "-y",
           "xout": "x+C",
-          "yout": "y+C"
+          "yout": "y+C",
+          "v": "A*x+B*y",
+          "vout": "A*xout+B*yout"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -48214,11 +48240,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Test each point in all three inequalities: only $({{x}},{{y}})$ passes.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "$({{x}},{{y}})$: both coordinates are nonnegative and ${{A}}({{x}})+{{B}}({{y}})={{v}}\\le {{C}}$.",
+          "$({{xneg}},{{y}})$ breaks $x\\ge0$ and $({{x}},{{yneg}})$ breaks $y\\ge0$; $({{xout}},{{yout}})$ gives ${{A}}({{xout}})+{{B}}({{yout}})={{vout}}>{{C}}$.",
+          "So the point that satisfies all three is $({{x}},{{y}})$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Checking only ${{A}}x+{{B}}y\\le {{C}}$: a point with a negative coordinate can pass it and still be outside the region.",
+        "answerSummary": "$({{x}},{{y}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -48402,7 +48431,9 @@
           }
         },
         "derived": {
-          "b2": "m1*xint+b1-m2*xint"
+          "b2": "m1*xint+b1-m2*xint",
+          "dm": "m1-m2",
+          "db": "b2-b1"
         },
         "constraints": [
           "b2!=0"
@@ -48424,11 +48455,13 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Set the two boundary equations equal: $x={{xint}}$.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "Where the lines meet they have the same $y$: ${{m1}}x {{b1|signed}}={{m2}}x {{b2|signed}}$.",
+          "Collect terms: $({{m1}}-{{m2|paren}})x={{b2}}-{{b1|paren}}$, so $x=\\frac{{{db}}}{{{dm}}}={{xint}}$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Subtracting the slopes or the intercepts in different orders, which flips the sign of the answer.",
+        "answerSummary": "$x={{xint}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -48520,7 +48553,10 @@
           "xneg": "-x",
           "yneg": "-y",
           "xbig": "x+countMax",
-          "ybig": "y+countMax"
+          "ybig": "y+countMax",
+          "w": "small*x+large*y",
+          "n": "x+y",
+          "nbig": "xbig+ybig"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -48557,11 +48593,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Check the weight limit and the crate limit for each pair: $({{x}},{{y}})$ fits.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "$({{x}},{{y}})$: the weight is ${{small}}({{x}})+{{large}}({{y}})={{w}}\\le {{capacity}}$ kilograms and the count is ${{x}}+{{y}}={{n}}\\le {{countMax}}$ crates.",
+          "A negative number of crates is impossible, and $({{xbig}},{{ybig}})$ is ${{xbig}}+{{ybig}}={{nbig}}$ crates, more than {{countMax}}.",
+          "So the load could be $({{x}},{{y}})$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Checking only the weight, or only the number of crates: the truck must meet both limits.",
+        "answerSummary": "$({{x}},{{y}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -48638,7 +48677,10 @@
           }
         },
         "derived": {
-          "C": "A*xmax+rem"
+          "C": "A*xmax+rem",
+          "xmax1": "xmax+1",
+          "Axmax": "A*xmax",
+          "Axmax1": "A*(xmax+1)"
         },
         "constraints": [
           "rem<A"
@@ -48660,11 +48702,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "On the $x$-axis $y=0$, so ${{A}}x\\le {{C}}$: the greatest integer is {{xmax}}.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "On the $x$-axis, $y=0$, so the third inequality becomes ${{A}}x\\le {{C}}$.",
+          "Test integers: ${{A}}({{xmax}})={{Axmax}}\\le {{C}}$, but ${{A}}({{xmax1}})={{Axmax1}}>{{C}}$.",
+          "So the greatest integer value of $x$ is {{xmax}}."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Rounding $\\frac{{{C}}}{{{A}}}$ up, or using the $y$-coefficient {{B}}. On the $x$-axis only ${{A}}x$ counts.",
+        "answerSummary": "$x={{xmax}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -48903,11 +48948,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Both upper bounds must hold, so $y$ is at most the smaller one: {{ymax}}.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "At $x={{x}}$, the first inequality gives $y\\le {{m1}}({{x|paren}}) {{b1|signed}}={{v1}}$.",
+          "The second gives $y\\le {{m2}}({{x|paren}}) {{b2|signed}}={{v2}}$.",
+          "Since ${{v2}}<{{v1}}$, $y$ can be at most {{v2}}: the greatest integer value is {{ymax}}."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Using the larger bound {{v1}}: it satisfies the first inequality but not the second.",
+        "answerSummary": "$y={{ymax}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -49145,11 +49193,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Check each point against both lines at $x={{x}}$: $({{x}},{{ymid}})$ is between them.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "At $x={{x}}$, the first line gives ${{m1}}({{x|paren}}) {{b1|signed}}={{low}}$ and the second gives ${{m2}}({{x|paren}}) {{b2|signed}}={{high}}$.",
+          "So a solution needs ${{low}}\\le y\\le {{high}}$. $y={{ybelow}}$ is below {{low}}; $y={{yabove}}$ and $y={{yfar}}$ are above {{high}}.",
+          "For $({{x}},{{ymid}})$: ${{ymid}}\\ge {{low}}$ and ${{ymid}}\\le {{high}}$, so $({{x}},{{ymid}})$ could be in the solution set."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Checking only one of the inequalities: a point above the first line can still be above the second line too.",
+        "answerSummary": "$({{x}},{{ymid}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -49367,7 +49418,10 @@
           "xneg": "-x",
           "yneg": "-y",
           "xbig": "x+countMax",
-          "ybig": "y+countMax"
+          "ybig": "y+countMax",
+          "n": "x+y",
+          "rev": "a*x+b*y",
+          "nbig": "xbig+ybig"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -49404,11 +49458,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Check the item limit and the money target for each pair: $({{x}},{{y}})$ works.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "$({{x}},{{y}})$: ${{x}}+{{y}}={{n}}\\le {{countMax}}$ items, and ${{a}}({{x}})+{{b}}({{y}})={{rev}}\\ge {{revenueMin}}$ dollars.",
+          "Negative numbers of items are impossible, and $({{xbig}},{{ybig}})$ is ${{xbig}}+{{ybig}}={{nbig}}$ items, more than {{countMax}}.",
+          "So a possible number of items sold is $({{x}},{{y}})$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Checking only the money: a pair can raise enough and still sell more than {{countMax}} items.",
+        "answerSummary": "$({{x}},{{y}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -49526,11 +49583,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "$\\ge$ includes its line, $<$ excludes $x={{k}}$: $({{xok}},{{yok}})$ is allowed.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "$({{xok}},{{yok}})$: ${{xok}}<{{k}}$, and ${{m}}({{xok}})+{{b}}={{yok}}$, so the point is on the line $y={{m}}x+{{b}}$, which $\\ge$ includes.",
+          "$({{xok}},{{ybelow}})$ is below that line. $({{xedge}},{{yedge}})$ has $x$ equal to {{k}}, which the strict $<$ excludes, and $({{xout}},{{yout}})$ has $x$ greater than {{k}}.",
+          "So the allowed point is $({{xok}},{{yok}})$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Treating both boundaries alike: points on $y={{m}}x+{{b}}$ are included ($\\ge$), but points with $x={{k}}$ are not ($<$).",
+        "answerSummary": "$({{xok}},{{yok}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -49606,7 +49666,9 @@
           "xneg": "-x",
           "yneg": "-y",
           "xbig": "x+total",
-          "ybig": "y+total"
+          "ybig": "y+total",
+          "s": "x+y",
+          "sbig": "xbig+ybig"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -49643,11 +49705,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Check nonnegativity and the sum for each pair: $({{x}},{{y}})$.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "$({{x}},{{y}})$: both coordinates are nonnegative and ${{x}}+{{y}}={{s}}\\le {{total}}$.",
+          "$({{xneg}},{{y}})$ and $({{x}},{{yneg}})$ have a negative coordinate; $({{xbig}},{{ybig}})$ has ${{xbig}}+{{ybig}}={{sbig}}>{{total}}$.",
+          "So the pair in the solution set is $({{x}},{{y}})$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Checking only $x+y\\le {{total}}$: a pair with a negative coordinate passes it but breaks $x\\ge0$ or $y\\ge0$.",
+        "answerSummary": "$({{x}},{{y}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -49731,7 +49796,8 @@
         },
         "derived": {
           "minSum": "x+y-slack",
-          "kmax": "A*x+B*y"
+          "kmax": "A*x+B*y",
+          "s": "x+y"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -49750,11 +49816,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Substitute the point: $k$ must be at least {{kmax}}.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "The second inequality holds already: ${{x}}+{{y}}={{s}}\\ge {{minSum}}$.",
+          "The first needs ${{A}}({{x}})+{{B}}({{y}})\\le k$, and ${{A}}({{x}})+{{B}}({{y}})={{kmax}}$.",
+          "So $k$ must be {{kmax}} or more: the least integer value is $k={{kmax}}$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Solving for the greatest $k$ instead: $\\le k$ puts a floor on $k$, not a ceiling.",
+        "answerSummary": "$k={{kmax}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -49828,7 +49897,9 @@
         },
         "derived": {
           "high": "low+span",
-          "count": "span"
+          "count": "span",
+          "low1": "low+1",
+          "span1": "span+1"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -49847,11 +49918,13 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Count the integers from {{low1}} up to {{high}}: {{count}}.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "$y>{{low}}$ excludes {{low}}, so the smallest integer is {{low1}}; $y\\le {{high}}$ includes {{high}}.",
+          "From {{low1}} to {{high}} there are ${{high}}-{{low1|paren}}+1={{count}}$ integers."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Counting {{low}} as well (the strict $<$ excludes it), which gives {{span1}}.",
+        "answerSummary": "{{count}} integer values"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -49940,7 +50013,13 @@
         },
         "derived": {
           "countMax": "xmax+yfixed+countSlack",
-          "resourceMax": "a*xmax+b*yfixed+resourceSlack"
+          "resourceMax": "a*xmax+b*yfixed+resourceSlack",
+          "cx": "countMax-yfixed",
+          "byf": "b*yfixed",
+          "ra": "resourceMax-b*yfixed",
+          "axmax": "a*xmax",
+          "axmax1": "a*(xmax+1)",
+          "xmax1": "xmax+1"
         },
         "constraints": [
           "resourceSlack<a"
@@ -49962,11 +50041,14 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Apply both limits with $y={{yfixed}}$; the tighter one gives $x={{xmax}}$.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "Total samples: $x+{{yfixed}}\\le {{countMax}}$, so $x$ can be at most ${{countMax}}-{{yfixed}}={{cx}}$.",
+          "Resources: ${{a}}x+{{b}}({{yfixed}})\\le {{resourceMax}}$, so ${{a}}x$ can be at most ${{resourceMax}}-{{byf}}={{ra}}$. ${{a}}({{xmax}})={{axmax}}\\le {{ra}}$, but ${{a}}({{xmax1}})={{axmax1}}>{{ra}}$.",
+          "Both limits must hold, so the greatest integer value of $x$ is {{xmax}}."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "commonError": "Checking only one of the two limits. Both the number of samples and the resources must allow them.",
+        "answerSummary": "$x={{xmax}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
