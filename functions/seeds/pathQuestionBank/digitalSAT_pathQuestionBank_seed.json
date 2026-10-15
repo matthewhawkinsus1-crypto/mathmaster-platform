@@ -45599,11 +45599,14 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "The two intersection $x$-values multiply to {{prod}}: the other is {{q}}.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "Set equal and move every term to the left: $x^2-{{sum}}x+{{prod}}=0$.",
+          "The two solutions multiply to {{prod}} and add to {{sum}}. One is {{p}}, so the other is $\\frac{{{prod}}}{{{p}}}={{q}}$. Check: ${{p}}+{{q}}={{sum}}$.",
+          "So the other $x$-value is {{q}}."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "commonError": "Forgetting to move the line's constant {{b}} across first: the constant term of the quadratic equation is {{prod}}.",
+        "answerSummary": "$x={{q}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "The graphs of $y=x^2 {{c|signed}}$ and $y={{sum}}x {{b|signed}}$ intersect at $x={{p}}$ and at one other $x$-value. What is the other $x$-value?",
@@ -46212,11 +46215,14 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Set $x^2={{k}}x$ and factor: the other intersection is at $x={{k}}$.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "At an intersection both equations give the same $y$: $x^2={{k}}x$.",
+          "Move everything to one side and factor: $x^2-{{k}}x=x(x-{{k}})=0$, so $x=0$ or $x={{k}}$.",
+          "$x=0$ is the origin, so the other intersection has $x={{k}}$."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "commonError": "Dividing both sides by $x$ without noting the solution $x=0$, or giving the $y$-coordinate {{k2}} instead.",
+        "answerSummary": "$x={{k}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "The graphs of $y=x^2$ and $y={{k}}x$ intersect at the origin and at one other point. What is the $x$-coordinate of the other intersection?",
@@ -46227,6 +46233,9 @@
             "min": 2,
             "max": 12
           }
+        },
+        "derived": {
+          "k2": "k*k"
         }
       },
       "responseFields": [
@@ -46294,11 +46303,14 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "A solution must satisfy both equations: $({{t}},{{y0}})$ does.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "Test $({{t}},{{y0}})$: $({{t}}-{{h}})^2 {{v|signed}}={{r2}} {{v|signed}}={{y0}}$ and ${{m}}({{t}}) {{b|signed}}={{y0}}$.",
+          "The points $({{t}},{{yp1}})$ and $({{t}},{{ym1}})$ miss both, and at $x={{tm1}}$ the parabola gives $({{tm1}}-{{h}})^2 {{v|signed}}={{ptm1}}$, not {{y0}}.",
+          "So the solution is $({{t}},{{y0}})$."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "commonError": "Checking only one equation: a solution of a system makes both true.",
+        "answerSummary": "$({{t}},{{y0}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "Which ordered pair is a solution of the system $y=(x-{{h}})^2 {{v|signed}}$ and $y={{m}}x {{b|signed}}$?",
@@ -46339,7 +46351,9 @@
           "b": "y0-m*t",
           "tm1": "t-1",
           "yp1": "y0+1",
-          "ym1": "y0-1"
+          "ym1": "y0-1",
+          "r2": "r*r",
+          "ptm1": "(r-1)*(r-1)+v"
         },
         "constraints": [
           "m!=0",
@@ -46430,11 +46444,14 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Set the expressions equal, move everything to one side, and factor: {{q}}.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "At an intersection: $x^2 {{c|signed}}={{sum}}x {{b|signed}}$.",
+          "Move every term to the left: $x^2-{{sum}}x+{{product}}=0$, which factors as $(x-{{p}})(x-{{q}})=0$.",
+          "So $x={{p}}$ or $x={{q}}$; the greater $x$-coordinate is {{q}}."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "commonError": "Solving before moving every term to one side, or giving the smaller solution {{p}}.",
+        "answerSummary": "$x={{q}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "The graphs of $y=x^2 {{c|signed}}$ and $y={{sum}}x {{b|signed}}$ intersect at two points. What is the greater $x$-coordinate of the intersections?",
@@ -46795,11 +46812,14 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Substitute each $x$-value into both expressions and compare.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "At $x={{p}}$: ${{p}}^2 {{c|signed}}={{yp}}$ and ${{sum}}({{p}}) {{b|signed}}={{yp}}$.",
+          "At $x={{q}}$: ${{q}}^2 {{c|signed}}={{yq}}$ and ${{sum}}({{q}}) {{b|signed}}={{yq}}$.",
+          "Substituting either $x={{p}}$ or $x={{q}}$ makes the two expressions for $y$ equal."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "commonError": "Thinking a line and a parabola cannot cross twice, or that the $y$-coordinates must be given: substituting produces them.",
+        "answerSummary": "Substituting either $x={{p}}$ or $x={{q}}$ makes the two expressions for $y$ equal."
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "The graphs of $y=x^2 {{c|signed}}$ and $y={{sum}}x {{b|signed}}$ intersect at $x={{p}}$ and $x={{q}}$. Which statement best verifies the reported intersections?",
@@ -46824,7 +46844,9 @@
         "derived": {
           "sum": "p+q",
           "prod": "p*q",
-          "b": "c-prod"
+          "b": "c-prod",
+          "yp": "p*p+c",
+          "yq": "q*q+c"
         },
         "constraints": [
           "b!=0",
@@ -46916,11 +46938,14 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Substitute each pair into both equations: $({{p}},{{y0}})$ satisfies both.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "$({{p}},{{y0}})$: ${{p}}^2 {{c|signed}}={{y0}}$ and ${{m}}({{p}}) {{b|signed}}={{y0}}$. Both hold.",
+          "The pairs with $y={{yp1}}$ or $y={{ym1}}$ fail the first equation, and at $x={{pp1}}$ it gives ${{pp1}}^2 {{c|signed}}={{q1}}$, not {{y0}}.",
+          "So the pair that satisfies both equations is $({{p}},{{y0}})$."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "commonError": "Checking only one of the equations.",
+        "answerSummary": "$({{p}},{{y0}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "For the system $y=x^2 {{c|signed}}$ and $y={{m}}x {{b|signed}}$, which ordered pair satisfies both equations?",
@@ -46955,7 +46980,8 @@
           "b": "y0-m*p",
           "pp1": "p+1",
           "yp1": "y0+1",
-          "ym1": "y0-1"
+          "ym1": "y0-1",
+          "q1": "(p+1)*(p+1)+c"
         },
         "constraints": [
           "m!=0",
@@ -47045,11 +47071,14 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "The models agree only where $(x-{{h}})^2=0$, at $x={{h}}$, so the report is wrong.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "The models agree when $(x-{{h}})^2 {{v|signed}}={{v}}$, that is $(x-{{h}})^2=0$: only at $x={{h}}$.",
+          "At $x={{claimed}}$ the quadratic gives $({{claimed}}-{{h}})^2 {{v|signed}}={{q}}$, not {{v}}.",
+          "The report is incorrect because the models agree only when $x={{h}}$."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "commonError": "Accepting the report without substituting: at $x={{claimed}}$ the quadratic is 1 more than the constant model.",
+        "answerSummary": "The report is incorrect because the models agree only when $x={{h}}$."
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "Two models for the same quantity are $y=(x-{{h}})^2 {{v|signed}}$ and $y={{v}}$. A report states that the models agree when $x={{claimed}}$. Which statement is correct?",
@@ -47067,7 +47096,8 @@
           }
         },
         "derived": {
-          "claimed": "h+1"
+          "claimed": "h+1",
+          "q": "v+1"
         }
       },
       "choices": [
@@ -47414,11 +47444,13 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Setting the two equal leaves $(x-{{h}})^2=0$: the point is $({{h}},{{v}})$.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "Set equal: $(x-{{h}})^2 {{v|signed}}={{v}}$, so $(x-{{h}})^2=0$.",
+          "That happens only at $x={{h}}$, where $y={{v}}$: the shared point is $({{h}},{{v}})$."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "commonError": "Choosing a point one unit to the side: there the square is 1, so the parabola is at {{vp1}}, not {{v}}.",
+        "answerSummary": "$({{h}},{{v}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "Which ordered pair satisfies both $y=(x-{{h}})^2 {{v|signed}}$ and $y={{v}}$?",
@@ -50493,11 +50525,14 @@
         "Connect the given points, equation, and key features of the quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Extend the differences two more steps: $P(4)={{y4}}$.",
         "reasoning": [
-          "Use the given points or an equivalent form of the quadratic to determine the requested equation, parameter, or feature."
+          "First differences: ${{y1}}-{{y0}}={{d1}}$ and ${{y2}}-{{y1}}={{d2}}$; second difference: ${{d2}}-{{d1|paren}}={{sd}}$.",
+          "The second difference stays {{sd}}: the next first differences are ${{d2}}+{{sd|paren}}={{d3}}$ and ${{d3}}+{{sd|paren}}={{d4}}$, so $P(3)={{y2}}+{{d3|paren}}={{y3}}$.",
+          "Then $P(4)={{y3}}+{{d4|paren}}={{y4}}$."
         ],
-        "answerSummary": "Verify the result against the original quadratic relationship."
+        "commonError": "Stopping at $P(3)$, or keeping the first difference constant as if the model were linear.",
+        "answerSummary": "$P(4)={{y4}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "A company's daily net change $P(t)$ is modeled by a quadratic function. The model satisfies $P(0)={{y0}}$, $P(1)={{y1}}$, and $P(2)={{y2}}$. According to the same quadratic model, what is $P(4)$?",
@@ -50523,7 +50558,13 @@
           "y0": "w",
           "y1": "u+v+w",
           "y2": "4*u+2*v+w",
-          "y4": "16*u+4*v+w"
+          "y4": "16*u+4*v+w",
+          "d1": "y1-y0",
+          "d2": "y2-y1",
+          "sd": "y2-2*y1+y0",
+          "d3": "2*y2-3*y1+y0",
+          "y3": "3*y2-3*y1+y0",
+          "d4": "3*y2-5*y1+2*y0"
         }
       },
       "responseFields": [
@@ -50592,11 +50633,14 @@
         "Connect the given points, equation, and key features of the quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Keep the second difference constant: $f(3)={{y3}}$.",
         "reasoning": [
-          "Use the given points or an equivalent form of the quadratic to determine the requested equation, parameter, or feature."
+          "First differences: ${{y1}}-{{y0|paren}}={{d1}}$ and ${{y2}}-{{y1|paren}}={{d2}}$.",
+          "A quadratic has a constant second difference, ${{d2}}-{{d1|paren}}={{sd}}$, so the next first difference is ${{d2}}+{{sd|paren}}={{d3}}$.",
+          "So $f(3)={{y2}}+{{d3|paren}}={{y3}}$."
         ],
-        "answerSummary": "Verify the result against the original quadratic relationship."
+        "commonError": "Adding the last difference {{d2}} again, as if the function were linear.",
+        "answerSummary": "$f(3)={{y3}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "A quadratic function passes through $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$. What is the value of $f(3)$?",
@@ -50622,7 +50666,11 @@
           "y0": "r",
           "y1": "p+q+r",
           "y2": "4*p+2*q+r",
-          "y3": "9*p+3*q+r"
+          "y3": "9*p+3*q+r",
+          "d1": "y1-y0",
+          "d2": "y2-y1",
+          "sd": "y2-2*y1+y0",
+          "d3": "2*y2-3*y1+y0"
         }
       },
       "responseFields": [
@@ -50691,11 +50739,14 @@
         "Connect the given points, equation, and key features of the quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "The second difference of a quadratic is $2a$: $a={{A}}$.",
         "reasoning": [
-          "Use the given points or an equivalent form of the quadratic to determine the requested equation, parameter, or feature."
+          "First differences: ${{y1}}-{{y0|paren}}={{d1}}$ and ${{y2}}-{{y1|paren}}={{d2}}$.",
+          "Second difference: ${{d2}}-{{d1|paren}}={{sd}}$.",
+          "For $ax^2+bx+c$ with inputs 1 apart, the second difference is $2a$: $2a={{sd}}$, so $a={{A}}$."
         ],
-        "answerSummary": "Verify the result against the original quadratic relationship."
+        "commonError": "Giving the second difference {{sd}} itself: it equals $2a$, so halve it.",
+        "answerSummary": "$a={{A}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "A quadratic function satisfies $f(0)={{y0}}$, $f(1)={{y1}}$, and $f(2)={{y2}}$. If $f(x)=ax^2+bx+c$, what is the value of $a$?",
@@ -50720,7 +50771,10 @@
         "derived": {
           "y0": "C",
           "y1": "A+B+C",
-          "y2": "4*A+2*B+C"
+          "y2": "4*A+2*B+C",
+          "d1": "y1-y0",
+          "d2": "y2-y1",
+          "sd": "y2-2*y1+y0"
         }
       },
       "responseFields": [
@@ -50788,11 +50842,13 @@
         "Connect the given points, equation, and key features of the quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Use the $y$-intercept: $a={{a0}}$.",
         "reasoning": [
-          "Use the given points or an equivalent form of the quadratic to determine the requested equation, parameter, or feature."
+          "At $x=0$: $a(0 {{f1|signed}})(0 {{f2|signed}})=a\\cdot {{f1}}\\cdot {{f2|paren}}={{rr}}a$.",
+          "The point $(0,{{y0}})$ gives ${{rr}}a={{y0}}$, so $a=\\frac{{{y0}}}{{{rr}}}={{a0}}$."
         ],
-        "answerSummary": "Verify the result against the original quadratic relationship."
+        "commonError": "Losing the sign of the product: one zero is negative and one is positive, so ${{f1}}\\cdot {{f2|paren}}$ is negative.",
+        "answerSummary": "$a={{a0}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "A quadratic function passes through $({{r1}},0)$, $({{r2}},0)$, and $(0,{{y0}})$. It can be written as $f(x)=a(x {{f1|signed}})(x {{f2|signed}})$. What is the value of $a$?",
@@ -50817,7 +50873,8 @@
         "derived": {
           "y0": "a0*r1*r2",
           "f1": "-r1",
-          "f2": "-r2"
+          "f2": "-r2",
+          "rr": "r1*r2"
         },
         "constraints": [
           "f1!=0",
@@ -50889,11 +50946,14 @@
         "Connect the given points, equation, and key features of the quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Zeros at 0 and {{T}} give $qt({{T}}-t)$; the height at $t={{m}}$ gives $q={{q}}$.",
         "reasoning": [
-          "Use the given points or an equivalent form of the quadratic to determine the requested equation, parameter, or feature."
+          "Ground level at $t=0$ and $t={{T}}$: $h(t)=qt({{T}}-t)$, which is positive between those times when $q>0$.",
+          "At $t={{m}}$: $q\\cdot {{m}}({{T}}-{{m}})={{mm}}q={{H}}$, so $q=\\frac{{{H}}}{{{mm}}}={{q}}$.",
+          "So $h(t)={{q}}t({{T}}-t)$."
         ],
-        "answerSummary": "Verify the result against the original quadratic relationship."
+        "commonError": "Writing $t(t-{{T}})$, which is negative between the zeros, or $t({{T}}+t)$, which is not 0 at $t={{T}}$.",
+        "answerSummary": "$h(t)={{q}}t({{T}}-t)$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A projectile is at ground level at $t=0$ and again at $t={{T}}$. At $t={{m}}$, its height is {{H}}. Which function could model its height $h(t)$?",
@@ -50917,7 +50977,8 @@
           "T": "2*m",
           "H": "q*m*m",
           "qneg": "-q",
-          "T1": "2*m+1"
+          "T1": "2*m+1",
+          "mm": "m*m"
         }
       },
       "choices": [
@@ -51003,11 +51064,14 @@
         "Connect the given points, equation, and key features of the quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "The matching outputs are symmetric about $x={{h}}$, so $({{h}},{{k}})$ is the vertex.",
         "reasoning": [
-          "Use the given points or an equivalent form of the quadratic to determine the requested equation, parameter, or feature."
+          "$({{xL}},{{yL}})$ and $({{xR}},{{yR}})$ have the same output and sit {{d}} units either side of $x={{h}}$, so the vertex is $({{h}},{{k}})$.",
+          "So $f(x)=a(x {{nh|signed}})^2 {{k|signed}}$. At $x={{xR}}$: ${{yR}}=a\\cdot {{d2}} {{k|signed}}$, so $a=\\frac{{{ad2}}}{{{d2}}}={{a}}$.",
+          "So $f(x)={{a}}(x {{nh|signed}})^2 {{k|signed}}$."
         ],
-        "answerSummary": "Verify the result against the original quadratic relationship."
+        "commonError": "Writing $(x {{h|signed}})$ for a vertex at $x={{h}}$, which puts the vertex on the other side.",
+        "answerSummary": "$f(x)={{a}}(x {{nh|signed}})^2 {{k|signed}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A quadratic function passes through $({{xL}},{{yL}})$, $({{h}},{{k}})$, and $({{xR}},{{yR}})$. Which equation defines the function?",
@@ -51047,7 +51111,9 @@
           "yR": "a*d*d+k",
           "nh": "-h",
           "aneg": "-a",
-          "k1": "k+1"
+          "k1": "k+1",
+          "d2": "d*d",
+          "ad2": "a*d*d"
         },
         "constraints": [
           "h!=0",
@@ -51138,11 +51204,14 @@
         "Connect the given points, equation, and key features of the quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Use $f(0)$ for $c$, the difference for $b$, the sum for $a$.",
         "reasoning": [
-          "Use the given points or an equivalent form of the quadratic to determine the requested equation, parameter, or feature."
+          "At $x=0$ only $c$ is left: $c={{c}}$.",
+          "$f(1)-f(-1)=2b$: $2b={{y1}}-{{ym1|paren}}={{sb}}$, so $b={{b}}$.",
+          "$f(1)+f(-1)=2a+2c$: $2a={{y1}}+{{ym1|paren}}-2\\cdot {{c|paren}}={{sa}}$, so $a={{a}}$. So $f(x)={{a}}x^2 {{b|signed}}x {{c|signed}}$."
         ],
-        "answerSummary": "Verify the result against the original quadratic relationship."
+        "commonError": "Mixing up the signs: $f(1)-f(-1)$ is $2b$, and its sign is the sign of $b$.",
+        "answerSummary": "$f(x)={{a}}x^2 {{b|signed}}x {{c|signed}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "The values of a quadratic function are shown: $f(-1)={{ym1}}$, $f(0)={{y0}}$, and $f(1)={{y1}}$. Which equation defines the function?",
@@ -51181,7 +51250,9 @@
           "y1": "a+b+c",
           "nb": "-b",
           "a1": "a+1",
-          "c1": "c+1"
+          "c1": "c+1",
+          "sb": "y1-ym1",
+          "sa": "y1+ym1-2*c"
         },
         "constraints": [
           "b!=0",
@@ -51277,11 +51348,14 @@
         "Connect the given points, equation, and key features of the quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Use $x=0$ for $c$, then $x=1$ and $x=2$ for $a$ and $b$.",
         "reasoning": [
-          "Use the given points or an equivalent form of the quadratic to determine the requested equation, parameter, or feature."
+          "At $x=0$ only $c$ is left: $c={{c}}$.",
+          "At $x=1$ and $x=2$: $a+b={{y1}}-{{c|paren}}={{s1}}$ and $4a+2b={{y2}}-{{c|paren}}={{s2}}$.",
+          "Subtract twice the first: $2a={{s2}}-2\\cdot {{s1|paren}}={{twoa}}$, so $a={{a}}$ and $b={{s1}}-{{a}}={{b}}$. So $f(x)={{a}}x^2 {{b|signed}}x {{c|signed}}$."
         ],
-        "answerSummary": "Verify the result against the original quadratic relationship."
+        "commonError": "Getting the sign of $b$ wrong, or forgetting that the value at $x=0$ gives $c$ directly.",
+        "answerSummary": "$f(x)={{a}}x^2 {{b|signed}}x {{c|signed}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A quadratic function passes through $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$. Which equation defines the function?",
@@ -51320,7 +51394,10 @@
           "y2": "4*a+2*b+c",
           "nb": "-b",
           "c1": "c+1",
-          "a1": "a+1"
+          "a1": "a+1",
+          "s1": "y1-c",
+          "s2": "y2-c",
+          "twoa": "2*a"
         },
         "constraints": [
           "b!=0",
