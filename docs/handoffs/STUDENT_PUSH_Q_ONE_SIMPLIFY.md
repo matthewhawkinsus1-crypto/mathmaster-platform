@@ -54,7 +54,7 @@ the equation is solved (`x = …`), where no group remains.
 | 56a66ea | Browser drivers, plus the new journeys. Drafts are migrated in `rehydrateAlgebraDraft`. After a commit, focus moves to the next part. |
 | 05d6c5d | The planner removes a substituted group before combining; dead CSS removed; this handoff and the screenshots. |
 | 745c0d8 | `compactStepStateKey` gives the old and new rendering of one state one key (coordinator review); merge of main @ 86121b6. |
-| (next) | The verifier's fixes (below). |
+| 41f0ae5, (next) | The verifier's fixes (below); terms left alone keep their written form when a side is rebuilt. |
 | 09e7d6c | The static scan, migration, keyboard and ×1 tests. Engine fix: a minus sign is not a written 1 (`−y` is simplest, `−1y` is not; found by the 3×3 journey). Drivers for systems, relation and LMR. |
 
 ### How Simplify works
@@ -142,6 +142,11 @@ the equation is solved (`x = …`), where no group remains.
     choices), `day1SystemsJourney` (3), `day2NonuniqueJourneys` (6), `capabilityCertification` (17/17),
     `lmrProcessMode` (9).
   - `assessmentLeakGates`: every surface ok, exit 0.
+  - After the verifier fixes, rerun locally: `stepAlgebraStructureTools`, `algebraicSubstitutionHandoff`,
+    `algebraicSystems3x3`, `capabilityCertification`, `day1SystemsJourney`, `day2NonuniqueJourneys` and
+    `lmrProcessMode` (all exit 0). The five substitution journeys the coordinator named (systems-one-substitution,
+    systems-fraction-solution-substitution, ipad-systems-one-substitution, phone-systems-mixed-one-substitution,
+    systems-mixed-one-substitution) all end with browser and server parity true, with no unverified step.
   - `questionFamilyCases` (uses `relationWorkspaceDriver` and `equationWorkspacePlanner`). The full run had 4
     findings:
     - One was real: the planner did not yet remove a substituted `−(y − 1)` (systems-mixed-one-substitution). The
@@ -154,8 +159,7 @@ the equation is solved (`x = …`), where no group remains.
 
 The verifier fuzzed about 40 equation shapes with thousands of typed candidates. Every accepted commit was equal to
 its input (`rebuildSideSafely` guards it), migration survived malformed drafts, every step kind is a server kind, and
-the `algebraAstEngine` diff touches only LaTeX output. It confirmed these defects, all fixed in the commit after
-745c0d8:
+the `algebraAstEngine` diff touches only LaTeX output. It confirmed these defects, all fixed in 41f0ae5 and the commit after it:
 
 | Finding | Fix |
 | --- | --- |

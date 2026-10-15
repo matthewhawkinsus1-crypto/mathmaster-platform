@@ -545,8 +545,12 @@ export const applySimplifyItems = (region, part, items) => {
   // the splitter's flattened 1 * -4 * x — whenever the written chain lines up.
   const split = sideItems(region.expression);
   const raw = rawAdditiveTerms(region.expression);
+  // Only where the splitter's text lost a grouping ("1 * -4 * x", "1 * 12") is the
+  // written form used; otherwise its own text, which every display handles.
   const current = raw.length === split.length
-    ? raw.map((entry) => ({ sign: entry.sign, magnitude: entry.node.toString({ parenthesis: 'keep', implicit: 'show' }) }))
+    ? split.map((item, index) => (/\*\s*-|^1 \*/.test(item.magnitude)
+      ? { sign: raw[index].sign, magnitude: raw[index].node.toString({ parenthesis: 'keep', implicit: 'hide' }) }
+      : item))
     : split;
   const first = part.termIndices[0];
   const drop = new Set(part.termIndices);

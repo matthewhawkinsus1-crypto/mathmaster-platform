@@ -83,7 +83,7 @@ test('cancellable algebra terms are named in words and keep the keyboard focus r
   assert.match(panel, /aria-label=\{`\$\{entry\.name\}, \$\{entry\.regionLabel\}`\}/);
   assert.match(panel, /data-part-id=\{entry\.id\}/);
   const engine = executableSource(read('src/platform/algebra/simplify/simplifyEngine.js'));
-  assert.match(engine, /name: `product: \$\{spokenMathLabel\(/);
+  assert.match(engine, /const name = `product: \$\{spokenMathLabel\(/);
   assert.match(engine, /`like terms: \$\{indices\s*\.map\(\(index\) => spokenMathLabel\(/);
   assert.equal(spokenMathLabel('-6 * x'), 'negative 6 times x');
 });
