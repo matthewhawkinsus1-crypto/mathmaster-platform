@@ -220,6 +220,21 @@ const rushRound = async (page, origins, context) => {
   }, { currentQuestion: question });
   await page.locator('.mm-rush-overlay strong').first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(1500);
+  // The round's top row (alias, round, count, clock) must not sit under
+  // anything outside the round. The student identity bar draws on top of
+  // everything (z-index 21000), so the round starts at the bar's height.
+  const covered = await page.evaluate(() => {
+    const shell = document.querySelector('.mm-rush-shell');
+    const row = shell?.querySelector('.mm-rush-bar');
+    if (!row) return ['the round has no top row (.mm-rush-bar)'];
+    return [...row.children].flatMap((item) => {
+      const box = item.getBoundingClientRect();
+      if (!box.width || !box.height) return [];
+      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return top && !shell.contains(top) ? [`"${item.textContent.trim().slice(0, 24)}" is under ${top.tagName.toLowerCase()}${top.className ? `.${String(top.className).split(' ')[0]}` : ''}`] : [];
+    });
+  });
+  if (covered.length) throw new Error(`the Rush round's top row is covered: ${covered.join('; ')}`);
 };
 
 export const LARGE_TEXT_SCREENS = [

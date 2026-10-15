@@ -166,7 +166,11 @@ function useTimeAnnouncements(endMono, active) {
 
 const RUSH_CSS = `
 .mm-rush-shell {
-  position: fixed; inset: 0; z-index: 9000;
+  /* Full screen below the student identity bar, which stays on top (z 21000)
+     and publishes its height; without the offset it covered the round's top
+     row (alias, round, count, and the clock once the row wraps). 0 where no
+     bar is shown. */
+  position: fixed; top: var(--mm-student-identity-stack-offset, 0px); right: 0; bottom: 0; left: 0; z-index: 9000;
   display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr);
   background: radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%);
   color: #eef1f6; font-family: "Segoe UI", system-ui, sans-serif;
