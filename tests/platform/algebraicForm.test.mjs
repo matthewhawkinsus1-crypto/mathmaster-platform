@@ -43,7 +43,12 @@ test('a different FORM of the same line is still wrong', () => {
   assert.equal(sameValue('y-5=-3(x-2)', 'y=-3x+11'), false, 'point-slope');
   assert.equal(sameValue('3x+y=11', 'y=-3x+11'), false, 'standard form');
   assert.equal(sameValue('2y=3x-12', 'y=1.5x-6'), false, 'scaled through');
-  assert.equal(sameValue('2x=y', 'y=2x'), false, 'sides swapped');
+  // Job P (the product owner's list of right answers marked wrong, item 5):
+  // the same equation with its sides swapped is right. Each side keeps its
+  // form, so the forms above are still refused when written the other way round.
+  assert.equal(sameValue('2x=y', 'y=2x'), true, 'sides swapped');
+  assert.equal(sameValue('-3(x-2)=y-5', 'y=-3x+11'), false, 'point-slope, sides swapped');
+  assert.equal(sameValue('11=3x+y', 'y=-3x+11'), false, 'standard form, sides swapped');
 });
 
 test('a wrong number is still wrong', () => {

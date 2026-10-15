@@ -64,10 +64,14 @@ test('negatives and decimals the editor sends grade as typed text does', async (
   assert.equal(await grades('\\frac{5}{13}', '25/65'), true, 'an unreduced key still accepts the reduced fraction');
 });
 
-test('x=4 is not the number 4 — in the editor and in a text box alike, which is why the hint says "only the number"', async () => {
+test('x=4 grades as the number 4 — in the editor and in a text box alike — and the hint still says "only the number"', async () => {
   // The editor does not change this: both send the characters x=4. The SAT's
   // own rule is to enter only the number, and the number field's hint says so.
-  assert.equal(await grades('x=4', '4'), false);
+  // Job P (item 5): the grader now reads x=4 as the number 4 for a number
+  // key — a student who wrote it is right — and the hint still asks for the
+  // number alone. x=5 stays wrong.
+  assert.equal(await grades('x=4', '4'), true);
+  assert.equal(await grades('x=5', '4'), false);
   assert.equal(await grades('x=4', 'x=4'), true, 'an equation key still accepts it');
   assert.match(SECURE_ENTRY_HINTS.number, /only the number/i);
 });
@@ -122,22 +126,32 @@ test('the browser capture covers every profile on both screen sizes, a phone\'s 
 test('an ordered pair and an inequality stay typed text for reasons the grader still has', async () => {
   // If any of these flips, the server now reads the editor's form: the
   // profile can move to the math editor once the browser capture shows it.
-  assert.equal(await grades('0<=h\\land h<=12', '0<=h and h<=12', { profile: 'inequality' }), false,
-    'the grader now reads \\land — inequality could move to the math editor (its phone keypad still needs letter keys)');
+  // Job P (item 5) flipped two: the grader reads \land and a fraction in a
+  // pair. Moving inequality and orderedPair to the math editor still needs
+  // the browser capture (tests/browser/secureAccessParity.mjs --write); the
+  // root the editor wraps round the rest of the pair is still unreadable.
+  assert.equal(await grades('0<=h\\land h<=12', '0<=h and h<=12', { profile: 'inequality' }), true,
+    'the grader reads \\land');
+  assert.equal(await grades('0<=h\\land h<12', '0<=h and h<=12', { profile: 'inequality' }), false, 'a different set is still wrong');
   assert.equal(await grades('0<=h and h<=12', '0<=h and h<=12', { profile: 'inequality' }), true, 'typed text is read');
-  assert.equal(await grades('(\\frac{-1}{2},3)', '(-1/2,3)', { profile: 'orderedPair' }), false,
-    'the grader now reads the a/b key\'s negative fraction in a pair');
+  assert.equal(await grades('(\\frac{-1}{2},3)', '(-1/2,3)', { profile: 'orderedPair' }), true,
+    'the grader reads the a/b key\'s negative fraction in a pair');
+  assert.equal(await grades('(\\frac{1}{2},3)', '(-1/2,3)', { profile: 'orderedPair' }), false, 'the wrong sign is still wrong');
   assert.equal(await grades('(3\\sqrt{(2),1)}', '(3sqrt(2),1)', { profile: 'orderedPair' }), false,
     'a root the editor wraps around the rest of the pair');
   assert.equal(await grades('(-1/2,3)', '(-1/2,3)', { profile: 'orderedPair' }), true, 'typed text is read');
   assert.equal(await grades('(3sqrt(2),1)', '(3sqrt(2),1)', { profile: 'orderedPair' }), true, 'typed text is read');
 });
 
-test('a math-editor field that names π, √, % or $ gets typed text, because the grader keeps the editor\'s LaTeX for them', async () => {
+test('a math-editor field that names π, √, % or $ gets typed text until a browser capture shows the editor\'s form, which the grader now reads', async () => {
   // What the real editor sends for each (captured by the verifier's probe and
   // by tests/browser/secureAccessParity.mjs), against the same characters typed.
-  for (const [sent, typed] of [['2\\pi', '2pi'], ['3\\sqrt{\\left(2\\right)}', '3sqrt(2)'], ['25\\%', '25%'], ['\\$25', '$25']]) {
-    assert.equal(await grades(sent, typed), false, `the grader now reads ${sent}: the symbol guard for it can go`);
+  // Job P (item 5): the grader now reads every one of them. The guard below
+  // (typed text for these fields) stays until a browser capture shows the
+  // editor's form for each (tests/browser/secureAccessParity.mjs --write).
+  for (const [sent, typed, miss] of [['2\\pi', '2pi', '3\\pi'], ['3\\sqrt{\\left(2\\right)}', '3sqrt(2)', '2\\sqrt{\\left(3\\right)}'], ['25\\%', '25%', '2.5\\%'], ['\\$25', '$25', '\\$2.5']]) {
+    assert.equal(await grades(sent, typed), true, `the grader reads ${sent}`);
+    assert.equal(await grades(miss, typed), false, `${miss} is still wrong for ${typed}`);
     assert.equal(await grades(typed, typed), true, `${typed} typed is read`);
   }
   for (const symbol of ['π', '√', '%', '$']) {
