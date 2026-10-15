@@ -658,8 +658,8 @@ export default function StepByStepAlgebra({
     if (structureTool && equation && structureTool.equationKey !== equationKey(equation)) setStructureTool(null);
   }, [structureTool, equation]);
 
-  // Simplify stays open across its own commits (the student usually has more
-  // to simplify), but its choices belong to the equation they were made on:
+  // Simplify stays open across its own commits while parts are left (the
+  // student usually has more to simplify), but its choices belong to the equation they were made on:
   // a changed equation keeps the tool open with nothing chosen.
   useEffect(() => {
     if (!simplifyTool || !equation) return;
@@ -676,6 +676,17 @@ export default function StepByStepAlgebra({
   const simplifyParts = useMemo(() => {
     try { return detectSimplifyParts(simplifyRegions); } catch { return []; }
   }, [simplifyRegions]);
+  // After the commit that leaves nothing to simplify, Simplify closes so the
+  // confirmation is not pushed under the action bar, and focus goes back to
+  // the Simplify button.
+  const closeSimplifyWhenDoneRef = useRef(false);
+  useEffect(() => {
+    if (!closeSimplifyWhenDoneRef.current) return;
+    closeSimplifyWhenDoneRef.current = false;
+    if (simplifyParts.length) return;
+    setSimplifyTool(null);
+    window.requestAnimationFrame(() => simplifyButtonRef.current?.focus());
+  }, [simplifyParts]);
 
   const simplificationPromptVisible = Boolean(
     pendingMove?.simplificationTargets?.length
@@ -1043,6 +1054,7 @@ export default function StepByStepAlgebra({
           : result.step.description;
     await persistStudentRewrite(beforeEquation, nextEquation, [result.region], { kind: result.step.kind, label });
     pushCommittedEquation(beforeEquation, { ...result.step, after: nextEquation });
+    closeSimplifyWhenDoneRef.current = true;
     setEquation(nextEquation);
     setBalancePulse(true);
     window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));

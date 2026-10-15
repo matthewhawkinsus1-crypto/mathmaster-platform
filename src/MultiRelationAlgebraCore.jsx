@@ -1185,13 +1185,18 @@ export default function MultiRelationAlgebra({
     const next = cloneRelationState(relationState);
     if (!next.branches?.[activeBranch]?.expressions || !Number.isInteger(index)) return false;
     next.branches[activeBranch].expressions[index] = result.expression;
+    // Armed before the save: the new expressions render while it is awaited.
+    closeSimplifyWhenDoneRef.current = true;
     const committed = await commitState(
       next,
       `${result.step.description} on Branch ${branchLabel(activeBranch)}`,
       result.step.kind,
       { kind: 'equivalentRewrite' },
     );
-    if (!committed) return false;
+    if (!committed) {
+      closeSimplifyWhenDoneRef.current = false;
+      return false;
+    }
     setMessage({ tone: 'success', text: `${result.step.description}. You did the algebra; MathMaster only checked it.` });
     return true;
   };
@@ -1647,6 +1652,17 @@ export default function MultiRelationAlgebra({
   useEffect(() => {
     if (simplifyTool && simplifyTool.equationKey !== simplifyKey) setSimplifyTool(openSimplify(simplifyKey));
   }, [simplifyTool, simplifyKey]);
+  // (Declared after the reset above, so its close is the last word.)
+  // After the commit that leaves nothing to simplify, Simplify closes so the
+  // confirmation stays in view, and focus goes back to the Simplify button.
+  const closeSimplifyWhenDoneRef = useRef(false);
+  useEffect(() => {
+    if (!closeSimplifyWhenDoneRef.current) return;
+    closeSimplifyWhenDoneRef.current = false;
+    if (simplifyParts.length) return;
+    setSimplifyTool(null);
+    window.requestAnimationFrame(() => simplifyButtonRef.current?.focus());
+  }, [simplifyParts]);
   // A relation region is read the way the relation workspace reads it
   // (absolute values, roots), and must still not leave more to simplify.
   const relationRegionCheck = useMemo(() => ({

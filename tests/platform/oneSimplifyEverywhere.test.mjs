@@ -51,7 +51,7 @@ test('no tool renders its own Simplify or Combine like terms control outside the
     if (/title=["{]['"`]?Combine like terms/.test(source)) offenders.push(`${relative}: a panel titled Combine like terms`);
     // The old models' UI entry points: only the shared engine may combine or multiply out.
     if (/from ['"][./]*algebraArithmeticModel(\.js)?['"]/.test(source)) offenders.push(`${relative}: imports the old arithmetic model`);
-    if (/\.jsx$/.test(file) && /\b(replaceSelectedLikeTerms|selectedLikeTermInfo|replacementIsSingleLikeTerm|replaceSingleAdditiveTerm|commitRelationLikeTerms)\b/.test(source)) {
+    if (file.endsWith('.jsx') && /\b(replaceSelectedLikeTerms|selectedLikeTermInfo|replacementIsSingleLikeTerm|replaceSingleAdditiveTerm|commitRelationLikeTerms)\b/.test(source)) {
       offenders.push(`${relative}: combines like terms itself`);
     }
   }
@@ -65,7 +65,7 @@ test('no tool renders its own Simplify or Combine like terms control outside the
 });
 
 test('the scan can fail: an old label or import in any src file is caught', () => {
-  const scan = (source) => /\>\s*(Rewrite \/ Simplify|Simplify arithmetic|Combine like terms)\s*</.test(source)
+  const scan = (source) => />\s*(Rewrite \/ Simplify|Simplify arithmetic|Combine like terms)\s*</.test(source)
     || /from ['"][./]*algebraArithmeticModel(\.js)?['"]/.test(source);
   assert.equal(scan('<button>Combine like terms</button>'), true);
   assert.equal(scan("import { x } from './algebraArithmeticModel.js';"), true);

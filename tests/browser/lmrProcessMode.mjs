@@ -46,7 +46,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { balancedMove, cancelFactor, cancelTerm, closeInlineModes, combineLikeTerms, distribute, mathState, rewriteTerm, setMathField, simplifySide, removeParentheses } from './stepAlgebraDriver.mjs';
+import { balancedMove, cancelFactor, cancelTerm, closeInlineModes, combineLikeTerms, mathState, rewriteTerm, setMathField, simplifySide, removeParentheses } from './stepAlgebraDriver.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const here = path.dirname(fileURLToPath(import.meta.url));

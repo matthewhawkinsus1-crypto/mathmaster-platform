@@ -537,7 +537,6 @@ async function ownerCase(browserInstance, viewport, { keyboardOnly }) {
   const journey = `owner-case-${viewport.width}${keyboardOnly ? '-keyboard' : ''}`;
   const context = await ownerContext(browserInstance, viewport);
   const page = await open(context, 5);
-  const host = page.locator('body');
   // 2x + y = 2 after y = -4x + 12: the group the student substituted into,
   // never 1(-4x + 12), and the old three buttons are gone.
   const start = compact(await state(page));
@@ -560,7 +559,7 @@ async function ownerCase(browserInstance, viewport, { keyboardOnly }) {
     await page.keyboard.press('Escape');
     await settle(page, 300);
     expect(journey, (await page.locator('.mm-simplify-box').count()) === 0, 'Escape did not close the box');
-    expect(journey, /^parentheses:/.test(await activeLabel(page)), `Escape did not return focus to the part (${await activeLabel(page)})`);
+    expect(journey, (await activeLabel(page)).startsWith('parentheses:'), `Escape did not return focus to the part (${await activeLabel(page)})`);
     await page.keyboard.press('Enter');
     await settle(page, 300);
     seen = await focusUnobscured(page);
