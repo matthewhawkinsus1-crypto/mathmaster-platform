@@ -188,9 +188,17 @@ const clampPercent = (value) =>
 // spaced or dashed. Exported (unchanged) so the server's step verification
 // (serverGrading/stepAlgebraStepVerification.mjs) recognizes a state the way
 // calculateStepPartialCredit below does.
+// A state's identity, not its rendering. Since student push Q a substituted
+// group stored as 1(…) / -1(…) is DRAWN (…) / -(…); records written before
+// that hold the old 1\left(…\right). A unit coefficient straight before a
+// group, at the start or after = + - ( , {, is dropped, so both renderings of
+// one state give one key: continuity (stepAlgebraStepVerification) and the
+// partial-credit dedupe below hold across the deploy. Dropping a 1 never
+// merges two different values.
 export const compactStepStateKey = (value) => String(value || '')
   .replace(/\s+/g, '')
-  .replace(/[−–—]/g, '-');
+  .replace(/[−–—]/g, '-')
+  .replace(/(^|[=+\-(,{])1\\left\(/g, '$1\\left(');
 
 export const calculateStepPartialCredit = (stepGrades = [], variantIndex = 0) => {
   const currentSteps = (Array.isArray(stepGrades) ? stepGrades : []).filter(

@@ -9,19 +9,38 @@ Screenshots: `docs/qa/one-simplify/` — `before-*` on main, `after-*` on this b
 
 ## Deploy
 
-**Hosting only.** No new step kind, no Firestore rule, no index, no collection, no one-off script.
+**Hosting, plus the Functions that bundle `functions/shared`.** No new step kind, no Firestore rule, no index, no
+collection and no one-off script.
 
 ```bash
+node scripts/release-firebase.mjs            # plan only: it lists the exact functions
 npm run build && npm run build:firebase
+# Functions (default codebase) and path-admin, exact names from the plan, then:
 FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting
 ```
 
-One file under `functions/` changed: `functions/shared/algebra/algebraAstEngine.mjs`. The change is **presentation
-only** (`withoutRedundantGrouping` and the leading-negative path of `additiveTermDescriptor`): a stored `1(…)` or
-`−1(…)` is drawn as `(…)` / `−(…)`. It changes LaTeX, never a term split, an equivalence or a verdict. No Function needs
-redeploying. Until the Functions are next deployed for another reason, any LaTeX the server itself renders keeps the old
-`1(…)` text, and nothing graded differs. `node scripts/release-firebase.mjs` (plan only) will list the functions that
-bundle that file; deploying them is optional.
+Two server files changed:
+
+- `functions/shared/algebra/algebraAstEngine.mjs` is **presentation**. A stored `1(…)` / `−1(…)` is drawn `(…)` /
+  `−(…)` by `withoutRedundantGrouping` and by the leading-negative path of `additiveTermDescriptor`. Term splits,
+  `magnitudeText`, equivalence and verdicts are unchanged.
+- `functions/shared/attemptPolicy.mjs` `compactStepStateKey` (coordinator review). The server keys a step state by its
+  LaTeX, `equationKey = compactStepStateKey(equationToLatex(…))`, both for continuity (`recordedStateKeys`) and for the
+  partial-credit dedupe. Without a fix, a state recorded before the deploy as `…+1\left(…` and the same state keyed
+  after it as `…+\left(…` would not match. A student who undid back to it would get `step-not-continuous`, and the
+  dedupe would count the state twice. The key now drops a unit coefficient straight before a group (at the start or
+  after `= + - ( , {`), so both renderings give one key. Dropping a 1 never merges two different values. Pinned in
+  `tests/tools/stepAlgebraStepCredit.test.mjs` (the last test: an old-rendered record, Undo → step stays continuous,
+  and the two renderings earn once). That test fails without the change.
+
+**Mid-deploy.** The server builds every key itself from the raw work, so an old or a new browser is graded the same way
+by an old or a new server. Until the Functions deploy, the server still renders `1(…)`, consistently with the records
+it wrote. After the deploy, both renderings key the same. The release plan lists the default functions codebase
+(every function bundling `attemptPolicy.mjs` / `algebraAstEngine.mjs`, plus `platformBuildInfo`) and **path-admin**,
+which vendors `functions/shared`. Run the plan first; nothing needs `--execute` from me.
+
+The only other place that uses display LaTeX as data is `StepByStepAlgebraCore`'s `responseKey`. It is set only once
+the equation is solved (`x = …`), where no group remains.
 
 ## What shipped
 
@@ -33,6 +52,8 @@ bundle that file; deploying them is optional.
 | 63c41e7 | **Relation workspace** (`MultiRelationAlgebraCore`, `RelationStructureTools`): the same panel (relation step kinds), with highlighted board terms. Its own Rewrite / Simplify bar and Combine like terms panel are gone. Polynomial Workshop: see "Calls I made". |
 | 643e971 | The tests that pinned the old controls, each rewritten against the behaviour it protects. |
 | 56a66ea | Browser drivers, plus the new journeys. Drafts are migrated in `rehydrateAlgebraDraft`. After a commit, focus moves to the next part. |
+| 05d6c5d | The planner removes a substituted group before combining; dead CSS removed; this handoff and the screenshots. |
+| (next) | `compactStepStateKey` gives the old and new rendering of one state one key (coordinator review); merge of main. |
 | 09e7d6c | The static scan, migration, keyboard and ×1 tests. Engine fix: a minus sign is not a written 1 (`−y` is simplest, `−1y` is not; found by the 3×3 journey). Drivers for systems, relation and LMR. |
 
 ### How Simplify works
@@ -102,8 +123,8 @@ bundle that file; deploying them is optional.
   and `tests/tools/systemsSubstitutionParentheses`.
   - `stepAlgebraStepCredit`, `systemsBackSubstitutionSimplified`, `substitutedProductNotation` and
     `systemsWorkspace3x3Mode` pass unchanged.
-- **Gate (local):** `npm run test:platform` passes 11 201 tests with 0 failing (`npm --prefix functions ci` first: 9
-  suites need the functions dependencies). `tests/tools` passes 1 627 with 0 failing. `npm run lint` and
+- **Gate (local):** `npm run test:platform` passes 11 263 tests with 0 failing (after merging main @ 86121b6) (`npm --prefix functions ci` first: 9
+  suites need the functions dependencies). `tests/tools` passes 1 628 with 0 failing. `npm run lint` and
   `npm run build` both pass.
 - **Browser (Chromium, real QuestionEngine), run locally:**
   - `stepAlgebraStructureTools`: every old journey, plus the new ones:
@@ -159,8 +180,9 @@ bundle that file; deploying them is optional.
 
 ## Files outside my lane
 
-- `functions/shared/algebra/algebraAstEngine.mjs`: the display rule above, two small hunks. No grader or equivalence
-  file was touched.
+- `functions/shared/algebra/algebraAstEngine.mjs`: the display rule above, two small hunks.
+- `functions/shared/attemptPolicy.mjs`: `compactStepStateKey`, one line plus a comment (see Deploy). No grader or
+  answer-equivalence file was touched.
 - `src/platform/certification/interactiveCapabilityManifest.js`: the two like-terms wiring patterns now point at
   `<SimplifyPanel`.
 - `src/tools/polynomialWorkshop/PolynomialWorkshop.jsx`: one heading.
