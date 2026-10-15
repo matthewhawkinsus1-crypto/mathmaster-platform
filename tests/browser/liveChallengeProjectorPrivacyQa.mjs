@@ -521,8 +521,14 @@ try {
   check(solutionState === 'ready', `the solution reads as ${solutionState}`, 'the worked solution is ready (published after the close)');
   const published = (await roomRef(roomId).collection('solutions').doc('0').get()).data();
   if (published?.solutionReview?.headline) {
-    const headline = published.solutionReview.headline.replace(/\\\(|\\\)|\$/g, '').slice(0, 18);
-    check((await textOf(teacher)).includes(headline.trim().split(' ')[0]), 'the projector does not show the published solution', 'the projector shows the published solution');
+    // Probe with a word of the headline's prose. The projector draws math with
+    // KaTeX, so a headline that opens with math ("$1\ge 0$, so use the second
+    // rule: 3.") is never on screen as its LaTeX source: probing "1\ge" failed
+    // whenever the round drew that question.
+    const prose = published.solutionReview.headline.replace(/\$[^$]*\$|\\\([\s\S]*?\\\)/g, ' ');
+    const word = (prose.match(/[A-Za-z]{4,}/) || prose.match(/[A-Za-z]{3,}/) || [])[0];
+    const shown = await teacher.page.locator('[data-mm-projector-solution="ready"]').first().innerText().catch(() => '');
+    check(word ? shown.includes(word) : shown.trim().length > 0, 'the projector does not show the published solution', 'the projector shows the published solution');
   }
   const fontPx = await teacher.page.locator('[data-mm-projector-solution="ready"] ol').first().evaluate((node) => parseFloat(getComputedStyle(node).fontSize)).catch(() => 0);
   check(fontPx >= 18, `the solution's steps are ${fontPx}px at 1366×768`, `the solution's steps are ${fontPx}px at 1366×768`);
