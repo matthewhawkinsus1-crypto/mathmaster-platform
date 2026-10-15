@@ -45,6 +45,9 @@ export const typeOperand = (page, host, operand) => setMathField(page, host.loca
 
 /** + − × ÷ on both sides by select-then-place, then wait for the pending move. */
 export const balancedMove = async (page, host, label, operand) => {
+  // Simplify stays open after its commits and owns the board while it is;
+  // a student closes it to reach the + − × ÷ rails.
+  await closeInlineModes(page, host);
   await chooseOperation(page, host, label);
   await typeOperand(page, host, operand);
   await host.locator('button.algebra-pickup-button').click();
@@ -213,4 +216,47 @@ export const closeInlineModes = async (page, host) => {
     await rewrite.click();
     await settle(page, 150);
   }
+};
+
+/**
+ * Multiply out the products a substitution or a back-substitution left on the
+ * board, as the student does: for each [pattern, value], the product part
+ * whose term's source text matches is chosen in Simplify and the student's
+ * product typed. Patterns with no matching product are skipped.
+ */
+export const simplifyProducts = async (page, host, products) => {
+  for (const [match, value] of products) {
+    await openSimplify(page, host);
+    const ids = await host.locator('.mm-simplify-part[data-simplify-part="product"], .mm-simplify-part[data-simplify-part="unit"]').evaluateAll((elements) => elements.map((element) => element.dataset.partId));
+    let chosen = null;
+    for (const id of ids) {
+      const [side, , indices] = id.split(':');
+      const text = await sideBox(host, side).locator(`[data-term-index="${indices.split('.')[0]}"]`).first().getAttribute('data-term-text');
+      if (match.test(text || '')) { chosen = id; break; }
+    }
+    if (!chosen) continue;
+    await host.locator(`.mm-simplify-part[data-part-id="${chosen}"]`).click();
+    await settle(page, 250);
+    await checkSimplifyBox(page, host, value);
+  }
+  await closeInlineModes(page, host);
+};
+
+/**
+ * Remove the parentheses on a side: after a plus sign nothing is typed; after
+ * a minus sign the student chooses each term's new sign ('+' or '-', in the
+ * order the terms are inside the parentheses).
+ */
+export const removeParentheses = async (page, host, side, signs = []) => {
+  await openSimplify(page, host);
+  await host.locator(`.mm-simplify-part[data-simplify-part="parentheses"][data-part-id^="${side}:"]`).first().click();
+  await settle(page, 250);
+  const box = host.locator('.mm-simplify-box').first();
+  const groups = box.locator('.mm-simplify-sign-group');
+  for (let index = 0; index < signs.length; index += 1) {
+    await groups.nth(index).locator(`button[aria-label^="${signs[index] === '-' ? 'minus' : 'plus'} "]`).click();
+    await settle(page, 80);
+  }
+  await box.locator('button.algebra-inline-commit').click();
+  await settle(page, 600);
 };

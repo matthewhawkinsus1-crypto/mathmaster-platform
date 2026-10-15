@@ -530,7 +530,11 @@ const runReset = async (context) => {
   await page.close();
 };
 
-/** Teacher Preview: a subtracted substitution keeps its group and offers the -1 to the student. */
+/**
+ * Teacher Preview: a subtracted substitution keeps its group, drawn -(…) with
+ * no factor of 1, and removing the parentheses asks the student for every
+ * changed sign (student push Q) — never a -1 to multiply.
+ */
 const runNegatedGroup = async (context) => {
   const journey = 'preview-negated-group';
   const page = await context.newPage();
@@ -552,9 +556,16 @@ const runNegatedGroup = async (context) => {
     await settle(page, 800);
     const standardizer = solver(page);
     observed.state = await mathState(standardizer);
-    observed.factor = await standardizer.locator('.algebra-inline-factor-token').first().evaluate((element) => [...element.querySelectorAll('math-span, math-div')].map((math) => math.textContent).join(' ') || element.textContent).catch(() => '');
-    expect(journey, /1\\left\(/.test(observed.state || ''), `the subtracted group was not kept whole: ${observed.state}`);
-    expect(journey, /-\s*1|−\s*1/.test(observed.factor), `the -1 factor was not offered for distribution: ${JSON.stringify(observed.factor)}`);
+    expect(journey, /-\\left\(- x- z\+6\\right\)/.test(observed.state || ''), `the subtracted group was not kept whole: ${observed.state}`);
+    expect(journey, !/1\\left\(/.test(observed.state || ''), `a factor of 1 is shown: ${observed.state}`);
+    expect(journey, (await standardizer.locator('.algebra-inline-factor-token, button.algebra-distribute-toggle').count()) === 0, 'a factor of -1 was offered to distribute');
+    await standardizer.locator('button.algebra-simplify-toggle').click();
+    await settle(page, 300);
+    await standardizer.locator('.mm-simplify-part[data-simplify-part="parentheses"]').click();
+    await settle(page, 300);
+    observed.signChoices = await standardizer.locator('.mm-simplify-signs button').count();
+    observed.signsChosen = await standardizer.locator('.mm-simplify-signs button[aria-pressed="true"]').count();
+    expect(journey, observed.signChoices === 6 && observed.signsChosen === 0, `the student was not asked for every sign: ${observed.signChoices} choices, ${observed.signsChosen} pre-chosen`);
     await shoot(page, 'preview-negated-group-kept-whole');
   });
   report.push(observed);

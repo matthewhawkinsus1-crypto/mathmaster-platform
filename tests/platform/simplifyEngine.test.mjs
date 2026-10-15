@@ -20,7 +20,7 @@ import {
   partsForTerm,
   simplifyStepFor,
 } from '../../src/platform/algebra/simplify/simplifyEngine.js';
-import { expressionsEquivalent } from '../../src/algebraAstEngine.js';
+import { expressionsEquivalent, splitAdditiveTerms } from '../../src/algebraAstEngine.js';
 import { EQUATION_REWRITE_KINDS, RELATION_STEP_KINDS } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 
 const regionsOf = (left, right = '0', variable = 'x') => [
@@ -85,6 +85,11 @@ test('the platform never supplies a result: no part, prompt or message names one
   for (const result of ['15', '6x', '6 x', '\\frac{3}{2}', '3/2', '3 over 2', 'negative 2,', '-2 ']) {
     assert.ok(!shown.includes(result), `"${result}" appears in ${shown}`);
   }
+  // Nothing a part shows is ever "… = result", for every kind of part.
+  const everyKind = detectSimplifyParts(regionsOf('(-1) * (-4 * x) + 3 * (5 * x) + (1) * (12) + 2 * x', '6 / 4 - 1 * (x - 2)'));
+  for (const part of everyKind) {
+    assert.doesNotMatch(`${part.latex} ${part.productLatex || ''} ${part.name}`, /=/, `${part.id} shows a result`);
+  }
   // No message carries a number, except the rule that a 1 is not written.
   for (const [reason, message] of Object.entries(SIMPLIFY_MESSAGES)) {
     assert.doesNotMatch(message.replace(/write x, not 1x/, ''), /\d/, `${reason}: ${message}`);
@@ -111,6 +116,10 @@ test('a product: the student states the product, checked exactly, with near miss
   assert.equal(negative.productLatex, '\\left(-3\\right) \\times 2');
   assert.equal(commit('-3 * (2 * x)', '6', negative.id, { answer: '-6' }).expression, '-6 * x');
   assert.equal(commit('-3 * (2 * x)', '6', negative.id, { answer: '6' }).reason, 'sign');
+  // The whole term typed must be simplest too: one number, no product left.
+  assert.equal(commit('-3 * (2 * x)', '6', negative.id, { answer: '(-2)(3)x' }).reason, 'notSingleNumber');
+  // A product of 0 leaves no "+ 0" on the board.
+  assert.equal(commit('x + (0) * (5)', '3', 'left:product:1', { answer: '0' }).expression, 'x');
   // (-1)(-4x) keeps its sign step: the student states 4.
   assert.equal(commit('(-1) * (-4 * x)', '8', 'left:product:0', { answer: '4' }).expression, '4 * x');
   // A product of 1 never writes 1x: (1/2)(2)x -> x.
@@ -130,6 +139,9 @@ test('like terms: one simplest term equal to their sum; near misses refused', ()
   // 1x is never accepted: write x.
   assert.equal(commit('3 * x - 2 * x', '7', 'left:likeTerms:0.1', { answer: '1x' }).reason, 'unitCoefficient');
   assert.equal(commit('3 * x - 2 * x', '7', 'left:likeTerms:0.1', { answer: 'x' }).expression, 'x');
+  // A minus sign is not a written 1: -y is simplest, -1y is not (3x3 journey).
+  assert.equal(commit('-3 * y + 2 * y', '7', 'left:likeTerms:0.1', { answer: '-y' }).ok, true);
+  assert.equal(commit('-3 * y + 2 * y', '7', 'left:likeTerms:0.1', { answer: '-1y' }).reason, 'unitCoefficient');
   // Terms that cancel leave no "+ 0" behind.
   assert.equal(commit('2 * x - 2 * x + 5', '0', 'left:likeTerms:0.1', { answer: '0' }).expression, '5');
   assert.equal(commit('2 * x - 2 * x', '5', 'left:likeTerms:0.1', { answer: '0' }).expression, '0');
@@ -167,6 +179,10 @@ test('a whole side: equal, changed, and not leaving more to simplify', () => {
   // Equal, but not simpler: x + x + 12 has like terms that 2x + 12 does not.
   assert.equal(checkRegionRewrite({ ...region, expression: '2 * x + 12' }, 'x + x + 12').reason, 'moreToSimplify');
   assert.equal(checkRegionRewrite({ ...region, expression: '2 * x + 12' }, '2(3)x - 4x + 12').reason, 'moreToSimplify');
+  // "+ 0" typed is removed before it reaches the board.
+  const zero = checkRegionRewrite(region, '-2x+12+0');
+  assert.equal(zero.ok, true);
+  assert.ok(splitAdditiveTerms(zero.expression).every((term) => term.magnitudeText !== '0'), zero.expression);
   // A distribution or a reshaped fraction is not "more to simplify".
   assert.equal(checkRegionRewrite({ ...region, expression: '3 * (x + 2)' }, '3x + 6').ok, true);
   assert.equal(checkRegionRewrite({ ...region, expression: 'x / 2' }, '(1/2)x').ok, true);

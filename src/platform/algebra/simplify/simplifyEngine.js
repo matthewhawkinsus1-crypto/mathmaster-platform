@@ -86,10 +86,11 @@ export const signedFactors = (rawNode) => {
     const firstNumber = inner.findIndex((factor) => factor.value);
     if (firstNumber >= 0) {
       return inner.map((factor, index) => (index === firstNumber
-        ? { ...factor, value: makeRational(-factor.value.n, factor.value.d), node: null }
+        ? { ...factor, value: makeRational(-factor.value.n, factor.value.d) }
         : factor));
     }
-    return [{ value: makeRational(-1, 1), node: null }, ...inner];
+    // A minus sign with no number of its own: -y. Not a written 1.
+    return [{ value: makeRational(-1, 1), node: null, sign: true }, ...inner];
   }
   if (!hasSymbols(node)) {
     const value = exactRationalFromNode(node);
@@ -336,7 +337,8 @@ const simplestTermProblem = (node) => {
   const numbers = factors.filter((factor) => factor.value);
   const letters = factors.filter((factor) => !factor.value);
   if (numbers.length >= 2) return 'notSingleNumber';
-  if (numbers.length === 1 && letters.length && isOne(makeRational(Math.abs(numbers[0].value.n), numbers[0].value.d))) return 'unitCoefficient';
+  if (numbers.length === 1 && letters.length && !numbers[0].sign
+    && isOne(makeRational(Math.abs(numbers[0].value.n), numbers[0].value.d))) return 'unitCoefficient';
   if (numbers.length === 1 && numbers[0].node && !reducedNumberValue(numbers[0].node)
     && !(numbers[0].node.type === 'OperatorNode' && numbers[0].node.fn === 'unaryMinus' && reducedNumberValue(numbers[0].node.args[0]))) {
     return 'notLowestTerms';
