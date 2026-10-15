@@ -485,3 +485,21 @@ console.log('semanticValidation.test.mjs: all assertions passed');
   assert.ok(!correctedResult.warnings.some((message) => /looks categorical/.test(message)),
     'explicit choice fields do not trigger the categorical-entry warning');
 }
+
+// --- a simplified expression is mathematics, not a word category -------------
+// "2x-5" has no operator from the categorical check's list (it holds no minus,
+// so hyphenated words stay words) and used to be told to become a choice field.
+{
+  const categoricalWarnings = (answers) => validateQuestionSemantics({
+    type: 'multiAnswer',
+    prompt: 'Simplify each transformed function.',
+    answerFields: answers.map((answer, index) => ({ id: `f${index}`, label: `Simplify part ${index + 1}`, answer })),
+  }, { label: 'simplify question' }).warnings.filter((message) => /looks categorical/.test(message));
+
+  for (const expression of ['2x-5', 'x-3', '-x', '4x', '3x − 5', '−x', '2(x-1)']) {
+    assert.deepEqual(categoricalWarnings([expression]), [], `"${expression}" is an expression, not a category`);
+  }
+  for (const word of ['time', 'x-intercept', 'e-mail', 'Translation right']) {
+    assert.equal(categoricalWarnings([word]).length, 1, `"${word}" is still a word category`);
+  }
+}

@@ -430,6 +430,7 @@ import {
   mappedCourseIdsForAssignment,
   shouldAutoPublishClassroomPackage,
 } from './platform/classroom/automaticClassroomPublishing.js';
+import { automaticClassroomTopicName } from './platform/classroom/classroomTopicNaming.js';
 import { classIdsForTeacher, resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
 import { buildNeedsAttentionQueue } from './platform/teacher/needsAttention.js';
 import {
@@ -2455,6 +2456,9 @@ function App() {
     }
 
     const classroom = assignment.classroomPackage || {};
+    // One name for both posts, so the resources and the assignment land in the
+    // same topic — renamed "Week of …" when the teacher chose week topics.
+    const topicName = automaticClassroomTopicName(assignment);
     const notesPdf = assignment.lessonResources?.notesPdf || null;
     const resourceLinks = Array.isArray(classroom.additionalLinks)
       ? classroom.additionalLinks
@@ -2504,7 +2508,7 @@ function App() {
         materialKey: `assignment:${assignment.id}:resources`,
         title: classroom?.resourcesPost?.title || `${assignment.title} — Notes & Resources`,
         description: classroom?.resourcesPost?.description || `Reference materials for ${assignment.title}.`,
-        topicName: classroom?.topic?.name || '',
+        topicName,
         materials: dedupedLinks,
       });
       const failedMaterials = (materialResult?.results || []).filter((item) => item.status === 'failed');
@@ -2519,7 +2523,7 @@ function App() {
       classroomTitle: classroom?.assignmentPost?.title || assignment.title,
       maxPoints: Number(classroom?.assignmentPost?.maxPoints) || 100,
       gradePassbackEnabled: classroom?.gradePassback?.enabled !== false,
-      topicName: classroom?.topic?.name || '',
+      topicName,
       instructions: classroom?.assignmentPost?.instructions
         || `Complete “${assignment.title}” in MathMaster.`,
       materials: (
