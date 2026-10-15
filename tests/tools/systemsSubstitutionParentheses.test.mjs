@@ -5,6 +5,11 @@
 // "x − 2x + 1 = 5": the group they had just substituted into was gone, and
 // with it the step of removing it. A subtracted variable already became
 // −1(…) for the same reason (#341); an added one now becomes 1(…).
+//
+// Student push Q: that unit factor is how the group is STORED (every term
+// splitter, client and server, keeps a product whole), never how it is SHOWN.
+// The student sees 2x + (−4x + 12) and x − (2x − 3), and removes the
+// parentheses with Simplify — never multiplying by 1.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { splitAdditiveTerms } from '../../functions/shared/algebra/algebraAstEngine.mjs';
@@ -16,9 +21,11 @@ const shownTerms = (equation, side = 0) => splitAdditiveTerms(normalizeEquationF
 
 test('a multi-term value substituted for an added variable stays one visible group, wherever it lands', () => {
   [
-    ['x + y = 5', 'y', '-2x + 1', ['x', '+ 1\\left(-2x+1\\right)']],
-    ['5 + y = x', 'y', '2x - 3', ['5', '+ 1\\left(2x-3\\right)']],
-    ['2x + y = 5', 'y', '-2x + 1', ['2x', '+ 1\\left(-2x+1\\right)']],
+    ['x + y = 5', 'y', '-2x + 1', ['x', '+ \\left(-2x+1\\right)']],
+    ['5 + y = x', 'y', '2x - 3', ['5', '+ \\left(2x-3\\right)']],
+    ['2x + y = 5', 'y', '-2x + 1', ['2x', '+ \\left(-2x+1\\right)']],
+    // A subtracted variable keeps its sign step: -(…), never -1(…).
+    ['x - y = 2', 'y', '2x - 3', ['x', '- \\left(2x-3\\right)']],
   ].forEach(([equation, variable, value, terms]) => {
     assert.deepEqual(shownTerms(substituteIntoEquation(equation, variable, value)), terms, equation);
   });
@@ -26,6 +33,7 @@ test('a multi-term value substituted for an added variable stays one visible gro
   const leading = shownTerms(substituteIntoEquation('y + 2x = 5', 'y', '-2x + 1'));
   assert.equal(leading.length, 2);
   assert.match(leading[0], /\\left\(-2x\+1\\right\)/);
+  assert.doesNotMatch(leading[0], /1\\left/, 'no factor of 1 is shown');
 });
 
 test('it is the same equation, single terms are untouched, and a coefficient keeps its own product', () => {

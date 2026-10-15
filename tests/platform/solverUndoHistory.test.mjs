@@ -30,7 +30,8 @@ test('StepByStep keeps capped committed equation history and exposes it through 
 test('StepByStep records the pre-commit equation for every accepted student math commit', async () => {
   const source = await read('src/StepByStepAlgebraCore.jsx');
   const moveBlock = blockBetween(source, 'const commitMove = async', '  const hasPartialCancellationSelection');
-  const rewriteBlock = blockBetween(source, 'const checkStudentRewrite = async', '  const resetQuestionWork');
+  // Every Simplify step (a part or a whole side, job Q) commits here.
+  const rewriteBlock = blockBetween(source, 'const commitSimplifyResult = async', '  // DISTRIBUTION:');
   const cancellationBlock = blockBetween(source, 'const commitStandaloneCancellation = async', '  const registerCancellationHits');
 
   assert.match(moveBlock, /pushCommittedEquation\(equation[,)]/);
@@ -39,9 +40,9 @@ test('StepByStep records the pre-commit equation for every accepted student math
     'balanced move history must be recorded before visible equation replacement',
   );
 
-  assert.match(rewriteBlock, /pushCommittedEquation\(equation[,)]/);
+  assert.match(rewriteBlock, /pushCommittedEquation\(beforeEquation[,)]/);
   assert.ok(
-    rewriteBlock.indexOf('pushCommittedEquation(equation') < rewriteBlock.indexOf('setEquation(nextEquation)'),
+    rewriteBlock.indexOf('pushCommittedEquation(beforeEquation') < rewriteBlock.indexOf('setEquation(nextEquation)'),
     'rewrite history must be recorded before visible equation replacement',
   );
 

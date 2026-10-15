@@ -45,5 +45,5 @@ test('division completion messaging preserves student-controlled simplification'
   const src = multiRelationSource();
 
   assert.match(src, /The quotient is intentionally unsimplified/);
-  assert.match(src, /use Rewrite \/ Simplify when you want to reduce it/);
+  assert.match(src, /use Simplify when you want to reduce it/);
 });
