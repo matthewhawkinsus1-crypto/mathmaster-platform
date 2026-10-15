@@ -35,6 +35,12 @@ import {
   suggestClassroomTopic,
 } from './classroomRosterMatching';
 import { blobToBase64, generateLessonNotesPdfBlob, notesPdfSummary } from './platform/resources/lessonNotesPdf';
+import {
+  CLASSROOM_TOPIC_STYLE_OPTIONS,
+  classroomTopicNameFor,
+  readClassroomTopicStyle,
+  saveClassroomTopicStyle,
+} from './platform/classroom/classroomTopicNaming.js';
 import ClassroomSectionGradeSelector from './components/ClassroomSectionGradeSelector';
 import ClassroomForceRepublishPreview from './components/ClassroomForceRepublishPreview';
 import {
@@ -56,6 +62,13 @@ const badPill = { ...okPill, background: 'var(--mm-error-bg)', color: 'var(--mm-
 
 const clean = (value) => String(value || '').trim();
 const classIdOf = (record) => clean(record?.classId || record?.id);
+// The topic a publish goes to: the assignment's folder topic, renamed by the
+// teacher's chosen style ("Week of Oct 12", …). See classroomTopicNaming.js.
+const topicForAssignment = (assignment, style) => classroomTopicNameFor({
+  style,
+  moduleTopic: assignment?.classroomPackage?.topic?.name || suggestClassroomTopic(assignment),
+  assignment,
+});
 const classNameOf = (record) => clean(record?.name || record?.className || record?.title || record?.period || classIdOf(record));
 const classPeriodOf = (record) => clean(record?.period || record?.classPeriod);
 
@@ -103,6 +116,7 @@ export default function ClassroomManagerV2({
   const [assignmentId, setAssignmentId] = useState(() => String(initialAssignmentId || ''));
   const [selectedClassroomSectionKeys, setSelectedClassroomSectionKeys] = useState(['whole']);
   const [topicName, setTopicName] = useState('');
+  const [topicStyle, setTopicStyle] = useState(readClassroomTopicStyle);
   const [instructions, setInstructions] = useState('');
   const [resourceMode, setResourceMode] = useState('separate');
   const [materials, setMaterials] = useState([{ title: '', url: '' }]);
@@ -230,7 +244,7 @@ export default function ClassroomManagerV2({
     const classroom = selectedAssignment?.classroomPackage || {};
     const notes = selectedAssignment?.lessonResources?.notesPdf || null;
     setSelectedClassroomSectionKeys(['whole']);
-    setTopicName(classroom?.topic?.name || suggestClassroomTopic(selectedAssignment));
+    setTopicName(topicForAssignment(selectedAssignment, topicStyle));
     setInstructions(classroom?.assignmentPost?.instructions
       || `Complete "${selectedAssignment.title}" in MathMaster. Use the Open in MathMaster link below.`);
     const postingMode = classroom?.resourcesPost?.postingMode;
@@ -813,7 +827,7 @@ export default function ClassroomManagerV2({
             return (
               <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)', fontSize: 12, lineHeight: 1.5 }}>
                 <strong style={{ color: 'var(--mm-primary-text)' }}>AI-prepared publishing package</strong>
-                <div>Topic: {selectedAssignment.classroomPackage?.topic?.name || topicName || 'MathMaster will infer it'}</div>
+                <div>Topic: {topicName || selectedAssignment.classroomPackage?.topic?.name || 'MathMaster will infer it'}</div>
                 <div>Classroom instructions: {selectedAssignment.classroomPackage?.assignmentPost?.instructions ? 'prepared' : 'MathMaster default'}</div>
                 <div>Student notes PDF: {notes.enabled ? `${notes.title || 'prepared'} · ${notes.targetPages} page target · ${notes.sectionCount} section${notes.sectionCount === 1 ? '' : 's'}` : 'not requested'}</div>
                 <div>Destination courses are selected automatically from the assignment's MathMaster class periods and your saved class mappings.</div>
@@ -821,7 +835,29 @@ export default function ClassroomManagerV2({
             );
           })()}
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 220px),1fr) minmax(min(100%, 220px),1fr)', gap: 10, marginTop: 10 }}>
-            <div><label style={label}>Classroom topic</label><input style={input} value={topicName} onChange={(e) => setTopicName(e.target.value)} /></div>
+            <div>
+              <label style={label} htmlFor="classroom-topic-style">Name Classroom topics</label>
+              <select
+                id="classroom-topic-style"
+                style={input}
+                value={topicStyle}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setTopicStyle(next);
+                  saveClassroomTopicStyle(next);
+                  if (selectedAssignment) setTopicName(topicForAssignment(selectedAssignment, next));
+                }}
+              >
+                {CLASSROOM_TOPIC_STYLE_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+              </select>
+              <label style={{ ...label, marginTop: 8 }} htmlFor="classroom-topic-name">Classroom topic</label>
+              <input id="classroom-topic-name" style={input} value={topicName} onChange={(e) => setTopicName(e.target.value)} />
+              {topicStyle !== 'module' && (
+                <div style={{ fontSize: 11, color: 'var(--mm-text-muted)', marginTop: 4 }}>
+                  The week students first see the post: its scheduled release, otherwise today. Classroom lists the newest topic first.
+                </div>
+              )}
+            </div>
             <div>
               <label style={label}>Notes/material delivery</label>
               <select style={input} value={resourceMode} onChange={(e) => setResourceMode(e.target.value)}>
