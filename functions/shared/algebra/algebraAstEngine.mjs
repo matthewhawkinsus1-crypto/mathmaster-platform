@@ -297,6 +297,33 @@ const groupingIsRedundant = (parent, argIndex, content) => {
   return false;
 };
 
+const unitValue = (node) => {
+  let current = node;
+  while (isParenthesis(current)) current = current.content;
+  if (current?.type === 'ConstantNode') return Number(current.value);
+  if (current?.type === 'OperatorNode' && current.fn === 'unaryMinus' && current.args?.length === 1) {
+    let inner = current.args[0];
+    while (isParenthesis(inner)) inner = inner.content;
+    return inner?.type === 'ConstantNode' ? -Number(inner.value) : null;
+  }
+  return null;
+};
+
+const isGroupedSum = (node) => isParenthesis(node)
+  && node.content?.type === 'OperatorNode' && ['add', 'subtract'].includes(node.content.fn);
+
+const unitFactorGroup = (fn, args) => {
+  if (fn !== 'multiply' || args.length !== 2 || !isGroupedSum(args[1])) return null;
+  const unit = unitValue(args[0]);
+  if (unit === 1) return args[1];
+  if (unit === -1) return new OperatorNode('-', 'unaryMinus', [args[1]]);
+  return null;
+};
+
+const unitGroupPresentation = (node) => (
+  node?.type === 'OperatorNode' ? unitFactorGroup(node.fn, node.args || []) || node : node
+);
+
 const withoutRedundantGrouping = (node, parent = null, argIndex = 0) => {
   if (isParenthesis(node)) {
     // ((x)) is never more grouped than (x).
@@ -312,6 +339,12 @@ const withoutRedundantGrouping = (node, parent = null, argIndex = 0) => {
     // -\left(5x\right). Folding the sign onto the product's leading number or
     // letter, (-5)·x, is the same value and is drawn the way it is written: -5x.
     const [only] = args;
+    // A value substituted for an added or subtracted variable is stored as a
+    // unit product, 1(-4x + 12) or -1(-4x + 12), so every term splitter keeps
+    // the group as one term (student push Q). It is drawn as the group the
+    // student substituted into: (-4x + 12), -(-4x + 12). Display only.
+    const unitGroup = unitFactorGroup(node.fn, args);
+    if (unitGroup) return unitGroup;
     if (node.fn === 'unaryMinus' && args.length === 1 && only?.type === 'OperatorNode' && only.fn === 'multiply'
       && ['ConstantNode', 'SymbolNode'].includes(only.args?.[0]?.type)
       && !(only.args[0].type === 'ConstantNode' && Number(only.args[0].value) < 0)) {
@@ -428,7 +461,7 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
     // so the sign exists in exactly one place: the additive operator.
     try {
       magnitudeLatex = cleanImplicitMultiplicationLatex(
-        parse(magnitudeText).toTex({ parenthesis: 'keep', implicit: 'hide' }),
+        unitGroupPresentation(parse(magnitudeText)).toTex({ parenthesis: 'keep', implicit: 'hide' }),
       ).trim();
     } catch {
       magnitudeLatex = magnitudeLatex
