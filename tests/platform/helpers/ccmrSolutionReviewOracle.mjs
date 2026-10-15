@@ -415,6 +415,29 @@ export const checkRelations = (review, { prompt = '', givenScope = {} } = {}) =>
   return { checked, problems, stated };
 };
 
+// --- rounding intervals ----------------------------------------------------------
+
+/**
+ * A review that talks about rounding and states an interval "a < x < b" has
+ * dropped an endpoint: round-half-up keeps the lower midpoint (1.15 rounds to
+ * 1.2), so the interval a value rounds within is written "a \\le x < b".
+ */
+export const roundingProblems = (review) => {
+  const texts = reviewTexts(review);
+  if (!texts.some((text) => /\bround/i.test(text))) return [];
+  const problems = [];
+  for (const text of texts) {
+    for (const math of mathSpans(text)) {
+      const parts = math.split(/(\\leq|\\le|\\lt|<)/);
+      // three expressions with two relations between them: a REL x REL b
+      if (parts.length !== 5) continue;
+      const [lower, upper] = [parts[1], parts[3]];
+      if (/^(<|\\lt)$/.test(lower) && /^(<|\\lt)$/.test(upper)) problems.push(`a rounding interval without its lower end: "${math}" in "${text}"`);
+    }
+  }
+  return problems;
+};
+
 // --- the key -----------------------------------------------------------------------
 
 export const normalizeAnswerText = (text) => String(text)

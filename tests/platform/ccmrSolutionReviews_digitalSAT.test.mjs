@@ -26,7 +26,7 @@ import { generatePathInstance } from '../../functions/shared/pathQuestionGenerat
 import { buildPrivateSupport } from '../../functions/shared/pathSolutionSupport.mjs';
 import { roundSolutionRecord } from '../../functions/shared/liveChallengeSolutionReveal.mjs';
 import {
-  checkRelations, displayProblems, keyProblems, mentionsDraw, shapeProblems,
+  checkRelations, displayProblems, keyProblems, mentionsDraw, roundingProblems, shapeProblems,
 } from './helpers/ccmrSolutionReviewOracle.mjs';
 
 const require = createRequire(import.meta.url);
@@ -176,6 +176,7 @@ test(`${EXAM}: each review solves its own draw and reaches the key`, async () =>
           key = String(field.expected);
         }
         problems.push(...displayProblems(review, { verbatim: [key] }));
+        problems.push(...roundingProblems(review));
         // A review may restate the question's own equations (prompt or choices).
         const given = [question.prompt, ...(question.choices || []).map((choice) => choice.label)].join(' ');
         const relations = checkRelations(review, { prompt: given });

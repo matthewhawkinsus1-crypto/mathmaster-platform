@@ -105,6 +105,16 @@ What it found, all now fixed:
 
 All three exams pass again at 400 draws per template.
 
+**Codex review of #486.** Two P2 wording findings in TSIA2 are fixed:
+- The bottle headline now reads "less than a liter".
+- The `rpv_7` rounding interval now includes its lower midpoint (`\\le`).
+
+A scan of every "about" and rounding claim in the three exams found one more, also fixed: the `rpv_7` common error said every far value rounds to the neighbouring tenth, which is false for the +0.15 distractor.
+
+A new oracle check, `roundingProblems`, now fails any review that talks about rounding but states an interval `a < x < b` with a strict lower bound. Restoring the old `rpv_7` wording fails it.
+
+The P1 exposure thread (assignment documents) is left open for the owner, as described above.
+
 Exposure note for the coordinator, outside this lane and not changed here: `functions/lib/ccmrAssignmentBank.js`
 copies the raw template `solutionReview` into teacher-assignment question documents, as it always has. Those
 documents already carry `generator` and `answerFields`. The copied review is now a worked template rather than a
