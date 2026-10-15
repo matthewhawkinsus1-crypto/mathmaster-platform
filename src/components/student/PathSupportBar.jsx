@@ -29,7 +29,7 @@ const speak = (text) => speakAloud(text, { language: 'en' });
 const BUTTON = {
   minHeight: 40, padding: '8px 13px', borderRadius: 999,
   border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)',
-  fontWeight: 800, fontSize: 13, cursor: 'pointer',
+  fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', cursor: 'pointer',
 };
 
 /**
@@ -180,7 +180,7 @@ export default function PathSupportBar({
       {/* Said plainly rather than hidden. A support that could not be delivered
           is information the student and the teacher both need. */}
       {wantsTts && (!speechAvailable || ttsUnavailable) && (
-        <span role="status" style={{ fontSize: 12, color: 'var(--mm-warning-text)', fontWeight: 700 }}>
+        <span role="status" style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)', fontWeight: 700 }}>
           Read-aloud is not working in this browser. Your teacher can see this.
         </span>
       )}

@@ -89,17 +89,17 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
           minHeight: 38, padding: '7px clamp(10px, 3vw, 22px)', background: preview ? 'var(--mm-warning-bg)' : '#17365d',
           color: preview ? 'var(--mm-warning-text)' : '#fff', borderBottom: preview ? '1px solid #f9ab00' : '1px solid #0d2948',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          fontFamily: '"Segoe UI", sans-serif', fontSize: 13, lineHeight: 1.25,
+          fontFamily: '"Segoe UI", sans-serif', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.25,
         }}
       >
         <div className="mm-identity-main" style={{ minWidth: 0, display: 'flex', alignItems: 'center' }}>
-          <strong className="mm-identity-name" title={`${name}${context ? ` • ${context}` : ''}`} style={{ minWidth: 0, fontSize: 15 }}>
+          <strong className="mm-identity-name" title={`${name}${context ? ` • ${context}` : ''}`} style={{ minWidth: 0, fontSize: 'calc(15 * var(--mm-px))' }}>
             {name}{context ? ` • ${context}` : ''}
           </strong>
           {/* The star is drawn: ⭐ was a box on devices without an emoji font
               (PQ-030). On a phone the words "Class Points" are visually hidden,
               not removed, so the chip still reads "120 Class Points". */}
-          {!preview && Number.isFinite(classPointsBalance) && <span role="img" aria-label={`${classPointsBalance} Class Points`} className="mm-identity-points" style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}><StarIcon /> {classPointsBalance}<span className="mm-identity-points-word"> Class Points</span></span>}
+          {!preview && Number.isFinite(classPointsBalance) && <span role="img" aria-label={`${classPointsBalance} Class Points`} className="mm-identity-points" style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, whiteSpace: 'nowrap' }}><StarIcon /> {classPointsBalance}<span className="mm-identity-points-word"> Class Points</span></span>}
         </div>
         {!preview && onLogout && (
           <span className="mm-identity-logout" style={{ flexShrink: 0 }}>
@@ -138,7 +138,7 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
               width: 'min(420px, calc(100vw - 16px))', boxSizing: 'border-box',
               padding: 14, borderRadius: 12, border: '1px solid var(--mm-warning-border, #f9ab00)',
               background: 'var(--mm-surface)', color: 'var(--mm-text)', boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
-              fontSize: 14, lineHeight: 1.4, textAlign: 'left',
+              fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.4, textAlign: 'left',
             }}
           >
             <p id="mm-logout-risk-message" style={{ margin: '0 0 10px', fontWeight: 700 }}>

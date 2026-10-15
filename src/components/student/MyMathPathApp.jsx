@@ -727,7 +727,7 @@ export const MyMathPathExperience = ({
         <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span>{pathHeaderIsH1({ activeTab, embedded: embeddedInTeacherPage })
             ? <h1 style={PATH_HEADER_H1_STYLE}><strong>My Math Path</strong></h1>
-            : <strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>}{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
+            : <strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>}{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
           {/*
             TWO LEVELS, AND THEY ARE DIFFERENT KINDS OF THING.
             The global row moves between MathMaster's five destinations; the tab

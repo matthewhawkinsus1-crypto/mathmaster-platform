@@ -87,7 +87,7 @@ export default function RecoveryPanel({
         lineHeight: 1.55,
       }}
     >
-      <h2 style={{ margin: 0, fontSize: compact ? 18 : 22, color: colors.text }}>{title}</h2>
+      <h2 style={{ margin: 0, fontSize: compact ? 'calc(18 * var(--mm-px))' : 'calc(22 * var(--mm-px))', color: colors.text }}>{title}</h2>
       <div style={{ marginTop: 10 }}>{children}</div>
       {(onPrimary || onSecondary || offerReport) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
@@ -101,13 +101,13 @@ export default function RecoveryPanel({
       {copied ? (
         <pre
           aria-live="polite"
-          style={{ margin: '12px 0 0', padding: copied.includes('\n') ? 10 : 0, whiteSpace: 'pre-wrap', fontSize: 12, background: copied.includes('\n') ? 'var(--mm-surface, transparent)' : 'transparent', borderRadius: 8, userSelect: 'all' }}
+          style={{ margin: '12px 0 0', padding: copied.includes('\n') ? 10 : 0, whiteSpace: 'pre-wrap', fontSize: 'calc(12 * var(--mm-px))', background: copied.includes('\n') ? 'var(--mm-surface, transparent)' : 'transparent', borderRadius: 8, userSelect: 'all' }}
         >
           {copied}
         </pre>
       ) : null}
       {technicalMessage ? (
-        <details style={{ marginTop: 12, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+        <details style={{ marginTop: 12, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
           <summary style={{ cursor: 'pointer' }}>Technical details</summary>
           <p style={{ margin: '6px 0 0', overflowWrap: 'anywhere' }}>{technicalMessage}</p>
           <p style={{ margin: '4px 0 0' }}>Build {build?.gitSha && build.gitSha !== 'unknown' ? String(build.gitSha).slice(0, 7) : 'dev'}</p>

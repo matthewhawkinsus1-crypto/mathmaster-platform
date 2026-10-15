@@ -63,7 +63,7 @@ const SAVE_TONE = {
   attention: { color: 'var(--mm-warning-text)', icon: '!' },
 };
 
-const CHIP = { fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', whiteSpace: 'nowrap' };
+const CHIP = { fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', whiteSpace: 'nowrap' };
 
 /*
  * ONE SECTION'S PROGRESS, AS A SHORT CHIP: "Classwork 2/3", "Classwork 3/3 ✓",
@@ -228,18 +228,18 @@ export default function StudentDashboardView({
         <div style={{ textAlign: 'left', flex: '1 1 320px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
             <h3 style={{ margin: 0, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{assignment.title}</h3>
-            <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: tone.bg, color: tone.color }}>{testCycle.label}</span>
-            <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>TEST CYCLE</span>
-            {isNew && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>NEW</span>}
+            <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: tone.bg, color: tone.color }}>{testCycle.label}</span>
+            <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>TEST CYCLE</span>
+            {isNew && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>NEW</span>}
           </div>
-          <div style={{ color: 'var(--mm-text)', fontSize: '14px', lineHeight: 1.5 }}>{testCycle.detail}</div>
-          <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.55, marginTop: 4 }}>{dates.dueLabel}: {dates.dueText}</div>
+          <div style={{ color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>{testCycle.detail}</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, marginTop: 4 }}>{dates.dueLabel}: {dates.dueText}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {testCycle.recordedGrade !== null && (
             <div style={{ textAlign: 'right', marginRight: '6px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Recorded grade</div>
-              <div style={{ fontSize: '19px', fontWeight: 900, color: 'var(--mm-text-strong)' }}>{testCycle.recordedGrade}%</div>
+              <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Recorded grade</div>
+              <div style={{ fontSize: 'calc(19 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-strong)' }}>{testCycle.recordedGrade}%</div>
             </div>
           )}
           <button
@@ -326,7 +326,7 @@ export default function StudentDashboardView({
           </div>
           {sections.length > 0 && (
             <>
-              <div data-section-makeup style={{ color: 'var(--mm-text-muted)', fontSize: '12.5px', fontWeight: 800 }}>
+              <div data-section-makeup style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>
                 {sections.map((section) => section.label).join(' · ')}
               </div>
               <ul aria-label="Sections" style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -337,7 +337,7 @@ export default function StudentDashboardView({
               </ul>
             </>
           )}
-          <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.55, marginTop: 6 }}>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, marginTop: 6 }}>
             {waitLine && <strong data-wait-line style={{ display: 'block', color: 'var(--mm-text)' }}>{waitLine}</strong>}
             {!finished && <>{dates.dueLabel}: {dates.dueText} · {dates.finalLabel}: {dates.finalText}</>}
             {finished && !excused && <>{dates.dueLabel}: {dates.dueText}</>}
@@ -357,14 +357,14 @@ export default function StudentDashboardView({
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {showGrade && (
             <div data-grade-line style={{ textAlign: 'right', marginRight: '6px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>
+              <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>
                 {feedbackHeld && !finished ? 'Grade' : finished ? 'Your grade' : 'Grade so far'}
               </div>
-              <div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !finished ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)' }}>
+              <div style={{ fontSize: 'calc(19 * var(--mm-px))', fontWeight: 900, color: feedbackHeld && !finished ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)' }}>
                 {feedbackHeld && !finished ? 'Waiting for your teacher' : `${recordedGrade}%`}
               </div>
               {showClassroomGrade && (
-                <div style={{ marginTop: 4, fontSize: 11.5, color: 'var(--mm-text-muted)', fontWeight: 800 }}>
+                <div style={{ marginTop: 4, fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)', fontWeight: 800 }}>
                   Google Classroom shows {receipt.grade}%
                 </div>
               )}
@@ -405,7 +405,7 @@ export default function StudentDashboardView({
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: 'clamp(14px, 3vw, 20px) clamp(14px, 3vw, 30px)', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: saveStatus ? '8px' : '20px', gap: '16px', flexWrap: 'wrap' }}>
           {/* Name and class period only. Nothing about a support plan is ever
               shown here: Home is the screen most often read over a shoulder. */}
-          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: 'var(--mm-primary)', fontSize: '25px' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1><p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)' }}>{student.classPeriod}</p></div>
+          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: 'var(--mm-primary)', fontSize: 'calc(25 * var(--mm-px))' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1><p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)' }}>{student.classPeriod}</p></div>
           {/*
             One navigation, shared with Assignments, Grades and My Math Path.
             These were four independently written buttons, which is how My Math
@@ -420,7 +420,7 @@ export default function StudentDashboardView({
         </header>
 
         {saveStatus && saveStatus.text && (
-          <p role="status" aria-live="polite" data-save-tone={saveStatus.tone} style={{ margin: '0 0 16px', padding: '0 4px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: saveTone.color }}>
+          <p role="status" aria-live="polite" data-save-tone={saveStatus.tone} style={{ margin: '0 0 16px', padding: '0 4px', textAlign: 'left', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: saveTone.color }}>
             <span aria-hidden="true">{saveTone.icon} </span>{saveStatus.text}
           </p>
         )}
@@ -428,8 +428,8 @@ export default function StudentDashboardView({
         {/* Time-critical: the class is starting it now, so it stays on top. */}
         {liveChallengeInvite && ['invited', 'joined', 'running'].includes(liveChallengeInvite.status) && (
           <section style={{ marginBottom: '18px', padding: '20px 24px', borderRadius: '16px', background: 'var(--mm-primary-soft)', border: '3px solid #1a73e8', color: 'var(--mm-primary-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
-            <div><div style={{ fontSize: '13px', fontWeight: 1000, textTransform: 'uppercase' }}>⚡ Live Challenge</div><h2 style={{ margin: '4px 0' }}>{liveChallengeInvite.title || 'Class Live Challenge'}</h2><p style={{ margin: 0 }}>{liveChallengeInvite.status === 'running' ? 'The challenge is running now.' : 'Your teacher opened the lobby. Join now so you are ready when Round 1 starts.'}{liveChallengeInvite.alias ? ` You will play as ${liveChallengeInvite.alias}.` : ''}</p></div>
-            <button type="button" onClick={() => onOpenLiveChallenge?.()} style={{ minHeight: 44, padding: '13px 20px', border: 0, borderRadius: '10px', background: '#174ea6', color: '#fff', fontWeight: 900, fontSize: '16px' }}>{liveChallengeInvite.status === 'running' ? 'Join Challenge Now' : 'Enter Challenge Lobby'}</button>
+            <div><div style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 1000, textTransform: 'uppercase' }}>⚡ Live Challenge</div><h2 style={{ margin: '4px 0' }}>{liveChallengeInvite.title || 'Class Live Challenge'}</h2><p style={{ margin: 0 }}>{liveChallengeInvite.status === 'running' ? 'The challenge is running now.' : 'Your teacher opened the lobby. Join now so you are ready when Round 1 starts.'}{liveChallengeInvite.alias ? ` You will play as ${liveChallengeInvite.alias}.` : ''}</p></div>
+            <button type="button" onClick={() => onOpenLiveChallenge?.()} style={{ minHeight: 44, padding: '13px 20px', border: 0, borderRadius: '10px', background: '#174ea6', color: '#fff', fontWeight: 900, fontSize: 'calc(16 * var(--mm-px))' }}>{liveChallengeInvite.status === 'running' ? 'Join Challenge Now' : 'Enter Challenge Lobby'}</button>
           </section>
         )}
 
@@ -449,7 +449,7 @@ export default function StudentDashboardView({
         )}
 
         {raiseCount > 0 && openGrades && (
-          <button type="button" data-ways-to-raise onClick={openGrades} style={{ display: 'block', minHeight: 44, margin: '-10px 0 18px', padding: '8px 4px', border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 14.5, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+          <button type="button" data-ways-to-raise onClick={openGrades} style={{ display: 'block', minHeight: 44, margin: '-10px 0 18px', padding: '8px 4px', border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 'calc(14.5 * var(--mm-px))', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
             {raiseCount} {raiseCount === 1 ? 'way' : 'ways'} to raise your grade →
           </button>
         )}
@@ -458,7 +458,7 @@ export default function StudentDashboardView({
         {secondaryWarmups.map(({ assignment, state, questionIndices = [], records = [] }) => (
           <section key={`warmup-${assignment.id}`} data-secondary-live="warmup" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-warning-bg)', border: '2px solid #f9ab00', color: 'var(--mm-warning-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}>Warm-Up active now</div>
+              <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Warm-Up active now</div>
               <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{assignment.title}</div>
               {!hideCountdowns && <div style={{ fontWeight: 900 }}><DOLCountdown endsAt={state.endsAt} /> left</div>}
             </div>
@@ -469,7 +469,7 @@ export default function StudentDashboardView({
         {secondaryDols.map(({ assignment, state, records = [] }) => (
           <section key={`dol-${assignment.id}`} data-secondary-live="dol" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-accent-soft)', border: '2px solid #9334e6', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}>DOL open now</div>
+              <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>DOL open now</div>
               <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{assignment.title}</div>
               {!hideCountdowns && <div style={{ fontWeight: 900 }}><DOLCountdown endsAt={state.endsAt} /> left</div>}
             </div>
@@ -493,9 +493,9 @@ export default function StudentDashboardView({
         {showResumeCard && (
           <section aria-label="Resume assignment" data-secondary-live="resume" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-surface)', border: '2px solid var(--mm-primary-border)', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>Pick up where you left off</div>
+              <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>Pick up where you left off</div>
               <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{resumeAssignment.title}</div>
-              <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
+              <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                 Continue at {resumeQuestionLabel}. Your answers are kept as you go.
                 {resumeGradeText ? ` ${resumeGradeText}.` : ''}
                 {' '}{resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until it closes` : `Due ${studentDueDateLines(resumeAssignment, resumeLifecycle).dueText}`}

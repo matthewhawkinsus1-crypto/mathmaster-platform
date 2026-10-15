@@ -212,7 +212,7 @@ const bannerStyle = (tone) => ({
 // The finished and pause screens' titles wrap on a phone: sized like the
 // start screen's, with a line height of their own (the root's is a fixed
 // pixel value, and two lines of a large title overlapped under it).
-const screenTitle = { marginTop: 0, fontSize: 'clamp(24px, 6vw, 32px)', lineHeight: 1.2 };
+const screenTitle = { marginTop: 0, fontSize: 'clamp(calc(24 * var(--mm-px)), 6vw, calc(32 * var(--mm-px)))', lineHeight: 1.2 };
 // On the dark pause screen the title takes the screen's own white: a bare <h1>
 // takes the page's heading colour (index.css), which in the light theme is
 // near-black on the pause screen's near-black — a title nobody could read.
@@ -950,8 +950,8 @@ export const SecureExamContainer = ({
     return (
       <div style={{ minHeight: '70vh', display: 'grid', placeItems: 'center', padding: '20px 16px', boxSizing: 'border-box' }}>
         <section style={{ width: 'min(600px,100%)', textAlign: 'left', padding: 'clamp(18px, 5vw, 30px)', border: '1px solid var(--mm-border)', borderRadius: 14, background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
-          <h1 style={{ marginTop: 0, fontSize: 'clamp(20px, 5vw, 26px)', lineHeight: 1.25, color: 'var(--mm-text-strong)' }}>{examTitle}</h1>
-          <h2 style={{ margin: '0 0 8px', fontSize: 16, color: 'var(--mm-text-strong)' }}>How this test works</h2>
+          <h1 style={{ marginTop: 0, fontSize: 'clamp(calc(20 * var(--mm-px)), 5vw, calc(26 * var(--mm-px)))', lineHeight: 1.25, color: 'var(--mm-text-strong)' }}>{examTitle}</h1>
+          <h2 style={{ margin: '0 0 8px', fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>How this test works</h2>
           {previewPending && !loadedPreview ? (
             <p role="status" data-secure-start-loading="" style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>Checking where your test stands…</p>
           ) : (
@@ -1065,7 +1065,7 @@ export const SecureExamContainer = ({
           onClose={() => setNavigatorOpen(false)}
         />
       )}
-      {session.watermarkEnabled !== false && <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', display: 'grid', placeItems: 'center', opacity: .025, fontSize: 'clamp(36px,10vw,100px)', fontWeight: 900, transform: 'rotate(-20deg)' }}>MATHMASTER SECURE</div>}
+      {session.watermarkEnabled !== false && <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', display: 'grid', placeItems: 'center', opacity: .025, fontSize: 'clamp(calc(36 * var(--mm-px)),10vw,calc(100 * var(--mm-px)))', fontWeight: 900, transform: 'rotate(-20deg)' }}>MATHMASTER SECURE</div>}
       {notice && <div role="status" data-secure-notice="" style={bannerStyle('info')}>{notice}</div>}
       {error && <div role="alert" style={bannerStyle('error')}>{error}</div>}
       <div ref={columnRef} data-secure-question-column="" style={{ paddingLeft: room.paddingLeft, paddingRight: room.paddingRight }}>
@@ -1087,8 +1087,8 @@ export const SecureExamContainer = ({
           {recordedHere ? (
             <main style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 24px', boxSizing: 'border-box' }}>
               <section role="status" style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 'clamp(18px, 4vw, 30px)' }}>
-                <div style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Question {(current ?? 0) + 1}</div>
-                <p style={{ margin: '10px 0 6px', fontSize: 18, fontWeight: 800, color: 'var(--mm-text-strong)' }}>This answer was recorded earlier and can&apos;t be changed.</p>
+                <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Question {(current ?? 0) + 1}</div>
+                <p style={{ margin: '10px 0 6px', fontSize: 'calc(18 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)' }}>This answer was recorded earlier and can&apos;t be changed.</p>
                 <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Use Next to keep going, or open the question list.</p>
               </section>
             </main>
@@ -1119,7 +1119,7 @@ export const SecureExamContainer = ({
           )}
           <nav aria-label="Move between questions" style={{ width: 'min(820px, 100%)', margin: `${question && !recordedHere ? -40 : 0}px auto 0`, padding: '0 18px 32px', boxSizing: 'border-box', display: 'grid', gap: 10, position: 'relative' }}>
             {question && saveState !== 'idle' && (
-              <p role="status" aria-live="polite" data-secure-save-state={saveState} style={{ margin: 0, fontSize: 13, fontWeight: 700, color: saveState === 'saved' ? 'var(--mm-success-text)' : saveState === 'saving' ? 'var(--mm-text-muted)' : 'var(--mm-warning-text)' }}>
+              <p role="status" aria-live="polite" data-secure-save-state={saveState} style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: saveState === 'saved' ? 'var(--mm-success-text)' : saveState === 'saving' ? 'var(--mm-text-muted)' : 'var(--mm-warning-text)' }}>
                 {SAVE_LABEL[saveState]}
               </p>
             )}
@@ -1149,7 +1149,7 @@ export const SecureExamContainer = ({
               <p id="secure-pause-detail" style={{ lineHeight: 1.55, color: '#e8eaed' }}>{integrityPauseText(threshold)}</p>
             </>
           )}
-          <p style={{ color: '#bdc1c6', fontSize: 14 }}>This screen continues on its own when your teacher lets you back in.</p>
+          <p style={{ color: '#bdc1c6', fontSize: 'calc(14 * var(--mm-px))' }}>This screen continues on its own when your teacher lets you back in.</p>
         </div>
       </Dialog>
     )}

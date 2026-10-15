@@ -185,7 +185,7 @@ export default function StudentRewardsCenter({
                     const view = badgeView(grant);
                     return (
                       <li key={grant.grantId} className={`rw-row${newIds.has(grant.grantId) ? ' rw-celebrate' : ''}`}>
-                        <span className="rw-reward-icon" aria-hidden="true" style={{ fontSize: 24 }}>{view.icon}</span>
+                        <span className="rw-reward-icon" aria-hidden="true" style={{ fontSize: 'calc(24 * var(--mm-px))' }}>{view.icon}</span>
                         <span className="rw-row__main">
                           <span className="rw-row__title">{view.label}</span>
                           {view.description && <span className="rw-muted" style={{ display: 'block' }}>{view.description}</span>}

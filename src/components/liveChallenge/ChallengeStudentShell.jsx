@@ -27,14 +27,14 @@ const card = {
   textAlign: 'center',
   color: '#eef1f6',
 };
-const eyebrow = { fontSize: 13, fontWeight: 900, color: '#aecbfa', textTransform: 'uppercase', letterSpacing: '.08em' };
+const eyebrow = { fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, color: '#aecbfa', textTransform: 'uppercase', letterSpacing: '.08em' };
 const quietPanel = { padding: 16, borderRadius: 14, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', textAlign: 'left', color: '#eef1f6' };
 
 function Stat({ value, label }) {
   return (
     <div style={{ minWidth: 92 }}>
-      <div style={{ fontSize: 'clamp(30px, 8vw, 40px)', fontWeight: 1000, color: '#f7f9ff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      <div style={{ marginTop: 6, fontSize: 13, fontWeight: 800, color: '#c3d2ea' }}>{label}</div>
+      <div style={{ fontSize: 'clamp(calc(30 * var(--mm-px)), 8vw, calc(40 * var(--mm-px)))', fontWeight: 1000, color: '#f7f9ff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ marginTop: 6, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: '#c3d2ea' }}>{label}</div>
     </div>
   );
 }
@@ -44,7 +44,7 @@ export function StudentGuidance({ guidance, compact = false }) {
   if (!guidance) return null;
   return (
     <div aria-live="polite" data-mm-guidance={guidance.tone} style={{ padding: compact ? '10px 14px' : '14px 18px', borderRadius: 12, background: 'rgba(23,54,95,.85)', border: '1px solid rgba(138,180,248,.35)', color: '#dbeafe', textAlign: 'left' }}>
-      <strong style={{ display: 'block', fontSize: compact ? 16 : 18, color: '#fff' }}>{guidance.headline}</strong>
+      <strong style={{ display: 'block', fontSize: compact ? 'calc(16 * var(--mm-px))' : 'calc(18 * var(--mm-px))', color: '#fff' }}>{guidance.headline}</strong>
       {guidance.detail && <span style={{ display: 'block', marginTop: 3, fontWeight: 700 }}>{guidance.detail}</span>}
     </div>
   );
@@ -58,12 +58,12 @@ export function StudentLobbyCard({ room, alias, joining = false, playerCount = 0
   return (
     <section data-mm-student-lobby="1" style={{ ...card, padding: 30 }}>
       <div style={eyebrow}>You are in as</div>
-      <div style={{ marginTop: 8, fontSize: 'clamp(28px, 8vw, 38px)', fontWeight: 1000, color: '#fff', overflowWrap: 'anywhere' }}>{alias || 'Player'}</div>
+      <div style={{ marginTop: 8, fontSize: 'clamp(calc(28 * var(--mm-px)), 8vw, calc(38 * var(--mm-px)))', fontWeight: 1000, color: '#fff', overflowWrap: 'anywhere' }}>{alias || 'Player'}</div>
       <div style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '8px 16px', borderRadius: 999, background: 'rgba(0,0,0,.28)' }}>
         <span aria-hidden="true" className="mm-shell-pulse" style={{ width: 9, height: 9, borderRadius: '50%', background: '#81c995' }} />
-        <span style={{ fontSize: 17, fontWeight: 800 }}>{joining ? 'Joining…' : `${playerCount} ${playerCount === 1 ? 'player' : 'players'} in`}</span>
+        <span style={{ fontSize: 'calc(17 * var(--mm-px))', fontWeight: 800 }}>{joining ? 'Joining…' : `${playerCount} ${playerCount === 1 ? 'player' : 'players'} in`}</span>
       </div>
-      <p style={{ margin: '18px 0 0', color: '#e8f0fe', fontWeight: 800, fontSize: 18 }}>Waiting for your teacher to start. Keep this screen open.</p>
+      <p style={{ margin: '18px 0 0', color: '#e8f0fe', fontWeight: 800, fontSize: 'calc(18 * var(--mm-px))' }}>Waiting for your teacher to start. Keep this screen open.</p>
       <p style={{ margin: '8px 0 0', color: '#c3d2ea' }}>
         {rush ? 'Graph Feature Rush — tap the features on your own graphs' : room?.challengeMode === 'solverRace' ? 'Solver Race' : 'Live Challenge'}
         {rounds ? ` · ${rounds} round${rounds === 1 ? '' : 's'}` : ''}
@@ -109,7 +109,7 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
     <div style={{ display: 'grid', gap: 16 }}>
       <section aria-live="polite" data-mm-student-results={participated ? 'played' : 'none'} style={card}>
         <div style={eyebrow}>{guidance?.headline || 'Round results'}</div>
-        <div style={{ marginTop: 10, fontSize: 'clamp(22px, 6vw, 30px)', fontWeight: 1000, color: '#fff' }}>{headline}</div>
+        <div style={{ marginTop: 10, fontSize: 'clamp(calc(22 * var(--mm-px)), 6vw, calc(30 * var(--mm-px)))', fontWeight: 1000, color: '#fff' }}>{headline}</div>
         {self && (participated || rushRound) && (
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 26, flexWrap: 'wrap' }}>
             {rushRound || self.completed !== null
@@ -120,7 +120,7 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
           </div>
         )}
         {presentation.placementPoints && self && (
-          <div style={{ marginTop: 16, fontSize: 20, fontWeight: 1000, color: '#fdd663' }}>
+          <div style={{ marginTop: 16, fontSize: 'calc(20 * var(--mm-px))', fontWeight: 1000, color: '#fdd663' }}>
             {self.matchPointsAwarded > 0 ? `+${self.matchPointsAwarded} championship points` : 'No championship points this round'}
           </div>
         )}
@@ -142,7 +142,7 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
       <section style={quietPanel}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
           <strong>{presentation.placementPoints ? 'Championship' : 'Standings'}</strong>
-          <span style={{ color: '#9fb0cc', fontSize: 13 }}>{presentation.total.long}</span>
+          <span style={{ color: '#9fb0cc', fontSize: 'calc(13 * var(--mm-px))' }}>{presentation.total.long}</span>
         </div>
         {/* The class's copy lists only the public rows; the view says where
             the class's last group starts and how many play, so the student's
@@ -193,16 +193,16 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
         <div style={{ ...eyebrow, color: '#b7e4c7' }}>Challenge complete</div>
         {selfRow && podium && (
           <div data-mm-final-headline="place" style={{ margin: '10px 0 4px' }}>
-            <div style={{ fontSize: 'clamp(40px, 12vw, 56px)', fontWeight: 1000, color: '#fff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{selfRow.place.ordinal}</div>
+            <div style={{ fontSize: 'clamp(calc(40 * var(--mm-px)), 12vw, calc(56 * var(--mm-px)))', fontWeight: 1000, color: '#fff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{selfRow.place.ordinal}</div>
             <div style={{ marginTop: 4, color: '#d7f5e1', fontWeight: 800 }}>
               {selfRow.tied ? `tied for ${ordinal(selfRow.rank)} ` : ''}of {totalPlayers} {totalPlayers === 1 ? 'player' : 'players'}
             </div>
-            <div style={{ marginTop: 10, fontSize: 19, fontWeight: 900, color: '#fdd663' }}>{didLine}</div>
+            <div style={{ marginTop: 10, fontSize: 'calc(19 * var(--mm-px))', fontWeight: 900, color: '#fdd663' }}>{didLine}</div>
           </div>
         )}
         {selfRow && !podium && (
           <div data-mm-final-headline="effort" style={{ margin: '10px 0 4px' }}>
-            <div style={{ fontSize: 'clamp(30px, 9vw, 44px)', fontWeight: 1000, color: '#fff', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{didLine}</div>
+            <div style={{ fontSize: 'clamp(calc(30 * var(--mm-px)), 9vw, calc(44 * var(--mm-px)))', fontWeight: 1000, color: '#fff', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{didLine}</div>
             {highlights.length > 0 && (
               <ul data-mm-final-highlights="1" style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 6 }}>
                 {highlights.map((line) => (
@@ -214,7 +214,7 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
               </ul>
             )}
             {placeWords && (
-              <p data-mm-final-private-place="1" style={{ margin: '12px 0 0', color: '#c9e7d4', fontSize: 14 }}>
+              <p data-mm-final-private-place="1" style={{ margin: '12px 0 0', color: '#c9e7d4', fontSize: 'calc(14 * var(--mm-px))' }}>
                 Your place: {placeWords}{placeIsPrivate ? ' — only you see this' : ''}
               </p>
             )}
@@ -227,7 +227,7 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
             {loading ? 'Loading your final place…' : 'You joined after the last round.'}
           </p>
         )}
-        <h2 style={{ margin: '12px 0 6px', fontSize: 22, color: '#fff' }}>Final Standings</h2>
+        <h2 style={{ margin: '12px 0 6px', fontSize: 'calc(22 * var(--mm-px))', color: '#fff' }}>Final Standings</h2>
         <p data-mm-final-grade-note={warmup ? 'warmup' : 'game'} style={{ margin: 0, color: '#c9e7d4' }}>{gameGradeSentence({ warmup })}</p>
       </section>
       {rewardsSlot}
@@ -257,8 +257,8 @@ export function StudentMatchRecap({ recap = null }) {
   return (
     <section data-mm-student-recap="1" aria-label="Your game recap" style={{ ...quietPanel, display: 'grid', gap: 14 }}>
       <div>
-        <strong style={{ fontSize: 19, color: '#fff' }}>Your game</strong>
-        <span style={{ display: 'block', marginTop: 2, color: '#9fb0cc', fontSize: 13 }}>Only you see this.</span>
+        <strong style={{ fontSize: 'calc(19 * var(--mm-px))', color: '#fff' }}>Your game</strong>
+        <span style={{ display: 'block', marginTop: 2, color: '#9fb0cc', fontSize: 'calc(13 * var(--mm-px))' }}>Only you see this.</span>
       </div>
       {recap.personalBests.length > 0 && (
         <div data-mm-recap-personal-bests="1">

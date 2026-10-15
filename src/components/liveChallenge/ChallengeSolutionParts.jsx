@@ -24,7 +24,7 @@ const panel = {
   textAlign: 'left',
   lineHeight: 1.5,
 };
-const label = { display: 'block', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--mm-text-muted)' };
+const label = { display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--mm-text-muted)' };
 
 /** One worked solution: headline, the steps, the common slip, the answer. */
 export function RoundSolutionCard({ review, prompt = null, title = 'Worked solution', compact = false }) {
@@ -34,7 +34,7 @@ export function RoundSolutionCard({ review, prompt = null, title = 'Worked solut
     <section data-mm-round-solution="ready" aria-label={title} style={{ ...panel, padding: compact ? 12 : 16 }}>
       <span style={label}>{title}</span>
       {prompt && <MathText as="p" style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)' }}>{prompt}</MathText>}
-      {solution.headline && <MathText as="p" style={{ margin: '8px 0 0', fontWeight: 900, fontSize: compact ? 16 : 18 }}>{solution.headline}</MathText>}
+      {solution.headline && <MathText as="p" style={{ margin: '8px 0 0', fontWeight: 900, fontSize: compact ? 'calc(16 * var(--mm-px))' : 'calc(18 * var(--mm-px))' }}>{solution.headline}</MathText>}
       {solution.reasoning.length > 0 && (
         <ol style={{ margin: '8px 0 0', paddingLeft: 22, display: 'grid', gap: 4 }}>
           {solution.reasoning.map((step, index) => (

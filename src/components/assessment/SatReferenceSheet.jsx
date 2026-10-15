@@ -226,16 +226,16 @@ export function SatReferenceSheetContent() {
             style={{ border: '1px solid var(--mm-border)', borderRadius: 12, padding: '10px 8px 12px', background: 'var(--mm-surface)', minWidth: 0, textAlign: 'center' }}
           >
             <Figure id={entry.id} description={entry.description} />
-            <div style={{ marginTop: 4, fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>{entry.name}</div>
+            <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>{entry.name}</div>
             {entry.formulas.map((item) => (
               <div key={item.latex} style={{ marginTop: 2, textAlign: 'center' }}>
-                <MathDisplay value={item.latex} format="latex" inline ariaLabel={item.spoken} style={{ fontSize: 18, color: 'var(--mm-text-strong)' }} />
+                <MathDisplay value={item.latex} format="latex" inline ariaLabel={item.spoken} style={{ fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }} />
               </div>
             ))}
           </li>
         ))}
       </ul>
-      <ul style={{ margin: '14px 0 0', paddingLeft: 20, display: 'grid', gap: 6, color: 'var(--mm-text)', lineHeight: 1.5, fontSize: 14.5 }}>
+      <ul style={{ margin: '14px 0 0', paddingLeft: 20, display: 'grid', gap: 6, color: 'var(--mm-text)', lineHeight: 1.5, fontSize: 'calc(14.5 * var(--mm-px))' }}>
         {SAT_REFERENCE_SHEET.facts.map((fact) => <li key={fact.id} data-sat-reference-fact={fact.id}>{fact.text}</li>)}
       </ul>
     </div>
@@ -308,8 +308,8 @@ export function SatReferenceSheetDialog({ open, onClose, id = undefined, toolbar
     >
       <header style={{ position: 'sticky', top: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 16px', background: 'var(--mm-surface-raised, var(--mm-surface))', borderBottom: '1px solid var(--mm-border)' }}>
         <div style={{ minWidth: 0 }}>
-          <h2 id={titleId} style={{ margin: 0, fontSize: 18, color: 'var(--mm-text-strong)' }}>{SAT_REFERENCE_SHEET.title}</h2>
-          <div style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>{SAT_REFERENCE_SHEET.subtitle}</div>
+          <h2 id={titleId} style={{ margin: 0, fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{SAT_REFERENCE_SHEET.title}</h2>
+          <div style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{SAT_REFERENCE_SHEET.subtitle}</div>
         </div>
         <button type="button" onClick={() => onClose?.()} aria-label="Close reference sheet" style={CLOSE}>
           <span aria-hidden="true">✕</span><span style={{ marginLeft: 6 }}>Close</span>

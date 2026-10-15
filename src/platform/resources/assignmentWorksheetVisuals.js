@@ -88,7 +88,7 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
   });
   if (visual.label) {
     wrap.appendChild(make('div', {
-      fontSize: '11px',
+      fontSize: 'calc(11 * var(--mm-px))',
       fontWeight: '800',
       color: '#5f6368',
       textTransform: 'uppercase',
@@ -203,7 +203,7 @@ const tableVisual = (visual = {}) => {
   const columns = Array.isArray(table.columns) ? table.columns : [];
   const rows = Array.isArray(table.rows) ? table.rows : [];
   const wrap = make('div', { marginTop: '11px', overflow: 'hidden', border: '1px solid #c7cdd4', borderRadius: '7px' });
-  const node = make('table', { borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed', fontSize: '12px' });
+  const node = make('table', { borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed', fontSize: 'calc(12 * var(--mm-px))' });
   const head = document.createElement('thead');
   const headRow = document.createElement('tr');
   columns.forEach((column) => {
@@ -299,7 +299,7 @@ const mappingVisual = (visual = {}) => {
 
   if (publicPairs.length) {
     const given = make('div', {
-      marginBottom: '7px', fontSize: '11px', color: '#5f6368', lineHeight: '1.35',
+      marginBottom: '7px', fontSize: 'calc(11 * var(--mm-px))', color: '#5f6368', lineHeight: '1.35',
     }, `Given relation: ${publicPairs.map(([x, y]) => `(${x}, ${y})`).join(', ')}`);
     wrap.appendChild(given);
   }

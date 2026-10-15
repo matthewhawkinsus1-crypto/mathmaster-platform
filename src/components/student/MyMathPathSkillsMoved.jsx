@@ -17,7 +17,7 @@ const BOX = {
 
 const HEADING = {
   margin: '0 0 6px',
-  fontSize: 12,
+  fontSize: 'calc(12 * var(--mm-px))',
   fontWeight: 950,
   letterSpacing: '.06em',
   textTransform: 'uppercase',
@@ -31,8 +31,8 @@ function Move({ move }) {
   const statusChanged = move.statusBefore !== move.statusAfter;
   return (
     <li style={{ listStyle: 'none', display: 'grid', gap: 2, padding: '7px 0', borderTop: '1px solid var(--mm-tint-border)' }}>
-      <strong style={{ color: 'var(--mm-text-strong)', fontSize: 14.5 }}>{move.label}</strong>
-      <span style={{ color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.5 }}>
+      <strong style={{ color: 'var(--mm-text-strong)', fontSize: 'calc(14.5 * var(--mm-px))' }}>{move.label}</strong>
+      <span style={{ color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>
         {estimateChanged
           ? <>{percent(move.estimateBefore) || 'New'} <span aria-label="to">→</span> <strong>{percent(move.estimateAfter) || '—'}</strong></>
           : percent(move.estimateAfter)}
@@ -55,7 +55,7 @@ export default function MyMathPathSkillsMoved({ skillsMoved = null }) {
     return (
       <section style={BOX} aria-label="Skills that moved">
         <h2 style={HEADING}>Skills that moved</h2>
-        <p role="status" aria-live="polite" style={{ margin: 0, color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.55 }}>
+        <p role="status" aria-live="polite" style={{ margin: 0, color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.55 }}>
           {state === SKILLS_MOVED_STATE.PENDING
             ? 'Updating your skills…'
             : 'Your skill updates are still on their way. They will show on My Math Path in a moment.'}
@@ -73,7 +73,7 @@ export default function MyMathPathSkillsMoved({ skillsMoved = null }) {
           {moves.map((move) => <Move key={move.code} move={move} />)}
         </ul>
       ) : (
-        <p role="status" style={{ margin: 0, color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.55 }}>
+        <p role="status" style={{ margin: 0, color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.55 }}>
           No skill levels changed this time. Every answer you gave is saved as evidence.
         </p>
       )}

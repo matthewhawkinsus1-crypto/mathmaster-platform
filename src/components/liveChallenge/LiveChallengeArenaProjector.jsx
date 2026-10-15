@@ -92,7 +92,7 @@ const bigButton = {
   ...arenaButton,
   minHeight: 54,
   padding: '13px 30px',
-  fontSize: 'clamp(17px, 1.6vw, 22px)',
+  fontSize: 'clamp(calc(17 * var(--mm-px)), 1.6vw, calc(22 * var(--mm-px)))',
   border: 0,
   background: 'linear-gradient(135deg, #536dfe, #8c52ff)',
   boxShadow: '0 0 28px rgba(112,104,255,.3)',
@@ -108,7 +108,7 @@ const glassPanel = {
 };
 
 const labelStyle = {
-  fontSize: 'clamp(12px, 1.1vw, 15px)',
+  fontSize: 'clamp(calc(12 * var(--mm-px)), 1.1vw, calc(15 * var(--mm-px)))',
   fontWeight: 1000,
   letterSpacing: '.11em',
   textTransform: 'uppercase',
@@ -151,7 +151,7 @@ function ArenaBadge({ children, accent = '#7aa8ff' }) {
       border: `1px solid ${accent}66`,
       background: `${accent}18`,
       color: '#f7f9ff',
-      fontSize: 'clamp(12px, 1.1vw, 16px)',
+      fontSize: 'clamp(calc(12 * var(--mm-px)), 1.1vw, calc(16 * var(--mm-px)))',
       fontWeight: 900,
       letterSpacing: '.035em',
       whiteSpace: 'nowrap',
@@ -208,7 +208,7 @@ function ArenaClock({ room, clock, clockOffsetMs, finishing = false }) {
         border: '1px solid rgba(130,165,255,.36)',
       }}>
         <div style={{ ...labelStyle, color: '#a8c2ff' }}>Almost there</div>
-        <div style={{ marginTop: 6, fontSize: 'clamp(20px, 3.4vh, 32px)', fontWeight: 1000, lineHeight: 1.2, color: '#fff' }}>{STILL_FINISHING_MESSAGE}</div>
+        <div style={{ marginTop: 6, fontSize: 'clamp(calc(20 * var(--mm-px)), 3.4vh, calc(32 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.2, color: '#fff' }}>{STILL_FINISHING_MESSAGE}</div>
       </div>
     );
   }
@@ -222,7 +222,7 @@ function ArenaClock({ room, clock, clockOffsetMs, finishing = false }) {
       border: `1px solid ${low || locked ? 'rgba(255,105,135,.5)' : 'rgba(130,165,255,.36)'}`,
     }}>
       <div style={{ ...labelStyle, color: low || locked ? '#ff9bb0' : '#a8c2ff' }}>{label}</div>
-      <div style={{ marginTop: 2, fontSize: 'clamp(54px, 11vh, 120px)', fontWeight: 1000, lineHeight: 1, letterSpacing: '-.04em', color: '#fff' }}>
+      <div style={{ marginTop: 2, fontSize: 'clamp(calc(54 * var(--mm-px)), 11vh, calc(120 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1, letterSpacing: '-.04em', color: '#fff' }}>
         {locked ? '0:00' : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}
       </div>
     </div>
@@ -252,12 +252,12 @@ function PodiumPlace({ row, place, height, revealDelay, presentation, rewards = 
         border: `1px solid ${accent}70`,
         boxShadow: place === 1 ? `0 0 38px ${accent}25` : '0 16px 30px rgba(0,0,0,.2)',
       }}>
-        <div aria-hidden="true" style={{ fontSize: place === 1 ? 'clamp(34px, 5vh, 46px)' : 'clamp(28px, 4vh, 36px)', lineHeight: 1 }}>{medal}</div>
+        <div aria-hidden="true" style={{ fontSize: place === 1 ? 'clamp(calc(34 * var(--mm-px)), 5vh, calc(46 * var(--mm-px)))' : 'clamp(calc(28 * var(--mm-px)), 4vh, calc(36 * var(--mm-px)))', lineHeight: 1 }}>{medal}</div>
         <div style={{ ...labelStyle, marginTop: 6, color: accent }}>{title}</div>
-        <div style={{ marginTop: 5, fontWeight: 1000, fontSize: place === 1 ? 'clamp(22px, 2.4vw, 32px)' : 'clamp(18px, 1.9vw, 26px)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff' }}>{row.alias}</div>
-        <div style={{ marginTop: 4, color: 'rgba(240,244,255,.8)', fontWeight: 800, fontSize: 'clamp(14px, 1.3vw, 18px)' }}>{amountText(row.score, presentation.total)}</div>
+        <div style={{ marginTop: 5, fontWeight: 1000, fontSize: place === 1 ? 'clamp(calc(22 * var(--mm-px)), 2.4vw, calc(32 * var(--mm-px)))' : 'clamp(calc(18 * var(--mm-px)), 1.9vw, calc(26 * var(--mm-px)))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff' }}>{row.alias}</div>
+        <div style={{ marginTop: 4, color: 'rgba(240,244,255,.8)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), 1.3vw, calc(18 * var(--mm-px)))' }}>{amountText(row.score, presentation.total)}</div>
         {rewards && rewards.map((reward) => (
-          <div key={reward.rewardCode} style={{ marginTop: 6, fontWeight: 900, color: '#ffd166', fontSize: 'clamp(13px, 1.2vw, 16px)' }}>
+          <div key={reward.rewardCode} style={{ marginTop: 6, fontWeight: 900, color: '#ffd166', fontSize: 'clamp(calc(13 * var(--mm-px)), 1.2vw, calc(16 * var(--mm-px)))' }}>
             {reward.rewardCode === 'practicePass' ? '🎟' : reward.rewardCode === 'badge' ? '🏅' : '⭐'} {reward.label}
           </div>
         ))}
@@ -271,7 +271,7 @@ function PodiumPlace({ row, place, height, revealDelay, presentation, rewards = 
         border: `1px solid ${accent}55`,
         borderTop: 0,
         color: '#fff',
-        fontSize: place === 1 ? 'clamp(30px, 4.5vh, 40px)' : 'clamp(24px, 3.5vh, 30px)',
+        fontSize: place === 1 ? 'clamp(calc(30 * var(--mm-px)), 4.5vh, calc(40 * var(--mm-px)))' : 'clamp(calc(24 * var(--mm-px)), 3.5vh, calc(30 * var(--mm-px)))',
         fontWeight: 1000,
         textShadow: '0 3px 12px rgba(0,0,0,.35)',
       }}>
@@ -339,7 +339,7 @@ function PodiumRecognitions({ room }) {
           border: `1px solid ${entry.classWide ? 'rgba(141,247,201,.45)' : 'rgba(255,209,102,.42)'}`,
           color: '#f7f9ff',
           fontWeight: 900,
-          fontSize: 'clamp(14px, 1.45vw, 20px)',
+          fontSize: 'clamp(calc(14 * var(--mm-px)), 1.45vw, calc(20 * var(--mm-px)))',
           maxWidth: '100%',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -375,8 +375,8 @@ function FinalPodium({ room = null, leaderboard = [], presentation, rewardsByKey
       <div style={{ textAlign: 'center' }}>
         <div style={labelStyle}>Challenge Complete</div>
         {/* Its own colour: the global h2 rule (index.css) would paint it dark on the arena. */}
-        <h2 style={{ margin: '4px 0 0', fontSize: 'clamp(32px, 6vh, 58px)', lineHeight: 1, letterSpacing: '-.025em', color: '#f7f9ff', fontWeight: 1000 }}>Final Podium</h2>
-        <div style={{ marginTop: 6, color: 'rgba(236,241,255,.72)', fontWeight: 800, fontSize: 'clamp(14px, 1.4vw, 19px)' }}>
+        <h2 style={{ margin: '4px 0 0', fontSize: 'clamp(calc(32 * var(--mm-px)), 6vh, calc(58 * var(--mm-px)))', lineHeight: 1, letterSpacing: '-.025em', color: '#f7f9ff', fontWeight: 1000 }}>Final Podium</h2>
+        <div style={{ marginTop: 6, color: 'rgba(236,241,255,.72)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), 1.4vw, calc(19 * var(--mm-px)))' }}>
           {presentation.placementPoints ? 'Ranked by championship points.' : `Ranked by ${presentation.total.long}.`}{lines.length ? ` Rewards: ${lines.join(' · ')}.` : ''}
           {/* No room under the podium (a small or zoomed projector): the note moves up here. */}
           {hasPodium && !fit.room && someoneUnseen && <span data-mm-final-more="header"> Everyone sees their own final place on their device.</span>}
@@ -390,7 +390,7 @@ function FinalPodium({ room = null, leaderboard = [], presentation, rewardsByKey
         </div>
       ) : (
         // No place may be projected (two players, or everyone tied): no ranking at all.
-        <section data-mm-podium-none={board.totalCount} style={{ ...glassPanel, padding: 'clamp(14px, 2.4vh, 26px)', maxWidth: 860, width: '100%', margin: '0 auto', textAlign: 'center', color: '#f7f9ff', fontWeight: 900, fontSize: 'clamp(18px, 2.2vw, 28px)' }}>
+        <section data-mm-podium-none={board.totalCount} style={{ ...glassPanel, padding: 'clamp(14px, 2.4vh, 26px)', maxWidth: 860, width: '100%', margin: '0 auto', textAlign: 'center', color: '#f7f9ff', fontWeight: 900, fontSize: 'clamp(calc(18 * var(--mm-px)), 2.2vw, calc(28 * var(--mm-px)))' }}>
           {board.totalCount === 1 ? '1 player finished.' : `${board.totalCount} players finished.`} Everyone sees their own final place on their device.
         </section>
       )}
@@ -429,13 +429,13 @@ function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
         <div className="mm-arena-orb mm-arena-orb-b" />
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={labelStyle}>Arena Lobby</div>
-          <div data-mm-lobby-count={joinedCount} style={{ marginTop: 8, fontSize: 'clamp(76px, 17vh, 150px)', lineHeight: 0.85, fontWeight: 1000, letterSpacing: '-.06em' }}>{joinedCount}</div>
-          <div style={{ marginTop: 10, fontSize: 'clamp(20px, 2.2vw, 28px)', fontWeight: 900 }}>{joinedCount === 1 ? 'student ready' : 'students ready'}</div>
+          <div data-mm-lobby-count={joinedCount} style={{ marginTop: 8, fontSize: 'clamp(calc(76 * var(--mm-px)), 17vh, calc(150 * var(--mm-px)))', lineHeight: 0.85, fontWeight: 1000, letterSpacing: '-.06em' }}>{joinedCount}</div>
+          <div style={{ marginTop: 10, fontSize: 'clamp(calc(20 * var(--mm-px)), 2.2vw, calc(28 * var(--mm-px)))', fontWeight: 900 }}>{joinedCount === 1 ? 'student ready' : 'students ready'}</div>
           {eligible > 0 && <div style={{ marginTop: 4, color: 'rgba(236,241,255,.65)', fontWeight: 700 }}>{joinedCount} of {eligible} invited</div>}
-          <div style={{ marginTop: 18, color: '#dbe6ff', fontWeight: 800, fontSize: 'clamp(15px, 1.5vw, 20px)', lineHeight: 1.4 }}>
+          <div style={{ marginTop: 18, color: '#dbe6ff', fontWeight: 800, fontSize: 'clamp(calc(15 * var(--mm-px)), 1.5vw, calc(20 * var(--mm-px)))', lineHeight: 1.4 }}>
             Open MathMaster and tap <strong>Live Challenge</strong> on your dashboard.
           </div>
-          {lines.length > 0 && <div style={{ marginTop: 10, color: '#ffd166', fontWeight: 900, fontSize: 'clamp(15px, 1.5vw, 20px)' }}>🏆 {lines.join(' · ')}</div>}
+          {lines.length > 0 && <div style={{ marginTop: 10, color: '#ffd166', fontWeight: 900, fontSize: 'clamp(calc(15 * var(--mm-px)), 1.5vw, calc(20 * var(--mm-px)))' }}>🏆 {lines.join(' · ')}</div>}
           <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '10px 14px', borderRadius: 999, background: 'rgba(99,226,255,.1)', border: '1px solid rgba(99,226,255,.28)', color: '#c8f6ff', fontWeight: 900 }}>
             <span className="mm-arena-pulse" /> Waiting for teacher to start
           </div>
@@ -452,13 +452,13 @@ function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
         {shown.length ? (
           <div style={{ display: 'flex', gap: dense ? 6 : 9, flexWrap: 'wrap', alignContent: 'flex-start', overflow: 'hidden' }}>
             {shown.map(({ key, alias }) => (
-              <span key={key || alias} style={{ padding: dense ? '6px 10px' : '9px 13px', borderRadius: 999, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', fontWeight: 900, fontSize: dense ? 'clamp(13px, 1.2vw, 16px)' : 'clamp(15px, 1.5vw, 20px)' }}>
+              <span key={key || alias} style={{ padding: dense ? '6px 10px' : '9px 13px', borderRadius: 999, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', fontWeight: 900, fontSize: dense ? 'clamp(calc(13 * var(--mm-px)), 1.2vw, calc(16 * var(--mm-px)))' : 'clamp(calc(15 * var(--mm-px)), 1.5vw, calc(20 * var(--mm-px)))' }}>
                 {alias}
               </span>
             ))}
             {names.length > shown.length && <span style={{ padding: '6px 10px', color: 'rgba(236,241,255,.7)', fontWeight: 900 }}>+{names.length - shown.length} more</span>}
           </div>
-        ) : <div style={{ color: 'rgba(236,241,255,.62)', fontSize: 'clamp(15px, 1.5vw, 20px)' }}>Players appear here as they join.</div>}
+        ) : <div style={{ color: 'rgba(236,241,255,.62)', fontSize: 'clamp(calc(15 * var(--mm-px)), 1.5vw, calc(20 * var(--mm-px)))' }}>Players appear here as they join.</div>}
       </section>
     </div>
   );
@@ -488,7 +488,7 @@ function RunningView({ room, clock, clockOffsetMs, leaderboard, presentation, jo
   const liveRows = standingsRows(leaderboard);
   const liveBoard = publicStandingsRows(room, liveRows, { spaceForRows: rows });
   const prompt = String(room?.currentQuestion?.prompt || '');
-  const promptSize = prompt.length > 220 ? 'clamp(20px, 3vh, 30px)' : prompt.length > 120 ? 'clamp(24px, 3.8vh, 38px)' : 'clamp(28px, 5vh, 48px)';
+  const promptSize = prompt.length > 220 ? 'clamp(calc(20 * var(--mm-px)), 3vh, calc(30 * var(--mm-px)))' : prompt.length > 120 ? 'clamp(calc(24 * var(--mm-px)), 3.8vh, calc(38 * var(--mm-px)))' : 'clamp(calc(28 * var(--mm-px)), 5vh, calc(48 * var(--mm-px)))';
   const answeredShare = joinedCount > 0 ? Math.min(100, Math.round((answeredCount / joinedCount) * 100)) : 0;
   return (
     <div className="mm-arena-running-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.45fr) minmax(min(100%, 320px),.85fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
@@ -509,13 +509,13 @@ function RunningView({ room, clock, clockOffsetMs, leaderboard, presentation, jo
           </MathText>
         </div>
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 'clamp(14px, 1.4vw, 19px)', fontWeight: 900, color: 'rgba(236,241,255,.78)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 'clamp(calc(14 * var(--mm-px)), 1.4vw, calc(19 * var(--mm-px)))', fontWeight: 900, color: 'rgba(236,241,255,.78)' }}>
             <span>Locked in</span><span data-mm-locked-in={answeredCount}>{answeredCount} / {joinedCount}</span>
           </div>
           <div style={{ height: 12, marginTop: 7, background: 'rgba(255,255,255,.08)', borderRadius: 999, overflow: 'hidden' }}>
             <div style={{ width: `${answeredShare}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${accent}, var(--mm-primary-soft))`, transition: 'width 200ms ease' }} />
           </div>
-          <div style={{ marginTop: 8, color: 'rgba(236,241,255,.6)', fontSize: 'clamp(12px, 1.1vw, 15px)', fontWeight: 800 }}>
+          <div style={{ marginTop: 8, color: 'rgba(236,241,255,.6)', fontSize: 'clamp(calc(12 * var(--mm-px)), 1.1vw, calc(15 * var(--mm-px)))', fontWeight: 800 }}>
             {finishing ? `${STILL_FINISHING_MESSAGE}.` : locked ? 'Collecting the last answers — results next.' : 'Scores update as answers lock.'}
           </div>
         </div>
@@ -557,12 +557,12 @@ function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
         </div>
         <div style={{ alignSelf: 'center' }}>
           <div style={labelStyle}>{locked ? 'Time is up' : 'Find the features'}</div>
-          <div style={{ marginTop: 10, fontSize: 'clamp(28px, 5vh, 48px)', lineHeight: 1.2, fontWeight: 900, color: '#f7f9ff' }}>
+          <div style={{ marginTop: 10, fontSize: 'clamp(calc(28 * var(--mm-px)), 5vh, calc(48 * var(--mm-px)))', lineHeight: 1.2, fontWeight: 900, color: '#f7f9ff' }}>
             {locked ? 'Saving the last taps — results next.' : 'Everyone has their own graphs. Tap the features. Go!'}
           </div>
-          <div style={{ marginTop: 10, color: 'rgba(236,241,255,.68)', fontWeight: 800, fontSize: 'clamp(14px, 1.4vw, 19px)' }}>{rushSettingsLine(room)}</div>
+          <div style={{ marginTop: 10, color: 'rgba(236,241,255,.68)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), 1.4vw, calc(19 * var(--mm-px)))' }}>{rushSettingsLine(room)}</div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', color: 'rgba(236,241,255,.78)', fontWeight: 900, fontSize: 'clamp(15px, 1.5vw, 20px)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', color: 'rgba(236,241,255,.78)', fontWeight: 900, fontSize: 'clamp(calc(15 * var(--mm-px)), 1.5vw, calc(20 * var(--mm-px)))' }}>
           <span>{playing} of {joinedCount} racing</span>
           <span>{graphs} {graphs === 1 ? 'graph' : 'graphs'} completed</span>
         </div>
@@ -574,7 +574,7 @@ function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
           {boardLimit > 0 && <RushRaceBoard players={players} roundIndex={roundIndex} limit={boardLimit} look="projector" />}
           {/* RushRaceBoard lists only its rows; how many more are racing is said here. */}
           {racersMore && (
-            <div data-mm-board-more="rush" style={{ marginTop: 6, paddingLeft: 4, color: 'rgba(236,241,255,.7)', fontWeight: 800, fontSize: 'clamp(14px, 1.4vw, 20px)' }}>{racersMore}</div>
+            <div data-mm-board-more="rush" style={{ marginTop: 6, paddingLeft: 4, color: 'rgba(236,241,255,.7)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), 1.4vw, calc(20 * var(--mm-px)))' }}>{racersMore}</div>
           )}
         </div>
       </section>
@@ -592,7 +592,7 @@ function ProjectorSolution({ solution, state }) {
     return (
       <section data-mm-projector-solution={state} style={{ ...glassPanel, padding: 'clamp(12px, 1.6vw, 20px)', display: 'grid', alignContent: 'center' }}>
         <div style={labelStyle}>Worked solution</div>
-        <div style={{ marginTop: 6, color: '#dbe6ff', fontWeight: 800, fontSize: 'clamp(17px, 2.2vh, 24px)', lineHeight: 1.4 }}>{solutionStateMessage(state)}</div>
+        <div style={{ marginTop: 6, color: '#dbe6ff', fontWeight: 800, fontSize: 'clamp(calc(17 * var(--mm-px)), 2.2vh, calc(24 * var(--mm-px)))', lineHeight: 1.4 }}>{solutionStateMessage(state)}</div>
       </section>
     );
   }
@@ -602,21 +602,21 @@ function ProjectorSolution({ solution, state }) {
     <section data-mm-projector-solution="ready" aria-label="Worked solution" style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'auto', minHeight: 0, display: 'grid', alignContent: 'start', gap: 'clamp(8px, 1.4vh, 14px)' }}>
       <div style={labelStyle}>Worked solution</div>
       {solution?.prompt && (
-        <MathText as="div" style={{ whiteSpace: 'pre-wrap', color: 'rgba(236,241,255,.82)', fontWeight: 800, fontSize: 'clamp(17px, 2.5vh, 24px)', lineHeight: 1.35 }}>{solution.prompt}</MathText>
+        <MathText as="div" style={{ whiteSpace: 'pre-wrap', color: 'rgba(236,241,255,.82)', fontWeight: 800, fontSize: 'clamp(calc(17 * var(--mm-px)), 2.5vh, calc(24 * var(--mm-px)))', lineHeight: 1.35 }}>{solution.prompt}</MathText>
       )}
-      {review.headline && <MathText as="div" style={{ color: '#fff', fontWeight: 1000, fontSize: 'clamp(22px, 3.4vh, 32px)', lineHeight: 1.25 }}>{review.headline}</MathText>}
+      {review.headline && <MathText as="div" style={{ color: '#fff', fontWeight: 1000, fontSize: 'clamp(calc(22 * var(--mm-px)), 3.4vh, calc(32 * var(--mm-px)))', lineHeight: 1.25 }}>{review.headline}</MathText>}
       {steps.length > 0 && (
-        <ol style={{ margin: 0, paddingLeft: '1.4em', display: 'grid', gap: 6, color: '#f7f9ff', fontWeight: 800, fontSize: 'clamp(18px, 2.7vh, 26px)', lineHeight: 1.35 }}>
+        <ol style={{ margin: 0, paddingLeft: '1.4em', display: 'grid', gap: 6, color: '#f7f9ff', fontWeight: 800, fontSize: 'clamp(calc(18 * var(--mm-px)), 2.7vh, calc(26 * var(--mm-px)))', lineHeight: 1.35 }}>
           {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
         </ol>
       )}
       {review.answerSummary && (
-        <div style={{ padding: '8px 14px', borderRadius: 12, background: 'rgba(141,247,201,.12)', border: '1px solid rgba(141,247,201,.4)', color: '#f7f9ff', fontWeight: 900, fontSize: 'clamp(19px, 2.9vh, 28px)' }}>
+        <div style={{ padding: '8px 14px', borderRadius: 12, background: 'rgba(141,247,201,.12)', border: '1px solid rgba(141,247,201,.4)', color: '#f7f9ff', fontWeight: 900, fontSize: 'clamp(calc(19 * var(--mm-px)), 2.9vh, calc(28 * var(--mm-px)))' }}>
           <span style={{ color: '#8df7c9' }}>{answerSummaryLabel(review.answerSummary)}: </span><MathText>{review.answerSummary}</MathText>
         </div>
       )}
       {review.commonError && (
-        <div style={{ color: '#ffd9a8', fontWeight: 800, fontSize: 'clamp(16px, 2.3vh, 22px)', lineHeight: 1.35 }}>
+        <div style={{ color: '#ffd9a8', fontWeight: 800, fontSize: 'clamp(calc(16 * var(--mm-px)), 2.3vh, calc(22 * var(--mm-px)))', lineHeight: 1.35 }}>
           <span style={{ fontWeight: 1000 }}>Watch out: </span><MathText>{review.commonError}</MathText>
         </div>
       )}
@@ -639,10 +639,10 @@ function ResultsView({ room, clock, roundView, presentation, leaderboard, rows, 
   const standingsPanel = (
     <section style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'hidden' }}>
       <div style={labelStyle}>{presentation.placementPoints ? 'Championship' : 'Standings'}</div>
-      <div style={{ margin: '4px 0 12px', fontSize: 'clamp(26px, 4.6vh, 42px)', fontWeight: 1000, color: '#fff' }}>After round {clock.roundNumber}</div>
+      <div style={{ margin: '4px 0 12px', fontSize: 'clamp(calc(26 * var(--mm-px)), 4.6vh, calc(42 * var(--mm-px)))', fontWeight: 1000, color: '#fff' }}>After round {clock.roundNumber}</div>
       {standings
         ? <StandingsBoard board={standingsBoard} presentation={presentation} look="projector" showMovement label="Standings after this round" />
-        : <p style={{ margin: 0, color: 'rgba(236,241,255,.7)', fontSize: 'clamp(16px, 1.7vw, 24px)' }}>Tallying the round…</p>}
+        : <p style={{ margin: 0, color: 'rgba(236,241,255,.7)', fontSize: 'clamp(calc(16 * var(--mm-px)), 1.7vw, calc(24 * var(--mm-px)))' }}>Tallying the round…</p>}
     </section>
   );
   if (solutionFills) {
@@ -659,7 +659,7 @@ function ResultsView({ room, clock, roundView, presentation, leaderboard, rows, 
       <div className="mm-arena-running-grid" data-mm-results-layout="tables" style={{ minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
         <section style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'hidden' }}>
           <div style={labelStyle}>{clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${clock.roundNumber} of ${clock.roundCount}`}</div>
-          <div style={{ margin: '4px 0 12px', fontSize: 'clamp(26px, 4.6vh, 42px)', fontWeight: 1000, color: '#fff' }}>Round results{presentation.placementPoints ? ' · championship points' : ''}</div>
+          <div style={{ margin: '4px 0 12px', fontSize: 'clamp(calc(26 * var(--mm-px)), 4.6vh, calc(42 * var(--mm-px)))', fontWeight: 1000, color: '#fff' }}>Round results{presentation.placementPoints ? ' · championship points' : ''}</div>
           <RoundResultsTable view={roundView} board={roundBoard} presentation={presentation} look="projector" />
         </section>
         {standingsPanel}
@@ -699,13 +699,13 @@ function HostStrip({ room, stage, primaryAction, busy, controlBusy, finishing = 
         </button>
       )}
       {(openRound || stage === CHALLENGE_STAGE.ROUND_RESULTS) && typeof onRequestEndGame === 'function' && <button type="button" disabled={controlBusy} onClick={onRequestEndGame} style={{ ...arenaButton, color: '#ffb4ab', opacity: controlBusy ? 0.55 : 1 }}>End Game</button>}
-      {projectorShowsClosingThreshold(room) && typeof onThresholdChange === 'function' && stage !== CHALLENGE_STAGE.COMPLETED && <label style={{ fontSize: 13, fontWeight: 900, color: 'rgba(236,241,255,.75)' }}>Round closing threshold
+      {projectorShowsClosingThreshold(room) && typeof onThresholdChange === 'function' && stage !== CHALLENGE_STAGE.COMPLETED && <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, color: 'rgba(236,241,255,.75)' }}>Round closing threshold
         <select aria-label="Round closing threshold" value={room.roundClosingThreshold ?? 'off'} onChange={(event) => onThresholdChange(event.target.value)} style={{ ...arenaButton, WebkitTextFillColor: arenaButton.color, marginLeft: 7, minHeight: 36 }}>
           <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
         </select>
       </label>}
       {/* Projected with the rest of the screen: neutral words only (STILL_FINISHING_HOST_HINT). */}
-      {(finishing || primaryAction?.hint) && stage !== CHALLENGE_STAGE.LOBBY && <span data-mm-arena-hint="1" style={{ flex: '1 1 260px', color: 'rgba(236,241,255,.6)', fontWeight: 700, fontSize: 'clamp(12px, 1.1vw, 15px)' }}>{finishing ? STILL_FINISHING_HOST_HINT : primaryAction.hint}</span>}
+      {(finishing || primaryAction?.hint) && stage !== CHALLENGE_STAGE.LOBBY && <span data-mm-arena-hint="1" style={{ flex: '1 1 260px', color: 'rgba(236,241,255,.6)', fontWeight: 700, fontSize: 'clamp(calc(12 * var(--mm-px)), 1.1vw, calc(15 * var(--mm-px)))' }}>{finishing ? STILL_FINISHING_HOST_HINT : primaryAction.hint}</span>}
     </footer>
   );
 }
@@ -879,7 +879,7 @@ export default function LiveChallengeArenaProjector({
                 <ArenaBadge accent={accent}>{gameLabel}</ArenaBadge>
               </div>
               {/* Its own colour: the global h1 rule (index.css) would paint it dark on the arena. */}
-              <h1 style={{ margin: '4px 0 0', fontSize: 'clamp(22px, 3vw, 40px)', lineHeight: 1.05, letterSpacing: '-.02em', color: '#f7f9ff', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h1>
+              <h1 style={{ margin: '4px 0 0', fontSize: 'clamp(calc(22 * var(--mm-px)), 3vw, calc(40 * var(--mm-px)))', lineHeight: 1.05, letterSpacing: '-.02em', color: '#f7f9ff', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h1>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -895,7 +895,7 @@ export default function LiveChallengeArenaProjector({
       <main style={{ minHeight: 0, display: 'grid', gridTemplateRows: error ? 'auto minmax(0,1fr)' : 'minmax(0,1fr)', gap: 10 }}>
         {error && <div role="alert" style={{ padding: '10px 16px', borderRadius: 12, background: 'rgba(255,87,120,.16)', border: '1px solid rgba(255,105,135,.5)', color: '#ffd9e1', fontWeight: 800 }}>{error}</div>}
         <div style={{ minHeight: 0 }}>
-          {loading && <section style={{ ...glassPanel, height: '100%', display: 'grid', placeItems: 'center', fontSize: 'clamp(24px, 4vh, 40px)', fontWeight: 900 }} aria-busy="true">Opening the new lobby…</section>}
+          {loading && <section style={{ ...glassPanel, height: '100%', display: 'grid', placeItems: 'center', fontSize: 'clamp(calc(24 * var(--mm-px)), 4vh, calc(40 * var(--mm-px)))', fontWeight: 900 }} aria-busy="true">Opening the new lobby…</section>}
           {!loading && stage === CHALLENGE_STAGE.LOBBY && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
           {!loading && stage === CHALLENGE_STAGE.COUNTDOWN && <CountdownView room={room} clock={clock} />}
           {!loading && openRound && room?.challengeMode === RUSH_MODE_ID && <RushRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} />}

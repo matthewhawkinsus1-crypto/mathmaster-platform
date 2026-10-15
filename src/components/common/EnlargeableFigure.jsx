@@ -53,7 +53,7 @@ const CONTROL = {
   background: 'var(--mm-surface)',
   color: 'var(--mm-primary-text)',
   fontWeight: 800,
-  fontSize: 13,
+  fontSize: 'calc(13 * var(--mm-px))',
   cursor: 'pointer',
 };
 
@@ -569,7 +569,7 @@ export default function EnlargeableFigure({
                 minWidth: 0,
                 paddingRight: 4,
                 color: 'var(--mm-text)',
-                fontSize: 12.5,
+                fontSize: 'calc(12.5 * var(--mm-px))',
                 fontWeight: 700,
                 lineHeight: 1.35,
               }}
