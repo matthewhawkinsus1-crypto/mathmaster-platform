@@ -112,11 +112,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Add like terms: ${{A}}x^2+{{B}}x+{{C}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Group like terms: ${{a}}x^2+{{d}}x^2={{A}}x^2$, ${{b}}x+{{e}}x={{B}}x$, and ${{c}}+{{f}}={{C}}$.",
+          "So $({{a}}x^2+{{b}}x+{{c}})+({{d}}x^2+{{e}}x+{{f}})={{A}}x^2+{{B}}x+{{C}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Adding only some of the like terms, which leaves one coefficient from a single polynomial.",
+        "answerSummary": "${{A}}x^2+{{B}}x+{{C}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -267,11 +269,14 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Subtract every term of the second polynomial: ${{A}}x^2+{{B}}x+{{C}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The minus sign applies to each term: $-({{d}}x^2+{{e}}x+{{f}})=-{{d}}x^2-{{e}}x-{{f}}$.",
+          "Combine like terms: ${{a}}x^2-{{d}}x^2={{A}}x^2$, ${{b}}x-{{e}}x={{B}}x$, and ${{c}}-{{f}}={{C}}$.",
+          "So the difference is ${{A}}x^2+{{B}}x+{{C}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Subtracting only the first term of the second polynomial and adding the others.",
+        "answerSummary": "${{A}}x^2+{{B}}x+{{C}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -576,11 +581,14 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Combine like terms, keeping each sign with its term: ${{A}}x^2 {{M|signed}}x {{C|signed}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$x^2$ terms: ${{a}}x^2+{{d}}x^2={{A}}x^2$.",
+          "$x$ terms: $-{{b}}x+{{e}}x={{M}}x$. Constants: ${{c}}-{{f}}={{C}}$.",
+          "So the sum is ${{A}}x^2 {{M|signed}}x {{C|signed}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Dropping a minus sign, for example adding {{b}} and {{e}}, or {{c}} and {{f}}. Each sign belongs to the term after it.",
+        "answerSummary": "${{A}}x^2 {{M|signed}}x {{C|signed}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -1175,7 +1183,10 @@
           "C": "m*c-f",
           "Aw": "m*a+d",
           "Bw": "m*b+e",
-          "Cw": "m*c+f"
+          "Cw": "m*c+f",
+          "ma": "m*a",
+          "mb": "m*b",
+          "mc": "m*c"
         },
         "constraints": [
           "A!=0",
@@ -1201,11 +1212,14 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Distribute {{m}}, then subtract every term: ${{A}}x^2+{{B}}x+{{C}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Distribute: ${{m}}({{a}}x^2+{{b}}x+{{c}})={{ma}}x^2+{{mb}}x+{{mc}}$.",
+          "Subtract each term of the second polynomial: ${{ma}}x^2-{{d}}x^2={{A}}x^2$, ${{mb}}x-{{e}}x={{B}}x$, and ${{mc}}-{{f}}={{C}}$.",
+          "So the expression equals ${{A}}x^2+{{B}}x+{{C}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Adding the second polynomial's terms instead of subtracting them, or multiplying only the first term by {{m}}.",
+        "answerSummary": "${{A}}x^2+{{B}}x+{{C}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -1328,11 +1342,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Multiply ${{k}}x$ by each term: ${{A}}x^2+{{B}}x$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "${{k}}x\\cdot {{a}}x={{A}}x^2$ and ${{k}}x\\cdot {{b}}={{B}}x$.",
+          "So ${{k}}x({{a}}x+{{b}})={{A}}x^2+{{B}}x$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Multiplying only the first term, or forgetting the $x$ in ${{k}}x$ when multiplying {{b}}.",
+        "answerSummary": "${{A}}x^2+{{B}}x$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -1450,11 +1466,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Multiply each term by each term: $x^2+{{sum}}x+{{prod}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$x\\cdot x=x^2$; the two middle products are $x\\cdot {{q}}+{{p}}\\cdot x={{sum}}x$; the last is ${{p}}\\cdot {{q}}={{prod}}$.",
+          "So $(x+{{p}})(x+{{q}})=x^2+{{sum}}x+{{prod}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Swapping the sum and the product: the middle coefficient is ${{p}}+{{q}}$ and the constant is ${{p}}\\cdot {{q}}$.",
+        "answerSummary": "$x^2+{{sum}}x+{{prod}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -1580,11 +1598,14 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Multiply each term by each term: ${{a}}x^2+{{M}}x+{{C}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The four products: $({{a}}x)(x)={{a}}x^2$, $({{a}}x)({{c}})={{M1}}x$, $({{b}})(x)={{b|coef}}x$ and $({{b}})({{c}})={{C}}$.",
+          "Combine the $x$-terms: ${{M1}}x+{{b|coef}}x={{M}}x$.",
+          "So $({{a}}x+{{b}})(x+{{c}})={{a}}x^2+{{M}}x+{{C}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Leaving out one of the two middle products, which gives {{M1}}x as the middle term.",
+        "answerSummary": "${{a}}x^2+{{M}}x+{{C}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -1824,7 +1845,8 @@
         "derived": {
           "M": "q+a*p",
           "C": "p*q",
-          "Mw": "q+p"
+          "Mw": "q+p",
+          "ap": "a*p"
         },
         "constraints": [
           "C!=0",
@@ -1843,11 +1865,14 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Area is length times width: ${{a}}x^2+{{M}}x+{{C}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Area $=(x+{{p}})({{a}}x+{{q}})$.",
+          "Multiply each pair: $x\\cdot {{a}}x={{a}}x^2$; the middle products $x\\cdot {{q}}+{{p}}\\cdot {{a}}x={{M}}x$; and ${{p}}\\cdot {{q}}={{C}}$.",
+          "So the area is ${{a}}x^2+{{M}}x+{{C}}$ square units."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Adding {{p}} and {{q}} for the middle term. The $x$-terms are ${{q}}x$ and ${{ap}}x$.",
+        "answerSummary": "${{a}}x^2+{{M}}x+{{C}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -1980,11 +2005,14 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Multiply each term by each term, keeping the minus sign: ${{L}}x^2 {{M|signed}}x {{C|signed}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "First and last: $({{a}}x)({{b}}x)={{L}}x^2$ and $({{p}})(-{{q}})={{C}}$.",
+          "Middle: $({{a}}x)(-{{q}})+({{p}})({{b}}x)={{M}}x$.",
+          "So $({{a}}x+{{p}})({{b}}x-{{q}})={{L}}x^2 {{M|signed}}x {{C|signed}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Losing the minus sign on {{q}}: then the middle term becomes {{Mplus}}x and the constant {{Cplus}}.",
+        "answerSummary": "${{L}}x^2 {{M|signed}}x {{C|signed}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -2353,11 +2381,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Divide the coefficients and subtract the exponents: ${{coef}}x^2$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Coefficients: $\\frac{{{a}}}{{{b}}}={{coef}}$. Powers of $x$: $\\frac{x^3}{x}=x^2$.",
+          "So $\\frac{{{a}}x^3}{{{b}}x}={{coef}}x^2$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Keeping $x^3$ or dropping to $x$: dividing by $x$ lowers the exponent by exactly 1. Also divide {{a}} by {{b}}.",
+        "answerSummary": "${{coef}}x^2$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -2475,11 +2505,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Divide each term by ${{k}}x$: ${{p}}x+{{q}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\frac{{{A}}x^2}{{{k}}x}={{p}}x$ and $\\frac{{{B}}x}{{{k}}x}={{q}}$.",
+          "So $\\frac{{{A}}x^2+{{B}}x}{{{k}}x}={{p}}x+{{q}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Dividing only the first term by ${{k}}x$, which leaves {{B}} as the constant.",
+        "answerSummary": "${{p}}x+{{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -2583,11 +2615,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Cancel the factor the numerator and denominator share: $x+{{q}}$ is left.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The factor $x+{{p}}$ is in the numerator and the denominator, and it is not 0 because $x\\ne-{{p}}$.",
+          "Cancel it: $\\frac{(x+{{p}})(x+{{q}})}{x+{{p}}}=x+{{q}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Cancelling the wrong factor, or cancelling only the $x$ terms. Only a whole factor that appears above and below can be cancelled.",
+        "answerSummary": "$x+{{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -2691,11 +2725,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Divide each term by $x$ and match coefficients: $k={{a}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Divide each term by $x$: $\\frac{{{a}}x^2+{{b}}x}{x}={{a}}x+{{b}}$.",
+          "Compare with $kx+{{b}}$: the coefficients of $x$ must match, so $k={{a}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Dividing only one term by $x$, or matching $k$ with the constant {{b}}.",
+        "answerSummary": "$k={{a}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -2795,11 +2831,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Length is area divided by width: ${{ell}}x+{{c}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Divide each term of the area by the width ${{w}}x$: $\\frac{{{A}}x^2}{{{w}}x}={{ell}}x$ and $\\frac{{{B}}x}{{{w}}x}={{c}}$.",
+          "So the length is ${{ell}}x+{{c}}$ units. Check: ${{w}}x({{ell}}x+{{c}})={{A}}x^2+{{B}}x$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Dividing only the first term of the area by ${{w}}x$, which leaves {{B}} as the constant.",
+        "answerSummary": "${{ell}}x+{{c}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -2915,11 +2953,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Cancel the factor the numerator and denominator share: ${{a}}x+{{p}}$ is left.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The factor ${{b}}x+{{q}}$ is in the numerator and the denominator, and it is not 0 because $x\\ne-{{q}}/{{b}}$.",
+          "Cancel it: $\\frac{({{a}}x+{{p}})({{b}}x+{{q}})}{{{b}}x+{{q}}}={{a}}x+{{p}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Keeping the factor that cancels, or mixing the coefficients of the two factors.",
+        "answerSummary": "${{a}}x+{{p}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -3038,11 +3078,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Divide each term by ${{k}}x$; the constant is $c={{q}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\frac{{{A}}x^2}{{{k}}x}={{p}}x$ and $\\frac{{{B}}x}{{{k}}x}={{q}}$.",
+          "So the quotient is ${{p}}x+{{q}}$, and matching it with ${{p}}x+c$ gives $c={{q}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Leaving {{B}} undivided: the constant term is {{B}} divided by {{k}}.",
+        "answerSummary": "$c={{q}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -3273,11 +3315,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Multiply each term inside by {{k}}: ${{A}}x+{{B}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "${{k}}\\cdot {{a}}x={{A}}x$ and ${{k}}\\cdot {{b}}={{B}}$.",
+          "So ${{k}}({{a}}x+{{b}})={{A}}x+{{B}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Multiplying only the first term by {{k}}.",
+        "answerSummary": "${{A}}x+{{B}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -3394,11 +3438,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Both terms are multiples of {{g}}: ${{g}}({{c}}x+{{d}})$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "${{A}}={{g}}\\cdot {{c}}$ and ${{B}}={{g}}\\cdot {{d}}$, so {{g}} is a common factor.",
+          "Factor it out: ${{A}}x+{{B}}={{g}}({{c}}x+{{d}})$. Distributing gives back ${{A}}x+{{B}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Dividing only one term by {{g}}, or swapping {{g}} and {{c}}.",
+        "answerSummary": "${{g}}({{c}}x+{{d}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -3520,11 +3566,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Multiply both terms by $-{{k}}$: ${{A}}x+{{B}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$-{{k}}\\cdot {{a}}x={{A}}x$ and $-{{k}}\\cdot (-{{b}})={{B}}$.",
+          "So $-{{k}}({{a}}x-{{b}})={{A}}x+{{B}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Forgetting that $-{{k}}$ times $-{{b}}$ is positive, which gives ${{A}}x {{Bw|signed}}$.",
+        "answerSummary": "${{A}}x+{{B}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -3642,11 +3690,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Both terms contain ${{k}}x$: ${{k}}x({{a}}x+{{b}})$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "${{A}}x^2={{k}}x\\cdot {{a}}x$ and ${{B}}x={{k}}x\\cdot {{b}}$.",
+          "Factor out ${{k}}x$: ${{A}}x^2+{{B}}x={{k}}x({{a}}x+{{b}})$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Leaving the $x$ or the {{k}} out of the common factor: those products multiply back to different expressions.",
+        "answerSummary": "${{k}}x({{a}}x+{{b}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -3895,7 +3945,8 @@
           "X": "m*(a+b)",
           "C": "m*c",
           "Xw": "m*a+b",
-          "Cw": "c"
+          "Cw": "c",
+          "ab": "a+b"
         },
         "constraints": [
           "C!=0",
@@ -3915,11 +3966,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Simplify inside the brackets, then distribute {{m}}: ${{X}}x+{{C}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Inside the brackets: ${{a}}x+({{b}}x+{{c}})={{ab}}x+{{c}}$.",
+          "Distribute {{m}}: ${{m}}({{ab}}x+{{c}})={{X}}x+{{C}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Multiplying only part of the bracket by {{m}}, which gives {{Xw}}x or a constant of {{c}}.",
+        "answerSummary": "${{X}}x+{{C}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -4306,11 +4359,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Find two numbers with product {{product}} and sum {{sum}}: $(x+{{p}})(x+{{q}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "The numbers are {{p}} and {{q}}: ${{p}}\\cdot {{q}}={{product}}$ and ${{p}}+{{q}}={{sum}}$.",
+          "So $x^2+{{sum}}x+{{product}}=(x+{{p}})(x+{{q}})$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Using minus signs: $(x-{{p}})(x-{{q}})$ has the middle term $-{{sum}}x$, and mixed signs give a negative constant.",
+        "answerSummary": "$(x+{{p}})(x+{{q}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -4437,11 +4492,14 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Every coefficient is positive, so both factors are sums: $({{a}}x+{{p}})({{b}}x+{{q}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "Look for factors of {{lead}} and {{constant}} whose outer and inner products add to the middle term: ${{a}}x\\cdot {{q}}+{{p}}\\cdot {{b}}x={{middle}}x$.",
+          "Check by expanding: $({{a}}x+{{p}})({{b}}x+{{q}})={{lead}}x^2+{{middle}}x+{{constant}}$.",
+          "So ${{lead}}x^2+{{middle}}x+{{constant}}=({{a}}x+{{p}})({{b}}x+{{q}})$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Choosing factors with a minus sign. With every coefficient positive, both binomials must be sums.",
+        "answerSummary": "$({{a}}x+{{p}})({{b}}x+{{q}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -4547,11 +4605,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Expand $(x+k)^2$ and match the middle term: $k={{r}}$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "Expand: $(x+k)^2=x^2+2kx+k^2$.",
+          "Match the $x$-terms: $2k={{twor}}$, so $k={{r}}$. Check the constant: ${{r}}^2={{square}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Answering {{twor}} or {{square}}: $k$ is half the middle coefficient, and its square is the constant.",
+        "answerSummary": "$k={{r}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -4772,11 +4832,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Positive constant, negative middle term: both factors subtract, $(x-{{p}})(x-{{q}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "Look for two numbers with product {{product}} and sum $-{{sum}}$: $-{{p}}$ and $-{{q}}$, since $(-{{p}})(-{{q}})={{product}}$ and $-{{p}}+(-{{q}})=-{{sum}}$.",
+          "So $x^2-{{sum}}x+{{product}}=(x-{{p}})(x-{{q}})$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Using plus signs, which give $+{{sum}}x$, or mixed signs, which give a negative constant.",
+        "answerSummary": "$(x-{{p}})(x-{{q}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -5014,7 +5076,8 @@
         "derived": {
           "lead": "a*b",
           "middle": "b*p-a*q",
-          "constant": "p*q"
+          "constant": "p*q",
+          "negmiddle": "-middle"
         },
         "constraints": [
           "a!=b",
@@ -5035,11 +5098,14 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "A negative constant means opposite signs; the middle term decides where: $({{a}}x+{{p}})({{b}}x-{{q}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "The constant $-{{constant}}$ is negative, so one factor adds and the other subtracts.",
+          "Outer plus inner: $({{a}}x)(-{{q}})+({{p}})({{b}}x)={{middle}}x$, the middle term.",
+          "Check: $({{a}}x+{{p}})({{b}}x-{{q}})={{lead}}x^2 {{middle|signed}}x-{{constant}}$. So the expression equals $({{a}}x+{{p}})({{b}}x-{{q}})$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Putting the minus sign in the other factor, which gives a middle term of ${{negmiddle}}x$.",
+        "answerSummary": "$({{a}}x+{{p}})({{b}}x-{{q}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -5261,7 +5327,8 @@
           }
         },
         "derived": {
-          "a2": "a*a"
+          "a2": "a*a",
+          "twoa": "2*a"
         }
       },
       "attemptFeedback": [
@@ -5271,11 +5338,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "${{a2}}={{a}}^2$, so this is a difference of squares: $(x-{{a}})(x+{{a}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "${{a2}}={{a}}^2$, so $x^2-{{a2}}$ is $x^2$ minus a square.",
+          "A difference of squares factors as $x^2-{{a}}^2=(x-{{a}})(x+{{a}})$; the middle terms cancel when it is expanded."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Writing $(x-{{a}})^2$: squaring a binomial leaves a middle term, $-{{twoa}}x$.",
+        "answerSummary": "$(x-{{a}})(x+{{a}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -5385,11 +5454,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Both terms are squares: $({{m}}x-{{n}})({{m}}x+{{n}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "${{m2}}x^2=({{m}}x)^2$ and ${{n2}}={{n}}^2$.",
+          "Difference of squares: ${{m2}}x^2-{{n2}}=({{m}}x-{{n}})({{m}}x+{{n}})$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Using {{m2}} inside the factors instead of its square root {{m}}, or squaring a single binomial.",
+        "answerSummary": "$({{m}}x-{{n}})({{m}}x+{{n}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -5493,11 +5564,14 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Factor out $x^2$, then a difference of squares: $x^2(x-{{a}})(x+{{a}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "Factor out $x^2$: $x^4-{{a2}}x^2=x^2(x^2-{{a2}})$.",
+          "Then $x^2-{{a2}}=(x-{{a}})(x+{{a}})$, a difference of squares.",
+          "So $x^4-{{a2}}x^2=x^2(x-{{a}})(x+{{a}})$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Factoring out only $x$, or replacing {{a2}} by {{a}} without splitting into two factors.",
+        "answerSummary": "$x^2(x-{{a}})(x+{{a}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -5706,6 +5780,9 @@
             "min": 2,
             "max": 12
           }
+        },
+        "derived": {
+          "a2": "a*a"
         }
       },
       "attemptFeedback": [
@@ -5715,11 +5792,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Big square minus small square: $x^2-{{a2}}=(x-{{a}})(x+{{a}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "The square has area $x^2$; the removed square has area ${{a}}^2={{a2}}$.",
+          "Remaining area: $x^2-{{a2}}=(x-{{a}})(x+{{a}})$, a difference of squares."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Subtracting {{a}} instead of ${{a}}^2$: the removed piece is a square, so its area is {{a2}}.",
+        "answerSummary": "$(x-{{a}})(x+{{a}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -5823,11 +5902,14 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Factor a difference of squares twice: $(x-{{a}})(x+{{a}})(x^2+{{a2}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "$x^4-{{a4}}$ is a difference of squares: $(x^2)^2-{{a2}}^2=(x^2-{{a2}})(x^2+{{a2}})$.",
+          "$x^2-{{a2}}$ factors again, as $(x-{{a}})(x+{{a}})$. The sum $x^2+{{a2}}$ is never 0, so it has no real factors.",
+          "So, fully factored, $x^4-{{a4}}=(x-{{a}})(x+{{a}})(x^2+{{a2}})$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Stopping at $(x^2-{{a2}})(x^2+{{a2}})$, which is not fully factored, or trying to factor the sum $x^2+{{a2}}$.",
+        "answerSummary": "$(x-{{a}})(x+{{a}})(x^2+{{a2}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -5938,11 +6020,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Both terms are squares: $({{m}}x^2-{{n}})({{m}}x^2+{{n}})$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "${{m2}}x^4=({{m}}x^2)^2$ and ${{n2}}={{n}}^2$.",
+          "Difference of squares: ${{m2}}x^4-{{n2}}=({{m}}x^2-{{n}})({{m}}x^2+{{n}})$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Using {{m2}} instead of {{m}}, or $x$ instead of $x^2$, inside the factors.",
+        "answerSummary": "$({{m}}x^2-{{n}})({{m}}x^2+{{n}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [

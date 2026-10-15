@@ -49,7 +49,7 @@ const DECLINED = Object.freeze({
 
 // How many still publish their generic review (shrinks to 0 as the slices
 // land; a template is pending while its review hashes to the pinned generic).
-const EXPECTED_PENDING = 368;
+const EXPECTED_PENDING = 336;
 
 // Reviews whose reasoning is verbal (a definition or an interpretation) and so
 // states no relation for the arithmetic check. Everything else must have at
