@@ -245,7 +245,7 @@ export const simplifyProducts = async (page, host, products) => {
 /**
  * Remove the parentheses on a side: after a plus sign nothing is typed; after
  * a minus sign the student chooses each term's new sign ('+' or '-', in the
- * order the terms are inside the parentheses).
+ * order the terms are inside the parentheses), or 'flip' to change them all.
  */
 export const removeParentheses = async (page, host, side, signs = []) => {
   await openSimplify(page, host);
@@ -253,6 +253,12 @@ export const removeParentheses = async (page, host, side, signs = []) => {
   await settle(page, 250);
   const box = host.locator('.mm-simplify-box').first();
   const groups = box.locator('.mm-simplify-sign-group');
+  // 'flip': what a student does after a minus sign — every term inside, read
+  // off the board (data-sign-inside), changes sign.
+  if (signs === 'flip') {
+    const inside = await groups.evaluateAll((elements) => elements.map((element) => element.dataset.signInside));
+    signs = inside.map((sign) => (sign === '-' ? '+' : '-'));
+  }
   for (let index = 0; index < signs.length; index += 1) {
     await groups.nth(index).locator(`button[aria-label^="${signs[index] === '-' ? 'minus' : 'plus'} "]`).click();
     await settle(page, 80);

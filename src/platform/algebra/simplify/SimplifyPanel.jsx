@@ -306,7 +306,7 @@ export default function SimplifyPanel({
                   const chosen = state.signs?.[index];
                   const termLabel = spokenMathLabel(entry.magnitude);
                   return (
-                    <div key={`${index}-${entry.magnitude}`} role="group" aria-label={`Sign of ${termLabel}`} className="mm-simplify-sign-group">
+                    <div key={`${index}-${entry.magnitude}`} role="group" aria-label={`Sign of ${termLabel}`} className="mm-simplify-sign-group" data-sign-inside={entry.sign < 0 ? '-' : '+'}>
                       {[[1, '+', 'plus'], [-1, '−', 'minus']].map(([sign, symbol, word]) => (
                         <button
                           key={word}
