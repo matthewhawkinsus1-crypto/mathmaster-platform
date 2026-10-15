@@ -716,7 +716,12 @@ export const MyMathPathExperience = ({
     onReload?.();
   };
 
-  if (loading && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--mm-primary-text)' }}>Loading My Math Path…</div>;
+  // Never while a session is on screen: the end of a session reloads the
+  // Path's state, and on a first session (no profile written yet) this gate
+  // used to unmount the session container mid-recap; its remount started a
+  // NEW session instead of showing the end screen (QA round 2, R2-m1).
+  const sessionOnScreen = activeTab === 'session' && Boolean(sessionConfig);
+  if (loading && !sessionOnScreen && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--mm-primary-text)' }}>Loading My Math Path…</div>;
 
   const embeddedInTeacherPage = Boolean(readOnly || sessionProvider);
   const ScreenBody = pathContentIsMain({ activeTab, embedded: embeddedInTeacherPage }) ? 'main' : React.Fragment;
@@ -727,7 +732,7 @@ export const MyMathPathExperience = ({
         <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span>{pathHeaderIsH1({ activeTab, embedded: embeddedInTeacherPage })
             ? <h1 style={PATH_HEADER_H1_STYLE}><strong>My Math Path</strong></h1>
-            : <strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>}{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
+            : <strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>}{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
           {/*
             TWO LEVELS, AND THEY ARE DIFFERENT KINDS OF THING.
             The global row moves between MathMaster's five destinations; the tab

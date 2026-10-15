@@ -74,7 +74,10 @@ test('a number box refuses "m = …" before it can cost a try, and steps aside f
   const { formatProblemForResponse } = await import('../../src/platform/interaction/answerShapeGuard.js');
   const { gradeMultiAnswerResponse } = await import('../../functions/shared/ordinaryResponseGrading.mjs');
   const slope = normalizeResponseFieldInteractionContract({ id: 'm', label: 'Slope', answer: '-2/3' });
-  assert.equal(gradeMultiAnswerResponse({ answerFields: [slope] }, { m: 'm=-2/3' }).isCorrect, false, 'the grader would mark it wrong');
+  // Job P (item 5): the grader now reads "m = -2/3" as the number for a
+  // number key; the guard still asks for only the number, as the box expects.
+  assert.equal(gradeMultiAnswerResponse({ answerFields: [slope] }, { m: 'm=-2/3' }).isCorrect, true, 'the grader reads the number');
+  assert.equal(gradeMultiAnswerResponse({ answerFields: [slope] }, { m: 'm=2/3' }).isCorrect, false, 'a wrong number is still wrong');
   assert.match(formatProblemForResponse(slope, 'm = -2/3'), /Write only the number, without an equals sign/);
   assert.match(formatProblemForResponse(normalizeResponseFieldInteractionContract({ id: 'b', answer: '4' }), 'b=4'), /Write only the number/);
   assert.equal(formatProblemForResponse(slope, '-\\frac{2}{3}'), '');

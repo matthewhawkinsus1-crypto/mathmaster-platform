@@ -23,23 +23,23 @@ export const ProblemUnderstandingPanel = ({ context, onScaffoldComplete }) => {
   return (
     <section className="problem-understanding-scaffold" style={{ background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', padding: '16px', margin: '0 auto 20px', maxWidth: '860px', textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <strong style={{ color: 'var(--mm-primary-text)', fontSize: '13px', textTransform: 'uppercase' }}>📖 Problem Understanding Scaffold</strong>
-        <span style={{ fontSize: '12px', color: 'var(--mm-text-muted)' }}>Context support · does not reduce math-independence evidence</span>
+        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', textTransform: 'uppercase' }}>📖 Problem Understanding Scaffold</strong>
+        <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Context support · does not reduce math-independence evidence</span>
       </div>
-      <p style={{ fontSize: '15px', lineHeight: 1.5, margin: '0 0 12px', color: 'var(--mm-text-strong)' }}>{context.scenario}</p>
+      <p style={{ fontSize: 'calc(15 * var(--mm-px))', lineHeight: 1.5, margin: '0 0 12px', color: 'var(--mm-text-strong)' }}>{context.scenario}</p>
 
       {step === 1 && (
         <div>
           {showQuantitiesStep && unknowns.length > 0 && (
             <>
-              <label style={{ display: 'block', fontWeight: 'bold', fontSize: '14px', marginBottom: '6px' }}>What quantity are you asked to find?</label>
+              <label style={{ display: 'block', fontWeight: 'bold', fontSize: 'calc(14 * var(--mm-px))', marginBottom: '6px' }}>What quantity are you asked to find?</label>
               <select value={selectedUnknown} onChange={(event) => setSelectedUnknown(event.target.value)} style={{ padding: '8px', borderRadius: '4px', width: '100%', marginBottom: '12px' }}>
                 <option value="">Choose the target quantity...</option>
                 {unknowns.map((quantity) => <option key={quantity.id} value={quantity.id}>{quantity.name} ({quantity.unit || 'no unit'})</option>)}
               </select>
             </>
           )}
-          {showQuantitiesStep && unknowns.length === 0 && <p style={{ color: 'var(--mm-text-muted)', fontSize: '13px' }}>No authored target quantity was supplied; continue after reading the scenario.</p>}
+          {showQuantitiesStep && unknowns.length === 0 && <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>No authored target quantity was supplied; continue after reading the scenario.</p>}
           <button type="button" disabled={unknowns.length > 0 && !selectedUnknown} onClick={advanceOrFinish} style={{ padding: '8px 16px', background: unknowns.length > 0 && !selectedUnknown ? '#ccc' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '4px', cursor: unknowns.length > 0 && !selectedUnknown ? 'not-allowed' : 'pointer' }}>
             {hasSecondStep ? 'Next: Review Given Information' : 'Understand Problem & Continue'}
           </button>
@@ -48,12 +48,12 @@ export const ProblemUnderstandingPanel = ({ context, onScaffoldComplete }) => {
 
       {step === 2 && hasSecondStep && (
         <div>
-          <strong style={{ fontSize: '13px', color: 'var(--mm-text)', display: 'block', marginBottom: '6px' }}>Given values in this situation:</strong>
+          <strong style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', display: 'block', marginBottom: '6px' }}>Given values in this situation:</strong>
           {givens.length ? (
-            <ul style={{ margin: '0 0 12px', paddingLeft: '20px', fontSize: '14px' }}>
+            <ul style={{ margin: '0 0 12px', paddingLeft: '20px', fontSize: 'calc(14 * var(--mm-px))' }}>
               {givens.map((quantity) => <li key={quantity.id}><strong>{quantity.name}:</strong> {String(quantity.givenValue ?? 'not supplied')} {quantity.unit}</li>)}
             </ul>
-          ) : <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>No separate given-value list was authored. Use the information in the scenario.</p>}
+          ) : <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>No separate given-value list was authored. Use the information in the scenario.</p>}
           <button type="button" onClick={finish} style={{ padding: '8px 16px', background: '#137333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✓ Understand Problem & Continue to Workspace</button>
         </div>
       )}

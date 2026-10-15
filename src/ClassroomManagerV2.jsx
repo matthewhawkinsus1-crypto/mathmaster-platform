@@ -46,13 +46,13 @@ import {
 } from './classroomGradeSyncUi';
 
 const card = { background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 12, padding: 16 };
-const label = { display: 'block', fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)', marginBottom: 6 };
-const input = { width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid var(--mm-border)', boxSizing: 'border-box', background: 'var(--mm-surface)' };
-const btn = { padding: '10px 15px', fontSize: 13, fontWeight: 800, borderRadius: 8, border: 0, cursor: 'pointer' };
+const label = { display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)', marginBottom: 6 };
+const input = { width: '100%', padding: '10px 12px', fontSize: 'calc(14 * var(--mm-px))', borderRadius: 8, border: '1px solid var(--mm-border)', boxSizing: 'border-box', background: 'var(--mm-surface)' };
+const btn = { padding: '10px 15px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, borderRadius: 8, border: 0, cursor: 'pointer' };
 const primary = { ...btn, background: '#1a73e8', color: '#fff' };
 const secondary = { ...btn, background: 'var(--mm-primary-subtle)', color: 'var(--mm-text-strong)', border: '1px solid var(--mm-border)' };
 const danger = { ...btn, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '1px solid var(--mm-error-border-soft)' };
-const okPill = { display: 'inline-block', padding: '3px 8px', borderRadius: 99, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 11, fontWeight: 800 };
+const okPill = { display: 'inline-block', padding: '3px 8px', borderRadius: 99, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800 };
 const warnPill = { ...okPill, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' };
 const badPill = { ...okPill, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' };
 
@@ -587,7 +587,7 @@ export default function ClassroomManagerV2({
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div>
             <strong>1. Classroom connection</strong>
-            <div style={{ color: 'var(--mm-text-muted)', fontSize: 13, marginTop: 4 }}>
+            <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: 4 }}>
               {connection.connected ? 'Connected' : 'Not connected'}
               {connection.needsReconnect ? ' · reconnect required for current permissions' : ''}
             </div>
@@ -597,7 +597,7 @@ export default function ClassroomManagerV2({
           </span>
         </div>
         {connection.missingScopes?.length > 0 && (
-          <p style={{ fontSize: 12, color: 'var(--mm-warning-text)' }}>
+          <p style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>
             Reconnect once to grant the new Topics / Materials permissions used by Classroom V2.
           </p>
         )}
@@ -614,7 +614,7 @@ export default function ClassroomManagerV2({
           <button style={secondary} disabled={busy || !connection.connected} onClick={handleLoadCourses}>Load Active Courses</button>
         </div>
         {diagnostics && (
-          <div style={{ marginTop: 10, fontSize: 12, color: diagnostics.ok ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>
+          <div style={{ marginTop: 10, fontSize: 'calc(12 * var(--mm-px))', color: diagnostics.ok ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>
             {diagnostics.ok ? 'OAuth configuration, Firestore and launch-link configuration passed.' : (diagnostics.problems || []).join(' ')}
           </div>
         )}
@@ -623,7 +623,7 @@ export default function ClassroomManagerV2({
       {courses.length > 0 && (
         <section style={card}>
           <strong>2. Map Google Classroom courses to MathMaster classes</strong>
-          <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
+          <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
             This mapping is the guardrail that keeps Algebra I students, assignments and grades out of an Algebra II Classroom.
           </p>
           <div style={{ display: 'grid', gap: 10 }}>
@@ -631,7 +631,7 @@ export default function ClassroomManagerV2({
               <div key={course.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 220px),1fr) minmax(min(100%, 240px),1fr) auto', gap: 10, alignItems: 'center' }}>
                 <div>
                   <strong>{course.name}</strong>
-                  <div style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>{[course.section, course.room].filter(Boolean).join(' · ')}</div>
+                  <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{[course.section, course.room].filter(Boolean).join(' · ')}</div>
                 </div>
                 <select
                   style={input}
@@ -669,11 +669,11 @@ export default function ClassroomManagerV2({
               Auto-link exact emails
             </button>
           </div>
-          {rosterCourseId && !rosterMapping && <p style={{ color: 'var(--mm-error-text)', fontSize: 12 }}>Map this course to a MathMaster class first.</p>}
+          {rosterCourseId && !rosterMapping && <p style={{ color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))' }}>Map this course to a MathMaster class first.</p>}
           {rosterCourseId && rosterMapping && (
             <div style={{ marginTop: 12, padding: 12, border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)' }}>
-              <strong style={{ fontSize: 13 }}>ID-only students: paste an identity list (optional)</strong>
-              <p style={{ margin: '6px 0 9px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.45 }}>
+              <strong style={{ fontSize: 'calc(13 * var(--mm-px))' }}>ID-only students: paste an identity list (optional)</strong>
+              <p style={{ margin: '6px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
                 Google already supplies the name, school email, and Google user ID shown below. If MathMaster only knows district IDs,
                 paste one student per line as <code>ID, Name, Email</code> or <code>ID, Name</code>. You can copy rows from a spreadsheet
                 or have an AI convert a roster picture into that text first. MathMaster only links students after teacher confirmation.
@@ -692,20 +692,20 @@ export default function ClassroomManagerV2({
                   <button type="button" style={secondary} disabled={busy} onClick={() => { setIdentityText(''); setIdentityRows([]); setIdentityRejected([]); setManualMatches({}); }}>Clear list</button>
                 )}
               </div>
-              {identityRows.length > 0 && <div style={{ marginTop: 7, color: 'var(--mm-success-text)', fontSize: 12, fontWeight: 800 }}>{identityRows.length} MathMaster ID{identityRows.length === 1 ? '' : 's'} enriched for matching.</div>}
-              {identityRejected.length > 0 && <div style={{ marginTop: 7, color: 'var(--mm-error-text)', fontSize: 12 }}>{identityRejected.length} pasted row{identityRejected.length === 1 ? '' : 's'} could not be used for this mapped class.</div>}
+              {identityRows.length > 0 && <div style={{ marginTop: 7, color: 'var(--mm-success-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{identityRows.length} MathMaster ID{identityRows.length === 1 ? '' : 's'} enriched for matching.</div>}
+              {identityRejected.length > 0 && <div style={{ marginTop: 7, color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))' }}>{identityRejected.length} pasted row{identityRejected.length === 1 ? '' : 's'} could not be used for this mapped class.</div>}
             </div>
           )}
           {matchPlan.length > 0 && (
             <>
-              <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.45 }}>
+              <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
                 Confirming a link copies the Google Classroom name and school email onto that MathMaster ID. That identity is then used for teacher/student names and the Google user ID becomes the grade-passback route.
               </p>
               <datalist id="mathmaster-roster-id-options">
                 {identityAugmentedStudents.map((student) => <option key={student.id} value={student.id}>{mathMasterStudentLabel(student)} · ID {student.id}</option>)}
               </datalist>
               <div style={{ overflowX: 'auto', marginTop: 12 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
                 <thead><tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
                   <th style={{ padding: 8 }}>Google Classroom</th><th style={{ padding: 8 }}>MathMaster match</th><th style={{ padding: 8 }}>Match</th><th></th>
                 </tr></thead>
@@ -720,7 +720,7 @@ export default function ClassroomManagerV2({
                         <td style={{ padding: 8 }}>
                           <strong>{google.name}</strong>
                           <div style={{ color: 'var(--mm-text-muted)' }}>{google.email}</div>
-                          <div style={{ color: 'var(--mm-text-subtle)', fontSize: 11 }}>Google ID {google.googleUserId}</div>
+                          <div style={{ color: 'var(--mm-text-subtle)', fontSize: 'calc(11 * var(--mm-px))' }}>Google ID {google.googleUserId}</div>
                         </td>
                         <td style={{ padding: 8, minWidth: 220 }}>
                           <input
@@ -730,7 +730,7 @@ export default function ClassroomManagerV2({
                             placeholder="Type MathMaster ID…"
                             onChange={(event) => setManualMatches((current) => ({ ...current, [google.googleUserId]: event.target.value.trim() }))}
                           />
-                          <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 11 }}>
+                          <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>
                             {selected
                               ? (identityAugmentedStudents.find((student) => String(student.id) === String(selected))
                                 ? mathMasterStudentLabel(identityAugmentedStudents.find((student) => String(student.id) === String(selected)))
@@ -742,7 +742,7 @@ export default function ClassroomManagerV2({
                           <span style={alreadyLinked ? okPill : item.status === 'exact-email' ? okPill : item.status === 'exact-name' ? warnPill : item.status === 'ambiguous' ? warnPill : badPill}>
                             {alreadyLinked ? 'LINKED' : item.status === 'exact-email' ? 'EXACT EMAIL' : item.status === 'exact-name' ? 'NAME — REVIEW' : item.status === 'ambiguous' ? 'AMBIGUOUS' : 'NO MATCH'}
                           </span>
-                          {linked && <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 11 }}>Current ID {linked.studentId}</div>}
+                          {linked && <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>Current ID {linked.studentId}</div>}
                         </td>
                         <td style={{ padding: 8 }}>
                           <button
@@ -767,7 +767,7 @@ export default function ClassroomManagerV2({
       {courses.length > 0 && (
         <section style={card}>
           <strong>4. Classroom destinations and organization</strong>
-          <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Choose where the next assignment/material should go. Mapped courses are safer than “select all.”</p>
+          <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Choose where the next assignment/material should go. Mapped courses are safer than “select all.”</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {courses.map((course) => {
               const selected = selectedCourseIds.includes(String(course.id));
@@ -776,7 +776,7 @@ export default function ClassroomManagerV2({
                 <label key={course.id} style={{ border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 8, padding: '9px 11px', minWidth: 220 }}>
                   <input type="checkbox" checked={selected} onChange={() => toggleCourse(course.id)} />{' '}
                   <strong>{course.name}</strong>
-                  <div style={{ fontSize: 11, color: mapping ? 'var(--mm-success-text)' : 'var(--mm-error-text)', marginLeft: 18 }}>{mapping ? `→ ${classNameOf(classById.get(String(mapping.classId)))}` : 'Not mapped'}</div>
+                  <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: mapping ? 'var(--mm-success-text)' : 'var(--mm-error-text)', marginLeft: 18 }}>{mapping ? `→ ${classNameOf(classById.get(String(mapping.classId)))}` : 'Not mapped'}</div>
                 </label>
               );
             })}
@@ -792,7 +792,7 @@ export default function ClassroomManagerV2({
             <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Smart organization plan from the MathMaster library</summary>
             <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
               {topicPlan.slice(0, 40).map((entry) => (
-                <div key={entry.topic} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <div key={entry.topic} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'calc(12 * var(--mm-px))' }}>
                   <span>{entry.topic}</span><span>{entry.count} assignment{entry.count === 1 ? '' : 's'}</span>
                 </div>
               ))}
@@ -819,7 +819,7 @@ export default function ClassroomManagerV2({
           {selectedAssignment && (selectedAssignment.classroomPackage || selectedAssignment.lessonResources?.notesPdf) && (() => {
             const notes = notesPdfSummary(selectedAssignment.lessonResources?.notesPdf || {});
             return (
-              <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)', fontSize: 12, lineHeight: 1.5 }}>
+              <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
                 <strong style={{ color: 'var(--mm-primary-text)' }}>AI-prepared publishing package</strong>
                 <div>Topic: {selectedAssignment.classroomPackage?.topic?.name || topicName || 'MathMaster will infer it'}</div>
                 <div>Classroom instructions: {selectedAssignment.classroomPackage?.assignmentPost?.instructions ? 'prepared' : 'MathMaster default'}</div>
@@ -866,7 +866,7 @@ export default function ClassroomManagerV2({
           <button style={{ ...primary, marginTop: 12 }} disabled={busy || !selectedAssignment} onClick={handlePublishAssignment}>Publish assignment package</button>
           <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-soft)', border: '2px solid #f9ab00', color: 'var(--mm-warning-text)' }}>
             <strong>Post missing but MathMaster says it exists?</strong>
-            <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.5 }}>
+            <div style={{ marginTop: 5, fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
               Select the exact Google Classroom course(s) and grade target(s) above. The preview below is what Force NEW post will create. This intentionally bypasses duplicate protection. Your MathMaster assignment and student progress stay intact; each newly created post becomes the grade-passback destination for the section it represents.
             </div>
             {selectedAssignment && (
@@ -909,7 +909,7 @@ export default function ClassroomManagerV2({
             {syncByAssignment.map(({ assignment, sync }) => (
               <div key={assignment.id} style={{ border: '1px solid var(--mm-border-soft)', borderRadius: 8, padding: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  <span><strong>{assignment.title}</strong><div style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>{sync.message}</div></span>
+                  <span><strong>{assignment.title}</strong><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{sync.message}</div></span>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button style={secondary} disabled={busy} onClick={() => run(async () => {
                       const response = await repairClassroomAssignmentPublications({
@@ -1004,20 +1004,20 @@ export default function ClassroomManagerV2({
 
       <section style={card}>
         <strong>8. Grade passback monitor</strong>
-        <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
+        <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
           MathMaster sends progress checkpoints while students work, a due-date checkpoint, and a final grade at completion or the final cutoff. Failures stay visible instead of disappearing silently.
         </p>
         {pushQueueWaiting > 0 && (
-          <div role="status" style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 800, lineHeight: 1.45 }}>
+          <div role="status" style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, lineHeight: 1.45 }}>
             {pushQueueWaiting} grade push{pushQueueWaiting === 1 ? '' : 'es'} waiting to send to Google Classroom. MathMaster sends them a minute's worth at a time to stay within Google's limit; refresh to see each result.
           </div>
         )}
         {retryableGradeSyncs.length > 0 && (
           <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-error-bg)', border: '1px solid var(--mm-error-border-soft)' }}>
-            <div style={{ color: 'var(--mm-error-text)', fontSize: 12, fontWeight: 900 }}>
+            <div style={{ color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
               {retryableGradeSyncs.length} grade passback failure{retryableGradeSyncs.length === 1 ? '' : 's'} can be retried now.
             </div>
-            <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.45 }}>
+            <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
               Rows marked Needs roster link are intentionally excluded until the student is linked to Google Classroom.
             </div>
             <button
@@ -1038,10 +1038,10 @@ export default function ClassroomManagerV2({
         )}
         {selectedAssignment && (
           <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)' }}>
-            <div style={{ color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 900 }}>
+            <div style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
               Regrade an assignment that is already closed
             </div>
-            <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.45 }}>
+            <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
               This independently recalculates every published section grade from canonical saved MathMaster work and repairs stale or false-zero Classroom columns. Students do not need to reopen or redo the assignment.
             </div>
             <button
@@ -1067,10 +1067,10 @@ export default function ClassroomManagerV2({
           </div>
         )}
         {gradeSyncs.length === 0 ? (
-          <div style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>No grade-sync events yet.</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>No grade-sync events yet.</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12 * var(--mm-px))' }}>
               <thead><tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
                 <th style={{ padding: 7 }}>Student</th><th style={{ padding: 7 }}>Assignment</th><th style={{ padding: 7 }}>Course</th><th style={{ padding: 7 }}>Grade / progress</th><th style={{ padding: 7 }}>Stage</th><th style={{ padding: 7 }}>Status</th><th></th>
               </tr></thead>
@@ -1084,7 +1084,7 @@ export default function ClassroomManagerV2({
                     <tr key={sync.syncId || `${sync.publicationId}-${sync.studentId}`} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                       <td style={{ padding: 7 }}>
                         <strong>{studentDisplay.name}</strong>
-                        {studentDisplay.studentId && <div style={{ marginTop: 3, color: 'var(--mm-text-subtle)', fontSize: 10.5 }}>ID {studentDisplay.studentId}</div>}
+                        {studentDisplay.studentId && <div style={{ marginTop: 3, color: 'var(--mm-text-subtle)', fontSize: 'calc(10.5 * var(--mm-px))' }}>ID {studentDisplay.studentId}</div>}
                       </td>
                       <td style={{ padding: 7 }}>{sync.assignmentId}</td>
                       <td style={{ padding: 7 }}>{sync.courseId}</td>
@@ -1098,21 +1098,21 @@ export default function ClassroomManagerV2({
                         <span style={sync.isFinal ? okPill : warnPill}>
                           {sync.isFinal ? 'FINAL' : String(sync.stage || 'progress').replaceAll('-', ' ').toUpperCase()}
                         </span>
-                        <div style={{ marginTop: 4, color: sync.studentVisible ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontSize: 10.5, fontWeight: 900 }}>
+                        <div style={{ marginTop: 4, color: sync.studentVisible ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 900 }}>
                           {sync.studentVisible ? 'RELEASED TO STUDENT' : 'TEACHER DRAFT'}
                         </div>
                       </td>
                       <td style={{ padding: 7 }}>
                         <span style={sync.status === 'synced' && !sync.queued ? okPill : sync.queued || sync.status?.startsWith('skipped') || ['recovery-held', 'rate-limited'].includes(sync.status) ? warnPill : badPill}>{statusLabel}</span>
                         {gradeSyncErrorText(sync) && (
-                          <div style={{ marginTop: 4, maxWidth: 260, color: 'var(--mm-text-muted)', fontSize: 10.5, lineHeight: 1.35, overflowWrap: 'anywhere' }}>{gradeSyncErrorText(sync)}</div>
+                          <div style={{ marginTop: 4, maxWidth: 260, color: 'var(--mm-text-muted)', fontSize: 'calc(10.5 * var(--mm-px))', lineHeight: 1.35, overflowWrap: 'anywhere' }}>{gradeSyncErrorText(sync)}</div>
                         )}
                       </td>
                       <td style={{ padding: 7 }}>
                         {sync.status === 'skipped-unlinked' ? (
-                          <span style={{ color: 'var(--mm-warning-text)', fontSize: 11, fontWeight: 800 }}>Link roster first</span>
+                          <span style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800 }}>Link roster first</span>
                         ) : sync.queued || sync.status === 'rate-limited' ? (
-                          <span style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 800 }}>Sends automatically</span>
+                          <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800 }}>Sends automatically</span>
                         ) : sync.publicationId && sync.assignmentId && sync.studentId ? (
                           <button style={secondary} disabled={busy} onClick={() => run(async () => {
                             await retryClassroomGradeSync({
@@ -1135,7 +1135,7 @@ export default function ClassroomManagerV2({
         )}
       </section>
 
-      <p style={{ color: 'var(--mm-text-subtle)', fontSize: 11, margin: 0 }}>
+      <p style={{ color: 'var(--mm-text-subtle)', fontSize: 'calc(11 * var(--mm-px))', margin: 0 }}>
         Signed-in teacher: {teacherEmail || 'teacher'}. Classroom V2 keeps each teacher's Google connection separate.
       </p>
     </div>

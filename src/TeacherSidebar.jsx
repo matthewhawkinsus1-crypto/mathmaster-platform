@@ -157,7 +157,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
             <div
               style={{
                 padding: '4px 12px',
-                fontSize: '10px',
+                fontSize: 'calc(10 * var(--mm-px))',
                 fontWeight: 900,
                 letterSpacing: '0.09em',
                 textTransform: 'uppercase',
@@ -196,7 +196,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
                   color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)',
                   cursor: 'pointer',
                   fontWeight: active ? 800 : 600,
-                  fontSize: '14px',
+                  fontSize: 'calc(14 * var(--mm-px))',
                   textAlign: 'left',
                 }}
               >
@@ -211,7 +211,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
                     flex: '0 0 26px',
                     borderRadius: '999px',
                     background: active ? '#1a73e8' : 'var(--mm-surface-control-strong)',
-                    fontSize: '13px',
+                    fontSize: 'calc(13 * var(--mm-px))',
                     lineHeight: 1,
                   }}
                 >
@@ -235,7 +235,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
         data-mathmaster-build={buildStamp.shortSha}
         title={buildStamp.detail}
         style={{
-          marginTop: 'auto', paddingTop: 12, fontSize: 10, color: 'var(--mm-text-subtle)',
+          marginTop: 'auto', paddingTop: 12, fontSize: 'calc(10 * var(--mm-px))', color: 'var(--mm-text-subtle)',
           textAlign: collapsed ? 'center' : 'left', overflowWrap: 'anywhere',
         }}
       >

@@ -50,8 +50,8 @@ export const TestCycleGradeBreakdown = ({ entry, hidden = false, compact = false
     >
       {breakdown.rows.map((row) => (
         <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <dt style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>{row.label}</dt>
-          <dd style={{ margin: 0, fontSize: 12, fontWeight: row.key === 'recordedGrade' ? 900 : 700, color: 'var(--mm-text-strong)' }}>
+          <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{row.label}</dt>
+          <dd style={{ margin: 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: row.key === 'recordedGrade' ? 900 : 700, color: 'var(--mm-text-strong)' }}>
             {hidden ? '••' : row.value}
           </dd>
         </div>
@@ -60,7 +60,7 @@ export const TestCycleGradeBreakdown = ({ entry, hidden = false, compact = false
           names the configured policy (cap, averaging) rather than a sentence
           that could describe a different one. */}
       {!hidden && !breakdown.simple && (
-        <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
+        <p style={{ margin: '4px 0 0', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
           Your raw retest score is kept exactly as you earned it. {breakdown.reason}
         </p>
       )}

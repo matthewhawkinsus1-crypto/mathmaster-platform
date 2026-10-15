@@ -21,7 +21,7 @@ import { questionAssessmentFramework } from '../../platform/student/questionAlig
 import { getAssessmentStandardReferences, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import { assessmentItemTypeLabel, describeChallengeTier, frameworkExperience } from '../../platform/ccmr/assessmentFidelity.js';
 import { ENTER_TO_CONTINUE_HINT, shouldAdvanceOnEnter } from '../../platform/interaction/answerEntryUx.js';
-import { gradingClosesQuestion, latestAttemptCount } from '../../platform/path/pathProgression.js';
+import { gradingClosesQuestion, latestAttemptCount, sessionHeaderQuestionNumber } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
@@ -101,10 +101,13 @@ const skillNameFor = (questionInstance, session) => {
  * on a practice session turns every question into a grade, which is the
  * opposite of what practice is for.
  */
-function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null, weeklyGoalRequired = null, onExit = null }) {
+function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null, weeklyGoalRequired = null, onExit = null, reviewing = false }) {
   const total = Number(session?.requiredQuestions) || 5;
   const done = Number(session?.summary?.completedQuestions) || 0;
-  const current = Math.min(total, done + 1);
+  // While a closed question and its review are on screen, the server has
+  // already counted it: the header names THAT question, not the next one
+  // (QA round 2, R2-m2: "Question 2 of 5" over Question 1's review).
+  const current = sessionHeaderQuestionNumber({ total, done, reviewing });
   const isRetention = session?.sessionKind === 'retentionProbe';
   // The standard THIS question is on, not the standard the session started on:
   // the routing engine can descend into a prerequisite mid-session, and when it
@@ -161,32 +164,32 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
             style={{
               appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
               minHeight: 44, padding: '8px 2px', border: 0, background: 'transparent',
-              color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer',
+              color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13.5 * var(--mm-px))', cursor: 'pointer',
             }}
           >
             ← Back to My Math Path
           </button>
-          <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.45 }}>
+          <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.45 }}>
             Your work so far is saved. You can pick this session up again.
           </span>
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 16 }}>
+        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(16 * var(--mm-px))' }}>
           {isRetention ? 'Quick retention check' : skillNameFor(questionInstance, session)}
         </strong>
-        <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
+        <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
           Question {current} of {total}
           {attemptsAllowed > 1 && attemptsLeft > 0 ? ` · ${attemptsLeft} ${attemptsLeft === 1 ? 'try' : 'tries'} left` : ''}
         </span>
       </div>
       {session?.weeklySlotKey && (
-        <div role="status" style={{ marginTop: 8, padding: '9px 11px', borderRadius: 9, background: 'var(--mm-success-bg)', border: '1px solid var(--mm-success-border)', color: 'var(--mm-success-text)', fontSize: 12.5, fontWeight: 850, lineHeight: 1.45 }}>
+        <div role="status" style={{ marginTop: 8, padding: '9px 11px', borderRadius: 9, background: 'var(--mm-success-bg)', border: '1px solid var(--mm-success-border)', color: 'var(--mm-success-text)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 850, lineHeight: 1.45 }}>
           WEEKLY PATH · {weeklyPurposeLabel || 'Assigned practice'} · Session {session?.weeklySlot || '?'}{weeklyGoalRequired ? ` of ${weeklyGoalRequired}` : ''} · Completing this session counts toward your weekly target.
         </div>
       )}
       {courseChallengeIntent && (
-        <div role="status" style={{ margin: '9px 0 0', padding: '9px 11px', width: 'fit-content', maxWidth: '100%', borderRadius: 9, background: 'var(--mm-accent-soft)', border: '1px solid var(--mm-accent-border)', color: 'var(--mm-accent-text)', fontSize: 12.5, fontWeight: 900, lineHeight: 1.45 }}>
+        <div role="status" style={{ margin: '9px 0 0', padding: '9px 11px', width: 'fit-content', maxWidth: '100%', borderRadius: 9, background: 'var(--mm-accent-soft)', border: '1px solid var(--mm-accent-border)', color: 'var(--mm-accent-text)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 900, lineHeight: 1.45 }}>
           MY MATH PATH · Challenge · Ahead of your class, and earned
         </div>
       )}
@@ -202,7 +205,7 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
             background: coursePassLevel >= 3 ? 'var(--mm-accent-soft)' : 'var(--mm-primary-subtle)',
             border: `1px solid ${coursePassLevel >= 3 ? 'var(--mm-accent-border)' : 'var(--mm-tint-border)'}`,
             color: coursePassLevel >= 3 ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)',
-            fontSize: 12.5,
+            fontSize: 'calc(12.5 * var(--mm-px))',
             fontWeight: 900,
             lineHeight: 1.45,
           }}
@@ -221,31 +224,31 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
-            <strong style={{ color: challengeTier >= 2 ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)', fontSize: 13, letterSpacing: 0.35 }}>
+            <strong style={{ color: challengeTier >= 2 ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', letterSpacing: 0.35 }}>
               {experience?.shortLabel || FRAMEWORK_LABELS[directFramework] || directFramework} · {challenge.shortLabel}
             </strong>
-            <span style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, fontWeight: 800 }}>
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 800 }}>
               {assessmentItemTypeLabel(questionInstance || {})}
             </span>
           </div>
           {primaryAssessmentReference && (
-            <div style={{ marginTop: 4, color: 'var(--mm-accent-text)', fontWeight: 850, fontSize: 12 }}>
+            <div style={{ marginTop: 4, color: 'var(--mm-accent-text)', fontWeight: 850, fontSize: 'calc(12 * var(--mm-px))' }}>
               {referenceLabel(primaryAssessmentReference)}
             </div>
           )}
-          <div style={{ marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '4px 12px', color: 'var(--mm-text-muted)', fontSize: 11.5 }}>
+          <div style={{ marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '4px 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))' }}>
             <span>{experience?.calculatorSummary || (questionInstance?.calculatorPolicy === 'none' ? 'No calculator' : 'Calculator policy follows the assessment')}</span>
             <span>{challenge.label}</span>
           </div>
           {challengeTier >= 2 && (
-            <div style={{ marginTop: 5, color: 'var(--mm-accent-text)', fontSize: 11.5, fontWeight: 750 }}>
+            <div style={{ marginTop: 5, color: 'var(--mm-accent-text)', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 750 }}>
               {challenge.explanation}
             </div>
           )}
         </div>
       )}
       {bridgeFramework && (
-        <p role="status" style={{ margin: '6px 0 0', padding: '7px 10px', width: 'fit-content', maxWidth: '100%', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5, fontWeight: 800, lineHeight: 1.45 }}>
+        <p role="status" style={{ margin: '6px 0 0', padding: '7px 10px', width: 'fit-content', maxWidth: '100%', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800, lineHeight: 1.45 }}>
           Foundation bridge for {FRAMEWORK_LABELS[bridgeFramework] || bridgeFramework} practice · strengthen this math first, then return to exam-format questions.
         </p>
       )}
@@ -290,7 +293,7 @@ function DecisionBanner({ notice }) {
         border: `1px solid ${tone.border}`,
         background: tone.background,
         color: toneTextColor(tone.color),
-        fontSize: 13.5,
+        fontSize: 'calc(13.5 * var(--mm-px))',
         lineHeight: 1.55,
       }}
     >
@@ -500,6 +503,12 @@ export const PathSessionPlayer = ({
   const attemptsAllowed = Number(questionInstance.attemptsAllowed) || activityPolicy.attempts || 3;
   const attemptsLeft = Math.max(0, attemptsAllowed - attemptsUsed);
   const finalized = gradingClosesQuestion(lastGradingResult);
+  // The header names the reviewed question while its review is on screen:
+  // when the grading closed it, or while the container holds for Continue.
+  // The container decides that hold from the whole response
+  // (responseClosesQuestion), so an older server that signals closure only
+  // with needsNextQuestion still counts, and so does a failed advance.
+  const reviewing = finalized || typeof onContinue === 'function';
 
   // A secure payload wins over a canonical one: if the server built a tool
   // payload it also kept the grading definition, and the verdict is its own.
@@ -515,6 +524,7 @@ export const PathSessionPlayer = ({
           assessmentFramework={assessmentFramework}
           weeklyGoalRequired={weeklyGoalRequired}
           onExit={onExit}
+          reviewing={reviewing}
         />
         <DecisionBanner notice={routeNotice} />
 
@@ -632,6 +642,7 @@ export const PathSessionPlayer = ({
         assessmentFramework={assessmentFramework}
         weeklyGoalRequired={weeklyGoalRequired}
         onExit={onExit}
+        reviewing={reviewing}
       />
       <DecisionBanner notice={routeNotice} />
 
@@ -649,7 +660,7 @@ export const PathSessionPlayer = ({
         />
 
         {questionInstance.isDevelopmentSandbox && (
-          <p style={{ margin: '0 0 12px', padding: '8px 11px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 12, fontWeight: 800 }}>
+          <p style={{ margin: '0 0 12px', padding: '8px 11px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>
             Developer sandbox — this is not authored MathMaster content.
           </p>
         )}
@@ -661,7 +672,7 @@ export const PathSessionPlayer = ({
         <QuestionPrompt variant="task">{questionInstance.prompt}</QuestionPrompt>
 
         {questionInstance.formulaLatex && (
-          <MathText as="div" style={{ margin: '0 0 14px', fontSize: 19, textAlign: 'center' }}>
+          <MathText as="div" style={{ margin: '0 0 14px', fontSize: 'calc(19 * var(--mm-px))', textAlign: 'center' }}>
             {`$${questionInstance.formulaLatex}$`}
           </MathText>
         )}
@@ -682,7 +693,7 @@ export const PathSessionPlayer = ({
         {lastSupport?.hint && !finalized && (
           <div style={{ marginTop: 14 }}>
             {hintOpen ? (
-              <div style={{ padding: '11px 13px', borderRadius: 9, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)', fontSize: 14, lineHeight: 1.6 }}>
+              <div style={{ padding: '11px 13px', borderRadius: 9, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.6 }}>
                 <strong style={{ display: 'block', marginBottom: 3 }}>Something to think about</strong>
                 <MathText>{lastSupport.hint}</MathText>
               </div>
@@ -703,7 +714,7 @@ export const PathSessionPlayer = ({
             ref={feedbackRef}
             tabIndex={-1}
             aria-live="polite"
-            style={{ marginTop: 16, padding: '12px 14px', borderRadius: 9, fontSize: 14.5, lineHeight: 1.6, ...feedbackTone }}
+            style={{ marginTop: 16, padding: '12px 14px', borderRadius: 9, fontSize: 'calc(14.5 * var(--mm-px))', lineHeight: 1.6, ...feedbackTone }}
           >
             <MathText>
               {lastFeedback?.message
@@ -739,7 +750,7 @@ export const PathSessionPlayer = ({
               borderRadius: 9,
               background: !complete || isSubmitting ? '#dadce0' : '#1a73e8',
               color: '#fff',
-              fontSize: 16,
+              fontSize: 'calc(16 * var(--mm-px))',
               fontWeight: 900,
               boxShadow: '0 -2px 12px rgba(255,255,255,.9)',
               cursor: !complete || isSubmitting ? 'not-allowed' : 'pointer',
@@ -778,7 +789,7 @@ const ContinueAction = ({ onContinue, pending = false, label = 'Next question' }
     >
       {pending ? 'Loading next question…' : label}
     </button>
-    <p style={{ margin: '7px 0 0', textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 12.5, fontWeight: 750 }}>
+    <p style={{ margin: '7px 0 0', textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 750 }}>
       {ENTER_TO_CONTINUE_HINT}
     </p>
   </div>
@@ -793,7 +804,7 @@ const continueButtonStyle = {
   borderRadius: 9,
   background: '#1a73e8',
   color: '#fff',
-  fontSize: 16,
+  fontSize: 'calc(16 * var(--mm-px))',
   fontWeight: 900,
   cursor: 'pointer',
 };

@@ -173,16 +173,16 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
     // the reading measure.
     <div data-test-cycle-corrections="working" style={{ display: 'grid', gap: 16, width: question?.pathToolId ? 'min(1180px, 100%)' : 'min(820px, 100%)', margin: '0 auto', minWidth: 0 }}>
       <section style={{ ...card, background: 'var(--mm-primary-soft)', border: '1px solid var(--mm-primary-border)' }}>
-        <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
+        <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
           Corrections · {doneCount} of {targets.length} complete
         </div>
-        <h1 tabIndex={-1} data-corrections-heading="" style={{ margin: '8px 0 6px', fontSize: 'clamp(19px, 4vw, 25px)', overflowWrap: 'anywhere' }}>{activeTitle}</h1>
+        <h1 tabIndex={-1} data-corrections-heading="" style={{ margin: '8px 0 6px', fontSize: 'clamp(calc(19 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(25 * var(--mm-px)))', overflowWrap: 'anywhere' }}>{activeTitle}</h1>
         {/* Why this student is here, from the evidence, in a student's words
             (the plan's diagnosisDetail is the teacher's version, with standard
             codes). A mistake pattern is mentioned only when one was recorded:
             inventing one would send them to remediate something nobody observed. */}
         <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{describeCorrectionTargetForStudent(activeTarget)}</p>
-        <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>
+        <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
           Show this skill correctly {activeTarget.requiredCorrectResponses} time
           {activeTarget.requiredCorrectResponses === 1 ? '' : 's'} to finish this correction
           ({activeTarget.correctResponses} so far). Corrections do not change your recorded grade.
@@ -191,7 +191,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
           <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             {reviewTest}
             {/* What the review opens: the worked solutions wait while classmates can still sit the Test (getStudentTestCycle's testAnswersHeld). */}
-            <span data-corrections-review-note="" style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
+            <span data-corrections-review-note="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
               {testAnswersHeld
                 ? 'See your Test answers. The correct answers and worked solutions open once everyone has finished the Test.'
                 : 'See your Test answers and the worked solutions.'}

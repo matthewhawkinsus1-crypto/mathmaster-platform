@@ -81,7 +81,7 @@ export const TeacherAnalyticsDashboard = ({
                 <strong style={{ color: tone.accent }}>{label}</strong>
                 <span style={{ fontWeight: 900, color: tone.accent }}>{members.length}</span>
               </div>
-              <p style={{ margin: '6px 0 12px', fontSize: 12.5, color: 'var(--mm-text)', lineHeight: 1.45 }}>{purpose}</p>
+              <p style={{ margin: '6px 0 12px', fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.45 }}>{purpose}</p>
 
               <div style={{ display: 'grid', gap: 7 }}>
                 {members.map((member) => (
@@ -91,13 +91,13 @@ export const TeacherAnalyticsDashboard = ({
                       studentName={member.studentName}
                       profile={learningProfilesByStudentId[member.studentId]}
                       onOpen={onOpenStudent}
-                      style={{ fontSize: 13.5 }}
+                      style={{ fontSize: 'calc(13.5 * var(--mm-px))' }}
                     />
-                    <div style={{ marginTop: 3, fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{member.reason}</div>
+                    <div style={{ marginTop: 3, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{member.reason}</div>
                   </div>
                 ))}
                 {!members.length && (
-                  <span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>No students in this group right now.</span>
+                  <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>No students in this group right now.</span>
                 )}
               </div>
             </section>

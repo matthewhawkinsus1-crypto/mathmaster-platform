@@ -281,7 +281,7 @@ export function QuestionResolutionFailure({
       >
         <p style={{ margin: 0 }}>{panel.body}</p>
         {teacherView ? (
-          <p style={{ margin: '10px 0 0', fontSize: 13 }} data-teacher-resolution-detail>
+          <p style={{ margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))' }} data-teacher-resolution-detail>
             Teacher details: {describeFailure(failure)}
           </p>
         ) : null}

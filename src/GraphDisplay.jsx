@@ -269,7 +269,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             borderRadius: 8,
             background: 'var(--mm-info-bg)',
             color: 'var(--mm-primary)',
-            fontSize: 20,
+            fontSize: 'calc(20 * var(--mm-px))',
             fontWeight: 800,
             boxSizing: 'border-box',
           }}
@@ -558,8 +558,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         )}
       </svg>
       {graph.caption && (
-        <figcaption style={{ color: 'var(--mm-graph-axis)', fontSize: '14px', padding: '8px 6px 2px' }}>
-          <QuestionPrompt variant="plain" style={{ color: 'var(--mm-graph-axis)', fontSize: '14px', lineHeight: 1.45, margin: 0 }}>
+        <figcaption style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', padding: '8px 6px 2px' }}>
+          <QuestionPrompt variant="plain" style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, margin: 0 }}>
             {graph.caption}
           </QuestionPrompt>
         </figcaption>

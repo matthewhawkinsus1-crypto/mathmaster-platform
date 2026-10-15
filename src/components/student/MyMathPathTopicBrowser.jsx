@@ -28,13 +28,13 @@ const VISUALLY_HIDDEN = {
 const chip = {
   display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 999,
   border: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)',
-  fontSize: 12, fontWeight: 800, color: 'var(--mm-text)', lineHeight: 1.4,
+  fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)', lineHeight: 1.4,
 };
 
 const badge = {
   flex: '0 0 auto', width: 28, height: 28, borderRadius: 999, display: 'inline-grid', placeItems: 'center',
   border: '2px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
-  fontSize: 13, fontWeight: 900,
+  fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900,
 };
 
 function TopicSkill({ skill, grouping, onChooseSkill, disabled }) {
@@ -49,7 +49,7 @@ function TopicSkill({ skill, grouping, onChooseSkill, disabled }) {
     <li data-topic-skill={skill.skillId} data-path-state={skill.pathState} style={{ listStyle: 'none', padding: '12px 14px', borderTop: '1px solid var(--mm-border-soft)' }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 850, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{skill.title}</div>
+          <div style={{ fontSize: 'calc(15 * var(--mm-px))', fontWeight: 850, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{skill.title}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
             {/* Two different facts, two chips: how the evidence stands (the
                 shared mastery rule's word) and whether the Path is open. */}
@@ -63,17 +63,17 @@ function TopicSkill({ skill, grouping, onChooseSkill, disabled }) {
             </span>
             {skill.passCompletedLabel && <span style={{ ...chip, color: 'var(--mm-success-text)' }}>{skill.passCompletedLabel}</span>}
           </div>
-          {other && <p style={{ margin: '6px 0 0', fontSize: 12, lineHeight: 1.45, color: 'var(--mm-text-muted)', fontWeight: 700 }}>{other}</p>}
+          {other && <p style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)', fontWeight: 700 }}>{other}</p>}
           {skill.launchable ? (
             skill.evidence.length ? (
-              <ul aria-label={`Why ${skill.title} is a good choice`} style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12.5, color: 'var(--mm-text)', lineHeight: 1.5 }}>
+              <ul aria-label={`Why ${skill.title} is a good choice`} style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.5 }}>
                 {skill.evidence.map((item) => <li key={`${item.kind}:${item.text}`}>{item.text}</li>)}
               </ul>
             ) : (
-              skill.reason && <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{skill.reason}</p>
+              skill.reason && <p style={{ margin: '6px 0 0', fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{skill.reason}</p>
             )
           ) : (
-            <p data-why-not style={{ margin: '6px 0 0', fontSize: 12.5, color: skill.blockedBy === 'pacing' ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 650, lineHeight: 1.5 }}>
+            <p data-why-not style={{ margin: '6px 0 0', fontSize: 'calc(12.5 * var(--mm-px))', color: skill.blockedBy === 'pacing' ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 650, lineHeight: 1.5 }}>
               {skill.whyNot}
             </p>
           )}
@@ -153,16 +153,16 @@ export function MyMathPathTopicBrowser({
           ← Back to your path
         </button>
       )}
-      <h2 id="topic-browser-title" ref={headingRef} tabIndex={-1} style={{ margin: 0, fontSize: 24, color: 'var(--mm-text-strong)', outline: 'none' }}>
+      <h2 id="topic-browser-title" ref={headingRef} tabIndex={-1} style={{ margin: 0, fontSize: 'calc(24 * var(--mm-px))', color: 'var(--mm-text-strong)', outline: 'none' }}>
         All topics in {browser.courseLabel}
       </h2>
-      <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
+      <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
         Every skill in your course{browser.grouping === TOPIC_GROUPING.UNIT ? ', in the order your class meets each unit' : ', grouped by topic'}.
         {' '}Open skills can be practised now; the others say why they are not open yet.
       </p>
 
       <div role="search" style={{ marginTop: 14 }}>
-        <label htmlFor="topic-browser-search" style={{ display: 'block', marginBottom: 5, fontSize: 12, fontWeight: 850, color: 'var(--mm-text-muted)' }}>
+        <label htmlFor="topic-browser-search" style={{ display: 'block', marginBottom: 5, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 850, color: 'var(--mm-text-muted)' }}>
           Search by name
         </label>
         <input
@@ -172,7 +172,7 @@ export function MyMathPathTopicBrowser({
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Try “equations” or “graph”"
           autoComplete="off"
-          style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-input-bg)', color: 'var(--mm-input-text)', fontSize: 16 }}
+          style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-input-bg)', color: 'var(--mm-input-text)', fontSize: 'calc(16 * var(--mm-px))' }}
         />
       </div>
 
@@ -195,14 +195,14 @@ export function MyMathPathTopicBrowser({
         </div>
       )}
 
-      <p role="status" aria-live="polite" style={{ margin: '12px 0', fontSize: 13, color: 'var(--mm-text-muted)', fontWeight: 750 }}>
+      <p role="status" aria-live="polite" style={{ margin: '12px 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', fontWeight: 750 }}>
         {browser.searching
           ? `${browser.matchedSkills} of ${browser.totalSkills} skills match.`
           : `${browser.totalSkills} skills · ${browser.masteredSkills} mastered · ${browser.openSkills} open to practise now.`}
       </p>
 
       {browser.searching && !browser.groups.length && (
-        <p style={{ margin: '0 0 12px', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', color: 'var(--mm-text)', fontSize: 14 }}>
+        <p style={{ margin: '0 0 12px', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))' }}>
           No skills match “{browser.query.trim()}”. Try a shorter word, or the name of a unit.
         </p>
       )}
@@ -223,13 +223,13 @@ export function MyMathPathTopicBrowser({
                 >
                   {group.number != null && <span aria-hidden="true" style={badge}>{group.number}</span>}
                   <span style={{ flex: '1 1 auto', minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: 15.5, fontWeight: 900, lineHeight: 1.35 }}>{group.title}</span>
-                    <span style={{ display: 'block', marginTop: 2, fontSize: 12, fontWeight: 750, color: group.classHere ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)' }}>
+                    <span style={{ display: 'block', fontSize: 'calc(15.5 * var(--mm-px))', fontWeight: 900, lineHeight: 1.35 }}>{group.title}</span>
+                    <span style={{ display: 'block', marginTop: 2, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 750, color: group.classHere ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)' }}>
                       {group.standing ? `${group.standing} · ` : ''}{group.masteredCount} of {group.total} mastered
                       {browser.searching ? ` · ${group.skills.length} ${group.skills.length === 1 ? 'match' : 'matches'}` : ''}
                     </span>
                   </span>
-                  <span aria-hidden="true" style={{ fontSize: 14, color: 'var(--mm-text-muted)' }}>{open ? '▴' : '▾'}</span>
+                  <span aria-hidden="true" style={{ fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{open ? '▴' : '▾'}</span>
                 </button>
               </h3>
               {open && (

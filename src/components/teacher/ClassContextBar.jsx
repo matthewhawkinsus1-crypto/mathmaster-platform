@@ -41,7 +41,7 @@ const chip = (background, color) => ({
   borderRadius: 999,
   background,
   color,
-  fontSize: 11,
+  fontSize: 'calc(11 * var(--mm-px))',
   fontWeight: 900,
   letterSpacing: '.03em',
 });
@@ -100,14 +100,14 @@ export default function ClassContextBar({
     return (
       <div style={{ ...surface, color: 'var(--mm-text-muted)' }}>
         <span style={{ fontWeight: 800 }}>No classes yet.</span>
-        <span style={{ fontSize: 13 }}>Create a class in Administration so rosters, pacing and grades have somewhere to live.</span>
+        <span style={{ fontSize: 'calc(13 * var(--mm-px))' }}>Create a class in Administration so rosters, pacing and grades have somewhere to live.</span>
       </div>
     );
   }
 
   return (
     <div style={surface}>
-      <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
+      <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
         Class
       </span>
 
@@ -129,13 +129,13 @@ export default function ClassContextBar({
             background: 'var(--mm-surface)',
             color: 'var(--mm-text-strong)',
             fontWeight: 900,
-            fontSize: 15,
+            fontSize: 'calc(15 * var(--mm-px))',
             cursor: switchable ? 'pointer' : 'default',
           }}
         >
           <span>{selected ? (selected.name || selected.period) : 'All classes'}</span>
-          {selected?.period && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--mm-text-muted)' }}>{selected.period}</span>}
-          {switchable && <span aria-hidden="true" style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>▾</span>}
+          {selected?.period && <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 600, color: 'var(--mm-text-muted)' }}>{selected.period}</span>}
+          {switchable && <span aria-hidden="true" style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>▾</span>}
         </button>
 
         {open && (
@@ -189,7 +189,7 @@ export default function ClassContextBar({
                   }}
                 >
                   <span style={{ fontWeight: 800 }}>{entry.name || entry.period}</span>
-                  <span style={{ display: 'block', fontSize: 12, color: 'var(--mm-text-muted)', marginTop: 1 }}>
+                  <span style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', marginTop: 1 }}>
                     {entry.period} · {courseLabel(entry.course)} · {courseLevelLabel(entry.courseLevel)} · {rosterCounts[entry.classId] || 0} student{(rosterCounts[entry.classId] || 0) === 1 ? '' : 's'}
                   </span>
                 </button>
@@ -203,20 +203,20 @@ export default function ClassContextBar({
         <>
           <span style={chip('var(--mm-primary-soft)', 'var(--mm-primary-text)')}>{courseLabel(selected.course)}</span>
           {selected.courseLevel === 'honors' && <span style={chip('var(--mm-accent-soft)', 'var(--mm-accent-text)')}>Honors</span>}
-          <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
+          <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
             {rosterCounts[selected.classId] || 0} student{(rosterCounts[selected.classId] || 0) === 1 ? '' : 's'}
           </span>
         </>
       )}
 
       {scopeLabel && (
-        <span style={{ marginLeft: 'auto', color: 'var(--mm-text-muted)', fontSize: 12 }}>
+        <span style={{ marginLeft: 'auto', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
           {selected ? `${scopeLabel} for this class` : `${scopeLabel} across all classes`}
         </span>
       )}
 
       {unplaceable.length > 0 && (
-        <div style={{ flexBasis: '100%', marginTop: 2, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5 }}>
+        <div style={{ flexBasis: '100%', marginTop: 2, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
           <strong>{unplaceable.length} student{unplaceable.length === 1 ? ' is' : 's are'} not on any class roster.</strong>{' '}
           Their class period is used by more than one class, so MathMaster cannot tell which one they belong to.
           Give them a class in Administration and they will appear again.

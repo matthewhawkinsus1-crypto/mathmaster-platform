@@ -25,7 +25,7 @@ const selectStyle = (status) => ({
   borderRadius: '8px',
   border: `2px solid ${status === 'correct' ? '#188038' : status === 'incorrect' ? '#d93025' : 'var(--mm-border)'}`,
   background: status === 'incorrect' ? 'var(--mm-error-subtle)' : 'var(--mm-surface)',
-  fontSize: '16px',
+  fontSize: 'calc(16 * var(--mm-px))',
 });
 
 const getGrade = (feedback, id) => feedback?.partGrades?.find((part) => part.id === id);
@@ -131,7 +131,7 @@ export default function RelationshipModel({
     <div style={{ textAlign: 'left', maxWidth: '920px', margin: '0 auto' }}>
       <h2 style={{ marginTop: 0, textAlign: 'center' }}>Quantities and Their Relationship</h2>
       <QuestionPrompt>{question.prompt || 'Identify and describe the relationship.'}</QuestionPrompt>
-      {question.scenario && !question.suppressScenarioDisplay && <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', lineHeight: 1.6, fontSize: '17px' }}>{question.scenario}</div>}
+      {question.scenario && !question.suppressScenarioDisplay && <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', lineHeight: 1.6, fontSize: 'calc(17 * var(--mm-px))' }}>{question.scenario}</div>}
 
       {showDragAxisEditor && (
         <GraphAxisEditor
@@ -194,7 +194,7 @@ export default function RelationshipModel({
             ))}
           </div>
           {axisSetup.applyToGraph === true && (
-            <div style={{ marginTop: '9px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>
+            <div style={{ marginTop: '9px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
               Your labels and units appear on the graph as you enter them.
             </div>
           )}
@@ -219,7 +219,7 @@ export default function RelationshipModel({
             </label>
           </div>
           {axisSetup.applyToGraph === true && (
-            <div style={{ marginTop: '9px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>
+            <div style={{ marginTop: '9px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
               Each positive count-by value immediately changes that axis on the graph. Hidden numbers appear only after you choose a scale.
             </div>
           )}

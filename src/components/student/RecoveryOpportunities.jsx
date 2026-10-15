@@ -28,7 +28,7 @@ const newChipStyle = {
   display: 'inline-block',
   padding: '3px 8px',
   borderRadius: 999,
-  fontSize: 11,
+  fontSize: 'calc(11 * var(--mm-px))',
   fontWeight: 900,
   background: 'var(--mm-warning-bg)',
   color: 'var(--mm-warning-text)',
@@ -39,7 +39,7 @@ const badgeStyle = (phase) => ({
   display: 'inline-block',
   padding: '3px 9px',
   borderRadius: 999,
-  fontSize: 11,
+  fontSize: 'calc(11 * var(--mm-px))',
   fontWeight: 900,
   textTransform: 'uppercase',
   background: phase === RECOVERY_PHASE.AVAILABLE ? 'var(--mm-surface-control)' : 'var(--mm-success-bg)',
@@ -58,7 +58,7 @@ const actionStyle = {
   background: ACTION_FILL,
   color: '#fff',
   fontWeight: 900,
-  fontSize: 15,
+  fontSize: 'calc(15 * var(--mm-px))',
   cursor: 'pointer',
 };
 
@@ -99,11 +99,11 @@ export function RecoveryHomeSection({ opportunities = [], studentId = null, onOp
       }}
     >
       <div>
-        <div style={{ fontSize: 13, fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-success-text)' }}>🔁 Second chance</div>
+        <div style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', color: 'var(--mm-success-text)' }}>🔁 Second chance</div>
         <h2 id="recovery-home-heading" style={{ margin: '4px 0', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {open.length === 1 ? 'You have a Recovery open' : `You have ${open.length} Recoveries open`}
         </h2>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>
           A Warm-Up or DOL has closed, and you can earn a second try with new questions. A Recovery can only raise your score.
         </p>
       </div>
@@ -128,23 +128,23 @@ export function RecoveryHomeSection({ opportunities = [], studentId = null, onOp
           >
             <div style={{ flex: '1 1 300px', minWidth: 0, display: 'grid', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: 16, color: 'var(--mm-text-strong)' }}>{opportunity.label}</strong>
+                <strong style={{ fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{opportunity.label}</strong>
                 <span style={badgeStyle(opportunity.phase)}>{opportunity.badge}</span>
                 {isNew && <span data-recovery-new="true" style={newChipStyle}>NEW</span>}
               </div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{opportunity.assignmentTitle}</div>
-              <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5 }}>{opportunity.detail}</p>
+              <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{opportunity.assignmentTitle}</div>
+              <p style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.5 }}>{opportunity.detail}</p>
               {opportunity.hint && (
-                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>{opportunity.hint}</p>
+                <p style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>{opportunity.hint}</p>
               )}
               {opportunity.showMastery && <RecoveryMasteryMeter percent={opportunity.masteryPercent} />}
               {opportunity.phase === RECOVERY_PHASE.AVAILABLE && opportunity.practiceRemaining > 0 && (
-                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--mm-text-muted)' }}>
+                <p style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                   {opportunity.practiceRemaining} more practice question{opportunity.practiceRemaining === 1 ? '' : 's'} to go.
                 </p>
               )}
               {opportunity.endsAtLabel && (
-                <p data-recovery-ends-at="true" style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: 'var(--mm-text-strong)' }}>
+                <p data-recovery-ends-at="true" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)' }}>
                   Open until {opportunity.endsAtLabel}
                 </p>
               )}
@@ -192,10 +192,10 @@ export function RecoveryInlineNotice({ opportunities = [], studentId = null, onO
           >
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: 14, color: 'var(--mm-success-text)' }}>🔁 {opportunity.headline}</strong>
+                <strong style={{ fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-success-text)' }}>🔁 {opportunity.headline}</strong>
                 {isNew && <span data-recovery-new="true" style={newChipStyle}>NEW</span>}
               </div>
-              <div style={{ marginTop: 2, fontSize: 12.5, lineHeight: 1.45, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>
+              <div style={{ marginTop: 2, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>
                 {opportunity.phase === RECOVERY_PHASE.AVAILABLE
                   ? `Your ${opportunity.sectionName} closed — earn a second try. `
                   : ''}

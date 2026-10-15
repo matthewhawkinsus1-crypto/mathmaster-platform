@@ -344,7 +344,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
                     border: zeroArmed ? '3px solid #174ea6' : '2px solid var(--mm-primary-border)',
                     background: zeroArmed ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                     color: 'var(--mm-primary-text)',
-                    fontSize: 26,
+                    fontSize: 'calc(26 * var(--mm-px))',
                     fontWeight: 950,
                     cursor: 'grab',
                   }}
@@ -390,7 +390,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
               <div style={{ padding: 11, borderRadius: 9, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)', marginBottom: 10 }}>
                 <strong>Substitution:</strong> {formatSubstitutionEquation(standard, stage.placedZeroVariable)}
               </div>
-              <div data-math-state={formatSolverEquation(stage.solverState)} style={{ fontSize: 30, fontWeight: 850, textAlign: 'center', padding: 18, borderRadius: 12, border: `2px solid ${solverSolved ? 'var(--mm-success-border)' : 'var(--mm-tint-border)'}`, background: 'var(--mm-surface)' }}>
+              <div data-math-state={formatSolverEquation(stage.solverState)} style={{ fontSize: 'calc(30 * var(--mm-px))', fontWeight: 850, textAlign: 'center', padding: 18, borderRadius: 12, border: `2px solid ${solverSolved ? 'var(--mm-success-border)' : 'var(--mm-tint-border)'}`, background: 'var(--mm-surface)' }}>
                 {formatSolverEquation(stage.solverState)}
               </div>
 
@@ -403,13 +403,13 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
               {!solverSolved ? (
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 0.8fr) minmax(min(100%, 150px), 1.2fr)', gap: 10, marginTop: 14 }}>
-                    <label style={{ fontSize: 13, fontWeight: 750 }}>
+                    <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 750 }}>
                       Operation
-                      <select value={operation} onChange={(event) => setOperation(event.target.value)} style={{ width: '100%', minHeight: 44, marginTop: 5, borderRadius: 9, border: '1px solid var(--mm-tint-border)', fontSize: 16, padding: 8 }}>
+                      <select value={operation} onChange={(event) => setOperation(event.target.value)} style={{ width: '100%', minHeight: 44, marginTop: 5, borderRadius: 9, border: '1px solid var(--mm-tint-border)', fontSize: 'calc(16 * var(--mm-px))', padding: 8 }}>
                         {Object.entries(OPERATIONS).map(([value, spec]) => <option key={value} value={value}>{spec.label}</option>)}
                       </select>
                     </label>
-                    <label style={{ fontSize: 13, fontWeight: 750 }}>
+                    <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 750 }}>
                       Number
                       <MathInput
                         value={operand}
@@ -421,7 +421,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
                       />
                     </label>
                   </div>
-                  {operationBlocked && <div role="alert" style={{ marginTop: 8, color: 'var(--mm-error-text)', fontSize: 13 }}>{operationBlocked}</div>}
+                  {operationBlocked && <div role="alert" style={{ marginTop: 8, color: 'var(--mm-error-text)', fontSize: 'calc(13 * var(--mm-px))' }}>{operationBlocked}</div>}
                   <button type="button" onClick={applyOperation} disabled={operandValue == null || Boolean(operationBlocked)} style={{ ...primaryButton, width: '100%', marginTop: 10, opacity: operandValue == null || operationBlocked ? 0.5 : 1 }}>
                     Apply to both sides
                   </button>
@@ -439,7 +439,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
               {solverSolved && (
                 <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--mm-tint-border)' }}>
                   <strong>Write the {stageLabel(kind)} as an ordered pair.</strong>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(90px, 1fr) auto minmax(90px, 1fr) auto', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 24, fontWeight: 900 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(90px, 1fr) auto minmax(90px, 1fr) auto', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 'calc(24 * var(--mm-px))', fontWeight: 900 }}>
                     <span>(</span>
                     <MathInput value={stage.point?.x || ''} onChange={(value) => setPointCoordinate('x', value)} toolProfile="number" answerFormat="number" ariaLabel="x-coordinate of intercept" compact />
                     <span>,</span>
@@ -462,7 +462,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
               {stage.workHistory.map((step, index) => (
                 <li key={index} style={{ padding: '8px 0', borderBottom: index === stage.workHistory.length - 1 ? 'none' : '1px solid var(--mm-tint-border)' }}>
                   <strong>{step.description}</strong>
-                  <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 13 }}>
+                  <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
                     {formatSolverEquation(step.before)} → {formatSolverEquation(step.after)}
                   </div>
                 </li>

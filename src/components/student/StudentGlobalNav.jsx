@@ -101,7 +101,7 @@ export default function StudentGlobalNav({
               border: active ? `2px solid ${tone}` : '2px solid transparent',
               background: active ? 'var(--mm-surface)' : tone,
               color: active ? ACTIVE_TEXT[destination] : '#fff',
-              fontWeight: 900, fontSize: dense ? 13 : 14,
+              fontWeight: 900, fontSize: dense ? 'calc(13 * var(--mm-px))' : 'calc(14 * var(--mm-px))',
               cursor: active ? 'default' : 'pointer',
               overflowWrap: 'anywhere',
             }}

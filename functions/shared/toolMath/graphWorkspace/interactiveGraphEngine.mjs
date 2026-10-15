@@ -366,7 +366,14 @@ const intervalString = (min, max, minInclusive, maxInclusive) => (
 const rangeAnswersFromBounds = (minimum, maximum, minInclusive, maxInclusive, variable, notation) => {
   const min = Number.isFinite(minimum) ? round(minimum, 5) : minimum;
   const max = Number.isFinite(maximum) ? round(maximum, 5) : maximum;
-  if (notation === 'interval') return [intervalString(min, max, minInclusive, maxInclusive)];
+  if (notation === 'interval') {
+    // One value: [k, k] is the interval, and {k} is how a range of one number
+    // is usually written (Job P).
+    if (Number.isFinite(min) && Number.isFinite(max) && Math.abs(min - max) < 1e-8) {
+      return [intervalString(min, max, true, true), `{${formatNumber(min)}}`];
+    }
+    return [intervalString(min, max, minInclusive, maxInclusive)];
+  }
   if (Number.isFinite(min) && Number.isFinite(max) && Math.abs(min - max) < 1e-8) {
     return [`${variable}=${formatNumber(min)}`];
   }
@@ -534,6 +541,17 @@ export const getDomainRangeAcceptedAnswers = (spec, kind, notation = 'interval')
 
   let interval = ['(-inf,inf)'];
   let inequality = ['-inf<y<inf', 'allrealnumbers'];
+  // A horizontal line takes one value (Job P). Its range is {k} — [k, k] in
+  // interval notation, y = k as an inequality — and was keyed as every real
+  // number, so the right answer was wrong and (−∞, ∞) was right.
+  const lineSlope = Number(spec.m ?? spec.a ?? 1);
+  if ((spec.type === 'linear' || spec.type === 'line') && Math.abs(lineSlope) < 1e-12) {
+    const value = evaluateGraphFunction(spec, 0);
+    if (Number.isFinite(value)) {
+      const only = formatNumber(round(value, 5));
+      return notation === 'inequality' ? [`${variable}=${only}`] : [`[${only},${only}]`, `{${only}}`];
+    }
+  }
   if (['absolute', 'quadratic', 'squareRoot'].includes(spec.type)) {
     interval = a >= 0 ? [`[${formatNumber(k)},inf)`] : [`(-inf,${formatNumber(k)}]`];
     inequality = a >= 0 ? [`${variable}>=${formatNumber(k)}`] : [`${variable}<=${formatNumber(k)}`];
@@ -642,6 +660,7 @@ export const getMonotonicAcceptedAnswers = (spec, kind, notation = 'interval') =
   const base = Number(spec.base ?? 2);
   let increasing = [];
   let decreasing = [];
+  const constant = [];
   const all = domainIntervals(spec);
   const left = intersectInterval(Number.NEGATIVE_INFINITY, h, domain);
   const right = intersectInterval(h, Number.POSITIVE_INFINITY, domain);
@@ -657,8 +676,15 @@ export const getMonotonicAcceptedAnswers = (spec, kind, notation = 'interval') =
     (direction > 0 ? increasing : decreasing).push(...all);
   } else if (spec.type === 'rational') {
     (a > 0 ? decreasing : increasing).push(...all);
+  } else if (spec.type === 'linear' || spec.type === 'line') {
+    // A line is monotone on its whole domain, and a horizontal one is constant
+    // there (Job P). Lines had no branch, so y = 2x + 1 was keyed "none" for
+    // increasing and "increasing on (−∞, ∞)" was marked wrong.
+    const slope = Number(spec.m ?? spec.a ?? 1);
+    if (Math.abs(slope) < 1e-12) constant.push(...all);
+    else (slope > 0 ? increasing : decreasing).push(...all);
   }
-  const selected = kind === 'increasing' ? increasing : kind === 'decreasing' ? decreasing : [];
+  const selected = kind === 'increasing' ? increasing : kind === 'decreasing' ? decreasing : kind === 'constant' ? constant : [];
   if (!selected.length) return ['none', 'doesnotexist', 'emptyset', '∅'];
   const domainAware = selected.map((part) => intervalString(part.min, part.max, part.minInclusive, part.maxInclusive)).join('u');
   const openConvention = selected.map((part) => intervalString(part.min, part.max, false, false)).join('u');

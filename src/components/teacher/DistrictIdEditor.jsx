@@ -30,8 +30,8 @@ const box = {
   textAlign: 'left',
 };
 const facts = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: 10 };
-const fact = { margin: 0, fontSize: 13, lineHeight: 1.45, color: 'var(--mm-text-muted)' };
-const strong = { display: 'block', color: 'var(--mm-text)', fontSize: 14 };
+const fact = { margin: 0, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)' };
+const strong = { display: 'block', color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))' };
 const input = {
   display: 'block',
   width: '100%',
@@ -42,7 +42,7 @@ const input = {
   padding: '0 12px',
   border: '1px solid var(--mm-border)',
   borderRadius: 8,
-  fontSize: 15,
+  fontSize: 'calc(15 * var(--mm-px))',
   fontVariantNumeric: 'tabular-nums',
 };
 const button = (primary) => ({
@@ -103,7 +103,7 @@ export default function DistrictIdEditor({
         </p>
       </div>
 
-      <label style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-text)' }}>
+      <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)' }}>
         {DISTRICT_ID_COPY.inputLabel}
         <input
           autoFocus
@@ -117,9 +117,9 @@ export default function DistrictIdEditor({
           style={input}
         />
       </label>
-      {preview && <p aria-live="polite" style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--mm-primary-text, var(--mm-text))' }}>{preview}</p>}
+      {preview && <p aria-live="polite" style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-primary-text, var(--mm-text))' }}>{preview}</p>}
 
-      <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
+      <div style={{ fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
         <strong style={{ color: 'var(--mm-text)' }}>{DISTRICT_ID_COPY.effectsHeading}</strong>
         <ul style={{ margin: '3px 0 0', paddingLeft: 20 }}>
           {DISTRICT_ID_COPY.effects.map((effect) => <li key={effect}>{effect}</li>)}
@@ -132,7 +132,7 @@ export default function DistrictIdEditor({
         </button>
         <button type="button" disabled={saving} onClick={() => onCancel?.()} style={button(false)}>Cancel</button>
       </div>
-      {shownError && <p role="alert" style={{ margin: 0, color: 'var(--mm-error-text)', fontSize: 13, lineHeight: 1.45 }}>{shownError}</p>}
+      {shownError && <p role="alert" style={{ margin: 0, color: 'var(--mm-error-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45 }}>{shownError}</p>}
     </form>
   );
 }

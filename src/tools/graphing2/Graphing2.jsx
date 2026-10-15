@@ -373,7 +373,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '8px 12px',
             borderRadius: 999, background: points.length >= requiredPointCount ? 'var(--mm-success-bg)' : 'var(--mm-primary-soft)',
-            color: points.length >= requiredPointCount ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13,
+            color: points.length >= requiredPointCount ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
           }}>
             <span>{points.length >= requiredPointCount ? '✓' : `${points.length}/${requiredPointCount}`}</span>
             <span>{nextInstruction(points.length, requiredPointCount, hostSubmitLabel)}</span>
@@ -397,7 +397,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
             {verticalStudentLine}
           </CoordinatePlane>
           {givenPoints.length ? (
-            <p style={{ color: 'var(--mm-text-muted)', fontSize: 13, marginBottom: 0 }}>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0 }}>
               <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#8a3ffc', marginRight: 6 }} />
               Purple points are given to you. Blue points are yours.
             </p>
@@ -406,11 +406,11 @@ export default function Graphing2({ questionData = {}, onAction }) {
 
         <Panel title="Your construction">
           <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
-            <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Points plotted</dt>
+            <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Points plotted</dt>
             <dd style={{ margin: 0, fontWeight: 700 }}>{points.length ? points.map(formatPoint).join(' and ') : 'None yet'}</dd>
             {showLineReadout ? (
               <>
-                <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Your line</dt>
+                <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Your line</dt>
                 <dd style={{ margin: 0, fontWeight: 700 }}>{studentLine ? formatLine(studentLine) : 'Plot two different points'}</dd>
               </>
             ) : null}

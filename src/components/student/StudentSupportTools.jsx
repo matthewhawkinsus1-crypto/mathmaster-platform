@@ -60,7 +60,7 @@ export default function StudentSupportTools({ profile = null, onResourceOpened =
       {open && (
         <div role="region" aria-label="Support tools" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'grid', gap: 8, textAlign: 'left', maxWidth: 520 }}>
           {tools.map((tool) => (
-            <div key={tool.supportId} style={{ fontSize: 13 }}>
+            <div key={tool.supportId} style={{ fontSize: 'calc(13 * var(--mm-px))' }}>
               <strong>{tool.label}</strong>{WHERE[tool.supportId] ? ` — ${WHERE[tool.supportId]}` : ''}
             </div>
           ))}
@@ -73,7 +73,7 @@ export default function StudentSupportTools({ profile = null, onResourceOpened =
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => onResourceOpened?.(resource.supportId)}
-                  style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-primary-text)' }}
+                  style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-primary-text)' }}
                 >
                   {resource.group}: {resource.label} ↗
                 </a>

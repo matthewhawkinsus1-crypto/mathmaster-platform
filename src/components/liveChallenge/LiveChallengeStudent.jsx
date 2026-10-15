@@ -470,9 +470,9 @@ export function ChallengeRound({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(0,0,0,.2)', fontWeight: 900, fontSize: 13 }}>{alias}</span>
-            <span style={{ fontWeight: 900, fontSize: 15 }}>{room.secondChanceOf != null ? `FINAL ROUND ${roundIndex - Number(room.scheduledRoundCount || room.roundCount) + 1}` : `Round ${roundIndex + 1} of ${room.roundCount}`}</span>
-            <span style={{ fontSize: 13 }}>{question?.teksCode || 'Mixed review'}</span>
+            <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(0,0,0,.2)', fontWeight: 900, fontSize: 'calc(13 * var(--mm-px))' }}>{alias}</span>
+            <span style={{ fontWeight: 900, fontSize: 'calc(15 * var(--mm-px))' }}>{room.secondChanceOf != null ? `FINAL ROUND ${roundIndex - Number(room.scheduledRoundCount || room.roundCount) + 1}` : `Round ${roundIndex + 1} of ${room.roundCount}`}</span>
+            <span style={{ fontSize: 'calc(13 * var(--mm-px))' }}>{question?.teksCode || 'Mixed review'}</span>
             {/* Only once the question is on screen: reading it during the
                 countdown would hand this student a head start. */}
             {readAloud && roundStarted && promptText && (
@@ -490,7 +490,7 @@ export function ChallengeRound({
             role="timer"
             aria-label={roundStarted ? `${Math.ceil(remainingMs / 1000)} seconds left` : `Round starts in ${Math.ceil(startsInMs / 1000)} seconds`}
             style={{
-              fontSize: 40,
+              fontSize: 'calc(40 * var(--mm-px))',
               fontWeight: 1000,
               lineHeight: 1,
               fontVariantNumeric: 'tabular-nums',
@@ -503,7 +503,7 @@ export function ChallengeRound({
         {paceMode && endsAtMs > 0 && <div style={{ fontWeight: 900 }}>Round closes in {formatClock(remainingMs)}</div>}
         {/* Their clock runs longer than the projector's; say why, on their own
             screen only (nobody else's shows who has extra time). */}
-        {personalClock.extended && roundStarted && <div data-mm-extended-time="1" style={{ fontSize: 13, fontWeight: 800, opacity: .9 }}>Your extra time is on — this clock is yours.</div>}
+        {personalClock.extended && roundStarted && <div data-mm-extended-time="1" style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, opacity: .9 }}>Your extra time is on — this clock is yours.</div>}
 
         <div style={{ display: 'flex', gap: 5 }} aria-hidden="true">
           {Array.from({ length: Math.max(1, Number(room.roundCount) || 1) }).map((_, pip) => (
@@ -522,9 +522,9 @@ export function ChallengeRound({
 
         {workingPoints > 0 && !result && (
           <div aria-live="polite" style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontWeight: 900 }}>
-            <span style={{ fontSize: 13, opacity: .85 }}>Points banked this round</span>
-            <span style={{ fontSize: 22, fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>+{workingPoints.toLocaleString()}</span>
-            <span style={{ fontSize: 12, opacity: .8 }}>keep going — every correct step adds more</span>
+            <span style={{ fontSize: 'calc(13 * var(--mm-px))', opacity: .85 }}>Points banked this round</span>
+            <span style={{ fontSize: 'calc(22 * var(--mm-px))', fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>+{workingPoints.toLocaleString()}</span>
+            <span style={{ fontSize: 'calc(12 * var(--mm-px))', opacity: .8 }}>keep going — every correct step adds more</span>
           </div>
         )}
       </section>
@@ -597,14 +597,14 @@ export function ChallengeRound({
       {liveShell && result && !expired && <div aria-live="polite" data-mm-finished-early="1" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Round complete for you — waiting for the others. The results show when the round ends.</div>}
       {result && (
         <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-warning-soft)', color: result.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', textAlign: 'left' }}>
-          <div style={{ fontSize: 22, fontWeight: 1000 }}>{result.isCorrect ? 'Correct!' : `${Number(result.scorePercent) || 0}% credit`}</div>
+          <div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 1000 }}>{result.isCorrect ? 'Correct!' : `${Number(result.scorePercent) || 0}% credit`}</div>
           {result.comebackBonus > 0 && (
-            <div style={{ marginTop: 4, fontSize: 15, fontWeight: 900 }}>
+            <div style={{ marginTop: 4, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 900 }}>
               Comeback! You missed the last one and got this one. +{result.comebackBonus}
             </div>
           )}
           {result.secondChance && result.recoveryPoints > 0 && (
-            <div style={{ marginTop: 4, fontSize: 15, fontWeight: 900 }}>
+            <div style={{ marginTop: 4, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 900 }}>
               Second chance — you got points back on this one. +{result.recoveryPoints}
             </div>
           )}
@@ -617,7 +617,7 @@ export function ChallengeRound({
               // answering (their place comes with the round's results).
               : `+${Number(result.pointsAwarded) || 0} points · Total ${(Number(result.totalScore) || 0).toLocaleString()}`}
           </div>
-          {!result.secondChance && (result.speedBonus > 0 || result.streakBonus > 0) && <div style={{ marginTop: 4, fontSize: 13 }}>Accuracy base {Number(result.basePoints) || 0} · Speed +{Number(result.speedBonus) || 0} · Streak +{Number(result.streakBonus) || 0}</div>}
+          {!result.secondChance && (result.speedBonus > 0 || result.streakBonus > 0) && <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))' }}>Accuracy base {Number(result.basePoints) || 0} · Speed +{Number(result.speedBonus) || 0} · Streak +{Number(result.streakBonus) || 0}</div>}
         </section>
       )}
 
@@ -1170,17 +1170,17 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       <div data-mm-student-stage={stage} style={{ maxWidth: 900, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
-            <div style={{ color: '#fdd663', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase', letterSpacing: '.08em' }}>MathMaster Live Challenge</div>
-            <h1 style={{ margin: '4px 0 0', fontSize: 25, color: '#fff', overflowWrap: 'anywhere' }}>{room.title}</h1>
+            <div style={{ color: '#fdd663', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 1000, textTransform: 'uppercase', letterSpacing: '.08em' }}>MathMaster Live Challenge</div>
+            <h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', color: '#fff', overflowWrap: 'anywhere' }}>{room.title}</h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <ConnectionPill state={connection} look="student" />
             {headerRow && (
               <div data-mm-student-score="1" style={{ textAlign: 'right', lineHeight: 1.2 }}>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: '#9fb0cc', fontWeight: 900 }}>Your score</div>
-                <div style={{ fontSize: 22, fontWeight: 1000, fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>
+                <div style={{ fontSize: 'calc(11 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '.06em', color: '#9fb0cc', fontWeight: 900 }}>Your score</div>
+                <div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 1000, fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>
                   {(headerRow.liveScore ?? headerRow.score).toLocaleString()}
-                  <span style={{ marginLeft: 6, fontSize: 12, color: '#c3d2ea' }}>{presentation.total.short}</span>
+                  <span style={{ marginLeft: 6, fontSize: 'calc(12 * var(--mm-px))', color: '#c3d2ea' }}>{presentation.total.short}</span>
                 </div>
               </div>
             )}

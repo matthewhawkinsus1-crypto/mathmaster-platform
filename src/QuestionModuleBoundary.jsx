@@ -147,7 +147,7 @@ export default class QuestionModuleBoundary extends Component {
             </button>
           </>
         ) : null}
-        <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
+        <p style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
           Details for your teacher: {this.props.questionType || 'unknown type'} &mdash; {String(this.state.error?.message || this.state.error)}
         </p>
       </div>

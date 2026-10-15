@@ -430,7 +430,7 @@ export const MobileViewportContainer = ({
               </div>
               {!isPromptCollapsed && (
                 <div className="prompt-body">
-                  <QuestionPrompt variant="plain" style={{ color: 'var(--mm-text-strong)', fontWeight: 800, fontSize: 18, margin: 0 }}>
+                  <QuestionPrompt variant="plain" style={{ color: 'var(--mm-text-strong)', fontWeight: 800, fontSize: 'calc(18 * var(--mm-px))', margin: 0 }}>
                     {originalTaskPrompt || 'Complete the math task.'}
                   </QuestionPrompt>
                   {currentStagePrompt && (

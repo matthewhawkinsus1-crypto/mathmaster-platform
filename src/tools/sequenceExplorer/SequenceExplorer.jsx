@@ -312,7 +312,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
             >
               Clear graph
             </button>
-            <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{plottedPoints.length}/{rows.length} term inputs plotted</span>
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{plottedPoints.length}/{rows.length} term inputs plotted</span>
           </div>
         )}
         {plotMessage && <p style={{ margin: '8px 0 0', color: 'var(--mm-warning-text)', fontWeight: 700 }}>{plotMessage}</p>}
@@ -338,7 +338,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
           <label style={{ display: 'block', marginTop: 16 }}>
             Explicit rule
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 4 }}>
-              <strong style={{ fontSize: 20 }}>aₙ =</strong>
+              <strong style={{ fontSize: 'calc(20 * var(--mm-px))' }}>aₙ =</strong>
               <input
                 value={explicitRule}
                 onChange={(event) => setExplicitRule(event.target.value)}
@@ -354,11 +354,11 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
             <div style={{ fontWeight: 800, marginBottom: 6 }}>Recursive rule</div>
             <div style={{ display: 'grid', gap: 8 }}>
               <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center' }}>
-                <strong style={{ fontSize: 18 }}>a₁ =</strong>
+                <strong style={{ fontSize: 'calc(18 * var(--mm-px))' }}>a₁ =</strong>
                 <input value={recursiveFirst} onChange={(event) => setRecursiveFirst(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} />
               </label>
               <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center' }}>
-                <strong style={{ fontSize: 18 }}>aₙ =</strong>
+                <strong style={{ fontSize: 'calc(18 * var(--mm-px))' }}>aₙ =</strong>
                 <input
                   value={recursiveRule}
                   onChange={(event) => setRecursiveRule(event.target.value)}
@@ -433,17 +433,17 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
         <label>
           Explicit rule
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 4 }}>
-            <strong style={{ fontSize: 20 }}>aₙ =</strong>
+            <strong style={{ fontSize: 'calc(20 * var(--mm-px))' }}>aₙ =</strong>
             <input value={explicitRule} onChange={(event) => setExplicitRule(event.target.value)} placeholder="Write the full expression in n" style={inputStyle} />
           </div>
         </label>
         <div style={{ marginTop: 18, fontWeight: 800 }}>Recursive rule</div>
         <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 6 }}>
-          <strong style={{ fontSize: 18 }}>a₁ =</strong>
+          <strong style={{ fontSize: 'calc(18 * var(--mm-px))' }}>a₁ =</strong>
           <input value={recursiveFirst} onChange={(event) => setRecursiveFirst(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} />
         </label>
         <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 8 }}>
-          <strong style={{ fontSize: 18 }}>aₙ =</strong>
+          <strong style={{ fontSize: 'calc(18 * var(--mm-px))' }}>aₙ =</strong>
           <input value={recursiveRule} onChange={(event) => setRecursiveRule(event.target.value)} placeholder="Use aₙ₋₁ in your rule" style={inputStyle} />
         </label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check both equations</button>
@@ -491,7 +491,7 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
     <EnlargeableFigure label="Missing term workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence with a gap' }, numericControls: { label: 'Missing term controls', studentState: true }, instruction: { text: 'Recover the missing term and classify the sequence.' }, primaryActions: [{ id: 'check-missing', label: 'Check missing term', onAction: check }] }}>
     <ToolGrid min={320}>
       <Panel title="Sequence with a gap">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: row.n === missingIndex ? 'var(--mm-warning-bg)' : 'var(--mm-surface)' }}><div style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>a{row.n}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: row.n === missingIndex ? 'var(--mm-warning-bg)' : 'var(--mm-surface)' }}><div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>a{row.n}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
         <p style={{ color: 'var(--mm-text-muted)' }}>Use the terms on both sides of the gap. A valid common change must work across the entire sequence.</p>
       </Panel>
       <Panel title="Recover the structure">
@@ -719,7 +719,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
               >
                 Clear both
               </button>
-              <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
                 {leftLabel}: {leftPlottedPoints.length}/{leftRows.length} · {rightLabel}: {rightPlottedPoints.length}/{rightRows.length}
               </span>
             </div>

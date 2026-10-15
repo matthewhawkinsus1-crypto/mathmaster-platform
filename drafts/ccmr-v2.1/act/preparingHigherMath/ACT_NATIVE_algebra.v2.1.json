@@ -33,7 +33,7 @@
       "responseFields": [{"id": "answer", "label": "Choose the correct answer", "inputProfile": "choice", "expected": "act-correct"}],
       "attemptFeedback": ["Use the algebraic relationships in the question to determine the requested value."],
       "supportHints": ["Track equivalent operations and any restrictions introduced by roots, denominators, or systems."],
-      "solutionReview": {"headline": "Solve the algebraic relationship.", "reasoning": ["Use an equivalent equation or expression and check the result in the original relationship."], "answerSummary": "Verify that the selected answer satisfies all original conditions."}
+      "solutionReview": {"headline": "Divide by {{a}}, then add {{b}}: $x={{answer}}$.", "reasoning": ["Divide both sides by {{a}}: $x-{{b}}=\\frac{ {{c}} }{ {{a}} }={{k}}$.", "Add {{b}}: $x={{k}}+{{b}}={{answer}}$."], "commonError": "Stopping at $x-{{b}}={{k}}$ and giving {{k}} as $x$.", "answerSummary": "$x={{answer}}$"}
     },
     {
       "id": "mm_act_alg_2_quadratic-larger-root_v21",
@@ -61,7 +61,7 @@
       "responseFields": [{"id": "answer", "label": "Choose the correct answer", "inputProfile": "choice", "expected": "act-correct"}],
       "attemptFeedback": ["Use the algebraic relationships in the question to determine the requested value."],
       "supportHints": ["Track equivalent operations and any restrictions introduced by roots, denominators, or systems."],
-      "solutionReview": {"headline": "Solve the algebraic relationship.", "reasoning": ["Use an equivalent equation or expression and check the result in the original relationship."], "answerSummary": "Verify that the selected answer satisfies all original conditions."}
+      "solutionReview": {"headline": "Find two numbers with sum {{S}} and product {{P}}: the greater is {{answer}}.", "reasoning": ["If $x^2-{{S}}x+{{P}}=(x-m)(x-n)$, then $m+n={{S}}$ and $mn={{P}}$.", "${{p}}+{{q}}={{S}}$ and ${{p}}\\cdot {{q}}={{P}}$, so $x^2-{{S}}x+{{P}}=(x-{{p}})(x-{{q}})$.", "The solutions are {{p}} and {{q}}; the greater is {{answer}}."], "commonError": "Giving the sum {{S}} or the product {{P}} instead of a solution.", "answerSummary": "${{answer}}$"}
     },
     {
       "id": "mm_act_alg_3_radical-equation_v21",
@@ -83,13 +83,13 @@
       "ccmrFamilyRole": "direct",
       "ccmrAuthenticLanguage": {"version": "2.1", "authored": true, "nativeSkillId": "algebra", "officialSkillFamily": "algebra", "stemProfile": "radical-equation", "answerChoiceCount": 4},
       "prompt": "If $\\sqrt{x+{{a}}}={{b}}$, what is the value of $x$?",
-      "generator": {"parameters": {"a": {"type": "int", "min": 1, "max": 10}, "b": {"type": "int", "min": 3, "max": 8}}, "derived": {"answer": "b^2-a", "d1": "b-a", "d2": "b^2+a", "d3": "b+a"}, "constraints": ["answer>0", "answer!=d1", "answer!=d2", "answer!=d3", "d1!=d2", "d1!=d3", "d2!=d3"]},
+      "generator": {"parameters": {"a": {"type": "int", "min": 1, "max": 10}, "b": {"type": "int", "min": 3, "max": 8}}, "derived": {"answer": "b^2-a", "d1": "b-a", "d2": "b^2+a", "d3": "b+a", "b2": "b*b"}, "constraints": ["answer>0", "answer!=d1", "answer!=d2", "answer!=d3", "d1!=d2", "d1!=d3", "d2!=d3"]},
       "assessmentItemFormat": "multipleChoice",
       "choices": [{"id": "act-correct", "label": "${{answer}}$"}, {"id": "act-d1", "label": "${{d1}}$"}, {"id": "act-d2", "label": "${{d2}}$"}, {"id": "act-d3", "label": "${{d3}}$"}],
       "responseFields": [{"id": "answer", "label": "Choose the correct answer", "inputProfile": "choice", "expected": "act-correct"}],
       "attemptFeedback": ["Use the algebraic relationships in the question to determine the requested value."],
       "supportHints": ["Track equivalent operations and any restrictions introduced by roots, denominators, or systems."],
-      "solutionReview": {"headline": "Solve the algebraic relationship.", "reasoning": ["Use an equivalent equation or expression and check the result in the original relationship."], "answerSummary": "Verify that the selected answer satisfies all original conditions."}
+      "solutionReview": {"headline": "Square both sides, then subtract {{a}}: $x={{answer}}$.", "reasoning": ["Square both sides: $x+{{a}}={{b}}^2={{b2}}$.", "Subtract {{a}}: $x={{b2}}-{{a}}={{answer}}$.", "Check: $\\sqrt{ {{answer}}+{{a}} }=\\sqrt{ {{b2}} }={{b}}$."], "commonError": "Subtracting {{a}} from {{b}} without squaring first.", "answerSummary": "$x={{answer}}$"}
     },
     {
       "id": "mm_act_alg_4_exponential-same-base_v21",
@@ -117,7 +117,7 @@
       "responseFields": [{"id": "answer", "label": "Choose the correct answer", "inputProfile": "choice", "expected": "act-correct"}],
       "attemptFeedback": ["Use the algebraic relationships in the question to determine the requested value."],
       "supportHints": ["Track equivalent operations and any restrictions introduced by roots, denominators, or systems."],
-      "solutionReview": {"headline": "Solve the algebraic relationship.", "reasoning": ["Use an equivalent equation or expression and check the result in the original relationship."], "answerSummary": "Verify that the selected answer satisfies all original conditions."}
+      "solutionReview": {"headline": "Same base, so the exponents are equal: $x={{answer}}$.", "reasoning": ["Both sides are powers of 2, so the exponents must match: $x+{{a}}={{b}}$.", "$x={{b}}-{{a}}={{answer}}$."], "commonError": "Giving the exponent {{b}} itself as $x$, forgetting the $+{{a}}$.", "answerSummary": "$x={{answer}}$"}
     },
     {
       "id": "mm_act_alg_5_two-equation-system_v21",
@@ -139,13 +139,13 @@
       "ccmrFamilyRole": "direct",
       "ccmrAuthenticLanguage": {"version": "2.1", "authored": true, "nativeSkillId": "algebra", "officialSkillFamily": "algebra", "stemProfile": "two-equation-system", "answerChoiceCount": 4},
       "prompt": "The system $x+y={{S}}$ and $2x-y={{D}}$ has a solution $(x,y)$. What is the value of $x$?",
-      "generator": {"parameters": {"x": {"type": "int", "min": 3, "max": 10}}, "derived": {"y": "x+2", "S": "x+y", "D": "2*x-y", "answer": "x", "d1": "y", "d2": "S", "d3": "D"}},
+      "generator": {"parameters": {"x": {"type": "int", "min": 3, "max": 10}}, "derived": {"y": "x+2", "S": "x+y", "D": "2*x-y", "answer": "x", "d1": "y", "d2": "S", "d3": "D", "SD": "S+D"}},
       "assessmentItemFormat": "multipleChoice",
       "choices": [{"id": "act-correct", "label": "${{answer}}$"}, {"id": "act-d1", "label": "${{d1}}$"}, {"id": "act-d2", "label": "${{d2}}$"}, {"id": "act-d3", "label": "${{d3}}$"}],
       "responseFields": [{"id": "answer", "label": "Choose the correct answer", "inputProfile": "choice", "expected": "act-correct"}],
       "attemptFeedback": ["Use the algebraic relationships in the question to determine the requested value."],
       "supportHints": ["Track equivalent operations and any restrictions introduced by roots, denominators, or systems."],
-      "solutionReview": {"headline": "Solve the algebraic relationship.", "reasoning": ["Use an equivalent equation or expression and check the result in the original relationship."], "answerSummary": "Verify that the selected answer satisfies all original conditions."}
+      "solutionReview": {"headline": "Add the equations to eliminate $y$: $x={{answer}}$.", "reasoning": ["Adding $x+y={{S}}$ and $2x-y={{D}}$ cancels $y$: $3x={{S}}+{{D}}={{SD}}$.", "$x=\\frac{ {{SD}} }{3}={{answer}}$.", "Check: $y={{S}}-{{answer}}={{y}}$, and $2\\cdot {{answer}}-{{y}}={{D}}$."], "commonError": "Giving $y$ instead of $x$.", "answerSummary": "$x={{answer}}$"}
     },
     {
       "id": "mm_act_alg_ch1_rational-equation_v21",
@@ -173,7 +173,7 @@
       "responseFields": [{"id": "answer", "label": "Choose the correct answer", "inputProfile": "choice", "expected": "act-correct"}],
       "attemptFeedback": ["Use the algebraic relationships in the question to determine the requested value."],
       "supportHints": ["Track equivalent operations and any restrictions introduced by roots, denominators, or systems."],
-      "solutionReview": {"headline": "Solve the algebraic relationship.", "reasoning": ["Use an equivalent equation or expression and check the result in the original relationship."], "answerSummary": "Verify that the selected answer satisfies all original conditions."}
+      "solutionReview": {"headline": "Equal fractions with numerator 1 have equal denominators: $x={{answer}}$.", "reasoning": ["Both fractions have numerator 1, so the denominators are equal: $x-{{a}}={{b}}$.", "$x={{b}}+{{a}}={{answer}}$, and $x\\ne {{a}}$, so the fraction is defined."], "commonError": "Subtracting {{b}} instead of adding it.", "answerSummary": "$x={{answer}}$"}
     },
     {
       "id": "mm_act_alg_ch2_polynomial-parameter_v21",
@@ -201,7 +201,7 @@
       "responseFields": [{"id": "answer", "label": "Choose the correct answer", "inputProfile": "choice", "expected": "act-correct"}],
       "attemptFeedback": ["Use the algebraic relationships in the question to determine the requested value."],
       "supportHints": ["Track equivalent operations and any restrictions introduced by roots, denominators, or systems."],
-      "solutionReview": {"headline": "Solve the algebraic relationship.", "reasoning": ["Use an equivalent equation or expression and check the result in the original relationship."], "answerSummary": "Verify that the selected answer satisfies all original conditions."}
+      "solutionReview": {"headline": "Expand: the middle coefficient is the sum of {{p}} and {{q}}, so $k={{answer}}$.", "reasoning": ["$(x-{{p}})(x-{{q}})=x^2-{{p}}x-{{q}}x+{{product}}$.", "Combine the middle terms: $-({{p}}+{{q}})x$, and ${{p}}+{{q}}={{answer}}$.", "Matching $x^2-kx+{{product}}$ gives $k={{answer}}$."], "commonError": "Taking the constant term {{product}} as $k$.", "answerSummary": "$k={{answer}}$"}
     },
     {
       "id": "mm_act_alg_ch3_service-plan-intersection_v21",
@@ -223,13 +223,13 @@
       "ccmrFamilyRole": "challenge",
       "ccmrAuthenticLanguage": {"version": "2.1", "authored": true, "nativeSkillId": "algebra", "officialSkillFamily": "algebra", "stemProfile": "challenge-service-plan-intersection", "answerChoiceCount": 4, "authoredChallenge": true},
       "prompt": "Plan A charges a fixed fee of ${{f1}} plus ${{r1}} per hour. Plan B charges a fixed fee of ${{f2}} plus ${{r2}} per hour. For how many hours are the total charges equal?",
-      "generator": {"parameters": {"x": {"type": "int", "min": 4, "max": 12}, "r2": {"type": "int", "min": 2, "max": 6}, "f1": {"type": "int", "min": 10, "max": 30}}, "derived": {"r1": "r2+2", "f2": "f1+2*x", "answer": "x", "d1": "2*x", "d2": "2", "d3": "x+1"}},
+      "generator": {"parameters": {"x": {"type": "int", "min": 4, "max": 12}, "r2": {"type": "int", "min": 2, "max": 6}, "f1": {"type": "int", "min": 10, "max": 30}}, "derived": {"r1": "r2+2", "f2": "f1+2*x", "answer": "x", "d1": "2*x", "d2": "2", "d3": "x+1", "df": "f2-f1", "tot": "f1+(r2+2)*x"}},
       "assessmentItemFormat": "multipleChoice",
       "choices": [{"id": "act-correct", "label": "${{answer}}$"}, {"id": "act-d1", "label": "${{d1}}$"}, {"id": "act-d2", "label": "${{d2}}$"}, {"id": "act-d3", "label": "${{d3}}$"}],
       "responseFields": [{"id": "answer", "label": "Choose the correct answer", "inputProfile": "choice", "expected": "act-correct"}],
       "attemptFeedback": ["Use the algebraic relationships in the question to determine the requested value."],
       "supportHints": ["Track equivalent operations and any restrictions introduced by roots, denominators, or systems."],
-      "solutionReview": {"headline": "Solve the algebraic relationship.", "reasoning": ["Use an equivalent equation or expression and check the result in the original relationship."], "answerSummary": "Verify that the selected answer satisfies all original conditions."}
+      "solutionReview": {"headline": "Set the two totals equal and solve: {{answer}} hours.", "reasoning": ["With $h$ hours: ${{f1}}+{{r1}}h={{f2}}+{{r2}}h$.", "Collect terms: $({{r1}}-{{r2}})h={{f2}}-{{f1}}$, so $2h={{df}}$.", "$h=\\frac{ {{df}} }{2}={{answer}}$ hours.", "Check: ${{f1}}+{{r1}}\\cdot {{answer}}={{tot}}$ and ${{f2}}+{{r2}}\\cdot {{answer}}={{tot}}$."], "commonError": "Dividing the fee difference by one of the hourly rates instead of by the difference of the rates.", "answerSummary": "${{answer}}$ hours"}
     }
   ]
 }

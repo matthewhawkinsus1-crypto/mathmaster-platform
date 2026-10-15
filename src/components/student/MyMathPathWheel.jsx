@@ -155,7 +155,7 @@ export const MyMathPathWheel = ({
 
       {showLegend && (
         <section aria-labelledby={`${legendId}-title`} data-wheel-legend style={{ marginTop: 14, textAlign: 'left' }}>
-          <h3 id={`${legendId}-title`} style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 900, color: 'var(--mm-text-strong)' }}>
+          <h3 id={`${legendId}-title`} style={{ margin: '0 0 8px', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-strong)' }}>
             Topics on your wheel
           </h3>
           <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
@@ -171,10 +171,10 @@ export const MyMathPathWheel = ({
                     onClick={() => setOpenStrands((current) => ({ ...current, [arc.strand.id]: !open }))}
                     style={{ width: '100%', minHeight: 48, display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', border: 0, background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'var(--mm-text-strong)', font: 'inherit' }}
                   >
-                    <span aria-hidden="true" style={{ flex: '0 0 auto', width: 24, height: 24, borderRadius: 999, display: 'inline-grid', placeItems: 'center', border: '1.5px solid var(--mm-text-muted)', fontSize: 12, fontWeight: 900 }}>{arc.number}</span>
+                    <span aria-hidden="true" style={{ flex: '0 0 auto', width: 24, height: 24, borderRadius: 999, display: 'inline-grid', placeItems: 'center', border: '1.5px solid var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>{arc.number}</span>
                     <span style={{ flex: '1 1 auto', minWidth: 0 }}>
-                      <span style={{ display: 'block', fontSize: 13.5, fontWeight: 850, lineHeight: 1.3 }}>{arc.strand.title}</span>
-                      <span style={{ display: 'block', fontSize: 11.5, color: 'var(--mm-text-muted)', fontWeight: 700 }}>
+                      <span style={{ display: 'block', fontSize: 'calc(13.5 * var(--mm-px))', fontWeight: 850, lineHeight: 1.3 }}>{arc.strand.title}</span>
+                      <span style={{ display: 'block', fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)', fontWeight: 700 }}>
                         {arc.mastered} of {arc.members.length} mastered · {open ? 'Hide' : 'Show'} {arc.members.length === 1 ? 'skill' : `${arc.members.length} skills`}
                       </span>
                     </span>
@@ -196,8 +196,8 @@ export const MyMathPathWheel = ({
                               style={{ width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', gap: 9, padding: '6px 8px', border: 0, borderRadius: 8, background: focusedTeks === entry.code ? 'var(--mm-primary-soft)' : 'transparent', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}
                             >
                               <span aria-hidden="true" style={{ flex: '0 0 auto', width: 12, height: 12, borderRadius: 999, background: MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE], border: '1px solid var(--mm-border-strong)' }} />
-                              <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 13, fontWeight: 750, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{studentLabelForTeks(entry.code)}</span>
-                              <span style={{ flex: '0 0 auto', fontSize: 11.5, fontWeight: 750, color: 'var(--mm-text-muted)', textAlign: 'right' }}>{status}</span>
+                              <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 750, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{studentLabelForTeks(entry.code)}</span>
+                              <span style={{ flex: '0 0 auto', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 750, color: 'var(--mm-text-muted)', textAlign: 'right' }}>{status}</span>
                             </button>
                           </li>
                         );

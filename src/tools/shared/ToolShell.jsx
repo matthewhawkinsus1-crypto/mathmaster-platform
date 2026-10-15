@@ -165,8 +165,8 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
           being squeezed into whatever the summary left over. */}
       <header className="mathmaster-tool-shell-header" style={{ padding: '9px 16px', borderBottom: '1px solid var(--mm-border-soft)', background: 'linear-gradient(135deg,var(--mm-surface-tint),var(--mm-primary-subtle))' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--mm-text-strong)' }}>{title}</h2>
-          {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '5px 10px', fontWeight: 800, fontSize: 11 }}>{badge}</span> : null}
+          <h2 style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{title}</h2>
+          {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '5px 10px', fontWeight: 800, fontSize: 'calc(11 * var(--mm-px))' }}>{badge}</span> : null}
           {subtitle ? (
             // `display: contents` keeps the fold itself the header's flex item.
             // Merged into the TaskCard's "How to do this", it is hidden by
@@ -183,9 +183,9 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
                 plus this fold wrapped onto three lines — 101px of naming a tool
                 the student is already looking at. */}
             {badge ? (
-              <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13 }}>{badge}</p>
+              <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>{badge}</p>
             ) : null}
-            <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 14 }}>{subtitle}</p>
+            <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 'calc(14 * var(--mm-px))' }}>{subtitle}</p>
             </QuietDisclosure>
             </div>
           ) : null}
@@ -193,7 +193,7 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
       </header>
       {/* One set of plotting directions per tool, however many planes it has. */}
       <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}><ToolShellContext.Provider value={shellContext}><PlotHelpScope>{children}</PlotHelpScope></ToolShellContext.Provider></div>
-      {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)', fontSize: 13 }}>{footer}</footer> : null}
+      {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{footer}</footer> : null}
     </section>
   );
 }
@@ -232,7 +232,7 @@ export const ToolSplit = ({ children }) => (
 export const Panel = ({ title, children, collapsible = false, defaultOpen = true }) => {
   const body = (
     <div className="mathmaster-tool-panel" style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 14, padding: 16, background: 'var(--mm-surface)' }}>
-      {title ? <h3 style={{ margin: '0 0 12px', fontSize: 16, color: 'var(--mm-text)' }}>{title}</h3> : null}
+      {title ? <h3 style={{ margin: '0 0 12px', fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text)' }}>{title}</h3> : null}
       {children}
     </div>
   );
@@ -283,7 +283,7 @@ const outcomeStyle = (tone) => ({
   borderRadius: 10,
   background: tone === 'correct' ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)',
   color: tone === 'correct' ? 'var(--mm-success-text)' : 'var(--mm-danger)',
-  fontSize: 14,
+  fontSize: 'calc(14 * var(--mm-px))',
   fontWeight: 800,
   lineHeight: 1.45,
   // `nearest` would otherwise stop with the box's edge on the scroller's edge,
@@ -421,8 +421,8 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
     }}>
       {authoredPrompt ? (
         <div className="mathmaster-tool-task-prompt">
-          <div className="mathmaster-tool-task-eyebrow" style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
-          <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
+          <div className="mathmaster-tool-task-eyebrow" style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
+          <MathText as="p" style={{ margin: '6px 0 0', fontSize: 'calc(17 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
         </div>
       ) : null}
       {hasSupport ? (
@@ -436,14 +436,14 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
             <div className="mathmaster-tool-task-about">
               {/* The header drops the badge on a phone; it is kept here. */}
               {shell?.badge ? (
-                <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13 }}>{shell.badge}</p>
+                <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>{shell.badge}</p>
               ) : null}
-              <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 14 }}>{description}</p>
+              <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 'calc(14 * var(--mm-px))' }}>{description}</p>
             </div>
           ) : null}
           {showsDirections ? (
             <div className="mathmaster-tool-task-directions" style={description ? { marginTop: 10 } : undefined}>
-              <MathText as="p" style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.45 }}>{taskText}</MathText>
+              <MathText as="p" style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.45 }}>{taskText}</MathText>
             </div>
           ) : null}
           {steps.length ? (
@@ -451,7 +451,7 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
               {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
             </ol>
           ) : null}
-          {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>{note}</MathText> : null}
+          {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{note}</MathText> : null}
         </QuietDisclosure>
       ) : null}
     </div>
@@ -493,7 +493,7 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
   return (
     <div style={{ marginTop: 16, ...(used ? { border: '1px solid var(--mm-warning-border-soft)', borderRadius: 12, background: 'var(--mm-warning-subtle)', padding: '12px 15px' } : null) }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        {used && <strong style={{ color: 'var(--mm-warning-text)', fontSize: 14 }}>Hints</strong>}
+        {used && <strong style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(14 * var(--mm-px))' }}>Hints</strong>}
         <button
           type="button"
           onClick={revealNext}
@@ -502,12 +502,12 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
           style={{
             minHeight: 44, padding: '7px 13px', borderRadius: 999, border: '1px solid #e0a800',
             background: revealed >= hints.length ? 'var(--mm-surface-control)' : 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)',
-            fontWeight: 800, fontSize: 13, cursor: revealed >= hints.length ? 'default' : 'pointer',
+            fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', cursor: revealed >= hints.length ? 'default' : 'pointer',
           }}
         >
           {revealed === 0 ? 'Stuck? Show a hint' : revealed >= hints.length ? 'All hints shown' : `Show hint ${revealed + 1} of ${hints.length}`}
         </button>
-        {!used && <span style={{ fontSize: 12, color: 'var(--mm-warning-text)' }}>Recorded for your teacher</span>}
+        {!used && <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>Recorded for your teacher</span>}
       </div>
       {used ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>

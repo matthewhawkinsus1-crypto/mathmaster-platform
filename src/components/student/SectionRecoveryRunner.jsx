@@ -144,8 +144,8 @@ function RecoveryHeader({ label, subtitle, onExit }) {
   return (
     <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
       <div>
-        <h1 style={{ margin: 0, fontSize: 22, color: 'var(--mm-text-strong)' }}>{label}</h1>
-        {subtitle && <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--mm-text-muted)' }}>{subtitle}</p>}
+        <h1 style={{ margin: 0, fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{label}</h1>
+        {subtitle && <p style={{ margin: '4px 0 0', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{subtitle}</p>}
       </div>
       <button type="button" onClick={onExit} style={actionButton(false)}>Back</button>
     </header>
@@ -406,7 +406,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
       <RecoveryHeader label={`${entry.label} practice`} subtitle="Show what you know. Each fresh question counts once." onExit={onExit} />
       <div style={{ ...panelStyle, display: 'grid', gap: 8 }}>
         <RecoveryMasteryMeter percent={entry.masteryPercent} />
-        <p aria-live="polite" style={{ margin: 0, fontSize: 13.5 }}>
+        <p aria-live="polite" style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))' }}>
           {unlocked
             ? `${entry.label} Unlocked — you can start it whenever you are ready.`
             : `${entry.label} Locked — keep practicing to unlock it.`}
@@ -651,9 +651,9 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
           <p style={{ margin: 0 }}>Nice work finishing your Recovery.</p>
           {entry.result && (
             <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-              <div><dt style={{ color: 'var(--mm-text-muted)' }}>Original</dt><dd style={{ margin: 0, fontWeight: 900, fontSize: 18 }}>{entry.result.original}</dd></div>
-              <div><dt style={{ color: 'var(--mm-text-muted)' }}>Recovery</dt><dd style={{ margin: 0, fontWeight: 900, fontSize: 18 }}>{entry.result.recovery}</dd></div>
-              <div><dt style={{ color: 'var(--mm-text-muted)' }}>Final</dt><dd style={{ margin: 0, fontWeight: 900, fontSize: 18 }}>{entry.result.final}</dd></div>
+              <div><dt style={{ color: 'var(--mm-text-muted)' }}>Original</dt><dd style={{ margin: 0, fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}>{entry.result.original}</dd></div>
+              <div><dt style={{ color: 'var(--mm-text-muted)' }}>Recovery</dt><dd style={{ margin: 0, fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}>{entry.result.recovery}</dd></div>
+              <div><dt style={{ color: 'var(--mm-text-muted)' }}>Final</dt><dd style={{ margin: 0, fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}>{entry.result.final}</dd></div>
             </dl>
           )}
           {entry.note && <p data-recovery-note="true" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{entry.note}</p>}
@@ -753,7 +753,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
           );
         })}
       </nav>
-      <p aria-live="polite" style={{ margin: 0, fontSize: 13.5, color: 'var(--mm-text-muted)' }}>
+      <p aria-live="polite" style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
         Question {position + 1} of {items.length}
         {currentSubmitted
           ? ' · Already submitted.'
@@ -765,7 +765,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
         <p
           role="status"
           data-recovery-saved-where={currentSavedWhere}
-          style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: currentSavedWhere === RECOVERY_ANSWER_SAVED_WHERE.ACCOUNT ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}
+          style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))', fontWeight: 700, color: currentSavedWhere === RECOVERY_ANSWER_SAVED_WHERE.ACCOUNT ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}
         >
           {RECOVERY_SAVED_COPY[currentSavedWhere]}
         </p>

@@ -527,7 +527,7 @@ export const CalculatorPanel = ({
             style={{ display: 'flex', justifyContent: 'space-between', margin: '-6px -4px 12px', padding: '6px 4px', alignItems: 'center', cursor: 'grab', touchAction: 'none', userSelect: 'none' }}
             title="Drag calculator"
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 'bold', fontSize: '13px', color: 'var(--mm-text)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 'bold', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
               <button
                 type="button"
                 data-calculator-move=""
@@ -545,7 +545,7 @@ export const CalculatorPanel = ({
             <button type="button" aria-label="Close calculator" onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
           </div>
           {!estimateUnlocked ? (
-            <form onSubmit={handleEstimateSubmit} style={{ textAlign: 'left', fontSize: '13px' }}>
+            <form onSubmit={handleEstimateSubmit} style={{ textAlign: 'left', fontSize: 'calc(13 * var(--mm-px))' }}>
               <p style={{ margin: '0 0 8px', color: 'var(--mm-text-muted)' }}><strong>Calculator literacy:</strong> Estimate first, then unlock the calculator.</p>
               <input type="number" step="any" aria-label="Estimate" value={estimate} onChange={(event) => setEstimate(event.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' }} />
               <button type="submit" style={{ width: '100%', padding: '8px', background: '#137333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Unlock Calculator</button>
@@ -558,14 +558,14 @@ export const CalculatorPanel = ({
                 aria-label="Calculator expression"
                 math-virtual-keyboard-policy="manual"
                 inputmode="none"
-                style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: 'var(--mm-surface-control)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--mm-border)', textAlign: 'right', fontSize: '24px', marginBottom: '12px' }}
+                style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: 'var(--mm-surface-control)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--mm-border)', textAlign: 'right', fontSize: 'calc(24 * var(--mm-px))', marginBottom: '12px' }}
               />
               {exactResult && exactResult.decimal === display ? (
-                <p data-calculator-exact="" role="status" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-text)', fontSize: '15px', fontWeight: 700 }}>
+                <p data-calculator-exact="" role="status" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
                   Exact: {exactResult.fraction}
                 </p>
               ) : null}
-              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: '11px' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
+              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (
                   <button
@@ -575,7 +575,7 @@ export const CalculatorPanel = ({
                     style={{
                       padding: '10px 5px',
                       minHeight: '42px',
-                      fontSize: button.label.length > 3 ? '12px' : '15px',
+                      fontSize: button.label.length > 3 ? 'calc(12 * var(--mm-px))' : 'calc(15 * var(--mm-px))',
                       fontWeight: 'bold',
                       borderRadius: '6px',
                       border: '1px solid var(--mm-border)',

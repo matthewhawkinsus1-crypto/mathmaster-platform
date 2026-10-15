@@ -115,12 +115,10 @@ test('2b: typed bridge functions and line-shaped ones compile exactly as before'
   assert.deepEqual(compileOne(bridgeIntent({ m: 2, b: 1 })).function, { type: 'linear', a: 2, h: 0, k: 1 });
 });
 
-// Review follow-up. The bridge can only grade a base that is positive and ≠ 1,
-// and it never reads `b`. A typeless {a, b: 0} now compiles to base 0, which
-// the grader leaves ungraded; a typed exponential written with b grades base
-// 2. Grading is unchanged in both cases (so the second test pins the
-// ungraded verdict), but the import must warn the teacher instead of
-// leaving them to find out at grade time.
+// Review follow-up. The bridge can only grade a base that is positive and ≠ 1.
+// A typeless {a, b: 0} compiles to base 0, which the grader leaves ungraded
+// (the first test pins that verdict), but the import must warn the teacher
+// instead of leaving them to find out at grade time.
 const compileWarningsOf = (question) => compileAuthoringIntentV5(payloadOf([question])).warnings;
 const importWarningsOf = (question) => parseAssignmentBlueprintText(JSON.stringify(payloadOf([question]))).warnings;
 const bridgeInverse = (fn) => ({ ...bridgeIntent(fn), mode: 'inverse' });
@@ -135,9 +133,18 @@ test('2b review: a bridge function whose base is 0, 1 or negative warns at compi
   assert.equal(graded.graded, false, 'an invalid base stays ungraded rather than grading another function');
 });
 
-test('2b review: a typed exponential written with b warns that the bridge grades base 2', () => {
-  const warnings = compileWarningsOf(bridgeIntent({ type: 'exponential', a: 3, b: 5 }));
-  assert.equal(warnings.filter((w) => /has b = 5 but no base; the bridge grades it with base 2/.test(w)).length, 1);
+// Job P, item 7: one meaning for `b`. A typed exponential written with b and
+// no base used to compile with b beside a default base 2 (this test pinned the
+// warning that said so). b is now the base everywhere — compiler, grader,
+// review — as every bank prompt writes a·b^x.
+test('2b review → Job P: a typed exponential written with b compiles and grades with b as its base', () => {
+  const compiled = compileOne(bridgeIntent({ type: 'exponential', a: 3, b: 5, h: 1, k: 4 }));
+  assert.deepEqual(compiled.function, { type: 'exponential', a: 3, base: 5, h: 1, k: 4 });
+  assert.equal(gradeComposition(compiled, '1', '19').isCorrect, true, '3·5^(x − 1) + 4 at x = 2 is 19');
+  assert.equal(gradeComposition(compiled, '1', '10').isCorrect, false, 'the base-2 value must be wrong');
+  assert.deepEqual(compileWarningsOf(bridgeIntent({ type: 'exponential', a: 3, b: 5 })).filter((w) => /exponentialLogBridge/.test(w)), []);
+  // A typed b that is not a base still warns, as base does.
+  assert.equal(compileWarningsOf(bridgeInverse({ type: 'exponential', a: 2, b: 1 })).filter((w) => /must be positive and not 1/.test(w)).length, 1);
 });
 
 test('2b review: valid bridge functions compile with no base warning', () => {

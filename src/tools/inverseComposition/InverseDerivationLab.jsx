@@ -147,7 +147,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
 
       <ToolGrid min={360}>
         <Panel title="1 · Start with the function">
-          <div style={{ padding: 14, borderRadius: 10, background: 'var(--mm-primary-subtle)', fontWeight: 900, fontSize: 20 }}>
+          <div style={{ padding: 14, borderRadius: 10, background: 'var(--mm-primary-subtle)', fontWeight: 900, fontSize: 'calc(20 * var(--mm-px))' }}>
             {functionLabel(f, 'f')}
           </div>
           <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
@@ -165,12 +165,12 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
 
         <Panel title="2 · Balanced algebra workspace">
           <div style={{ padding: 16, borderRadius: 10, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', textAlign: 'center' }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--mm-text-muted)', fontWeight: 800 }}>Current equation</div>
-            <div style={{ marginTop: 7, fontSize: 25, fontWeight: 900 }}>{currentRelation}</div>
+            <div style={{ fontSize: 'calc(12 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--mm-text-muted)', fontWeight: 800 }}>Current equation</div>
+            <div style={{ marginTop: 7, fontSize: 'calc(25 * var(--mm-px))', fontWeight: 900 }}>{currentRelation}</div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
-            <label style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
+            <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
               Operation on both sides
               <select value={operation} onChange={(event) => setOperation(event.target.value)} disabled={!swapped || solved} style={{ ...inputStyle, marginTop: 5 }}>
                 <option value="add">Add</option>
@@ -179,7 +179,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
                 <option value="divide">Divide by</option>
               </select>
             </label>
-            <label style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
+            <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
               Number
               <input
                 type="number"
@@ -228,7 +228,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
           {solved ? (
             <>
               <ResultPill stageCheck ok>y isolated</ResultPill>
-              <div style={{ marginTop: 12, padding: 15, borderRadius: 10, background: 'var(--mm-success-bg)', fontSize: 22, fontWeight: 900 }}>
+              <div style={{ marginTop: 12, padding: 15, borderRadius: 10, background: 'var(--mm-success-bg)', fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900 }}>
                 f⁻¹(x) = {inverseExpression(derivation)}
               </div>
               <div style={{ marginTop: 12, padding: 12, borderRadius: 9, background: 'var(--mm-warning-bg)', lineHeight: 1.5 }}>

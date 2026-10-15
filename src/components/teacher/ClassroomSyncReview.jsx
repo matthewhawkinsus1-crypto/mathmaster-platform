@@ -58,8 +58,8 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
         <header style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--mm-border-soft)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: 19 }}>Weekly Path grades · week of {proposal.weekKey}</h2>
-              <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>
+              <h2 style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))' }}>Weekly Path grades · week of {proposal.weekKey}</h2>
+              <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
                 {proposal.grades.length} student{proposal.grades.length === 1 ? '' : 's'} · {proposal.policy.description}
               </p>
             </div>
@@ -73,7 +73,7 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
             </button>
           </div>
 
-          <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
             <strong>Nothing has been sent.</strong> These grades stay in MathMaster until you publish them through
             your existing Google Classroom publication flow, which is where your linked courses, your permissions
             and the audit record live. This screen exists so you can see the exact numbers first.
@@ -81,7 +81,7 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
         </header>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
             <thead>
               <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>
                 <th style={{ padding: '10px 22px' }}>Student</th>
@@ -113,7 +113,7 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
           >
             Download these grades
           </button>
-          <span style={{ color: 'var(--mm-text-muted)', fontSize: 12, flex: 1, minWidth: 200 }}>
+          <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', flex: 1, minWidth: 200 }}>
             Includes the grading policy, so the numbers can be explained later.
           </span>
         </footer>

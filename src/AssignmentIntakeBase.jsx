@@ -27,7 +27,7 @@ const card = {
 const primaryButton = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
   minHeight: 46, padding: '0 20px', border: 0, borderRadius: 10,
-  background: '#1a73e8', color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer',
+  background: '#1a73e8', color: '#fff', fontWeight: 800, fontSize: 'calc(15 * var(--mm-px))', cursor: 'pointer',
 };
 
 const secondaryButton = {
@@ -40,7 +40,7 @@ const fieldLabel = {
   gap: 6,
   color: 'var(--mm-text)',
   fontWeight: 800,
-  fontSize: 13,
+  fontSize: 'calc(13 * var(--mm-px))',
 };
 
 const inputStyle = {
@@ -52,14 +52,14 @@ const inputStyle = {
   padding: '9px 11px',
   background: 'var(--mm-surface)',
   color: 'var(--mm-text-strong)',
-  fontSize: 14,
+  fontSize: 'calc(14 * var(--mm-px))',
 };
 
 const stepBadge = (number) => (
   <span style={{
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     width: 28, height: 28, borderRadius: 999, background: '#1a73e8', color: '#fff',
-    fontWeight: 900, fontSize: 13, flexShrink: 0,
+    fontWeight: 900, fontSize: 'calc(13 * var(--mm-px))', flexShrink: 0,
   }}>{number}</span>
 );
 
@@ -317,11 +317,11 @@ export default function AssignmentIntake({
           <div key={step.number} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', padding: '8px 9px' }}>
             <span style={{
               display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 999,
-              background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 12, flexShrink: 0,
+              background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 'calc(12 * var(--mm-px))', flexShrink: 0,
             }}>{step.number}</span>
             <span style={{ minWidth: 0 }}>
-              <strong style={{ display: 'block', color: 'var(--mm-text-strong)', fontSize: 13 }}>{step.label}</strong>
-              <span style={{ display: 'block', color: 'var(--mm-text-subtle)', fontSize: 11.5, lineHeight: 1.35 }}>{step.detail}</span>
+              <strong style={{ display: 'block', color: 'var(--mm-text-strong)', fontSize: 'calc(13 * var(--mm-px))' }}>{step.label}</strong>
+              <span style={{ display: 'block', color: 'var(--mm-text-subtle)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.35 }}>{step.detail}</span>
             </span>
           </div>
         ))}
@@ -331,13 +331,13 @@ export default function AssignmentIntake({
           {stepBadge(1)}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-              <h3 style={{ margin: 0, fontSize: 19, color: 'var(--mm-text-strong)' }}>1. Lesson and purpose</h3>
+              <h3 style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>1. Lesson and purpose</h3>
               <span style={{
                 border: '1px solid var(--mm-primary-border)', borderRadius: 999, padding: '4px 9px',
-                color: 'var(--mm-primary-text)', background: 'var(--mm-surface)', fontSize: 11, fontWeight: 900,
+                color: 'var(--mm-primary-text)', background: 'var(--mm-surface)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900,
               }}>NO CODE REQUIRED</span>
             </div>
-            <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', lineHeight: 1.55, fontSize: 14 }}>
+            <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', lineHeight: 1.55, fontSize: 'calc(14 * var(--mm-px))' }}>
               Choose the instructional structure here. MathMaster turns these choices into one complete AI build request,
               including the current standards, interaction rules, CCMR fidelity requirements, and printable-output rules.
             </p>
@@ -412,7 +412,7 @@ export default function AssignmentIntake({
             </label>
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 14, marginBottom: 8 }}>2. Sections, student versions, and rigor</div>
+              <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))', marginBottom: 8 }}>2. Sections, student versions, and rigor</div>
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%, 230px),1fr))',
@@ -435,7 +435,7 @@ export default function AssignmentIntake({
                 <div style={{
                   minHeight: 44, boxSizing: 'border-box', padding: '9px 11px',
                   border: '1px solid var(--mm-tint-border)', borderRadius: 9, background: 'var(--mm-surface-sunken)',
-                  color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.45,
+                  color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45,
                 }}>
                   {CREATOR_RIGOR_PRESETS[creatorPlan.rigorPreset]?.summary}
                 </div>
@@ -463,7 +463,7 @@ export default function AssignmentIntake({
                         {section.label}
                       </label>
                       <div style={{ display: 'grid', gridTemplateColumns: '82px 1fr', gap: 8 }}>
-                        <label style={{ ...fieldLabel, fontSize: 11 }}>
+                        <label style={{ ...fieldLabel, fontSize: 'calc(11 * var(--mm-px))' }}>
                           Questions
                           <input
                             type="number"
@@ -475,7 +475,7 @@ export default function AssignmentIntake({
                             style={{ ...inputStyle, minHeight: 40 }}
                           />
                         </label>
-                        <label style={{ ...fieldLabel, fontSize: 11 }}>
+                        <label style={{ ...fieldLabel, fontSize: 'calc(11 * var(--mm-px))' }}>
                           Student version
                           <select
                             value={section.mode}
@@ -493,13 +493,13 @@ export default function AssignmentIntake({
                   );
                 })}
               </div>
-              <p style={{ margin: '8px 0 0', color: 'var(--mm-text-subtle)', fontSize: 12, lineHeight: 1.5 }}>
+              <p style={{ margin: '8px 0 0', color: 'var(--mm-text-subtle)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
                 Same problem is best when the class needs one common example. Same task, different numbers discourages copying without changing rigor.
                 Adaptive may adjust difficulty/reasoning only inside the assigned standard and role-based limits.
               </p>
             </div>
 
-            <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 14, margin: '2px 0 8px' }}>
+            <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))', margin: '2px 0 8px' }}>
               3. Supports, Honors, and outputs
             </div>
             <div style={{
@@ -510,11 +510,11 @@ export default function AssignmentIntake({
             }}>
               <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 11, padding: 12 }}>
                 <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', marginBottom: 5 }}>Assignment outputs</div>
-                <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12, lineHeight: 1.45, marginBottom: 10 }}>
+                <div style={{ color: 'var(--mm-text-subtle)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45, marginBottom: 10 }}>
                   Optional — PDFs are off by default so a digital assignment can be saved to the Library immediately.
                   Turn on only the copies you want; any PDF can also be enabled later from Assignment Setup.
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 13, marginBottom: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 8 }}>
                   <input
                     type="checkbox"
                     checked={creatorPlan.outputs.studentWorksheetPdf}
@@ -522,7 +522,7 @@ export default function AssignmentIntake({
                   />
                   Printable student worksheet PDF
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 13, marginBottom: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 8 }}>
                   <input
                     type="checkbox"
                     checked={creatorPlan.outputs.teacherWorksheetPdf}
@@ -530,7 +530,7 @@ export default function AssignmentIntake({
                   />
                   Teacher copy PDF with answers/available solutions
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 13, marginBottom: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 8 }}>
                   <input
                     type="checkbox"
                     checked={creatorPlan.outputs.answerKeyPdf}
@@ -538,7 +538,7 @@ export default function AssignmentIntake({
                   />
                   Compact answer-key PDF
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 13 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
                   <input
                     type="checkbox"
                     checked={creatorPlan.outputs.lessonNotesPdf}
@@ -550,7 +550,7 @@ export default function AssignmentIntake({
 
               <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 11, padding: 12, background: 'var(--mm-surface-tint)' }}>
                 <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)', marginBottom: 5 }}>Student support plans · automatic</div>
-                <div style={{ color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
+                <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
                   MathMaster applies each student&apos;s authorized IEP/504/EB access supports at delivery.
                   Accommodations are not stored in this assignment and do not change the assessed standard.
                   Modified curriculum is handled through its separate reporting path.
@@ -559,7 +559,7 @@ export default function AssignmentIntake({
 
               <div style={{ border: '1px solid var(--mm-border)', borderRadius: 11, padding: 12, background: 'var(--mm-surface-sunken)' }}>
                 <div style={{ fontWeight: 900, color: 'var(--mm-success-text)', marginBottom: 5 }}>Honors + CCMR</div>
-                <div style={{ color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.5 }}>
+                <div style={{ color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
                   No Honors checkbox is needed here. Honors is inherited from the destination class in Preflight.
                   Honors-ready Practice keeps course TEKS, adds depth/transfer, and preserves the recent authentic CCMR target of about 15%.
                 </div>
@@ -595,10 +595,10 @@ export default function AssignmentIntake({
                 📋 Copy Complete AI Build Request
               </button>
               <details>
-                <summary style={{ cursor: 'pointer', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13 }}>
+                <summary style={{ cursor: 'pointer', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>
                   Advanced
                 </summary>
-                <button type="button" onClick={handleCopyContract} style={{ ...secondaryButton, marginTop: 8, minHeight: 38, fontSize: 13 }}>
+                <button type="button" onClick={handleCopyContract} style={{ ...secondaryButton, marginTop: 8, minHeight: 38, fontSize: 'calc(13 * var(--mm-px))' }}>
                   Copy technical authoring contract
                 </button>
               </details>
@@ -611,8 +611,8 @@ export default function AssignmentIntake({
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           {stepBadge(4)}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18, color: 'var(--mm-text-strong)' }}>4. Review the AI result in MathMaster</h3>
-            <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.55, fontSize: 14 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>4. Review the AI result in MathMaster</h3>
+            <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.55, fontSize: 'calc(14 * var(--mm-px))' }}>
               “Build Assignment in MathMaster” sends your plan through the protected server AI when it is configured.
               You can also paste or upload a finished assignment from ChatGPT, Claude, or Gemini.
               Either route goes through the same MathMaster checks for standards, grading, mobile inputs, supports, adaptive rigor, CCMR fidelity, and PDF renderability before Assignment Review.
@@ -646,7 +646,7 @@ export default function AssignmentIntake({
                 onChange={(event) => { handleFile(event.target.files?.[0]); event.target.value = ''; }}
                 style={{ display: 'none' }}
               />
-              <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>or drag a .json file here</span>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>or drag a .json file here</span>
             </div>
           </div>
         </div>
@@ -659,12 +659,12 @@ export default function AssignmentIntake({
             : { ...card, borderColor: 'var(--mm-error-border-soft)', background: 'var(--mm-error-subtle)' }}
           role="alert"
         >
-          <h3 style={{ margin: '0 0 6px', fontSize: 16, color: failure.salvaged ? 'var(--mm-warning-text)' : 'var(--mm-error-text)' }}>
+          <h3 style={{ margin: '0 0 6px', fontSize: 'calc(16 * var(--mm-px))', color: failure.salvaged ? 'var(--mm-warning-text)' : 'var(--mm-error-text)' }}>
             {failure.salvaged
               ? `Saved for repair${failure.sourceName ? ` — ${failure.sourceName}` : ''}`
               : `This assignment needs attention${failure.sourceName ? ` — ${failure.sourceName}` : ''}`}
           </h3>
-          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
+          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
             {failure.salvaged
               ? 'Nothing was discarded. This assignment was saved to Incomplete Assignments and its Repair Center is open below. These questions are what still block publication; the rest of the assignment is already fine.'
               : failure.compilerDefect
@@ -673,15 +673,15 @@ export default function AssignmentIntake({
                   ? 'MathMaster owns renderer plumbing. The remaining issue should be a genuine mathematical/content omission or a malformed assignment field.'
                   : 'This file uses an older unsupported assignment format. Recreate the assignment with the creator above.'}
           </p>
-          <ul style={{ margin: '0 0 14px', paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6, fontSize: 13 }}>
+          <ul style={{ margin: '0 0 14px', paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6, fontSize: 'calc(13 * var(--mm-px))' }}>
             {failure.errors.map((error, index) => <li key={index}>{error}</li>)}
           </ul>
           {failure.warnings.length > 0 && (
             <details style={{ marginBottom: 14 }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--mm-warning-text)', fontSize: 13 }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
                 {failure.warnings.length} warning{failure.warnings.length === 1 ? '' : 's'}
               </summary>
-              <ul style={{ margin: '8px 0 0', paddingLeft: 20, color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 }}>
+              <ul style={{ margin: '8px 0 0', paddingLeft: 20, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>
                 {failure.warnings.map((warning, index) => <li key={index}>{warning}</li>)}
               </ul>
             </details>

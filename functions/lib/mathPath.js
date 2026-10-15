@@ -546,6 +546,15 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
   };
 }
 
+// A Digital SAT item's number box follows the SAT's own decimal rules
+// (answerEquivalence sameDigitalSatStudentProducedResponse). Decided from
+// the item at issue time and stored with its private grading.
+function digitalSatNumberField(question, field) {
+  const framework = String(question?.assessmentContext?.framework || '').trim();
+  const profile = String(field?.inputProfile || '').trim().toLowerCase();
+  return framework === 'digitalSAT' && (profile === 'number' || profile === 'numeric');
+}
+
 function privateGradingDefinition(question) {
   const explicit = question.grading && typeof question.grading === 'object' ? question.grading : {};
   const fields = (Array.isArray(question.responseFields) ? question.responseFields : []).map((field, index) => {
@@ -579,6 +588,7 @@ function privateGradingDefinition(question) {
         ? String(field.equivalence)
         : [field?.inputProfile, field?.toolProfile, field?.answerFormat, field?.notation]
           .some((value) => String(value || '').toLowerCase() === 'interval') ? 'interval' : null,
+      ...(digitalSatNumberField(question, field) ? { numberRules: 'digitalSAT' } : {}),
     };
   });
   return { ...explicit, fields };
@@ -654,6 +664,11 @@ async function valuesEquivalent(actual, field) {
       return left === right;
     }
     const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
+    // Job P: a Digital SAT student-produced response also takes the decimal
+    // the SAT itself accepts (truncated or rounded to fill the space).
+    if (field.numberRules === 'digitalSAT' && equivalence.sameDigitalSatStudentProducedResponse(actual, expected)) {
+      return true;
+    }
     if (field.equivalence === 'interval') {
       return equivalence.sameIntervalNotation(actual, expected, tolerance);
     }

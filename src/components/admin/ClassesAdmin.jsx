@@ -16,12 +16,12 @@ import StudentControlsMigrationCard from './StudentControlsMigrationCard.jsx';
 // directly, so what is rendered here is what the server agreed to.
 
 const card = { border: '1px solid var(--mm-border)', borderRadius: 12, padding: '20px 22px', marginBottom: 20, textAlign: 'left', background: 'var(--mm-surface)' };
-const input = { minHeight: 42, padding: '0 12px', border: '1px solid var(--mm-border)', borderRadius: 8, fontSize: 15, minWidth: 0, boxSizing: 'border-box' };
+const input = { minHeight: 42, padding: '0 12px', border: '1px solid var(--mm-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))', minWidth: 0, boxSizing: 'border-box' };
 const primary = { minHeight: 42, padding: '0 16px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
 const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 700, cursor: 'pointer' };
 const danger = { ...quiet, color: 'var(--mm-danger)', borderColor: 'var(--mm-error-border-soft)' };
-const pill = (background, color) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background, color, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.04em' });
-const field = { fontSize: 11, fontWeight: 900, color: 'var(--mm-text-muted)', display: 'block' };
+const pill = (background, color) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background, color, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.04em' });
+const field = { fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', display: 'block' };
 
 const EMPTY_CLASS = { classId: '', name: '', course: 'algebra1', courseLevel: 'standard', period: 'Period 1', teacherOfRecord: '' };
 
@@ -155,7 +155,7 @@ export default function ClassesAdmin() {
 
         {migration && (
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(0,0,0,.12)' }}>
-            <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
               <tbody>
                 {[
                   ['Students scanned', migration.studentsScanned],
@@ -181,7 +181,7 @@ export default function ClassesAdmin() {
                 : 'Do NOT deploy the scoped grades rule yet — these students would become invisible to every teacher:'}
             </p>
             {!migration.readyForScopedRule && (
-              <ul style={{ margin: '8px 0 0', color: 'var(--mm-error-text)', fontSize: 13, lineHeight: 1.6 }}>
+              <ul style={{ margin: '8px 0 0', color: 'var(--mm-error-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>
                 {(migration.activeStudentsMissingTeacherAfterMigration || []).slice(0, 25).map((studentId) => (
                   <li key={studentId}>
                     {reportStudentLabel(studentId)} — {(migration.unresolvedStudents || []).find((entry) => entry.studentId === studentId)?.reason?.replace(/_/g, ' ') || 'no teacher of record'}
@@ -193,7 +193,7 @@ export default function ClassesAdmin() {
             {(migration.conflicts || []).length > 0 && (
               <details style={{ marginTop: 12 }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-warning-text)' }}>{migration.conflicts.length} conflicting record{migration.conflicts.length === 1 ? '' : 's'}</summary>
-                <ul style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.6, color: 'var(--mm-text)' }}>
+                <ul style={{ margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6, color: 'var(--mm-text)' }}>
                   {migration.conflicts.slice(0, 25).map((conflict, index) => (
                     <li key={`${conflict.studentId}-${index}`}>{reportStudentLabel(conflict.studentId)} — {conflict.reason.replace(/_/g, ' ')}</li>
                   ))}
@@ -230,7 +230,7 @@ export default function ClassesAdmin() {
           </button>
         </div>
         {backfill && (
-          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)', fontSize: 13, lineHeight: 1.7 }}>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.7 }}>
             <div>Students scanned: <strong>{backfill.studentsScanned}</strong></div>
             <div>Records scanned: <strong>{backfill.recordsScanned}</strong></div>
             <div>Records {backfill.dryRun ? 'that need updating' : 'updated'}: <strong>{backfill.recordsUpdated}</strong></div>
@@ -273,7 +273,7 @@ export default function ClassesAdmin() {
           </button>
         </div>
         {privacy && (
-          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)', fontSize: 13, lineHeight: 1.7 }}>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.7 }}>
             <div>Assignments scanned: <strong>{privacy.assignmentsScanned}</strong></div>
             <div>Extensions {privacy.dryRun ? 'to move' : 'moved'}: <strong>{privacy.extensionsMinimized}</strong></div>
             <div>Already private: <strong>{privacy.extensionsAlreadyMinimal}</strong></div>
@@ -318,7 +318,7 @@ export default function ClassesAdmin() {
       {/* --- Create / edit a class ------------------------------------------- */}
       <section style={card}>
         <h3 style={{ margin: '0 0 4px' }}>{draft.classId ? 'Edit class' : 'Create a class'}</h3>
-        <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
           The class decides the course and rigor its students learn under, and the teacher who sees them. Two teachers may
           each have a third-period class — the period is a schedule label, not the class's identity.
         </p>
@@ -354,7 +354,7 @@ export default function ClassesAdmin() {
             {busy === 'save-class' ? 'Saving…' : draft.classId ? 'Save changes' : 'Create class'}
           </button>
           {draft.classId && <button type="button" style={quiet} onClick={() => setDraft(EMPTY_CLASS)}>Cancel</button>}
-          {!teachers.length && <span style={{ alignSelf: 'center', color: 'var(--mm-warning-text)', fontSize: 13 }}>Add a teacher under Sign-in access before assigning one.</span>}
+          {!teachers.length && <span style={{ alignSelf: 'center', color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Add a teacher under Sign-in access before assigning one.</span>}
         </div>
       </section>
 
@@ -363,7 +363,7 @@ export default function ClassesAdmin() {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
           <h3 style={{ margin: 0 }}>Classes</h3>
           <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 13, color: 'var(--mm-text)', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <label style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', display: 'flex', gap: 6, alignItems: 'center' }}>
               <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
               Show archived
             </label>
@@ -382,8 +382,8 @@ export default function ClassesAdmin() {
               <div key={entry.classId} style={{ padding: '13px 15px', border: `1px solid ${selectedClassId === entry.classId ? '#1a73e8' : 'var(--mm-border-soft)'}`, borderRadius: 10, background: archived ? 'var(--mm-surface-sunken)' : 'var(--mm-surface)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                   <div style={{ minWidth: 0 }}>
-                    <strong style={{ fontSize: 16 }}>{entry.name}</strong>
-                    <div style={{ color: 'var(--mm-text-muted)', fontSize: 13, marginTop: 3 }}>
+                    <strong style={{ fontSize: 'calc(16 * var(--mm-px))' }}>{entry.name}</strong>
+                    <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: 3 }}>
                       {courseLabel(entry.course)} · {courseLevelLabel(entry.courseLevel)} · {entry.period} ·{' '}
                       {entry.teacherOfRecord || <span style={{ color: 'var(--mm-error-text)' }}>no teacher of record</span>} · {count} student{count === 1 ? '' : 's'}
                     </div>
@@ -404,8 +404,8 @@ export default function ClassesAdmin() {
 
                 {selectedClassId === entry.classId && (
                   <div style={{ marginTop: 14, paddingTop: 13, borderTop: '1px solid var(--mm-border-soft)' }}>
-                    <h4 style={{ margin: '0 0 9px', fontSize: 14 }}>Roster · {entry.name}</h4>
-                    {roster.length === 0 && <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>No students in this class yet. Add one from the unassigned list below, or move one from another class.</p>}
+                    <h4 style={{ margin: '0 0 9px', fontSize: 'calc(14 * var(--mm-px))' }}>Roster · {entry.name}</h4>
+                    {roster.length === 0 && <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>No students in this class yet. Add one from the unassigned list below, or move one from another class.</p>}
                     <div style={{ display: 'grid', gap: 7 }}>
                       {roster.map((student) => (
                         <StudentRow
@@ -433,7 +433,7 @@ export default function ClassesAdmin() {
       {/* --- Students nobody has placed --------------------------------------- */}
       <section style={card}>
         <h3 style={{ margin: '0 0 4px' }}>Students without a class{unassigned.length ? ` (${unassigned.length})` : ''}</h3>
-        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
           A student with no class receives no assignments and has no course, so My Math Path cannot tell whether they are an
           Algebra I or Algebra II learner. These need resolving.
         </p>
@@ -459,19 +459,19 @@ export default function ClassesAdmin() {
       {/* What each removal actually costs, stated once rather than in a dialog
           nobody reads. */}
       <section style={{ ...card, background: 'var(--mm-surface-sunken)' }}>
-        <h3 style={{ margin: '0 0 10px', fontSize: 15 }}>What each removal means</h3>
+        <h3 style={{ margin: '0 0 10px', fontSize: 'calc(15 * var(--mm-px))' }}>What each removal means</h3>
         <div style={{ display: 'grid', gap: 9 }}>
           {removalKinds.map((kind) => (
             <div key={kind.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
               <strong style={{ minWidth: 150 }}>{kind.label}</strong>
-              <span style={{ color: 'var(--mm-text)', fontSize: 13, flex: '1 1 320px', lineHeight: 1.5 }}>{kind.summary}</span>
+              <span style={{ color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', flex: '1 1 320px', lineHeight: 1.5 }}>{kind.summary}</span>
               {kind.destroysHistory
                 ? <span style={pill('var(--mm-error-bg)', 'var(--mm-error-text)')}>Cannot be undone</span>
                 : <span style={pill('var(--mm-success-bg)', 'var(--mm-success-text)')}>Reversible</span>}
             </div>
           ))}
         </div>
-        <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>
+        <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
           Permanent deletion lives with the student account under Sign-in access, and asks for the student ID to be typed.
         </p>
       </section>
@@ -487,14 +487,14 @@ function StudentRow({ student, classes, busy, onMove, onRemove, onSetActive, con
   return (
     <div data-student-row={student.studentId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', padding: '10px 12px', border: '1px solid var(--mm-border-soft)', borderRadius: 9, background: disabled ? 'var(--mm-surface-sunken)' : 'var(--mm-surface)' }}>
       <div style={{ minWidth: 0 }}>
-        <strong>{formatStudentName(student)}</strong><span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}> · ID {student.studentId}</span>
+        <strong>{formatStudentName(student)}</strong><span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}> · ID {student.studentId}</span>
         {disabled && <span style={{ ...pill('var(--mm-surface-control)', 'var(--mm-text)'), marginLeft: 8 }}>Deactivated</span>}
-        <div style={{ color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 2 }}>{student.classPeriod}{student.assignedTeacherEmail ? ` · ${student.assignedTeacherEmail}` : ''}</div>
+        <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', marginTop: 2 }}>{student.classPeriod}{student.assignedTeacherEmail ? ` · ${student.assignedTeacherEmail}` : ''}</div>
       </div>
       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-        <label style={{ ...field, fontSize: 10 }}>MOVE TO
+        <label style={{ ...field, fontSize: 'calc(10 * var(--mm-px))' }}>MOVE TO
           <select
-            style={{ ...input, minHeight: 34, fontSize: 12, marginTop: 3, display: 'block', minWidth: 190 }}
+            style={{ ...input, minHeight: 34, fontSize: 'calc(12 * var(--mm-px))', marginTop: 3, display: 'block', minWidth: 190 }}
             value={student.classId || ''}
             disabled={moving}
             onChange={(event) => event.target.value && onMove(event.target.value)}

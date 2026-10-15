@@ -263,7 +263,17 @@ const toolFunctionSpec = (raw = {}) => {
 // taking an a·b^x author's b as the intercept), so the bridge graded a
 // different function from the prompt. A typed spec, or one written with a
 // line's m / slope / intercept, compiles exactly as before.
+//
+// A typed exponential written with `b` and no `base` keeps that b as its base
+// (Job P): the prompts write a·b^x, and the grader, the review and the graph
+// engine all read b that way. It used to compile with b left beside a
+// default base 2, and the bridge graded base 2.
 const exponentialLogFunctionSpec = (raw = {}) => {
+  const typedExponential = isObject(raw) && clean(raw.type || raw.family) === 'exponential';
+  if (typedExponential && raw.base == null && raw.b != null) {
+    const { b, ...rest } = raw;
+    return coreFunctionSpec({ ...rest, base: b });
+  }
   if (!hasFunctionIntent(raw) || raw.type || raw.family || ['m', 'slope', 'intercept'].some((key) => raw[key] != null)) {
     return toolFunctionSpec(raw);
   }
@@ -271,22 +281,18 @@ const exponentialLogFunctionSpec = (raw = {}) => {
   return coreFunctionSpec({ ...raw, type: 'exponential', base, b: raw.base == null ? undefined : raw.b });
 };
 
-// The bridge grades its function with `base` (default 2) and never reads `b`.
-// A base that is not positive and ≠ 1 leaves every attempt ungraded, and a
-// typed exponential written with `b` grades base 2, not the b the prompt
-// shows. Neither changes how the question compiles or grades; the warning
-// tells the teacher at import instead of at grade time. A non-numeric value
-// (a template token) is left to the family instance to fill.
+// The bridge grades its function with `base` (or `b` when base is not given;
+// default 2). A base that is not positive and ≠ 1 leaves every attempt
+// ungraded. That does not change how the question compiles or grades; the
+// warning tells the teacher at import instead of at grade time. A non-numeric
+// value (a template token) is left to the family instance to fill.
 const exponentialLogFunctionWarnings = (question = {}, label = 'question') => {
   const fn = question.type === 'exponentialLogBridge' && isObject(question.function) ? question.function : null;
   if (!fn || fn.type !== 'exponential') return [];
   const warnings = [];
-  const base = fn.base ?? 2;
+  const base = fn.base ?? fn.b ?? 2;
   if (Number.isFinite(Number(base)) && !isValidLogBase(base)) {
     warnings.push(`${label}: exponentialLogBridge function base ${base} must be positive and not 1; the bridge cannot grade this question.`);
-  }
-  if (fn.base == null && fn.b != null) {
-    warnings.push(`${label}: exponentialLogBridge function has b = ${fn.b} but no base; the bridge grades it with base 2. Write the base as \`base\`.`);
   }
   return warnings;
 };

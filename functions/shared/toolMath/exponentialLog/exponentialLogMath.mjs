@@ -34,10 +34,15 @@ export const solveLogLinearArgument = ({ base = 2, m = 1, c = 0, result = 0 } = 
   return { x, argumentValue, domainSatisfied: M * x + C > 0 };
 };
 
+// `b` is the base when `base` is not given (Job P): f(x) = a·b^(x − h) + k,
+// the a·b^x every exponential prompt in the banks writes, the meaning the
+// graph engine (functionGraphUtils) and the V5 compiler give it. A function
+// written {type: 'exponential', a: 3, b: 5} used to be drawn and graded as
+// base 2 while its prompt said 5.
 export const normalizeExponentialSpec = (spec = {}) => {
   const normalized = {
     a: Number(spec.a ?? 1),
-    base: Number(spec.base ?? 2),
+    base: Number(spec.base ?? spec.b ?? 2),
     h: Number(spec.h ?? 0),
     k: Number(spec.k ?? 0),
   };

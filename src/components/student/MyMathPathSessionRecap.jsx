@@ -38,7 +38,7 @@ const ANSWER_BOX = {
 
 const LABEL = {
   display: 'block',
-  fontSize: 11,
+  fontSize: 'calc(11 * var(--mm-px))',
   fontWeight: 950,
   letterSpacing: '.06em',
   textTransform: 'uppercase',
@@ -54,10 +54,10 @@ export const RecapValue = ({ entry }) => {
 };
 
 const AnswerList = ({ entries }) => (
-  <div style={{ display: 'grid', gap: 4, fontSize: 15.5, lineHeight: 1.5, color: 'var(--mm-text-strong)' }}>
+  <div style={{ display: 'grid', gap: 4, fontSize: 'calc(15.5 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-strong)' }}>
     {entries.map((entry, index) => (
       <div key={`${entry.label}-${index}`}>
-        {entries.length > 1 && <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}><MathText>{entry.label}</MathText>: </span>}
+        {entries.length > 1 && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}><MathText>{entry.label}</MathText>: </span>}
         <RecapValue entry={entry} />
       </div>
     ))}
@@ -80,12 +80,12 @@ function RecapItem({ item }) {
     <li style={{ listStyle: 'none', minWidth: 0 }}>
       <article style={ITEM} aria-label={item.questionNumber ? `Question ${item.questionNumber} review` : 'Question review'}>
         <header style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 10px', alignItems: 'center', marginBottom: 10 }}>
-          <strong style={{ color: 'var(--mm-text-strong)', fontSize: 15 }}>
+          <strong style={{ color: 'var(--mm-text-strong)', fontSize: 'calc(15 * var(--mm-px))' }}>
             {item.questionNumber ? `Question ${item.questionNumber}` : 'Question'}
           </strong>
-          {skill && <span style={{ color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 700 }}>{skill}</span>}
+          {skill && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>{skill}</span>}
           <span style={{
-            padding: '3px 9px', borderRadius: 999, fontSize: 11.5, fontWeight: 900,
+            padding: '3px 9px', borderRadius: 999, fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 900,
             background: partial ? 'var(--mm-warning-soft)' : 'var(--mm-surface-control)',
             color: partial ? 'var(--mm-warning-text)' : 'var(--mm-text)',
           }}>
@@ -94,13 +94,13 @@ function RecapItem({ item }) {
         </header>
 
         {item.question?.scenario && (
-          <MathText as="p" style={{ margin: '0 0 10px', color: 'var(--mm-text)', fontSize: 14.5, lineHeight: 1.6 }}>
+          <MathText as="p" style={{ margin: '0 0 10px', color: 'var(--mm-text)', fontSize: 'calc(14.5 * var(--mm-px))', lineHeight: 1.6 }}>
             {item.question.scenario}
           </MathText>
         )}
         {item.question?.prompt && <QuestionPrompt variant="task">{item.question.prompt}</QuestionPrompt>}
         {item.question?.formulaLatex && (
-          <MathText as="div" style={{ margin: '0 0 12px', fontSize: 18, textAlign: 'center' }}>
+          <MathText as="div" style={{ margin: '0 0 12px', fontSize: 'calc(18 * var(--mm-px))', textAlign: 'center' }}>
             {`$${item.question.formulaLatex}$`}
           </MathText>
         )}
@@ -108,7 +108,7 @@ function RecapItem({ item }) {
             description (features, data table), not the answerable-item one. */}
         <PathQuestionStimulus stimulus={item.question?.stimulus || null} describeFeatures />
         {item.question?.stimulusOmitted && (
-          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
             This question&apos;s graph or table is too large to show again here.
           </p>
         )}
@@ -119,7 +119,7 @@ function RecapItem({ item }) {
             {answer.length
               ? <AnswerList entries={answer} />
               : (
-                <span style={{ color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.5 }}>
+                <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>
                   {item.response?.kind === 'tool' ? 'You built your answer in the question’s tool.' : 'No answer was recorded.'}
                 </span>
               )}
@@ -134,14 +134,14 @@ function RecapItem({ item }) {
 
         {withheld
           ? (
-            <p data-recap-withheld style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 13.5, lineHeight: 1.55 }}>
+            <p data-recap-withheld style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.55 }}>
               This question comes back in practice, so its answer and steps stay out of your review. Your teacher can go over it with you.
             </p>
           )
           : review
             ? <PathSolutionReview review={review} wasCorrect={false} />
             : correct.length === 0 && (
-              <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 13.5, lineHeight: 1.55 }}>
+              <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.55 }}>
                 This question does not have a worked solution yet. Your teacher can go over it with you.
               </p>
             )}
@@ -160,7 +160,7 @@ export default function MyMathPathSessionRecap({ recap = null, onRetry = null })
   if (recap.status === 'loading') {
     return (
       <section style={SECTION} aria-label="Review what you missed">
-        <p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 14, textAlign: 'center' }}>Loading your review…</p>
+        <p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', textAlign: 'center' }}>Loading your review…</p>
       </section>
     );
   }
@@ -196,7 +196,7 @@ export default function MyMathPathSessionRecap({ recap = null, onRetry = null })
         : null;
     return message ? (
       <section style={SECTION} aria-label="Review what you missed">
-        <p style={{ margin: 0, padding: '12px 14px', borderRadius: 10, background: data.allCorrect ? 'var(--mm-success-bg)' : 'var(--mm-surface-tint)', color: data.allCorrect ? 'var(--mm-success-text)' : 'var(--mm-text)', fontSize: 14.5, lineHeight: 1.55, textAlign: 'center' }}>
+        <p style={{ margin: 0, padding: '12px 14px', borderRadius: 10, background: data.allCorrect ? 'var(--mm-success-bg)' : 'var(--mm-surface-tint)', color: data.allCorrect ? 'var(--mm-success-text)' : 'var(--mm-text)', fontSize: 'calc(14.5 * var(--mm-px))', lineHeight: 1.55, textAlign: 'center' }}>
           {message}
         </p>
       </section>
@@ -205,10 +205,10 @@ export default function MyMathPathSessionRecap({ recap = null, onRetry = null })
 
   return (
     <section style={SECTION} aria-labelledby="mm-path-recap-heading">
-      <h2 id="mm-path-recap-heading" style={{ margin: '0 0 4px', fontSize: 19, color: 'var(--mm-text-strong)' }}>
+      <h2 id="mm-path-recap-heading" style={{ margin: '0 0 4px', fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
         Review what you missed
       </h2>
-      <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 13.5, lineHeight: 1.55 }}>
+      <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.55 }}>
         {items.length === 1 ? 'One question' : `${items.length} questions`} to look at again, with the worked solution.
         {data.missingQuestions > 0 ? ' Some earlier questions in this session cannot be reviewed here.' : ''}
       </p>

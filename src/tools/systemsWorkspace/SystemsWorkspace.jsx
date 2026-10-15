@@ -43,15 +43,15 @@ const DEFAULT_INEQUALITY_GRAPH = SYSTEMS_WORKSPACE_DEFAULTS.inequalityGraph;
 // the server runs as the authority — through gradeToolCheck, and its feedback
 // reads the parts that grader returned. No verdict is computed in this file.
 const partCorrect = (feedback, id) => (feedback?.metadata?.parts || []).some((item) => item.id === id && item.isCorrect === true);
-const inputStyle = { width:'100%', boxSizing:'border-box', padding:'11px 12px', border:'1px solid var(--mm-tint-border)', borderRadius:9, background:'var(--mm-surface)', fontSize:15, minHeight:44 };
+const inputStyle = { width:'100%', boxSizing:'border-box', padding:'11px 12px', border:'1px solid var(--mm-tint-border)', borderRadius:9, background:'var(--mm-surface)', fontSize:'calc(15 * var(--mm-px))', minHeight:44 };
 const actionStyle = { marginTop:16, padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer', minHeight:44 };
 
-const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'var(--mm-text-muted)' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
+const Field = ({ label, children }) => <label style={{ display:'block', fontSize:'calc(13 * var(--mm-px))', fontWeight:700, color:'var(--mm-text-muted)' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
 
 // Naming the curves beats "the blue one". Ordinary equation lines are both
 // solid; dashed strokes are reserved for strict inequality boundaries.
 const Legend = ({ items }) => (
-  <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:10, fontSize:13, color:'var(--mm-text)' }}>
+  <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:10, fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text)' }}>
     {items.map((item) => (
       <span key={item.label}>
         <svg width="26" height="8" style={{ verticalAlign:'middle', marginRight:5 }} aria-hidden="true">
@@ -125,7 +125,7 @@ function LinearMode({ questionData, onAction }) {
       <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
       {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
       <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!classified} style={{...actionStyle,opacity:classified?1:0.5}}>{checkSystemLabel}</button>
-      {!classified ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
+      {!classified ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>Choose how many solutions the system has first.</p> : null}
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
         hints={[
@@ -580,7 +580,7 @@ function MatrixMode({ questionData, onAction }) {
         gridTemplateColumns:`repeat(${isMatrix3 ? 4 : 3},minmax(58px,80px))`,
         justifyContent:'center',
         gap:8,
-        fontSize:isMatrix3?19:22,
+        fontSize:isMatrix3?'calc(19 * var(--mm-px))':'calc(22 * var(--mm-px))',
         fontWeight:800,
         margin:'24px 0',
       }}>
@@ -610,12 +610,12 @@ function MatrixMode({ questionData, onAction }) {
         >
           Use matrix technology · Compute RREF
         </button>
-        <p style={{fontSize:13,color:'var(--mm-text-muted)',lineHeight:1.5}}>
+        <p style={{fontSize:'calc(13 * var(--mm-px))',color:'var(--mm-text-muted)',lineHeight:1.5}}>
           This performs the matrix row-reduction command, like an RREF feature on matrix-capable technology. You still have to interpret the result.
         </p>
         {showRref ? <div style={{marginTop:16}}>
           <strong>RREF result</strong>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(58px,80px))',justifyContent:'center',gap:8,fontSize:18,fontWeight:800,marginTop:10}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(58px,80px))',justifyContent:'center',gap:8,fontSize:'calc(18 * var(--mm-px))',fontWeight:800,marginTop:10}}>
             {(solution.rref || []).flatMap((row,rowIndex)=>row.map((value,colIndex)=>(
               <div
                 key={`rref-${rowIndex}-${colIndex}`}
@@ -655,7 +655,7 @@ function MatrixMode({ questionData, onAction }) {
       >
         {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : checkMatrixLabel}
       </button>
-      {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
+      {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>Choose how many solutions the system has first.</p> : null}
       {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div>:null}
       <HintPanel
         hints={isMatrix3 ? [
