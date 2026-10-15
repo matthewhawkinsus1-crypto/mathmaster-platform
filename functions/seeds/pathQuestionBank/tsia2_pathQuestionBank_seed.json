@@ -204,11 +204,14 @@
         "Isolate the variable by undoing the constant term and then the coefficient."
       ],
       "solutionReview": {
-        "headline": "Solve the linear relationship.",
+        "headline": "Undo the constant, then divide by {{a}}: $x={{answer}}$.",
         "reasoning": [
-          "Use equivalent operations until the variable is isolated, then substitute back to check the equality."
+          "Move the constant to the other side: ${{a}}x={{c}}{{nb|term}}={{ac}}$.",
+          "Divide by {{a}}: $x=\\frac{ {{ac}} }{ {{a}} }={{answer}}$.",
+          "Check: ${{a}}({{answer}}){{b|term}}={{c}}$."
         ],
-        "answerSummary": "The selected value must make both sides of the original equation equal."
+        "commonError": "Moving the constant without changing its sign.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "Solving ${{a}}x {{b|signed}}={{c}}$ for $x$ gives what result?",
       "generator": {
@@ -239,7 +242,9 @@
           "c": "a*answer+b",
           "d1": "answer+1",
           "d2": "answer-1",
-          "d3": "-answer"
+          "d3": "-answer",
+          "nb": "-b",
+          "ac": "a*answer"
         },
         "constraints": [
           "c!=0"
@@ -479,11 +484,14 @@
         "Collect the variable terms on one side and the constants on the other."
       ],
       "solutionReview": {
-        "headline": "Collect like terms across the equation.",
+        "headline": "Collect the $x$-terms on one side and the constants on the other: $x={{answer}}$.",
         "reasoning": [
-          "Move variable terms together before dividing by the resulting coefficient."
+          "Subtract the right side's $x$-term and the left side's constant from both sides: $({{a}}-{{c}})x={{d}}-{{b|paren}}$.",
+          "So the coefficient is ${{amc}}$ and the constant is ${{db}}$: $x=\\frac{ {{db}} }{ {{amc}} }={{answer}}$.",
+          "Check: ${{a}}({{answer}}){{b|term}}={{c}}({{answer}}){{d|term}}$."
         ],
-        "answerSummary": "Substitution should produce the same value on both sides."
+        "commonError": "Adding the $x$-coefficients instead of subtracting them.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "After the variable terms are collected in ${{a}}x {{b|signed}}={{c}}x {{d|signed}}$, what value is obtained for $x$?",
       "generator": {
@@ -516,7 +524,9 @@
           "d": "(a-c)*answer+b",
           "d1": "answer+1",
           "d2": "answer-1",
-          "d3": "-answer"
+          "d3": "-answer",
+          "db": "d-b",
+          "amc": "a-c"
         },
         "constraints": [
           "a!=c"
@@ -756,11 +766,13 @@
         "Dividing an inequality by a negative number reverses the inequality symbol."
       ],
       "solutionReview": {
-        "headline": "Track the inequality direction.",
+        "headline": "Dividing by a negative number reverses the inequality: $x>{{boundary}}$.",
         "reasoning": [
-          "After isolating the variable, reverse the comparison when dividing by the negative coefficient."
+          "Move the constant: $-{{k}}x<{{limit}}-{{b|paren}}={{lb}}$.",
+          "Divide both sides by $-{{k}}$ and reverse the symbol: $\\frac{ {{lb}} }{-{{k}}}={{boundary}}$, so $x>{{boundary}}$."
         ],
-        "answerSummary": "Test a value on the selected side of the boundary in the original inequality."
+        "commonError": "Keeping the $<$ after dividing by the negative coefficient.",
+        "answerSummary": "$x>{{boundary}}$"
       },
       "prompt": "The inequality ${{a}}x {{b|signed}}<{{limit}}$ is solved for $x$. Which result is obtained?",
       "generator": {
@@ -783,7 +795,8 @@
         },
         "derived": {
           "a": "-k",
-          "limit": "a*boundary+b"
+          "limit": "a*boundary+b",
+          "lb": "limit-b"
         },
         "constraints": []
       },
@@ -1021,11 +1034,14 @@
         "Adding the equations can eliminate one of the variables."
       ],
       "solutionReview": {
-        "headline": "Use the system structure.",
+        "headline": "Add the equations so $y$ cancels: $x={{x}}$.",
         "reasoning": [
-          "Combine the two equations so one variable cancels, then solve for the requested variable."
+          "Adding the equations cancels $y$: $2x={{sum}}+{{diff|paren}}={{s2}}$.",
+          "$x=\\frac{ {{s2}} }{2}={{x}}$.",
+          "Check: $y={{sum}}-{{x}}={{y}}$, and ${{x}}-{{y}}={{diff}}$."
         ],
-        "answerSummary": "The ordered solution must satisfy both equations."
+        "commonError": "Giving the value of $y$ instead of $x$.",
+        "answerSummary": "$x={{x}}$"
       },
       "prompt": "A system satisfies $x+y={{sum}}$ and $x-y={{diff}}$. What is the value of $x$?",
       "generator": {
@@ -1046,7 +1062,8 @@
           "diff": "x-y",
           "d1": "y",
           "d2": "x+1",
-          "d3": "x-1"
+          "d3": "x-1",
+          "s2": "2*x"
         },
         "constraints": [
           "y!=x",
@@ -1288,11 +1305,14 @@
         "Add the equations to eliminate the terms with opposite signs."
       ],
       "solutionReview": {
-        "headline": "Eliminate one variable.",
+        "headline": "Add the equations so the $y$-terms cancel: $x={{x}}$.",
         "reasoning": [
-          "The opposite y-terms cancel when the equations are added, leaving an equation in x."
+          "Adding the equations cancels ${{b}}y$: ${{a2}}x={{c1}}+{{c2|paren}}={{cc}}$.",
+          "$x=\\frac{ {{cc}} }{ {{a2}} }={{x}}$.",
+          "Check: ${{a}}\\cdot {{x}}+{{b}}\\cdot {{y}}={{c1}}$ with $y={{y}}$."
         ],
-        "answerSummary": "Use the recovered x-value in either equation to check the system."
+        "commonError": "Giving the value of $y$, or dividing by {{a}} instead of {{a2}} after adding.",
+        "answerSummary": "$x={{x}}$"
       },
       "prompt": "Consider ${{a}}x+{{b}}y={{c1}}$ and ${{a}}x-{{b}}y={{c2}}$. What value of $x$ satisfies both equations?",
       "generator": {
@@ -1323,7 +1343,9 @@
           "c2": "a*x-b*y",
           "d1": "y",
           "d2": "x+1",
-          "d3": "x-1"
+          "d3": "x-1",
+          "a2": "2*a",
+          "cc": "c1+c2"
         },
         "constraints": [
           "y!=x",
@@ -1566,11 +1588,14 @@
         "Subtract the fixed charge before dividing by the rate per unit."
       ],
       "solutionReview": {
-        "headline": "Translate the total into an equation.",
+        "headline": "Take off the fixed charge, then divide by the rate: {{answer}} units.",
         "reasoning": [
-          "The total consists of a fixed amount plus the same rate for each unit."
+          "With $n$ units: ${{fixed}}+{{rate}}n={{total}}$.",
+          "Subtract the fixed charge: ${{rate}}n={{total}}-{{fixed}}={{rt}}$.",
+          "$n=\\frac{ {{rt}} }{ {{rate}} }={{answer}}$ units."
         ],
-        "answerSummary": "Substitute the selected number of units to reproduce the stated total."
+        "commonError": "Dividing the whole bill by the rate without removing the fixed charge.",
+        "answerSummary": "${{answer}}$ units"
       },
       "prompt": "A service bill has a fixed charge of ${{fixed}} dollars and an additional {{rate}} dollars for each unit used. The bill is {{total}} dollars. How many units were used?",
       "generator": {
@@ -1595,7 +1620,8 @@
           "total": "fixed+rate*answer",
           "d1": "answer+1",
           "d2": "answer-1",
-          "d3": "answer+rate"
+          "d3": "answer+rate",
+          "rt": "rate*answer"
         },
         "constraints": []
       },
@@ -1834,11 +1860,15 @@
         "Use one equation for the total number of tickets and another for the total revenue."
       ],
       "solutionReview": {
-        "headline": "Build two constraints.",
+        "headline": "Each adult ticket adds {{pd}} dollars over a student ticket: {{adultCount}} adult tickets.",
         "reasoning": [
-          "The counts add to the total number sold, while the price-weighted counts add to the revenue."
+          "If all {{totalCount}} tickets were student tickets, they would bring in ${{studentPrice}}\\cdot {{totalCount}}={{spT}}$ dollars.",
+          "The actual revenue is ${{revenue}}-{{spT}}={{rem}}$ dollars more.",
+          "Each adult ticket adds ${{adultPrice}}-{{studentPrice}}={{pd}}$ dollars, so there are $\\frac{ {{rem}} }{ {{pd}} }={{adultCount}}$ adult tickets.",
+          "Check: ${{adultPrice}}\\cdot {{adultCount}}+{{studentPrice}}\\cdot {{studentCount}}={{revenue}}$."
         ],
-        "answerSummary": "The two ticket counts must satisfy both totals at once."
+        "commonError": "Giving the number of student tickets.",
+        "answerSummary": "${{adultCount}}$ adult tickets"
       },
       "prompt": "An event sells adult tickets for {{adultPrice}} dollars and student tickets for {{studentPrice}} dollars. A total of {{totalCount}} tickets brings in {{revenue}} dollars. How many adult tickets were sold?",
       "generator": {
@@ -1869,7 +1899,10 @@
           "revenue": "adultPrice*adultCount+studentPrice*studentCount",
           "d1": "studentCount",
           "d2": "adultCount+1",
-          "d3": "adultCount-1"
+          "d3": "adultCount-1",
+          "spT": "studentPrice*(adultCount+studentCount)",
+          "rem": "adultPrice*adultCount+studentPrice*studentCount-studentPrice*(adultCount+studentCount)",
+          "pd": "adultPrice-studentPrice"
         },
         "constraints": [
           "adultPrice>studentPrice",
@@ -2113,11 +2146,14 @@
         "After accounting for the fixed cost, determine how many full additional units fit within the remaining budget."
       ],
       "solutionReview": {
-        "headline": "Respect the budget inequality.",
+        "headline": "Room for items after the fixed cost, rounded down: {{answer}} items.",
         "reasoning": [
-          "The largest whole-number count must stay at or below the budget, while one more unit must exceed it."
+          "After the fixed cost, ${{budget}}-{{fixed}}={{left}}$ dollars remain for items.",
+          "{{answer}} items cost ${{rate}}\\cdot {{answer}}={{ar}}$ dollars, and ${{ar}}\\le {{left}}$.",
+          "One more item would cost ${{ar2}}$ dollars, and ${{ar2}}>{{left}}$, so {{answer}} is the greatest whole number."
         ],
-        "answerSummary": "Check both the selected count and the next integer against the budget."
+        "commonError": "Rounding up, which goes over the budget.",
+        "answerSummary": "${{answer}}$ items"
       },
       "prompt": "A plan costs {{fixed}} dollars plus {{rate}} dollars per item. With a budget of {{budget}} dollars, what is the greatest whole number of items that can be included?",
       "generator": {
@@ -2147,7 +2183,10 @@
           "budget": "fixed+rate*answer+extra",
           "d1": "answer+1",
           "d2": "answer-1",
-          "d3": "answer+2"
+          "d3": "answer+2",
+          "left": "budget-fixed",
+          "ar": "rate*answer",
+          "ar2": "rate*(answer+1)"
         },
         "constraints": [
           "extra<rate"
@@ -2268,11 +2307,13 @@
         "Substitute the given input everywhere the function uses x."
       ],
       "solutionReview": {
-        "headline": "Evaluate the function at the stated input.",
+        "headline": "Substitute ${{x}}$ for $x$: {{answer}}.",
         "reasoning": [
-          "Replace x by the given input, multiply by the coefficient, and combine the constant term."
+          "Replace $x$ with ${{x}}$ in the rule.",
+          "${{m}}({{x}}){{b|term}}={{answer}}$."
         ],
-        "answerSummary": "The correct output agrees with the function rule for the given input."
+        "commonError": "Adding {{m}} to the input instead of multiplying.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "If $f(x)={{m}}x {{b|signed}}$, what is $f({{x}})$?",
       "generator": {
@@ -2429,11 +2470,13 @@
         "Slope is the change in y divided by the change in x."
       ],
       "solutionReview": {
-        "headline": "Compare the coordinate changes.",
+        "headline": "Slope is change in $y$ over change in $x$: {{answer}}.",
         "reasoning": [
-          "Subtract the y-coordinates in the same order as the x-coordinates, then divide."
+          "Change in $y$: ${{y2}}-{{y1|paren}}={{dy}}$. Change in $x$: ${{x2}}-{{x1|paren}}={{delta}}$.",
+          "Slope: $\\frac{ {{dy}} }{ {{delta}} }={{answer}}$."
         ],
-        "answerSummary": "The resulting rate of change reproduces the movement from the first point to the second."
+        "commonError": "Subtracting the coordinates in opposite orders, which flips the sign.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "The graph of a linear function contains the points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the function's slope?",
       "generator": {
@@ -2474,7 +2517,8 @@
           "answer": "m",
           "d1": "m+1",
           "d2": "m-1",
-          "d3": "-m"
+          "d3": "-m",
+          "dy": "m*delta"
         },
         "constraints": [
           "answer!=d1",
@@ -2600,11 +2644,13 @@
         "The y-intercept is the output when the input is 0."
       ],
       "solutionReview": {
-        "headline": "Identify the value at x=0.",
+        "headline": "The $y$-intercept is the value at $x=0$: $(0,{{answer}})$.",
         "reasoning": [
-          "In slope-intercept form, the constant term is the y-coordinate where the line crosses the y-axis."
+          "The graph crosses the $y$-axis where $x=0$.",
+          "At $x=0$: ${{m}}\\cdot 0{{b|signed}}={{answer}}$, so the $y$-intercept is $(0,{{answer}})$."
         ],
-        "answerSummary": "Setting x equal to 0 produces the selected intercept."
+        "commonError": "Giving the slope {{m}} as the intercept.",
+        "answerSummary": "$(0,{{answer}})$"
       },
       "prompt": "For the function $g(x)={{m}}x {{b|signed}}$, what is the y-intercept?",
       "generator": {
@@ -2763,11 +2809,14 @@
         "Use the slope and the given point to determine the constant term."
       ],
       "solutionReview": {
-        "headline": "Build the linear rule.",
+        "headline": "Use the point to find the intercept: $b={{b}}$.",
         "reasoning": [
-          "Substitute the point into y=mx+b and solve for b."
+          "In $f(x)=mx+b$ with slope {{m}}, the point gives ${{y1}}={{m}}({{x1}})+b$.",
+          "So $b={{y1}}-{{mx1|paren}}={{b}}$.",
+          "The function is $f(x)={{m}}x {{b|signed}}$."
         ],
-        "answerSummary": "The correct equation has the stated slope and passes through the given point."
+        "commonError": "Using the point's $y$-value as the intercept.",
+        "answerSummary": "$f(x)={{m}}x {{b|signed}}$"
       },
       "prompt": "A linear function has slope ${{m}}$ and passes through $({{x1}},{{y1}})$. Which equation represents the function?",
       "generator": {
@@ -2803,7 +2852,8 @@
           "y1": "m*x1+b",
           "wrongB": "-b",
           "wrongM": "-m",
-          "shiftB": "b+m"
+          "shiftB": "b+m",
+          "mx1": "m*x1"
         },
         "constraints": [
           "wrongB!=b",
@@ -2926,11 +2976,14 @@
         "Compare consecutive y-values as x increases by equal amounts."
       ],
       "solutionReview": {
-        "headline": "Use the constant rate in the values.",
+        "headline": "Slope from the step in $y$, then the intercept from a point.",
         "reasoning": [
-          "The repeated change gives the slope; then use any point to determine the intercept."
+          "Each step of 1 in $x$ changes $y$ by ${{y1}}-{{y0|paren}}={{m}}$, so the slope is {{m}}.",
+          "From $({{x0}},{{y0}})$: $b={{y0}}-{{mx0|paren}}={{b}}$.",
+          "Check the third point: ${{m}}({{x2}}){{b|term}}={{y2}}$. The rule is $f(x)={{m}}x {{b|signed}}$."
         ],
-        "answerSummary": "The selected rule reproduces all three ordered pairs."
+        "commonError": "Swapping the slope and the intercept.",
+        "answerSummary": "$f(x)={{m}}x {{b|signed}}$"
       },
       "prompt": "The points $({{x0}},{{y0}})$, $({{x1}},{{y1}})$, and $({{x2}},{{y2}})$ lie on the same linear function. Which rule matches these values?",
       "generator": {
@@ -2966,7 +3019,8 @@
           "y1": "m*x1+b",
           "y2": "m*x2+b",
           "wrongM": "-m",
-          "wrongB": "b+1"
+          "wrongB": "b+1",
+          "mx0": "m*x0"
         },
         "constraints": [
           "b!=m"
@@ -3088,11 +3142,14 @@
         "Treat the stated output as the y-value and solve for x."
       ],
       "solutionReview": {
-        "headline": "Work backward from the output.",
+        "headline": "Set the rule equal to {{target}} and solve: $x={{answer}}$.",
         "reasoning": [
-          "Set the linear rule equal to the target output and isolate x."
+          "${{m}}x{{b|term}}={{target}}$.",
+          "Undo the constant: ${{m}}x={{target}}-{{b|paren}}={{mt}}$.",
+          "$x=\\frac{ {{mt}} }{ {{m}} }={{answer}}$."
         ],
-        "answerSummary": "Evaluating the function at the selected input gives the stated output."
+        "commonError": "Evaluating $h({{target}})$ instead of solving for the input.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "For $h(x)={{m}}x {{b|signed}}$, the value of $h(x)$ is {{target}}. What input $x$ produces this output?",
       "generator": {
@@ -3120,7 +3177,8 @@
           "target": "m*answer+b",
           "d1": "answer+1",
           "d2": "answer-1",
-          "d3": "-answer"
+          "d3": "-answer",
+          "mt": "target-b"
         },
         "constraints": []
       },
@@ -3240,11 +3298,13 @@
         "A constant rate tells how much the output changes for one unit of input."
       ],
       "solutionReview": {
-        "headline": "Apply the constant rate over the interval.",
+        "headline": "Rate times time: a change of {{answer}} units.",
         "reasoning": [
-          "Multiply the rate by the number of hours to find the total change."
+          "At a constant rate the change is rate times elapsed time; the starting value does not matter.",
+          "${{rate}}\\cdot {{delta}}={{answer}}$ units."
         ],
-        "answerSummary": "The difference between the ending and starting values equals the selected change."
+        "commonError": "Adding the rate and the time, or reporting the ending value {{endValue}} instead of the change.",
+        "answerSummary": "${{answer}}$ units"
       },
       "prompt": "A quantity changes at a constant rate of {{rate}} units per hour. It begins at {{startValue}} units. How much does the quantity change during the next {{delta}} hours?",
       "generator": {
@@ -3392,11 +3452,14 @@
         "Use the two points to identify how y changes as x changes."
       ],
       "solutionReview": {
-        "headline": "Extend the linear pattern.",
+        "headline": "Find the slope, then step from $x={{x2}}$ to $x={{x3}}$: {{answer}}.",
         "reasoning": [
-          "Find the constant rate of change, then continue that rate to the new input."
+          "Slope: $\\frac{ {{y2}}-{{y1|paren}} }{ {{x2}}-{{x1|paren}} }=\\frac{ {{dy}} }{ {{delta}} }={{m}}$.",
+          "From $x={{x2}}$ to $x={{x3}}$ is 2 steps, so $y$ changes by $2\\cdot {{m|paren}}$.",
+          "${{y2}}+2\\cdot {{m|paren}}={{answer}}$."
         ],
-        "answerSummary": "The selected output lies on the same linear rule as the two given points."
+        "commonError": "Moving only one step of the slope, or giving the value at $x={{x2}}$.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A linear function contains the points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the value of the function when $x={{x3}}$?",
       "generator": {
@@ -3438,7 +3501,8 @@
           "answer": "m*x3+b",
           "d1": "answer+m",
           "d2": "answer-m",
-          "d3": "y2"
+          "d3": "y2",
+          "dy": "m*delta"
         },
         "constraints": []
       },
@@ -3767,11 +3831,14 @@
         "Multiply each term in the first binomial by each term in the second."
       ],
       "solutionReview": {
-        "headline": "Expand the product.",
+        "headline": "Multiply each term by each term, then combine the $x$-terms.",
         "reasoning": [
-          "The x-terms combine to the sum of the constants, and the constant term is their product."
+          "$(x {{p|signed}})(x {{q|signed}})=x^2 {{q|signed}}x {{p|signed}}x {{constant|signed}}$.",
+          "Combine the middle terms: ${{p}}+{{q|paren}}={{middle}}$, so the product is $x^2 {{middle|xterm}} {{constant|signed}}$.",
+          "Written in the choices' form: $x^2 {{middle|signed}}x {{constant|signed}}$."
         ],
-        "answerSummary": "The correct expression has middle coefficient p+q and constant term pq."
+        "commonError": "Keeping only one of the two middle terms, or adding the constants instead of multiplying them.",
+        "answerSummary": "$x^2 {{middle|signed}}x {{constant|signed}}$"
       },
       "prompt": "Which expression is equivalent to $(x {{p|signed}})(x {{q|signed}})$?",
       "generator": {
@@ -4136,11 +4203,14 @@
         "Look for two positive integers whose sum is the middle coefficient and whose product is the constant term."
       ],
       "solutionReview": {
-        "headline": "Factor the quadratic.",
+        "headline": "Find two numbers with sum {{sum}} and product {{product}}: $(x-{{r}})(x-{{s}})$.",
         "reasoning": [
-          "The two factors use numbers whose sum and product match the polynomial coefficients."
+          "In $(x-m)(x-n)=x^2-(m+n)x+mn$, the numbers add to {{sum}} and multiply to {{product}}.",
+          "${{r}}+{{s}}={{sum}}$ and ${{r}}\\cdot {{s}}={{product}}$.",
+          "Both factors subtract because the middle term is negative and the constant is positive: $(x-{{r}})(x-{{s}})$."
         ],
-        "answerSummary": "Multiplying the selected binomials reproduces the quadratic."
+        "commonError": "Using plus signs, which gives $+{{sum}}x$ instead of $-{{sum}}x$.",
+        "answerSummary": "$(x-{{r}})(x-{{s}})$"
       },
       "prompt": "The polynomial $x^2-{{sum}}x+{{product}}$ is written as a product of two binomials. Which of the following is that product?",
       "generator": {
@@ -4489,11 +4559,14 @@
         "Separate the largest perfect-square factor from the remaining radical."
       ],
       "solutionReview": {
-        "headline": "Extract the perfect square.",
+        "headline": "Pull the perfect-square factor out of the root: $a={{answer}}$.",
         "reasoning": [
-          "The radicand contains outside squared as a factor, so its square root becomes the coefficient outside the radical."
+          "${{radicand}}={{o2}}\\cdot {{inside}}$, and {{o2}} is a perfect square.",
+          "$\\sqrt{ {{radicand}} }=\\sqrt{ {{o2}} }\\cdot\\sqrt{ {{inside}} }={{outside}}\\sqrt{ {{inside}} }$.",
+          "So $a={{answer}}$."
         ],
-        "answerSummary": "The selected coefficient gives an equivalent simplified radical."
+        "commonError": "Leaving the perfect square {{o2}} outside the root instead of its square root.",
+        "answerSummary": "$a={{answer}}$"
       },
       "prompt": "The expression √{{radicand}} can be written as a√{{inside}}, where a is positive. What is the value of a?",
       "generator": {
@@ -4522,7 +4595,8 @@
           "answer": "outside",
           "d1": "outside*outside",
           "d2": "inside",
-          "d3": "outside+1"
+          "d3": "outside+1",
+          "o2": "outside*outside"
         },
         "constraints": [
           "answer!=d1",
@@ -4858,11 +4932,14 @@
         "A product is zero when at least one factor is zero."
       ],
       "solutionReview": {
-        "headline": "Use the zero-product property.",
+        "headline": "Set each factor to zero; the greater solution is {{answer}}.",
         "reasoning": [
-          "Set each factor equal to zero, identify both solutions, and compare them."
+          "A product is zero when one factor is zero, so $x={{r}}$ or $x={{s}}$.",
+          "Check: $({{answer}}-{{r|paren}})({{answer}}-{{s|paren}})=0$.",
+          "Since ${{answer}}>{{other}}$, the greater solution is {{answer}}."
         ],
-        "answerSummary": "The selected value is the greater of the two solutions."
+        "commonError": "Taking the solutions with the signs shown in the factors, which flips them.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "What is the greater solution of $(x-{{r}})(x-{{s}})=0$?",
       "generator": {
@@ -5235,11 +5312,14 @@
         "Square both sides after isolating the radical."
       ],
       "solutionReview": {
-        "headline": "Undo the square root.",
+        "headline": "Square both sides, then undo the shift: $x={{answer}}$.",
         "reasoning": [
-          "Square both sides, then isolate x by reversing the constant shift."
+          "Square both sides: $x {{shift|signed}}={{n}}^2={{n2}}$.",
+          "$x={{n2}} {{nshift|signed}}={{answer}}$.",
+          "Check: $\\sqrt{ {{answer}} {{shift|signed}} }=\\sqrt{ {{n2}} }={{n}}$."
         ],
-        "answerSummary": "Substitution of the selected value makes the radical equal the stated number."
+        "commonError": "Undoing the shift without squaring {{n}} first.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "What value of x satisfies √(x {{shift|signed}})={{n}}?",
       "generator": {
@@ -5267,7 +5347,9 @@
           "answer": "n*n-shift",
           "d1": "n-shift",
           "d2": "n*n+shift",
-          "d3": "n*n"
+          "d3": "n*n",
+          "n2": "n*n",
+          "nshift": "-shift"
         },
         "constraints": [
           "answer>=0",
@@ -5605,11 +5687,13 @@
         "A difference of two squares factors into conjugate binomials."
       ],
       "solutionReview": {
-        "headline": "Recognize the difference of squares.",
+        "headline": "A difference of squares factors as $(x-{{k}})(x+{{k}})$.",
         "reasoning": [
-          "The constant is a perfect square, so use one factor with subtraction and the other with addition."
+          "{{square}} is ${{k}}^2$, so $x^2-{{square}}=x^2-{{k}}^2$.",
+          "$a^2-b^2=(a-b)(a+b)$, so $x^2-{{square}}=(x-{{k}})(x+{{k}})$."
         ],
-        "answerSummary": "Multiplying the conjugate factors gives the original expression."
+        "commonError": "Writing a perfect-square trinomial such as $(x-{{k}})^2$, whose middle term does not cancel.",
+        "answerSummary": "$(x-{{k}})(x+{{k}})$"
       },
       "prompt": "The polynomial $x^2-{{square}}$ is factored completely. Which of the following gives its factorization?",
       "generator": {
@@ -5951,11 +6035,14 @@
         "Divide by the coefficient, take both square-root possibilities, and then undo the shift."
       ],
       "solutionReview": {
-        "headline": "Solve from the squared form.",
+        "headline": "Divide by {{a}}, take square roots, then use the positive root: {{answer}}.",
         "reasoning": [
-          "After isolating the square, both positive and negative square roots are possible. The question asks for the greater solution."
+          "Divide by {{a}}: $(x {{negH|signed}})^2=\\frac{ {{target}} }{ {{a}} }={{n2}}$.",
+          "So $x {{negH|signed}}$ is ${{n}}$ or $-{{n}}$, which gives $x={{h}}+{{n}}={{answer}}$ or $x={{h}}-{{n}}={{lower}}$.",
+          "The greater solution is {{answer}}."
         ],
-        "answerSummary": "The selected value is the larger of the two solutions."
+        "commonError": "Stopping at the square root, {{n}}, without undoing the shift.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "What is the greater solution of ${{a}}(x {{negH|signed}})^2={{target}}$?",
       "generator": {
@@ -5991,7 +6078,8 @@
           "lower": "h-n",
           "d1": "lower",
           "d2": "n",
-          "d3": "n*n"
+          "d3": "n*n",
+          "n2": "n*n"
         },
         "constraints": [
           "answer!=d1",
@@ -6328,11 +6416,13 @@
         "Expand both squared binomials and combine like terms."
       ],
       "solutionReview": {
-        "headline": "Simplify the difference of the two squares.",
+        "headline": "Expand both squares; the $x^2$ and constant terms cancel: ${{answerCoef}}x$.",
         "reasoning": [
-          "The x-squared and constant-square terms cancel, leaving only the difference of the middle terms."
+          "$(x+{{p}})^2=x^2+{{p2}}x+{{pp}}$ and $(x-{{p}})^2=x^2-{{p2}}x+{{pp}}$.",
+          "Subtract: $(x^2+{{p2}}x+{{pp}})-(x^2-{{p2}}x+{{pp}})={{answerCoef}}x$."
         ],
-        "answerSummary": "The simplified expression is linear in x with coefficient four times p."
+        "commonError": "Subtracting only the middle terms once, which gives half the coefficient.",
+        "answerSummary": "${{answerCoef}}x$"
       },
       "prompt": "Which expression is equivalent to $(x+{{p}})^2-(x-{{p}})^2$?",
       "generator": {
@@ -6347,7 +6437,9 @@
           "answerCoef": "4*p",
           "d1Coef": "2*p",
           "d3Coef": "4*p*p",
-          "constantTerm": "2*p*p"
+          "constantTerm": "2*p*p",
+          "p2": "2*p",
+          "pp": "p*p"
         },
         "constraints": [
           "answerCoef!=d1Coef",
@@ -7128,11 +7220,14 @@
         "In vertex form, the horizontal coordinate of the vertex determines the axis of symmetry."
       ],
       "solutionReview": {
-        "headline": "Read the axis from vertex form.",
+        "headline": "In vertex form the axis of symmetry passes through the vertex: $x={{answer}}$.",
         "reasoning": [
-          "The squared factor is centered at x=h, so the vertical line through that value is the axis of symmetry."
+          "In $f(x)=a(x-h)^2+k$, the vertex is $(h,k)$ and the axis of symmetry is the vertical line $x=h$.",
+          "The squared part is $0$ where $x-{{h|paren}}=0$, which is at $x={{h}}$.",
+          "So the axis of symmetry is $x={{answer}}$."
         ],
-        "answerSummary": "The selected equation passes through the quadratic's vertex."
+        "commonError": "Reading the sign shown inside the parentheses, which gives the opposite of $h$.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "For $f(x)={{a}}(x-{{h}})^2 {{k|signed}}$, which equation gives the axis of symmetry?",
       "generator": {
@@ -7953,11 +8048,14 @@
         "The vertex form shows the horizontal and vertical shifts directly."
       ],
       "solutionReview": {
-        "headline": "Identify the vertex coordinates.",
+        "headline": "Vertex form $a(x-h)^2+k$ has vertex $(h,k)$: $({{answerX}},{{answerY}})$.",
         "reasoning": [
-          "The squared quantity is zero at x=h, and the remaining output is k."
+          "Here $h={{h}}$ and $k={{k}}$.",
+          "At $x={{h}}$ the squared part is $0$: ${{a}}({{h}}-{{h}})^2{{k|term}}={{k}}$, the lowest value of $g$.",
+          "So the vertex is $({{answerX}},{{answerY}})$."
         ],
-        "answerSummary": "The correct point is (h,k)."
+        "commonError": "Changing the sign of $h$ or $k$, or swapping the coordinates.",
+        "answerSummary": "$({{answerX}},{{answerY}})$"
       },
       "prompt": "The function $g(x)={{a}}(x-{{h}})^2 {{k|signed}}$ has its vertex at which point?",
       "generator": {
@@ -8759,11 +8857,14 @@
         "A zero occurs where one factor of the function equals zero."
       ],
       "solutionReview": {
-        "headline": "Find the x-intercepts from the factors.",
+        "headline": "Each factor gives a zero; the greater one is {{answer}}.",
         "reasoning": [
-          "Set each factor equal to zero and then compare the two resulting x-values."
+          "A product is zero when one factor is zero, so the zeros are {{r}} and {{s}}.",
+          "Check: $({{answer}}-{{r|paren}})({{answer}}-{{s|paren}})=0$.",
+          "Since ${{answer}}>{{other}}$, the greater zero is {{answer}}."
         ],
-        "answerSummary": "The selected value is the greater zero of the function."
+        "commonError": "Taking the zeros with the signs shown in the factors, which flips them.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "For $p(x)=(x-{{r}})(x-{{s}})$, what is the greater zero of the function?",
       "generator": {
@@ -9584,11 +9685,14 @@
         "Use the input as the exponent before multiplying by the initial coefficient."
       ],
       "solutionReview": {
-        "headline": "Evaluate the exponential function.",
+        "headline": "Raise {{factor}} to the power {{x}} first, then multiply by {{initial}}: {{answer}}.",
         "reasoning": [
-          "Raise the base to the stated input and multiply by the leading coefficient."
+          "Substitute $x={{x}}$: $q({{x}})={{initial}}({{factor}})^{ {{x}} }$.",
+          "Exponent first: ${{factor}}^{ {{x}} }={{fx}}$.",
+          "Then multiply: ${{initial}}\\cdot {{fx}}={{answer}}$."
         ],
-        "answerSummary": "The selected value is the function output at the given input."
+        "commonError": "Multiplying {{initial}} by {{factor}} before applying the exponent, or using one fewer power.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "If $q(x)={{initial}}({{factor}})^x$, what is $q({{x}})$?",
       "generator": {
@@ -9613,7 +9717,8 @@
           "answer": "initial*pow(factor,x)",
           "d1": "initial*pow(factor,x-1)",
           "d2": "answer+initial",
-          "d3": "answer-factor"
+          "d3": "answer-factor",
+          "fx": "pow(factor,x)"
         },
         "constraints": [
           "answer!=d1",
@@ -10397,11 +10502,13 @@
         "Compare the target output with repeated powers of the function's base."
       ],
       "solutionReview": {
-        "headline": "Work backward to the exponent.",
+        "headline": "Divide out {{initial}}, then find the power of {{factor}}: $x={{answer}}$.",
         "reasoning": [
-          "Divide out the leading coefficient and identify the exponent that produces the remaining power."
+          "${{initial}}({{factor}})^x={{target}}$, so $({{factor}})^x=\\frac{ {{target}} }{ {{initial}} }={{fa}}$.",
+          "${{factor}}^{ {{answer}} }={{fa}}$, so $x={{answer}}$."
         ],
-        "answerSummary": "The selected input makes the exponential function equal the target output."
+        "commonError": "Dividing {{target}} by {{factor}} instead of finding the exponent.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "For $r(x)={{initial}}({{factor}})^x$, the value of $r(x)$ is {{target}}. What is $x$?",
       "generator": {
@@ -10426,7 +10533,8 @@
           "target": "initial*pow(factor,answer)",
           "d1": "answer-1",
           "d2": "answer+1",
-          "d3": "factor"
+          "d3": "factor",
+          "fa": "pow(factor,answer)"
         },
         "constraints": [
           "answer!=d1",
@@ -11211,11 +11319,14 @@
         "Inputs the same distance from the axis of symmetry have the same output."
       ],
       "solutionReview": {
-        "headline": "Reflect the input across the axis of symmetry.",
+        "headline": "A parabola is symmetric about $x={{h}}$: the matching input is {{mirrorX}}.",
         "reasoning": [
-          "The given input lies a fixed distance to one side of x=h. Move the same distance to the other side."
+          "The axis of symmetry is $x={{h}}$, and ${{x1}}$ is ${{x1}}-{{h|paren}}={{offset}}$ units to its right.",
+          "The input {{offset}} units to the left gives the same output: ${{h}}-{{offset}}={{mirrorX}}$.",
+          "Check: ${{a}}({{mirrorX}}-{{h|paren}})^2{{k|term}}={{y1}}$."
         ],
-        "answerSummary": "The selected input is the reflection of the original input across the quadratic's axis."
+        "commonError": "Choosing the axis value {{h}} itself, which gives the vertex output instead.",
+        "answerSummary": "$x={{mirrorX}}$"
       },
       "prompt": "For $f(x)={{a}}(x-{{h}})^2 {{k|signed}}$, $f({{x1}})={{y1}}$. Besides $x={{x1}}$, which input gives the same output?",
       "generator": {
@@ -12039,11 +12150,13 @@
         "The y-intercept is the output when x=0."
       ],
       "solutionReview": {
-        "headline": "Evaluate the factored function at zero.",
+        "headline": "The $y$-intercept is the value at $x=0$: {{answer}}.",
         "reasoning": [
-          "Substitute x=0 into both factors and multiply by the leading coefficient."
+          "The graph meets the $y$-axis where $x=0$.",
+          "${{a}}(0-{{r|paren}})(0-{{s}})={{answer}}$."
         ],
-        "answerSummary": "The selected value is f(0), the y-coordinate of the y-intercept."
+        "commonError": "Leaving out the leading factor {{a}}, or losing a negative sign.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A quadratic function is $f(x)={{a}}(x-{{r}})(x-{{s}})$. What is the y-coordinate of its y-intercept?",
       "generator": {
@@ -12853,11 +12966,14 @@
         "A change of several input units applies the exponential base repeatedly."
       ],
       "solutionReview": {
-        "headline": "Combine the repeated growth factors.",
+        "headline": "Multiply by {{factor}} once for each of the {{delta}} steps: {{answer}}.",
         "reasoning": [
-          "Over delta input units, multiply by the base delta times, which gives base raised to delta."
+          "Increasing $x$ by 1 multiplies $g(x)$ by {{factor}}.",
+          "Over {{delta}} steps: ${{factor}}^{ {{delta}} }={{answer}}$.",
+          "For example, from $x={{startX}}$ the value goes from {{startValue}} to {{laterValue}}, and $\\frac{ {{laterValue}} }{ {{startValue}} }={{answer}}$."
         ],
-        "answerSummary": "The selected factor converts the earlier function value to the later one."
+        "commonError": "Answering {{factor}}, the factor for a single step.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "For $g(x)={{initial}}({{factor}})^x$, by what factor does the value of $g(x)$ change when the input increases by {{delta}}?",
       "generator": {
@@ -13092,11 +13208,13 @@
         "Use the stated input in the model before combining terms."
       ],
       "solutionReview": {
-        "headline": "Evaluate the quadratic model.",
+        "headline": "Square $x$, multiply by {{a}}, then add {{c}}: {{answer}} square units.",
         "reasoning": [
-          "Square the input, multiply by the quadratic coefficient, and add the constant term."
+          "Substitute $x={{x}}$: ${{a}}\\cdot {{x}}^2+{{c}}$.",
+          "${{a}}\\cdot {{x}}^2={{ax2}}$, and ${{ax2}}+{{c}}={{answer}}$ square units."
         ],
-        "answerSummary": "The selected value is the model output at the stated input."
+        "commonError": "Multiplying {{a}} by {{x}} instead of by ${{x}}^2$.",
+        "answerSummary": "${{answer}}$ square units"
       },
       "prompt": "A design has area $A(x)={{a}}x^2+{{c}}$ square units. What is the area when $x={{x}}$?",
       "generator": {
@@ -13121,7 +13239,8 @@
           "answer": "a*x*x+c",
           "d1": "answer+a*x",
           "d2": "answer-a*x",
-          "d3": "answer+c"
+          "d3": "answer+c",
+          "ax2": "a*x*x"
         },
         "constraints": [
           "answer!=d1",
@@ -13324,11 +13443,14 @@
         "In vertex form, the vertex gives the extreme value of the quadratic."
       ],
       "solutionReview": {
-        "headline": "Interpret the vertex.",
+        "headline": "The vertex gives the maximum: {{answer}}.",
         "reasoning": [
-          "Because the squared term has a negative coefficient, the vertex gives the maximum output."
+          "The squared term is multiplied by a negative number, so it can only lower the height; it is $0$ when $t={{h}}$.",
+          "At $t={{h}}$: $-{{a}}({{h}}-{{h}})^2+{{k}}={{k}}$.",
+          "So the greatest height is {{answer}}."
         ],
-        "answerSummary": "The maximum value is the vertical coordinate of the vertex."
+        "commonError": "Giving the time of the maximum, {{h}}, instead of the height.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "The height of an object is modeled by $H(t)=-{{a}}(t-{{h}})^2+{{k}}$. What is the greatest height predicted by the model?",
       "generator": {
@@ -13557,11 +13679,13 @@
         "Apply the same multiplication factor once for each growth period."
       ],
       "solutionReview": {
-        "headline": "Apply repeated growth.",
+        "headline": "Multiply by {{factor}} once per period: {{answer}}.",
         "reasoning": [
-          "Multiply the initial amount by the growth factor for each stated period."
+          "After {{periods}} periods the population is ${{initial}}\\cdot {{factor}}^{ {{periods}} }$.",
+          "${{factor}}^{ {{periods}} }={{fp}}$, and ${{initial}}\\cdot {{fp}}={{answer}}$."
         ],
-        "answerSummary": "The selected value is the amount after all growth periods."
+        "commonError": "Multiplying one time too few, or adding instead of multiplying.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A population begins at {{initial}} and is multiplied by {{factor}} during each period. What is the population after {{periods}} periods?",
       "generator": {
@@ -13586,7 +13710,8 @@
           "answer": "initial*pow(factor,periods)",
           "d1": "initial*pow(factor,periods-1)",
           "d2": "answer+initial",
-          "d3": "answer-factor"
+          "d3": "answer-factor",
+          "fp": "pow(factor,periods)"
         },
         "constraints": [
           "answer!=d1",
@@ -13789,11 +13914,13 @@
         "The same decay factor is applied during each period."
       ],
       "solutionReview": {
-        "headline": "Apply repeated decay.",
+        "headline": "Multiply by {{factor}} once per interval: {{shown}} units.",
         "reasoning": [
-          "Multiply the initial amount by the decay factor once for each period."
+          "After {{periods}} intervals the amount is ${{initial}}\\cdot {{factor}}^{ {{periods}} }$.",
+          "${{factor}}^{ {{periods}} }={{fp}}$, and ${{initial}}\\cdot {{fp}}={{shown}}$ units."
         ],
-        "answerSummary": "The selected value is the remaining amount after all decay periods."
+        "commonError": "Applying the factor one time too few or too many, or giving the amount lost instead of the amount left.",
+        "answerSummary": "${{shown}}$ units"
       },
       "prompt": "A quantity starts at {{initial}} units and is multiplied by {{factor}} after each interval. How many units remain after {{periods}} intervals?",
       "generator": {
@@ -13825,7 +13952,9 @@
           "answer": "initial*pow(factor,periods)",
           "d1": "initial*pow(factor,periods-1)",
           "d2": "initial*pow(factor,periods+1)",
-          "d3": "initial-answer"
+          "d3": "initial-answer",
+          "fp": "round(pow(factor,periods)*10000)/10000",
+          "shown": "round(initial*pow(factor,periods)*10000)/10000"
         },
         "constraints": [
           "answer!=d1",
@@ -14028,11 +14157,13 @@
         "Compare each value with the value immediately before it."
       ],
       "solutionReview": {
-        "headline": "Identify the constant multiplicative change.",
+        "headline": "Divide a term by the one before it: {{answer}}.",
         "reasoning": [
-          "Divide a later value by the preceding value and confirm that the same factor repeats."
+          "$\\frac{ {{next}} }{ {{start}} }={{answer}}$.",
+          "Check the next pair: $\\frac{ {{after}} }{ {{next}} }={{answer}}$."
         ],
-        "answerSummary": "The selected factor produces both successive values."
+        "commonError": "Subtracting terms, which finds a common difference instead of a common ratio.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "An exponential pattern begins {{start}}, {{next}}, {{after}}, ... . By what factor is each term multiplied to obtain the next term?",
       "generator": {
@@ -14258,11 +14389,14 @@
         "Represent the longer side using the shorter side and the stated difference."
       ],
       "solutionReview": {
-        "headline": "Use the area relationship.",
+        "headline": "Width times (width + {{extra}}) is {{target}}: the width is {{answer}}.",
         "reasoning": [
-          "If the shorter side is x, the longer side is x plus the stated difference. Their product equals the area."
+          "With width $w$, the length is $w+{{extra}}$ and $w(w+{{extra}})={{target}}$.",
+          "So $w^2+{{extra}}w-{{target}}=(w-{{answer}})(w+{{len}})=0$.",
+          "A width is positive, so $w={{answer}}$. Check: ${{answer}}\\cdot {{len}}={{target}}$."
         ],
-        "answerSummary": "The positive value that gives the stated area is the shorter side."
+        "commonError": "Giving the length, {{len}}, instead of the width.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A rectangle has area {{target}} square units. Its length is {{extra}} units greater than its width. What is the width?",
       "generator": {
@@ -14282,7 +14416,8 @@
           "target": "answer*(answer+extra)",
           "d1": "answer+extra",
           "d2": "answer-1",
-          "d3": "answer+1"
+          "d3": "answer+1",
+          "len": "answer+extra"
         },
         "constraints": [
           "answer!=d1",
@@ -14486,11 +14621,14 @@
         "Because both quantities use the same growth factor, compare how the original difference grows."
       ],
       "solutionReview": {
-        "headline": "Compare the two exponential amounts.",
+        "headline": "Grow each quantity, then subtract: {{answer}}.",
         "reasoning": [
-          "Apply the common growth factor for the stated number of periods to each starting amount, then subtract."
+          "Each value is multiplied by ${{factor}}^{ {{periods}} }={{fp}}$.",
+          "First: ${{firstInitial}}\\cdot {{fp}}={{firstValue}}$. Second: ${{secondInitial}}\\cdot {{fp}}={{secondValue}}$.",
+          "Difference: ${{firstValue}}-{{secondValue}}={{answer}}$."
         ],
-        "answerSummary": "The selected difference is the gap between the two final amounts."
+        "commonError": "Keeping the starting gap of {{gap}}, as though the gap did not grow with the quantities.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Two quantities begin at {{firstInitial}} and {{secondInitial}}. Each is multiplied by {{factor}} during every period. After {{periods}} periods, how much greater is the first quantity than the second?",
       "generator": {
@@ -14523,7 +14661,8 @@
           "answer": "firstValue-secondValue",
           "d1": "gap*pow(factor,periods-1)",
           "d2": "gap*pow(factor,periods+1)",
-          "d3": "gap"
+          "d3": "gap",
+          "fp": "pow(factor,periods)"
         },
         "constraints": [
           "secondInitial>0",
@@ -14728,11 +14867,14 @@
         "Evaluate both models at the stated input before comparing their outputs."
       ],
       "solutionReview": {
-        "headline": "Compare the nonlinear models at one input.",
+        "headline": "Evaluate both models at $x={{x}}$ and subtract: {{answer}}.",
         "reasoning": [
-          "Evaluate the quadratic expression and the exponential expression at the same x-value, then find their difference."
+          "$Q({{x}})={{a}}\\cdot {{xx}}+{{c}}={{quadValue}}$.",
+          "$E({{x}})={{initial}}\\cdot {{fx}}={{expValue}}$.",
+          "${{expValue}}-{{quadValue}}={{answer}}$."
         ],
-        "answerSummary": "The selected amount is how much larger the exponential output is."
+        "commonError": "Giving one model's value instead of the difference.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "At $x={{x}}$, one model has value $Q(x)={{a}}x^2+{{c}}$ and another has value $E(x)={{initial}}({{factor}})^x$. How much greater is $E(x)$ than $Q(x)$?",
       "generator": {
@@ -14769,7 +14911,9 @@
           "answer": "expValue-quadValue",
           "d1": "expValue",
           "d2": "quadValue",
-          "d3": "answer+initial"
+          "d3": "answer+initial",
+          "xx": "x*x",
+          "fx": "pow(factor,x)"
         },
         "constraints": [
           "expValue>quadValue",
@@ -14868,11 +15012,13 @@
         "An acute angle measures more than 0° and less than 90°."
       ],
       "solutionReview": {
-        "headline": "Compare the angle measure with 90°.",
+        "headline": "Between $0^\\circ$ and $90^\\circ$: acute.",
         "reasoning": [
-          "An angle whose measure is between 0° and 90° is acute."
+          "An acute angle is greater than $0^\\circ$ and less than $90^\\circ$; a right angle is exactly $90^\\circ$.",
+          "$0<{{angle}}<90$, so the angle is acute."
         ],
-        "answerSummary": "The angle is acute."
+        "commonError": "Confusing acute (less than $90^\\circ$) with obtuse (more than $90^\\circ$).",
+        "answerSummary": "acute"
       },
       "prompt": "An angle measures {{angle}}°. Which word best describes the angle?",
       "generator": {
@@ -14971,11 +15117,13 @@
         "A right angle measures exactly 90°."
       ],
       "solutionReview": {
-        "headline": "Recognize the exact right-angle measure.",
+        "headline": "Exactly $90^\\circ$: right.",
         "reasoning": [
-          "Any angle measuring exactly 90° is a right angle."
+          "A right angle measures exactly $90^\\circ$, like the corner of a square.",
+          "${{angle}}=90$, so the angle is right."
         ],
-        "answerSummary": "The angle is right."
+        "commonError": "Calling it straight; a straight angle is $180^\\circ$.",
+        "answerSummary": "right"
       },
       "prompt": "A corner measures {{angle}}°. How is this angle classified?",
       "generator": {
@@ -15074,11 +15222,13 @@
         "An obtuse angle measures more than 90° and less than 180°."
       ],
       "solutionReview": {
-        "headline": "Compare the angle measure with 90° and 180°.",
+        "headline": "Between $90^\\circ$ and $180^\\circ$: obtuse.",
         "reasoning": [
-          "An angle between 90° and 180° is obtuse."
+          "An obtuse angle is greater than $90^\\circ$ and less than $180^\\circ$.",
+          "$90<{{angle}}<180$, so angle R is obtuse."
         ],
-        "answerSummary": "The angle is obtuse."
+        "commonError": "Confusing obtuse with acute, which is less than $90^\\circ$.",
+        "answerSummary": "obtuse"
       },
       "prompt": "The measure of angle R is {{angle}}°. What type of angle is R?",
       "generator": {
@@ -15177,11 +15327,13 @@
         "Complementary angles have measures that add to 90°."
       ],
       "solutionReview": {
-        "headline": "Subtract from 90°.",
+        "headline": "Complementary angles add to $90^\\circ$, so subtract from 90: {{answer}}°.",
         "reasoning": [
-          "The two complementary angle measures must total 90°."
+          "Complementary angles add to $90^\\circ$.",
+          "$90-{{angle}}={{answer}}$, so the other angle measures {{answer}}°."
         ],
-        "answerSummary": "The other angle is 90° minus the given angle."
+        "commonError": "Subtracting from 180, which gives the supplement instead.",
+        "answerSummary": "{{answer}}°"
       },
       "prompt": "Two angles are complementary. One angle measures {{angle}}°. What is the measure of the other angle?",
       "generator": {
@@ -15295,11 +15447,13 @@
         "Supplementary angles have measures that add to 180°."
       ],
       "solutionReview": {
-        "headline": "Subtract from 180°.",
+        "headline": "Supplementary angles add to $180^\\circ$, so subtract from 180: {{answer}}°.",
         "reasoning": [
-          "The two supplementary angle measures must total 180°."
+          "Supplementary angles add to $180^\\circ$.",
+          "$180-{{angle}}={{answer}}$, so the supplement measures {{answer}}°."
         ],
-        "answerSummary": "The supplement is 180° minus the given angle."
+        "commonError": "Adding to 180 instead of subtracting from it.",
+        "answerSummary": "{{answer}}°"
       },
       "prompt": "A pair of supplementary angles contains an angle measuring {{angle}}°. What is the measure of its supplement?",
       "generator": {
@@ -15414,11 +15568,13 @@
         "Vertical angles have equal measures."
       ],
       "solutionReview": {
-        "headline": "Set the vertical angle measures equal.",
+        "headline": "Vertical angles are equal: $x={{answer}}$.",
         "reasoning": [
-          "Because vertical angles are congruent, x plus the offset must equal the known angle."
+          "Vertical angles have equal measures, so $x+{{offset}}={{knownAngle}}$.",
+          "$x={{knownAngle}}-{{offset}}={{answer}}$."
         ],
-        "answerSummary": "Subtract the offset from the known angle."
+        "commonError": "Giving the angle measure, {{knownAngle}}, instead of $x$.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "Two lines intersect. A pair of vertical angles have measures {{knownAngle}}° and (x + {{offset}})°. What is x?",
       "generator": {
@@ -15537,11 +15693,14 @@
         "A linear pair has angle measures that add to 180°."
       ],
       "solutionReview": {
-        "headline": "Write an equation for the straight angle.",
+        "headline": "Angles along a straight line add to $180^\\circ$: $x={{answer}}$.",
         "reasoning": [
-          "Add 2x and x plus the offset, set the sum equal to 180, and solve for x."
+          "The angles form a straight line, so $2x+(x+{{offset}})=180$.",
+          "Combine: $3x={{rest}}$, since $180-{{offset}}={{rest}}$.",
+          "$x=\\frac{ {{rest}} }{3}={{answer}}$."
         ],
-        "answerSummary": "The variable value makes the two adjacent angles supplementary."
+        "commonError": "Counting only one $x$, or giving $2x$ instead of $x$.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "Two adjacent angles form a straight line. Their measures are 2x° and (x + {{offset}})°. What is x?",
       "generator": {
@@ -15556,7 +15715,8 @@
           "offset": "180-3*answer",
           "d1": "answer+10",
           "d2": "2*answer",
-          "d3": "answer+20"
+          "d3": "answer+20",
+          "rest": "180-offset"
         },
         "constraints": [
           "answer!=d1",
@@ -15655,11 +15815,13 @@
         "The interior angles of a triangle have a total measure of 180°."
       ],
       "solutionReview": {
-        "headline": "Subtract the known angles from 180°.",
+        "headline": "The angles of a triangle add to $180^\\circ$: {{answer}}°.",
         "reasoning": [
-          "All three interior angles together measure 180°."
+          "The three interior angles of a triangle add to $180^\\circ$.",
+          "$180-{{angleA}}-{{angleB}}={{answer}}$, so the third angle measures {{answer}}°."
         ],
-        "answerSummary": "The missing angle is the remainder after subtracting the two known measures."
+        "commonError": "Adding the two given angles instead of subtracting their sum from 180.",
+        "answerSummary": "{{answer}}°"
       },
       "prompt": "A triangle has two interior angles measuring {{angleA}}° and {{angleB}}°. What is the measure of the third interior angle?",
       "generator": {

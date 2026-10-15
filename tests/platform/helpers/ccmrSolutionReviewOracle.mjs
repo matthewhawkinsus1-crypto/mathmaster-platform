@@ -451,7 +451,13 @@ export const containsAnswer = (haystack, needle) => {
  * `key` is the keyed choice label or the keyed value; `losers` the other
  * choice labels.
  */
-export const keyProblems = (review, { key, losers = [] }) => {
+// A printed float artefact ("102.40000000000002", a bank display defect) is
+// matched by its value: the review states 102.4 rather than repeat it.
+const cleanFloats = (text) => String(text).replace(/-?\d+\.\d*(?:0{6,}|9{6,})\d+/g, (number) => String(Number(Number(number).toPrecision(12))));
+
+export const keyProblems = (review, { key: printedKey, losers: printedLosers = [] }) => {
+  const key = cleanFloats(printedKey);
+  const losers = printedLosers.map(cleanFloats);
   const problems = [];
   const steps = review.reasoning || [];
   if (!containsAnswer(review.answerSummary, key)) problems.push(`answer summary does not state the key "${key}": "${review.answerSummary}"`);
