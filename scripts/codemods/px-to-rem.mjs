@@ -25,7 +25,10 @@
  *                             lineHeight: '20px' (a NUMBER lineHeight is a
  *                             unitless multiplier and already scales)
  *   CSS declarations          font-size: 14px  and  line-height: 20px
- *                             (px inside clamp()/calc()/max()/min() too)
+ *                             (px inside clamp()/calc()/max()/min() too), in
+ *                             .css files and in a stylesheet held in a JS
+ *                             template literal (`const CSS = \`\n.a { … }\``,
+ *                             no `${…}` inside; job N)
  *
  * What it leaves alone:
  *   - src/App.jsx, src/app/** and src/App.css (job G's; re-run after G lands)
@@ -162,6 +165,14 @@ export const transformJs = (source) => {
     changes += 1;
   }
   output += source.slice(cursor);
+  // A stylesheet in a template literal (Live Challenge's injected <style>s):
+  // `= \`` then a newline, CSS, the closing backtick; nothing interpolated.
+  output = output.replace(/(=\s*)`(\n[^`]*)`/g, (all, lead, css) => {
+    if (css.includes('${') || !/(font-size|line-height)\s*:/.test(css)) return all;
+    const result = transformCss(css);
+    changes += result.changes;
+    return `${lead}\`${result.output}\``;
+  });
   return { output, changes, skipped };
 };
 

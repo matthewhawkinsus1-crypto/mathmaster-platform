@@ -69,6 +69,18 @@ test('CSS: font-size and line-height in px, !important kept, everything else unt
   assert.equal(output, `.a { font-size: ${pxExpression(14)}; line-height: ${pxExpression(20)}; padding: 4px; }\n.b{font-size:${pxExpression(12)}!important}\n@media (max-width: 480px) { .c { font-size: clamp(${pxExpression(12)}, 3vw, ${pxExpression(18)}); } }\n.d { font-size: 1.1rem; }`);
 });
 
+test('a stylesheet held in a JS template literal is converted; an interpolated template is not', () => {
+  // Live Challenge injects its CSS as <style>{RUSH_CSS}</style> (job N).
+  const js = 'const RUSH_CSS = `\n.chip { font-size: 13px; padding: 4px 10px; }\n.clock { font-size: clamp(21px, 4vmin, 34px); line-height: 1; }\n`;\nconst label = `${n}px`;\nconst dynamic = `\n.x { font-size: ${size}px; }\n`;';
+  const { output, changes } = transformJs(js);
+  assert.equal(changes, 2);
+  assert.match(output, new RegExp(`\\.chip \\{ font-size: ${pxExpression(13).replace(/[()*]/g, '\\$&')}; padding: 4px 10px; \\}`));
+  assert.match(output, /\.clock \{ font-size: clamp\(calc\(21 \* var\(--mm-px\)\), 4vmin, calc\(34 \* var\(--mm-px\)\)\); line-height: 1; \}/);
+  assert.match(output, /const label = `\$\{n\}px`;/, 'not a stylesheet');
+  assert.match(output, /\.x \{ font-size: \$\{size\}px; \}/, 'interpolated: left for a human');
+  assert.deepEqual(transformJs(output), { output, changes: 0, skipped: 0 }, 'idempotent');
+});
+
 test('idempotent: a second run changes nothing', () => {
   const js = "const A = { fontSize: compact ? 12 : 14, lineHeight: '18px' };\nconst B = { fontSize: 'clamp(12px, 2vw, 16px)' };";
   const once = transformJs(js).output;
