@@ -56259,7 +56259,9 @@
           }
         },
         "derived": {
-          "a": "r*r*r-xsol"
+          "a": "r*r*r-xsol",
+          "r3": "r*r*r",
+          "na": "-a"
         },
         "constraints": [
           "a!=0"
@@ -56272,11 +56274,13 @@
         "Isolate the cube-root expression before cubing both sides. Odd roots allow real positive and negative values."
       ],
       "solutionReview": {
-        "headline": "Solve the cube-root equation.",
+        "headline": "Cube both sides and solve: $x={{xsol}}$.",
         "reasoning": [
-          "Isolate the radical, cube both sides, solve the resulting linear relationship, and verify the result."
+          "Cube both sides: $x {{a|signed}}={{r}}^3={{r3}}$.",
+          "So $x={{r3}} {{na|signed}}={{xsol}}$. Check: $\\sqrt[3]{{{xsol}} {{a|signed}}}=\\sqrt[3]{{{r3}}}={{r}}$."
         ],
-        "answerSummary": "Check the value in the original cube-root equation."
+        "commonError": "Squaring instead of cubing, or moving {{a}} before undoing the cube root.",
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -56486,7 +56490,9 @@
           "a": "-(r*r*r)-xsol",
           "d1": "xsol+1",
           "d2": "xsol-1",
-          "d3": "-xsol"
+          "d3": "-xsol",
+          "nr3": "-(r*r*r)",
+          "na": "-a"
         },
         "constraints": [
           "xsol!=0",
@@ -56502,11 +56508,13 @@
         "Isolate the cube-root expression before cubing both sides. Odd roots allow real positive and negative values."
       ],
       "solutionReview": {
-        "headline": "Solve the cube-root equation.",
+        "headline": "Cube both sides, keeping the sign: $x={{xsol}}$.",
         "reasoning": [
-          "Isolate the radical, cube both sides, solve the resulting linear relationship, and verify the result."
+          "Cube both sides: $x {{a|signed}}=(-{{r}})^3={{nr3}}$.",
+          "So $x={{nr3}} {{na|signed}}={{xsol}}$. Check: $\\sqrt[3]{{{xsol}} {{a|signed}}}=\\sqrt[3]{{{nr3}}}=-{{r}}$."
         ],
-        "answerSummary": "Check the value in the original cube-root equation."
+        "commonError": "Dropping the minus sign: $(-{{r}})^3$ is negative, and a cube root of a negative number is negative.",
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -56606,7 +56614,8 @@
         },
         "derived": {
           "n": "k+r",
-          "xsol": "h+r*r*r"
+          "xsol": "h+r*r*r",
+          "r3": "r*r*r"
         }
       },
       "attemptFeedback": [
@@ -56616,11 +56625,13 @@
         "Isolate the cube-root expression before cubing both sides. Odd roots allow real positive and negative values."
       ],
       "solutionReview": {
-        "headline": "Solve the cube-root equation.",
+        "headline": "Isolate the cube root, cube, solve: $x={{xsol}}$.",
         "reasoning": [
-          "Isolate the radical, cube both sides, solve the resulting linear relationship, and verify the result."
+          "Isolate the root: $\\sqrt[3]{x-{{h}}}={{n}}-{{k}}={{r}}$.",
+          "Cube: $x-{{h}}={{r3}}$, so $x={{r3}}+{{h}}={{xsol}}$."
         ],
-        "answerSummary": "Check the value in the original cube-root equation."
+        "commonError": "Cubing before subtracting {{k}}, or squaring instead of cubing.",
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -57090,7 +57101,9 @@
         },
         "derived": {
           "a": "r*r*r-m*xsol",
-          "n": "r+c"
+          "n": "r+c",
+          "r3": "r*r*r",
+          "mx": "r*r*r-a"
         },
         "constraints": [
           "a!=0"
@@ -57103,11 +57116,13 @@
         "Isolate the cube-root expression before cubing both sides. Odd roots allow real positive and negative values."
       ],
       "solutionReview": {
-        "headline": "Solve the cube-root equation.",
+        "headline": "Isolate the cube root, cube, solve the linear equation: $x={{xsol}}$.",
         "reasoning": [
-          "Isolate the radical, cube both sides, solve the resulting linear relationship, and verify the result."
+          "Isolate the root: $\\sqrt[3]{ {{m}}x {{a|signed}} }={{n}}-{{c}}={{r}}$.",
+          "Cube: ${{m}}x {{a|signed}}={{r3}}$, so ${{m}}x={{mx}}$ and $x=\\frac{{{mx}}}{{{m}}}={{xsol}}$."
         ],
-        "answerSummary": "Check the value in the original cube-root equation."
+        "commonError": "Cubing before subtracting {{c}}, or dividing by {{m}} before moving the constant.",
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -57309,11 +57324,13 @@
         "An absolute-value equation describes one or two values at a specified distance from a center."
       ],
       "solutionReview": {
-        "headline": "Use the absolute-value relationship.",
+        "headline": "The solutions are equally far from $k$: $k$ is their midpoint, {{k}}.",
         "reasoning": [
-          "Solve the equation and substitute the result into the original absolute-value equation."
+          "$|x-k|={{r}}$ has solutions $k-{{r}}$ and $k+{{r}}$, so $k$ is halfway between them.",
+          "$k=\\frac{{{left}}+{{right|paren}}}{2}=\\frac{{{s}}}{2}={{k}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "commonError": "Taking half the distance between the solutions (that is {{r}}) instead of their midpoint.",
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "The solutions to $|x {{neg_k|signed}}|={{r}}$ are $x={{left}}$ and $x={{right}}$. What is the value of $k$?",
@@ -57333,7 +57350,8 @@
         "derived": {
           "left": "k-r",
           "right": "k+r",
-          "neg_k": "-k"
+          "neg_k": "-k",
+          "s": "left+right"
         },
         "constraints": [
           "neg_k!=0"
@@ -57537,11 +57555,13 @@
         "An absolute-value equation describes one or two values at a specified distance from a center."
       ],
       "solutionReview": {
-        "headline": "Use the absolute-value relationship.",
+        "headline": "Two cases, $\\pm{{r}}$: the greater solution is {{greater}}.",
         "reasoning": [
-          "Solve the equation and substitute the result into the original absolute-value equation."
+          "$|x {{neg_h|signed}}|={{r}}$ means $x {{neg_h|signed}}={{r}}$ or $x {{neg_h|signed}}=-{{r}}$.",
+          "So $x={{greater}}$ or $x={{lesser}}$; the greater solution is {{greater}}."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "commonError": "Solving only one case, or measuring from {{neg_h}}: $|x {{neg_h|signed}}|$ is the distance from $x$ to {{h}}.",
+        "answerSummary": "$x={{greater}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "The equation $|x {{neg_h|signed}}|={{r}}$ has two solutions. What is the greater solution?",
@@ -57560,7 +57580,8 @@
         },
         "derived": {
           "greater": "h+r",
-          "neg_h": "-h"
+          "neg_h": "-h",
+          "lesser": "h-r"
         },
         "constraints": [
           "neg_h!=0"
@@ -57631,11 +57652,13 @@
         "An absolute-value equation describes one or two values at a specified distance from a center."
       ],
       "solutionReview": {
-        "headline": "Use the absolute-value relationship.",
+        "headline": "Exactly {{r}} from {{center}}: $m={{lesser}}$ or $m={{greater}}$; the greater is {{greater}}.",
         "reasoning": [
-          "Solve the equation and substitute the result into the original absolute-value equation."
+          "$|m-{{center}}|={{r}}$ means $m-{{center}}={{r}}$ or $m-{{center}}=-{{r}}$.",
+          "So $m={{greater}}$ or $m={{lesser}}$; the greater possible value is {{greater}}."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "commonError": "Giving the smaller value {{lesser}}, or the distance {{r}} itself.",
+        "answerSummary": "$m={{greater}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "A measurement $m$ is exactly {{r}} units from {{center}}. The relationship is $|m-{{center}}|={{r}}$. What is the greater possible value of $m$?",
@@ -57653,7 +57676,8 @@
           }
         },
         "derived": {
-          "greater": "center+r"
+          "greater": "center+r",
+          "lesser": "center-r"
         }
       },
       "responseFields": [
@@ -57982,11 +58006,13 @@
         "An absolute-value equation describes one or two values at a specified distance from a center."
       ],
       "solutionReview": {
-        "headline": "Use the absolute-value relationship.",
+        "headline": "An absolute value is 0 only when the inside is 0: $x={{h}}$.",
         "reasoning": [
-          "Solve the equation and substitute the result into the original absolute-value equation."
+          "$|x {{neg_h|signed}}|=0$ only when $x {{neg_h|signed}}=0$.",
+          "So the only solution is $x={{h}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "commonError": "Answering {{d3}}: the expression inside the bars is 0 at $x={{h}}$.",
+        "answerSummary": "$x={{h}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "What is the solution to $|x {{neg_h|signed}}|=0$?",
@@ -58231,11 +58257,13 @@
         "An absolute value measures distance. Translate the distance condition into the corresponding interval or pair of intervals."
       ],
       "solutionReview": {
-        "headline": "Use the distance condition.",
+        "headline": "$k$ must be at least the distance from {{p}} to {{h}}: {{answer}}.",
         "reasoning": [
-          "Rewrite the absolute-value inequality as the equivalent interval condition, then apply any integer or contextual restriction."
+          "$x={{p}}$ satisfies the inequality exactly when $|{{p}} {{neg_h|signed}}|\\le k$.",
+          "$|{{p}} {{neg_h|signed}}|={{d}}$, so $k$ must be at least {{d}}: the least value is $k={{answer}}$."
         ],
-        "answerSummary": "Check the result in the original inequality."
+        "commonError": "Answering {{p}}, the value of $x$: $k$ bounds the distance from {{h}}.",
+        "answerSummary": "$k={{answer}}$"
       },
       "prompt": "The value $x={{p}}$ satisfies $|x {{neg_h|signed}}|\\le k$, where $k$ is a nonnegative integer. What is the least possible value of $k$?",
       "generator": {
@@ -58459,11 +58487,14 @@
         "An absolute value measures distance. Translate the distance condition into the corresponding interval or pair of intervals."
       ],
       "solutionReview": {
-        "headline": "Use the distance condition.",
+        "headline": "Within {{r}} of {{h}}: the greatest value is {{answer}}.",
         "reasoning": [
-          "Rewrite the absolute-value inequality as the equivalent interval condition, then apply any integer or contextual restriction."
+          "$|x {{neg_h|signed}}|\\le {{r}}$ means $x$ is within {{r}} of {{h}}: $-{{r}}\\le x {{neg_h|signed}}\\le {{r}}$.",
+          "The endpoints are ${{h}}-{{r}}={{lo}}$ and ${{h}}+{{r}}={{answer}}$, so ${{lo}}\\le x\\le {{answer}}$.",
+          "So the greatest possible value of $x$ is {{answer}}."
         ],
-        "answerSummary": "Check the result in the original inequality."
+        "commonError": "Answering {{r}}: the bound limits the distance from {{h}}, not $x$ itself.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "The inequality $|x {{neg_h|signed}}|\\le {{r}}$ is satisfied by a range of real values. What is the greatest possible value of $x$?",
       "generator": {
@@ -58481,7 +58512,8 @@
         },
         "derived": {
           "neg_h": "-h",
-          "answer": "h+r"
+          "answer": "h+r",
+          "lo": "h-r"
         },
         "constraints": [
           "neg_h!=0"
@@ -58553,11 +58585,13 @@
         "An absolute value measures distance. Translate the distance condition into the corresponding interval or pair of intervals."
       ],
       "solutionReview": {
-        "headline": "Use the distance condition.",
+        "headline": "Count the integers strictly within {{r}} of {{h}}: {{answer}}.",
         "reasoning": [
-          "Rewrite the absolute-value inequality as the equivalent interval condition, then apply any integer or contextual restriction."
+          "$|x {{neg_h|signed}}|<{{r}}$ means ${{lo}}<x<{{hi}}$.",
+          "The integers strictly between are {{lo1}} through {{hi1}}: ${{hi1}}-{{lo1|paren}}+1={{answer}}$ of them."
         ],
-        "answerSummary": "Check the result in the original inequality."
+        "commonError": "Including the endpoints {{lo}} and {{hi}}: the strict $<$ leaves them out, so the count is not {{answer2}}.",
+        "answerSummary": "{{answer}} integer values"
       },
       "prompt": "How many integer values of $x$ satisfy $|x {{neg_h|signed}}|<{{r}}$?",
       "generator": {
@@ -58575,7 +58609,12 @@
         },
         "derived": {
           "neg_h": "-h",
-          "answer": "2*r-1"
+          "answer": "2*r-1",
+          "lo": "h-r",
+          "hi": "h+r",
+          "lo1": "h-r+1",
+          "hi1": "h+r-1",
+          "answer2": "2*r+1"
         },
         "constraints": [
           "neg_h!=0"
@@ -58647,11 +58686,14 @@
         "An absolute value measures distance. Translate the distance condition into the corresponding interval or pair of intervals."
       ],
       "solutionReview": {
-        "headline": "Use the distance condition.",
+        "headline": "At least {{r}} from {{h}}: two rays, endpoints included.",
         "reasoning": [
-          "Rewrite the absolute-value inequality as the equivalent interval condition, then apply any integer or contextual restriction."
+          "$|x {{neg_h|signed}}|\\ge {{r}}$ says the distance from $x$ to {{h}} is at least {{r}}.",
+          "The boundary points are ${{h}}-{{r}}={{left}}$ and ${{h}}+{{r}}={{right}}$, and $\\ge$ includes them.",
+          "So $x\\le {{left}}$ or $x\\ge {{right}}$."
         ],
-        "answerSummary": "Check the result in the original inequality."
+        "commonError": "Writing a single interval (that would be $\\le$), or strict inequalities that leave out {{left}} and {{right}}.",
+        "answerSummary": "$x\\le {{left}}$ or $x\\ge {{right}}$"
       },
       "prompt": "Which statement is equivalent to $|x {{neg_h|signed}}|\\ge {{r}}$?",
       "generator": {
@@ -58762,11 +58804,14 @@
         "An absolute value measures distance. Translate the distance condition into the corresponding interval or pair of intervals."
       ],
       "solutionReview": {
-        "headline": "Use the distance condition.",
+        "headline": "Divide by {{a}}: $x$ is within {{r}} of {{h}}, the interval $[{{left}},{{right}}]$.",
         "reasoning": [
-          "Rewrite the absolute-value inequality as the equivalent interval condition, then apply any integer or contextual restriction."
+          "Divide by {{a}}: $|{{a}}x {{b|signed}}|\\le {{c}}$ becomes $|x {{nh|signed}}|\\le {{r}}$, because $\\frac{{{c}}}{{{a}}}={{r}}$.",
+          "So $x$ is within {{r}} of {{h}}: from ${{h}}-{{r}}={{left}}$ to ${{h}}+{{r}}={{right}}$, endpoints included.",
+          "That is the interval $[{{left}},{{right}}]$."
         ],
-        "answerSummary": "Check the result in the original inequality."
+        "commonError": "Dividing only {{c}} by {{a}}, or writing the outside region: $\\le$ keeps the values close to {{h}}.",
+        "answerSummary": "$[{{left}},{{right}}]$"
       },
       "prompt": "Which interval contains exactly the values of $x$ that satisfy $|{{a}}x {{b|signed}}|\\le {{c}}$?",
       "generator": {
@@ -58795,7 +58840,8 @@
           "left1": "h-r+1",
           "right1": "h+r-1",
           "leftout": "h-r-1",
-          "rightout": "h+r+1"
+          "rightout": "h+r+1",
+          "nh": "-h"
         },
         "constraints": [
           "r>=2",
@@ -58886,11 +58932,14 @@
         "An absolute value measures distance. Translate the distance condition into the corresponding interval or pair of intervals."
       ],
       "solutionReview": {
-        "headline": "Use the distance condition.",
+        "headline": "At most {{tol}} from {{target}}: the greatest length is {{answer}} millimeters.",
         "reasoning": [
-          "Rewrite the absolute-value inequality as the equivalent interval condition, then apply any integer or contextual restriction."
+          "\"Differs from {{target}} by at most {{tol}}\" means $|L-{{target}}|\\le {{tol}}$.",
+          "So $L$ runs from ${{target}}-{{tol}}={{lo}}$ to ${{target}}+{{tol}}={{answer}}$.",
+          "The greatest acceptable length is {{answer}} millimeters."
         ],
-        "answerSummary": "Check the result in the original inequality."
+        "commonError": "Giving the smallest acceptable length {{lo}}, or the target {{target}} itself.",
+        "answerSummary": "{{answer}} millimeters"
       },
       "prompt": "A machine part is acceptable when its length $L$, in millimeters, differs from {{target}} by at most {{tol}} millimeters. What is the greatest acceptable length, in millimeters?",
       "generator": {
@@ -58907,7 +58956,8 @@
           }
         },
         "derived": {
-          "answer": "target+tol"
+          "answer": "target+tol",
+          "lo": "target-tol"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
