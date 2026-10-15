@@ -79,8 +79,21 @@ function weeklyPathDescription({ classId, weekKey, goalSessions, launchUrl, shor
   ].filter((line) => line !== null).join("\n");
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// The scheduled sync passes the week's key, "2026-10-12", as its label, so
+// students saw "Math Path — week of 2026-10-12". A key in that shape reads as
+// "Oct 12" — the same words a Classroom topic named by week uses. Any other
+// label is the caller's own wording and is kept as written.
+function readableWeekLabel(label) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(label);
+  if (!match) return label;
+  const month = MONTHS[Number(match[2]) - 1];
+  return month ? `${month} ${Number(match[3])}` : label;
+}
+
 function weeklyPathTitle({ weekLabel, weekKey } = {}) {
-  const label = clean(weekLabel) || clean(weekKey);
+  const label = readableWeekLabel(clean(weekLabel) || clean(weekKey));
   return label ? `Math Path — week of ${label}` : "Math Path — weekly practice";
 }
 
