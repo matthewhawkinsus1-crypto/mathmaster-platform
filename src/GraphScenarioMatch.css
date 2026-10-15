@@ -41,13 +41,13 @@
 
 .graph-scenario-match-progress strong {
   color: var(--mm-primary-text);
-  font-size: 17px;
+  font-size: calc(17 * var(--mm-px));
 }
 
 .graph-scenario-match-progress span {
   margin-top: 1px;
   color: var(--mm-text-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--mm-px));
   font-weight: 800;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -71,7 +71,7 @@
 }
 
 .graph-scenario-match-instructions strong { color: var(--mm-primary-text); }
-.graph-scenario-match-instructions span { margin-top: 2px; color: var(--mm-text-muted); font-size: 13px; }
+.graph-scenario-match-instructions span { margin-top: 2px; color: var(--mm-text-muted); font-size: calc(13 * var(--mm-px)); }
 
 .graph-scenario-match-actions {
   display: flex;
@@ -89,7 +89,7 @@
   background: var(--mm-surface);
   color: var(--mm-primary-text);
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12 * var(--mm-px));
   font-weight: 800;
   cursor: pointer;
 }
@@ -134,9 +134,9 @@
 
 .graph-scenario-bank-header span,
 .graph-scenario-bank-header strong { display: block; }
-.graph-scenario-bank-header span { color: var(--mm-primary-text); font-size: 10px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
-.graph-scenario-bank-header strong { margin-top: 2px; font-size: 14px; }
-.graph-scenario-bank-header small { max-width: 145px; color: var(--mm-text-muted); font-size: 11px; line-height: 1.3; text-align: right; }
+.graph-scenario-bank-header span { color: var(--mm-primary-text); font-size: calc(10 * var(--mm-px)); font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+.graph-scenario-bank-header strong { margin-top: 2px; font-size: calc(14 * var(--mm-px)); }
+.graph-scenario-bank-header small { max-width: 145px; color: var(--mm-text-muted); font-size: calc(11 * var(--mm-px)); line-height: 1.3; text-align: right; }
 
 .graph-scenario-scroll-pane {
   flex: 1 1 0;
@@ -230,12 +230,12 @@
 .graph-scenario-card-topline > div { min-width: 0; }
 .graph-scenario-card-topline strong,
 .graph-scenario-card-topline span { display: block; }
-.graph-scenario-card-topline strong { font-size: 15px; }
+.graph-scenario-card-topline strong { font-size: calc(15 * var(--mm-px)); }
 .graph-scenario-card-topline span {
   margin-top: 1px;
   max-width: 260px;
   color: var(--mm-text-muted);
-  font-size: 10px;
+  font-size: calc(10 * var(--mm-px));
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -281,7 +281,7 @@
   border-radius: 8px;
   background: var(--mm-primary-subtle);
   color: var(--mm-primary-text);
-  font-size: 12px;
+  font-size: calc(12 * var(--mm-px));
   font-weight: 850;
   text-align: center;
 }
@@ -301,10 +301,10 @@
 }
 
 .graph-scenario-story-copy { min-width: 0; }
-.graph-scenario-story-number { color: var(--mm-primary-text); font-size: 10px; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; }
-.graph-scenario-story-copy h3 { margin: 4px 0 5px; font-size: 17px; }
-.graph-scenario-story-copy p { margin: 0; color: var(--mm-text); font-size: 14px; line-height: 1.45; }
-.graph-scenario-story-copy .graph-scenario-quantities { margin-top: 7px; color: var(--mm-text-muted); font-size: 12px; }
+.graph-scenario-story-number { color: var(--mm-primary-text); font-size: calc(10 * var(--mm-px)); font-weight: 950; letter-spacing: .06em; text-transform: uppercase; }
+.graph-scenario-story-copy h3 { margin: 4px 0 5px; font-size: calc(17 * var(--mm-px)); }
+.graph-scenario-story-copy p { margin: 0; color: var(--mm-text); font-size: calc(14 * var(--mm-px)); line-height: 1.45; }
+.graph-scenario-story-copy .graph-scenario-quantities { margin-top: 7px; color: var(--mm-text-muted); font-size: calc(12 * var(--mm-px)); }
 
 .graph-scenario-story-match {
   align-self: center;
@@ -321,12 +321,12 @@
 .graph-scenario-story-card.is-incorrect .graph-scenario-story-match { background: var(--mm-error-bg); }
 .graph-scenario-story-match span,
 .graph-scenario-story-match strong { display: block; }
-.graph-scenario-story-match span { color: var(--mm-text-muted); font-size: 9px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
-.graph-scenario-story-match strong { margin-top: 3px; color: var(--mm-primary-text); font-size: 13px; line-height: 1.25; }
+.graph-scenario-story-match span { color: var(--mm-text-muted); font-size: calc(9 * var(--mm-px)); font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.graph-scenario-story-match strong { margin-top: 3px; color: var(--mm-primary-text); font-size: calc(13 * var(--mm-px)); line-height: 1.25; }
 
 .graph-scenario-unmatch-button { display: block; margin: -4px 12px 10px auto; padding: 5px 9px; }
 .graph-scenario-mobile-match-summary { display: none; }
-.graph-scenario-submit-note { margin: 10px 0 0; color: var(--mm-text-muted); font-size: 12px; text-align: center; }
+.graph-scenario-submit-note { margin: 10px 0 0; color: var(--mm-text-muted); font-size: calc(12 * var(--mm-px)); text-align: center; }
 
 .graph-scenario-zoom-backdrop {
   position: fixed;
@@ -362,7 +362,7 @@
 
 .graph-scenario-zoom-header span,
 .graph-scenario-zoom-header h3 { display: block; margin: 0; }
-.graph-scenario-zoom-header span { color: var(--mm-primary-text); font-size: 10px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+.graph-scenario-zoom-header span { color: var(--mm-primary-text); font-size: calc(10 * var(--mm-px)); font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
 .graph-scenario-zoom-header h3 { margin-top: 2px; }
 .graph-scenario-zoom-header button { padding: 7px 10px; }
 .graph-scenario-zoom-graph { padding: 10px 18px 22px; }
@@ -440,7 +440,7 @@
     background: var(--mm-surface-tint);
     color: var(--mm-primary-text);
     font: inherit;
-    font-size: 12px;
+    font-size: calc(12 * var(--mm-px));
     text-align: left;
   }
 }

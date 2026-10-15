@@ -46,7 +46,7 @@ export default function SolutionReviewPanel({
 
       {authored && (
         <div data-review-source="authored" style={{ display: 'grid', gap: 10, marginBottom: (tool || legacy) ? 14 : 0 }}>
-          {authored.headline && <MathText as="p" style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--mm-text-strong)', lineHeight: 1.5 }}>{authored.headline}</MathText>}
+          {authored.headline && <MathText as="p" style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)', lineHeight: 1.5 }}>{authored.headline}</MathText>}
           {authored.reasoning.length > 0 && (
             <ol style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 7 }}>
               {authored.reasoning.map((line, index) => <li key={`a-${index}`} style={{ lineHeight: 1.6 }}><MathText>{line}</MathText></li>)}

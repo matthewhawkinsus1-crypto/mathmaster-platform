@@ -94,7 +94,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
                 <div style={{fontWeight:800}}>{label}</div>
                 {/* The tested sign of each interval is the work the student is
                     being asked to do, so it is a teacher-bench readout only. */}
-                <div style={{marginTop:6,fontSize:13,color:revealAnswers ? (interval.sign>0?'var(--mm-success-text)':'var(--mm-danger)') : 'var(--mm-text-muted)'}}>
+                <div style={{marginTop:6,fontSize:'calc(13 * var(--mm-px))',color:revealAnswers ? (interval.sign>0?'var(--mm-success-text)':'var(--mm-danger)') : 'var(--mm-text-muted)'}}>
                   {revealAnswers ? `test sign ${interval.sign>0?'+':'−'}` : isSelected ? 'selected' : 'tap to select'}
                 </div>
               </button>
@@ -104,7 +104,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
       </Panel>
 
       <Panel title="Your solution set">
-        <div style={{padding:14,border:'1px solid var(--mm-tint-border)',borderRadius:10,background:'var(--mm-surface)',fontSize:18,fontWeight:800,minHeight:52}}>
+        <div style={{padding:14,border:'1px solid var(--mm-tint-border)',borderRadius:10,background:'var(--mm-surface)',fontSize:'calc(18 * var(--mm-px))',fontWeight:800,minHeight:52}}>
           {selected.length
             ? selected.slice().sort((a, b) => a - b).map((index) => {
                 const interval = analysis.intervals[index];
@@ -113,7 +113,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
             : 'Select intervals to build your answer.'}
         </div>
         {revealAnswers ? (
-          <p style={{fontSize:12,color:'var(--mm-text-muted)',marginTop:8}}>
+          <p style={{fontSize:'calc(12 * var(--mm-px))',color:'var(--mm-text-muted)',marginTop:8}}>
             Teacher preview — correct solution: {expectedPieces.length ? expectedPieces.map(formatSolutionPiece).join(' ∪ ') : '∅'}
           </p>
         ) : null}
@@ -171,14 +171,14 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
     />
     <ToolGrid min={320}>
       <Panel title="Candidates">
-        <p style={{fontSize:20,fontWeight:900,margin:'0 0 12px'}}>{equationText}</p>
+        <p style={{fontSize:'calc(20 * var(--mm-px))',fontWeight:900,margin:'0 0 12px'}}>{equationText}</p>
         {candidates.map((candidate) => {
           const result = evaluateRadicalEquationCandidate(spec, candidate);
           const isSelected = selected.includes(candidate);
           return (
             <button type="button" key={candidate} onClick={() => toggle(candidate)} aria-pressed={isSelected} style={{display:'block',width:'100%',padding:13,margin:'8px 0',borderRadius:10,border:isSelected?'2px solid #1a73e8':'1px solid var(--mm-tint-border)',background:isSelected?'var(--mm-primary-subtle)':'var(--mm-surface)',textAlign:'left',cursor:'pointer',minHeight:44}}>
               <strong>x = {candidate}</strong>
-              <span style={{float:'right',color:'var(--mm-text-muted)',fontSize:13}}>
+              <span style={{float:'right',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>
                 {revealAnswers
                   ? (result?.valid ? 'genuine solution' : result?.reason === 'outsideDomain' ? 'outside the domain' : 'extraneous')
                   : isSelected ? 'kept as a solution' : 'substitute to verify'}

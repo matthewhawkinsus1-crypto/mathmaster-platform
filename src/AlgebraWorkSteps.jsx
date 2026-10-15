@@ -31,10 +31,10 @@ export default function AlgebraWorkSteps({ steps = [], compact = false }) {
       {steps.map((step, index) => (
         <li key={`${index}-${step.kind}`} style={{ padding: '8px 0', borderBottom: index === steps.length - 1 ? 'none' : '1px solid var(--mm-tint-border)' }}>
           <WorkStepDescription step={step} />
-          <div style={{ color: 'var(--mm-text-muted)', fontSize: 13, marginTop: 3, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-            <MathDisplay value={equationLatex(step.before)} format="latex" inline ariaLabel={`Before: ${step.description}`} style={{ fontSize: 14 }} />
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: 3, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+            <MathDisplay value={equationLatex(step.before)} format="latex" inline ariaLabel={`Before: ${step.description}`} style={{ fontSize: 'calc(14 * var(--mm-px))' }} />
             <span aria-hidden="true">→</span>
-            <MathDisplay value={equationLatex(step.after)} format="latex" inline ariaLabel={`After: ${step.description}`} style={{ fontSize: 14 }} />
+            <MathDisplay value={equationLatex(step.after)} format="latex" inline ariaLabel={`After: ${step.description}`} style={{ fontSize: 'calc(14 * var(--mm-px))' }} />
           </div>
         </li>
       ))}

@@ -40,10 +40,10 @@ export default function ClassroomForceRepublishPreview({
 
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-warning-text)', textTransform: 'uppercase', letterSpacing: '.03em' }}>
+      <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-warning-text)', textTransform: 'uppercase', letterSpacing: '.03em' }}>
         Force-post preview
       </div>
-      <div style={{ marginTop: 4, fontSize: 12, lineHeight: 1.45, color: 'var(--mm-warning-text)' }}>
+      <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-warning-text)' }}>
         MathMaster will create {previews.length} new graded post{previews.length === 1 ? '' : 's'} in each selected Classroom. These are the exact section versions that will become the new grade-passback destinations.
       </div>
       <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
@@ -60,27 +60,27 @@ export default function ClassroomForceRepublishPreview({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-warning-text)' }}>{preview.sectionLabel}</div>
-                <div style={{ fontSize: 14, fontWeight: 850, marginTop: 2 }}>{preview.title}</div>
+                <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-warning-text)' }}>{preview.sectionLabel}</div>
+                <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 850, marginTop: 2 }}>{preview.title}</div>
               </div>
-              <div style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, whiteSpace: 'nowrap' }}>
                 {preview.points} pts · {gradingLabel(preview.gradingMode)}
               </div>
             </div>
-            <div style={{ marginTop: 7, fontSize: 12, lineHeight: 1.45 }}>
+            <div style={{ marginTop: 7, fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
               <strong>Student instructions:</strong> {preview.instructions}
             </div>
-            <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+            <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
               <strong>Includes:</strong> {preview.questionCount} MathMaster question{preview.questionCount === 1 ? '' : 's'}
               {preview.includedSectionTitles.length ? ` · ${preview.includedSectionTitles.join(', ')}` : ''}
             </div>
-            <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+            <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
               <strong>Due:</strong> {formatDueAt(preview.dueAt)}
             </div>
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--mm-warning-text)', lineHeight: 1.45 }}>
+      <div style={{ marginTop: 8, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)', lineHeight: 1.45 }}>
         <strong>Destination{selectedCourseNames.length === 1 ? '' : 's'}:</strong> {destinationText}
       </div>
     </div>

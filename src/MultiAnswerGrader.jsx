@@ -212,12 +212,12 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                 })()}
               </label>
               {answerShape.hint && !choiceOptions && (
-                <p style={{ margin: '-4px 0 10px', fontSize: '13px', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
+                <p style={{ margin: '-4px 0 10px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
                   {answerShape.hint}
                 </p>
               )}
               {formatProblems[field.id] ? (
-                <p role="status" style={{ margin: '0 0 10px', padding: '6px 9px', borderRadius: '8px', fontSize: '13px', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
+                <p role="status" style={{ margin: '0 0 10px', padding: '6px 9px', borderRadius: '8px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
                   {formatProblems[field.id]}
                 </p>
               ) : null}
@@ -241,7 +241,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                           border: `2px solid ${selected ? '#1a73e8' : grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`,
                           background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                           color: 'var(--mm-text-strong)',
-                          fontSize: '16px',
+                          fontSize: 'calc(16 * var(--mm-px))',
                           textAlign: 'left',
                           cursor: 'pointer',
                         }}
@@ -269,7 +269,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                     border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`,
                     background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : grade?.isCorrect ? 'var(--mm-success-subtle)' : 'var(--mm-surface)',
                     color: 'var(--mm-text-strong)',
-                    fontSize: '18px',
+                    fontSize: 'calc(18 * var(--mm-px))',
                     fontFamily: 'inherit',
                   }}
                 />

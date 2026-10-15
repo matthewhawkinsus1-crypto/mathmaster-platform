@@ -66,13 +66,13 @@ export function RelationDistributionPanel({ state, branchIndex = 0, onCommit, on
   return (
     <div className="relation-distribution-panel" data-relation-structure="distribute" style={panelStyle}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 7 }}>
-        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13 }}>Distribute</strong>
+        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Distribute</strong>
         {candidates.length > 1 && candidates.map((entry) => (
           <button key={entry.expressionIndex} type="button" onClick={() => setExpressionIndex(entry.expressionIndex)} style={chip(entry.expressionIndex === candidate.expressionIndex)}>
             {regionLabel(branch, entry.expressionIndex)}
           </button>
         ))}
-        <span style={{ fontSize: 18 }}>
+        <span style={{ fontSize: 'calc(18 * var(--mm-px))' }}>
           <MathDisplay value={`${distribution.factorLatex}\\left(${distribution.terms.map((term) => term.latex).join(' ')}\\right)`} format="latex" inline />
         </span>
         <button type="button" onClick={onClose} aria-label="Close Distribute" style={chip(false)}>×</button>
@@ -129,7 +129,7 @@ export function RelationDistributionPanel({ state, branchIndex = 0, onCommit, on
         >
           Commit distribution
         </button>
-        <span style={{ color: 'var(--mm-text-muted)', fontSize: 11 }}>
+        <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>
           Pick up the multiplier, then place it on every term inside the parentheses. The products stay unsimplified until you rewrite them.
         </span>
       </div>
@@ -162,7 +162,7 @@ export function RelationLikeTermsPanel({ state, branchIndex = 0, onCommit, onClo
   return (
     <div className="relation-like-terms-panel" data-relation-structure="combine" style={panelStyle}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 7 }}>
-        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13 }}>Combine like terms</strong>
+        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Combine like terms</strong>
         {candidates.length > 1 && candidates.map((entry) => (
           <button key={entry.expressionIndex} type="button" onClick={() => setExpressionIndex(entry.expressionIndex)} style={chip(entry.expressionIndex === candidate.expressionIndex)}>
             {regionLabel(branch, entry.expressionIndex)}
@@ -214,7 +214,7 @@ export function RelationLikeTermsPanel({ state, branchIndex = 0, onCommit, onClo
           Check
         </button>
       </div>
-      {reason && <div role="status" style={{ color: 'var(--mm-error-text)', fontSize: 12.5 }}>{reason}</div>}
+      {reason && <div role="status" style={{ color: 'var(--mm-error-text)', fontSize: 'calc(12.5 * var(--mm-px))' }}>{reason}</div>}
     </div>
   );
 }

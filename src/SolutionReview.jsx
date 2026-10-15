@@ -456,11 +456,11 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap' }}>
                   <strong style={{ color: 'var(--mm-text-strong)' }}>{entry.title}</strong>
-                  {needsReview && <span style={{ color: 'var(--mm-warning-text)', fontSize: '12px', fontWeight: 900 }}>REVIEW THIS STEP</span>}
+                  {needsReview && <span style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>REVIEW THIS STEP</span>}
                 </div>
-                {entry.prompt && <p style={{ margin: '5px 0 8px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>{entry.prompt}</p>}
+                {entry.prompt && <p style={{ margin: '5px 0 8px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{entry.prompt}</p>}
                 {entry.math !== undefined && entry.math !== null && String(entry.math).trim() !== '' && (
-                  <div style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface-tint)', color: 'var(--mm-primary-text)', fontSize: '20px' }}>
+                  <div style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface-tint)', color: 'var(--mm-primary-text)', fontSize: 'calc(20 * var(--mm-px))' }}>
                     <MathDisplay value={String(entry.math)} format={String(entry.math).includes('\\') ? 'latex' : 'ascii-math'} />
                   </div>
                 )}
@@ -471,7 +471,7 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
                     <tbody>{entry.table.rows.map((row, rowIndex) => <tr key={`${entry.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${rowIndex}-${cellIndex}`} style={{ padding: '7px 9px', textAlign: 'center', border: '1px solid var(--mm-tint-border)' }}>{String(cell)}</td>)}</tr>)}</tbody>
                   </table>
                 )}
-                {entry.note && <p style={{ margin: '8px 0 0', color: 'var(--mm-primary-text)', fontSize: '12px', lineHeight: 1.45 }}>{entry.note}</p>}
+                {entry.note && <p style={{ margin: '8px 0 0', color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>{entry.note}</p>}
                 {entry.showsGraph && graph && <div style={{ marginTop: '10px' }}><GraphDisplay graph={graph} title="Correct graph" /></div>}
               </section>
             );
@@ -479,7 +479,7 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
         </div>
       )}
       {question.equationLatex && (
-        <div style={{ padding: '12px', borderRadius: '9px', background: 'var(--mm-surface)', marginBottom: '12px', fontSize: '23px', color: 'var(--mm-primary-text)', textAlign: 'center' }}>
+        <div style={{ padding: '12px', borderRadius: '9px', background: 'var(--mm-surface)', marginBottom: '12px', fontSize: 'calc(23 * var(--mm-px))', color: 'var(--mm-primary-text)', textAlign: 'center' }}>
           <MathDisplay value={question.equationLatex} format="latex" />
         </div>
       )}

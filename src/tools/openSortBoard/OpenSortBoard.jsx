@@ -11,7 +11,7 @@ import { openSortProgress, openSortSettings } from './openSortMath';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
-const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 15 };
+const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
 
 const functionFor = (spec) => (x) => evaluateFunctionSpec(spec || {}, x);
 const pointPair = (point) => readGraphPointCoordinates(point) || [Number.NaN, Number.NaN];
@@ -271,7 +271,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                 <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
                   Why do these belong together?
                   <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} placeholder="Describe the graph characteristic you used." rows={2} style={{ ...input, minHeight: 72, resize: 'vertical' }} />
-                  <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--mm-text-muted)' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
+                  <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
                 </label>
               )}
             </Panel>
@@ -283,7 +283,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button type="button" onClick={check} disabled={!ready} style={{ ...button, background: ready ? '#1a73e8' : '#dadce0', color: ready ? '#fff' : 'var(--mm-text-muted)', border: 0, minHeight: 46 }}>Check my sort</button>
-        {!ready && <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? 'Finish the explanation for each used group.' : 'Finish the sort.'}</span>}
+        {!ready && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? 'Finish the explanation for each used group.' : 'Finish the sort.'}</span>}
         {feedback && <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? (controlled ? 'Correct classification' : 'Valid mathematical sort') : (controlled ? 'Some cards need to move' : 'Revise the grouping')}</ResultPill>}
       </div>
       {feedback && !feedback.isCorrect && <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>{controlled ? 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.' : 'Your cards do not yet form one of the valid mathematical partitions for this set. Look for a characteristic that is true for every card inside a group and meaningfully separates it from the other groups.'}</p>}
