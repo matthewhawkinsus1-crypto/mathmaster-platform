@@ -40946,11 +40946,14 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "One doubling every {{d}} hours means the exponent is $\\frac{t}{{{d}}}$: $P(t)={{A}}(2)^{t/{{d}}}$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "The population starts at {{A}} and is multiplied by 2 once every {{d}} hours, so after $t$ hours it has doubled $\\frac{t}{{{d}}}$ times.",
+          "Check: at $t={{d}}$ the exponent is $\\frac{{{d}}}{{{d}}}=1$, and the population is ${{A}}\\cdot 2={{A2}}$, double the start.",
+          "So $P(t)={{A}}(2)^{t/{{d}}}$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Multiplying the exponent by {{d}} instead of dividing, or adding a fixed amount each hour: doubling multiplies.",
+        "answerSummary": "$P(t)={{A}}(2)^{t/{{d}}}$"
       },
       "prompt": "A population starts at {{A}} and doubles every {{d}} hours. Which function gives the population $P(t)$ after $t$ hours?",
       "generator": {
@@ -40965,6 +40968,9 @@
             "min": 2,
             "max": 8
           }
+        },
+        "derived": {
+          "A2": "2*A"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -41052,11 +41058,14 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "One multiplication by {{g}} every {{k}} days: $Q(t)={{A}}({{g}})^{t/{{k}}}$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "After $t$ days the quantity has been multiplied by {{g}} a total of $\\frac{t}{{{k}}}$ times.",
+          "Check: at $t={{k}}$ the exponent is $\\frac{{{k}}}{{{k}}}=1$, and the quantity is ${{A}}\\cdot {{g}}={{Ag}}$.",
+          "So $Q(t)={{A}}({{g}})^{t/{{k}}}$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Multiplying the exponent by {{k}} instead of dividing, or adding {{g}} each period.",
+        "answerSummary": "$Q(t)={{A}}({{g}})^{t/{{k}}}$"
       },
       "prompt": "A quantity starts at {{A}} and is multiplied by {{g}} every {{k}} days. Which function models the quantity $Q(t)$ after $t$ days?",
       "generator": {
@@ -41076,6 +41085,9 @@
             "min": 2,
             "max": 7
           }
+        },
+        "derived": {
+          "Ag": "A*g"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -41162,11 +41174,13 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "One step multiplies by $b$: $b=\\frac{{{v1}}}{{{A}}}={{b0}}$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "At $x=1$: ${{A}}b={{v1}}$.",
+          "So $b=\\frac{{{v1}}}{{{A}}}={{b0}}$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Subtracting the two values instead of dividing them: an exponential function multiplies by $b$ each step.",
+        "answerSummary": "$b={{b0}}$"
       },
       "prompt": "An exponential function satisfies $f(0)={{A}}$ and $f(1)={{v1}}$. If $f(x)={{A}}b^x$, what is the value of $b$?",
       "generator": {
@@ -41253,11 +41267,13 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "Substitute $t={{n}}$ and divide: $a={{a0}}$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "$({{b}})^{{n}}={{bn}}$, so $Q({{n}})={{bn}}a$.",
+          "So ${{bn}}a={{value}}$ and $a=\\frac{{{value}}}{{{bn}}}={{a0}}$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Dividing {{value}} by ${{b}}\\cdot {{n}}$ instead of by $({{b}})^{{n}}={{bn}}$.",
+        "answerSummary": "$a={{a0}}$"
       },
       "prompt": "A quantity follows the model $Q(t)=a({{b}})^t$. If $Q({{n}})={{value}}$, what is the initial value $a$?",
       "generator": {
@@ -41279,7 +41295,8 @@
           }
         },
         "derived": {
-          "value": "a0*b^n"
+          "value": "a0*b^n",
+          "bn": "b^n"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -41349,11 +41366,14 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "Two steps multiply by $b^2$: $b={{b}}$, so $f(x)={{A}}({{b}})^x$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "The starting value is {{A}}, and two steps later ${{A}}b^2={{v2}}$.",
+          "So $b^2=\\frac{{{v2}}}{{{A}}}={{b2}}$, and since the growth factor is positive, $b={{b}}$.",
+          "So $f(x)={{A}}({{b}})^x$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Using {{v2}} as the base, or stopping at {{b2}}: two steps multiply by $b$ twice, so take the square root.",
+        "answerSummary": "$f(x)={{A}}({{b}})^x$"
       },
       "prompt": "An exponential function satisfies $f(0)={{A}}$ and $f(2)={{v2}}$, where {{b}}>1. Which equation defines $f$?",
       "generator": {
@@ -41372,7 +41392,8 @@
         "derived": {
           "v2": "A*b^2",
           "bp": "b+1",
-          "Ap": "A+1"
+          "Ap": "A+1",
+          "b2": "b*b"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -41459,11 +41480,13 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "Losing {{p}}% leaves {{remain}}% each year: multiply by $\\frac{{{remain}}}{100}$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "Losing {{p}}% each year leaves $100\\%-{{p}}\\%={{remain}}\\%$ of the value.",
+          "So each year the value is multiplied by $\\frac{{{remain}}}{100}$: $M(t)={{A}}\\left(\\dfrac{{{remain}}}{100}\\right)^t$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Using $\\frac{{{grow}}}{100}$, which is growth, or subtracting {{p}} dollars a year.",
+        "answerSummary": "$M(t)={{A}}\\left(\\dfrac{{{remain}}}{100}\\right)^t$"
       },
       "prompt": "A machine is worth {{A}} dollars when purchased and loses {{p}}% of its value each year. Which function models its value $M(t)$ after $t$ years?",
       "generator": {
@@ -41568,11 +41591,13 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "Growing by {{p}}% multiplies by $\\frac{{{factor}}}{100}$ each year.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "Increasing by {{p}}% keeps the whole value and adds {{p}}%: $100\\%+{{p}}\\%={{factor}}\\%$, so each year the value is multiplied by $\\frac{{{factor}}}{100}$.",
+          "Starting at {{A}} dollars: $V(t)={{A}}\\left(\\dfrac{{{factor}}}{100}\\right)^t$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Using $\\frac{{{p}}}{100}$ as the factor (that would shrink the value), or adding {{p}} dollars a year.",
+        "answerSummary": "$V(t)={{A}}\\left(\\dfrac{{{factor}}}{100}\\right)^t$"
       },
       "prompt": "An investment has an initial value of {{A}} dollars and increases by {{p}}% each year. Which function models its value $V(t)$ after $t$ years?",
       "generator": {
@@ -41676,11 +41701,14 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "Start at {{A}} and multiply by {{b}} each step: $f(x)={{A}}({{b}})^x$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "The value at $x=0$ is the starting value, {{A}}.",
+          "Each step multiplies by the same factor: $\\frac{{{v1}}}{{{A}}}={{b}}$ and $\\frac{{{v2}}}{{{v1}}}={{b}}$.",
+          "So $f(x)={{A}}({{b}})^x$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Reading the pattern as adding {{b}} each step, or using a starting value other than $f(0)$. The outputs are multiplied by {{b}}.",
+        "answerSummary": "$f(x)={{A}}({{b}})^x$"
       },
       "prompt": "The table gives values of an exponential function: $f(0)={{A}}$, $f(1)={{v1}}$, and $f(2)={{v2}}$. Which equation defines $f$?",
       "generator": {
@@ -41788,11 +41816,14 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "The asymptote gives the constant, the point gives $a$: $f(x)={{A}}({{b}})^x {{k|signed}}$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "An asymptote $y={{k}}$ and growth factor {{b}} give $f(x)=a({{b}})^x {{k|signed}}$.",
+          "At $(0,{{y0}})$: ${{y0}}=a\\cdot 1 {{k|signed}}$, so $a={{y0}}-{{k|paren}}={{A}}$.",
+          "So $f(x)={{A}}({{b}})^x {{k|signed}}$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Using the opposite constant (that would give the asymptote $y={{kn}}$), or using {{y0}} as $a$ without subtracting {{k}}.",
+        "answerSummary": "$f(x)={{A}}({{b}})^x {{k|signed}}$"
       },
       "prompt": "An exponential function has horizontal asymptote $y={{k}}$ and passes through $(0,{{y0}})$. Its growth factor is {{b}}. Which equation could define the function?",
       "generator": {
@@ -41911,11 +41942,14 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "The base $\\frac{{{r}}}{100}$ is less than 1, so the function decreases.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "The base is $\\frac{{{r}}}{100}$, and $\\frac{{{r}}}{100}<1$.",
+          "Each increase of 1 in $x$ multiplies the value by that base, which makes a positive value smaller: ${{A}}\\cdot \\frac{{{r}}}{100}<{{A}}$.",
+          "The function decreases as $x$ increases."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Thinking the function grows, or that it changes by a constant amount. Its $y$-intercept is $(0,{{A}})$, not $(0,{{r}})$.",
+        "answerSummary": "The function decreases as $x$ increases."
       },
       "prompt": "Which statement is true about $f(x)={{A}}\\left(\\dfrac{{{r}}}{100}\\right)^x$, where $0<{{r}}<100$?",
       "generator": {
@@ -42016,11 +42050,13 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "Substitute $x=2$: $y={{y2}}$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "The exponent applies only to {{b}}, not to {{A}}.",
+          "Substitute $x=2$: $y={{A}}({{b}})^2={{A}}\\cdot {{b2}}={{y2}}$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Computing ${{A}}\\cdot {{b}}\\cdot 2$, or squaring {{A}} as well.",
+        "answerSummary": "$y={{y2}}$"
       },
       "prompt": "The point $(2,y)$ lies on the graph of $y={{A}}({{b}})^x$. What is the value of $y$?",
       "generator": {
@@ -42037,7 +42073,9 @@
           }
         },
         "derived": {
-          "y2": "A*b^2"
+          "y2": "A*b^2",
+          "b2": "b*b",
+          "Ab": "A*b"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -42107,11 +42145,14 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "$x-{{h}}$ shifts right {{h}}; the constant shifts the outputs by {{k}}: $({{h}},{{yk}})$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "The point $(0,1)$ on $f$ moves {{h}} units right (because of $x-{{h}}$), and {{k}} is added to its output.",
+          "Check on $g$: at $x={{h}}$, $({{b}})^{ {{h}}-{{h}} } {{k|signed}}=1 {{k|signed}}={{yk}}$.",
+          "So the point $({{h}},{{yk}})$ must lie on the graph of $g$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Moving the point left for $x-{{h}}$ (the shift is to the right), or moving it the wrong way vertically.",
+        "answerSummary": "$({{h}},{{yk}})$"
       },
       "prompt": "The point $(0,1)$ lies on the graph of $f(x)=({{b}})^x$. The graph of $g(x)=({{b}})^{x-{{h}}} {{k|signed}}$ is obtained from the graph of $f$. Which point must lie on the graph of $g$?",
       "generator": {
@@ -42229,11 +42270,13 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "The exponential part approaches 0, so $f$ approaches {{k}}: $y={{k}}$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "As $x$ decreases, ${{A}}({{b}})^x$ approaches 0.",
+          "So $f(x)$ approaches $0 {{k|signed}}={{k}}$, and the horizontal asymptote is $y={{k}}$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Changing the sign of {{k}}, or writing a vertical line $x={{k}}$.",
+        "answerSummary": "$y={{k}}$"
       },
       "prompt": "For $f(x)={{A}}({{b}})^x {{k|signed}}$, what is the equation of the horizontal asymptote?",
       "generator": {
@@ -42489,11 +42532,13 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "As $x$ decreases, $({{b}})^x$ shrinks toward 0: the asymptote is $y=0$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "As $x$ decreases, $({{b}})^x$ gets closer and closer to 0 but stays positive (each step left divides by {{b}}).",
+          "So ${{A}}({{b}})^x$ approaches ${{A}}\\cdot 0=0$: the graph approaches the line $y=0$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Choosing $y={{A}}$ (the height where the graph crosses the $y$-axis) or $x=0$ (the $y$-axis itself).",
+        "answerSummary": "$y=0$"
       },
       "prompt": "The graph of $f(x)={{A}}({{b}})^x$, where {{A}}>0 and {{b}}>1, approaches which line as $x$ decreases without bound?",
       "generator": {
@@ -42602,11 +42647,13 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "Set $x=0$: the $y$-intercept is $(0,{{A}})$.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "Set $x=0$: $y={{A}}({{b}})^0={{A}}\\cdot 1={{A}}$.",
+          "So the $y$-intercept is $(0,{{A}})$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "commonError": "Writing $({{A}},0)$, which is on the $x$-axis, or adding 1 for the power.",
+        "answerSummary": "$(0,{{A}})$"
       },
       "prompt": "What is the $y$-intercept of the graph of $y={{A}}({{b}})^x$?",
       "generator": {

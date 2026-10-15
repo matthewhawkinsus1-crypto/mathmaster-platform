@@ -44,7 +44,7 @@ export const DISPLAY_BANS = [
   // substituted formula is arithmetic, not a display fault.
   [/[a-zA-Z]\s*[+-]\s*0(?![\d.])/, 'a zero term ("+ 0")'],
   [/[+-]\s*[+-]\s*\d/, 'a doubled sign ("+ -3")'],
-  [/\^\s*\{?\s*1\s*\}?(?![\d./])/, 'an exponent of 1'],
+  [/\^\s*(?:\{\s*1\s*\}|1(?![\d./]))/, 'an exponent of 1'],
   [/\{\{|\}\}/, 'an unfilled placeholder'],
   [/NaN|Infinity/, 'a broken value'],
   // "undefined" is a word a slope review needs; inside math it is a bug.
