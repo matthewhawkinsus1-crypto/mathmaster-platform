@@ -51616,11 +51616,14 @@
         "Connect points, coefficients, vertex form, and standard form that describe the same quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Complete the square; the constant in vertex form is the minimum: {{k}}.",
         "reasoning": [
-          "Use the given points or coefficients to identify an equivalent quadratic representation and verify it against the original information."
+          "Complete the square: ${{a}}x^2 {{B|signed}}x {{C|signed}}={{a}}(x-{{h}})^2 {{k|term}}$.",
+          "Since ${{a}}>0$, the term ${{a}}(x-{{h}})^2$ is smallest, 0, at $x={{h}}$.",
+          "So the minimum value is {{k}}."
         ],
-        "answerSummary": "Check that the resulting quadratic satisfies the stated points or coefficients."
+        "commonError": "Giving the $x$-coordinate {{h}} of the vertex, or the constant {{C}} of the standard form.",
+        "answerSummary": "The minimum value is ${{k}}$."
       },
       "id": "mm_sat_A2_4D_minimum-from-standard-form_v21",
       "familyId": "mathmaster:sat:A2.4D:ccmr-challenge-minimum-from-standard-form",
@@ -51721,11 +51724,13 @@
         "Connect points, coefficients, vertex form, and standard form that describe the same quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Complete the square with half of {{twoh}}: $(x-{{h}})^2 {{k|signed}}$.",
         "reasoning": [
-          "Use the given points or coefficients to identify an equivalent quadratic representation and verify it against the original information."
+          "Half of the $x$-coefficient is {{h}}, and $(x-{{h}})^2=x^2-{{twoh}}x+{{h2}}$.",
+          "So $x^2-{{twoh}}x {{c|signed}}=(x-{{h}})^2-{{h2}} {{c|signed}}=(x-{{h}})^2 {{k|signed}}$."
         ],
-        "answerSummary": "Check that the resulting quadratic satisfies the stated points or coefficients."
+        "commonError": "Writing $(x+{{h}})^2$ (the middle term is negative), or forgetting to subtract the {{h2}} that the square adds.",
+        "answerSummary": "$(x-{{h}})^2 {{k|signed}}$"
       },
       "id": "mm_sat_A2_4D_monic-standard-to-vertex_v21",
       "familyId": "mathmaster:sat:A2.4D:monic-standard-to-vertex",
@@ -51752,7 +51757,8 @@
           "c": "h*h+k",
           "nh": "-h",
           "hp1": "h+1",
-          "kp1": "k+1"
+          "kp1": "k+1",
+          "h2": "h*h"
         },
         "constraints": [
           "c!=0",
@@ -51844,11 +51850,14 @@
         "Connect points, coefficients, vertex form, and standard form that describe the same quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Factor out $-{{a}}$, complete the square, add the constant: $-{{a}}(x-{{h}})^2 {{k|signed}}$.",
         "reasoning": [
-          "Use the given points or coefficients to identify an equivalent quadratic representation and verify it against the original information."
+          "Factor $-{{a}}$ from the $x$-terms: $-{{a}}x^2+{{B}}x=-{{a}}(x^2-{{twoh}}x)$.",
+          "Complete the square: $-{{a}}(x^2-{{twoh}}x)=-{{a}}(x-{{h}})^2+{{ah2}}$.",
+          "Add the constant: $-{{a}}(x-{{h}})^2+{{ah2}} {{C|signed}}=-{{a}}(x-{{h}})^2 {{k|signed}}$."
         ],
-        "answerSummary": "Check that the resulting quadratic satisfies the stated points or coefficients."
+        "commonError": "Factoring out ${{a}}$ instead of $-{{a}}$, which flips the sign inside the bracket.",
+        "answerSummary": "$-{{a}}(x-{{h}})^2 {{k|signed}}$"
       },
       "id": "mm_sat_A2_4D_negative-leading-standard-to-vertex_v21",
       "familyId": "mathmaster:sat:A2.4D:ccmr-challenge-negative-leading-standard-to-vertex",
@@ -51882,7 +51891,9 @@
           "B": "2*a*h",
           "C": "-a*h*h+k",
           "hp1": "h+1",
-          "kp1": "k+1"
+          "kp1": "k+1",
+          "twoh": "2*h",
+          "ah2": "a*h*h"
         },
         "constraints": [
           "B!=0",
@@ -51973,11 +51984,13 @@
         "Connect points, coefficients, vertex form, and standard form that describe the same quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Expand and match the $x$-terms: $h={{h0}}$.",
         "reasoning": [
-          "Use the given points or coefficients to identify an equivalent quadratic representation and verify it against the original information."
+          "Expand: ${{a}}(x-h)^2 {{k|signed}}={{a}}x^2-{{twoa}}hx+{{a}}h^2 {{k|signed}}$.",
+          "Match the $x$-terms: $-{{twoa}}h={{B}}$, so $h=\\frac{{{B}}}{-{{twoa}}}={{h0}}$."
         ],
-        "answerSummary": "Check that the resulting quadratic satisfies the stated points or coefficients."
+        "commonError": "Dividing {{B}} by {{a}} only (forgetting the 2), or losing the minus sign.",
+        "answerSummary": "$h={{h0}}$"
       },
       "id": "mm_sat_A2_4D_recover-horizontal-parameter_v21",
       "familyId": "mathmaster:sat:A2.4D:recover-horizontal-parameter",
@@ -52006,7 +52019,8 @@
         },
         "derived": {
           "B": "-2*a*h0",
-          "C": "a*h0*h0+k"
+          "C": "a*h0*h0+k",
+          "twoa": "2*a"
         },
         "constraints": [
           "B!=0",
@@ -52078,11 +52092,13 @@
         "Connect points, coefficients, vertex form, and standard form that describe the same quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Expand and match the constants: $k={{k0}}$.",
         "reasoning": [
-          "Use the given points or coefficients to identify an equivalent quadratic representation and verify it against the original information."
+          "Expand: $(x-{{h}})^2+k=x^2-{{twoh}}x+{{h2}}+k$.",
+          "Match the constants: ${{h2}}+k={{c}}$, so $k={{c}}-{{h2}}={{k0}}$."
         ],
-        "answerSummary": "Check that the resulting quadratic satisfies the stated points or coefficients."
+        "commonError": "Answering {{c}}: part of that constant, {{h2}}, comes from the square.",
+        "answerSummary": "$k={{k0}}$"
       },
       "id": "mm_sat_A2_4D_recover-vertical-parameter_v21",
       "familyId": "mathmaster:sat:A2.4D:recover-vertical-parameter",
@@ -52103,7 +52119,8 @@
         },
         "derived": {
           "twoh": "2*h",
-          "c": "h*h+k0"
+          "c": "h*h+k0",
+          "h2": "h*h"
         },
         "constraints": [
           "c!=0",
@@ -52175,11 +52192,14 @@
         "Connect points, coefficients, vertex form, and standard form that describe the same quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Factor out {{a}}, complete the square, then add the constant: ${{a}}(x-{{h}})^2 {{k|signed}}$.",
         "reasoning": [
-          "Use the given points or coefficients to identify an equivalent quadratic representation and verify it against the original information."
+          "Factor {{a}} from the $x$-terms: ${{a}}x^2 {{B|signed}}x={{a}}(x^2-{{twoh}}x)$.",
+          "Complete the square: ${{a}}(x^2-{{twoh}}x)={{a}}(x-{{h}})^2-{{ah2}}$.",
+          "Add the constant: ${{a}}(x-{{h}})^2-{{ah2}} {{C|signed}}={{a}}(x-{{h}})^2 {{k|signed}}$."
         ],
-        "answerSummary": "Check that the resulting quadratic satisfies the stated points or coefficients."
+        "commonError": "Subtracting only ${{h}}^2$ when completing the square: inside the factor {{a}}, the correction is ${{a}}\\cdot {{h}}^2={{ah2}}$.",
+        "answerSummary": "${{a}}(x-{{h}})^2 {{k|signed}}$"
       },
       "id": "mm_sat_A2_4D_scaled-standard-to-vertex_v21",
       "familyId": "mathmaster:sat:A2.4D:scaled-standard-to-vertex",
@@ -52210,7 +52230,9 @@
           "B": "-2*a*h",
           "C": "a*h*h+k",
           "hp1": "h+1",
-          "kp1": "k+1"
+          "kp1": "k+1",
+          "twoh": "2*h",
+          "ah2": "a*h*h"
         },
         "constraints": [
           "B!=0",
@@ -52301,11 +52323,14 @@
         "Connect points, coefficients, vertex form, and standard form that describe the same quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Vertex form ${{a}}(x-{{h}})^2 {{k|signed}}$ shows the vertex $({{h}},{{k}})$.",
         "reasoning": [
-          "Use the given points or coefficients to identify an equivalent quadratic representation and verify it against the original information."
+          "In vertex form $a(x-h)^2+k$ the vertex is $(h,k)$; here $h={{h}}$ and $k={{k}}$.",
+          "Check with the standard form at $x={{h}}$: ${{a}}({{h}})^2 {{B|signed}}({{h}}) {{C|signed}}={{k}}$.",
+          "So the vertex is $({{h}},{{k}})$."
         ],
-        "answerSummary": "Check that the resulting quadratic satisfies the stated points or coefficients."
+        "commonError": "Reading the sign in $(x-{{h}})$ as the coordinate, which gives $({{hn}},{{k}})$.",
+        "answerSummary": "$({{h}},{{k}})$"
       },
       "id": "mm_sat_A2_4D_vertex-from-completed-square_v21",
       "familyId": "mathmaster:sat:A2.4D:vertex-from-completed-square",
@@ -52434,11 +52459,13 @@
         "Isolate the nonlinear expression and use an inverse operation. Check the result in the original equation."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear equation.",
+        "headline": "Square both sides, solve, and check: $x={{xsol}}$.",
         "reasoning": [
-          "Use algebraic structure and inverse operations, then substitute the result into the original equation."
+          "Square both sides: $x {{a|signed}}={{b2}}$.",
+          "So $x={{b2}} {{na|signed}}={{xsol}}$. Check: $\\sqrt{{{xsol}} {{a|signed}}}=\\sqrt{{{b2}}}={{b}}$, so $x={{xsol}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "commonError": "Squaring only one side, or not checking the result in the original equation.",
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "What is the solution to $\\sqrt{x {{a|signed}}}={{b}}$?",
@@ -52456,7 +52483,9 @@
           }
         },
         "derived": {
-          "a": "b*b-xsol"
+          "a": "b*b-xsol",
+          "b2": "b*b",
+          "na": "-a"
         },
         "constraints": [
           "a!=0"
@@ -52653,11 +52682,14 @@
         "Isolate the nonlinear expression and use an inverse operation. Check the result in the original equation."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear equation.",
+        "headline": "Isolate the root, square, solve the linear equation: $x={{xsol}}$.",
         "reasoning": [
-          "Use algebraic structure and inverse operations, then substitute the result into the original equation."
+          "Isolate the root: $\\sqrt{{{m}}x {{a|signed}}}={{n}}-{{c}}={{r}}$.",
+          "Square: ${{m}}x {{a|signed}}={{r2}}$, so ${{m}}x={{mx}}$ and $x=\\frac{{{mx}}}{{{m}}}={{xsol}}$.",
+          "Check: $\\sqrt{{{m}}({{xsol}}) {{a|signed}}}+{{c}}=\\sqrt{{{r2}}}+{{c}}={{n}}$. So $x={{xsol}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "commonError": "Squaring before subtracting {{c}}, or dividing by {{m}} before moving the constant.",
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "What is the solution to $\\sqrt{{{m}}x {{a|signed}}}+{{c}}={{n}}$?",
@@ -52686,7 +52718,9 @@
         },
         "derived": {
           "a": "r*r-m*xsol",
-          "n": "r+c"
+          "n": "r+c",
+          "r2": "r*r",
+          "mx": "r*r-a"
         },
         "constraints": [
           "a!=0"
@@ -53269,11 +53303,14 @@
         "Isolate the nonlinear expression and use an inverse operation. Check the result in the original equation."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear equation.",
+        "headline": "Isolate the root, square, and check: $x={{xsol}}$.",
         "reasoning": [
-          "Use algebraic structure and inverse operations, then substitute the result into the original equation."
+          "Isolate the root: $\\sqrt{x-{{h}}}={{n}}-{{k}}={{gap}}$.",
+          "Square: $x-{{h}}={{g2}}$, so $x={{g2}}+{{h}}={{xsol}}$.",
+          "Check: $\\sqrt{{{xsol}}-{{h}}}+{{k}}={{gap}}+{{k}}={{n}}$. So $x={{xsol}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "commonError": "Squaring before subtracting {{k}}: the root must be alone on one side first.",
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "What is the solution to $\\sqrt{x-{{h}}}+{{k}}={{n}}$?",
@@ -53297,7 +53334,8 @@
         },
         "derived": {
           "n": "k+gap",
-          "xsol": "gap*gap+h"
+          "xsol": "gap*gap+h",
+          "g2": "gap*gap"
         }
       },
       "responseFields": [
@@ -53990,11 +54028,14 @@
         "After squaring, substitute each candidate into the original equation and check that the nonradical side is nonnegative where required."
       ],
       "solutionReview": {
-        "headline": "Check for an extraneous solution.",
+        "headline": "Check each candidate in the original equation: only $x={{p}}$ works.",
         "reasoning": [
-          "Squaring can create a candidate that satisfies the squared equation but not the original radical equation. Verify each candidate in the original."
+          "Check $x={{p}}$: $\\sqrt{{{p}} {{a|signed}}}+{{d}}=\\sqrt{{{pa}}}+{{d}}={{lhsP}}$ and ${{p}}-{{b}}={{lhsP}}$. Equal.",
+          "Check $x={{q}}$: $\\sqrt{{{q}} {{a|signed}}}+{{d}}=\\sqrt{{{qa}}}+{{d}}={{lhsQ}}$, but ${{q}}-{{b}}={{rhsQ}}$. Not equal.",
+          "So $x={{p}}$ satisfies the original equation and $x={{q}}$ is extraneous."
         ],
-        "answerSummary": "Reject any candidate that fails the original equation."
+        "commonError": "Assuming both candidates work: squaring can add a solution, so each one must be checked in the original equation.",
+        "answerSummary": "$x={{p}}$ satisfies the original equation and $x={{q}}$ is extraneous."
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "The equation $\\sqrt{x {{a|signed}}}+{{d}}=x-{{b}}$ produces candidates $x={{p}}$ and $x={{q}}$ after squaring. Which statement is true?",
@@ -54020,7 +54061,12 @@
           "B": "b+d",
           "p": "B+r",
           "q": "B+1-r",
-          "a": "B*B-p*q"
+          "a": "B*B-p*q",
+          "pa": "p+a",
+          "qa": "q+a",
+          "lhsP": "r+d",
+          "lhsQ": "r-1+d",
+          "rhsQ": "q-b"
         },
         "constraints": [
           "q>=1",
@@ -54232,11 +54278,14 @@
         "After squaring, substitute each candidate into the original equation and check that the nonradical side is nonnegative where required."
       ],
       "solutionReview": {
-        "headline": "Check for an extraneous solution.",
+        "headline": "Squaring hides a sign: at $x={{q}}$ the right side is negative.",
         "reasoning": [
-          "Squaring can create a candidate that satisfies the squared equation but not the original radical equation. Verify each candidate in the original."
+          "At $x={{q}}$ the radicand is ${{A}}-{{q}}={{radq}}$, which is positive, so the square root is defined.",
+          "The left side is $\\sqrt{{{radq}}}={{sq}}$, but the right side is ${{q}}-{{b}}={{qb}}$.",
+          "At $x={{q}}$, the right side $x-{{b}}$ is negative, but the principal square root is nonnegative."
         ],
-        "answerSummary": "Reject any candidate that fails the original equation."
+        "commonError": "Blaming a negative radicand: ${{A}}-{{q}}$ is positive. The problem is the sign of $x-{{b}}$, which squaring hid.",
+        "answerSummary": "At $x={{q}}$, the right side $x-{{b}}$ is negative, but the principal square root is nonnegative."
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "For $\\sqrt{{{A}}-x}=x-{{b}}$, squaring gives $x={{p}}$ and $x={{q}}$, where $q<b<p$. Why must $x={{q}}$ be rejected?",
@@ -54256,7 +54305,10 @@
         "derived": {
           "p": "b+r",
           "q": "b-1-r",
-          "A": "b*b-p*q"
+          "A": "b*b-p*q",
+          "radq": "A-q",
+          "qb": "q-b",
+          "sq": "b-q"
         },
         "constraints": [
           "q>=1"
