@@ -71107,11 +71107,13 @@
         "Mean uses all values, median depends on order, range is maximum minus minimum, and standard deviation reflects how far values typically lie from the mean."
       ],
       "solutionReview": {
-        "headline": "Match the statistic to what it measures.",
+        "headline": "Seven ordered values: the median is the 4th, {{m}}.",
         "reasoning": [
-          "Compute or compare the requested measure using the full data set or frequency information. For transformed data, track how center and spread change."
+          "There are 7 values in order, so the median is the value in position $\\frac{7+1}{2}=4$, with three values on each side.",
+          "The 4th value is {{v4}}, so the median is {{m}}."
         ],
-        "answerSummary": "Check that the result is consistent with the distribution and the statistic named in the question."
+        "commonError": "Choosing a neighbor of the middle value, or averaging two values (that is for an even number of values).",
+        "answerSummary": "${{m}}$"
       },
       "prompt": "The ordered data set is {{v1}}, {{v2}}, {{v3}}, {{v4}}, {{v5}}, {{v6}}, {{v7}}. What is the median?",
       "generator": {
@@ -71253,11 +71255,13 @@
         "Mean uses all values, median depends on order, range is maximum minus minimum, and standard deviation reflects how far values typically lie from the mean."
       ],
       "solutionReview": {
-        "headline": "Match the statistic to what it measures.",
+        "headline": "Range = largest − smallest: {{span}}.",
         "reasoning": [
-          "Compute or compare the requested measure using the full data set or frequency information. For transformed data, track how center and spread change."
+          "The largest value is {{high}} and the smallest is {{low}}.",
+          "Range: ${{high}}-{{low}}={{span}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the distribution and the statistic named in the question."
+        "commonError": "Subtracting other values, or giving the largest value {{high}} itself.",
+        "answerSummary": "${{span}}$"
       },
       "prompt": "The data set is {{low}}, {{v2}}, {{v3}}, and {{high}}. What is the range?",
       "generator": {
@@ -71409,11 +71413,14 @@
         "Mean uses all values, median depends on order, range is maximum minus minimum, and standard deviation reflects how far values typically lie from the mean."
       ],
       "solutionReview": {
-        "headline": "Match the statistic to what it measures.",
+        "headline": "Adding {{c}} shifts every value: the mean moves, the spread does not.",
         "reasoning": [
-          "Compute or compare the requested measure using the full data set or frequency information. For transformed data, track how center and spread change."
+          "Adding {{c}} to every value adds {{c}} to the mean. For example, 1, 2, 3 has mean 2; after adding {{c}} the mean is $2+{{c}}={{c2}}$.",
+          "Every value moves together, so the distances from the mean are unchanged, and so is the standard deviation.",
+          "So: The mean increases by {{c}}, and the standard deviation is unchanged."
         ],
-        "answerSummary": "Check that the result is consistent with the distribution and the statistic named in the question."
+        "commonError": "Thinking the spread grows: adding a constant moves the data without spreading it out.",
+        "answerSummary": "The mean increases by {{c}}, and the standard deviation is unchanged."
       },
       "prompt": "The same positive constant {{c}} is added to every value in a data set. Which statement must be true?",
       "generator": {
@@ -71423,6 +71430,9 @@
             "min": 2,
             "max": 15
           }
+        },
+        "derived": {
+          "c2": "c+2"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -71540,11 +71550,14 @@
         "Mean uses all values, median depends on order, range is maximum minus minimum, and standard deviation reflects how far values typically lie from the mean."
       ],
       "solutionReview": {
-        "headline": "Match the statistic to what it measures.",
+        "headline": "An outlier pulls the mean, not the median.",
         "reasoning": [
-          "Compute or compare the requested measure using the full data set or frequency information. For transformed data, track how center and spread change."
+          "The median is the middle value, {{a3}}, in both sets: only the largest value changed.",
+          "Mean of A: $\\frac{{{sumA}}}{5}={{m}}$. B's total is 36 more, so its mean is $\\frac{{{sumB}}}{5}={{meanB}}$.",
+          "So: The mean of data set B is greater than the mean of data set A, while the medians are equal."
         ],
-        "answerSummary": "Check that the result is consistent with the distribution and the statistic named in the question."
+        "commonError": "Thinking the outlier changes the median: the median depends only on the middle value.",
+        "answerSummary": "The mean of data set B is greater than the mean of data set A, while the medians are equal."
       },
       "prompt": "Data set A is {{a1}}, {{a2}}, {{a3}}, {{a4}}, {{a5}}. Data set B is identical except that the largest value is replaced by {{b5}}. Which statement is true?",
       "generator": {
@@ -71561,7 +71574,10 @@
           "a3": "m",
           "a4": "m+2",
           "a5": "m+4",
-          "b5": "m+40"
+          "b5": "m+40",
+          "sumA": "5*m",
+          "sumB": "5*m+36",
+          "meanB": "round(10*m+72)/10"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -71680,11 +71696,13 @@
         "Mean uses all values, median depends on order, range is maximum minus minimum, and standard deviation reflects how far values typically lie from the mean."
       ],
       "solutionReview": {
-        "headline": "Match the statistic to what it measures.",
+        "headline": "Weight each value by how often it occurs: the mean is {{m}}.",
         "reasoning": [
-          "Compute or compare the requested measure using the full data set or frequency information. For transformed data, track how center and spread change."
+          "Total of all values: ${{v1}}\\cdot {{c1}}+{{v2}}\\cdot {{c2}}={{s1}}+{{s2}}={{tot}}$.",
+          "Mean: $\\frac{{{tot}}}{{{total}}}={{m}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the distribution and the statistic named in the question."
+        "commonError": "Averaging {{v1}} and {{v2}} without weighting them by how often each occurs.",
+        "answerSummary": "${{m}}$"
       },
       "prompt": "A value of {{v1}} occurs {{c1}} times and a value of {{v2}} occurs {{c2}} times. What is the mean of all {{total}} observations?",
       "generator": {
@@ -71714,7 +71732,10 @@
           "v1": "m-d*c2",
           "v2": "m+d*c1",
           "total": "c1+c2",
-          "answer": "m"
+          "answer": "m",
+          "s1": "v1*c1",
+          "s2": "v2*c2",
+          "tot": "v1*c1+v2*c2"
         },
         "constraints": [
           "c1!=c2",
@@ -71819,11 +71840,13 @@
         "Mean uses all values, median depends on order, range is maximum minus minimum, and standard deviation reflects how far values typically lie from the mean."
       ],
       "solutionReview": {
-        "headline": "Match the statistic to what it measures.",
+        "headline": "Same mean, but B's values are farther from it: B has the greater standard deviation.",
         "reasoning": [
-          "Compute or compare the requested measure using the full data set or frequency information. For transformed data, track how center and spread change."
+          "Both sets have mean {{m}}. In A the outer values are {{s}} from the mean; in B they are $2\\cdot {{s}}={{s2}}$ from it.",
+          "Values farther from the mean give a greater standard deviation: Data set B has the greater standard deviation."
         ],
-        "answerSummary": "Check that the result is consistent with the distribution and the statistic named in the question."
+        "commonError": "Thinking equal means force equal standard deviations: the mean is the center; the standard deviation measures spread.",
+        "answerSummary": "Data set B has the greater standard deviation."
       },
       "prompt": "Data set A is ${{a1}}, {{m}}, {{a3}}$, and data set B is ${{b1}}, {{m}}, {{b3}}$. The two data sets have the same mean. Which statement about their standard deviations is true?",
       "generator": {
@@ -71843,7 +71866,8 @@
           "a1": "m-s",
           "a3": "m+s",
           "b1": "m-2*s",
-          "b3": "m+2*s"
+          "b3": "m+2*s",
+          "s2": "2*s"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -71962,11 +71986,14 @@
         "Mean uses all values, median depends on order, range is maximum minus minimum, and standard deviation reflects how far values typically lie from the mean."
       ],
       "solutionReview": {
-        "headline": "Match the statistic to what it measures.",
+        "headline": "Find the quartiles of the two halves, then subtract: IQR = {{answer}}.",
         "reasoning": [
-          "Compute or compare the requested measure using the full data set or frequency information. For transformed data, track how center and spread change."
+          "Split the 8 values into two halves of 4. $Q_1$ is the median of the lower half: $\\frac{{{v2}}+{{v3}}}{2}={{q1}}$.",
+          "$Q_3$ is the median of the upper half: $\\frac{{{v6}}+{{v7}}}{2}={{q3}}$.",
+          "The IQR is $Q_3-Q_1={{q3}}-{{q1}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the distribution and the statistic named in the question."
+        "commonError": "Using the range ({{dRange}}) or the two middle values instead of the quartiles.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "The ordered data set is {{v1}}, {{v2}}, {{v3}}, {{v4}}, {{v5}}, {{v6}}, {{v7}}, {{v8}}. What is the interquartile range?",
       "generator": {
@@ -71999,7 +72026,9 @@
           "answer": "5*dd",
           "dRange": "10*dd",
           "dNarrow": "4*dd",
-          "dSwing": "hi*(6*dd)+(1-hi)*(3*dd)"
+          "dSwing": "hi*(6*dd)+(1-hi)*(3*dd)",
+          "q1": "m-2.5*dd",
+          "q3": "m+2.5*dd"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -75555,11 +75584,14 @@
         "A margin of error gives a range around a sample estimate. A larger random sample generally produces a smaller margin of error when other conditions are similar."
       ],
       "solutionReview": {
-        "headline": "Use the sample estimate and its uncertainty.",
+        "headline": "Plausible values lie within {{margin}} points of {{estimate}}%: ${{inside}}\\%$.",
         "reasoning": [
-          "Form the interval around the sample estimate, compare claims with that interval, or use the sample statistic to estimate the population quantity."
+          "The interval runs from ${{estimate}}-{{margin}}={{lo}}$ to ${{estimate}}+{{margin}}={{hiPct}}$ percent.",
+          "{{inside}}% is inside it, since ${{lo}}\\le {{inside}}\\le {{hiPct}}$; the other values are outside.",
+          "So a value consistent with the estimate is ${{inside}}\\%$."
         ],
-        "answerSummary": "Check that the conclusion matches the sample information and margin of error."
+        "commonError": "Choosing a value just beyond the margin: anything more than {{margin}} points from {{estimate}}% is outside the interval.",
+        "answerSummary": "${{inside}}\\%$"
       },
       "prompt": "A random sample estimates that {{estimate}}% of a population has a characteristic, with a margin of error of {{margin}} percentage points. Which value is consistent with this estimate?",
       "generator": {
@@ -75589,7 +75621,9 @@
           "inside": "estimate+(2*side-1)*(margin-1)",
           "above": "estimate+margin+2",
           "below": "estimate-margin-2",
-          "swing": "estimate+(2*hi-1)*(margin+5)"
+          "swing": "estimate+(2*hi-1)*(margin+5)",
+          "lo": "estimate-margin",
+          "hiPct": "estimate+margin"
         },
         "constraints": [
           "margin>2",
@@ -75710,11 +75744,13 @@
         "A margin of error gives a range around a sample estimate. A larger random sample generally produces a smaller margin of error when other conditions are similar."
       ],
       "solutionReview": {
-        "headline": "Use the sample estimate and its uncertainty.",
+        "headline": "Lower endpoint = estimate − margin: {{answer}}.",
         "reasoning": [
-          "Form the interval around the sample estimate, compare claims with that interval, or use the sample statistic to estimate the population quantity."
+          "The interval runs from the estimate minus the margin to the estimate plus the margin.",
+          "Lower endpoint: ${{estimate}}-{{margin}}={{answer}}$ percent."
         ],
-        "answerSummary": "Check that the conclusion matches the sample information and margin of error."
+        "commonError": "Adding the margin (that gives the upper endpoint), or subtracting it twice.",
+        "answerSummary": "{{answer}} percent"
       },
       "prompt": "A sample proportion is {{estimate}}%, with a margin of error of {{margin}} percentage points. What is the lower endpoint of the interval determined by the estimate and margin of error?",
       "generator": {
@@ -75858,11 +75894,13 @@
         "A margin of error gives a range around a sample estimate. A larger random sample generally produces a smaller margin of error when other conditions are similar."
       ],
       "solutionReview": {
-        "headline": "Use the sample estimate and its uncertainty.",
+        "headline": "The larger sample gives the smaller margin of error: Sample B.",
         "reasoning": [
-          "Form the interval around the sample estimate, compare claims with that interval, or use the sample statistic to estimate the population quantity."
+          "Sample B is {{factor}} times as large as sample A: ${{factor}}\\cdot {{n1}}={{n2}}$.",
+          "With the same method, larger samples vary less from sample to sample, so they give a smaller margin of error: Sample B."
         ],
-        "answerSummary": "Check that the conclusion matches the sample information and margin of error."
+        "commonError": "Thinking the margin of error does not depend on the sample size, or that more data gives a larger margin.",
+        "answerSummary": "Sample B"
       },
       "prompt": "Two random samples are selected from the same population using the same method. Sample A contains {{n1}} observations, and sample B contains {{n2}} observations. Which sample would generally be expected to produce the smaller margin of error?",
       "generator": {
@@ -75990,11 +76028,13 @@
         "A margin of error gives a range around a sample estimate. A larger random sample generally produces a smaller margin of error when other conditions are similar."
       ],
       "solutionReview": {
-        "headline": "Use the sample estimate and its uncertainty.",
+        "headline": "Apply the sample percent to the population: {{answer}} people.",
         "reasoning": [
-          "Form the interval around the sample estimate, compare claims with that interval, or use the sample statistic to estimate the population quantity."
+          "The sample percent estimates the population percent.",
+          "{{p}}% of {{population}} is $\\frac{{{p}}}{100}\\cdot {{population}}={{answer}}$."
         ],
-        "answerSummary": "Check that the conclusion matches the sample information and margin of error."
+        "commonError": "Dividing by {{p}} instead of taking {{p}} percent, or applying the percent to the sample instead of the population.",
+        "answerSummary": "${{answer}}$ people"
       },
       "prompt": "In a random sample, {{p}}% of respondents have a characteristic. A population contains {{population}} people. Based on the sample proportion, about how many people in the population would be estimated to have the characteristic?",
       "generator": {
@@ -76113,11 +76153,13 @@
         "A margin of error gives a range around a sample estimate. A larger random sample generally produces a smaller margin of error when other conditions are similar."
       ],
       "solutionReview": {
-        "headline": "Use the sample estimate and its uncertainty.",
+        "headline": "The interval is symmetric about the estimate: the upper endpoint is {{answer}}%.",
         "reasoning": [
-          "Form the interval around the sample estimate, compare claims with that interval, or use the sample statistic to estimate the population quantity."
+          "The margin is the distance from the estimate down to the lower endpoint: ${{estimate}}-{{low}}={{margin}}$.",
+          "The upper endpoint is the same distance above: ${{estimate}}+{{margin}}={{answer}}$."
         ],
-        "answerSummary": "Check that the conclusion matches the sample information and margin of error."
+        "commonError": "Adding twice the margin, or giving the estimate itself.",
+        "answerSummary": "${{answer}}$ percent"
       },
       "prompt": "A sample estimate is {{estimate}}%, and the lower endpoint of the interval determined by its margin of error is {{low}}%. What is the upper endpoint, in percent?",
       "generator": {
@@ -76264,11 +76306,13 @@
         "A margin of error gives a range around a sample estimate. A larger random sample generally produces a smaller margin of error when other conditions are similar."
       ],
       "solutionReview": {
-        "headline": "Use the sample estimate and its uncertainty.",
+        "headline": "Each margin is half its interval's width: B's is {{answer}} points larger.",
         "reasoning": [
-          "Form the interval around the sample estimate, compare claims with that interval, or use the sample statistic to estimate the population quantity."
+          "Margin of A: $\\frac{{{aHigh}}-{{aLow}}}{2}={{mA}}$. Margin of B: $\\frac{{{bHigh}}-{{bLow}}}{2}={{mB}}$.",
+          "Difference: ${{mB}}-{{mA}}={{answer}}$ percentage points."
         ],
-        "answerSummary": "Check that the conclusion matches the sample information and margin of error."
+        "commonError": "Comparing the interval widths, which are twice the margins.",
+        "answerSummary": "${{answer}}$ percentage points"
       },
       "prompt": "Sample A gives an interval from {{aLow}}% to {{aHigh}}%. Sample B gives an interval from {{bLow}}% to {{bHigh}}%. By how many percentage points is the margin of error for sample B greater than the margin of error for sample A?",
       "generator": {
@@ -76394,11 +76438,13 @@
         "A margin of error gives a range around a sample estimate. A larger random sample generally produces a smaller margin of error when other conditions are similar."
       ],
       "solutionReview": {
-        "headline": "Use the sample estimate and its uncertainty.",
+        "headline": "The estimate is the midpoint of the interval: ${{estimate}}\\%$.",
         "reasoning": [
-          "Form the interval around the sample estimate, compare claims with that interval, or use the sample statistic to estimate the population quantity."
+          "The interval is the estimate plus or minus the margin, so the estimate is in the middle: $\\frac{{{low}}+{{high}}}{2}={{estimate}}$. The margin is $\\frac{{{high}}-{{low}}}{2}={{margin}}$.",
+          "So the sample estimate was ${{estimate}}\\%$."
         ],
-        "answerSummary": "Check that the conclusion matches the sample information and margin of error."
+        "commonError": "Giving an endpoint, or the width of the interval, instead of its center.",
+        "answerSummary": "${{estimate}}\\%$"
       },
       "prompt": "An interval based on a sample estimate and its margin of error extends from {{low}}% to {{high}}%. What was the sample estimate?",
       "generator": {
@@ -76543,11 +76589,13 @@
         "A margin of error gives a range around a sample estimate. A larger random sample generally produces a smaller margin of error when other conditions are similar."
       ],
       "solutionReview": {
-        "headline": "Use the sample estimate and its uncertainty.",
+        "headline": "Use the upper percent, {{highPct}}%, of the population: {{upper}} people.",
         "reasoning": [
-          "Form the interval around the sample estimate, compare claims with that interval, or use the sample statistic to estimate the population quantity."
+          "The largest plausible percent is ${{estimate}}+{{margin}}={{highPct}}$ percent.",
+          "{{highPct}}% of {{population}} is $\\frac{{{highPct}}}{100}\\cdot {{population}}={{upper}}$ people."
         ],
-        "answerSummary": "Check that the conclusion matches the sample information and margin of error."
+        "commonError": "Using the estimate {{estimate}}% (the center), or the lower endpoint, instead of the upper endpoint.",
+        "answerSummary": "${{upper}}$"
       },
       "prompt": "A random sample estimates that {{estimate}}% of a population has a characteristic, with a margin of error of {{margin}} percentage points. The population contains {{population}} people. Which number is the greatest population count consistent with the interval determined by the estimate and margin of error?",
       "generator": {
