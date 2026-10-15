@@ -99,21 +99,27 @@ const absCallsAsBars = (value) => {
  * the same answer agree. It is not applied before the structural parsers
  * (polynomials, intervals, radicals), which keep reading what they always read.
  */
-const canonicalSymbolSpellings = (value) => {
+const canonicalSymbolSpellings = (value, { asciiPi = true } = {}) => {
   let text = absCallsAsBars(String(value ?? '')
     .replace(/\\(?:lvert|rvert|vert)(?![A-Za-z])/g, '|')
     // `2sqrt(3)` is the keypad's `2\sqrt{3}`; `\sqrt3` is `\sqrt{3}`.
     .replace(/(?<![A-Za-z\\])sqrt\s*\(([^()]*)\)/g, '\\sqrt{$1}')
     .replace(/\\sqrt\s*([A-Za-z0-9])/g, '\\sqrt{$1}')
-    .replace(/\\pi(?![A-Za-z])/g, 'π')
-    .replace(/(?<![A-Za-z\\])pi(?![A-Za-z])/g, 'π'));
+    // `\pi r^2` loses its space to some comparisons (`\pir^2`): \pi is the
+    // constant whatever letter follows (only \pitchfork is another command).
+    .replace(/\\pi(?!tchfork)/g, 'π')
+    // ASCII `pi` only while spaces still separate letters: once they are
+    // gone, `p i` (p times i) would read as pi.
+    .replace(asciiPi ? /(?<![A-Za-z\\])pi(?![A-Za-z])/g : /(?!)/g, 'π'));
   text = text.replace(/\^\{([^{}]+)\}/g, (match, body) => (
-    /^\s*-?(?:\d+(?:\.\d+)?|[A-Za-z])\s*$/.test(body) ? `^${body.trim()}` : `^(${body})`
+    /^\s*(?:\d+(?:\.\d+)?|[A-Za-z])\s*$/.test(body) ? `^${body.trim()}` : `^(${body})`
   ));
-  return text.replace(/\^\((-?(?:\d+(?:\.\d+)?|[A-Za-z]))\)/g, '^$1');
+  // A negative exponent keeps its brackets: unwrapped, its minus would read as
+  // a term's sign to the comparisons that split terms.
+  return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]))\)/g, '^$1');
 };
 
-export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value))))
+export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value))), { asciiPi: false })
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')
@@ -159,7 +165,18 @@ export const asNumber = (value) => {
   return Number.isFinite(numeric) ? numeric : null;
 };
 
+// The unit sign a number was written with: 25% and $25 are not one answer.
+const unitSignOf = (value) => {
+  const text = normalizeAnswer(value);
+  if (/%$/.test(text)) return '%';
+  if (/^-?\\?\$/.test(text)) return '$';
+  return '';
+};
+
 export const sameNumber = (left, right, tolerance = 1e-6) => {
+  const leftSign = unitSignOf(left);
+  const rightSign = unitSignOf(right);
+  if (leftSign && rightSign && leftSign !== rightSign) return false;
   const a = asNumber(left);
   const b = asNumber(right);
   return a !== null && b !== null && Math.abs(a - b) <= tolerance;
@@ -499,9 +516,20 @@ const normalizeFormPreservingSide = (value) => {
 // vertex form `-3 + 2(x-4)^2` for `2(x-4)^2 - 3` (Job P). Moving a whole
 // constant term never changes any term's own form.
 const sameFormPreservingSide = (left, right) => {
-  const a = canonicalSymbolSpellings(normalizeFormPreservingSide(left));
-  const b = canonicalSymbolSpellings(normalizeFormPreservingSide(right));
-  return a === b || constantTermsLast(a) === constantTermsLast(b);
+  // π is read before the form normaliser removes spaces (so `p i` stays p·i);
+  // everything else after it, so its own rules (a coefficient of 1 before a
+  // root, generator brackets) see what they always saw.
+  const piFirst = (value) => String(value ?? '')
+    .replace(/\\pi(?!tchfork)/g, 'π')
+    .replace(/(?<![A-Za-z\\])pi(?![A-Za-z])/g, 'π');
+  const form = (value) => canonicalSymbolSpellings(normalizeFormPreservingSide(piFirst(value)), { asciiPi: false });
+  const a = form(left);
+  const b = form(right);
+  if (a === b) return true;
+  // A plain-text quotient keeps its old verdict: its extent is ambiguous
+  // (`x-1/x+1`), so its terms are never moved (Job K's 2d rule).
+  if ([left, right].some((value) => /\//.test(String(value ?? '')))) return false;
+  return constantTermsLast(a) === constantTermsLast(b);
 };
 
 export const sameFormPreservingEquation = (left, right) => {
@@ -872,6 +900,7 @@ const numericPair = (value) => {
   if (!/^\(.*\)$/.test(text)) return null;
   const parts = splitTopLevelCommaList(text.slice(1, -1));
   if (parts.length !== 2) return null;
+  if (parts.some((part) => /[%$]/.test(part))) return null;
   const coordinates = parts.map((part) => asNumber(part));
   return coordinates.every((coordinate) => coordinate !== null) ? coordinates : null;
 };
@@ -905,6 +934,9 @@ const hasInequalitySymbol = (value) => /[<>≤≥≠]|\\(?:le|ge|ne|lt|gt)/.test
  * `1/b + 1/a`, and so do `1/4 + 1/6` and `1/6 + 1/4`).
  */
 const constantTermsLast = (text) => {
+  // Nested bars cannot be told open from close, and a plain-text `/` is a
+  // quotient whose extent is ambiguous (`x-1/x+1`): neither is reordered.
+  if ((text.match(/\|/g) || []).length > 2 || text.includes('/')) return text;
   const terms = [];
   let token = '';
   let sign = '+';
@@ -1059,12 +1091,21 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
  */
 export const sameDigitalSatStudentProducedResponse = (student, key) => {
   const typed = String(student ?? '').trim().replace(UNICODE_MINUS, '-');
-  const match = /^(-?)(\d*)\.(\d+)$/.exec(typed);
+  // The whole-number part is empty, 0, or has no leading zero: 00.67 pads
+  // the space, it does not truncate or round anything.
+  const match = /^(-?)(0|[1-9]\d*)?\.(\d+)$/.exec(typed);
   if (!match) return false;
   const negative = match[1] === '-';
-  if (typed.length !== (negative ? 6 : 5)) return false;
+  const width = negative ? 6 : 5;
+  if (typed.length !== width) return false;
   const value = asNumber(key);
   if (value === null || (value < 0) !== negative || value === 0) return false;
+  // The rule is for a decimal that does NOT fit. A key that fits exactly
+  // (0.9999 as .9999) is graded as itself, never as a rounding of itself.
+  const wholeDigits = Math.abs(value) < 1 ? 0 : String(Math.trunc(Math.abs(value))).length;
+  const roomForPlaces = width - (negative ? 1 : 0) - wholeDigits - 1;
+  const atRoom = Math.abs(value) * 10 ** roomForPlaces;
+  if (roomForPlaces >= 0 && Math.abs(atRoom - Math.round(atRoom)) < 1e-9) return false;
   const places = match[3].length;
   const scale = 10 ** places;
   const magnitude = Math.abs(value) * scale;
@@ -1073,5 +1114,6 @@ export const sameDigitalSatStudentProducedResponse = (student, key) => {
   const truncated = Math.floor(magnitude + 1e-9) / scale;
   const rounded = Math.round(magnitude + 1e-9) / scale;
   const typedMagnitude = Math.abs(Number(typed));
-  return [truncated, rounded].some((candidate) => Math.abs(candidate - typedMagnitude) < 1e-12);
+  // Zero is never the truncation of a nonzero answer the SAT would accept.
+  return typedMagnitude > 0 && [truncated, rounded].some((candidate) => Math.abs(candidate - typedMagnitude) < 1e-12);
 };

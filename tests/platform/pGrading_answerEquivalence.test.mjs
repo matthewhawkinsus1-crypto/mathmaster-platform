@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-import { sameIntervalNotation, sameValue } from '../../functions/shared/answerEquivalence.mjs';
+import { sameCommutativeModelEquation, sameIntervalNotation, sameValue } from '../../functions/shared/answerEquivalence.mjs';
 import { matchesFieldAnswer } from '../../functions/shared/answerUtils.mjs';
 
 const require = createRequire(import.meta.url);
@@ -165,3 +165,25 @@ test('plain-text quotients with ambiguous precedence keep their old verdict', as
   assert.equal(sameValue('x^2-1/x^2+x', 'x^2-1/x^2+x'), true);
   assert.equal(sameValue('x-1/x', '(x-1)/x'), false);
 });
+
+// The independent verifier's counterexamples, each a wrong answer an earlier
+// draft of this change let through. Each must stay wrong.
+test('verifier counterexamples stay wrong', async () => {
+  await rejects('5+|1-|x-2||', '|1-|x+5-2||'); // nested bars: no term may move
+  await rejects('y=4+|2-|x-1||', 'y=|2-|x+4-1||');
+  await rejects('$5', '5%'); // a percent is not dollars
+  await rejects('25%', '$25');
+  await rejects('(5,3)', '(5%,3)');
+  await rejects('π', 'p i'); // p times i
+  await rejects('\\pi', 'p i');
+  // Plain-text quotients keep their old verdict: no term moves past a '/'.
+  await rejects('x-1/x+1', '1+x-1/x');
+  await rejects('x^2-1/x^2+1', '1+x^2-1/x^2');
+  await rejects('y=x-1/x+1', 'y=1+x-1/x');
+  // Unwrapping a negative exponent must not expose its minus to term sorting.
+  assert.equal(sameCommutativeModelEquation('A=x^(-2)+y^(-1)', 'A=x^(-1)+y^(-2)'), false);
+  assert.equal(sameCommutativeModelEquation('P=2^(-b)+3^(-a)', 'P=2^(-a)+3^(-b)'), false);
+  // A stacked fraction is not a plain-text quotient: the constant may still move.
+  await accepts('y=\\frac{1}{2}(x-4)^2-3', 'y=-3+\\frac{1}{2}(x-4)^2');
+});
+

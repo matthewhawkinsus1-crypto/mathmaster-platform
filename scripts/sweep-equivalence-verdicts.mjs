@@ -158,6 +158,7 @@ const spellingsOf = (text) => {
   const out = new Set();
   const add = (value) => { if (value && value !== text) out.add(value); };
   add(text.replace(/\s+/g, ''));
+  add(text.replace(/(^|[-+=(*])1(?=sqrt|[a-z(])/g, '$1'));
   add(text.replace(/-/g, '−'));
   add(text.replace(/\^\(([^()]+)\)/g, '^{$1}'));
   add(text.replace(/\^(-?\w)(?![\w{(])/g, '^{$1}'));

@@ -34,6 +34,12 @@ test('the College Board examples, exactly', () => {
   assert.equal(sameDigitalSatStudentProducedResponse('41.67', '125/3'), true);
   assert.equal(sameDigitalSatStudentProducedResponse('41.68', '125/3'), false);
   assert.equal(sameDigitalSatStudentProducedResponse('41.7', '125/3'), false);
+  // The verifier's counterexamples: padding is not truncating or rounding,
+  // zero is never right for a nonzero answer, and a key whose decimal fits
+  // exactly is graded as itself.
+  for (const [typed, key] of [['00.67', '2/3'], ['000.7', '2/3'], ['-00.33', '-1/3'], ['00.78', '57/73'], ['0.000', '0.00004'], ['.0000', '0.00004'], ['1.000', '0.9999']]) {
+    assert.equal(sameDigitalSatStudentProducedResponse(typed, key), false, `${typed} for ${key}`);
+  }
 });
 
 const BANK = (framework) => JSON.parse(readFileSync(new URL(`../../functions/seeds/pathQuestionBank/${framework}_pathQuestionBank_seed.json`, import.meta.url), 'utf8')).documents;
