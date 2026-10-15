@@ -59,7 +59,7 @@ export const graphableConstraintFromRelation = (text) => {
  * This is not a second mini-solver. Students choose an operation, enter its
  * value, place it on BOTH sides of the inequality, commit it, explicitly fix
  * the inequality direction after a negative multiply/divide, and use the same
- * Rewrite / Simplify and cancellation interactions as the standalone solver.
+ * Simplify and cancellation interactions as the standalone solver.
  *
  * Once the student's visible relation is an equivalent y-on-the-left graphing
  * form, this adapter marks the rewrite complete and Systems Workspace advances
