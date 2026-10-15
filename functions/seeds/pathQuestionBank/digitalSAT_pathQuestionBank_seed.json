@@ -8110,11 +8110,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "The inputs {{x1}}, {{x2}} and {{x3}} are all different, so the relation is a function.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "A relation is a function when no input is paired with two different outputs.",
+          "The inputs (first coordinates) of $({{x1}},{{y1}})$, $({{x2}},{{y2}})$ and $({{x3}},{{y3}})$ are {{x1}}, {{x2}} and {{x3}}: no input repeats.",
+          "So each input has exactly one output. The relation is a function because each input is paired with exactly one output."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Thinking the outputs must all be different, or that negative coordinates matter. Outputs may repeat; only one input with two different outputs breaks a function.",
+        "answerSummary": "The relation is a function because each input is paired with exactly one output."
       },
       "generator": {
         "parameters": {
@@ -8235,11 +8238,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "The input {{x}} is paired with both {{y1}} and {{y2}}, so this is not a function.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "For $y$ to be a function of $x$, each input may have only one output.",
+          "Both $({{x}},{{y1}})$ and $({{x}},{{y2}})$ have the input {{x}}, and their outputs differ: ${{y1}}\\ne {{y2}}$.",
+          "One input with two outputs: No, because the same input is paired with two different outputs."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Answering yes because the two pairs share an input. A shared input is exactly what breaks a function when the outputs differ; negative values never matter.",
+        "answerSummary": "No, because the same input is paired with two different outputs."
       },
       "generator": {
         "parameters": {
@@ -8348,11 +8354,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Each $x$ gives one $y$ in $y={{m}}x {{b|signed}}$, so it is a function.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "A function gives exactly one output for each input.",
+          "Any input gives one output: for example, $x=1$ gives $y={{m}}(1) {{b|signed}}={{v1}}$, and no other value.",
+          "Multiplying by {{m}} and then adding the constant term always has one result. For every value of $x$, the equation gives exactly one value of $y$, so it defines a function."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Thinking an equation with both $x$ and $y$ cannot be a function, or that the slope must be positive or the intercept 0. The slope {{m}} and the intercept {{b}} do not matter.",
+        "answerSummary": "For every value of $x$, the equation gives exactly one value of $y$, so it defines a function."
       },
       "generator": {
         "parameters": {
@@ -8374,6 +8383,9 @@
               0
             ]
           }
+        },
+        "derived": {
+          "v1": "m+b"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -8461,11 +8473,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Each number of gallons takes exactly one time, so $t$ is a function of $g$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "A function pairs each allowed input with exactly one output. Here the input is the number of gallons $g$ and the output is the time $t$.",
+          "The pump runs at a constant rate, so moving the same $g$ gallons always takes the same time: one value of $t$ for each $g$.",
+          "It is a function because each allowed value of $g$ corresponds to exactly one value of $t$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Thinking different units, or two quantities that both change, rule out a function. All that matters is that no input gets two outputs.",
+        "answerSummary": "It is a function because each allowed value of $g$ corresponds to exactly one value of $t$."
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -8561,11 +8576,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Only the linear equation gives one $y$ for each $x$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "A relation defines $y$ as a function of $x$ when each input $x$ has only one output $y$. Test each choice.",
+          "In $x=y^2+{{a}}$, both $y=1$ and $y=-1$ give $x=1^2+{{a}}=(-1)^2+{{a}}={{a1}}$: one input, two outputs. $y^2=x+{{a}}$ and the circle $x^2+y^2={{a}}^2+4$ also give two values of $y$ for one $x$.",
+          "In $y={{a}}x {{b|signed}}$, each $x$ is multiplied by {{a}} and then {{b}} is added: one output. So the function is $y={{a}}x {{b|signed}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Picking an equation just because it has $x$ and $y$ in it. When $y$ is squared, $y$ and $-y$ share the same input.",
+        "answerSummary": "$y={{a}}x {{b|signed}}$"
       },
       "generator": {
         "parameters": {
@@ -8582,6 +8600,9 @@
               0
             ]
           }
+        },
+        "derived": {
+          "a1": "a+1"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -8670,11 +8691,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "The input {{x}} already has the output {{y}}, so $k={{y}}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "The pairs $({{x}},{{y}})$ and $({{x}},k)$ share the input {{x}}.",
+          "The pair $({{u}},{{v}})$ has a different input, so it puts no condition on $k$.",
+          "A function allows only one output for each input, so the second output must equal the first: $k={{y}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Thinking $k$ must be a new output, different from {{y}}. Repeating an output is allowed; repeating an input with a new output is not.",
+        "answerSummary": "$k={{y}}$"
       },
       "generator": {
         "parameters": {
@@ -8771,11 +8795,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "The graph of $x={{c}}$ is a vertical line, so it is not a function.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Every point on the graph of $x={{c}}$ has the input {{c}}; the graph is a vertical line.",
+          "For example, $({{c}},0)$ and $({{c}},1)$ are both on it, so the input {{c}} has the outputs 0 and 1.",
+          "No, because the single input $x={{c}}$ can be paired with more than one value of $y$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Saying yes because $x$ is fixed or the graph is straight. One input with many outputs is exactly what a function forbids: a vertical line fails the vertical line test.",
+        "answerSummary": "No, because the single input $x={{c}}$ can be paired with more than one value of $y$."
       },
       "generator": {
         "parameters": {
@@ -8872,11 +8899,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "With $y\\ge 0$, each $x\\ge 0$ has one $y$, so it is a function.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Without the restriction, $x=y^2$ pairs $x=4$ with both $y=2$ and $y=-2$: two outputs.",
+          "With $y\\ge 0$, only the nonnegative root is left, $y=\\sqrt{x}$: now $x=4$ gives only $y=2$.",
+          "Yes. For each $x\\ge0$, the restriction leaves exactly one nonnegative value of $y$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Saying a squared variable can never be part of a function. The restriction removes the negative root, leaving one $y$ for each $x$.",
+        "answerSummary": "Yes. For each $x\\ge0$, the restriction leaves exactly one nonnegative value of $y$."
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
