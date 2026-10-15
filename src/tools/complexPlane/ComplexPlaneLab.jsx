@@ -115,7 +115,7 @@ function Operations({ questionData, feedback, submit, onAction }) {
     <ToolGrid min={340}>
       <ComplexVisual values={[{ value: z, label: 'z' }, { value: w, label: 'w', color: '#d93025' }, { value: expected, label: 'result', color: '#137333', isAnswer: true }]} title="Operands + result geometry" />
       <Panel title="Compute the result">
-        <p style={{ fontSize: 20, fontWeight: 900 }}>({formatComplex(z)}) {symbol} ({formatComplex(w)})</p>
+        <p style={{ fontSize: 'calc(20 * var(--mm-px))', fontWeight: 900 }}>({formatComplex(z)}) {symbol} ({formatComplex(w)})</p>
         {operation === 'multiply' ? <p style={{ color: 'var(--mm-text-muted)' }}>Use i² = −1 when combining the cross-products.</p> : null}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check operation</button>
@@ -145,7 +145,7 @@ function Division({ questionData, feedback, submit, onAction }) {
     <ToolGrid min={330}>
       <ComplexVisual values={[{ value: z, label: 'numerator' }, { value: w, label: 'denominator', color: '#d93025' }, { value: quotient, label: 'quotient', color: '#137333', isAnswer: true }]} title="Division on the complex plane" />
       <Panel title="Rationalize and divide">
-        <p style={{ fontSize: 19, fontWeight: 900 }}>({formatComplex(z)}) ÷ ({formatComplex(w)})</p>
+        <p style={{ fontSize: 'calc(19 * var(--mm-px))', fontWeight: 900 }}>({formatComplex(z)}) ÷ ({formatComplex(w)})</p>
         <p style={{ color: 'var(--mm-text-muted)' }}>Multiply numerator and denominator by the denominator’s conjugate. Then w·w̄ = |w|² is real.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Re(w̄)<input value={conjugateRe} onChange={(event) => setConjugateRe(event.target.value)} style={inputStyle} /></label><label>Im(w̄)<input value={conjugateIm} onChange={(event) => setConjugateIm(event.target.value)} style={inputStyle} /></label><label>Quotient real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Quotient imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check division</button>
@@ -174,7 +174,7 @@ function Powers({ questionData, feedback, submit, onAction }) {
     <ToolGrid min={330}>
       <ComplexVisual values={[{ value: z, label: 'z' }, { value: expected, label: `z^${exponent}`, color: '#137333', isAnswer: true }]} title="Base and power" />
       <Panel title={`Compute z^${exponent}`}>
-        <p style={{ fontSize: 20, fontWeight: 900 }}>z = {formatComplex(z)}</p>
+        <p style={{ fontSize: 'calc(20 * var(--mm-px))', fontWeight: 900 }}>z = {formatComplex(z)}</p>
         <p style={{ color: 'var(--mm-text-muted)' }}>For integer powers, multiply complex factors carefully. Magnitudes multiply too: |zⁿ| = |z|ⁿ.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <label style={{ display: 'block', marginTop: 10 }}>|z<sup>{exponent}</sup>|<input value={magnitude} onChange={(event) => setMagnitude(event.target.value)} style={inputStyle} /></label>
@@ -233,7 +233,7 @@ function QuadraticRoots({ questionData, feedback, submit, onAction }) {
     <ToolGrid min={330}>
       <ComplexVisual values={roots.map((value, index) => ({ value, label: `root ${index + 1}`, color: index ? '#d93025' : '#1a73e8', isAnswer: true }))} title="Roots on the complex plane" />
       <Panel title="Solve the quadratic">
-        <p style={{ fontSize: 20, fontWeight: 900 }}>{quadratic.a}x² {quadratic.b >= 0 ? '+' : '−'} {Math.abs(quadratic.b)}x {quadratic.c >= 0 ? '+' : '−'} {Math.abs(quadratic.c)} = 0</p>
+        <p style={{ fontSize: 'calc(20 * var(--mm-px))', fontWeight: 900 }}>{quadratic.a}x² {quadratic.b >= 0 ? '+' : '−'} {Math.abs(quadratic.b)}x {quadratic.c >= 0 ? '+' : '−'} {Math.abs(quadratic.c)} = 0</p>
         <p><strong>Discriminant:</strong> {discriminant}</p>
         <p style={{ color: 'var(--mm-text-muted)' }}>Enter both roots as a + bi. Their order does not matter.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Root 1 real<input value={r1Re} onChange={(event) => setR1Re(event.target.value)} style={inputStyle} /></label><label>Root 1 imaginary<input value={r1Im} onChange={(event) => setR1Im(event.target.value)} style={inputStyle} /></label><label>Root 2 real<input value={r2Re} onChange={(event) => setR2Re(event.target.value)} style={inputStyle} /></label><label>Root 2 imaginary<input value={r2Im} onChange={(event) => setR2Im(event.target.value)} style={inputStyle} /></label></div>

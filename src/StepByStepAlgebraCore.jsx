@@ -175,7 +175,7 @@ function CancellationFactorRow({
         const previous = localIndex > 0 ? factors[localIndex - 1] : null;
         return (
           <span key={`${offset}-${localIndex}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
-            {previous && factorNeedsDot(previous, factor) && <span aria-hidden="true" style={{ margin: '0 2px', fontSize: '22px' }}>·</span>}
+            {previous && factorNeedsDot(previous, factor) && <span aria-hidden="true" style={{ margin: '0 2px', fontSize: 'calc(22 * var(--mm-px))' }}>·</span>}
             <span
               data-cancel-index={index}
               onClick={cancellable ? () => onTokenClick(index) : undefined}
@@ -207,7 +207,7 @@ function CancellationFactorRow({
                 transition: 'opacity .2s ease, background .15s ease, outline-color .15s ease',
               }}
             >
-              <MathDisplay value={factor.latex} format="latex" inline style={{ fontSize: '30px' }} ariaLabel={factor.text} />
+              <MathDisplay value={factor.latex} format="latex" inline style={{ fontSize: 'calc(30 * var(--mm-px))' }} ariaLabel={factor.text} />
               {(selected || crossed) && (
                 <span aria-hidden="true" style={{ position: 'absolute', left: '7%', right: '7%', top: '52%', height: '4px', borderRadius: '999px', background: '#c5221f', transform: 'rotate(-12deg)', boxShadow: '0 0 0 2px rgba(255,255,255,.78)' }} />
               )}
@@ -237,7 +237,12 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
     let frame = null;
     const fit = () => {
       const available = Math.max(1, viewport.clientWidth - 8);
-      const computed = Number.parseFloat(window.getComputedStyle(content).fontSize) || base;
+      // Sizes are in --mm-px (one CSS pixel at the default text size), so the
+      // equation grows with the student's text-size setting (WCAG 1.4.4).
+      // `units` is the size now written on the content; `pxPerUnit` is what
+      // the text setting makes of one unit.
+      const units = Number(content.dataset.fitSize) || base;
+      const pxPerUnit = (Number.parseFloat(window.getComputedStyle(content).fontSize) || units) / units;
       const rendered = Math.max(1, content.scrollWidth);
 
       // Estimate the width this exact expression would occupy at the base
@@ -246,8 +251,9 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
       // also observing the content itself. Changing the font changed the
       // observed width, which triggered another resize, producing the visible
       // "pulsing" students saw near the fit boundary.
-      const widthAtBase = Math.max(1, rendered * (base / computed));
-      const target = Math.max(17, Math.min(base, base * (available / widthAtBase) * 0.975));
+      // Fitting wins over size: the floor stays 17 CSS pixels at any setting.
+      const widthAtBase = Math.max(1, rendered * (base / units));
+      const target = Math.max(17 / pxPerUnit, Math.min(base, base * (available / widthAtBase) * 0.975));
 
       setFontSize((current) => (Math.abs(target - current) > 0.35 ? target : current));
     };
@@ -272,7 +278,7 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
 
   return (
     <div ref={viewportRef} className="algebra-expression-fit-viewport">
-      <div ref={contentRef} className="algebra-expression-fit-content" style={{ fontSize: `${fontSize}px` }}>
+      <div ref={contentRef} className="algebra-expression-fit-content" data-fit-size={fontSize} style={{ fontSize: `calc(${fontSize} * var(--mm-px))` }}>
         {children}
       </div>
     </div>
@@ -2579,7 +2585,7 @@ export default function StepByStepAlgebra({
             Nothing you did caused this and your grade is not affected. Let your teacher know so they can fix the question.
           </p>
           {parseError && (
-            <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
+            <p style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
               Details for your teacher: {parseError}
             </p>
           )}
@@ -2705,7 +2711,7 @@ export default function StepByStepAlgebra({
               </button>
             ))}
           {hintsAllowed ? (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>
               <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
               Cancellation hints
             </label>
@@ -2742,7 +2748,7 @@ export default function StepByStepAlgebra({
                 minWidth: 52, minHeight: 44, padding: '6px 12px', borderRadius: 10,
                 border: distributionState.armed ? '3px solid #174ea6' : '2px solid var(--mm-primary-border)',
                 background: distributionState.armed ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)',
-                fontWeight: 900, fontSize: 22, cursor: 'grab',
+                fontWeight: 900, fontSize: 'calc(22 * var(--mm-px))', cursor: 'grab',
               }}
             >
               <MathDisplay value={distributionState.factorLatex} format="latex" inline />
@@ -2767,7 +2773,7 @@ export default function StepByStepAlgebra({
                     aria-pressed={placed}
                     aria-label={placed ? `Factor already applied to ${term.text}` : `Apply the factor to ${term.text}`}
                     style={{
-                      minWidth: 44, minHeight: 44, padding: '6px 12px', borderRadius: 10, fontSize: 22, fontWeight: 800,
+                      minWidth: 44, minHeight: 44, padding: '6px 12px', borderRadius: 10, fontSize: 'calc(22 * var(--mm-px))', fontWeight: 800,
                       border: placed ? '2px solid #137333' : distributionState.armed ? '2px dashed #7698cf' : '1px solid var(--mm-tint-border)',
                       background: placed ? 'var(--mm-success-bg)' : distributionState.armed ? 'var(--mm-surface-tint)' : 'var(--mm-surface)',
                       color: placed ? 'var(--mm-success-text)' : 'var(--mm-text-strong)',
@@ -2885,7 +2891,7 @@ export default function StepByStepAlgebra({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-            <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13, whiteSpace: 'nowrap', marginRight: 1 }}>
+            <strong style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', whiteSpace: 'nowrap', marginRight: 1 }}>
               Rewrite
             </strong>
 
@@ -2912,7 +2918,7 @@ export default function StepByStepAlgebra({
                     border: rewriteScope === value ? '2px solid #174ea6' : '1px solid var(--mm-tint-border)',
                     background: rewriteScope === value ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                     color: rewriteScope === value ? 'var(--mm-primary-text)' : 'var(--mm-text)',
-                    fontSize: 12,
+                    fontSize: 'calc(12 * var(--mm-px))',
                     fontWeight: 800,
                     cursor: 'pointer',
                   }}
@@ -2951,7 +2957,7 @@ export default function StepByStepAlgebra({
                     <span
                       aria-hidden="true"
                       title={side === 'left' ? 'Left side' : 'Right side'}
-                      style={{ fontSize: 11, fontWeight: 900, color: 'var(--mm-text-muted)', textAlign: 'center' }}
+                      style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textAlign: 'center' }}
                     >
                       {side === 'left' ? 'L' : 'R'}
                     </span>
@@ -2985,7 +2991,7 @@ export default function StepByStepAlgebra({
                 border: 0,
                 background: '#174ea6',
                 color: '#fff',
-                fontSize: 12,
+                fontSize: 'calc(12 * var(--mm-px))',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
               }}
@@ -3007,7 +3013,7 @@ export default function StepByStepAlgebra({
                 border: '1px solid var(--mm-tint-border)',
                 background: 'var(--mm-surface)',
                 color: 'var(--mm-text-muted)',
-                fontSize: 18,
+                fontSize: 'calc(18 * var(--mm-px))',
                 lineHeight: 1,
                 fontWeight: 800,
                 cursor: 'pointer',
@@ -3017,7 +3023,7 @@ export default function StepByStepAlgebra({
             </button>
           </div>
 
-          <div style={{ marginTop: 4, paddingLeft: 2, color: 'var(--mm-text-muted)', fontSize: 11, lineHeight: 1.25 }}>
+          <div style={{ marginTop: 4, paddingLeft: 2, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.25 }}>
             Enter your own equivalent expression. MathMaster checks it; it does not generate it.
           </div>
         </div>
@@ -3025,11 +3031,11 @@ export default function StepByStepAlgebra({
       {Array.isArray(question.algebraPrompts) && question.algebraPrompts.length > 0 && (
         <div style={{ marginBottom: '16px', padding: '15px', borderRadius: '12px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)' }}>
           <h3 style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)' }}>Algebraic micro-questions</h3>
-          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>These responses accept algebraic expressions, including equivalent distributed or factored forms.</p>
+          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>These responses accept algebraic expressions, including equivalent distributed or factored forms.</p>
           <div style={{ display: 'grid', gap: '12px' }}>
             {question.algebraPrompts.map((prompt, index) => {
               const id = String(prompt.id || `algebra-prompt-${index + 1}`);
-              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{prompt.prompt || prompt.label || `Simplify expression ${index + 1}`}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: '22px' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" /></div>;
+              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{prompt.prompt || prompt.label || `Simplify expression ${index + 1}`}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: 'calc(22 * var(--mm-px))' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" /></div>;
             })}
           </div>
         </div>
@@ -3299,7 +3305,7 @@ export default function StepByStepAlgebra({
         // is not zero. Solving A = bh for h is not the same statement as
         // A = bh, and a student rearranging formulas should see the condition
         // rather than absorb the idea that it never matters.
-        <p style={{ margin: '10px 2px 0', fontSize: 13, color: 'var(--mm-warning-text)', fontWeight: 700 }}>
+        <p style={{ margin: '10px 2px 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-warning-text)', fontWeight: 700 }}>
           This step assumes {pendingMove.assumption}.
         </p>
       )}
@@ -3422,7 +3428,7 @@ export default function StepByStepAlgebra({
         const color = tone === 'success' ? 'var(--mm-success-text)' : tone === 'growth' ? 'var(--mm-warning-text)' : tone === 'neutral' ? 'var(--mm-text-strong)' : 'var(--mm-danger)';
         return <div role="status" data-message-tone={tone} style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background, color, fontWeight: 'bold' }}>{message.text}</div>;
       })()}
-      {!embedded && <p style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginTop: '12px' }}>
+      {!embedded && <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '12px' }}>
         {/* The level's own sentence promises "Hints are available on request";
             where the activity withholds hints that is no longer true. */}
         {hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}
@@ -3432,7 +3438,7 @@ export default function StepByStepAlgebra({
       </p>}
 
       {heldToken && (
-        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: 'var(--mm-primary-text)', background: 'var(--mm-primary-soft)', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} latex={heldToken.latex} /></div>
+        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-primary-text)', background: 'var(--mm-primary-soft)', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} latex={heldToken.latex} /></div>
       )}
     </section>
   );

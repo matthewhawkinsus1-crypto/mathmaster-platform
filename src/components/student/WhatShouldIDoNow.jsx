@@ -76,7 +76,7 @@ export default function WhatShouldIDoNow({
       }}
     >
       <div style={{
-        fontSize: 10.5, fontWeight: 950, letterSpacing: '.09em',
+        fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 950, letterSpacing: '.09em',
         textTransform: 'uppercase', color: tone.accent,
       }}
       >
@@ -85,7 +85,7 @@ export default function WhatShouldIDoNow({
 
       <h2
         id="what-now-heading"
-        style={{ margin: '7px 0 0', fontSize: 22, color: 'var(--mm-text-strong)', lineHeight: 1.25 }}
+        style={{ margin: '7px 0 0', fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-text-strong)', lineHeight: 1.25 }}
       >
         {/* Named on the one screen where being addressed by name is worth it. */}
         {studentName && nextAction.kind === 'clear'
@@ -93,14 +93,14 @@ export default function WhatShouldIDoNow({
           : nextAction.headline}
       </h2>
 
-      <p style={{ margin: '7px 0 0', color: 'var(--mm-text)', fontSize: 15, lineHeight: 1.6 }}>
+      <p style={{ margin: '7px 0 0', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))', lineHeight: 1.6 }}>
         {nextAction.detail}
       </p>
 
       {/* Resume: where the student lands, and what the work is worth so far.
           The work itself is saved on the server, not in this browser. */}
       {nextAction.kind === 'resume' && resume && (
-        <div data-resume-detail style={{ marginTop: 8, color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.5 }}>
+        <div data-resume-detail style={{ marginTop: 8, color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>
           <div style={{ fontWeight: 800 }}>Continue at {resume.questionLabel || `Question ${resume.questionNumber}`}. Your answers are kept as you go.</div>
           {resume.gradeText && (
             <div style={{ marginTop: 2, color: 'var(--mm-text-muted)', fontWeight: 800 }}>{resume.gradeText}</div>
@@ -109,7 +109,7 @@ export default function WhatShouldIDoNow({
       )}
 
       {showCountdown && (
-        <div data-next-action-countdown style={{ marginTop: 8, fontSize: 20, fontWeight: 950, color: tone.accent, fontVariantNumeric: 'tabular-nums' }}>
+        <div data-next-action-countdown style={{ marginTop: 8, fontSize: 'calc(20 * var(--mm-px))', fontWeight: 950, color: tone.accent, fontVariantNumeric: 'tabular-nums' }}>
           <DOLCountdown endsAt={countdownEndsAt} /> left
         </div>
       )}
@@ -120,11 +120,11 @@ export default function WhatShouldIDoNow({
       {/* Late work names the student's own last day (an extension included),
           never only a class due date that has already passed. */}
       {nextAction.assignment && nextAction.lateLine ? (
-        <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 800 }}>
+        <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800 }}>
           Late · {nextAction.lateLine}
         </div>
       ) : nextAction.assignment && nextAction.dueAt && (
-        <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 800 }}>
+        <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800 }}>
           {nextAction.individualizedDue ? 'Your due date: ' : 'Due '}{formatDateTime(nextAction.dueAt)}
         </div>
       )}
@@ -139,7 +139,7 @@ export default function WhatShouldIDoNow({
             marginTop: 16, padding: '13px 22px', borderRadius: 11, border: 0,
             // `fill` stays saturated in both themes so the white label keeps its
             // contrast; `accent` (text) turns light in dark mode.
-            background: tone.fill, color: '#fff', fontSize: 15.5, fontWeight: 900,
+            background: tone.fill, color: '#fff', fontSize: 'calc(15.5 * var(--mm-px))', fontWeight: 900,
             cursor: 'pointer',
             // Chromebook and phone: a target a thumb can hit without aiming.
             minHeight: 48, width: '100%', maxWidth: 340,

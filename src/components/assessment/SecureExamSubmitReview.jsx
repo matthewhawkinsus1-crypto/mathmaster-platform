@@ -40,7 +40,7 @@ const rowButton = {
 
 const QuestionList = ({ title, rows, empty, busy, onJump }) => (
   <section aria-labelledby={`secure-review-${title.replace(/\W+/g, '-').toLowerCase()}`} style={{ marginTop: 18 }}>
-    <h2 id={`secure-review-${title.replace(/\W+/g, '-').toLowerCase()}`} style={{ margin: '0 0 8px', fontSize: 17, color: 'var(--mm-text-strong)' }}>{title}</h2>
+    <h2 id={`secure-review-${title.replace(/\W+/g, '-').toLowerCase()}`} style={{ margin: '0 0 8px', fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{title}</h2>
     {rows.length ? (
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
         {rows.map((row) => (
@@ -95,10 +95,10 @@ export default function SecureExamSubmitReview({
   return (
     <main data-secure-review={moduleEnd ? 'moduleEnd' : 'submit'} style={{ width: 'min(760px, 100%)', margin: '0 auto', padding: '24px 16px 48px', boxSizing: 'border-box' }}>
       <section aria-labelledby="secure-review-title" style={card}>
-        <h1 id="secure-review-title" ref={headingRef} tabIndex={-1} style={{ margin: '0 0 8px', fontSize: 'clamp(21px, 5vw, 27px)', color: 'var(--mm-text-strong)', outline: 'none' }}>
+        <h1 id="secure-review-title" ref={headingRef} tabIndex={-1} style={{ margin: '0 0 8px', fontSize: 'clamp(calc(21 * var(--mm-px)), calc(5vw * var(--mm-text-scale, 1)), calc(27 * var(--mm-px)))', color: 'var(--mm-text-strong)', outline: 'none' }}>
           {moduleEnd ? `End of module ${finishing.number}` : 'Review your answers'}
         </h1>
-        <p style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>
+        <p style={{ margin: 0, fontSize: 'calc(17 * var(--mm-px))', fontWeight: 800 }}>
           You answered {summary.answered} of {summary.total} question{summary.total === 1 ? '' : 's'}{scope}.
         </p>
         {summary.blank > 0 && (

@@ -62,7 +62,7 @@ const panel = {
   border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)',
   padding: 16, marginBottom: 12, textAlign: 'left',
 };
-const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: 'var(--mm-primary-text)' };
+const stageHeading = { margin: '0 0 8px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)' };
 const waitingPanel = { ...panel, background: 'var(--mm-surface-sunken)', borderStyle: 'dashed', color: 'var(--mm-text-muted)' };
 
 
@@ -71,11 +71,11 @@ const choiceChip = (active) => ({
   padding: '10px 16px', minHeight: 44, borderRadius: 999, cursor: 'pointer',
   border: `2px solid ${active ? '#1a73e8' : 'var(--mm-border)'}`,
   background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 14,
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 'calc(14 * var(--mm-px))',
 });
 
 const textArea = {
-  width: '100%', minHeight: 84, fontSize: 15, padding: '10px', resize: 'vertical',
+  width: '100%', minHeight: 84, fontSize: 'calc(15 * var(--mm-px))', padding: '10px', resize: 'vertical',
   border: '1px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box',
 };
 
@@ -90,7 +90,7 @@ function StageSource({ input, stages }) {
   const upstream = stages.find((entry) => entry.id === input.sourceStageId);
   const label = getStage(upstream?.kind)?.label || input.sourceStageId;
   return (
-    <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
+    <p style={{ margin: '0 0 8px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
       Built from your answer to <strong>{label}</strong>
       {typeof input.value === 'string' && input.value ? <> — <MathDisplay value={input.value} inline /></> : null}
     </p>
@@ -136,7 +136,7 @@ function PointInputStage({ stage, value, onChange, disabled }) {
         />
       )}
       {pointCount > 1 && !none ? (
-        <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+        <p style={{ margin: '6px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
           There are {pointCount}. Separate them with a comma between the pairs.
         </p>
       ) : null}
@@ -208,7 +208,7 @@ function ChoicePreviewGraph({ stage, value }) {
         horizontalLines={figures.horizontalLines}
         ariaLabel={shown ? `Graph showing the option you selected, ${shown}` : 'Graph'}
       />
-      <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }} aria-live="polite">
+      <p style={{ margin: '6px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }} aria-live="polite">
         {shown
           ? `Showing ${shown} on the graph. Try another option to see what it looks like.`
           : 'Choose an option to see it drawn on the graph.'}
@@ -362,7 +362,7 @@ function QuantityRolesStage({ stage, value, onChange, disabled }) {
     <div style={{ display: 'grid', gap: 12 }}>
       {[['independent', 'Independent (input)'], ['dependent', 'Dependent (output)']].map(([role, label]) => (
         <div key={role}>
-          <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>{label}</p>
+          <p style={{ margin: '0 0 6px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>{label}</p>
           <div style={chipRow}>
             {quantities.map((quantity) => (
               <button
@@ -448,7 +448,7 @@ const toolAction = (onChange) => (actionType, payload) => {
 function GraphStageWaiting() {
   return (
     <div style={waitingPanel}>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
+      <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
         Finish the earlier steps first — this graph is built from what you write there.
       </p>
     </div>
@@ -742,7 +742,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
       // Validation rejects unknown kinds at Preflight, so reaching here means a
       // known kind with no renderer yet. Say so rather than showing a blank.
       return (
-        <p style={{ margin: 0, color: 'var(--mm-warning-text)', fontSize: 13 }}>
+        <p style={{ margin: 0, color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
           This step type ({stage.kind}) is not available in this workspace yet.
         </p>
       );
@@ -1321,7 +1321,7 @@ export default function WorkflowRunner({
             <h4 style={{ ...stageHeading, color: 'var(--mm-text-muted)' }}>
               Step {index + 1}. {definition?.label || stage.kind}
             </h4>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
+            <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
               Finish <strong>{getStage(upstream?.kind)?.label || waitingStageId}</strong> first — this step is built
               from what you write there.
             </p>
@@ -1333,7 +1333,7 @@ export default function WorkflowRunner({
     return (
       <section key={stage.id} className={shellClass} style={focusMode ? undefined : stagePanelStyle}>
         {focusMode ? null : <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>}
-        {showStagePrompt && stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
+        {showStagePrompt && stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 'calc(16 * var(--mm-px))', margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
         {locked.has(stage.id) ? (
           /* THE LIVE COMPONENT IS NOT RENDERED AT ALL, rather than rendered
              disabled. Several stage components take no `disabled` prop — the
@@ -1396,7 +1396,7 @@ export default function WorkflowRunner({
       <div style={{ textAlign: 'left' }}>
         {promptAndScenario}
         {workflow.map((stage, index) => renderStage(stage, index))}
-        <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, margin: '4px 2px 0' }}>
+        <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', margin: '4px 2px 0' }}>
           {progress.answered} of {progress.total} steps answered. Each step is marked on its own.
         </p>
       </div>

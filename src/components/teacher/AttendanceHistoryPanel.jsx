@@ -41,17 +41,17 @@ const MARK_DISPLAY_LABEL = {
 };
 
 const rowStyle = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 11px', border: '1px solid var(--mm-border)', borderRadius: 9, background: 'var(--mm-surface)' };
-const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontSize: 13 };
-const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
+const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontSize: 'calc(13 * var(--mm-px))' };
+const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 'calc(11.5 * var(--mm-px))', cursor: 'pointer' };
 
 const markLabel = (mark) => MARK_DISPLAY_LABEL[mark] || 'Not marked';
 
 function AuditTrail({ events }) {
-  if (!events.length) return <div style={{ fontSize: 11.5, color: 'var(--mm-text-subtle)' }}>No prior corrections.</div>;
+  if (!events.length) return <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>No prior corrections.</div>;
   return (
     <div style={{ display: 'grid', gap: 4, marginTop: 6, paddingTop: 6, borderTop: '1px dashed var(--mm-border)' }}>
       {events.map((entry, index) => (
-        <div key={index} style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>
+        <div key={index} style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
           {markLabel(entry.mark)}
           {entry.reason ? ` — ${entry.reason}` : ''}
           {entry.markSource === 'liveQuickMark' ? ' (Live Classroom quick mark)' : ' (history correction)'}
@@ -199,27 +199,27 @@ export default function AttendanceHistoryPanel({
 
   return (
     <section style={{ marginBottom: 24 }}>
-      <h2 style={{ margin: '0 0 4px', fontSize: 18 }}>Attendance History</h2>
-      <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 13 }}>
+      <h2 style={{ margin: '0 0 4px', fontSize: 'calc(18 * var(--mm-px))' }}>Attendance History</h2>
+      <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
         Correct a past attendance mark for one class and date. The newest correction is what counts; every prior mark stays in the record below it.
       </p>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-        <label style={{ display: 'grid', gap: 4, fontSize: 11.5, fontWeight: 900, color: 'var(--mm-text-muted)' }}>
+        <label style={{ display: 'grid', gap: 4, fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)' }}>
           Class
           <select value={classId} onChange={(event) => setClassId(event.target.value)} style={controlStyle} aria-label="Class">
             <option value="">Select a class…</option>
             {activeClasses.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name || entry.period}</option>)}
           </select>
         </label>
-        <label style={{ display: 'grid', gap: 4, fontSize: 11.5, fontWeight: 900, color: 'var(--mm-text-muted)' }}>
+        <label style={{ display: 'grid', gap: 4, fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)' }}>
           Instructional date
           <input type="date" value={dateKey} onChange={(event) => setDateKey(event.target.value)} style={controlStyle} aria-label="Instructional date" />
         </label>
       </div>
 
       {loadError && (
-        <div role="alert" style={{ marginBottom: 10, padding: '9px 12px', borderRadius: 9, background: 'var(--mm-error-subtle)', color: 'var(--mm-error-text)', fontSize: 12.5 }}>
+        <div role="alert" style={{ marginBottom: 10, padding: '9px 12px', borderRadius: 9, background: 'var(--mm-error-subtle)', color: 'var(--mm-error-text)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
           Could not load attendance for this class/date. Try again in a moment.
         </div>
       )}
@@ -252,7 +252,7 @@ export default function AttendanceHistoryPanel({
                 const busy = reviewBusyKey === reviewKey;
                 return (
                   <div key={reviewKey} style={{ padding: '9px 11px', borderRadius: 9, border: '2px solid #d9a400', background: 'var(--mm-warning-bg)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ fontSize: 12, color: 'var(--mm-warning-text)' }}>
+                    <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>
                       <strong>Review needed for {formatStudentLabel(student, { lastFirst: false })}</strong> · {assignment.title || 'Untitled assignment'}: a correction would shorten the extension from {resolution.existing?.dateKey} to {resolution.proposed?.dateKey}.
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
@@ -279,11 +279,11 @@ export default function AttendanceHistoryPanel({
               <div style={rowStyle}>
                 <div style={{ flex: '1 1 220px', minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <strong style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</strong>
-                    {id && <span style={{ fontSize: 10, color: 'var(--mm-text-subtle)' }}>ID {id}</span>}
+                    <strong style={{ fontSize: 'calc(13 * var(--mm-px))', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</strong>
+                    {id && <span style={{ fontSize: 'calc(10 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>ID {id}</span>}
                   </div>
                   <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, fontWeight: 900, padding: '2px 8px', borderRadius: 999, ...style }}>
+                    <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, padding: '2px 8px', borderRadius: 999, ...style }}>
                       {effective ? markLabel(effective.mark) : 'Not marked'}
                       {effective && !effective.classified ? ' (unclassified)' : ''}
                     </span>

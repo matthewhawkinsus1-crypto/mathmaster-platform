@@ -22,11 +22,11 @@ import { speakAloud, speechAvailable, stopSpeaking } from '../../../platform/lan
 
 const BUTTON = {
   minHeight: 40, padding: '7px 12px', borderRadius: 999, border: '1px solid var(--mm-tint-border)',
-  background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+  background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', cursor: 'pointer',
 };
 const PANEL = {
   marginTop: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)',
-  textAlign: 'left', maxHeight: 'min(40vh, 320px)', overflowY: 'auto', overscrollBehavior: 'contain', fontSize: 14, lineHeight: 1.5,
+  textAlign: 'left', maxHeight: 'min(40vh, 320px)', overflowY: 'auto', overscrollBehavior: 'contain', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5,
 };
 const ICON = {
   [SUPPORT_TOOL.TRANSLATE]: '文A',
@@ -46,21 +46,21 @@ function TranslatePanel({ tool }) {
     // offers the original beside it.
     return (
       <div data-support-panel="translate">
-        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>English</div>
+        <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>English</div>
         <MathText as="div">{translation.original}</MathText>
       </div>
     );
   }
   return (
     <div data-support-panel="translate" lang={translation.language}>
-      <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
+      <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
         {languageName(translation.language)}{tool.coverage === 'partial' ? ' · some sentences are in English' : ''}
       </div>
       <div style={{ display: 'grid', gap: 4, marginTop: 4 }}>
         {(translation.sentences || []).filter((sentence) => !sentence.mathOnly || translation.sentences.length === 1).map((sentence, index) => (
           <div key={index} data-translated={sentence.translated ? 'true' : 'false'}>
             <MathText>{sentence.text}</MathText>
-            {!sentence.translated && !sentence.mathOnly && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--mm-text-muted)' }}>(English)</span>}
+            {!sentence.translated && !sentence.mathOnly && <span style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>(English)</span>}
           </div>
         ))}
       </div>
@@ -94,7 +94,7 @@ function VocabularyPanel({ tool, language, onFailed }) {
           <dd style={{ margin: '2px 0 0' }}>
             <div>{entry.definition}</div>
             {spanish && <div lang="es" style={{ color: 'var(--mm-text)' }}>{entry.es.definition}</div>}
-            {entry.example && <div style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>Example: <MathText>{entry.example}</MathText></div>}
+            {entry.example && <div style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Example: <MathText>{entry.example}</MathText></div>}
           </dd>
         </div>
       ))}
@@ -119,8 +119,8 @@ function SayItPanel({ tool, language }) {
 function StepsBox({ tool, open, onToggle }) {
   const steps = tool.chunks?.steps || [];
   return (
-    <div data-support-steps style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-info-bg, var(--mm-primary-subtle))', textAlign: 'left', fontSize: 14, lineHeight: 1.5 }}>
-      <button type="button" onClick={onToggle} aria-expanded={open} style={{ ...BUTTON, minHeight: 32, padding: '3px 10px', fontSize: 12.5 }}>
+    <div data-support-steps style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-info-bg, var(--mm-primary-subtle))', textAlign: 'left', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>
+      <button type="button" onClick={onToggle} aria-expanded={open} style={{ ...BUTTON, minHeight: 32, padding: '3px 10px', fontSize: 'calc(12.5 * var(--mm-px))' }}>
         {open ? 'Hide steps ▴' : `${tool.label} ▾`}
       </button>
       {open && (
@@ -242,7 +242,7 @@ export default function SupportToolsTray({
     <div className={`mathmaster-support-tray${className ? ` ${className}` : ''}`} data-student-support-tray={surface} role="group" aria-label="Support tools">
       {buttons.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
+          <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
           {buttons.map((tool) => (
             <button
               key={tool.tool}
@@ -257,7 +257,7 @@ export default function SupportToolsTray({
           ))}
         </div>
       )}
-      {speechFailed && <div role="status" style={{ marginTop: 6, fontSize: 12, color: 'var(--mm-warning-text)', fontWeight: 700 }}>Read aloud is not working in this browser. Your teacher can see this.</div>}
+      {speechFailed && <div role="status" style={{ marginTop: 6, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)', fontWeight: 700 }}>Read aloud is not working in this browser. Your teacher can see this.</div>}
       {open && (
         <div role="region" aria-label={open.label} style={PANEL}>
           {open.tool === SUPPORT_TOOL.TRANSLATE && <TranslatePanel tool={open} />}

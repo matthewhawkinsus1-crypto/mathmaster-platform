@@ -292,7 +292,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <p style={{ marginTop: 0 }}>Adjust <strong>{parameterKeys.join(', ')}</strong> until your solid blue graph lands exactly on the dashed red target.</p>
           {parameterFields(parameterValues, parameterSetters, parameterKeys)}
           <div style={{ marginTop: 14 }}>{graph([x => evaluateTransformedFunction(studentSpec, x), x => evaluateTransformedFunction(targetSpec, x)])}</div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8, fontSize: 13, color: 'var(--mm-text)' }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
             <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>Your graph</strong> — solid blue</span>
             <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#d93025" strokeWidth="3" strokeDasharray="8 5" /></svg><strong>Target</strong> — dashed red</span>
           </div>
@@ -357,7 +357,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
             <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>Clear</button>
             <button data-mm-enter-action="submit" type="button" onClick={check} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
           </div>
-          <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)', fontSize: 13 }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
+          <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
         </> : null}
 
         {mode === 'describe' ? <>

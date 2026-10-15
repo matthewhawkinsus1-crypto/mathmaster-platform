@@ -73,7 +73,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
     <div style={{ minHeight: '100vh', background: 'var(--mm-surface-control)', padding: '32px 16px', boxSizing: 'border-box' }}>
       <main style={{ maxWidth: 820, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'left', minWidth: 0 }}><h1 style={{ margin: '0 0 4px', fontSize: 'clamp(26px, 6vw, 34px)', lineHeight: 1.2, color: 'var(--mm-text-strong)' }}>Tests &amp; Exams</h1><p style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Your secure course tests and your college &amp; career practice tests</p></div>
+          <div style={{ textAlign: 'left', minWidth: 0 }}><h1 style={{ margin: '0 0 4px', fontSize: 'clamp(calc(26 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(34 * var(--mm-px)))', lineHeight: 1.2, color: 'var(--mm-text-strong)' }}>Tests &amp; Exams</h1><p style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Your secure course tests and your college &amp; career practice tests</p></div>
           <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>← Home</button>
         </header>
         {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
@@ -85,8 +85,8 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
             ].map((group) => (
               <section key={group.id} aria-labelledby={`exam-group-${group.id}`} style={{ display: 'grid', gap: 12 }}>
                 <div>
-                  <h2 id={`exam-group-${group.id}`} style={{ margin: 0, fontSize: 18 }}>{group.title}</h2>
-                  <p style={{ margin: '3px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{group.hint}</p>
+                  <h2 id={`exam-group-${group.id}`} style={{ margin: 0, fontSize: 'calc(18 * var(--mm-px))' }}>{group.title}</h2>
+                  <p style={{ margin: '3px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{group.hint}</p>
                 </div>
                 {!group.rows.length && <div style={{ padding: 18, background: 'var(--mm-surface)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Nothing here yet.</div>}
                 {group.rows.map((session) => {
@@ -98,12 +98,12 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
                   return (
                     <article key={session.examSessionId} data-secure-session-status={session.status} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 12, padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
                       <div style={{ minWidth: 0, textAlign: 'left' }}>
-                        <strong style={{ fontSize: 18 }}>{session.title}</strong>
-                        <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', color: 'var(--mm-text-muted)', fontSize: 13 }}>
+                        <strong style={{ fontSize: 'calc(18 * var(--mm-px))' }}>{session.title}</strong>
+                        <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
                           <span data-secure-status-label="" style={{ padding: '3px 9px', borderRadius: 999, fontWeight: 800, ...(STATUS_TONE[status.tone] || STATUS_TONE.neutral) }}>{status.label}</span>
                           <span>{session.requiredQuestions} questions · {timeAllowanceText(timeAllowance(session))}</span>
                         </div>
-                        {timing && <div style={{ marginTop: 6, color: done ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)', fontSize: 12 }}>{timing}</div>}
+                        {timing && <div style={{ marginTop: 6, color: done ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{timing}</div>}
                       </div>
                       {/*
                         A COURSE TEST IS NEVER STARTED FROM THIS LIST.

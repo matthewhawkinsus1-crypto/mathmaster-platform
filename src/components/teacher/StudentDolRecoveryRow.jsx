@@ -48,7 +48,7 @@ export default function StudentDolRecoveryRow({
   };
 
   return (
-    <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'grid', gap: 6, fontSize: 12.5, color: 'var(--mm-text)' }}>
+    <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'grid', gap: 6, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span>
         <button type="button" disabled={busy} onClick={() => onGrant?.()} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button>

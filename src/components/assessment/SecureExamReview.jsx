@@ -90,16 +90,16 @@ const STATUS_TONE = {
 };
 
 const sectionCard = { background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 'clamp(16px, 4vw, 22px)' };
-const eyebrow = { color: 'var(--mm-accent-text)', fontSize: 11, fontWeight: 950, textTransform: 'uppercase', letterSpacing: '.07em' };
-const blockLabel = { display: 'block', marginBottom: 4, color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.05em' };
+const eyebrow = { color: 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '.07em' };
+const blockLabel = { display: 'block', marginBottom: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.05em' };
 const answerBox = { marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' };
 const quietButton = { minHeight: 44, padding: '8px 14px', border: '1px solid var(--mm-border-strong)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' };
 
-const answerValueStyle = { color: 'var(--mm-text-strong)', fontSize: 15, overflowWrap: 'anywhere' };
+const answerValueStyle = { color: 'var(--mm-text-strong)', fontSize: 'calc(15 * var(--mm-px))', overflowWrap: 'anywhere' };
 
 const AnswerRows = ({ rows }) => rows.map((row, index) => (
   <div key={row.id || index} style={{ display: 'grid', gridTemplateColumns: row.label ? 'minmax(90px, auto) minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 10, alignItems: 'baseline', marginTop: index === 0 ? 0 : 6 }}>
-    {row.label && <MathText style={{ color: 'var(--mm-text-muted)', fontSize: 12, fontWeight: 800 }}>{row.label}</MathText>}
+    {row.label && <MathText style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{row.label}</MathText>}
     {row.math
       ? <span style={answerValueStyle}><MathDisplay value={row.value} format="latex" inline /></span>
       : <MathText style={answerValueStyle}>{row.value}</MathText>}
@@ -108,14 +108,14 @@ const AnswerRows = ({ rows }) => rows.map((row, index) => (
 
 const SkillSummary = ({ groups, onPracticeSkill }) => (
   <section aria-labelledby="results-by-skill" style={sectionCard}>
-    <h2 id="results-by-skill" style={{ margin: 0, fontSize: 19, color: 'var(--mm-text-strong)' }}>How you did on each skill</h2>
-    <p style={{ margin: '4px 0 12px', color: 'var(--mm-text-muted)', fontSize: 13 }}>The skills that need the most work are first.</p>
+    <h2 id="results-by-skill" style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>How you did on each skill</h2>
+    <p style={{ margin: '4px 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>The skills that need the most work are first.</p>
     <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
       {groups.map((group) => (
         <li key={group.key} data-skill-result={group.key} style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 14px', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', border: '1px solid var(--mm-border-soft)', borderRadius: 10, background: 'var(--mm-surface-sunken)' }}>
           <div style={{ minWidth: 0, flex: '1 1 220px' }}>
             <strong style={{ display: 'block', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{group.label}</strong>
-            <span style={{ display: 'block', marginTop: 2, color: group.correct === group.total ? 'var(--mm-success-text)' : 'var(--mm-text)', fontSize: 13, fontWeight: 700 }}>{group.summary}</span>
+            <span style={{ display: 'block', marginTop: 2, color: group.correct === group.total ? 'var(--mm-success-text)' : 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>{group.summary}</span>
             <div aria-hidden="true" style={{ marginTop: 6, height: 6, borderRadius: 999, background: 'var(--mm-surface-control-strong)', overflow: 'hidden' }}>
               <div style={{ width: `${Math.round((group.correct / group.total) * 100)}%`, height: '100%', background: 'var(--mm-success)' }} />
             </div>
@@ -134,14 +134,14 @@ const SkillSummary = ({ groups, onPracticeSkill }) => (
 const PracticeEstimate = ({ report }) => (
   <section aria-labelledby="results-estimate" style={{ ...sectionCard, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
     <div style={eyebrow}>Practice estimate</div>
-    <h2 id="results-estimate" style={{ margin: '4px 0 2px', fontSize: 19, color: 'var(--mm-text-strong)' }}>{report.title}</h2>
-    <p style={{ margin: 0, color: 'var(--mm-primary-text)', fontSize: 26, fontWeight: 950 }}>
-      About {report.rangeText} <span style={{ display: 'inline-block', whiteSpace: 'nowrap', color: 'var(--mm-text-muted)', fontSize: 14, fontWeight: 700 }}>{report.scaleText}</span>
+    <h2 id="results-estimate" style={{ margin: '4px 0 2px', fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{report.title}</h2>
+    <p style={{ margin: 0, color: 'var(--mm-primary-text)', fontSize: 'calc(26 * var(--mm-px))', fontWeight: 950 }}>
+      About {report.rangeText} <span style={{ display: 'inline-block', whiteSpace: 'nowrap', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 700 }}>{report.scaleText}</span>
     </p>
     <p style={{ margin: '8px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{report.basis}</p>
     <p style={{ margin: '6px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{report.benchmark}</p>
     {report.alternative && <p style={{ margin: '6px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{report.alternative}</p>}
-    <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 700 }}>{report.disclaimer}</p>
+    <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>{report.disclaimer}</p>
   </section>
 );
 
@@ -239,15 +239,15 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0, flex: '1 1 320px' }}>
               <div style={eyebrow}>Released feedback</div>
-              <h1 ref={headingRef} tabIndex={-1} style={{ margin: '5px 0 4px', color: 'var(--mm-text-strong)', fontSize: 'clamp(21px, 5vw, 25px)', overflowWrap: 'anywhere' }}>{review.session?.title || `${frameworkLabel} results`}</h1>
+              <h1 ref={headingRef} tabIndex={-1} style={{ margin: '5px 0 4px', color: 'var(--mm-text-strong)', fontSize: 'clamp(calc(21 * var(--mm-px)), calc(5vw * var(--mm-text-scale, 1)), calc(25 * var(--mm-px)))', overflowWrap: 'anywhere' }}>{review.session?.title || `${frameworkLabel} results`}</h1>
               <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>{review.solutionsHeld === true
                 ? 'Your test is finished. Your score, your answers and the skill each question tested are shown now. The correct answers and worked solutions appear once everyone has finished this test, or when your teacher releases them.'
                 : 'Your test is finished. The answers, the worked solutions and the skill each question tested are shown now, so you can learn from them.'}</p>
             </div>
             <div data-results-score="" style={{ flex: '0 1 300px', minWidth: 0 }}>
-              <div style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Score</div>
-              <div style={{ color: 'var(--mm-primary-text)', fontSize: 30, fontWeight: 950, lineHeight: 1.15 }}>{score.percentLabel}</div>
-              <p style={{ margin: '4px 0 0', color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.5 }}>{score.detail}</p>
+              <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Score</div>
+              <div style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(30 * var(--mm-px))', fontWeight: 950, lineHeight: 1.15 }}>{score.percentLabel}</div>
+              <p style={{ margin: '4px 0 0', color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>{score.detail}</p>
             </div>
           </div>
           <button type="button" onClick={onBack} style={{ ...quietButton, marginTop: 16 }}>← {backLabel}</button>
@@ -259,8 +259,8 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
 
         <section aria-labelledby="results-questions" style={{ display: 'grid', gap: 12, minWidth: 0 }}>
           <div>
-            <h2 id="results-questions" style={{ margin: '6px 0 0', fontSize: 19, color: 'var(--mm-text-strong)' }}>Question by question</h2>
-            {unopened && <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{unopened}</p>}
+            <h2 id="results-questions" style={{ margin: '6px 0 0', fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Question by question</h2>
+            {unopened && <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{unopened}</p>}
           </div>
           {items.map((item, index) => {
             const result = reviewItemResult(item, index, { solutionsHeld: review.solutionsHeld === true });
@@ -270,19 +270,19 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
             return (
               <article key={item.questionInstanceId || index} data-result-status={result.status} aria-labelledby={`result-question-${index}`} style={{ ...sectionCard, border: `1px solid ${tone.border}`, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <h3 id={`result-question-${index}`} style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)' }}>Question {result.questionNumber}</h3>
-                  <span style={{ padding: '4px 9px', borderRadius: 999, background: tone.background, color: tone.color, fontSize: 12, fontWeight: 900 }}>{tone.mark}{result.statusLabel}</span>
+                  <h3 id={`result-question-${index}`} style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Question {result.questionNumber}</h3>
+                  <span style={{ padding: '4px 9px', borderRadius: 999, background: tone.background, color: tone.color, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>{tone.mark}{result.statusLabel}</span>
                 </div>
 
                 {item.questionSnapshot?.prompt ? (
-                  <MathText as="div" style={{ marginTop: 12, color: 'var(--mm-text-strong)', fontSize: 17, lineHeight: 1.6, fontWeight: 650, overflowWrap: 'anywhere' }}>{item.questionSnapshot.prompt}</MathText>
+                  <MathText as="div" style={{ marginTop: 12, color: 'var(--mm-text-strong)', fontSize: 'calc(17 * var(--mm-px))', lineHeight: 1.6, fontWeight: 650, overflowWrap: 'anywhere' }}>{item.questionSnapshot.prompt}</MathText>
                 ) : (
                   <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)' }}>The question itself was not saved for this older test, but its result and skill still are.</p>
                 )}
 
                 <div data-result-block="yours" style={answerBox}>
                   <span style={blockLabel}>Your answer</span>
-                  {answerRows.length ? <AnswerRows rows={answerRows} /> : <span style={{ color: 'var(--mm-text-strong)', fontSize: 15, fontWeight: 700 }}>Left blank</span>}
+                  {answerRows.length ? <AnswerRows rows={answerRows} /> : <span style={{ color: 'var(--mm-text-strong)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>Left blank</span>}
                 </div>
 
                 {result.correctAnswers.length > 0 && (
@@ -294,7 +294,7 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
 
                 {result.workedSolution
                   ? <PathSolutionReview review={result.workedSolution} wasCorrect={result.status === RESULT_STATUS.CORRECT} />
-                  : <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 14 }}>{result.solutionNote}</p>}
+                  : <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>{result.solutionNote}</p>}
 
                 {code && <StandardBadge code={code} framework={framework} domainId={item.assessmentDomainId || null} examStyle style={{ marginTop: 13 }} />}
               </article>

@@ -925,7 +925,7 @@ function EliminationBackSubstitution({ elimination, system, reducedSolution, bac
       ) : null}
       {backEquation && !solved ? (
         <>
-          <button type="button" onClick={() => apply(clearEliminationBackDestination(elimination))} style={{ ...secondaryButtonStyle, fontSize: 12, width: 'fit-content' }}>Choose a different equation</button>
+          <button type="button" onClick={() => apply(clearEliminationBackDestination(elimination))} style={{ ...secondaryButtonStyle, fontSize: 'calc(12 * var(--mm-px))', width: 'fit-content' }}>Choose a different equation</button>
           <EmbeddedStepAlgebra
             label={`Solve for ${variable}`}
             prompt={`Use your substitution to solve this equation for ${variable}.`}

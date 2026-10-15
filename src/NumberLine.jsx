@@ -29,7 +29,7 @@ export default function NumberLine({ question, onStateChange, onUndoStateChange,
     <div>
       <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Number Line</h2>
       <QuestionPrompt>{prompt || 'Select the correct point on the number line.'}</QuestionPrompt>
-      <div style={{ fontSize: '24px', fontWeight: 'bold', margin: '20px 0', color: 'var(--mm-primary)' }}>Target: <MathDisplay value={String(target)} inline /></div>
+      <div style={{ fontSize: 'calc(24 * var(--mm-px))', fontWeight: 'bold', margin: '20px 0', color: 'var(--mm-primary)' }}>Target: <MathDisplay value={String(target)} inline /></div>
       <QuestionVisual question={question} />
       <div style={{ display: 'flex', justifyContent: 'center', margin: '50px 0', position: 'relative', overflowX: 'auto', padding: '0 20px 12px', borderRadius: '10px', background: wrong ? 'var(--mm-error-subtle)' : 'transparent' }}>
         <div style={{ position: 'absolute', top: '10px', left: '10%', right: '10%', height: '4px', background: '#dadce0', zIndex: 0 }} />

@@ -41,7 +41,7 @@ const card = {
 
 const heading = {
   margin: 0,
-  fontSize: 13,
+  fontSize: 'calc(13 * var(--mm-px))',
   fontWeight: 800,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
@@ -56,7 +56,7 @@ const chip = (selected) => ({
   background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
   color: selected ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)',
   fontWeight: 800,
-  fontSize: 14,
+  fontSize: 'calc(14 * var(--mm-px))',
   cursor: 'pointer',
 });
 
@@ -148,11 +148,11 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
               <p style={heading}>{label}</p>
               {item.graph ? <FigureGraph graph={item.graph} label={label} /> : null}
               {item.math ? (
-                <div style={{ fontSize: 18, padding: '10px 0' }}>
+                <div style={{ fontSize: 'calc(18 * var(--mm-px))', padding: '10px 0' }}>
                   <MathDisplay value={String(item.math)} />
                 </div>
               ) : null}
-              {item.text ? <p style={{ margin: 0, fontSize: 15 }}>{String(item.text)}</p> : null}
+              {item.text ? <p style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))' }}>{String(item.text)}</p> : null}
               <div
                 role="radiogroup"
                 aria-label={`Category for ${label}`}
@@ -180,7 +180,7 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
           );
         })}
       </div>
-      <p style={{ margin: 0, fontSize: 13, color: 'var(--mm-text-muted)' }}>
+      <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
         {answered} of {items.length} figures matched.
       </p>
     </div>

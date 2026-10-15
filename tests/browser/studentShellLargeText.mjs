@@ -6,7 +6,7 @@
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &
- *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text] [--only=<screen id,…>]
+ *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default] [--only=<screen id,…>]
  *
  * targets  The identity bar's Log Out is at least 44px tall (WCAG 2.5.5).
  * s5       Live Challenge round (1366×768): Tab from the top of the round to
@@ -17,6 +17,13 @@
  *          horizontal page scroll, and no text clipped by its own box (also
  *          with the 1.4.12 text-spacing override at both viewports) —
  *          graphs, tables and canvases excepted, as 1.4.10 exempts them.
+ *          Scenes: the certification's student screens, plus (job N, the
+ *          px→rem sweep) more assignment tools, Recovery on Home and in the
+ *          Assignments Center, and the teacher workspace (Home, a class).
+ * default  The sweep must not change the default size: every scene at 100%
+ *          text, both viewports, screenshotted to --shots=<dir>; with
+ *          --compare=<dir> (shots taken before the change) each pair is
+ *          diffed pixel by pixel and any difference fails.
  */
 import path from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -41,6 +48,8 @@ if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMI
 else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
 const browser = await chromium.launch(launchOptions);
 const failures = [];
+const SHOTS = arg('shots');
+const COMPARE = arg('compare');
 const report = [];
 
 const applyTextScale = async (page) => {
@@ -48,7 +57,7 @@ const applyTextScale = async (page) => {
   await page.__cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * page.__textScale, fixed: 13 * page.__textScale } });
 };
 
-const newPage = async ({ width, height, mobile = false, textScale = 1 }) => {
+const newPage = async ({ width, height, mobile = false, textScale = 1, fixedTime = null }) => {
   const context = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile, colorScheme: 'light', reducedMotion: 'reduce' });
   await context.route('**/*', (route) => {
     const url = route.request().url();
@@ -56,6 +65,9 @@ const newPage = async ({ width, height, mobile = false, textScale = 1 }) => {
     return route.abort();
   });
   const page = await context.newPage();
+  // The teacher harness writes its schedule from the clock ("closes 2:44
+  // PM"): screenshots compared across runs need one fixed time.
+  if (fixedTime) await page.clock.setFixedTime(fixedTime);
   page.__textScale = textScale;
   if (textScale !== 1) {
     // The browser text-size setting: Chromium's default font sizes. A
@@ -113,7 +125,12 @@ const MEASURE = (rootSelector) => {
     // checks it on focus).
     if (element.matches('.mm-skip-link:not(:focus)')) continue;
     const rect = element.getBoundingClientRect();
+    // A position: fixed box (Graph Feature Rush's full-screen round) escapes
+    // the overflow of everything above it.
+    let escaped = getComputedStyle(element).position === 'fixed';
     for (let node = element.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+      if (escaped) break;
+      if (getComputedStyle(node).position === 'fixed') escaped = true;
       if (scrollable(node)) break;
       const style = getComputedStyle(node);
       if (!/hidden|clip/.test(style.overflowX + style.overflowY) || node === document.body) continue;
@@ -129,11 +146,22 @@ const MEASURE = (rootSelector) => {
   // Content pushed past the right edge (html clips overflow-x, so this is the
   // reflow failure that shows no scrollbar): any non-exempt text box whose
   // right edge is beyond the viewport.
+  // Text in a sideways-scrolling box that is itself on screen (the teacher's
+  // nav strip on a phone) is reached by scrolling that box, as the clipped
+  // check above allows; the box sticking out is still caught.
+  const inScroller = (element) => {
+    for (let node = element.parentElement; node && node !== document.body; node = node.parentElement) {
+      if (!/(auto|scroll)/.test(getComputedStyle(node).overflowX)) continue;
+      const box = node.getBoundingClientRect();
+      return box.left >= -1 && box.right <= window.innerWidth + 1;
+    }
+    return false;
+  };
   const offscreen = [];
   for (const element of root.querySelectorAll('*')) {
     if (exempt(element) || !visible(element) || srOnly(element) || !ownText(element)) continue;
     const rect = element.getBoundingClientRect();
-    if (rect.right > window.innerWidth + 1 || rect.left < -1) offscreen.push(`${element.tagName.toLowerCase()}.${String(element.className).split(' ')[0] || ''} "${ownText(element).slice(0, 30)}" ${Math.round(rect.left)}..${Math.round(rect.right)}`);
+    if ((rect.right > window.innerWidth + 1 || rect.left < -1) && !inScroller(element)) offscreen.push(`${element.tagName.toLowerCase()}.${String(element.className).split(' ')[0] || ''} "${ownText(element).slice(0, 30)}" ${Math.round(rect.left)}..${Math.round(rect.right)}`);
   }
   // Every text box's font size, in document order: compared with the same
   // scene at 100% to find text that did not grow (1.4.4).
@@ -149,8 +177,105 @@ const MEASURE = (rootSelector) => {
   };
 };
 
+// Job N: the surfaces the px→rem sweep reached that the certification's
+// screens do not show.
+const toolQuestion = (questionId) => async (page, origins, { first }) => {
+  if (first) {
+    await page.goto(`${origins.audit}/tests/browser/studentUxPlatform.html?q=${questionId}&run=a11y`, { timeout: 180_000 });
+    await page.waitForFunction((qid) => window.__ux && document.querySelector(`[data-question-id="${qid}"]`), questionId, { timeout: 180_000 });
+  } else {
+    await page.evaluate((qid) => window.__ux.go(qid), questionId);
+    await page.waitForFunction((qid) => document.querySelector(`[data-question-id="${qid}"]`), questionId, { timeout: 60_000 });
+  }
+  await page.waitForTimeout(2500);
+};
+const recoveryScene = (view, ready) => async (page, origins) => {
+  await page.goto(`${origins.audit}/tests/browser/recoveryDiscovery.html?scene=available&view=${view}`, { timeout: 180_000 });
+  await page.locator(ready).first().waitFor({ timeout: 180_000 });
+  await page.waitForTimeout(600);
+};
+// The teacher's sidebar, clicked programmatically (on a phone it can sit
+// under a sticky bar or a closed drawer).
+const teacherNav = (name, ready) => async (page) => {
+  await page.locator('nav button, aside button').filter({ hasText: new RegExp(`${name}$`) }).first().evaluate((button) => button.click());
+  await page.getByText(ready).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+// A Graph Feature Rush round (student push N, review of #487): its sizes are
+// fluid — clamp(28px, 7vmin, 56px) is 54px on a Chromebook, so a viewport term
+// that ignored the text setting grew only to the new minimum. The round opens
+// on its "Loading…" card (this harness serves no rush graphs), which carries
+// that size.
+const liveChallenge = SCREENS.find((screen) => screen.id === 'live-challenge');
+const rushRound = async (page, origins, context) => {
+  await liveChallenge.scenes[0].run(page, origins, context);
+  const question = { questionInstanceId: 'challenge_a11y-room_r1', prompt: 'Tap each feature you are asked for.', challengeRound: 0 };
+  await page.evaluate(({ currentQuestion }) => {
+    const startsAt = Date.now() - 2000;
+    window.__mmHarnessStore.update('liveChallengeRooms/a11y-room', {
+      challengeMode: 'graphFeatureRush', status: 'running', currentRound: 0, currentQuestion, roundVersion: 1,
+      roundToken: 'a11y-rush-1', roundState: 'open', phase: 'answering', startsAt, endsAt: startsAt + 600_000,
+      roundStartedAt: startsAt, roundEndsAt: startsAt + 600_000,
+    });
+  }, { currentQuestion: question });
+  await page.locator('.mm-rush-overlay strong').first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1500);
+  // The round's top row (alias, round, count, clock) must not sit under
+  // anything outside the round. The student identity bar draws on top of
+  // everything (z-index 21000), so the round starts at the bar's height.
+  const covered = await page.evaluate(() => {
+    const shell = document.querySelector('.mm-rush-shell');
+    const row = shell?.querySelector('.mm-rush-bar');
+    if (!row) return ['the round has no top row (.mm-rush-bar)'];
+    return [...row.children].flatMap((item) => {
+      const box = item.getBoundingClientRect();
+      if (!box.width || !box.height) return [];
+      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return top && !shell.contains(top) ? [`"${item.textContent.trim().slice(0, 24)}" is under ${top.tagName.toLowerCase()}${top.className ? `.${String(top.className).split(' ')[0]}` : ''}`] : [];
+    });
+  });
+  if (covered.length) throw new Error(`the Rush round's top row is covered: ${covered.join('; ')}`);
+};
+
+export const LARGE_TEXT_SCREENS = [
+  ...SCREENS,
+  { id: 'graph-feature-rush', open: liveChallenge.open, scenes: [{ id: 'round', run: rushRound }] },
+  {
+    id: 'more-tools',
+    include: '.mathmaster-question-stage',
+    scenes: [
+      { id: 'multiple-responses', run: toolQuestion('ux-multi') },
+      { id: 'representation-match', run: toolQuestion('ux-rm-table') },
+    ],
+  },
+  {
+    id: 'recovery',
+    scenes: [
+      { id: 'home', run: recoveryScene('home', '[data-recovery-home]') },
+      { id: 'assignments', run: recoveryScene('center', '[data-recovery-inline]') },
+    ],
+  },
+  {
+    id: 'teacher',
+    open: async (page, origins) => {
+      await page.goto(`${origins.app}/tests/browser/teacherWorkflow/index.html?reset=1`, { timeout: 180_000 });
+      await page.getByText('IN SESSION NOW').first().waitFor({ timeout: 180_000 });
+      await page.waitForTimeout(900);
+    },
+    scenes: [
+      { id: 'home', run: async () => {} },
+      { id: 'class', run: async (page) => {
+        await teacherNav('Classes', /Algebra II — Period 3/)(page);
+        await page.getByRole('button', { name: /Algebra II — Period 3/ }).first().evaluate((button) => button.click());
+        await page.getByText("Today's lessons").first().waitFor({ timeout: 30_000 });
+        await page.waitForTimeout(900);
+      } },
+    ],
+  },
+];
+
 const runScenes = async (setting, callback) => {
-  for (const screen of SCREENS) {
+  for (const screen of LARGE_TEXT_SCREENS) {
     if (ONLY.size && !ONLY.has(screen.id)) continue;
     const { context, page } = await newPage(setting);
     try {
@@ -284,6 +409,52 @@ const unscaled = (label, settingId, sizes) => {
   const list = sizes.filter((entry, index) => entry.size < base[index].size * 1.5).map((entry, index) => entry.what);
   return { comparable: true, list };
 };
+
+if (CHECKS.has('default')) {
+  if (!SHOTS) throw new Error('--check=default needs --shots=<dir>');
+  mkdirSync(SHOTS, { recursive: true });
+  for (const setting of [
+    { id: 'chromebook', width: 1366, height: 768, textScale: 1, fixedTime: new Date('2026-10-15T14:30:00-05:00') },
+    { id: 'phone', width: 390, height: 844, mobile: true, textScale: 1, fixedTime: new Date('2026-10-15T14:30:00-05:00') },
+  ]) {
+    await runScenes(setting, async (page, label) => {
+      // The caret blinks and Live Challenge counts down: neither is layout.
+      await page.addStyleTag({ content: '*, *::before, *::after { caret-color: transparent !important; animation: none !important; transition: none !important; }' });
+      await page.evaluate(() => document.activeElement?.blur?.());
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: path.join(SHOTS, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true, animations: 'disabled' });
+      console.log(`shot ${label} ${setting.id}`);
+    });
+  }
+  if (COMPARE) {
+    // Pixel by pixel, in the browser (no image library in the repository).
+    const page = await (await browser.newContext()).newPage();
+    for (const name of readdirSync(COMPARE).filter((file) => file.endsWith('.png')).sort()) {
+      let after;
+      try { after = readFileSync(path.join(SHOTS, name)); } catch { failures.push(`default size: ${name} has no shot after the change`); continue; }
+      const before = readFileSync(path.join(COMPARE, name));
+      if (before.equals(after)) { console.log(`same ${name}`); continue; }
+      const diff = await page.evaluate(async ({ a, b }) => {
+        const load = (src) => new Promise((resolve, reject) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = reject; image.src = src; });
+        const [one, two] = await Promise.all([load(a), load(b)]);
+        if (one.width !== two.width || one.height !== two.height) return { size: `${one.width}×${one.height} → ${two.width}×${two.height}` };
+        const pixels = (image) => { const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height; const context = canvas.getContext('2d'); context.drawImage(image, 0, 0); return context.getImageData(0, 0, image.width, image.height).data; };
+        const p = pixels(one); const q = pixels(two);
+        let count = 0; let box = null;
+        for (let index = 0; index < p.length; index += 4) {
+          if (p[index] === q[index] && p[index + 1] === q[index + 1] && p[index + 2] === q[index + 2]) continue;
+          count += 1;
+          const x = (index / 4) % one.width; const y = Math.floor(index / 4 / one.width);
+          box = box ? [Math.min(box[0], x), Math.min(box[1], y), Math.max(box[2], x), Math.max(box[3], y)] : [x, y, x, y];
+        }
+        return { count, box };
+      }, { a: `data:image/png;base64,${before.toString('base64')}`, b: `data:image/png;base64,${after.toString('base64')}` });
+      if (diff.size) failures.push(`default size: ${name} changed size ${diff.size}`);
+      else if (diff.count) failures.push(`default size: ${name} differs in ${diff.count} pixel(s), box ${diff.box.join(',')}`);
+      else console.log(`same ${name} (pixels)`);
+    }
+  }
+}
 
 if (CHECKS.has('text')) {
   for (const setting of [

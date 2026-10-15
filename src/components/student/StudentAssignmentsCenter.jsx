@@ -45,7 +45,7 @@ const STATUS_TONE = {
 const control = (primary) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 16px', borderRadius: 10,
-  fontWeight: 900, fontSize: 14, cursor: 'pointer', flex: '1 1 auto',
+  fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))', cursor: 'pointer', flex: '1 1 auto',
   border: primary ? 0 : '2px solid var(--mm-border)',
   background: primary ? 'var(--mm-primary)' : 'var(--mm-surface)',
   color: primary ? 'var(--mm-on-primary)' : 'var(--mm-text)',
@@ -62,21 +62,21 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
     >
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{row.title}</h3>
+          <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{row.title}</h3>
           {/* Named as one thing, because it is one thing. A student who sees
               four stages listed as four assignments starts asking which of
               them counts. */}
           {row.isTestCycle && (
-            <div style={{ marginTop: 4, fontSize: 11, fontWeight: 900, letterSpacing: .3, textTransform: 'uppercase', color: 'var(--mm-accent-text)' }}>
+            <div style={{ marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: .3, textTransform: 'uppercase', color: 'var(--mm-accent-text)' }}>
               Test Cycle · Review → Test → Corrections → Retest
             </div>
           )}
           {row.testCycleDetail && (
-            <div data-test-cycle-discovery={row.testCycleKey} style={{ marginTop: 4, fontSize: 13, color: 'var(--mm-text)', lineHeight: 1.45 }}>
+            <div data-test-cycle-discovery={row.testCycleKey} style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.45 }}>
               {row.testCycleDetail}
             </div>
           )}
-          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
+          <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
             Due {formatDateTime(row.dueAt)}
             {row.frozen
               ? ` · Closed ${formatDateTime(row.lateDueAt)}`
@@ -90,10 +90,10 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
         </div>
         <div style={{ textAlign: 'right', minWidth: 0 }}>
           {row.displayGrade !== null && (
-            <div style={{ fontSize: 'clamp(17px, 5.5vw, 22px)', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>{row.displayGrade}%</div>
+            <div style={{ fontSize: 'clamp(calc(17 * var(--mm-px)), calc(5.5vw * var(--mm-text-scale, 1)), calc(22 * var(--mm-px)))', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>{row.displayGrade}%</div>
           )}
           {row.statusLabel && (
-            <span style={{ display: 'inline-block', marginTop: 4, padding: '4px 9px', borderRadius: 999, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', background: tone.bg, color: tone.color }}>
+            <span style={{ display: 'inline-block', marginTop: 4, padding: '4px 9px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', background: tone.bg, color: tone.color }}>
               {row.statusLabel}
             </span>
           )}
@@ -135,7 +135,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
           </button>
         )}
         {row.waitText && (
-          <span data-row-wait style={{ flex: '1 1 200px', fontSize: 13, fontWeight: 800, color: 'var(--mm-text)', lineHeight: 1.45 }}>
+          <span data-row-wait style={{ flex: '1 1 200px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)', lineHeight: 1.45 }}>
             {row.waitText}
           </span>
         )}
@@ -152,7 +152,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
         {/* Nothing to open and no wait to name (a release date not yet
             reached, say): still say so, rather than an empty row. */}
         {!row.canContinue && !row.canRecover && !row.waitText && !row.canViewResults && !row.canPractice && (
-          <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>Not open yet — it appears here when it opens.</span>
+          <span style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Not open yet — it appears here when it opens.</span>
         )}
       </div>
     </article>
@@ -205,8 +205,8 @@ export default function StudentAssignmentsCenter({
         />
 
         <header style={{ marginBottom: 14, textAlign: 'left' }}>
-          <h1 style={{ margin: 0, fontSize: 'clamp(20px, 6vw, 26px)', color: 'var(--mm-primary-text)' }}>My Assignments</h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+          <h1 style={{ margin: 0, fontSize: 'clamp(calc(20 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', color: 'var(--mm-primary-text)' }}>My Assignments</h1>
+          <p style={{ margin: '4px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Everything your teacher has assigned you — {totalCount} assignment{totalCount === 1 ? '' : 's'}, including finished and closed work.
           </p>
         </header>
@@ -224,7 +224,7 @@ export default function StudentAssignmentsCenter({
             style={{
               flex: '1 1 220px', minWidth: 0, minHeight: MIN_TOUCH_TARGET_PX,
               padding: '9px 13px', borderRadius: 10, border: '2px solid var(--mm-border)',
-              fontSize: 14, fontFamily: 'inherit',
+              fontSize: 'calc(14 * var(--mm-px))', fontFamily: 'inherit',
             }}
           />
           <label htmlFor="assignments-period" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
@@ -237,7 +237,7 @@ export default function StudentAssignmentsCenter({
             style={{
               flex: '1 1 180px', minWidth: 0, minHeight: MIN_TOUCH_TARGET_PX,
               padding: '9px 11px', borderRadius: 10, border: '2px solid var(--mm-border)',
-              fontSize: 14, fontFamily: 'inherit', background: 'var(--mm-surface)',
+              fontSize: 'calc(14 * var(--mm-px))', fontFamily: 'inherit', background: 'var(--mm-surface)',
             }}
           >
             {/* Past marking periods stay selectable. A closed term is exactly
@@ -252,7 +252,7 @@ export default function StudentAssignmentsCenter({
         </div>
 
         {isSearching ? (
-          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800, color: 'var(--mm-primary-text)' }}>
+          <p style={{ margin: '0 0 12px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-primary-text)' }}>
             {/* Search deliberately reaches past the tabs and the period filter,
                 so it says so — otherwise the counts above look wrong. */}
             {visibleEntries.length} result{visibleEntries.length === 1 ? '' : 's'} across every tab and marking period.
@@ -274,7 +274,7 @@ export default function StudentAssignmentsCenter({
                     border: `2px solid ${active ? '#1a73e8' : 'var(--mm-border)'}`,
                     background: active ? '#1a73e8' : 'var(--mm-surface)',
                     color: active ? '#fff' : 'var(--mm-text)',
-                    fontWeight: 900, fontSize: 13, cursor: 'pointer',
+                    fontWeight: 900, fontSize: 'calc(13 * var(--mm-px))', cursor: 'pointer',
                   }}
                 >
                   {group.label} · {group.count}
@@ -285,7 +285,7 @@ export default function StudentAssignmentsCenter({
         )}
 
         {!isSearching && activeGroup?.hint && (
-          <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{activeGroup.hint}</p>
+          <p style={{ margin: '0 0 12px', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{activeGroup.hint}</p>
         )}
 
         {visibleEntries.length === 0 ? (

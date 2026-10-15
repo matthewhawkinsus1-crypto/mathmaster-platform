@@ -18,8 +18,8 @@ import { normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
 import SubstitutionReductionMode from './SubstitutionReductionMode.jsx';
 import EliminationReductionMode from './EliminationReductionMode.jsx';
 
-const choiceButtonStyle = { padding: '11px 18px', border: 0, borderRadius: 9, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer', minHeight: 44, fontSize: 14 };
-const changeMethodButtonStyle = { padding: '7px 14px', border: '1px solid var(--mm-primary-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 700, cursor: 'pointer', minHeight: 36, fontSize: 13 };
+const choiceButtonStyle = { padding: '11px 18px', border: 0, borderRadius: 9, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer', minHeight: 44, fontSize: 'calc(14 * var(--mm-px))' };
+const changeMethodButtonStyle = { padding: '7px 14px', border: '1px solid var(--mm-primary-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 700, cursor: 'pointer', minHeight: 36, fontSize: 'calc(13 * var(--mm-px))' };
 
 /*
  * The method choice is the student's own strategic decision, so it must be

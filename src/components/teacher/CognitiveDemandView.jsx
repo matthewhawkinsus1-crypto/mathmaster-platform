@@ -36,24 +36,24 @@ function Cell({ label, sublabel, cell }) {
   const tone = CONFIDENCE_TONE[cell.confidence];
   return (
     <div style={{ padding: '13px 14px', border: `1px solid ${tone.border}`, borderRadius: 10, background: tone.bg, minWidth: 0 }}>
-      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
+      <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
         {label}
       </div>
-      <div style={{ fontSize: 11.5, color: 'var(--mm-text-subtle)', marginTop: 1 }}>{sublabel}</div>
-      <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900, color: accuracyColor(cell.accuracy, cell.confidence), fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-subtle)', marginTop: 1 }}>{sublabel}</div>
+      <div style={{ marginTop: 8, fontSize: 'calc(24 * var(--mm-px))', fontWeight: 900, color: accuracyColor(cell.accuracy, cell.confidence), fontVariantNumeric: 'tabular-nums' }}>
         {cell.accuracy == null ? '—' : `${Math.round(cell.accuracy * 100)}%`}
       </div>
       {/*
         The evidence, always, in the same place. A percentage without the
         attempts behind it is the thing this screen exists not to show.
       */}
-      <div style={{ marginTop: 5, fontSize: 11.5, color: tone.fg, lineHeight: 1.4 }}>
+      <div style={{ marginTop: 5, fontSize: 'calc(11.5 * var(--mm-px))', color: tone.fg, lineHeight: 1.4 }}>
         {cell.attempts === 0
           ? 'Never asked of this class'
           : `${cell.attempts} attempt${cell.attempts === 1 ? '' : 's'} · ${cell.students} student${cell.students === 1 ? '' : 's'}`}
       </div>
       {cell.confidence !== CONFIDENCE.ADEQUATE && (
-        <div style={{ marginTop: 4, fontSize: 10.5, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase', color: tone.fg }}>
+        <div style={{ marginTop: 4, fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase', color: tone.fg }}>
           {CONFIDENCE_LABEL[cell.confidence]}
         </div>
       )}
@@ -92,13 +92,13 @@ export default function CognitiveDemandView({
   return (
     <section style={{ marginBottom: 26 }}>
       <h3 style={{ margin: '0 0 4px' }}>Cognitive demand and complexity</h3>
-      <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 13.5, maxWidth: '70ch', lineHeight: 1.5 }}>
+      <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 'calc(13.5 * var(--mm-px))', maxWidth: '70ch', lineHeight: 1.5 }}>
         Two independent measures of {className}. <strong>Complexity</strong> is how much machinery a question has;
         <strong> demand</strong> is what kind of thinking it asks for. A class failing at band 4 needs something
         completely different from a class failing at DOK 3, so these are never combined into one number.
       </p>
 
-      <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
         Cognitive demand
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 11, marginBottom: 20 }}>
@@ -107,7 +107,7 @@ export default function CognitiveDemandView({
         ))}
       </div>
 
-      <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
         Structural complexity
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 11, marginBottom: 20 }}>
@@ -122,8 +122,8 @@ export default function CognitiveDemandView({
             const tone = CONFIDENCE_TONE[finding.confidence];
             return (
               <div key={finding.kind} style={{ padding: '12px 14px', border: `1px solid ${tone.border}`, borderLeft: `3px solid ${tone.fg}`, borderRadius: 9, background: tone.bg }}>
-                <div style={{ fontWeight: 800, fontSize: 14 }}>{finding.headline}</div>
-                <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>
+                <div style={{ fontWeight: 800, fontSize: 'calc(14 * var(--mm-px))' }}>{finding.headline}</div>
+                <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, maxWidth: '70ch' }}>
                   {finding.detail}
                 </p>
               </div>

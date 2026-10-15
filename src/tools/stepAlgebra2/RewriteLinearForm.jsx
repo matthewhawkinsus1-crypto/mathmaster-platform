@@ -147,7 +147,7 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
   const goalChip = (done, label) => (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999,
-      background: done ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: done ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontWeight: 800, fontSize: 12,
+      background: done ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: done ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))',
     }}>
       {done ? '✓' : '○'} {label}
     </span>

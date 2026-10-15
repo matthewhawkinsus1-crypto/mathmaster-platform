@@ -132,10 +132,10 @@ function ProgressStrip({ questionStates, questionIndex, conceal = false }) {
   );
 }
 
-const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
+const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 'calc(11.5 * var(--mm-px))', cursor: 'pointer' };
 // maxWidth: a select is as wide as its longest option; a long lesson title
 // pushed the control past a phone's right edge.
-const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 14, maxWidth: '100%', minWidth: 0 };
+const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))', maxWidth: '100%', minWidth: 0 };
 
 // Compact, teacher-only Class Points control shown on a student tile. The
 // balance shown is always the authoritative account projection handed down
@@ -150,7 +150,7 @@ function ClassPointsMiniControl({ balance, unavailable, onAward }) {
     >
       <span
         title={unavailable ? 'Class Points balance is unavailable right now' : `${balance} Class Points`}
-        style={{ fontSize: 11.5, fontWeight: 900, color: 'var(--mm-warning-text)', background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}
+        style={{ fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-warning-text)', background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}
       >
         ⭐ {unavailable ? '—' : balance} pts
       </span>
@@ -192,7 +192,7 @@ function StudentTile({
       }}
       style={{
         textAlign: 'left', padding: roomMode ? '18px 20px' : '12px 14px',
-        fontSize: roomMode ? 17 : 'inherit', border: `${roomMode ? 3 : 2}px solid ${style.border}`,
+        fontSize: roomMode ? 'calc(17 * var(--mm-px))' : 'inherit', border: `${roomMode ? 3 : 2}px solid ${style.border}`,
         borderRadius: 12, background: style.background, cursor: onOpenStudent ? 'pointer' : 'default',
         display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
       }}
@@ -200,13 +200,13 @@ function StudentTile({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
         <span style={{ fontWeight: 700, color: 'var(--mm-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: style.chip, whiteSpace: 'nowrap' }}>{row.headline}</span>
+        <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: style.chip, whiteSpace: 'nowrap' }}>{row.headline}</span>
       </div>
       {/* No name on file: the teacher sees which student this is, labelled as
           an id. The room view may be projected to the class, so it never
           shows a student id — only "Name unavailable". */}
       {row.nameMissing && showStudentId && row.idLabel && (
-        <div data-student-id-label="true" style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>{row.idLabel}</div>
+        <div data-student-id-label="true" style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{row.idLabel}</div>
       )}
 
       <div style={{ marginTop: 5 }}>
@@ -223,12 +223,12 @@ function StudentTile({
 
       {live?.assignmentId ? (
         <>
-          <div style={{ fontSize: 12, color: 'var(--mm-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             <span aria-hidden="true" style={{ marginRight: 6 }}>{glyph}</span>
             {String(live.activityRole || 'activity').toUpperCase()} Q{Number(live.sectionQuestionIndex ?? live.questionIndex ?? 0) + 1} · {live.questionLabel || live.assignmentTitle || 'Working'}
           </div>
           <ProgressStrip questionStates={live.questionStates} questionIndex={live.questionIndex} conceal={roomMode} />
-          <div style={{ fontSize: 11, color: 'var(--mm-text-subtle)', marginTop: 6 }}>
+          <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-subtle)', marginTop: 6 }}>
             {/* A support is the teacher's to see, never the room's: projected
                 tiles count every class question and never say "fewer items". */}
             {row.counts.answered} of {roomMode
@@ -241,17 +241,17 @@ function StudentTile({
           </div>
         </>
       ) : (
-        <div style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>No assignment open</div>
+        <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No assignment open</div>
       )}
 
       {suggestion && (
         <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-glass)' }}>
-          <div style={{ fontWeight: 800, fontSize: roomMode ? 15 : 12.5, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{suggestion.headline}</div>
+          <div style={{ fontWeight: 800, fontSize: roomMode ? 'calc(15 * var(--mm-px))' : 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{suggestion.headline}</div>
           {!roomMode && (
             <>
-              <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{suggestion.why}</div>
+              <div style={{ marginTop: 3, fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{suggestion.why}</div>
               {onSupportAction && (
-                <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.TEACHER_INTERVENTION, SUPPORT_EVENT_STAGE.ACTION_TAKEN, null, { coachingSuggestion: suggestion })} style={{ marginTop: 6, padding: '5px 8px', borderRadius: 7, border: '1px solid #188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 900, fontSize: 11.5, cursor: 'pointer' }}>
+                <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.TEACHER_INTERVENTION, SUPPORT_EVENT_STAGE.ACTION_TAKEN, null, { coachingSuggestion: suggestion })} style={{ marginTop: 6, padding: '5px 8px', borderRadius: 7, border: '1px solid #188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 900, fontSize: 'calc(11.5 * var(--mm-px))', cursor: 'pointer' }}>
                   Use this move
                 </button>
               )}
@@ -263,11 +263,11 @@ function StudentTile({
       {(row.flags.length > 0 || integritySignal) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
           {row.flags.map((flag) => (
-            <span key={flag} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: 'var(--mm-surface)', border: `1px solid ${style.border}`, color: style.chip }}>
+            <span key={flag} style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: 'var(--mm-surface)', border: `1px solid ${style.border}`, color: style.chip }}>
               {FLAG_LABEL[flag] || flag}
             </span>
           ))}
-          {integritySignal && <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--mm-warning-soft)', border: '1px solid #d9a400', color: 'var(--mm-warning-text)' }}>Integrity review</span>}
+          {integritySignal && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--mm-warning-soft)', border: '1px solid #d9a400', color: 'var(--mm-warning-text)' }}>Integrity review</span>}
         </div>
       )}
 
@@ -319,11 +319,11 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <strong style={{ color: 'var(--mm-text-strong)' }}>
           {row.name}
-          {row.nameMissing && row.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: 'var(--mm-text-muted)' }}>{row.idLabel}</span>}
+          {row.nameMissing && row.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 600, color: 'var(--mm-text-muted)' }}>{row.idLabel}</span>}
         </strong>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {attendanceMark === LIVE_ATTENDANCE_MARK.LATE && <span style={{ fontSize: 10.5, fontWeight: 900, color: 'var(--mm-warning-text)', background: 'var(--mm-warning-soft)', borderRadius: 999, padding: '2px 6px' }}>Late arrival</span>}
-          <span style={{ fontSize: 11, fontWeight: 900, color: style.color }}>{style.label}</span>
+          {attendanceMark === LIVE_ATTENDANCE_MARK.LATE && <span style={{ fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-warning-text)', background: 'var(--mm-warning-soft)', borderRadius: 999, padding: '2px 6px' }}>Late arrival</span>}
+          <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, color: style.color }}>{style.label}</span>
         </div>
       </div>
       {classPoints && (
@@ -333,9 +333,9 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
           onAward={classPoints.onAward ? () => classPoints.onAward(row) : null}
         />
       )}
-      <div style={{ fontSize: 12.5, fontWeight: 800, color: style.color }}>{row.reason}</div>
+      <div style={{ fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800, color: style.color }}>{row.reason}</div>
       {row.live?.assignmentId && (
-        <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)' }}>
+        <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
           {String(row.live.activityRole || 'activity').toUpperCase()} Q{Number(row.live.sectionQuestionIndex ?? 0) + 1}
           {row.live.currentAttempts > 0 && ` · ${row.live.currentAttempts} attempt${row.live.currentAttempts === 1 ? '' : 's'}`}
           {' · '}{({
@@ -381,7 +381,7 @@ function LiveTeachingPanel({
 
   if (!activeClassId) {
     return (
-      <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px dashed var(--mm-border)', color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
+      <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px dashed var(--mm-border)', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
         Choose an active class above to teach a lesson live.
       </div>
     );
@@ -392,7 +392,7 @@ function LiveTeachingPanel({
       <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '2px solid #188038', background: 'var(--mm-success-bg)', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontWeight: 900, color: 'var(--mm-success-text)' }}>Teaching: {teachingAssignmentTitle || 'Untitled'}</div>
-          <div style={{ marginTop: 2, fontSize: 12.5, color: 'var(--mm-success-text)' }}>Teacher exemplar: {classworkPositionLabel}</div>
+          <div style={{ marginTop: 2, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-success-text)' }}>Teacher exemplar: {classworkPositionLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button type="button" onClick={onResume} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-surface)', color: 'var(--mm-success-text)' }}>Resume Teaching</button>
@@ -407,7 +407,7 @@ function LiveTeachingPanel({
     <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
       <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)' }}>Live Teaching</div>
       {teachableAssignments.length === 0 ? (
-        <span style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>No active assignments for {activeClassLabel || 'this class'}.</span>
+        <span style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No active assignments for {activeClassLabel || 'this class'}.</span>
       ) : (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minWidth: 0, maxWidth: '100%' }}>
           <select value={choiceId} onChange={(event) => setChoiceId(event.target.value)} style={controlStyle} aria-label="Lesson to teach">
@@ -441,7 +441,7 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
   return (
     <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-sunken)' }}>
       <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>Today&apos;s Live Attendance</div>
-      <div style={{ marginTop: 3, marginBottom: 10, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+      <div style={{ marginTop: 3, marginBottom: 10, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
         Absent students are removed from live monitoring for today only. Mark Present or Late if a student arrives; their saved assignment work is never changed.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 7 }}>
@@ -452,9 +452,9 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
           return (
             <div key={id} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 9, padding: '8px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <div>
-                <strong style={{ fontSize: 12.5 }}>{name}</strong>
-                {id && <div style={{ marginTop: 1, fontSize: 10, color: 'var(--mm-text-subtle)' }}>ID {id}</div>}
-                <div style={{ fontSize: 10.5, color: attendanceIsAbsent(mark) ? 'var(--mm-error-text)' : mark === LIVE_ATTENDANCE_MARK.LATE ? 'var(--mm-warning-text)' : 'var(--mm-success-text)', fontWeight: 900 }}>{ATTENDANCE_LABEL[mark] || 'Present'}</div>
+                <strong style={{ fontSize: 'calc(12.5 * var(--mm-px))' }}>{name}</strong>
+                {id && <div style={{ marginTop: 1, fontSize: 'calc(10 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>ID {id}</div>}
+                <div style={{ fontSize: 'calc(10.5 * var(--mm-px))', color: attendanceIsAbsent(mark) ? 'var(--mm-error-text)' : mark === LIVE_ATTENDANCE_MARK.LATE ? 'var(--mm-warning-text)' : 'var(--mm-success-text)', fontWeight: 900 }}>{ATTENDANCE_LABEL[mark] || 'Present'}</div>
               </div>
               <div style={{ display: 'flex', gap: 4 }}>
                 {[
@@ -507,8 +507,8 @@ function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent
           return (
             <div key={candidate.key} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 9, padding: '9px 11px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <div>
-                <strong style={{ fontSize: 13 }}>{showStudentId ? candidate.studentLabel : candidate.studentName || STUDENT_NAME_UNAVAILABLE} is back today</strong>
-                <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)', marginTop: 2 }}>
+                <strong style={{ fontSize: 'calc(13 * var(--mm-px))' }}>{showStudentId ? candidate.studentLabel : candidate.studentName || STUDENT_NAME_UNAVAILABLE} is back today</strong>
+                <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)', marginTop: 2 }}>
                   {candidate.meetingsMissed > 1 ? `Back after ${candidate.meetingsMissed} missed class meetings` : 'Absent last class'}
                   {' · '}Missed: {missedLabel}
                   {candidate.missedWork.length > 0 && ` · ${candidate.missedWork.length} assignment${candidate.missedWork.length === 1 ? '' : 's'} affected`}
@@ -1074,10 +1074,10 @@ export default function LiveClassMonitor({
     <section style={{ marginBottom: 28 }}>
       {activeSpotlight?.status === SPOTLIGHT_STATUS.ACCEPTED && <StudentSpotlightView request={activeSpotlight} frame={spotlightFrame} onStop={stopSpotlight} />}
       {activeSpotlight?.status === SPOTLIGHT_STATUS.REQUESTED && <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>Waiting for {activeSpotlight.studentLabel || 'the student'} to choose <strong>Present Now</strong>. No work is visible.</div>}
-      {spotlightMessage && <div role="status" style={{ marginBottom: 10, fontSize: 12, color: 'var(--mm-text-muted)' }}>{spotlightMessage}</div>}
+      {spotlightMessage && <div role="status" style={{ marginBottom: 10, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{spotlightMessage}</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 20, color: 'var(--mm-text-strong)' }}>Live Class</h2>
-        <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
+        <h2 style={{ margin: 0, fontSize: 'calc(20 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Live Class</h2>
+        <span style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
           {counts.online} of {counts.total} present students working
           {absentCount > 0 && <span> · {absentCount} absent</span>}
           {counts.helpRequests > 0 && <strong data-live-help-count="" style={{ color: 'var(--mm-danger)' }}> · {counts.helpRequests} asked for help</strong>}
@@ -1097,7 +1097,7 @@ export default function LiveClassMonitor({
       </div>
 
       {liveTeachingStale && (
-        <div role="status" data-walkthrough-stale-session style={{ margin: '-4px 0 10px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 12.5, fontWeight: 700 }}>
+        <div role="status" data-walkthrough-stale-session style={{ margin: '-4px 0 10px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 700 }}>
           The saved Live Teaching lesson is no longer available to this class, so it was not restored.
         </div>
       )}
@@ -1171,10 +1171,10 @@ export default function LiveClassMonitor({
 
       {activeSectionTimers.length > 0 && (
         <div aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-tint)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: 12, color: 'var(--mm-text)', marginRight: 2 }}>ACTIVE TIMERS</strong>
+          <strong style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', marginRight: 2 }}>ACTIVE TIMERS</strong>
           {activeSectionTimers.map(({ kind, assignment, endsAt }) => {
             const isDol = kind === 'DOL';
-            return <span key={`${assignment.id}:${kind}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? 'var(--mm-accent-soft)' : 'var(--mm-warning-soft)', color: isDol ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', fontSize: 12, fontWeight: 900, border: `1px solid ${isDol ? 'var(--mm-accent-border)' : '#f9c74f'}` }} title={assignment.title || kind}>{kind} · <DOLCountdown endsAt={endsAt} /></span>;
+            return <span key={`${assignment.id}:${kind}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? 'var(--mm-accent-soft)' : 'var(--mm-warning-soft)', color: isDol ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, border: `1px solid ${isDol ? 'var(--mm-accent-border)' : '#f9c74f'}` }} title={assignment.title || kind}>{kind} · <DOLCountdown endsAt={endsAt} /></span>;
           })}
         </div>
       )}
@@ -1187,7 +1187,7 @@ export default function LiveClassMonitor({
           // the teacher's other assignments here would recreate the bug.
           <div role="status" data-walkthrough-empty="no-active-work" style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>
             <strong style={{ color: 'var(--mm-text-strong)' }}>No active assignments for {activeClassLabel || 'this class'}.</strong>
-            <div style={{ marginTop: 4, fontSize: 12.5 }}>Walkthrough lists only work assigned to this class that its students can open right now, in the current marking period.</div>
+            <div style={{ marginTop: 4, fontSize: 'calc(12.5 * var(--mm-px))' }}>Walkthrough lists only work assigned to this class that its students can open right now, in the current marking period.</div>
           </div>
         ) : !selectedAssignment ? (
           <div style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Choose the classwork assignment you are walking through.</div>
@@ -1196,7 +1196,7 @@ export default function LiveClassMonitor({
         ) : liveTeachingActiveForClass && !liveTeachingPaceReady ? (
           <div style={{ padding: 20, border: '1px dashed var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)' }}>
             <strong style={{ color: 'var(--mm-primary-text)' }}>Classwork pace has not started yet.</strong>
-            <div style={{ marginTop: 5, fontSize: 13 }}>
+            <div style={{ marginTop: 5, fontSize: 'calc(13 * var(--mm-px))' }}>
               The teacher exemplar is currently in {String(liveTeachingSession?.activityRole || 'another section').replace(/^./, (letter) => letter.toUpperCase())}. Pace monitoring will begin when the teacher enters the first Classwork question.
             </div>
           </div>
@@ -1206,10 +1206,10 @@ export default function LiveClassMonitor({
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div>
                   <strong style={{ color: 'var(--mm-primary-text)' }}>Teacher is on Classwork Q{effectiveTeacherQuestionIndex + 1} of {selectedClasswork.questions.length}</strong>
-                  <div style={{ marginTop: 4, maxWidth: 760, color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.45 }}>{String(currentQuestion?.prompt || currentQuestion?.question || 'Current classwork question').slice(0, 220)}</div>
+                  <div style={{ marginTop: 4, maxWidth: 760, color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45 }}>{String(currentQuestion?.prompt || currentQuestion?.question || 'Current classwork question').slice(0, 220)}</div>
                 </div>
                 {liveTeachingActiveForClass ? (
-                  <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--mm-success-text)', background: 'var(--mm-success-bg)', padding: '5px 9px', borderRadius: 999 }}>Following the live teaching exemplar</span>
+                  <span style={{ fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-success-text)', background: 'var(--mm-success-bg)', padding: '5px 9px', borderRadius: 999 }}>Following the live teaching exemplar</span>
                 ) : (
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button type="button" disabled={teacherQuestionIndex === 0} onClick={() => setTeacherQuestionIndex((value) => Math.max(0, value - 1))} style={smallButtonStyle}>← Previous</button>
@@ -1217,7 +1217,7 @@ export default function LiveClassMonitor({
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', fontSize: 12, fontWeight: 800 }}>
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>
                 <span>{walkthrough.counts.present} present students monitored</span>
                 <span style={{ color: 'var(--mm-error-text)' }}>· {walkthrough.counts.needsCheck} need check</span>
                 <span style={{ color: 'var(--mm-primary-text)' }}>· {walkthrough.counts.onQuestion} here</span>
@@ -1228,7 +1228,7 @@ export default function LiveClassMonitor({
 
             {walkthrough.visitNext && (
               <div style={{ padding: '12px 14px', borderRadius: 12, border: '2px solid #d93025', background: 'var(--mm-error-subtle)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                <div><strong style={{ color: 'var(--mm-error-text)' }}>Visit Next → {walkthrough.visitNext.name}</strong>{walkthrough.visitNext.nameMissing && walkthrough.visitNext.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 11, color: 'var(--mm-text-muted)' }}>{walkthrough.visitNext.idLabel}</span>}<div style={{ marginTop: 3, fontSize: 12, color: 'var(--mm-text-muted)' }}>{walkthrough.visitNext.reason}</div></div>
+                <div><strong style={{ color: 'var(--mm-error-text)' }}>Visit Next → {walkthrough.visitNext.name}</strong>{walkthrough.visitNext.nameMissing && walkthrough.visitNext.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{walkthrough.visitNext.idLabel}</span>}<div style={{ marginTop: 3, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{walkthrough.visitNext.reason}</div></div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {onOpenStudent && <button type="button" onClick={() => onOpenStudent(walkthrough.visitNext.id)} style={smallButtonStyle}>View work</button>}
                   <button type="button" onClick={() => setCheckedStudentIds((ids) => ids.includes(walkthrough.visitNext.id) ? ids : [...ids, walkthrough.visitNext.id])} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>Checked</button>
@@ -1237,7 +1237,7 @@ export default function LiveClassMonitor({
             )}
 
             {bottleneck && (
-              <div style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--mm-warning-soft)', border: '1px solid #f9c74f', color: 'var(--mm-warning-text)', fontSize: 12.5 }}>
+              <div style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--mm-warning-soft)', border: '1px solid #f9c74f', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
                 <strong>Possible class bottleneck:</strong> {bottleneck.count} students are currently on Classwork Q{bottleneck.questionIndex + 1}. Consider a quick whole-class clarification or small group.
               </div>
             )}
@@ -1262,7 +1262,7 @@ export default function LiveClassMonitor({
           </div>
         )
       ) : visibleRows.length === 0 ? (
-        <div style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)', fontSize: 14 }}>
+        <div style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>
           {rows.length === 0 ? (absentCount === roster.length && roster.length ? 'All students in this class are marked absent for today.' : 'No present students in this period have an assignment open yet.') : 'Nobody needs attention right now.'}
         </div>
       ) : (

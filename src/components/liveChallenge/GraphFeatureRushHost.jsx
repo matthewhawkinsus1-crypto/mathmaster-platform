@@ -30,7 +30,7 @@ const LOOKS = Object.freeze({
     bar: 'linear-gradient(90deg, #1a73e8, #8ab4f8)',
     accent: 'var(--mm-primary)',
     good: 'var(--mm-success-text)',
-    size: 14,
+    size: 'calc(14 * var(--mm-px))',
   }),
   projector: Object.freeze({
     text: '#f7f9ff',
@@ -41,7 +41,7 @@ const LOOKS = Object.freeze({
     bar: 'linear-gradient(90deg, #5ee7ff, #b8c8ff)',
     accent: '#9cb8ff',
     good: '#8df7c9',
-    size: 18,
+    size: 'calc(18 * var(--mm-px))',
   }),
 });
 
@@ -117,13 +117,13 @@ export function RushHostStatus({ room, players = [], clockOffsetMs = 0, joinedCo
     <section data-mm-live-status={clock.stage} style={{ background: 'var(--mm-surface)', border: '2px solid #1a73e8', borderRadius: 14, padding: 20, textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ color: 'var(--mm-primary)', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>Round {roundIndex + 1} of {room.roundCount} · Graph Feature Rush</div>
-          <div style={{ marginTop: 8, fontSize: 20, fontWeight: 800, color: 'var(--mm-text-strong)' }}>{closed ? `Round ${roundIndex + 1} results` : counting ? 'Get ready — the round is about to start.' : timeUp ? 'Time! Saving the last taps, then the results.' : 'Students are finding features on their own graphs.'}</div>
+          <div style={{ color: 'var(--mm-primary)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 1000, textTransform: 'uppercase' }}>Round {roundIndex + 1} of {room.roundCount} · Graph Feature Rush</div>
+          <div style={{ marginTop: 8, fontSize: 'calc(20 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{closed ? `Round ${roundIndex + 1} results` : counting ? 'Get ready — the round is about to start.' : timeUp ? 'Time! Saving the last taps, then the results.' : 'Students are finding features on their own graphs.'}</div>
           <div style={{ marginTop: 6, color: 'var(--mm-text-muted)' }}>{rushSettingsLine(room)}</div>
         </div>
         <div style={{ minWidth: 150, textAlign: 'center', padding: 12, borderRadius: 12, background: low || timeUp ? 'var(--mm-error-bg)' : 'var(--mm-info-bg)', color: low || timeUp ? 'var(--mm-error-text)' : 'var(--mm-info-text)' }}>
-          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{closed ? 'Round closed' : closing ? 'Closing…' : counting ? 'Starts in' : timeUp ? 'Time!' : 'Time left'}</div>
-          <div style={{ fontSize: 38, fontWeight: 1000, fontVariantNumeric: 'tabular-nums' }}>{closed ? '—' : counting ? clock.countdownStep : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}</div>
+          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{closed ? 'Round closed' : closing ? 'Closing…' : counting ? 'Starts in' : timeUp ? 'Time!' : 'Time left'}</div>
+          <div style={{ fontSize: 'calc(38 * var(--mm-px))', fontWeight: 1000, fontVariantNumeric: 'tabular-nums' }}>{closed ? '—' : counting ? clock.countdownStep : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}</div>
         </div>
       </div>
       {!closed && <div style={{ marginTop: 14, fontWeight: 800, color: 'var(--mm-text-muted)' }}>{playing} of {joinedCount} playing · {graphs} graph{graphs === 1 ? '' : 's'} completed this round</div>}
@@ -139,9 +139,9 @@ export function RushReport({ report }) {
   if (!rush) return null;
   const table = (rows, title) => (
     <div>
-      <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>{title}</div>
       {rows.map((row) => (
-        <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 14 }}>
+        <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
           <span>{row.label}</span>
           <span style={{ color: 'var(--mm-text-muted)' }}>{row.completed}/{row.questions} completed · {pct(row.accuracyPercent)} of taps right</span>
         </div>
@@ -150,7 +150,7 @@ export function RushReport({ report }) {
   );
   return (
     <section style={{ display: 'grid', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 14, color: 'var(--mm-text)' }}>
+      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' }}>
         <span><strong>{rush.graphsCompleted}</strong> graphs completed</span>
         <span>Tap accuracy <strong>{pct(rush.accuracyPercent)}</strong></span>
         <span><strong>{rush.skipped}</strong> skipped</span>

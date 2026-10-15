@@ -141,7 +141,7 @@ export default function ServiceLogDialog({
     <div className="tw-review" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
       <Dialog as="section" className="tw-review__panel" onClose={onClose} initialFocusRef={firstFieldRef} aria-labelledby="service-log-title" data-service-log={student.id}>
         <div className="tw-row" style={{ justifyContent: 'space-between' }}>
-          <h2 id="service-log-title" style={{ margin: 0, fontSize: 18 }}>Service / support log · {student.name}</h2>
+          <h2 id="service-log-title" style={{ margin: 0, fontSize: 'calc(18 * var(--mm-px))' }}>Service / support log · {student.name}</h2>
           <button type="button" className="tw-btn tw-btn--sm" onClick={onClose}>Close</button>
         </div>
         <div className="tw-small tw-muted">

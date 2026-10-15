@@ -171,8 +171,8 @@ export default function PointMeaningBuilder({
       </div>
 
       <div style={{ marginTop: '14px', padding: '15px 17px', borderRadius: '11px', background: naturalMeaning ? 'var(--mm-primary-subtle)' : 'var(--mm-surface-sunken)', border: `1px solid ${naturalMeaning ? 'var(--mm-primary-border)' : 'var(--mm-border)'}` }}>
-        <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--mm-text-muted)' }}>Your interpretation</div>
-        <div style={{ marginTop: '7px', fontSize: '17px', lineHeight: 1.55, fontWeight: 700 }}>
+        <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--mm-text-muted)' }}>Your interpretation</div>
+        <div style={{ marginTop: '7px', fontSize: 'calc(17 * var(--mm-px))', lineHeight: 1.55, fontWeight: 700 }}>
           {naturalMeaning || 'Complete the coordinate meaning above to build your statement.'}
         </div>
       </div>

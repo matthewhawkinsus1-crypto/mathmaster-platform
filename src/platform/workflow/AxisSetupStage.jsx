@@ -79,7 +79,7 @@ export default function AxisSetupStage({
             border: '1px solid var(--mm-tint-border)',
           }}
         >
-          <h5 style={{ margin: '0 0 10px', color: 'var(--mm-primary-text)', fontSize: 14 }}>
+          <h5 style={{ margin: '0 0 10px', color: 'var(--mm-primary-text)', fontSize: 'calc(14 * var(--mm-px))' }}>
             Choose a reasonable scale
           </h5>
           <div
@@ -89,7 +89,7 @@ export default function AxisSetupStage({
               gap: 12,
             }}
           >
-            <label style={{ fontWeight: 800, fontSize: 13 }}>
+            <label style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>
               X-axis count-by value
               <input
                 disabled={disabled}
@@ -105,12 +105,12 @@ export default function AxisSetupStage({
                   border: '1px solid var(--mm-border)',
                   borderRadius: 8,
                   boxSizing: 'border-box',
-                  fontSize: 16,
+                  fontSize: 'calc(16 * var(--mm-px))',
                 }}
               />
             </label>
 
-            <label style={{ fontWeight: 800, fontSize: 13 }}>
+            <label style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>
               Y-axis count-by value
               <input
                 disabled={disabled}
@@ -126,12 +126,12 @@ export default function AxisSetupStage({
                   border: '1px solid var(--mm-border)',
                   borderRadius: 8,
                   boxSizing: 'border-box',
-                  fontSize: 16,
+                  fontSize: 'calc(16 * var(--mm-px))',
                 }}
               />
             </label>
           </div>
-          <p style={{ margin: '9px 0 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
+          <p style={{ margin: '9px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
             Your count-by values appear directly on the graph.
           </p>
         </section>

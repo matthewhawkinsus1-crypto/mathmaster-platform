@@ -585,7 +585,7 @@ export default function TeacherQuestionReviewPanel({
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <div>
               <strong style={{ color: 'var(--mm-primary-text)' }}>Teacher review · student preview</strong>
-              <div style={{ marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 11 }}>
+              <div style={{ marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>
                 Private teacher notes{questionId ? <> · Question ID <code>{questionId}</code></> : ' · loading question identity…'}
               </div>
             </div>
@@ -614,18 +614,18 @@ export default function TeacherQuestionReviewPanel({
             </div>
           </div>
 
-          <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 11.5, lineHeight: 1.4 }}>
+          <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.4 }}>
             Batch copy includes every question covered by an open teacher flag. Paste and upload share one guarded parser, staging, and Preflight path. Nothing changes until the server classifies the correction and you choose Apply Corrected Question.
           </div>
 
           <section aria-label="Stage AI repair JSON" style={{ marginTop: 10, padding: 10, border: '1px solid var(--mm-primary-border)', borderRadius: 9, background: 'var(--mm-surface)' }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 900 }}>
+            <label style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
               Paste Repair JSON
               <textarea
                 value={repairJson}
                 onChange={(event) => setRepairJson(event.target.value)}
                 placeholder="Paste the AI repair response here, then stage it."
-                style={{ display: 'block', width: '100%', minHeight: 92, boxSizing: 'border-box', marginTop: 5, padding: 8, border: '1px solid var(--mm-border)', borderRadius: 7, fontFamily: 'monospace', fontSize: 11.5 }}
+                style={{ display: 'block', width: '100%', minHeight: 92, boxSizing: 'border-box', marginTop: 5, padding: 8, border: '1px solid var(--mm-border)', borderRadius: 7, fontFamily: 'monospace', fontSize: 'calc(11.5 * var(--mm-px))' }}
               />
             </label>
             <button type="button" onClick={() => stageRepairText(repairJson)} disabled={busy || !clean(repairJson) || !allFlaggedQuestionIds.length} style={{ ...buttonStyle, marginTop: 7, background: '#174ea6', color: '#fff', opacity: busy || !clean(repairJson) || !allFlaggedQuestionIds.length ? 0.55 : 1 }}>
@@ -654,7 +654,7 @@ export default function TeacherQuestionReviewPanel({
               {replacements.length > 1 && (
                 <section aria-label="Repair question selector" style={{ padding: 10, border: '1px solid var(--mm-border)', borderRadius: 9, background: 'var(--mm-surface)' }}>
                   <strong>Review every corrected question before applying the batch</strong>
-                  <div style={{ marginTop: 5, color: 'var(--mm-text-muted)', fontSize: 12 }}>
+                  <div style={{ marginTop: 5, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                     Reviewed {reviewedRepairQuestionIdSet.size} of {replacements.length}. Apply stays disabled until every replacement has been opened here.
                   </div>
                   <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 8 }}>
@@ -698,7 +698,7 @@ export default function TeacherQuestionReviewPanel({
               {serverPreview && (
                 <section aria-label="Authoritative repair classification" style={{ padding: 10, border: '1px solid #81c995', borderRadius: 9, background: 'var(--mm-success-bg)' }}>
                   <strong>Server change classification</strong>
-                  <div style={{ marginTop: 4, fontSize: 12 }}>Affected students: {Number(serverPreview.affectedStudentCount) || 0}</div>
+                  <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))' }}>Affected students: {Number(serverPreview.affectedStudentCount) || 0}</div>
                   {(serverPreview.changes || []).map((change) => (
                     <div key={change.questionId} style={{ marginTop: 7 }}>
                       <code>{change.questionId}</code> · <strong>{change.classification}</strong> · {change.commitBehavior}
@@ -711,11 +711,11 @@ export default function TeacherQuestionReviewPanel({
                 </section>
               )}
               {!allReplacementsReviewed && replacements.length > 1 && (
-                <div role="status" style={{ padding: 9, borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12 }}>
+                <div role="status" style={{ padding: 9, borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))' }}>
                   Open each proposed correction above before applying this batch.
                 </div>
               )}
-              <button type="button" onClick={applyCorrectedQuestion} disabled={busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed} style={{ ...buttonStyle, background: '#188038', borderColor: '#188038', color: '#fff', fontSize: 14, opacity: busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed ? 0.55 : 1 }}>
+              <button type="button" onClick={applyCorrectedQuestion} disabled={busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed} style={{ ...buttonStyle, background: '#188038', borderColor: '#188038', color: '#fff', fontSize: 'calc(14 * var(--mm-px))', opacity: busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed ? 0.55 : 1 }}>
                 Apply Corrected Question
               </button>
             </section>
@@ -726,7 +726,7 @@ export default function TeacherQuestionReviewPanel({
               <strong style={{ color: 'var(--mm-success-text)' }}>Saved corrected replacement · verify before resolving the flag</strong>
               {savedReplacementPreviews.map((entry) => (
                 <div key={entry.replacementQuestionId} style={{ marginTop: 10 }}>
-                  <div style={{ marginBottom: 5, fontSize: 12 }}>
+                  <div style={{ marginBottom: 5, fontSize: 'calc(12 * var(--mm-px))' }}>
                     Historical <code>{entry.sourceQuestionId}</code> → corrected <code>{entry.replacementQuestionId}</code>
                   </div>
                   <TeacherRepairCandidateSandbox
@@ -743,12 +743,12 @@ export default function TeacherQuestionReviewPanel({
             <div style={{ display: 'grid', gap: 7, marginTop: 10 }}>
               {questionFlags.map((flag) => (
                 <div key={flag.id} style={{ padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: flag.status === 'resolved' ? 'var(--mm-surface-control)' : 'var(--mm-warning-bg)' }}>
-                  <div style={{ fontSize: 12, fontWeight: 900 }}>{flag.status === 'resolved' ? 'Resolved' : 'Needs editing'} · {flag.category || 'review'}</div>
-                  <div style={{ marginTop: 3, fontSize: 12.5 }}>{flag.note || 'Teacher review requested'}</div>
+                  <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>{flag.status === 'resolved' ? 'Resolved' : 'Needs editing'} · {flag.category || 'review'}</div>
+                  <div style={{ marginTop: 3, fontSize: 'calc(12.5 * var(--mm-px))' }}>{flag.note || 'Teacher review requested'}</div>
                   {flag.screenshotId && (
                     <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 11.5, color: 'var(--mm-text-muted)' }}>📎 Screenshot attached · visible in Repair Center</span>
-                      <label style={{ ...buttonStyle, padding: '5px 9px', minHeight: 0, fontSize: 11.5, cursor: busy ? 'default' : 'pointer' }}>
+                      <span style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>📎 Screenshot attached · visible in Repair Center</span>
+                      <label style={{ ...buttonStyle, padding: '5px 9px', minHeight: 0, fontSize: 'calc(11.5 * var(--mm-px))', cursor: busy ? 'default' : 'pointer' }}>
                         Replace
                         <input
                           type="file"
@@ -758,7 +758,7 @@ export default function TeacherQuestionReviewPanel({
                           style={{ display: 'none' }}
                         />
                       </label>
-                      <button type="button" onClick={() => removeSavedScreenshot(flag)} disabled={busy} style={{ ...buttonStyle, padding: '5px 9px', minHeight: 0, fontSize: 11.5, color: 'var(--mm-error-text)', borderColor: 'var(--mm-error-border-soft)' }}>
+                      <button type="button" onClick={() => removeSavedScreenshot(flag)} disabled={busy} style={{ ...buttonStyle, padding: '5px 9px', minHeight: 0, fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-error-text)', borderColor: 'var(--mm-error-border-soft)' }}>
                         Remove
                       </button>
                     </div>
@@ -774,7 +774,7 @@ export default function TeacherQuestionReviewPanel({
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 8, marginTop: 10 }}>
-            <label style={{ fontSize: 12, fontWeight: 800 }}>
+            <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>
               Category
               <select value={category} onChange={(event) => setCategory(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)' }}>
                 <option value="content">Content/math</option>
@@ -785,7 +785,7 @@ export default function TeacherQuestionReviewPanel({
                 <option value="other">Other</option>
               </select>
             </label>
-            <label style={{ fontSize: 12, fontWeight: 800 }}>
+            <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>
               Severity
               <select value={severity} onChange={(event) => setSeverity(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)' }}>
                 <option value="needsEditing">Needs editing</option>
@@ -793,7 +793,7 @@ export default function TeacherQuestionReviewPanel({
               </select>
             </label>
           </div>
-          <label style={{ display: 'block', marginTop: 8, fontSize: 12, fontWeight: 800 }}>
+          <label style={{ display: 'block', marginTop: 8, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>
             Repair note
             <textarea
               value={note}
@@ -808,7 +808,7 @@ export default function TeacherQuestionReviewPanel({
             style={{ marginTop: 8, padding: 8, border: '1px dashed var(--mm-primary-border)', borderRadius: 8, background: 'var(--mm-surface)' }}
           >
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <label style={{ ...buttonStyle, minHeight: 0, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
+              <label style={{ ...buttonStyle, minHeight: 0, padding: '6px 10px', fontSize: 'calc(12 * var(--mm-px))', cursor: 'pointer' }}>
                 📷 Attach screenshot
                 <input
                   type="file"
@@ -817,11 +817,11 @@ export default function TeacherQuestionReviewPanel({
                   style={{ display: 'none' }}
                 />
               </label>
-              <span style={{ fontSize: 11.5, color: 'var(--mm-text-muted)' }}>
+              <span style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                 {pendingShot ? 'Screenshot ready — save the flag to attach it.' : 'Or paste one straight into the note above. Optional; the note is what the AI receives.'}
               </span>
               {pendingShot && (
-                <button type="button" onClick={() => setPendingShot(null)} style={{ ...buttonStyle, minHeight: 0, padding: '5px 9px', fontSize: 11.5, color: 'var(--mm-error-text)', borderColor: 'var(--mm-error-border-soft)' }}>
+                <button type="button" onClick={() => setPendingShot(null)} style={{ ...buttonStyle, minHeight: 0, padding: '5px 9px', fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-error-text)', borderColor: 'var(--mm-error-border-soft)' }}>
                   Discard
                 </button>
               )}
@@ -833,7 +833,7 @@ export default function TeacherQuestionReviewPanel({
           <button type="button" onClick={saveFlag} disabled={busy || !clean(note) || !questionId} style={{ ...buttonStyle, marginTop: 8, background: '#1a73e8', borderColor: '#1a73e8', color: '#fff', opacity: busy || !clean(note) || !questionId ? 0.55 : 1 }}>
             Save teacher flag
           </button>
-          {message && <div role="status" style={{ marginTop: 8, color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.45 }}>{message}</div>}
+          {message && <div role="status" style={{ marginTop: 8, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>{message}</div>}
         </aside>
       )}
       <button type="button" onClick={() => setExpanded((current) => !current)} aria-expanded={expanded} style={{ ...buttonStyle, minHeight: 44, background: '#174ea6', borderColor: '#174ea6', color: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,.22)' }}>

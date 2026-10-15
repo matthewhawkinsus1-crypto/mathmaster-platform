@@ -30,7 +30,7 @@ export default function QuestionPrompt({
     <div
       className={`mathmaster-question-prompt ${isProminent ? 'mathmaster-question-prompt-prominent' : 'mathmaster-question-prompt-plain'}`}
       style={{
-        fontSize: isTask ? '17px' : isProminent ? '20px' : '18px',
+        fontSize: isTask ? 'calc(17 * var(--mm-px))' : isProminent ? 'calc(20 * var(--mm-px))' : 'calc(18 * var(--mm-px))',
         color: isProminent ? 'var(--mm-text-strong)' : 'var(--mm-text-muted)',
         fontWeight: isTask ? 720 : isProminent ? 760 : 400,
         lineHeight: isTask ? 1.45 : isProminent ? 1.5 : 1.65,
@@ -47,7 +47,7 @@ export default function QuestionPrompt({
       }}
     >
       {isProminent && (
-        <div style={{ marginBottom: '7px', color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 950, letterSpacing: '0.09em', textTransform: 'uppercase' }}>
+        <div style={{ marginBottom: '7px', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.09em', textTransform: 'uppercase' }}>
           {isTask ? 'Your task' : 'Your question'}
         </div>
       )}

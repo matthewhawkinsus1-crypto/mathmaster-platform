@@ -253,7 +253,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                     cursor: 'pointer',
                   }}
                 >
-                  <MathDisplay value={item.equation || ''} format="ascii-math" inline style={{ fontSize: 18 }} ariaLabel={`Equation choice ${item.equation || ''}`} />
+                  <MathDisplay value={item.equation || ''} format="ascii-math" inline style={{ fontSize: 'calc(18 * var(--mm-px))' }} ariaLabel={`Equation choice ${item.equation || ''}`} />
                 </button>
               );
             })}
@@ -300,11 +300,11 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
       );
     }
     if (['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'].includes(card.kind)) {
-      return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} style={{ fontSize: 20 }} />;
+      return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} style={{ fontSize: 'calc(20 * var(--mm-px))' }} />;
     }
-    if (card.kind === 'slope') return <MathDisplay value={`m = ${card.value}`} format="ascii-math" inline style={{ fontSize: 20 }} />;
-    if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return <MathDisplay value={Array.isArray(card.value) ? `(${card.value[0]}, ${card.value[1]})` : String(card.value)} format="ascii-math" inline style={{ fontSize: 20 }} />;
-    return <span style={{ fontSize: 15, lineHeight: 1.45, color: 'var(--mm-text-strong)' }}>{String(card.value)}</span>;
+    if (card.kind === 'slope') return <MathDisplay value={`m = ${card.value}`} format="ascii-math" inline style={{ fontSize: 'calc(20 * var(--mm-px))' }} />;
+    if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return <MathDisplay value={Array.isArray(card.value) ? `(${card.value[0]}, ${card.value[1]})` : String(card.value)} format="ascii-math" inline style={{ fontSize: 'calc(20 * var(--mm-px))' }} />;
+    return <span style={{ fontSize: 'calc(15 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-strong)' }}>{String(card.value)}</span>;
   };
 
   // Cards grouped by SIZE, not by answer: the shuffled deck is split into
@@ -398,7 +398,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                 >
                   <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 999, background: groupColor(index), flex: '0 0 auto' }} />
                   {label}
-                  <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+                  <span style={{ fontWeight: 700, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                     · {linearGroupCards.filter((card) => linearAssignments[card.id] === index).length}
                   </span>
                 </button>
@@ -431,9 +431,9 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                           background: assigned ? 'var(--mm-surface)' : 'var(--mm-surface)',
                         }}
                       >
-                        <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{LINEAR_KIND_LABELS[card.kind]}</div>
+                        <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{LINEAR_KIND_LABELS[card.kind]}</div>
                         {renderLinearCardBody(card)}
-                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: assigned ? groupColor(assignedSlot) : 'var(--mm-text-subtle)' }}>
+                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: assigned ? groupColor(assignedSlot) : 'var(--mm-text-subtle)' }}>
                           {assigned ? <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 999, background: groupColor(assignedSlot) }} /> : null}
                           {assigned ? lineLabels[assignedSlot] : 'Not sorted yet'}
                         </div>

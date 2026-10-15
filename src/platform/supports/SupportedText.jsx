@@ -26,7 +26,7 @@ const actionStyle = {
   border: '1px solid var(--mm-tint-border)',
   background: 'var(--mm-surface)',
   color: 'var(--mm-primary-text)',
-  fontSize: 13,
+  fontSize: 'calc(13 * var(--mm-px))',
   fontWeight: 800,
   cursor: 'pointer',
 };
@@ -84,7 +84,7 @@ export const SupportedTextActions = ({ text, readAloud = null, translation = nul
         </span>
       )}
       {translated?.unavailable && (
-        <span role="status" style={{ display: 'block', marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 600 }}>
+        <span role="status" style={{ display: 'block', marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 600 }}>
           A translation is not available for this text yet.
         </span>
       )}
