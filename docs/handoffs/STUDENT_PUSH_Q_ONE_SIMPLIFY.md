@@ -54,7 +54,9 @@ the equation is solved (`x = …`), where no group remains.
 | 56a66ea | Browser drivers, plus the new journeys. Drafts are migrated in `rehydrateAlgebraDraft`. After a commit, focus moves to the next part. |
 | 05d6c5d | The planner removes a substituted group before combining; dead CSS removed; this handoff and the screenshots. |
 | 745c0d8 | `compactStepStateKey` gives the old and new rendering of one state one key (coordinator review); merge of main @ 86121b6. |
-| 41f0ae5, (next) | The verifier's fixes (below); terms left alone keep their written form when a side is rebuilt. |
+| 41f0ae5, c75cfdd | The verifier's fixes (below); terms left alone keep their written form when a side is rebuilt. |
+| 3b47ec0, e62e285 | Merge of main @ 50664ca (#491). Simplify closes after the commit that leaves nothing to simplify, so the confirmation is not pushed under the action bar, and focus returns to the Simplify button (coordinator nit); five lint warnings in the new tests. |
+| 040b1b6 | **Coordinator review:** a coefficient typed as one decimal equal to it (`2.5x`, `0.35x`, `−2.5x`, `1.5y`) is simplest again, in like terms, the product box and the whole side. 41f0ae5 had refused it as not in lowest terms. |
 | 09e7d6c | The static scan, migration, keyboard and ×1 tests. Engine fix: a minus sign is not a written 1 (`−y` is simplest, `−1y` is not; found by the 3×3 journey). Drivers for systems, relation and LMR. |
 
 ### How Simplify works
@@ -106,9 +108,10 @@ the equation is solved (`x = …`), where no group remains.
 ## Verification
 
 - **Node, all mutation-checked:**
-  - `tests/platform/simplifyEngine.test.mjs` (10 tests): detection across 14 equation shapes; that nothing shown
+  - `tests/platform/simplifyEngine.test.mjs` (11 tests): detection across 14 equation shapes; that nothing shown
     contains a result; products, like terms, fractions and parentheses with near misses; the whole-side "simpler" rule;
-    the server kinds.
+    the server kinds; decimals typed as one number equal to the coefficient, with a near miss beside each and
+    `x/0.4`, `2.5x/1`, `0.5(5)x` refused (three mutations of the new line, all red).
   - `tests/platform/oneSimplifyEverywhere.test.mjs` (8): the static scan (any `src` file outside the shared folder that
     renders "Rewrite / Simplify", "Simplify arithmetic" or "Combine like terms", imports the old arithmetic model, or
     combines like terms in a `.jsx`); draft migration, both the pure function and `rehydrateAlgebraDraft`; the toolbar
@@ -170,6 +173,12 @@ the `algebraAstEngine` diff touches only LaTeX output. It confirmed these defect
 | A double minus showed in LaTeX for `x − (−1)(x+2)`. | `−1(…)` is drawn `−(…)` only where no sign stands straight before it; otherwise it is drawn as on main. |
 | A restored Simplify slot was not type-checked. | `sanitizeSimplifyState` re-types every field: strings capped at 500 characters, signs ±1, the undo stack cleaned. |
 | A restored or remounted panel took focus. | A part chosen when the panel mounts does not move focus; the open-focus request is consumed once (`onFocusConsumed`). |
+
+**After the verifier (coordinator review of c75cfdd).** `writtenTermProblem` compared the written numbers with the
+reduced fraction's numerator and denominator, so `2.5x` (5, 2) was refused. Fixed in 040b1b6, above. Two limits:
+mathjs keeps only a number's value, so a padded `2.50x` or `5x/2.0` cannot be told from `2.5x` and is accepted, as it
+was before 41f0ae5; a long decimal for a fraction that does not terminate (`0.8333333333333334x` for `5x/6`) is
+accepted as before, because the exact-rational reader gives no value for it and the check falls back to equivalence.
 
 All of these are pinned in `simplifyEngine.test.mjs` / `oneSimplifyEverywhere.test.mjs`. The verifier's first point,
 that `compactStepStateKey` changes server behaviour, was the coordinator's state-key fix, which it saw before commit.
