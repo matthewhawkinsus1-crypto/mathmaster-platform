@@ -72200,11 +72200,13 @@
         "Track whether the problem requires a length, area, surface area, or volume; scale factors affect these measures differently."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Volume = length × width × height: {{answer}} cubic feet.",
         "reasoning": [
-          "Apply the appropriate area, surface-area, volume, or scale-factor relationship to the stated dimensions."
+          "The volume of a rectangular prism is length times width times height.",
+          "${{l}}\\cdot {{w}}\\cdot {{h}}={{answer}}$ cubic feet."
         ],
-        "answerSummary": "Check that the units and dimensional scale of the result match the quantity requested."
+        "commonError": "Stopping at the base area ({{dBase}}), or computing the surface area instead of the volume.",
+        "answerSummary": "{{answer}} cubic feet"
       },
       "choices": [
         {
@@ -72389,11 +72391,13 @@
         "Track whether the problem requires a length, area, surface area, or volume; scale factors affect these measures differently."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Half of base times height: {{area}}.",
         "reasoning": [
-          "Apply the appropriate area, surface-area, volume, or scale-factor relationship to the stated dimensions."
+          "The area of a triangle is half of base times perpendicular height.",
+          "$\\frac{1}{2}\\cdot {{b}}\\cdot {{h}}={{area}}$ square units."
         ],
-        "answerSummary": "Check that the units and dimensional scale of the result match the quantity requested."
+        "commonError": "Forgetting the $\\frac{1}{2}$, which gives {{d1}}.",
+        "answerSummary": "${{area}}$ square units"
       },
       "alignmentKeys": [
         "texas:6.8B",
@@ -72540,11 +72544,13 @@
         "Track whether the problem requires a length, area, surface area, or volume; scale factors affect these measures differently."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Volume $=\\pi r^2h$: $n={{answer}}$.",
         "reasoning": [
-          "Apply the appropriate area, surface-area, volume, or scale-factor relationship to the stated dimensions."
+          "The volume of a cylinder is $\\pi r^2h$: the area of the circular base times the height.",
+          "Here $r={{r}}$ and $h={{h}}$: ${{r}}^2\\cdot {{h}}={{answer}}$, so the volume is ${{answer}}\\pi$ and $n={{answer}}$."
         ],
-        "answerSummary": "Check that the units and dimensional scale of the result match the quantity requested."
+        "commonError": "Leaving out the height, or squaring the diameter instead of the radius.",
+        "answerSummary": "$n={{answer}}$"
       },
       "choices": [
         {
@@ -72688,7 +72694,10 @@
           "sa": "2*(l*w+l*h+w*h)",
           "d1": "l*w+l*h+w*h",
           "d2": "l*w*h",
-          "d3": "6*max(l,max(w,h))*max(l,max(w,h))"
+          "d3": "6*max(l,max(w,h))*max(l,max(w,h))",
+          "lw": "l*w",
+          "lh": "l*h",
+          "wh": "w*h"
         },
         "constraints": [
           "sa!=d1",
@@ -72733,11 +72742,13 @@
         "Track whether the problem requires a length, area, surface area, or volume; scale factors affect these measures differently."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Add the areas of all six faces: {{sa}} square inches.",
         "reasoning": [
-          "Apply the appropriate area, surface-area, volume, or scale-factor relationship to the stated dimensions."
+          "A closed box has three pairs of matching faces: ${{l}}\\cdot {{w}}={{lw}}$, ${{l}}\\cdot {{h}}={{lh}}$ and ${{w}}\\cdot {{h}}={{wh}}$ square inches.",
+          "Surface area: $2({{lw}}+{{lh}}+{{wh}})={{sa}}$ square inches."
         ],
-        "answerSummary": "Check that the units and dimensional scale of the result match the quantity requested."
+        "commonError": "Counting each pair of faces once (that gives {{d1}}), or computing the volume.",
+        "answerSummary": "${{sa}}$ square inches"
       },
       "alignmentKeys": [
         "texas:6.8B",
@@ -72863,7 +72874,8 @@
           "answer": "A*k*k",
           "d1": "A*k",
           "d2": "A*k*k*k",
-          "d3": "A*m*m"
+          "d3": "A*m*m",
+          "k2": "k*k"
         },
         "constraints": [
           "k!=m",
@@ -72909,11 +72921,13 @@
         "Track whether the problem requires a length, area, surface area, or volume; scale factors affect these measures differently."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Lengths times {{k}} means area times ${{k}}^2$: {{answer}}.",
         "reasoning": [
-          "Apply the appropriate area, surface-area, volume, or scale-factor relationship to the stated dimensions."
+          "Multiplying every length by {{k}} multiplies the area by ${{k}}^2={{k2}}$.",
+          "Area of figure $B$: ${{A}}\\cdot {{k2}}={{answer}}$ square units."
         ],
-        "answerSummary": "Check that the units and dimensional scale of the result match the quantity requested."
+        "commonError": "Multiplying the area by {{k}} instead of ${{k}}^2$, or using {{m}}, which belongs to figure $C$.",
+        "answerSummary": "${{answer}}$ square units"
       },
       "alignmentKeys": [
         "texas:6.8B",
@@ -73082,11 +73096,13 @@
         "Track whether the problem requires a length, area, surface area, or volume; scale factors affect these measures differently."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "The length ratio is the square root of the area ratio: {{answer}}.",
         "reasoning": [
-          "Apply the appropriate area, surface-area, volume, or scale-factor relationship to the stated dimensions."
+          "Areas scale by the square of the length scale, so the lengths are in the ratio 1 to $\\sqrt{{{q2}}}={{q}}$.",
+          "The corresponding side is ${{s}}\\cdot {{q}}={{answer}}$ units."
         ],
-        "answerSummary": "Check that the units and dimensional scale of the result match the quantity requested."
+        "commonError": "Multiplying by {{q2}}, the area factor, instead of its square root.",
+        "answerSummary": "${{answer}}$ units"
       },
       "alignmentKeys": [
         "texas:6.8B",
@@ -73227,11 +73243,13 @@
         "Track whether the problem requires a length, area, surface area, or volume; scale factors affect these measures differently."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "The length ratio is the cube root of the volume ratio: $1:{{k}}$.",
         "reasoning": [
-          "Apply the appropriate area, surface-area, volume, or scale-factor relationship to the stated dimensions."
+          "Volumes scale by the cube of the length scale.",
+          "$\\sqrt[3]{{{k3}}}={{k}}$, so the lengths are in the ratio $1:{{k}}$."
         ],
-        "answerSummary": "Check that the units and dimensional scale of the result match the quantity requested."
+        "commonError": "Taking the square root (as for areas), or keeping the volume ratio itself.",
+        "answerSummary": "$1:{{k}}$"
       },
       "choices": [
         {
@@ -73433,11 +73451,14 @@
         "Track whether the problem requires a length, area, surface area, or volume; scale factors affect these measures differently."
       ],
       "solutionReview": {
-        "headline": "Use the geometric relationship.",
+        "headline": "Whole solid minus the opening: {{answer}} cubic units.",
         "reasoning": [
-          "Apply the appropriate area, surface-area, volume, or scale-factor relationship to the stated dimensions."
+          "Whole solid: ${{L}}\\cdot {{W}}\\cdot {{H}}={{outer}}$ cubic units.",
+          "The opening runs through the full height: ${{l}}\\cdot {{w}}\\cdot {{H}}={{hole}}$ cubic units.",
+          "Remaining solid: ${{outer}}-{{hole}}={{answer}}$ cubic units."
         ],
-        "answerSummary": "Check that the units and dimensional scale of the result match the quantity requested."
+        "commonError": "Giving the volume of the opening or of the whole solid instead of their difference.",
+        "answerSummary": "${{answer}}$ cubic units"
       },
       "alignmentKeys": [
         "texas:6.8B",
@@ -73552,11 +73573,13 @@
         "Identify the relevant circle relationship before substituting values or rewriting the equation."
       ],
       "solutionReview": {
-        "headline": "Use the circle relationship.",
+        "headline": "An inscribed angle is half its intercepted arc: {{answer}} degrees.",
         "reasoning": [
-          "Apply the stated angle, tangent, arc, sector, radian, or circle-equation relationship."
+          "An inscribed angle measures half of the arc it intercepts.",
+          "$\\frac{{{arc}}}{2}={{answer}}$ degrees."
         ],
-        "answerSummary": "Verify the result against the original circle information."
+        "commonError": "Giving the arc itself, which is the measure of the central angle.",
+        "answerSummary": "{{answer}} degrees"
       },
       "choices": [
         {
@@ -73654,7 +73677,10 @@
         "derived": {
           "r": "5*k",
           "t": "12*k",
-          "answer": "13*k"
+          "answer": "13*k",
+          "r2": "r*r",
+          "t2": "t*t",
+          "s2": "r*r+t*t"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -73673,11 +73699,13 @@
         "A radius drawn to a point of tangency is perpendicular to the tangent line."
       ],
       "solutionReview": {
-        "headline": "Use the tangent-radius relationship.",
+        "headline": "Tangent ⟂ radius, so use the Pythagorean theorem: $OP={{answer}}$.",
         "reasoning": [
-          "The radius and tangent form a right angle, so the resulting triangle can be analyzed with right-triangle relationships."
+          "A tangent is perpendicular to the radius at the point of tangency, so triangle $OTP$ has a right angle at $T$.",
+          "Then $OP=\\sqrt{{{r}}^2+{{t}}^2}=\\sqrt{{{r2}}+{{t2}}}=\\sqrt{{{s2}}}={{answer}}$."
         ],
-        "answerSummary": "Verify the result in the tangent-radius triangle."
+        "commonError": "Adding {{r}} and {{t}}: the three lengths form a right triangle, so use the Pythagorean theorem.",
+        "answerSummary": "$OP={{answer}}$"
       },
       "alignmentKeys": [
         "texas:7.5B",
@@ -73793,11 +73821,13 @@
         "Arc length is the same fraction of the circumference as the central angle is of $360^\\circ$."
       ],
       "solutionReview": {
-        "headline": "Use the arc fraction.",
+        "headline": "The arc is $\\frac{{{ang}}}{360}$ of the circumference: $n={{answer}}$.",
         "reasoning": [
-          "Relate the central-angle fraction to the circle's circumference."
+          "The circumference is $2\\pi\\cdot {{r}}={{dCircumference}}\\pi$, and the arc is $\\frac{{{ang}}}{360}$ of it.",
+          "Arc length: $\\frac{{{ang}}}{360}\\cdot {{dCircumference}}\\pi={{answer}}\\pi$, so $n={{answer}}$."
         ],
-        "answerSummary": "Check the coefficient of $\\pi$ in the resulting arc length."
+        "commonError": "Giving the whole circumference, or using the radius where the diameter belongs.",
+        "answerSummary": "$n={{answer}}$"
       },
       "choices": [
         {
@@ -73954,11 +73984,13 @@
         "In $(x-h)^2+(y-k)^2=r^2$, the center is $(h,k)$."
       ],
       "solutionReview": {
-        "headline": "Read the center from standard form.",
+        "headline": "In $(x-h)^2+(y-k)^2=r^2$ the center is $(h,k)$: $({{h}},{{k}})$.",
         "reasoning": [
-          "Account for the signs inside each squared binomial."
+          "The standard form is $(x-h)^2+(y-k)^2=r^2$, with center $(h,k)$.",
+          "Here $x {{nh|signed}}=x-{{h|paren}}$ and $y {{nk|signed}}=y-{{k|paren}}$, so the center is $({{h}},{{k}})$."
         ],
-        "answerSummary": "Substitute the center coordinates into the standard form to check the signs."
+        "commonError": "Taking the numbers shown in the brackets: $x {{nh|signed}}$ means $h={{h}}$, the opposite sign.",
+        "answerSummary": "$({{h}},{{k}})$"
       },
       "alignmentKeys": [
         "texas:7.5B",
@@ -74075,11 +74107,13 @@
         "Multiply a radian measure by $180/\\pi$ to express it in degrees."
       ],
       "solutionReview": {
-        "headline": "Convert angle units.",
+        "headline": "Multiply by $\\frac{180}{\\pi}$: {{answer}} degrees.",
         "reasoning": [
-          "Use $\\pi$ radians $=180^\\circ$ and simplify the factor."
+          "$\\pi$ radians is the same angle as 180 degrees, so multiply by $\\frac{180}{\\pi}$.",
+          "$\\frac{{{n}}\\pi}{{{den}}}\\cdot \\frac{180}{\\pi}=\\frac{{{n}}\\cdot 180}{{{den}}}={{answer}}$ degrees."
         ],
-        "answerSummary": "Check that the resulting degree measure represents the same angle."
+        "commonError": "Forgetting to divide by {{den}}, or multiplying by $\\frac{\\pi}{180}$, which converts the other way.",
+        "answerSummary": "{{answer}} degrees"
       },
       "choices": [
         {
@@ -74190,7 +74224,9 @@
           "d": "I-c*x",
           "b": "2*I-(2*c+1)*x",
           "central": "2*I",
-          "inscribed": "I"
+          "inscribed": "I",
+          "tc": "2*c",
+          "td": "2*d"
         },
         "constraints": [
           "a!=0",
@@ -74216,11 +74252,14 @@
         "Set the central-angle expression equal to twice the inscribed-angle expression."
       ],
       "solutionReview": {
-        "headline": "Relate central and inscribed angles.",
+        "headline": "The central angle is twice the inscribed angle: $x={{x}}$.",
         "reasoning": [
-          "Use the factor-of-two relationship for angles intercepting the same arc."
+          "A central angle is twice an inscribed angle on the same arc: ${{a}}x {{b|signed}}=2({{c}}x {{d|signed}})$.",
+          "So ${{a}}x {{b|signed}}={{tc}}x {{td|signed}}$. Subtract ${{tc}}x$: $x {{b|signed}}={{td}}$.",
+          "So $x={{td}}-{{b|paren}}={{x}}$. Check: the angles are {{central}} and {{inscribed}} degrees, and ${{central}}=2\\cdot {{inscribed}}$."
         ],
-        "answerSummary": "Substitute the result into both angle expressions to verify the relationship."
+        "commonError": "Setting the two expressions equal: the central angle is twice the inscribed angle.",
+        "answerSummary": "$x={{x}}$"
       },
       "alignmentKeys": [
         "texas:7.5B",
@@ -74310,7 +74349,8 @@
           "answer": "m*k*k",
           "dWhole": "4*k*k",
           "dRest": "(4-m)*k*k",
-          "dArc": "2*m*k"
+          "dArc": "2*m*k",
+          "r2": "r*r"
         },
         "constraints": [
           "m!=2",
@@ -74338,11 +74378,13 @@
         "Sector area is the same fraction of $\\pi r^2$ as the central angle is of $360^\\circ$."
       ],
       "solutionReview": {
-        "headline": "Use the sector fraction.",
+        "headline": "The sector is $\\frac{{{ang}}}{360}$ of the circle's area: $n={{answer}}$.",
         "reasoning": [
-          "Multiply the circle's area by the fraction represented by the central angle."
+          "The whole circle has area $\\pi\\cdot {{r}}^2={{r2}}\\pi$, and the sector is $\\frac{{{ang}}}{360}$ of it.",
+          "Sector area: $\\frac{{{ang}}}{360}\\cdot {{r2}}\\pi={{answer}}\\pi$, so $n={{answer}}$."
         ],
-        "answerSummary": "Check the coefficient of $\\pi$ in the sector area."
+        "commonError": "Using the whole circle's area, or the arc length instead of the area.",
+        "answerSummary": "$n={{answer}}$"
       },
       "choices": [
         {
@@ -74458,7 +74500,13 @@
           "D": "-2*h",
           "E": "-2*k",
           "F": "h*h+k*k-r*r",
-          "answer": "r"
+          "answer": "r",
+          "h2": "h*h",
+          "k2": "k*k",
+          "r2": "r*r",
+          "nh": "-h",
+          "nk": "-k",
+          "nF": "-F"
         },
         "constraints": [
           "D!=0",
@@ -74486,11 +74534,14 @@
         "Complete the square separately for the $x$ terms and the $y$ terms."
       ],
       "solutionReview": {
-        "headline": "Complete the square.",
+        "headline": "Complete both squares to reach $(x-h)^2+(y-k)^2=r^2$: $r={{answer}}$.",
         "reasoning": [
-          "Rewrite the general equation as $(x-h)^2+(y-k)^2=r^2$."
+          "Complete the squares: $x^2 {{D|signed}}x=(x {{nh|signed}})^2-{{h2}}$ and $y^2 {{E|signed}}y=(y {{nk|signed}})^2-{{k2}}$.",
+          "So $(x {{nh|signed}})^2+(y {{nk|signed}})^2={{h2}}+{{k2}} {{nF|signed}}={{r2}}$.",
+          "The radius is $\\sqrt{{{r2}}}={{answer}}$."
         ],
-        "answerSummary": "The radius is the positive square root of the constant on the right side."
+        "commonError": "Forgetting the constants created by completing the squares, which leaves only {{nF}} on the right side.",
+        "answerSummary": "$r={{answer}}$"
       },
       "alignmentKeys": [
         "texas:7.5B",
