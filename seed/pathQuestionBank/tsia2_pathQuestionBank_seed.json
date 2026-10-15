@@ -488,12 +488,12 @@
         "reasoning": [
           "Subtract the right side's $x$-term and the left side's constant from both sides: $({{a}}-{{c}})x={{d}}-{{b|paren}}$.",
           "So the coefficient is ${{amc}}$ and the constant is ${{db}}$: $x=\\frac{ {{db}} }{ {{amc}} }={{answer}}$.",
-          "Check: ${{a}}({{answer}}){{b|term}}={{c}}({{answer}}){{d|term}}$."
+          "Check: ${{a|coef}}({{answer}}){{b|term}}={{c|coef}}({{answer}}){{d|term}}$."
         ],
         "commonError": "Adding the $x$-coefficients instead of subtracting them.",
         "answerSummary": "$x={{answer}}$"
       },
-      "prompt": "After the variable terms are collected in ${{a}}x {{b|signed}}={{c}}x {{d|signed}}$, what value is obtained for $x$?",
+      "prompt": "After the variable terms are collected in ${{a|coef}}x {{b|term}}={{c|coef}}x {{d|term}}$, what value is obtained for $x$?",
       "generator": {
         "parameters": {
           "a": {
@@ -768,13 +768,13 @@
       "solutionReview": {
         "headline": "Dividing by a negative number reverses the inequality: $x>{{boundary}}$.",
         "reasoning": [
-          "Move the constant: $-{{k}}x<{{limit}}-{{b|paren}}={{lb}}$.",
+          "Move the constant: $-{{k|coef}}x<{{limit}}-{{b|paren}}={{lb}}$.",
           "Divide both sides by $-{{k}}$ and reverse the symbol: $\\frac{ {{lb}} }{-{{k}}}={{boundary}}$, so $x>{{boundary}}$."
         ],
         "commonError": "Keeping the $<$ after dividing by the negative coefficient.",
         "answerSummary": "$x>{{boundary}}$"
       },
-      "prompt": "The inequality ${{a}}x {{b|signed}}<{{limit}}$ is solved for $x$. Which result is obtained?",
+      "prompt": "The inequality ${{a|coef}}x {{b|term}}<{{limit}}$ is solved for $x$. Which result is obtained?",
       "generator": {
         "parameters": {
           "k": {
@@ -1597,7 +1597,7 @@
         "commonError": "Dividing the whole bill by the rate without removing the fixed charge.",
         "answerSummary": "${{answer}}$ units"
       },
-      "prompt": "A service bill has a fixed charge of ${{fixed}} dollars and an additional {{rate}} dollars for each unit used. The bill is {{total}} dollars. How many units were used?",
+      "prompt": "A service bill has a fixed charge of {{fixed}} dollars and an additional {{rate}} dollars for each unit used. The bill is {{total}} dollars. How many units were used?",
       "generator": {
         "parameters": {
           "fixed": {
@@ -2811,12 +2811,12 @@
       "solutionReview": {
         "headline": "Use the point to find the intercept: $b={{b}}$.",
         "reasoning": [
-          "In $f(x)=mx+b$ with slope {{m}}, the point gives ${{y1}}={{m}}({{x1}})+b$.",
+          "In $f(x)=mx+b$ with slope {{m}}, the point gives ${{y1}}={{m|coef}}({{x1}})+b$.",
           "So $b={{y1}}-{{mx1|paren}}={{b}}$.",
-          "The function is $f(x)={{m}}x {{b|signed}}$."
+          "The function is $f(x)={{m|coef}}x {{b|term}}$."
         ],
         "commonError": "Using the point's $y$-value as the intercept.",
-        "answerSummary": "$f(x)={{m}}x {{b|signed}}$"
+        "answerSummary": "$f(x)={{m|coef}}x {{b|term}}$"
       },
       "prompt": "A linear function has slope ${{m}}$ and passes through $({{x1}},{{y1}})$. Which equation represents the function?",
       "generator": {
@@ -2865,19 +2865,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "$f(x)={{m}}x {{b|signed}}$"
+          "label": "$f(x)={{m|coef}}x {{b|term}}$"
         },
         {
           "id": "tsia2-d1",
-          "label": "$f(x)={{m}}x {{wrongB|signed}}$"
+          "label": "$f(x)={{m|coef}}x {{wrongB|term}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "$f(x)={{wrongM}}x {{b|signed}}$"
+          "label": "$f(x)={{wrongM|coef}}x {{b|term}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "$f(x)={{m}}x {{shiftB|signed}}$"
+          "label": "$f(x)={{m|coef}}x {{shiftB|term}}$"
         }
       ],
       "responseFields": [
@@ -2980,10 +2980,10 @@
         "reasoning": [
           "Each step of 1 in $x$ changes $y$ by ${{y1}}-{{y0|paren}}={{m}}$, so the slope is {{m}}.",
           "From $({{x0}},{{y0}})$: $b={{y0}}-{{mx0|paren}}={{b}}$.",
-          "Check the third point: ${{m}}({{x2}}){{b|term}}={{y2}}$. The rule is $f(x)={{m}}x {{b|signed}}$."
+          "Check the third point: ${{m|coef}}({{x2}}){{b|term}}={{y2}}$. The rule is $f(x)={{m|coef}}x {{b|term}}$."
         ],
         "commonError": "Swapping the slope and the intercept.",
-        "answerSummary": "$f(x)={{m}}x {{b|signed}}$"
+        "answerSummary": "$f(x)={{m|coef}}x {{b|term}}$"
       },
       "prompt": "The points $({{x0}},{{y0}})$, $({{x1}},{{y1}})$, and $({{x2}},{{y2}})$ lie on the same linear function. Which rule matches these values?",
       "generator": {
@@ -3030,19 +3030,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "$f(x)={{m}}x {{b|signed}}$"
+          "label": "$f(x)={{m|coef}}x {{b|term}}$"
         },
         {
           "id": "tsia2-d1",
-          "label": "$f(x)={{wrongM}}x {{b|signed}}$"
+          "label": "$f(x)={{wrongM|coef}}x {{b|term}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "$f(x)={{m}}x {{wrongB|signed}}$"
+          "label": "$f(x)={{m|coef}}x {{wrongB|term}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "$f(x)={{b}}x {{m|signed}}$"
+          "label": "$f(x)={{b|coef}}x {{m|term}}$"
         }
       ],
       "responseFields": [
@@ -3144,14 +3144,14 @@
       "solutionReview": {
         "headline": "Set the rule equal to {{target}} and solve: $x={{answer}}$.",
         "reasoning": [
-          "${{m}}x{{b|term}}={{target}}$.",
-          "Undo the constant: ${{m}}x={{target}}-{{b|paren}}={{mt}}$.",
+          "${{m|coef}}x{{b|term}}={{target}}$.",
+          "Undo the constant: ${{m|coef}}x={{target}}-{{b|paren}}={{mt}}$.",
           "$x=\\frac{ {{mt}} }{ {{m}} }={{answer}}$."
         ],
         "commonError": "Evaluating $h({{target}})$ instead of solving for the input.",
         "answerSummary": "$x={{answer}}$"
       },
-      "prompt": "For $h(x)={{m}}x {{b|signed}}$, the value of $h(x)$ is {{target}}. What input $x$ produces this output?",
+      "prompt": "For $h(x)={{m|coef}}x {{b|term}}$, the value of $h(x)$ is {{target}}. What input $x$ produces this output?",
       "generator": {
         "parameters": {
           "m": {
@@ -3833,14 +3833,14 @@
       "solutionReview": {
         "headline": "Multiply each term by each term, then combine the $x$-terms.",
         "reasoning": [
-          "$(x {{p|signed}})(x {{q|signed}})=x^2 {{q|signed}}x {{p|signed}}x {{constant|signed}}$.",
-          "Combine the middle terms: ${{p}}+{{q|paren}}={{middle}}$, so the product is $x^2 {{middle|xterm}} {{constant|signed}}$.",
-          "Written in the choices' form: $x^2 {{middle|signed}}x {{constant|signed}}$."
+          "$(x {{p|term}})(x {{q|term}})=x^2 {{q|xterm}} {{p|xterm}} {{constant|term}}$.",
+          "Combine the middle terms: ${{p}}+{{q|paren}}={{middle}}$, so the product is $x^2 {{middle|xterm}} {{constant|term}}$.",
+          "Written in the choices' form: $x^2 {{middle|xterm}} {{constant|term}}$."
         ],
         "commonError": "Keeping only one of the two middle terms, or adding the constants instead of multiplying them.",
-        "answerSummary": "$x^2 {{middle|signed}}x {{constant|signed}}$"
+        "answerSummary": "$x^2 {{middle|xterm}} {{constant|term}}$"
       },
-      "prompt": "Which expression is equivalent to $(x {{p|signed}})(x {{q|signed}})$?",
+      "prompt": "Which expression is equivalent to $(x {{p|term}})(x {{q|term}})$?",
       "generator": {
         "parameters": {
           "p": {
@@ -3882,19 +3882,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "$x^2 {{middle|signed}}x {{constant|signed}}$"
+          "label": "$x^2 {{middle|xterm}} {{constant|term}}$"
         },
         {
           "id": "tsia2-d1",
-          "label": "$x^2 {{p|signed}}x {{constant|signed}}$"
+          "label": "$x^2 {{p|xterm}} {{constant|term}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "$x^2 {{middle|signed}}x {{wrongConstant|signed}}$"
+          "label": "$x^2 {{middle|xterm}} {{wrongConstant|term}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "$x^2 {{q|signed}}x {{constant|signed}}$"
+          "label": "$x^2 {{q|xterm}} {{constant|term}}$"
         }
       ],
       "responseFields": [
@@ -7229,7 +7229,7 @@
         "commonError": "Reading the sign shown inside the parentheses, which gives the opposite of $h$.",
         "answerSummary": "$x={{answer}}$"
       },
-      "prompt": "For $f(x)={{a}}(x-{{h}})^2 {{k|signed}}$, which equation gives the axis of symmetry?",
+      "prompt": "For $f(x)={{a|coef}}(x-{{h}})^2 {{k|term}}$, which equation gives the axis of symmetry?",
       "generator": {
         "parameters": {
           "a": {
@@ -8051,13 +8051,13 @@
         "headline": "Vertex form $a(x-h)^2+k$ has vertex $(h,k)$: $({{answerX}},{{answerY}})$.",
         "reasoning": [
           "Here $h={{h}}$ and $k={{k}}$.",
-          "At $x={{h}}$ the squared part is $0$: ${{a}}({{h}}-{{h}})^2{{k|term}}={{k}}$, the lowest value of $g$.",
+          "At $x={{h}}$ the squared part is $0$: ${{a|coef}}({{h}}-{{h}})^2{{k|term}}={{k}}$, the lowest value of $g$.",
           "So the vertex is $({{answerX}},{{answerY}})$."
         ],
         "commonError": "Changing the sign of $h$ or $k$, or swapping the coordinates.",
         "answerSummary": "$({{answerX}},{{answerY}})$"
       },
-      "prompt": "The function $g(x)={{a}}(x-{{h}})^2 {{k|signed}}$ has its vertex at which point?",
+      "prompt": "The function $g(x)={{a|coef}}(x-{{h}})^2 {{k|term}}$ has its vertex at which point?",
       "generator": {
         "parameters": {
           "a": {
@@ -11323,12 +11323,12 @@
         "reasoning": [
           "The axis of symmetry is $x={{h}}$, and ${{x1}}$ is ${{x1}}-{{h|paren}}={{offset}}$ units to its right.",
           "The input {{offset}} units to the left gives the same output: ${{h}}-{{offset}}={{mirrorX}}$.",
-          "Check: ${{a}}({{mirrorX}}-{{h|paren}})^2{{k|term}}={{y1}}$."
+          "Check: ${{a|coef}}({{mirrorX}}-{{h|paren}})^2{{k|term}}={{y1}}$."
         ],
         "commonError": "Choosing the axis value {{h}} itself, which gives the vertex output instead.",
         "answerSummary": "$x={{mirrorX}}$"
       },
-      "prompt": "For $f(x)={{a}}(x-{{h}})^2 {{k|signed}}$, $f({{x1}})={{y1}}$. Besides $x={{x1}}$, which input gives the same output?",
+      "prompt": "For $f(x)={{a|coef}}(x-{{h}})^2 {{k|term}}$, $f({{x1}})={{y1}}$. Besides $x={{x1}}$, which input gives the same output?",
       "generator": {
         "parameters": {
           "a": {
@@ -13446,13 +13446,13 @@
         "headline": "The vertex gives the maximum: {{answer}}.",
         "reasoning": [
           "The squared term is multiplied by a negative number, so it can only lower the height; it is $0$ when $t={{h}}$.",
-          "At $t={{h}}$: $-{{a}}({{h}}-{{h}})^2+{{k}}={{k}}$.",
+          "At $t={{h}}$: $-{{a|coef}}({{h}}-{{h}})^2+{{k}}={{k}}$.",
           "So the greatest height is {{answer}}."
         ],
         "commonError": "Giving the time of the maximum, {{h}}, instead of the height.",
         "answerSummary": "${{answer}}$"
       },
-      "prompt": "The height of an object is modeled by $H(t)=-{{a}}(t-{{h}})^2+{{k}}$. What is the greatest height predicted by the model?",
+      "prompt": "The height of an object is modeled by $H(t)=-{{a|coef}}(t-{{h}})^2+{{k}}$. What is the greatest height predicted by the model?",
       "generator": {
         "parameters": {
           "a": {
@@ -13954,7 +13954,11 @@
           "d2": "initial*pow(factor,periods+1)",
           "d3": "initial-answer",
           "fp": "round(pow(factor,periods)*10000)/10000",
-          "shown": "round(initial*pow(factor,periods)*10000)/10000"
+          "shown": "round(initial*pow(factor,periods)*10000)/10000",
+          "answerShown": "round(answer*10000)/10000",
+          "d1Shown": "round(d1*10000)/10000",
+          "d2Shown": "round(d2*10000)/10000",
+          "d3Shown": "round(d3*10000)/10000"
         },
         "constraints": [
           "answer!=d1",
@@ -13969,19 +13973,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{answer}}$"
+          "label": "${{answerShown}}$"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}}$"
+          "label": "${{d1Shown}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}}$"
+          "label": "${{d3Shown}}$"
         }
       ],
       "responseFields": [
@@ -14876,7 +14880,7 @@
         "commonError": "Giving one model's value instead of the difference.",
         "answerSummary": "${{answer}}$"
       },
-      "prompt": "At $x={{x}}$, one model has value $Q(x)={{a}}x^2+{{c}}$ and another has value $E(x)={{initial}}({{factor}})^x$. How much greater is $E(x)$ than $Q(x)$?",
+      "prompt": "At $x={{x}}$, one model has value $Q(x)={{a|coef}}x^2+{{c}}$ and another has value $E(x)={{initial|coef}}({{factor}})^x$. How much greater is $E(x)$ than $Q(x)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -34004,15 +34008,15 @@
         "Use the structure of the linear expression or equation before performing arithmetic."
       ],
       "solutionReview": {
-        "headline": "Multiply {{k}} by each term inside: ${{xCoef}}x+{{constant}}$.",
+        "headline": "Multiply {{k}} by each term inside: ${{xCoef|coef}}x+{{constant}}$.",
         "reasoning": [
-          "Distribute {{k}} to both terms: ${{k}}({{a|coef}}x+{{b}})={{k}}\\cdot {{a|coef}}x+{{k}}\\cdot {{b}}$.",
-          "That is ${{xCoef}}x+{{constant}}$."
+          "Distribute {{k}} to both terms: ${{k|coef}}({{a|coef}}x+{{b}})={{k}}\\cdot {{a|coef}}x+{{k}}\\cdot {{b}}$.",
+          "That is ${{xCoef|coef}}x+{{constant}}$."
         ],
         "commonError": "Multiplying only the first term by {{k}}.",
-        "answerSummary": "${{xCoef}}x+{{constant}}$"
+        "answerSummary": "${{xCoef|coef}}x+{{constant}}$"
       },
-      "prompt": "The expression ${{k}}({{a}}x+{{b}})$ is expanded. What is the resulting expression?",
+      "prompt": "The expression ${{k|coef}}({{a|coef}}x+{{b}})$ is expanded. What is the resulting expression?",
       "generator": {
         "parameters": {
           "k": {
@@ -34048,19 +34052,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{xCoef}}x+{{constant}}$"
+          "label": "${{xCoef|coef}}x+{{constant}}$"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{sumX}}x+{{sumC}}$"
+          "label": "${{sumX|coef}}x+{{sumC}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{xCoef}}x+{{b}}$"
+          "label": "${{xCoef|coef}}x+{{b}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{a}}x+{{constant}}$"
+          "label": "${{a|coef}}x+{{constant}}$"
         }
       ],
       "responseFields": [
@@ -35122,14 +35126,14 @@
       "solutionReview": {
         "headline": "Set the expressions equal and solve: $x={{answer}}$.",
         "reasoning": [
-          "${{a}}x{{b|term}}={{c|coef}}x{{d|term}}$.",
+          "${{a|coef}}x{{b|term}}={{c|coef}}x{{d|term}}$.",
           "Collect terms: $({{a}}-{{c}})x={{d}}-{{b|paren}}$, so ${{amc|coef}}x={{dmb}}$.",
           "$x=\\frac{ {{dmb}} }{ {{amc}} }={{answer}}$."
         ],
         "commonError": "Adding the $x$-coefficients instead of subtracting them.",
         "answerSummary": "$x={{answer}}$"
       },
-      "prompt": "For what value of $x$ do ${{a}}x {{b|signed}}$ and ${{c}}x+{{d}}$ have the same value?",
+      "prompt": "For what value of $x$ do ${{a|coef}}x {{b|term}}$ and ${{c|coef}}x {{d|term}}$ have the same value?",
       "generator": {
         "parameters": {
           "a": {
@@ -35326,7 +35330,10 @@
           "answer": "num/den",
           "d1": "answer+0.1",
           "d2": "answer+0.01",
-          "d3": "answer*10"
+          "d3": "answer*10",
+          "d1Shown": "round(d1*10000)/10000",
+          "d2Shown": "round(d2*10000)/10000",
+          "d3Shown": "round(d3*10000)/10000"
         },
         "constraints": [
           "num<den",
@@ -35346,15 +35353,15 @@
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}}$"
+          "label": "${{d1Shown}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}}$"
+          "label": "${{d3Shown}}$"
         }
       ],
       "responseFields": [
@@ -35976,7 +35983,7 @@
         "commonError": "Comparing the digits of the numerator with the decimal instead of the fraction's value.",
         "answerSummary": "${{dv}}>\\frac{ {{num}} }{ {{den}} }$"
       },
-      "prompt": "Which statement correctly compares ${{decimalValue}}$ and $\\frac{ {{num}} }{ {{den}} }$?",
+      "prompt": "Which statement correctly compares ${{decimalValueShown}}$ and $\\frac{ {{num}} }{ {{den}} }$?",
       "generator": {
         "parameters": {
           "den": {
@@ -36005,7 +36012,8 @@
         "derived": {
           "fractionValue": "num/den",
           "decimalValue": "fractionValue+gap100/100",
-          "dv": "round((num/den+gap100/100)*10000)/10000"
+          "dv": "round((num/den+gap100/100)*10000)/10000",
+          "decimalValueShown": "round(decimalValue*10000)/10000"
         },
         "constraints": [
           "num<den",
@@ -36017,19 +36025,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{decimalValue}}>\\frac{ {{num}} }{ {{den}} }$"
+          "label": "${{decimalValueShown}}>\\frac{ {{num}} }{ {{den}} }$"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{decimalValue}}<\\frac{ {{num}} }{ {{den}} }$"
+          "label": "${{decimalValueShown}}<\\frac{ {{num}} }{ {{den}} }$"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{decimalValue}}=\\frac{ {{num}} }{ {{den}} }$"
+          "label": "${{decimalValueShown}}=\\frac{ {{num}} }{ {{den}} }$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{decimalValue}}>1$"
+          "label": "${{decimalValueShown}}>1$"
         }
       ],
       "responseFields": [
@@ -36176,7 +36184,11 @@
           "wrongPercent": "percentValue+10",
           "wrongDecimal": "decimalValue+0.1",
           "smallPercent": "percentValue/10",
-          "pct": "round(10000*num/den)/100"
+          "pct": "round(10000*num/den)/100",
+          "percentValueShown": "round(percentValue*10000)/10000",
+          "wrongPercentShown": "round(wrongPercent*10000)/10000",
+          "wrongDecimalShown": "round(wrongDecimal*10000)/10000",
+          "smallPercentShown": "round(smallPercent*10000)/10000"
         },
         "constraints": [
           "num<den"
@@ -36186,19 +36198,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "$\\frac{ {{num}} }{ {{den}} }={{decimalValue}}={{percentValue}}\\%$"
+          "label": "$\\frac{ {{num}} }{ {{den}} }={{decimalValue}}={{percentValueShown}}\\%$"
         },
         {
           "id": "tsia2-d1",
-          "label": "$\\frac{ {{num}} }{ {{den}} }={{decimalValue}}={{wrongPercent}}\\%$"
+          "label": "$\\frac{ {{num}} }{ {{den}} }={{decimalValue}}={{wrongPercentShown}}\\%$"
         },
         {
           "id": "tsia2-d2",
-          "label": "$\\frac{ {{num}} }{ {{den}} }={{wrongDecimal}}={{percentValue}}\\%$"
+          "label": "$\\frac{ {{num}} }{ {{den}} }={{wrongDecimalShown}}={{percentValueShown}}\\%$"
         },
         {
           "id": "tsia2-d3",
-          "label": "$\\frac{ {{num}} }{ {{den}} }={{decimalValue}}={{smallPercent}}\\%$"
+          "label": "$\\frac{ {{num}} }{ {{den}} }={{decimalValue}}={{smallPercentShown}}\\%$"
         }
       ],
       "responseFields": [
@@ -36321,7 +36333,7 @@
         "commonError": "Reading the percent as {{upPct}} rather than {{upDec}}, which puts it in the wrong place.",
         "answerSummary": "${{lv}}<\\frac{ {{num}} }{ {{den}} }<{{upPct}}\\%$"
       },
-      "prompt": "Three values are ${{lowerValue}}$, $\\frac{ {{num}} }{ {{den}} }$, and ${{upperPercent}}\\%$. Which list orders them from least to greatest?",
+      "prompt": "Three values are ${{lowerValueShown}}$, $\\frac{ {{num}} }{ {{den}} }$, and ${{upperPercentShown}}\\%$. Which list orders them from least to greatest?",
       "generator": {
         "parameters": {
           "den": {
@@ -36346,7 +36358,9 @@
           "upperPercent": "100*upperValue",
           "lv": "round((num/den-0.1)*10000)/10000",
           "upPct": "round((num/den+0.1)*10000)/100",
-          "upDec": "round((num/den+0.1)*10000)/10000"
+          "upDec": "round((num/den+0.1)*10000)/10000",
+          "lowerValueShown": "round(lowerValue*10000)/10000",
+          "upperPercentShown": "round(upperPercent*10000)/10000"
         },
         "constraints": [
           "num<den",
@@ -36358,19 +36372,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{lowerValue}}<\\frac{ {{num}} }{ {{den}} }<{{upperPercent}}\\%$"
+          "label": "${{lowerValueShown}}<\\frac{ {{num}} }{ {{den}} }<{{upperPercentShown}}\\%$"
         },
         {
           "id": "tsia2-d1",
-          "label": "$\\frac{ {{num}} }{ {{den}} }<{{lowerValue}}<{{upperPercent}}\\%$"
+          "label": "$\\frac{ {{num}} }{ {{den}} }<{{lowerValueShown}}<{{upperPercentShown}}\\%$"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{upperPercent}}\\%<\\frac{ {{num}} }{ {{den}} }<{{lowerValue}}$"
+          "label": "${{upperPercentShown}}\\%<\\frac{ {{num}} }{ {{den}} }<{{lowerValueShown}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{lowerValue}}<{{upperPercent}}\\%<\\frac{ {{num}} }{ {{den}} }$"
+          "label": "${{lowerValueShown}}<{{upperPercentShown}}\\%<\\frac{ {{num}} }{ {{den}} }$"
         }
       ],
       "responseFields": [
@@ -36519,7 +36533,10 @@
           "cvR": "round((num/den+0.15)*10000)/10000",
           "pvR": "round((num/den-0.05)*10000)/100",
           "pdR": "round((num/den-0.05)*10000)/10000",
-          "lwR": "round((num/den-0.1)*10000)/10000"
+          "lwR": "round((num/den-0.1)*10000)/10000",
+          "correctValueShown": "round(correctValue*10000)/10000",
+          "percentValueShown": "round(percentValue*10000)/10000",
+          "lowerValueShown": "round(lowerValue*10000)/10000"
         },
         "constraints": [
           "num<den",
@@ -36531,7 +36548,7 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{correctValue}}$"
+          "label": "${{correctValueShown}}$"
         },
         {
           "id": "tsia2-d1",
@@ -36539,11 +36556,11 @@
         },
         {
           "id": "tsia2-d2",
-          "label": "${{percentValue}}\\%$"
+          "label": "${{percentValueShown}}\\%$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{lowerValue}}$"
+          "label": "${{lowerValueShown}}$"
         }
       ],
       "responseFields": [
@@ -36744,19 +36761,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{answer}} dollars"
+          "label": "{{answer}} dollars"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}} dollars"
+          "label": "{{d1}} dollars"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}} dollars"
+          "label": "{{d2}} dollars"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}} dollars"
+          "label": "{{d3}} dollars"
         }
       ],
       "routingAlignmentProvenance": {
@@ -37162,19 +37179,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{answer}} dollars"
+          "label": "{{answer}} dollars"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}} dollars"
+          "label": "{{d1}} dollars"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}} dollars"
+          "label": "{{d2}} dollars"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}} dollars"
+          "label": "{{d3}} dollars"
         }
       ],
       "routingAlignmentProvenance": {
@@ -37361,7 +37378,11 @@
           "d1": "amount/exchangeRate",
           "d2": "amount+exchangeRate",
           "d3": "answer+10",
-          "ansR": "round(amount*exchangeRate*100)/100"
+          "ansR": "round(amount*exchangeRate*100)/100",
+          "answerShown": "round(answer*100)/100",
+          "d1Shown": "round(d1*100)/100",
+          "d2Shown": "round(d2*100)/100",
+          "d3Shown": "round(d3*100)/100"
         },
         "constraints": [
           "answer!=d1",
@@ -37375,19 +37396,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{answer}}$"
+          "label": "${{answerShown}}$"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}}$"
+          "label": "${{d1Shown}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}}$"
+          "label": "${{d3Shown}}$"
         }
       ],
       "routingAlignmentProvenance": {
@@ -37589,19 +37610,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{answer}} dollars"
+          "label": "{{answer}} dollars"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}} dollars"
+          "label": "{{d1}} dollars"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}} dollars"
+          "label": "{{d2}} dollars"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}} dollars"
+          "label": "{{d3}} dollars"
         }
       ],
       "routingAlignmentProvenance": {
@@ -37804,19 +37825,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{answer}} dollars"
+          "label": "{{answer}} dollars"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}} dollars"
+          "label": "{{d1}} dollars"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}} dollars"
+          "label": "{{d2}} dollars"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}} dollars"
+          "label": "{{d3}} dollars"
         }
       ],
       "routingAlignmentProvenance": {
@@ -38027,19 +38048,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{answer}} dollars"
+          "label": "{{answer}} dollars"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}} dollars"
+          "label": "{{d1}} dollars"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}} dollars"
+          "label": "{{d2}} dollars"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}} dollars"
+          "label": "{{d3}} dollars"
         }
       ],
       "routingAlignmentProvenance": {
@@ -38241,19 +38262,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{answer}} dollars"
+          "label": "{{answer}} dollars"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}} dollars"
+          "label": "{{d1}} dollars"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}} dollars"
+          "label": "{{d2}} dollars"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}} dollars"
+          "label": "{{d3}} dollars"
         }
       ],
       "routingAlignmentProvenance": {
@@ -39198,15 +39219,15 @@
         "Compare or rewrite the values in a common form before deciding which relationship is true."
       ],
       "solutionReview": {
-        "headline": "Like radicals combine like like terms: ${{sum}}\\sqrt{ {{radicand}} }$.",
+        "headline": "Like radicals combine like like terms: ${{sum|coef}}\\sqrt{ {{radicand}} }$.",
         "reasoning": [
           "Both terms have $\\sqrt{ {{radicand}} }$, so add the coefficients.",
-          "${{a}}\\sqrt{ {{radicand}} }+{{b|coef}}\\sqrt{ {{radicand}} }=({{a}}+{{b}})\\sqrt{ {{radicand}} }={{sum}}\\sqrt{ {{radicand}} }$."
+          "${{a|coef}}\\sqrt{ {{radicand}} }+{{b|coef}}\\sqrt{ {{radicand}} }=({{a}}+{{b}})\\sqrt{ {{radicand}} }={{sum|coef}}\\sqrt{ {{radicand}} }$."
         ],
         "commonError": "Multiplying the coefficients, or adding the radicands under one root.",
-        "answerSummary": "${{sum}}\\sqrt{ {{radicand}} }$"
+        "answerSummary": "${{sum|coef}}\\sqrt{ {{radicand}} }$"
       },
-      "prompt": "What is the value of ${{a}}\\sqrt{ {{radicand}} }+{{b}}\\sqrt{ {{radicand}} }$ after the like radicals are combined?",
+      "prompt": "What is the value of ${{a|coef}}\\sqrt{ {{radicand}} }+{{b|coef}}\\sqrt{ {{radicand}} }$ after the like radicals are combined?",
       "generator": {
         "parameters": {
           "a": {
@@ -39248,11 +39269,11 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "${{sum}}\\sqrt{ {{radicand}} }$"
+          "label": "${{sum|coef}}\\sqrt{ {{radicand}} }$"
         },
         {
           "id": "tsia2-d1",
-          "label": "${{product}}\\sqrt{ {{radicand}} }$"
+          "label": "${{product|coef}}\\sqrt{ {{radicand}} }$"
         },
         {
           "id": "tsia2-d2",
@@ -39260,7 +39281,7 @@
         },
         {
           "id": "tsia2-d3",
-          "label": "${{difference}}\\sqrt{ {{radicand}} }$"
+          "label": "${{difference|coef}}\\sqrt{ {{radicand}} }$"
         }
       ],
       "responseFields": [
@@ -39878,7 +39899,7 @@
         },
         {
           "id": "tsia2-d2",
-          "label": "${{c}}\\sqrt{ {{nonSquare}} }$"
+          "label": "${{c|coef}}\\sqrt{ {{nonSquare}} }$"
         },
         {
           "id": "tsia2-d3",
@@ -42709,7 +42730,10 @@
           "d3": "answer+1",
           "lo": "floor(n100/10)/10",
           "hi": "(floor(n100/10)+1)/10",
-          "hd": "n100-floor(n100/10)*10"
+          "hd": "n100-floor(n100/10)*10",
+          "d1Shown": "round(d1*10000)/10000",
+          "d2Shown": "round(d2*10000)/10000",
+          "d3Shown": "round(d3*10000)/10000"
         },
         "constraints": []
       },
@@ -42721,15 +42745,15 @@
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}}$"
+          "label": "${{d1Shown}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}}$"
+          "label": "${{d3Shown}}$"
         }
       ],
       "responseFields": [
@@ -42825,7 +42849,10 @@
           "d3": "answer+0.1",
           "lo": "floor(n1000/10)/100",
           "hi": "(floor(n1000/10)+1)/100",
-          "td": "n1000-floor(n1000/10)*10"
+          "td": "n1000-floor(n1000/10)*10",
+          "d1Shown": "round(d1*10000)/10000",
+          "d2Shown": "round(d2*10000)/10000",
+          "d3Shown": "round(d3*10000)/10000"
         },
         "constraints": []
       },
@@ -42837,15 +42864,15 @@
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}}$"
+          "label": "${{d1Shown}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}}$"
+          "label": "${{d3Shown}}$"
         }
       ],
       "responseFields": [
@@ -43316,7 +43343,10 @@
           "answer": "round(product*10)/10",
           "d1": "answer+0.1",
           "d2": "answer-0.1",
-          "d3": "answer+1"
+          "d3": "answer+1",
+          "d1Shown": "round(d1*10000)/10000",
+          "d2Shown": "round(d2*10000)/10000",
+          "d3Shown": "round(d3*10000)/10000"
         },
         "constraints": []
       },
@@ -43328,15 +43358,15 @@
         },
         {
           "id": "tsia2-d1",
-          "label": "${{d1}}$"
+          "label": "${{d1Shown}}$"
         },
         {
           "id": "tsia2-d2",
-          "label": "${{d2}}$"
+          "label": "${{d2Shown}}$"
         },
         {
           "id": "tsia2-d3",
-          "label": "${{d3}}$"
+          "label": "${{d3Shown}}$"
         }
       ],
       "responseFields": [
