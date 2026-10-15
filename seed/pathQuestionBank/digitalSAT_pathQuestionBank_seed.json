@@ -6263,11 +6263,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Pull out the perfect-square factor {{k2}}: ${{k}}\\sqrt{{{m}}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "${{rad}}={{k2}}\\cdot {{m}}$, and ${{k2}}={{k}}^2$ is a perfect square.",
+          "So $\\sqrt{{{rad}}}=\\sqrt{{{k2}}}\\cdot \\sqrt{{{m}}}={{k}}\\sqrt{{{m}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Leaving {{k2}} outside the root instead of its square root {{k}}, or swapping the two factors.",
+        "answerSummary": "${{k}}\\sqrt{{{m}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -6370,7 +6372,9 @@
           "rad2": "b*b*m",
           "coef": "a+b",
           "coef2": "a*b",
-          "sumrad": "a*a*m+b*b*m"
+          "sumrad": "a*a*m+b*b*m",
+          "a2": "a*a",
+          "b2": "b*b"
         },
         "constraints": [
           "m!=4",
@@ -6385,11 +6389,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Simplify each root to a multiple of $\\sqrt{{{m}}}$, then add: ${{coef}}\\sqrt{{{m}}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\sqrt{{{rad1}}}=\\sqrt{{{a2}}\\cdot {{m}}}={{a}}\\sqrt{{{m}}}$ and $\\sqrt{{{rad2}}}=\\sqrt{{{b2}}\\cdot {{m}}}={{b}}\\sqrt{{{m}}}$.",
+          "Like radicals add by their coefficients: ${{a}}\\sqrt{{{m}}}+{{b}}\\sqrt{{{m}}}={{coef}}\\sqrt{{{m}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Adding under the root, or multiplying the coefficients. Only like radicals combine, and only their coefficients add.",
+        "answerSummary": "${{coef}}\\sqrt{{{m}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -6617,7 +6623,9 @@
           "coef": "a-b",
           "sumcoef": "a+b",
           "prodcoef": "a*b",
-          "diffRad": "a*a*m-b*b*m"
+          "diffRad": "a*a*m-b*b*m",
+          "a2": "a*a",
+          "b2": "b*b"
         },
         "constraints": [
           "m!=4",
@@ -6631,11 +6639,13 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Simplify each root to a multiple of $\\sqrt{{{m}}}$, then subtract: ${{coef}}\\sqrt{{{m}}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\sqrt{{{rad1}}}=\\sqrt{{{a2}}\\cdot {{m}}}={{a}}\\sqrt{{{m}}}$ and $\\sqrt{{{rad2}}}=\\sqrt{{{b2}}\\cdot {{m}}}={{b}}\\sqrt{{{m}}}$.",
+          "Subtract the coefficients: ${{a}}\\sqrt{{{m}}}-{{b}}\\sqrt{{{m}}}={{coef}}\\sqrt{{{m}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Subtracting under the root, or adding or multiplying the coefficients.",
+        "answerSummary": "${{coef}}\\sqrt{{{m}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -6859,7 +6869,11 @@
           "coef": "2*a+3*b",
           "wrong1": "2*a+2*b",
           "wrong2": "3*a+3*b",
-          "sumab": "a+b"
+          "sumab": "a+b",
+          "a2": "a*a",
+          "b2": "b*b",
+          "twoa": "2*a",
+          "threeb": "3*b"
         },
         "constraints": [
           "m!=4",
@@ -6873,11 +6887,14 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Find each hidden square factor, then add like radicals: ${{coef}}\\sqrt{{{m}}}$.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\sqrt{{{rad1}}}=\\sqrt{4\\cdot {{a2}}\\cdot {{m}}}={{twoa}}\\sqrt{{{m}}}$.",
+          "$\\sqrt{{{rad2}}}=\\sqrt{9\\cdot {{b2}}\\cdot {{m}}}={{threeb}}\\sqrt{{{m}}}$.",
+          "Add: ${{twoa}}\\sqrt{{{m}}}+{{threeb}}\\sqrt{{{m}}}={{coef}}\\sqrt{{{m}}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "commonError": "Taking out the same square factor from both roots (4 from each, or 9 from each). Each root has its own: $4\\cdot {{a2}}$ and $9\\cdot {{b2}}$.",
+        "answerSummary": "${{coef}}\\sqrt{{{m}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -7620,11 +7637,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "The denominator is the root, the numerator the power: $\\sqrt[{{q}}]{x^{{p}}}$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "An exponent $\\frac{{{p}}}{{{q}}}$ means: raise to the power {{p}}, then take the root with index {{q}}.",
+          "So $x^{ {{p}}/{{q}} }=\\sqrt[{{q}}]{x^{{p}}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Swapping the index and the power, or turning the fraction over.",
+        "answerSummary": "$\\sqrt[{{q}}]{x^{{p}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -7737,11 +7756,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Same base, multiplied: add the exponents. $n={{n}}$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "Multiplying powers of the same base adds the exponents: $x^{ {{p}}/{{q}} }\\cdot x^{ {{r}}/{{q}} }=x^{({{p}}+{{r}})/{{q}}}$.",
+          "The numerators add over the common denominator {{q}}: $n={{p}}+{{r}}={{n}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Multiplying the exponents, or adding the denominators as well.",
+        "answerSummary": "$n={{n}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -8103,11 +8124,13 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Both $x$ and $y$ get the power {{p}} under a root of index {{q}}: $\\sqrt[{{q}}]{x^{{p}}y^{{p}}}$.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "The exponent $\\frac{{{p}}}{{{q}}}$ means the power {{p}} under a root of index {{q}}: $(xy)^{ {{p}}/{{q}} }=\\sqrt[{{q}}]{(xy)^{{p}}}$.",
+          "A power of a product is the product of the powers: $(xy)^{{p}}=x^{{p}}y^{{p}}$. So the expression is $\\sqrt[{{q}}]{x^{{p}}y^{{p}}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "commonError": "Swapping the index and the power, or raising only one of $x$ and $y$ to the power {{p}}.",
+        "answerSummary": "$\\sqrt[{{q}}]{x^{{p}}y^{{p}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -10617,11 +10640,13 @@
         "Substitute the given input carefully, or use the stated output to determine an input that satisfies the original function."
       ],
       "solutionReview": {
-        "headline": "Evaluate or solve the nonlinear function.",
+        "headline": "Cube {{p}}, then add the constant: $r({{p}})={{ans}}$.",
         "reasoning": [
-          "Use the function definition and preserve the nonlinear operation when substituting or solving for the requested value."
+          "Replace $x$ with {{p}}: $r({{p}})={{p|paren}}^3 {{c|signed}}$.",
+          "${{p|paren}}^3={{p3}}$, so $r({{p}})={{p3}} {{c|signed}}={{ans}}$."
         ],
-        "answerSummary": "Check the result in the original function notation."
+        "commonError": "Computing $3\\cdot {{p|paren}}$ instead of ${{p|paren}}^3$, or losing the sign of a negative cube.",
+        "answerSummary": "$r({{p}})={{ans}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "For $r(x)=x^3 {{c|signed}}$, what is the value of $r({{p}})$?",
@@ -10642,7 +10667,8 @@
           }
         },
         "derived": {
-          "ans": "p*p*p+c"
+          "ans": "p*p*p+c",
+          "p3": "p*p*p"
         },
         "constraints": [
           "p!=0"
@@ -10961,11 +10987,13 @@
         "Substitute the given input carefully, or use the stated output to determine an input that satisfies the original function."
       ],
       "solutionReview": {
-        "headline": "Evaluate or solve the nonlinear function.",
+        "headline": "Substitute {{x0}}, take the square root, then add {{k}}: {{ans}}.",
         "reasoning": [
-          "Use the function definition and preserve the nonlinear operation when substituting or solving for the requested value."
+          "Replace $x$ with {{x0}}; the square root covers $x+{{s}}$ only.",
+          "$h({{x0}})=\\sqrt{{{x0}}+{{s}}}+{{k}}=\\sqrt{{{x0s}}}+{{k}}={{r}}+{{k}}={{ans}}$."
         ],
-        "answerSummary": "Check the result in the original function notation."
+        "commonError": "Adding {{k}} inside the square root, or forgetting to take the square root of {{x0s}}.",
+        "answerSummary": "$h({{x0}})={{ans}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "prompt": "For $h(x)=\\sqrt{x+{{s}}}+{{k}}$, what is the value of $h({{x0}})$?",
@@ -10989,7 +11017,8 @@
         },
         "derived": {
           "x0": "r*r-s",
-          "ans": "r+k"
+          "ans": "r+k",
+          "x0s": "x0+s"
         }
       },
       "responseFields": [
@@ -11585,7 +11614,9 @@
           }
         },
         "derived": {
-          "Aval": "k*x*x+c"
+          "Aval": "k*x*x+c",
+          "kx2": "Aval-c",
+          "x2": "x*x"
         }
       },
       "attemptFeedback": [
@@ -11595,11 +11626,14 @@
         "Use the structure of the formula and inverse operations. If squaring is involved, use the condition in the question to select the appropriate real value."
       ],
       "solutionReview": {
-        "headline": "Solve the formula for the variable of interest.",
+        "headline": "Undo the formula step by step, taking the positive root: $x={{x}}$.",
         "reasoning": [
-          "Hold the other quantities fixed, isolate the requested variable, and verify the result in the original formula."
+          "Substitute $A={{Aval}}$: ${{Aval}}={{k}}x^2+{{c}}$.",
+          "Subtract {{c}}: ${{k}}x^2={{kx2}}$. Divide by {{k}}: $x^2={{x2}}$.",
+          "Since $x>0$, $x=\\sqrt{{{x2}}}={{x}}$."
         ],
-        "answerSummary": "Use any stated positivity or context condition when a formula has two algebraic branches."
+        "commonError": "Dividing by {{k}} before subtracting {{c}}, or giving $x^2={{x2}}$ as the answer.",
+        "answerSummary": "$x={{x}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -11945,7 +11979,8 @@
           }
         },
         "derived": {
-          "K": "I*d*d"
+          "K": "I*d*d",
+          "d2": "d*d"
         }
       },
       "attemptFeedback": [
@@ -11955,11 +11990,14 @@
         "Use the structure of the formula and inverse operations. If squaring is involved, use the condition in the question to select the appropriate real value."
       ],
       "solutionReview": {
-        "headline": "Solve the formula for the variable of interest.",
+        "headline": "Solve for $d^2$, then take the positive root: $d={{d}}$.",
         "reasoning": [
-          "Hold the other quantities fixed, isolate the requested variable, and verify the result in the original formula."
+          "Substitute: ${{I}}=\\frac{{{K}}}{d^2}$.",
+          "Multiply both sides by $d^2$ and divide by {{I}}: $d^2=\\frac{{{K}}}{{{I}}}={{d2}}$.",
+          "Since $d>0$, $d=\\sqrt{{{d2}}}={{d}}$."
         ],
-        "answerSummary": "Use any stated positivity or context condition when a formula has two algebraic branches."
+        "commonError": "Stopping at $d^2={{d2}}$, or dividing {{I}} by {{K}} (the fraction upside down).",
+        "answerSummary": "$d={{d}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -12035,7 +12073,8 @@
           }
         },
         "derived": {
-          "E": "m*v*v/2"
+          "E": "m*v*v/2",
+          "v2": "v*v"
         },
         "constraints": [
           "m%2==0"
@@ -12048,11 +12087,14 @@
         "Use the structure of the formula and inverse operations. If squaring is involved, use the condition in the question to select the appropriate real value."
       ],
       "solutionReview": {
-        "headline": "Solve the formula for the variable of interest.",
+        "headline": "Solve for $v^2$, then take the positive root: $v={{v}}$.",
         "reasoning": [
-          "Hold the other quantities fixed, isolate the requested variable, and verify the result in the original formula."
+          "Substitute: ${{E}}=\\frac{{{m}}v^2}{2}$.",
+          "Multiply both sides by 2 and divide by {{m}}: $v^2=\\frac{2\\cdot {{E}}}{{{m}}}={{v2}}$.",
+          "Since $v>0$, $v=\\sqrt{{{v2}}}={{v}}$."
         ],
-        "answerSummary": "Use any stated positivity or context condition when a formula has two algebraic branches."
+        "commonError": "Forgetting to multiply by 2, or stopping at $v^2={{v2}}$.",
+        "answerSummary": "$v={{v}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -12140,7 +12182,10 @@
         },
         "derived": {
           "x": "h+r",
-          "y": "a*r*r+k"
+          "y": "a*r*r+k",
+          "ar2": "a*r*r",
+          "r2": "r*r",
+          "hw": "h+2*r"
         }
       },
       "attemptFeedback": [
@@ -12150,11 +12195,14 @@
         "Use the structure of the formula and inverse operations. If squaring is involved, use the condition in the question to select the appropriate real value."
       ],
       "solutionReview": {
-        "headline": "Solve the formula for the variable of interest.",
+        "headline": "Substitute the point, isolate the square, take the positive root: $h={{h}}$.",
         "reasoning": [
-          "Hold the other quantities fixed, isolate the requested variable, and verify the result in the original formula."
+          "Substitute $({{x}},{{y}})$: ${{y}}={{a|coef}}({{x}}-h)^2+{{k}}$.",
+          "Subtract {{k}} and divide by {{a}}: $({{x}}-h)^2=\\frac{{{ar2}}}{{{a}}}={{r2}}$.",
+          "Since $x>h$, ${{x}}-h$ is positive: ${{x}}-h=\\sqrt{{{r2}}}={{r}}$, so $h={{x}}-{{r}}={{h}}$."
         ],
-        "answerSummary": "Use any stated positivity or context condition when a formula has two algebraic branches."
+        "commonError": "Taking the negative root: ${{x}}-h=-{{r}}$ gives $h={{hw}}$, but then $x$ would be less than $h$.",
+        "answerSummary": "$h={{h}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [

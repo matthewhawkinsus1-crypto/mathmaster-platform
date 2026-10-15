@@ -44,7 +44,7 @@ export const DISPLAY_BANS = [
   // substituted formula is arithmetic, not a display fault.
   [/[a-zA-Z]\s*[+-]\s*0(?![\d.])/, 'a zero term ("+ 0")'],
   [/[+-]\s*[+-]\s*\d/, 'a doubled sign ("+ -3")'],
-  [/\^\s*\{?\s*1\s*\}?(?![\d.])/, 'an exponent of 1'],
+  [/\^\s*\{?\s*1\s*\}?(?![\d./])/, 'an exponent of 1'],
   [/\{\{|\}\}/, 'an unfilled placeholder'],
   [/NaN|Infinity/, 'a broken value'],
   // "undefined" is a word a slope review needs; inside math it is a bug.
@@ -140,7 +140,7 @@ export const latexToMathjs = (latex) => {
   let text = String(latex);
   // f(3), g(x), C(n): function notation is a name, not a product.
   if (/(^|[^a-zA-Z\\])([fgh]|[A-Z])\s*\(/.test(text)) return null;
-  if (/\\(?:dots|ldots|cdots|infty|pm|mp|in|cup|cap|emptyset|varnothing|angle|triangle|overline|overrightarrow|parallel|perp|sim|cong|Rightarrow|to|rightarrow|implies|text\{[^}]*[a-zA-Z]{2}[^}]*\}\s*[a-zA-Z0-9(])|\[|\]|\\\{|\\\}|\\mid|:/.test(text)) return null;
+  if (/\\(?:dots|ldots|cdots|infty|pm|mp|in|cup|cap|emptyset|varnothing|angle|triangle|overline|overrightarrow|parallel|perp|sim|cong|Rightarrow|to|rightarrow|implies|text\{[^}]*[a-zA-Z]{2}[^}]*\}\s*[a-zA-Z0-9(])|(?<!\\sqrt)\[|\](?!\{)|\\\{|\\\}|\\mid|:/.test(text)) return null;
   text = text
     .replace(/\\text\{[^}]*\}/g, ' ')
     .replace(/\\(?:mathrm|textbf|mathbf|operatorname)\{([^}]*)\}/g, '$1')
@@ -385,8 +385,12 @@ export const checkRelations = (review, { prompt = '', givenScope = {} } = {}) =>
             const b = evaluateNode(right, { ...givenScope, ...scope });
             return a != null && b != null && closeEnough(a, b, tolerance + 1e-7);
           };
-          const samples = [0.37, -1.73, 2.41].map((seed) => Object.fromEntries(symbols.map((name, k) => [name, seed + k * 0.917])));
-          if (samples.every(at)) checked += 1;
+          // Positive and negative points; a point where a side is not real
+          // (a root of a negative, x>0 domains) is skipped, but at least two
+          // points must be compared.
+          const samples = [0.37, -1.73, 2.41, 1.19].map((seed) => Object.fromEntries(symbols.map((name, k) => [name, seed + k * 0.917])));
+          const real = samples.filter((scope) => evaluateNode(left, { ...givenScope, ...scope }) != null && evaluateNode(right, { ...givenScope, ...scope }) != null);
+          if (real.length >= 2 && real.every(at)) checked += 1;
           else {
             const combos = assignmentsFor(symbols, stated);
             const restated = promptText.includes(`${previous.side}=${current.side}`.replace(/\s+/g, ''));
