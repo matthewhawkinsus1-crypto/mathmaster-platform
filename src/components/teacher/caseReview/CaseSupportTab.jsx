@@ -24,8 +24,8 @@ export default function CaseSupportTab({ model, onOpenSupportReport = null }) {
               {profile.status === 'unversioned' ? 'Recorded before versioning (no dates or source)' : `Revision ${current.revision} · effective ${current.effectiveStart}${current.effectiveEnd ? ` to ${current.effectiveEnd}` : ''}${current.sourceLabel ? ` · ${current.sourceLabel}` : ''}`}
               {' '}<Prov level={fromSupportProvenance(current.provenance)} />
             </p>
-            <p style={{ margin: 0, fontSize: 13 }}><strong>Accommodations:</strong> {current.accommodations.map((entry) => `${entry.label}${entry.detail ? ` (${entry.detail})` : ''}`).join('; ') || 'None'}</p>
-            <p style={{ margin: 0, fontSize: 13 }}><strong>Modifications:</strong> {current.modifications.length ? current.modifications.map((entry) => entry.label).join('; ') : 'None — grade-level expectations'}</p>
+            <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))' }}><strong>Accommodations:</strong> {current.accommodations.map((entry) => `${entry.label}${entry.detail ? ` (${entry.detail})` : ''}`).join('; ') || 'None'}</p>
+            <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))' }}><strong>Modifications:</strong> {current.modifications.length ? current.modifications.map((entry) => entry.label).join('; ') : 'None — grade-level expectations'}</p>
           </div>
         ) : <EmptyNote>No support profile is recorded in MathMaster for this period.</EmptyNote>}
         {profile.warnings.map((warning) => <div key={`${warning.code}-${warning.message}`} className="tw-notice" data-tone="warning">{warning.message}</div>)}

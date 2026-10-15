@@ -91,8 +91,8 @@ export default function GraphAxisEditor({
         }}
         style={{ ...targetStyle(statusFor(definition.partId), active), width: '100%', textAlign: 'left' }}
       >
-        <span style={{ fontSize: '12px', color: 'var(--mm-text-muted)', fontWeight: 800 }}>{definition.label}</span>
-        <span style={{ fontSize: '15px', color: values[field] ? 'var(--mm-primary-text)' : 'var(--mm-text-subtle)', fontWeight: 800 }}>
+        <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', fontWeight: 800 }}>{definition.label}</span>
+        <span style={{ fontSize: 'calc(15 * var(--mm-px))', color: values[field] ? 'var(--mm-primary-text)' : 'var(--mm-text-subtle)', fontWeight: 800 }}>
           {values[field] || (mobileInteraction.isMobile ? `Tap here for ${definition.kind}` : `Drop ${definition.kind} here`)}
         </span>
       </button>
@@ -125,7 +125,7 @@ export default function GraphAxisEditor({
 
       <div style={{ marginTop: '14px', padding: '14px', borderRadius: '12px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
         <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)', marginBottom: '8px' }}>{mobileInteraction.isMobile ? 'Tap labels and units into place' : 'Drag labels and units to the graph'}</div>
-        <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginBottom: '10px' }}>
+        <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: '10px' }}>
           {mobileInteraction.isMobile ? 'Tap a card, then tap the matching axis box.' : 'Drag a card to the matching axis box. You can also click a card and then click the destination.'}
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

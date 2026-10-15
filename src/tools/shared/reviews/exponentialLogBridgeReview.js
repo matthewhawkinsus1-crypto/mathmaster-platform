@@ -29,9 +29,10 @@
  *   - no answer can be right: an exponential equation with a right side ≤ 0,
  *     or a composition whose y is outside the logarithm's domain;
  *   - an authored `equation`, `function` or `exponential` the bridge would not
- *     read as written (not an object, a family other than exponential, a
- *     horizontal scale b ≠ 1) — the review would describe a function the
- *     prompt does not;
+ *     read as written (not an object, a family other than exponential, a `b`
+ *     written beside a `base`: a horizontal scale) — the review would describe
+ *     a function the prompt does not. A `b` written without `base` is the
+ *     base, as the grader reads it;
  *   - a number it would print is too large, too small to show, or in
  *     exponent notation.
  *
@@ -332,10 +333,13 @@ const exponentialOf = (question) => {
   const source = question.function || question.exponential;
   if (source) {
     if (!isRecord(source)) return null;
-    // The bridge reads a, base, h and k only. Another family, or a horizontal
-    // scale, is a function the prompt describes and the screen does not draw.
+    // The bridge reads a, base (or b, the base when base is not given), h
+    // and k only. Another family is a function the prompt describes and the
+    // screen does not draw.
     if (source.type != null && source.type !== 'exponential') return null;
-    if (source.b != null && Number(source.b) !== 1) return null;
+    // Written beside a base, b is not the base: a horizontal scale the screen
+    // does not draw.
+    if (source.base != null && source.b != null && Number(source.b) !== 1) return null;
   }
   const spec = normalizeExponentialSpec(source || {
     a: question.a ?? 1,

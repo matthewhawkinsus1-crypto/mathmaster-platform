@@ -46,7 +46,7 @@ export default function GraphComparison({ question, onStateChange, onUndoStateCh
             <label key={field.id} style={{ padding: '16px', borderRadius: '10px', border: `2px solid ${border}`, background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)', fontWeight: 800 }}>
               {field.label || field.id}
               {field.type === 'choice' ? (
-                <select value={responses[field.id] || ''} onChange={(event) => update(field.id, event.target.value)} style={{ display: 'block', width: '100%', marginTop: '8px', padding: '10px', borderRadius: '7px', border: '1px solid var(--mm-border)', fontSize: '16px' }}>
+                <select value={responses[field.id] || ''} onChange={(event) => update(field.id, event.target.value)} style={{ display: 'block', width: '100%', marginTop: '8px', padding: '10px', borderRadius: '7px', border: '1px solid var(--mm-border)', fontSize: 'calc(16 * var(--mm-px))' }}>
                   <option value="">Choose an answer</option>
                   {(field.options || []).map((option) => { const value = String(option?.value ?? option); const label = String(option?.label ?? graphLabelById[value] ?? option); return <option key={value} value={value}>{label}</option>; })}
                 </select>

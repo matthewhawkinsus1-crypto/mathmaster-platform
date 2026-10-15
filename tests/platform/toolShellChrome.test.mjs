@@ -39,7 +39,11 @@ test('the workspace name does not restate the task', () => {
 
 test('the tool header is a label, not a headline plus a paragraph', () => {
   const source = codeOf('src/tools/shared/ToolShell.jsx');
-  assert.doesNotMatch(source, /fontSize: 24/);
+  // The title is label-sized (it was a 24px headline); the size is in
+  // --mm-px so it follows the student's text-size setting.
+  const title = source.match(/<h2 style=\{\{[^}]*?fontSize: 'calc\(([\d.]+) \* var\(--mm-px\)\)'[^}]*\}\}>\{title\}<\/h2>/);
+  assert.ok(title, 'the tool title has a font size in --mm-px');
+  assert.ok(Number(title[1]) <= 16, `the tool title is ${title[1]}px, a headline`);
   assert.match(source, /summary="About this tool"/);
   // The description folds and starts folded: it describes the tool, which is
   // worth reading once rather than on every question.
@@ -148,7 +152,7 @@ test('the tool description opens the steps fold, and the header offers it only w
 test('on a phone the tool name is a label on the Enlarge row, and the steps fold takes its row', () => {
   const css = codeOf('src/components/student/MathToolMobileLayout.css');
   const title = css.slice(css.indexOf('.mathmaster-question-container .mathmaster-tool-shell-header h2 {'));
-  assert.match(title.slice(0, 260), /font-size:\s*13px !important;[\s\S]*-webkit-line-clamp:\s*2;/);
+  assert.match(title.slice(0, 260), /font-size:\s*calc\(13 \* var\(--mm-px\)\) !important;[\s\S]*-webkit-line-clamp:\s*2;/);
   assert.doesNotMatch(css, /tool-shell-header h2\s*\{\s*font-size:\s*clamp\(/, 'the 16–21px headline is the defect');
   // As tall as the opener's row, level with it — portrait only: a phone held
   // sideways hides the name and keeps its 6px header.

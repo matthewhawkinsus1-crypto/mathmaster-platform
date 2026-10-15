@@ -71,7 +71,7 @@ export function InteractiveStandardEquation({ standard, placedVariable, zeroArme
         border: '2px solid var(--mm-tint-border)',
         background: 'var(--mm-surface)',
         color: 'var(--mm-text-strong)',
-        fontSize: 28,
+        fontSize: 'calc(28 * var(--mm-px))',
         fontWeight: 850,
       }}
     >

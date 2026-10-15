@@ -38,7 +38,7 @@ const ZOOM_BUTTON = {
   background: 'var(--mm-surface)',
   color: 'var(--mm-primary-text)',
   fontWeight: 800,
-  fontSize: 16,
+  fontSize: 'calc(16 * var(--mm-px))',
   cursor: 'pointer',
 };
 
@@ -56,7 +56,7 @@ const DATA_TABLE_TOGGLE = {
   borderRadius: 8,
   background: 'var(--mm-surface)',
   color: 'var(--mm-primary-text)',
-  fontSize: 13,
+  fontSize: 'calc(13 * var(--mm-px))',
   fontWeight: 600,
   cursor: 'pointer',
 };
@@ -836,7 +836,7 @@ export default function CoordinatePlane({
           </button>
           <div id={dataTableId} hidden={!dataTableOpen} style={{ overflowX: 'auto', maxWidth: '100%' }}>
             {dataTableOpen ? generatedDescription.tables.map((table) => (
-              <table key={table.caption} style={{ borderCollapse: 'collapse', margin: '8px 0 0', fontSize: 13, color: 'var(--mm-text)' }}>
+              <table key={table.caption} style={{ borderCollapse: 'collapse', margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
                 <caption style={{ textAlign: 'left', fontWeight: 700, padding: '0 0 4px', color: 'var(--mm-text-muted)' }}>{table.caption}</caption>
                 <thead>
                   <tr>{table.columns.map((column) => <th key={column} scope="col" style={DATA_CELL}>{column}</th>)}</tr>
@@ -868,7 +868,7 @@ export default function CoordinatePlane({
             Reset view
           </button>
           {view ? (
-            <span aria-live="polite" style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>
+            <span aria-live="polite" style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
               Showing x {tidy(xMin)} to {tidy(xMax)}, y {tidy(yMin)} to {tidy(yMax)}
             </span>
           ) : null}
@@ -883,7 +883,7 @@ export default function CoordinatePlane({
               stays folded once put away. A screen reader already has the
               keyboard instructions in the plane's accessible name. */}
           {showPlotHelpHere && (showPlotHelp !== 'keyboard' || keyboardHelpVisible) ? (
-            <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-text-muted)', textAlign: 'left' }}>
+            <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textAlign: 'left' }}>
               {showPlotHelp === 'keyboard' ? null : (
                 <p style={{ margin: 0 }}>
                   Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you

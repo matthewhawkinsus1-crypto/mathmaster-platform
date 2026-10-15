@@ -20,7 +20,7 @@ export const touchButton = {
   color: 'var(--mm-text-strong)',
   fontWeight: 700,
   cursor: 'pointer',
-  fontSize: 14,
+  fontSize: 'calc(14 * var(--mm-px))',
 };
 
 export const primaryButton = {
@@ -38,10 +38,10 @@ export const quietButton = {
   padding: '8px 10px',
 };
 
-export const muted = { fontSize: 13, color: 'var(--mm-text-muted)', margin: 0, lineHeight: 1.45 };
-export const errorText = { margin: 0, fontSize: 14, color: 'var(--mm-error-text)', fontWeight: 600, lineHeight: 1.4 };
-export const successText = { margin: 0, fontSize: 14, color: 'var(--mm-success-text)', fontWeight: 700, lineHeight: 1.4 };
-export const neutralText = { margin: 0, fontSize: 14, color: 'var(--mm-primary-text)', fontWeight: 600, lineHeight: 1.4 };
+export const muted = { fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: 0, lineHeight: 1.45 };
+export const errorText = { margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-error-text)', fontWeight: 600, lineHeight: 1.4 };
+export const successText = { margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-success-text)', fontWeight: 700, lineHeight: 1.4 };
+export const neutralText = { margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-primary-text)', fontWeight: 600, lineHeight: 1.4 };
 
 /** A choice among a few options: radio semantics, chip looks, 44px targets. */
 export function ChoiceChips({ label, options, value, onChange, disabled = false, name }) {
@@ -61,7 +61,7 @@ export function ChoiceChips({ label, options, value, onChange, disabled = false,
             style={{
               ...touchButton,
               padding: '8px 12px',
-              fontSize: 14,
+              fontSize: 'calc(14 * var(--mm-px))',
               fontWeight: selected ? 800 : 700,
               border: selected ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
               background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
@@ -82,7 +82,7 @@ export function ProcessField({ field, label, labelLatex = null, value, onChange,
     // A field keeps room for what a student types (a fraction, a pair): in a
     // narrow row it wraps to its own line rather than shrinking.
     <label data-process-field={field} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: '0 1 auto', maxWidth: '100%' }}>
-      <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--mm-text)', whiteSpace: 'nowrap' }}>
+      <span style={{ fontWeight: 700, fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text)', whiteSpace: 'nowrap' }}>
         {labelLatex ? <MathDisplay value={labelLatex} inline /> : label}
       </span>
       <span style={{ flex: `1 1 ${Math.max(width, 130)}px`, width: Math.max(width, 130) + 40, minWidth: 'min(130px, 100%)', maxWidth: 260 }}>

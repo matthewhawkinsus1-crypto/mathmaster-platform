@@ -81,7 +81,7 @@ function EquivalentForms({ questionData, feedback, submit, onAction }) {
     <ToolGrid min={340}>
       <InversePairGraph spec={simpleSpec} sampleX={values.exponent} />
       <Panel title="One relationship, two statements">
-        <p style={{ fontSize: 21, fontWeight: 900 }}>{values.base}<sup>{values.exponent}</sup> = {displayNumber(values.value)}</p>
+        <p style={{ fontSize: 'calc(21 * var(--mm-px))', fontWeight: 900 }}>{values.base}<sup>{values.exponent}</sup> = {displayNumber(values.value)}</p>
         <p style={{ color: 'var(--mm-text-muted)' }}>A logarithm answers the inverse question: “what exponent on this base produces the value?”</p>
         <label>log<sub>{values.base}</sub>({displayNumber(values.value)}) =<input value={logAnswer} onChange={(event) => setLogAnswer(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>{values.base}<sup>{values.exponent}</sup> =<input value={expAnswer} onChange={(event) => setExpAnswer(event.target.value)} style={inputStyle} /></label>
@@ -112,8 +112,8 @@ function SolveExponential({ questionData, feedback, submit, onAction }) {
     <TaskCard question={questionData} task={'Solve the exponential equation for x.'} steps={['Get the power by itself on one side.', 'Take a logarithm of both sides to bring the exponent down.', 'Solve the resulting equation for x.']} />
     <ToolGrid min={330}>
       <Panel title="Equation bridge">
-        <p style={{ fontSize: 22, fontWeight: 900 }}>{equation.base}<sup>{exponentText}</sup> = {equation.rhs}</p>
-        <p style={{ fontSize: 18 }}>log<sub>{equation.base}</sub>({equation.rhs}) = {exponentText}</p>
+        <p style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900 }}>{equation.base}<sup>{exponentText}</sup> = {equation.rhs}</p>
+        <p style={{ fontSize: 'calc(18 * var(--mm-px))' }}>log<sub>{equation.base}</sub>({equation.rhs}) = {exponentText}</p>
         <p style={{ color: 'var(--mm-text-muted)' }}>The logarithm converts the exponential statement into an equation for the exponent.</p>
       </Panel>
       <Panel title="Solve and verify">
@@ -146,8 +146,8 @@ function SolveLogarithmic({ questionData, feedback, submit, onAction }) {
     <TaskCard question={questionData} task={'Solve the logarithmic equation for x, and respect the domain.'} steps={['Get a single logarithm by itself.', 'Rewrite the statement in exponential form.', 'Check that the argument of the log is actually positive.']} />
     <ToolGrid min={330}>
       <Panel title="Equation bridge">
-        <p style={{ fontSize: 21, fontWeight: 900 }}>log<sub>{equation.base}</sub>({argumentText}) = {equation.result}</p>
-        <p style={{ fontSize: 18 }}>{equation.base}<sup>{equation.result}</sup> = {argumentText}</p>
+        <p style={{ fontSize: 'calc(21 * var(--mm-px))', fontWeight: 900 }}>log<sub>{equation.base}</sub>({argumentText}) = {equation.result}</p>
+        <p style={{ fontSize: 'calc(18 * var(--mm-px))' }}>{equation.base}<sup>{equation.result}</sup> = {argumentText}</p>
         <p style={{ color: 'var(--mm-text-muted)' }}>The logarithm’s argument must stay positive. The exponential rewrite makes that required value explicit.</p>
       </Panel>
       <Panel title="Solve and check the domain">

@@ -626,7 +626,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
         </header>
         <div style={{ padding: '20px 24px', overflowY: 'auto' }}>
           <label style={{ display: 'block', fontWeight: 800, marginBottom: '18px' }}>Assignment title
-            <input value={title} onChange={(event) => setTitle(event.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '11px', marginTop: '7px', border: '1px solid var(--mm-border)', borderRadius: '8px', fontSize: '17px' }} />
+            <input value={title} onChange={(event) => setTitle(event.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '11px', marginTop: '7px', border: '1px solid var(--mm-border)', borderRadius: '8px', fontSize: 'calc(17 * var(--mm-px))' }} />
           </label>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px', alignItems: 'center' }}>
             <strong>{includedCount} included · {questions.length - includedCount} excluded · {questions.length} stored · {Number(totalGradeWeight.toFixed(2))} total grade-weight units</strong>
@@ -678,7 +678,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                   </button>
                 </>
               )}
-              <span style={{ color: 'var(--mm-text-muted)', fontSize: '13px' }}>Duplicated questions are added safely. Reordering is disabled after student activity begins.</span>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Duplicated questions are added safely. Reordering is disabled after student activity begins.</span>
             </div>
           </div>
           <div style={{ display: 'grid', gap: '12px' }}>
@@ -702,13 +702,13 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <div style={{ flex: '1 1 430px' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><strong style={{ fontSize: '16px' }}>Question {index + 1}</strong><span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900 }}>{question.type}</span>{excluded && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#5f6368', color: '#fff', fontSize: '11px', fontWeight: 900 }}>EXCLUDED</span>}{supersessionSummary?.badge && <span data-supersession-badge style={{ padding: '3px 7px', borderRadius: '999px', background: supersessionTone.background, color: supersessionTone.text, border: `1px solid ${supersessionTone.border}`, fontSize: '11px', fontWeight: 900 }}>{supersessionSummary.badge}</span>}</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><strong style={{ fontSize: 'calc(16 * var(--mm-px))' }}>Question {index + 1}</strong><span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{question.type}</span>{excluded && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#5f6368', color: '#fff', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>EXCLUDED</span>}{supersessionSummary?.badge && <span data-supersession-badge style={{ padding: '3px 7px', borderRadius: '999px', background: supersessionTone.background, color: supersessionTone.text, border: `1px solid ${supersessionTone.border}`, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{supersessionSummary.badge}</span>}</div>
                       <p style={{ margin: '8px 0 0', color: 'var(--mm-text)', lineHeight: 1.45 }}>{promptSummary(question).slice(0, 240)}</p>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '9px' }}>
-                        {metadataSummary.primary.map((code) => <span key={code} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: '10px', fontWeight: 900 }}>TEKS {code}</span>)}
-                        {metadataSummary.dok && <span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: '10px', fontWeight: 900 }}>DOK {metadataSummary.dok}</span>}
-                        <span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: '10px', fontWeight: 900 }}>{metadataSummary.difficultyLabel}</span>
-                        <span title={describeQuestionValue(question).sentence} data-question-value-source={describeQuestionValue(question).source || 'legacy'} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '10px', fontWeight: 900 }}>
+                        {metadataSummary.primary.map((code) => <span key={code} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>TEKS {code}</span>)}
+                        {metadataSummary.dok && <span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>DOK {metadataSummary.dok}</span>}
+                        <span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>{metadataSummary.difficultyLabel}</span>
+                        <span title={describeQuestionValue(question).sentence} data-question-value-source={describeQuestionValue(question).source || 'legacy'} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>
                           GRADE ×{normalizeQuestionWeight(question)}
                           {!weightShares[index] ? '' : weightShares[index].sectionCount > 1
                             ? ` · ${weightShares[index].sectionShare.toFixed(1)}% of ${V5_SECTION_TITLES[weightShares[index].role] || 'its section'} · ${weightShares[index].assignmentShare.toFixed(1)}% of assignment`
@@ -717,16 +717,16 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                         {weightReviewReasons[String(question.questionId)] && (
                           <span
                             title={weightReviewReasons[String(question.questionId)]}
-                            style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: '10px', fontWeight: 900 }}
+                            style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}
                           >
                             AI rationale
                           </span>
                         )}
-                        {metadataSummary.issues.length > 0 && <span title={metadataSummary.issues.join(' · ')} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: '10px', fontWeight: 900 }}>Metadata incomplete</span>}
+                        {metadataSummary.issues.length > 0 && <span title={metadataSummary.issues.join(' · ')} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>Metadata incomplete</span>}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 7px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', fontSize: 11, fontWeight: 900, color: 'var(--mm-text)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 7px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)' }}>
                         Grade weight
                         <input
                           aria-label={`Grade weight for Question ${index + 1}`}
@@ -777,9 +777,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                       style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: supersessionTone.background, border: `1px solid ${supersessionTone.border}`, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}
                     >
                       <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-                        <p style={{ margin: 0, color: supersessionTone.text, fontSize: 13, lineHeight: 1.45, overflowWrap: 'anywhere' }}>{supersessionSummary.text}</p>
+                        <p style={{ margin: 0, color: supersessionTone.text, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45, overflowWrap: 'anywhere' }}>{supersessionSummary.text}</p>
                         {inclusionNotice?.questionId === question.questionId && includeBlocked && (
-                          <p ref={inclusionAlertRef} role="alert" style={{ margin: '8px 0 0', color: supersessionTone.text, fontSize: 13, lineHeight: 1.45, fontWeight: 800, overflowWrap: 'anywhere' }}>{inclusionNotice.message}</p>
+                          <p ref={inclusionAlertRef} role="alert" style={{ margin: '8px 0 0', color: supersessionTone.text, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45, fontWeight: 800, overflowWrap: 'anywhere' }}>{inclusionNotice.message}</p>
                         )}
                       </div>
                       {supersessionSummary.showQuestion && (
@@ -795,7 +795,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                   )}
                   {honorsAction && honorsAction.kind && (
                     <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-accent-soft)', border: '1px solid var(--mm-accent-border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <p style={{ flex: '1 1 240px', margin: 0, color: 'var(--mm-accent-text)', fontSize: 13, lineHeight: 1.45 }}>
+                      <p style={{ flex: '1 1 240px', margin: 0, color: 'var(--mm-accent-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45 }}>
                         <strong>{honorsAction.legacy ? 'Legacy Honors extension. ' : 'MathMaster Honors extension. '}</strong>
                         {honorsAction.explanation}
                       </p>
@@ -815,18 +815,18 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                     <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--mm-border)' }}>
                       <div style={{ padding: '12px 13px', borderRadius: '9px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
                         <strong style={{ color: 'var(--mm-primary-text)' }}>{hasLiveProtection && originalQuestionById.has(question.questionId) ? 'Safe live response-entry repair' : 'Repair or rewrite this question with AI'}</strong>
-                        <p style={{ margin: '6px 0 10px', color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.5 }}>
+                        <p style={{ margin: '6px 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
                           {hasLiveProtection && originalQuestionById.has(question.questionId)
                             ? 'Students already have history on this question. MathMaster will accept only a conversion of flawed plain-language response fields to finite choices while keeping the exact task and IDs unchanged. On save, previously submitted affected fields are credited and an exhausted student gets one repair retry if another part is still wrong.'
                             : 'Describe the issue in normal language. MathMaster copies the full question and repair rules for the AI, then checks the replacement before accepting it here.'}
                         </p>
-                        <label style={{ display: 'block', fontWeight: 800, fontSize: '13px' }}>
+                        <label style={{ display: 'block', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>
                           What should change?
                           <textarea
                             value={repairInstruction}
                             onChange={(event) => setRepairInstruction(event.target.value)}
                             placeholder="Example: This mathematically equivalent answer is being marked wrong. Keep the same TEKS and difficulty, but repair the grading so equivalent forms are accepted."
-                            style={{ display: 'block', width: '100%', minHeight: '105px', marginTop: 7, padding: 11, boxSizing: 'border-box', borderRadius: 8, border: '1px solid var(--mm-border-strong)', fontFamily: 'inherit', fontSize: 15, lineHeight: 1.45 }}
+                            style={{ display: 'block', width: '100%', minHeight: '105px', marginTop: 7, padding: 11, boxSizing: 'border-box', borderRadius: 8, border: '1px solid var(--mm-border-strong)', fontFamily: 'inherit', fontSize: 'calc(15 * var(--mm-px))', lineHeight: 1.45 }}
                           />
                         </label>
                         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>

@@ -77,7 +77,7 @@ const card = {
   boxShadow: '0 5px 22px rgba(0,0,0,.07)',
 };
 
-const sectionLabelStyle = { color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' };
+const sectionLabelStyle = { color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' };
 
 /** The instructional panels a mode allows, below whichever renderer ran. */
 const InstructionalSupport = ({ policy, feedback, isToolItem }) => {
@@ -160,7 +160,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
         {policy.secure && <div style={sectionLabelStyle}>Secure exam question</div>}
         {/* Secure mode deliberately hides TEKS/domain labels while answering,
             but the mathematics itself must still render exactly as authored. */}
-        <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(20px, 4vw, 27px)', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
+        <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(calc(20 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(27 * var(--mm-px)))', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
         {policy.secure && <SecureItemAccessSupports question={question} studentSupportProfile={rawStudentSupportProfile} />}
         {question.formulaLatex && <div style={{ background: 'var(--mm-surface-sunken)', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
         <PathQuestionStimulus stimulus={question.stimulus} />
@@ -175,7 +175,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
               const fieldChoices = field.choices?.length ? field.choices : fields.length === 1 ? choices : [];
               return (
                 <fieldset key={field.id} style={{ border: 0, padding: 0, margin: 0 }}>
-                  <legend style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-text)', marginBottom: 7 }}>
+                  <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)', marginBottom: 7 }}>
                     <MathText>{field.label || `Response ${fieldIndex + 1}`}{field.unit ? ` (${field.unit})` : ''}</MathText>
                   </legend>
                   {fieldChoices.length ? fieldChoices.map((choice) => {

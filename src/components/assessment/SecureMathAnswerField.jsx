@@ -47,7 +47,7 @@ const TEXT_FIELD = {
   padding: '10px 12px',
   border: '2px solid var(--mm-control-border, var(--mm-border))',
   borderRadius: 8,
-  fontSize: 17,
+  fontSize: 'calc(17 * var(--mm-px))',
   background: 'var(--mm-surface)',
   color: 'var(--mm-text-strong)',
 };
@@ -55,7 +55,7 @@ const TEXT_FIELD = {
 const HINT = {
   display: 'block',
   margin: '6px 0 0',
-  fontSize: 12.5,
+  fontSize: 'calc(12.5 * var(--mm-px))',
   lineHeight: 1.45,
   color: 'var(--mm-text-muted)',
 };

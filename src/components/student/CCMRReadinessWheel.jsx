@@ -118,12 +118,12 @@ export const CCMRReadinessWheel = ({
       <div style={{ flex: '1 1 240px', minWidth: 0, textAlign: 'left' }}>
         {active ? (
           <>
-            <p style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: active.textColor }}>
+            <p style={{ margin: '0 0 2px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: active.textColor }}>
               {active.label}
             </p>
-            <h4 style={{ margin: '0 0 6px', fontSize: 17, color: 'var(--mm-text-strong)' }}>{active.title}</h4>
-            <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>{explainDomain(active)}</p>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--mm-text)' }}>
+            <h4 style={{ margin: '0 0 6px', fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{active.title}</h4>
+            <p style={{ margin: '0 0 8px', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>{explainDomain(active)}</p>
+            <p style={{ margin: 0, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)' }}>
               {active.skillCount} skill{active.skillCount === 1 ? '' : 's'} matched
               {' · '}
               {/* Never a percentage the student did not earn. */}
@@ -135,7 +135,7 @@ export const CCMRReadinessWheel = ({
         ) : (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
             {domains.map((entry) => (
-              <li key={entry.domainId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--mm-text)' }}>
+              <li key={entry.domainId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)' }}>
                 <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: entry.color, opacity: entry.selectable ? 1 : 0.45, flexShrink: 0 }} />
                 <span style={{ minWidth: 0 }}>
                   <strong>{entry.title}</strong> — {entry.label}

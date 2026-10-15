@@ -99,8 +99,8 @@ const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈
 const lineageName = (id) => String(id || '').replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)]);
 
 const actionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButtonStyle = { ...actionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' };
-const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
+const secondaryButtonStyle = { ...actionStyle, marginTop: 0, padding: '9px 14px', fontSize: 'calc(13 * var(--mm-px))', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' };
+const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fontSize: 'calc(13 * var(--mm-px))' };
 
 const hashText = (value) => {
   const text = String(value || '');
@@ -443,7 +443,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                     <p className="mathmaster-systems-substitution-direction">
                       Isolating <strong>{sourceVariable}</strong> in {system.equations.find((equation) => equation.id === source.equationId)?.label}.
                     </p>
-                    <button type="button" onClick={() => apply(resetReductionSource())} style={{ ...secondaryButtonStyle, fontSize: 12, width: 'fit-content' }}>Choose a different equation/variable</button>
+                    <button type="button" onClick={() => apply(resetReductionSource())} style={{ ...secondaryButtonStyle, fontSize: 'calc(12 * var(--mm-px))', width: 'fit-content' }}>Choose a different equation/variable</button>
                     <EmbeddedStepAlgebra
                       label={`Isolate ${sourceVariable}`}
                       prompt={`Isolate ${sourceVariable} in this equation.`}
@@ -508,7 +508,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                           onArm={() => { setArmedToken({ kind: 'substitution', variable: sourceVariable }); setReductionFeedback(null); }}
                         />
                         {!Object.values(reduction.targets).some((entry) => entry?.mode === 'substituted') ? (
-                          <button type="button" onClick={() => apply(changeSubstitutionToken(reduction))} style={{ ...secondaryButtonStyle, fontSize: 12 }}>Change expression</button>
+                          <button type="button" onClick={() => apply(changeSubstitutionToken(reduction))} style={{ ...secondaryButtonStyle, fontSize: 'calc(12 * var(--mm-px))' }}>Change expression</button>
                         ) : null}
                       </div>
                     ) : null}
@@ -745,7 +745,7 @@ function BackSubstitution({ reduction, system, reducedSolution, backEquation, ar
       ) : null}
       {backEquation && !solved ? (
         <>
-          <button type="button" onClick={() => apply(clearBackDestination(reduction))} style={{ ...secondaryButtonStyle, fontSize: 12, width: 'fit-content' }}>Choose a different equation</button>
+          <button type="button" onClick={() => apply(clearBackDestination(reduction))} style={{ ...secondaryButtonStyle, fontSize: 'calc(12 * var(--mm-px))', width: 'fit-content' }}>Choose a different equation</button>
           <EmbeddedStepAlgebra
             label={`Solve for ${variable}`}
             prompt={`Use your substitution to solve this equation for ${variable}.`}

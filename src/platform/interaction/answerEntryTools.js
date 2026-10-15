@@ -84,8 +84,17 @@ const normalizedMathText = (value) => String(value ?? '')
 
 // Infer only the keys needed to TYPE the already-resolved mathematical answer.
 // This never changes grading and never exposes an answer to the student.
+//
+// A template key such as `{{a}}` is not yet the answer: the generator puts a
+// number there when the instance is drawn. Its braces and its parameter name
+// are template syntax, so a Digital SAT number box keyed `{{a}}` asked for the
+// `{`, `}` and `a` keys. A placeholder is read as a plain number here, which
+// keeps every symbol the surrounding key really needs (`{{a}}/{{b}}` still
+// needs a⁄b, `{{m}}x+{{b}}` still needs x).
+const TEMPLATE_PLACEHOLDER = /\{\{\s*[A-Za-z_][\w.]*\s*\}\}/g;
+
 export const inferRequiredAnswerSymbols = (values = []) => {
-  const text = flattenAnswerValues(values).join(' ');
+  const text = flattenAnswerValues(values).join(' ').replace(TEMPLATE_PLACEHOLDER, '1');
   if (!text) return [];
 
   const required = [];

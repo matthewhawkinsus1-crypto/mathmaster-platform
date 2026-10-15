@@ -151,7 +151,7 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
             const currentValue = assignments[activeExpression.id]?.[dimension] || '';
             return (
               <div key={dimension} style={{ marginBottom: 14 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>{DIMENSION_LABEL[dimension]}</div>
+                <div style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', marginBottom: 6 }}>{DIMENSION_LABEL[dimension]}</div>
                 <div role="group" aria-label={DIMENSION_LABEL[dimension]} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {bank.map((option) => {
                     const selected = currentValue === option;

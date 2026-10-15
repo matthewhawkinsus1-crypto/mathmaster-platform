@@ -13,13 +13,13 @@ import React, { useMemo } from 'react';
 // story as the student improved. The reason was written down at the time.
 
 const panel = { border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
-const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: 'var(--mm-primary-text)' };
-const note = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
-const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' };
+const heading = { margin: '0 0 4px', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)' };
+const note = { color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, margin: '0 0 14px' };
+const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 'calc(12.5 * var(--mm-px))', fontVariantNumeric: 'tabular-nums' };
 
 const chip = (background, color) => ({
   display: 'inline-block', padding: '2px 8px', borderRadius: 999,
-  fontSize: 10.5, fontWeight: 900, letterSpacing: '.04em', background, color, whiteSpace: 'nowrap',
+  fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 900, letterSpacing: '.04em', background, color, whiteSpace: 'nowrap',
 });
 
 const codeOf = (event) => {
@@ -93,14 +93,14 @@ export default function AdaptationReport({
       </p>
 
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13.5 * var(--mm-px))' }}>
           <thead>
             <tr style={{ background: 'var(--mm-surface-sunken)' }}>
               {['Standard', 'Assigned', 'Received', 'Why', 'Result'].map((head) => (
                 <th
                   key={head}
                   style={{
-                    textAlign: 'left', padding: '8px 10px', fontSize: 10.5, fontWeight: 900,
+                    textAlign: 'left', padding: '8px 10px', fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 900,
                     letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--mm-text-muted)',
                   }}
                 >
@@ -114,7 +114,7 @@ export default function AdaptationReport({
               <tr key={row.key} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                 <td style={{ padding: '10px', fontWeight: 800 }}>
                   {row.code}
-                  <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 600 }}>
+                  <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 600 }}>
                     {row.title} · {row.role}
                   </span>
                 </td>
@@ -123,7 +123,7 @@ export default function AdaptationReport({
                 </td>
                 <td style={{ padding: '10px', ...mono, color: row.adapted ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', fontWeight: row.adapted ? 700 : 400 }}>
                   DOK {row.deliveredDok} · Band {row.deliveredBand}
-                  {!row.adapted && <span style={{ display: 'block', fontSize: 10.5, fontFamily: 'inherit' }}>as assigned</span>}
+                  {!row.adapted && <span style={{ display: 'block', fontSize: 'calc(10.5 * var(--mm-px))', fontFamily: 'inherit' }}>as assigned</span>}
                 </td>
                 <td style={{ padding: '10px', color: 'var(--mm-text)', maxWidth: 340 }}>
                   {row.adapted
@@ -141,7 +141,7 @@ export default function AdaptationReport({
         </table>
       </div>
 
-      <p style={{ ...note, margin: '14px 0 0', fontSize: 12 }}>
+      <p style={{ ...note, margin: '14px 0 0', fontSize: 'calc(12 * var(--mm-px))' }}>
         {/* The assurance a teacher actually wants, stated rather than implied. */}
         Adaptation changes how a standard is pitched. It never changes which standard was assigned, and
         it never applies to a DOL, quiz or test unless you deliberately designed a differentiated

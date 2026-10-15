@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * CLASSROOM ATTEMPTS WHOSE VERDICT CHANGES UNDER JOB K'S GRADING FIXES.
+ * CLASSROOM ATTEMPTS WHOSE VERDICT CHANGES UNDER JOB K'S AND JOB P'S GRADING FIXES.
  * A READ-ONLY REPORT. It has no write mode: no --execute, no re-grade, and no
  * Firestore write anywhere in this file (tests/platform/
  * kGrading_classroomRegradePlan.test.mjs runs it against a database that
@@ -30,6 +30,14 @@
  * source is needs-teacher; a drop no source confirms is only counted
  * (unconfirmedCompilerDefects), except a sign chart stored 'polynomial' with
  * denominator factors, which the stored shape alone shows.
+ *
+ * JOB P (right answers marked wrong): the answer-equivalence spellings
+ * (multiAnswer, orderedPair), the number line's inequality stage with exact
+ * endpoints, a line's monotone and horizontal-range keys (graphAnalysis,
+ * functionGraph), and an exponential bridge written with `b` (now the base).
+ * P's equivalence changes only accept more; the line keys and `b` move both
+ * ways. Item 8 — a "vertex" or "center" keyed on a function type that has
+ * none — changes no verdict and is listed as needs-teacher for the owner.
  *
  * NOT IN THIS REPORT: My Math Path (see REPORT_NOTES).
  *
@@ -87,13 +95,17 @@ export const REPORT_NOTES = Object.freeze([
   'Set fields compiled from a template answer ("{{a}}", "{{union}}/{{total}}"): the server grader does not read type "set", so no server verdict moves; only a client-recorded verdict can (out of the default scope: add --tools multiAnswer to list them).',
   'My Math Path is not read: the Path quadratic fit and model-choice tie apply only to questions issued after deploy (stored privateGrading keeps its expectedModelId and model, and has no tiedModelIds), and Digital SAT union-overlap changes only sessions issued from the regenerated seed (wrong -> right only). Re-grade those from pathSessions privateGrading, not from this report.',
   'Prompt-only edits (A2.4G, TSIA2 leei_4) change no key, so no verdict.',
+  'Job P, My Math Path: the answer-equivalence changes only accept more (wrong -> right), and a stored Path verdict is never re-graded by anything. The Digital SAT decimal rule reaches only Path sessions issued after deploy (it is stored with the issued private grading, numberRules) and assignment questions hydrated from the CCMR bank after deploy.',
+  'Job P, item 8: a graph question keyed on a vertex or center its function does not have (exponential, logarithmic, a line ...) keeps its verdict. Each attempt on one is listed as needs-teacher so the owner can decide whether the question stands; no grader changed.',
 ]);
 
 const USAGE = `Usage: node scripts/report-classroom-regrade-candidates.mjs --project <id> [options]
 
 Read-only. Lists stored classroom attempts whose verdict changes under Job K's
-grading fixes (2a–2f, the later grader changes and the compiler drops), for
-the owner to decide on re-grading. My Math Path sessions are not read.
+grading fixes (2a–2f, the later grader changes and the compiler drops) and Job
+P's (answer spellings, number-line exact endpoints, line features, exponential
+b), plus the graph questions keyed on a feature their function lacks (Job P
+item 8), for the owner to decide on re-grading. My Math Path sessions are not read.
 
   --project <id>        Firebase project (Application Default Credentials; a viewer role is enough)
   --tools <list>        tool or tool:mode, comma separated (default ${DEFAULT_TOOL_SCOPE.join(',')})

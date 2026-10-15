@@ -25,7 +25,7 @@ const shell = {
 
 const titleStyle = {
   margin: '0 0 8px',
-  fontSize: 12,
+  fontSize: 'calc(12 * var(--mm-px))',
   fontWeight: 900,
   letterSpacing: '.05em',
   textTransform: 'uppercase',
@@ -35,7 +35,7 @@ const titleStyle = {
 const cellStyle = {
   padding: '7px 12px',
   border: '1px solid var(--mm-border)',
-  fontSize: 15,
+  fontSize: 'calc(15 * var(--mm-px))',
   color: 'var(--mm-text-strong)',
   textAlign: 'center',
   whiteSpace: 'nowrap',
@@ -181,11 +181,11 @@ function StimulusGraph({ graph, describeFeatures = null }) {
           />
         ))}
       </CoordinatePlane>
-      {(graph.xAxisLabel || graph.yAxisLabel) && <p style={{ textAlign: 'center', margin: '6px 0', fontSize: 13 }}>
+      {(graph.xAxisLabel || graph.yAxisLabel) && <p style={{ textAlign: 'center', margin: '6px 0', fontSize: 'calc(13 * var(--mm-px))' }}>
         Horizontal axis: {graph.xAxisLabel || 'x'} · Vertical axis: {graph.yAxisLabel || 'y'}
       </p>}
       {sourceLines.length > 1 && (
-        <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginTop:8, fontSize:12, color:'var(--mm-text-muted)' }}>
+        <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginTop:8, fontSize:'calc(12 * var(--mm-px))', color:'var(--mm-text-muted)' }}>
           {sourceLines.map((line, index) => (
             <span key={`legend-${index}`}>
               <strong>{line.label || `Line ${index + 1}`}</strong>
@@ -201,7 +201,7 @@ function StimulusGraph({ graph, describeFeatures = null }) {
 function OrderedPairList({ pairs }) {
   if (!pairs?.length) return null;
   return (
-    <p style={{ margin: 0, fontSize: 17, color: 'var(--mm-text-strong)', lineHeight: 1.7, textAlign: 'center' }}>
+    <p style={{ margin: 0, fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-text-strong)', lineHeight: 1.7, textAlign: 'center' }}>
       {'{ '}
       {pairs.map((pair, index) => (
         <span key={`p-${index}`} style={{ whiteSpace: 'nowrap' }}>
@@ -218,7 +218,7 @@ function WorkedSteps({ steps }) {
   return (
     <ol style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 6 }}>
       {steps.map((step) => (
-        <li key={step.id} style={{ fontSize: 15, color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
+        <li key={step.id} style={{ fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
           <span style={{ color: 'var(--mm-text-muted)', fontWeight: 700, marginRight: 8 }}>{step.label}</span>
           <MathText>{step.work}</MathText>
         </li>
@@ -232,7 +232,7 @@ function ExpressionList({ expressions }) {
   return (
     <div style={{ display: 'grid', gap: 6, justifyItems: 'center' }}>
       {expressions.map((expression, index) => (
-        <MathText key={`e-${index}`} style={{ fontSize: 18, color: 'var(--mm-text-strong)' }}>{expression}</MathText>
+        <MathText key={`e-${index}`} style={{ fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{expression}</MathText>
       ))}
     </div>
   );
@@ -243,7 +243,7 @@ function LabelledItems({ items }) {
   return (
     <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 5 }}>
       {items.map((item) => (
-        <li key={item.id} style={{ fontSize: 15, color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
+        <li key={item.id} style={{ fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
           <MathText>{item.label}</MathText>
         </li>
       ))}
@@ -280,7 +280,7 @@ export const PathQuestionStimulus = ({ stimulus, describeFeatures = null }) => {
       <ExpressionList expressions={stimulus.expressions} />
       <LabelledItems items={stimulus.items} />
       {stimulus.note && (
-        <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
+        <p style={{ margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
           <MathText>{stimulus.note}</MathText>
         </p>
       )}

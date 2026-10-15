@@ -28,7 +28,7 @@ export const SHELL_LOOKS = Object.freeze({
     up: 'var(--mm-success-text)',
     down: 'var(--mm-error-text)',
     gold: '#b06000',
-    size: 15,
+    size: 'calc(15 * var(--mm-px))',
     rowHeight: 40,
   }),
   projector: Object.freeze({
@@ -43,7 +43,7 @@ export const SHELL_LOOKS = Object.freeze({
     up: '#8df7c9',
     down: '#ffb4ab',
     gold: '#ffd166',
-    size: 'clamp(16px, 1.7vw, 24px)',
+    size: 'clamp(calc(16 * var(--mm-px)), calc(1.7vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))',
     rowHeight: 'clamp(40px, 6vh, 56px)',
   }),
   student: Object.freeze({
@@ -58,7 +58,7 @@ export const SHELL_LOOKS = Object.freeze({
     up: '#81c995',
     down: '#ffb4ab',
     gold: '#fdd663',
-    size: 15,
+    size: 'calc(15 * var(--mm-px))',
     rowHeight: 40,
   }),
 });
@@ -113,9 +113,9 @@ export function ChallengeCountdown({ clock, look = 'projector', title = '', deta
   const fontSize = size || (look === 'projector' ? 'clamp(120px, 28vh, 260px)' : look === 'student' ? 'clamp(88px, 22vw, 150px)' : 96);
   return (
     <div className="mm-shell-count" data-mm-countdown={go ? 'go' : String(step)} style={{ color: style.text, padding: look === 'console' ? 12 : 20 }}>
-      {title && <div style={{ fontSize: look === 'projector' ? 'clamp(20px, 2.6vw, 34px)' : 18, fontWeight: 900, color: style.accent, letterSpacing: '.04em', textTransform: 'uppercase' }}>{title}</div>}
+      {title && <div style={{ fontSize: look === 'projector' ? 'clamp(calc(20 * var(--mm-px)), calc(2.6vw * var(--mm-text-scale, 1)), calc(34 * var(--mm-px)))' : 'calc(18 * var(--mm-px))', fontWeight: 900, color: style.accent, letterSpacing: '.04em', textTransform: 'uppercase' }}>{title}</div>}
       <div key={text} className="mm-shell-count-number" aria-hidden="true" style={{ fontSize, color: go ? style.good : style.text }}>{text}</div>
-      <div aria-live="polite" style={{ fontSize: look === 'projector' ? 'clamp(18px, 2vw, 28px)' : 16, fontWeight: 800, color: style.muted }}>
+      <div aria-live="polite" style={{ fontSize: look === 'projector' ? 'clamp(calc(18 * var(--mm-px)), calc(2vw * var(--mm-text-scale, 1)), calc(28 * var(--mm-px)))' : 'calc(16 * var(--mm-px))', fontWeight: 800, color: style.muted }}>
         {go ? 'Go!' : `Get ready… ${step}`}{detail ? ` · ${detail}` : ''}
       </div>
     </div>
@@ -231,7 +231,7 @@ export function StandingsBoard({
         </ol>
       )}
       {unseen > 0 && (
-        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
+        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' : 'calc(13 * var(--mm-px))', paddingLeft: 4 }}>
           {typeof describeMore === 'function' ? describeMore(unseen) : board?.moreText || `and ${unseen} more ${unseen === 1 ? 'player' : 'players'}`}
         </div>
       )}
@@ -283,7 +283,7 @@ export function RoundResultsTable({ view, presentation, look = 'console', limit 
       <ol aria-label="Round results" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>{shown.map(renderRow)}</ol>
       {self && <ol aria-label="Your round result" style={{ listStyle: 'none', margin: 0, padding: 0 }}>{renderRow(self)}</ol>}
       {unseen > 0 && (
-        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
+        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' : 'calc(13 * var(--mm-px))', paddingLeft: 4 }}>
           {typeof describeMore === 'function' ? describeMore(unseen) : board?.moreText || `and ${unseen} more`}
         </div>
       )}
@@ -306,7 +306,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel = 'Confirm', can
   return (
     <div className="mm-shell-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel?.(); }}>
       <Dialog role="alertdialog" onClose={onCancel} initialFocusRef={cancelRef} aria-labelledby="mm-shell-dialog-title" aria-describedby="mm-shell-dialog-body" className="mm-shell-dialog">
-        <div id="mm-shell-dialog-title" style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>{title}</div>
+        <div id="mm-shell-dialog-title" style={{ fontSize: 'calc(20 * var(--mm-px))', fontWeight: 900, marginBottom: 8 }}>{title}</div>
         <div id="mm-shell-dialog-body" style={{ color: 'var(--mm-text)', lineHeight: 1.5 }}>{body}</div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 18 }}>
           <button ref={cancelRef} type="button" className="mm-shell-button" onClick={onCancel} style={{ minHeight: 44, padding: '10px 16px', borderRadius: 9, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900, cursor: 'pointer' }}>{cancelLabel}</button>

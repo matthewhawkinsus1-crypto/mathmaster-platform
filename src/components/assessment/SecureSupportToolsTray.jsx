@@ -34,14 +34,14 @@ import { secureTranslationView, secureVocabularyEntries } from '../../platform/a
 
 const BUTTON = {
   minHeight: 44, padding: '7px 12px', borderRadius: 999, border: '1px solid var(--mm-tint-border)',
-  background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+  background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', cursor: 'pointer',
 };
 const STOP_BUTTON = { ...BUTTON, border: '1px solid var(--mm-border)', color: 'var(--mm-text-muted)' };
 const PANEL = {
   marginTop: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)',
-  textAlign: 'left', maxHeight: 'min(40vh, 320px)', overflowY: 'auto', overscrollBehavior: 'contain', fontSize: 14, lineHeight: 1.5,
+  textAlign: 'left', maxHeight: 'min(40vh, 320px)', overflowY: 'auto', overscrollBehavior: 'contain', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5,
 };
-const PANEL_LABEL = { fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' };
+const PANEL_LABEL = { fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' };
 const ICON = {
   [SUPPORT_TOOL.TRANSLATE]: '文A',
   [SUPPORT_TOOL.VOCABULARY]: '📖',
@@ -58,7 +58,7 @@ function TranslatePanel({ translation }) {
         {view.lines.map((line, index) => (
           <div key={index} data-translated={line.translated ? 'true' : 'false'}>
             <MathText>{line.text}</MathText>
-            {!line.translated && !line.mathOnly && <span lang="en" style={{ marginLeft: 6, fontSize: 11, color: 'var(--mm-text-muted)' }}>(English)</span>}
+            {!line.translated && !line.mathOnly && <span lang="en" style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>(English)</span>}
           </div>
         ))}
       </div>
@@ -208,7 +208,7 @@ export default function SecureSupportToolsTray({
   return (
     <div className="mathmaster-support-tray" data-student-support-tray={surface} role="group" aria-label="Support tools" style={{ margin: '0 0 16px' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-        <span style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
+        <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
         {buttons.map((tool) => (
           <button
             key={tool.tool}
@@ -235,7 +235,7 @@ export default function SecureSupportToolsTray({
           </button>
         )}
       </div>
-      {speechFailed && <div role="status" style={{ marginTop: 6, fontSize: 12, color: 'var(--mm-warning-text)', fontWeight: 700 }}>Read aloud is not working in this browser. Your teacher can see this.</div>}
+      {speechFailed && <div role="status" style={{ marginTop: 6, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)', fontWeight: 700 }}>Read aloud is not working in this browser. Your teacher can see this.</div>}
       {open && (
         <div role="region" aria-label={open.label} style={PANEL}>
           {open.tool === SUPPORT_TOOL.TRANSLATE && <TranslatePanel translation={open.translation} />}

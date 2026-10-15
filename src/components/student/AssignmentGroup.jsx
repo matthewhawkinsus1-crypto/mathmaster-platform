@@ -62,19 +62,19 @@ export default function AssignmentGroup({
           <span
             aria-hidden="true"
             style={{
-              display: 'inline-block', color: tone.accent, fontSize: 13,
+              display: 'inline-block', color: tone.accent, fontSize: 'calc(13 * var(--mm-px))',
               transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s ease',
             }}
           >
             ▶
           </span>
-          <span id={headingId} style={{ fontSize: 16.5, color: 'var(--mm-text-strong)', fontWeight: 900 }}>
+          <span id={headingId} style={{ fontSize: 'calc(16.5 * var(--mm-px))', color: 'var(--mm-text-strong)', fontWeight: 900 }}>
             {label}
           </span>
           <span
             style={{
               padding: '2px 9px', borderRadius: 999, background: tone.chip,
-              color: tone.accent, fontSize: 12, fontWeight: 900,
+              color: tone.accent, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900,
               fontVariantNumeric: 'tabular-nums',
             }}
           >
@@ -84,7 +84,7 @@ export default function AssignmentGroup({
       </h2>
 
       {hint && open && (
-        <p style={{ margin: '0 0 10px 23px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 10px 23px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
           {hint}
         </p>
       )}

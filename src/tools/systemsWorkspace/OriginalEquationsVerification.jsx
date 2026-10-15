@@ -28,7 +28,7 @@ import {
   verificationVariables,
 } from './substitutionReduction.js';
 
-const checkButtonStyle = { marginTop: 8, padding: '9px 14px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44, fontSize: 13 };
+const checkButtonStyle = { marginTop: 8, padding: '9px 14px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44, fontSize: 'calc(13 * var(--mm-px))' };
 
 const SIDE_NAMES = { left: 'Left side', right: 'Right side' };
 

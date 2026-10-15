@@ -38,7 +38,7 @@ import {
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
-const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 9, fontSize: 16, minHeight: 44, boxSizing: 'border-box' };
+const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 9, fontSize: 'calc(16 * var(--mm-px))', minHeight: 44, boxSizing: 'border-box' };
 
 const WIDTH = 420;
 const ROW = 46;
@@ -167,7 +167,7 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         <text x={PLOT_SIZE - PLOT_PAD + 12} y={yMin <= 0 && yMax >= 0 ? yToPx(0) + 4 : PLOT_SIZE - PLOT_PAD + 18} fontSize="13" fontWeight="700" fill="#3c4756">x</text>
         <text x={xMin <= 0 && xMax >= 0 ? xToPx(0) + 8 : PLOT_PAD - 4} y={PLOT_PAD - 12} fontSize="13" fontWeight="700" fill="#3c4756">y</text>
       </svg>
-      <p aria-live="polite" data-relation-plot-status="true" style={{ margin: '8px 0 0', minHeight: 20, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 12 }}>
+      <p aria-live="polite" data-relation-plot-status="true" style={{ margin: '8px 0 0', minHeight: 20, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
         {liveText}
       </p>
       {/* The keyboard instruction: the plot's accessible description always,
@@ -178,7 +178,7 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         id={helpId}
         aria-hidden="true"
         data-relation-plot-help="true"
-        style={keyboardHelpVisible ? { margin: '4px 0 0', textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 12 } : SR_ONLY_STYLE}
+        style={keyboardHelpVisible ? { margin: '4px 0 0', textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' } : SR_ONLY_STYLE}
       >
         {relationPlotKeyboardHelp(step)}
       </p>
@@ -357,13 +357,13 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             onTogglePoint={togglePlottedPoint}
             snapStep={questionData.plotSnapStep || 1}
           />
-          <p style={{ margin: '10px 0 8px', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+          <p style={{ margin: '10px 0 8px', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Move across the coordinate plane to see x- and y-guides. Click the intersection to plot or remove a point.
           </p>
           {allowTypedPlot ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
-              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>x-coordinate<input inputMode="decimal" value={plotX} onChange={(event) => setPlotX(event.target.value)} style={inputStyle} /></label>
-              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>y-coordinate<input inputMode="decimal" value={plotY} onChange={(event) => setPlotY(event.target.value)} style={inputStyle} /></label>
+              <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>x-coordinate<input inputMode="decimal" value={plotX} onChange={(event) => setPlotX(event.target.value)} style={inputStyle} /></label>
+              <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>y-coordinate<input inputMode="decimal" value={plotY} onChange={(event) => setPlotY(event.target.value)} style={inputStyle} /></label>
               <button type="button" onClick={addTypedPoint} style={primaryButton}>Plot point</button>
             </div>
           ) : null}
@@ -452,7 +452,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             ))}
           </svg>
 
-          <p aria-live="polite" style={{ marginTop: 10, fontSize: 13, color: 'var(--mm-text-muted)' }}>
+          <p aria-live="polite" style={{ marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             {selectedDomain != null
               ? `${selectedDomain} selected — now click the value it maps to.`
               : `${arrows.length} arrow${arrows.length === 1 ? '' : 's'} drawn.`}
@@ -464,20 +464,20 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
         <Panel title="Describe the relation">
           {ask.includes('domain') && (
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               Domain (list the values, separated by commas)
               <input value={domainAnswer} onChange={(event) => { setDomainAnswer(event.target.value); clearFeedback(); }} placeholder="e.g. -4, -2, 1, 3" style={inputStyle} />
             </label>
           )}
           {ask.includes('range') && (
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               Range (list the values, separated by commas)
               <input value={rangeAnswer} onChange={(event) => { setRangeAnswer(event.target.value); clearFeedback(); }} placeholder="e.g. -3, -1, 2, 3" style={inputStyle} />
             </label>
           )}
           {ask.includes('isFunction') && (
             <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
-              <legend style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
+              <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
                 Is this relation a function?
               </legend>
               <div style={{ display: 'grid', gap: 8 }}>
@@ -512,7 +512,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             const current = String(fieldAnswers[field.id] ?? '');
             return (
               <fieldset key={field.id} style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
-                <legend style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
+                <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
                   {field.label || field.id}
                 </legend>
                 {options.length ? (

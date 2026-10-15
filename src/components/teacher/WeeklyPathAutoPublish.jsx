@@ -26,7 +26,7 @@ const CARD = {
   border: '1px solid var(--mm-border)', borderRadius: 12, padding: '16px 18px',
   marginTop: 14, background: 'var(--mm-surface)',
 };
-const MUTED = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 };
+const MUTED = { color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 };
 
 // The server returns machine reasons so they can be logged and counted; a
 // teacher needs the sentence version.
@@ -107,7 +107,7 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null, 
 
   return (
     <section style={CARD}>
-      <h3 style={{ margin: 0, fontSize: 16 }}>Publish weekly Path grades to Google Classroom</h3>
+      <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))' }}>Publish weekly Path grades to Google Classroom</h3>
       <p style={{ ...MUTED, margin: '6px 0 12px' }}>
         When this is on, MathMaster posts one Math Path assignment per week to this class&apos;s
         Google Classroom course and grades it automatically on Monday morning, after the week
@@ -123,7 +123,7 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null, 
           style={{
             minHeight: 44, padding: '10px 16px', borderRadius: 9, border: 0,
             background: enabled ? '#137333' : '#1a73e8', color: '#fff', fontWeight: 900,
-            fontSize: 14, cursor: busy ? 'progress' : 'pointer',
+            fontSize: 'calc(14 * var(--mm-px))', cursor: busy ? 'progress' : 'pointer',
           }}
         >
           {enabled ? 'Automatic publishing is ON — turn off' : 'Turn on automatic publishing'}
@@ -135,7 +135,7 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null, 
           style={{
             minHeight: 44, padding: '10px 16px', borderRadius: 9,
             border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)',
-            fontWeight: 900, fontSize: 14, cursor: busy || !weekKey ? 'default' : 'pointer',
+            fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))', cursor: busy || !weekKey ? 'default' : 'pointer',
           }}
         >
           Preview this week (writes nothing)
@@ -143,26 +143,26 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null, 
       </div>
 
       {state?.updatedByEmail && (
-        <p style={{ ...MUTED, margin: '9px 0 0', fontSize: 12.5 }}>
+        <p style={{ ...MUTED, margin: '9px 0 0', fontSize: 'calc(12.5 * var(--mm-px))' }}>
           Last changed by {state.updatedByEmail}. Worth {state.maxPoints || 100} points.
         </p>
       )}
 
       {error && (
-        <div role="alert" style={{ marginTop: 11, padding: '10px 12px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 13 }}>
+        <div role="alert" style={{ marginTop: 11, padding: '10px 12px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
           {error}
         </div>
       )}
 
       {preview && (
         <div style={{ marginTop: 13, border: '1px solid var(--mm-border-soft)', borderRadius: 9, padding: '11px 13px' }}>
-          <strong style={{ fontSize: 13.5 }}>
+          <strong style={{ fontSize: 'calc(13.5 * var(--mm-px))' }}>
             {preview.ok === false
               ? `Nothing would publish: ${describe(preview.reason)}.`
               : `${preview.results?.filter((row) => row.reason === 'dry_run').length || 0} of ${preview.results?.length || 0} students would get a grade.`}
           </strong>
           {Array.isArray(preview.results) && preview.results.length > 0 && (
-            <ul style={{ margin: '8px 0 0', paddingLeft: 18, ...MUTED, fontSize: 12.5 }}>
+            <ul style={{ margin: '8px 0 0', paddingLeft: 18, ...MUTED, fontSize: 'calc(12.5 * var(--mm-px))' }}>
               {preview.results.slice(0, 40).map((row) => (
                 <li key={row.studentId}>
                   {previewStudentLabel(row.studentId, identityIndex)}: {row.reason === 'dry_run'

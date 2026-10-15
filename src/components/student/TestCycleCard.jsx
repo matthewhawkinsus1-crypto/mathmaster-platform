@@ -131,7 +131,7 @@ const quietButtonStyle = {
   cursor: 'pointer',
 };
 
-const factStyle = { margin: 0, fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.5 };
+const factStyle = { margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 };
 
 // How often an open Test review asks whether it may still be shown.
 const TEST_REVIEW_RECHECK_MS = 30000;
@@ -375,11 +375,11 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   return (
     <section style={shell} data-test-cycle-stage={card.stage} data-availability={availability?.reason || 'open'}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ ...tone, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', padding: '5px 10px', borderRadius: 999 }}>{card.statusLabel}</span>
-        {card.secure && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-error-text)' }}>Secure · monitored</span>}
-        {card.hintsAllowed && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-success-text)' }}>Help allowed</span>}
+        <span style={{ ...tone, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', padding: '5px 10px', borderRadius: 999 }}>{card.statusLabel}</span>
+        {card.secure && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-error-text)' }}>Secure · monitored</span>}
+        {card.hintsAllowed && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-success-text)' }}>Help allowed</span>}
       </div>
-      <h2 ref={headingRef} tabIndex={-1} style={{ margin: 0, fontSize: 'clamp(18px, 4vw, 23px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{card.title}</h2>
+      <h2 ref={headingRef} tabIndex={-1} style={{ margin: 0, fontSize: 'clamp(calc(18 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(23 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{card.title}</h2>
       <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{card.detail}</p>
 
       {availability?.reason === 'scheduled' && availability.opensAt && (
@@ -396,12 +396,12 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         <div data-test-cycle-schedule="" style={{ display: 'grid', gap: 8, padding: '12px 14px', background: 'var(--mm-surface-sunken)', borderRadius: 10 }}>
           {scheduleBlocks.map((block) => (
             <div key={block.id} data-schedule-block={block.id} data-window-state={block.state} style={{ display: 'grid', gap: 2 }}>
-              <strong style={{ fontSize: 13, color: 'var(--mm-text-strong)' }}>{block.title}: {block.headline}</strong>
-              <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--mm-text)' }}>{block.detail}</span>
-              {block.home && <span style={{ fontSize: 13, lineHeight: 1.5, fontWeight: 700, color: 'var(--mm-text)' }}>{block.home}</span>}
+              <strong style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{block.title}: {block.headline}</strong>
+              <span style={{ fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{block.detail}</span>
+              {block.home && <span style={{ fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, fontWeight: 700, color: 'var(--mm-text)' }}>{block.home}</span>}
             </div>
           ))}
-          <span style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>Times are school time. A window is when you can start; it is not a timer.</span>
+          <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Times are school time. A window is when you can start; it is not a timer.</span>
         </div>
       )}
 
@@ -422,7 +422,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
                 <strong style={{ color: 'var(--mm-text-strong)' }}>{phase.label}{phase.secure ? ' · Secure' : ''}</strong>
                 <span style={{ fontWeight: 800, color: PHASE_STATUS_COLOR[phase.status] || 'var(--mm-text-muted)' }}>{phase.id === 'review' && phase.status === 'completed' && reviewWaived ? 'Waived by your teacher' : (PHASE_STATUS_LABEL[phase.status] || phase.status)}</span>
               </div>
-              {phase.reason && <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{phase.reason}</p>}
+              {phase.reason && <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{phase.reason}</p>}
             </li>
           ))}
         </ol>
@@ -440,8 +440,8 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         <dl style={{ display: 'grid', gap: 6, margin: 0, padding: '12px 14px', background: 'var(--mm-surface-sunken)', borderRadius: 10 }}>
           {card.grade.rows.map((row) => (
             <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-              <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{row.label}</dt>
-              <dd style={{ margin: 0, fontWeight: row.key === 'recordedGrade' ? 900 : 600, fontSize: 13, color: 'var(--mm-text-strong)' }}>{row.value}</dd>
+              <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{row.label}</dt>
+              <dd style={{ margin: 0, fontWeight: row.key === 'recordedGrade' ? 900 : 600, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{row.value}</dd>
             </div>
           ))}
         </dl>
@@ -498,13 +498,13 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
           the first screen of a Chromebook. */}
       {reviewSkills.length > 0 && (
         <section aria-labelledby="review-skill-progress" style={{ display: 'grid', gap: 6, paddingTop: 12, borderTop: '1px solid var(--mm-border-soft)', textAlign: 'left' }}>
-          <h3 id="review-skill-progress" style={{ margin: 0, fontSize: 14, color: 'var(--mm-text-strong)' }}>How your Review is going</h3>
+          <h3 id="review-skill-progress" style={{ margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>How your Review is going</h3>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
             {reviewSkills.map((skill) => (
               <li key={skill.key} data-review-skill={skill.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '6px 12px', padding: '8px 12px', border: '1px solid var(--mm-border-soft)', borderRadius: 9, background: 'var(--mm-surface-sunken)' }}>
                 <div style={{ minWidth: 0, flex: '1 1 200px' }}>
-                  <strong style={{ display: 'block', color: 'var(--mm-text-strong)', fontSize: 14, overflowWrap: 'anywhere' }}>{skill.label}</strong>
-                  <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{skill.summary}</span>
+                  <strong style={{ display: 'block', color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))', overflowWrap: 'anywhere' }}>{skill.label}</strong>
+                  <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{skill.summary}</span>
                 </div>
                 {onPracticeSkill && skill.canPractise && !previewing && (
                   <button type="button" onClick={() => onPracticeSkill({ alignmentKey: skill.alignmentKey, framework: null, domainId: null })} aria-label={`Practise ${skill.label}`} style={{ ...quietButtonStyle, minHeight: 44, color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' }}>
@@ -521,9 +521,9 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
           action, so the button that starts it stays on the first screen. */}
       {testSkills && (
         <section aria-labelledby="test-cycle-skills" data-test-skills="" style={{ display: 'grid', gap: 6, paddingTop: 12, borderTop: '1px solid var(--mm-border-soft)', textAlign: 'left' }}>
-          <h3 id="test-cycle-skills" style={{ margin: 0, fontSize: 14, color: 'var(--mm-text-strong)' }}>{testSkills.title}</h3>
+          <h3 id="test-cycle-skills" style={{ margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{testSkills.title}</h3>
           {testSkills.note && <p style={{ ...factStyle, color: 'var(--mm-text)' }}>{testSkills.note}</p>}
-          <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 4, color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.45 }}>
+          <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 4, color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45 }}>
             {testSkills.rows.map((skill) => (
               <li key={skill.key} style={{ overflowWrap: 'anywhere' }}>
                 {skill.label}

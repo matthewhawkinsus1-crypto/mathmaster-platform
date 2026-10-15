@@ -24,7 +24,7 @@ export default function BuildFreshnessNotice() {
         maxWidth: 720, margin: '0 auto', padding: '10px 14px', borderRadius: 12,
         background: retired ? 'var(--mm-error-bg)' : 'var(--mm-primary-soft)', color: 'var(--mm-text-strong)',
         border: `1px solid ${retired ? 'var(--mm-error-border-soft)' : 'var(--mm-primary-border)'}`,
-        boxShadow: '0 8px 24px rgba(32,33,36,0.18)', fontSize: 14, lineHeight: 1.4,
+        boxShadow: '0 8px 24px rgba(32,33,36,0.18)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.4,
       }}
     >
       <span style={{ flex: '1 1 260px' }}>{freshness.message}</span>

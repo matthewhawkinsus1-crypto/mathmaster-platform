@@ -33,7 +33,7 @@ const chipStyle = {
   border: '1px solid var(--mm-success-border)',
   background: 'var(--mm-success-subtle)',
   color: 'var(--mm-text-strong)',
-  fontSize: 15,
+  fontSize: 'calc(15 * var(--mm-px))',
 };
 
 const savedChipStyle = { ...chipStyle, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-sunken)' };
@@ -67,12 +67,12 @@ function FactChip({ question, fact, record, verified, onChange }) {
   const showLabel = !(fact === 'slope' && !isScenario(question));
   return (
     <span data-process-fact={fact} style={verified ? chipStyle : savedChipStyle}>
-      {showLabel ? <strong style={{ fontSize: 14 }}>{label} =</strong> : null}
+      {showLabel ? <strong style={{ fontSize: 'calc(14 * var(--mm-px))' }}>{label} =</strong> : null}
       <Latex value={factValueLatex(question, fact, record)} />
       {verified ? <Verified /> : null}
-      <span style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>{studentMethodLabel(record)}</span>
+      <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{studentMethodLabel(record)}</span>
       {onChange ? (
-        <button type="button" onClick={onChange} style={{ ...touchButton, minHeight: 36, padding: '4px 10px', fontSize: 13 }} aria-label={`Change ${label}`}>
+        <button type="button" onClick={onChange} style={{ ...touchButton, minHeight: 36, padding: '4px 10px', fontSize: 'calc(13 * var(--mm-px))' }} aria-label={`Change ${label}`}>
           Change
         </button>
       ) : null}
@@ -97,7 +97,7 @@ export function ProcessFactsStrip({ question, process, relevant, canCheck, disab
       style={{ padding: '12px 14px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 10 }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px 12px', flexWrap: 'wrap' }}>
-        <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)' }}>What I know</h3>
+        <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>What I know</h3>
         <span style={muted}>
           {canCheck
             ? 'Find each fact with a method you choose. A checked fact is yours to reuse, and it opens more of the board.'
@@ -125,7 +125,7 @@ export function ProcessFactsStrip({ question, process, relevant, canCheck, disab
         {facts.siEquation ? (
           <li>
             <span data-process-fact="siEquation" style={canCheck ? chipStyle : savedChipStyle}>
-              <strong style={{ fontSize: 14 }}>Your equation:</strong>
+              <strong style={{ fontSize: 'calc(14 * var(--mm-px))' }}>Your equation:</strong>
               <Latex value={factDisplay(facts.siEquation)} />
               {canCheck ? <Verified /> : null}
             </span>
@@ -135,7 +135,7 @@ export function ProcessFactsStrip({ question, process, relevant, canCheck, disab
           <li style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             {points.length ? (
               <span data-process-fact="point" style={canCheck || points.every((record) => record.base) ? chipStyle : savedChipStyle}>
-                <strong style={{ fontSize: 14 }}>{points.length === 1 ? 'A point:' : 'Points:'}</strong>
+                <strong style={{ fontSize: 'calc(14 * var(--mm-px))' }}>{points.length === 1 ? 'A point:' : 'Points:'}</strong>
                 {points.map((record, index) => (
                   <React.Fragment key={record.key || index}>
                     {index > 0 ? <span aria-hidden="true">,</span> : null}
@@ -148,11 +148,11 @@ export function ProcessFactsStrip({ question, process, relevant, canCheck, disab
             <button type="button" data-process-find="point" onClick={find('point')} disabled={disabled} style={findStyle}>
               {points.length ? 'Find another point' : lmrFindLabel(question, 'point')}
             </button>
-            {interceptsKnown ? <span style={{ ...muted, fontSize: 12 }}>Your intercepts are points on the line too.</span> : null}
+            {interceptsKnown ? <span style={{ ...muted, fontSize: 'calc(12 * var(--mm-px))' }}>Your intercepts are points on the line too.</span> : null}
           </li>
         ) : null}
       </ul>
-      {notice ? <p role="status" style={{ margin: 0, fontSize: 14, color: notice.tone === 'success' ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 700 }}>{notice.text}</p> : null}
+      {notice ? <p role="status" style={{ margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: notice.tone === 'success' ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 700 }}>{notice.text}</p> : null}
     </section>
   );
 }

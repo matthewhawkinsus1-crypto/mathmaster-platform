@@ -10,6 +10,7 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../src/index.css';
+import { installTextScale } from '../../src/platform/layout/textScale.js';
 import '../../src/App.css';
 import { installMathMasterTheme } from '../../src/theme/mathMasterTheme.js';
 import lessonText from '../../docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json?raw';
@@ -26,6 +27,9 @@ import {
 } from '../../src/platform/recovery/studentRecoveryDiscovery.js';
 import StudentDashboardView from '../../src/components/student/StudentDashboardView.jsx';
 import StudentAssignmentsCenter from '../../src/components/student/StudentAssignmentsCenter.jsx';
+
+// As src/main.jsx: fluid font sizes follow the text-size setting (job N).
+installTextScale(window);
 
 installMathMasterTheme();
 

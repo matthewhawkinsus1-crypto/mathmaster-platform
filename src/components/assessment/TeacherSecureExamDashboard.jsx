@@ -7,7 +7,7 @@ import { getExamPolicy } from '../../platform/policies/examPolicyResolver.js';
 import { describePracticeTestTime } from '../../platform/assessment/secureExamResultsModel.js';
 import { compareStudentsByName, formatStudentLabel } from '../../platform/studentName.js';
 
-const fieldLabel = { fontWeight: 800, fontSize: 13, color: 'var(--mm-text)' };
+const fieldLabel = { fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' };
 const fieldControl = { display: 'block', width: '100%', minHeight: 44, marginTop: 5, boxSizing: 'border-box' };
 
 /*
@@ -80,7 +80,7 @@ export const TeacherSecureExamDashboard = ({ students = [], classes = [], teache
       {/* minmax(0, 1fr): a plain `1fr` track is as wide as its widest card's
           table, which pushed every card past the page's edge where the
           last column was cut off with no way to scroll to it. */}
-      {testCycleAssignments.length > 0 && <section style={{ marginBottom: 28, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 18 }}><div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}><h2 style={{ margin: 0 }}>My Course Tests</h2>{archivedCount > 0 && <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}><input type="checkbox" checked={showArchivedCycles} onChange={(event) => setShowArchivedCycles(event.target.checked)} />Show {archivedCount} archived</label>}</div>{orderedCycles.map((testCycleAssignment, index) => <TestCycleControls key={testCycleAssignment.id} assignment={testCycleAssignment} classId={classId} students={students} classes={classes} teacherEmail={teacherEmail} onPreview={onPreviewTestCycle} defaultOpen={focusedTestCycleAssignmentId ? testCycleAssignment.id === focusedTestCycleAssignmentId : index === 0} />)}</section>}
+      {testCycleAssignments.length > 0 && <section style={{ marginBottom: 28, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 18 }}><div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}><h2 style={{ margin: 0 }}>My Course Tests</h2>{archivedCount > 0 && <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}><input type="checkbox" checked={showArchivedCycles} onChange={(event) => setShowArchivedCycles(event.target.checked)} />Show {archivedCount} archived</label>}</div>{orderedCycles.map((testCycleAssignment, index) => <TestCycleControls key={testCycleAssignment.id} assignment={testCycleAssignment} classId={classId} students={students} classes={classes} teacherEmail={teacherEmail} onPreview={onPreviewTestCycle} defaultOpen={focusedTestCycleAssignmentId ? testCycleAssignment.id === focusedTestCycleAssignmentId : index === 0} />)}</section>}
       <h2 style={{ marginTop: 0 }}>College &amp; Career Simulations</h2>
       <section style={{ padding: 'clamp(14px, 3vw, 20px)', border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface-sunken)', marginBottom: 28, textAlign: 'left' }}>
         <h2 style={{ marginTop: 0 }}>Create a practice test</h2>
@@ -91,15 +91,15 @@ export const TeacherSecureExamDashboard = ({ students = [], classes = [], teache
           <label style={fieldLabel}>Question count<input type="number" required min="1" max={policy.totalQuestions} value={questionCount} onChange={(event) => setQuestionCount(event.target.value)} style={fieldControl} /></label>
           <button disabled={!canCreate} type="submit" style={{ minHeight: 44, border: 0, borderRadius: 8, background: canCreate ? 'var(--mm-primary)' : 'var(--mm-surface-control-strong)', color: canCreate ? 'var(--mm-on-primary)' : 'var(--mm-disabled-text)', fontWeight: 900, cursor: canCreate ? 'pointer' : 'not-allowed' }}>{creating ? 'Creating…' : 'Create session'}</button>
         </form>
-        <p data-practice-test-time="" style={{ margin: '12px 0 0', color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.5 }}>
+        <p data-practice-test-time="" style={{ margin: '12px 0 0', color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
           <strong>Time: </strong>{timing.text}
           {timing.seconds !== null && ' Students with extended time in their support plan get it added when they start.'}
         </p>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 13, color: 'var(--mm-text)', fontSize: 13 }}>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 13, color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
           <input type="checkbox" checked={releaseAutomatically} onChange={(event) => setReleaseAutomatically(event.target.checked)} />
           <span><strong>Release results automatically when the student submits.</strong> {releaseAutomatically ? 'The student sees their score, answers and worked solutions as soon as they finish.' : 'Results wait until you choose "Release score, answers and solutions" in the monitor below.'}</span>
         </label>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 13, color: 'var(--mm-text)', fontSize: 13 }}><input type="checkbox" checked={accommodationsConfirmed} onChange={(event) => setAccommodationsConfirmed(event.target.checked)} /><span><strong>Teacher/proctor confirms documented exam accommodations.</strong> This explicit confirmation is required before MathMaster applies a support-plan calculator that would deviate from the base simulation policy.</span></label>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 13, color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}><input type="checkbox" checked={accommodationsConfirmed} onChange={(event) => setAccommodationsConfirmed(event.target.checked)} /><span><strong>Teacher/proctor confirms documented exam accommodations.</strong> This explicit confirmation is required before MathMaster applies a support-plan calculator that would deviate from the base simulation policy.</span></label>
         {message && <p role="status" style={{ color: message.startsWith('Secure session') ? 'var(--mm-success-text)' : 'var(--mm-error-text)', fontWeight: 700 }}>{message}</p>}
       </section>
       <ProctorLiveMonitor key={monitorKey} students={students} />

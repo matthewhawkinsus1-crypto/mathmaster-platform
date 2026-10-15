@@ -75,8 +75,8 @@ export default function WeeklyPathGradePanel({
   return (
     <section style={{ border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22, overflow: 'hidden' }}>
       <header style={{ padding: '15px 18px 12px', borderBottom: '1px solid var(--mm-border-soft)' }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>Weekly learning path{weekKey ? ` · week of ${weekKey}` : ''}</h3>
-        <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>
+        <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))' }}>Weekly learning path{weekKey ? ` · week of ${weekKey}` : ''}</h3>
+        <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, maxWidth: '70ch' }}>
           A separate grade from assignment work: 80% for completing the week&apos;s assigned sessions, 20% for how
           they went. A student who completes every session scores at least 80%, whatever the quality — this grade
           is about doing the practice, and it must not punish a student for finding it hard.
@@ -84,12 +84,12 @@ export default function WeeklyPathGradePanel({
       </header>
 
       {!progressKnown && (
-        <div role="status" style={{ margin: '12px 18px 0', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 13 }}>
+        <div role="status" style={{ margin: '12px 18px 0', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
           {readiness.reason}
         </div>
       )}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
           <thead>
             <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>
               <th style={{ padding: 11 }}>Student</th>
@@ -112,7 +112,7 @@ export default function WeeklyPathGradePanel({
                 </td>
                 <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {!progressKnown ? '—' : row.goal > 0 ? `${row.complete} / ${row.goal}` : '—'}
-                  {row.overdue && <span style={{ marginLeft: 6, color: 'var(--mm-warning-text)', fontWeight: 800, fontSize: 11 }}>OVERDUE</span>}
+                  {row.overdue && <span style={{ marginLeft: 6, color: 'var(--mm-warning-text)', fontWeight: 800, fontSize: 'calc(11 * var(--mm-px))' }}>OVERDUE</span>}
                 </td>
                 <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 900, color: progressKnown && row.goal > 0 ? (row.passing ? 'var(--mm-success-text)' : 'var(--mm-warning-text)') : 'var(--mm-text-muted)' }}>
                   {!progressKnown ? (progressState === 'loading' ? 'Loading…' : 'Unavailable') : row.goal > 0 ? `${Math.round(row.grade)}%` : 'No goal yet'}
@@ -132,10 +132,10 @@ export default function WeeklyPathGradePanel({
       </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '12px 18px', borderTop: '1px solid var(--mm-border-soft)', background: tone.bg }}>
-        <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 900, background: 'var(--mm-surface)', color: tone.fg, border: `1px solid ${tone.border}` }}>
+        <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-surface)', color: tone.fg, border: `1px solid ${tone.border}` }}>
           GOOGLE CLASSROOM
         </span>
-        <span style={{ flex: 1, minWidth: 220, color: tone.fg, fontSize: 12.5, lineHeight: 1.45 }}>{readiness.reason}</span>
+        <span style={{ flex: 1, minWidth: 220, color: tone.fg, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45 }}>{readiness.reason}</span>
         <button
           type="button"
           disabled={readiness.state !== SYNC_STATE.READY_FOR_REVIEW || !onReviewClassroomSync}
@@ -149,7 +149,7 @@ export default function WeeklyPathGradePanel({
             background: 'var(--mm-surface)',
             color: readiness.state === SYNC_STATE.READY_FOR_REVIEW ? 'var(--mm-primary-text)' : 'var(--mm-text-subtle)',
             fontWeight: 900,
-            fontSize: 12.5,
+            fontSize: 'calc(12.5 * var(--mm-px))',
             cursor: readiness.state === SYNC_STATE.READY_FOR_REVIEW && onReviewClassroomSync ? 'pointer' : 'not-allowed',
           }}
         >

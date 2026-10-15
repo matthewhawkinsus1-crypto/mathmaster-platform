@@ -39,7 +39,7 @@ const CHIP_STYLE = {
 const buttonStyle = {
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, minWidth: MIN_TOUCH_TARGET_PX, padding: '10px 16px', borderRadius: 10,
-  fontWeight: 800, fontSize: 15, cursor: 'pointer',
+  fontWeight: 800, fontSize: 'calc(15 * var(--mm-px))', cursor: 'pointer',
   border: '2px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)',
 };
 
@@ -50,7 +50,7 @@ const AnswerText = ({ line }) => (line.math
 function YourAnswer({ answer }) {
   return (
     <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--mm-surface-sunken, var(--mm-surface-control))', border: '1px solid var(--mm-border-soft)', minWidth: 0 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-text-muted)', marginBottom: 4 }}>Your answer</div>
+      <div style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)', marginBottom: 4 }}>Your answer</div>
       {answer.kind === 'fields' ? (
         <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 4 }}>
           {answer.items.map((item) => (
@@ -60,7 +60,7 @@ function YourAnswer({ answer }) {
           ))}
         </ul>
       ) : (
-        <div style={{ fontSize: 17, color: answer.kind === 'none' ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+        <div style={{ fontSize: 'calc(17 * var(--mm-px))', color: answer.kind === 'none' ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {answer.kind === 'none' ? answer.text : <AnswerText line={answer} />}
         </div>
       )}
@@ -70,7 +70,7 @@ function YourAnswer({ answer }) {
 
 function WorkedSolution({ item }) {
   if (!item.solutionQuestion) {
-    return <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 14 }}>{SOLUTION_UNAVAILABLE_TEXT}</p>;
+    return <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>{SOLUTION_UNAVAILABLE_TEXT}</p>;
   }
   const question = item.solutionQuestion;
   const usesToolReview = Boolean(buildToolSolutionReviewModel(question));
@@ -81,14 +81,14 @@ function WorkedSolution({ item }) {
     try { return !legacySolutionReviewContent(question)?.hasContent; } catch { return false; }
   })();
   if (!usesToolReview && legacyHasNothing) {
-    return <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 14 }}>{SOLUTION_UNAVAILABLE_TEXT}</p>;
+    return <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>{SOLUTION_UNAVAILABLE_TEXT}</p>;
   }
   return (
     <QuestionSupplementBoundary
       stage="review-my-work-solution"
       context={{ questionId: question.questionId || null, executionScope: 'review-my-work' }}
       resetKey={item.key}
-      fallback={<p role="status" style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 14 }}>The worked solution for this question could not be shown here. Your answer and grade are kept exactly as they are.</p>}
+      fallback={<p role="status" style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>The worked solution for this question could not be shown here. Your answer and grade are kept exactly as they are.</p>}
     >
       <div className="mm-review-solution" style={{ maxWidth: '100%', overflowX: 'auto' }}>
         {usesToolReview ? <ToolSolutionReview question={question} /> : <SolutionReview question={question} />}
@@ -101,10 +101,10 @@ function ReviewQuestion({ item }) {
   return (
     <li style={{ listStyle: 'none', padding: '16px', borderRadius: 14, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', minWidth: 0 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <h3 style={{ margin: 0, fontSize: 17, color: 'var(--mm-text-strong)' }}>
+        <h3 style={{ margin: 0, fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
           Question {item.number}{item.section ? <span style={{ fontWeight: 600, color: 'var(--mm-text-muted)' }}> · {item.section}</span> : null}
         </h3>
-        <span data-outcome={item.outcome} style={{ ...CHIP_STYLE[item.outcome], padding: '4px 10px', borderRadius: 999, fontSize: 13, fontWeight: 800 }}>
+        <span data-outcome={item.outcome} style={{ ...CHIP_STYLE[item.outcome], padding: '4px 10px', borderRadius: 999, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800 }}>
           {item.outcomeLabel}{item.credit !== null && item.outcome === REVIEW_OUTCOME.PARTIAL ? ` · ${item.credit}%` : ''}
         </span>
       </div>
@@ -113,7 +113,7 @@ function ReviewQuestion({ item }) {
       ) : null}
       <YourAnswer answer={item.answer} />
       {item.teacherLine ? (
-        <p style={{ margin: '10px 0 0', fontSize: 14, color: 'var(--mm-primary-text)', fontWeight: 700 }}>{item.teacherLine}</p>
+        <p style={{ margin: '10px 0 0', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-primary-text)', fontWeight: 700 }}>{item.teacherLine}</p>
       ) : null}
       <WorkedSolution item={item} />
     </li>
@@ -153,7 +153,7 @@ export default function ReviewMyWork({ assignment, load, onClose = null }) {
   return (
     <section aria-label="Review my work" style={{ marginTop: 18, textAlign: 'left', minWidth: 0 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <h2 style={{ margin: 0, fontSize: 19, color: 'var(--mm-text-strong)' }}>Your answers and solutions</h2>
+        <h2 style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Your answers and solutions</h2>
         {onClose ? <button type="button" style={buttonStyle} onClick={() => onClose()}>Close</button> : null}
       </div>
 

@@ -33,7 +33,7 @@
   align-items: center;
   gap: 6px;
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: calc(12 * var(--mm-px));
   font-weight: 700;
   color: var(--mm-text-muted);
 }
@@ -56,7 +56,7 @@
   margin-bottom: 8px;
   padding: 0;
   color: var(--mm-text-strong);
-  font-size: 15px;
+  font-size: calc(15 * var(--mm-px));
   font-weight: 800;
 }
 
@@ -76,7 +76,7 @@
   border-radius: 10px;
   background: var(--mm-surface);
   color: var(--mm-text-strong);
-  font-size: 15px;
+  font-size: calc(15 * var(--mm-px));
   font-weight: 600;
   line-height: 1.35;
   text-align: left;
@@ -114,7 +114,7 @@
 .mathmaster-threeplane-feedback {
   margin: 8px 0 0;
   color: var(--mm-warning-text);
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   font-weight: 600;
   line-height: 1.45;
 }
@@ -134,7 +134,7 @@
   justify-content: center;
   gap: 7px;
   color: var(--mm-text-muted);
-  font-size: 12px;
+  font-size: calc(12 * var(--mm-px));
   font-weight: 700;
   text-align: center;
 }
@@ -169,7 +169,7 @@
   stroke: #fff;
   stroke-width: 4px;
   paint-order: stroke;
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   font-weight: 900;
   letter-spacing: .02em;
   pointer-events: none;
@@ -199,10 +199,10 @@
   .mathmaster-threeplane-motion-cue {
     width: 100%;
     padding-inline: 6px;
-    font-size: 11px;
+    font-size: calc(11 * var(--mm-px));
   }
 
   .mathmaster-threeplane-plane-label {
-    font-size: 13px;
+    font-size: calc(13 * var(--mm-px));
   }
 }

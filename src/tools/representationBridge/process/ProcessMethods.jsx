@@ -200,7 +200,7 @@ export function TwoPointFormulaMethod({ option, env, process, ev, setEv, fieldSt
 function GivenTableChooser({ description, selected = [], onChoose, disabled, captionText }) {
   const captionId = useId();
   return (
-    <table aria-describedby={captionId} style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 320, fontSize: 17 }}>
+    <table aria-describedby={captionId} style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 320, fontSize: 'calc(17 * var(--mm-px))' }}>
       <caption id={captionId} style={{ ...muted, textAlign: 'left', captionSide: 'top', paddingBottom: 6 }}>{captionText}</caption>
       <thead>
         <tr>
@@ -224,7 +224,7 @@ function GivenTableChooser({ description, selected = [], onChoose, disabled, cap
                   data-process-row={index}
                   disabled={disabled}
                   onClick={() => onChoose(index)}
-                  style={{ ...touchButton, minWidth: 92, padding: '6px 10px', fontSize: 13 }}
+                  style={{ ...touchButton, minWidth: 92, padding: '6px 10px', fontSize: 'calc(13 * var(--mm-px))' }}
                   aria-label={`Row ${index + 1}${position >= 0 ? `, chosen${selected.length > 1 ? ` as row ${position + 1}` : ''}` : ''}`}
                 >
                   {position >= 0 ? (selected.length > 1 || position > 0 ? `Row ${position + 1} ✓` : 'Chosen ✓') : 'Choose'}
@@ -292,7 +292,7 @@ export function ExtendTableMethod({ target, description, ev, setEv, fieldStatus,
           ? 'Continue the table\'s pattern — the same change in y for each equal change in x — until y = 0.'
           : 'Continue the table\'s pattern — the same change in y for each equal change in x — until x = 0.'}
       </p>
-      <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 360, fontSize: 17 }}>
+      <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 360, fontSize: 'calc(17 * var(--mm-px))' }}>
         <thead>
           <tr>
             <th scope="col" style={{ padding: '4px 8px', fontStyle: 'italic', fontFamily: 'serif', color: 'var(--mm-primary-text)' }}>x</th>
@@ -323,7 +323,7 @@ export function ExtendTableMethod({ target, description, ev, setEv, fieldStatus,
                     data-process-extend={`${index}:${field}`}
                     onChange={(event) => setRow(index, field, event.target.value)}
                     style={{
-                      width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '8px 10px', fontSize: 17, textAlign: 'center',
+                      width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '8px 10px', fontSize: 'calc(17 * var(--mm-px))', textAlign: 'center',
                       border: `1px solid ${status === 'incorrect' ? '#d93025' : status === 'correct' ? '#34a853' : 'var(--mm-primary-border)'}`, borderRadius: 8, background: 'var(--mm-surface)',
                     }}
                   />

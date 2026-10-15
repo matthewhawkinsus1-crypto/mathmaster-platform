@@ -73,7 +73,7 @@
 /* What the view carries, as one line of caption text under the actions
    (PQ-027). Each label used to be a grey rounded chip the size of a button, and
    a student read "Pan and zoom" as a button that would not press. */
-.mathmaster-work-view-capabilities { margin: 6px 2px 0; color: var(--mm-text-muted); font-size: 12px; font-weight: 600; line-height: 1.45; }
+.mathmaster-work-view-capabilities { margin: 6px 2px 0; color: var(--mm-text-muted); font-size: calc(12 * var(--mm-px)); font-weight: 600; line-height: 1.45; }
 .mathmaster-work-view-capabilities-lead { font-weight: 800; }
 
 /* The one sentence saying what this step asks for. It is not a capability chip
@@ -89,7 +89,7 @@
   border-radius: 0 8px 8px 0;
   background: var(--mm-info-bg);
   color: var(--mm-text-strong);
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   font-weight: 750;
   line-height: 1.4;
 }
@@ -714,7 +714,7 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   border-left-width: 3px;
   border-radius: 0;
   background: none;
-  font-size: 12.5px;
+  font-size: calc(12.5 * var(--mm-px));
   line-height: 1.35;
   max-height: calc(1.35em * 2);
   overflow-y: auto;
@@ -783,7 +783,7 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
 }
 
 /* The step's kind and status are whole words or nothing: the name gives way. */

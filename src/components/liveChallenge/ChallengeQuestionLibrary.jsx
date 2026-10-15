@@ -28,13 +28,13 @@ function ImportResult({ result }) {
       <strong>{result.imported ? 'Question library updated.' : 'Nothing was imported.'}</strong>
       <div style={{ marginTop: 4 }}>{count} supplied · {accepted} accepted · {rejected} rejected.</div>
       {Object.keys(byReason).length > 0 && (
-        <div style={{ marginTop: 8, fontSize: 13 }}>
+        <div style={{ marginTop: 8, fontSize: 'calc(13 * var(--mm-px))' }}>
           <strong>Why items were rejected:</strong>{' '}
           {Object.entries(byReason).map(([reason, amount]) => `${reason} (${amount})`).join(' · ')}
         </div>
       )}
       {!result.imported && rejected > 0 && (
-        <div style={{ marginTop: 6, fontSize: 13 }}>
+        <div style={{ marginTop: 6, fontSize: 'calc(13 * var(--mm-px))' }}>
           The secure importer validates the entire package before writing anything, so a partly valid package cannot leave the bank half-updated.
         </div>
       )}
@@ -99,7 +99,7 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
 
   return (
     <details style={{ ...box, marginTop: 14 }}>
-      <summary style={{ cursor: 'pointer', fontWeight: 900, fontSize: 16 }}>Question Library</summary>
+      <summary style={{ cursor: 'pointer', fontWeight: 900, fontSize: 'calc(16 * var(--mm-px))' }}>Question Library</summary>
       <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
         Add questions here without leaving Live Challenge. This uses the same secure My Math Path bank and the same server validator as normal Path imports—there is not a second answer bank to maintain.
       </p>
@@ -109,7 +109,7 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
           and uploading more typed-answer questions does not fix that. The one
           field that decides it is `pathToolId`, so it is named here rather
           than left to be discovered. */}
-      <p style={{ color: 'var(--mm-text)', lineHeight: 1.55, marginBottom: 12, fontSize: 13 }}>
+      <p style={{ color: 'var(--mm-text)', lineHeight: 1.55, marginBottom: 12, fontSize: 'calc(13 * var(--mm-px))' }}>
         Most of the secure bank is typed or chosen answers, so <strong>Interactive tools only</strong> draws from a
         small pool. Give a question a <code>pathToolId</code> — <code>stepAlgebra</code>, <code>graphing2</code>,{' '}
         <code>systemsWorkspace</code>, <code>intervalNumberLine</code>, <code>relationMapping</code>,{' '}
@@ -129,7 +129,7 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
           <label style={{ fontWeight: 800 }}>Upload JSON
             <input type="file" accept="application/json,.json" disabled={busy} onChange={(event) => readUpload(event.target.files?.[0])} style={{ ...input, background: 'var(--mm-surface)' }} />
           </label>
-          <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13 }}>A raw array or an object containing documents, items, or questions is accepted.</div>
+          <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>A raw array or an object containing documents, items, or questions is accepted.</div>
         </div>
       )}
 
@@ -144,7 +144,7 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
             </select>
           </label>
           <button type="button" disabled={busy || !assignmentId} onClick={importAssignment} style={{ ...button, marginTop: 10, opacity: busy || !assignmentId ? .55 : 1 }}>Import assignment questions</button>
-          <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13 }}>The server will accept only questions that satisfy the secure Path/Live Challenge contract. Unsupported assignment-only shapes are reported, not silently rewritten.</div>
+          <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>The server will accept only questions that satisfy the secure Path/Live Challenge contract. Unsupported assignment-only shapes are reported, not silently rewritten.</div>
         </div>
       )}
 

@@ -29,7 +29,7 @@ const rosterStudentLabel = (studentId, students, historicalName = '', showStuden
 // mastery, evidence, presence, or Live Challenge scoring.
 
 const rowStyle = { padding: '9px 10px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' };
-const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
+const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 'calc(11.5 * var(--mm-px))', cursor: 'pointer' };
 
 const formatWhen = (value) => {
   const millis = classPointsTimestampMillis(value);
@@ -45,7 +45,7 @@ function ReversalControl({ transaction }) {
   const [done, setDone] = useState(false);
   const controllerRef = useRef(createRequestIdController());
 
-  if (done) return <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-text-muted)' }}>Reversed</span>;
+  if (done) return <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>Reversed</span>;
 
   if (!confirming) {
     return <button type="button" style={{ ...smallButtonStyle, borderColor: '#d93025', color: 'var(--mm-error-text)' }} onClick={() => setConfirming(true)}>Reverse award</button>;
@@ -81,7 +81,7 @@ function ReversalControl({ transaction }) {
 
   return (
     <div onClick={(event) => event.stopPropagation()} style={{ display: 'grid', gap: 6, width: '100%', marginTop: 6, padding: '8px 9px', borderRadius: 8, background: 'var(--mm-error-subtle)', border: '1px solid var(--mm-error-border-soft)' }}>
-      <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--mm-error-text)' }}>Reverse this award? The student&apos;s balance will change immediately.</div>
+      <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-error-text)' }}>Reverse this award? The student&apos;s balance will change immediately.</div>
       <input
         type="text"
         value={reasonText}
@@ -89,9 +89,9 @@ function ReversalControl({ transaction }) {
         maxLength={300}
         onChange={(event) => setReasonText(event.target.value)}
         aria-label="Reversal reason"
-        style={{ padding: '7px 9px', borderRadius: 7, border: '1px solid var(--mm-border)', fontSize: 12.5 }}
+        style={{ padding: '7px 9px', borderRadius: 7, border: '1px solid var(--mm-border)', fontSize: 'calc(12.5 * var(--mm-px))' }}
       />
-      {error && <div role="alert" style={{ fontSize: 11.5, color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</div>}
+      {error && <div role="alert" style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</div>}
       <div style={{ display: 'flex', gap: 6 }}>
         <button type="button" disabled={busy} onClick={() => setConfirming(false)} style={smallButtonStyle}>Cancel</button>
         <button type="button" disabled={busy} onClick={confirmReversal} style={{ ...smallButtonStyle, borderColor: '#d93025', background: busy ? '#f3b4ad' : '#d93025', color: '#fff', cursor: busy ? 'wait' : 'pointer' }}>
@@ -123,14 +123,14 @@ export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster 
   return (
     <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-sunken)' }}>
       <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>Class Points Activity</div>
-      <div style={{ marginTop: 3, marginBottom: 10, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+      <div style={{ marginTop: 3, marginBottom: 10, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
         Recent activity for this class. A mistaken award is corrected with Reverse award — the original stays in history.
       </div>
 
       {unavailable ? (
-        <div style={{ fontSize: 12.5, color: 'var(--mm-text-subtle)' }}>Class Points history is unavailable right now. Live monitoring is unaffected.</div>
+        <div style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>Class Points history is unavailable right now. Live monitoring is unaffected.</div>
       ) : transactions.length === 0 ? (
-        <div style={{ fontSize: 12.5, color: 'var(--mm-text-subtle)' }}>No Class Points activity for this class yet.</div>
+        <div style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>No Class Points activity for this class yet.</div>
       ) : (
         <div style={{ display: 'grid', gap: 7 }}>
           {transactions.map((transaction) => {
@@ -139,9 +139,9 @@ export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster 
             return (
               <div key={transaction.id} style={rowStyle}>
                 <div style={{ minWidth: 0 }}>
-                  <strong style={{ fontSize: 12.5 }}>{studentName}</strong>
-                  <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 900, color: amount < 0 ? 'var(--mm-error-text)' : 'var(--mm-success-text)' }}>{amount > 0 ? `+${amount}` : amount} pts</span>
-                  <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)', marginTop: 2 }}>
+                  <strong style={{ fontSize: 'calc(12.5 * var(--mm-px))' }}>{studentName}</strong>
+                  <span style={{ marginLeft: 8, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: amount < 0 ? 'var(--mm-error-text)' : 'var(--mm-success-text)' }}>{amount > 0 ? `+${amount}` : amount} pts</span>
+                  <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)', marginTop: 2 }}>
                     {transaction.reasonLabel || 'Class Points'} · {sourceTypeLabel(transaction)}{formatWhen(transaction.createdAt) && ` · ${formatWhen(transaction.createdAt)}`}
                   </div>
                 </div>

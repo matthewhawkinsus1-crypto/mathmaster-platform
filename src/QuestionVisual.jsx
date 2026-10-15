@@ -51,7 +51,7 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
       {mathSpec && (
         <div
           style={{
-            fontSize: '26px',
+            fontSize: 'calc(26 * var(--mm-px))',
             color: 'var(--mm-primary)',
             background: 'var(--mm-surface-sunken)',
             borderRadius: '10px',
@@ -76,7 +76,7 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
       {displayTable && (
         <div style={{ margin: '22px auto', maxWidth: '100%', overflowX: 'auto' }}>
           <table
-            style={{ borderCollapse: 'collapse', margin: '0 auto', minWidth: '260px', fontSize: '17px' }}
+            style={{ borderCollapse: 'collapse', margin: '0 auto', minWidth: '260px', fontSize: 'calc(17 * var(--mm-px))' }}
           >
             {question?.tableCaption && (
               <caption style={{ captionSide: 'top', padding: '0 0 10px', color: 'var(--mm-text)', fontWeight: 600 }}>

@@ -46,7 +46,7 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
         instruction: { text: prompt || 'Solve both equations as one system.' },
       }}>
       {showEquations && equationsLatex.length > 0 && (
-        <div style={{ display: 'grid', gap: '10px', margin: '24px auto', padding: '18px 24px', width: 'fit-content', maxWidth: '100%', background: 'var(--mm-surface-sunken)', borderRadius: '10px', color: 'var(--mm-primary)', fontSize: '26px', fontWeight: 'bold' }}>
+        <div style={{ display: 'grid', gap: '10px', margin: '24px auto', padding: '18px 24px', width: 'fit-content', maxWidth: '100%', background: 'var(--mm-surface-sunken)', borderRadius: '10px', color: 'var(--mm-primary)', fontSize: 'calc(26 * var(--mm-px))', fontWeight: 'bold' }}>
           {equationsLatex.map((equation, index) => (
             <div key={`${equation}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span aria-hidden="true" style={{ width: '28px', height: '4px', borderRadius: '999px', background: index === 0 ? '#1a73e8' : '#9334e6', flex: '0 0 auto' }} />
@@ -58,7 +58,7 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
       <QuestionVisual question={question} includeGraph={false} />
       {showGraph && graph && <GraphDisplay graph={graph} title="System of equations graph" enlargeable={false} />}
       <div style={{ marginTop: '24px' }}>
-        <MathDisplay value="(x, y) =" format="ascii-math" inline style={{ display: 'block', marginBottom: '10px', fontSize: '21px', fontWeight: 'bold' }} />
+        <MathDisplay value="(x, y) =" format="ascii-math" inline style={{ display: 'block', marginBottom: '10px', fontSize: 'calc(21 * var(--mm-px))', fontWeight: 'bold' }} />
         <MathInput value={answer} onChange={setAnswer} placeholder="(x, y)" ariaLabel="Solution to the system as an ordered pair" onUndoStateChange={onUndoStateChange} inputStatus={incorrect ? 'incorrect' : 'neutral'} />
       </div>
       </EnlargeableFigure>

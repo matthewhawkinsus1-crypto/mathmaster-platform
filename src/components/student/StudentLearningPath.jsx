@@ -26,7 +26,7 @@ const section = {
 };
 
 const sectionHeading = {
-  margin: '0 0 4px', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em',
+  margin: '0 0 4px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '0.08em',
   textTransform: 'uppercase', color: 'var(--mm-text-muted)',
 };
 
@@ -84,9 +84,9 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
       } : {}),
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-        <span aria-hidden="true" style={{ fontSize: 15 }}>{node.symbol}</span>
-        <strong style={{ fontSize: 16 }}>{node.title}</strong>
-        <span style={{ fontSize: 11, fontWeight: 800, color: toneTextColor(node.tone), textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <span aria-hidden="true" style={{ fontSize: 'calc(15 * var(--mm-px))' }}>{node.symbol}</span>
+        <strong style={{ fontSize: 'calc(16 * var(--mm-px))' }}>{node.title}</strong>
+        <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: toneTextColor(node.tone), textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           {node.statusLabel}
         </span>
       </div>
@@ -103,14 +103,14 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
             color: toneTextColor(pass.tone),
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.045em', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '.045em', textTransform: 'uppercase' }}>
             {pass.completedLabel}
           </div>
-          <div style={{ marginTop: 3, fontSize: 13, fontWeight: 900 }}>
+          <div style={{ marginTop: 3, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900 }}>
             {pass.nextLabel}
           </div>
           {node.status !== 'mastered' && (
-            <div style={{ marginTop: 4, color: 'var(--mm-text)', fontSize: 11.5, lineHeight: 1.45 }}>
+            <div style={{ marginTop: 4, color: 'var(--mm-text)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.45 }}>
               This practice round is done. Levels are how deep your practice goes; Mastered is earned separately from your answers.
             </div>
           )}
@@ -118,17 +118,17 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
       )}
 
       {!pass.hasCompletedPass && pass.levelLabel && node.selectable && !disabled && (
-        <div style={{ margin: '4px 0 9px', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850 }}>
+        <div style={{ margin: '4px 0 9px', color: 'var(--mm-primary-text)', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 850 }}>
           {pass.levelLabel}
         </div>
       )}
       {node.description && (
-        <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--mm-text)', lineHeight: 1.5 }}>{node.description}</p>
+        <p style={{ margin: '0 0 8px', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.5 }}>{node.description}</p>
       )}
       {/* The unit the class calls it by — computed for every card, and now
           shown. */}
       {showUnit && (
-        <p data-class-unit style={{ margin: '0 0 8px', fontSize: 11.5, lineHeight: 1.45, color: 'var(--mm-text-muted)', fontWeight: 750 }}>
+        <p data-class-unit style={{ margin: '0 0 8px', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)', fontWeight: 750 }}>
           Class unit · {node.unitTitle}
         </p>
       )}
@@ -138,20 +138,20 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
           and their own "why" disclosure; a retention check keeps its own. */}
       {showEvidence ? (
         <div data-recommendation-evidence style={{ margin: '0 0 10px' }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>Why this is suggested</div>
-          <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 12.5, color: 'var(--mm-text)', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>Why this is suggested</div>
+          <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.5 }}>
             {node.evidence.map((item) => <li key={`${item.kind}:${item.text}`}>{item.text}</li>)}
           </ul>
         </div>
       ) : (
-        <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{node.reason}</p>
+        <p style={{ margin: '0 0 10px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{node.reason}</p>
       )}
 
       {/* A calendar restriction is a date, so show the date. "Not in your
           learning window yet" with no number is indistinguishable from a
           verdict. The sentence is the topic browser's too (explainPacing). */}
       {node.blockedBy === 'pacing' && (
-        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-primary-text)', fontWeight: 700 }}>
+        <p style={{ margin: '-4px 0 10px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-primary-text)', fontWeight: 700 }}>
           {explainPacing(node)}
         </p>
       )}
@@ -162,12 +162,12 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
             type="button"
             aria-expanded={showWhy}
             onClick={() => setShowWhy((current) => !current)}
-            style={{ minHeight: 44, minWidth: 44, padding: '0 2px', border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}
+            style={{ minHeight: 44, minWidth: 44, padding: '0 2px', border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))', cursor: 'pointer', textAlign: 'left' }}
           >
             {showWhy ? 'Hide' : whyLabel(node.blockedBy)}
           </button>
           {showWhy && (
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-text)', lineHeight: 1.55 }}>{node.lockedExplanation}</p>
+            <p style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.55 }}>{node.lockedExplanation}</p>
           )}
         </div>
       )}
@@ -182,7 +182,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         >
           <span aria-hidden="true">{node.strengthen.symbol}</span>{' '}
           <strong>{node.strengthen.title}</strong>{' '}
-          <span style={{ fontSize: 11, fontWeight: 800, color: toneTextColor(node.strengthen.tone), textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: toneTextColor(node.strengthen.tone), textTransform: 'uppercase' }}>
             {node.strengthen.statusLabel}
           </span>
         </button>
@@ -223,7 +223,7 @@ function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = fals
   return (
     <section style={section}>
       <h3 style={sectionHeading}>{title}</h3>
-      {note && <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--mm-text-muted)' }}>{note}</p>}
+      {note && <p style={{ margin: '0 0 12px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{note}</p>}
       <div style={nodeRow}>
         {nodes.map((node) => (
           <PathNode
@@ -335,7 +335,7 @@ export const StudentLearningPath = ({
     return (
       <section style={{ ...section, maxWidth: 940, margin: '24px auto' }}>
         <h3 style={sectionHeading}>Your path</h3>
-        <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.6 }}>
+        <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.6 }}>
           MathMaster is still resolving your course and learning path. If this remains here, your class assignment needs
           to be checked by your teacher or administrator.
         </p>
@@ -383,7 +383,7 @@ export const StudentLearningPath = ({
     return (
       <section style={{ ...section, maxWidth: 940, margin: '24px auto' }}>
         <h3 style={sectionHeading}>Your path</h3>
-        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.6 }}>
           Nothing is open on your path just yet. Try a practice session from your mastery overview to build some
           evidence, or browse every topic in your course to see what is coming.
         </p>
@@ -396,8 +396,8 @@ export const StudentLearningPath = ({
     <div style={{ maxWidth: 940, margin: '0 auto', padding: '20px 16px 40px' }}>
       <header style={{ textAlign: 'left', marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ flex: '1 1 260px', minWidth: 0 }}>
-          <h2 style={{ margin: 0, fontSize: 24, color: 'var(--mm-text-strong)' }}>Your path</h2>
-          <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
+          <h2 style={{ margin: 0, fontSize: 'calc(24 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Your path</h2>
+          <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
             <strong>{map.masteredCount} of {map.totalSkills}</strong> skills mastered.
             {passSummary.totalCompletedPasses > 0 && (
               <> · <strong>{passSummary.totalCompletedPasses}</strong> practice {passSummary.totalCompletedPasses === 1 ? 'round' : 'rounds'} done across <strong>{passSummary.completedSkillCount}</strong> {passSummary.completedSkillCount === 1 ? 'skill' : 'skills'}.</>
@@ -415,7 +415,7 @@ export const StudentLearningPath = ({
         there is a weekly target worth naming alongside it.
       */}
       {freeChoiceMessage && (
-        <div role="status" style={{ margin: '0 0 16px', padding: '12px 14px', borderRadius: 11, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)', fontSize: 13.5, fontWeight: 750, lineHeight: 1.55 }}>
+        <div role="status" style={{ margin: '0 0 16px', padding: '12px 14px', borderRadius: 11, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)', fontSize: 'calc(13.5 * var(--mm-px))', fontWeight: 750, lineHeight: 1.55 }}>
           {freeChoiceMessage}
         </div>
       )}

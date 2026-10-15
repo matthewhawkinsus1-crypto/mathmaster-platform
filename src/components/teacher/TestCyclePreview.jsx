@@ -55,7 +55,7 @@ const DEVICES = Object.freeze([
 ]);
 
 const chip = (active) => ({
-  minHeight: 36, padding: '6px 11px', borderRadius: 999, fontSize: 12.5, fontWeight: 800, cursor: 'pointer',
+  minHeight: 36, padding: '6px 11px', borderRadius: 999, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800, cursor: 'pointer',
   border: active ? '2px solid var(--mm-primary)' : '1px solid var(--mm-border-strong)',
   background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
   color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)',
@@ -174,7 +174,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <button type="button" onClick={onBack} style={quietButton}>← Back to the card</button>
         <button type="button" onClick={() => setDraw((value) => value + 1)} style={quietButton}>Show another version</button>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>
           <input type="checkbox" checked={showSlot} onChange={(event) => setShowSlot(event.target.checked)} />
           Show blueprint details (teacher only)
         </label>
@@ -191,20 +191,20 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
             expiresAt={null}
             onTimeExpired={() => {}}
           />
-          <p style={{ margin: '10px 16px 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+          <p style={{ margin: '10px 16px 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             {data.delivery?.timed ? `Students see a ${data.delivery.timeLimitMinutes}-minute timer, enforced by the server. It is not running in preview.` : 'This Test is not timed; students see no clock.'}
             {stage === 'retest' ? ' A real retest targets each student\'s weak skills from their own Test; these are Test items from the same blueprint.' : ''}
             {correctionsStage ? ' In Corrections the same tools open with hints, an immediate verdict and three tries. A real correction is a parallel item for a skill the student missed; these are items from the same blueprint.' : ''}
           </p>
           {data.unfilledSlots > 0 && (
-            <p role="alert" style={{ margin: '10px 16px 0', fontSize: 13, fontWeight: 700, color: 'var(--mm-error-text)' }}>
+            <p role="alert" style={{ margin: '10px 16px 0', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-error-text)' }}>
               {data.unfilledSlots} of this Test's question{data.unfilledSlots === 1 ? '' : 's'} cannot be previewed or issued yet
               {(data.unfilledTargetIds || []).length ? ` (${data.unfilledTargetIds.join(', ')})` : ''}: the secure question bank has
               no approved family for {data.unfilledSlots === 1 ? 'it' : 'them'}. The preflight names the family to import.
             </p>
           )}
           {showSlot && item?.slot && (
-            <p style={{ margin: '8px 16px 0', fontSize: 12.5, color: 'var(--mm-text)', background: 'var(--mm-surface)', padding: '8px 10px', borderRadius: 8, border: '1px dashed var(--mm-border-strong)' }}>
+            <p style={{ margin: '8px 16px 0', fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)', background: 'var(--mm-surface)', padding: '8px 10px', borderRadius: 8, border: '1px dashed var(--mm-border-strong)' }}>
               Teacher only — {item.slot.alignmentKey || 'standard'} · DOK {item.slot.dok} · difficulty {item.slot.difficultyBand} · {item.slot.representation}{item.slot.anchor ? ' · anchor' : ''} · family {item.slot.familyId}
               {' · '}tool: {item.slot.toolLabel || 'Response fields'}
               {item.slot.devices ? ` (${Object.entries(DEVICE_WORDS).map(([id, word]) => `${word} ${item.slot.devices[id] ? '✓' : '—'}`).join(', ')})` : ''}
@@ -252,10 +252,10 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
           )}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '0 16px 20px', flexWrap: 'wrap' }}>
             <button type="button" disabled={index === 0} onClick={() => setIndex((value) => Math.max(0, value - 1))} style={quietButton}>Previous item</button>
-            <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--mm-text-muted)' }}>Item {index + 1} of {items.length}</span>
+            <span style={{ alignSelf: 'center', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Item {index + 1} of {items.length}</span>
             <button type="button" disabled={index >= items.length - 1} onClick={() => setIndex((value) => Math.min(items.length - 1, value + 1))} style={quietButton}>Next item</button>
           </div>
-          <p style={{ margin: '0 16px 16px', fontSize: 12, color: 'var(--mm-text-muted)' }}>
+          <p style={{ margin: '0 16px 16px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Students can skip, flag and go back to any question they have opened until they submit; each answer is graded once, when they submit.
           </p>
         </div>
@@ -301,11 +301,11 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, 
           ))}
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 13, fontWeight: 800 }}>Width:</span>
+          <span style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800 }}>Width:</span>
           {DEVICES.map((entry) => (
             <button key={entry.id} type="button" aria-pressed={device === entry.id} onClick={() => setDevice(entry.id)} style={chip(device === entry.id)}>{entry.label} · {entry.px}px</button>
           ))}
-          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, marginLeft: 8 }}>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, marginLeft: 8 }}>
             <input type="checkbox" checked={accommodation} onChange={(event) => setAccommodation(event.target.checked)} />
             Preview with a calculator accommodation
           </label>
@@ -334,7 +334,7 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, 
                 {(previewCard.corrections?.targets || []).map((target) => (
                   <div key={target.correctionId} style={{ padding: 10, borderRadius: 9, background: 'var(--mm-surface-sunken)' }}>
                     <strong>{target.label}</strong> — {target.correctResponses} of {target.requiredCorrectResponses} correct
-                    <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>{target.diagnosisDetail}</div>
+                    <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{target.diagnosisDetail}</div>
                   </div>
                 ))}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
