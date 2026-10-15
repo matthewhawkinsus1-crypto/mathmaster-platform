@@ -22809,11 +22809,13 @@
         "For two points, average rate of change is the change in the response variable divided by the corresponding change in the explanatory variable."
       ],
       "solutionReview": {
-        "headline": "Compare the rates in the data and model.",
+        "headline": "Change in $y$ over change in $x$: {{rate}}.",
         "reasoning": [
-          "Use the units and the relevant interval to compute or interpret the rate. A fitted trend summarizes the data, while an observed interval can differ from the model."
+          "The average rate of change between two observations is the change in $y$ divided by the change in $x$.",
+          "$\\frac{{{y2}}-{{y1}}}{{{x2}}-{{x1}}}=\\frac{{{dy}}}{{{dx}}}={{rate}}$."
         ],
-        "answerSummary": "Check that the rate and its units match the quantities being compared."
+        "commonError": "Subtracting the $y$-values and the $x$-values in opposite orders, which flips the sign to {{d1}}.",
+        "answerSummary": "${{rate}}$"
       },
       "prompt": "Two observations in a data set are $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the average rate of change in $y$ with respect to $x$ between these observations?",
       "generator": {
@@ -22849,7 +22851,8 @@
           "y2": "y1+rate*dx",
           "d1": "-rate",
           "d2": "rate+2",
-          "d3": "rate-2"
+          "d3": "rate-2",
+          "dy": "rate*dx"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -22937,11 +22940,13 @@
         "For two points, average rate of change is the change in the response variable divided by the corresponding change in the explanatory variable."
       ],
       "solutionReview": {
-        "headline": "Compare the rates in the data and model.",
+        "headline": "Multiply the slope by the change in $x$: {{answer}}.",
         "reasoning": [
-          "Use the units and the relevant interval to compute or interpret the rate. A fitted trend summarizes the data, while an observed interval can differ from the model."
+          "In $y={{m}}x {{b|signed}}$, each 1-unit increase in $x$ changes the prediction by the slope, {{m}}.",
+          "An increase of {{dx}} changes it by ${{m}}\\cdot {{dx}}={{answer}}$; the intercept {{b}} does not affect a change."
         ],
-        "answerSummary": "Check that the rate and its units match the quantities being compared."
+        "commonError": "Giving the slope {{m}} alone, or adding {{dx}} to the slope instead of multiplying.",
+        "answerSummary": "A change of {{answer}}"
       },
       "prompt": "A fitted linear model for two variables is $y={{m}}x {{b|signed}}$. According to the model, by how much does the predicted value of $y$ change when $x$ increases by {{dx}}?",
       "generator": {
@@ -23069,11 +23074,13 @@
         "For two points, average rate of change is the change in the response variable divided by the corresponding change in the explanatory variable."
       ],
       "solutionReview": {
-        "headline": "Compare the rates in the data and model.",
+        "headline": "Subtract the slopes, B minus A: {{delta}}.",
         "reasoning": [
-          "Use the units and the relevant interval to compute or interpret the rate. A fitted trend summarizes the data, while an observed interval can differ from the model."
+          "Per 1-unit increase in $x$, data set A's line predicts an increase of {{m1}} and data set B's an increase of {{m2}}.",
+          "B exceeds A by ${{m2}}-{{m1}}={{delta}}$."
         ],
-        "answerSummary": "Check that the rate and its units match the quantities being compared."
+        "commonError": "Subtracting in the other order ({{dReversed}}), or giving one of the slopes instead of the difference.",
+        "answerSummary": "${{delta}}$"
       },
       "prompt": "For data set A, a fitted line has slope {{m1}}. For data set B, a fitted line has slope {{m2}}. How much greater is the predicted increase in $y$ per 1-unit increase in $x$ for data set B than for data set A?",
       "generator": {
@@ -23189,11 +23196,14 @@
         "For two points, average rate of change is the change in the response variable divided by the corresponding change in the explanatory variable."
       ],
       "solutionReview": {
-        "headline": "Compare the rates in the data and model.",
+        "headline": "Equal widths, so compare the rate on each interval: the middle one is greatest.",
         "reasoning": [
-          "Use the units and the relevant interval to compute or interpret the rate. A fitted trend summarizes the data, while an observed interval can differ from the model."
+          "Each interval is {{step}} units wide; divide each change in $y$ by {{step}}.",
+          "Rates: $\\frac{{{y1}}-{{y0}}}{{{step}}}={{r1}}$, $\\frac{{{y2}}-{{y1|paren}}}{{{step}}}={{r2}}$ and $\\frac{{{y3}}-{{y2|paren}}}{{{step}}}={{r3}}$.",
+          "The greatest is {{r2}}: From $x={{x1}}$ to $x={{x2}}$."
         ],
-        "answerSummary": "Check that the rate and its units match the quantities being compared."
+        "commonError": "Comparing the $y$-values themselves instead of how much they change across each interval.",
+        "answerSummary": "From $x={{x1}}$ to $x={{x2}}$"
       },
       "prompt": "The observations are $({{x0}},{{y0}})$, $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, and $({{x3}},{{y3}})$, where the $x$-values are equally spaced. Over which interval does $y$ have the greatest average rate of change?",
       "generator": {
@@ -23324,11 +23334,13 @@
         "For two points, average rate of change is the change in the response variable divided by the corresponding change in the explanatory variable."
       ],
       "solutionReview": {
-        "headline": "Compare the rates in the data and model.",
+        "headline": "Observed rate minus model slope: {{answer}}.",
         "reasoning": [
-          "Use the units and the relevant interval to compute or interpret the rate. A fitted trend summarizes the data, while an observed interval can differ from the model."
+          "The question asks for the observed average rate of change minus the model's rate (its slope).",
+          "${{observedRate}}-{{m}}={{answer}}$."
         ],
-        "answerSummary": "Check that the rate and its units match the quantities being compared."
+        "commonError": "Subtracting in the other order, which gives the opposite sign.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A fitted line for a data set has slope {{m}}. Between two observed points, the average rate of change is {{observedRate}}. What is the observed average rate of change minus the model's rate?",
       "generator": {
@@ -23420,11 +23432,13 @@
         "For two points, average rate of change is the change in the response variable divided by the corresponding change in the explanatory variable."
       ],
       "solutionReview": {
-        "headline": "Compare the rates in the data and model.",
+        "headline": "Find the slope from the two predictions, then multiply by {{extra}}: {{answer}}.",
         "reasoning": [
-          "Use the units and the relevant interval to compute or interpret the rate. A fitted trend summarizes the data, while an observed interval can differ from the model."
+          "Slope of the model: $\\frac{{{y2}}-{{y1|paren}}}{{{x2}}-{{x1}}}=\\frac{{{dy}}}{{{span}}}={{m}}$.",
+          "An increase of {{extra}} in $x$ changes the prediction by ${{m}}\\cdot {{extra}}={{answer}}$."
         ],
-        "answerSummary": "Check that the rate and its units match the quantities being compared."
+        "commonError": "Giving the slope {{m}} alone, or the change over the original {{span}} units.",
+        "answerSummary": "A change of {{answer}}"
       },
       "prompt": "A fitted linear model predicts $y={{y1}}$ when $x={{x1}}$ and $y={{y2}}$ when $x={{x2}}$. According to the model, what is the predicted change in $y$ when $x$ increases by {{extra}}?",
       "generator": {
@@ -23465,7 +23479,8 @@
           "answer": "m*extra",
           "dSlopeOnly": "m",
           "dAdded": "m+extra",
-          "dDoubled": "2*m*extra"
+          "dDoubled": "2*m*extra",
+          "dy": "m*span"
         },
         "constraints": [
           "answer!=dSlopeOnly",
@@ -23561,11 +23576,13 @@
         "For two points, average rate of change is the change in the response variable divided by the corresponding change in the explanatory variable."
       ],
       "solutionReview": {
-        "headline": "Compare the rates in the data and model.",
+        "headline": "One unit of $x$ is 10 kilometers, so divide the slope by 10: {{perKm}} dollars.",
         "reasoning": [
-          "Use the units and the relevant interval to compute or interpret the rate. A fitted trend summarizes the data, while an observed interval can differ from the model."
+          "Since $x$ is in tens of kilometers, the slope of {{slope}} dollars per unit is {{slope}} dollars per 10 kilometers.",
+          "Per kilometer: $\\frac{{{slope}}}{10}={{perKm}}$ dollars."
         ],
-        "answerSummary": "Check that the rate and its units match the quantities being compared."
+        "commonError": "Multiplying by 10 instead of dividing, or keeping {{slope}} as the change per kilometer.",
+        "answerSummary": "${{perKm}}$ dollars"
       },
       "prompt": "In a fitted model, $x$ is measured in tens of kilometers and the slope is {{slope}} dollars per 1 unit of $x$. What predicted change in cost, in dollars, corresponds to an increase of 1 kilometer?",
       "generator": {
@@ -23648,11 +23665,13 @@
         "For two points, average rate of change is the change in the response variable divided by the corresponding change in the explanatory variable."
       ],
       "solutionReview": {
-        "headline": "Compare the rates in the data and model.",
+        "headline": "Compare each rate with the model's {{modelRate}}: the second differs by 4.",
         "reasoning": [
-          "Use the units and the relevant interval to compute or interpret the rate. A fitted trend summarizes the data, while an observed interval can differ from the model."
+          "Differences from the model: $|{{r1}}-{{modelRate}}|={{a1}}$, $|{{r2}}-{{modelRate}}|=4$ and $|{{r3}}-{{modelRate}}|={{a3}}$.",
+          "The largest difference, 4, belongs to the second interval. The second interval."
         ],
-        "answerSummary": "Check that the rate and its units match the quantities being compared."
+        "commonError": "Picking the largest observed rate instead of the largest difference from the model: a rate below the model can differ most.",
+        "answerSummary": "The second interval"
       },
       "prompt": "A fitted linear model has slope {{modelRate}}. In three equal-width intervals of observed data, the average rates of change are {{r1}}, {{r2}}, and {{r3}}, respectively. Which interval's observed rate differs most from the model's rate?",
       "generator": {
@@ -23691,7 +23710,9 @@
         "derived": {
           "r1": "modelRate+d1",
           "r2": "modelRate+d2",
-          "r3": "modelRate+d3"
+          "r3": "modelRate+d3",
+          "a1": "abs(d1)",
+          "a3": "abs(d3)"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -29755,11 +29776,13 @@
         "A fitted model summarizes the trend in two-variable data. Keep predicted values separate from observed values."
       ],
       "solutionReview": {
-        "headline": "Use the fitted relationship.",
+        "headline": "Substitute $x={{x0}}$ into the line: {{answer}}.",
         "reasoning": [
-          "Apply or interpret the model in the context of the two variables, and compare predictions with observed data when needed."
+          "Substitute $x={{x0}}$ into $y={{m}}x {{b|signed}}$.",
+          "$y={{m}}({{x0}}) {{b|signed}}={{mx}} {{b|signed}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the data."
+        "commonError": "Dropping the intercept {{b}}, which gives {{dNoIntercept}}.",
+        "answerSummary": "$y={{answer}}$"
       },
       "prompt": "A line of best fit for the relationship between $x$ and $y$ is $y={{m}}x {{b|signed}}$. According to the model, what is the predicted value of $y$ when $x={{x0}}$?",
       "generator": {
@@ -29792,7 +29815,8 @@
           "answer": "m*x0+b",
           "dNoIntercept": "m*x0",
           "dOverStep": "m*(x0+step)+b",
-          "dAdded": "m+x0+b"
+          "dAdded": "m+x0+b",
+          "mx": "m*x0"
         },
         "constraints": [
           "answer!=dNoIntercept",
@@ -29887,11 +29911,14 @@
         "A fitted model summarizes the trend in two-variable data. Keep predicted values separate from observed values."
       ],
       "solutionReview": {
-        "headline": "Use the fitted relationship.",
+        "headline": "Check the residuals: $y={{m}}x {{b|signed}}$ misses each point by at most 2.",
         "reasoning": [
-          "Apply or interpret the model in the context of the two variables, and compare predictions with observed data when needed."
+          "$y={{m}}x {{b|signed}}$ predicts {{p1}}, {{p2}}, {{p3}} and {{p4}} at the four $x$-values; for example ${{m}}({{x1}}) {{b|signed}}={{p1}}$.",
+          "The observed values differ from these by {{e1}}, {{ne1}}, {{e2}} and {{ne2}}: small, with points above and below the line.",
+          "Each other choice changes the slope or the intercept and leaves larger gaps in total. So a reasonable model is $y={{m}}x {{b|signed}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the data."
+        "commonError": "Choosing a line that passes exactly through one or two of the points: a model is judged on all of them.",
+        "answerSummary": "$y={{m}}x {{b|signed}}$"
       },
       "prompt": "The table shows four observations: $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, $({{x3}},{{y3}})$, and $({{x4}},{{y4}})$. Which equation is a reasonable linear model for the data?",
       "generator": {
@@ -29944,7 +29971,13 @@
           "y4": "m*x4+b-e2",
           "mp1": "m+1",
           "mm1": "m-1",
-          "bp4": "b+4"
+          "bp4": "b+4",
+          "p1": "m*x1+b",
+          "p2": "m*x2+b",
+          "p3": "m*x3+b",
+          "p4": "m*x4+b",
+          "ne1": "-e1",
+          "ne2": "-e2"
         },
         "constraints": [
           "bp4!=0",
@@ -30040,11 +30073,14 @@
         "A fitted model summarizes the trend in two-variable data. Keep predicted values separate from observed values."
       ],
       "solutionReview": {
-        "headline": "Use the fitted relationship.",
+        "headline": "{{m}} multiplies the number of packages: it is the cost of each additional package.",
         "reasoning": [
-          "Apply or interpret the model in the context of the two variables, and compare predictions with observed data when needed."
+          "In $C={{m}}n+{{b}}$, {{m}} multiplies $n$, the number of packages.",
+          "One more package raises the prediction by {{m}}: ${{m}}(n+1)+{{b}}-({{m}}n+{{b}})={{m}}$.",
+          "So: For each additional package, the predicted monthly shipping cost increases by about ${{m}}$ dollars."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the data."
+        "commonError": "Reading {{m}} as the cost with no packages: that is the intercept, {{b}}.",
+        "answerSummary": "For each additional package, the predicted monthly shipping cost increases by about ${{m}}$ dollars."
       },
       "prompt": "A model for a company's monthly shipping cost $C$, in dollars, based on the number $n$ of packages shipped is $C={{m}}n+{{b}}$. Which statement best interprets {{m}} in this model?",
       "generator": {
@@ -30145,11 +30181,13 @@
         "A fitted model summarizes the trend in two-variable data. Keep predicted values separate from observed values."
       ],
       "solutionReview": {
-        "headline": "Use the fitted relationship.",
+        "headline": "Residual = observed − predicted: {{answer}}.",
         "reasoning": [
-          "Apply or interpret the model in the context of the two variables, and compare predictions with observed data when needed."
+          "Predicted at $x={{x0}}$: ${{m}}({{x0}}) {{b|signed}}={{predicted}}$.",
+          "Residual: ${{observed}}-{{predicted}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the data."
+        "commonError": "Subtracting in the other order (predicted minus observed), which flips the sign.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A fitted line predicts $y={{m}}x {{b|signed}}$. For one observation, $x={{x0}}$ and the observed value is $y={{observed}}$. What is the residual, defined as observed value minus predicted value?",
       "generator": {
@@ -30254,11 +30292,13 @@
         "A fitted model summarizes the trend in two-variable data. Keep predicted values separate from observed values."
       ],
       "solutionReview": {
-        "headline": "Use the fitted relationship.",
+        "headline": "Substitute $t={{t0}}$: {{answer}} million liters.",
         "reasoning": [
-          "Apply or interpret the model in the context of the two variables, and compare predictions with observed data when needed."
+          "The model loses {{m}} million liters per day from {{b}} million liters.",
+          "Substitute $t={{t0}}$: $V={{b}}-{{m}}({{t0}})={{b}}-{{mt}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the data."
+        "commonError": "Adding the {{mt}} million liters instead of subtracting them, which gives {{dAdded}}.",
+        "answerSummary": "{{answer}} million liters"
       },
       "prompt": "A linear model predicts that a reservoir contains $V={{b}}-{{m}}t$ million liters of water $t$ days after measurements begin. According to the model, how many million liters are predicted after {{t0}} days?",
       "generator": {
@@ -30288,7 +30328,8 @@
           "answer": "b-m*t0",
           "dAdded": "b+m*t0",
           "dTwice": "b-2*m*t0",
-          "dSwing": "hi*b+(1-hi)*(b-m*t0-m)"
+          "dSwing": "hi*b+(1-hi)*(b-m*t0-m)",
+          "mt": "m*t0"
         },
         "constraints": [
           "b-2*m*t0>10",
@@ -30386,11 +30427,14 @@
         "A fitted model summarizes the trend in two-variable data. Keep predicted values separate from observed values."
       ],
       "solutionReview": {
-        "headline": "Use the fitted relationship.",
+        "headline": "Find the slope from the two predictions, then extend: {{answer}}.",
         "reasoning": [
-          "Apply or interpret the model in the context of the two variables, and compare predictions with observed data when needed."
+          "Slope: $\\frac{{{y2}}-{{y1|paren}}}{{{x2}}-{{x1}}}=\\frac{{{dy}}}{{{dd}}}={{m}}$.",
+          "From $x={{x2}}$ to $x={{x3}}$ is {{extra}} more units, so the prediction changes by ${{m}}\\cdot {{extra}}={{mext}}$.",
+          "So the model predicts ${{y2}}+{{mext}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the data."
+        "commonError": "Multiplying the slope by {{x3}} and leaving out the intercept, which gives {{dNoIntercept}}.",
+        "answerSummary": "$y={{answer}}$"
       },
       "prompt": "A fitted linear model predicts $y={{y1}}$ when $x={{x1}}$ and $y={{y2}}$ when $x={{x2}}$. What value does the model predict when $x={{x3}}$?",
       "generator": {
@@ -30432,7 +30476,9 @@
           "answer": "m*x3+b",
           "dNoIntercept": "m*x3",
           "dOverStep": "m*(x3+dd)+b",
-          "dAdded": "m+x3+b"
+          "dAdded": "m+x3+b",
+          "dy": "m*dd",
+          "mext": "m*extra"
         },
         "constraints": [
           "answer!=dNoIntercept",
@@ -30528,11 +30574,14 @@
         "A fitted model summarizes the trend in two-variable data. Keep predicted values separate from observed values."
       ],
       "solutionReview": {
-        "headline": "Use the fitted relationship.",
+        "headline": "Add the absolute residuals for each model: Model A's total is smaller.",
         "reasoning": [
-          "Apply or interpret the model in the context of the two variables, and compare predictions with observed data when needed."
+          "Model A predicts {{pa1}}, {{pa2}} and {{pa3}}: $|{{y1}}-{{pa1|paren}}|+|{{y2}}-{{pa2|paren}}|+|{{y3}}-{{pa3|paren}}|={{sA}}$.",
+          "Model B predicts {{pb1}}, {{pb2}} and {{pb3}}: $|{{y1}}-{{pb1|paren}}|+|{{y2}}-{{pb2|paren}}|+|{{y3}}-{{pb3|paren}}|={{sB}}$.",
+          "Since ${{sA}}<{{sB}}$, the smaller sum belongs to Model A."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the data."
+        "commonError": "Comparing the slopes or adding signed residuals (which can cancel): the question asks for absolute residuals.",
+        "answerSummary": "Model A"
       },
       "prompt": "For the observations $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, and $({{x3}},{{y3}})$, model A is $y={{m}}x {{b|signed}}$ and model B is $y={{m2}}x {{b2|signed}}$. Which model has the smaller sum of the absolute residuals for these three observations?",
       "generator": {
@@ -30582,7 +30631,15 @@
           "y2": "m*x2+b-e1",
           "y3": "m*x3+b+e2",
           "m2": "m+2",
-          "b2": "b-3"
+          "b2": "b-3",
+          "pa1": "m*x1+b",
+          "pa2": "m*x2+b",
+          "pa3": "m*x3+b",
+          "pb1": "(m+2)*x1+b-3",
+          "pb2": "(m+2)*x2+b-3",
+          "pb3": "(m+2)*x3+b-3",
+          "sA": "abs(y1-(m*x1+b))+abs(y2-(m*x2+b))+abs(y3-(m*x3+b))",
+          "sB": "abs(y1-((m+2)*x1+b-3))+abs(y2-((m+2)*x2+b-3))+abs(y3-((m+2)*x3+b-3))"
         },
         "constraints": [
           "b2!=0",
@@ -30676,11 +30733,13 @@
         "A fitted model summarizes the trend in two-variable data. Keep predicted values separate from observed values."
       ],
       "solutionReview": {
-        "headline": "Use the fitted relationship.",
+        "headline": "Use the given prediction to find $m$, then predict at $x={{x1}}$: {{answer}}.",
         "reasoning": [
-          "Apply or interpret the model in the context of the two variables, and compare predictions with observed data when needed."
+          "Substitute: ${{y0}}=m\\cdot {{x0}} {{b|signed}}$, so ${{x0}}m={{y0}}-{{b|paren}}={{mx0}}$ and $m=\\frac{{{mx0}}}{{{x0}}}={{m0}}$.",
+          "At $x={{x1}}$: ${{m0}}({{x1}}) {{b|signed}}={{mx1}} {{b|signed}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the data."
+        "commonError": "Dividing {{y0}} by {{x0}} without subtracting {{b}} first, or leaving the intercept out of the prediction.",
+        "answerSummary": "$y={{answer}}$"
       },
       "prompt": "A fitted linear model has the form $y=mx {{b|signed}}$. The model predicts $y={{y0}}$ when $x={{x0}}$. If $m$ is an integer, what value does the model predict when $x={{x1}}$?",
       "generator": {
@@ -30712,7 +30771,9 @@
         "derived": {
           "y0": "m0*x0+b",
           "x1": "x0+d",
-          "answer": "m0*x1+b"
+          "answer": "m0*x1+b",
+          "mx0": "y0-b",
+          "mx1": "m0*x1"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
