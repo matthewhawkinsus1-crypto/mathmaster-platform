@@ -62058,11 +62058,13 @@
         "For an inverse relationship, increasing one quantity by a factor changes the other by the reciprocal factor."
       ],
       "solutionReview": {
-        "headline": "Use the proportional relationship.",
+        "headline": "Multiply: $k=xy={{k}}$.",
         "reasoning": [
-          "Identify the constant relationship between the quantities and apply it to the new values."
+          "Multiply both sides of $y=\\frac{k}{x}$ by $x$: $k=xy$.",
+          "So $k={{x0}}\\cdot {{y0}}={{k}}$."
         ],
-        "answerSummary": "Check that the same proportional relationship holds."
+        "commonError": "Dividing one value by the other instead of multiplying them.",
+        "answerSummary": "$k={{k}}$"
       },
       "prompt": "The variables $x$ and $y$ satisfy $y=\\dfrac{k}{x}$. If $x={{x0}}$ and $y={{y0}}$, what is the value of $k$?",
       "generator": {
@@ -62150,11 +62152,13 @@
         "For an inverse relationship, increasing one quantity by a factor changes the other by the reciprocal factor."
       ],
       "solutionReview": {
-        "headline": "Use the proportional relationship.",
+        "headline": "Rate times time is constant: {{answer}} minutes.",
         "reasoning": [
-          "Identify the constant relationship between the quantities and apply it to the new values."
+          "Inverse variation: $rt$ is constant, $k={{r0}}\\cdot {{t0}}={{kk}}$.",
+          "At rate {{r1}}: $t=\\frac{{{kk}}}{{{r1}}}={{answer}}$ minutes."
         ],
-        "answerSummary": "Check that the same proportional relationship holds."
+        "commonError": "Treating it as direct variation, or keeping {{t0}}: a faster rate means less time.",
+        "answerSummary": "{{answer}} minutes"
       },
       "prompt": "The time $t$ needed to process a fixed amount of work varies inversely with a positive rate $r$. At rate {{r0}}, the work takes {{t0}} minutes. At rate {{r1}}, how many minutes will the work take?",
       "generator": {
@@ -62187,7 +62191,8 @@
           "answer": "factor*w",
           "dOriginal": "factor*factor*w",
           "dTwice": "w",
-          "dSwing": "hi*(factor*factor*w-factor)+(1-hi)*(factor*w-factor)"
+          "dSwing": "hi*(factor*factor*w-factor)+(1-hi)*(factor*w-factor)",
+          "kk": "r0*t0"
         },
         "constraints": [
           "factor*w-factor>0",
@@ -62283,11 +62288,13 @@
         "For an inverse relationship, increasing one quantity by a factor changes the other by the reciprocal factor."
       ],
       "solutionReview": {
-        "headline": "Use the proportional relationship.",
+        "headline": "Divide {{k}} by the input {{x0}}: {{y0}}.",
         "reasoning": [
-          "Identify the constant relationship between the quantities and apply it to the new values."
+          "Substitute $x={{x0}}$ into $f(x)=\\frac{{{k}}}{x}$.",
+          "$f({{x0}})=\\frac{{{k}}}{{{x0}}}={{y0}}$."
         ],
-        "answerSummary": "Check that the same proportional relationship holds."
+        "commonError": "Multiplying {{k}} by {{x0}} instead of dividing.",
+        "answerSummary": "$f({{x0}})={{y0}}$"
       },
       "prompt": "For $f(x)=\\dfrac{{{k}}}{x}$, what is the value of $f({{x0}})$?",
       "generator": {
@@ -62373,11 +62380,13 @@
         "For an inverse relationship, increasing one quantity by a factor changes the other by the reciprocal factor."
       ],
       "solutionReview": {
-        "headline": "Use the proportional relationship.",
+        "headline": "Divide both sides of $xy={{k}}$ by $x$: $y=\\dfrac{{{k}}}{x}$.",
         "reasoning": [
-          "Identify the constant relationship between the quantities and apply it to the new values."
+          "Divide both sides of $xy={{k}}$ by $x$, which is positive and so not 0.",
+          "Check: at $x=2$ the result gives $\\frac{{{k}}}{2}$, and $2\\cdot \\frac{{{k}}}{2}={{k}}$. So $y=\\dfrac{{{k}}}{x}$."
         ],
-        "answerSummary": "Check that the same proportional relationship holds."
+        "commonError": "Writing $y={{k}}x$: then the product $xy$ would be ${{k}}x^2$, which is not constant.",
+        "answerSummary": "$y=\\dfrac{{{k}}}{x}$"
       },
       "prompt": "For positive variables $x$ and $y$, the product $xy={{k}}$ is constant. Which equation expresses $y$ as a function of $x$?",
       "generator": {
@@ -62474,11 +62483,13 @@
         "For an inverse relationship, increasing one quantity by a factor changes the other by the reciprocal factor."
       ],
       "solutionReview": {
-        "headline": "Use the proportional relationship.",
+        "headline": "Multiply an input by its output: $k={{k}}$.",
         "reasoning": [
-          "Identify the constant relationship between the quantities and apply it to the new values."
+          "Check that the points agree: ${{a}}\\cdot {{b}}={{k}}$ and ${{c}}\\cdot {{d}}={{k}}$.",
+          "$f({{a}})={{b}}$ means $\\frac{k}{{{a}}}={{b}}$, so $k={{a}}\\cdot {{b}}={{k}}$."
         ],
-        "answerSummary": "Check that the same proportional relationship holds."
+        "commonError": "Dividing one value by the other, or adding them, instead of multiplying the input by its output.",
+        "answerSummary": "$k={{k}}$"
       },
       "prompt": "The function $f(x)=\\dfrac{k}{x}$ satisfies $f({{a}})={{b}}$ and $f({{c}})={{d}}$. What is the value of $k$?",
       "generator": {
@@ -62574,11 +62585,13 @@
         "For an inverse relationship, increasing one quantity by a factor changes the other by the reciprocal factor."
       ],
       "solutionReview": {
-        "headline": "Use the proportional relationship.",
+        "headline": "Multiplying the input by {{m}} divides the output by {{m}}: $\\dfrac{1}{{{m}}}f(p)$.",
         "reasoning": [
-          "Identify the constant relationship between the quantities and apply it to the new values."
+          "$f({{m}}p)=\\frac{{{k}}}{{{m}}p}=\\frac{1}{{{m}}}\\cdot \\frac{{{k}}}{p}$.",
+          "Since $\\frac{{{k}}}{p}=f(p)$, $f({{m}}p)=\\dfrac{1}{{{m}}}f(p)$."
         ],
-        "answerSummary": "Check that the same proportional relationship holds."
+        "commonError": "Multiplying the output by {{m}}: for inverse variation a larger input gives a smaller output.",
+        "answerSummary": "$\\dfrac{1}{{{m}}}f(p)$"
       },
       "prompt": "For positive $x$, $f(x)=\\dfrac{{{k}}}{x}$. If $p>0$, which expression is equal to $f({{m}}p)$?",
       "generator": {
@@ -62682,11 +62695,13 @@
         "For an inverse relationship, increasing one quantity by a factor changes the other by the reciprocal factor."
       ],
       "solutionReview": {
-        "headline": "Use the proportional relationship.",
+        "headline": "Input times output is always {{K}}: $f(x)=\\dfrac{{{K}}}{x}$.",
         "reasoning": [
-          "Identify the constant relationship between the quantities and apply it to the new values."
+          "Multiply each input by its output: ${{x1}}\\cdot {{y1}}={{K}}$, ${{x2}}\\cdot {{y2}}={{K}}$ and ${{x3}}\\cdot {{y3}}={{K}}$.",
+          "The product is always {{K}}, so $f(x)=\\dfrac{{{K}}}{x}$."
         ],
-        "answerSummary": "Check that the same proportional relationship holds."
+        "commonError": "Missing the pattern: doubling the input halves the output, which is inverse variation, not a line.",
+        "answerSummary": "$f(x)=\\dfrac{{{K}}}{x}$"
       },
       "prompt": "A function has values $f({{x1}})={{y1}}$, $f({{x2}})={{y2}}$, and $f({{x3}})={{y3}}$. Which equation defines the function?",
       "generator": {
@@ -62802,11 +62817,13 @@
         "For an inverse relationship, increasing one quantity by a factor changes the other by the reciprocal factor."
       ],
       "solutionReview": {
-        "headline": "Use the proportional relationship.",
+        "headline": "Inverse variation: $wh$ is constant, ${{w0}}\\cdot {{h0}}={{k}}$, so $h=\\dfrac{{{k}}}{w}$.",
         "reasoning": [
-          "Identify the constant relationship between the quantities and apply it to the new values."
+          "Inverse variation means $h=\\frac{k}{w}$, so $k=wh$ is constant.",
+          "With {{w0}} workers and {{h0}} hours: $k={{w0}}\\cdot {{h0}}={{k}}$, so $h=\\dfrac{{{k}}}{w}$."
         ],
-        "answerSummary": "Check that the same proportional relationship holds."
+        "commonError": "Writing a direct variation such as $h={{k}}w$: more workers would then need more hours.",
+        "answerSummary": "$h=\\dfrac{{{k}}}{w}$"
       },
       "prompt": "For a fixed job, the number of hours $h$ required varies inversely with the number of workers $w$. If {{w0}} workers require {{h0}} hours, which equation models the relationship?",
       "generator": {
@@ -68964,11 +68981,13 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "A constant change for each step of 1 is the mark of a linear model.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "The changes are ${{y1}}-{{y0|paren}}={{m}}$, ${{y2}}-{{y1|paren}}={{m}}$ and ${{y3}}-{{y2|paren}}={{m}}$: the same each time.",
+          "A constant added amount per unit of $x$ is what a linear model produces: A linear model."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Choosing exponential because the values grow: exponential growth multiplies by a constant factor; here a constant amount is added.",
+        "answerSummary": "A linear model"
       },
       "prompt": "For equal increases of 1 in $x$, the outputs are {{y0}}, {{y1}}, {{y2}}, and {{y3}}. The increase in $y$ is {{m}} each time. Which model type is consistent with this constant additive change?",
       "generator": {
@@ -69075,11 +69094,13 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Constant second differences are the mark of a quadratic model.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "The changes {{d01}}, {{d12}} and {{d23}} themselves change by ${{d12}}-{{d01|paren}}={{secondDiff}}$ and ${{d23}}-{{d12|paren}}={{secondDiff}}$.",
+          "Constant second differences are what a quadratic model produces: A quadratic model."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Choosing linear: a linear model needs the first differences themselves to be constant.",
+        "answerSummary": "A quadratic model"
       },
       "prompt": "For equal increases of 1 in $x$, the successive changes in $y$ are {{d01}}, {{d12}}, and {{d23}}. Those changes themselves increase by the constant amount {{secondDiff}}. Which model type is consistent with this pattern?",
       "generator": {
@@ -69195,11 +69216,13 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "A constant ratio for each step of 1 is the mark of an exponential model.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "The ratios are $\\frac{{{y1}}}{{{y0}}}={{r}}$, $\\frac{{{y2}}}{{{y1}}}={{r}}$ and $\\frac{{{y3}}}{{{y2}}}={{r}}$: the same each time.",
+          "A constant factor per unit of $x$ is what an exponential model produces: An exponential model."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Choosing quadratic because the values curve upward: a constant ratio is the signature of an exponential model.",
+        "answerSummary": "An exponential model"
       },
       "prompt": "For equal increases of 1 in $x$, each output is {{r}} times the preceding output: {{y0}}, {{y1}}, {{y2}}, {{y3}}. Which model type is consistent with this constant multiplicative factor?",
       "generator": {
@@ -69306,11 +69329,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "The quadratic matches every point, so its residual sum is 0.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "$y={{a}}x^2+{{b}}x+{{c}}$ matches each observation: ${{a}}(1)^2+{{b}}(1)+{{c}}={{y1}}$, ${{a}}(2)^2+{{b}}(2)+{{c}}={{y2}}$ and ${{a}}(3)^2+{{b}}(3)+{{c}}={{y3}}$. All its residuals are 0.",
+          "Each other candidate misses at least one point; the line, for example, gives ${{linm}}+{{linb}}={{l1}}$ at $x=1$, not {{y1}}.",
+          "So the smallest sum of absolute residuals belongs to $y={{a}}x^2+{{b}}x+{{c}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Choosing the line through the first and last points: it misses the middle observations.",
+        "answerSummary": "$y={{a}}x^2+{{b}}x+{{c}}$"
       },
       "prompt": "For observations $(0,{{y0}})$, $(1,{{y1}})$, $(2,{{y2}})$, and $(3,{{y3}})$, which candidate model has the smallest sum of absolute residuals?",
       "generator": {
@@ -69342,7 +69368,9 @@
           "linm": "3*a+b",
           "linb": "c",
           "expA": "c",
-          "expr": "2"
+          "expr": "2",
+          "twoA": "2*a",
+          "l1": "linm+linb"
         },
         "constraints": [
           "linb!=0",
@@ -69435,11 +69463,13 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Changes that grow by the same amount each time: a quadratic model.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "The changes are ${{y1}}-{{y0}}={{d1}}$, ${{y2}}-{{y1}}={{d2}}$ and ${{y3}}-{{y2}}={{d3}}$; each is {{sd}} more than the one before.",
+          "Constant second differences point to a quadratic model: Quadratic."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Choosing exponential because the changes grow: they grow by a constant amount, not by a constant factor.",
+        "answerSummary": "Quadratic"
       },
       "prompt": "A ball's measured distance from a reference point is {{y0}}, {{y1}}, {{y2}}, and {{y3}} meters at equally spaced times. The successive changes are not constant, but the changes themselves increase by a constant amount. Which model type is most appropriate?",
       "generator": {
@@ -69464,7 +69494,11 @@
           "y0": "c",
           "y1": "a+b+c",
           "y2": "4*a+2*b+c",
-          "y3": "9*a+3*b+c"
+          "y3": "9*a+3*b+c",
+          "d1": "a+b",
+          "d2": "3*a+b",
+          "d3": "5*a+b",
+          "sd": "2*a"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -69552,11 +69586,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Equal slopes between the points: they lie on one line.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "Slope from the first to the second point: $\\frac{{{y2}}-{{y1|paren}}}{{{x2}}-{{x1}}}={{m}}$.",
+          "Slope from the second to the third: $\\frac{{{y3}}-{{y2|paren}}}{{{x3}}-{{x2}}}={{m}}$.",
+          "The slopes are equal, so all three points are on one line: Linear."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Comparing raw changes in $y$: the gaps in $x$ differ, so compare slopes instead.",
+        "answerSummary": "Linear"
       },
       "prompt": "The observations are $({{x1}},{{y1}})$, $({{x2}},{{y2}})$, and $({{x3}},{{y3}})$. Which type of model is exactly consistent with all three observations?",
       "generator": {
@@ -69680,11 +69717,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Repeated multiplication by {{r}} outgrows any fixed addition.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "Both start at {{b}}. The line adds {{m}} for each step in $x$; the exponential multiplies by {{r}}.",
+          "At $x=10$, for example: ${{m}}\\cdot 10+{{b}}={{L10}}$, but ${{b}}({{r}})^{10}={{E10}}$.",
+          "So: The exponential model eventually exceeds the linear model."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Judging from small values of $x$: near $x=0$ the line can be ahead, but not for large $x$.",
+        "answerSummary": "The exponential model eventually exceeds the linear model."
       },
       "prompt": "Model L is $L(x)={{m}}x+{{b}}$ and model E is $E(x)={{A}}({{r}})^x$. At $x=0$, both models have value {{b}}. Which statement is true for sufficiently large positive $x$?",
       "generator": {
@@ -69706,7 +69746,9 @@
           }
         },
         "derived": {
-          "A": "b"
+          "A": "b",
+          "L10": "10*m+b",
+          "E10": "b*r^10"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -69794,11 +69836,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Total the absolute residuals: the exponential model's sum is 4.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "$y={{A}}({{r}})^x$ predicts {{A}}, {{p1}}, {{p2}} and {{p3}}: $|{{y1}}-{{p1}}|+|{{y2}}-{{p2}}|+|{{y3}}-{{p3}}|=4$, and 0 at $x=0$.",
+          "The line predicts {{l1}}, {{l2}}, {{l3}}: $|{{y1}}-{{l1}}|+|{{y2}}-{{l2}}|+|{{y3}}-{{l3}}|={{sL}}$. The quadratic and the constant miss the point at $x=3$ by far more than 4.",
+          "So the most appropriate model is $y={{A}}({{r}})^x$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Judging from the first two points alone: compare the total of the absolute residuals over all four.",
+        "answerSummary": "$y={{A}}({{r}})^x$"
       },
       "prompt": "For observations $(0,{{y0}})$, $(1,{{y1}})$, $(2,{{y2}})$, and $(3,{{y3}})$, which model is most appropriate based on the smallest sum of absolute residuals?",
       "generator": {
@@ -69834,7 +69879,14 @@
           "y2": "A*r^2+e2",
           "y3": "A*r^3-e1",
           "linm": "A*(r-1)",
-          "quadA": "A"
+          "quadA": "A",
+          "p1": "A*r",
+          "p2": "A*r^2",
+          "p3": "A*r^3",
+          "l1": "linm+A",
+          "l2": "2*linm+A",
+          "l3": "3*linm+A",
+          "sL": "abs(y1-(linm+A))+abs(y2-(2*linm+A))+abs(y3-(3*linm+A))"
         },
         "constraints": [
           "linm!=0",
