@@ -54397,11 +54397,13 @@
         "Identify a known input-output pair, the multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Formulate the exponential model.",
+        "headline": "Two steps multiply by $b^2$; anchor at $x=1$: $f(x)={{M}}({{b}})^{x-1}$.",
         "reasoning": [
-          "Anchor the model at a known input and use an exponent that counts how many multiplicative intervals have elapsed."
+          "From $x=1$ to $x=3$ the function is multiplied by $b$ twice: $b^2=\\frac{{{N}}}{{{M}}}={{b2}}$, so $b={{b}}$.",
+          "The value {{M}} is at $x=1$, so the exponent is $x-1$: $f(x)={{M}}({{b}})^{x-1}$. Check: ${{M}}({{b}})^2={{N}}$ at $x=3$."
         ],
-        "answerSummary": "Check that the model gives the stated value at the reference input and uses the correct factor for each interval."
+        "commonError": "Writing ${{M}}({{b}})^x$, which gives {{M}} at $x=0$ instead of at $x=1$.",
+        "answerSummary": "$f(x)={{M}}({{b}})^{x-1}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "An exponential function satisfies $f(1)={{M}}$ and $f(3)={{N}}$. Which equation defines $f$?",
@@ -54420,7 +54422,8 @@
         },
         "derived": {
           "N": "M*b*b",
-          "bp1": "b+1"
+          "bp1": "b+1",
+          "b2": "b*b"
         }
       },
       "choices": [
@@ -54506,11 +54509,14 @@
         "Identify a known input-output pair, the multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Formulate the exponential model.",
+        "headline": "Divide by {{d}} once per 2 units, counted from $x=1$.",
         "reasoning": [
-          "Anchor the model at a known input and use an exponent that counts how many multiplicative intervals have elapsed."
+          "Dividing by {{d}} is multiplying by $\\frac{1}{{{d}}}$.",
+          "The value is {{M}} at $x=1$ and the factor applies once per increase of 2, so the exponent is $\\frac{x-1}{2}$; at $x=3$ it is $\\frac{3-1}{2}=1$.",
+          "So $Q(x)={{M}}\\left(\\dfrac{1}{{{d}}}\\right)^{(x-1)/2}$."
         ],
-        "answerSummary": "Check that the model gives the stated value at the reference input and uses the correct factor for each interval."
+        "commonError": "Using {{d}} as the base (that grows instead of shrinking), or $\\frac{x}{2}$ as the exponent, which anchors the value at $x=0$.",
+        "answerSummary": "$Q(x)={{M}}\\left(\\dfrac{1}{{{d}}}\\right)^{(x-1)/2}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "At $x=1$, a quantity has value {{M}}. For every increase of 2 in $x$, the quantity is divided by {{d}}. Which function models the quantity $Q(x)$?",
@@ -54616,11 +54622,14 @@
         "Identify a known input-output pair, the multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Formulate the exponential model.",
+        "headline": "Two intervals multiply by {{b2}}, so each one multiplies by {{b}}.",
         "reasoning": [
-          "Anchor the model at a known input and use an exponent that counts how many multiplicative intervals have elapsed."
+          "Over the two intervals the value is multiplied by $\\frac{{{N}}}{{{M}}}={{b2}}$, so each interval multiplies by $\\sqrt{{{b2}}}={{b}}$.",
+          "The value {{M}} is at $t={{s}}$ and each interval is {{k}} long, so the exponent is $\\frac{t-{{s}}}{{{k}}}$.",
+          "So $Q(t)={{M}}({{b}})^{(t-{{s}})/{{k}}}$."
         ],
-        "answerSummary": "Check that the model gives the stated value at the reference input and uses the correct factor for each interval."
+        "commonError": "Using {{b2}} as the factor per interval: that is the change over both intervals together.",
+        "answerSummary": "$Q(t)={{M}}({{b}})^{(t-{{s}})/{{k}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "An exponential quantity has value {{M}} at $t={{s}}$ and value {{N}} at $t={{t2}}$. The change from $t={{s}}$ to $t={{t2}}$ spans two equal intervals of length {{k}}. Which function models the quantity?",
@@ -54738,11 +54747,14 @@
         "Identify a known input-output pair, the multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Formulate the exponential model.",
+        "headline": "The value grew by $8=2^3$: three doublings, one every {{h}} units.",
         "reasoning": [
-          "Anchor the model at a known input and use an exponent that counts how many multiplicative intervals have elapsed."
+          "$\\frac{{{N}}}{{{M}}}=8=2^3$, so the quantity doubles three times between $t={{t0}}$ and $t={{t1}}$.",
+          "That takes ${{t1}}-{{t0}}={{th}}$ units, so one doubling every $\\frac{{{th}}}{3}={{h}}$ units.",
+          "So $Q(t)={{M}}(2)^{(t-{{t0}})/{{h}}}$."
         ],
-        "answerSummary": "Check that the model gives the stated value at the reference input and uses the correct factor for each interval."
+        "commonError": "Spreading a single doubling over all {{th}} units: the value grew by a factor of 8, which is three doublings.",
+        "answerSummary": "$Q(t)={{M}}(2)^{(t-{{t0}})/{{h}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "At time $t={{t0}}$, a quantity has value {{M}}. At time $t={{t1}}$, its value is {{N}}. The quantity grows exponentially by the same factor over equal time intervals. Which function is consistent with these values?",
@@ -54767,7 +54779,8 @@
         "derived": {
           "t1": "t0+3*h",
           "N": "8*M",
-          "hp1": "h+1"
+          "hp1": "h+1",
+          "th": "3*h"
         }
       },
       "choices": [
@@ -54973,11 +54986,14 @@
         "Identify a known input-output pair, the multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Formulate the exponential model.",
+        "headline": "Substitute $t=3$ and solve for $A$: $P(t)={{A0}}({{b}})^t$.",
         "reasoning": [
-          "Anchor the model at a known input and use an exponent that counts how many multiplicative intervals have elapsed."
+          "At $t=3$: $({{b}})^3={{b3}}$, so $P(3)={{b3}}A$.",
+          "So ${{b3}}A={{target}}$ and $A=\\frac{{{target}}}{{{b3}}}={{A0}}$.",
+          "So $P(t)={{A0}}({{b}})^t$."
         ],
-        "answerSummary": "Check that the model gives the stated value at the reference input and uses the correct factor for each interval."
+        "commonError": "Using {{target}} as the starting value: it is the value at $t=3$, not at $t=0$.",
+        "answerSummary": "$P(t)={{A0}}({{b}})^t$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A quantity is modeled by $P(t)=A({{b}})^t$. If $P(3)={{target}}$, which function defines $P$?",
@@ -54997,7 +55013,8 @@
         "derived": {
           "target": "A0*b^3",
           "Ab": "A0*b",
-          "bp1": "b+1"
+          "bp1": "b+1",
+          "b3": "b^3"
         }
       },
       "choices": [
@@ -55083,11 +55100,14 @@
         "Identify a known input-output pair, the multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Formulate the exponential model.",
+        "headline": "Factor $\\frac{{{factor}}}{100}$ once every 2 years, counted from year {{y0}}.",
         "reasoning": [
-          "Anchor the model at a known input and use an exponent that counts how many multiplicative intervals have elapsed."
+          "Increasing by {{p}}% multiplies by $\\frac{{{factor}}}{100}$: $100\\%+{{p}}\\%={{factor}}\\%$.",
+          "The value is {{A}} at $t={{y0}}$ and the factor applies once every 2 years, so the exponent is $\\frac{t-{{y0}}}{2}$.",
+          "So $V(t)={{A}}\\left(\\dfrac{{{factor}}}{100}\\right)^{(t-{{y0}})/2}$."
         ],
-        "answerSummary": "Check that the model gives the stated value at the reference input and uses the correct factor for each interval."
+        "commonError": "Using $\\frac{{{p}}}{100}$ as the factor (that shrinks the value), or counting time from 0 instead of from year {{y0}}.",
+        "answerSummary": "$V(t)={{A}}\\left(\\dfrac{{{factor}}}{100}\\right)^{(t-{{y0}})/2}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "At the beginning of year {{y0}}, an account is worth {{A}} dollars. Its value increases by {{p}}% every 2 years. Which function models the account value $V(t)$ during year $t$?",
@@ -55198,11 +55218,14 @@
         "Identify a known input-output pair, the multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Formulate the exponential model.",
+        "headline": "Measure time from $t={{t0}}$ and count periods of {{k}}: $Q(t)={{M}}({{g}})^{(t-{{t0}})/{{k}}}$.",
         "reasoning": [
-          "Anchor the model at a known input and use an exponent that counts how many multiplicative intervals have elapsed."
+          "The value is {{M}} at $t={{t0}}$, so the exponent must be 0 there: use $t-{{t0}}$. Each {{k}} units is one factor of {{g}}, so divide by {{k}}.",
+          "Check: at $t={{t0k}}$ the exponent is $\\frac{{{t0k}}-{{t0}}}{{{k}}}=1$, and the value is ${{M}}\\cdot {{g}}={{Mg}}$.",
+          "So $Q(t)={{M}}({{g}})^{(t-{{t0}})/{{k}}}$."
         ],
-        "answerSummary": "Check that the model gives the stated value at the reference input and uses the correct factor for each interval."
+        "commonError": "Using $t$ instead of $t-{{t0}}$, which puts the value {{M}} at $t=0$ instead of at $t={{t0}}$.",
+        "answerSummary": "$Q(t)={{M}}({{g}})^{(t-{{t0}})/{{k}}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "At time $t={{t0}}$, a quantity has value {{M}}. For every additional {{k}} units of time, the quantity is multiplied by {{g}}. Which function models the quantity $Q(t)$?",
@@ -55230,7 +55253,9 @@
           }
         },
         "derived": {
-          "kp1": "k+1"
+          "kp1": "k+1",
+          "Mg": "M*g",
+          "t0k": "t0+k"
         }
       },
       "choices": [
@@ -55444,11 +55469,13 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Divide by {{A}}, then match powers of {{b}}: $t={{t0}}$.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "Set ${{A}}({{b}})^t={{target}}$ and divide by {{A}}: $({{b}})^t=\\frac{{{target}}}{{{A}}}={{bt}}$.",
+          "${{bt}}={{b}}^{{t0}}$, so $t={{t0}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "commonError": "Dividing {{target}} by {{b}} repeatedly without first dividing by the starting amount {{A}}.",
+        "answerSummary": "$t={{t0}}$"
       },
       "prompt": "A quantity is modeled by $Q(t)={{A}}({{b}})^t$. At what value of $t$ is $Q(t)={{target}}$?",
       "generator": {
@@ -55470,7 +55497,8 @@
           }
         },
         "derived": {
-          "target": "A*b^t0"
+          "target": "A*b^t0",
+          "bt": "b^t0"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -55540,11 +55568,13 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Same base: set the exponents equal and solve, $x={{x0}}$.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "The bases match, so the exponents are equal: ${{p}}x {{c|signed}}={{q}}x {{d|signed}}$.",
+          "Collect terms: $({{p}}-{{q}})x={{d}}-{{c|paren}}$, so $x=\\frac{{{dc}}}{{{pq}}}={{x0}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "commonError": "Moving a term across the equals sign without changing its sign.",
+        "answerSummary": "$x={{x0}}$"
       },
       "prompt": "What is the solution to ${{b}}^{ {{p}}x {{c|signed}} }={{b}}^{ {{q}}x {{d|signed}} }$?",
       "generator": {
@@ -55579,7 +55609,9 @@
           }
         },
         "derived": {
-          "d": "(p-q)*x0+c"
+          "d": "(p-q)*x0+c",
+          "pq": "p-q",
+          "dc": "d-c"
         },
         "constraints": [
           "d!=0"
@@ -55902,11 +55934,13 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Write {{value}} as a power of {{b}}: $x={{n}}$.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "${{value}}={{b}}^{{n}}$.",
+          "With the same base on both sides, the exponents are equal: $x={{n}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "commonError": "Dividing {{value}} by {{b}} instead of asking which power of {{b}} gives {{value}}.",
+        "answerSummary": "$x={{n}}$"
       },
       "prompt": "What is the solution to ${{b}}^x={{value}}$?",
       "generator": {
@@ -55992,11 +56026,13 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Divide by {{A}}, then match powers of {{b}}: $x={{x0}}$.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "Divide both sides by {{A}}: $({{b}})^x=\\frac{{{target}}}{{{A}}}={{bx}}$.",
+          "${{bx}}={{b}}^{{x0}}$, so $x={{x0}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "commonError": "Raising or dividing before removing the factor {{A}}: divide by {{A}} first.",
+        "answerSummary": "$x={{x0}}$"
       },
       "prompt": "What is the solution to ${{A}}({{b}})^x={{target}}$?",
       "generator": {
@@ -56018,7 +56054,8 @@
           }
         },
         "derived": {
-          "target": "A*b^x0"
+          "target": "A*b^x0",
+          "bx": "b^x0"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
