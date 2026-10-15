@@ -69981,11 +69981,13 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Substitute $t={{t0}}$: {{answer}} million liters.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "The model starts at {{b}} million liters and loses {{m}} million liters per day.",
+          "At $t={{t0}}$: ${{b}}-{{m}}({{t0}})={{b}}-{{mt}}={{answer}}$ million liters."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Adding the {{mt}} million liters instead of subtracting them.",
+        "answerSummary": "{{answer}} million liters"
       },
       "prompt": "A linear model predicts a reservoir contains $V={{b}}-{{m}}t$ million liters after $t$ days. According to the model, how many million liters are predicted after {{t0}} days?",
       "generator": {
@@ -70007,7 +70009,8 @@
           }
         },
         "derived": {
-          "answer": "b-m*t0"
+          "answer": "b-m*t0",
+          "mt": "m*t0"
         },
         "constraints": [
           "b-m*t0>10"
@@ -70079,11 +70082,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "The vertex of a downward parabola is its maximum: $x={{h}}$.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "The coefficient $-{{a}}$ is negative, so the graph opens downward and its vertex is the highest point.",
+          "The square $(x-{{h}})^2$ is 0 at $x={{h}}$: $-{{a}}({{h}}-{{h}})^2+{{k}}={{k}}$. Any other $x$ subtracts a positive amount from {{k}}.",
+          "So the greatest revenue is predicted at $x={{h}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Choosing a nearby value: the maximum is exactly where the squared term is 0.",
+        "answerSummary": "$x={{h}}$"
       },
       "prompt": "A quadratic model for weekly revenue, in thousands of dollars, is $R(x)=-{{a}}(x-{{h}})^2+{{k}}$. Which sales level does the model predict will produce the greatest revenue?",
       "generator": {
@@ -70194,11 +70200,13 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Raise {{r}} to the power {{t0}}, then multiply by {{A}}: {{answer}}.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "At $t={{t0}}$: $({{r}})^{{t0}}={{rt}}$.",
+          "So the model predicts ${{A}}\\cdot {{rt}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Multiplying {{r}} by {{t0}} instead of raising it to that power.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "An exponential model predicts $P(t)={{A}}({{r}})^t$. What value does the model predict at $t={{t0}}$?",
       "generator": {
@@ -70220,7 +70228,8 @@
           }
         },
         "derived": {
-          "answer": "A*r^t0"
+          "answer": "A*r^t0",
+          "rt": "r^t0"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -70289,11 +70298,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Evaluate both models at $x={{x0}}$ and subtract, B minus A: {{answer}}.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "Model A: ${{m}}({{x0}})+{{b}}={{pA}}$.",
+          "Model B: ${{A}}({{r}})^{{x0}}={{pB}}$.",
+          "B minus A: ${{pB}}-{{pA}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Subtracting in the other order, A minus B.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Model A predicts $y={{m}}x+{{b}}$ and model B predicts $y={{A}}({{r}})^x$. What is model B's predicted value minus model A's predicted value when $x={{x0}}$?",
       "generator": {
@@ -70325,7 +70337,9 @@
           }
         },
         "derived": {
-          "answer": "A*r^x0-(m*x0+b)"
+          "answer": "A*r^x0-(m*x0+b)",
+          "pA": "m*x0+b",
+          "pB": "A*r^x0"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -70394,11 +70408,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "$x={{future}}$ is outside the data range $0\\le x\\le {{maxx}}$: extrapolation.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "The model was fitted on $0\\le x\\le {{maxx}}$, and ${{future}}>{{maxx}}$.",
+          "Predicting outside the observed range is extrapolation; the pattern in the data may not continue there.",
+          "So: It is an extrapolation beyond the observed $x$-values, so the prediction may be less reliable."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Calling it interpolation (which stays inside the observed range), or treating a fitted model's prediction as exact.",
+        "answerSummary": "It is an extrapolation beyond the observed $x$-values, so the prediction may be less reliable."
       },
       "prompt": "A model was fitted using data collected only for $0\\le x\\le {{maxx}}$. A prediction is requested at $x={{future}}$. Which statement best describes this use of the model?",
       "generator": {
@@ -70504,11 +70521,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Keep the second difference constant: $f(4)={{answer}}$.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "First differences: ${{y1}}-{{y0|paren}}={{d1}}$, ${{y2}}-{{y1|paren}}={{d2}}$ and ${{y3}}-{{y2|paren}}={{d3}}$.",
+          "The second difference is constant, ${{d2}}-{{d1|paren}}={{sd}}$, so the next first difference is ${{d3}}+{{sd|paren}}={{d4}}$.",
+          "So $f(4)={{y3}}+{{d4|paren}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Adding the last first difference {{d3}} again, as if the pattern were linear.",
+        "answerSummary": "$f(4)={{answer}}$"
       },
       "prompt": "The values $f(0)={{y0}}$, $f(1)={{y1}}$, $f(2)={{y2}}$, and $f(3)={{y3}}$ follow a quadratic pattern. What value does that model predict for $f(4)$?",
       "generator": {
@@ -70537,7 +70557,12 @@
           "answer": "16*a+4*b+c",
           "satDistractor1": "16*a-4*b+c",
           "satDistractor2": "16*a+4*b",
-          "satDistractor3": "16+a+4*b+c"
+          "satDistractor3": "16+a+4*b+c",
+          "d1": "a+b",
+          "d2": "3*a+b",
+          "d3": "5*a+b",
+          "sd": "2*a",
+          "d4": "7*a+b"
         },
         "constraints": [
           "satDistractor1!=answer",
@@ -70633,11 +70658,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Find the first listed time the model goes over {{capacity}}: $t={{n}}$.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "At $t={{nm1}}$ the model gives {{pn1}}, which does not exceed the capacity: ${{pn1}}\\le {{capacity}}$.",
+          "At $t={{n}}$ it gives ${{A}}\\cdot {{rn}}={{pn}}$, and ${{pn}}>{{capacity}}$.",
+          "So the first listed time over capacity is $t={{n}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Picking the time when the population is closest to {{capacity}}: it must be greater than {{capacity}}.",
+        "answerSummary": "$t={{n}}$"
       },
       "prompt": "A population is modeled by $P(t)={{A}}({{r}})^t$. A facility can support at most {{capacity}} individuals. At which listed time does the model first predict the population will exceed capacity?",
       "generator": {
@@ -70662,7 +70690,10 @@
           "capacity": "A*r^n-1",
           "nm1": "n-1",
           "np1": "n+1",
-          "np2": "n+2"
+          "np2": "n+2",
+          "pn": "A*r^n",
+          "pn1": "A*r^(n-1)",
+          "rn": "r^n"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -70750,11 +70781,14 @@
         "A model describes a trend in two-variable data; observed values may differ from predicted values."
       ],
       "solutionReview": {
-        "headline": "Use the model and the data.",
+        "headline": "Compare residuals: model Q follows the curve much more closely than the line.",
         "reasoning": [
-          "Apply the fitted relationship and distinguish observed values from predicted values."
+          "Model Q gives {{q1}} and {{q2}} at $x=1$ and $x=2$: $|{{y1}}-{{q1}}|+|{{y2}}-{{q2}}|=2$.",
+          "Model L gives {{l1}} and {{l2}}: $|{{y1}}-{{l1}}|+|{{y2}}-{{l2}}|={{sL}}$. A line cannot follow the curvature. Both are exact at $x=0$.",
+          "So: Model Q better represents the observed curvature and is the better basis for predictions near these data."
         ],
-        "answerSummary": "Check that the result is consistent with the model and the observations."
+        "commonError": "Claiming a model is exact, or certain for future data: models describe the observed pattern and still have residuals.",
+        "answerSummary": "Model Q better represents the observed curvature and is the better basis for predictions near these data."
       },
       "prompt": "For observations $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$, model Q is $y={{a}}x^2+{{b}}x+{{c}}$ and model L is $y={{m}}x+{{c}}$. Which statement is best supported by the data?",
       "generator": {
@@ -70789,7 +70823,12 @@
           "y0": "c",
           "y1": "a+b+c+e1",
           "y2": "4*a+2*b+c-e1",
-          "m": "2*a+b"
+          "m": "2*a+b",
+          "q1": "a+b+c",
+          "q2": "4*a+2*b+c",
+          "l1": "m+c",
+          "l2": "2*m+c",
+          "sL": "abs(e1-a)+1"
         },
         "constraints": [
           "m!=0",
@@ -74540,6 +74579,16 @@
           "expected": "choice-c"
         }
       ],
+      "solutionReview": {
+        "headline": "Recorded, not assigned: an association, not a cause.",
+        "reasoning": [
+          "The researchers only recorded sleep and scores for {{n}} students; they did not assign amounts of sleep. That is an observational study.",
+          "An observational study can show an association, but other factors (study habits, for example) could explain it, so it cannot establish cause.",
+          "So: In this study, amount of sleep is associated with test score, but the study does not establish that more sleep causes higher scores."
+        ],
+        "commonError": "Reading the association as cause and effect: only randomly assigning the treatment supports a causal claim.",
+        "answerSummary": "In this study, amount of sleep is associated with test score, but the study does not establish that more sleep causes higher scores."
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -74656,6 +74705,16 @@
           "expected": "choice-b"
         }
       ],
+      "solutionReview": {
+        "headline": "Random assignment supports cause and effect for the participants.",
+        "reasoning": [
+          "The {{n}} volunteers were randomly assigned to treatment A or B and otherwise treated the same.",
+          "Random assignment balances other factors between the groups, so the difference can be attributed to the treatment for these participants. Volunteers are not a random sample, so it does not automatically generalize.",
+          "So: The random assignment supports a cause-and-effect conclusion about the treatments for the study participants."
+        ],
+        "commonError": "Thinking random assignment shows only an association, or that the result automatically applies to a whole population.",
+        "answerSummary": "The random assignment supports a cause-and-effect conclusion about the treatments for the study participants."
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -74772,6 +74831,16 @@
           "expected": "choice-a"
         }
       ],
+      "solutionReview": {
+        "headline": "A random sample can estimate the city population's support.",
+        "reasoning": [
+          "A random sample of {{n}} residents represents the city's adult population.",
+          "Its proportion of support estimates the city's proportion, with some sampling error. A survey cannot show cause, and the city is not the whole country.",
+          "So: The sample results can be used to estimate the proportion of adults in the city who support the proposal."
+        ],
+        "commonError": "Generalizing beyond the population that was sampled, or claiming a survey shows cause and effect.",
+        "answerSummary": "The sample results can be used to estimate the proportion of adults in the city who support the proposal."
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -74888,6 +74957,16 @@
           "expected": "choice-b"
         }
       ],
+      "solutionReview": {
+        "headline": "Whoever is easiest to reach is a convenience sample, which may not be representative.",
+        "reasoning": [
+          "Only the {{n}} students who arrive in the first 10 minutes are surveyed: the ones easiest to reach.",
+          "Early arrivals may differ from other students (schedules, habits), so the sample may not represent the school.",
+          "So: The sample may not be representative of all students at the school because it is a convenience sample."
+        ],
+        "commonError": "Assuming students from the school make a representative sample: how they are chosen matters.",
+        "answerSummary": "The sample may not be representative of all students at the school because it is a convenience sample."
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -75004,6 +75083,16 @@
           "expected": "choice-b"
         }
       ],
+      "solutionReview": {
+        "headline": "Random assignment makes the groups comparable.",
+        "reasoning": [
+          "Random assignment decides by chance which of the {{n}} participants receive the treatment.",
+          "Chance tends to balance other characteristics between the groups, so a difference in outcomes can be traced to the treatment. It does not make the participants a random sample of a population.",
+          "So: To reduce systematic differences between the groups so treatment effects can be compared more fairly."
+        ],
+        "commonError": "Confusing random assignment with random sampling: assignment supports fair comparisons; sampling supports generalization.",
+        "answerSummary": "To reduce systematic differences between the groups so treatment effects can be compared more fairly."
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -75121,6 +75210,16 @@
           "expected": "choice-d"
         }
       ],
+      "solutionReview": {
+        "headline": "Random sampling supports generalizing; random assignment supports cause.",
+        "reasoning": [
+          "Randomly sampling {{n}} adults from the population supports generalizing to that population.",
+          "Randomly assigning them to treatment or control supports a cause-and-effect conclusion.",
+          "So: The random assignment supports a causal conclusion, and the random sampling supports generalizing the result to the population represented by the sample."
+        ],
+        "commonError": "Mixing up the two roles: sampling is for generalizing, assignment is for causation.",
+        "answerSummary": "The random assignment supports a causal conclusion, and the random sampling supports generalizing the result to the population represented by the sample."
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -75238,6 +75337,16 @@
           "expected": "choice-c"
         }
       ],
+      "solutionReview": {
+        "headline": "Random assignment without random sampling: causal for these volunteers only.",
+        "reasoning": [
+          "The {{n}} participants volunteered after an advertisement, so they are not a random sample of any population.",
+          "They were randomly assigned to treatment and control, which supports a causal comparison among them.",
+          "So: Random assignment supports a causal comparison for the participants, but the volunteer sample limits how broadly the result can be generalized."
+        ],
+        "commonError": "Treating volunteers as a random sample, or thinking random assignment rules out a causal conclusion.",
+        "answerSummary": "Random assignment supports a causal comparison for the participants, but the volunteer sample limits how broadly the result can be generalized."
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
@@ -75355,6 +75464,16 @@
           "expected": "choice-b"
         }
       ],
+      "solutionReview": {
+        "headline": "Random sample, observational design: describe the population, but no cause.",
+        "reasoning": [
+          "The {{n}} adults are a random sample, so the association found can describe the population they represent.",
+          "Exercise was not assigned, so the study is observational and cannot show that exercise causes the difference.",
+          "So: The association can be used to describe the population represented by the random sample, but the observational design does not establish that exercise causes the difference in heart rate."
+        ],
+        "commonError": "Treating random sampling as if it were random assignment: sampling supports generalizing, not causation.",
+        "answerSummary": "The association can be used to describe the population represented by the random sample, but the observational design does not establish that exercise causes the difference in heart rate."
+      },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
         "framework": "digitalSAT",
