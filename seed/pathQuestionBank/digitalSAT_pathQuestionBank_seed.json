@@ -78083,11 +78083,13 @@
         "A percent increase or decrease is applied to the original amount. Reverse-percent questions require undoing that multiplier."
       ],
       "solutionReview": {
-        "headline": "Track the original amount and percent multiplier.",
+        "headline": "Percent means per hundred: $\\dfrac{{{p}}}{100}({{q}})$.",
         "reasoning": [
-          "Translate the percent to a multiplier or part-to-whole relationship, then apply or undo it as required by the question."
+          "{{p}}% means {{p}} per hundred, that is $\\frac{{{p}}}{100}$.",
+          "So {{p}}% of {{q}} is $\\dfrac{{{p}}}{100}({{q}})={{val}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the direction and size of the percent change."
+        "commonError": "Multiplying by {{p}} itself, or dividing by 10 or by {{p}}: a percent is a number out of 100.",
+        "answerSummary": "$\\dfrac{{{p}}}{100}({{q}})$"
       },
       "prompt": "Which expression gives {{p}}% of {{q}}?",
       "generator": {
@@ -78112,6 +78114,9 @@
             "min": 100,
             "max": 1000
           }
+        },
+        "derived": {
+          "val": "round(p*q)/100"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -78209,11 +78214,13 @@
         "A percent increase or decrease is applied to the original amount. Reverse-percent questions require undoing that multiplier."
       ],
       "solutionReview": {
-        "headline": "Track the original amount and percent multiplier.",
+        "headline": "Undo the increase by dividing by $\\frac{{{factorP}}}{100}$: {{answer}}.",
         "reasoning": [
-          "Translate the percent to a multiplier or part-to-whole relationship, then apply or undo it as required by the question."
+          "An increase of {{p}}% multiplies the original $x$ by $\\frac{{{factorP}}}{100}$: $\\frac{{{factorP}}}{100}x={{newv}}$.",
+          "So $x={{newv}}\\cdot \\frac{100}{{{factorP}}}={{answer}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the direction and size of the percent change."
+        "commonError": "Taking {{p}}% off {{newv}}: the {{p}}% was of the original, not of the new value, which gives {{dNaiveUndo}}.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A quantity increases by {{p}}% to a new value of {{newv}}. What was the original value?",
       "generator": {
@@ -78244,7 +78251,8 @@
           "answer": "400*k",
           "dOverApply": "400*k*(100+p)*(100+p)/10000",
           "dNaiveUndo": "400*k*(100+p)*(100-p)/10000",
-          "dSwing": "hi*(400*k*(100+p)/100-p)+(1-hi)*(400*k*(100+p)*p/10000)"
+          "dSwing": "hi*(400*k*(100+p)/100-p)+(1-hi)*(400*k*(100+p)*p/10000)",
+          "factorP": "100+p"
         },
         "constraints": [
           "answer!=dOverApply",
@@ -78349,11 +78357,14 @@
         "A percent increase or decrease is applied to the original amount. Reverse-percent questions require undoing that multiplier."
       ],
       "solutionReview": {
-        "headline": "Track the original amount and percent multiplier.",
+        "headline": "A {{p}}% discount leaves {{remain}}% of the price: $\\dfrac{{{remain}}}{100}x={{final}}$.",
         "reasoning": [
-          "Translate the percent to a multiplier or part-to-whole relationship, then apply or undo it as required by the question."
+          "A {{p}}% discount leaves $100\\%-{{p}}\\%={{remain}}\\%$ of the original price.",
+          "Check with the original price {{original}}: $\\frac{{{remain}}}{100}\\cdot {{original}}={{final}}$.",
+          "So the equation is $\\dfrac{{{remain}}}{100}x={{final}}$."
         ],
-        "answerSummary": "Check that the result is consistent with the direction and size of the percent change."
+        "commonError": "Using $\\frac{{{p}}}{100}x$, which is the discount itself, not the price after it.",
+        "answerSummary": "$\\dfrac{{{remain}}}{100}x={{final}}$"
       },
       "prompt": "After a {{p}}% discount, an item costs {{final}} dollars. If $x$ is the original price, which equation can be used to find $x$?",
       "generator": {
@@ -78474,11 +78485,13 @@
         "A percent increase or decrease is applied to the original amount. Reverse-percent questions require undoing that multiplier."
       ],
       "solutionReview": {
-        "headline": "Track the original amount and percent multiplier.",
+        "headline": "Divide the increase by the original value: ${{p}}\\%$.",
         "reasoning": [
-          "Translate the percent to a multiplier or part-to-whole relationship, then apply or undo it as required by the question."
+          "The increase is ${{new}}-{{old}}={{points}}$.",
+          "As a fraction of the original: $\\frac{{{points}}}{{{old}}}=\\frac{{{p}}}{100}$, so the increase is ${{p}}\\%$."
         ],
-        "answerSummary": "Check that the result is consistent with the direction and size of the percent change."
+        "commonError": "Dividing by the new value, or giving the new value as a percent of the old one ({{grow}}%).",
+        "answerSummary": "${{p}}\\%$"
       },
       "prompt": "A value increases from {{old}} to {{new}}. What is the percent increase?",
       "generator": {
@@ -78608,11 +78621,13 @@
         "A percent increase or decrease is applied to the original amount. Reverse-percent questions require undoing that multiplier."
       ],
       "solutionReview": {
-        "headline": "Track the original amount and percent multiplier.",
+        "headline": "Part over whole, as a percent: ${{p}}\\%$.",
         "reasoning": [
-          "Translate the percent to a multiplier or part-to-whole relationship, then apply or undo it as required by the question."
+          "Part over whole: $\\frac{{{part}}}{{{total}}}=\\frac{{{p}}}{100}$.",
+          "So ${{p}}\\%$ of the items have the characteristic."
         ],
-        "answerSummary": "Check that the result is consistent with the direction and size of the percent change."
+        "commonError": "Giving the count {{part}} as a percent, or the percent without the characteristic ({{comp}}%).",
+        "answerSummary": "${{p}}\\%$"
       },
       "prompt": "In a group of {{total}} items, {{part}} have a specified characteristic. What percent of the items have the characteristic?",
       "generator": {
@@ -78745,11 +78760,14 @@
         "A percent increase or decrease is applied to the original amount. Reverse-percent questions require undoing that multiplier."
       ],
       "solutionReview": {
-        "headline": "Track the original amount and percent multiplier.",
+        "headline": "Apply the changes one after the other: {{answer}} dollars.",
         "reasoning": [
-          "Translate the percent to a multiplier or part-to-whole relationship, then apply or undo it as required by the question."
+          "Decrease by {{d}}%: ${{start}}\\cdot \\frac{{{dRem}}}{100}={{mid}}$.",
+          "Then increase that price by {{u}}%: ${{mid}}\\cdot \\frac{{{uG}}}{100}={{answer}}$.",
+          "So the final price is {{answer}} dollars."
         ],
-        "answerSummary": "Check that the result is consistent with the direction and size of the percent change."
+        "commonError": "Taking both percents of the original price: the {{u}}% increase is of the reduced price.",
+        "answerSummary": "{{answer}} dollars"
       },
       "prompt": "A price of {{start}} dollars is decreased by {{d}}% and then the resulting price is increased by {{u}}%. What is the final price, in dollars?",
       "generator": {
@@ -78788,7 +78806,10 @@
           "answer": "400*k*(100-d)*(100+u)/10000",
           "dBothUp": "400*k*(100+d)*(100+u)/10000",
           "dBothDown": "400*k*(100-d)*(100-u)/10000",
-          "dSwing": "400*k*(100-d+(2*hi-1)*u)/100"
+          "dSwing": "400*k*(100-d+(2*hi-1)*u)/100",
+          "dRem": "100-d",
+          "uG": "100+u",
+          "mid": "4*k*(100-d)"
         },
         "constraints": [
           "answer!=dBothUp",
@@ -78894,11 +78915,13 @@
         "A percent increase or decrease is applied to the original amount. Reverse-percent questions require undoing that multiplier."
       ],
       "solutionReview": {
-        "headline": "Track the original amount and percent multiplier.",
+        "headline": "Undo both multipliers by dividing $F$ by their product.",
         "reasoning": [
-          "Translate the percent to a multiplier or part-to-whole relationship, then apply or undo it as required by the question."
+          "Increasing by {{up}}% multiplies by $\\frac{{{upf}}}{100}$, and decreasing by {{down}}% multiplies by $\\frac{{{downf}}}{100}$. For example, 100 would become $100\\cdot \\frac{{{upf}}}{100}\\cdot \\frac{{{downf}}}{100}={{chk}}$.",
+          "So $F$ is the original times both factors, and the original value is $\\dfrac{F}{\\left(\\dfrac{{{upf}}}{100}\\right)\\left(\\dfrac{{{downf}}}{100}\\right)}$."
         ],
-        "answerSummary": "Check that the result is consistent with the direction and size of the percent change."
+        "commonError": "Multiplying $F$ by the factors (that goes forward, not back), or using $\\frac{{{wrongDown}}}{100}$ for a decrease.",
+        "answerSummary": "$\\dfrac{F}{\\left(\\dfrac{{{upf}}}{100}\\right)\\left(\\dfrac{{{downf}}}{100}\\right)}$"
       },
       "prompt": "A quantity is increased by {{up}}% and then decreased by {{down}}%, resulting in a final value $F$. Which expression gives the original value?",
       "generator": {
@@ -78924,7 +78947,8 @@
           "upf": "100+up",
           "downf": "100-down",
           "wrongDown": "100+down",
-          "wrongUp": "100-up"
+          "wrongUp": "100-up",
+          "chk": "(100+up)*(100-down)/100"
         },
         "constraints": [
           "(100+up)*(100-down)!=10000"
@@ -79025,11 +79049,13 @@
         "A percent increase or decrease is applied to the original amount. Reverse-percent questions require undoing that multiplier."
       ],
       "solutionReview": {
-        "headline": "Track the original amount and percent multiplier.",
+        "headline": "Percent increase is relative to the start: ${{inc}}\\%$, not {{points}} points.",
         "reasoning": [
-          "Translate the percent to a multiplier or part-to-whole relationship, then apply or undo it as required by the question."
+          "The change is ${{p2}}-{{p1}}={{points}}$ percentage points.",
+          "Relative to the starting {{p1}}%: $\\frac{{{points}}}{{{p1}}}=\\frac{{{inc}}}{100}$, an increase of ${{inc}}\\%$."
         ],
-        "answerSummary": "Check that the result is consistent with the direction and size of the percent change."
+        "commonError": "Answering {{points}}%: that is the change in percentage points, not the percent increase.",
+        "answerSummary": "${{inc}}\\%$"
       },
       "prompt": "A reported percentage increases from {{p1}}% to {{p2}}%. By what percent did the reported percentage increase?",
       "generator": {
@@ -79226,11 +79252,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Use the correct sample space.",
+        "headline": "Favorable over total: $\\dfrac{{{fav}}}{{{total}}}$.",
         "reasoning": [
-          "Use the favorable count over the appropriate total; conditional probability restricts the denominator to the stated condition."
+          "Each of the {{total}} objects is equally likely, and {{fav}} of them are red.",
+          "Check: red and not red cover everything, $\\frac{{{fav}}}{{{total}}}+\\frac{{{notFav}}}{{{total}}}=1$.",
+          "So the probability is $\\dfrac{{{fav}}}{{{total}}}$."
         ],
-        "answerSummary": "Check the denominator and event."
+        "commonError": "Using the {{notFav}} objects that are not red, or $\\frac{1}{{{total}}}$, the chance of one particular object.",
+        "answerSummary": "$\\dfrac{{{fav}}}{{{total}}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -79357,11 +79386,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Use the correct sample space.",
+        "headline": "An event and its complement add to 100%: ${{comp}}\\%$.",
         "reasoning": [
-          "Use the favorable count over the appropriate total; conditional probability restricts the denominator to the stated condition."
+          "The event either occurs or does not, so the two probabilities add to 100%.",
+          "So $100\\%-{{p}}\\%={{comp}}\\%$."
         ],
-        "answerSummary": "Check the denominator and event."
+        "commonError": "Giving {{p}}% again: that is the probability that the event does occur.",
+        "answerSummary": "${{comp}}\\%$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -79504,11 +79535,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Use the correct sample space.",
+        "headline": "One cell over the grand total: $\\dfrac{{{a}}}{{{total}}}$.",
         "reasoning": [
-          "Use the favorable count over the appropriate total; conditional probability restricts the denominator to the stated condition."
+          "Everyone counts: ${{a}}+{{b}}+{{c}}+{{d}}={{total}}$ people.",
+          "{{a}} of them are in group A and answered yes, so the probability is $\\dfrac{{{a}}}{{{total}}}$."
         ],
-        "answerSummary": "Check the denominator and event."
+        "commonError": "Using all of group A ({{rowA}}): the question asks for group A and yes together.",
+        "answerSummary": "$\\dfrac{{{a}}}{{{total}}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -79647,11 +79680,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Use the correct sample space.",
+        "headline": "Given yes, divide by the yes total: $\\dfrac{{{a}}}{{{colYes}}}$.",
         "reasoning": [
-          "Use the favorable count over the appropriate total; conditional probability restricts the denominator to the stated condition."
+          "Only the people who answered yes count: ${{a}}+{{c}}={{colYes}}$.",
+          "{{a}} of them are in group A, so the probability is $\\dfrac{{{a}}}{{{colYes}}}$."
         ],
-        "answerSummary": "Check the denominator and event."
+        "commonError": "Dividing by the whole table ({{total}}) or by group A ({{rowA}}): the condition \"answered yes\" sets the denominator.",
+        "answerSummary": "$\\dfrac{{{a}}}{{{colYes}}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -79776,11 +79811,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Use the correct sample space.",
+        "headline": "Expected count = probability × trials: {{answer}}.",
         "reasoning": [
-          "Use the favorable count over the appropriate total; conditional probability restricts the denominator to the stated condition."
+          "The expected count is the probability of the event times the number of trials.",
+          "$\\frac{{{p}}}{100}\\cdot {{trials}}={{answer}}$."
         ],
-        "answerSummary": "Check the denominator and event."
+        "commonError": "Multiplying {{trials}} by {{p}} without dividing by 100, or using the probability that the event does not occur.",
+        "answerSummary": "${{answer}}$"
       },
       "choices": [
         {
@@ -79922,11 +79959,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Use the correct sample space.",
+        "headline": "Count everyone in A or B once, then divide by {{total}}: {{union}}/{{total}}.",
         "reasoning": [
-          "Use the favorable count over the appropriate total; conditional probability restricts the denominator to the stated condition."
+          "People in A or B: ${{countA}}+{{countB}}-{{both}}={{union}}$; the {{both}} people in both sets would otherwise be counted twice.",
+          "Probability: $\\frac{{{union}}}{{{total}}}$, that is {{union}}/{{total}}."
         ],
-        "answerSummary": "Check the denominator and event."
+        "commonError": "Adding {{countA}} and {{countB}} without subtracting the {{both}} people counted twice.",
+        "answerSummary": "{{union}}/{{total}}"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -80067,11 +80106,13 @@
         }
       ],
       "solutionReview": {
-        "headline": "Use the correct sample space.",
+        "headline": "Given the subgroup, divide by the subgroup: $\\dfrac{{{fav}}}{{{group}}}$.",
         "reasoning": [
-          "Use the favorable count over the appropriate total; conditional probability restricts the denominator to the stated condition."
+          "The person comes from the subgroup, so only its {{group}} members count.",
+          "{{fav}} of them have the characteristic, so the probability is $\\dfrac{{{fav}}}{{{group}}}$."
         ],
-        "answerSummary": "Check the denominator and event."
+        "commonError": "Dividing by the full sample ({{total}}), or using the overall count {{overallFav}}.",
+        "answerSummary": "$\\dfrac{{{fav}}}{{{group}}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -80209,11 +80250,14 @@
         }
       ],
       "solutionReview": {
-        "headline": "Use the correct sample space.",
+        "headline": "Compare proportions, not counts: both groups are at {{r}}%.",
         "reasoning": [
-          "Use the favorable count over the appropriate total; conditional probability restricts the denominator to the stated condition."
+          "Group A: $\\frac{{{succA}}}{{{nA}}}=\\frac{{{r}}}{100}$. Group B: $\\frac{{{succB}}}{{{nB}}}=\\frac{{{r}}}{100}$.",
+          "The proportions are equal, so knowing the group does not change the chance of having the characteristic.",
+          "So: The conditional proportion with the characteristic is the same in both groups, which is consistent with independence between group and the characteristic."
         ],
-        "answerSummary": "Check the denominator and event."
+        "commonError": "Comparing the raw counts {{succA}} and {{succB}}: groups of different sizes must be compared by proportions.",
+        "answerSummary": "The conditional proportion with the characteristic is the same in both groups, which is consistent with independence between group and the characteristic."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
