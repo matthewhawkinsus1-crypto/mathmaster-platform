@@ -27,6 +27,7 @@ import {
   initDistributionState,
   placeOnTerm,
 } from '../../src/algebraDistributionModel.js';
+import { commitSimplifyPart, detectSimplifyParts } from '../../src/platform/algebra/simplify/simplifyEngine.js';
 import { STRUCTURE_TOOL_KINDS } from '../../src/algebraStructureTools.js';
 import { REWRITE_MENU_KINDS, rewriteMenuOptions } from '../../src/platform/algebra/simplify/rewriteMenu.js';
 
@@ -208,4 +209,26 @@ test('never multiply by 1: Distribute refuses a unit factor, and (a)(1) is appli
   assert.equal(distributeEverywhere({ left: '-2 * (x - 1)', right: '9', variable: 'x' }).left, '(-2)(x) + (-2)(-1)');
   // A real factor still distributes, unsimplified: the products are the student's.
   assert.equal(distributeEverywhere({ left: '3 * (-3 + 2 * y) + 5 * y', right: '24', variable: 'y' }).left, '(3)(-3) + (3)(2 * y) + 5 * y');
+});
+
+test('only a WRITTEN 1 is applied for the student: 2/2 and 3 - 2 are arithmetic the student does (Codex review)', () => {
+  // A computed unit factor is distributable like any other factor, and a computed unit term keeps its product.
+  assert.equal(detectDistributableGroup({ left: '(2/2) * (x + 3)', right: '4', variable: 'x' })?.factorText, '2 / 2');
+  assert.equal(distributeEverywhere({ left: '3 * (x + 2/2)', right: '9', variable: 'x' }).left, '(3)(x) + (3)(2 / 2)');
+  assert.equal(distributeEverywhere({ left: '3 * (x + 1)', right: '9', variable: 'x' }).left, '(3)(x) + 3');
+  const regions = (left) => [{ key: 'left', label: 'left side', expression: left, variable: 'x' }, { key: 'right', label: 'right side', expression: '4', variable: 'x' }];
+  const kindsOf = (left) => detectSimplifyParts(regions(left)).map((part) => `${part.kind}:${part.termIndices.join('.')}`);
+  // Not a one-press "Remove parentheses": the product is typed first.
+  assert.deepEqual(kindsOf('(2/2) * (x + 3)'), ['product:0']);
+  assert.deepEqual(kindsOf('x - (3 - 2) * (x + 3)'), ['product:1']);
+  assert.deepEqual(kindsOf('x - 1 * (x + 3)'), ['parentheses:1']);
+  // Typing the product keeps the group, so removing it (and each sign after a minus) is still the next step.
+  const typed = commitSimplifyPart(regions('x - (3 - 2) * (x + 3)'), 'left:product:1', { answer: '-1', signs: [] });
+  assert.equal(typed.ok, true);
+  assert.equal(typed.expression, 'x - 1 * (x + 3)');
+  const next = detectSimplifyParts(regions(typed.expression)).find((part) => part.kind === 'parentheses');
+  assert.equal(next?.sign, -1);
+  assert.equal(commitSimplifyPart(regions('(2/2) * (x + 3)'), 'left:product:0', { answer: '1', signs: [] }).expression, '1 * (x + 3)');
+  // A product of 1 with letters alone is still just the letters.
+  assert.equal(commitSimplifyPart(regions('(1/2) * 2 * x'), 'left:product:0', { answer: '1', signs: [] }).expression, 'x');
 });

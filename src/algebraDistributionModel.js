@@ -11,17 +11,15 @@ import {
   splitAdditiveTerms,
   splitMultiplicativeFactors,
 } from './algebraAstEngine.js';
-import { exactRationalFromExpression } from './algebraExactRational.js';
 
 // NEVER MAKE A STUDENT MULTIPLY BY 1 (student push Q). A group behind a factor
 // of 1 or -1 — 2x + (-4x + 12), 3x - (-4x + 12), the way a substitution
 // writes it — is not distributed: Simplify's "Remove parentheses" removes it,
 // and after a minus sign the student states every changed sign. Distributing
 // it here left (1)(-4x) + (1)(12) on the board.
-const isUnitFactor = (factorText) => {
-  const value = exactRationalFromExpression(factorText);
-  return Boolean(value && value.d === 1 && Math.abs(value.n) === 1);
-};
+// Only a 1 or -1 written as such: (2/2)(x + 3) and (3 - 2)(x + 3) still have
+// arithmetic in the factor, which is the student's to do.
+const isUnitFactor = (factorText) => /^\(?\s*[-−]?\s*1\s*\)?$/.test(String(factorText ?? '').trim());
 
 // A factor the student authored with its own parentheses (e.g. the `(2/3)`
 // in `-(2/3)(x+3)`) round-trips through mathjs's printer as `-(2 / 3)`.
@@ -224,10 +222,9 @@ export const expandedGroupText = (state, { simplifyProducts = false } = {}) => {
   return state.terms
     .map((term) => {
       // a · 1 is applied the moment it would appear: 3(x + 1) distributes to
-      // (3)(x) + 3, never (3)(1). Only a factor of exactly 1 — no number is
-      // computed, and a -1 keeps its product for the student.
-      const termValue = exactRationalFromExpression(term.magnitudeText);
-      if (termValue && termValue.n === 1 && termValue.d === 1 && term.sign >= 0) {
+      // (3)(x) + 3, never (3)(1). Only a 1 written as such — 2/2 is still the
+      // student's to compute — and a -1 keeps its product for the student.
+      if (String(term.magnitudeText ?? '').trim() === '1' && term.sign >= 0) {
         return /^\d+(?:\.\d+)?$/.test(String(state.factorText).trim()) ? String(state.factorText).trim() : `(${state.factorText})`;
       }
       const product = `(${state.factorText})(${signedTermText(term)})`;

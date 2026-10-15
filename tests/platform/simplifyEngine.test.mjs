@@ -20,7 +20,7 @@ import {
   partsForTerm,
   simplifyStepFor,
 } from '../../src/platform/algebra/simplify/simplifyEngine.js';
-import { expressionsEquivalent, splitAdditiveTerms } from '../../src/algebraAstEngine.js';
+import { expressionsEquivalent } from '../../src/algebraAstEngine.js';
 import { EQUATION_REWRITE_KINDS, RELATION_STEP_KINDS } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 
 const regionsOf = (left, right = '0', variable = 'x') => [

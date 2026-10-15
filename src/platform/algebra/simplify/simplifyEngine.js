@@ -60,6 +60,12 @@ const unwrap = (node) => {
   return current;
 };
 
+const isWrittenUnit = (rawNode) => {
+  const node = unwrap(rawNode);
+  if (node?.type === 'OperatorNode' && node.fn === 'unaryMinus' && node.args?.length === 1) return isWrittenUnit(node.args[0]);
+  return node?.type === 'ConstantNode' && Number(node.value) === 1;
+};
+
 const hasSymbols = (node) => node.filter((child) => child.isSymbolNode && !['e', 'pi'].includes(child.name)).length > 0;
 
 const nodeText = (node) => node.toString({ parenthesis: 'keep', implicit: 'hide' });
@@ -115,6 +121,10 @@ const isSum = (node) => {
   return inner?.type === 'OperatorNode' && ['add', 'subtract'].includes(inner.fn) && inner.args?.length === 2;
 };
 
+const isSumText = (text) => {
+  try { return isSum(parse(String(text))); } catch { return false; }
+};
+
 const groupedText = (text) => {
   try {
     const node = unwrap(parse(String(text)));
@@ -133,6 +143,10 @@ export const termFromValue = (value, rest = []) => {
   if (magnitude.n === 0) return { sign: 1, magnitude: '0' };
   const restText = rest.map(groupedText).join(' * ');
   if (!restText) return { sign, magnitude: rationalToExpression(magnitude) };
+  // A product of 1 with a sum, (2/2)(x + 3): the group stays a group, stored
+  // as 1(…) like a substituted one, so removing it (and, after a minus,
+  // stating each sign) is still the student's next step.
+  if (isOne(magnitude) && rest.length === 1 && isSumText(rest[0])) return { sign, magnitude: `1 * ${restText}` };
   if (isOne(magnitude)) return { sign, magnitude: restText };
   const number = magnitude.d === 1 ? rationalToExpression(magnitude) : `(${rationalToExpression(magnitude)})`;
   return { sign, magnitude: `${number} * ${restText}` };
@@ -154,8 +168,9 @@ const parenthesesPart = (term, node) => {
   const inner = unwrap(node);
   if (inner?.type !== 'OperatorNode' || inner.fn !== 'multiply' || inner.args?.length !== 2) return null;
   const [unit, group] = inner.args;
+  // Only a 1 or -1 written as such: (2/2)(x + 3) is a product the student computes.
+  if (!isWrittenUnit(unit) || !isSum(group)) return null;
   const unitValue = exactRationalFromNode(unit);
-  if (!unitValue || Math.abs(unitValue.n) !== 1 || unitValue.d !== 1 || !isSum(group) || hasSymbols(unit)) return null;
   const sign = (term.sign < 0 ? -1 : 1) * (unitValue.n < 0 ? -1 : 1);
   const groupText = nodeText(unwrap(group));
   const innerTerms = splitAdditiveTerms(groupText) || [];
