@@ -40,11 +40,15 @@ export const mathSpans = (text) => String(text).split('$').filter((part, index) 
 export const DISPLAY_BANS = [
   [/(^|[^\d.\\a-zA-Z_{])1\s*[a-z](?![a-z])/, 'a coefficient of 1 ("1x")'],
   [/(^|[^\d.\\a-zA-Z_{])0\s*[a-z](?![a-z])/, 'a coefficient of 0 ("0x")'],
-  [/[+-]\s*0(?![\d.])/, 'a zero term ("+ 0")'],
+  // A zero added to a variable term ("3x + 0", "x - 0"); "6 - 0" in a
+  // substituted formula is arithmetic, not a display fault.
+  [/[a-zA-Z]\s*[+-]\s*0(?![\d.])/, 'a zero term ("+ 0")'],
   [/[+-]\s*[+-]\s*\d/, 'a doubled sign ("+ -3")'],
   [/\^\s*\{?\s*1\s*\}?(?![\d.])/, 'an exponent of 1'],
   [/\{\{|\}\}/, 'an unfilled placeholder'],
-  [/NaN|undefined|Infinity|null/, 'a broken value'],
+  [/NaN|Infinity/, 'a broken value'],
+  // "undefined" is a word a slope review needs; inside math it is a bug.
+  [/undefined|null/, 'a broken value in math'],
   [/\d\.\d*?(\d)\1{5,}/, 'a floating-point artefact'],
 ];
 
@@ -55,7 +59,7 @@ export const displayProblems = (review) => {
     for (const [pattern, label] of DISPLAY_BANS) {
       // Prose may say "1 hour" or "+ 0.5 points": only math is held to the
       // coefficient and zero-term rules.
-      const targets = /coefficient|zero term|exponent/.test(label) ? mathSpans(text) : [...mathSpans(text), prose];
+      const targets = /coefficient|zero term|exponent|in math/.test(label) ? mathSpans(text) : [...mathSpans(text), prose];
       for (const target of targets) if (pattern.test(target)) problems.push(`${label}: "${target}" in "${text}"`);
     }
   }
@@ -134,6 +138,8 @@ const replaceCommand = (text, command, arity, build) => {
  */
 export const latexToMathjs = (latex) => {
   let text = String(latex);
+  // f(3), g(x), C(n): function notation is a name, not a product.
+  if (/(^|[^a-zA-Z\\])([fgh]|[A-Z])\s*\(/.test(text)) return null;
   if (/\\(?:dots|ldots|cdots|infty|pm|mp|in|cup|cap|emptyset|varnothing|angle|triangle|overline|overrightarrow|parallel|perp|sim|cong|Rightarrow|to|rightarrow|implies|text\{[^}]*[a-zA-Z]{2}[^}]*\}\s*[a-zA-Z0-9(])|\[|\]|\\\{|\\\}|\\mid|:/.test(text)) return null;
   text = text
     .replace(/\\text\{[^}]*\}/g, ' ')
@@ -181,6 +187,8 @@ export const latexToMathjs = (latex) => {
     if (/^[A-Za-z]\d+$/.test(word)) return word; // x1, y2
     return word.split('').join('*');
   });
+  // x(B+C) is a product (f, g, h and capitals were refused above as notation).
+  text = text.replace(/(?<![A-Za-z])([a-eik-z])\s*\(/g, '$1*(');
   // sind/cosd/tand are degree helpers registered below.
   if (!text.trim()) return null;
   if (/[a-zA-Z]{2,}\s*\*/.test(text) && !/(sqrt|nthRoot|abs|log|log10|exp|sind|cosd|tand|sin|cos|tan)/.test(text)) return null;
@@ -237,9 +245,14 @@ const statements = (span) => {
   return parts.map((part) => part.trim()).filter(Boolean);
 };
 
+// The common error states a wrong move on purpose, so it is never read as a
+// claim (nor as the solution the equations are checked at).
+const claimTexts = (review) => [review.headline, ...(review.reasoning || []), review.connection, review.answerSummary]
+  .filter((entry) => typeof entry === 'string' && entry);
+
 export const relationChains = (review) => {
   const chains = [];
-  for (const text of reviewTexts(review)) {
+  for (const text of claimTexts(review)) {
     for (const span of mathSpans(text)) {
       for (const statement of statements(span)) {
         const pieces = statement.split(RELATION_SPLIT);
@@ -428,10 +441,16 @@ export const keyProblems = (review, { key, losers = [] }) => {
   const steps = review.reasoning || [];
   if (!containsAnswer(review.answerSummary, key)) problems.push(`answer summary does not state the key "${key}": "${review.answerSummary}"`);
   if (!containsAnswer(steps[steps.length - 1] || '', key) && !containsAnswer(review.headline, key)) problems.push(`neither the last step nor the headline reaches the key "${key}"`);
+  // A numeric option is "stated" when it is the value the text ends on (the
+  // part after the last "=", "\\approx" or ":"); a summary "f(2)=-39" does not
+  // state the option 2, nor does "four 15-minute blocks: 900". A worded option
+  // is stated anywhere in the text.
+  const finalValue = (text) => String(text).split(/=|\\approx|:/).pop();
+  const numeric = (option) => /^-?\d+(?:\.\d+)?$/.test(normalizeAnswerText(option));
   for (const loser of losers) {
     if (!normalizeAnswerText(loser) || containsAnswer(key, loser)) continue;
     for (const [where, text] of [['headline', review.headline], ['answerSummary', review.answerSummary]]) {
-      if (containsAnswer(text, loser)) problems.push(`${where} states the losing option "${loser}": "${text}"`);
+      if (containsAnswer(numeric(loser) ? finalValue(text) : text, loser)) problems.push(`${where} states the losing option "${loser}": "${text}"`);
     }
   }
   return problems;

@@ -47,8 +47,9 @@ const DOCS = new Map(JSON.parse(readFileSync(SEED, 'utf8')).documents.map((doc) 
 const DECLINED = Object.freeze({
 });
 
-// Not yet authored in this slice (shrinks to empty as the slices land).
-const PENDING = new Set(Object.keys(PINS).filter((id) => !/^mm_sat_A_12A_/.test(id)));
+// How many still publish their generic review (shrinks to 0 as the slices
+// land; a template is pending while its review hashes to the pinned generic).
+const EXPECTED_PENDING = 426;
 
 // Reviews whose reasoning is verbal (a definition or an interpretation) and so
 // states no relation for the arithmetic check. Everything else must have at
@@ -72,7 +73,9 @@ const withoutReviewAndDerived = (doc) => {
   return copy;
 };
 
-const authored = () => Object.keys(PINS).filter((id) => !PENDING.has(id) && !DECLINED[id]);
+const reviewHash = (review) => (review ? createHash('sha256').update(stable(review)).digest('hex').slice(0, 16) : null);
+const isPending = (id) => reviewHash(DOCS.get(id)?.solutionReview) === PINS[id].genericReview;
+const authored = () => Object.keys(PINS).filter((id) => !isPending(id) && !DECLINED[id]);
 const seeds = (id) => Array.from({ length: DRAWS }, (unused, index) => `job-o|${id}|${index}`);
 
 test(`${EXAM}: everything except the review and new derived values is the committed content`, () => {
@@ -112,12 +115,12 @@ test(`${EXAM}: a new derived value never changes a draw`, () => {
 });
 
 test(`${EXAM}: every generic solution is replaced, or declined with a reason`, () => {
-  const generic = Object.keys(PINS).filter((id) => !/\{\{/.test(JSON.stringify(DOCS.get(id)?.solutionReview || {}))
-    && !/\$/.test(JSON.stringify(DOCS.get(id)?.solutionReview || {})));
-  for (const id of generic) {
-    assert.ok(PENDING.has(id) || DECLINED[id], `${id} still publishes a generic solution`);
+  const pending = Object.keys(PINS).filter((id) => isPending(id) && !DECLINED[id]);
+  assert.equal(pending.length, EXPECTED_PENDING, `templates still publishing the generic solution: ${pending.length}`);
+  for (const id of Object.keys(DECLINED)) {
+    assert.ok(PINS[id], `${id} is a pinned template`);
+    assert.ok(isPending(id), `${id} is declined, so it keeps the generic solution`);
   }
-  for (const id of Object.keys(DECLINED)) assert.ok(PINS[id], `${id} is a pinned template`);
 });
 
 test(`${EXAM}: each review solves its own draw and reaches the key`, async () => {
@@ -148,7 +151,8 @@ test(`${EXAM}: each review solves its own draw and reaches the key`, async () =>
           key = String(field.expected);
         }
         problems.push(...keyProblems(review, { key, losers }));
-        if (!mentionsDraw(review, question.prompt)) problems.push('mentions no value from its own prompt');
+        // A drawn prompt's review must use the draw: some number from it.
+        if (/\{\{/.test(doc.prompt) && !mentionsDraw(review, question.prompt)) problems.push('mentions no value from its own prompt');
         // What the Path recap and the Live Challenge round record carry.
         const support = buildPrivateSupport(question);
         if (support.solutionReview?.reasoning?.length !== review.reasoning.length) problems.push('the Path support bundle drops steps');
@@ -164,7 +168,8 @@ test(`${EXAM}: each review solves its own draw and reaches the key`, async () =>
           }
         }
       }
-      if (problems.length) failures.push(`${id} ${seed}:\n    ${problems.join('\n    ')}`);
+      // One failing draw per template is enough to read.
+      if (problems.length) { failures.push(`${id} ${seed}:\n    ${problems.join('\n    ')}`); break; }
     }
     if (!VERBAL.has(id) && checked === 0) failures.push(`${id}: no relation in any draw could be checked (add arithmetic, or list it as VERBAL)`);
     if (VERBAL.has(id) && checked > 0) failures.push(`${id}: listed VERBAL but states checkable relations`);

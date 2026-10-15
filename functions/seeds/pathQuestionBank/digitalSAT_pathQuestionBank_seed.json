@@ -9002,11 +9002,13 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Substitute {{a}} for $x$: $f({{a}})={{answer}}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Replace every $x$ in $f(x)={{m}}x {{b|signed}}$ with {{a}}.",
+          "Multiply first, then add the constant: $f({{a}})={{m}}({{a|paren}}) {{b|signed}}={{ma}} {{b|signed}}={{answer}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Multiplying {{m}} by {{a}} and forgetting the constant term {{b}}, or combining {{m}} and {{b}} before multiplying.",
+        "answerSummary": "$f({{a}})={{answer}}$"
       },
       "generator": {
         "parameters": {
@@ -9035,7 +9037,8 @@
           }
         },
         "derived": {
-          "answer": "m*a+b"
+          "answer": "m*a+b",
+          "ma": "m*a"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -9105,11 +9108,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Start at $f({{x1}})={{y1}}$ and add the rate of change for each unit: $f({{x2}})={{answer}}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "From $x={{x1}}$ to $x={{x2}}$ the input goes up by {{dx}}.",
+          "Each unit changes the output by the rate {{m}}, so the output changes by ${{m}}\\cdot {{dx}}={{mdx}}$.",
+          "Add that change to the known value: $f({{x2}})={{y1}} {{mdx|signed}}={{answer}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Subtracting the change instead of adding it gives {{d1}}, which is the value at $x={{x0}}$, not at $x={{x2}}$.",
+        "answerSummary": "$f({{x2}})={{answer}}$"
       },
       "generator": {
         "parameters": {
@@ -9142,7 +9148,9 @@
           "answer": "y1+m*dx",
           "d1": "y1-m*dx",
           "d2": "answer+1",
-          "d3": "answer-1"
+          "d3": "answer-1",
+          "mdx": "m*dx",
+          "x0": "x1-dx"
         },
         "constraints": [
           "m!=1",
@@ -9234,11 +9242,13 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "$C({{n}})$ is the cost of {{n}} units: {{answer}} dollars.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Substitute $n={{n}}$ into $C(n)={{rate}}n+{{fee}}$.",
+          "Multiply the rate by the number of units, then add the fixed amount: $C({{n}})={{rate}}({{n}})+{{fee}}={{rn}}+{{fee}}={{answer}}$, so {{n}} units cost {{answer}} dollars."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Leaving out the fixed {{fee}} dollars (which gives {{rn}}), or multiplying the {{fee}} by {{n}} as well.",
+        "answerSummary": "$C({{n}})={{answer}}$"
       },
       "generator": {
         "parameters": {
@@ -9259,7 +9269,8 @@
           }
         },
         "derived": {
-          "answer": "rate*n+fee"
+          "answer": "rate*n+fee",
+          "rn": "rate*n"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -9329,11 +9340,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Solve ${{m}}k {{b|signed}}={{out}}$: $k={{k}}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "$f(k)={{out}}$ means the output at $x=k$ is {{out}}: ${{m}}k {{b|signed}}={{out}}$.",
+          "Undo the constant: ${{m}}k={{out}} {{negb|signed}}={{mk}}$.",
+          "Divide by {{m}}: $k=\\frac{{{mk}}}{{{m}}}={{k}}$. Check: ${{m}}({{k|paren}}) {{b|signed}}={{out}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Moving the constant without changing its sign. To undo {{b|signed}}, use {{negb|signed}} on the other side.",
+        "answerSummary": "$k={{k}}$"
       },
       "generator": {
         "parameters": {
@@ -9360,7 +9374,9 @@
           "out": "m*k+b",
           "d1": "k+1",
           "d2": "k-1",
-          "d3": "-k"
+          "d3": "-k",
+          "negb": "-b",
+          "mk": "out-b"
         },
         "constraints": [
           "k!=1",
@@ -9453,11 +9469,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Find both outputs and subtract: $f({{p}})-f({{q}})={{answer}}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "$f({{p}})={{m}}({{p|paren}}) {{b|signed}}={{fp}}$ and $f({{q}})={{m}}({{q|paren}}) {{b|signed}}={{fq}}$.",
+          "Subtract in the order asked: $f({{p}})-f({{q}})={{fp}}-{{fq|paren}}={{answer}}$.",
+          "Check: the constant {{b}} cancels, so the difference is {{m}} times the change in input, ${{m}}\\cdot {{pq|paren}}={{answer}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Subtracting in the other order, $f({{q}})-f({{p}})$, which gives {{d1}}.",
+        "answerSummary": "$f({{p}})-f({{q}})={{answer}}$"
       },
       "generator": {
         "parameters": {
@@ -9494,7 +9513,10 @@
           "answer": "m*(p-q)",
           "d1": "m*(q-p)",
           "d2": "answer+1",
-          "d3": "answer-1"
+          "d3": "answer-1",
+          "fp": "m*p+b",
+          "fq": "m*q+b",
+          "pq": "p-q"
         },
         "constraints": [
           "p!=q",
@@ -9723,11 +9745,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Substitute $x={{a}}$ and solve for $k$: $k={{k}}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "$f({{a}})={{out}}$ means $k\\cdot {{a}} {{b|signed}}={{out}}$.",
+          "Undo the constant: ${{a}}k={{out}} {{negb|signed}}={{ka}}$.",
+          "Divide by {{a}}: $k=\\frac{{{ka}}}{{{a}}}={{k}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Dividing {{out}} by {{a}} before removing the constant {{b}}.",
+        "answerSummary": "$k={{k}}$"
       },
       "generator": {
         "parameters": {
@@ -9755,7 +9780,9 @@
         },
         "derived": {
           "out": "k*a+b",
-          "answer": "k"
+          "answer": "k",
+          "negb": "-b",
+          "ka": "out-b"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -9826,11 +9853,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Evaluate each function at {{a}}, then add: {{answer}}.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "$f({{a}})={{m1}}({{a|paren}}) {{b1|signed}}={{fa}}$.",
+          "$g({{a}})={{m2}}({{a|paren}}) {{b2|signed}}={{ga}}$.",
+          "Add the two outputs: $f({{a}})+g({{a}})={{fa}}+{{ga|paren}}={{answer}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Adding the slopes and the constants but forgetting to multiply the slopes by {{a}}.",
+        "answerSummary": "$f({{a}})+g({{a}})={{answer}}$"
       },
       "generator": {
         "parameters": {
@@ -9877,7 +9907,9 @@
           }
         },
         "derived": {
-          "answer": "(m1+m2)*a+b1+b2"
+          "answer": "(m1+m2)*a+b1+b2",
+          "fa": "m1*a+b1",
+          "ga": "m2*a+b2"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -10942,11 +10974,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Divide both sides of $d=rt$ by $r$: $t=\\frac{d}{r}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "In $d=rt$, the time $t$ is multiplied by the rate $r$. Undo that by dividing both sides by $r$ (a rate is not 0).",
+          "$\\frac{d}{r}=\\frac{rt}{r}=t$.",
+          "Check with numbers: at $r=50$ and $t=3$, $d=50\\cdot 3=150$, and $\\frac{150}{50}=3$ gives back the time. So $t=\\frac{d}{r}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Multiplying by $r$ instead of dividing, or turning the fraction over. Distance divided by rate gives time.",
+        "answerSummary": "$t=\\frac{d}{r}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -11042,11 +11077,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Subtract $2L$, then divide by 2: $W=\\frac{P-2L}{2}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Subtract $2L$ from both sides of $P=2L+2W$: $P-2L=2W$.",
+          "Divide both sides by 2: $\\frac{P-2L}{2}=W$.",
+          "Check with numbers: $L=5$ and $W=3$ give $P=2\\cdot 5+2\\cdot 3=16$, and $\\frac{16-2\\cdot 5}{2}=3$. So $W=\\frac{P-2L}{2}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Dividing only $P$ by 2, or not dividing at all. The whole side $P-2L$ equals $2W$, so all of it is divided by 2.",
+        "answerSummary": "$W=\\frac{P-2L}{2}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -11142,11 +11180,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Subtract $b$, then divide by $m$: $x=\\frac{y-b}{m}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Subtract $b$ from both sides of $y=mx+b$: $y-b=mx$.",
+          "Divide both sides by $m$, which is allowed because $m\\ne0$: $\\frac{y-b}{m}=x$.",
+          "Check with numbers: $m=2$, $b=1$ and $x=4$ give $y=2\\cdot 4+1=9$, and $\\frac{9-1}{2}=4$. So $x=\\frac{y-b}{m}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Dividing $y$ by $m$ before subtracting $b$. The $b$ was added last, so it is removed first.",
+        "answerSummary": "$x=\\frac{y-b}{m}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -11242,11 +11283,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Double both sides, then divide by $b$: $h=\\frac{2A}{b}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Multiply both sides of $A=\\frac{1}{2}bh$ by 2: $2A=bh$.",
+          "Divide both sides by $b$: $\\frac{2A}{b}=h$.",
+          "Check with numbers: $b=6$ and $h=4$ give $A=\\frac{1}{2}\\cdot 6\\cdot 4=12$, and $\\frac{2\\cdot 12}{6}=4$. So $h=\\frac{2A}{b}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Dividing by 2 instead of multiplying. Undoing a half means doubling.",
+        "answerSummary": "$h=\\frac{2A}{b}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -11342,11 +11386,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Subtract 32, then multiply by $\\frac{5}{9}$: $C=\\frac{5}{9}(F-32)$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "The 32 was added last, so subtract it first: $F-32=\\frac{9}{5}C$.",
+          "Multiply both sides by $\\frac{5}{9}$, the reciprocal of $\\frac{9}{5}$: $\\frac{5}{9}(F-32)=C$.",
+          "Check with numbers: $C=100$ gives $F=\\frac{9}{5}\\cdot 100+32=212$, and $\\frac{5}{9}(212-32)=100$. So $C=\\frac{5}{9}(F-32)$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Multiplying by $\\frac{5}{9}$ before subtracting 32, or keeping $\\frac{9}{5}$. Undo the steps in reverse order.",
+        "answerSummary": "$C=\\frac{5}{9}(F-32)$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -12342,11 +12389,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Distribute, subtract $P$, then divide by $Pt$: $r=\\frac{A-P}{Pt}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Distribute: $A=P+Prt$. Subtract $P$ from both sides: $A-P=Prt$.",
+          "Divide both sides by $Pt$: $\\frac{A-P}{Pt}=r$.",
+          "Check with numbers: $P=200$, $r=0.05$ and $t=3$ give $A=200+200\\cdot 0.05\\cdot 3=230$, and $\\frac{230-200}{200\\cdot 3}=0.05$. So $r=\\frac{A-P}{Pt}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Dividing by $t$ alone, or not subtracting $P$ first. The interest $A-P$ is $P$ times $r$ times $t$.",
+        "answerSummary": "$r=\\frac{A-P}{Pt}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -12443,11 +12493,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Substitute $x={{x}}$ and solve for $y$: $y={{y}}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Substitute $x={{x}}$ into ${{a}}x+{{b}}y={{c}}$: ${{a}}({{x|paren}})+{{b}}y={{c}}$.",
+          "Move the known term: ${{b}}y={{c}}-{{a}}({{x|paren}})={{by}}$.",
+          "Divide by {{b}}: $y=\\frac{{{by}}}{{{b}}}={{y}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Dividing {{c}} by {{b}} before subtracting ${{a}}({{x|paren}})$, or changing the sign of the wrong term.",
+        "answerSummary": "$y={{y}}$"
       },
       "generator": {
         "parameters": {
@@ -12477,7 +12530,8 @@
         },
         "derived": {
           "c": "a*x+b*y",
-          "answer": "y"
+          "answer": "y",
+          "by": "c-a*x"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -12548,11 +12602,14 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Factor out $x$, then divide by $B+C$: $x=\\frac{A}{B+C}$.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "Both terms on the right contain $x$, so factor it out: $A=x(B+C)$.",
+          "Divide both sides by $B+C$, which is not 0: $\\frac{A}{B+C}=x$.",
+          "Check with numbers: $x=2$, $B=3$ and $C=4$ give $A=2\\cdot 3+2\\cdot 4=14$, and $\\frac{14}{3+4}=2$. So $x=\\frac{A}{B+C}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "commonError": "Dividing by $BC$ instead of $B+C$. Here $x$ multiplies $B$ and $C$ separately, so it multiplies their sum.",
+        "answerSummary": "$x=\\frac{A}{B+C}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -18013,11 +18070,13 @@
         }
       },
       "solutionReview": {
-        "headline": "Recognize the geometry of $x=$ constant.",
+        "headline": "Every point on $x={{c}}$ has the same $x$-coordinate, so the line is vertical and has no slope.",
         "reasoning": [
-          "The equation fixes the x-coordinate, so the graph is vertical.",
-          "A vertical line has undefined slope."
+          "Points on $x={{c}}$ include $({{c}},0)$ and $({{c}},5)$: the $x$-coordinate never changes, so the line is vertical.",
+          "Slope is rise over run. Between those points the run is ${{c}}-{{c|paren}}=0$, and dividing the rise 5 by 0 is undefined.",
+          "The line is vertical and its slope is undefined."
         ],
+        "commonError": "Mixing up $x={{c}}$ with $y={{c}}$. The horizontal line $y={{c}}$ has slope 0; the vertical line $x={{c}}$ has no slope at all.",
         "answerSummary": "The line is vertical and its slope is undefined."
       },
       "attemptFeedback": [
@@ -20681,7 +20740,8 @@
         "derived": {
           "x2": "x1+dx",
           "y2": "y1+m*dx",
-          "answer": "m"
+          "answer": "m",
+          "dy": "m*dx"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -20700,11 +20760,13 @@
         "Slope is the constant rate at which $y$ changes for each 1-unit increase in $x$."
       ],
       "solutionReview": {
-        "headline": "Identify the line's rate of change.",
+        "headline": "Slope is the change in $y$ over the change in $x$: {{m}}.",
         "reasoning": [
-          "Use the representation given to determine slope, then answer the quantity asked for."
+          "Subtract the coordinates in the same order, second point minus first.",
+          "$m=\\frac{{{y2}}-{{y1|paren}}}{{{x2}}-{{x1|paren}}}=\\frac{{{dy}}}{{{dx}}}={{m}}$."
         ],
-        "answerSummary": "Use the generated relationship to verify the result."
+        "commonError": "Putting the change in $x$ on top, or subtracting the $y$-values in one order and the $x$-values in the other (which flips the sign).",
+        "answerSummary": "The slope is {{m}}."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -20788,7 +20850,8 @@
           "y2": "y1+m*dx",
           "d1": "m+1",
           "d2": "-m",
-          "d3": "m-1"
+          "d3": "m-1",
+          "dy": "m*dx"
         },
         "constraints": [
           "m!=1",
@@ -20829,11 +20892,14 @@
         "Slope is the constant rate at which $y$ changes for each 1-unit increase in $x$."
       ],
       "solutionReview": {
-        "headline": "Identify the line's rate of change.",
+        "headline": "Divide the change in $y$ by the change in $x$: the slope is {{m}}.",
         "reasoning": [
-          "Use the representation given to determine slope, then answer the quantity asked for."
+          "From $x={{x1}}$ to $x={{x2}}$, $x$ changes by ${{x2}}-{{x1|paren}}={{dx}}$.",
+          "Over the same step, $y$ changes from {{y1}} to {{y2}}, by ${{y2}}-{{y1|paren}}={{dy}}$.",
+          "So $m=\\frac{{{dy}}}{{{dx}}}={{m}}$."
         ],
-        "answerSummary": "Use the generated relationship to verify the result."
+        "commonError": "Dividing the change in $x$ by the change in $y$, or losing the sign of the change in $y$.",
+        "answerSummary": "The slope is ${{m}}$."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -20911,7 +20977,8 @@
           "A": "-m*B",
           "d1": "-m",
           "d2": "B",
-          "d3": "-B"
+          "d3": "-B",
+          "negA": "-A"
         },
         "constraints": [
           "m!=B",
@@ -20955,11 +21022,14 @@
         "Slope is the constant rate at which $y$ changes for each 1-unit increase in $x$."
       ],
       "solutionReview": {
-        "headline": "Identify the line's rate of change.",
+        "headline": "Solve for $y$; the coefficient of $x$ is the slope: {{m}}.",
         "reasoning": [
-          "Use the representation given to determine slope, then answer the quantity asked for."
+          "Subtract ${{A}}x$ from both sides of ${{A}}x+{{B}}y={{C}}$: ${{B}}y={{negA}}x {{C|term}}$.",
+          "Divide every term by {{B}}. The coefficient of $x$ becomes $\\frac{{{negA}}}{{{B}}}={{m}}$.",
+          "In $y=mx+b$ form the coefficient of $x$ is the slope, so the slope is {{m}}."
         ],
-        "answerSummary": "Use the generated relationship to verify the result."
+        "commonError": "Reading the slope as $\\frac{{{A}}}{{{B}}}$ or as {{A}} or {{B}} alone. Moving ${{A}}x$ across the equals sign changes its sign, and the result must still be divided by {{B}}.",
+        "answerSummary": "The slope is ${{m}}$."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -21036,7 +21106,9 @@
         "derived": {
           "d1": "-m",
           "d2": "x1",
-          "d3": "y1"
+          "d3": "y1",
+          "x1p": "x1+1",
+          "y1m": "y1+m"
         },
         "constraints": [
           "m!=x1",
@@ -21080,11 +21152,14 @@
         "Slope is the constant rate at which $y$ changes for each 1-unit increase in $x$."
       ],
       "solutionReview": {
-        "headline": "Identify the line's rate of change.",
+        "headline": "In point-slope form the slope is the number in front of the bracket: {{m}}.",
         "reasoning": [
-          "Use the representation given to determine slope, then answer the quantity asked for."
+          "Point-slope form is $y-y_1=m(x-x_1)$: the line passes through $(x_1,y_1)$ and $m$ is the slope.",
+          "Check: the point here is $({{x1}},{{y1}})$, and one step right, at $x={{x1p}}$, the equation gives $y={{y1}}+({{m}})(1)={{y1m}}$, a change of {{m}} per unit of $x$.",
+          "So the slope is {{m}}; the numbers {{x1}} and {{y1}} only locate the point."
         ],
-        "answerSummary": "Use the generated relationship to verify the result."
+        "commonError": "Picking a coordinate of the point ({{x1}} or {{y1}}) as the slope, or flipping its sign because of the minus signs in the form.",
+        "answerSummary": "The slope is ${{m}}$."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -21160,7 +21235,8 @@
         },
         "derived": {
           "y": "m*x+b",
-          "answer": "m"
+          "answer": "m",
+          "dy": "y-b"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -21179,11 +21255,13 @@
         "Slope is the constant rate at which $y$ changes for each 1-unit increase in $x$."
       ],
       "solutionReview": {
-        "headline": "Identify the line's rate of change.",
+        "headline": "Use the intercept $(0,{{b}})$ as one of the two points: the slope is {{m}}.",
         "reasoning": [
-          "Use the representation given to determine slope, then answer the quantity asked for."
+          "The two points are $(0,{{b}})$ and $({{x}},{{y}})$.",
+          "$m=\\frac{{{y}}-{{b|paren}}}{{{x}}-0}=\\frac{{{dy}}}{{{x}}}={{m}}$."
         ],
-        "answerSummary": "Use the generated relationship to verify the result."
+        "commonError": "Dividing {{y}} by {{x}} without first subtracting the starting value {{b}} at $x=0$.",
+        "answerSummary": "The slope is {{m}}."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -21279,11 +21357,14 @@
         "Keep the definition of slope fixed even when the line is given in a less familiar form."
       ],
       "solutionReview": {
-        "headline": "Identify the line's rate of change.",
+        "headline": "The slope of $kx+{{B}}y={{C}}$ is $-\\frac{k}{{{B}}}$; set it equal to {{m}}: $k={{k}}$.",
         "reasoning": [
-          "Use the representation given to determine slope, then answer the quantity asked for."
+          "Solve for $y$: ${{B}}y=-kx {{C|term}}$, so dividing by {{B}} gives slope $-\\frac{k}{{{B}}}$.",
+          "Set the slope equal to {{m}}: $-\\frac{k}{{{B}}}={{m}}$.",
+          "Multiply both sides by $-{{B}}$: $k=-{{B}}\\cdot {{m|paren}}={{k}}$."
         ],
-        "answerSummary": "Use the generated relationship to verify the result."
+        "commonError": "Forgetting the minus sign: moving $kx$ to the other side makes it $-kx$, so the slope is $-\\frac{k}{{{B}}}$, not $\\frac{k}{{{B}}}$.",
+        "answerSummary": "$k={{k}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -21516,7 +21597,9 @@
           "y2": "y1+m*(k-2)",
           "d1": "k+1",
           "d2": "k-1",
-          "d3": "2-k"
+          "d3": "2-k",
+          "dy": "y2-y1",
+          "run": "k-2"
         },
         "constraints": [
           "k!=0",
@@ -21559,11 +21642,14 @@
         "Keep the definition of slope fixed even when the line is given in a less familiar form."
       ],
       "solutionReview": {
-        "headline": "Identify the line's rate of change.",
+        "headline": "Set rise over run equal to {{m}} and solve for $k$: $k={{k}}$.",
         "reasoning": [
-          "Use the representation given to determine slope, then answer the quantity asked for."
+          "Slope from $(2,{{y1}})$ to $(k,{{y2}})$: $\\frac{{{y2}}-{{y1|paren}}}{k-2}={{m}}$.",
+          "The rise is ${{y2}}-{{y1|paren}}={{dy}}$, so the run is $k-2=\\frac{{{dy}}}{{{m}}}={{run}}$.",
+          "Add 2: $k=2 {{run|signed}}={{k}}$."
         ],
-        "answerSummary": "Use the generated relationship to verify the result."
+        "commonError": "Subtracting the coordinates in different orders (the rise as ${{y2}}-{{y1|paren}}$ but the run as $2-k$), which flips the sign of $k-2$.",
+        "answerSummary": "$k={{k}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -21646,7 +21732,8 @@
         "derived": {
           "t2": "t1+dt",
           "h2": "h1+rate*dt",
-          "answer": "rate"
+          "answer": "rate",
+          "dh": "rate*dt"
         },
         "constraints": [
           "h1+rate*dt>0"
@@ -21668,11 +21755,14 @@
         "Track the units: the numerator should be the output change and the denominator should be the input change."
       ],
       "solutionReview": {
-        "headline": "Interpret the constant rate.",
+        "headline": "Divide the change in level by the hours that passed: {{rate}} feet per hour.",
         "reasoning": [
-          "For a linear relationship, the same rate connects every corresponding change in input and output."
+          "The level changes by ${{h2}}-{{h1}}={{dh}}$ feet.",
+          "That takes ${{t2}}-{{t1}}={{dt}}$ hours.",
+          "Rate of change: $\\frac{{{dh}}}{{{dt}}}={{rate}}$ feet per hour."
         ],
-        "answerSummary": "Use the generated values and their units to verify the rate."
+        "commonError": "Dividing by the clock time {{t2}} instead of the {{dt}} hours that passed, or dividing a level by a time.",
+        "answerSummary": "{{rate}} feet per hour"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -21738,6 +21828,10 @@
             "min": 12,
             "max": 45
           }
+        },
+        "derived": {
+          "c1": "rate+fee",
+          "c2": "2*rate+fee"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -21774,11 +21868,14 @@
         "Track the units: the numerator should be the output change and the denominator should be the input change."
       ],
       "solutionReview": {
-        "headline": "Interpret the constant rate.",
+        "headline": "In $C={{rate}}h+{{fee}}$, {{rate}} multiplies the hours: it is the cost of each extra hour.",
         "reasoning": [
-          "For a linear relationship, the same rate connects every corresponding change in input and output."
+          "For 1 hour, $C={{rate}}(1)+{{fee}}={{c1}}$; for 2 hours, $C={{rate}}(2)+{{fee}}={{c2}}$.",
+          "One more hour adds ${{c2}}-{{c1}}={{rate}}$ dollars, every time.",
+          "The cost increases by {{rate}} dollars for each additional hour."
         ],
-        "answerSummary": "Use the generated values and their units to verify the rate."
+        "commonError": "Calling {{rate}} the starting cost. The fixed cost is {{fee}} dollars, the cost when $h=0$.",
+        "answerSummary": "The cost increases by {{rate}} dollars for each additional hour."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -21911,11 +22008,14 @@
         "Track the units: the numerator should be the output change and the denominator should be the input change."
       ],
       "solutionReview": {
-        "headline": "Interpret the constant rate.",
+        "headline": "Divide the change in temperature by the change in elevation: {{rate}} °F per 1,000 feet.",
         "reasoning": [
-          "For a linear relationship, the same rate connects every corresponding change in input and output."
+          "The temperature changes by ${{T2}}-{{T1}}={{dTotal}}$ degrees.",
+          "The elevation changes by ${{e2}}-{{e1}}={{de}}$ thousand feet.",
+          "Rate of change: $\\frac{{{dTotal}}}{{{de}}}={{rate}}$ °F per 1,000 feet."
         ],
-        "answerSummary": "Use the generated values and their units to verify the rate."
+        "commonError": "Giving the total change {{dTotal}} without dividing by the {{de}} thousand feet, or dropping the minus sign: the temperature falls as the elevation rises.",
+        "answerSummary": "${{rate}}$ °F per 1,000 feet"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -21999,7 +22099,8 @@
           "y2": "y1+rate*dx",
           "d1": "-rate",
           "d2": "rate+1",
-          "d3": "rate-1"
+          "d3": "rate-1",
+          "dy": "rate*dx"
         },
         "constraints": [
           "rate!=1",
@@ -22040,11 +22141,13 @@
         "Track the units: the numerator should be the output change and the denominator should be the input change."
       ],
       "solutionReview": {
-        "headline": "Interpret the constant rate.",
+        "headline": "Divide the change in output by the change in input: {{rate}}.",
         "reasoning": [
-          "For a linear relationship, the same rate connects every corresponding change in input and output."
+          "The input goes from {{x1}} to {{x2}} and the output from {{y1}} to {{y2}}.",
+          "Rate of change: $\\frac{{{y2}}-{{y1|paren}}}{{{x2}}-{{x1|paren}}}=\\frac{{{dy}}}{{{dx}}}={{rate}}$."
         ],
-        "answerSummary": "Use the generated values and their units to verify the rate."
+        "commonError": "Subtracting the outputs and the inputs in opposite orders, which gives {{d1}}, or forgetting that the inputs are {{dx}} apart, not 1.",
+        "answerSummary": "The rate of change is ${{rate}}$."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -22109,6 +22212,10 @@
             "min": 20,
             "max": 80
           }
+        },
+        "derived": {
+          "p1": "m+b",
+          "p2": "2*m+b"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -22145,11 +22252,14 @@
         "Track the units: the numerator should be the output change and the denominator should be the input change."
       ],
       "solutionReview": {
-        "headline": "Interpret the constant rate.",
+        "headline": "The coefficient {{m}} of $t$ is the change per minute.",
         "reasoning": [
-          "For a linear relationship, the same rate connects every corresponding change in input and output."
+          "After 1 minute the amount is ${{m}}(1)+{{b}}={{p1}}$ grams; after 2 minutes, ${{m}}(2)+{{b}}={{p2}}$ grams.",
+          "Each minute adds ${{p2}}-{{p1}}={{m}}$ grams, while {{b}} grams is the starting amount at $t=0$.",
+          "The amount increases by {{m}} grams each minute."
         ],
-        "answerSummary": "Use the generated values and their units to verify the rate."
+        "commonError": "Confusing the rate {{m}} with the starting amount {{b}}, or reading a linear model as multiplying by {{m}} each minute.",
+        "answerSummary": "The amount increases by {{m}} grams each minute."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -22250,11 +22360,14 @@
         "Track the units: the numerator should be the output change and the denominator should be the input change."
       ],
       "solutionReview": {
-        "headline": "Interpret the constant rate.",
+        "headline": "An hour holds four 15-minute blocks: {{answer}} items per hour.",
         "reasoning": [
-          "For a linear relationship, the same rate connects every corresponding change in input and output."
+          "An hour is 60 minutes, which is $\\frac{60}{15}=4$ blocks of 15 minutes.",
+          "Each block processes {{per15}} items, so an hour processes ${{per15}}\\cdot 4={{answer}}$ items.",
+          "Check per minute: $\\frac{{{per15}}}{15}={{q}}$ items per minute, and ${{q}}\\cdot 60={{answer}}$ items per hour."
         ],
-        "answerSummary": "Use the generated values and their units to verify the rate."
+        "commonError": "Multiplying {{per15}} by 60 (that treats it as a per-minute rate), or stopping at the per-minute rate of {{q}}.",
+        "answerSummary": "{{answer}} items per hour"
       },
       "choices": [
         {
@@ -22347,7 +22460,9 @@
         },
         "derived": {
           "bParts": "bRate*bMinutes",
-          "answer": "abs(aRate-bRate)"
+          "answer": "abs(aRate-bRate)",
+          "hiRate": "max(aRate,bRate)",
+          "loRate": "min(aRate,bRate)"
         },
         "constraints": [
           "aRate!=bRate"
@@ -22369,11 +22484,14 @@
         "Track the units: the numerator should be the output change and the denominator should be the input change."
       ],
       "solutionReview": {
-        "headline": "Interpret the constant rate.",
+        "headline": "Turn Machine B into a per-minute rate, then subtract: {{answer}} more per minute.",
         "reasoning": [
-          "For a linear relationship, the same rate connects every corresponding change in input and output."
+          "Machine B: $\\frac{{{bParts}}}{{{bMinutes}}}={{bRate}}$ parts per minute.",
+          "Machine A: {{aRate}} parts per minute.",
+          "The faster machine makes ${{hiRate}}-{{loRate}}={{answer}}$ more parts per minute."
         ],
-        "answerSummary": "Use the generated values and their units to verify the rate."
+        "commonError": "Comparing {{aRate}} with B's total of {{bParts}} parts instead of B's rate per minute.",
+        "answerSummary": "${{answer}}$ more per minute"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -22452,7 +22570,8 @@
           "y": "b+rate*t",
           "d1": "-rate",
           "d2": "rate+1",
-          "d3": "rate-1"
+          "d3": "rate-1",
+          "dy": "rate*t"
         },
         "constraints": [
           "rate!=1",
@@ -22493,11 +22612,13 @@
         "Track the units: the numerator should be the output change and the denominator should be the input change."
       ],
       "solutionReview": {
-        "headline": "Interpret the constant rate.",
+        "headline": "Divide the change from the initial value by the {{t}} units: {{rate}}.",
         "reasoning": [
-          "For a linear relationship, the same rate connects every corresponding change in input and output."
+          "The output goes from {{b}} to {{y}}, a change of ${{y}}-{{b|paren}}={{dy}}$.",
+          "That change happens over {{t}} units of input, so the rate is $\\frac{{{dy}}}{{{t}}}={{rate}}$."
         ],
-        "answerSummary": "Use the generated values and their units to verify the rate."
+        "commonError": "Dividing the final output {{y}} by {{t}} without first subtracting the initial value {{b}}.",
+        "answerSummary": "The rate of change is ${{rate}}$."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
