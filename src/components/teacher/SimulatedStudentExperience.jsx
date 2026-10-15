@@ -297,7 +297,7 @@ export default function SimulatedStudentExperience({
               minHeight: 40, padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
               border: `1px solid ${view === id ? '#1a73e8' : 'var(--mm-tint-border)'}`,
               background: view === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-              color: view === id ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 13,
+              color: view === id ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
             }}
           >
             {label}
@@ -341,7 +341,7 @@ export default function SimulatedStudentExperience({
 
       {view === 'path' && runtime && (
         <>
-          <div style={{ marginBottom: 10, padding: '9px 11px', borderRadius: 8, background: pathBankQuestions.length ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', color: pathBankQuestions.length ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontSize: 12, lineHeight: 1.45 }}>
+          <div style={{ marginBottom: 10, padding: '9px 11px', borderRadius: 8, background: pathBankQuestions.length ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', color: pathBankQuestions.length ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
             <strong>Production Path-bank simulation.</strong> {pathBankQuestions.length
               ? `${pathBankQuestions.length} active secure bank questions loaded. Classroom assignments are evidence only; they are not the Path content source.`
               : 'The secure Path bank is empty. Initialize it in Administration → Path content coverage before expecting students to have Path practice.'}

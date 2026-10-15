@@ -58,20 +58,20 @@ export default function RepresentationAudit({ questions = [], warnings = [] }) {
 
   return (
     <section style={{ padding: '13px 15px', marginBottom: 16, borderRadius: 9, background: palette.bg, border: `1px solid ${palette.border}`, textAlign: 'left' }}>
-      <h4 style={{ margin: '0 0 8px', fontSize: 14, color: palette.text }}>
+      <h4 style={{ margin: '0 0 8px', fontSize: 'calc(14 * var(--mm-px))', color: palette.text }}>
         What students will actually do
       </h4>
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: rows.length ? 10 : 0 }}>
         {rows.map(([representation, count]) => (
-          <span key={representation} style={{ fontSize: 13, color: 'var(--mm-text)' }}>
+          <span key={representation} style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
             <strong>{count}</strong> {LABELS[representation] || representation}
           </span>
         ))}
       </div>
 
       {noVisuals && (
-        <p style={{ margin: '0 0 6px', fontSize: 13, color: palette.text, lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 6px', fontSize: 'calc(13 * var(--mm-px))', color: palette.text, lineHeight: 1.55 }}>
           <strong>No visual questions.</strong> Every question in this assignment is text or symbols.
           If the source material teaches with graphs, tables or number lines, this assignment has
           flattened them into prose — ask the AI to rebuild those questions with real graphs.
@@ -79,7 +79,7 @@ export default function RepresentationAudit({ questions = [], warnings = [] }) {
       )}
 
       {!noVisuals && mostlyText && (
-        <p style={{ margin: '0 0 6px', fontSize: 13, color: palette.text, lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 6px', fontSize: 'calc(13 * var(--mm-px))', color: palette.text, lineHeight: 1.55 }}>
           <strong>Mostly text.</strong> Only {summary.visualCount} of {summary.total} questions show
           the student anything to read or build. Check that this matches how the source teaches.
         </p>
@@ -87,17 +87,17 @@ export default function RepresentationAudit({ questions = [], warnings = [] }) {
 
       {warnings.length > 0 && (
         <details>
-          <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700, color: palette.text }}>
+          <summary style={{ cursor: 'pointer', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: palette.text }}>
             {warnings.length} authoring note{warnings.length === 1 ? '' : 's'}
           </summary>
-          <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 13, color: 'var(--mm-text)', lineHeight: 1.6 }}>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.6 }}>
             {warnings.map((warning, index) => <li key={index}>{warning}</li>)}
           </ul>
         </details>
       )}
 
       {tone === 'ok' && !warnings.length && (
-        <p style={{ margin: 0, fontSize: 13, color: palette.text }}>
+        <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: palette.text }}>
           {summary.visualCount} of {summary.total} questions put something in front of the student to read or build.
         </p>
       )}

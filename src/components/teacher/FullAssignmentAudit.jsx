@@ -86,7 +86,7 @@ export default function FullAssignmentAudit({ assignmentV5, repairCenterModel, a
           {creatingVersion ? 'Creating corrected content…' : 'Create Corrected Content Version'}
         </button>
       </div>
-      <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Creating a corrected content version makes a new unassigned Library release. It does not silently rewrite copies students already received.</p>
+      <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Creating a corrected content version makes a new unassigned Library release. It does not silently rewrite copies students already received.</p>
     </section>}
     {step === 'warning2' && <div role="alertdialog" aria-label="Apply Repairs warning"><h4>Apply Repairs to Shared Library Assignment?</h4><p>You are about to change the shared MathMaster Library version of this assignment.</p><ul><li>Only assignment issues change authored questions.</li><li>Platform issues remain unchanged and are sent to Platform Issues.</li><li>Existing student work and historical grades are not rewritten.</li><li>A new assignment revision and question-level repair history will be created.</li><li>Other teachers may receive the corrected version under existing update rules.</li></ul><button type="button" onClick={commit}>Apply Selected Repairs</button> <button type="button" onClick={() => setStep('review')}>Cancel and Review</button></div>}
     {message && <p role="status">{message}</p>}

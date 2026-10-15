@@ -17,7 +17,7 @@ const buttonBase = {
 
 const inputStyle = {
   minHeight: 40,
-  fontSize: 16,
+  fontSize: 'calc(16 * var(--mm-px))',
   padding: '6px 8px',
   border: '1px solid var(--mm-border)',
   borderRadius: 7,
@@ -152,7 +152,7 @@ export default function ClassScheduleSettings({
           <strong style={{ display: 'block', color: todayState.dayType ? 'var(--mm-primary-text)' : 'var(--mm-warning-text)' }}>
             {dayName}: {todayState.dayType ? `${todayState.dayType} Day` : 'A/B day needs to be selected'}
           </strong>
-          <p style={{ margin: '6px 0 10px', color: 'var(--mm-text)', fontSize: 13 }}>
+          <p style={{ margin: '6px 0 10px', color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
             {todayState.source === 'override'
               ? 'This date has a manual A/B override.'
               : fixedWeekday
@@ -187,7 +187,7 @@ export default function ClassScheduleSettings({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
             <div>
               <strong>Edit normal bell times</strong>
-              <div style={{ color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 3 }}>Only mark periods that actually meet on that day.</div>
+              <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', marginTop: 3 }}>Only mark periods that actually meet on that day.</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {['A', 'B'].map((dayType) => (
@@ -214,7 +214,7 @@ export default function ClassScheduleSettings({
         <details style={{ marginTop: 20, border: '1px solid var(--mm-warning-border-soft)', borderRadius: 10, background: 'var(--mm-warning-subtle)' }}>
           <summary style={{ padding: 14, cursor: 'pointer', fontWeight: 900, color: 'var(--mm-warning-text)' }}>Special bell schedule for today (optional)</summary>
           <div style={{ padding: '0 14px 14px' }}>
-            <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.5, fontSize: 13 }}>
+            <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.5, fontSize: 'calc(13 * var(--mm-px))' }}>
               Use this only for an assembly, testing day, early release, or another one-day bell-time change. It overrides the selected A/B schedule for {todayKey} only.
             </p>
             {!todayOverride ? (

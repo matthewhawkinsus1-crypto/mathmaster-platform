@@ -454,7 +454,7 @@ export default function GradeTransferCenter({
   return <section aria-labelledby="grade-transfer-heading" className="tw-stack" style={{ textAlign: 'left' }}>
     <div>
       <h2 id="grade-transfer-heading" style={{ margin: 0 }}>Grade Export</h2>
-      <p className="tw-muted" style={{ margin: '4px 0 0', fontSize: 14 }}>
+      <p className="tw-muted" style={{ margin: '4px 0 0', fontSize: 'calc(14 * var(--mm-px))' }}>
         Final grades as Frontline TEAMS files: one folder per lesson with separate two-column CSVs for Warm-Up, Classwork, Practice and DOL.
         Exporting never locks anything — the same grades can be exported again at any time.
       </p>
