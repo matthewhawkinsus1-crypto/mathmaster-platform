@@ -716,7 +716,12 @@ export const MyMathPathExperience = ({
     onReload?.();
   };
 
-  if (loading && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--mm-primary-text)' }}>Loading My Math Path…</div>;
+  // Never while a session is on screen: the end of a session reloads the
+  // Path's state, and on a first session (no profile written yet) this gate
+  // used to unmount the session container mid-recap; its remount started a
+  // NEW session instead of showing the end screen (QA round 2, R2-m1).
+  const sessionOnScreen = activeTab === 'session' && Boolean(sessionConfig);
+  if (loading && !sessionOnScreen && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--mm-primary-text)' }}>Loading My Math Path…</div>;
 
   const embeddedInTeacherPage = Boolean(readOnly || sessionProvider);
   const ScreenBody = pathContentIsMain({ activeTab, embedded: embeddedInTeacherPage }) ? 'main' : React.Fragment;
