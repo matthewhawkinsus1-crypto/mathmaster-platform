@@ -365,7 +365,11 @@ export const checkRelations = (review, { prompt = '', givenScope = {} } = {}) =>
         const symbols = [...new Set([...previous.symbols, ...current.symbols])];
         const left = previous.node;
         const right = current.node;
-        if (!relation) { /* mixed directions: not a claim between these two */ }
+        // "x = 5" (a bare name and a number) is the review stating its
+        // answer, not a step to check: it would only check itself.
+        const bareName = (side) => /^[a-zA-Z](?:_\{?\w+\}?)?$/.test(side.replace(/\s+/g, ''));
+        const definition = (bareName(previous.side) && !current.symbols.length) || (bareName(current.side) && !previous.symbols.length);
+        if (!relation || definition) { /* mixed directions, or a stated value: not a claim to check */ }
         else if (!symbols.length) {
           const a = evaluateNode(left, givenScope);
           const b = evaluateNode(right, givenScope);

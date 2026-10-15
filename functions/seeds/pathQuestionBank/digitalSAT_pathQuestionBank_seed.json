@@ -23681,11 +23681,13 @@
         "At an $x$-intercept or zero, the output is 0. At the $y$-intercept, the input is 0."
       ],
       "solutionReview": {
-        "headline": "Connect the equation and its graph.",
+        "headline": "The $y$-axis is where $x=0$: $k={{b}}$.",
         "reasoning": [
-          "Use the defining condition for the requested graph feature and substitute it into the linear equation."
+          "Every point on the $y$-axis has $x=0$.",
+          "Substitute $x=0$: $y={{m}}(0) {{b|signed}}={{b}}$, so the intercept is $(0,{{b}})$ and $k={{b}}$."
         ],
-        "answerSummary": "Verify that the resulting point or value lies on the generated line."
+        "commonError": "Giving the slope {{m}}, or setting $y=0$ instead (that finds the $x$-intercept).",
+        "answerSummary": "$k={{b}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -23763,7 +23765,8 @@
           "b": "-m*x0",
           "d1": "-x0",
           "d2": "x0+1",
-          "d3": "x0-1"
+          "d3": "x0-1",
+          "negb": "-b"
         },
         "constraints": [
           "x0!=1",
@@ -23805,11 +23808,14 @@
         "At an $x$-intercept or zero, the output is 0. At the $y$-intercept, the input is 0."
       ],
       "solutionReview": {
-        "headline": "Connect the equation and its graph.",
+        "headline": "On the $x$-axis $y=0$; solve for $x$: $x_0={{x0}}$.",
         "reasoning": [
-          "Use the defining condition for the requested graph feature and substitute it into the linear equation."
+          "Set $y=0$: ${{m}}x {{b|signed}}=0$.",
+          "Move the constant: ${{m}}x={{negb}}$.",
+          "Divide by {{m}}: $x=\\frac{{{negb}}}{{{m}}}={{x0}}$, so $x_0={{x0}}$."
         ],
-        "answerSummary": "Verify that the resulting point or value lies on the generated line."
+        "commonError": "Moving {{b}} without changing its sign, which gives {{d1}}.",
+        "answerSummary": "$x_0={{x0}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -23882,7 +23888,8 @@
         },
         "derived": {
           "b": "-m*zero",
-          "answer": "zero"
+          "answer": "zero",
+          "negb": "-b"
         },
         "constraints": [
           "b!=0"
@@ -23904,11 +23911,14 @@
         "At an $x$-intercept or zero, the output is 0. At the $y$-intercept, the input is 0."
       ],
       "solutionReview": {
-        "headline": "Connect the equation and its graph.",
+        "headline": "Set ${{m}}x {{b|signed}}=0$ and solve: $x={{zero}}$.",
         "reasoning": [
-          "Use the defining condition for the requested graph feature and substitute it into the linear equation."
+          "$f(x)=0$ means ${{m}}x {{b|signed}}=0$.",
+          "Move the constant: ${{m}}x={{negb}}$.",
+          "Divide by {{m}}: $x=\\frac{{{negb}}}{{{m}}}={{zero}}$."
         ],
-        "answerSummary": "Verify that the resulting point or value lies on the generated line."
+        "commonError": "Moving {{b}} across the equals sign without changing its sign, which gives the opposite answer.",
+        "answerSummary": "$x={{zero}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -23981,7 +23991,8 @@
           "yint": "-m*xint",
           "d1": "-m",
           "d2": "m+1",
-          "d3": "m-1"
+          "d3": "m-1",
+          "nxint": "-xint"
         },
         "constraints": [
           "m!=1",
@@ -24022,11 +24033,13 @@
         "At an $x$-intercept or zero, the output is 0. At the $y$-intercept, the input is 0."
       ],
       "solutionReview": {
-        "headline": "Connect the equation and its graph.",
+        "headline": "Use the two intercepts as two points: the slope is {{m}}.",
         "reasoning": [
-          "Use the defining condition for the requested graph feature and substitute it into the linear equation."
+          "The intercepts are the points $({{xint}},0)$ and $(0,{{yint}})$.",
+          "From the first to the second: $m=\\frac{{{yint}}-0}{0-{{xint}}}=\\frac{{{yint}}}{{{nxint}}}={{m}}$."
         ],
-        "answerSummary": "Verify that the resulting point or value lies on the generated line."
+        "commonError": "Dividing {{xint}} by {{yint}}, or forgetting that moving from $x={{xint}}$ to $x=0$ is a run of {{nxint}}, which fixes the sign.",
+        "answerSummary": "The slope is ${{m}}$."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -24132,11 +24145,14 @@
         "At an $x$-intercept or zero, the output is 0. At the $y$-intercept, the input is 0."
       ],
       "solutionReview": {
-        "headline": "Connect the equation and its graph.",
+        "headline": "At $t=0$ the value is {{b}} dollars: the $V$-intercept is $(0,{{b}})$.",
         "reasoning": [
-          "Use the defining condition for the requested graph feature and substitute it into the linear equation."
+          "The $V$-intercept is where the graph meets the $V$-axis, at $t=0$ (the moment of purchase).",
+          "Substitute $t=0$: $V={{m}}(0)+{{b}}={{b}}$.",
+          "Written as (time, value), the intercept is $(0,{{b}})$."
         ],
-        "answerSummary": "Verify that the resulting point or value lies on the generated line."
+        "commonError": "Writing the pair in the wrong order, or using the yearly change {{m}} as a coordinate.",
+        "answerSummary": "$(0,{{b}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -24388,11 +24404,14 @@
         "At an $x$-intercept or zero, the output is 0. At the $y$-intercept, the input is 0."
       ],
       "solutionReview": {
-        "headline": "Connect the equation and its graph.",
+        "headline": "Slope from the two intercepts, $y$-intercept read off: $y={{m}}x {{yint|signed}}$.",
         "reasoning": [
-          "Use the defining condition for the requested graph feature and substitute it into the linear equation."
+          "The $y$-intercept $(0,{{yint}})$ gives the constant term {{yint}}.",
+          "Slope from $({{xint}},0)$ to $(0,{{yint}})$: $m=\\frac{{{yint}}-0}{0-{{xint}}}={{m}}$.",
+          "So the line is $y={{m}}x {{yint|signed}}$. Check: at $x={{xint}}$, ${{m}}({{xint}}) {{yint|signed}}=0$."
         ],
-        "answerSummary": "Verify that the resulting point or value lies on the generated line."
+        "commonError": "Using the $x$-intercept {{xint}} as the slope, or getting the sign of the slope wrong. The slope is the rise between the intercepts divided by the run.",
+        "answerSummary": "$y={{m}}x {{yint|signed}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -24475,7 +24494,9 @@
           "yint": "-m*x0",
           "d1": "m*x0",
           "d2": "yint+m",
-          "d3": "yint-m"
+          "d3": "yint-m",
+          "run": "x1-x0",
+          "nx0": "-x0"
         },
         "constraints": [
           "x1!=x0",
@@ -24517,11 +24538,14 @@
         "At an $x$-intercept or zero, the output is 0. At the $y$-intercept, the input is 0."
       ],
       "solutionReview": {
-        "headline": "Connect the equation and its graph.",
+        "headline": "Find the slope, then walk from the $x$-intercept to $x=0$: the $y$-intercept is {{yint}}.",
         "reasoning": [
-          "Use the defining condition for the requested graph feature and substitute it into the linear equation."
+          "Slope from $({{x0}},0)$ to $({{x1}},{{y1}})$: $m=\\frac{{{y1}}-0}{{{x1}}-{{x0|paren}}}=\\frac{{{y1}}}{{{run}}}={{m}}$.",
+          "From $x={{x0}}$ to $x=0$ the input changes by {{nx0}}, so $y$ changes by ${{m}}\\cdot {{nx0|paren}}={{yint}}$, starting from 0.",
+          "So the $y$-intercept is $(0,{{yint}})$: its $y$-coordinate is {{yint}}."
         ],
-        "answerSummary": "Verify that the resulting point or value lies on the generated line."
+        "commonError": "Getting the direction backwards: from $x={{x0}}$ to $x=0$ the change in $x$ is {{nx0}}, not {{x0}}, which gives {{d1}}.",
+        "answerSummary": "The $y$-coordinate is ${{yint}}$."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -24648,11 +24672,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "A solution must lie strictly above the line: $({{x}},{{ygood}})$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At $x={{x}}$, the boundary value is ${{m}}({{x|paren}}) {{b|signed}}={{boundary}}$.",
+          "A point is a solution when its $y$ is greater than that value. ${{ygood}}>{{boundary}}$, so $({{x}},{{ygood}})$ is above the line; ${{ybad}}<{{boundary}}$ puts $({{x}},{{ybad}})$ below it; $({{x}},{{boundary}})$ and $({{x2}},{{y2}})$ are on the dashed line itself.",
+          "So the point in the solution set is $({{x}},{{ygood}})$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Choosing a point on the boundary line. The inequality is strict ($>$), so points on the line are not solutions.",
+        "answerSummary": "$({{x}},{{ygood}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -24725,6 +24752,9 @@
               0
             ]
           }
+        },
+        "derived": {
+          "bm1": "b-1"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -24761,11 +24791,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Solid means \"or equal to\"; shaded below means \"less than\": $y\\le {{m}}x {{b|signed}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "A solid boundary means points on the line are included, so the symbol is $\\le$ or $\\ge$.",
+          "Shading below means $y$ is less than the line's value: at $x=0$ the line is at {{b}}, and the shaded point $(0,{{bm1}})$ has ${{bm1}}\\le {{b}}$.",
+          "So the inequality is $y\\le {{m}}x {{b|signed}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Using $<$ (that needs a dashed line) or $\\ge$ (that shades above the line).",
+        "answerSummary": "$y\\le {{m}}x {{b|signed}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -24877,11 +24910,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Dashed means strict; the origin decides the direction: ${{A}}x+{{B}}y<{{C}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "A dashed boundary means points on the line are not included, so the symbol is $<$ or $>$.",
+          "Test the origin: ${{A}}(0)+{{B}}(0)=0$, and $0<{{C}}$.",
+          "The origin is in the shaded region, so the region is ${{A}}x+{{B}}y<{{C}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Using $\\le$ (that needs a solid line), or $>$, which the origin does not satisfy.",
+        "answerSummary": "${{A}}x+{{B}}y<{{C}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -24990,11 +25026,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Total cost at most {{budget}}: ${{sx}}x+{{ay}}y\\le {{budget}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "The student tickets cost ${{sx}}x$ dollars in all, and the adult tickets ${{ay}}y$ dollars.",
+          "\"At most {{budget}}\" allows spending exactly {{budget}} or less, so the symbol is $\\le$.",
+          "So ${{sx}}x+{{ay}}y\\le {{budget}}$. Check: buying nothing costs $0\\le {{budget}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Swapping the prices (putting {{ay}} on the student tickets), or using $<$, which leaves out spending exactly {{budget}} dollars.",
+        "answerSummary": "${{sx}}x+{{ay}}y\\le {{budget}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -25103,11 +25142,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The symbol $<$ leaves out equality, so the boundary is dashed.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "The boundary line is where ${{P}}x-{{Q}}y$ equals {{R}} exactly.",
+          "The inequality asks for values less than {{R}}, and {{R}} is not less than itself, so no point on the line is a solution.",
+          "The boundary line is dashed because points on the line are not solutions."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Drawing a solid line (that is for $\\le$ or $\\ge$), or thinking a strict symbol makes the line vertical or horizontal. Its slope is $\\frac{{{P}}}{{{Q}}}$ either way.",
+        "answerSummary": "The boundary line is dashed because points on the line are not solutions."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -25187,7 +25229,8 @@
         },
         "derived": {
           "y": "k*x+b",
-          "answer": "k"
+          "answer": "k",
+          "kx": "y-b"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -25206,11 +25249,14 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "On the boundary the inequality is an equation; substitute the point: $k={{k}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "On the boundary line, $y=kx {{b|signed}}$ holds exactly.",
+          "Substitute $({{x}},{{y}})$: ${{y}}=k\\cdot {{x}} {{b|signed}}$.",
+          "Solve for $k$: $k=\\frac{{{y}}-{{b|paren}}}{{{x}}}=\\frac{{{kx}}}{{{x}}}={{k}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Forgetting to subtract {{b}} before dividing by {{x}}.",
+        "answerSummary": "$k={{k}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -25323,11 +25369,14 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Solid means \"or equal to\"; the origin picks the side: ${{A}}x+{{B}}y\\le {{C}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "A solid boundary is included, so the symbol is $\\le$ or $\\ge$.",
+          "Test $(0,0)$: ${{A}}(0)+{{B}}(0)=0$, and $0\\le {{C}}$ is true.",
+          "The origin is shaded, so the region is ${{A}}x+{{B}}y\\le {{C}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Using $<$ (a dashed line), or $\\ge$, which the origin does not satisfy.",
+        "answerSummary": "${{A}}x+{{B}}y\\le {{C}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -25559,11 +25608,13 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "An upward shift adds {{k}} to every output, so the $y$-intercept moves from {{b}} to {{answer}}.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Shifting up {{k}} units adds {{k}} to each output: $g(x)={{m}}x {{b|signed}}+{{k}}$.",
+          "The $y$-intercept of $f$ is {{b}} (its value at $x=0$), so the $y$-intercept of $g$ is ${{b}}+{{k}}={{answer}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Shifting the graph sideways, or changing the slope {{m}}. An upward shift changes only the outputs.",
+        "answerSummary": "The $y$-intercept is ${{answer}}$."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -25683,11 +25734,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Same slope {{m}}, intercepts {{delta}} apart: the lines are parallel.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Both lines have slope {{m}}, so they are parallel. They are not perpendicular: perpendicular slopes multiply to $-1$.",
+          "The $y$-intercepts are {{b1}} and {{b2}}, and ${{b2}}-{{b1|paren}}={{delta}}$.",
+          "The lines are parallel, and the graph of $g$ has a $y$-intercept {{delta}} units greater than that of $f$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Thinking a different constant changes the slope. The slope is the coefficient of $x$, which is {{m}} in both.",
+        "answerSummary": "The lines are parallel, and the graph of $g$ has a $y$-intercept {{delta}} units greater than that of $f$."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -25769,7 +25823,8 @@
         "derived": {
           "newb": "b-m*h",
           "wrong1": "b+m*h",
-          "negm": "-m"
+          "negm": "-m",
+          "nmh": "-m*h"
         },
         "constraints": [
           "negm!=0",
@@ -25813,11 +25868,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Substitute $x-{{h}}$ for $x$ and distribute: $g(x)={{m}}x {{newb|signed}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Replace $x$ with $x-{{h}}$ in $f$: $g(x)={{m}}(x-{{h}}) {{b|signed}}$.",
+          "Distribute and combine the constants: ${{m}}(x-{{h}}) {{b|signed}}={{m}}x {{nmh|signed}} {{b|signed}}={{m}}x {{newb|signed}}$.",
+          "So $g(x)={{m}}x {{newb|signed}}$: the same slope, a new intercept."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Distributing with the wrong sign, which gives $g(x)={{m}}x {{wrong1|signed}}$, or changing the slope.",
+        "answerSummary": "$g(x)={{m}}x {{newb|signed}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -25897,7 +25955,8 @@
           }
         },
         "derived": {
-          "answer": "a*m"
+          "answer": "a*m",
+          "ab": "a*b"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -25916,11 +25975,13 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Multiplying every output by {{a}} multiplies the slope by {{a}}: {{answer}}.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Distribute: $g(x)={{a}}({{m}}x {{b|signed}})={{answer}}x {{ab|signed}}$.",
+          "The slope is the coefficient of $x$: ${{a}}\\cdot {{m|paren}}={{answer}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Multiplying only the constant and keeping the slope {{m}}, or adding {{a}} to the slope.",
+        "answerSummary": "The slope is {{answer}}."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -26145,7 +26206,9 @@
           "answer": "b-m*h+k",
           "satDistractor1": "b+m*h+k",
           "satDistractor2": "b-m*h",
-          "satDistractor3": "b-m+h+k"
+          "satDistractor3": "b-m+h+k",
+          "nh": "-h",
+          "fnh": "b-m*h"
         },
         "constraints": [
           "satDistractor1!=answer",
@@ -26172,11 +26235,14 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The $y$-intercept is $g(0)=f(-{{h}})+{{k}}$: {{answer}}.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "The $y$-intercept is the value at $x=0$: $g(0)=f(0-{{h}})+{{k}}=f({{nh}})+{{k}}$.",
+          "$f({{nh}})={{m}}({{nh}}) {{b|signed}}={{fnh}}$.",
+          "So the $y$-intercept is ${{fnh}}+{{k}}={{answer}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Evaluating $f$ at {{h}} instead of {{nh}}, which gives {{satDistractor1}}, or forgetting to add {{k}}.",
+        "answerSummary": "The $y$-intercept is {{answer}}."
       },
       "choices": [
         {
@@ -26281,7 +26347,8 @@
         },
         "derived": {
           "y": "m*x+b+k",
-          "answer": "k"
+          "answer": "k",
+          "fx": "m*x+b"
         }
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -26300,11 +26367,14 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Evaluate $f({{x}})$, then $k$ is what is left to reach {{y}}: $k={{k}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At $x={{x}}$: $f({{x}})={{m}}({{x|paren}}) {{b|signed}}={{fx}}$.",
+          "The graph of $g$ passes through $({{x}},{{y}})$, so ${{fx}}+k={{y}}$.",
+          "Subtract: $k={{y}}-{{fx|paren}}={{k}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Subtracting only the constant {{b}} from {{y}} instead of the whole value $f({{x}})={{fx}}$.",
+        "answerSummary": "$k={{k}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -26687,11 +26757,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Parallel, distinct lines never meet: 0 solutions.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Divide the second equation by {{s}}: ${{A}}x+{{B}}y=\\frac{{{C2}}}{{{s}}}$.",
+          "The left side matches the first equation, but $\\frac{{{C2}}}{{{s}}}\\ne {{C1}}$ because ${{C2}}\\ne {{s}}\\cdot {{C1}}$.",
+          "No point can make ${{A}}x+{{B}}y$ equal two different numbers, so the system has 0 solutions."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Answering \"infinitely many\" because the coefficients are proportional. That needs the constants in the same ratio as well.",
+        "answerSummary": "0 solutions"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -26821,11 +26894,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The second equation is {{k}} times the first: the same line, so infinitely many solutions.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Divide each number in the second equation by {{k}}: $\\frac{{{kA}}}{{{k}}}={{A}}$, $\\frac{{{kB}}}{{{k}}}={{B}}$ and $\\frac{{{kC}}}{{{k}}}={{C}}$.",
+          "So the second equation is ${{A}}x+{{B}}y={{C}}$ again: both graphs are the same line.",
+          "Every point on that line solves both equations: infinitely many solutions."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Answering 1 because two lines usually cross once, or 0 because the numbers look different. Multiples of one equation describe one line.",
+        "answerSummary": "Infinitely many"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -26936,11 +27012,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The solution is the point on both lines: $({{x}},{{y}})$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "A solution of a system satisfies both equations, so it lies on both lines.",
+          "The only point on both lines is where they cross, $({{x}},{{y}})$, with $x={{x}}$ and $y={{y}}$.",
+          "Written $(x,y)$, the solution is $({{x}},{{y}})$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Swapping the coordinates or changing a sign. An ordered pair lists $x$ first.",
+        "answerSummary": "$({{x}},{{y}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -27051,11 +27130,13 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The vertical line fixes $x$, the horizontal line fixes $y$: $({{a}},{{b}})$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Every point on $x={{a}}$ has $x$-coordinate {{a}}, and every point on $y={{b}}$ has $y$-coordinate {{b}}.",
+          "The two lines cross at the one point that has both: $({{a}},{{b}})$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Swapping the coordinates: the $x$-coordinate comes from the vertical line $x={{a}}$.",
+        "answerSummary": "$({{a}},{{b}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -27289,7 +27370,9 @@
           "answer": "p+q",
           "satDistractor1": "p-q",
           "satDistractor2": "p",
-          "satDistractor3": "q"
+          "satDistractor3": "q",
+          "dm": "m1-m2",
+          "db": "b2-b1"
         },
         "constraints": [
           "m1!=m2",
@@ -27319,11 +27402,14 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Set the two expressions equal, find $p$ and $q$, then add: $p+q={{answer}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At the intersection both equations give the same $y$: ${{m1}}x {{b1|signed}}={{m2}}x {{b2|signed}}$.",
+          "Collect terms: $({{m1}}-{{m2|paren}})x={{b2}}-{{b1|paren}}$, so $x=\\frac{{{db}}}{{{dm}}}={{p}}$, which is $p$.",
+          "Then $q={{m1}}({{p|paren}}) {{b1|signed}}={{q}}$, and $p+q={{p}}+{{q|paren}}={{answer}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Stopping at $p$ or $q$ alone, or subtracting them instead of adding.",
+        "answerSummary": "$p+q={{answer}}$"
       },
       "choices": [
         {
@@ -27580,11 +27666,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "At the intersection both models give the same cost, so {{x}} is the number of items where the costs are equal.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "An intersection point lies on both graphs, so both models give the same output there.",
+          "At $({{x}},{{y}})$, $x={{x}}$ items and both total costs are {{y}} dollars.",
+          "So the $x$-coordinate {{x}} is the number of items for which the two costs are equal."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Reading the intersection as a difference, a starting cost or a rate. It is one point that both models share: the same number of items, the same cost.",
+        "answerSummary": "The number of items for which the two costs are equal."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -27685,11 +27774,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The shared point $({{t}},{{d}})$ means the same time and the same distance for both vehicles.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Each graph pairs a time (first coordinate, in hours) with a distance (second coordinate, in miles).",
+          "Both graphs pass through $({{t}},{{d}})$, so at {{t}} hours both distances are {{d}} miles.",
+          "After {{t}} hours, both vehicles have traveled {{d}} miles."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Swapping the coordinates (reading {{d}} as hours), or reading the point as a speed or a starting gap.",
+        "answerSummary": "After {{t}} hours, both vehicles have traveled {{d}} miles."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -27795,11 +27887,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The difference $f-g$ changes sign between {{a}} and {{b}}, so the graphs cross there.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At $x={{a}}$ the graph of $f$ is below the graph of $g$; at $x={{b}}$ it is above.",
+          "Two lines that switch order must cross between those inputs, and lines that cross once never cross again, so the crossing is not before {{a}} or after {{b}}.",
+          "It is not exactly at {{a}}, because there $f$ and $g$ have different values. So the intersection is between {{a}} and {{b}}."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Choosing $x={{a}}$: at an intersection the values are equal, but $f({{a}})<g({{a}})$.",
+        "answerSummary": "Between {{a}} and {{b}}"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -27885,11 +27980,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Both models agree at the intersection; its second coordinate is the revenue: {{r}} dollars.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At the intersection $({{q}},{{r}})$, both models give the same revenue for the same quantity.",
+          "The first coordinate is the quantity, {{q}}; the second is the revenue.",
+          "So the common revenue is {{r}} dollars."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Giving the quantity {{q}} instead of the revenue: the question asks for the output, the second coordinate.",
+        "answerSummary": "{{r}} dollars"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -28228,11 +28326,14 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The vertical coordinate is a balance, so {{a}} is the balance when the plans are equal.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "In $({{m}},{{a}})$ the first coordinate is months and the second is the account balance in dollars.",
+          "Both lines pass through this point, so after {{m}} months both plans hold {{a}} dollars.",
+          "So {{a}} is the balance in either plan when their balances are equal."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Reading {{a}} as a monthly rate or as the number of months. The months are the other coordinate, {{m}}.",
+        "answerSummary": "The balance in either plan when their balances are equal."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -28324,7 +28425,9 @@
           "b2": "q-m2*p",
           "d1": "-p",
           "d2": "p+1",
-          "d3": "p-1"
+          "d3": "p-1",
+          "dm": "m1-m2",
+          "db": "b2-b1"
         },
         "constraints": [
           "m1!=m2",
@@ -28369,11 +28472,14 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Set $f(x)=g(x)$ and solve: $p={{p}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At the intersection the outputs are equal: ${{m1}}x {{b1|signed}}={{m2}}x {{b2|signed}}$.",
+          "Collect terms: $({{m1}}-{{m2|paren}})x={{b2}}-{{b1|paren}}$, so $x=\\frac{{{db}}}{{{dm}}}={{p}}$.",
+          "Check: both give ${{m1}}({{p|paren}}) {{b1|signed}}={{m2}}({{p|paren}}) {{b2|signed}}={{q}}$. So $p={{p}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Moving a term across the equals sign without changing its sign, which gives {{d1}}.",
+        "answerSummary": "$p={{p}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -28514,11 +28620,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Check each point against both lines at $x={{x}}$: $({{x}},{{ymid}})$ is between them.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At $x={{x}}$, the lower line gives ${{m1}}({{x|paren}}) {{b1|signed}}={{low}}$ and the upper line gives ${{m2}}({{x|paren}}) {{b2|signed}}={{high}}$.",
+          "A solution needs ${{low}}\\le y\\le {{high}}$. That rules out $y={{ybelow}}$, which is below {{low}}, and $y={{yabove}}$ and $y={{yabove2}}$, which are above {{high}}.",
+          "For $({{x}},{{ymid}})$: ${{ymid}}\\ge {{low}}$ and ${{ymid}}\\le {{high}}$, so $({{x}},{{ymid}})$ satisfies both."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Checking only one inequality. A point can be above the first line and still be above the second line too.",
+        "answerSummary": "$({{x}},{{ymid}})$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -28649,11 +28758,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Above a solid line is $\\ge$; below a solid line is $\\le$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Solid lines are included, so both symbols have an \"or equal to\" part.",
+          "Above $y={{m1}}x {{b1|signed}}$ means $y\\ge {{m1}}x {{b1|signed}}$; below $y={{m2}}x {{b2|signed}}$ means $y\\le {{m2}}x {{b2|signed}}$.",
+          "So the system is $y\\ge {{m1}}x {{b1|signed}}$ and $y\\le {{m2}}x {{b2|signed}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Swapping above and below, or using strict symbols, which would mean dashed lines.",
+        "answerSummary": "$y\\ge {{m1}}x {{b1|signed}}$ and $y\\le {{m2}}x {{b2|signed}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -28767,11 +28879,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "\"At least\" is $\\ge$ and \"at most\" is $\\le$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "The number of tickets is $x+y$; \"at least {{nmin}}\" means $x+y\\ge {{nmin}}$.",
+          "The money collected is ${{a}}x+{{s}}y$ dollars; \"at most {{budget}}\" means ${{a}}x+{{s}}y\\le {{budget}}$.",
+          "So the system is $x+y\\ge {{nmin}}$ and ${{a}}x+{{s}}y\\le {{budget}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Writing equations instead of inequalities, or flipping one of the symbols: \"at least\" sets a floor, \"at most\" a ceiling.",
+        "answerSummary": "$x+y\\ge {{nmin}}$ and ${{a}}x+{{s}}y\\le {{budget}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -28901,11 +29016,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "\"On or above\" includes the line (solid); \"strictly below\" excludes it (dashed).",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "\"On or above $y={{m1}}x {{b1|signed}}$\" includes the points on that line, so it is drawn solid.",
+          "\"Strictly below $y={{m2}}x {{b2|signed}}$\" leaves out the points on that line, so it is drawn dashed.",
+          "The first boundary is solid and the second boundary is dashed."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Deciding solid or dashed by the direction of shading. Only whether the line itself is included matters.",
+        "answerSummary": "The first boundary is solid and the second boundary is dashed."
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -28978,7 +29096,8 @@
         },
         "derived": {
           "xout": "C",
-          "yout": "C"
+          "yout": "C",
+          "big": "(A+B)*C"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -29015,11 +29134,14 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Test each point in all three conditions: only $(0,0)$ passes.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "$(0,0)$: $x\\ge 0$ and $y\\ge 0$ hold, and ${{A}}(0)+{{B}}(0)=0$ with $0\\le {{C}}$. It is in the region.",
+          "$(-1,0)$ and $(0,-1)$ break $x\\ge 0$ or $y\\ge 0$.",
+          "$({{C}},{{C}})$ gives ${{A}}({{C}})+{{B}}({{C}})={{big}}$, which is more than {{C}}. So the point guaranteed to be in the region is $(0,0)$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Checking only the third inequality, or only the sign conditions. A point must satisfy all three.",
+        "answerSummary": "$(0,0)$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -29387,7 +29509,9 @@
           "b2": "y-m2*x",
           "d1": "-x",
           "d2": "x+1",
-          "d3": "x-1"
+          "d3": "x-1",
+          "dm": "m1-m2",
+          "db": "b2-b1"
         },
         "constraints": [
           "m1!=m2",
@@ -29432,11 +29556,14 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Set the two boundary equations equal and solve: $x={{x}}$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At the intersection both lines have the same $y$: ${{m1}}x {{b1|signed}}={{m2}}x {{b2|signed}}$.",
+          "Collect terms: $({{m1}}-{{m2|paren}})x={{b2}}-{{b1|paren}}$, so $x=\\frac{{{db}}}{{{dm}}}={{x}}$.",
+          "Check: ${{m1}}({{x|paren}}) {{b1|signed}}={{y}}$ and ${{m2}}({{x|paren}}) {{b2|signed}}={{y}}$, the given point $({{x}},{{y}})$. So $x={{x}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "commonError": "Answering with the $y$-coordinate {{y}}, or changing the sign of a term moved across the equals sign.",
+        "answerSummary": "$x={{x}}$"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -32787,10 +32914,13 @@
       },
       "prompt": "How many solutions does the system ${{a}}x+{{b}}y={{c}}$ and ${{ka}}x+{{kb}}y={{d}}$ have?",
       "solutionReview": {
-        "headline": "Compare the equations as lines.",
+        "headline": "Same left side up to a multiple, different right side: no solution.",
         "reasoning": [
-          "The second equation has proportional variable coefficients but a nonproportional constant, so the lines are parallel and distinct."
+          "Multiply the first equation by {{k}}: ${{ka}}x+{{kb}}y={{kc}}$.",
+          "The second equation says ${{ka}}x+{{kb}}y={{d}}$, and ${{d}}\\ne {{kc}}$.",
+          "The same expression cannot equal both numbers: the lines are parallel and distinct, so there is no solution."
         ],
+        "commonError": "Answering infinitely many because the coefficients are proportional. That would need the constants in the same ratio too.",
         "answerSummary": "No solution"
       },
       "attemptFeedback": [
@@ -32836,7 +32966,8 @@
         "derived": {
           "ka": "k*a",
           "kb": "k*b",
-          "d": "k*c+offset"
+          "d": "k*c+offset",
+          "kc": "k*c"
         },
         "constraints": [
           "ka!=0",

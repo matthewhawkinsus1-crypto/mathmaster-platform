@@ -49,7 +49,7 @@ const DECLINED = Object.freeze({
 
 // How many still publish their generic review (shrinks to 0 as the slices
 // land; a template is pending while its review hashes to the pinned generic).
-const EXPECTED_PENDING = 426;
+const EXPECTED_PENDING = 388;
 
 // Reviews whose reasoning is verbal (a definition or an interpretation) and so
 // states no relation for the arithmetic check. Everything else must have at
@@ -57,7 +57,19 @@ const EXPECTED_PENDING = 426;
 const VERBAL = new Set([
   'mm_sat_A_12A_1_distinct-input-pairs_v21',
   'mm_sat_A_12A_4_context-unique-output_v21',
+  'mm_sat_A_12A_challenge_1_parameter-repeated-input_v21',
   'mm_sat_A_12A_challenge_2_vertical-line-relation_v21',
+  'mm_sat_A_3D_5_strict-boundary-inclusion_v21',
+  'mm_sat_A_3F_4_graph-solution-ordered-pair_v21',
+  'mm_sat_A_3F_5_horizontal-vertical-intersection_v21',
+  'mm_sat_A_3G_1_break-even-interpretation_v21',
+  'mm_sat_A_3G_2_meeting-time-interpretation_v21',
+  'mm_sat_A_3G_3_estimate-crossing-from-values_v21',
+  'mm_sat_A_3G_4_context-intersection-output_v21',
+  'mm_sat_A_3G_challenge_2_intersection-rate-meaning_v21',
+  'mm_sat_A_3H_2_region-description-system_v21',
+  'mm_sat_A_3H_3_context-feasible-combination_v21',
+  'mm_sat_A_3H_4_solid-dashed-system_v21',
 ]);
 
 const stable = (value) => (Array.isArray(value)
