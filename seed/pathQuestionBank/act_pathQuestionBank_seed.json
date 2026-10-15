@@ -51627,7 +51627,7 @@
         "reasoning": [
           "Adult tickets bring in ${{a}}x$ dollars.",
           "Student tickets bring in ${{b}}({{N}}-x)$ dollars.",
-          "Total revenue: ${{a}}x+{{b}}({{N}}-x)={{amb}}x+{{bN}}$ in expanded form."
+          "Total revenue: ${{a}}x+{{b}}({{N}}-x)={{amb|coef}}x+{{bN}}$ in expanded form."
         ],
         "commonError": "Pairing the adult price with the student count.",
         "answerSummary": "${{a}}x+{{b}}({{N}}-x)$"

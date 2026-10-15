@@ -28702,7 +28702,7 @@
         "An event and its complement have probabilities that total 100%."
       ],
       "solutionReview": {
-        "headline": "An event and its complement add to 100%: {{answer}}%.",
+        "headline": "The event and its complement cover every outcome, so subtract from one hundred percent: {{answer}}%.",
         "reasoning": [
           "The delivery either arrives before noon or it does not, so the two probabilities add to 100%.",
           "$100-{{eventPercent}}={{answer}}$, so the probability is {{answer}}%."
@@ -32253,11 +32253,13 @@
         "Pay attention to the signs before combining the numbers."
       ],
       "solutionReview": {
-        "headline": "Check the operation and sign.",
+        "headline": "Opposite signs: subtract the sizes and keep the sign of the larger: {{answer}}.",
         "reasoning": [
-          "Apply the indicated operation first, then verify the sign and magnitude of the result."
+          "The sizes are {{absA}} and {{b}}; the difference is ${{b}}-{{absA}}={{answer}}$.",
+          "The result takes the sign of the number with the larger size, so ${{a}}+{{b}}={{answer}}$."
         ],
-        "answerSummary": "Use the original numbers to check the computed value."
+        "commonError": "Adding the sizes, as if both numbers had the same sign.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "The sum ${{a}}+{{b}}$ is evaluated. What is the result?",
       "generator": {
@@ -32277,7 +32279,8 @@
           "answer": "a+b",
           "d1": "a-b",
           "d2": "-a+b",
-          "d3": "-a-b"
+          "d3": "-a-b",
+          "absA": "-a"
         },
         "constraints": [
           "answer!=d1",
@@ -32396,11 +32399,13 @@
         "Determine the sign of the product before multiplying the absolute values."
       ],
       "solutionReview": {
-        "headline": "Check the product sign.",
+        "headline": "Negative times positive is negative: {{answer}}.",
         "reasoning": [
-          "A negative factor and a positive factor produce a negative product."
+          "Multiply the sizes: ${{absA}}\\cdot {{b}}={{d1}}$.",
+          "One factor is negative and one positive, so the product is negative: ${{a}}\\cdot {{b}}={{answer}}$."
         ],
-        "answerSummary": "Multiply the magnitudes and apply the correct sign."
+        "commonError": "Making the product positive, or adding instead of multiplying.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Multiplying ${{a}}$ by ${{b}}$ gives which value?",
       "generator": {
@@ -32420,7 +32425,8 @@
           "answer": "a*b",
           "d1": "-answer",
           "d2": "a+b",
-          "d3": "a-b"
+          "d3": "a-b",
+          "absA": "-a"
         },
         "constraints": [
           "answer!=d2",
@@ -32538,11 +32544,13 @@
         "Use multiplication to check an integer quotient."
       ],
       "solutionReview": {
-        "headline": "Check the quotient.",
+        "headline": "Divide, then check by multiplying back: {{answer}}.",
         "reasoning": [
-          "The divisor multiplied by the quotient must reproduce the dividend."
+          "$\\frac{ {{dividend}} }{ {{divisor}} }={{answer}}$.",
+          "Check: ${{divisor}}\\cdot {{answer|paren}}={{dividend}}$."
         ],
-        "answerSummary": "Verify the result with the inverse operation."
+        "commonError": "Dropping the sign of a negative dividend.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "When ${{dividend}}$ is divided by ${{divisor}}$, what quotient results?",
       "generator": {
@@ -32677,11 +32685,13 @@
         "Line up decimal place values before combining the quantities."
       ],
       "solutionReview": {
-        "headline": "Check the decimal places.",
+        "headline": "Line up the decimal points and add: {{answer}}.",
         "reasoning": [
-          "Tenths combine with tenths, so place value should remain aligned."
+          "In tenths: {{aDecimal}} is {{a10}} tenths and {{bDecimal}} is {{b10}} tenths, and ${{a10}}+{{b10}}={{s10}}$ tenths.",
+          "So ${{aDecimal}}+{{bDecimal}}={{answer}}$."
         ],
-        "answerSummary": "Estimate the sum to confirm the decimal placement is reasonable."
+        "commonError": "Misplacing the decimal point, which gives a value ten times too small or too large.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Two decimal values, ${{aDecimal}}$ and ${{bDecimal}}$, are added. Which value is their sum?",
       "generator": {
@@ -32703,7 +32713,8 @@
           "answer": "(a10+b10)/10",
           "d1": "(a10-b10)/10",
           "d2": "(a10+b10)/100",
-          "d3": "(a10+b10+10)/10"
+          "d3": "(a10+b10+10)/10",
+          "s10": "a10+b10"
         },
         "constraints": [
           "answer!=d1",
@@ -32822,11 +32833,13 @@
         "Use a common denominator before adding fractions."
       ],
       "solutionReview": {
-        "headline": "Combine the fractions exactly.",
+        "headline": "Use a common denominator, add, then reduce.",
         "reasoning": [
-          "Rewrite with a common denominator, add the numerators, and reduce the result."
+          "$\\frac{ {{a}} }{ {{b}} }+\\frac{ {{c}} }{ {{d}} }=\\frac{ {{a}}\\cdot {{d}}+{{c}}\\cdot {{b}} }{ {{b}}\\cdot {{d}} }=\\frac{ {{rawNum}} }{ {{rawDen}} }$.",
+          "The greatest common factor of {{rawNum}} and {{rawDen}} is {{g}}; dividing both by it gives $\\frac{ {{rawNum}} }{ {{rawDen}} }=\\frac{ {{answerNum}} }{ {{answerDen}} }$."
         ],
-        "answerSummary": "Check that the final fraction is in lowest terms."
+        "commonError": "Adding the numerators and the denominators separately.",
+        "answerSummary": "$\\frac{ {{answerNum}} }{ {{answerDen}} }$"
       },
       "prompt": "The fractions $\\frac{ {{a}} }{ {{b}} }$ and $\\frac{ {{c}} }{ {{d}} }$ are added. Which fraction is the reduced result?",
       "generator": {
@@ -32977,11 +32990,13 @@
         "Use multiplication before addition unless grouping symbols change the order."
       ],
       "solutionReview": {
-        "headline": "Apply the operation order.",
+        "headline": "Multiply before adding: {{answer}}.",
         "reasoning": [
-          "Complete multiplication before combining it with the remaining term."
+          "Multiplication comes first: ${{b}}\\cdot {{c}}={{bc}}$.",
+          "Then add: ${{a}}+{{bc}}={{answer}}$."
         ],
-        "answerSummary": "Compare the result with an estimate of the original expression."
+        "commonError": "Adding first and then multiplying, which gives a different value.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Evaluate ${{a}}+{{b}}\\cdot{{c}}$ using the indicated order of operations.",
       "generator": {
@@ -33006,7 +33021,8 @@
           "answer": "a+b*c",
           "d1": "(a+b)*c",
           "d2": "a+b+c",
-          "d3": "a-b*c"
+          "d3": "a-b*c",
+          "bc": "b*c"
         },
         "constraints": [
           "answer!=d1",
@@ -33126,11 +33142,13 @@
         "Multiply numerator by numerator and denominator by denominator, then reduce."
       ],
       "solutionReview": {
-        "headline": "Multiply and reduce.",
+        "headline": "Multiply across, then reduce.",
         "reasoning": [
-          "Form the product first, then divide numerator and denominator by their greatest common factor."
+          "$\\frac{ {{a}} }{ {{b}} }\\cdot\\frac{ {{c}} }{ {{d}} }=\\frac{ {{rawNum}} }{ {{rawDen}} }$.",
+          "Divide the numerator and the denominator by their greatest common factor, {{g}}: $\\frac{ {{rawNum}} }{ {{rawDen}} }=\\frac{ {{answerNum}} }{ {{answerDen}} }$."
         ],
-        "answerSummary": "Confirm that the reduced fraction has the same value as the unreduced product."
+        "commonError": "Leaving the product unreduced, or adding instead of multiplying.",
+        "answerSummary": "$\\frac{ {{answerNum}} }{ {{answerDen}} }$"
       },
       "prompt": "Find the product of $\\frac{ {{a}} }{ {{b}} }$ and $\\frac{ {{c}} }{ {{d}} }$. Which choice is in lowest terms?",
       "generator": {
@@ -33281,11 +33299,14 @@
         "Evaluate the quantity inside parentheses before multiplying."
       ],
       "solutionReview": {
-        "headline": "Follow the grouping and signs.",
+        "headline": "Parentheses, then multiply, then add: {{answer}}.",
         "reasoning": [
-          "Compute the difference in parentheses, multiply, and then combine the final signed term."
+          "Parentheses: ${{a}}-{{b}}={{ab}}$.",
+          "Multiply: ${{ab}}\\cdot {{c|paren}}={{abc}}$.",
+          "Then ${{abc}} {{d|signed}}={{answer}}$."
         ],
-        "answerSummary": "Recheck each sign when moving from one operation to the next."
+        "commonError": "Adding {{d}} before multiplying.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "What number is obtained from $({{a}}-{{b}})({{c}}) {{d|signed}}$?",
       "generator": {
@@ -33321,7 +33342,9 @@
           "answer": "(a-b)*c+d",
           "d1": "(a+b)*c+d",
           "d2": "(a-b)*(c+d)",
-          "d3": "a-b*c+d"
+          "d3": "a-b*c+d",
+          "ab": "a-b",
+          "abc": "(a-b)*c"
         },
         "constraints": [
           "answer!=d1",
@@ -33517,11 +33540,13 @@
         "Use the structure of the linear expression or equation before performing arithmetic."
       ],
       "solutionReview": {
-        "headline": "Use the linear structure.",
+        "headline": "Substitute $x={{x}}$, multiply, then add: {{answer}}.",
         "reasoning": [
-          "Track coefficients, constants, and the effect of each operation on both sides of a relationship."
+          "Replace $x$ with ${{x}}$.",
+          "${{a}}({{x}}) {{b|signed}}={{answer}}$."
         ],
-        "answerSummary": "Substitute or simplify to confirm the selected relationship is equivalent."
+        "commonError": "Subtracting the constant with the wrong sign.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "For $x={{x}}$, what is the value of ${{a}}x {{b|signed}}$?",
       "generator": {
@@ -33748,11 +33773,13 @@
         "Use the structure of the linear expression or equation before performing arithmetic."
       ],
       "solutionReview": {
-        "headline": "Use the linear structure.",
+        "headline": "Combine like terms: ${{coef}}x+{{constant}}$.",
         "reasoning": [
-          "Track coefficients, constants, and the effect of each operation on both sides of a relationship."
+          "Add the $x$-terms together and the constants together.",
+          "$({{a}}x+{{b}})+({{c}}x+{{d}})=({{a}}+{{c}})x+({{b}}+{{d}})={{coef}}x+{{constant}}$."
         ],
-        "answerSummary": "Substitute or simplify to confirm the selected relationship is equivalent."
+        "commonError": "Multiplying the coefficients or the constants instead of adding them.",
+        "answerSummary": "${{coef}}x+{{constant}}$"
       },
       "prompt": "Which expression is equivalent to $({{a}}x+{{b}})+({{c}}x+{{d}})$?",
       "generator": {
@@ -33977,11 +34004,13 @@
         "Use the structure of the linear expression or equation before performing arithmetic."
       ],
       "solutionReview": {
-        "headline": "Use the linear structure.",
+        "headline": "Multiply {{k}} by each term inside: ${{xCoef}}x+{{constant}}$.",
         "reasoning": [
-          "Track coefficients, constants, and the effect of each operation on both sides of a relationship."
+          "Distribute {{k}} to both terms: ${{k}}({{a|coef}}x+{{b}})={{k}}\\cdot {{a|coef}}x+{{k}}\\cdot {{b}}$.",
+          "That is ${{xCoef}}x+{{constant}}$."
         ],
-        "answerSummary": "Substitute or simplify to confirm the selected relationship is equivalent."
+        "commonError": "Multiplying only the first term by {{k}}.",
+        "answerSummary": "${{xCoef}}x+{{constant}}$"
       },
       "prompt": "The expression ${{k}}({{a}}x+{{b}})$ is expanded. What is the resulting expression?",
       "generator": {
@@ -34200,11 +34229,13 @@
         "Use the structure of the linear expression or equation before performing arithmetic."
       ],
       "solutionReview": {
-        "headline": "Use the linear structure.",
+        "headline": "Rate times hours plus the fixed fee: $C={{rate}}h+{{fixed}}$.",
         "reasoning": [
-          "Track coefficients, constants, and the effect of each operation on both sides of a relationship."
+          "The fee of {{fixed}} dollars is paid once; {{rate}} dollars is paid for each of the $h$ hours.",
+          "So $C={{rate}}h+{{fixed}}$. For example, {{units}} hours cost ${{rate}}\\cdot {{units}}+{{fixed}}={{total}}$ dollars."
         ],
-        "answerSummary": "Substitute or simplify to confirm the selected relationship is equivalent."
+        "commonError": "Multiplying the fixed fee by the hours instead of the hourly rate.",
+        "answerSummary": "$C={{rate}}h+{{fixed}}$"
       },
       "prompt": "A rental service charges a fixed fee of {{fixed}} dollars plus {{rate}} dollars per hour. Which expression gives the total cost $C$ for $h$ hours?",
       "generator": {
@@ -34417,11 +34448,13 @@
         "Use the structure of the linear expression or equation before performing arithmetic."
       ],
       "solutionReview": {
-        "headline": "Use the linear structure.",
+        "headline": "Undo the constant, then divide by {{a}}: $x={{answer}}$.",
         "reasoning": [
-          "Track coefficients, constants, and the effect of each operation on both sides of a relationship."
+          "Move the constant: ${{a}}x={{c}}{{nb|term}}={{ac}}$.",
+          "Divide by {{a}}: $x=\\frac{ {{ac}} }{ {{a}} }={{answer}}$."
         ],
-        "answerSummary": "Substitute or simplify to confirm the selected relationship is equivalent."
+        "commonError": "Moving the constant without changing its sign.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "What value of $x$ satisfies ${{a}}x {{b|signed}}={{c}}$?",
       "generator": {
@@ -34449,7 +34482,9 @@
           "c": "a*answer+b",
           "d1": "answer+1",
           "d2": "answer-1",
-          "d3": "-answer"
+          "d3": "-answer",
+          "nb": "-b",
+          "ac": "a*answer"
         },
         "constraints": [
           "c!=0"
@@ -34641,11 +34676,13 @@
         "Use the structure of the linear expression or equation before performing arithmetic."
       ],
       "solutionReview": {
-        "headline": "Use the linear structure.",
+        "headline": "Subtract {{b}}, then divide by the positive {{a}}: $x<{{boundary}}$.",
         "reasoning": [
-          "Track coefficients, constants, and the effect of each operation on both sides of a relationship."
+          "Subtract {{b}}: ${{a}}x<{{limit}}-{{b}}={{ab}}$.",
+          "Divide by {{a}}, which is positive, so the symbol stays: $x<\\frac{ {{ab}} }{ {{a}} }={{boundary}}$."
         ],
-        "answerSummary": "Substitute or simplify to confirm the selected relationship is equivalent."
+        "commonError": "Reversing the inequality even though the divisor is positive.",
+        "answerSummary": "$x<{{boundary}}$"
       },
       "prompt": "Which inequality has the same solution set as ${{a}}x+{{b}}<{{limit}}$?",
       "generator": {
@@ -34669,7 +34706,8 @@
         "derived": {
           "limit": "a*boundary+b",
           "above": "boundary+1",
-          "below": "boundary-1"
+          "below": "boundary-1",
+          "ab": "a*boundary"
         },
         "constraints": []
       },
@@ -34859,11 +34897,14 @@
         "Use the structure of the linear expression or equation before performing arithmetic."
       ],
       "solutionReview": {
-        "headline": "Use the linear structure.",
+        "headline": "Substitute $p={{y}}$ and solve for $q$: {{answer}}.",
         "reasoning": [
-          "Track coefficients, constants, and the effect of each operation on both sides of a relationship."
+          "${{y}}={{a}}q+{{b}}$.",
+          "Subtract {{b}}: ${{a}}q={{y}}-{{b}}={{aq}}$.",
+          "Divide by {{a}}: $q=\\frac{ {{aq}} }{ {{a}} }={{answer}}$."
         ],
-        "answerSummary": "Substitute or simplify to confirm the selected relationship is equivalent."
+        "commonError": "Dividing by {{a}} before subtracting {{b}}.",
+        "answerSummary": "$q={{answer}}$"
       },
       "prompt": "The quantities $p$ and $q$ satisfy $p={{a}}q+{{b}}$. If $p={{y}}$, what is the value of $q$?",
       "generator": {
@@ -34888,7 +34929,8 @@
           "y": "a*answer+b",
           "d1": "answer+1",
           "d2": "answer-1",
-          "d3": "answer+a"
+          "d3": "answer+a",
+          "aq": "a*answer"
         },
         "constraints": []
       },
@@ -35078,11 +35120,14 @@
         "Use the structure of the linear expression or equation before performing arithmetic."
       ],
       "solutionReview": {
-        "headline": "Use the linear structure.",
+        "headline": "Set the expressions equal and solve: $x={{answer}}$.",
         "reasoning": [
-          "Track coefficients, constants, and the effect of each operation on both sides of a relationship."
+          "${{a}}x{{b|term}}={{c|coef}}x{{d|term}}$.",
+          "Collect terms: $({{a}}-{{c}})x={{d}}-{{b|paren}}$, so ${{amc|coef}}x={{dmb}}$.",
+          "$x=\\frac{ {{dmb}} }{ {{amc}} }={{answer}}$."
         ],
-        "answerSummary": "Substitute or simplify to confirm the selected relationship is equivalent."
+        "commonError": "Adding the $x$-coefficients instead of subtracting them.",
+        "answerSummary": "$x={{answer}}$"
       },
       "prompt": "For what value of $x$ do ${{a}}x {{b|signed}}$ and ${{c}}x+{{d}}$ have the same value?",
       "generator": {
@@ -35112,7 +35157,9 @@
           "d": "(a-c)*answer+b",
           "d1": "answer+1",
           "d2": "answer-1",
-          "d3": "-answer"
+          "d3": "-answer",
+          "amc": "a-c",
+          "dmb": "(a-c)*answer"
         },
         "constraints": [
           "a!=c"
@@ -35247,11 +35294,13 @@
         "A fraction can be written as a decimal by dividing its numerator by its denominator."
       ],
       "solutionReview": {
-        "headline": "Connect the two number forms.",
+        "headline": "Divide the numerator by the denominator: {{answer}}.",
         "reasoning": [
-          "Divide the numerator by the denominator and compare that quotient with the decimal choices."
+          "A fraction means division: $\\frac{ {{num}} }{ {{den}} }={{num}}\\div {{den}}$.",
+          "$\\frac{ {{num}} }{ {{den}} }={{answer}}$."
         ],
-        "answerSummary": "The fraction and selected decimal must represent the same value."
+        "commonError": "Misplacing the decimal point, which gives a value ten times too large.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "The fraction $\\frac{ {{num}} }{ {{den}} }$ is written as a decimal. What decimal represents the same value?",
       "generator": {
@@ -35418,11 +35467,13 @@
         "A decimal becomes a percent when its value is multiplied by 100."
       ],
       "solutionReview": {
-        "headline": "Express the decimal as a percent.",
+        "headline": "Percent means per hundred, so multiply by 100: ${{answer}}\\%$.",
         "reasoning": [
-          "Move from hundredths of one whole to parts per hundred."
+          "To write a decimal as a percent, multiply by 100.",
+          "${{decimal}}\\cdot 100={{answer}}$, so the percent is ${{answer}}\\%$."
         ],
-        "answerSummary": "The decimal and selected percent must have the same magnitude."
+        "commonError": "Multiplying by 10 or 1000 instead of 100.",
+        "answerSummary": "${{answer}}\\%$"
       },
       "prompt": "The decimal ${{decimal}}$ is expressed as a percent. What is the percent?",
       "generator": {
@@ -35581,11 +35632,13 @@
         "Percent means per hundred, so divide the percent value by 100."
       ],
       "solutionReview": {
-        "headline": "Convert parts per hundred to a decimal.",
+        "headline": "Percent means per hundred, so divide by 100: {{answer}}.",
         "reasoning": [
-          "Divide by 100 so the decimal represents the same portion of one whole."
+          "${{percent}}\\%$ means {{percent}} per hundred.",
+          "$\\frac{ {{percent}} }{100}={{answer}}$."
         ],
-        "answerSummary": "Multiplying the selected decimal by 100 should return the original percent."
+        "commonError": "Dividing by 10, which gives a value ten times too large.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "What decimal has the same value as ${{percent}}\\%$?",
       "generator": {
@@ -35743,11 +35796,13 @@
         "Find the fraction's decimal value, then express that value out of 100."
       ],
       "solutionReview": {
-        "headline": "Connect fraction and percent.",
+        "headline": "Multiply the fraction by 100: ${{answer}}\\%$.",
         "reasoning": [
-          "The percent is 100 times the fraction's value."
+          "A percent is a number out of 100.",
+          "$\\frac{ {{num}} }{ {{den}} }\\cdot 100={{answer}}$, so the fraction is ${{answer}}\\%$."
         ],
-        "answerSummary": "Dividing the selected percent by 100 should reproduce the fraction."
+        "commonError": "Dividing by 10 at the end, or adding instead of multiplying.",
+        "answerSummary": "${{answer}}\\%$"
       },
       "prompt": "Express $\\frac{ {{num}} }{ {{den}} }$ as a percent.",
       "generator": {
@@ -35913,11 +35968,13 @@
         "Rewrite the fraction as a decimal or compare both values against the same benchmark."
       ],
       "solutionReview": {
-        "headline": "Compare in a common form.",
+        "headline": "Write the fraction as a decimal, then compare: ${{dv}}$ is greater.",
         "reasoning": [
-          "The decimal was generated slightly above the fraction's exact value."
+          "$\\frac{ {{num}} }{ {{den}} }={{fractionValue}}$.",
+          "${{dv}}>{{fractionValue}}$, so ${{dv}}>\\frac{ {{num}} }{ {{den}} }$."
         ],
-        "answerSummary": "Only one comparison statement agrees with both magnitudes."
+        "commonError": "Comparing the digits of the numerator with the decimal instead of the fraction's value.",
+        "answerSummary": "${{dv}}>\\frac{ {{num}} }{ {{den}} }$"
       },
       "prompt": "Which statement correctly compares ${{decimalValue}}$ and $\\frac{ {{num}} }{ {{den}} }$?",
       "generator": {
@@ -35947,7 +36004,8 @@
         },
         "derived": {
           "fractionValue": "num/den",
-          "decimalValue": "fractionValue+gap100/100"
+          "decimalValue": "fractionValue+gap100/100",
+          "dv": "round((num/den+gap100/100)*10000)/10000"
         },
         "constraints": [
           "num<den",
@@ -36085,11 +36143,13 @@
         "Convert each representation to a common form before checking whether all three are equal."
       ],
       "solutionReview": {
-        "headline": "Check all three representations.",
+        "headline": "Divide for the decimal, then multiply by 100 for the percent.",
         "reasoning": [
-          "The fraction, decimal, and percent in the correct row name the same point on the number line."
+          "Decimal: $\\frac{ {{num}} }{ {{den}} }={{decimalValue}}$.",
+          "Percent: ${{decimalValue}}\\cdot 100={{pct}}$, so the row is $\\frac{ {{num}} }{ {{den}} }={{decimalValue}}={{pct}}\\%$."
         ],
-        "answerSummary": "Every equality in the selected row must be true."
+        "commonError": "Moving the decimal point only one place when converting to a percent.",
+        "answerSummary": "$\\frac{ {{num}} }{ {{den}} }={{decimalValue}}={{pct}}\\%$"
       },
       "prompt": "One row shows a fraction, decimal, and percent with equal values. Which row is correct?",
       "generator": {
@@ -36115,7 +36175,8 @@
           "percentValue": "100*decimalValue",
           "wrongPercent": "percentValue+10",
           "wrongDecimal": "decimalValue+0.1",
-          "smallPercent": "percentValue/10"
+          "smallPercent": "percentValue/10",
+          "pct": "round(10000*num/den)/100"
         },
         "constraints": [
           "num<den"
@@ -36251,11 +36312,14 @@
         "Convert the percent and fraction to decimals, then order the three positions on the number line."
       ],
       "solutionReview": {
-        "headline": "Order common values, not notation.",
+        "headline": "Write all three as decimals, then order them.",
         "reasoning": [
-          "A different notation does not change a number's magnitude."
+          "$\\frac{ {{num}} }{ {{den}} }={{middleValue}}$ and ${{upPct}}\\%={{upDec}}$.",
+          "${{lv}}<{{middleValue}}<{{upDec}}$.",
+          "So the order is ${{lv}}<\\frac{ {{num}} }{ {{den}} }<{{upPct}}\\%$."
         ],
-        "answerSummary": "The correct list increases from the smallest numerical value to the largest."
+        "commonError": "Reading the percent as {{upPct}} rather than {{upDec}}, which puts it in the wrong place.",
+        "answerSummary": "${{lv}}<\\frac{ {{num}} }{ {{den}} }<{{upPct}}\\%$"
       },
       "prompt": "Three values are ${{lowerValue}}$, $\\frac{ {{num}} }{ {{den}} }$, and ${{upperPercent}}\\%$. Which list orders them from least to greatest?",
       "generator": {
@@ -36279,7 +36343,10 @@
           "middleValue": "num/den",
           "lowerValue": "middleValue-0.1",
           "upperValue": "middleValue+0.1",
-          "upperPercent": "100*upperValue"
+          "upperPercent": "100*upperValue",
+          "lv": "round((num/den-0.1)*10000)/10000",
+          "upPct": "round((num/den+0.1)*10000)/100",
+          "upDec": "round((num/den+0.1)*10000)/10000"
         },
         "constraints": [
           "num<den",
@@ -36417,11 +36484,14 @@
         "Translate the fraction and percent to decimal values before deciding which is largest."
       ],
       "solutionReview": {
-        "headline": "Compare the magnitudes directly.",
+        "headline": "Write each as a decimal and compare: {{cvR}}.",
         "reasoning": [
-          "Once the four values share a common form, the greatest value is unambiguous."
+          "$\\frac{ {{num}} }{ {{den}} }={{fractionValue}}$ and ${{pvR}}\\%={{pdR}}$.",
+          "${{cvR}}>{{fractionValue}}>{{pdR}}>{{lwR}}$.",
+          "The greatest is {{cvR}}."
         ],
-        "answerSummary": "Check that the selected value exceeds each of the other three."
+        "commonError": "Treating the percent as the largest because {{pvR}} is a bigger number than the decimals.",
+        "answerSummary": "${{cvR}}$"
       },
       "prompt": "Four numbers are written in different forms. Which one has the greatest value?",
       "generator": {
@@ -36445,7 +36515,11 @@
           "fractionValue": "num/den",
           "correctValue": "fractionValue+0.15",
           "percentValue": "100*(fractionValue-0.05)",
-          "lowerValue": "fractionValue-0.1"
+          "lowerValue": "fractionValue-0.1",
+          "cvR": "round((num/den+0.15)*10000)/10000",
+          "pvR": "round((num/den-0.05)*10000)/100",
+          "pdR": "round((num/den-0.05)*10000)/10000",
+          "lwR": "round((num/den-0.1)*10000)/10000"
         },
         "constraints": [
           "num<den",
@@ -36599,11 +36673,13 @@
         "Identify the constant rate or percent relationship in the situation, then use it with the quantity requested."
       ],
       "solutionReview": {
-        "headline": "Keep the rate constant.",
+        "headline": "Divide the cost by the number of notebooks: {{answer}} dollars.",
         "reasoning": [
-          "Use the stated unit rate, scale factor, or percent relationship to connect the known and unknown quantities."
+          "Cost per notebook is total cost divided by the number of notebooks.",
+          "$\\frac{ {{cost}} }{ {{quantity}} }={{answer}}$ dollars per notebook."
         ],
-        "answerSummary": "Check that the result changes in the same proportional direction as the situation."
+        "commonError": "Giving the total cost, or the number of notebooks, as the unit price.",
+        "answerSummary": "{{answer}} dollars"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -36802,11 +36878,13 @@
         "Identify the constant rate or percent relationship in the situation, then use it with the quantity requested."
       ],
       "solutionReview": {
-        "headline": "Keep the rate constant.",
+        "headline": "Distance is speed times time: {{answer}} miles.",
         "reasoning": [
-          "Use the stated unit rate, scale factor, or percent relationship to connect the known and unknown quantities."
+          "At a constant speed, distance $=$ rate $\\times$ time.",
+          "${{rate}}\\cdot {{hours}}={{answer}}$ miles."
         ],
-        "answerSummary": "Check that the result changes in the same proportional direction as the situation."
+        "commonError": "Adding the speed and the time.",
+        "answerSummary": "${{answer}}$ miles"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -37009,11 +37087,13 @@
         "Identify the constant rate or percent relationship in the situation, then use it with the quantity requested."
       ],
       "solutionReview": {
-        "headline": "Keep the rate constant.",
+        "headline": "Pay is the hourly rate times the hours: {{answer}} dollars.",
         "reasoning": [
-          "Use the stated unit rate, scale factor, or percent relationship to connect the known and unknown quantities."
+          "Each hour earns {{hourlyRate}} dollars.",
+          "${{hourlyRate}}\\cdot {{hours}}={{answer}}$ dollars."
         ],
-        "answerSummary": "Check that the result changes in the same proportional direction as the situation."
+        "commonError": "Adding the rate and the hours.",
+        "answerSummary": "{{answer}} dollars"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -37216,11 +37296,13 @@
         "Identify the constant rate or percent relationship in the situation, then use it with the quantity requested."
       ],
       "solutionReview": {
-        "headline": "Keep the rate constant.",
+        "headline": "Multiply by the exchange rate: {{ansR}} units of currency B.",
         "reasoning": [
-          "Use the stated unit rate, scale factor, or percent relationship to connect the known and unknown quantities."
+          "Each unit of currency A is worth {{exchangeRate}} units of currency B.",
+          "${{amount}}\\cdot {{exchangeRate}}={{ansR}}$ units of currency B."
         ],
-        "answerSummary": "Check that the result changes in the same proportional direction as the situation."
+        "commonError": "Dividing by the rate, which converts in the other direction.",
+        "answerSummary": "${{ansR}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -37278,7 +37360,8 @@
           "answer": "amount*exchangeRate",
           "d1": "amount/exchangeRate",
           "d2": "amount+exchangeRate",
-          "d3": "answer+10"
+          "d3": "answer+10",
+          "ansR": "round(amount*exchangeRate*100)/100"
         },
         "constraints": [
           "answer!=d1",
@@ -37426,11 +37509,13 @@
         "Identify the constant rate or percent relationship in the situation, then use it with the quantity requested."
       ],
       "solutionReview": {
-        "headline": "Keep the rate constant.",
+        "headline": "Add the tax to the price: {{answer}} dollars.",
         "reasoning": [
-          "Use the stated unit rate, scale factor, or percent relationship to connect the known and unknown quantities."
+          "Tax: $\\frac{ {{taxRate}} }{100}\\cdot {{price}}={{tax}}$ dollars.",
+          "Total: ${{price}}+{{tax}}={{answer}}$ dollars, which is also ${{price}}\\cdot\\frac{ {{pct}} }{100}$."
         ],
-        "answerSummary": "Check that the result changes in the same proportional direction as the situation."
+        "commonError": "Giving the tax alone, or adding {{taxRate}} dollars instead of {{taxRate}}%.",
+        "answerSummary": "{{answer}} dollars"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -37488,7 +37573,9 @@
           "answer": "price*(100+taxRate)/100",
           "d1": "price*taxRate/100",
           "d2": "price+taxRate",
-          "d3": "price*(100-taxRate)/100"
+          "d3": "price*(100-taxRate)/100",
+          "tax": "price*taxRate/100",
+          "pct": "100+taxRate"
         },
         "constraints": [
           "answer!=d1",
@@ -37636,11 +37723,13 @@
         "Identify the constant rate or percent relationship in the situation, then use it with the quantity requested."
       ],
       "solutionReview": {
-        "headline": "Keep the rate constant.",
+        "headline": "Gallons needed, then times the price: {{answer}} dollars.",
         "reasoning": [
-          "Use the stated unit rate, scale factor, or percent relationship to connect the known and unknown quantities."
+          "Gallons: $\\frac{ {{distance}} }{ {{milesPerGallon}} }={{gallons}}$.",
+          "Cost: ${{gallons}}\\cdot {{pricePerGallon}}={{answer}}$ dollars."
         ],
-        "answerSummary": "Check that the result changes in the same proportional direction as the situation."
+        "commonError": "Multiplying the miles by the price per gallon, skipping the conversion to gallons.",
+        "answerSummary": "{{answer}} dollars"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -37849,11 +37938,13 @@
         "Identify the constant rate or percent relationship in the situation, then use it with the quantity requested."
       ],
       "solutionReview": {
-        "headline": "Keep the rate constant.",
+        "headline": "Discount first, then tax on the sale price: {{answer}} dollars.",
         "reasoning": [
-          "Use the stated unit rate, scale factor, or percent relationship to connect the known and unknown quantities."
+          "Sale price: ${{price}}\\cdot\\frac{ {{keep}} }{100}={{salePrice}}$ dollars.",
+          "With tax: ${{salePrice}}\\cdot\\frac{ {{taxp}} }{100}={{answer}}$ dollars."
         ],
-        "answerSummary": "Check that the result changes in the same proportional direction as the situation."
+        "commonError": "Stopping at the sale price, or applying the tax to the original price.",
+        "answerSummary": "{{answer}} dollars"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -37920,7 +38011,9 @@
           "answer": "salePrice*(100+taxRate)/100",
           "d1": "salePrice",
           "d2": "price*(100+taxRate)/100",
-          "d3": "price*(100-discount+taxRate)/100"
+          "d3": "price*(100-discount+taxRate)/100",
+          "keep": "100-discount",
+          "taxp": "100+taxRate"
         },
         "constraints": [
           "answer!=d1",
@@ -38068,11 +38161,13 @@
         "Identify the constant rate or percent relationship in the situation, then use it with the quantity requested."
       ],
       "solutionReview": {
-        "headline": "Keep the rate constant.",
+        "headline": "Find the hourly rate, then scale to {{newHours}} hours: {{answer}} dollars.",
         "reasoning": [
-          "Use the stated unit rate, scale factor, or percent relationship to connect the known and unknown quantities."
+          "Rate: $\\frac{ {{knownCost}} }{ {{knownHours}} }={{rate}}$ dollars per hour.",
+          "Cost for {{newHours}} hours: ${{rate}}\\cdot {{newHours}}={{answer}}$ dollars."
         ],
-        "answerSummary": "Check that the result changes in the same proportional direction as the situation."
+        "commonError": "Adding the extra hours to the cost instead of pricing them at the hourly rate.",
+        "answerSummary": "{{answer}} dollars"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -38298,11 +38393,14 @@
         "Compare or rewrite the values in a common form before deciding which relationship is true."
       ],
       "solutionReview": {
-        "headline": "Compare the values precisely.",
+        "headline": "The square root is just above {{base}}; every other choice is below {{base}}.",
         "reasoning": [
-          "Use exact number structure when possible; estimate a radical only when the comparison requires it."
+          "${{base}}^2={{b2}}<{{radicand}}$, so $\\sqrt{ {{radicand}} }>{{base}}$.",
+          "The others are below {{base}}: ${{decimal}}$, $\\frac{ {{halfNum}} }{2}={{half}}$ and ${{below}}$.",
+          "So $\\sqrt{ {{radicand}} }$ is the greatest."
         ],
-        "answerSummary": "Check the result against the relative size and number type of the original quantities."
+        "commonError": "Picking the decimal because it has the most digits.",
+        "answerSummary": "$\\sqrt{ {{radicand}} }$"
       },
       "prompt": "Four real numbers are shown. Which one is greatest?",
       "generator": {
@@ -38323,7 +38421,8 @@
           "decimal": "base-0.25",
           "half": "base-0.5",
           "halfNum": "2*base-1",
-          "below": "base-1"
+          "below": "base-1",
+          "b2": "base*base"
         },
         "constraints": [
           "radicand<(base+1)*(base+1)"
@@ -38493,11 +38592,13 @@
         "Compare or rewrite the values in a common form before deciding which relationship is true."
       ],
       "solutionReview": {
-        "headline": "Compare the values precisely.",
+        "headline": "Find the perfect squares on either side of {{radicand}}: between {{lower}} and {{upper}}.",
         "reasoning": [
-          "Use exact number structure when possible; estimate a radical only when the comparison requires it."
+          "${{lower}}^2={{l2}}$ and ${{upper}}^2={{u2}}$.",
+          "${{l2}}<{{radicand}}<{{u2}}$, so $\\sqrt{ {{radicand}} }$ is between ${{lower}}$ and ${{upper}}$."
         ],
-        "answerSummary": "Check the result against the relative size and number type of the original quantities."
+        "commonError": "Dividing {{radicand}} by 2 instead of looking for nearby perfect squares.",
+        "answerSummary": "${{lower}}$ and ${{upper}}$"
       },
       "prompt": "The value of $\\sqrt{ {{radicand}} }$ lies between which two consecutive integers?",
       "generator": {
@@ -38518,7 +38619,9 @@
           "upper": "lower+1",
           "lowerMinus": "lower-1",
           "upperPlus": "upper+1",
-          "farLower": "lower-2"
+          "farLower": "lower-2",
+          "l2": "lower*lower",
+          "u2": "upper*upper"
         },
         "constraints": [
           "radicand<upper*upper"
@@ -38688,11 +38791,13 @@
         "Compare or rewrite the values in a common form before deciding which relationship is true."
       ],
       "solutionReview": {
-        "headline": "Compare the values precisely.",
+        "headline": "Take the perfect square {{outsideSquare}} out of the root: ${{a}}\\sqrt{ {{inside}} }$.",
         "reasoning": [
-          "Use exact number structure when possible; estimate a radical only when the comparison requires it."
+          "${{radicand}}={{outsideSquare}}\\cdot {{inside}}$, and $\\sqrt{ {{outsideSquare}} }={{a}}$.",
+          "$\\sqrt{ {{radicand}} }=\\sqrt{ {{outsideSquare}} }\\cdot\\sqrt{ {{inside}} }={{a}}\\sqrt{ {{inside}} }$."
         ],
-        "answerSummary": "Check the result against the relative size and number type of the original quantities."
+        "commonError": "Writing the perfect square {{outsideSquare}} itself outside the root instead of its square root, {{a}}.",
+        "answerSummary": "${{a}}\\sqrt{ {{inside}} }$"
       },
       "prompt": "The radical $\\sqrt{ {{radicand}} }$ can be simplified. Which expression gives its exact value?",
       "generator": {
@@ -38887,11 +38992,14 @@
         "Compare or rewrite the values in a common form before deciding which relationship is true."
       ],
       "solutionReview": {
-        "headline": "Compare the values precisely.",
+        "headline": "An irrational number plus a whole number stays irrational: $r+{{integer}}$.",
         "reasoning": [
-          "Use exact number structure when possible; estimate a radical only when the comparison requires it."
+          "{{nonSquare}} is not a perfect square, so $r=\\sqrt{ {{nonSquare}} }$ is irrational.",
+          "The others are rational: $r-r=0$, $r^2={{nonSquare}}$, and $\\frac{ {{integer}} }{ {{den}} }$ is a ratio of integers.",
+          "Adding the integer {{integer}} to an irrational number cannot make it a ratio of integers, so $r+{{integer}}$ is irrational."
         ],
-        "answerSummary": "Check the result against the relative size and number type of the original quantities."
+        "commonError": "Thinking $r^2$ is irrational because $r$ is.",
+        "answerSummary": "$r+{{integer}}$"
       },
       "prompt": "Let $r=\\sqrt{ {{nonSquare}} }$. Of the expressions below, which one is irrational?",
       "generator": {
@@ -39090,11 +39198,13 @@
         "Compare or rewrite the values in a common form before deciding which relationship is true."
       ],
       "solutionReview": {
-        "headline": "Compare the values precisely.",
+        "headline": "Like radicals combine like like terms: ${{sum}}\\sqrt{ {{radicand}} }$.",
         "reasoning": [
-          "Use exact number structure when possible; estimate a radical only when the comparison requires it."
+          "Both terms have $\\sqrt{ {{radicand}} }$, so add the coefficients.",
+          "${{a}}\\sqrt{ {{radicand}} }+{{b|coef}}\\sqrt{ {{radicand}} }=({{a}}+{{b}})\\sqrt{ {{radicand}} }={{sum}}\\sqrt{ {{radicand}} }$."
         ],
-        "answerSummary": "Check the result against the relative size and number type of the original quantities."
+        "commonError": "Multiplying the coefficients, or adding the radicands under one root.",
+        "answerSummary": "${{sum}}\\sqrt{ {{radicand}} }$"
       },
       "prompt": "What is the value of ${{a}}\\sqrt{ {{radicand}} }+{{b}}\\sqrt{ {{radicand}} }$ after the like radicals are combined?",
       "generator": {
@@ -39299,11 +39409,14 @@
         "Compare or rewrite the values in a common form before deciding which relationship is true."
       ],
       "solutionReview": {
-        "headline": "Compare the values precisely.",
+        "headline": "Estimate $x$, then compute: the value lies in $({{floorValue}}, {{upperValue}})$.",
         "reasoning": [
-          "Use exact number structure when possible; estimate a radical only when the comparison requires it."
+          "$x=\\sqrt{ {{radicand}} }\\approx {{sq}}$.",
+          "${{multiplier}}x-{{shift}}\\approx {{multiplier}}\\cdot {{sq}}-{{shift}}\\approx {{val}}$.",
+          "${{floorValue}}<{{val}}<{{upperValue}}$, so the value is in $({{floorValue}}, {{upperValue}})$."
         ],
-        "answerSummary": "Check the result against the relative size and number type of the original quantities."
+        "commonError": "Placing $x$ itself in an interval and forgetting to multiply and subtract.",
+        "answerSummary": "$({{floorValue}}, {{upperValue}})$"
       },
       "prompt": "If $x=\\sqrt{ {{radicand}} }$, which interval contains ${{multiplier}}x-{{shift}}$?",
       "generator": {
@@ -39338,7 +39451,9 @@
           "upperValue": "floorValue+1",
           "belowValue": "floorValue-1",
           "aboveValue": "upperValue+1",
-          "farBelow": "floorValue-2"
+          "farBelow": "floorValue-2",
+          "sq": "round(sqrt(radicand)*1000)/1000",
+          "val": "round((multiplier*sqrt(radicand)-shift)*1000)/1000"
         },
         "constraints": [
           "radicand<(lower+1)*(lower+1)",
@@ -39510,11 +39625,14 @@
         "Compare or rewrite the values in a common form before deciding which relationship is true."
       ],
       "solutionReview": {
-        "headline": "Compare the values precisely.",
+        "headline": "Squaring shows the sum of the two roots falls just short of {{twice}}: {{twice}} is greatest.",
         "reasoning": [
-          "Use exact number structure when possible; estimate a radical only when the comparison requires it."
+          "$(\\sqrt{ {{radPlus}} }+\\sqrt{ {{radMinus}} })^2={{tn2}}+2\\sqrt{ {{n4k}} }$.",
+          "$\\sqrt{ {{n4k}} }<\\sqrt{ {{n4}} }={{n2}}$, so $(p+q)^2<{{tn2}}+2\\cdot {{n2}}={{twice}}^2$ and $p+q<{{twice}}$.",
+          "$p-q$ is less than 1 because $p$ and $q$ are both close to {{n}}, and $q-p$ is negative. So {{twice}} is the greatest."
         ],
-        "answerSummary": "Check the result against the relative size and number type of the original quantities."
+        "commonError": "Assuming $p+q$ equals {{twice}} because $p$ and $q$ are both close to {{n}}.",
+        "answerSummary": "${{twice}}$"
       },
       "prompt": "Let $p=\\sqrt{ {{radPlus}} }$ and $q=\\sqrt{ {{radMinus}} }$. Which expression has the greatest value?",
       "generator": {
@@ -39533,7 +39651,11 @@
         "derived": {
           "radPlus": "n*n+k",
           "radMinus": "n*n-k",
-          "twice": "2*n"
+          "twice": "2*n",
+          "n2": "n*n",
+          "n4": "n^4",
+          "n4k": "n^4-k*k",
+          "tn2": "2*n*n"
         },
         "constraints": [
           "radMinus>0"
@@ -39704,11 +39826,14 @@
         "Compare or rewrite the values in a common form before deciding which relationship is true."
       ],
       "solutionReview": {
-        "headline": "Compare the values precisely.",
+        "headline": "A sum times a difference removes the square root.",
         "reasoning": [
-          "Use exact number structure when possible; estimate a radical only when the comparison requires it."
+          "$(a+b)(a-b)=a^2-b^2$, so the product is $(\\sqrt{ {{nonSquare}} })^2-{{c}}^2={{nonSquare}}-{{c2}}={{nc}}$, an integer.",
+          "The other three are irrational: an irrational number plus, times or divided by a nonzero rational number stays irrational.",
+          "The rational one is $(\\sqrt{ {{nonSquare}} }+{{c}})(\\sqrt{ {{nonSquare}} }-{{c}})$."
         ],
-        "answerSummary": "Check the result against the relative size and number type of the original quantities."
+        "commonError": "Thinking a product of two irrational numbers must be irrational.",
+        "answerSummary": "$(\\sqrt{ {{nonSquare}} }+{{c}})(\\sqrt{ {{nonSquare}} }-{{c}})$"
       },
       "prompt": "Exactly one expression below has a rational value. Which one is it?",
       "generator": {
@@ -39735,7 +39860,10 @@
             "max": 5
           }
         },
-        "derived": {},
+        "derived": {
+          "c2": "c*c",
+          "nc": "nonSquare-c*c"
+        },
         "constraints": []
       },
       "assessmentItemFormat": "multipleChoice",
@@ -39989,11 +40117,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Red out of the whole: $\\frac{ {{red}} }{ {{total}} }$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "There are ${{red}}+{{blue}}={{total}}$ tiles in all.",
+          "{{red}} of the {{total}} are red, so the fraction is $\\frac{ {{red}} }{ {{total}} }$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Comparing red to blue ($\\frac{ {{red}} }{ {{blue}} }$) instead of red to all tiles.",
+        "answerSummary": "$\\frac{ {{red}} }{ {{total}} }$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -40285,11 +40415,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Scale the height by the same factor as the width: {{newHeight}} inches.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "Scale factor: $\\frac{ {{newWidth}} }{ {{width}} }={{scale}}$.",
+          "New height: ${{height}}\\cdot {{scale}}={{newHeight}}$ inches."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Adding the change in width to the height instead of multiplying by the scale factor.",
+        "answerSummary": "${{newHeight}}$ inches"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -40596,11 +40728,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "{{percent}}% of {{total}}: {{answer}} people.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "{{percent}}% means $\\frac{ {{percent}} }{100}$.",
+          "$\\frac{ {{percent}} }{100}\\cdot {{total}}={{answer}}$ people."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Giving the people who did not select the response, or the percent itself.",
+        "answerSummary": "${{answer}}$ people"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -40908,11 +41042,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Part over whole, times 100: ${{percent}}\\%$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "Student tickets as a fraction of all tickets: $\\frac{ {{part}} }{ {{total}} }$.",
+          "$\\frac{ {{part}} }{ {{total}} }\\cdot 100={{percent}}$, so ${{percent}}\\%$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Giving the percent of tickets that were not student tickets.",
+        "answerSummary": "${{percent}}\\%$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -41220,11 +41356,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "The denominator is multiplied by {{k}}, so the numerator is too: $x={{answer}}$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "${{c}}={{b}}\\cdot {{k}}$, so the equivalent fraction multiplies the top by {{k}} as well.",
+          "$x={{a}}\\cdot {{k}}={{answer}}$. Check: $\\frac{ {{answer}} }{ {{c}} }=\\frac{ {{a}} }{ {{b}} }$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Adding the same amount to the numerator and the denominator instead of multiplying.",
+        "answerSummary": "$x={{answer}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -41530,11 +41668,14 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Add the red beads, then simplify: ${{ratioRed}}:{{ratioBlue}}$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "Red beads after adding: ${{redStart}}+{{addRed}}={{newRed}}$.",
+          "The ratio is {{newRed}} to {{blueCount}}; dividing both by {{scale}} gives $\\frac{ {{newRed}} }{ {{blueCount}} }=\\frac{ {{ratioRed}} }{ {{ratioBlue}} }$.",
+          "In simplest form: ${{ratioRed}}:{{ratioBlue}}$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Using the red count from before the beads were added.",
+        "answerSummary": "${{ratioRed}}:{{ratioBlue}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -41843,11 +41984,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "A percent of a percent multiplies: ${{answer}}\\%$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "{{secondPercent}}% of the {{firstPercent}}% meet both conditions.",
+          "$\\frac{ {{firstPercent}} }{100}\\cdot\\frac{ {{secondPercent}} }{100}=\\frac{ {{answer}} }{100}$, which is ${{answer}}\\%$ of the whole group."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Adding the percents, or giving the second percent as a share of the whole group.",
+        "answerSummary": "${{answer}}\\%$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -42162,11 +42305,13 @@
         "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship.",
+        "headline": "Concentrate over the new total: about ${{answer}}\\%$.",
         "reasoning": [
-          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+          "New total: ${{concentrateCount}}+{{waterCount}}+{{addedWater}}={{total}}$ cups.",
+          "Concentrate share: $\\frac{ {{concentrateCount}} }{ {{total}} }\\cdot 100\\approx {{answer}}$, so about ${{answer}}\\%$."
         ],
-        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+        "commonError": "Leaving the added water out of the total.",
+        "answerSummary": "${{answer}}\\%$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -42309,11 +42454,13 @@
         "Locate the place being rounded, then use the digit immediately to its right."
       ],
       "solutionReview": {
-        "headline": "Round at the requested place.",
+        "headline": "Look at the ones digit to round to the nearest ten: {{answer}}.",
         "reasoning": [
-          "Use the next digit to decide whether the rounding place stays the same or increases by one."
+          "${{lowT}}\\le {{n}}<{{highT}}$, and the ones digit is ${{n}}-{{lowT}}={{ones}}$.",
+          "A ones digit of 5 or more rounds up to {{highT}}; less than 5 rounds down to {{lowT}}. So {{n}} rounds to {{answer}}."
         ],
-        "answerSummary": "Check that all places to the right of the rounding place are replaced appropriately."
+        "commonError": "Rounding to the nearest hundred, or truncating instead of rounding.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "Rounding ${{n}}$ to the nearest ten gives which number?",
       "generator": {
@@ -42328,7 +42475,10 @@
           "answer": "round(n/10)*10",
           "d1": "answer+10",
           "d2": "answer-10",
-          "d3": "answer+100"
+          "d3": "answer+100",
+          "lowT": "floor(n/10)*10",
+          "highT": "floor(n/10)*10+10",
+          "ones": "n-floor(n/10)*10"
         },
         "constraints": []
       },
@@ -42419,11 +42569,13 @@
         "For the nearest hundred, inspect the tens digit."
       ],
       "solutionReview": {
-        "headline": "Use the hundreds place.",
+        "headline": "Look at the tens digit to round to the nearest hundred: {{answer}}.",
         "reasoning": [
-          "The tens digit determines whether the hundreds digit stays or increases."
+          "${{lowH}}\\le {{n}}<{{highH}}$, and the tens digit is {{tens}}.",
+          "A tens digit of 5 or more rounds up to {{highH}}; less than 5 rounds down to {{lowH}}. So {{n}} rounds to {{answer}}."
         ],
-        "answerSummary": "The rounded result should be a multiple of 100."
+        "commonError": "Rounding to the nearest ten or thousand instead.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A whole number is ${{n}}$. What is this number rounded to the nearest hundred?",
       "generator": {
@@ -42438,7 +42590,10 @@
           "answer": "round(n/100)*100",
           "d1": "answer+100",
           "d2": "answer-100",
-          "d3": "answer+1000"
+          "d3": "answer+1000",
+          "lowH": "floor(n/100)*100",
+          "highH": "floor(n/100)*100+100",
+          "tens": "floor((n-floor(n/100)*100)/10)"
         },
         "constraints": []
       },
@@ -42529,11 +42684,13 @@
         "For the nearest tenth, use the hundredths digit to make the rounding decision."
       ],
       "solutionReview": {
-        "headline": "Round the tenths digit.",
+        "headline": "Look at the hundredths digit to round to the nearest tenth: {{answer}}.",
         "reasoning": [
-          "The hundredths digit tells whether the tenths digit remains or increases."
+          "${{lo}}\\le {{value}}<{{hi}}$, and the hundredths digit is {{hd}}.",
+          "A hundredths digit of 5 or more rounds up to {{hi}}; less than 5 rounds down to {{lo}}. So {{value}} rounds to {{answer}}."
         ],
-        "answerSummary": "The result should have one digit to the right of the decimal point."
+        "commonError": "Rounding to the nearest whole number or hundredth instead.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "The decimal ${{value}}$ is rounded to the nearest tenth. Which value results?",
       "generator": {
@@ -42549,7 +42706,10 @@
           "answer": "round(n100/10)/10",
           "d1": "answer+0.1",
           "d2": "answer-0.1",
-          "d3": "answer+1"
+          "d3": "answer+1",
+          "lo": "floor(n100/10)/10",
+          "hi": "(floor(n100/10)+1)/10",
+          "hd": "n100-floor(n100/10)*10"
         },
         "constraints": []
       },
@@ -42640,11 +42800,13 @@
         "For the nearest hundredth, use the thousandths digit."
       ],
       "solutionReview": {
-        "headline": "Round the hundredths digit.",
+        "headline": "Look at the thousandths digit to round to the nearest hundredth: {{answer}}.",
         "reasoning": [
-          "The thousandths digit determines whether the hundredths digit changes."
+          "${{lo}}\\le {{value}}<{{hi}}$, and the thousandths digit is {{td}}.",
+          "A thousandths digit of 5 or more rounds up to {{hi}}; less than 5 rounds down to {{lo}}. So {{value}} rounds to {{answer}}."
         ],
-        "answerSummary": "The rounded value should be expressed to the hundredths place."
+        "commonError": "Rounding to the nearest tenth instead.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "To the nearest hundredth, what is ${{value}}$?",
       "generator": {
@@ -42660,7 +42822,10 @@
           "answer": "round(n1000/10)/100",
           "d1": "answer+0.01",
           "d2": "answer-0.01",
-          "d3": "answer+0.1"
+          "d3": "answer+0.1",
+          "lo": "floor(n1000/10)/100",
+          "hi": "(floor(n1000/10)+1)/100",
+          "td": "n1000-floor(n1000/10)*10"
         },
         "constraints": []
       },
@@ -42751,11 +42916,13 @@
         "Identify the position of the digit relative to the decimal point."
       ],
       "solutionReview": {
-        "headline": "Use decimal place value.",
+        "headline": "The hundredths place is worth one hundredth: {{answer}}.",
         "reasoning": [
-          "The first digit right of the decimal is tenths, the second is hundredths, and the third is thousandths."
+          "In {{value}}, the digits after the decimal point are tenths ({{tenths}}), hundredths ({{hundredths}}) and thousandths ({{thousandths}}).",
+          "The digit {{hundredths}} in the hundredths place is worth ${{hundredths}}\\cdot 0.01={{answer}}$."
         ],
-        "answerSummary": "Express the selected digit by its actual value, not just the digit itself."
+        "commonError": "Using the tenths place, which gives a value ten times too large.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "In the number ${{value}}$, what is the value of the digit ${{hundredths}}$ in the hundredths place?",
       "generator": {
@@ -42881,11 +43048,13 @@
         "Combine the values before applying the requested rounding place."
       ],
       "solutionReview": {
-        "headline": "Add, then round.",
+        "headline": "Add first, then round the sum: {{answer}}.",
         "reasoning": [
-          "Find the exact sum first; then use its tenths digit to round to the nearest whole number."
+          "${{aValue}}+{{bValue}}={{sum}}$.",
+          "The tenths digit decides: 5 or more rounds up, less than 5 rounds down. ${{sum}}$ rounds to {{answer}}."
         ],
-        "answerSummary": "The rounded answer should be within one-half of the exact sum."
+        "commonError": "Rounding each value before adding, which can change the result.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "The values ${{aValue}}$ and ${{bValue}}$ are added, and the sum is rounded to the nearest whole number. What is the rounded result?",
       "generator": {
@@ -43000,11 +43169,13 @@
         "Numbers within five hundredths of a tenth value round to that tenth, except at the next midpoint."
       ],
       "solutionReview": {
-        "headline": "Locate the rounding interval.",
+        "headline": "It must be within 0.05 of {{targetValue}}: {{value}}.",
         "reasoning": [
-          "Identify which candidate lies inside the interval that rounds to the stated tenth."
+          "A number rounds to {{targetValue}} at the nearest tenth when it is no more than 0.05 below it and less than 0.05 above it.",
+          "${{targetValue}}-0.05<{{value}}<{{targetValue}}+0.05$, so {{value}} rounds to {{targetValue}}."
         ],
-        "answerSummary": "Round each candidate mentally to verify the selected one reaches the target."
+        "commonError": "Choosing a value that is 0.06 or more away, which rounds to the neighboring tenth.",
+        "answerSummary": "${{value}}$"
       },
       "prompt": "Which number rounds to ${{targetValue}}$ when rounded to the nearest tenth?",
       "generator": {
@@ -43117,11 +43288,13 @@
         "Multiply first, then round the resulting quantity to the requested decimal place."
       ],
       "solutionReview": {
-        "headline": "Scale before rounding.",
+        "headline": "Multiply first, then round to the nearest tenth: {{answer}}.",
         "reasoning": [
-          "Find the unrounded product, then use the hundredths digit to round that product to the nearest tenth."
+          "${{rate}}\\cdot {{qty}}={{product}}$.",
+          "Look at the hundredths digit: 5 or more rounds up. ${{product}}\\approx {{answer}}$ to the nearest tenth."
         ],
-        "answerSummary": "Check that the rounded value is close to the exact product."
+        "commonError": "Rounding the rate before multiplying, which can change the total.",
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "A quantity of ${{rate}}$ units is repeated {{qty}} times. What is the total, rounded to the nearest tenth?",
       "generator": {

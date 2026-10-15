@@ -22140,14 +22140,14 @@
         "Track the units: the numerator should be the output change and the denominator should be the input change."
       ],
       "solutionReview": {
-        "headline": "Divide the change in temperature by the change in elevation: {{rate}} °F per 1,000 feet.",
+        "headline": "Divide the change in temperature by the change in elevation: {{rate}} °F per thousand feet.",
         "reasoning": [
           "The temperature changes by ${{T2}}-{{T1}}={{dTotal}}$ degrees.",
           "The elevation changes by ${{e2}}-{{e1}}={{de}}$ thousand feet.",
-          "Rate of change: $\\frac{{{dTotal}}}{{{de}}}={{rate}}$ °F per 1,000 feet."
+          "Rate of change: $\\frac{{{dTotal}}}{{{de}}}={{rate}}$ °F per thousand feet."
         ],
         "commonError": "Giving the total change {{dTotal}} without dividing by the {{de}} thousand feet, or dropping the minus sign: the temperature falls as the elevation rises.",
-        "answerSummary": "${{rate}}$ °F per 1,000 feet"
+        "answerSummary": "${{rate}}$ °F per thousand feet"
       },
       "ccmrContentRelease": "ccmr-fidelity-v2.1-authentic-language",
       "routingAlignmentProvenance": {
@@ -22811,7 +22811,7 @@
       "solutionReview": {
         "headline": "Change in $y$ over change in $x$: {{rate}}.",
         "reasoning": [
-          "The average rate of change between two observations is the change in $y$ divided by the change in $x$.",
+          "The average rate of change from $({{x1}},{{y1}})$ to $({{x2}},{{y2}})$ is the change in $y$ divided by the change in $x$.",
           "$\\frac{{{y2}}-{{y1}}}{{{x2}}-{{x1}}}=\\frac{{{dy}}}{{{dx}}}={{rate}}$."
         ],
         "commonError": "Subtracting the $y$-values and the $x$-values in opposite orders, which flips the sign to {{d1}}.",
@@ -39802,7 +39802,7 @@
       "solutionReview": {
         "headline": "Find $a$ from the symmetric points, then evaluate 3 units from the vertex: {{answer}}.",
         "reasoning": [
-          "The minimum is at $({{h}},{{k}})$, so the model is $a(x-{{h}})^2+{{k}}$. Two units away it gives {{y2}}: $4a={{y2}}-{{k|paren}}={{fa}}$, so $a={{a}}$.",
+          "The minimum is at $({{h}},{{k}})$, so the model is $a(x-h)^2+k$ with $h={{h}}$ and $k={{k}}$. Two units away it gives {{y2}}: $4a={{y2}}-{{k|paren}}={{fa}}$, so $a={{a}}$.",
           "At $x={{hp3}}$, three units from the vertex: ${{a}}\\cdot 3^2+{{k}}={{answer}}$."
         ],
         "commonError": "Reusing the given value {{y2}}: $x={{hp3}}$ is 3 units from the vertex, not 2.",
