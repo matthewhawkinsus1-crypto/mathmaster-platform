@@ -3,6 +3,7 @@ import {
   looksLikeFiniteSetNotation,
   normalizeAnswer,
   parseFiniteSetNotation,
+  sameDigitalSatStudentProducedResponse,
   sameFiniteSetNotation,
   sameValue,
 } from './answerEquivalence.mjs';
@@ -182,6 +183,13 @@ const isOrderedPairField = (field) => (
 
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const acceptedAnswers = answerCandidatesForField(field);
+
+  // Job P: a Digital SAT number box (set from the item by the CCMR
+  // hydration) also takes the decimal the SAT accepts.
+  if (field?.numberRules === 'digitalSAT'
+    && acceptedAnswers.some((acceptedAnswer) => sameDigitalSatStudentProducedResponse(studentAnswer, acceptedAnswer))) {
+    return true;
+  }
 
   if (isOrderedPairField(field)) {
     return acceptedAnswers.some((acceptedAnswer) => {

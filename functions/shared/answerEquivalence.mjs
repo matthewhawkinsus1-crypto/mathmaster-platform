@@ -65,7 +65,55 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value
  */
 const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false });
 
-export const normalizeAnswer = (value) => canonicalizeDivisions(normalizeStructuralMathLive(value))
+/** `abs(...)` as the bars it means, with the call's own parentheses matched. */
+const absCallsAsBars = (value) => {
+  let text = String(value ?? '');
+  for (let guard = 0; guard < 12; guard += 1) {
+    const match = /(?<![A-Za-z\\])abs\s*\(/.exec(text);
+    if (!match) break;
+    let depth = 0;
+    let close = -1;
+    for (let index = match.index + match[0].length - 1; index < text.length; index += 1) {
+      if (text[index] === '(') depth += 1;
+      else if (text[index] === ')') {
+        depth -= 1;
+        if (depth === 0) { close = index; break; }
+      }
+    }
+    if (close < 0) break;
+    text = `${text.slice(0, match.index)}|${text.slice(match.index + match[0].length, close)}|${text.slice(close + 1)}`;
+  }
+  return text;
+};
+
+/**
+ * One spelling for the same symbol, for the comparisons that read text
+ * (Job P). Each rewrite names exactly the same mathematics:
+ *
+ *   - π, `\pi` and `pi` are one constant (a `pi` inside a word is left alone);
+ *   - `|x|`, `\lvert x\rvert`, `\vert x\vert` and `abs(x)` are one absolute value;
+ *   - an exponent group: `^{n-1}` and `^(n-1)` are the same power, and so are
+ *     `^{2}`, `^(2)` and `^2`.
+ *
+ * Applied to both sides of a comparison, so it can only make two spellings of
+ * the same answer agree. It is not applied before the structural parsers
+ * (polynomials, intervals, radicals), which keep reading what they always read.
+ */
+const canonicalSymbolSpellings = (value) => {
+  let text = absCallsAsBars(String(value ?? '')
+    .replace(/\\(?:lvert|rvert|vert)(?![A-Za-z])/g, '|')
+    // `2sqrt(3)` is the keypad's `2\sqrt{3}`; `\sqrt3` is `\sqrt{3}`.
+    .replace(/(?<![A-Za-z\\])sqrt\s*\(([^()]*)\)/g, '\\sqrt{$1}')
+    .replace(/\\sqrt\s*([A-Za-z0-9])/g, '\\sqrt{$1}')
+    .replace(/\\pi(?![A-Za-z])/g, 'π')
+    .replace(/(?<![A-Za-z\\])pi(?![A-Za-z])/g, 'π'));
+  text = text.replace(/\^\{([^{}]+)\}/g, (match, body) => (
+    /^\s*-?(?:\d+(?:\.\d+)?|[A-Za-z])\s*$/.test(body) ? `^${body.trim()}` : `^(${body})`
+  ));
+  return text.replace(/\^\((-?(?:\d+(?:\.\d+)?|[A-Za-z]))\)/g, '^$1');
+};
+
+export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value))))
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')
@@ -78,8 +126,19 @@ export const normalizeAnswer = (value) => canonicalizeDivisions(normalizeStructu
   .replace(/\s+/g, '')
   .toLowerCase();
 
+// A number box answer written with its unit sign: `25%` for 25, `$12.50` for
+// 12.5 (Job P). Only a sign at the end (%) or the start ($) of a plain number
+// is dropped, so 25% is still not 0.25 and nothing else is read as a number.
+const withoutUnitSign = (text) => {
+  const percent = /^(-?(?:\d+(?:\.\d+)?|\.\d+))\\?%$/.exec(text);
+  if (percent) return percent[1];
+  const dollars = /^(-?)\\?\$(\d+(?:\.\d+)?|\.\d+)$/.exec(text);
+  if (dollars) return `${dollars[1]}${dollars[2]}`;
+  return text;
+};
+
 export const asNumber = (value) => {
-  const text = normalizeAnswer(value);
+  const text = withoutUnitSign(normalizeAnswer(value));
   if (!text) return null;
 
   const latexFraction = text.match(/^(-?)\\frac\{([^{}]+)\}\{([^{}]+)\}$/);
@@ -128,9 +187,16 @@ export const parseCanonicalIntervalNotation = (value) => {
   if (!pieces.length) return null;
   const parsed = [];
   for (const piece of pieces) {
-    const match = piece.match(/^([[(])\s*(-?∞|-?\d+(?:\.\d+)?)\s*,\s*(-?∞|-?\d+(?:\.\d+)?)\s*([\])])$/);
+    // An endpoint is ±∞, a decimal, or an exact fraction: `1/2`, `-3/4` or
+    // `\frac{1}{2}`. A fraction endpoint used to make the whole answer
+    // unreadable, so `(1/2, 3]` was wrong even typed exactly as the key (Job P).
+    const match = piece.match(/^([[(])\s*(-?∞|-?\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?|-?\\frac\{\d+(?:\.\d+)?\}\{\d+(?:\.\d+)?\})\s*,\s*(-?∞|-?\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?|-?\\frac\{\d+(?:\.\d+)?\}\{\d+(?:\.\d+)?\})\s*([\])])$/);
     if (!match) return null;
-    const endpoint = (token) => token.includes('∞') ? (token.startsWith('-') ? -Infinity : Infinity) : Number(token);
+    const endpoint = (token) => {
+      if (token.includes('∞')) return token.startsWith('-') ? -Infinity : Infinity;
+      const value = asNumber(token.replace(/\s+/g, ''));
+      return value === null ? Number.NaN : value;
+    };
     const min = endpoint(match[2]);
     const max = endpoint(match[3]);
     if (Number.isNaN(min) || Number.isNaN(max) || min > max) return null;
@@ -429,13 +495,21 @@ const normalizeFormPreservingSide = (value) => {
   return text;
 };
 
+// The same side, or the same side with its constant term written first:
+// vertex form `-3 + 2(x-4)^2` for `2(x-4)^2 - 3` (Job P). Moving a whole
+// constant term never changes any term's own form.
+const sameFormPreservingSide = (left, right) => {
+  const a = canonicalSymbolSpellings(normalizeFormPreservingSide(left));
+  const b = canonicalSymbolSpellings(normalizeFormPreservingSide(right));
+  return a === b || constantTermsLast(a) === constantTermsLast(b);
+};
+
 export const sameFormPreservingEquation = (left, right) => {
   const a = splitEquationSides(left);
   const b = splitEquationSides(right);
   if (!a || !b) return false;
 
-  return normalizeFormPreservingSide(a.left) === normalizeFormPreservingSide(b.left)
-    && normalizeFormPreservingSide(a.right) === normalizeFormPreservingSide(b.right);
+  return sameFormPreservingSide(a.left, b.left) && sameFormPreservingSide(a.right, b.right);
 };
 
 
@@ -460,7 +534,7 @@ export const sameFormPreservingExpression = (left, right) => {
   const b = String(right ?? '').trim();
   if (!a || !b) return false;
   if (a.includes('=') || b.includes('=')) return false;
-  return normalizeFormPreservingSide(a) === normalizeFormPreservingSide(b);
+  return sameFormPreservingSide(a, b);
 };
 
 export const sameExpandedPolynomialEquation = (left, right, tolerance = 1e-6) => {
@@ -786,6 +860,150 @@ export const sameSetBuilderNotation = (left, right, tolerance = 1e-6) => {
   ));
 };
 
+/**
+ * An ordered pair compared coordinate by coordinate (Job P): `(1/2, 3)`,
+ * `(0.5, 3)` and `(\frac{1}{2}, 3)` are one point. Both must be written in
+ * round brackets with exactly two numeric coordinates. Read as an open
+ * interval instead, the same two numbers name the same interval, so the
+ * verdict is the same either way.
+ */
+const numericPair = (value) => {
+  const text = normalizeAnswer(value);
+  if (!/^\(.*\)$/.test(text)) return null;
+  const parts = splitTopLevelCommaList(text.slice(1, -1));
+  if (parts.length !== 2) return null;
+  const coordinates = parts.map((part) => asNumber(part));
+  return coordinates.every((coordinate) => coordinate !== null) ? coordinates : null;
+};
+
+export const sameNumericPair = (left, right, tolerance = 1e-6) => {
+  const a = numericPair(left);
+  const b = numericPair(right);
+  return Boolean(a && b) && a.every((coordinate, index) => Math.abs(coordinate - b[index]) <= tolerance);
+};
+
+/**
+ * `x = 5` typed into a box whose key is the number 5 (Job P). Only a
+ * one-letter name on the left and a number on the right; the key itself must
+ * be a number. A key written as an equation is not read the other way round.
+ */
+const sameNumberWithVariableName = (student, key, tolerance) => {
+  if (asNumber(key) === null) return false;
+  const sides = splitEquationSides(normalizeAnswer(student));
+  if (!sides || !/^[a-z]$/.test(sides.left)) return false;
+  return sameNumber(sides.right, key, tolerance);
+};
+
+const hasInequalitySymbol = (value) => /[<>≤≥≠]|\\(?:le|ge|ne|lt|gt)/.test(String(value ?? ''));
+
+/**
+ * A side with its numeric constant terms moved to the end, in their order.
+ * `-3+2(x-4)^2` and `2(x-4)^2-3` are the same; nothing inside a bracket, a
+ * brace, bars or an exponent moves. Only a term with no letter moves:
+ * reordering terms that hold a variable is the opt-in modelEquation
+ * comparison's job, not this one's (`1/a + 1/b` stays apart from
+ * `1/b + 1/a`, and so do `1/4 + 1/6` and `1/6 + 1/4`).
+ */
+const constantTermsLast = (text) => {
+  const terms = [];
+  let token = '';
+  let sign = '+';
+  let depth = 0;
+  let insideBars = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if ('([{'.includes(char)) depth += 1;
+    else if (')]}'.includes(char)) depth = Math.max(0, depth - 1);
+    else if (char === '|' && depth === 0) insideBars = !insideBars;
+    const previous = text[index - 1];
+    const separates = depth === 0 && !insideBars && (char === '+' || char === '-') && !['^', '*', '/', '(', '[', '{', '=', '<', '>'].includes(previous);
+    if (separates) {
+      if (token) terms.push(`${sign}${token}`);
+      token = '';
+      sign = char;
+    } else {
+      token += char;
+    }
+  }
+  if (token) terms.push(`${sign}${token}`);
+  const isConstant = (term) => !/[A-Za-z]/.test(term.replace(/\\(?:frac|sqrt|cdot|times)/g, ''));
+  return [...terms.filter((term) => !isConstant(term)), ...terms.filter(isConstant)].join('');
+};
+
+/**
+ * A compound inequality as the set of numbers it describes (Job P).
+ * `x < -1 or x > 2`, `x > 2 \lor x < -1`, `-1 < x < 2`, `x > -1 and x < 2`
+ * and `x > -1 \land x < 2` are read as unions of intervals. Each clause is a
+ * simple inequality (canonicalSimpleInequality); anything else is unreadable
+ * and returns null — never a guess.
+ */
+const compoundInequalitySet = (value) => {
+  const text = normalizeStructuralMathLive(value)
+    .replace(/\\(?:lor|vee)(?![A-Za-z])|∨/g, ' or ')
+    .replace(/\\(?:land|wedge)(?![A-Za-z])|∧|&&?/g, ' and ')
+    .replace(/\\(?:text|mathrm)\{\s*(or|and)\s*\}/g, ' $1 ');
+  if (!/\s(?:or|and)\s/i.test(` ${text} `) && !/(?:<|>|≤|≥|\\le|\\ge).*(?:<|>|≤|≥|\\le|\\ge)/.test(text)) return null;
+  let variable = null;
+  const groups = text.split(/\s+or\s+/i).map((group) => {
+    let interval = { min: -Infinity, max: Infinity, minClosed: false, maxClosed: false };
+    for (const clause of group.split(/\s+and\s+/i)) {
+      const parsed = canonicalSimpleInequality(clause);
+      if (!parsed) return null;
+      if (variable !== null && parsed.variable !== variable) return null;
+      variable = parsed.variable;
+      for (const constraint of parsed.constraints) {
+        const closed = constraint.operator === '<=' || constraint.operator === '>=';
+        if (constraint.side === 'lower') {
+          if (constraint.bound > interval.min || (constraint.bound === interval.min && !closed)) interval = { ...interval, min: constraint.bound, minClosed: closed };
+        } else if (constraint.bound < interval.max || (constraint.bound === interval.max && !closed)) {
+          interval = { ...interval, max: constraint.bound, maxClosed: closed };
+        }
+      }
+    }
+    return interval;
+  });
+  if (groups.some((group) => group === null) || variable === null) return null;
+  // Drop empty pieces, then merge pieces that overlap or touch, so two
+  // spellings of the same set compare equal.
+  const pieces = groups
+    .filter((piece) => piece.min < piece.max || (piece.min === piece.max && piece.minClosed && piece.maxClosed))
+    .sort((a, b) => a.min - b.min || Number(b.minClosed) - Number(a.minClosed));
+  const merged = [];
+  for (const piece of pieces) {
+    const last = merged[merged.length - 1];
+    if (last && (piece.min < last.max || (piece.min === last.max && (piece.minClosed || last.maxClosed)))) {
+      if (piece.max > last.max || (piece.max === last.max && piece.maxClosed)) {
+        last.max = piece.max;
+        last.maxClosed = piece.maxClosed;
+      }
+    } else {
+      merged.push({ ...piece });
+    }
+  }
+  return { variable, pieces: merged };
+};
+
+export const sameCompoundInequality = (left, right, tolerance = 1e-6) => {
+  const a = compoundInequalitySet(left);
+  const b = compoundInequalitySet(right);
+  if (!a || !b || a.variable !== b.variable || a.pieces.length !== b.pieces.length) return false;
+  const same = (x, y) => x === y || (Number.isFinite(x) && Number.isFinite(y) && Math.abs(x - y) <= tolerance);
+  return a.pieces.every((piece, index) => {
+    const other = b.pieces[index];
+    return same(piece.min, other.min) && same(piece.max, other.max)
+      && (!Number.isFinite(piece.min) || piece.minClosed === other.minClosed)
+      && (!Number.isFinite(piece.max) || piece.maxClosed === other.maxClosed);
+  });
+};
+
+/** The equation comparisons that read one side against the matching side. */
+const sameEquationSideBySide = (left, right, tolerance) => (
+  sameFormPreservingEquation(left, right)
+  || sameInverseFunctionEquation(left, right, tolerance)
+  || sameExpandedPolynomialEquation(left, right, tolerance)
+  || sameLinearEquation(left, right, tolerance)
+);
+
 export const sameValue = (left, right, tolerance = 1e-6) => {
   const leftSet = parseFiniteSetNotation(left);
   const rightSet = parseFiniteSetNotation(right);
@@ -793,6 +1011,8 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
     return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
+  if (sameNumericPair(left, right, tolerance)) return true;
+  if (sameNumberWithVariableName(left, right, tolerance)) return true;
   if (sameSimpleInequality(left, right, tolerance)) return true;
   if (sameLinearInequality(left, right, tolerance)) return true;
   if (sameFormPreservingEquation(left, right)) return true;
@@ -811,5 +1031,47 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
   // It compares side against side, so it cannot accept a different FORM of the
   // same line, and it refuses above degree one so it cannot silently grade a
   // "simplify" or "vertex form" question. See functions/shared/algebraicForm.mjs.
-  return sameLinearEquation(left, right, tolerance);
+  if (sameLinearEquation(left, right, tolerance)) return true;
+  if (sameCompoundInequality(left, right, tolerance)) return true;
+  // The same equation with its sides swapped, `5 = x` for `x = 5` and
+  // `2x + 1 = y` for `y = 2x + 1` (Job P). Each side is still compared with
+  // the comparisons above, so the form a question asks for is kept.
+  const swapped = !hasInequalitySymbol(left) && !hasInequalitySymbol(right) && splitEquationSides(left);
+  return Boolean(swapped) && sameEquationSideBySide(`${swapped.right}=${swapped.left}`, right, tolerance);
+};
+
+/**
+ * Digital SAT student-produced responses: the College Board's own rules for a
+ * decimal that does not fit (Job P). Only for SAT-framework items — the
+ * caller decides that from the item, never from the response.
+ *
+ * The SAT's directions: a positive answer fits in 5 characters, a negative one
+ * in 6 (the minus sign counts); "if your answer is a decimal that doesn't fit
+ * in the provided space, enter it by truncating or rounding at the fourth
+ * digit". Their example for 2/3 accepts 2/3, .6666, .6667, 0.666 and 0.667,
+ * and rejects 0.66, .66, 0.67 and .67; for −1/3 it accepts −.3333 and −0.333.
+ *
+ * So a decimal is right when it FILLS the space (5 or 6 characters, the
+ * leading zero optional) and is the key truncated or rounded to the places it
+ * shows. `0.781` and `.7808` for 57/73 are right; `0.78` is not, although it
+ * is the number `0.780` (the spelling decides, which is why this reads the
+ * typed text and not just its value). Exact answers are graded as before.
+ */
+export const sameDigitalSatStudentProducedResponse = (student, key) => {
+  const typed = String(student ?? '').trim().replace(UNICODE_MINUS, '-');
+  const match = /^(-?)(\d*)\.(\d+)$/.exec(typed);
+  if (!match) return false;
+  const negative = match[1] === '-';
+  if (typed.length !== (negative ? 6 : 5)) return false;
+  const value = asNumber(key);
+  if (value === null || (value < 0) !== negative || value === 0) return false;
+  const places = match[3].length;
+  const scale = 10 ** places;
+  const magnitude = Math.abs(value) * scale;
+  // A tiny nudge so a key whose product lands a hair under an integer in
+  // floating point (0.29 * 100 = 28.999...) truncates to the same digit.
+  const truncated = Math.floor(magnitude + 1e-9) / scale;
+  const rounded = Math.round(magnitude + 1e-9) / scale;
+  const typedMagnitude = Math.abs(Number(typed));
+  return [truncated, rounded].some((candidate) => Math.abs(candidate - typedMagnitude) < 1e-12);
 };
