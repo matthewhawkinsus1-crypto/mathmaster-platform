@@ -54,6 +54,7 @@ The literal order:
 - *Why it matters:* The student cannot submit the item at all on a phone.
 - *Suggested fix:* Only pin the reference panel while an editor in the second panel has focus. That is the rule `WorkViewShell.css:268` already uses for Work View. Alternatively, keep the second panel's action row clear of the sticky region with a sticky-bottom action row.
 - *Not fixed here:* the rule is shared mobile layout that the Work View browser matrix certifies, so the fix belongs in its own PR. Screenshot: `l2-phone-wu1-check-covered-by-sticky-graph.png`.
+- *Fixed after this walkthrough:* the pin is gone, and the graph scrolls with its controls as it does in Work View. `tests/browser/phoneToolPanelReach.mjs` taps each Graphing item's Check by touch at 390×844 and 360×640, and runs in the student-runtime gate. Screenshot: `l2-phone-wu1-check-reachable-after-fix.png`.
 
 ### P1
 

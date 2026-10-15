@@ -301,9 +301,9 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
 /*
  * THE EMBEDDED PHONE LAYOUT STANDS DOWN INSIDE WORK VIEW.
  *
- * MathToolMobileLayout pins a graph panel at 46dvh with its own scrollbar so a
- * student can read the graph while scrolling to the answer below it. That is
- * right for the embedded column and wrong here: Work View already gives the
+ * MathToolMobileLayout used to pin a graph panel at 46dvh with its own
+ * scrollbar (removed Oct 15, 2026: in the embedded phone column it covered the
+ * whole workspace, and with it Graphing's Check). It was also wrong here: Work View already gives the
  * workspace the majority of the screen and scrolls as one surface, so the cap
  * cut a 680px workspace down to 388 and clipped the zoom buttons half-way
  * through their own row. `!important` because the rule it answers is itself
