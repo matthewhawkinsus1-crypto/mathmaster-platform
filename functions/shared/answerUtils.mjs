@@ -5,6 +5,7 @@ import {
   parseFiniteSetNotation,
   sameDigitalSatStudentProducedResponse,
   sameFiniteSetNotation,
+  sameNumberWithThousandsSeparators,
   sameValue,
 } from './answerEquivalence.mjs';
 import { sameEquivalentExpression } from './equivalentExpression.mjs';
@@ -181,6 +182,40 @@ const isOrderedPairField = (field) => (
   field?.answerFormat === 'orderedPair' || field?.inputContract?.format === 'orderedPair'
 );
 
+// Field declarations whose answer is several values separated by commas. In
+// these, `1,234` is two entries, never one thousand two hundred thirty-four.
+const COMMA_SEPARATED_FORMATS = new Set([
+  'orderedpair', 'coordinate', 'coordinates', 'point', 'tuple', 'vector',
+  'interval', 'intervalnotation', 'set', 'setnotation', 'setbuilder',
+  'numericset', 'list', 'roster', 'sequence', 'matrix',
+]);
+
+/**
+ * Does this field expect ONE number, so a thousands separator in it (or in its
+ * key) is grouping rather than a separator between values?
+ *
+ * Refused for anything declared comma-separated, for opt-in element partial
+ * credit (a roster), and for Digital SAT number boxes, whose rules do not
+ * accept commas.
+ */
+export const fieldAcceptsThousandsSeparators = (field = {}) => {
+  if (field?.numberRules === 'digitalSAT') return false;
+  if (field?.partialCredit === 'matchedElements') return false;
+  return ![
+    field?.equivalence,
+    field?.answerFormat,
+    field?.inputContract?.format,
+    field?.notation,
+    field?.inputMode,
+    field?.inputProfile,
+    field?.toolProfile,
+  ].some((value) => COMMA_SEPARATED_FORMATS.has(String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')));
+};
+
+/** A single-number answer written with (or keyed with) thousands separators. */
+export const matchesAnyNumberWithThousandsSeparators = (studentAnswer, acceptedAnswers = []) =>
+  acceptedAnswers.some((acceptedAnswer) => sameNumberWithThousandsSeparators(studentAnswer, acceptedAnswer));
+
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const acceptedAnswers = answerCandidatesForField(field);
 
@@ -196,6 +231,11 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
       const expectedPair = Array.isArray(acceptedAnswer) ? acceptedAnswer : parseOrderedPair(acceptedAnswer);
       return expectedPair ? compareOrderedPair(studentAnswer, expectedPair) : false;
     });
+  }
+
+  if (fieldAcceptsThousandsSeparators(field)
+    && matchesAnyNumberWithThousandsSeparators(studentAnswer, acceptedAnswers)) {
+    return true;
   }
 
   if (field?.gradingMode === 'equivalentExpression') {
