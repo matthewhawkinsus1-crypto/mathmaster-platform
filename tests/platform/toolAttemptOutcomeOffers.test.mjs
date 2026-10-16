@@ -32,6 +32,10 @@ const code = (path) => executableSource(readFileSync(new URL(path, ROOT), 'utf8'
 const withToolShell = async (run) => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' });
   try {
+    // Translate is offered only once MathMaster knows it can translate
+    // (SupportedText.jsx, pass 3 HELP-3): with the student's pack loaded,
+    // that is known on the first paint.
+    await (await server.ssrLoadModule('/src/platform/language/translationProviders.js')).loadLanguagePack('es');
     return await run(await server.ssrLoadModule('/src/tools/shared/ToolShell.jsx'));
   } finally {
     await server.close();
@@ -56,8 +60,23 @@ test('the region says the tool\'s words with the outcome, and offers the hint, R
     assert.match(offered, /<span data-attempt-outcome-tool-words=""[^>]*position:absolute[^>]*> Point P1 is on the line, but the other one is not\. Keep the good point and move the other\.<\/span>/);
     assert.ok(offered.indexOf(COACHING) < offered.indexOf('Focus on: Domain restriction.'), 'why, then what to focus on');
     assert.match(offered, /aria-label="Read the feedback aloud"/);
-    assert.match(offered, /aria-label="Translate the feedback"/);
+    // The tool's own coaching is English-only text (H-114): Translate says so
+    // in words instead of being a button that fails.
+    assert.doesNotMatch(offered, /aria-label="Translate the feedback"/);
+    assert.match(offered, /No Spanish translation for this text yet\./);
+    // A platform miss message is in the Spanish pack: Translate is offered.
+    const platformMiss = renderToStaticMarkup(React.createElement(AttemptOutcomeWords, {
+      outcome: { ...MISS, readAloud: { language: 'en' }, translation: { language: 'es' }, onEvidence: () => {} },
+      detail: 'Check the order of your slope fraction.',
+    }));
+    assert.match(platformMiss, /aria-label="Translate the feedback"/);
+    assert.doesNotMatch(platformMiss, /No Spanish translation/);
     assert.match(offered, /A hint is ready if you want one\.\s*<button type="button"[^>]*>Show a hint<\/button>/);
+
+    // A language with no pack: no dead Translate button, and the student is told.
+    const vietnamese = render({ ...MISS, readAloud: { language: 'en' }, translation: { language: 'vi' }, onEvidence: () => {} });
+    assert.doesNotMatch(vietnamese, /aria-label="Translate the feedback"/);
+    assert.match(vietnamese, /Translate isn’t available in Vietnamese yet\./);
 
     // Only what the student is entitled to, and only what is ready.
     const plain = render({ ...MISS });
