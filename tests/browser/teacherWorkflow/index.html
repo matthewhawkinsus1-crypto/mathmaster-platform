@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MathMaster teacher-workflow harness (in-memory, no production)</title>
+    <!-- The app's own icon (index.html). Without one Chromium asks for /favicon.ico,
+         which does not exist, and its 404 is a console error the journeys count:
+         the message carries no URL, so their "favicon" filter cannot see it. -->
+    <link rel="icon" type="image/svg+xml" href="/mathmaster-icon.svg" />
   </head>
   <body>
     <div id="root"></div>
