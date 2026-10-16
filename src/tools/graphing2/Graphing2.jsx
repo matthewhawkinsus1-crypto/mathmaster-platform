@@ -13,6 +13,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
 import { lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
 import { lineReadoutLatex, lineReadoutText } from './lineReadout.js';
+import { placePoint } from './placePoint.js';
 import MathDisplay from '../../MathDisplay';
 import { constructionReadyToCheck, requiredConstructionPointCount, resolveConstructionPolicy } from './constructionPolicy';
 import { toFraction, formatFraction } from '../shared/linearEquations.js';
@@ -213,7 +214,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
 
   const plot = (point) => {
     clearFeedback();
-    setPoints((current) => (current.length >= requiredPointCount ? [point] : [...current, point]));
+    // A point past the last replaces the nearest one; it no longer restarts the line (placePoint.js).
+    setPoints((current) => placePoint(current, point, requiredPointCount));
   };
 
   /*
@@ -276,7 +278,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const clear = () => { setPoints([]); clearFeedback(); };
 
   const plottedPoints = [
-    ...givenPoints.map((point, index) => ({ x: point[0], y: point[1], label: givenPoints.length > 1 ? `given ${index + 1}` : 'given', fill: '#8a3ffc' })),
+    // Given points are squares and the student's are dots, so "given" and
+    // "yours" never rest on purple vs blue alone (A11Y-4); each is labelled too.
+    ...givenPoints.map((point, index) => ({ x: point[0], y: point[1], label: givenPoints.length > 1 ? `given ${index + 1}` : 'given', fill: '#8a3ffc', shape: 'square' })),
     ...points.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}`, fill: '#1a73e8' })),
   ];
   const studentLines = studentLine?.kind === 'slopeIntercept' ? [{ m: studentLine.m, b: studentLine.b, stroke: '#1a73e8' }] : [];
@@ -400,9 +404,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
             {verticalStudentLine}
           </CoordinatePlane>
           {givenPoints.length ? (
-            <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0 }}>
-              <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#8a3ffc', marginRight: 6 }} />
-              Purple points are given to you. Blue points are yours.
+            <p data-graphing-legend="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px' }}>
+              <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#8a3ffc', marginRight: 6, verticalAlign: 'middle' }} />Purple squares labelled “given” are given to you.</span>
+              <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#1a73e8', marginRight: 6, verticalAlign: 'middle' }} />Blue dots labelled P1, P2 are yours.</span>
             </p>
           ) : null}
         </Panel>

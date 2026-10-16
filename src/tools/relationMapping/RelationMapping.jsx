@@ -1,4 +1,4 @@
-import React, { useCallback, useId, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -18,9 +18,11 @@ import relationMappingGrader, {
   uniqueSorted,
 } from '../../../functions/shared/serverGrading/tools/relationMapping.mjs';
 import { givenRelationInstruction } from './relationMappingCopy.js';
+import { arrowText, domainNodeName, mappingStatus, orderedArrows, rangeNodeName } from './arrowDescriptions.js';
 import { FUNCTION_CHOICES } from '../../../functions/shared/relationFunctionChoice.mjs';
 import { useSubmitLabel } from '../shared/ToolRuntimeContext';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
+import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import {
   RELATION_PLOT_PAD,
   RELATION_PLOT_SIZE,
@@ -197,6 +199,8 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
   const [arrows, setArrows] = usePersistentToolState('arrows', []);
   const [selectedDomain, setSelectedDomain] = useState(null);
+  // What the last arrow press did, said in the status line (TOOL-10).
+  const [lastArrowChange, setLastArrowChange] = useState(null);
   const [domainAnswer, setDomainAnswer] = usePersistentToolState('domainAnswer', '');
   const [rangeAnswer, setRangeAnswer] = usePersistentToolState('rangeAnswer', '');
   const [functionAnswer, setFunctionAnswer] = usePersistentToolState('functionAnswer', '');
@@ -208,6 +212,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     setArrows(state.arrows); setDomainAnswer(state.domainAnswer); setRangeAnswer(state.rangeAnswer);
     setFunctionAnswer(state.functionAnswer); setFieldAnswers(state.fieldAnswers);
     setPlottedPoints(state.plottedPoints); setPlotX(state.plotX); setPlotY(state.plotY);
+    setLastArrowChange(null);
   }, []);
   const undoHistory = useMathUndoHistory({
     label: 'Undo the latest mapping edit',
@@ -226,12 +231,35 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
   const toggleArrow = (x, y) => {
     clearFeedback();
+    const exists = arrows.some((arrow) => arrow[0] === x && arrow[1] === y);
+    setLastArrowChange({ kind: exists ? 'removed' : 'added', x, y });
     setArrows((current) => {
       const existing = current.findIndex((arrow) => arrow[0] === x && arrow[1] === y);
       if (existing >= 0) return current.filter((_, index) => index !== existing);
       return [...current, [x, y]];
     });
   };
+
+  // Removing an arrow removes the button that was pressed: focus goes to the
+  // arrow now in its place (or the one before), and after the last one to the
+  // diagram's first value, where the next arrow starts — never to the top of
+  // the page (A11Y-2).
+  const arrowListRef = useRef(null);
+  const diagramRef = useRef(null);
+  const [arrowFocusIndex, setArrowFocusIndex] = useState(null);
+  useEffect(() => {
+    if (arrowFocusIndex == null) return;
+    const buttons = arrowListRef.current?.querySelectorAll('button') || [];
+    const target = buttons[Math.min(arrowFocusIndex, buttons.length - 1)] || diagramRef.current?.querySelector('[data-domain-node]');
+    target?.focus?.();
+    setArrowFocusIndex(null);
+  }, [arrowFocusIndex, arrows]);
+  const removeArrowAt = (x, y, index) => {
+    toggleArrow(x, y);
+    setArrowFocusIndex(index);
+  };
+  const clearArrowsAvailability = useFocusSafeDisabled(arrows.length > 0);
+  const listedArrows = orderedArrows(arrows, domainValues, rangeValues);
 
   const handleRangeClick = (y) => {
     if (selectedDomain == null) return;
@@ -391,12 +419,12 @@ export default function RelationMapping({ questionData = {}, onAction }) {
       }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
-          <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)' }}>
-            <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.domainLabel || 'Domain (x)'}</text>
-            <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.rangeLabel || 'Range (y)'}</text>
+          <svg ref={diagramRef} viewBox={`0 0 ${WIDTH} ${height}`} role="group" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)' }}>
+            <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.domainLabel || 'Domain (x)'}</text>
+            <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.rangeLabel || 'Range (y)'}</text>
 
-            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} fill="#f4f8ff" stroke="#9bb8e8" strokeWidth="2" />
-            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} fill="#f7f4ff" stroke="#b9a3e8" strokeWidth="2" />
+            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary-border)' }} strokeWidth="2" />
+            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent-border)' }} strokeWidth="2" />
 
             {arrows.map(([x, y], index) => {
               const from = domainValues.indexOf(x);
@@ -407,13 +435,13 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                   key={index}
                   x1={LEFT_X + 40} y1={yFor(from, domainValues.length)}
                   x2={RIGHT_X - 40} y2={yFor(to, rangeValues.length)}
-                  stroke="#1a73e8" strokeWidth="2.5" markerEnd="url(#arrowhead)"
+                  style={{ stroke: 'var(--mm-primary)' }} strokeWidth="2.5" markerEnd="url(#arrowhead)"
                 />
               );
             })}
             <defs>
               <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                <path d="M0,0 L8,4 L0,8 z" fill="#1a73e8" />
+                <path d="M0,0 L8,4 L0,8 z" style={{ fill: 'var(--mm-primary)' }} />
               </marker>
             </defs>
 
@@ -424,14 +452,14 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                 role="button"
                 tabIndex={0}
                 aria-pressed={selectedDomain === value}
-                aria-label={`Domain value ${value}`}
+                aria-label={domainNodeName(value, listedArrows, { selected: selectedDomain === value })}
                 onClick={() => { clearFeedback(); setSelectedDomain(selectedDomain === value ? null : value); }}
                 onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); clearFeedback(); setSelectedDomain(selectedDomain === value ? null : value); } }}
                 style={{ cursor: 'pointer' }}
               >
-                <circle cx={LEFT_X} cy={yFor(index, domainValues.length)} r="17" fill={selectedDomain === value ? '#1a73e8' : '#fff'} stroke="#1a73e8" strokeWidth="2" />
+                <circle cx={LEFT_X} cy={yFor(index, domainValues.length)} r="17" style={{ fill: selectedDomain === value ? 'var(--mm-primary)' : 'var(--mm-surface)', stroke: 'var(--mm-primary)' }} strokeWidth="2" />
                 {/* The label must not swallow the click aimed at its circle. */}
-                <text pointerEvents="none" x={LEFT_X} y={yFor(index, domainValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" fill={selectedDomain === value ? '#fff' : '#174ea6'}>{value}</text>
+                <text pointerEvents="none" x={LEFT_X} y={yFor(index, domainValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: selectedDomain === value ? 'var(--mm-on-primary)' : 'var(--mm-primary-text)' }}>{value}</text>
               </g>
             ))}
 
@@ -441,24 +469,40 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                 data-range-node={value}
                 role="button"
                 tabIndex={0}
-                aria-label={`Range value ${value}`}
+                aria-label={rangeNodeName(value, listedArrows)}
                 onClick={() => handleRangeClick(value)}
                 onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleRangeClick(value); } }}
                 style={{ cursor: selectedDomain == null ? 'default' : 'pointer' }}
               >
-                <circle cx={RIGHT_X} cy={yFor(index, rangeValues.length)} r="17" fill="#fff" stroke="#8a3ffc" strokeWidth="2" opacity={selectedDomain == null ? 0.55 : 1} />
-                <text pointerEvents="none" x={RIGHT_X} y={yFor(index, rangeValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" fill="#6f2da8">{value}</text>
+                <circle cx={RIGHT_X} cy={yFor(index, rangeValues.length)} r="17" style={{ fill: 'var(--mm-surface)', stroke: 'var(--mm-accent)' }} strokeWidth="2" opacity={selectedDomain == null ? 0.55 : 1} />
+                <text pointerEvents="none" x={RIGHT_X} y={yFor(index, rangeValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: 'var(--mm-accent-text)' }}>{value}</text>
               </g>
             ))}
           </svg>
 
-          <p aria-live="polite" style={{ marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
-            {selectedDomain != null
-              ? `${selectedDomain} selected — now click the value it maps to.`
-              : `${arrows.length} arrow${arrows.length === 1 ? '' : 's'} drawn.`}
+          <p aria-live="polite" data-mapping-status="" style={{ marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+            {mappingStatus({ selectedDomain, arrows, lastChange: lastArrowChange })}
           </p>
+          {/* Every arrow in words, each with its own Remove: the diagram can be
+              reviewed and corrected without seeing it (TOOL-10). */}
+          {arrows.length ? (
+            <ul ref={arrowListRef} aria-label="Arrows you drew" data-mapping-arrows="" style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {listedArrows.map(([x, y], index) => (
+                <li key={`${x}|${y}`}>
+                  <button
+                    type="button"
+                    onClick={() => removeArrowAt(x, y, index)}
+                    aria-label={`Remove the arrow ${x} to ${y}`}
+                    style={{ ...secondaryButton, padding: '7px 10px', minHeight: 44 }}
+                  >
+                    {arrowText([x, y])} <span aria-hidden="true">×</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button type="button" onClick={() => { clearFeedback(); setArrows([]); setSelectedDomain(null); }} disabled={!arrows.length} style={{ ...secondaryButton, opacity: arrows.length ? 1 : 0.5 }}>Clear arrows</button>
+            <button type="button" {...clearArrowsAvailability} onClick={() => { if (!arrows.length) return; clearFeedback(); setArrows([]); setSelectedDomain(null); setLastArrowChange({ kind: 'cleared' }); }} style={{ ...secondaryButton, opacity: arrows.length ? 1 : 0.5 }}>Clear arrows</button>
           </div>
         </Panel>
 

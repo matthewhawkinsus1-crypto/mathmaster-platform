@@ -7,14 +7,21 @@ import '../../src/App.css';
 
 let current = null;
 const listeners = new Set();
-window.__mmStage4 = (toolId) => { current = toolId; listeners.forEach((listener) => listener(toolId)); };
+// `spec` (optional) is merged over the tool's sample, and `scene` names a
+// variant so the same tool can be mounted afresh (darkModeCertification's
+// plotted scenes: given points, the 3D model, a drawn mapping diagram).
+window.__mmStage4 = (toolId, spec = null, scene = '') => {
+  current = { toolId, spec, scene };
+  listeners.forEach((listener) => listener(current));
+};
 
 function StudentCertificationShell() {
-  const [toolId, setToolId] = useState(current);
-  useEffect(() => { listeners.add(setToolId); return () => listeners.delete(setToolId); }, []);
-  if (!toolId) return <main data-stage4-idle="true">Waiting for certification scene</main>;
-  const question = { id: `stage4-${toolId}`, questionId: `stage4-${toolId}`, type: toolId, prompt: `Complete the ${toolId} activity.`, ...SAMPLE_SPECS[toolId] };
-  return <div className="app-container" data-stage4-tool={toolId}>
+  const [mounted, setMounted] = useState(current);
+  useEffect(() => { listeners.add(setMounted); return () => listeners.delete(setMounted); }, []);
+  if (!mounted) return <main data-stage4-idle="true">Waiting for certification scene</main>;
+  const { toolId, spec, scene } = mounted;
+  const question = { id: `stage4-${toolId}${scene ? `-${scene}` : ''}`, questionId: `stage4-${toolId}${scene ? `-${scene}` : ''}`, type: toolId, prompt: `Complete the ${toolId} activity.`, ...SAMPLE_SPECS[toolId], ...(spec || {}) };
+  return <div className="app-container" data-stage4-tool={toolId} data-stage4-scene={scene || undefined}>
     <section className="mathmaster-theme-certification-fixtures" aria-label="Theme control fixtures">
       <label>Text answer <input placeholder="Enter an answer" /></label>
       <label>Choose a method <select defaultValue="model"><option value="model">Use a model</option><optgroup label="Other"><option value="table">Use a table</option></optgroup></select></label>
@@ -29,7 +36,7 @@ function StudentCertificationShell() {
       <div className="mathmaster-question-number-strip" aria-label="Classwork questions"><button type="button" className="mathmaster-question-number is-current">1</button><button type="button">2</button><button type="button">3</button></div>
     </nav>
     <main className="mathmaster-question-stage">
-      <QuestionEngine key={toolId} question={question} generationKey={`stage4-${toolId}`} questionRecord={null} onGrade={() => {}} onStepGrade={() => {}} studentProfile={{}} activityRole="classwork" maximumAttempts={3} assignmentId="stage4-certification" executionScope="student" />
+      <QuestionEngine key={`${toolId}:${scene}`} question={question} generationKey={`stage4-${toolId}${scene ? `-${scene}` : ''}`} questionRecord={null} onGrade={() => {}} onStepGrade={() => {}} studentProfile={{}} activityRole="classwork" maximumAttempts={3} assignmentId="stage4-certification" executionScope="student" />
     </main>
   </div>;
 }
