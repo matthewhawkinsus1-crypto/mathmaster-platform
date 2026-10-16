@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -9,6 +9,21 @@ import useReportToolWork from '../shared/useReportToolWork.js';
 import openSortBoardGrader from '../../../functions/shared/serverGrading/tools/openSortBoard.mjs';
 import { openSortProgress, openSortSettings } from './openSortMath';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
+import {
+  cardName,
+  categoryButtonName,
+  focusAfterPlacement,
+  focusAfterRemovingGroup,
+  focusAfterReturn,
+  groupNameInputLabel,
+  placeButtonName,
+  placeButtonText,
+  placedCardName,
+  placementAnnouncement,
+  removeGroupName,
+} from './openSortBoardA11y.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
@@ -74,6 +89,8 @@ const SortItemPreview = ({ item }) => {
   return item?.text ? <div style={{ marginTop: 7, color: 'var(--mm-text)', lineHeight: 1.45 }}>{item.text}</div> : null;
 };
 
+const srOnly = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 };
+
 const emptyGroups = (count) => Array.from({ length: count }, (_, index) => ({ id: `group-${index + 1}`, name: '', rationale: '', itemIds: [] }));
 
 export default function OpenSortBoard({ questionData = {}, onAction }) {
@@ -88,24 +105,86 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
       : emptyGroups(minGroups)
   ));
   const [selectedId, setSelectedId] = useState(null);
+  // Speech, not work: the polite read-out of the last placement (A11Y-7).
+  const [announcement, setAnnouncement] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const { unassigned, usedGroups, namesComplete, rationaleComplete, ready } = openSortProgress({ settings, items, groups });
+
+  /*
+   * UNIVERSAL UNDO (TOOL-2). The board's whole answer is `groups`: placements,
+   * group names, explanations, and which groups exist — so removing a group,
+   * with its name and its two-sentence explanation, is one Undo away. A run of
+   * typing in one name or explanation is one step (mathUndoStack.js). The
+   * history is this device's only and never rides the synced draft
+   * (persistedMathUndo.js).
+   */
+  const undoState = useMemo(() => ({ groups }), [groups]);
+  const restoreBoard = useCallback((restored) => {
+    setGroups(Array.isArray(restored?.groups) ? restored.groups : []);
+    setSelectedId(null);
+    setAnnouncement('');
+    clearFeedback();
+  }, [setGroups, clearFeedback]);
+  useMathUndoHistory({
+    label: 'Undo your last change to the sort',
+    state: undoState,
+    onRestore: restoreBoard,
+    resetKey: questionUndoResetKey(questionData),
+    persist: true,
+  });
+
+  /*
+   * WHERE FOCUS GOES AFTER A PRESS (A11Y-2, openSortBoardA11y.js). Asked for by
+   * the handler, resolved after the board has re-rendered, so the target
+   * exists: cards and group headings are found by their data attributes.
+   */
+  const boardRef = useRef(null);
+  const [focusRequest, setFocusRequest] = useState(null);
+  useEffect(() => {
+    if (!focusRequest) return;
+    setFocusRequest(null);
+    const root = boardRef.current;
+    if (!root) return;
+    const target = focusRequest.kind === 'card'
+      ? root.querySelector(`[data-sort-card="${CSS.escape(focusRequest.id)}"]`)
+      : root.querySelector(`[data-sort-group="${CSS.escape(focusRequest.id)}"] h3`);
+    if (!target) return;
+    if (target.tagName === 'H3') target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: false });
+  }, [focusRequest]);
+
+  const itemById = (id) => items.find((item) => String(item.id) === String(id));
 
   const updateGroup = (id, patch) => {
     clearFeedback();
     setGroups((current) => current.map((group) => group.id === id ? { ...group, ...patch } : group));
   };
 
+  const announcePlacement = (itemId, groupId) => {
+    const index = groups.findIndex((group) => group.id === String(groupId));
+    if (index < 0) return;
+    setAnnouncement(placementAnnouncement({
+      card: cardName(itemById(itemId), itemId),
+      group: groups[index],
+      index,
+      remaining: unassigned.filter((item) => String(item.id) !== String(itemId)).length,
+      controlled,
+    }));
+  };
+
   const moveSelected = (groupId) => {
     if (!selectedId) return;
     clearFeedback();
+    const placed = selectedId;
     setGroups((current) => current.map((group) => ({
       ...group,
       itemIds: group.id === groupId
-        ? [...group.itemIds.filter((id) => id !== selectedId), selectedId]
-        : group.itemIds.filter((id) => id !== selectedId),
+        ? [...group.itemIds.filter((id) => id !== placed), placed]
+        : group.itemIds.filter((id) => id !== placed),
     })));
     setSelectedId(null);
+    announcePlacement(placed, groupId);
+    setFocusRequest(focusAfterPlacement({ unplacedBefore: unassigned, placedId: placed, groupId }));
   };
 
   const placeItem = (itemId, groupId) => {
@@ -119,12 +198,18 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
         : group.itemIds.filter((entry) => entry !== id),
     })));
     setSelectedId(null);
+    announcePlacement(id, groupId);
+    setFocusRequest(focusAfterPlacement({ unplacedBefore: unassigned, placedId: id, groupId }));
   };
 
   const returnItem = (itemId) => {
     clearFeedback();
     setGroups((current) => current.map((group) => ({ ...group, itemIds: group.itemIds.filter((id) => id !== itemId) })));
     setSelectedId(itemId);
+    setAnnouncement('');
+    // The button pressed was the placed card, which is gone from its group:
+    // focus follows the card back to the cards still to place.
+    setFocusRequest(focusAfterReturn(itemId));
   };
 
   const addGroup = () => {
@@ -137,6 +222,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
     if (groups.length <= minGroups) return;
     setGroups((current) => current.filter((group) => group.id !== id));
     clearFeedback();
+    setFocusRequest(focusAfterRemovingGroup({ groupsBefore: groups, removedId: id }));
   };
 
   // The student's work: exactly the groups on the board. Reported live so a
@@ -158,8 +244,6 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
       { mode: controlled ? 'controlled' : 'open', parts: result.parts },
     );
   };
-
-  const itemById = (id) => items.find((item) => String(item.id) === String(id));
 
   return (
     <ToolShell
@@ -188,63 +272,75 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
         note={controlled ? 'The categories are fixed, so the automatic grade checks the exact mathematical classification.' : 'Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose.'}
       />
 
+      <p role="status" aria-live="polite" style={srOnly}>{announcement}</p>
+
       {controlled ? (
-        <>
+        <div ref={boardRef}>
           <Panel title={`Cards to classify (${unassigned.length} remaining)`}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 12 }}>
-              {unassigned.map((item) => (
-                <div key={item.id} style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 12, padding: 10, background: 'var(--mm-surface)' }}>
-                  <strong style={{ display: 'block', marginBottom: 6 }}>{item.label || item.id}</strong>
-                  <SortItemPreview item={item} />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: 8, marginTop: 10 }}>
-                    {categories.map((category) => (
-                      <button
-                        key={category.id}
-                        type="button"
-                        onClick={() => placeItem(item.id, category.id)}
-                        style={{ ...button, minHeight: 48, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
-                      >
-                        {category.label}
-                      </button>
-                    ))}
+              {unassigned.map((item) => {
+                const card = cardName(item);
+                return (
+                  <div key={item.id} style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 12, padding: 10, background: 'var(--mm-surface)' }}>
+                    <strong style={{ display: 'block', marginBottom: 6 }}>{card}</strong>
+                    <SortItemPreview item={item} />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: 8, marginTop: 10 }}>
+                      {categories.map((category, categoryIndex) => (
+                        <button
+                          key={category.id}
+                          type="button"
+                          // The first category of each card is where focus lands
+                          // when the card before it is placed (A11Y-2).
+                          data-sort-card={categoryIndex === 0 ? String(item.id) : undefined}
+                          aria-label={categoryButtonName({ category, card })}
+                          onClick={() => placeItem(item.id, category.id)}
+                          style={{ ...button, minHeight: 48, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
+                        >
+                          {category.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {!unassigned.length && <p style={{ color: 'var(--mm-success-text)', fontWeight: 800 }}>✓ Every card has been classified.</p>}
             </div>
           </Panel>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: 12, marginTop: 12 }}>
-            {groups.map((group) => (
-              <Panel key={group.id} title={group.name}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52 }}>
-                  {group.itemIds.map((id) => {
-                    const item = itemById(id);
-                    return (
-                      <button
-                        type="button"
-                        key={id}
-                        onClick={() => returnItem(id)}
-                        title="Tap to move this card again"
-                        style={{ ...button, minHeight: 40, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
-                      >
-                        {item?.label || id} ↩
-                      </button>
-                    );
-                  })}
-                  {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards here yet.</span>}
-                </div>
-              </Panel>
+            {groups.map((group, groupIndex) => (
+              <div key={group.id} data-sort-group={group.id}>
+                <Panel title={group.name}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52 }}>
+                    {group.itemIds.map((id) => {
+                      const card = cardName(itemById(id), id);
+                      return (
+                        <button
+                          type="button"
+                          key={id}
+                          onClick={() => returnItem(id)}
+                          aria-label={placedCardName({ card, group, index: groupIndex, controlled: true })}
+                          title="Tap to move this card again"
+                          style={{ ...button, minHeight: 40, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
+                        >
+                          {card} <span aria-hidden="true">↩</span>
+                        </button>
+                      );
+                    })}
+                    {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards here yet.</span>}
+                  </div>
+                </Panel>
+              </div>
             ))}
           </div>
-        </>
+        </div>
       ) : (
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 240px), 0.85fr) minmax(0, 1.65fr)', gap: 18 }} className="mathmaster-open-sort-layout">
+      <div ref={boardRef} style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 240px), 0.85fr) minmax(0, 1.65fr)', gap: 18 }} className="mathmaster-open-sort-layout">
         <Panel title={`Cards to sort (${unassigned.length} remaining)`}>
           <div style={{ display: 'grid', gap: 10 }}>
             {unassigned.map((item) => (
-              <button key={item.id} type="button" onClick={() => setSelectedId(String(item.id))} aria-pressed={selectedId === String(item.id)} style={{ ...button, textAlign: 'left', border: selectedId === String(item.id) ? '3px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: selectedId === String(item.id) ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)' }}>
-                <strong>{item.label || item.id}</strong>
+              <button key={item.id} type="button" data-sort-card={String(item.id)} onClick={() => setSelectedId(String(item.id))} aria-pressed={selectedId === String(item.id)} style={{ ...button, textAlign: 'left', border: selectedId === String(item.id) ? '3px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: selectedId === String(item.id) ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)' }}>
+                <strong>{cardName(item)}</strong>
                 <SortItemPreview item={item} />
               </button>
             ))}
@@ -253,29 +349,37 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
         </Panel>
 
         <div style={{ display: 'grid', gap: 12 }}>
-          {groups.map((group, groupIndex) => (
-            <Panel key={group.id} title={`Group ${groupIndex + 1}${group.name ? ` · ${group.name}` : ''}`}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-                <input value={group.name} onChange={(event) => updateGroup(group.id, { name: event.target.value })} placeholder="Name this group" style={{ ...input, flex: '1 1 190px' }} />
-                <button type="button" disabled={!selectedId} onClick={() => moveSelected(group.id)} style={{ ...button, background: selectedId ? '#1a73e8' : 'var(--mm-surface-control)', color: selectedId ? '#fff' : 'var(--mm-text-subtle)', border: 0 }}>{selectedId ? 'Place selected card here' : 'Select a card first'}</button>
-                {groups.length > minGroups && <button type="button" onClick={() => removeGroup(group.id)} style={{ ...button, color: 'var(--mm-error-text)' }}>Remove group</button>}
+          {groups.map((group, groupIndex) => {
+            const selectedCard = selectedId ? cardName(itemById(selectedId), selectedId) : '';
+            return (
+              <div key={group.id} data-sort-group={group.id}>
+                <Panel title={`Group ${groupIndex + 1}${group.name ? ` · ${group.name}` : ''}`}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                    <input value={group.name} onChange={(event) => updateGroup(group.id, { name: event.target.value })} placeholder="Name this group" aria-label={groupNameInputLabel(groupIndex)} style={{ ...input, flex: '1 1 190px' }} />
+                    {/* Disables itself on the press that places the card; focus
+                        has already been sent on to the next card (A11Y-2), and
+                        while it is still here it stays focusable. */}
+                    <FocusSafeButton enabled={Boolean(selectedId)} onClick={() => moveSelected(group.id)} aria-label={placeButtonName({ selectedCard, group, index: groupIndex })} style={{ ...button, background: selectedId ? '#1a73e8' : 'var(--mm-surface-control)', color: selectedId ? '#fff' : 'var(--mm-text-subtle)', border: 0 }}>{placeButtonText(selectedCard)}</FocusSafeButton>
+                    {groups.length > minGroups && <button type="button" onClick={() => removeGroup(group.id)} aria-label={removeGroupName(group, groupIndex)} style={{ ...button, color: 'var(--mm-error-text)' }}>Remove group</button>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52, padding: 9, borderRadius: 9, border: '1px dashed var(--mm-primary-border)', background: 'var(--mm-surface)' }}>
+                    {group.itemIds.map((id) => {
+                      const card = cardName(itemById(id), id);
+                      return <button type="button" key={id} onClick={() => returnItem(id)} aria-label={placedCardName({ card, group, index: groupIndex })} title="Tap to move this card again" style={{ ...button, minHeight: 36, padding: '6px 9px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}>{card} <span aria-hidden="true">↩</span></button>;
+                    })}
+                    {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards in this group yet.</span>}
+                  </div>
+                  {requireRationale && (
+                    <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
+                      Why do these belong together?
+                      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} placeholder="Describe the graph characteristic you used." rows={2} style={{ ...input, minHeight: 72, resize: 'vertical' }} />
+                      <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
+                    </label>
+                  )}
+                </Panel>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52, padding: 9, borderRadius: 9, border: '1px dashed var(--mm-primary-border)', background: 'var(--mm-surface)' }}>
-                {group.itemIds.map((id) => {
-                  const item = itemById(id);
-                  return <button type="button" key={id} onClick={() => returnItem(id)} title="Tap to move this card again" style={{ ...button, minHeight: 36, padding: '6px 9px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}>{item?.label || id} ↩</button>;
-                })}
-                {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards in this group yet.</span>}
-              </div>
-              {requireRationale && (
-                <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
-                  Why do these belong together?
-                  <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} placeholder="Describe the graph characteristic you used." rows={2} style={{ ...input, minHeight: 72, resize: 'vertical' }} />
-                  <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
-                </label>
-              )}
-            </Panel>
-          ))}
+            );
+          })}
           {groups.length < maxGroups && <button type="button" onClick={addGroup} style={{ ...button, justifySelf: 'start' }}>+ Add another group</button>}
         </div>
       </div>
