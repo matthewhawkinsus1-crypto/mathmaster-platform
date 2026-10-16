@@ -1,6 +1,8 @@
 # Student pass 3 — Session G: extra time on the exit ticket (D7, H-117) and Classroom's own cutoff (H-116)
 
-Branch `claude/pass3-d7-extra-time-dol`, from `claude/modest-pasteur-xzagn7` at `a7dddc7`. Report:
+Branch `claude/pass3-d7-extra-time-dol`, from `claude/modest-pasteur-xzagn7` at `a7dddc7`; the base's later move to
+`c803501` (Batch 4 hints; the Batch 8 "Maximum update depth" fix) was merged in with a merge commit (no conflicts)
+and the whole gate below was rerun on the merged result. Report:
 `docs/qa/student-experience-pass-3.md` (decision D7, adopted 2026-10-16) and
 `docs/qa/student-experience-pass-3/05-open-items-handoffs.md` rows H-116, H-117, H-120.
 
@@ -118,19 +120,19 @@ findings in `dolCloseCopy`), the pack-up guard removed and the profile injection
 | Check | Result |
 | --- | --- |
 | `npm ci`, `npm --prefix functions ci` | done |
-| `npm run test:platform` | GATE_PLATFORM |
-| `node --test tests/tools/*.test.mjs` | GATE_TOOLS |
-| `npm run test:authoring-v5` | GATE_AUTHORING |
-| `npm run lint` | GATE_LINT |
-| `npm run build` | GATE_BUILD |
-| `npm run build:firebase` (no tracked file rewritten) | GATE_BUILD_FIREBASE |
+| `npm run test:platform` | 11,451 / 11,451 |
+| `node --test tests/tools/*.test.mjs` | 1,644 tests, 1,643 pass, 0 fail, 1 skipped |
+| `npm run test:authoring-v5` | 686 / 686 |
+| `npm run lint` | exit 0 (warnings only; none in lines this branch wrote) |
+| `npm run build` | pass |
+| `npm run build:firebase` (no tracked file rewritten) | pass; `git status` clean afterwards |
 | `npm run test:rules` | not run: no rules change (the new state fields live on server-only documents) |
 | `npm run test:challenge-finish` (every top-level integration suite, incl. the new one) | 449 / 449 |
 | `npm run test:warmup-reopen:emulator` (section deadlines) | 1 / 1 |
 | `npm run test:classroom-regrade-report:emulator` (Classroom) | 5 / 5 |
 | `tests/browser/dolCloseCopy.mjs` (+ `--legacy` must fail) | all checks pass at 1366×768 and 390×844; `--legacy` fails as designed |
 | `tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs` | pass, 1366×768 and 390×844 |
-| Existing drivers for the screens changed, one at a time | GATE_DRIVERS |
+| Existing drivers for the screens changed, one at a time | teacher `journeys` (A–K, 1440 and 1024), `prerequisiteEarlyJourneys`, `privateControlsJourneys` (392 checks), `warmupReopenJourneys`: pass. `studentNameJourneys`: 6 findings (Attendance History rows labelled "ID 9100xx"), **identical on the base commit** `a7dddc7` (run in a separate worktree), on a screen this branch does not touch. Before the merge, `warmupReopenJourneys` failed with "Maximum update depth exceeded", identically on the base (264 errors each); the base's own fix cleared it |
 
 ## Deploying (not done)
 
