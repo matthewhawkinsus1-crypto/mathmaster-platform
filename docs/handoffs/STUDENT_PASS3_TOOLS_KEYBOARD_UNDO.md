@@ -1,7 +1,8 @@
 # Student pass 3 — Session D: every student can use every tool (keyboard, focus, Undo)
 
 Branch `claude/pass3-b6-tools-keyboard-undo`, cut from `claude/modest-pasteur-xzagn7` at `a7dddc7`, then merged with
-that base at `c803501` (Batch 4's hint ladder, the Batch 8 render-loop fix). The merge was clean: Batch 4's single hint
+that base twice: at `c803501` (Batch 4's hint ladder, the Batch 8 render-loop fix) and at `8e51f65` (Batch 4's
+first-hint offer folding into Help on a short Work View, the teacherWorkflow favicon). The merge was clean: Batch 4's single hint
 ladder and this branch's Undo, focus and Connect-my-points work both stand. The whole gate below ran on the merged
 result.
 
@@ -181,7 +182,11 @@ are those of the detail file [04-tools-and-accessibility.md](../qa/student-exper
   - identical Place names → fail.
   - no target after the last card → fail.
 
-## Gate (on the merged result)
+## Gate (on the merged result, base `8e51f65`)
+
+After the second merge I reran the node gate, the builds, and `studentUxPlatform`, `assessmentLeakGates`,
+`workViewMatrix`, `toolFocusAndUndo`, `graphKeyboardRoute` and `workViewCertification`; all pass. The other rows are
+from the run on `c803501`, and the second merge did not touch their files.
 
 | Check | Result |
 | --- | --- |
@@ -197,7 +202,7 @@ are those of the detail file [04-tools-and-accessibility.md](../qa/student-exper
 | `toolKeyboardDataModelingAndSystemsCss`, `toolKeyboardRegression`, `toolKeyboardRelationMapping`, `toolKeyboardNumberLine`, `toolKeyboardThreePlane` | pass |
 | `keyboardSweep --tool=openSortBoard` | `lostAfterAction=0/4` on both boards; no unnamed stops, no mouse-only controls |
 | `linearMultipleRepresentations`, `captureToolResponses`, `toolAttemptOutcome`, `toolPolicyGates`, `unansweredChoiceGates`, `assessmentLeakGates`, `graphPointCheck`, `stagedQuestion`, `workBarPrimaryLabel`, `unchangedConfirmWorkView`, `regressionCalculatorPhone`, `phoneToolPanelReach`, `mathSpeech`, `workViewTerminalTransition`, `studentAccessibleNames` | pass |
-| `studentUxPlatform` | `sort` passes after its rewrite (see above); every other journey passes except `staged` and `keypad-short`, which fail **identically on the base `c803501`** (run in a separate worktree) |
+| `studentUxPlatform` | every journey passes on `8e51f65`. `sort` passes after its rewrite (see above). At `c803501`, `staged` and `keypad-short` failed identically on the base itself (checked in a separate worktree); the base's `8fff9c1` fixed them |
 | `npm run certify:accessibility` | pass (11 screens × 2 viewports, no new violations) |
 | `npm run certify:dark-mode` | pass (192 surfaces) |
 | `node scripts/release-firebase.mjs --since a7dddc7` (plan only) | Hosting only |
@@ -230,5 +235,3 @@ FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting   # or the release 
   Session E's CoordinatePlane fix (A11Y-2).
 - Open Sort's "Why do these belong together?" boxes share one visible label. They were left as they are: A11Y-7 named
   the buttons only.
-- `studentUxPlatform` `staged` and `keypad-short` fail identically on the base `c803501` (layout space for staged steps
-  on short screens), so they are not this branch.
