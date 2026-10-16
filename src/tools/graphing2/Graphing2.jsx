@@ -7,7 +7,7 @@ import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed, useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useHostSubmitLabel, useOwnHintLadder, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
@@ -113,37 +113,41 @@ const resolveSnapStep = (questionData, target) => {
   return Number.isInteger(m) && Number.isInteger(b) ? 1 : 0.5;
 };
 
-const hintsForMode = (mode, target, questionData) => {
+/*
+ * THE RUNGS NAME THE MOVE, NEVER THE POINTS TO PLOT (student pass 3, HELP-10).
+ * The last rung of every mode used to state the answer — "Plot (0, 3) and
+ * (2, 3)", "…landing on (2, 7)" — and three taps on "Stuck? Show a hint"
+ * reached it with no attempt. A rung may restate what the question gives (the
+ * point of a point-slope question, the slope as written) and say how to use
+ * it; the points the student must find stay theirs. The ladder itself is now
+ * the platform's (one more hint per attempt, and a leak guard).
+ */
+export const hintsForMode = (mode, target, questionData) => {
   const common = 'Two points are enough to determine a line — pick the two that are easiest to read exactly.';
   if (mode === 'verticalHorizontal') {
     const vertical = questionData.orientation === 'vertical';
     return [
       vertical ? 'A vertical line has the same x-value at every single point.' : 'A horizontal line has the same y-value at every single point.',
       vertical ? `Every point on this line looks like (${questionData.value}, ?) — the y-value can be anything.` : `Every point on this line looks like (?, ${questionData.value}) — the x-value can be anything.`,
-      vertical ? `Plot (${questionData.value}, 0) and (${questionData.value}, 2).` : `Plot (0, ${questionData.value}) and (2, ${questionData.value}).`,
+      vertical ? 'Choose any two y-values, and plot the two points that use them with that same x-value.' : 'Choose any two x-values, and plot the two points that use them with that same y-value.',
     ];
   }
   if (mode === 'throughPoints') {
-    const given = questionData.givenPoints || [];
     return [
       'The two purple points are already on the line. You need to plot those same two locations yourself.',
       'Read each purple point carefully: go across for x first, then up or down for y.',
-      given.length >= 2 ? `Plot ${formatPoint(given[0])} and ${formatPoint(given[1])}.` : common,
+      'Plot your point exactly on top of each purple point, then check that the two readings match.',
     ];
   }
   if (mode === 'pointSlope') {
     const point = questionData.point || [0, 0];
-    const slope = Number(questionData.slope);
     const step = slopeStepForHint(questionData.slope);
-    const secondPoint = step
-      ? [Number(point[0]) + step.run, Number(point[1]) + step.rise]
-      : Number.isFinite(slope) ? [Number(point[0]) + 1, Number(point[1]) + slope] : null;
     return [
       `Start at the given point ${formatPoint(point)}. Slope tells you how to step to a second point.`,
       step
         ? `Slope ${formatSlopeForHint(questionData.slope)} means rise over run: use a run of ${step.run} and a rise of ${step.rise}.`
         : `Slope ${formatSlopeForHint(questionData.slope)} tells you the vertical change for each horizontal step.`,
-      secondPoint ? `Plot ${formatPoint(point)} and ${formatPoint(secondPoint)}.` : common,
+      'From the given point, take that step — across for the run, up or down for the rise — and plot where you land.',
     ];
   }
   if (mode === 'standardForm') {
@@ -154,11 +158,10 @@ const hintsForMode = (mode, target, questionData) => {
     ];
   }
   if (mode === 'factoredLinear') {
-    const a = Number(questionData.factored?.a); const c = Number(questionData.factored?.c);
     return [
       'In y = a(x − c), c identifies the zero/x-intercept and a is the slope.',
-      Number.isFinite(c) ? `Plot the x-intercept (${c}, 0) yourself first.` : 'Plot the x-intercept first.',
-      Number.isFinite(a) && Number.isFinite(c) ? `Then use slope ${formatSlopeForHint(a)} to establish another valid point from (${c}, 0).` : common,
+      'The x-intercept is where y = 0, which in y = a(x − c) happens when x = c. Plot it yourself first.',
+      'Then use the slope a to step from the x-intercept to another point on the line.',
     ];
   }
   const m = target ? Number(target.m) : Number.NaN;
@@ -166,9 +169,9 @@ const hintsForMode = (mode, target, questionData) => {
   const step = slopeStepForHint(m);
   return [
     'In y = mx + b, the b is where the line crosses the y-axis. Start there.',
-    Number.isFinite(b) ? `Plot the y-intercept at (0, ${b}) first.` : 'Plot the y-intercept first.',
+    'The y-intercept is the point on the y-axis, where x = 0. Plot it first.',
     Number.isFinite(m) && Number.isFinite(b) && step
-      ? `From (0, ${b}), slope ${formatSlopeForHint(m)} means use a run of ${step.run} and a rise of ${step.rise}, landing on ${formatPoint([step.run, b + step.rise])}.`
+      ? `From the y-intercept, slope ${formatSlopeForHint(m)} means use a run of ${step.run} and a rise of ${step.rise}. Plot where that step lands.`
       : Number.isFinite(m) && Number.isFinite(b)
         ? `Use the slope ${formatSlopeForHint(m)} to locate a second exact point on the line.`
         : common,
@@ -187,6 +190,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const [points, setPoints] = usePersistentToolState('points', []);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const hintsAllowed = useHintsAllowed();
+  // A ladder of the tool's own only where the host has none (HELP-10).
+  const ownHintLadder = useOwnHintLadder();
   const checkLabel = useSubmitLabel('Check construction');
   const hostSubmitLabel = useHostSubmitLabel();
   const studentLine = useMemo(() => points.length >= 2 ? lineFromPoints(points[0], points[1]) : null, [points]);
@@ -338,8 +343,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
     task: { text: targetPrompt(normalizedQuestion, target) },
     // The hints ARE this Help. Where the activity withholds them the panel
     // renders nothing, so publishing it would leave a Help button over an
-    // empty drawer; the platform's own directions stand in instead.
-    help: hintsAllowed ? { content: <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} /> } : null,
+    // empty drawer; the platform's own directions stand in instead. Inside a
+    // question with the platform ladder, that ladder is the Help (HELP-10).
+    help: ownHintLadder ? { content: <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} /> } : null,
     primaryActions: [{ id: 'check-construction', label: checkLabel, onAction: check, disabled: constructionIncomplete }],
     secondaryActions: [{ id: 'start-over', label: 'Start over', onAction: clear, disabled: !points.length }],
   };

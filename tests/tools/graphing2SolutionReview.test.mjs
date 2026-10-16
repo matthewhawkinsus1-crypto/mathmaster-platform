@@ -49,7 +49,8 @@ const componentSource = readFileSync(new URL('../../src/tools/graphing2/Graphing
 // The snap rule the student plotted on, taken from the component itself (it
 // is plain JavaScript inside the .jsx file), so a stated point that the plane
 // could not land on fails here even if the builder's copy of the rule drifts.
-const resolveSnapStep = new Function(`${region(componentSource, 'const resolveSnapStep = ', '\nconst hintsForMode', 'resolveSnapStep')}; return resolveSnapStep;`)();
+// Bound to the function's own closing line, not to whatever follows it.
+const resolveSnapStep = new Function(`${region(componentSource, 'const resolveSnapStep = ', '\n};\n', 'resolveSnapStep')}\n}; return resolveSnapStep;`)();
 // Graphing2.jsx: `questionData.graphBounds || { xMin: -7, xMax: 7, yMin: -7, yMax: 7 }`,
 // with CoordinatePlane's own ±10 for a bound the object leaves out.
 const boundsFor = (question) => ({ xMin: -10, xMax: 10, yMin: -10, yMax: 10, ...(question.graphBounds || { xMin: -7, xMax: 7, yMin: -7, yMax: 7 }) });

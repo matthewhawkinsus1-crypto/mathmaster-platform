@@ -133,7 +133,10 @@ const outcomeState = (page) => page.evaluate((source) => {
     count: innermost.length,
     text: (first?.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 600),
     liveText: (live[0]?.textContent || '').trim().replace(/\s+/g, ' '),
-    hintOffer: Boolean(shell?.querySelector('.mathmaster-tool-attempt-outcome .mathmaster-tool-attempt-hint button')),
+    // The offer line also carries "See a similar problem worked" (HELP-9):
+    // the hint offer is its "Show a hint" button.
+    hintOffer: [...(shell?.querySelectorAll('.mathmaster-tool-attempt-outcome .mathmaster-tool-attempt-hint button') || [])].some((button) => button.textContent.trim() === 'Show a hint'),
+    similarOffer: Boolean(shell?.querySelector('.mathmaster-tool-attempt-outcome .mathmaster-tool-attempt-hint button[data-similar-offer]')),
     inTool: Boolean(first && shell?.contains(first)),
     top: rect ? Math.round(rect.top) : null,
     bottom: rect ? Math.round(rect.bottom) : null,
@@ -169,8 +172,10 @@ for (const device of ['chromebook', 'phone']) {
       `${device} practice inverse, wrong attempt ${attempt}: the live region says the tool's coaching with the outcome`, state.liveText.slice(0, 220));
     // From the second miss the hint the platform has ready is offered here (HELP-7).
     check(state.hintOffer === (attempt >= 2), `${device} practice inverse, wrong attempt ${attempt}: the hint offer ${attempt >= 2 ? 'is' : 'is not yet'} in the tool`, `offer: ${state.hintOffer}`);
+    // Beside it on every miss, the worked sibling (HELP-9): this item has one.
+    check(state.similarOffer, `${device} practice inverse, wrong attempt ${attempt}: "See a similar problem worked" is offered in the tool`);
     if (attempt === 2) {
-      await page.locator('.mathmaster-tool-attempt-hint button').click();
+      await page.locator('.mathmaster-tool-attempt-hint').getByRole('button', { name: 'Show a hint' }).click();
       await page.waitForTimeout(500);
       const panelOpen = await page.evaluate(() => [...document.querySelectorAll('[data-hint-panel] li[data-hint-source]')]
         .some((element) => element.getBoundingClientRect().height > 0));

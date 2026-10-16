@@ -11,7 +11,7 @@ import {
   watchHelpAcknowledgement,
   watchQuestions,
 } from './askTeacherStore.js';
-import { readStoredHelpRequest, restoreHelpRequest, storeHelpRequest } from './helpRequest.js';
+import { nextHand, readStoredHelpRequest, restoreHelpRequest, storeHelpRequest } from './helpRequest.js';
 
 const sessionStore = () => {
   try { return typeof window !== 'undefined' ? window.sessionStorage : null; } catch { return null; }
@@ -55,10 +55,7 @@ export function useAskMyTeacher({
     });
   }
   const request = hand.studentId === studentId && hand.assignmentId === assignmentId ? hand.request : null;
-  const setRequest = useCallback((next) => setHand((current) => ({
-    ...current,
-    request: typeof next === 'function' ? next(current.request) : next,
-  })), []);
+  const setRequest = useCallback((next) => setHand((current) => nextHand(current, next)), []);
   const [acknowledgement, setAcknowledgement] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [questionsUnavailable, setQuestionsUnavailable] = useState(false);
