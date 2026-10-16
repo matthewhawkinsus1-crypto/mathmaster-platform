@@ -128,14 +128,20 @@ Launched on 2026-10-16 from `37ec6ce`, each on its own branch:
 | Part | Branch | State |
 | --- | --- | --- |
 | Batch 3, finishing abandoned timed tests | `claude/pass3-b3-abandoned-test-finalizer` | Built and reviewed; ships on its own, with the persistence half (its handoff is on that branch) |
-| Batch 3, client persistence | `claude/pass3-b3-persistence-client` | Built, under review; ships on its own (its handoff is on that branch) |
+| Batch 3, client persistence | `claude/pass3-b3-persistence-client` | Built; an independent review found a blocker and four data problems in the answer-by-answer merge, all fixed and re-verified (the single-device path proven unchanged against `37ec6ce`); a last should-fix and four rollout-window notes are being finished. Ships on its own (its handoff is on that branch) |
 | Batch 4, corrections and Recovery practice | `claude/pass3-b4-corrections-recovery` | Merged — [STUDENT_PASS3_B4_CORRECTIONS_RECOVERY.md](STUDENT_PASS3_B4_CORRECTIONS_RECOVERY.md) (changed at integration: every Recovery practice item has one answer) |
 | Batch 4, after the last miss | `claude/pass3-b4-after-last-miss` | Merged — [STUDENT_PASS3_BATCH4_AFTER_LAST_MISS.md](STUDENT_PASS3_BATCH4_AFTER_LAST_MISS.md) |
-| Batch 4, the hint ladder (D2, D5) | `claude/pass3-b4-hints` | Being built |
+| Batch 4, the hint ladder (D2, D5) | `claude/pass3-b4-hints` | Merged — [STUDENT_PASS3_BATCH4_HINTS.md](STUDENT_PASS3_BATCH4_HINTS.md) |
 | Batch 8, Ask my teacher | `claude/pass3-b8-ask-my-teacher` | Merged, with the security review's fixes — [STUDENT_PASS3_BATCH8.md](STUDENT_PASS3_BATCH8.md) |
 | D10 design | `claude/pass3-d10-answer-key-design` | Merged — [ANSWER_KEY_SERVER_SIDE_DESIGN.md](ANSWER_KEY_SERVER_SIDE_DESIGN.md) |
 
-Batches 5–7 follow once these land: they change the same screens and the student word list.
+Wave 3, launched on 2026-10-16 from `a7dddc7`, each on its own branch: the assignment chrome
+(`claude/pass3-b5-assignment-chrome`), Submit and finishing (`claude/pass3-b5-submit-and-finish`), getting around
+(`claude/pass3-b5-getting-around`), tools — keyboard, focus and Undo (`claude/pass3-b6-tools-keyboard-undo`), tools — what
+they say and show (`claude/pass3-b6-tools-speech-contrast`), Read aloud and Translate (`claude/pass3-b6-read-aloud-translate`),
+extra time on the exit ticket (D7, `claude/pass3-d7-extra-time-dol`) and D10 Phase 0 (`claude/pass3-d10-phase0`). After them:
+Work View help on phones (TOOL-3, which needed the hint ladder first), the platform-wide D9 word pass, the screen-reader
+pass and the VPAT refresh.
 
 ## Left for later
 
