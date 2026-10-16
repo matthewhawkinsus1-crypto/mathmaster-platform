@@ -15,6 +15,8 @@ import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolic
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { engineActivityPolicyForMode, resolveQuestionRuntimePolicy } from '../../platform/assessment/questionRuntimePolicy.js';
 import { readQuestionDraftFamily, restoreQuestionDrafts, subscribeToQuestionDrafts } from '../../questionDraftStorage.js';
+// The Undo history stays on this device (persistedMathUndo.js).
+import { withoutPersistedUndo } from '../../platform/workView/persistedMathUndo.js';
 import { createToolWorkGate } from './toolWorkGate.js';
 import { assessmentSupportProfile } from '../../studentSupport.js';
 
@@ -264,7 +266,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
     onDraftChangeRef.current({
       responses: {},
       ...(latestRawRef.current ? { raw: latestRawRef.current } : {}),
-      workspaceDrafts: draftKey ? readQuestionDraftFamily(draftKey) : [],
+      workspaceDrafts: draftKey ? withoutPersistedUndo(readQuestionDraftFamily(draftKey)) : [],
     }, supportUsageRef.current);
   }, [draftKey]);
 
@@ -320,7 +322,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           await onSubmitRef.current?.({
             responses: {},
             ...(raw ? { raw } : {}),
-            workspaceDrafts: draftKey ? readQuestionDraftFamily(draftKey) : [],
+            workspaceDrafts: draftKey ? withoutPersistedUndo(readQuestionDraftFamily(draftKey)) : [],
           }, supportUsage);
         } catch { /* the container reports a save that did not land */ }
         return null;

@@ -49,6 +49,7 @@ import {
 import graphWorkspaceGrader from '../functions/shared/serverGrading/tools/graphWorkspace.mjs';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
+import { typedCoordinate, typedEntryEnterAction } from './graphTypedCoordinate.js';
 import { connectPointsStrokes, constructionBranchSplitX, constructionPointsToConnect, inversePointsToConnect } from './graphConnectPoints.js';
 import FocusSafeButton from './components/common/FocusSafeButton.jsx';
 
@@ -691,6 +692,25 @@ export default function InteractiveGraphWorkspace({
   const [keyboardCursor, setKeyboardCursor] = useState(null);
   const [typedX, setTypedX] = useState('');
   const [typedY, setTypedY] = useState('');
+  const typedXRef = useRef(null);
+  const typedYRef = useRef(null);
+  // An empty box is not 0 (graphTypedCoordinate.js).
+  const placeTypedCoordinate = () => {
+    const point = typedCoordinate(typedX, typedY);
+    if (!point) {
+      setKeyboardAnnouncement('Enter a number for both x and y.');
+      return;
+    }
+    if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
+  };
+  const handleTypedEnter = (event, box) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const action = typedEntryEnterAction({ box, typedX, typedY });
+    if (action === 'focus-y') typedYRef.current?.focus();
+    else if (action === 'focus-x') typedXRef.current?.focus();
+    else placeTypedCoordinate();
+  };
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('');
   // Whether the typed x / y entry is on screen. One condition renders it and
   // decides whether an announcement offers it: end markers are placed after
@@ -1522,12 +1542,15 @@ export default function InteractiveGraphWorkspace({
                 <input
                   type="number"
                   inputMode="decimal"
-                  // Its Enter places the point; the question's Enter contract
-                  // (QuestionEngine) must not take it as "next box" (TOOL-1).
+                  // These two boxes own their Enter (TOOL-1): it moves on to the
+                  // other box while that one is empty, and places the point once
+                  // both hold a number (graphTypedCoordinate.js). The question's
+                  // Enter contract must not take it as "next box" or "submit".
+                  ref={typedXRef}
                   data-mm-enter-owner="true"
                   value={typedX}
                   onChange={(event) => setTypedX(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                  onKeyDown={(event) => handleTypedEnter(event, 'x')}
                   style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid var(--mm-border)', borderRadius: '7px' }}
                 />
               </label>
@@ -1536,26 +1559,18 @@ export default function InteractiveGraphWorkspace({
                 <input
                   type="number"
                   inputMode="decimal"
-                  // Its Enter places the point; the question's Enter contract
-                  // (QuestionEngine) must not take it as "next box" (TOOL-1).
+                  ref={typedYRef}
                   data-mm-enter-owner="true"
                   value={typedY}
                   onChange={(event) => setTypedY(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                  onKeyDown={(event) => handleTypedEnter(event, 'y')}
                   style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid var(--mm-border)', borderRadius: '7px' }}
                 />
               </label>
               <button
                 id="graph-exact-place"
                 type="button"
-                onClick={() => {
-                  const point = [Number(typedX), Number(typedY)];
-                  if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
-                    setKeyboardAnnouncement('Enter a number for both x and y.');
-                    return;
-                  }
-                  if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
-                }}
+                onClick={placeTypedCoordinate}
                 style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}
               >
                 Place at this coordinate

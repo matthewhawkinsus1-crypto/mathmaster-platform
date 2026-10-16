@@ -13,10 +13,14 @@ import { restoreToolFields, toolFieldState } from './fieldUndo.js';
  *
  * The tool keeps its own state; the history is the platform's, registered with
  * the work bar's ↶ Undo and kept across a reload of this question on this
- * device (persistedMathUndo.js — never in the synced draft). An Undo writes
- * back the fields it takes back and calls `onRestore` (to clear a verdict about
- * work that is no longer on screen); it never submits and never touches a
- * recorded attempt.
+ * device (persistedMathUndo.js — never in the synced draft, nor sent with a
+ * secure item's drafts). An Undo writes back the fields it takes back and calls
+ * `onRestore`; it never submits and never touches a recorded attempt.
+ *
+ * A verdict on screen is the tool's business, exactly as after its own edits: a
+ * tool that clears its verdict when the student edits passes `onRestore` to do
+ * the same on an Undo (Data Modeling, Function Operations); one whose edits
+ * leave the last verdict up leaves it up after an Undo too.
  */
 export default function useFieldUndoHistory({ questionData, fields, label = 'Undo your last change', onRestore = null, persist = true }) {
   const fieldsRef = useRef(fields);

@@ -256,6 +256,25 @@ for (const role of ['practice', 'dol']) {
     await page.close();
   }
 
+  // Enter in the x box with y still empty moves on to y; it places nothing
+  // (an empty y is not 0; pass 3 review).
+  {
+    const page = await open('construct', 'practice');
+    await enterOn(page, page.getByRole('button', { name: /^Plot the point where x = 0/ }));
+    await page.getByRole('spinbutton', { name: 'x', exact: true }).focus();
+    await page.keyboard.type('0');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    const focused = await page.evaluate(() => document.activeElement?.closest('label')?.textContent?.trim()?.[0] || '');
+    check(focused === 'y' && !/^Placed /.test(await announcement(page)),
+      'typed entry: Enter in x with y empty moves to y and places nothing', `focus "${focused}", "${await announcement(page)}"`);
+    await page.keyboard.type('1');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    check(/^Placed Plot the point where x = 0 at \(0, 1\)\.$/.test(await announcement(page)), 'typed entry: then Enter in y places (0, 1)', `"${await announcement(page)}"`);
+    await page.close();
+  }
+
   // Practice, wrong points: the check refuses them and nothing is connected.
   const page = await open('construct', 'practice');
   await typeByKeyboard(page, 'Plot the point where x = 0', 0, 2);

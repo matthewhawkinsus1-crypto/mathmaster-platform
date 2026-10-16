@@ -129,3 +129,24 @@ test('the curve passes exactly through each point and never overshoots between t
   });
   assert.deepEqual(smoothCurveThrough([[1, 2]]), [], 'one point is not a curve');
 });
+
+test('a rational is split where the STUDENT put its center, never at the true one', () => {
+  // Where outcomes are withheld, splitting at the true asymptote would hand the
+  // answer to a student whose center is wrong (pass 3 review).
+  const model = graphWorkspaceModelFor(RATIONAL);
+  const placements = rightPlacements(model);
+  const center = model.tasks.find((task) => task.role === 'center');
+  assert.ok(center, 'the rational has a center task');
+  const trueX = Number(model.functionSpec.h);
+  placements[center.id] = [trueX + 3, placements[center.id][1]];
+  assert.equal(constructionBranchSplitX(model, placements), trueX + 3);
+  const strokes = connect(model, placements);
+  // Every point left of the student's center is in the first stroke, including
+  // the ones right of the true asymptote.
+  const toX = (stroke) => stroke.map(([x]) => x);
+  const firstMax = Math.max(...toX(strokes[0]));
+  const camera = cameraOf(model);
+  const studentSplitInViewBox = 56 + ((trueX + 3 - camera.xMin) / (camera.xMax - camera.xMin)) * (760 - 112);
+  assert.ok(firstMax < studentSplitInViewBox && firstMax > 56 + ((trueX - camera.xMin) / (camera.xMax - camera.xMin)) * (760 - 112),
+    'the first branch runs past the true asymptote up to the student\'s center');
+});

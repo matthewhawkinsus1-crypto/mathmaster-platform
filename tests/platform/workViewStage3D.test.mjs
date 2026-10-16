@@ -54,6 +54,15 @@ test('Scratchpad temporarily owns Undo and removes its duplicate control', () =>
   // shown. Bound to the work bar, so the Work View rail cannot satisfy it.
   const workBar = region(engine, 'const questionWorkBar = (', '\n  );', 'the work bar');
   assert.match(workBar, /\{!scratchpadOpen && undoController \? <UniversalUndoButton /, 'covered or history-less work-bar Undo is hidden');
+  // Undo may not change the work while a submission is being graded, or in a
+  // tab paused because the question is open in another (pass 3 review): its
+  // restore would write over what was graded, or over the newer tab's draft.
+  // Both Undo controls read the one rule.
+  assert.match(engine, /const undoUnavailable = locked \|\| submitting \|\| pausedByAnotherTab;/);
+  assert.match(workBar, /<UniversalUndoButton [^>]*controller=\{undoController\} disabled=\{undoUnavailable\}/);
+  const railUndo = region(engine, '  const workspaceActions = {\n    undo: {', '\n    },', 'the Work View Undo');
+  assert.match(railUndo, /onClick: \(\) => \{ if \(!undoUnavailable\) undoController\?\.onUndo\?\.\(\); \}/);
+  assert.match(railUndo, /disabled: !undoController\?\.canUndo \|\| undoUnavailable,/);
 
   const tool = { priority: 0, order: 1, controller: { label: 'tool' } };
   const overlay = { priority: 100, order: 2, controller: { label: 'scratchpad' } };

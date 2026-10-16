@@ -151,6 +151,13 @@ const SCENES = [
       await page.waitForTimeout(400);
       check(!(await focusOnBody(page)), `${key}: Apply, which disables itself, keeps keyboard focus`);
       check((await snapshot(page, { extraSnapshot: '.mathmaster-tool-panel' })) !== before, `${key}: Apply changes the equation`);
+      // Focus is still on Apply, now unavailable (aria-disabled): another Enter
+      // must do nothing — not apply an empty number (FocusSafeButton).
+      const afterApply = await snapshot(page, { extraSnapshot: '.mathmaster-tool-panel' });
+      check((await page.evaluate(() => document.activeElement?.getAttribute('aria-disabled'))) === 'true', `${key}: the focused Apply reports itself unavailable`);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(300);
+      check((await snapshot(page, { extraSnapshot: '.mathmaster-tool-panel' })) === afterApply, `${key}: a press on the unavailable Apply does nothing`);
       await pressUndo(page);
       check((await snapshot(page, { extraSnapshot: '.mathmaster-tool-panel' })) === before, `${key}: one Undo takes back the step and gives back the number typed for it`);
     },
@@ -247,6 +254,41 @@ for (const scene of SCENES) {
       const gradesAfter = await page.evaluate(() => window.__GRADES__.length);
       check(gradesAfter === gradesBefore, `${key}: an Undo after a Check makes no attempt`, `${gradesBefore} → ${gradesAfter}`);
     }
+  } catch (error) {
+    check(false, `${key}: scene ran`, String(error?.message || error).split('\n')[0]);
+  }
+  await page.close();
+}
+
+/*
+ * THE NEXT QUESTION UNDER A MOUNTED TOOL (pass 3 review, the blocker). My Math
+ * Path swaps the question under one QuestionEngine, so two items of the same
+ * tool keep it mounted. The next item must open with nothing to Undo, and no
+ * Undo may hand it the previous item's answers.
+ */
+for (const tool of ['dataModelingLab', 'polynomialWorkshop', 'openSortBoard']) {
+  if (ONLY && ONLY !== tool) continue;
+  pageCount += 1;
+  const page = await contexts.desktop.newPage();
+  page.on('pageerror', (error) => failures.push(`${tool} swap: page error ${error.message}`));
+  await page.goto(urlFor(tool, null, `${runId}-${pageCount}`) + '&swap=1', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  const key = `${tool} (question swapped under the tool)`;
+  try {
+    const blank = await snapshot(page);
+    if (tool === 'openSortBoard') { await openSortPlace(0, 0)(page); await openSortPlace(0, 1)(page); } else { await genericEdits.edit1(page); await genericEdits.edit2(page); }
+    const firstWork = await snapshot(page);
+    check(firstWork !== blank && (await undoState(page)) === 'enabled', `${key}: item 1 has work to undo`);
+    await page.evaluate(() => window.__nextQuestion());
+    await page.waitForTimeout(700);
+    check((await snapshot(page)) === blank, `${key}: item 2 opens with its own blank work`);
+    check((await undoState(page)) !== 'enabled', `${key}: item 2 opens with nothing to Undo`, await undoState(page));
+    const undo = workBarUndo(page);
+    if (await undo.count()) { await undo.click({ force: true }).catch(() => {}); await page.waitForTimeout(300); }
+    check((await snapshot(page)) === blank, `${key}: an Undo press gives item 2 nothing of item 1`);
+    await page.evaluate(() => window.__previousQuestion());
+    await page.waitForTimeout(700);
+    check((await snapshot(page)) === firstWork, `${key}: item 1 comes back as the student left it`);
   } catch (error) {
     check(false, `${key}: scene ran`, String(error?.message || error).split('\n')[0]);
   }
