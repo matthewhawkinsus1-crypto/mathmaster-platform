@@ -87,6 +87,7 @@ export default function LinearInterceptsOrchestrator({
   draftKey = null,
   hintsAllowed = true,
   onHintUsed = null,
+  hintCostNote = null,
   // May a check say whether the work is right before the question is
   // submitted? QuestionEngine's showOutcomeFeedback: false on a DOL, quiz or
   // test until feedback is released. Defaults to the practice behaviour.
@@ -497,6 +498,7 @@ export default function LinearInterceptsOrchestrator({
           draftKey={draftKey ? `${draftKey}:${kind}-intercept` : null}
           hintsAllowed={hintsAllowed}
           onHintUsed={onHintUsed}
+          hintCostNote={hintCostNote}
         />
       ) : (
         <>

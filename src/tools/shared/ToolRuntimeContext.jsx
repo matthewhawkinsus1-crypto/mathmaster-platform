@@ -22,6 +22,13 @@ const DEFAULT_RUNTIME = {
   // see — the Work View Help drawer. QuestionEngine passes its hint recorder;
   // outside an activity there is nobody to tell.
   onHintUsed: null,
+  // ONE HINT LADDER PER QUESTION (student pass 3, HELP-10). Where the host
+  // carries the platform's hint ladder (QuestionEngine's 💡 Hint), a tool's
+  // HintPanel hands its rungs to it through this (toolHintChannel.js publish)
+  // and shows no ladder of its own: the platform's release rule and leak guard
+  // then apply to them. Null where the host has no ladder (the tools lab, a
+  // server-graded host), and the tool keeps its own panel.
+  publishHints: null,
   // THE PLATFORM'S OUTCOME FOR THE LATEST ATTEMPT, SHOWN BESIDE THE TOOL'S OWN
   // VERDICT (PQ-022; see attemptOutcomeSlots.js). `attemptOutcomeSlots` is the
   // registry a verdict area joins while mounted; `attemptOutcome` is
@@ -57,7 +64,7 @@ const DEFAULT_RUNTIME = {
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, verdictsWithheld = false, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, publishHints = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, verdictsWithheld = false, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
@@ -66,6 +73,7 @@ export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswer
     // gives the policy field (`hintsAllowed !== false`).
     hintsAllowed: hintsAllowed !== false,
     onHintUsed: typeof onHintUsed === 'function' ? onHintUsed : null,
+    publishHints: typeof publishHints === 'function' ? publishHints : null,
     attemptOutcome: attemptOutcome && typeof attemptOutcome === 'object' ? attemptOutcome : null,
     attemptOutcomeSlots: attemptOutcomeSlots || null,
     reportWork: typeof reportWork === 'function' ? reportWork : null,
@@ -95,5 +103,16 @@ export const useHostSubmitLabel = () => useContext(ToolRuntimeContext).submitLab
 
 // The activity's hint recorder, or null. Defaults to null outside a provider.
 export const useHintUseReporter = () => useContext(ToolRuntimeContext).onHintUsed || null;
+
+// Where a tool's rungs go when the host carries the platform ladder, or null.
+export const useToolHintPublisher = () => useContext(ToolRuntimeContext).publishHints || null;
+
+// Whether a tool shows a hint ladder of its own: hints allowed, and no
+// platform ladder to hand them to. Every tool-owned hint surface (the panel,
+// a Work View Help that is only hints) reads this.
+export const useOwnHintLadder = () => {
+  const runtime = useContext(ToolRuntimeContext);
+  return runtime.hintsAllowed !== false && !runtime.publishHints;
+};
 
 export default ToolRuntimeContext;
