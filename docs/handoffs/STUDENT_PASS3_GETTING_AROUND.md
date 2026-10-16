@@ -46,6 +46,11 @@ here re-grades anything, writes to production or deploys. No new Firestore path,
 | Toasts covered Submit/Next for longer (bottom-right, full width on a phone; tap-to-hold on touch). | Toasts sit above `--mm-action-bar-height` on laptops and at the top, under the identity bar, on phones; only a mouse pointer holds one (pointerType). | browser `studentScreenChange.mjs` S7: a tap on Submit/Check at its centre hits the button while "That question has moved" shows, at 1366×768 and 390×844 — with the CSS reverted it hits the toast at both sizes |
 | Notes | "What changed" is marked seen at half the list or half the screen, whichever is smaller (a tall list can now clear). Opening More moves focus to the first unfolded place. "INTERNAL" (a server crash) reads "MathMaster could not finish that…", not a Wi-Fi problem. A signed-out Review My Work says "Sign in again to see your answers and solutions." Browser Back/Forward onto a paused lesson now lands on its result page too (was a bypass of the gate, pre-existing). The Classroom effect's "already present" return is pinned. | unit tests, each mutation-checked |
 
+Gate on `3553efa`+: `test:platform` 11473/0, tools 1643/0, lint, build, build:firebase (no tracked rewrite),
+audit:theme-colors, the 8 teacherWorkflow journeys, `studentScreenChange` (twice), certify:accessibility, the
+landmarks/names/large-text checks and certify:dark-mode all pass. `studentScreenChange` first failed once at 390×844:
+the driver focused Tests & Exams before More's own one-frame focus move landed; it now waits for that move.
+
 Left as notes: Review My Work's "…closed for your whole class" tells a student someone still has time (names no one) — an
 owner wording call. The Test Cycle card stops offering Try again after three failed loads even for network errors
 (`resolveErrorExit`'s rule; Back and reopening resets it).

@@ -101,6 +101,8 @@ const pressDestination = async (page, label, phone) => {
     await more.focus();
     await page.keyboard.press('Enter');
     await button.waitFor({ state: 'visible', timeout: 3000 });
+    // Opening More moves focus to its first place (one frame later): let it land.
+    await page.waitForFunction(() => document.activeElement?.classList.contains('mm-student-nav__folded'), null, { timeout: 3000 }).catch(() => {});
   }
   button = nav.locator('button', { hasText: label }).first();
   await button.focus();
