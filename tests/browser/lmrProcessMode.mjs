@@ -46,18 +46,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import {
-  balancedMove,
-  cancelFactor,
-  cancelTerm,
-  closeInlineModes,
-  combineLikeTerms,
-  distribute,
-  mathState,
-  rewriteTerm,
-  setMathField,
-  simplifySide,
-} from './stepAlgebraDriver.mjs';
+import { balancedMove, cancelFactor, cancelTerm, closeInlineModes, combineLikeTerms, mathState, rewriteTerm, setMathField, simplifySide, removeParentheses } from './stepAlgebraDriver.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -286,16 +275,18 @@ const journeys = {
     await chooseMethod(page, 'solveForY');
     await settle(page, 1000);
     const host = workspace(page);
-    await distribute(page, host);
+    // -1(x - 3) is drawn -(x - 3); removing the parentheses is the student's
+    // sign step in Simplify (student push Q), never a -1 to distribute.
+    check((await host.locator('button.algebra-distribute-toggle').count()) === 0, 'a factor of -1 was offered to distribute');
+    await removeParentheses(page, host, 'right', ['-', '+']);
     // Reload in the middle of the algebra: the workspace and its steps come back.
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('.mm-lmr-board');
     await settle(page, 1500);
     check(await workspace(page).count(), 'the workspace is still open after a reload');
-    check(/\\left\(-1\\right\)/.test(await mathState(workspace(page))), `the distributed step survived: ${await mathState(workspace(page))}`);
+    check(/=\s*-\s*x\s*\+\s*3$/.test(await mathState(workspace(page))), `the parentheses step survived: ${await mathState(workspace(page))}`);
     await balancedMove(page, workspace(page), 'Add', '2');
     await cancelTerm(page, workspace(page), '- 2');
-    await rewriteTerm(page, workspace(page), 'right', /3/, '3');
     await closeInlineModes(page, workspace(page));
     await combineLikeTerms(page, workspace(page), 'right', [1, 2], '5');
     await closeInlineModes(page, workspace(page));
@@ -507,7 +498,7 @@ for (const name of selected) {
   try {
     await journeys[name]();
   } catch (error) {
-    findings.push(`[${name}] threw: ${error.message.split('\n')[0]}`);
+    findings.push(`[${name}] threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
   }
   note(`${Math.round((Date.now() - started) / 1000)}s`);
 }

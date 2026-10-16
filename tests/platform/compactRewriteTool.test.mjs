@@ -1,42 +1,54 @@
+// THE WHOLE-SIDE ROUTE: what "Rewrite / Simplify" was, now inside the one
+// Simplify panel every algebra workspace shares (student push Q).
+//
+// The behaviours this file always protected, re-anchored to where they live:
+// a compact bar (no duplicate expression cards), a side chosen by the
+// student, focus moved into the field when it opens, an algebra-aware compact
+// MathInput, and equivalence that the platform only checks.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+import { checkRegionRewrite } from '../../src/platform/algebra/simplify/simplifyEngine.js';
 
 const src = fs.readFileSync('src/StepByStepAlgebraCore.jsx', 'utf8');
+const panel = executableSource(fs.readFileSync('src/platform/algebra/simplify/SimplifyPanel.jsx', 'utf8'));
+const css = fs.readFileSync('src/platform/algebra/simplify/SimplifyPanel.css', 'utf8');
+const sideRoute = region(panel, 'className="mm-simplify-side"', '</div>', 'the whole-side route');
 
-test('rewrite tool uses a compact command bar rather than duplicate expression cards', () => {
-  assert.match(src, /algebra-rewrite-tool-compact/);
-  assert.match(src, /margin: '0 0 8px'/);
-  assert.match(src, /padding: '7px 9px'/);
+test('the whole-side route is a compact bar, not duplicate expression cards', () => {
+  assert.match(css, /\.mm-simplify-panel \{[^}]*margin: 0 0 10px;[^}]*padding: 9px 11px;/);
+  assert.doesNotMatch(sideRoute, /<MathDisplay/, 'the board is the only copy of each side');
   assert.doesNotMatch(src, /<MathDisplay value=\{expressionToLatex\(equation\[side\]\)\}/);
-  assert.doesNotMatch(src, /You write the equivalent expression\. MathMaster only checks it\. Use this to combine like terms/);
 });
 
-test('left right and both rewrite scopes are retained', () => {
-  assert.match(src, /\['left', 'Left'\]/);
-  assert.match(src, /\['right', 'Right'\]/);
-  assert.match(src, /\['both', 'Both'\]/);
-  assert.match(src, /rewriteSidesForScope/);
+test('the student chooses the side: one choice per region of the board', () => {
+  assert.match(sideRoute, /regions\.map\(\(entry\) => \(/);
+  assert.match(sideRoute, /aria-pressed=\{state\?\.region === entry\.key\}/);
+  assert.match(sideRoute, /chooseSimplifyRegion\(current, entry\.key\)/);
+  assert.match(src, /\{ key: 'left', label: 'left side', expression: equation\.left/);
+  assert.match(src, /\{ key: 'right', label: 'right side', expression: equation\.right/);
 });
 
-test('rewrite input autofocuses when opened and when scope changes', () => {
-  assert.match(src, /rewriteFocusSignal/);
-  assert.match(src, /if \(!rewriteOpen && !inlineExpressionTools\) setRewriteFocusSignal\(\(signal\) => signal \+ 1\)/);
-  assert.match(src, /focusSignal=\{side === primarySide \? rewriteFocusSignal : 0\}/);
+test('choosing a side moves focus into its field', () => {
+  assert.match(sideRoute, /setRegionFocus\(\(signal\) => signal \+ 1\)/);
+  assert.match(sideRoute, /focusSignal=\{regionFocus\}/);
 });
 
-test('rewrite fields use compact algebra-aware MathInput', () => {
-  assert.match(src, /toolProfile="algebra-operation"/);
+test('the field is a compact, algebra-aware MathInput', () => {
+  assert.match(sideRoute, /toolProfile="algebra-operation"/);
+  assert.match(sideRoute, /contextSymbols=\{contextSymbols\}/);
+  assert.match(sideRoute, /\bcompact\b/);
+  assert.match(sideRoute, /placeholder=\{`Simpler \$\{region\.label\}`\}/);
   assert.match(src, /contextSymbols=\{operationContextSymbols\}/);
-  assert.match(src, /compact/);
-  assert.match(src, /Equivalent left side/);
-  assert.match(src, /Equivalent right side/);
 });
 
 test('equivalence checking remains student-authored', () => {
-  assert.match(src, /checkStudentRewrite/);
-  assert.match(src, /expressionsEquivalent\(parsed\[side\], equation\[side\], equation\.variable\)/);
-  assert.match(src, /MathMaster checks it; it does not generate it\./);
+  const region0 = { key: 'left', label: 'left side', expression: '2 * x + 12', variable: 'x' };
+  assert.equal(checkRegionRewrite(region0, '2(x+6)').ok, true);
+  assert.equal(checkRegionRewrite(region0, '2x+13').reason, 'notEquivalentSide');
+  assert.equal(checkRegionRewrite(region0, '').reason, 'empty', 'nothing typed, nothing written for the student');
+  assert.match(panel, /MathMaster checks your work; it never writes the result for you\./);
   assert.doesNotMatch(src, />Simplify left</);
   assert.doesNotMatch(src, />Simplify right</);
   assert.doesNotMatch(src, />Simplify both</);

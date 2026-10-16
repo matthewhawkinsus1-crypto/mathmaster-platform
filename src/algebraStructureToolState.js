@@ -1,8 +1,8 @@
 /*
  * SHARED STATE PRIMITIVES FOR STEP ALGEBRA'S STRUCTURE TOOLS.
  *
- * Factor, Split fraction, Cancel factors, Simplify arithmetic and Arrange terms
- * are all the same kind of thing: a short run of student decisions made on the
+ * Factor, Split fraction, Cancel factors and Arrange terms (the Rewrite menu),
+ * and the one Simplify control, are all the same kind of thing: a short run of student decisions made on the
  * committed equation, which changes nothing until the student commits it. Each
  * tool's state is a plain JSON object so the existing question draft can
  * persist it, and each decision pushes the previous state onto that object's

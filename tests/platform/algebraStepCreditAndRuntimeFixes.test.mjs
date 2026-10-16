@@ -193,7 +193,9 @@ test('multi-relation algebra can cancel an armed operation and rewrite closes th
   assert.match(source, /const cancelBasicOperation = \(\) =>/);
   assert.match(source, /setOperation\(null\)/);
   assert.match(source, /setOperand\(''\)/);
-  assert.match(source, /const openRewrite = \(\) =>[\s\S]*cancelBasicOperation\(\)/);
+  // Opening Simplify (job Q: what "Rewrite / Simplify" became) closes the composer.
+  const toggle = source.slice(source.indexOf('const toggleSimplify = () =>'), source.indexOf('const commitSimplifyResult = async'));
+  assert.match(toggle, /cancelBasicOperation\(\)/);
   assert.match(source, /aria-label="Cancel current algebra operation"/);
 });
 

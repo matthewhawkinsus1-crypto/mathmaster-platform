@@ -72,15 +72,19 @@ test('MathDisplay hides the typeset element and renders one spoken copy from its
 test('cancellable algebra terms are named in words and keep the keyboard focus ring', () => {
   const row = executableSource(read('src/AlgebraTermRow.jsx'));
   assert.match(row, /import \{ spokenMathLabel \} from '\.\/platform\/language\/mathSpeechLabel\.js';/);
-  assert.match(row, /aria-label=\{onTermClick \? `\$\{spokenMathLabel\(term\.text\)\}, \$\{interactionLabel\}` : undefined\}/);
+  // A substituted group stored as 1(…) is read as drawn, never "1 times" (job Q).
+  assert.match(row, /aria-label=\{clickable \? `\$\{spokenMathLabel\(spokenTermText\(term\.text\)\)\}, \$\{interactionLabel\}` : undefined\}/);
+  assert.equal(spokenMathLabel('+ (-4 * x + 12)'), 'plus the quantity negative 4 times x plus 12');
   assert.doesNotMatch(row, /outline: [^,\n]*'none'/, 'no inline outline:none on an interactive term');
   assert.match(row, /data-term-text=\{term\.text\}/);
-  // The relation workspace's Combine like terms chips are the same kind of
-  // control: spoken, with the source text kept for code (questionFamilyCases).
-  const combine = executableSource(read('src/RelationStructureTools.jsx'));
-  assert.match(combine, /import \{ spokenMathLabel \} from '\.\/platform\/language\/mathSpeechLabel\.js';/);
-  assert.match(combine, /aria-label=\{`\$\{spokenMathLabel\(term\.text\.replace\(\/\^\\\+\\s\*\/, ''\)\)\}, select as a term to combine`\}/);
-  assert.match(combine, /data-term-text=\{term\.text\.replace\(\/\^\\\+\\s\*\/, ''\)\}/);
+  // Simplify's parts (every workspace, job Q) are the same kind of control:
+  // named in words by the engine, with an id kept for code.
+  const panel = executableSource(read('src/platform/algebra/simplify/SimplifyPanel.jsx'));
+  assert.match(panel, /aria-label=\{`\$\{entry\.name\}, \$\{entry\.regionLabel\}`\}/);
+  assert.match(panel, /data-part-id=\{entry\.id\}/);
+  const engine = executableSource(read('src/platform/algebra/simplify/simplifyEngine.js'));
+  assert.match(engine, /const name = `product: \$\{spokenMathLabel\(/);
+  assert.match(engine, /`like terms: \$\{indices\s*\.map\(\(index\) => spokenMathLabel\(/);
   assert.equal(spokenMathLabel('-6 * x'), 'negative 6 times x');
 });
 

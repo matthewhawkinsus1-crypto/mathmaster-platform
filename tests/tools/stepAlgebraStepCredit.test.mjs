@@ -60,7 +60,7 @@ import {
   validateRelationTransition,
 } from '../../functions/shared/toolMath/algebra-relations/algebraRelationFoundation.mjs';
 import { resolveStandardCoefficients } from '../../functions/shared/toolMath/stepAlgebra2/linearInterceptsMath.mjs';
-import { emptyQuestionRecord, recordQuestionStep } from '../../functions/shared/attemptPolicy.mjs';
+import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../functions/shared/attemptPolicy.mjs';
 import { STEP_WORK_LIMITS, normalizeStepWork } from '../../functions/shared/submissionEnvelope.mjs';
 import { checkLinearIntercept, literalWorkspaceQuestion } from '../../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 import { IDENTITY, compareIdentically } from '../../functions/shared/serverGrading/stepAlgebraEquivalence.mjs';
@@ -938,4 +938,51 @@ test('the step context opens the workspace QuestionEngine opens, and declines wh
   assert.equal(context({ ...LINEAR, variants: [{ equation: '2x = 4' }] }), 'no:variant-selection');
   assert.match(context({ type: 'literal', formula: 'A = l w', solveFor: 'w', acceptedAnswers: ['A/l'] }), /^no:not-step-algebra/, 'the typed literal box has no steps');
   assert.match(context({ type: 'graphing', equation: 'y = 2x' }), /^no:/);
+});
+
+// ---------------------------------------------------------------------------
+// Student push Q: a substituted group was DRAWN 1(…) before and (…) after. A
+// state's key must not depend on which build rendered it (compactStepStateKey):
+// a record written before the deploy keeps working after it.
+// ---------------------------------------------------------------------------
+
+const SUBSTITUTED = { questionId: 'q-sub', type: 'stepAlgebra', prompt: 'Solve.', equation: '2x + 1*(-4x + 12) = 5 - 3', workspaceDifficulty: 3 };
+const oldRendering = (latex) => String(latex).replace('+\\left(-4', '+1\\left(-4');
+
+test('the one Simplify reports kinds the server verifies, and a record keyed by the old 1(…) rendering stays continuous', () => {
+  const session = equationSession(SUBSTITUTED);
+  // Step 1: the right side, 5 - 3 -> 2 (the group stays on the left).
+  const afterOne = { ...session.equation, right: '2' };
+  step(session, rewritePayload(session, afterOne, { kind: 'combine-like-terms', label: 'Combine like terms on the right side' }), 'combine the constants');
+  session.equation = afterOne;
+  assert.match(equationToLatex(afterOne), /x\+\\left\(-4/, 'drawn as the group, no 1');
+  // Step 2: Remove parentheses (inline-term-rewrite), as Simplify reports it.
+  const afterTwo = { ...afterOne, left: '2 * x - 4 * x + 12' };
+  step(session, rewritePayload(session, afterTwo, { kind: 'inline-term-rewrite', label: 'Rewrite one term on the left side' }), 'remove parentheses');
+
+  // The record as an older build wrote it: step 1's state rendered 1(…).
+  const legacy = JSON.parse(JSON.stringify(records(session).server));
+  legacy.stepGrades = legacy.stepGrades.map((entry, index) => (index === 0
+    ? { ...entry, equationAfter: oldRendering(entry.equationAfter) }
+    : entry));
+  assert.notEqual(legacy.stepGrades[0].equationAfter, records(session).server.stepGrades[0].equationAfter, 'the fixture really holds the old rendering');
+  assert.match(legacy.stepGrades[0].equationAfter, /\+1\\left\(-4/);
+  // Undo back to step 1's state, then a different step from it: continuous.
+  const again = verifyOnServer(SUBSTITUTED, legacy, equationStepWork({
+    action: STEP_ACTIONS.REWRITE,
+    kind: 'student-rewrite',
+    label: 'Rewrite / simplify left',
+    before: afterOne,
+    after: { ...afterOne, left: '-2 * x + 12' },
+    supportLevel: 3,
+  }));
+  assert.equal(again.verified, true, `a state recorded as 1(…) is the same state: ${again.reason}`);
+  // The partial-credit dedupe counts the two renderings as one state.
+  const twin = { ...legacy.stepGrades[0], equationAfter: records(session).server.stepGrades[0].equationAfter };
+  const withTwin = { ...legacy, stepGrades: [...legacy.stepGrades, twin] };
+  assert.equal(
+    calculateStepPartialCredit(withTwin.stepGrades, withTwin.variantIndex),
+    calculateStepPartialCredit(legacy.stepGrades, legacy.variantIndex),
+    'the old and new rendering of one state earn once',
+  );
 });

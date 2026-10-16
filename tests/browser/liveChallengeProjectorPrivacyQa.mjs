@@ -126,6 +126,7 @@ const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
 const challenge = await import(path.join(repo, 'functions/shared/liveChallenge.mjs'));
 const { leaderboardOptionsFor } = await import(path.join(repo, 'functions/shared/liveChallengeScoring.mjs'));
 const { podiumRecognitionRows, publicStandingsRows } = await import(path.join(repo, 'src/platform/liveChallenge/liveChallengeProjectorModel.js'));
+const { isMathSegment, splitMathSegments } = await import(path.join(repo, 'src/components/common/mathSegments.js'));
 
 const authFor = (identity = {}) => (identity.as === 'teacher'
   ? { uid: `${identity.email}-uid`, token: { role: 'teacher', email: identity.email, email_verified: true } }
@@ -521,8 +522,15 @@ try {
   check(solutionState === 'ready', `the solution reads as ${solutionState}`, 'the worked solution is ready (published after the close)');
   const published = (await roomRef(roomId).collection('solutions').doc('0').get()).data();
   if (published?.solutionReview?.headline) {
-    const headline = published.solutionReview.headline.replace(/\\\(|\\\)|\$/g, '').slice(0, 18);
-    check((await textOf(teacher)).includes(headline.trim().split(' ')[0]), 'the projector does not show the published solution', 'the projector shows the published solution');
+    // Probe with a word of the headline's prose. The projector draws math with
+    // KaTeX, so a headline that opens with math ("$1\ge 0$, so use the second
+    // rule: 3.") is never on screen as its LaTeX source: probing "1\ge" failed
+    // whenever the round drew that question. The prose is split off the way
+    // MathText splits it, so every delimiter ($…$, $$…$$, \(…\), \[…\]) counts.
+    const prose = splitMathSegments(published.solutionReview.headline).filter((segment) => !isMathSegment(segment)).join(' ');
+    const word = (prose.match(/[A-Za-z]{4,}/) || prose.match(/[A-Za-z]{3,}/) || [])[0];
+    const shown = await teacher.page.locator('[data-mm-projector-solution="ready"]').first().innerText().catch(() => '');
+    check(word ? shown.includes(word) : shown.trim().length > 0, 'the projector does not show the published solution', 'the projector shows the published solution');
   }
   const fontPx = await teacher.page.locator('[data-mm-projector-solution="ready"] ol').first().evaluate((node) => parseFloat(getComputedStyle(node).fontSize)).catch(() => 0);
   check(fontPx >= 18, `the solution's steps are ${fontPx}px at 1366×768`, `the solution's steps are ${fontPx}px at 1366×768`);

@@ -24,8 +24,8 @@ import {
  * "type the equivalent side" box that let (and made) the student type the
  * finished y = -(5/2)x + 3 or y = 15(x - 3) instead of doing the algebra. It
  * now hosts the mature StepByStepAlgebraCore — balanced placement, cancellation,
- * distribution, combine like terms, and the structure tools (Factor, Split
- * fraction, Cancel factors, Simplify arithmetic, Arrange terms) — with the
+ * distribution, Simplify, and the Rewrite menu (Factor, Split fraction,
+ * Cancel factors, Arrange terms) — with the
  * target form as the objective. What stays here is what this mode adds: the
  * goal chips, the Check button, and the student's described steps.
  *

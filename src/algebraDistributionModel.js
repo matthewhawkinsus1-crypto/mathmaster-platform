@@ -12,6 +12,15 @@ import {
   splitMultiplicativeFactors,
 } from './algebraAstEngine.js';
 
+// NEVER MAKE A STUDENT MULTIPLY BY 1 (student push Q). A group behind a factor
+// of 1 or -1 — 2x + (-4x + 12), 3x - (-4x + 12), the way a substitution
+// writes it — is not distributed: Simplify's "Remove parentheses" removes it,
+// and after a minus sign the student states every changed sign. Distributing
+// it here left (1)(-4x) + (1)(12) on the board.
+// Only a 1 or -1 written as such: (2/2)(x + 3) and (3 - 2)(x + 3) still have
+// arithmetic in the factor, which is the student's to do.
+const isUnitFactor = (factorText) => /^\(?\s*[-−]?\s*1\s*\)?$/.test(String(factorText ?? '').trim());
+
 // A factor the student authored with its own parentheses (e.g. the `(2/3)`
 // in `-(2/3)(x+3)`) round-trips through mathjs's printer as `-(2 / 3)`.
 // Strip exactly one redundant outer grouping for the factor chip/result.
@@ -134,6 +143,7 @@ const detectOnSide = (side, expressionText) => {
         }
       }
       detected = withAdditiveSign(detected, term.sign);
+      if (detected && isUnitFactor(detected.factorText)) return null;
       return detected ? { ...detected, sideTermIndex } : null;
     })
     .filter(Boolean);
@@ -211,6 +221,12 @@ export const expandedGroupText = (state, { simplifyProducts = false } = {}) => {
   if (!isDistributionComplete(state)) return null;
   return state.terms
     .map((term) => {
+      // a · 1 is applied the moment it would appear: 3(x + 1) distributes to
+      // (3)(x) + 3, never (3)(1). Only a 1 written as such — 2/2 is still the
+      // student's to compute — and a -1 keeps its product for the student.
+      if (String(term.magnitudeText ?? '').trim() === '1' && term.sign >= 0) {
+        return /^\d+(?:\.\d+)?$/.test(String(state.factorText).trim()) ? String(state.factorText).trim() : `(${state.factorText})`;
+      }
       const product = `(${state.factorText})(${signedTermText(term)})`;
       if (!simplifyProducts) return product;
       try {

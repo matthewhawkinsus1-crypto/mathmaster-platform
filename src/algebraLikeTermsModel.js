@@ -153,9 +153,9 @@ export const replacementIsSingleLikeTerm = (replacementExpression, expectedKey) 
 
 /**
  * Replace one additive term with a student-authored equivalent term while
- * preserving every other term on that side. This powers the inline
- * Rewrite / Simplify mode: selecting a token never changes it by itself; the
- * student's checked replacement is the only thing that can commit.
+ * preserving every other term on that side. Selecting a term never changes
+ * it by itself; the student's checked replacement is the only thing that can
+ * commit.
  */
 export const replaceSingleAdditiveTerm = (expression, index, replacementExpression) => {
   const terms = splitAdditiveTerms(expression) || [];
