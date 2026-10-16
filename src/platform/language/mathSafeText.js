@@ -125,8 +125,13 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
       if (!protectedSpans.some((span) => start < span.end && end > span.start)) protectedSpans.push({ start, end });
     }
   };
-  // A pair of prices on one line ("$4 and $5") is not a LaTeX span.
-  collect(DELIMITED, (value) => !/^\$\d[\d,]*(?:\.\d+)?\s+[A-Za-z]{2,}/.test(value) || /[\\{}^=]/.test(value));
+  // A pair of prices on one line ("$4 and $5", "$15.75, medium baskets for
+  // $25") is not a LaTeX span, and neither is a price and list punctuation
+  // closed by the next price ("$20, $25"): Read aloud dropped every "dollars".
+  collect(DELIMITED, (value) => (
+    !/^\$\d[\d,]*(?:\.\d+)?[,;:.]?\s+[A-Za-z]{2,}/.test(value)
+    && !/^\$\d[\d,]*(?:\.\d+)?[\s,;:]*\$$/.test(value)
+  ) || /[\\{}^=]/.test(value));
   collect(LATEX_COMMAND);
   protectedSpans.sort((a, b) => a.start - b.start);
 

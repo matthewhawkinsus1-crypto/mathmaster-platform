@@ -38,6 +38,7 @@ export const TOOL_CAPABILITIES = {
   linearTableWorkbench: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
   expressionMeaning: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
   representationBridge: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  matrixLab: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
 };
 
 TOOL_CAPABILITIES.intervalNumberLine = { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true };

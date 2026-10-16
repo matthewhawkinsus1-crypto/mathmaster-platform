@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T13:10:16.993Z",
+  "generatedAt": "2026-10-15T23:33:49.666Z",
   "viewport": "1366x900",
   "tools": [
     {
@@ -619,6 +619,110 @@
           "focus": {
             "kind": "field",
             "index": 0
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "matrixLab",
+      "typedFields": 12,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check the solution"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 1
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 2
+          }
+        },
+        {
+          "field": 2,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 3
+          }
+        },
+        {
+          "field": 3,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 4
+          }
+        },
+        {
+          "field": 4,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 5
+          }
+        },
+        {
+          "field": 5,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 6
+          }
+        },
+        {
+          "field": 6,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 7
+          }
+        },
+        {
+          "field": 7,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 8
+          }
+        },
+        {
+          "field": 8,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 9
+          }
+        },
+        {
+          "field": 9,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 10
           }
         }
       ]

@@ -33,6 +33,7 @@
   "src/platform/resources/assignmentWorksheetVisuals.js:--mm-border": 3,
   "src/platform/resources/assignmentWorksheetVisuals.js:--mm-border-soft": 3,
   "src/platform/resources/assignmentWorksheetVisuals.js:--mm-primary-subtle": 1,
+  "src/platform/resources/assignmentWorksheetVisuals.js:--mm-primary-text": 2,
   "src/platform/resources/assignmentWorksheetVisuals.js:--mm-text-muted": 2,
   "src/platform/resources/lessonNotesPdf.js:--mm-border-soft": 1,
   "src/platform/resources/lessonNotesPdf.js:--mm-primary-soft": 1,

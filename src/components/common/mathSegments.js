@@ -91,6 +91,13 @@ const isCurrencyProseOpening = (text, start, end) => {
     return text;
   };
   const withoutLatexCommands = stripLatex(afterAmount);
+  // A LIST OF PRICES. "sold $20, $25, and $50 cards": between the first two
+  // dollar signs is "20, " — an amount and a comma, no words — so the rule
+  // below read it as the math span "$20, $" and the student saw a typeset
+  // "20," with the next price's dollar sign gone. When the span holds nothing
+  // after the amount but list punctuation and its closing `$` itself opens
+  // another amount, both are prices.
+  if (/^[\s,;:]*$/.test(withoutLatexCommands) && text[end] === '$' && currencyPrefixLength(text, end) > 0) return true;
   // "$3 + 2$" remains valid legacy inline math because there are no prose
   // words after the numeric prefix. "$15 per month. Solve $..." is currency.
   //
@@ -162,7 +169,10 @@ const FRACTION_TOKEN = /\\frac\{[^{}]*\}\{[^{}]*\}/g;
 // prose.
 const SENTENCE_STOP_IN_DENOMINATOR = /^(\\frac\{[^{}]*\}\{[^{}]*\d)(\.+)\}$/;
 
-const SIMPLE_GROUPED_SLASH_FRACTION = /\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]))\s*\/\s*((?:\d+(?:\.\d+)?|[A-Za-z]))\s*\)/g;
+// A number or a closing bracket touching the brackets is multiplying:
+// "6(3/2)" without them is "63/2", sixty-three halves, and "(2/3)(3/2)"
+// without the second pair is "2/33/2". Those brackets stay.
+const SIMPLE_GROUPED_SLASH_FRACTION = /(?<![\d.)])\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]))\s*\/\s*((?:\d+(?:\.\d+)?|[A-Za-z]))\s*\)(?![\d.])/g;
 
 // Plain-text authoring often wrapped a slash fraction in parentheses only to
 // keep the old one-line renderer from reading 2/3x as 2/(3x). Once the fraction

@@ -127,3 +127,30 @@ test('j(x) is a function, not j times x', () => {
   assert.equal(mathToSpeech('j(x) = 2x − 1'), 'j of x equals 2x minus 1');
   assert.equal(mathToSpeech('q(x) = j(x) + 4'), 'q of x equals j of x plus 4');
 });
+
+// Oct 2026 matrices walkthrough: what Read aloud said for three prompts.
+test('every price in a list of prices is spoken in dollars', () => {
+  assert.equal(
+    speechTextFor('small baskets for $15.75, medium baskets for $25, and large baskets for $32.50. They took in $2,086.25 and sold twice as many.'),
+    'small baskets for 15.75 dollars, medium baskets for 25 dollars, and large baskets for 32.50 dollars. They took in 2,086.25 dollars and sold twice as many.',
+  );
+  assert.equal(
+    speechTextFor('The team sold $20, $25, and $50 gas cards.'),
+    'The team sold 20 dollars, 25 dollars, and 50 dollars gas cards.',
+  );
+  // Real mathematics between dollar signs is still mathematics.
+  assert.equal(speechTextFor('Solve $3x + 2 = 8$ for x.'), 'Solve 3x plus 2 equals 8 for x.');
+});
+
+test('an ordinal stays one word: 1st is "1st", not "1 st"', () => {
+  assert.equal(
+    speechTextFor('10 points for 1st, 8 for 2nd, 6 for 3rd, 4 for 4th, 2 for 5th.'),
+    '10 points for 1st, 8 for 2nd, 6 for 3rd, 4 for 4th, 2 for 5th.',
+  );
+});
+
+test('a superscript −1 is spoken "inverse", in prose and in mathematics', () => {
+  assert.equal(speechTextFor('use the calculator to find X = A⁻¹ · B.'), 'use the calculator to find X equals A inverse times B.');
+  assert.equal(speechTextFor('Press [A]⁻¹ first.'), 'Press A inverse first.');
+  assert.equal(speechTextFor('Halla A⁻¹.', { language: 'es' }), 'Halla A inversa.');
+});

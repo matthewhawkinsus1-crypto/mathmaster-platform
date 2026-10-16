@@ -1,3 +1,7 @@
+import { readDisplayMatrices } from '../math/displayMatrices.js';
+import { PRINT_OUTPUT_MODES } from './printOutputModes.js';
+import { matrixLabAnswerLines } from '../../../functions/shared/toolMath/matrixLab/matrixLabModel.mjs';
+
 const clean = (value) => String(value ?? '').trim();
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -34,11 +38,7 @@ const directionsText = (question = {}) => clean(
   question.directions ?? question.instructions ?? question.taskDirections ?? '',
 );
 
-export const PRINT_OUTPUT_MODES = Object.freeze({
-  STUDENT: 'student',
-  TEACHER: 'teacher',
-  ANSWER_KEY: 'answerKey',
-});
+export { PRINT_OUTPUT_MODES };
 
 const OUTPUT_MODE_LABELS = Object.freeze({
   student: 'Printable Assignment',
@@ -150,6 +150,7 @@ export const answerLinesFromResolvedQuestion = (question = {}) => {
   if (question.correctMatches && typeof question.correctMatches === 'object' && !Array.isArray(question.correctMatches)) {
     Object.entries(question.correctMatches).forEach(([key, value]) => add(`Match ${key}: ${formatAnswerValue(value)}`));
   }
+  if (clean(question.type || question.toolId) === 'matrixLab') matrixLabAnswerLines(question).forEach(add);
   if (question.correctIndependentId) add(`Independent quantity: ${question.correctIndependentId}`);
   if (question.correctDependentId) add(`Dependent quantity: ${question.correctDependentId}`);
 
@@ -266,7 +267,9 @@ export const structuredGivenLinesFromResolvedQuestion = (question = {}) => {
   };
   if (question.equation) add(mathLine('Equation', question.equation));
   if (question.expression && question.expression !== question.equation) add(mathLine('Expression', question.expression));
-  asArray(question.equations).forEach((equation, index) => add(mathLine(`Equation ${index + 1}`, equation)));
+  // A Matrix Lab modeling question hides its system (showEquations: false):
+  // writing it from the words is the task, so the paper never prints it.
+  if (question.showEquations !== false) asArray(question.equations).forEach((equation, index) => add(mathLine(`Equation ${index + 1}`, equation)));
   if (question.inequalityText || question.inequality) add(mathLine('Inequality', question.inequalityText || question.inequality));
 
   const type = clean(question.type || question.toolId).toLowerCase();
@@ -369,6 +372,10 @@ export const printableVisualsFromResolvedQuestion = (question = {}, { includeAns
 
   const table = safeTable(question.table);
   if (table) visuals.push({ kind: 'table', table });
+  // The named matrices a question shows (a Matrix Lab question, or any
+  // question carrying `matrices`), drawn with their brackets and labels.
+  const matrixItems = readDisplayMatrices(question);
+  if (matrixItems.length) visuals.push({ kind: 'matrices', items: matrixItems });
 
   if (['graphscenariomatch','graphcomparison'].includes(type) && Array.isArray(question.graphs)) {
     const graphs = question.graphs

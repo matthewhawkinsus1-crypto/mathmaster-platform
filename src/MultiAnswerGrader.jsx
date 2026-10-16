@@ -15,7 +15,7 @@ import { describeAnswerFormat } from './platform/interaction/answerFormatHints.j
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
-import { choiceSeed, prepareFiniteChoiceSet, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
+import { choiceAccessibleLabel, choiceSeed, prepareFiniteChoiceSet, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography } from './components/common/mathSegments.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
@@ -25,16 +25,13 @@ const normalizeMathDisplayValue = (value) => normalizePlainMathTypography(value)
   .replace(/²/g, '^2')
   .replace(/³/g, '^3');
 
-// The spoken name of a choice: its text without TeX delimiters ("$5$" → "5").
-const choiceLabel = (value) => String(value ?? '').trim().replace(/^\$+|\$+$/g, '').replace(/^\\\(|\\\)$/g, '').trim();
-
 const renderChoiceText = (value) => {
   const text = String(value ?? '');
   const format = resolveLabelFormat(text);
   return format
     // Named by its own text: every choice was announced "Mathematical
     // expression", so a screen reader could not tell 11 from 5.
-    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceLabel(text)} />
+    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceAccessibleLabel(text)} />
     : normalizePlainMathTypography(text);
 };
 
@@ -232,7 +229,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                         key={raw}
                         role="radio"
                         aria-checked={selected}
-                        aria-label={choiceLabel(raw)}
+                        aria-label={choiceAccessibleLabel(raw)}
                         onClick={() => history.setValue((current) => ({ ...current, [field.id]: raw }))}
                         style={{
                           minHeight: '46px',

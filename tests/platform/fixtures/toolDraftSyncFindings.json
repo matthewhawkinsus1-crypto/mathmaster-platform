@@ -1,27 +1,30 @@
 {
-  "generatedAt": "2026-09-30T10:29:03.396Z",
-  "origin": "http://localhost:5211",
+  "generatedAt": "2026-10-15T23:36:34.015Z",
+  "origin": "http://127.0.0.1:5197",
   "tools": [
     {
       "toolId": "dataModelingLab",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 146,
+      "largestRecordBytes": 274,
       "persistedFields": [
+        "__fresh",
         "causation",
         "direction",
         "modelChoice",
         "predictionType",
         "predictionX",
-        "predictionY"
+        "predictionY",
+        "strength"
       ]
     },
     {
       "toolId": "regressionCalculator",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 359,
+      "largestRecordBytes": 396,
       "persistedFields": [
+        "__fresh",
         "processEvidence",
         "rows"
       ]
@@ -30,8 +33,9 @@
       "toolId": "inverseCompositionLab",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 49,
+      "largestRecordBytes": 97,
       "persistedFields": [
+        "__fresh",
         "inverseAnswer",
         "restrictionChoice"
       ]
@@ -40,8 +44,9 @@
       "toolId": "functionOperationsLab",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 112,
+      "largestRecordBytes": 158,
       "persistedFields": [
+        "__fresh",
         "responses",
         "restrictionResponse"
       ]
@@ -50,8 +55,9 @@
       "toolId": "systemsWorkspace",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 60,
+      "largestRecordBytes": 81,
       "persistedFields": [
+        "__fresh",
         "count",
         "values"
       ]
@@ -60,8 +66,9 @@
       "toolId": "parabolaGeometryLab",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 67,
+      "largestRecordBytes": 117,
       "persistedFields": [
+        "__fresh",
         "directrix",
         "focusX",
         "focusY",
@@ -72,8 +79,9 @@
       "toolId": "polynomialWorkshop",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 45,
+      "largestRecordBytes": 58,
       "persistedFields": [
+        "__fresh",
         "behavior",
         "end"
       ]
@@ -82,8 +90,9 @@
       "toolId": "signSolutionAnalyzer",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 20,
+      "largestRecordBytes": 43,
       "persistedFields": [
+        "__fresh",
         "selected"
       ],
       "journey": "targeted",
@@ -93,8 +102,9 @@
       "toolId": "sequenceExplorer",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 72,
+      "largestRecordBytes": 128,
       "persistedFields": [
+        "__fresh",
         "difference",
         "leftPlottedPoints",
         "relation"
@@ -104,8 +114,9 @@
       "toolId": "complexPlaneLab",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 49,
+      "largestRecordBytes": 91,
       "persistedFields": [
+        "__fresh",
         "imaginary",
         "real",
         "rotation"
@@ -115,8 +126,9 @@
       "toolId": "exponentialLogBridge",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 63,
+      "largestRecordBytes": 116,
       "persistedFields": [
+        "__fresh",
         "asymptote",
         "domainSide",
         "inverseAnswer"
@@ -126,8 +138,9 @@
       "toolId": "transformationsLab",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 33,
+      "largestRecordBytes": 61,
       "persistedFields": [
+        "__fresh",
         "plottedPoints"
       ]
     },
@@ -135,8 +148,9 @@
       "toolId": "representationMatch",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 63,
+      "largestRecordBytes": 86,
       "persistedFields": [
+        "__fresh",
         "context",
         "equation",
         "table"
@@ -146,8 +160,9 @@
       "toolId": "functionInvestigation2",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 42,
+      "largestRecordBytes": 55,
       "persistedFields": [
+        "__fresh",
         "domainCode",
         "rangeCode"
       ]
@@ -156,8 +171,9 @@
       "toolId": "graphing2",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 26,
+      "largestRecordBytes": 47,
       "persistedFields": [
+        "__fresh",
         "points"
       ]
     },
@@ -165,8 +181,9 @@
       "toolId": "stepAlgebra2",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 251,
+      "largestRecordBytes": 291,
       "persistedFields": [
+        "__fresh",
         "history",
         "operand",
         "state"
@@ -176,8 +193,9 @@
       "toolId": "intervalNumberLine",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 151,
+      "largestRecordBytes": 208,
       "persistedFields": [
+        "__fresh",
         "built",
         "exactEndpoint",
         "notation",
@@ -188,8 +206,9 @@
       "toolId": "relationMapping",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 78,
+      "largestRecordBytes": 136,
       "persistedFields": [
+        "__fresh",
         "domainAnswer",
         "functionAnswer",
         "rangeAnswer"
@@ -199,8 +218,9 @@
       "toolId": "openSortBoard",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 130,
+      "largestRecordBytes": 151,
       "persistedFields": [
+        "__fresh",
         "groups"
       ]
     },
@@ -208,8 +228,9 @@
       "toolId": "constraintFunctionBuilder",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 146,
+      "largestRecordBytes": 178,
       "persistedFields": [
+        "__fresh",
         "hasEdited",
         "model"
       ]
@@ -218,8 +239,9 @@
       "toolId": "linearTableWorkbench",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 41,
+      "largestRecordBytes": 72,
       "persistedFields": [
+        "__fresh",
         "b",
         "equation",
         "m"
@@ -229,8 +251,9 @@
       "toolId": "expressionMeaning",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 331,
+      "largestRecordBytes": 357,
       "persistedFields": [
+        "__fresh",
         "assignments"
       ],
       "journey": "targeted",
@@ -240,10 +263,23 @@
       "toolId": "representationBridge",
       "mounted": true,
       "records": 1,
-      "largestRecordBytes": 60,
+      "largestRecordBytes": 101,
       "persistedFields": [
+        "__fresh",
         "stageChecks",
         "studentSlope"
+      ]
+    },
+    {
+      "toolId": "matrixLab",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 164,
+      "persistedFields": [
+        "A",
+        "B",
+        "__fresh",
+        "classification"
       ]
     }
   ],

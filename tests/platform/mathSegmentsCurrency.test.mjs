@@ -63,3 +63,16 @@ test('real money followed by real words is still left in the prose', () => {
     assert.equal(isMathSegment(`${money}$`), false, `${money} was mistaken for mathematics`);
   });
 });
+
+test('a list of prices stays prose: "$20, $25, and $50"', () => {
+  // Between the first two dollar signs is "20, " — an amount and a comma, no
+  // words — and the splitter used to typeset it as the math span "$20, $",
+  // dropping the next price's dollar sign (Algebra II matrices warm-up,
+  // "sold $20, $25, and $50 gas cards").
+  const prompt = 'The team sold $20, $25, and $50 gas cards.';
+  assert.deepEqual(splitMathSegments(prompt), [prompt]);
+  assert.deepEqual(splitMathSegments('Prices: $5; $10; $15.'), ['Prices: $5; $10; $15.']);
+  // Arithmetic between two dollar signs is still mathematics.
+  assert.deepEqual(splitMathSegments('Compute $20, 25$ now.'), ['Compute ', '$20, 25$', ' now.']);
+  assert.deepEqual(splitMathSegments('Solve $3 + 2$ and $x$.'), ['Solve ', '$3 + 2$', ' and ', '$x$', '.']);
+});

@@ -206,7 +206,7 @@ const plainMathToSpeech = (raw, w) => {
     .replace(new RegExp(`(^|[^A-Za-z])([${FUNCTION_LETTERS}])\\(([^()]+)\\)`, 'g'), functionApplicationSpeech(w))
     .replace(/(?:√|\bsqrt)\s*\(([^()]+)\)/g, ` ${w.squareRoot} $1 `)
     .replace(/√\s*([A-Za-z0-9.]+)/g, ` ${w.squareRoot} $1 `)
-    .replace(/\^\(?-1\)?/g, ` ${w.inverse} `)
+    .replace(/\^\(?-1\)?|⁻¹/g, ` ${w.inverse} `)
     .replace(/\^\(?2\)?(?![0-9])|²/g, ` ${w.squared} `)
     .replace(/\^\(?3\)?(?![0-9])|³/g, ` ${w.cubed} `)
     .replace(/\^\(([^()]+)\)/g, ` ${w.power} $1 `)
@@ -259,8 +259,17 @@ export const mathToSpeech = (raw, { language = 'en' } = {}) => {
 export const speechTextFor = (raw, { language = 'en' } = {}) => {
   const text = String(raw ?? '');
   if (!text.trim()) return '';
-  return segmentMathText(text)
-    .map((segment) => (segment.kind === 'math' ? ` ${mathToSpeech(segment.value, { language })} ` : segment.value))
+  const w = wordsFor(language);
+  const segments = segmentMathText(text);
+  return segments
+    .map((segment, index) => {
+      // "1st": the number is split from its suffix, and "1 st" is read
+      // "one street". It stays one word.
+      if (segment.kind === 'math' && /^\d+$/.test(segment.value) && /^(?:st|nd|rd|th)\b/.test(segments[index + 1]?.value || '')) return segment.value;
+      if (segment.kind === 'math') return ` ${mathToSpeech(segment.value, { language })} `;
+      // "A⁻¹" in prose is "A inverse"; a speech engine cannot say ⁻¹.
+      return segment.value.replace(/⁻¹/g, ` ${w.inverse}`);
+    })
     .join('')
     .replace(/\s+([,.;:?!])/g, '$1')
     .replace(/\s+/g, ' ')

@@ -435,8 +435,8 @@ test('phone Work View trims nested padding around the math', () => {
 // "Mathematical expression".
 test('multi-part choices are named by their own text', () => {
   const grader = read('src/MultiAnswerGrader.jsx');
-  assert.match(grader, /format=\{format\} inline ariaLabel=\{choiceLabel\(text\)\} \/>/);
-  assert.match(grader, /role="radio"\s*aria-checked=\{selected\}\s*aria-label=\{choiceLabel\(raw\)\}/);
+  assert.match(grader, /format=\{format\} inline ariaLabel=\{choiceAccessibleLabel\(text\)\} \/>/);
+  assert.match(grader, /role="radio"\s*aria-checked=\{selected\}\s*aria-label=\{choiceAccessibleLabel\(raw\)\}/);
 });
 
 // PR #357 CI: the typeset operand made the placed marker's innerText MathLive

@@ -348,6 +348,7 @@ const TOOL_LABELS_FALLBACK = Object.freeze({
   expressionMeaning: 'Expression Meaning',
   stepAlgebra2: 'Solving Equations Step by Step',
   functionInvestigation2: 'Function Investigation',
+  matrixLab: 'Matrix Lab',
 });
 
 export const secureToolLabel = (toolId) => (
