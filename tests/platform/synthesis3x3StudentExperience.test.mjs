@@ -31,7 +31,10 @@ test('completed Warm-Up no longer keeps the active banner on screen', () => {
   // true when every Warm-Up question is correct or expired, and that flag
   // withholding the banner — not either side's variable names.
   const app = fs.readFileSync('src/App.jsx', 'utf8');
-  const banner = region(app, 'const renderStudentWarmupBanner', 'const renderIdleOverlay', 'warm-up banner');
+  // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
+  // status chip offers the same Warm-Up); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => {', 'const renderIdleOverlay', 'warm-up banner');
+  assert.match(banner, /const activeWarmup = studentActiveWarmup\(\);\n\s+if \(!activeWarmup\) return null;/);
   assert.match(
     banner,
     /const (\w+) = questionIndices\.every\([\s\S]*?\['correct', 'expired'\]\.includes\([^;]*?\.status\)[\s\S]*?(?:!\1 \?|if \(\1\) return null;)/,

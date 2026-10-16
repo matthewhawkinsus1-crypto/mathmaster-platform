@@ -1642,8 +1642,8 @@
 }
 
 .mathmaster-section-lock-note button {
-  min-width: 32px;
-  min-height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   border: 1px solid var(--mm-border);
   border-radius: 8px;
   background: var(--mm-surface);
@@ -1675,7 +1675,7 @@
   background: var(--mm-error-bg);
 }
 
-.mathmaster-assignment-unified-nav.is-collapsed > .mathmaster-assignment-unified-top > .mathmaster-section-time-left {
+.mathmaster-assignment-unified-top > .mathmaster-section-time-left {
   flex: 0 0 auto;
   padding: 4px 8px;
   border-radius: 999px;
@@ -1692,7 +1692,7 @@
 }
 
 .mathmaster-assignment-status-chip {
-  min-height: 36px;
+  min-height: 44px;
   max-width: 100%;
   padding: 4px 12px;
   overflow: hidden;
@@ -1714,7 +1714,14 @@
   color: var(--mm-primary-text);
 }
 
-.mathmaster-assignment-status-chip.is-practice {
+.mathmaster-assignment-status-chip.is-more {
+  border-color: var(--mm-border);
+  background: var(--mm-surface);
+  color: var(--mm-primary-text);
+}
+
+.mathmaster-assignment-status-chip.is-practice,
+.mathmaster-assignment-status-line.is-grade {
   border-color: var(--mm-border-strong);
   background: var(--mm-surface-control);
   color: var(--mm-text);
@@ -1836,9 +1843,15 @@
     line-height: 1.1;
   }
 
-  .mathmaster-assignment-screen .mathmaster-assignment-status-chip {
+  /* A status takes its own row; "More" stays in the row. */
+  .mathmaster-assignment-screen .mathmaster-assignment-status-chip:not(.is-more) {
     order: 10;
     flex: 1 1 100%;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-status-chip.is-more {
+    flex: 0 0 auto;
+    padding: 4px 10px;
   }
 
   /* Every tab in view: the DOL tab was clipped under "Focus view". */

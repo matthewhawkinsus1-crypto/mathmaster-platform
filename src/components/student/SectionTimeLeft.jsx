@@ -31,9 +31,13 @@ export default function SectionTimeLeft({ label, endsAt, hideCountdown = false, 
   const [alert, setAlert] = useState(null);
   const previousRef = useRef(null);
 
+  // A warning belongs to its window (the section and its end): a new end is a
+  // new window, and an old warning is not shown for it. Never cleared on a
+  // mount — under React's development double mount that erased a warning
+  // already taken for good (said once per window).
+  const windowKey = `${label}|${endMs}`;
   useEffect(() => {
     previousRef.current = null;
-    setAlert(null);
     if (!endMs) return undefined;
     const tick = () => setNowMs(Date.now());
     tick();
@@ -44,10 +48,11 @@ export default function SectionTimeLeft({ label, endsAt, hideCountdown = false, 
   const remainingMs = endMs ? Math.max(0, endMs - nowMs) : null;
   useEffect(() => {
     if (remainingMs == null) return;
-    const due = takeDueTimeAlert({ key: `${label}|${endMs}`, remainingMs, previousRemainingMs: previousRef.current });
+    const due = takeDueTimeAlert({ key: windowKey, remainingMs, previousRemainingMs: previousRef.current });
     previousRef.current = remainingMs;
-    if (due) setAlert(due);
-  }, [remainingMs, label, endMs]);
+    if (due) setAlert({ ...due, windowKey });
+  }, [remainingMs, windowKey]);
+  const shownAlert = alert?.windowKey === windowKey ? alert : null;
 
   if (!endMs) return null;
   const urgent = remainingMs <= 120_000;
@@ -63,7 +68,7 @@ export default function SectionTimeLeft({ label, endsAt, hideCountdown = false, 
       {!compact && <span style={SR_ONLY_STYLE}>{`${label} is open${hideCountdown ? '' : `, ${time} left`}.`}</span>}
       {urgent && !compact && <span className="mathmaster-section-time-left-line">{UNFINISHED_WORK_LINE.section}</span>}
       <span role="alert" style={SR_ONLY_STYLE}>
-        {alert ? `${alert.words} on the ${label}. ${UNFINISHED_WORK_LINE.section}` : ''}
+        {shownAlert ? `${shownAlert.words} on the ${label}. ${UNFINISHED_WORK_LINE.section}` : ''}
       </span>
     </span>
   );

@@ -300,7 +300,10 @@ test('the DOL "do this next" opens the first DOL question the student has not tr
 
 test('the Warm-Up banner leaves once every Warm-Up question is finished', () => {
   const app = source('src/App.jsx');
-  const banner = region(app, 'const renderStudentWarmupBanner', 'const renderIdleOverlay', 'warm-up banner');
+  // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
+  // status chip offers the same Warm-Up); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => {', 'const renderIdleOverlay', 'warm-up banner');
+  assert.match(banner, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);\n\s+if \(!activeWarmup\) return null;/);
   assert.match(banner, /const warmupFinished = questionIndices\.every/);
   assert.match(banner, /questionIndices\.length && !warmupFinished \?/);
 });

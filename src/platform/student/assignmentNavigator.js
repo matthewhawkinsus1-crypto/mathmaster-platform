@@ -30,6 +30,9 @@ export const QUESTION_STATUS = Object.freeze({
   CORRECT: 'correct',
   // A miss with tries left.
   TRY_AGAIN: 'tryAgain',
+  // Out of tries on this version, and the question offers "Request New
+  // Question" (a fresh version, full credit still reachable): not finished.
+  NEW_QUESTION: 'newQuestion',
   // Out of tries, or its section is closed: nothing more can be submitted.
   CLOSED: 'closed',
   // Feedback is held (a quiz or test the teacher releases later): answered,
@@ -43,6 +46,7 @@ export const QUESTION_STATUS = Object.freeze({
 const SPOKEN = Object.freeze({
   [QUESTION_STATUS.CORRECT]: 'correct',
   [QUESTION_STATUS.TRY_AGAIN]: 'needs another try',
+  [QUESTION_STATUS.NEW_QUESTION]: 'out of tries, a new question is available',
   [QUESTION_STATUS.CLOSED]: 'closed',
   [QUESTION_STATUS.SUBMITTED]: 'submitted, feedback comes later',
   [QUESTION_STATUS.NOT_STARTED]: 'not started',
@@ -61,6 +65,8 @@ const triesText = (count) => `${count} ${count === 1 ? 'try' : 'tries'} left`;
  * @param {boolean} [input.sectionClosed] its section takes no more submissions (read-only)
  * @param {boolean} [input.available]    its section can be opened at all
  * @param {string} [input.lockedLabel]   why it cannot be opened ("Opens 2:15 PM")
+ * @param {boolean} [input.replacementAvailable] out of tries, the question
+ *   offers a new version (its policy allows a replacement and its outcome is shown)
  * @returns {{ status: string, spoken: string, label: string, triesLeft: number }}
  */
 export const describeNavigatorQuestion = ({
@@ -70,6 +76,7 @@ export const describeNavigatorQuestion = ({
   sectionClosed = false,
   available = true,
   lockedLabel = '',
+  replacementAvailable = false,
 } = {}) => {
   const normalized = normalizeQuestionRecord(record);
   const triesLeft = getAttemptsRemaining(normalized, maximumAttempts);
@@ -86,6 +93,11 @@ export const describeNavigatorQuestion = ({
   }
   if (normalized.status === 'correct') return finish(QUESTION_STATUS.CORRECT, 'Correct');
   const outOfTries = normalized.status === 'expired' && triesLeft <= 0;
+  // A new version is one tap away while the section is open: not done, and a
+  // section tab still lands on it so the student can ask for it.
+  if (outOfTries && replacementAvailable && !sectionClosed) {
+    return finish(QUESTION_STATUS.NEW_QUESTION, 'Out of tries · new question available');
+  }
   if (outOfTries) {
     const percent = Math.round(getQuestionCredit(normalized) * 100);
     return finish(QUESTION_STATUS.CLOSED, percent > 0 ? `Closed · ${percent}% credit` : 'Closed · no tries left', 'closed, no tries left');
@@ -103,6 +115,26 @@ export const describeNavigatorQuestion = ({
 };
 
 const TERMINAL = new Set([QUESTION_STATUS.CORRECT, QUESTION_STATUS.CLOSED, QUESTION_STATUS.SUBMITTED]);
+
+/**
+ * Is the question's outcome withheld from the student right now? The same rule
+ * the question itself follows (QuestionEngine shows the outcome when its
+ * feedback is 'immediate' or released; App releases a question in
+ * post-deadline practice, after the teacher's release, or — for
+ * 'afterAssignmentSubmit', a DOL — once the question is finished). While it
+ * is, the navigator must not say right or wrong either.
+ *
+ * @param {object} input
+ * @param {string} input.feedbackMode   the activity policy's `feedback`
+ * @param {boolean} [input.released]    released for the whole assignment, or post-deadline practice
+ * @param {object} [input.record]       the question's tracker record
+ */
+export const outcomeWithheld = ({ feedbackMode = 'immediate', released = false, record = null } = {}) => {
+  if (feedbackMode === 'immediate' || released) return false;
+  const status = normalizeQuestionRecord(record).status;
+  if (feedbackMode === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(status)) return false;
+  return true;
+};
 
 /**
  * A section tab's words. `questions` are describeNavigatorQuestion results.
@@ -177,7 +209,7 @@ const toDate = (value) => {
  */
 export const describeSectionAccess = ({
   role,
-  label = 'This section',
+  label = 'this section',
   timedDol = false,
   unrestricted = false,
   lifecycle = null,
@@ -197,8 +229,10 @@ export const describeSectionAccess = ({
     if (!at) return '';
     return at.toDateString() === now.toDateString() ? formatTime(at) : formatDay(at);
   };
-  const locked = (short, reason) => ({ state: SECTION_ACCESS.LOCKED, viewable: false, workable: false, short, reason });
-  const readOnly = (short, reason) => ({ state: SECTION_ACCESS.READ_ONLY, viewable: true, workable: false, short, reason });
+  // `label` reads mid-sentence ("the Classwork"); a sentence starts upper-case.
+  const sentence = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);
+  const locked = (short, reason) => ({ state: SECTION_ACCESS.LOCKED, viewable: false, workable: false, short, reason: sentence(reason) });
+  const readOnly = (short, reason) => ({ state: SECTION_ACCESS.READ_ONLY, viewable: true, workable: false, short, reason: sentence(reason) });
   const opensLater = (date, fallback) => {
     const at = when(date);
     return at
@@ -252,7 +286,9 @@ export const describeSectionAccess = ({
     // questions are not shown before the teacher starts it.
     const teacherClosed = String(manualState.override?.state || '').toLowerCase() === 'closed';
     if (teacherClosed || hasWork) {
-      return readOnly('Closed by your teacher', `Your teacher closed ${label}. Your work stays here to look over; you cannot submit until it is opened again.`);
+      return readOnly('Closed by your teacher', hasWork
+        ? `Your teacher closed ${label}. Your work stays here to look over; you cannot submit until it is opened again.`
+        : `Your teacher closed ${label}. You cannot submit until it is opened again.`);
     }
     return locked('Opens in class', `${label} opens when your teacher starts it in class.`);
   }

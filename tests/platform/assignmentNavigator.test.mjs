@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  outcomeWithheld,
   QUESTION_STATUS,
   SECTION_ACCESS,
   describeNavigatorQuestion,
@@ -58,6 +59,39 @@ test('RUN-9: out of tries is closed, not "needs another try"', () => {
   assert.equal(open.spoken, 'needs another try, 2 tries left');
   // A teacher's extra try reopens an expired question.
   assert.equal(describeNavigatorQuestion({ record: outOfTries, maximumAttempts: 5 }).status, QUESTION_STATUS.TRY_AGAIN);
+});
+
+test('RUN-9: out of tries on a question that offers a new version is not finished', () => {
+  // Classwork / Practice / Warm-Up: "Request New Question" gives a fresh
+  // version with full credit still reachable.
+  const shown = describeNavigatorQuestion({ record: outOfTries, maximumAttempts: 3, replacementAvailable: true });
+  assert.equal(shown.status, QUESTION_STATUS.NEW_QUESTION);
+  assert.equal(shown.label, 'Out of tries · new question available');
+  assert.equal(shown.spoken, 'out of tries, a new question is available');
+  // Not counted as done, and a tab lands on it.
+  assert.equal(describeNavigatorSectionProgress({ questions: [shown, { status: QUESTION_STATUS.CORRECT }] }).done, 1);
+  assert.equal(sectionLandingEntry({ entries: [
+    { index: 1, viewable: true, workable: true, status: QUESTION_STATUS.CORRECT },
+    { index: 2, viewable: true, workable: true, status: shown.status },
+  ] }).index, 2);
+  // In a closed section the request is locked too: closed.
+  assert.equal(describeNavigatorQuestion({ record: outOfTries, maximumAttempts: 3, replacementAvailable: true, sectionClosed: true }).status, QUESTION_STATUS.CLOSED);
+  // Held feedback still wins.
+  assert.equal(describeNavigatorQuestion({ record: outOfTries, maximumAttempts: 3, replacementAvailable: true, feedbackHeld: true }).status, QUESTION_STATUS.SUBMITTED);
+});
+
+test('the outcome is withheld exactly when the question withholds it', () => {
+  const attempted = { status: 'attempted', attemptCount: 1, totalAttempts: 1 };
+  assert.equal(outcomeWithheld({ feedbackMode: 'immediate', record: attempted }), false);
+  assert.equal(outcomeWithheld({ feedbackMode: 'teacherRelease', record: correct }), true);
+  assert.equal(outcomeWithheld({ feedbackMode: 'teacherRelease', record: correct, released: true }), false);
+  // A DOL ('afterAssignmentSubmit') with a teacher's extra try: after the
+  // first try it is still open, and its outcome is not shown yet.
+  assert.equal(outcomeWithheld({ feedbackMode: 'afterAssignmentSubmit', record: attempted }), true);
+  assert.equal(describeNavigatorQuestion({ record: attempted, maximumAttempts: 2, feedbackHeld: outcomeWithheld({ feedbackMode: 'afterAssignmentSubmit', record: attempted }) }).status, QUESTION_STATUS.SUBMITTED);
+  // Finished, its outcome is shown.
+  assert.equal(outcomeWithheld({ feedbackMode: 'afterAssignmentSubmit', record: outOfTries }), false);
+  assert.equal(outcomeWithheld({ feedbackMode: 'afterAssignmentSubmit', record: correct }), false);
 });
 
 test('RUN-9: a closed section overrides "tries left"', () => {
@@ -129,12 +163,24 @@ test('RUN-8: a DOL the teacher closed and one whose time ran out say which, and 
 
 test('RUN-8: Classwork the teacher closed stays viewable read-only; one never opened stays shut', () => {
   const closedByTeacher = describeSectionAccess({
-    role: 'classwork', label: 'Classwork', nowValue: now,
+    role: 'classwork', label: 'the Classwork', nowValue: now, hasWork: true,
     manualState: { enabled: true, isOpen: false, status: 'closed', override: { state: 'closed' } },
   });
   assert.equal(closedByTeacher.state, SECTION_ACCESS.READ_ONLY);
   assert.equal(closedByTeacher.short, 'Closed by your teacher');
-  assert.match(closedByTeacher.reason, /work stays here/);
+  assert.match(closedByTeacher.reason, /^Your teacher closed the Classwork\. Your work stays here/);
+  // No work in it: no promise about work.
+  const closedNoWork = describeSectionAccess({
+    role: 'classwork', label: 'the Classwork', nowValue: now,
+    manualState: { enabled: true, isOpen: false, status: 'closed', override: { state: 'closed' } },
+  });
+  assert.equal(closedNoWork.state, SECTION_ACCESS.READ_ONLY);
+  assert.equal(closedNoWork.reason, 'Your teacher closed the Classwork. You cannot submit until it is opened again.');
+  // A label that starts a sentence is capitalised; mid-sentence it is not.
+  const waiting = describeSectionAccess({ role: 'dol', label: 'the Exit ticket (DOL)', timedDol: true, nowValue: now, formatTime, dolState: { enabled: true, status: 'waiting', opensAt: at(14, 15) } });
+  assert.equal(waiting.reason, 'The Exit ticket (DOL) opens at 14:15.');
+  const timeUp = describeSectionAccess({ role: 'dol', label: 'the Exit ticket (DOL)', timedDol: true, nowValue: now, dolState: { enabled: true, status: 'ended' } });
+  assert.equal(timeUp.reason, 'Time is up for the Exit ticket (DOL). Ask your teacher if you missed it.');
 
   const authoredLocked = { enabled: true, isOpen: false, status: 'closed', override: null };
   const neverOpened = describeSectionAccess({ role: 'classwork', label: 'Classwork', nowValue: now, manualState: authoredLocked });

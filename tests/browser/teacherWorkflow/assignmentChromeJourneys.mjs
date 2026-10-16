@@ -23,6 +23,8 @@
 //   sections    Classwork the teacher closed reads "Closed by your teacher"
 //               and still opens, read-only; the Exit ticket (DOL) tab is
 //               focusable, says when it opens, and pressing it shows why (RUN-8).
+//   warmupWarnings  with "Show progress" open, the Warm-Up's time and its
+//               2:00 warning are still in the navigator.
 //   dolTimer    an open Exit ticket (DOL) warns at 2:00 and 0:30 in an
 //               assertive region, shows seconds in its last minute and says
 //               unfinished answers are not turned in (RUN-10).
@@ -143,7 +145,10 @@ if (wanted('phoneRow')) {
     };
     return { back: size('.mathmaster-unified-nav-back'), previous: size('button[aria-label="Previous question"]'), next: size('button[aria-label="Next question"]'), place: nav.querySelector('.mathmaster-collapsed-current-location')?.innerText.replace(/\s+/g, ' ') };
   });
-  for (const [name, box] of Object.entries({ back: sizes.back, Previous: sizes.previous, Next: sizes.next })) {
+  const more = page.locator('.mathmaster-assignment-status-chip');
+  const moreBox = await more.boundingBox();
+  sizes.more = moreBox ? [Math.round(moreBox.width), Math.round(moreBox.height)] : null;
+  for (const [name, box] of Object.entries({ back: sizes.back, Previous: sizes.previous, Next: sizes.next, More: sizes.more })) {
     check(box && box[0] >= 44 && box[1] >= 44, `${PHONE.name}: ${name} is at least 44×44`, JSON.stringify(box));
   }
   check(/Classwork\s*Q1 of 2/.test(sizes.place || ''), `${PHONE.name}: the row says the section and "Q1 of 2"`, sizes.place);
@@ -154,6 +159,16 @@ if (wanted('phoneRow')) {
       .map((element) => [element.textContent.trim().slice(0, 20), parseFloat(getComputedStyle(element).fontSize)]);
   })).filter(([, px]) => px < 12);
   check(!smallText.length, `${PHONE.name}: no navigator text under 12px`, JSON.stringify(smallText));
+  // "More" is where a phone finds the grade and Support tools (the header
+  // that carries them is hidden on a phone).
+  check(/More/.test(await more.innerText()), `${PHONE.name}: with nothing urgent, the chip says "More"`);
+  await more.click();
+  await page.waitForTimeout(300);
+  const panel = page.locator('#mathmaster-assignment-status-panel');
+  check(/Grade so far: \d+%/.test(await panel.innerText().catch(() => '')), `${PHONE.name}: More shows "Grade so far"`);
+  check(await panel.getByRole('button', { name: /Support tools/ }).isVisible().catch(() => false), `${PHONE.name}: More shows Support tools`);
+  await more.click();
+  await page.waitForTimeout(200);
   await page.locator('.mathmaster-focus-view-button').click();
   await page.waitForTimeout(500);
   const numbers = await page.evaluate(() => [...document.querySelectorAll('.mathmaster-question-number')].map((button) => {
@@ -167,6 +182,13 @@ if (wanted('phoneRow')) {
       .map((element) => [element.textContent.trim().slice(0, 20), parseFloat(getComputedStyle(element).fontSize)]);
   })).filter(([, px]) => px < 12);
   check(!smallExpanded.length, `${PHONE.name}: tab and progress text at least 12px`, JSON.stringify(smallExpanded));
+  // The locked tab's reason, and the button that closes it, on a phone.
+  // (Playwright will not click an aria-disabled button; a student can.)
+  await page.locator('.mathmaster-section-tab', { hasText: 'Exit ticket (DOL)' }).focus();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  const closeNote = await page.locator('.mathmaster-section-lock-note button').boundingBox();
+  check(closeNote && closeNote.width >= 44 && closeNote.height >= 44, `${PHONE.name}: the reason's close button is 44×44`, JSON.stringify(closeNote && [Math.round(closeNote.width), Math.round(closeNote.height)]));
   await context.close();
 }
 
@@ -219,6 +241,30 @@ if (wanted('warmup')) {
   await context.close();
 }
 
+/* ------------------------------------------------------ warmupWarnings */
+if (wanted('warmupWarnings')) {
+  // Class started eight minutes ago: the Warm-Up closes in under two minutes.
+  // With "Show progress" open (it stays open until Focus view), the Warm-Up's
+  // time and its warning are still there (review of 6955c74).
+  const { context, page } = await openLesson(PHONE, { params: { p3StartMin: '8' }, prepare: clearLesson });
+  await page.locator('.mathmaster-assignment-status-chip').click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Go to the Warm-Up' }).click();
+  await page.waitForTimeout(1000);
+  await page.locator('.mathmaster-focus-view-button').click();
+  await page.waitForTimeout(500);
+  check(await page.locator('.mathmaster-assignment-unified-nav').evaluate((nav) => !nav.classList.contains('is-collapsed')), `${PHONE.name}: progress is shown`);
+  const pill = await page.locator('.mathmaster-assignment-unified-nav [data-section-time-left]').first().innerText().catch(() => '');
+  check(/⏱\s*(\d+ min|0:\d\d)/.test(pill), `${PHONE.name}: with progress shown, the Warm-Up's time is still in the navigator`, pill);
+  let said = '';
+  for (let waited = 0; waited < 10 && !/left on the Warm-Up/.test(said); waited += 1) {
+    await page.waitForTimeout(1000);
+    said = await page.evaluate(() => [...document.querySelectorAll('.mathmaster-assignment-unified-nav [data-section-time-left] [role="alert"]')].map((region) => region.textContent).join(' | '));
+  }
+  check(/(Less than )?2 minutes left on the Warm-Up\. When time ends, only completed answers are turned in/.test(said), `${PHONE.name}: with progress shown, the Warm-Up's warning is said`, said);
+  await context.close();
+}
+
 /* ---------------------------------------------------------- statusChip */
 if (wanted('statusChip')) {
   const late = await openLesson(PHONE, {
@@ -230,6 +276,8 @@ if (wanted('statusChip')) {
   });
   const chip = late.page.locator('.mathmaster-assignment-status-chip');
   const chipText = await chip.innerText().catch(() => '');
+  const chipBox = await chip.boundingBox();
+  check(chipBox && chipBox.height >= 44, `${PHONE.name}: the status chip is 44px tall`, JSON.stringify(chipBox && Math.round(chipBox.height)));
   check(/^Late · closes/.test(chipText), `${PHONE.name}: a late lesson says so in the status chip`, chipText);
   check(await chip.getAttribute('aria-expanded') === 'false', `${PHONE.name}: the chip says it opens something`);
   await chip.click();

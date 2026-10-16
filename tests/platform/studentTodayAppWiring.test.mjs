@@ -148,7 +148,10 @@ test('entry shares the Today rule\'s predicates, with their imports (review find
 });
 
 test('the Warm-Up banner never recommends excused or unopened work (review finding 6)', () => {
-  const banner = region(app, 'const renderStudentWarmupBanner = () => {', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
+  // status chip offers the same Warm-Up); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => {', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  assert.match(app, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);/);
   assert.match(banner, /if \(assignmentIsExcusedForStudent\(assignment, user\.id\)\) return null;/);
   assert.match(banner, /if \(!getAssignmentLifecycle\(assignment, now, \{ studentId: user\.id \}\)\.isOpen\) return null;/);
   assert.match(app, /import \{[^}]*\bassignmentIsExcusedForStudent\b[^}]*\} from '\.\/platform\/student\/studentGradeCenterModel\.js'/);
