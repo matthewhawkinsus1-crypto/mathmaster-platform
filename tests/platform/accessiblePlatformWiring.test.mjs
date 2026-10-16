@@ -119,7 +119,10 @@ test('a movable point is picked up, carried and dropped by keyboard', () => {
   const keys = region(plane, 'const handleKeyDown = (event) => {', '\n  };', 'plane keys');
   const enter = region(keys, "case 'Enter':", "case 'Escape':", 'Enter');
   assert.match(enter, /if \(keyboardHeldIndex != null\) \{[\s\S]*?onMovePoint\(moved, /, 'Enter while holding drops the point');
-  assert.match(enter, /const onPoint = canMovePoints \? pointIndexNear\(target\) : null;\s*if \(onPoint != null\) \{ setKeyboardHeldIndex\(onPoint\); break; \}\s*onPlot\(target\);/, 'Enter on a movable point picks it up; elsewhere it plots');
+  // Elsewhere it plots: through commitPlot since student pass 3 (A11Y-1), which
+  // hands the point to onPlot and then says what the plot did.
+  assert.match(enter, /const onPoint = canMovePoints \? pointIndexNear\(target\) : null;\s*if \(onPoint != null\) \{ setKeyboardHeldIndex\(onPoint\); break; \}\s*(?:onPlot|commitPlot)\(target\);/, 'Enter on a movable point picks it up; elsewhere it plots');
+  assert.match(region(plane, 'const commitPlot = (point) => {', '\n  };', 'the plot commit'), /onPlot\(point\);/, 'a committed plot reaches the tool');
   const escape = region(keys, "case 'Escape':", 'default:', 'Escape');
   assert.match(escape, /if \(keyboardHeldIndex != null\) \{\s*event\.preventDefault\(\);\s*event\.stopPropagation\(\);\s*setKeyboardHeldIndex\(null\);/, 'Escape puts it back without closing Work View');
   assert.match(plane, /else if \(keyboardHeldIndex === index && keyboardCursor\) \[pointX, pointY\] = keyboardCursor;/, 'the held point is drawn at the crosshair');

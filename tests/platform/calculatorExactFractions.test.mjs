@@ -38,7 +38,7 @@ test('an integer, an irrational or an unsupported result has no fraction; errors
 
 test('the panel shows the exact fraction beside the result, and only while that result is on screen', () => {
   const panel = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', import.meta.url), 'utf8');
-  assert.match(panel, /^import \{ evaluateCalculatorExpressionExact \} from '\.\.\/platform\/policies\/calculatorExpression';$/m);
+  assert.match(panel, /^import \{[^}]*\bevaluateCalculatorExpressionExact\b[^}]*\} from '\.\.\/platform\/policies\/calculatorExpression';$/m);
   assert.equal((panel.match(/setExactResult\(evaluated\.fraction \? \{ decimal: (?:result|evaluated\.decimal), fraction: evaluated\.fraction \} : null\);/g) || []).length, 2, 'Enter and the = key both record it');
   assert.match(panel, /\{exactResult && exactResult\.decimal === display \? \(\s*<p data-calculator-exact="" role="status"/);
 });

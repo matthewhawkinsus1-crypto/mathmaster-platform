@@ -1,5 +1,10 @@
 > Investigator report for [student-experience-pass-3.md](../student-experience-pass-3.md): Help and self-correction (HELP findings and coverage matrix).
 > Read-only review of main at `25250b4` on 2026-10-16; rows were spot-checked before they went into the report.
+>
+> **Numbering note.** The summary table in the report renumbers the tail of this list: its HELP-19 is HELP-20
+> here, its HELP-20 combines HELP-19 and HELP-21 here, and its HELP-21 is the live walkthrough's LIVE-4 and
+> LIVE-5 ([08-live-walkthrough.md](08-live-walkthrough.md)). HELP-22 to HELP-25 appear only in this file. The
+> handoffs and commits use the summary table's IDs.
 
 # MathMaster student audit: assistance, self-learning and self-correction
 

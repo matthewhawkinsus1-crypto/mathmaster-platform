@@ -241,7 +241,11 @@ test('CoordinatePlane hides both readouts when coordinates are suppressed', () =
   // The live region is deliberately NOT gated: it is the only rendering of the
   // plane a screen-reader student has, so removing it makes the question
   // impossible rather than harder.
-  assert.match(source, /aria-live="polite" className="mm-sr-only">\{previewText\}/);
+  // Since student pass 3 (A11Y-1) the region also says what a plot did, in
+  // the same words as the readout ("Plotted (3, -2)."); neither is gated.
+  assert.match(source, /aria-live="polite" className="mm-sr-only">\{(?:plotAnnouncement \|\| )?previewText\}/);
+  const readout = source.slice(source.indexOf('const previewText ='), source.indexOf(';', source.indexOf('const previewText =')));
+  assert.doesNotMatch(readout, /revealCoordinates/, 'the spoken readout is never gated');
 });
 
 test('every recipe still expands, so the new one did not disturb the others', () => {

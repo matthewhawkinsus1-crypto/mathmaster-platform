@@ -12,7 +12,14 @@ test('a point is committed on release, not on press', () => {
   // somewhere the student could not see and only finds out about afterwards.
   // Committing on lift means what they see before releasing is what they get.
   assert.match(plane, /const handlePointerUp = \(event\) => \{/);
-  assert.match(plane, /if \(movedIndex != null\) onMovePoint\(movedIndex, point\);\s*\n\s*else onPlot\(point\);/);
+  // Since student pass 3 (A11Y-1) a plot goes through commitPlot, which hands
+  // the point to onPlot and then says what the plot did.
+  assert.match(plane, /if \(movedIndex != null\) onMovePoint\(movedIndex, point\);\s*\n\s*else (?:onPlot|commitPlot)\(point\);/);
+  const commit = plane.slice(plane.indexOf('const commitPlot = (point) => {'), plane.indexOf('\n  };', plane.indexOf('const commitPlot = (point) => {')));
+  assert.match(commit, /onPlot\(point\);/, 'a committed plot reaches the tool');
+  // The press only starts the gesture: nothing is plotted until the lift.
+  const press = plane.slice(plane.indexOf('const handlePointerDown = (event) => {'), plane.indexOf('const handlePointerMove'));
+  assert.doesNotMatch(press, /\b(?:onPlot|commitPlot)\(/);
   // The old click handler must be gone, or a mouse would plot twice.
   assert.doesNotMatch(plane, /onClick=\{handleClick\}/);
   assert.doesNotMatch(plane, /const handleClick = /);
