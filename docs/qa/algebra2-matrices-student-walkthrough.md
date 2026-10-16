@@ -4,7 +4,7 @@ The 28-question assignment from `claude/zen-gates-x91hg8`, done as an Algebra II
 [`ALGEBRA2_MATRICES_STUDENT_WALKTHROUGH_BRIEF.md`](ALGEBRA2_MATRICES_STUDENT_WALKTHROUGH_BRIEF.md).
 
 **Headline:**
-- **P0 — a right number graded wrong (fixed after the walkthrough, in its own PR):** WU 1 refused `8,050` for 8050 (and `44,900`). The shared equivalence layer had no thousands separator, while the Matrix Lab accepted `2,086.25`. See P0-1.
+- **P0 — a right number graded wrong (fixed after the walkthrough, PR #496):** WU 1 refused `8,050` for 8050 (and `44,900`). The shared equivalence layer had no thousands separator, while the Matrix Lab accepted `2,086.25`. See P0-1.
 - **P1 — the row × column line showed the wrong arithmetic:** CW 5's "6(3/2) + −1(1/6)" reached the student as 63/2 + −11/6, and CW 5's first hint as "2/33/2". Any prompt with a number touching a bracketed fraction was affected ("Evaluate 4(1/2)" showed 41/2). **Fixed here.**
 - **P1 — Read aloud and screen readers, all fixed here:**
   - PR 10's prices were read without "dollars".
@@ -76,7 +76,7 @@ Classic mistakes tried, and what the lab said:
 - *Where:* `gradeMultiAnswerResponse` (`functions/shared/ordinaryResponseGrading.mjs:229`) and the shared answer comparison have no thousands-separator rule. The Matrix Lab's `parseCell` already has one (`functions/shared/toolMath/matrixLab/matrixMath.mjs:70`, `stripThousands`), so in this one lesson `2,086.25` is accepted in PR 10 and `8,050` is refused in WU 1.
 - *Why it matters:* A right answer, written the way money is written, is graded wrong. The student is told to "focus on" a value they computed correctly.
 - *Suggested fix:* Accept a strict US grouping (`^-?\d{1,3}(,\d{3})+(\.\d+)?$`) only in a field that expects one number, not a pair, list or set. Use the same rule as `stripThousands`, in the shared comparison so the server re-grade agrees. At minimum, show a format message ("write 8050 without the comma") before the try is spent.
-- *Fixed after the walkthrough* (branch `claude/multi-answer-thousands-20261016`, its own PR):
+- *Fixed after the walkthrough* in PR #496:
   - `sameValue` (`functions/shared/answerEquivalence.mjs`) reads a student's number written in the strict US grouping as that number, against a key that is one number. That covers the assignment grader, My Math Path and the server re-grade.
   - A key is read exactly as before. So are `8,05`, `80,50`, `1, 250` and any key with a comma (pair, list, set).
   - `scripts/sweep-equivalence-verdicts.mjs --check-wrong` over every bank found no changed verdict on 251,811 graded pairs.
