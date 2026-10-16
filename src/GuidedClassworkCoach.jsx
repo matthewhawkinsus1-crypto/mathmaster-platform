@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import useLocalDraftState from './useLocalDraftState';
 import { resolveGuidedNotes } from './guidedNotes';
+import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
 
 export default function GuidedClassworkCoach({
   question,
@@ -10,6 +11,11 @@ export default function GuidedClassworkCoach({
   activeStageId = null,
   workflowProgress = null,
   disabled = false,
+  // Read aloud / Translate for the note on screen (pass 3, HELP-6 / HELP-21):
+  // the same actions, and the same entitlement, as hints and feedback.
+  readAloud = null,
+  translation = null,
+  onSupportEvidence = null,
 }) {
   const steps = useMemo(() => resolveGuidedNotes(question, { mode }), [question, mode]);
   const [manualStepIndex, setManualStepIndex] = useLocalDraftState(draftKey ? `${draftKey}:guided-step` : null, 0);
@@ -55,6 +61,7 @@ export default function GuidedClassworkCoach({
       {!collapsed && (
         <div style={{ padding: '12px 14px 13px' }}>
           <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55, fontSize: 'calc(14 * var(--mm-px))' }}>{currentStep.instruction}</p>
+          <SupportedTextActions text={[currentStep.title && `${currentStep.title}${/[.?!:]$/.test(currentStep.title) ? '' : '.'}`, currentStep.instruction].filter(Boolean).join(' ')} readAloud={readAloud} translation={translation} label="the note" onEvidence={onSupportEvidence} />
           {synchronized ? (
             <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>Follows your current math step</span>

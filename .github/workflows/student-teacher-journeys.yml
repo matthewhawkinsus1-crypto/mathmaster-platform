@@ -90,6 +90,7 @@ on:
       - "tests/browser/warmupReopenDraft*"
       - "tests/browser/familyPinContainment*"
       - "tests/browser/feedbackTeaches*"
+      - "tests/browser/readAloudTranslate*"
       - "tests/browser/reviewMyWork*"
       - "package.json"
       - "package-lock.json"
@@ -339,6 +340,14 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/feedbackTeaches.mjs
+      # Read aloud says the whole question (choices, matrices, parts heard
+      # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
+      - name: Read aloud and Translate (heard and seen)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/readAloudTranslate.mjs
       # Review My Work on a closed assignment (answers, outcomes, worked solutions).
       - name: Review My Work
         if: always()

@@ -115,6 +115,7 @@ import { StudentSupportTray } from './components/student/StudentSupportTools.jsx
 import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
+import { questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
 
 const WorkViewReadySignal = ({ span }) => {
   useEffect(() => {
@@ -404,10 +405,6 @@ function QuestionEngineBody({
     () => (referenceInfo ? { ...processedQuestion, suppressScenarioDisplay: true } : processedQuestion),
     [processedQuestion, referenceInfo],
   );
-  const referenceSpeechText = useMemo(
-    () => [processedQuestion?.prompt, ...(referenceInfo?.statements || []).map((entry) => entry?.text)].filter(Boolean).join('. '),
-    [processedQuestion?.prompt, referenceInfo],
-  );
   const { confirm: confirmAction, toastInfo } = useToast();
   // Built once per question, not once per render. StepByStepAlgebra resets its
   // whole workspace when its `question` prop changes identity, so handing it a
@@ -640,6 +637,8 @@ function QuestionEngineBody({
     <StudentSupportTray
       entitlement={languageTools}
       prompt={processedQuestion?.prompt || ''}
+      readingParts={readingParts}
+      readingLanguage={readAloudLanguage}
       question={processedQuestion}
       toolType={processedQuestion?.type || ''}
       surface={surface}
@@ -998,6 +997,29 @@ function QuestionEngineBody({
   // about THIS problem's first move from its question family, else the
   // platform's generic re-orientation question (backUpStep.js).
   const scaffold = useMemo(() => backUpStepFor(processedQuestion), [processedQuestion]);
+  // READ ALOUD READS THE WHOLE QUESTION (pass 3, HELP-6): the "Let's back
+  // up" question while it blocks the work, the prompt, "Information you need",
+  // the matrices and system the question shows, a composed question's current
+  // step and every field with its choices — in screen order
+  // (platform/language/questionReading.js). The tray lists the same parts so
+  // a student can hear one again.
+  const readingStage = useMemo(() => {
+    const stageId = currentWorkflowGuidance?.currentStageId;
+    if (!isComposed || !stageId) return null;
+    const { workflow } = readComposedQuestion(processedQuestion);
+    const stage = (workflow || []).find((entry) => entry.id === stageId);
+    return stage ? { stage, index: currentWorkflowGuidance.currentStageIndex, total: currentWorkflowGuidance.total || workflow.length, workflow: processedQuestion?.workflow } : null;
+  }, [isComposed, processedQuestion, currentWorkflowGuidance?.currentStageId, currentWorkflowGuidance?.currentStageIndex, currentWorkflowGuidance?.total]);
+  const readingParts = useMemo(
+    () => questionReadingParts(processedQuestion, {
+      referenceInfo,
+      backUp: scaffoldRequired ? scaffold : null,
+      stage: readingStage,
+      language: readAloudLanguage,
+    }),
+    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage],
+  );
+  const referenceSpeechText = useMemo(() => questionReadingText(readingParts), [readingParts]);
 
   // WHAT AN ATTEMPT RECORDS (supportUseMemory.js). A hint, a worked example,
   // a back-up step written for THIS problem (authored or family: it names the
@@ -1610,7 +1632,7 @@ function QuestionEngineBody({
   const supportedTextTranslation = languageTools.tools.includes('translate') && languageTools.language
     ? { language: languageTools.language }
     : null;
-  const reportSupportedTextUse = (supportId, eventType) => reportSupportEvidence(supportId, eventType);
+  const reportSupportedTextUse = (supportId, eventType, details = null) => reportSupportEvidence(supportId, eventType, details);
   const hintPanel = helpControlAvailable ? (
     <HintPanel
       hints={hintLadder.hints}
@@ -2161,6 +2183,9 @@ function QuestionEngineBody({
         activeStageId={workflowGuidanceState?.currentStageId || null}
         workflowProgress={workflowGuidanceState}
         disabled={locked}
+        readAloud={supportedTextReadAloud}
+        translation={supportedTextTranslation}
+        onSupportEvidence={reportSupportedTextUse}
       />
     </QuestionSupplementBoundary>
   );
@@ -2972,6 +2997,8 @@ function QuestionEngineBody({
                   <button key={option} type="button" onClick={() => { if (String(option) === String(scaffold.correct)) { setScaffoldComplete(true); setScaffoldMessage(''); } else setScaffoldMessage('Try the other choice. This support step does not use an attempt.'); }} style={{ padding: '11px 18px', borderRadius: '9px', border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer' }}>{option}</button>
                 ))}
               </div>
+              {/* Read aloud and Translate on the question that blocks the work (pass 3, HELP-6). */}
+              <SupportedTextActions text={[scaffold.prompt, ...(scaffold.options || []).map((option) => `${option}.`)].join('\n')} readAloud={supportedTextReadAloud} translation={supportedTextTranslation} label="the back-up question" onEvidence={reportSupportedTextUse} />
               {scaffoldMessage && <p style={{ margin: '14px 0 0', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>{scaffoldMessage}</p>}
             </div>
           </section>
