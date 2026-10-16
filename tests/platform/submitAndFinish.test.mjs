@@ -207,6 +207,12 @@ test('the save line: moving between questions saves a draft, and only a sent ans
   // An answer that could not be stored, or was refused, is never called recorded.
   assert.equal(line(run([{ type: 'answer-sent' }, 'capturing', 'volatile', 'capturing', 'queued', 'durable']), 'durable'), 'Draft saved.');
   assert.equal(line(run([{ type: 'answer-sent' }, 'queued', 'rejected', 'queued', 'durable']), 'durable'), 'Draft saved.');
+  // Sent while the line still reads the last drain's "durable": the answer is
+  // not recorded by that old status, only by the next drain.
+  const sentOnDurable = run([{ type: 'answer-sent' }, 'durable'], navigated);
+  assert.equal(line(sentOnDurable, 'durable'), 'Draft saved.');
+  assert.equal(sentOnDurable.pendingAnswer, true);
+  assert.equal(line(run(['capturing', 'queued', 'durable'], sentOnDurable), 'durable'), 'Answer recorded by MathMaster.');
   // An answer sent while the line already read "volatile" is still an answer.
   assert.equal(line(run(['volatile', { type: 'answer-sent' }, 'capturing']), 'capturing'), 'Saving your answer…');
 
@@ -257,6 +263,13 @@ test('a skipped question is the way back, named in the student\'s words', () => 
   assert.equal(resolveSkippedQuestion({ ...base, attemptCountOf: () => 1 }).label, 'Go back to Practice Q1 (not finished)');
   assert.deepEqual(resolveSkippedQuestion({ ...base, isComplete: (index) => index !== 2, isWorkable: () => true }), { index: 2, label: 'Go back to Exit ticket (DOL) Q1 (not answered)' });
   assert.equal(resolveSkippedQuestion({ ...base, isWorkable: (entry) => entry.role !== 'practice' || entry.index === 1, isComplete: (index) => index !== 2 }).index, 2);
+  // This section's own skipped question comes before an earlier section's.
+  const twoSections = [
+    { index: 0, role: 'practice', sectionPosition: 0 },
+    { index: 1, role: 'dol', sectionPosition: 0 },
+    { index: 2, role: 'dol', sectionPosition: 1 },
+  ];
+  assert.deepEqual(resolveSkippedQuestion({ ...base, entries: twoSections, currentIndex: 2, currentRole: 'dol', isComplete: (index) => index === 2 }), { index: 1, label: 'Go back to Exit ticket (DOL) Q1 (not answered)' });
   assert.equal(resolveSkippedQuestion({ ...base, isComplete: () => true }), null, 'nothing left: no way back');
   assert.equal(resolveSkippedQuestion({ ...base, isWorkable: (entry) => entry.index === 1 }), null, 'a locked DOL is not offered');
 
