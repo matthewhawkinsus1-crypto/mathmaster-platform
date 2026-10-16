@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { selfCheckCostSentence } from './platform/supports/hints/hintCopy.js';
 import { zoomedWindow } from './graphWorkspaceViewport.js';
 import { clientPointToViewBox, viewBoxRenderScale } from './utils/responsiveCoordinates.js';
 import { revealInNearestScroller } from './platform/workView/workViewReveal.js';
@@ -220,6 +221,9 @@ export default function InteractiveGraphWorkspace({
   // an author cannot switch it on for an exit ticket by adding a field.
   selfCheckAllowed = false,
   onSelfCheck = null,
+  // The host's sentence for what a hint costs (Recovery's), else the
+  // platform's (hintCopy.js, HELP-17).
+  hintCostNote = null,
   // WHETHER "CHECK POINT PLACEMENTS" MAY SAY WHICH POINTS ARE WRONG.
   //
   // The engine passes whether the activity shows outcomes immediately. On a
@@ -1287,12 +1291,12 @@ export default function InteractiveGraphWorkspace({
                         type="button"
                         onClick={runSelfCheck}
                         disabled={!Object.keys(construction.placements).length}
-                        title="Compares your plotted points with the function. Recorded for your teacher, like a hint."
+                        title={`Compares your plotted points with the function. ${selfCheckCostSentence(hintCostNote)}`}
                         style={{ width: '100%', minHeight: 44, padding: '10px', border: '1px solid #e0a800', borderRadius: '8px', background: 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)', fontWeight: 800, opacity: Object.keys(construction.placements).length ? 1 : 0.5 }}
                       >
                         Check my points
                       </button>
-                      <span style={{ display: 'block', marginTop: '4px', fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>Recorded for your teacher</span>
+                      <span style={{ display: 'block', marginTop: '4px', fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-warning-text)' }} data-hint-cost-note="">{selfCheckCostSentence(hintCostNote)}</span>
                       {selfCheckReport && (
                         <div role="status" style={{ marginTop: '8px', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-warning-subtle)' }}>
                           <strong style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>{summarizeSelfCheck(selfCheckReport)}</strong>
