@@ -11,7 +11,9 @@ import { useHintsAllowed, useHostSubmitLabel, useSubmitLabel } from '../shared/T
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
-import { formatLine, lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
+import { lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
+import { lineReadoutLatex, lineReadoutText } from './lineReadout.js';
+import MathDisplay from '../../MathDisplay';
 import { constructionReadyToCheck, requiredConstructionPointCount, resolveConstructionPolicy } from './constructionPolicy';
 import { toFraction, formatFraction } from '../shared/linearEquations.js';
 
@@ -89,7 +91,7 @@ const targetPrompt = (questionData, target) => {
   if (mode === 'factoredLinear') return `Graph y = ${questionData.factored?.a}(x − ${questionData.factored?.c}).`;
   if (mode === 'standardForm') return `Graph ${questionData.standard?.A}x + ${questionData.standard?.B}y = ${questionData.standard?.C}.`;
   if (mode === 'verticalHorizontal') return `Graph ${questionData.orientation === 'vertical' ? 'x = ' : 'y = '}${questionData.value}.`;
-  return `Graph ${formatLine(target)}.`;
+  return `Graph ${lineReadoutText(target) || 'the line'}.`;
 };
 
 // Whole-number snapping unless the line genuinely lives between the gridlines.
@@ -323,7 +325,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const constructionIncomplete = !constructionReadyToCheck(points, questionData);
   const workspaceCapabilities = {
     undo: undoHistory.capability,
-    equationInput: { label: studentLine && showLineReadout ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },
+    equationInput: { label: studentLine && showLineReadout ? `Your line: ${lineReadoutText(studentLine)}` : 'Your line', studentState: true },
     instruction: { text: nextInstruction(points.length, requiredPointCount, hostSubmitLabel) },
     task: { text: targetPrompt(normalizedQuestion, target) },
     // The hints ARE this Help. Where the activity withholds them the panel
@@ -412,7 +414,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
             {showLineReadout ? (
               <>
                 <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Your line</dt>
-                <dd style={{ margin: 0, fontWeight: 700 }}>{studentLine ? formatLine(studentLine) : 'Plot two different points'}</dd>
+                {/* Typeset, in exact fractions: "y = ⅔x + 2", never "y = 0.66666667x + 2" or "y = 1x + 0" (TOOL-7). */}
+                <dd data-line-readout={studentLine ? lineReadoutText(studentLine) : ''} style={{ margin: 0, fontWeight: 700 }}>{studentLine ? <MathDisplay value={lineReadoutLatex(studentLine)} format="latex" inline /> : 'Plot two different points'}</dd>
               </>
             ) : null}
           </dl>
