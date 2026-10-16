@@ -201,8 +201,10 @@ function ToastRow({ toast, onDismiss, onPause = null, onResume = null }) {
     <div
       className="mm-toast"
       data-tone={toast.tone}
-      onMouseEnter={() => onPause?.(toast.id, 'hover')}
-      onMouseLeave={() => onResume?.(toast.id, 'hover')}
+      // A mouse resting on it, not a tap: on a touch screen "hover" would
+      // hold the toast until the next tap somewhere else.
+      onPointerEnter={(event) => { if (event.pointerType === 'mouse') onPause?.(toast.id, 'hover'); }}
+      onPointerLeave={(event) => { if (event.pointerType === 'mouse') onResume?.(toast.id, 'hover'); }}
       onFocus={() => onPause?.(toast.id, 'focus')}
       onBlur={(event) => {
         if (event.currentTarget.contains(event.relatedTarget)) return;

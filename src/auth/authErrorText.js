@@ -37,5 +37,9 @@ export function describeAuthError(error) {
   if (code.startsWith('functions/') && message && !message.startsWith('INTERNAL') && !bareCode) {
     return message;
   }
+  // "INTERNAL" (upper case) is the server failing, not the connection.
+  if (code === 'functions/internal' && message.startsWith('INTERNAL')) {
+    return 'MathMaster could not finish that. Try again in a moment, and tell your teacher if it keeps happening.';
+  }
   return FRIENDLY_ERRORS[code] || (bareCode ? null : message) || 'Something went wrong. Try again.';
 }

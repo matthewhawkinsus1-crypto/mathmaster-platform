@@ -768,7 +768,7 @@ export const buildStudentGradeCenter = ({
       // A teacher-set grade offers results only: no work can change it.
       closedByTeacher,
       actions: closedByTeacher
-        ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null, waitText: teacherClosedNotice(assignment).text }
+        ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null, practiceNoCredit: false, waitText: teacherClosedNotice(assignment).text }
         : gradeOverride
           ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null }
           : resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }),

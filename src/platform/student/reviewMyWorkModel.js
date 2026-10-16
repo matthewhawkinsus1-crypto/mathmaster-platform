@@ -49,7 +49,8 @@ export const LOAD_ERROR_TEXT = 'Your answers could not be loaded right now. Try 
  * the server marks `details.retry` (it could not check the class right now)
  * keeps its own words and the retry button.
  */
-const REFUSAL_CODES = new Set(['failed-precondition', 'permission-denied', 'not-found', 'invalid-argument', 'unauthenticated']);
+const REFUSAL_CODES = new Set(['failed-precondition', 'permission-denied', 'not-found', 'invalid-argument']);
+export const SIGN_IN_AGAIN_TEXT = 'Sign in again to see your answers and solutions.';
 
 export const describeReviewLoadError = (error) => {
   const code = String(error?.code || '').replace(/^functions\//, '');
@@ -57,6 +58,8 @@ export const describeReviewLoadError = (error) => {
   const details = isObject(error?.details) ? error.details : {};
   // A bare code ("internal", "failed-precondition") is not a sentence.
   const sentence = message && /\s/.test(message) && message.length <= 300 ? message : '';
+  // Signed out underneath the page: the server's sentence names another screen.
+  if (code === 'unauthenticated') return { kind: 'refused', text: SIGN_IN_AGAIN_TEXT, retry: false };
   if (REFUSAL_CODES.has(code) && sentence) {
     return { kind: 'refused', text: sentence, retry: details.retry === true };
   }

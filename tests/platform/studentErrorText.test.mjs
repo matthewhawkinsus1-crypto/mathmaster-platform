@@ -78,3 +78,10 @@ test('NAV-11: a Classroom link whose assignment is not this student\'s, or that 
   assert.match(effect, /toastInfo\(ARRIVAL_MESSAGES\.studentStale\.title, ARRIVAL_MESSAGES\.studentStale\.body\);\s*setPendingClassroomLaunch\(null\);/);
   assert.match(app, /console\.error\('Rejected invalid Classroom launch link:', error\);\s*setClassroomLaunchInvalid\(true\);/);
 });
+
+test('review note: a server crash ("INTERNAL") is not called a Wi-Fi problem; Review My Work signed out says sign in', async () => {
+  assert.match(describeAuthError({ code: 'functions/internal', message: 'INTERNAL' }), /^MathMaster could not finish that\./);
+  assert.match(describeAuthError({ code: 'functions/internal', message: 'internal' }), /Wi-Fi/);
+  const { describeReviewLoadError, SIGN_IN_AGAIN_TEXT } = await import('../../src/platform/student/reviewMyWorkModel.js');
+  assert.deepEqual(describeReviewLoadError({ code: 'functions/unauthenticated', message: 'Sign in before starting My Math Path.' }), { kind: 'refused', text: SIGN_IN_AGAIN_TEXT, retry: false });
+});

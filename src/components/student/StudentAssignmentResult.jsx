@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
@@ -6,7 +6,7 @@ import { describeClassroomReceipt } from '../../platform/classroom/classroomRece
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { LEVEL, resolveBack } from '../../platform/student/navigationModel.js';
 import { PRACTICE_SKILL_LABEL, RESULT_STEP, describeResultNextStep, resultTryAgainLabel } from '../../platform/student/studentResultNextStep.js';
-import { OPEN_NOTICE } from '../../platform/student/studentOpenGate.js';
+import { OPEN_NOTICE, describeOpenNotice } from '../../platform/student/studentOpenGate.js';
 import { formatDateTime } from '../../assignmentLifecycle';
 
 /*
@@ -122,8 +122,18 @@ export default function StudentAssignmentResult({
     : back?.level === LEVEL.HOME
       ? onBackToHome
       : onViewAllAssignments;
-  // Paused or archived: nothing here opens, so nothing offers to (NAV-4).
-  const closedByTeacher = notice?.kind === OPEN_NOTICE.PAUSED || notice?.kind === OPEN_NOTICE.ARCHIVED;
+  // Paused or archived: nothing here opens, so nothing offers to (NAV-4) —
+  // known from the entry itself (the Grades model), not only from a start
+  // that bounced, so the page says it up front however it was reached.
+  const closedByTeacher = notice?.kind === OPEN_NOTICE.PAUSED || notice?.kind === OPEN_NOTICE.ARCHIVED
+    || Boolean(entry?.closedByTeacher);
+  const shownNotice = notice || (entry?.closedByTeacher ? describeOpenNotice({ kind: entry.closedByTeacher }) : null);
+  // A start that bounced here (a new notice object each time) puts focus on
+  // why, so the press is never silent — even when the page did not change.
+  const noticeHeadingRef = useRef(null);
+  useEffect(() => {
+    if (notice) noticeHeadingRef.current?.focus({ preventScroll: false });
+  }, [notice]);
   if (!entry) {
     return (
       <main style={{ minHeight: '100vh', background: 'var(--mm-surface-control)', padding: '28px 16px', fontFamily: '"Segoe UI", sans-serif' }}>
@@ -212,10 +222,10 @@ export default function StudentAssignmentResult({
 
         {/* Why this opened here instead of the work (NAV-4, NAV-10): read
             right after the title, for as long as the student needs. */}
-        {notice && (
-          <div data-result-notice={notice.kind} style={{ marginTop: 14, padding: '14px 16px', borderRadius: 12, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)' }}>
-            <h2 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', letterSpacing: 'normal', lineHeight: 1.3, fontWeight: 900, color: 'var(--mm-warning-text)' }}>{notice.title}</h2>
-            <p style={{ margin: '6px 0 0', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{notice.text}</p>
+        {shownNotice && (
+          <div data-result-notice={shownNotice.kind} style={{ marginTop: 14, padding: '14px 16px', borderRadius: 12, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)' }}>
+            <h2 ref={noticeHeadingRef} tabIndex={-1} data-result-notice-heading style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', letterSpacing: 'normal', lineHeight: 1.3, fontWeight: 900, color: 'var(--mm-warning-text)' }}>{shownNotice.title}</h2>
+            <p style={{ margin: '6px 0 0', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{shownNotice.text}</p>
           </div>
         )}
 
@@ -367,7 +377,7 @@ export default function StudentAssignmentResult({
               Back to Home
             </button>
           )}
-          {entry.reviewAvailable && !reviewPanel && (
+          {entry.reviewAvailable && !reviewPanel && !closedByTeacher && (
             <button type="button" style={actionStyle(false)} onClick={() => onReviewWork?.(entry.assignmentId)}>
               Review My Work
             </button>

@@ -540,7 +540,8 @@ test('NAV-6 / NAV-7: the list is marked seen once half of it is on screen; Home 
   const list = executableSource(readFileSync(new URL('../../src/components/student/WhatChangedList.jsx', import.meta.url), 'utf8'));
   const effect = region(list, 'useEffect(() => {', '}, [hasItems, canMark]);');
   assert.match(effect, /new window\.IntersectionObserver\(/);
-  assert.match(effect, /entry\.isIntersecting && entry\.intersectionRatio >= 0\.5[\s\S]*?mark\(\);/);
+  // Half the list, or half the screen of a list taller than the screen (review note).
+  assert.match(effect, /entry\.isIntersecting && entry\.intersectionRect\.height\s*>= Math\.min\(entry\.boundingClientRect\.height \* 0\.5, screen \* 0\.5\)\)\)[\s\S]*?mark\(\);/);
   // Not on mount: the only unconditional mark is the no-observer fallback.
   assert.match(effect, /typeof window\.IntersectionObserver !== 'function'\) \{\s*mark\(\);/);
   assert.match(list, /\{item\.reasonText && !compact && \(/);

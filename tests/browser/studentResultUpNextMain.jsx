@@ -88,6 +88,21 @@ const SCENES = {
   resultClosedFromHome: () => result('closed', { origin: 'home', onPracticeSkill: record('practiceSkill') }),
   // NAV-4: a start on a paused lesson landed here.
   resultPaused: () => result('closed', { origin: 'grades', onPracticeSkill: null, notice: describeOpenNotice({ kind: 'paused' }) }),
+  // Review fix 3: reached from Grades' View Results — no bounced start, only the entry says it is paused.
+  resultPausedEntry: () => (
+    <StudentAssignmentResult
+      entry={{ ...screens.gradeEntryOf('closed'), closedByTeacher: 'paused' }}
+      todayEntry={null}
+      upNext={null}
+      nowValue={NOW}
+      onPractice={record('practice')}
+      onReviewWork={record('review')}
+      onViewAllGrades={record('grades')}
+      onViewAllAssignments={record('assignments')}
+      onBackToHome={record('home')}
+      origin="grades"
+    />
+  ),
 };
 
 const listeners = new Set();

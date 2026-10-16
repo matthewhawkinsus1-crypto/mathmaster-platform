@@ -36,6 +36,20 @@ here re-grades anything, writes to production or deploys. No new Firestore path,
 - Assignments keeps search, tab and marking period across View Results → Back (sessionStorage, per student, this tab; browser driver S6).
 - D9 on Home's secondary DOL card: "Exit ticket (DOL) open now", "Start the exit ticket".
 
+## After the independent review (integrator, on dc567c3)
+
+| Finding | Fix | Proof |
+| --- | --- | --- |
+| The lobby invite's "Join Challenge Now" did nothing on the result page, was remembered for later, and skipped the Path-launch cleanup. | It calls `openStudentDashboardMode('liveChallenge')`, which changes the view and clears a pending Path launch. | `studentOpenPaths.test.mjs` (mutation: the bare setter → red) |
+| The paused gate's student condition was untested ('teacher' left the suite green). | The `user?.role === 'student'` line is pinned. | mutation → red |
+| A paused lesson reached from Grades' View Results said nothing and offered Review My Work / Try again, which bounced silently; Grades still offered "Try it again — no credit" on paused closed rows. | The result page reads `entry.closedByTeacher`: the notice is shown up front, neither button is offered; a start that bounces moves focus to the notice. Grades clears `practiceNoCredit` for paused/archived rows. | `studentOpenPaths.test.mjs`; browser `studentResultUpNext.mjs` `resultPausedEntry` |
+| Toasts covered Submit/Next for longer (bottom-right, full width on a phone; tap-to-hold on touch). | Toasts sit above `--mm-action-bar-height` on laptops and at the top, under the identity bar, on phones; only a mouse pointer holds one (pointerType). | browser `studentScreenChange.mjs` S7: a tap on Submit/Check at its centre hits the button while "That question has moved" shows, at 1366×768 and 390×844 — with the CSS reverted it hits the toast at both sizes |
+| Notes | "What changed" is marked seen at half the list or half the screen, whichever is smaller (a tall list can now clear). Opening More moves focus to the first unfolded place. "INTERNAL" (a server crash) reads "MathMaster could not finish that…", not a Wi-Fi problem. A signed-out Review My Work says "Sign in again to see your answers and solutions." Browser Back/Forward onto a paused lesson now lands on its result page too (was a bypass of the gate, pre-existing). The Classroom effect's "already present" return is pinned. | unit tests, each mutation-checked |
+
+Left as notes: Review My Work's "…closed for your whole class" tells a student someone still has time (names no one) — an
+owner wording call. The Test Cycle card stops offering Try again after three failed loads even for network errors
+(`resolveErrorExit`'s rule; Back and reopening resets it).
+
 ## Rewritten contracts (behaviour intact; each mutation-checked red)
 
 `reviewMyWorkModel` (error branch, catch keeps no result), `accessiblePlatformWiring` (document title; skip-link anchor

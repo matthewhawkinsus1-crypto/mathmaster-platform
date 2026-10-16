@@ -43,12 +43,17 @@ export default function WhatChangedList({ items = [], onOpenAssignment = null, o
       mark();
       return undefined;
     }
+    // Half the list in view — or half the screen's height of it, for a list
+    // taller than the screen could ever show half of (two-line rows, large
+    // text on a phone), so "N updates" can always clear.
     const observer = new window.IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5)) {
+      const screen = Number(window.innerHeight) || 0;
+      if (entries.some((entry) => entry.isIntersecting && entry.intersectionRect.height
+        >= Math.min(entry.boundingClientRect.height * 0.5, screen * 0.5))) {
         observer.disconnect();
         mark();
       }
-    }, { threshold: [0.5] });
+    }, { threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1] });
     observer.observe(node);
     return () => observer.disconnect();
   }, [hasItems, canMark]);

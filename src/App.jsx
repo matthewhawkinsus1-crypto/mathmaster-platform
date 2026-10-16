@@ -1167,6 +1167,24 @@ function App() {
       }
 
       if (route.surface === 'assignment') {
+        // Back/Forward onto a lesson the teacher has since paused or archived
+        // lands on its result page, like every other way in (NAV-4).
+        const closedNow = teacherClosedState(assignmentsRef.current.find((item) => item.id === route.assignmentId));
+        if (closedNow) {
+          setPathLaunchTeks(null);
+          setActiveAssignmentId(route.assignmentId);
+          setActiveClassroomSectionKey(null);
+          setAssignmentResultRoute({
+            assignmentId: route.assignmentId,
+            sectionKey: 'whole',
+            sectionLabel: null,
+            questionIndex: 0,
+            origin: NAV_LEVEL.ASSIGNMENTS,
+            notice: describeOpenNotice({ kind: closedNow }),
+          });
+          setActiveView('assignmentResult');
+          return;
+        }
         setStudentDashboardMode('assignments');
         setPathLaunchTeks(null);
         setActiveAssignmentId(route.assignmentId || null);
@@ -8878,7 +8896,9 @@ function App() {
           <span aria-hidden="true">⚡ </span>
           {running ? 'The Live Challenge is running now.' : 'Your teacher opened the Live Challenge lobby.'}
         </span>
-        <button type="button" onClick={() => setStudentDashboardMode('liveChallenge')} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
+        {/* openStudentDashboardMode, not the bare mode: from the result page the
+            view must change too, and a pending Path launch must not survive. */}
+        <button type="button" onClick={() => openStudentDashboardMode('liveChallenge')} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
           {running ? 'Join Challenge Now' : 'Enter Challenge Lobby'}
         </button>
       </section>

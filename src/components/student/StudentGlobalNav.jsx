@@ -135,7 +135,16 @@ export default function StudentGlobalNav({
         className="mm-student-nav__more"
         aria-expanded={moreOpen}
         aria-controls={groups.folded.map(foldedId).join(' ')}
-        onClick={() => setMoreOpen((open) => !open)}
+        onClick={(event) => {
+          const opening = !moreOpen;
+          setMoreOpen(opening);
+          // The unfolded places come before More in the row, so Tab from More
+          // would leave the nav: opening moves focus to the first of them.
+          if (opening) {
+            const nav = event.currentTarget.closest('nav');
+            window.requestAnimationFrame(() => nav?.querySelector('.mm-student-nav__folded')?.focus());
+          }
+        }}
         style={{
           appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
           minHeight: MIN_TOUCH_TARGET_PX,

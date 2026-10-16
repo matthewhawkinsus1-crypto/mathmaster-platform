@@ -293,6 +293,13 @@ for (const viewport of VIEWPORTS) {
     expect(problems, !(await buttons(page)).some((label) => /Try .*again/.test(label)), 'a paused lesson offered a retry');
   });
 
+  await scene('resultPausedEntry', async (problems) => {
+    const text = await textOf(page);
+    expect(problems, text.includes('Your teacher paused this — your work is saved.'), 'a paused lesson reached from Grades does not say so');
+    const labels = await buttons(page);
+    expect(problems, !labels.some((label) => /Try .*again|Review My Work/.test(label)), `a paused lesson offers what would bounce: ${JSON.stringify(labels)}`);
+  });
+
   await scene('resultExcused', async (problems) => {
     expect(problems, !(await buttons(page)).some((label) => /Try .*again/.test(label)), 'excused work offered a retry');
     expect(problems, /excused/i.test(await textOf(page)), 'excused result does not say Excused');

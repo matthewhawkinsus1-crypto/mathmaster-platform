@@ -23,6 +23,8 @@
 //   S5  Home → "See results": the result page's Back reads "← Home" and goes
 //       Home (NAV-9), where browser Back would have gone.
 //   S6  Assignments: a search survives View Results → browser Back.
+//   S7  A toast shown inside an assignment ("That question has moved") never
+//       covers Submit / Check: the button is what a tap at its centre hits.
 //
 // Exit code 1 on any finding.
 
@@ -204,6 +206,28 @@ for (const viewport of VIEWPORTS) {
     const kept = await page.locator('#assignments-search').inputValue().catch(() => null);
     expect(`S6 ${tag}`, kept === 'Elimination', `the search came back as ${JSON.stringify(kept)}`);
     await page.locator('#assignments-search').fill('');
+  }
+
+  // S7 — a toast over the workspace leaves the action bar pressable.
+  await page.goto(`${ORIGIN}/assignments/a-today/classwork/99?${asStudent}`);
+  const toast = page.locator('.mm-toast').filter({ hasText: 'That question has moved' }).first();
+  if (expect(`S7 ${tag}`, await toast.waitFor({ timeout: 60_000 }).then(() => true, () => false), 'no "That question has moved" toast')) {
+    await page.waitForTimeout(800);
+    const hit = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll('button')].filter((button) => button.getClientRects().length
+        && /^(Submit|Check)\b/.test((button.innerText || '').trim()));
+      const button = buttons.find((candidate) => {
+        const box = candidate.getBoundingClientRect();
+        return box.bottom > 0 && box.top < window.innerHeight;
+      });
+      if (!button) return { found: false };
+      const box = button.getBoundingClientRect();
+      const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return { found: true, label: button.innerText.trim(), hits: Boolean(at && (at === button || button.contains(at))), covering: at?.closest('.mm-toast') ? 'toast' : at?.tagName };
+    });
+    if (expect(`S7 ${tag}`, hit.found, 'no Submit or Check button on screen')) {
+      expect(`S7 ${tag}`, hit.hits, `a tap on "${hit.label}" lands on ${hit.covering}, not the button`);
+    }
   }
 
   expect(`${tag}`, errors.length === 0, `page errors: ${errors.join(' | ')}`);

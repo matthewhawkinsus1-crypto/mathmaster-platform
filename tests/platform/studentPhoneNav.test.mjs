@@ -81,3 +81,9 @@ test('P3: Assignments keeps its search, tab and marking period for Back, per stu
   assert.match(center, /useState\(remembered\.search \|\| ''\)/);
   assert.match(center, /useEffect\(\(\) => \{ writeAssignmentsView\(studentId, \{ search, category, periodId \}\); \}, \[studentId, search, category, periodId\]\);/);
 });
+
+test('review note: opening More moves focus to the first unfolded place, so Tab stays in the nav', () => {
+  const nav = executableSource(read('src/components/student/StudentGlobalNav.jsx'));
+  const more = region(nav, 'className="mm-student-nav__more"', '</button>');
+  assert.match(more, /if \(opening\) \{[\s\S]*?nav\?\.querySelector\('\.mm-student-nav__folded'\)\?\.focus\(\)/);
+});

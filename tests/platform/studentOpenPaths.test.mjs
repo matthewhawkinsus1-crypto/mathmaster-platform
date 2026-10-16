@@ -94,8 +94,8 @@ test('NAV-10: a dismissed toast never fires; the provider uses the pausable cloc
   assert.match(toast, /^import \{ createToastTimer \} from '\.\/toastTimer\.js';$/m);
   assert.match(region(toast, 'const showToast = useCallback(', '}, []);'), /const timer = createToastTimer\(\{/);
   const row = region(toast, 'function ToastRow(', '\n}\n');
-  assert.match(row, /onMouseEnter=\{\(\) => onPause\?\.\(toast\.id, 'hover'\)\}/);
-  assert.match(row, /onMouseLeave=\{\(\) => onResume\?\.\(toast\.id, 'hover'\)\}/);
+  assert.match(row, /onPointerEnter=\{\(event\) => \{ if \(event\.pointerType === 'mouse'\) onPause\?\.\(toast\.id, 'hover'\); \}\}/);
+  assert.match(row, /onPointerLeave=\{\(event\) => \{ if \(event\.pointerType === 'mouse'\) onResume\?\.\(toast\.id, 'hover'\); \}\}/);
   assert.match(row, /onFocus=\{\(\) => onPause\?\.\(toast\.id, 'focus'\)\}/);
   assert.match(row, /onBlur=\{[\s\S]*?onResume\?\.\(toast\.id, 'focus'\)/);
   assert.equal((toast.match(/<ToastRow [^>]*onPause=\{pauseToast\} onResume=\{resumeToast\}/g) || []).length, 2, 'both live regions');
@@ -190,7 +190,7 @@ test('NAV-8: the result page names its two practices apart', () => {
   // Back names and opens the same place.
   const back = region(page, 'const back = resolveBack(LEVEL.ASSIGNMENT_RESULT, { origin });', 'const closedByTeacher');
   assert.match(back, /back\?\.level === LEVEL\.GRADES\s*\?\s*onViewAllGrades\s*:\s*back\?\.level === LEVEL\.HOME\s*\?\s*onBackToHome\s*:\s*onViewAllAssignments/);
-  assert.match(page, /\{notice && \(\s*<div data-result-notice=\{notice\.kind\}/);
+  assert.match(page, /\{shownNotice && \(\s*<div data-result-notice=\{shownNotice\.kind\}/);
 });
 
 // ------------------------------------------------------------ App wiring
@@ -202,6 +202,8 @@ test('NAV-4 / NAV-10: every blocked start in startAssignment lands on the result
   const start = region(app, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', "setActiveView('assignment');\n  };");
   const gate = region(start, 'const resultOrigin = ', 'const currentContent = ');
   assert.match(gate, /const landOnResult = \(notice\) => openStudentAssignmentResult\(assignmentId, \{ origin: resultOrigin, notice \}\);/);
+  // Computed for a student (review fix 2: 'teacher' here left the suite green).
+  assert.match(gate, /const closedByTeacher = user\?\.role === 'student' \? teacherClosedState\(assignmentData\) : null;/);
   assert.match(gate, /if \(closedByTeacher\) \{\s*landOnResult\(describeOpenNotice\(\{ kind: closedByTeacher \}\)\);\s*return;/);
   assert.match(gate, /if \(user\?\.role === 'student' && !access\.open\) \{\s*landOnResult\(describeOpenNotice\(\{\s*kind: OPEN_NOTICE\.PREREQUISITE/);
   assert.match(gate, /landOnResult\(describeOpenNotice\(\{ kind: OPEN_NOTICE\.NOT_OPEN_YET/);
@@ -232,7 +234,14 @@ test('P3: the Live Challenge lobby invite shows on Assignments, Grades, Rewards,
   const invite = region(app, 'const renderStudentLiveChallengeInvite = () => {', '\n  };\n');
   assert.match(invite, /if \(user\?\.role !== 'student' \|\| secureExamActive\) return null;/);
   assert.match(invite, /\['invited', 'joined', 'running'\]\.includes\(liveChallengeInvite\.status\)/);
-  assert.match(invite, /onClick=\{\(\) => setStudentDashboardMode\('liveChallenge'\)\}/);
+  // Through openStudentDashboardMode, which also leaves the result page (activeView
+  // 'dashboard') and clears a pending Path launch — the bare mode setter did neither (review fix 1).
+  assert.match(invite, /onClick=\{\(\) => openStudentDashboardMode\('liveChallenge'\)\}/);
+  assert.doesNotMatch(invite, /setStudentDashboardMode\(/);
+  const open = region(app, 'const openStudentDashboardMode = (mode) => {', '\n  };');
+  assert.match(open, /setActiveView\('dashboard'\);/);
+  assert.match(open, /setAssignmentResultRoute\(null\);/);
+  assert.match(open, /if \(mode !== 'mathPath'\) setPathLaunchTeks\(null\);/);
   for (const [mode, screen] of [['assignmentsCenter', '<StudentAssignmentsCenter'], ['rewards', '<StudentRewardsCenter'], ['grades', '<StudentGradeCenter'], ['mathPath', '<MyMathPathApp']]) {
     const branch = region(app, `if (studentDashboardMode === '${mode}') {`, screen);
     assert.match(branch, /\{renderStudentLiveChallengeInvite\(\)\}/, mode);
@@ -242,4 +251,41 @@ test('P3: the Live Challenge lobby invite shows on Assignments, Grades, Rewards,
     const branch = region(app, `if (studentDashboardMode === '${mode}'`, '\n    }\n');
     assert.doesNotMatch(branch, /renderStudentLiveChallengeInvite/, mode);
   }
+});
+
+// ------------------------------------------------------------ review fixes 3 and 4, and notes
+test('review fix 3: a paused lesson\'s result page says so from the entry, offers nothing that bounces; Grades offers no retry', () => {
+  const page = executableSource(read('src/components/student/StudentAssignmentResult.jsx'));
+  assert.match(page, /\|\| Boolean\(entry\?\.closedByTeacher\);/);
+  assert.match(page, /const shownNotice = notice \|\| \(entry\?\.closedByTeacher \? describeOpenNotice\(\{ kind: entry\.closedByTeacher \}\) : null\);/);
+  assert.match(page, /\{shownNotice && \(\s*<div data-result-notice=\{shownNotice\.kind\}/);
+  assert.match(page, /\{entry\.reviewAvailable && !reviewPanel && !closedByTeacher && \(/);
+  // A bounce focuses the notice, so the press is never silent.
+  assert.match(page, /useEffect\(\(\) => \{\s*if \(notice\) noticeHeadingRef\.current\?\.focus\(/);
+  const center = buildStudentGradeCenter({
+    assignments: [{ ...pausedLesson, dueAt: '2026-09-01T22:00:00Z', lateDueAt: '2026-09-05T22:00:00Z' }],
+    tracker: {}, classId: 'class-a', classPeriod: '3', studentId: 's1', nowValue: NOW,
+  });
+  const closed = findGradeCenterEntry(center, 'paused-1');
+  assert.equal(closed.frozen, true);
+  assert.equal(closed.actions.practiceNoCredit, false, 'no "Try it again" on a paused closed lesson');
+});
+
+test('review fix 4: toasts never sit over the action bar; on a phone they sit at the top; only a mouse holds one', () => {
+  const css = read('src/ui/uiKit.css');
+  const viewport = css.slice(css.indexOf('.mm-toast-viewport {'), css.indexOf('}', css.indexOf('.mm-toast-viewport {')));
+  assert.match(viewport, /bottom: calc\(max\(18px, env\(safe-area-inset-bottom\)\) \+ var\(--mm-action-bar-height, 0px\)\);/);
+  assert.match(css, /@media \(max-width: 640px\) \{\s*\.mm-toast-viewport \{\s*top: calc\(var\(--mm-student-identity-stack-offset, 0px\) \+ 8px\);\s*bottom: auto;/);
+  const row = region(executableSource(read('src/ui/Toast.jsx')), 'function ToastRow(', '\n}\n');
+  assert.match(row, /onPointerEnter=\{\(event\) => \{ if \(event\.pointerType === 'mouse'\) onPause\?\.\(toast\.id, 'hover'\); \}\}/);
+  assert.doesNotMatch(row, /onMouseEnter/);
+});
+
+test('review notes: Back onto a paused lesson lands on its result page; the Classroom launch waits while its assignment is present', () => {
+  const popstate = region(app, 'const restoreFromBrowserHistory = (event) => {', "window.addEventListener('popstate', restoreFromBrowserHistory);");
+  const branch = region(popstate, "if (route.surface === 'assignment') {", "setActiveView('assignment');");
+  assert.match(branch, /const closedNow = teacherClosedState\(assignmentsRef\.current\.find\(\(item\) => item\.id === route\.assignmentId\)\);/);
+  assert.match(branch, /if \(closedNow\) \{[\s\S]*?notice: describeOpenNotice\(\{ kind: closedNow \}\),[\s\S]*?setActiveView\('assignmentResult'\);\s*return;/);
+  const effect = region(app, '    if (classroomLaunchInvalid) {', '}, [user?.role, pendingClassroomLaunch, classroomLaunchInvalid, assignments, studentAssignmentControls]);');
+  assert.match(effect, /if \(assignments\.some\(\(assignment\) => assignment\.id === pendingClassroomLaunch\.assignmentId\)\) return;\s*const settled/);
 });
