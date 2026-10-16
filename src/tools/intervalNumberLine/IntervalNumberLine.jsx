@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS, flushToolDrafts } from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
@@ -247,6 +247,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const [inequality, setInequality] = usePersistentToolState('inequality', '');
   const [exactEndpoint, setExactEndpoint] = usePersistentToolState('exactEndpoint', '');
   const [endpointError, setEndpointError] = useState('');
+  const endpointHelpId = useId();
   const [dragging, setDragging] = useState(null);
   const restoreMath = useCallback((state) => {
     setPending(state.pending); setBuilt(state.built); setClosedEnd(state.closedEnd);
@@ -655,6 +656,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                 }}
                 placeholder="Exact endpoint, e.g. -13/8"
                 aria-label="Exact endpoint value"
+                // The error (or the hint) under the box is its description, and
+                // a typed value it cannot read marks the box invalid (A11Y-8).
+                aria-invalid={endpointError ? 'true' : undefined}
+                aria-describedby={endpointHelpId}
                 style={{
                   width: '100%',
                   minHeight: 40,
@@ -677,9 +682,11 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               </button>
             </div>
 
-            <div style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))' }}>
+            <div id={endpointHelpId} data-endpoint-help={endpointError ? 'error' : 'hint'} style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))' }}>
               {endpointError || `Click/drag snap: ${snapLabel}. Exact entry is not limited to visible tick marks.`}
             </div>
+            {/* Said when it appears: the typed value could not be placed. */}
+            <span role="alert" data-endpoint-error-announcement="" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{endpointError}</span>
           </div>
 
           <svg
