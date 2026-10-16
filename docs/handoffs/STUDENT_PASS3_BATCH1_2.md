@@ -58,6 +58,10 @@ mutation-checked.
   the plot sentence, in the same words as the readout.
 - `calculatorExactFractions`: the panel still imports `evaluateCalculatorExpressionExact` (now beside
   `groupBuiltFractions`).
+- `warmupReopenServerLifecycle` (its render probe): a closed question still shows its closed notice — now the closed
+  card's "This question is closed after N tries", in place of the panel it replaced.
+- `toolDraftPersistenceContract`: the plane's `plotAnnouncement` and the slot's `insideLiveRegion` are declared as
+  presentation in `toolStatePersistence.js`.
 - From Batch 2: `coordinatePlaneClipAndHelp` (vertical lines still drawn inside the clip), the `typedFractionEntry`
   assertion that pinned the bracket bug, and the Step Algebra level/server/credit tests (D1).
 
@@ -65,14 +69,21 @@ mutation-checked.
 
 | Check | Result |
 | --- | --- |
-| Every platform/tools test that reads a changed file (199 files) | 2,404 tests: 2,403 pass; the one failure was a pinned contract, rewritten below |
-| `npm run test:platform`, tools, authoring-v5, lint, build, build:firebase | running when this was first pushed; results follow in the next commit |
-| `tests/browser/toolAttemptOutcome.mjs` (not in CI) | every check passes, Chromebook and phone, incl. the new offers and the Graphing plotting journey; DOL, quiz and test still show nothing |
-| `tests/browser/mathEntryContract.mjs` (not in CI) | every case holds |
+| `npm run test:platform` (functions dependencies installed) | 11,361 tests, 11,361 pass (`37ec6ce`). The first run had 6 failures, all pinned to old spellings or missing a declaration; each was rewritten or added as described above |
+| `node --test tests/tools/*.test.mjs` | 1,644 tests, 1,643 pass, 0 fail |
+| `npm run test:authoring-v5` | 686 / 686 |
+| `npm run lint` | exit 0 (warnings only, none in changed files) |
+| `npm run build`, `npm run build:firebase`, `check-first-load-budget` | pass; first load within baseline |
+| `npm run audit:theme-colors` + theme and dark-mode contract tests | pass |
+| `npm run certify:accessibility` (axe, 11 screens × desktop and phone) | 0 violations, nothing new or increased |
+| `npm run certify:dark-mode` | pass (192 surfaces, light and dark) |
+| `tests/browser/workViewMatrix.mjs` | every Stage 3A family keeps its controls, state and Undo |
+| The student-runtime and accessibility browser gates CI runs on a PR (33 drivers, incl. toolAttemptOutcome, mathEntryContract, assessmentLeakGates, graphKeyboardRoute, closedVerdictChip, dolCloseCopy, graphDescription, calculatorKeyboard and the tool keyboard drivers) | all 33 pass |
+| `tests/browser/toolAttemptOutcome.mjs` (the new cases) | the new offers and the Graphing plotting journey pass on Chromebook and phone; DOL, quiz and test still show nothing |
 | Live harness walk, 1366×768 and 390×844 | see RUN-1 and HELP-21 rows above |
 
 New assertions were mutation-checked: Batch 1 — 19 (tool outcome and plotting), 8 (help panel), 13 (results area);
-the calculator — 4. Batch 2's sessions report the same for their own tests.
+the calculator — 4; the rewritten contracts — 10. Batch 2's sessions report the same for their own tests.
 
 ## Deploying (not done)
 
@@ -97,6 +108,15 @@ stored nested-array item sees it without its table or matrix; its answer key is 
 `8,050`-style answers recorded before this are still marked wrong. Per D8, run the read-only report first
 (`scripts/report-classroom-regrade-candidates.mjs`), then re-grade upward only; never lower a recorded grade.
 Not done here.
+
+## What comes next
+
+Launched on 2026-10-16 from `37ec6ce`, each on its own branch, none merged yet: Batch 3 client persistence
+(`claude/pass3-b3-persistence-client`) and the abandoned-test finalizer (`claude/pass3-b3-abandoned-test-finalizer`) —
+Batch 3 ships on its own, after this; Batch 4 in three parts (`claude/pass3-b4-hints`,
+`claude/pass3-b4-after-last-miss`, `claude/pass3-b4-corrections-recovery`); Batch 8 (`claude/pass3-b8-ask-my-teacher`);
+and the D10 design (`claude/pass3-d10-answer-key-design`, a document only). Batches 5–7 follow once these land: they
+change the same screens and the student word list.
 
 ## Left for later
 
