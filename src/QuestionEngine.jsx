@@ -23,9 +23,13 @@ import { legacySolutionReviewContent } from './SolutionReview';
 import SolutionReviewPanel from './SolutionReviewPanel';
 import HintPanel from './platform/supports/hints/HintPanel.jsx';
 import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
+import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, hintRelease } from './platform/supports/hints/questionHints.js';
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
-import { closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
+import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
+import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
+import { practiceLikeThisOffered } from './platform/supports/workedExample/practiceLikeThis.js';
+import { buildPartReviewRows, closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
 import { attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse } from './platform/supports/supportUseMemory.js';
 import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
@@ -224,6 +228,11 @@ function QuestionEngineBody({
   // The role exactly as the host passed it (null when omitted): universal
   // support tools are granted only on an explicit warm-up/classwork/practice.
   explicitActivityRole = null,
+  // The host vouches that this item may offer "Practise one like this" after
+  // its last miss (the classroom assignment, for a Classwork or Practice
+  // section). Recovery, corrections, Path and previews of other hosts never
+  // pass it, whatever policy they run on (practiceLikeThis.js).
+  practiceLikeThisAllowed = false,
   activityPolicy = null,
   feedbackReleased = false,
   // The teacher released the ASSIGNMENT's feedback (not the per-item
@@ -2198,6 +2207,74 @@ function QuestionEngineBody({
     </>
   );
 
+  // What the student wrote, for the closed card (RUN-6): the parts of the
+  // final attempt as graded on this device, when each carries its typed
+  // response. A tool's work is reviewed by its own panel, so it shows none.
+  const closedYourAnswer = isExpired && gradedForDisplay && gradedForDisplay.feedback === feedback
+    ? (gradedForDisplay.grading?.parts || [])
+      .filter((part) => typeof part?.response === 'string' && part.response.trim())
+      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: part.response, isCorrect: typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
+    : [];
+  // HELP-18. Before the single try of a choice-only item, say so (and that a
+  // hint is there — the hint control's own release rule decides that); after
+  // it, the author's reason for the option the student chose, where the
+  // worked solution may be shown.
+  const oneTryLine = oneTryNotice({
+    question: processedQuestion,
+    maximumAttempts: resolvedMaximumAttempts,
+    attemptCount: record.attemptCount,
+    open: !locked,
+    immediateFeedback: showOutcomeFeedback && resolvedActivityPolicy?.feedback === 'immediate',
+    hintAvailable: hintState.canRevealNext,
+  });
+  const choiceReasons = (isCorrect || isExpired) && feedbackOpen && gradedForDisplay && gradedForDisplay.feedback === feedback
+    ? chosenOptionReasons({ question: processedQuestion, parts: gradedForDisplay.grading?.parts })
+    : [];
+  const choiceReasonBlock = choiceReasons.length > 0 ? (
+    <div data-choice-reasons="" style={{ marginTop: '12px', display: 'grid', gap: '6px', color: 'var(--mm-text)', textAlign: 'left' }}>
+      {choiceReasons.map((reason) => (
+        <p key={reason.id} style={{ margin: 0, lineHeight: 1.5 }}>
+          <strong>{choiceReasons.length > 1 ? `${reason.label} — you chose “${reason.chosen}”: ` : `You chose “${reason.chosen}”: `}</strong>
+          <MathText>{reason.rationale}</MathText>
+          <SupportedTextActions text={`You chose ${reason.chosen}. ${reason.rationale}`} readAloud={supportedTextReadAloud} translation={supportedTextTranslation} label="the reason" onEvidence={reportSupportedTextUse} />
+        </p>
+      ))}
+    </div>
+  ) : null;
+
+  // Part by part in the worked solution (HELP-11): with the rows there, the
+  // card does not list the same answers a second time above them.
+  const closedPartRowsShown = isExpired && feedbackOpen && reviewAvailable && !isToolQuestion
+    && buildPartReviewRows({ question: processedQuestion, parts: closedYourAnswer }).length > 0;
+
+  /*
+   * "PRACTISE ONE LIKE THIS (NO SCORE)" (HELP-1 / D3, HELP-9). Under the worked
+   * solution of a Classwork or Practice item that closed on a miss: a sibling
+   * from the item's question family, answered with its own feedback inside
+   * PracticeLikeThis and kept there — never this item's attempt, grade or
+   * evidence. Never on a Warm-Up (Recovery), DOL, quiz or test, nor on a
+   * server-graded host. An item without a sibling shows nothing.
+   */
+  const practiceOffered = practiceLikeThisOffered({
+    hostAllows: practiceLikeThisAllowed,
+    activityRole: explicitActivityRole,
+    closedOnMiss: isExpired && !isCorrect,
+    feedbackOpen,
+    hintsAllowed: toolHintsAllowed,
+    serverGraded,
+  });
+  const practiceLikeThis = practiceOffered ? (
+    <QuestionSupplementBoundary stage="practice-like-this" context={failureContext} draftKey={draftKey} resetKey={supplementResetKey} fallback={null}>
+      <PracticeLikeThis
+        question={processedQuestion}
+        seed={Number(record.variantIndex) || 0}
+        avoidPrompts={similarExample ? [similarExample.prompt] : []}
+        readAloud={supportedTextReadAloud}
+        translation={supportedTextTranslation}
+      />
+    </QuestionSupplementBoundary>
+  ) : null;
+
   /*
    * THE WORKED SOLUTION OF A CLOSED QUESTION (SolutionReviewPanel.jsx) — one
    * panel for every question type and tool, shown once the question is closed
@@ -2220,6 +2297,7 @@ function QuestionEngineBody({
         isToolQuestion={isToolQuestion}
         wasCorrect={isCorrect}
         incorrectParts={feedback?.incorrectParts || []}
+        yourParts={closedYourAnswer}
         readAloud={supportedTextReadAloud}
         translation={supportedTextTranslation}
         onSupportEvidence={reportSupportedTextUse}
@@ -2229,6 +2307,16 @@ function QuestionEngineBody({
 
   const questionContextPanel = (
     <div className="mathmaster-question-context-panel">
+      {/* ONE TRY, SAID BEFORE IT IS SPENT (HELP-18). Shown with declutter too:
+          an inclusion student needs it most. */}
+      {oneTryLine && (
+        <p data-one-try-notice="" style={{ margin: '0 0 8px', padding: '8px 12px', borderRadius: '8px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-text)', fontWeight: 700, textAlign: 'left' }}>
+          {oneTryLine}
+          {hintState.canRevealNext && (
+            <button type="button" onClick={revealNextHint} style={{ marginLeft: 8, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
+          )}
+        </p>
+      )}
       {/* ONE LINE, NOT TWO SAYING THE SAME THING.
           This panel used to read "3 attempts on this question" on the left and
           "Variant 1 · 3 of 3 attempts remaining" on the right — the same fact
@@ -2311,14 +2399,6 @@ function QuestionEngineBody({
     </div>
   );
 
-  // What the student wrote, for the closed card (RUN-6): the parts of the
-  // final attempt as graded on this device, when each carries its typed
-  // response. A tool's work is reviewed by its own panel, so it shows none.
-  const closedYourAnswer = isExpired && gradedForDisplay && gradedForDisplay.feedback === feedback
-    ? (gradedForDisplay.grading?.parts || [])
-      .filter((part) => typeof part?.response === 'string' && part.response.trim())
-      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: part.response, isCorrect: typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
-    : [];
 
   /*
    * THE RESULTS OF A SUBMIT LIVE IN THE WORK AREA (student pass 3, RUN-1).
@@ -2400,6 +2480,8 @@ function QuestionEngineBody({
         </div>
       )}
 
+      {isCorrect && choiceReasonBlock}
+
       {isCorrect && feedbackOpen && reviewAvailable && (
         <details data-correct-review="" style={{ margin: '14px auto 0', maxWidth: '860px', textAlign: 'left' }}>
           <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 }}>See why it works</summary>
@@ -2429,7 +2511,7 @@ function QuestionEngineBody({
               </div>
             )}
           </div>
-          {closedYourAnswer.length > 0 && (
+          {closedYourAnswer.length > 0 && !closedPartRowsShown && (
             <div data-your-answer="" style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px 14px', color: 'var(--mm-text)' }}>
               <strong>{closedYourAnswer.length === 1 ? 'Your answer:' : 'Your answers:'}</strong>
               {closedYourAnswer.map((part) => (
@@ -2441,7 +2523,9 @@ function QuestionEngineBody({
               ))}
             </div>
           )}
+          {choiceReasonBlock}
           {closedReview}
+          {practiceLikeThis}
           {resolvedActivityPolicy?.allowReplacement && (
             <>
               <p style={{ margin: '8px 0 14px' }}>{reviewAvailable && feedbackOpen ? 'Review the solution, then request' : 'Request'} a new problem at the same difficulty.</p>

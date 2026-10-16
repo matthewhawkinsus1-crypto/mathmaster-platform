@@ -1547,6 +1547,21 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {/* WORKED SOLUTIONS (student pass 3, HELP-11 / HELP-18): what a student
+          reads after the last try. Suggestions only — they never change
+          whether the assignment is ready (assignmentV5PreflightModel.js). */}
+      {preflightModel.solutionReviews?.warnings?.length > 0 && (
+        <div data-solution-review-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Worked solutions</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            A student who misses a question reads its worked solution. These do not stop the assignment from being ready; they are what would make the solution teach more.
+          </p>
+          <ul data-solution-review-warnings="true" style={{ margin: 0, paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+            {preflightModel.solutionReviews.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+          </ul>
+        </div>
+      )}
+
       {preflightModel.questionValues?.rows?.length > 0 && (
         <div data-question-value-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
           <strong style={{ color: 'var(--mm-info-text)' }}>Question values</strong>

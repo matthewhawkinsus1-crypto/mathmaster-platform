@@ -10214,6 +10214,10 @@ function App() {
                 studentId: user?.role === 'student' ? user.id : null,
               })}
               activityRole={runtimeActivityRole}
+              // "Practise one like this" after the last miss: Classwork and
+              // Practice sections only, by the section's own role (a DOL in
+              // post-due practice runs as 'practice' but is still a DOL).
+              practiceLikeThisAllowed={['classwork', 'practice'].includes(activeQuestionRole)}
               activityPolicy={runtimeQuestionActivityPolicy}
               feedbackReleased={currentFeedbackReleased}
               assessmentReviewReleased={assignmentFeedbackWasReleased(assignment)}
@@ -11013,7 +11017,7 @@ function App() {
       && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
       ? (
         <Suspense fallback={<p role="status" style={{ margin: '14px 0 0' }}>Loading your work…</p>}>
-          <ReviewMyWork assignment={recoveryAssignment} load={loadMyReviewWork} />
+          <ReviewMyWork assignment={recoveryAssignment} load={loadMyReviewWork} studentProfile={user.profile} />
         </Suspense>
       )
       : null;

@@ -188,6 +188,9 @@ export const buildReviewMyWorkModel = ({ result = null, assignment = null } = {}
         index: Number(row.index),
         number: questionNumber(row, position),
         section: sectionLabel(row, storedQuestion),
+        // The section's role, for what a row may offer beside its solution
+        // ("Try one like this" only on Classwork and Practice).
+        role: String(row?.sectionRole || storedQuestion?.activityRole || '').trim().toLowerCase() || null,
         prompt: rowPrompt(row, storedQuestion),
         outcome,
         outcomeLabel: OUTCOME_LABEL[outcome],
