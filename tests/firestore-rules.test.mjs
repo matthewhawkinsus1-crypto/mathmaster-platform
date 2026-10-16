@@ -17,6 +17,7 @@ import {
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, updateDoc, deleteField, collection, getDocs, deleteDoc, query, where, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { buildWorkspaceDraftPatch, mergeWorkspaceDraftDocument } from '../functions/shared/workspaceDraftSchema.mjs';
 
 const testEnv = await initializeTestEnvironment({
   projectId: 'mathmaster-rules-test',
@@ -578,6 +579,37 @@ await check('student CANNOT smuggle evidence into a workspace draft', assertFail
 // A fresh Chromebook has no history and must still be able to save.
 await check('a fresh device with no prior revision can still save a workspace draft', assertSucceeds(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, entries: [] })));
 await check('student CANNOT delete a workspace draft', assertFails(deleteDoc(workspaceDoc(student, 'S1042__A1'))));
+// Batch 3: multi-answer, Step Algebra and composed-step entries carry their
+// per-answer edit times (`fieldEditedAtJson`, `fieldsFresh`). The document is
+// built by the very merge the client runs, twice (a fresh device, then a
+// second device), so what is checked here is exactly what is stored.
+const fieldRecordDocument = (() => {
+  const key = (suffix) => `mathmaster:draft:v2::S1042:A1:1:0:student:${suffix}`;
+  const first = mergeWorkspaceDraftDocument({
+    existing: null,
+    patch: buildWorkspaceDraftPatch({ studentId: 'S1042', assignmentId: 'A1', classId: 'class-a', entries: [
+      { key: key('multi-answer'), value: { a: '12' }, savedAt: 1_700_000_000_000, savedAtIsEdit: true, fieldEditedAt: { a: 1_700_000_000_000 }, fieldsFresh: true },
+      { key: key('workflow-responses'), value: { s1: 'y=2x' }, savedAt: 1_700_000_000_000, savedAtIsEdit: true, fieldEditedAt: { s1: 1_700_000_000_000 } },
+    ] }),
+  });
+  return mergeWorkspaceDraftDocument({
+    existing: first,
+    patch: buildWorkspaceDraftPatch({ studentId: 'S1042', assignmentId: 'A1', classId: 'class-a', entries: [
+      { key: key('workflow-responses'), value: { s2: '(0, 1)' }, savedAt: 1_700_000_100_000, savedAtIsEdit: true, fieldEditedAt: { s2: 1_700_000_100_000 }, fieldsFresh: true },
+    ] }),
+  });
+})();
+await check('the merged document carries per-answer edit times', fieldRecordDocument.entries.every((entry) => typeof entry.fieldEditedAtJson === 'string')
+  && fieldRecordDocument.entries.find((entry) => entry.key.endsWith(':workflow-responses')).valueJson === JSON.stringify({ s1: 'y=2x', s2: '(0, 1)' })
+  ? Promise.resolve() : Promise.reject(new Error('the merge did not produce field-record entries')));
+await check('student saves a workspace whose entries carry per-answer edit times', assertSucceeds(setDoc(workspaceDoc(student, 'S1042__A1'), { ...fieldRecordDocument, updatedAt: serverTimestamp() })));
+await check('student saves it again through a read-then-write transaction', assertSucceeds(runTransaction(student, async (transaction) => {
+  const reference = workspaceDoc(student, 'S1042__A1');
+  await transaction.get(reference);
+  transaction.set(reference, { ...fieldRecordDocument, updatedAt: serverTimestamp() });
+})));
+await check('student CANNOT smuggle a grade beside per-answer edit times', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...fieldRecordDocument, updatedAt: serverTimestamp(), score: 100 })));
+await check('student CANNOT save per-answer edit times into another student workspace', assertFails(setDoc(workspaceDoc(student, 'S2000__A1'), { ...fieldRecordDocument, documentId: 'S2000__A1', studentId: 'S2000', updatedAt: serverTimestamp() })));
 // The real save path (writeWorkspaceDraft) is a transaction that reads first.
 // Before the first save there is no document, so the read must not depend on
 // resource.data — otherwise no student can ever create a draft.

@@ -426,7 +426,7 @@ export const normalizeFieldEditedAt = (value) => {
  * answer where there was none; a write that is not an edit dates nothing.
  */
 export const stampFieldRecordEdits = ({ kind, previous, previousEditedAt, next, edit, now }) => {
-  const times = { ...(normalizeFieldEditedAt(previousEditedAt) || {}) };
+  const times = { ...normalizeFieldEditedAt(previousEditedAt) };
   if (!kind || !edit || !isFieldRecord(next)) return times;
   const before = fieldRecordGroups(kind, previous);
   const after = fieldRecordGroups(kind, next);

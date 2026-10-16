@@ -63,7 +63,6 @@ const valueOf = (document, key) => readWorkspaceDraftEntries(document).find((ent
 const algebra = ({ equation, workSteps = [], armedTile = null, promptAnswers = {} }) => ({
   algebraDraftVersion: 3, equation, supportLevel: 'standard', operand: '', workSteps, armedTile, promptAnswers,
 });
-const START = { left: '2x+3', right: '11' };
 const STEP_ONE = { left: '2x', right: '8' };
 const SOLVED = { left: 'x', right: '4' };
 
