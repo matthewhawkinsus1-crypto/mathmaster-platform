@@ -56,6 +56,8 @@ import { QUESTION_RESOLUTION_FAILURE, recoveryForFailure } from '../../platform/
 import { normalizeDeliveryPin } from '../../../functions/shared/questionGenerationIdentity.mjs';
 import { RECOVERY_ANSWER_SAVED_WHERE, describeSavedRecoveryAnswer } from '../../platform/recovery/recoveryAnswerDrafts.js';
 import useRecoveryAnswerDrafts from './useRecoveryAnswerDrafts.js';
+import { recoveryMeterRule, recoveryPracticeOutcomeMessage } from '../../platform/recovery/recoveryPracticeCopy.js';
+import { RECOVERY_HINT_COST_SENTENCE } from '../../platform/supports/hints/hintCopy.js';
 
 // Practice's own attempt policy for step tools; the final answer is still one
 // server-graded submission per item.
@@ -172,6 +174,8 @@ function PinnedQuestion({
   // Told when this question cannot be shown here (classified), so the
   // Recovery can tell the server it was never the student's to answer.
   onUnavailable = null,
+  // Practice: what a hint costs here (HELP-4). The assessment withholds hints.
+  hintCostNote = null,
 }) {
   // A stored plan item whose pin did not survive normalizeRecoveryRecord (a
   // pin from another build, a damaged record) is null here. Reading
@@ -232,6 +236,7 @@ function PinnedQuestion({
       activityPolicy={activityPolicy}
       assignmentId={assignmentId}
       showStandardBadge={false}
+      hintCostNote={hintCostNote}
     />
   );
 }
@@ -328,9 +333,9 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
         attemptCount: maximumAttempts,
         remainingAttempts: 0,
         expired: !isCorrect,
-        message: isCorrect
-          ? 'Correct! Nice work.'
-          : 'Not quite. That one still counts as practice — review it, then try a fresh question.',
+        // A correct answer given with help does not move the meter, and
+        // says so (HELP-4).
+        message: recoveryPracticeOutcomeMessage({ isCorrect, supportUsage }),
       };
     } catch (error) {
       const code = recoveryErrorCode(error);
@@ -406,6 +411,11 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
       <RecoveryHeader label={`${entry.label} practice`} subtitle="Show what you know. Each fresh question counts once." onExit={onExit} />
       <div style={{ ...panelStyle, display: 'grid', gap: 8 }}>
         <RecoveryMasteryMeter percent={entry.masteryPercent} />
+        {/* The meter's rule, beside the meter (HELP-4): help is fine to use,
+            it just does not count toward unlocking. */}
+        <p data-recovery-meter-rule="" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+          {recoveryMeterRule({ requiredCorrect: entry.masteryRequired, windowSize: entry.masteryWindow })}
+        </p>
         <p aria-live="polite" style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))' }}>
           {unlocked
             ? `${entry.label} Unlocked — you can start it whenever you are ready.`
@@ -434,6 +444,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
           draftIndex={item.practiceIndex}
           activityRole="practice"
           activityPolicy={PRACTICE_POLICY}
+          hintCostNote={RECOVERY_HINT_COST_SENTENCE}
           maximumAttempts={maximumAttempts}
           questionRecord={engineRecord}
           onRendered={(delivery, rendered) => { renderedRef.current[delivery.fingerprint] = rendered; }}

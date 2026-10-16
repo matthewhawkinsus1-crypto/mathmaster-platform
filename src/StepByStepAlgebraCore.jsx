@@ -87,6 +87,7 @@ import {
 } from './algebraDistributionModel';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
 import { useHintsAllowed, useHintUseReporter, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -339,6 +340,8 @@ export default function StepByStepAlgebra({
   // like every other hint, so the attempt's mastery weight is discounted.
   hintsAllowed: hintsAllowedProp = true,
   onHintUsed: onHintUsedProp = null,
+  // What a hint costs, in the host's words where it has its own (HELP-17).
+  hintCostNote = null,
   // Which equation this workspace was opened on when a host built it — the
   // intercept orchestrator's `{ zeroVariable }` — so a step's raw work names
   // the equation the server must check it against. Never a verdict.
@@ -2821,7 +2824,7 @@ export default function StepByStepAlgebra({
           </p>
         </div>
       )}
-      {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
+      {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint? <span data-hint-cost-note="" style={{ fontWeight: 'normal', fontSize: 'calc(12.5 * var(--mm-px))' }}>{hintCostSentence(hintCostNote)}</span></summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
       {message && (() => {
         // Where verdicts are withheld, a message keeps its words but loses its
         // correctness colour; only a genuine error stays red.

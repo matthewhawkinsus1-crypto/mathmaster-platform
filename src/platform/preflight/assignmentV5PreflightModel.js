@@ -12,6 +12,7 @@ import { auditAssignmentQuestionGeneration } from './questionGenerationPreflight
 import { auditAssignmentQuestionValues } from './questionValuePreflight.js';
 import { auditAssignmentProcessMode } from './processModePreflight.js';
 import { auditAssignmentGraphAccessibility } from './graphAccessibilityPreflight.js';
+import { auditAssignmentAttemptFeedback } from './attemptFeedbackPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -151,6 +152,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const processMode = auditAssignmentProcessMode({ ...runtimeSource, sections }, questions);
   // Graph-reading items a screen reader cannot answer from (warning only).
   const graphAccessibility = auditAssignmentGraphAccessibility(questions, deliveredOnly);
+  // Practice items with no attempt feedback (warning only, and advisory: kept
+  // out of the readiness diagnostics below — attemptFeedbackPreflight.js).
+  const attemptFeedback = auditAssignmentAttemptFeedback(questions, deliveredOnly);
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -243,6 +247,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     questionGeneration,
     questionValues,
     processMode,
+    attemptFeedback,
     // Excluded questions Pre-Flight kept but did not judge for delivery.
     retiredQuestions,
     errors: uniqueErrors,

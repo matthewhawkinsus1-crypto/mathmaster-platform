@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import MathText from '../../../components/common/MathText.jsx';
 import { SupportedTextActions } from '../SupportedText.jsx';
+import { hintCostSentence } from './hintCopy.js';
 
 /*
  * THE PLATFORM HINT PANEL — opened from the work bar's Hint control (and the
@@ -12,6 +13,15 @@ import { SupportedTextActions } from '../SupportedText.jsx';
  * "Ask my teacher". Revealing a hint or opening the worked example is
  * recorded by the caller (QuestionEngine) as hintUsed / workedExampleUsed.
  * Rendered only where hints are allowed and the question is still open.
+ *
+ * WHAT IT COSTS, SAID ONCE (HELP-17): "Hints never lower your score. Your
+ * teacher can see you used one." — or the host's own sentence where a hint
+ * does cost something (`costNote`: Recovery practice, HELP-4).
+ *
+ * "WHAT MIGHT HAVE GONE WRONG?" (HELP-2, D2): after a miss, the diagnosis the
+ * box below holds back while the question is open, as a rung the student asks
+ * for (`diagnosis`: { onShow, shown }). The caller records it like a hint and
+ * offers it only where hints are allowed (questionHints.js diagnosisHint).
  */
 const summaryStyle = { cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 };
 
@@ -38,11 +48,15 @@ export default function HintPanel({
   readAloud = null,
   translation = null,
   onSupportEvidence = null,
+  costNote = null,
+  diagnosis = null,
 }) {
   const shown = hints.slice(0, revealed);
   // On a DOL (no hints) the panel holds only "Ask my teacher", and says
   // nothing about hints (PR #462 review m9).
   const askOnly = !hints.length && !similar;
+  const diagnosisShown = diagnosis?.shown?.text ? diagnosis.shown : null;
+  const diagnosisOffered = !diagnosisShown && typeof diagnosis?.onShow === 'function';
   /*
    * ONE THING AT A TIME (student pass 3, HELP-21). A hint and then the worked
    * example pushed the answer box to y≈916 on a 768px Chromebook. Once the
@@ -83,13 +97,26 @@ export default function HintPanel({
       ) : askOnly ? (
         <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Stuck? Ask your teacher to come over. Asking does not change your score.</p>
       ) : (
-        <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>A hint points you at the next move without giving the answer. Using one is noted with your attempt.</p>
+        <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>A hint points you at the next move without giving the answer.</p>
+      )}
+      {diagnosisShown ? (
+        <div data-miss-diagnosis-hint={diagnosisShown.source || ''} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', lineHeight: 1.55 }}>
+          <strong style={{ display: 'block', marginBottom: 4, color: 'var(--mm-primary-text)' }}>What might have gone wrong</strong>
+          <MathText>{diagnosisShown.text}</MathText>
+          <SupportedTextActions text={diagnosisShown.text} readAloud={readAloud} translation={translation} label="what might have gone wrong" onEvidence={onSupportEvidence} />
+        </div>
+      ) : null}
+      {askOnly ? null : (
+        <p data-hint-cost-note="" style={{ margin: 0, color: 'var(--mm-text-muted)', fontWeight: 700 }}>{hintCostSentence(costNote)}</p>
       )}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         {release.canRevealNext && (
           <button type="button" style={button} onClick={onReveal}>
             {revealed ? 'Show the next hint' : 'Show a hint'}
           </button>
+        )}
+        {diagnosisOffered && (
+          <button type="button" data-miss-diagnosis-offer="" style={button} onClick={diagnosis.onShow}>What might have gone wrong?</button>
         )}
         {release.waitingForAttempt && (
           <span role="status" style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>Try again with that hint — the next one opens after your next attempt.</span>

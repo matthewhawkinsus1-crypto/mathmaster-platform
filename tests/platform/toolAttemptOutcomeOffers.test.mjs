@@ -106,7 +106,41 @@ test('the engine hands a tool what its own box offers, under the same rule', () 
   assert.match(rule, /!feedback\.isCorrect/);
   assert.match(rule, /hintOfferedAfterMiss\(\{[^}]*hintsAvailable: hintState\.canRevealNext[^}]*open: !locked[^}]*\}\)/);
   const box = region(engine, '{feedback && !feedback.blocked && showOutcomeFeedback', '</div>\n      )}', 'the engine outcome box');
-  assert.match(box, /\{attemptHintOffered && \(/, 'the box offers the hint under the same rule');
+  // The box offers the hint under the same rule (beside, since HELP-9, the
+  // worked sibling): the button that reveals a hint renders only under it.
+  assert.match(box, /\{attemptHintOffered \? <>A hint is ready if you want one\.\{' '\}\s*<button type="button" onClick=\{revealNextHint\}/, 'the box offers the hint under the same rule');
+});
+
+test('after a miss, the box and the tool offer the worked sibling beside the hint (HELP-9)', async () => {
+  const engine = code('src/QuestionEngine.jsx');
+  // One rule: a worked sibling exists (only where hints are allowed), it is
+  // not open already, the question is open, and the attempt was a miss.
+  const open = region(engine, 'const similarOffered = ', ';', 'the similar-problem rule');
+  assert.match(open, /similarExample && !similarOpen && !locked/);
+  const rule = region(engine, 'const attemptSimilarOffered = ', ';', 'the after-a-miss rule');
+  assert.match(rule, /similarOffered && feedback && feedback\.isCorrect === false && !feedback\.blocked/);
+  const handOver = region(engine, 'const toolAttemptOutcome = outcomeInTool ? {', '} : null;', 'the tool hand-over');
+  assert.match(handOver, /onShowSimilar: attemptSimilarOffered \? openSimilarExample : null,/);
+  const box = region(engine, '{feedback && !feedback.blocked && showOutcomeFeedback', '</div>\n      )}', 'the engine outcome box');
+  assert.match(box, /\{attemptSimilarOffered \? <button type="button" data-similar-offer="" onClick=\{openSimilarExample\}[^>]*>See a similar problem worked<\/button> : null\}/);
+  // "Your last try" keeps both offers while the student edits.
+  const previous = region(engine, '{!feedback && previousMiss && !locked && showOutcomeFeedback && (', '</div>\n      )}', 'your last try');
+  assert.match(previous, /\{similarOffered \? <button type="button" data-similar-offer="" onClick=\{openSimilarExample\}/);
+  // The example lives in the Hint panel, so opening it opens the panel, and
+  // it is recorded as a worked example.
+  const opener = region(engine, 'const openSimilarExample = () => {', '};', 'opening the example');
+  assert.match(opener, /setWorkedExampleUsed\(true\);/);
+  assert.match(opener, /setHintPanelOpen\(true\);/);
+
+  await withToolShell(({ AttemptOutcomeWords }) => {
+    const render = (outcome) => renderToStaticMarkup(React.createElement(AttemptOutcomeWords, { outcome, toolWords: COACHING, detail: outcome.detail }));
+    const both = render({ ...MISS, onShowHint: () => {}, onShowSimilar: () => {} });
+    assert.match(both, /Show a hint<\/button><button type="button" data-similar-offer=""[^>]*>See a similar problem worked<\/button>/);
+    const similarOnly = render({ ...MISS, onShowSimilar: () => {} });
+    assert.match(similarOnly, />See a similar problem worked<\/button>/);
+    assert.doesNotMatch(similarOnly, /A hint is ready/, 'the sibling alone does not promise a hint');
+    assert.doesNotMatch(render({ ...MISS }), /See a similar problem worked/, 'only when the engine hands it over');
+  });
 });
 
 const toolSources = () => {
