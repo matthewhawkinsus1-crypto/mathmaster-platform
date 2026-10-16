@@ -33,7 +33,6 @@ import {
   parseEquationInput,
 } from '../../functions/shared/algebra/algebraAstEngine.mjs';
 import {
-  evaluateMove,
   resolveEquationAfterKeepingMove,
   resolveEquationAfterMove,
   resolveEquationAfterStudentSimplification,
@@ -218,10 +217,8 @@ const pendingMove = (session, { operation, operand, placementBySide = {} }) => {
 
 const balance = (session, { operation, operand, placementBySide = {}, resolution = 'normal', crossed = null, answers = {} }) => {
   const move = pendingMove(session, { operation, operand, placementBySide });
-  if (evaluateMove(move, session.supportLevel).countsAttempt) {
-    const spent = step(session, movePayload(session, { move, action: STEP_ACTIONS.INEFFICIENT_MOVE }), `inefficient ${operation} ${operand}`);
-    if (spent.result.expired) return { move, expired: true };
-  }
+  // Decision D1: attemptMove no longer reports an inefficient move before
+  // committing it; a longer route is never charged.
   const struck = crossed ?? move.requiredCancellationSides;
   const typed = Object.fromEntries(Object.entries(answers).map(([side, value]) => [side, latexToExpression(value)]));
   Object.entries(typed).forEach(([side, value]) => {
@@ -253,7 +250,7 @@ const records = (session) => session.records;
 // One definition of what a step earns
 // ===========================================================================
 
-test('the credit table: efficient 2/2, valid 1/2, inefficient attempt 1/2, rejected 0/1, rewrites and relation steps 1/1', () => {
+test('the credit table: efficient 2/2, valid 1/2, inefficient report 1/2, rejected 0/1, rewrites and relation steps 1/1', () => {
   const equation = parseEquationInput(LINEAR);
   const efficient = applyBalancedOperation({ equationState: equation, operation: 'subtract', operand: '6' });
   const longWay = applyBalancedOperation({ equationState: equation, operation: 'add', operand: '2' });
@@ -275,12 +272,12 @@ test('the credit table: efficient 2/2, valid 1/2, inefficient attempt 1/2, rejec
   const relation = parseRelationSource('x > 1', 'x');
   assert.equal(relationStepGrade({ label: 'x', before: relation, after: relation, question: {} }).expectedTotalPoints, 8, 'relations default to 8');
   assert.equal(interceptStepGrade({ standard: { A: 3, B: 4, C: 24 }, intercept: 'x', point: '(8, 0)' }).expectedTotalPoints, 2);
-  // Attempt use, by action.
-  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.REJECTED_MOVE), true);
-  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE), true);
-  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE, { attemptsDoNotExpire: true }), false, 'Live Challenge keeps its attempts');
-  [STEP_ACTIONS.BALANCED_MOVE, STEP_ACTIONS.REWRITE, STEP_ACTIONS.RELATION_STEP, STEP_ACTIONS.INTERCEPT_CHECK]
-    .forEach((action) => assert.equal(stepActionCountsAttempt(action), false, action));
+  // Attempt use, by action: none (decision D1 — a valid move or a slip never
+  // spends the question's tries; only submitting the solved equation does).
+  Object.values(STEP_ACTIONS).forEach((action) => {
+    assert.equal(stepActionCountsAttempt(action), false, action);
+    assert.equal(stepActionCountsAttempt(action, { attemptsDoNotExpire: true }), false, action);
+  });
 });
 
 // ===========================================================================
@@ -385,32 +382,41 @@ test('a display label longer than the step-work bound is recorded identically on
   assert.equal(rewritePayload(session, factored, { kind: 'distribution', label: 'Distribute -3 over (2x + 5)' }).stepGrade.label, 'Distribute -3 over (2x + 5)');
 });
 
-test('an inefficient move at Standard spends an attempt on both sides, then commits at 1 of 2', () => {
-  const session = equationSession(LINEAR);
-  const { move } = balance(session, { operation: 'add', operand: '2', resolution: 'keep', crossed: [] });
-  assert.equal(move.productive, false);
-  assert.equal(records(session).server.attemptCount, 1);
-  assert.equal(records(session).server.stepGrades.length, 2, 'the attempt step and the commit');
-  assert.equal(records(session).server.partialCredit, 0, 'an unproductive move earns no credit');
-  // At Open (level 5) the same move costs nothing and reports once.
-  const open = equationSession(LINEAR, { supportLevel: 5 });
-  balance(open, { operation: 'add', operand: '2', resolution: 'keep', crossed: [] });
-  assert.equal(records(open).server.attemptCount, 0);
-  assert.equal(records(open).server.stepGrades.length, 1);
+// Decision D1 (docs/qa/student-experience-pass-3.md, RUN-2): until then
+// Standard and Independent charged a try for a longer route.
+test('D1 — an inefficient move spends no attempt at any level, and commits at 1 of 2 on both sides', () => {
+  [1, 2, 3, 4, 5].forEach((supportLevel) => {
+    const session = equationSession(LINEAR, { supportLevel });
+    const { move } = balance(session, { operation: 'add', operand: '2', resolution: 'keep', crossed: [] });
+    assert.equal(move.productive, false);
+    assert.equal(records(session).server.attemptCount, 0, `level ${supportLevel} charged a valid move`);
+    assert.equal(records(session).server.stepGrades.length, 1, 'reported once, as the commit');
+    // The efficiency evidence stays: the step says it was not the helpful move.
+    assert.deepEqual(
+      (({ productive, earned, possible }) => ({ productive, earned, possible }))(records(session).server.stepGrades[0]),
+      { productive: false, earned: 1, possible: 2 },
+    );
+    assert.equal(records(session).server.partialCredit, 0, 'an unproductive move earns no credit');
+  });
 });
 
-test('rejected cancellations and simplifications spend attempts until the version expires — on the server too', () => {
+test('D1 — rejected cancellations and simplifications are recorded but never expire the version — on the server too', () => {
   const session = equationSession(LINEAR);
   const move = pendingMove(session, { operation: 'subtract', operand: '6' });
   // strikeSide on the right (the cancellation is on the left), then a wrong
-  // typed simplification: each is a rejected move that costs an attempt.
+  // typed simplification: each is a slip, recorded as a rejected move. Three
+  // of them used to close the question.
   step(session, movePayload(session, { move, action: STEP_ACTIONS.REJECTED_MOVE }), 'wrong-side strike');
   step(session, movePayload(session, { move, action: STEP_ACTIONS.REJECTED_MOVE }), 'wrong simplification');
   const last = step(session, movePayload(session, { move, action: STEP_ACTIONS.REJECTED_MOVE }), 'third rejection');
-  assert.equal(last.result.expired, true);
-  assert.equal(records(session).server.status, 'expired');
-  assert.equal(records(session).server.attemptCount, MAX_ATTEMPTS);
+  assert.equal(last.result.expired, false);
+  assert.equal(records(session).server.status, 'attempted');
+  assert.equal(records(session).server.attemptCount, 0);
+  assert.equal(records(session).server.stepGrades.length, 3, 'each slip is still on the record');
   assert.equal(records(session).server.partialCredit, 0);
+  // The student can still finish: the right move commits after the slips.
+  balance(session, { operation: 'subtract', operand: '6' });
+  assert.ok(records(session).server.partialCredit > 0);
 });
 
 test('Undo and Reset: a step may continue from any state the variant reached, or from the question', () => {
@@ -708,17 +714,25 @@ test('forged credit fields, verdicts and keys in the step work are never read', 
   assert.deepEqual(verdict.stepGrade, honest.stepGrade, 'the credit is the server\'s own');
 });
 
-test('the inefficient-move report is checked: a helpful move claimed as inefficient is not credited, but its attempt is spent', () => {
+test('the inefficient-move report is checked: a helpful move claimed as inefficient is not credited, and spends nothing', () => {
   const session = equationSession(LINEAR);
   const efficient = applyBalancedOperation({ equationState: session.equation, operation: 'subtract', operand: '6' });
   const verdict = verifyOnServer(LINEAR, records(session).server, equationStepWork({
     action: STEP_ACTIONS.INEFFICIENT_MOVE, before: session.equation, move: efficient, supportLevel: 3,
   }));
   expectUnverified(verdict, 'step-move-not-inefficient', 'efficient move');
-  assert.equal(verdict.countsAttempt, true, 'claiming to spend an attempt spends it');
+  // Decision D1: no step spends an attempt, a forged one included.
+  assert.equal(verdict.countsAttempt, false);
+  // An older workspace's honest report of a longer route is still read.
+  const longWay = applyBalancedOperation({ equationState: session.equation, operation: 'add', operand: '2' });
+  const honest = verifyOnServer(LINEAR, records(session).server, equationStepWork({
+    action: STEP_ACTIONS.INEFFICIENT_MOVE, before: session.equation, move: longWay, supportLevel: 5,
+  }));
+  assert.equal(honest.verified, true);
+  assert.equal(honest.countsAttempt, false);
 });
 
-test('a rejected move that fails continuity still spends its attempt', () => {
+test('a rejected move that fails continuity is unverified and spends nothing', () => {
   const session = equationSession(LINEAR);
   const other = parseEquationInput({ equation: '2x + 1 = 9' });
   const verdict = verifyOnServer(LINEAR, records(session).server, equationStepWork({
@@ -728,7 +742,7 @@ test('a rejected move that fails continuity still spends its attempt', () => {
     supportLevel: 3,
   }));
   expectUnverified(verdict, 'step-not-continuous', 'rejected elsewhere');
-  assert.equal(verdict.countsAttempt, true);
+  assert.equal(verdict.countsAttempt, false, 'decision D1: a slip never spends an attempt');
 });
 
 test('student text that is not plain algebra never reaches the engine', () => {
