@@ -44,6 +44,7 @@ import { rewriteMenuEntries, rewriteMenuOptions } from './platform/algebra/simpl
 import { normalizeQuestionRecord } from './attemptPolicy';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { spokenMathValue, spokenOperation } from './tools/shared/spokenMathValue.js';
+import { useFocusSafeDisabled } from './components/common/useFocusSafeDisabled.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import { equationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 // What each step earns, and the raw work it is reported with: one definition,
@@ -148,6 +149,19 @@ const balancedStep = (move, after) => {
     description: `${before}${String(move.operandExpression).replace(/\s+/g, '')}${trailing}`,
   };
 };
+
+// A distribution token or target that runs out of things to do while it has
+// focus keeps the focus instead of dropping it to the top of the page: placing
+// the factor on the focused term disabled that term (pass 3, A11Y-2;
+// useFocusSafeDisabled). A press while it is unavailable does nothing.
+function FocusSafeButton({ available, onClick, children, ...props }) {
+  const availability = useFocusSafeDisabled(available);
+  return (
+    <button type="button" {...props} {...availability} onClick={(event) => { if (available) onClick?.(event); }}>
+      {children}
+    </button>
+  );
+}
 
 const factorNeedsDot = (left, right) => /^-?\d+(?:\.\d+)?$/.test(left?.text || '') && /^-?\d+(?:\.\d+)?$/.test(right?.text || '');
 
@@ -1979,8 +1993,8 @@ export default function StepByStepAlgebra({
           return (
             <span key={`distribution-${sideTermIndex}`} className="algebra-inline-distribution-group">
               {needsLeadingPlus ? <span aria-hidden="true">+</span> : null}
-              <button
-                type="button"
+              <FocusSafeButton
+                available={!disabled && !isDistributionComplete(distributionState)}
                 className={`algebra-inline-factor-token${distributionState.armed ? ' is-armed' : ''}`}
                 draggable={!isDistributionComplete(distributionState)}
                 onClick={armDistributionFactor}
@@ -1989,20 +2003,19 @@ export default function StepByStepAlgebra({
                   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
                   setDistributionState((current) => armDistributionFactorState(current));
                 }}
-                disabled={disabled || isDistributionComplete(distributionState)}
                 aria-pressed={distributionState.armed}
                 aria-label={`Pick up the factor ${spokenMathValue(distributionState.factorText)}`}
               >
                 <MathDisplay value={distributionState.factorLatex} format="latex" inline />
-              </button>
+              </FocusSafeButton>
               <span aria-hidden="true">(</span>
               <span className="algebra-inline-distribution-targets">
                 {distributionState.terms.map((term, index) => {
                   const placed = distributionState.placedIndices.includes(index);
                   return (
-                    <button
+                    <FocusSafeButton
                       key={`${index}-${term.text}`}
-                      type="button"
+                      available={!disabled && !placed && distributionState.armed}
                       className={`algebra-inline-distribution-target${placed ? ' is-placed' : ''}${distributionState.armed && !placed ? ' is-ready' : ''}`}
                       onClick={() => placeDistributionFactor(index)}
                       onDragOver={(event) => { if (!placed) event.preventDefault(); }}
@@ -2012,7 +2025,6 @@ export default function StepByStepAlgebra({
                           setDistributionState((current) => placeDistributionTermState(armDistributionFactorState(current), index));
                         }
                       }}
-                      disabled={disabled || placed || !distributionState.armed}
                       aria-pressed={placed}
                       aria-label={placed
                         ? `Factor applied to ${spokenMathValue(term.text)}`
@@ -2024,7 +2036,7 @@ export default function StepByStepAlgebra({
                           × <MathDisplay value={distributionState.factorLatex} format="latex" inline />
                         </span>
                       ) : null}
-                    </button>
+                    </FocusSafeButton>
                   );
                 })}
               </span>
@@ -2415,15 +2427,14 @@ export default function StepByStepAlgebra({
             {' '}Pick up the factor, then select each term it multiplies.
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <button
-              type="button"
+            <FocusSafeButton
+              available={!disabled && !isDistributionComplete(distributionState)}
               draggable={!isDistributionComplete(distributionState)}
               onDragStart={(event) => {
                 event.dataTransfer?.setData('text/plain', 'mathmaster-distribution-factor');
                 event.dataTransfer.effectAllowed = 'copy';
               }}
               onClick={armDistributionFactor}
-              disabled={disabled || isDistributionComplete(distributionState)}
               aria-pressed={distributionState.armed}
               aria-label={`Pick up the factor ${spokenMathValue(distributionState.factorText)}`}
               style={{
@@ -2434,15 +2445,15 @@ export default function StepByStepAlgebra({
               }}
             >
               <MathDisplay value={distributionState.factorLatex} format="latex" inline />
-            </button>
+            </FocusSafeButton>
             <span aria-hidden="true" style={{ color: 'var(--mm-text-muted)' }}>&rarr;</span>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {distributionState.terms.map((term, index) => {
                 const placed = distributionState.placedIndices.includes(index);
                 return (
-                  <button
+                  <FocusSafeButton
                     key={`${index}-${term.text}`}
-                    type="button"
+                    available={!disabled && !placed && distributionState.armed}
                     onClick={() => placeDistributionFactor(index)}
                     onDragOver={(event) => { if (!placed) event.preventDefault(); }}
                     onDrop={(event) => {
@@ -2451,7 +2462,6 @@ export default function StepByStepAlgebra({
                         setDistributionState((current) => placeDistributionTermState(armDistributionFactorState(current), index));
                       }
                     }}
-                    disabled={disabled || placed || !distributionState.armed}
                     aria-pressed={placed}
                     aria-label={placed ? `Factor already applied to ${spokenMathValue(term.text)}` : `Apply the factor to ${spokenMathValue(term.text)}`}
                     style={{
@@ -2469,7 +2479,7 @@ export default function StepByStepAlgebra({
                       format="latex"
                       inline
                     />
-                  </button>
+                  </FocusSafeButton>
                 );
               })}
             </div>

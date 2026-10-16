@@ -13,6 +13,7 @@ import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
 import { planeFontSize } from './planeTextScale.js';
 import { KEYBOARD_PICK_UP_RADIUS, pickUpRadius } from './planeTouch.js';
+import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 
 const POINT_LABEL_STYLE = Object.freeze({
   fill: 'var(--mm-graph-label)',
@@ -406,6 +407,9 @@ export default function CoordinatePlane({
   };
 
   const resetView = () => setView(null);
+  // Reset view disables itself on the press that resets: it keeps the focus
+  // instead of dropping it to the page (A11Y-2).
+  const resetViewAvailability = useFocusSafeDisabled(Boolean(view));
 
   // `radius` in viewBox units: a finger gets about 22 CSS px (planeTouch.js,
   // TOOL-11); the keyboard, which is exact, keeps the old 18.
@@ -941,7 +945,7 @@ export default function CoordinatePlane({
         >
           <button className="mm-button-neutral" type="button" onClick={() => applyZoom(1 / 1.4)} aria-label="Zoom in" style={ZOOM_BUTTON}>+</button>
           <button className="mm-button-neutral" type="button" onClick={() => applyZoom(1.4)} aria-label="Zoom out" style={ZOOM_BUTTON}>−</button>
-          <button className="mm-button-neutral" type="button" onClick={resetView} disabled={!view} style={{ ...ZOOM_BUTTON, width: 'auto', padding: '0 12px', opacity: view ? 1 : 0.5 }}>
+          <button className="mm-button-neutral" type="button" onClick={() => { if (view) resetView(); }} {...resetViewAvailability} style={{ ...ZOOM_BUTTON, width: 'auto', padding: '0 12px', opacity: view ? 1 : 0.5 }}>
             Reset view
           </button>
           {view ? (

@@ -15,6 +15,7 @@ import { lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from '.
 import { lineReadoutLatex, lineReadoutText } from './lineReadout.js';
 import { placePoint } from './placePoint.js';
 import MathDisplay from '../../MathDisplay';
+import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { constructionReadyToCheck, requiredConstructionPointCount, resolveConstructionPolicy } from './constructionPolicy';
 import { toFraction, formatFraction } from '../shared/linearEquations.js';
 
@@ -276,6 +277,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
   });
 
   const clear = () => { setPoints([]); clearFeedback(); };
+  // Start over empties the construction and so disables itself: it keeps the
+  // focus it had instead of dropping it to the page (A11Y-2).
+  const startOverAvailability = useFocusSafeDisabled(points.length > 0);
 
   const plottedPoints = [
     // Given points are squares and the student's are dots, so "given" and
@@ -433,7 +437,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
                 point back, and unlike the local button it keeps working after a
                 point has been dragged. Start over is not undo — it discards
                 both points at once — so it stays. */}
-            <button className="mm-button-neutral" type="button" onClick={clear} disabled={!points.length} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
+            <button className="mm-button-neutral" type="button" onClick={() => { if (points.length) clear(); }} {...startOverAvailability} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
               Start over
             </button>
           </div>
