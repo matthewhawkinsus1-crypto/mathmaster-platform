@@ -461,6 +461,8 @@ test('finding 1: a class-b student\'s support-plan extension holds back class-a\
   await assert.rejects(load(db), (error) => {
     assert.equal(error.code, 'failed-precondition');
     assert.match(error.message, /whole class/);
+    // A refusal retrying cannot change: the browser shows these words with no "Try again" (NAV-1).
+    assert.notEqual(error.details?.retry, true);
     assert.doesNotMatch(error.message, new RegExp(CLASS_B_STUDENT));
     return true;
   });
@@ -476,6 +478,8 @@ test('finding 1: an audience class whose profiles cannot be read is a generic re
   await assert.rejects(load(db), (error) => {
     assert.equal(error.code, 'failed-precondition');
     assert.doesNotMatch(error.message, /simulated|class-b|grades/);
+    // The only refusal a retry can change: the browser keeps "Try again" for it (NAV-1).
+    assert.equal(error.details?.retry, true);
     return true;
   });
 });

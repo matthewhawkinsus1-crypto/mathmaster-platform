@@ -377,7 +377,8 @@ const runExcusedJourney = async (viewport) => {
     await page.waitForTimeout(4000);
     expect(`U10 ${tag}`, pathOf(page) === `/assignments/${TODAY}/results`, `${probe} for an excused student went to ${pathOf(page)}`);
     expect(`U10 ${tag}`, !QUESTION.test(await bodyText(page)), `${probe} opened a question for an excused student`);
-    expect(`U10 ${tag}`, /excused/i.test(await toasts(page)), `${probe}: no excused message (${await toasts(page)})`);
+    // Said on the result page itself since student pass 3 (NAV-10), not in a toast.
+    expect(`U10 ${tag}`, /You are excused from this/.test(await page.locator('[data-result-notice="excused"]').innerText().catch(() => '')), `${probe}: no excused notice on the result page`);
   }
   await context.close();
   passed.push(`excused ${tag}`);

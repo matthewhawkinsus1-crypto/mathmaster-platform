@@ -82,14 +82,20 @@ test('the document title names the screen', () => {
   }
   assert.match(chrome, /if \(view === 'assignment'\) return `\$\{String\(assignmentTitle \|\| ''\)\.trim\(\) \|\| 'Assignment'\} – \$\{suffix\}`;/);
   assert.match(app, /import \{ MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle \} from '\.\/components\/common\/pageChrome\.jsx';/);
-  assert.match(app, /useDocumentTitle\(pageTitleFor\(\{\s*signedIn: Boolean\(user\),\s*role: user\?\.role \|\| null,\s*view: activeView,\s*studentMode: studentDashboardMode,/);
+  // The title is computed once (the screen-change announcement reads it too, NAV-3) and set.
+  assert.match(app, /const documentTitle = pageTitleFor\(\{\s*signedIn: Boolean\(user\),\s*role: user\?\.role \|\| null,\s*view: activeView,\s*studentMode: studentDashboardMode,/);
+  assert.match(app, /\n\s*useDocumentTitle\(documentTitle\);/);
 });
 
 // WCAG 2.4.1: the first Tab stop on a student screen skips the navigation.
 test('a student screen starts with a skip link past the navigation', () => {
-  const shell = region(app, 'const renderStudentIdentityShell', '{content}', 'the student shell');
+  const shell = region(app, 'const renderStudentIdentityShell', '\n  );', 'the student shell');
   assert.match(shell, /<div data-authenticated-student-shell=[^>]*>\s*<SkipToContent \/>/, 'first in the shell');
-  assert.match(shell, /<div id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\} \/>/);
+  // The skip link's fallback anchor exists on every screen: the shell's own
+  // main (a screen without one, NAV-15), or the empty anchor before a screen
+  // that draws its own main.
+  assert.match(shell, /\{main \? \([\s\S]*?<main id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\}[^>]*>\s*\{content\}\s*<\/main>\s*\) : \(/);
+  assert.match(shell, /\) : \([\s\S]*?<div id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\} \/>\s*\{content\}/);
   // Where it lands is skipTarget.js's (run on a fake DOM in
   // tests/platform/myMathPathLandmarks.test.mjs); the link must call it.
   const chrome = executableSource(read('src/components/common/pageChrome.jsx'));

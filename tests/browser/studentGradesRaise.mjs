@@ -132,6 +132,33 @@ for (const viewport of VIEWPORTS) {
   const afterStart = await page.evaluate(() => window.__mmGrades.clicks.slice(-1)[0]);
   if (afterStart?.kind !== 'start' || afterStart?.value !== 'missing-open') fail('grades', `Start handed back ${JSON.stringify(afterStart)}`);
 
+  // NAV-2 / D4: the missing caveat sits under the big number, and the
+  // "N missing" chip opens the period and moves focus to the missing row —
+  // even when the period was folded first.
+  const missingSeen = await page.evaluate(() => {
+    const summary = document.querySelector('[aria-label="Current marking period grade"]');
+    const warning = summary?.querySelector('[data-missing-warning]');
+    return { warning: warning?.textContent || null, chip: summary?.querySelector('button[data-show-missing]')?.innerText.trim() || null };
+  });
+  if (missingSeen.warning !== '1 missing — your Classroom grade may be lower') fail('grades', `missing warning reads ${JSON.stringify(missingSeen.warning)}`);
+  if (!/^1 missing/.test(missingSeen.chip || '')) fail('grades', `missing chip is not a button: ${JSON.stringify(missingSeen.chip)}`);
+  const periodHeading = await page.evaluate(() => {
+    const button = document.querySelector('section[aria-labelledby^="grade-period-"] button[aria-expanded]');
+    return { parent: button?.parentElement?.tagName || null, expanded: button?.getAttribute('aria-expanded') };
+  });
+  if (!/^H[2-6]$/.test(periodHeading.parent || '')) fail('grades', `period header button sits in <${periodHeading.parent}>, not a heading (NAV-15)`);
+  if (periodHeading.expanded === 'true') {
+    await page.evaluate(() => document.querySelector('section[aria-labelledby^="grade-period-"] button[aria-expanded]').click());
+    await page.waitForTimeout(100);
+  }
+  await page.getByRole('button', { name: 'Show the missing assignment' }).click();
+  await page.waitForTimeout(400);
+  const focused = await page.evaluate(() => {
+    const active = document.activeElement;
+    return { status: active?.dataset?.gradeStatus || null, title: active?.querySelector('h3')?.textContent || null };
+  });
+  if (focused.status !== 'missing' || focused.title !== 'Slope from Two Points') fail('grades', `"1 missing" moved focus to ${JSON.stringify(focused)}`);
+
   // Ways to raise your grade: visible, counted, each row a big button.
   const ways = await page.evaluate(() => {
     const heading = document.getElementById('ways-to-raise-heading');

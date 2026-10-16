@@ -73,6 +73,10 @@ name: Student and Teacher Journeys
 #                          a deep link through sign-in, another class's or
 #                          student's address shows nothing, Log Out returns
 #                          to /, a teacher's tab and monitor; desktop, phone)
+#   screen changes         tests/browser/teacherWorkflow/studentScreenChange.mjs
+#                          (same job: focus and the spoken name on a screen
+#                          change, one main per screen, Back by origin, the
+#                          one-row phone nav, Assignments' filters kept)
 #
 # Pull requests that touch the app run the journeys; the long endurance run is
 # nightly and on demand. Read-only: this workflow writes nothing back.
@@ -285,6 +289,15 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           VIEWPORTS: "1366x768,390x844"
         run: node tests/browser/teacherWorkflow/appUrlJourneys.mjs
+      # Student pass 3 (NAV-3, NAV-9, NAV-13, NAV-15): focus and the spoken
+      # name on every screen change, one main per screen, Back by origin,
+      # the one-row phone nav, Assignments' filters kept for Back.
+      - name: Screen changes, landmarks and the phone nav
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1366x768,390x844"
+        run: node tests/browser/teacherWorkflow/studentScreenChange.mjs
 
   student:
     runs-on: ubuntu-latest

@@ -63,7 +63,7 @@ const SCENES = [
   { name: 'gradeCenterClosed', mustContain: ['Past Marking Periods'], mustReach: ['← Home', 'Try it again — no credit'] },
   // The Classroom receipt is said plainly: never the sync's "checkpoint" or
   // "teacher draft" vocabulary.
-  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL', 'Google Classroom shows 84%'], mustNotContain: ['checkpoint', 'teacher draft'], mustReach: ['View All Grades', 'Try DOL again — no credit', '← Assignments'] },
+  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL', 'Google Classroom shows 84%'], mustNotContain: ['checkpoint', 'teacher draft'], mustReach: ['View All Grades', 'Try these DOL questions again — no credit', '← Assignments'] },
   { name: 'assignmentResultOpen', mustContain: ['Your grade'], mustReach: ['View All Grades'] },
 ];
 

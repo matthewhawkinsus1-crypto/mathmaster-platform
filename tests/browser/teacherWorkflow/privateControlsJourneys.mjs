@@ -220,7 +220,10 @@ const studentJourney = async (mode, viewport) => {
   expectOwnStateOnly(label, await scanAppState(page), A);
   expect(label, (await scanAppState(page)).overrideIds.includes(A), 'their own controls are in the app (the scan sees assignments)');
   for (const tab of ['Assignments', 'Grades', 'My Rewards']) {
-    await page.getByRole('button', { name: new RegExp(`^${tab}$`) }).first().click();
+    // On a phone the nav folds My Rewards behind "More" (student pass 3, NAV-13).
+    const destination = page.getByRole('button', { name: new RegExp(`^${tab}$`) }).first();
+    if (!(await destination.isVisible())) await page.locator('nav[aria-label="Student navigation"] button.mm-student-nav__more').filter({ visible: true }).first().click();
+    await destination.click();
     await settle(page, 900);
     const during = await stats(page);
     expect(label, during.openListenersByPath[CONTROLS] === 1 && during.openListenersByPath.assignments === 1, `${tab}: still one of each (${during.openListenersByPath[CONTROLS]}/${during.openListenersByPath.assignments})`);

@@ -156,34 +156,38 @@ test('App imports the resolver it calls on the assignment result', () => {
     executableSource(app),
     /import \{ resolveAssignmentPathLaunch \} from '\.\/platform\/path\/assignmentPathLaunch\.js';/,
   );
-  const handler = region(app, 'onPractice={(assignmentId) => {', 'onViewAllGrades=', 'assignment result practice handler');
-  assert.match(executableSource(handler), /resolveAssignmentPathLaunch\(\{/);
+  const route = region(app, "if (user.role === 'student' && activeView === 'assignmentResult' && assignmentResultRoute) {", 'return renderStudentIdentityShell(', 'assignment result route');
+  assert.match(executableSource(route), /const resultPathLaunch = resolveAssignmentPathLaunch\(\{/);
 });
 
-test('the result practice handler opens My Math Path on the resolved skill, else reopens the assignment', () => {
-  const result = region(app, '<StudentAssignmentResult', '/>', 'Assignment Result render');
-  const handler = executableSource(region(result, 'onPractice={(assignmentId) => {', 'onViewAllGrades=', 'practice handler'));
-
+/*
+ * Student pass 3, NAV-8: the result page's "Try it again — no credit" used to
+ * open this skill in My Math Path while the same words everywhere else reopen
+ * the assignment. Two buttons now: "Try these questions again — no credit"
+ * reopens the assignment; "Practice this skill" opens My Math Path on the
+ * resolved skill, and exists only when there is one.
+ */
+test('the result offers the resolved skill as its own button, and its retry reopens the assignment', () => {
+  const route = executableSource(region(app, "if (user.role === 'student' && activeView === 'assignmentResult' && assignmentResultRoute) {", '\n  if (isStudentAssignment) {', 'assignment result route'));
   // The resolver reads THIS assignment, at the route's question, scoped to the
-  // same section the old practice was scoped to — so a split section post
-  // resolves to nothing and keeps its section practice.
-  const call = region(handler, 'resolveAssignmentPathLaunch({', '});', 'resolver call');
-  assert.match(call, /assignment: assignments\.find\(\(item\) => item\.id === assignmentId\)/);
+  // same section the retry is scoped to — so a split section post resolves to
+  // nothing and keeps only its section retry.
+  const call = region(route, 'const resultPathLaunch = resolveAssignmentPathLaunch({', '});', 'resolver call');
+  assert.match(call, /assignment: recoveryAssignment,/);
+  assert.match(route, /const recoveryAssignment = assignments\.find\(\(item\) => item\.id === assignmentResultRoute\.assignmentId\) \|\| null;/);
   assert.match(call, /questionIndex: assignmentResultRoute\.questionIndex/);
   assert.match(call, /sectionKey: resultSectionLabel \? assignmentResultRoute\.sectionKey : null/);
 
-  // A resolved skill launches the Path and stops there.
-  const launch = region(handler, 'if (pathLaunch) {', '}', 'Path launch branch');
-  assert.match(launch, /setPathLaunchTeks\(pathLaunch\.teksCode\);/);
-  assert.match(launch, /openStudentDashboardMode\('mathPath'\);/);
-  assert.match(launch, /return;/);
-
-  // Otherwise: exactly the old practice, after the Path branch.
-  const fallbackAt = handler.indexOf('startAssignment(assignmentId, assignmentResultRoute.questionIndex, {');
-  assert.ok(fallbackAt > handler.indexOf('if (pathLaunch) {'), 'the old practice is the fallback, not the first choice');
-  const fallback = handler.slice(fallbackAt);
-  assert.match(fallback, /sectionKey: resultSectionLabel \? assignmentResultRoute\.sectionKey : null/);
-  assert.match(fallback, /returnToResult: true/);
+  const result = region(route, '<StudentAssignmentResult', '\n        />', 'Assignment Result render');
+  // "Practice this skill": launches the Path on the skill, or is not offered.
+  const skill = region(result, 'onPracticeSkill={resultPathLaunch ? () => {', '} : null}', 'skill handler');
+  assert.match(skill, /setPathLaunchTeks\(resultPathLaunch\.teksCode\);/);
+  assert.match(skill, /openStudentDashboardMode\('mathPath'\);/);
+  // "Try these questions again": reopens the assignment, scoped and returning here; never the Path.
+  const retry = region(result, 'onPractice={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, {', '})}', 'retry handler');
+  assert.match(retry, /sectionKey: resultSectionLabel \? assignmentResultRoute\.sectionKey : null/);
+  assert.match(retry, /returnToResult: true/);
+  assert.doesNotMatch(retry, /setPathLaunchTeks|mathPath/);
 });
 
 test('Section Recovery practice is untouched', () => {

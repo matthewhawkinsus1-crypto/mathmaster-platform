@@ -15,7 +15,9 @@ test('authenticated student render paths use the identity shell with the student
   assert.match(shell, /onLogout=\{preview \? null : handleLogout\}/);
 
   const studentRoutes = region(app, "if (user.role === 'student' && activeView === 'dashboard')", 'return null;', 'student route rendering');
-  assert.match(studentRoutes, /renderStudentIdentityShell\([\s\S]*LiveChallengeStudent/);
+  // renderStudentScreen is the identity shell with a main landmark (NAV-15).
+  assert.match(app, /const renderStudentScreen = \(content\) => renderStudentIdentityShell\(content, \{ main: true \}\);/);
+  assert.match(studentRoutes, /renderStudent(?:IdentityShell|Screen)\(\s*<>[\s\S]{0,300}<LiveChallengeStudent/);
   assert.match(studentRoutes, /renderStudentIdentityShell\(renderAssignmentWorkspace\(false\)\)/);
 });
 

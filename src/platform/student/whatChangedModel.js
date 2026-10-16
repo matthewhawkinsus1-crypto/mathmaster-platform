@@ -238,7 +238,7 @@ const gradeChanges = ({ assignment, overrides, tracker }) => {
   return items;
 };
 
-const controlChanges = ({ assignment, control, studentId }) => {
+const controlChanges = ({ assignment, control, studentId, nowValue }) => {
   if (!isObject(control)) return [];
   const title = titleOf(assignment);
   if (control.excused === true) {
@@ -246,8 +246,25 @@ const controlChanges = ({ assignment, control, studentId }) => {
     return [{ kind: WHAT_CHANGED_KIND.EXCUSED, at: null, text: `${title} is excused` }];
   }
   const items = [];
-  if (control.reopened === true) items.push({ kind: WHAT_CHANGED_KIND.REOPENED, at: null, text: `${title} was reopened` });
   const extended = Boolean(control.lateDueAt) || Boolean(control.extension);
+  /*
+   * "REOPENED" ONLY WHEN THE STUDENT CAN WORK IT (student pass 3, NAV-14).
+   *
+   * The flag by itself opens nothing (studentAssignmentOverrides.mjs:
+   * "neither opens a closed assignment — only an extension does"), so
+   * "Lesson 3 was reopened" led to a result page saying the grade "can no
+   * longer change". Until the owner decides what "reopened" should do, it is
+   * listed only while the lesson is open for this student, and it says until
+   * when; an extension already says so in its own line, so it is not said twice.
+   */
+  if (control.reopened === true && !extended) {
+    const own = { privateOverride: control };
+    const openUntil = getAssignmentDate(assignment, 'late', studentId, own)?.getTime()
+      ?? getAssignmentDate(assignment, 'due', studentId, own)?.getTime() ?? null;
+    if (openUntil !== null && openUntil > nowValue) {
+      items.push({ kind: WHAT_CHANGED_KIND.REOPENED, at: null, text: `${title} is open for you until ${formatDue(openUntil)}` });
+    }
+  }
   if (extended) {
     const dueAt = getAssignmentDate(assignment, 'late', studentId, { privateOverride: control });
     items.push({
@@ -329,7 +346,7 @@ export const buildWhatChanged = ({
         overrides: teacherGradeOverridesByAssignment?.[assignmentId],
         tracker: trackerByAssignment?.[assignmentId],
       }),
-      ...controlChanges({ assignment, control, studentId }),
+      ...controlChanges({ assignment, control, studentId, nowValue: now }),
       ...(control?.excused === true ? [] : newAssignment({ assignment, tracker: trackerByAssignment?.[assignmentId], studentId, control, nowValue: now })),
     ];
     events.forEach((event) => {
@@ -406,6 +423,23 @@ export const rememberWhatChangedFirstSeen = (studentId, keys = [], nowValue = Da
   live.forEach((key) => { next[key] = Number(map[key]) || Number(nowValue) || Date.now(); });
   try { storage()?.setItem(storageKey, JSON.stringify(next)); } catch { /* best effort */ }
   return next;
+};
+
+/*
+ * HOME'S "N UPDATES →" LINE (student pass 3, NAV-6).
+ *
+ * "What changed" sits below the work on Home, so a student who never scrolls
+ * never saw it. Under "Do this next" one line now counts what is new, and
+ * pressing it goes to the list. The list marks itself seen only once it has
+ * been on screen (WhatChangedList), so the count is honest next time too.
+ */
+export const countUnseenWhatChanged = (items = []) => (Array.isArray(items) ? items : [])
+  .filter((item) => item?.unseen === true).length;
+
+export const whatChangedUpdatesLabel = (count) => {
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  if (!n) return null;
+  return `${n} ${n === 1 ? 'update' : 'updates'}`;
 };
 
 /** Keys of the untimed (state) items, for rememberWhatChangedFirstSeen. */

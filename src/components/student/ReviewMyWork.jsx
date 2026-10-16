@@ -16,6 +16,7 @@ import {
   REVIEW_OUTCOME,
   SOLUTION_UNAVAILABLE_TEXT,
   buildReviewMyWorkModel,
+  describeReviewLoadError,
 } from '../../platform/student/reviewMyWorkModel.js';
 
 /*
@@ -192,8 +193,8 @@ export default function ReviewMyWork({ assignment, load, onClose = null, student
       .then((result) => {
         if (attempt.current === ticket) setState({ status: 'ready', result });
       })
-      .catch(() => {
-        if (attempt.current === ticket) setState({ status: 'error', result: null });
+      .catch((error) => {
+        if (attempt.current === ticket) setState({ status: 'error', result: null, error: describeReviewLoadError(error) });
       });
   }, [assignmentId, load]);
 
@@ -219,10 +220,12 @@ export default function ReviewMyWork({ assignment, load, onClose = null, student
 
       {state.status === 'loading' && <p role="status" style={{ color: 'var(--mm-text-muted)' }}>Loading your answers…</p>}
 
+      {/* A refusal says why in the server's words and offers no retry
+          (NAV-1); only a failure to reach the server says "Try again". */}
       {state.status === 'error' && (
-        <div role="alert" style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-control)', border: '1px solid var(--mm-border-soft)' }}>
-          <p style={{ margin: '0 0 10px', color: 'var(--mm-text)' }}>{LOAD_ERROR_TEXT}</p>
-          <button type="button" style={buttonStyle} onClick={fetchRows}>Try again</button>
+        <div role={state.error?.kind === 'refused' ? 'status' : 'alert'} data-review-error={state.error?.kind || 'network'} style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-control)', border: '1px solid var(--mm-border-soft)' }}>
+          <p style={{ margin: state.error?.retry === false ? 0 : '0 0 10px', color: 'var(--mm-text)' }}>{state.error?.text || LOAD_ERROR_TEXT}</p>
+          {state.error?.retry !== false && <button type="button" style={buttonStyle} onClick={fetchRows}>Try again</button>}
         </div>
       )}
 
