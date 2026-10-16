@@ -58,7 +58,7 @@ export const subscribeToQuestionDrafts = (listener) => {
 const notifyDraftWritten = (key, value, savedAt, edit, savedAtIsEdit, fieldMarkers = null) => {
   draftSubscribers.forEach((listener) => {
     try {
-      listener({ key, value, savedAt, edit, savedAtIsEdit, ...(fieldMarkers || {}) });
+      listener({ key, value, savedAt, edit, savedAtIsEdit, ...fieldMarkers });
     } catch (error) {
       // A failing sync listener must never cost the student their keystroke.
       console.warn('MathMaster could not queue a draft for background save:', error);
@@ -328,7 +328,7 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
       value: written,
       touchedAt: now,
       ...(savedAtIsEdit ? { savedAtIsEdit: true } : {}),
-      ...(fieldMarkers || {}),
+      ...fieldMarkers,
     }));
     clearDraftSaveProblem(DRAFT_SAVE_PROBLEM.DEVICE_FULL, key);
     return true;
