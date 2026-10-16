@@ -113,6 +113,19 @@ now deliberately moves to Next or the closed card), plus a check that focus is o
 waited for "response is closed after", a sentence Batch 1 replaced — it was not in the base commit either
 (`git grep` on `a7dddc7`), so that step failed on the base too.
 
+## Merging beside the parallel branches
+
+Checked with `git merge-tree` (nothing written):
+
+- **Batch 3 persistence** (`claude/pass3-b3-persistence-client`): merges with **no conflict**, the volatile save line
+  included.
+- **Batch 4 hints** (`claude/pass3-b4-hints`, on the older base `37ec6ce`): it conflicts with this branch's base already
+  (QuestionEngine, SectionRecoveryRunner, Pre-Flight, HintPanel). This branch adds four small ones, each "both sides
+  added": `ToolRuntimeContext.jsx` (hints adds `publishHints`, this adds `submitCost` — keep both fields, both provider
+  props and both hooks); the import lines of `ConstraintFunctionBuilder.jsx` and `FunctionInvestigation2.jsx` (keep
+  `useOwnHintLadder` from hints **and** `SubmitText` from here); `tests/browser/toolPolicyGates.mjs` (keep hints' new
+  checks and this branch's `/^Submit — /` names).
+
 ## Mutation checks
 
 Every new assertion and every rewritten contract was broken once against the code
