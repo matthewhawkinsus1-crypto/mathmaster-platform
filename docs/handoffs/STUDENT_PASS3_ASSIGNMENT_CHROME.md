@@ -109,7 +109,7 @@ All on the final merge `dbf2a55`, one browser driver at a time, no edits in flig
 | Work View: workViewMatrix, workViewTerminalTransition, studentUxPlatform, assignmentMobile, capabilityCertification, questionFamilyCases | all pass |
 | Journeys: feedbackTeaches, secureExamNavigation, supportEvidenceJourneys, restoredDraftFocusRaceJourneys | all pass |
 | Accessibility workflow: `npm run certify:accessibility` (11 screens × 2), hostAccessibility, studentShellLargeText `--check=targets,s5` and `--check=text`, secureAccessParity | all pass; no new or increased axe violations |
-| `npm run certify:dark-mode` | DARK_MODE_RESULT |
+| `npm run certify:dark-mode` | pass (Work View, MathLive, tables, feedback and tools; 192 application surfaces, 4 viewports, light and dark) |
 
 Found on the way, both reported to the integrator and fixed on the base before the final run:
 `workViewTerminalTransition` waited for the closed box's pre-Batch-1 wording (red on `a7dddc7`, fixed in `c803501`);
