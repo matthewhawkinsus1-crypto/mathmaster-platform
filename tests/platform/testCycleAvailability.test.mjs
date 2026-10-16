@@ -167,11 +167,59 @@ test('a window follows the bell schedule live: a modified day moves it, an undes
   assert.deepEqual([waiting.state, waiting.pending, waiting.pendingReason, waiting.opensAt], [WINDOW_STATE.UPCOMING, true, 'dayTypeNotSet', null]);
   assert.match(testWindowRefusal(waiting, { timeZone: TZ }), /set for Fri, Oct 16\. It opens during your class period/);
   assert.match(describeTestWindow(waiting, { timeZone: TZ }).detail, /A\/B day for that date has not been set yet/);
-  // Never designated: the day ends at its own midnight, and then it is over.
-  assert.equal(scheduleFor(friday, at(2026, 10, 17, 0, 0)).test.state, WINDOW_STATE.CLOSED);
+  // Never designated: the day passes without ever having been open, so it is
+  // NOT over — "closed" would mark the whole class as having missed the Test
+  // and move them to a Retest. It waits, still enforced, for a new Test day.
+  const passed = scheduleFor(friday, at(2026, 10, 17, 0, 0)).test;
+  assert.deepEqual(
+    [passed.state, passed.enforced, passed.stranded, passed.pendingReason, passed.dateKey],
+    [WINDOW_STATE.UPCOMING, true, true, 'dayPassedWithoutTimes', FRI_UNSET],
+  );
+  assert.equal(scheduleFor(friday, at(2026, 11, 30, 9)).test.state, WINDOW_STATE.UPCOMING, 'weeks later, still not missed');
+  assert.match(describeTestWindow(passed, { timeZone: TZ }).detail, /Fri, Oct 16 passed before the bell schedule gave this class's times for it, so you have not missed it/);
+  assert.match(describeTestWindow(passed, { timeZone: TZ, audience: 'teacher' }).detail, /no student missed it\. Set a new Test day/);
+  assert.equal(testWindowRefusal(passed, { timeZone: TZ }), 'This Test is waiting for a new Test day. Your teacher will set one.');
+  assert.equal(scheduleFor(friday, at(2026, 10, 17, 0, 0)).followUp.state, WINDOW_STATE.UPCOMING, 'Corrections and the Retest do not open either');
+  // A class moved off its day after the day passed is not missed either.
+  const movedOff = scheduleFor(assignment(withClassTestDay(null, { classId: 'c4', dateKey: MON })), at(2026, 10, 13, 9), { classId: 'c4', classPeriod: 'Period 4' }).test;
+  assert.deepEqual([movedOff.state, movedOff.stranded], [WINDOW_STATE.UPCOMING, true]);
   // A class moved off that day: not open, and the teacher is told why.
   const [unresolved] = resolveClassWindows({ availability: withClassTestDay(null, { classId: 'c4', dateKey: MON }), classId: 'c4', classPeriod: 'Period 4', schedule: bell, timeZone: TZ });
   assert.deepEqual([unresolved.resolved, unresolved.pending, unresolved.reason], [false, false, 'noClassThatDay']);
+});
+
+test('a meeting that has already ended is never offered or scheduled as the Test day', () => {
+  // 13:00 on Monday: Period 3 met 10:15–11:05. Wednesday is the next meeting.
+  const afterBell = at(2026, 10, 12, 13);
+  const offered = upcomingClassPeriodDays({ schedule: bell, classPeriod: 'Period 3', fromDateKey: MON, count: 2, timeZone: TZ, now: afterBell });
+  assert.deepEqual(offered.days.map((day) => day.dateKey), [WED, '2026-10-19']);
+  // During the period the meeting is still offered: it has not ended.
+  const during = upcomingClassPeriodDays({ schedule: bell, classPeriod: 'Period 3', fromDateKey: MON, count: 1, timeZone: TZ, now: at(2026, 10, 12, 10, 30) });
+  assert.deepEqual(during.days.map((day) => day.dateKey), [MON]);
+  // With no "now" the list is unchanged: every day from fromDateKey.
+  assert.equal(upcomingClassPeriodDays({ schedule: bell, classPeriod: 'Period 3', fromDateKey: MON, count: 1, timeZone: TZ }).days[0].dateKey, MON);
+
+  // A day stored after its meeting ended (an older server, or a bell schedule
+  // moved earlier the same day) was never open to anyone: nobody missed it.
+  const late = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: afterBell }));
+  const [window] = resolveClassWindows({ availability: late.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: bell, timeZone: TZ });
+  assert.deepEqual([window.resolved, window.pending, window.reason], [false, false, 'endedBeforeSet']);
+  const status = scheduleFor(late, afterBell + 60000).test;
+  assert.deepEqual([status.state, status.enforced, status.stranded, status.pendingReason], [WINDOW_STATE.UPCOMING, true, true, 'endedBeforeSet']);
+  assert.match(describeTestWindow(status, { timeZone: TZ }).detail, /Mon, Oct 12's class had already ended when it was set as the Test day, so you have not missed it/);
+  // Set before the bell, the same day closes as usual: a real chance, missed.
+  const onTime = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 12, 8) }));
+  assert.equal(scheduleFor(onTime, afterBell).test.state, WINDOW_STATE.CLOSED);
+  // Set during the period, it is open for the rest of it.
+  const midPeriod = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 12, 10, 30) }));
+  assert.equal(scheduleFor(midPeriod, at(2026, 10, 12, 10, 40)).test.state, WINDOW_STATE.OPEN);
+  // Re-setting to a later day replaces the stranded one with a real window.
+  const moved = assignment(withClassTestDay(late.testAvailability, { classId: 'c3', dateKey: WED, at: afterBell + 1 }));
+  const movedStatus = scheduleFor(moved, afterBell + 2).test;
+  assert.deepEqual([movedStatus.state, movedStatus.stranded, movedStatus.opensAt], [WINDOW_STATE.UPCOMING, undefined, at(2026, 10, 14, 10, 15)]);
+  // An extension past the bell, set before the extended close, is a real window.
+  const extendedLate = withClassWindowExtended(late.testAvailability, { classId: 'c3', windowId: window.id, closesAt: at(2026, 10, 12, 15), at: afterBell });
+  assert.equal(scheduleFor(assignment(extendedLate), afterBell + 60000).test.state, WINDOW_STATE.OPEN);
 });
 
 test('a teacher can extend a window past the bell, reopen it, clear it, or open the Test at any time', () => {

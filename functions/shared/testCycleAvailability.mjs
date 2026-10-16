@@ -245,6 +245,11 @@ export const resolveClassPeriodDay = ({ schedule = null, classPeriod = null, dat
 /**
  * The next days this class sits, with their exact times — what a teacher is
  * offered when choosing the Test day, so they pick a day rather than type one.
+ *
+ * `now`, when given, leaves out a meeting that has already ended: today's
+ * period after its bell is not a Test day anyone can sit, and scheduling into
+ * it would close the window the moment it was set and mark the whole class as
+ * having missed the Test.
  */
 export const upcomingClassPeriodDays = ({
   schedule = null,
@@ -253,15 +258,18 @@ export const upcomingClassPeriodDays = ({
   count = 5,
   timeZone = null,
   maxLookaheadDays = 45,
+  now = null,
 } = {}) => {
+  const after = instant(now);
   const days = [];
   const pending = [];
   if (!isDateKey(fromDateKey) || !clean(classPeriod)) return { days, pending };
   let cursor = clean(fromDateKey);
   for (let step = 0; step < maxLookaheadDays && days.length < count; step += 1) {
     const day = resolveClassPeriodDay({ schedule, classPeriod, dateKey: cursor, timeZone });
-    if (day.resolved) days.push(day);
-    else if (day.pending) pending.push(cursor);
+    if (day.resolved) {
+      if (after === null || day.closesAt > after) days.push(day);
+    } else if (day.pending) pending.push(cursor);
     cursor = shiftDateKey(cursor, 1);
   }
   return { days, pending };
@@ -272,7 +280,12 @@ export const upcomingClassPeriodDays = ({
  *
  * A class-period window that the schedule cannot resolve stays in the list as
  * `pending` (it may still resolve) or `unresolved` (the class does not sit that
- * day any more): the teacher is told, and the server treats neither as open.
+ * day any more): the teacher is told, and the server treats neither as open —
+ * nor as over (see resolveTestWindowStatus).
+ *
+ * A class-period window whose meeting had already ended when the teacher set
+ * it (`at`) is unresolved too, reason `endedBeforeSet`: nobody could have sat
+ * it, so nobody missed it.
  */
 export const resolveClassWindows = ({
   availability = null,
@@ -301,6 +314,19 @@ export const resolveClassWindows = ({
       };
     }
     const extended = Number(window.closesAtOverride) > day.closesAt;
+    const closesAt = extended ? window.closesAtOverride : day.closesAt;
+    if (instant(window.at) !== null && closesAt <= window.at) {
+      return {
+        id: window.id,
+        source: 'bellSchedule',
+        dateKey: window.dateKey,
+        resolved: false,
+        pending: false,
+        reason: 'endedBeforeSet',
+        opensAt: null,
+        closesAt,
+      };
+    }
     return {
       id: window.id,
       source: 'bellSchedule',
@@ -310,7 +336,7 @@ export const resolveClassWindows = ({
       resolved: true,
       pending: false,
       opensAt: day.opensAt,
-      closesAt: extended ? window.closesAtOverride : day.closesAt,
+      closesAt,
       scheduledClosesAt: day.closesAt,
       extended,
     };
@@ -380,6 +406,31 @@ export const resolveTestWindowStatus = ({
       source: next.source,
       windows,
       workFromHome: next.source !== 'bellSchedule',
+    };
+  }
+
+  // A window the bell schedule never gave times for — its day passed while
+  // undesignated, the class stopped meeting that day, or it was set after the
+  // meeting ended — was never open to anyone, so it is never "missed": the
+  // Test stays enforced (it cannot be started) and waits for a new day, and
+  // nobody is moved to a Retest because of it.
+  const stranded = windows
+    .filter((window) => !window.resolved)
+    .sort((left, right) => String(left.dateKey || '').localeCompare(String(right.dateKey || '')));
+  if (stranded.length) {
+    const last = stranded[stranded.length - 1];
+    return {
+      state: WINDOW_STATE.UPCOMING,
+      enforced: true,
+      opensAt: null,
+      closesAt: null,
+      pending: true,
+      stranded: true,
+      pendingReason: last.reason === 'endedBeforeSet' ? 'endedBeforeSet' : 'dayPassedWithoutTimes',
+      dateKey: last.dateKey || null,
+      source: last.source,
+      windows,
+      workFromHome: last.source !== 'bellSchedule',
     };
   }
 
@@ -564,6 +615,20 @@ export const describeTestWindow = (status, { timeZone = null, audience = 'studen
     };
   }
   if (state === WINDOW_STATE.UPCOMING) {
+    if (status.stranded) {
+      const day = formatSchoolDate(status.dateKey, timeZone) || 'The Test day';
+      const why = status.pendingReason === 'endedBeforeSet'
+        ? `${day}'s class had already ended when it was set as the Test day`
+        : `${day} passed before the bell schedule gave this class's times for it`;
+      return {
+        state,
+        headline: 'Waiting for a new Test day',
+        detail: audience === 'teacher'
+          ? `${why}, so no student missed it. Set a new Test day, or reopen the window between two times.`
+          : `${why}, so you have not missed it. Your teacher will set a new Test day.`,
+        home,
+      };
+    }
     if (status.pending) {
       return {
         state,
@@ -653,6 +718,7 @@ export const testWindowRefusal = (status, { timeZone = null } = {}) => {
   if (!status?.enforced) return null;
   if (status.state === WINDOW_STATE.OPEN) return null;
   if (status.state === WINDOW_STATE.UPCOMING) {
+    if (status.stranded) return 'This Test is waiting for a new Test day. Your teacher will set one.';
     return status.pending
       ? `This Test is set for ${formatSchoolDate(status.dateKey, timeZone) || 'a later day'}. It opens during your class period.`
       : `This Test opens ${formatSchoolDateTime(status.opensAt, timeZone)}, during your class period.`;

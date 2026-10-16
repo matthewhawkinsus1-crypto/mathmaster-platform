@@ -19823,7 +19823,7 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
     const windows = shared.schedule.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone });
     const test = shared.schedule.resolveTestWindowStatus({ availability: assignment?.testAvailability, classWindows: windows, now });
     const followUp = shared.schedule.resolveFollowUpWindow({ assignment, availability: assignment?.testAvailability, testStatus: test, now, timeZone });
-    const upcoming = shared.schedule.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 4, timeZone });
+    const upcoming = shared.schedule.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 4, timeZone, now });
     return {
       classId,
       name: String(classRecord.name || classRecord.period || classId).slice(0, 160),
@@ -19856,7 +19856,9 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
         extended: window.extended === true,
         label: window.resolved
           ? shared.schedule.formatSchoolRange(window.opensAt, window.closesAt, timeZone)
-          : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
+          : window.reason === "endedBeforeSet"
+            ? `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (that day's class had ended when it was set: choose a new day)`
+            : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
       })),
       // The next days this class sits, straight from the bell schedule.
       upcomingDays: upcoming.days.map((day) => ({
@@ -25072,13 +25074,25 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
       throw new HttpsError("failed-precondition", "This class has no period, so the bell schedule cannot say when it meets. Set the class's period, or reopen the window between two times instead.");
     }
     const day = sched.resolveClassPeriodDay({ schedule: bell, classPeriod, dateKey, timeZone });
+    const nextMeetings = () => sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 3, timeZone, now }).days
+      .map((entry) => sched.formatSchoolRange(entry.opensAt, entry.closesAt, timeZone));
     if (!day.resolved && !day.pending) {
-      const next = sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 3, timeZone }).days
-        .map((entry) => sched.formatSchoolRange(entry.opensAt, entry.closesAt, timeZone));
+      const next = nextMeetings();
       throw new HttpsError(
         "failed-precondition",
         `${classPeriod} does not meet on ${sched.formatSchoolDate(dateKey, timeZone)} according to the bell schedule.${next.length ? ` It next meets: ${next.join("; ")}.` : ""}`,
         { reason: day.reason },
+      );
+    }
+    // Today's period after its bell: a window that is already closed would mark
+    // every student in the class as having missed the Test and move them to a
+    // Retest. Refuse it, and say when the class meets next.
+    if (day.resolved && day.closesAt <= now) {
+      const next = nextMeetings();
+      throw new HttpsError(
+        "failed-precondition",
+        `${classPeriod} already met today (${sched.formatSchoolRange(day.opensAt, day.closesAt, timeZone)}), so that class time has ended.${next.length ? ` It next meets: ${next.join("; ")}.` : ""} To give the Test today anyway, reopen the window between two times.`,
+        { reason: "meetingEnded" },
       );
     }
     notes.push(day.resolved
@@ -25095,7 +25109,7 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
       // eslint-disable-next-line no-await-in-loop
       const classPeriod = await classPeriodOf(classId);
       const first = classPeriod
-        ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone }).days[0]
+        ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone, now }).days[0]
         : null;
       if (first) {
         chosen.push({ classId, dateKey: first.dateKey });

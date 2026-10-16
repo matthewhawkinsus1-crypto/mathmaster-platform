@@ -241,3 +241,24 @@ test('an external-original cycle keeps its own rules: no window, no missed-Test 
   assert.deepEqual(summary(state), [STAGE.TEST, true, 'Start Retest']);
   assert.notEqual(state.missedTest, true);
 });
+
+/*
+ * A WINDOW NOBODY COULD SIT IS NEVER "MISSED" (PR-21). A Test day set after
+ * that day's class had already ended, or a day the bell schedule never gave
+ * times for, must not mark the class as having missed the Test and move every
+ * student to a Retest. The Test stays behind its gate, waiting for a new day.
+ */
+test('a Test day set after the meeting ended, or never given times, does not put anyone on the missed-Test path', () => {
+  const student = record({ test: assigned });
+  const setAfterBell = { lateDueAt: '2026-10-20', testAvailability: withClassTestDay(null, { classId: 'c3', dateKey: TEST_DAY, at: at(14, 13) }) };
+  const afterBell = scheduleAt(at(14, 13, 5), { config: setAfterBell });
+  assert.equal(studentMissedOriginalTest({ record: student, schedule: afterBell }), false);
+  const state = resolve(student, REVIEW_DONE, at(14, 13, 5), { config: setAfterBell });
+  assert.deepEqual([state.stage, state.canEnter, state.missedTest === true], [STAGE.TEST, false, false]);
+
+  // Friday 16th has no A/B day: after its midnight it is still not missed.
+  const undesignated = { lateDueAt: '2026-10-20', testAvailability: withClassTestDay(null, { classId: 'c3', dateKey: '2026-10-16' }) };
+  const nextWeek = scheduleAt(at(19, 9), { config: undesignated });
+  assert.equal(studentMissedOriginalTest({ record: student, schedule: nextWeek }), false);
+  assert.equal(resolve(student, REVIEW_DONE, at(19, 9), { config: undesignated }).canEnter, false, 'not opened early either');
+});
