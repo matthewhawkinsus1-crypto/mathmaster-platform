@@ -253,7 +253,9 @@ function BalanceSolver({ questionData = {}, onAction }) {
             hints={[
               'Look at the side with the x. What is being done to x, and in what order?',
               `Undo the addition or subtraction first. Here that means ${Number(original.b) >= 0 ? 'subtracting' : 'adding'} ${Math.abs(Number(original.b))} ${Number(original.b) >= 0 ? 'from' : 'to'} both sides.`,
-              `After that the equation is ${formatEquation(applyOperation(original, Number(original.b) >= 0 ? 'subtract' : 'add', Math.abs(Number(original.b))))}. Divide both sides by ${exact(Number(original.a))} to get x alone.`,
+              // Not the equation that step makes: one division from x, it was
+              // the answer (HELP-10).
+              'After that step, divide both sides by the number multiplying x to get x alone.',
             ]}
             onHintUsed={() => onAction?.('HINT_USED')}
           />
