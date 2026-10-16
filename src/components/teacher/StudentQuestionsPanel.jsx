@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { db } from '../../firebase.js';
 import MathText from '../common/MathText.jsx';
 import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
-import { ANSWER_TEXT_MAX, cleanQuestionText, sortQuestions } from '../../platform/supports/askTeacher.js';
+import { ANSWER_TEXT_MAX, TEACHER_QUESTIONS_SHOWN, cleanQuestionText, sortQuestions, teacherQuestionPlace } from '../../platform/supports/askTeacher.js';
 import { answerTeacherQuestion, openTeacherQuestionsQuery, watchQuestions } from '../../platform/supports/askTeacherStore.js';
 import { STUDENT_NAME_UNAVAILABLE, resolveRosterStudentName, studentIdLabel, studentIdentityIndexFor } from '../../platform/studentName.js';
 
@@ -29,7 +29,7 @@ const askedAt = (value) => {
     : '';
 };
 
-function QuestionRow({ question, studentName, studentIdText, prompt, teacherEmail, onOpenStudent, onAnswered }) {
+function QuestionRow({ question, place, studentName, studentIdText, prompt, teacherEmail, onOpenStudent, onAnswered }) {
   const [answer, setAnswer] = useState('');
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -60,7 +60,7 @@ function QuestionRow({ question, studentName, studentIdText, prompt, teacherEmai
         <span className="tw-small tw-muted">{askedAt(question.createdAt)}</span>
       </div>
       <div className="tw-small tw-muted">
-        {question.assignmentTitle || 'Assignment'} · {question.questionLabel || `Question ${Number(question.questionIndex) + 1}`}
+        {place.title} · {place.label}
       </div>
       {prompt ? (
         <details>
@@ -106,27 +106,32 @@ export default function StudentQuestionsPanel({ teacherEmail = '', students = []
   const identityIndex = useMemo(() => studentIdentityIndexFor(students), [students]);
   const assignmentById = useMemo(() => new Map(assignments.map((assignment) => [assignment.id, assignment])), [assignments]);
   const waiting = sortQuestions(questions);
+  // The list loads at most TEACHER_QUESTIONS_SHOWN; answering lets more in.
+  const more = questions.length >= TEACHER_QUESTIONS_SHOWN;
 
   if (!waiting.length && !unavailable && !sentNotice) return null;
   return (
     <details className="tw-disclosure" data-student-questions="" style={{ marginBottom: 16 }}>
       <summary>
         Questions from students{' '}
-        <span className="tw-pill" data-tone={waiting.length ? 'warning' : 'neutral'}>{waiting.length}</span>{' '}
+        <span className="tw-pill" data-tone={waiting.length ? 'warning' : 'neutral'}>{more ? `${TEACHER_QUESTIONS_SHOWN}+` : waiting.length}</span>{' '}
         <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>asked outside class · your answer appears on their question and in Review My Work</span>
       </summary>
       <div className="tw-disclosure__body">
         {sentNotice ? <p role="status" style={{ margin: '0 0 10px', color: 'var(--mm-success-text)', fontWeight: 700 }}>{sentNotice}</p> : null}
         {unavailable ? <p role="alert" style={{ margin: '0 0 10px', color: 'var(--mm-danger)' }}>Students’ questions could not be loaded right now.</p> : null}
+        {more ? <p style={{ margin: '0 0 10px' }}>Showing {TEACHER_QUESTIONS_SHOWN} waiting questions. Answer these to see the rest.</p> : null}
         {waiting.length ? (
           <ul style={{ margin: 0, padding: 0, display: 'grid', gap: 10 }}>
             {waiting.map((question) => {
               const name = resolveRosterStudentName({ studentId: question.studentId, index: identityIndex });
-              const prompt = getStoredAssignmentQuestions(assignmentById.get(question.assignmentId) || {})[question.questionIndex]?.prompt || '';
+              const assignment = assignmentById.get(question.assignmentId) || null;
+              const prompt = getStoredAssignmentQuestions(assignment || {})[question.questionIndex]?.prompt || '';
               return (
                 <QuestionRow
                   key={question.id}
                   question={question}
+                  place={teacherQuestionPlace({ assignment, questionLabel: question.questionLabel, questionIndex: question.questionIndex })}
                   studentName={name}
                   studentIdText={name === STUDENT_NAME_UNAVAILABLE ? studentIdLabel(String(question.studentId)) : ''}
                   prompt={typeof prompt === 'string' ? prompt : ''}

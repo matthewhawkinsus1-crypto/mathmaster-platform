@@ -32,6 +32,7 @@ import {
   QUESTION_STATUS,
   QUESTION_TEXT_MAX,
   ANSWER_TEXT_MAX,
+  TEACHER_QUESTIONS_SHOWN,
   acknowledgementFor,
   askTeacherMode,
   buildHelpAcknowledgement,
@@ -42,6 +43,7 @@ import {
   questionFor,
   studentClassInSession,
   teacherQuestionId,
+  teacherQuestionPlace,
 } from '../../src/platform/supports/askTeacher.js';
 import {
   HELP_REQUEST_RESTORE_MS,
@@ -358,6 +360,32 @@ test('the teacher reads and answers questions on Teacher Home, folded until open
   const folded = region(panel, '<details className="tw-disclosure" data-student-questions=""', '>', 'the panel');
   assert.doesNotMatch(folded, /\bopen\b/, 'a student\'s words show only when the teacher opens the panel');
   assert.match(panel, /if \(!waiting\.length && !unavailable && !sentNotice\) return null;/);
+});
+
+test('Teacher Home loads a bounded list, and says where each question was asked in its own words', () => {
+  // Where: the teacher's own copy of the title, and the label the student's
+  // device sent only in the shape the app builds, with a section the platform
+  // names (a student's device can send any text in both).
+  const assignment = { id: 'A1', title: 'Lesson 4: Slope' };
+  assert.deepEqual(teacherQuestionPlace({ assignment, questionLabel: 'Classwork · Question 3', questionIndex: 2 }), { title: 'Lesson 4: Slope', label: 'Classwork · Question 3' });
+  assert.equal(teacherQuestionPlace({ assignment, questionLabel: 'DOL / Exit Ticket · Question 1', questionIndex: 9 }).label, 'DOL / Exit Ticket · Question 1');
+  for (const sent of ['Call home now', 'MESSAGE FROM THE PRINCIPAL · Question 1', 'Classwork · Question 0', 'Classwork · Question 3 — urgent', '', null]) {
+    assert.equal(teacherQuestionPlace({ assignment, questionLabel: sent, questionIndex: 2 }).label, 'Question 3', String(sent));
+  }
+  assert.equal(teacherQuestionPlace({ assignment: null, questionLabel: 'Classwork · Question 3', questionIndex: 2 }).title, 'Assignment', 'never the stored title');
+  const panel = code('src/components/teacher/StudentQuestionsPanel.jsx');
+  assert.doesNotMatch(panel, /question\.assignmentTitle|question\.questionLabel \|\|/, 'the sent title and label are not shown as given');
+  assert.match(panel, /place=\{teacherQuestionPlace\(\{ assignment, questionLabel: question\.questionLabel, questionIndex: question\.questionIndex \}\)\}/);
+  assert.match(panel, /\{place\.title\} · \{place\.label\}/);
+
+  // How many: at most TEACHER_QUESTIONS_SHOWN load at once, and the count says
+  // when more are waiting (answering one lets the next in).
+  assert.equal(TEACHER_QUESTIONS_SHOWN, 100);
+  const store = code('src/platform/supports/askTeacherStore.js');
+  assert.match(region(store, 'export const openTeacherQuestionsQuery', ');', 'teacher query'), /\n\s*limit\(TEACHER_QUESTIONS_SHOWN\),\n/);
+  assert.match(panel, /const more = questions\.length >= TEACHER_QUESTIONS_SHOWN;/);
+  assert.match(panel, /\{more \? `\$\{TEACHER_QUESTIONS_SHOWN\}\+` : waiting\.length\}/);
+  assert.match(panel, /\{more \? <p[^>]*>Showing \{TEACHER_QUESTIONS_SHOWN\} waiting questions\. Answer these to see the rest\.<\/p> : null\}/);
 });
 
 test('the store reads only the caller\'s own questions, and an account deletion takes them with the student', async () => {

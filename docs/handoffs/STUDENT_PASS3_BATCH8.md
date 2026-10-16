@@ -50,8 +50,9 @@ request the old acknowledgement does not answer).
 `firestore.rules`:
 
 - **Questions.** Create: only the signed-in student, for themselves, to the `assignedTeacherEmail` and `classId` on
-  their own roster row (a student with no teacher cannot send one), with the deterministic id, exactly the fields
-  above, `status: 'open'`, server timestamps. Read: that student; the teacher it was sent to (the Teacher Home query
+  their own roster row (a student with no teacher cannot send one), about an assignment that exists and lists that
+  class in `assignedClassIds` (added at integration, below), with the deterministic id, exactly the fields above,
+  `status: 'open'`, server timestamps. Read: that student; the teacher it was sent to (the Teacher Home query
   `teacherEmail == me && status == 'open'` is provable); the student's current teacher of record by id (after a class
   changes hands); the root administrator. Update: the student rewords `text` only while open; the teacher (sent-to or
   current) writes only `status: 'answered'`, `answer`, `answeredBy == their email`, `answeredAt`, `updatedAt`.
@@ -120,6 +121,39 @@ node scripts/release-firebase.mjs --execute  # asks for the project id
 It must include `firestore:rules` (two new collections: until the rules ship, every question and acknowledgement is
 refused and the student sees "Your question could not be sent"), `permanentlyDeleteStudent` and
 `resetPreproductionTestData` (they read the changed collection lists), and Hosting. Ship rules before Hosting.
+
+## Security review at integration
+
+An independent review of the rules and the client reads and writes (with ~30 adversarial probes in the emulator)
+found no blocker. Fixed when the branch was merged into `claude/modest-pasteur-xzagn7`:
+
+- **A student could fill their teacher's list.** `assignmentId` was only a 1–200 character string, so 40 questions
+  about assignments that do not exist were accepted, and Teacher Home loaded every open question. The create rule now
+  requires a real assignment whose `assignedClassIds` holds the class on the student's roster row (one `exists` and one
+  `get`), and the Teacher Home query loads at most `TEACHER_QUESTIONS_SHOWN` (100); the count reads "100+" and the
+  panel says to answer these to see the rest. No index: still equality filters only.
+- **The dangerous cases were not pinned.** `tests/rules/askTeacherRules.test.mjs` now also refuses: a question about
+  an assignment that does not exist or another class's; the list queries no screen runs (a teacher by another
+  teacher's student, a teacher or student listing everything, a student by assignment alone, a classmate by teacher);
+  a student moving their question's assignment, position, class, title, label or owner; a teacher rewriting whose,
+  to whom or where while answering, and reopening; re-creating over an answered question; an acknowledgement for a
+  student with no presence document; the previous teacher's acknowledgement after a handover. Each new rule was
+  broken once and the suite went red (4/4).
+- **The title and label on Teacher Home were the student's device's words.** Teacher Home now shows its own copy of
+  the assignment's title, and the label only in the shape the app builds ("Classwork · Question 3", a section the
+  platform names); anything else reads "Question <n>" (`teacherQuestionPlace`, askTeacher.js). Mutation-checked 5/5
+  with the cap above.
+
+Left for the owner (notes, not fixed here):
+
+- **The id separator.** Ids join student, assignment and position with `__`, which a student id may contain
+  (`STUDENT_ID_PATTERN`), so two students whose ids share a `__` prefix could in principle collide. With the
+  assignment check above the collision needs a real assignment whose id contains `__`; district ids are numeric.
+  A separator outside the student-id alphabet would close it, at the cost of a migration of any questions sent.
+- **Rewording after a handover.** The student may reword an open question, and the words still go to the teacher it
+  was sent to, not the new teacher of record (see the second point below).
+- **A projected Teacher Home.** The panel is folded and shows only the count, but one click shows students' names and
+  words; it is not hidden while a class is in session or the room view is on.
 
 ## Open
 

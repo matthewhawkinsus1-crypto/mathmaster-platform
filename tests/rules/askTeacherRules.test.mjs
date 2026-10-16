@@ -5,7 +5,7 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
-  deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc,
+  collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import {
   HELP_ACKNOWLEDGEMENT_COLLECTION, TEACHER_QUESTION_COLLECTION,
@@ -24,7 +24,8 @@ import {
 //
 // Proven here, by the database rather than by a screen:
 //   1. only a student writes their own question, only to the teacher on their
-//      roster row, about one question of one assignment, a few sentences long;
+//      roster row, about one question of a real assignment of their own class,
+//      a few sentences long;
 //   2. only that student and their teacher read it — by id and by the queries
 //      the student's screen and Teacher Home run — and nobody else;
 //   3. only the teacher answers, and the answer is all a teacher can change;
@@ -97,6 +98,12 @@ before(async () => {
     await setDoc(doc(db, 'grades/AQ_STUDENT_A'), { displayName: 'Student A', classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active' });
     await setDoc(doc(db, 'grades/AQ_STUDENT_B'), { displayName: 'Student B', classId: 'class-b', classPeriod: 'Period 2', assignedTeacherEmail: TEACHER_B, status: 'active' });
     await setDoc(doc(db, 'grades/AQ_UNPLACED'), { displayName: 'Unplaced', classId: null, classPeriod: 'Unassigned', assignedTeacherEmail: null, status: 'active' });
+    // Teacher A's student with no presence document (never opened the app).
+    await setDoc(doc(db, 'grades/AQ_STUDENT_C'), { displayName: 'Student C', classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active' });
+    // The assignments questions are about: A1 is class A's (and class B's,
+    // for the handover below), A3 another class's.
+    await setDoc(doc(db, 'assignments/A1'), { title: 'Lesson 4: Slope', assignedClassIds: ['class-a', 'class-b'] });
+    await setDoc(doc(db, 'assignments/A3'), { title: 'Another class', assignedClassIds: ['class-z'] });
     // Student A's hand is raised on A1 (what the heartbeat writes).
     await setDoc(doc(db, 'presence/AQ_STUDENT_A'), { studentId: 'AQ_STUDENT_A', classId: 'class-a', assignmentId: 'A1', helpRequestedAt: HAND_AT, helpQuestionIndex: 2 });
     await setDoc(doc(db, 'presence/AQ_STUDENT_B'), { studentId: 'AQ_STUDENT_B', classId: 'class-b', assignmentId: 'A2' });
@@ -132,7 +139,7 @@ test('only the student writes their own question, to the teacher on their roster
 test('a question is about one question of one assignment, and a few sentences long', async () => {
   const id = 'AQ_STUDENT_A__A1__4';
   // The id names the student, the assignment and the question: no second
-  // question on the same item, and no free-form id to flood a teacher's list.
+  // question on the same item, and no free-form id.
   await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__A1__99'), rawQuestion({ questionIndex: 4 })));
   await assertFails(setDoc(questionRef(studentA(), 'free-form-id'), rawQuestion({ questionIndex: 4 })));
   await assertFails(setDoc(questionRef(studentA(), id), rawQuestion({ questionIndex: 4, text: 'x'.repeat(501) })));
@@ -145,6 +152,19 @@ test('a question is about one question of one assignment, and a few sentences lo
   await assertFails(setDoc(questionRef(studentA(), id), rawQuestion({ questionIndex: 4, createdAt: 1 })));
   await assertFails(setDoc(questionRef(studentA(), id), rawQuestion({ questionIndex: 4, questionLabel: 'x'.repeat(121) })));
   await assertSucceeds(setDoc(questionRef(studentA(), id), rawQuestion({ questionIndex: 4, text: 'x'.repeat(500) })));
+});
+
+test('a question is about a real assignment of the student\'s own class — not an id made up to fill a teacher\'s list', async () => {
+  // An assignment that does not exist, at any position.
+  await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__NO_SUCH__0'), rawQuestion({ assignmentId: 'NO_SUCH', questionIndex: 0 })));
+  await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__junk7__999'), rawQuestion({ assignmentId: 'junk7', questionIndex: 999 })));
+  // A real assignment, but another class's.
+  await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__A3__0'), rawQuestion({ assignmentId: 'A3', questionIndex: 0 })));
+  // A student with no class on their roster row has no class assignment.
+  await assertFails(setDoc(questionRef(unplaced(), 'AQ_UNPLACED__A1__0'), rawQuestion({ studentId: 'AQ_UNPLACED', classId: null, teacherEmail: null, questionIndex: 0 })));
+  // The teacher's waiting list holds none of them.
+  const inbox = await getDocs(openTeacherQuestionsQuery(teacherA(), { teacherEmail: TEACHER_A }));
+  assert.equal(inbox.docs.some((entry) => /NO_SUCH|junk7|__A3__/.test(entry.id)), false);
 });
 
 /* ------------------------------------------------- reading a question */
@@ -166,6 +186,16 @@ test('only that student and their teacher read it — by id and by the queries t
   const otherInbox = await assertSucceeds(getDocs(openTeacherQuestionsQuery(teacherB(), { teacherEmail: TEACHER_B })));
   assert.equal(otherInbox.docs.some((entry) => entry.id === QUESTION_ID), false);
   await assertFails(getDoc(questionRef(stranger())));
+
+  // Queries no screen runs, which would reach past those two parties: a
+  // teacher by another teacher's student, a teacher or student listing
+  // everything, a student by assignment alone.
+  const questions = (db) => collection(db, TEACHER_QUESTION_COLLECTION);
+  await assertFails(getDocs(query(questions(teacherA()), where('studentId', '==', 'AQ_STUDENT_B'))));
+  await assertFails(getDocs(questions(teacherA())));
+  await assertFails(getDocs(questions(studentA())));
+  await assertFails(getDocs(query(questions(studentA()), where('assignmentId', '==', 'A1'))));
+  await assertFails(getDocs(query(questions(studentB()), where('teacherEmail', '==', TEACHER_A))));
 });
 
 /* --------------------------------------------- rewording and answering */
@@ -177,6 +207,10 @@ test('the student rewords only an unanswered question; only the teacher answers,
   // A student cannot answer their own question or mark it answered.
   await assertFails(updateDoc(questionRef(studentA()), { status: 'answered', answer: 'self', answeredBy: 'x', answeredAt: serverTimestamp(), updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(questionRef(studentA()), { teacherEmail: TEACHER_B, updatedAt: serverTimestamp() }));
+  // Where it was asked and by whom stay as created.
+  for (const change of [{ assignmentId: 'A3' }, { questionIndex: 7 }, { classId: 'class-b' }, { assignmentTitle: 'MESSAGE FROM THE PRINCIPAL' }, { questionLabel: 'Call home' }, { studentId: 'AQ_STUDENT_B' }]) {
+    await assertFails(updateDoc(questionRef(studentA()), { ...change, updatedAt: serverTimestamp() }));
+  }
 
   // Another teacher cannot answer it.
   await assertFails(answerTeacherQuestion(teacherB(), { questionId: QUESTION_ID, answer: 'Not my student.', teacherEmail: TEACHER_B }));
@@ -185,6 +219,11 @@ test('the student rewords only an unanswered question; only the teacher answers,
   await assertFails(updateDoc(questionRef(teacherA()), { status: 'answered', answer: 'Yes.', answeredBy: TEACHER_B, answeredAt: serverTimestamp(), updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(questionRef(teacherA()), { status: 'answered', answer: 'y'.repeat(1001), answeredBy: TEACHER_A, answeredAt: serverTimestamp(), updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(questionRef(teacherA()), { status: 'answered', answer: 'Yes.', answeredBy: TEACHER_A, answeredAt: 5, updatedAt: serverTimestamp() }));
+  // Answering moves nothing else: not whose question it is, not to whom, not where.
+  const answer = { status: 'answered', answer: 'Yes.', answeredBy: TEACHER_A, answeredAt: serverTimestamp(), updatedAt: serverTimestamp() };
+  for (const change of [{ studentId: 'AQ_STUDENT_B' }, { teacherEmail: TEACHER_B }, { assignmentId: 'A3' }, { questionIndex: 7 }]) {
+    await assertFails(updateDoc(questionRef(teacherA()), { ...answer, ...change }));
+  }
   await assertSucceeds(answerTeacherQuestion(teacherA(), { questionId: QUESTION_ID, answer: 'Yes: rise is the change in y. Count it from the first point to the second.', teacherEmail: TEACHER_A }));
 
   // The student reads the answer; an answered question is not reworded.
@@ -192,6 +231,9 @@ test('the student rewords only an unanswered question; only the teacher answers,
   assert.equal(answered.status, 'answered');
   assert.match(answered.answer, /rise is the change in y/);
   await assertFails(sendTeacherQuestion(studentA(), ask({ existing: { id: QUESTION_ID, status: 'open' }, text: 'One more thing' })));
+  // Nor re-created over, nor reopened by the teacher.
+  await assertFails(setDoc(questionRef(studentA()), rawQuestion()));
+  await assertFails(updateDoc(questionRef(teacherA()), { status: 'open', updatedAt: serverTimestamp() }));
   // It left the teacher's waiting list.
   const inbox = await getDocs(openTeacherQuestionsQuery(teacherA(), { teacherEmail: TEACHER_A }));
   assert.equal(inbox.docs.some((entry) => entry.id === QUESTION_ID), false);
@@ -220,6 +262,8 @@ test('only the student\'s teacher answers a raised hand, only the hand raised no
   await assertFails(setDoc(ackRef(teacherA()), rawAck({ helpRequestedAt: HAND_AT - 60000 })));
   await assertFails(setDoc(ackRef(teacherA()), rawAck({ assignmentId: 'A9' })));
   await assertFails(setDoc(ackRef(teacherB(), 'AQ_STUDENT_B'), rawAck({ studentId: 'AQ_STUDENT_B', assignmentId: 'A2', teacherEmail: TEACHER_B })));
+  // Their own student with no presence document at all.
+  await assertFails(setDoc(ackRef(teacherA(), 'AQ_STUDENT_C'), rawAck({ studentId: 'AQ_STUDENT_C' })));
   // Words and names the platform does not send.
   await assertFails(setDoc(ackRef(teacherA()), rawAck({ status: 'come to my desk now' })));
   await assertFails(setDoc(ackRef(teacherA()), rawAck({ message: 'Hi' })));
@@ -251,6 +295,8 @@ test('after the class changes hands, the student\'s current teacher reads and an
   await assertSucceeds(getDoc(questionRef(teacherB(), id)));
   await assertSucceeds(answerTeacherQuestion(teacherB(), { questionId: id, answer: 'I am your teacher now — let us go over it tomorrow.', teacherEmail: TEACHER_B }));
   await assertSucceeds(getDoc(questionRef(teacherA(), id)));
+  // The previous teacher no longer answers the student's raised hand.
+  await assertFails(setDoc(ackRef(teacherA()), rawAck()));
   // A new question now goes to the new teacher only.
   await assertFails(sendTeacherQuestion(studentA(), ask({ questionIndex: 5, classId: 'class-b', teacherEmail: TEACHER_A })));
   await assertSucceeds(sendTeacherQuestion(studentA(), ask({ questionIndex: 5, classId: 'class-b', teacherEmail: TEACHER_B })));

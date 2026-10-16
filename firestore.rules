@@ -1092,7 +1092,9 @@ service cloud.firestore {
      * text about a minor's work, so it is private to exactly two parties:
      *   - only the student writes their own question (one per question of an
      *     assignment — the id is student__assignment__questionIndex — and
-     *     only to the teacher of record on their roster row);
+     *     only to the teacher of record on their roster row), about a real
+     *     assignment of the class on that row: an id made up for the purpose
+     *     is refused, so a student cannot fill their teacher's list;
      *   - only that student and their teacher read it (the teacher it was sent
      *     to, or the student's current teacher of record for a single read
      *     after the class changed hands);
@@ -1118,6 +1120,9 @@ service cloud.firestore {
         ])
         && data.schemaVersion == 1
         && data.assignmentId is string && data.assignmentId.size() > 0 && data.assignmentId.size() <= 200
+        && exists(/databases/$(database)/documents/assignments/$(data.assignmentId))
+        && get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data
+          .get('assignedClassIds', []).hasAny([roster.get('classId', '')])
         && data.questionIndex is int && data.questionIndex >= 0 && data.questionIndex < 1000
         && questionId == data.studentId + '__' + data.assignmentId + '__' + string(data.questionIndex)
         && data.teacherEmail is string

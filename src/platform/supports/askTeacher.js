@@ -35,9 +35,14 @@ export const HELP_ACKNOWLEDGEMENT_COLLECTION = 'helpAcknowledgements';
 // it stays a question and not a chat. firestore.rules enforces the same caps.
 export const QUESTION_TEXT_MAX = 500;
 export const ANSWER_TEXT_MAX = 1000;
-// Display fields copied from the assignment (never student text).
+// Display fields the student's screen copies from the assignment. They travel
+// with the question, so they are the student's device's words: Teacher Home
+// shows its own copy of the title and accepts the label only in the shape the
+// app builds (teacherQuestionPlace).
 export const QUESTION_LABEL_MAX = 120;
 export const ASSIGNMENT_TITLE_MAX = 200;
+// How many waiting questions Teacher Home loads at once (askTeacherStore.js).
+export const TEACHER_QUESTIONS_SHOWN = 100;
 
 export const ASK_MODE = Object.freeze({ HAND: 'hand', QUESTION: 'question' });
 export const QUESTION_STATUS = Object.freeze({ OPEN: 'open', ANSWERED: 'answered' });
@@ -88,8 +93,10 @@ export const cleanQuestionText = (value, max = QUESTION_TEXT_MAX) => text(value)
 
 /**
  * One question per student per question of an assignment: the id is the
- * student, the assignment and the question position, so a student cannot
- * flood their teacher's list, and asking again edits the open one.
+ * student, the assignment and the question position, so asking again edits
+ * the open one. The rules also require a real assignment of the student's own
+ * class; together with the teacher's capped list (TEACHER_QUESTIONS_SHOWN)
+ * that keeps one student from burying everyone else's questions.
  */
 export const teacherQuestionId = ({ studentId, assignmentId, questionIndex } = {}) => {
   const student = text(studentId);
@@ -97,6 +104,27 @@ export const teacherQuestionId = ({ studentId, assignmentId, questionIndex } = {
   const index = Number(questionIndex);
   if (!student || !assignment || !Number.isInteger(index) || index < 0) return null;
   return `${student}__${assignment}__${index}`;
+};
+
+/*
+ * WHERE THE QUESTION WAS ASKED, AS TEACHER HOME SAYS IT.
+ *
+ * The title and label are written by the student's device, so a teacher is
+ * never shown them as if they were the platform's: the title is the teacher's
+ * own copy of the assignment's, and the label ("Classwork · Question 3", the
+ * section and the position App.jsx builds) only in that shape, with a section
+ * the platform names. Anything else reads "Question <n>" from the index.
+ */
+const SECTION_LABELS = Object.freeze(['Warm-Up', 'Classwork', 'Practice', 'DOL / Exit Ticket', 'Checkpoint', 'Quiz', 'Test']);
+const PLACE_PATTERN = /^(.+) · Question ([1-9][0-9]{0,2})$/;
+
+export const teacherQuestionPlace = ({ assignment = null, questionLabel = '', questionIndex = 0 } = {}) => {
+  const title = text(assignment?.title) || 'Assignment';
+  const match = PLACE_PATTERN.exec(text(questionLabel));
+  const label = match && SECTION_LABELS.includes(match[1])
+    ? `${match[1]} · Question ${match[2]}`
+    : `Question ${Math.max(0, Number(questionIndex) || 0) + 1}`;
+  return { title, label };
 };
 
 /** A new question, exactly the fields firestore.rules allows a student to create. */

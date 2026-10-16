@@ -8,11 +8,12 @@
  * report.
  */
 import {
-  collection, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
+  collection, doc, limit, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import {
   HELP_ACKNOWLEDGEMENT_COLLECTION,
   QUESTION_STATUS,
+  TEACHER_QUESTIONS_SHOWN,
   TEACHER_QUESTION_COLLECTION,
   buildHelpAcknowledgement,
   buildQuestionEdit,
@@ -29,11 +30,15 @@ export const myTeacherQuestionsQuery = (db, { studentId, assignmentId }) => quer
   where('assignmentId', '==', assignmentId),
 );
 
-/** Questions waiting for this teacher (the ones their students sent them). */
+/**
+ * Questions waiting for this teacher (the ones their students sent them), at
+ * most TEACHER_QUESTIONS_SHOWN at a time: answering one lets the next in.
+ */
 export const openTeacherQuestionsQuery = (db, { teacherEmail }) => query(
   collection(db, TEACHER_QUESTION_COLLECTION),
   where('teacherEmail', '==', teacherEmail),
   where('status', '==', QUESTION_STATUS.OPEN),
+  limit(TEACHER_QUESTIONS_SHOWN),
 );
 
 export const watchQuestions = (target, onChange, onError) => onSnapshot(
