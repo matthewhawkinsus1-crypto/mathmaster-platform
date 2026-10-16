@@ -23,6 +23,18 @@ Nothing here re-grades, writes to production or deploys.
 
 Also: the phone section-completion card's actions span the card (`App.css`, `mathmaster-section-completion-actions`).
 
+### Found later: the `feedbackTeaches` phone check (commit `bcee8d4`)
+
+The CI driver `tests/browser/feedbackTeaches.mjs` (student-teacher journeys workflow) was not among the 33 drivers
+run for this gate, and its check "phone: the worked solution can be reached" has failed since RUN-1. Not the app: the
+harness mounted the stage straight under `.mathmaster-assignment-screen`, without App.jsx's `.mathmaster-assignment-shell`.
+On a phone that shell is the two-row grid that gives the question the rest of the screen; without it the stage took
+its content's height and the work area collapsed to a 16px strip, which hid what RUN-1 now renders inside it. The
+harness now renders the shell and navigator as App.jsx does, and `reachable` also requires 40px of the element to show
+through every clipping box around it (a box clipped to a strip still has an on-screen position — which is how the phone
+hint checks had "passed" in the same strip). All checks pass at 1366×768 and 390×844; without the shell, or with the
+app's portrait work area squeezed to 24px, the phone checks go red.
+
 ## Batch 2 — right answers count (five merges)
 
 | Item | What changed | Proof | Branch |
@@ -111,12 +123,19 @@ Not done here.
 
 ## What comes next
 
-Launched on 2026-10-16 from `37ec6ce`, each on its own branch, none merged yet: Batch 3 client persistence
-(`claude/pass3-b3-persistence-client`) and the abandoned-test finalizer (`claude/pass3-b3-abandoned-test-finalizer`) —
-Batch 3 ships on its own, after this; Batch 4 in three parts (`claude/pass3-b4-hints`,
-`claude/pass3-b4-after-last-miss`, `claude/pass3-b4-corrections-recovery`); Batch 8 (`claude/pass3-b8-ask-my-teacher`);
-and the D10 design (`claude/pass3-d10-answer-key-design`, a document only). Batches 5–7 follow once these land: they
-change the same screens and the student word list.
+Launched on 2026-10-16 from `37ec6ce`, each on its own branch:
+
+| Part | Branch | State |
+| --- | --- | --- |
+| Batch 3, finishing abandoned timed tests | `claude/pass3-b3-abandoned-test-finalizer` | Built and reviewed; ships on its own, with the persistence half (its handoff is on that branch) |
+| Batch 3, client persistence | `claude/pass3-b3-persistence-client` | Built, under review; ships on its own (its handoff is on that branch) |
+| Batch 4, corrections and Recovery practice | `claude/pass3-b4-corrections-recovery` | Merged — [STUDENT_PASS3_B4_CORRECTIONS_RECOVERY.md](STUDENT_PASS3_B4_CORRECTIONS_RECOVERY.md) (changed at integration: every Recovery practice item has one answer) |
+| Batch 4, after the last miss | `claude/pass3-b4-after-last-miss` | Merged — [STUDENT_PASS3_BATCH4_AFTER_LAST_MISS.md](STUDENT_PASS3_BATCH4_AFTER_LAST_MISS.md) |
+| Batch 4, the hint ladder (D2, D5) | `claude/pass3-b4-hints` | Being built |
+| Batch 8, Ask my teacher | `claude/pass3-b8-ask-my-teacher` | Merged, with the security review's fixes — [STUDENT_PASS3_BATCH8.md](STUDENT_PASS3_BATCH8.md) |
+| D10 design | `claude/pass3-d10-answer-key-design` | Merged — [ANSWER_KEY_SERVER_SIDE_DESIGN.md](ANSWER_KEY_SERVER_SIDE_DESIGN.md) |
+
+Batches 5–7 follow once these land: they change the same screens and the student word list.
 
 ## Left for later
 
