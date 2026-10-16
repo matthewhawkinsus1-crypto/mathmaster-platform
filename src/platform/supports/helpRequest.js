@@ -50,3 +50,56 @@ export const helpRequestAfterClose = (request, tracker = {}, { askingAllowed = t
   const status = tracker?.[index]?.status;
   return status === 'correct' || status === 'expired' ? null : request;
 };
+
+/*
+ * A RELOAD DOES NOT LOWER THE HAND (student pass 3, HELP-5). The request lived
+ * only in React state, so a reload published presence without it and the
+ * teacher's "Hand raised" quietly went out. This tab keeps its own request
+ * (sessionStorage: this tab, this sign-in — a time, an assignment and a
+ * question position, never anything the student wrote) and restores it when
+ * the same assignment opens again. Leaving the assignment still lowers it.
+ *
+ * A stored hand is restored only while it is recent: a class period, not the
+ * next day (and well inside the presence rule's one-day window).
+ */
+export const HELP_REQUEST_RESTORE_MS = 90 * 60 * 1000;
+const STORAGE_PREFIX = 'mathmaster.helpRequest.v1:';
+
+const validRequest = (request) => Boolean(request && typeof request === 'object'
+  && typeof request.assignmentId === 'string' && request.assignmentId
+  && Number.isFinite(Number(request.at)) && Number(request.at) > 0);
+
+export const readStoredHelpRequest = (storage, studentId) => {
+  if (!storage || !studentId) return null;
+  try {
+    const parsed = JSON.parse(storage.getItem(`${STORAGE_PREFIX}${studentId}`) || 'null');
+    return validRequest(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+export const storeHelpRequest = (storage, studentId, request) => {
+  if (!storage || !studentId) return;
+  try {
+    if (validRequest(request)) {
+      storage.setItem(`${STORAGE_PREFIX}${studentId}`, JSON.stringify({
+        assignmentId: request.assignmentId,
+        questionIndex: Number.isInteger(request.questionIndex) ? request.questionIndex : null,
+        at: Math.floor(Number(request.at)),
+      }));
+    } else {
+      storage.removeItem(`${STORAGE_PREFIX}${studentId}`);
+    }
+  } catch {
+    /* storage refused (private mode, quota): the hand simply is not restored */
+  }
+};
+
+/** The stored request, when it belongs to this assignment and is still recent. */
+export const restoreHelpRequest = (stored, { assignmentId = null, now = Date.now() } = {}) => {
+  if (!validRequest(stored) || !assignmentId || stored.assignmentId !== assignmentId) return null;
+  const at = Number(stored.at);
+  if (at > now + 60000 || now - at > HELP_REQUEST_RESTORE_MS) return null;
+  return { assignmentId: stored.assignmentId, questionIndex: Number.isInteger(stored.questionIndex) ? stored.questionIndex : null, at };
+};

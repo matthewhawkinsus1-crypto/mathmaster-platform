@@ -24,6 +24,9 @@ const STUDENT_QUERY_COLLECTIONS = Object.freeze([
   // the student's display label, and a pending one left behind could be
   // "declined" into a re-created wallet for an erased student.
   "classRewardRequests",
+  // "Ask my teacher": the questions a student left for their teacher and the
+  // answers (src/platform/supports/askTeacher.js). The student's own words.
+  "askTeacherQuestions",
 ]);
 
 const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
@@ -37,6 +40,9 @@ const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
   "growthRewardState",
   // The student's CCMR plan, keyed by studentId (shared/ccmrPlan.mjs).
   "studentCcmrPlans",
+  // helpAcknowledgements/{studentId}: the teacher's latest "Seen" / "On my
+  // way" for the student's raised hand (src/platform/supports/askTeacher.js).
+  "helpAcknowledgements",
 ]);
 
 const PREPRODUCTION_RESET_CONFIRMATION = "RESET TEST DATA";
@@ -110,6 +116,10 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "liveChallengeReports",
   "liveChallengeExperience",
   "liveChallengeDryRuns",
+  // "Ask my teacher": students' questions, teachers' answers, and the
+  // in-class "Seen" / "On my way" acknowledgements.
+  "askTeacherQuestions",
+  "helpAcknowledgements",
 ]);
 
 const PREPRODUCTION_PRESERVED_COLLECTIONS = Object.freeze([

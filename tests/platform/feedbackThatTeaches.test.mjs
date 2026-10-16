@@ -616,9 +616,19 @@ test('6. the teacher sees a raised hand: first in the Room view and first in Wal
   assert.match(monitor, /\{counts\.helpRequests > 0 && <strong data-live-help-count="" style=\{\{ color: 'var\(--mm-danger\)' \}\}> · \{counts\.helpRequests\} asked for help<\/strong>\}/);
   // The student is told where the teacher sees it, and an ask-only panel (a
   // DOL) says nothing about hints (m9).
+  // The Ask button and its status line moved into AskTeacherControl.jsx
+  // (student pass 3, D6), which HintPanel renders in the same two places: the
+  // button in its row of help buttons, the status line under it.
   const panel = read('src/platform/supports/hints/HintPanel.jsx');
-  assert.match(panel, /Your hand is raised on your teacher’s live class screen for this question\./);
-  assert.doesNotMatch(panel, /Your teacher can see that you asked/);
+  const control = executableSource(read('src/platform/supports/AskTeacherControl.jsx'));
+  assert.match(panel, /const ask = useAskTeacherControl\(askTeacher, button\);/);
+  assert.match(panel, /\n\s*\{ask\.button\}\n/);
+  assert.match(panel, /\n\s*\{ask\.status\}\n/);
+  // In class, a raised hand says where the teacher sees it — in the status
+  // line shown only while the hand is up.
+  const handStatus = region(control, 'status: requested ? (', ') : null,', 'the raised-hand status line');
+  assert.match(handStatus, /Your hand is raised on your teacher’s live class screen for this question\./);
+  assert.doesNotMatch(control, /Your teacher can see that you asked/);
   assert.match(panel, /const askOnly = !hints\.length && !similar;/);
   assert.match(panel, /\) : askOnly \? \(\s*<p[^>]*>Stuck\? Ask your teacher to come over\. Asking does not change your score\.<\/p>/);
 });

@@ -294,6 +294,10 @@ function QuestionEngineBody({
   // Null where there is no live teacher (previews, Path, post-due practice).
   onAskTeacher = null,
   helpRequested = false,
+  // What the host knows about asking on THIS question (App.jsx,
+  // useAskMyTeacher): 'hand' in class or 'question' outside it, the teacher's
+  // "Seen" / "On my way", the question already left and how to send one.
+  askTeacherContext = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -1536,7 +1540,7 @@ function QuestionEngineBody({
     [hintControlAllowed, processedQuestion, record.variantIndex],
   );
   const askTeacher = typeof onAskTeacher === 'function' && !locked && !serverGrading
-    ? { requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
+    ? { ...askTeacherContext, requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
     : null;
   const helpControlAvailable = Boolean((hintState.allowed || askTeacher) && !locked);
   // A raised hand comes down when this question can no longer be worked on —

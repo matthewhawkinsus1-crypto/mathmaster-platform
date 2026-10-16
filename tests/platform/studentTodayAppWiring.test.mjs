@@ -115,9 +115,19 @@ test('Review My Work shows only for closed, released, non-Test-Cycle work — wi
   assert.match(panel, /resultEntry\.frozen/);
   assert.match(panel, /!resultEntry\.isTestCycle/);
   assert.match(panel, /!assignmentHasHeldTeacherFeedback\(recoveryAssignment\)/);
+  // The panel is THIS assignment's review, loaded through the server callable
+  // (prop order and any further props — the student's questions for their
+  // teacher, D6 — are not the contract).
+  const mount = region(panel, '<ReviewMyWork', '</Suspense>', 'the Review My Work mount');
+  assert.match(mount, /\bassignment=\{recoveryAssignment\}/);
+  assert.match(mount, /\bload=\{loadMyReviewWork\}/);
   // The student's own profile rides along for Read aloud and Translate beside
-  // each worked solution (student pass 3, HELP-12).
-  assert.match(panel, /<ReviewMyWork assignment=\{recoveryAssignment\} load=\{loadMyReviewWork\} studentProfile=\{user\.profile\} \/>/);
+  // each worked solution (student pass 3, HELP-12)…
+  assert.match(mount, /\bstudentProfile=\{user\.profile\}/);
+  // …and it carries the student's own questions and their teacher's answers
+  // for the same assignment, read for the signed-in student (TeacherAnswers).
+  assert.match(mount, /teacherAnswers=\{<TeacherAnswers studentId=\{user\.id\} assignmentId=\{recoveryAssignment\.id\} \/>\}/);
+  assert.match(app, /^import TeacherAnswers from '\.\/components\/student\/TeacherAnswers\.jsx';$/m);
 });
 
 test('"Use a Practice Pass" is offered only to a student who holds one', () => {

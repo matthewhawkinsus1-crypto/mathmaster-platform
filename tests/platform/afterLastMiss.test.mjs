@@ -319,7 +319,10 @@ test('HELP-12: Review My Work shows the one solution panel, told the outcome, wi
   const supports = region(screen, 'const textSupportsFor = ', '};\n');
   assert.match(supports, /toolsEntitlementFromProfile\(studentProfile, \{ activityRole: role \|\| null, universalDesignRole: role \|\| null \}\)/);
   assert.match(supports, /speechReady && \(presentation\?\.textToSpeech \|\| toolList\.includes\('read-aloud'\)\)/);
-  assert.match(code('src/App.jsx'), /<ReviewMyWork assignment=\{recoveryAssignment\} load=\{loadMyReviewWork\} studentProfile=\{user\.profile\} \/>/);
+  // The signed-in student's own profile reaches the screen (the prop order,
+  // and the other props the mount carries, are not the contract).
+  const mount = region(code('src/App.jsx'), '<ReviewMyWork', '</Suspense>');
+  assert.match(mount, /\bstudentProfile=\{user\.profile\}/);
 });
 
 test('HELP-12: "Try one like this" only on a wrong Classwork or Practice row', () => {

@@ -1059,6 +1059,107 @@ service cloud.firestore {
       allow delete: if ownsStudent(studentId);
     }
 
+    /*
+     * "ASK MY TEACHER" THAT ANSWERS BACK (src/platform/supports/askTeacher.js).
+     *
+     * In class: the teacher's "Seen" / "On my way" for a raised hand. One
+     * document per student, written only by a teacher who teaches that student
+     * and only for the hand their presence is raising right now (it names the
+     * hand by its helpRequestedAt). The student reads their own; no free text.
+     */
+    match /helpAcknowledgements/{studentId} {
+      allow read: if rootAdmin() || ownsStudent(studentId) || teachesPresenceStudent(studentId);
+      allow create, update: if teachesPresenceStudent(studentId)
+        && request.resource.data.keys().hasOnly([
+          'studentId', 'assignmentId', 'helpRequestedAt', 'status', 'teacherEmail', 'acknowledgedAt'
+        ])
+        && request.resource.data.studentId == studentId
+        && request.resource.data.status in ['seen', 'onMyWay']
+        && request.resource.data.teacherEmail == request.auth.token.email
+        && request.resource.data.acknowledgedAt == request.time
+        && request.resource.data.helpRequestedAt is int
+        && request.resource.data.assignmentId is string
+        && get(/databases/$(database)/documents/presence/$(studentId)).data.get('helpRequestedAt', null)
+          == request.resource.data.helpRequestedAt
+        && get(/databases/$(database)/documents/presence/$(studentId)).data.get('assignmentId', null)
+          == request.resource.data.assignmentId;
+      allow delete: if false;
+    }
+
+    /*
+     * Out of class: a short question a student leaves for their teacher about
+     * one question of one assignment, and the teacher's answer. Student-written
+     * text about a minor's work, so it is private to exactly two parties:
+     *   - only the student writes their own question (one per question of an
+     *     assignment — the id is student__assignment__questionIndex — and
+     *     only to the teacher of record on their roster row);
+     *   - only that student and their teacher read it (the teacher it was sent
+     *     to, or the student's current teacher of record for a single read
+     *     after the class changed hands);
+     *   - only the teacher answers it, and the answer is the only thing a
+     *     teacher can change. Nothing deletes one from a browser; account
+     *     deletion removes them with the student's footprint (functions/lib/admin.js).
+     */
+    function teacherQuestionTextValid(value, maxLength) {
+      return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
+    function teacherQuestionCreateValid(questionId) {
+      let data = request.resource.data;
+      let roster = get(/databases/$(database)/documents/grades/$(data.studentId)).data;
+      return ownsStudent(data.studentId)
+        && data.keys().hasOnly([
+          'schemaVersion', 'studentId', 'classId', 'teacherEmail', 'assignmentId', 'assignmentTitle',
+          'questionIndex', 'questionLabel', 'text', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'schemaVersion', 'studentId', 'teacherEmail', 'assignmentId', 'questionIndex', 'text', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && data.schemaVersion == 1
+        && data.assignmentId is string && data.assignmentId.size() > 0 && data.assignmentId.size() <= 200
+        && data.questionIndex is int && data.questionIndex >= 0 && data.questionIndex < 1000
+        && questionId == data.studentId + '__' + data.assignmentId + '__' + string(data.questionIndex)
+        && data.teacherEmail is string
+        && data.teacherEmail == roster.get('assignedTeacherEmail', null)
+        && data.get('classId', null) == roster.get('classId', null)
+        && (!data.keys().hasAny(['assignmentTitle']) || (data.assignmentTitle is string && data.assignmentTitle.size() <= 200))
+        && (!data.keys().hasAny(['questionLabel']) || (data.questionLabel is string && data.questionLabel.size() <= 120))
+        && teacherQuestionTextValid(data.text, 500)
+        && data.status == 'open'
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function teacherQuestionTeacher() {
+      return (teacher() && resource.data.teacherEmail == request.auth.token.email)
+        || teachesPresenceStudent(resource.data.studentId);
+    }
+
+    match /askTeacherQuestions/{questionId} {
+      allow read: if rootAdmin()
+        || ownsStudent(resource.data.studentId)
+        || teacherQuestionTeacher();
+      allow create: if teacherQuestionCreateValid(questionId);
+      allow update: if
+        // The student rewords a question nobody has answered yet.
+        (ownsStudent(resource.data.studentId)
+          && resource.data.status == 'open'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'updatedAt'])
+          && teacherQuestionTextValid(request.resource.data.text, 500)
+          && request.resource.data.updatedAt == request.time)
+        // The teacher answers it (or rewords their answer).
+        || (teacherQuestionTeacher()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'answer', 'answeredBy', 'answeredAt', 'updatedAt'])
+          && request.resource.data.status == 'answered'
+          && teacherQuestionTextValid(request.resource.data.answer, 1000)
+          && request.resource.data.answeredBy == request.auth.token.email
+          && request.resource.data.answeredAt == request.time
+          && request.resource.data.updatedAt == request.time);
+      allow delete: if false;
+    }
+
     // One authoritative, teacher-owned pace/timer document per walkthrough.
     // It contains no roster or answer data and is intentionally unreadable by
     // students; projector output is an allow-listed client projection.

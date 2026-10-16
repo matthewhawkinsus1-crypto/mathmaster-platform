@@ -172,7 +172,10 @@ function ReviewQuestion({ item, studentProfile = null, speechReady = false }) {
   );
 }
 
-export default function ReviewMyWork({ assignment, load, onClose = null, studentProfile = null }) {
+// `teacherAnswers`: the student's questions for their teacher on this
+// assignment and the answers (TeacherAnswers.jsx), shown whatever the
+// solution rows below do.
+export default function ReviewMyWork({ assignment, load, onClose = null, studentProfile = null, teacherAnswers = null }) {
   const [state, setState] = useState({ status: 'loading', result: null });
   const [speechReady] = useState(() => {
     try { return speechAvailable(); } catch { return false; }
@@ -211,6 +214,8 @@ export default function ReviewMyWork({ assignment, load, onClose = null, student
         <h2 style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Your answers and solutions</h2>
         {onClose ? <button type="button" style={buttonStyle} onClick={() => onClose()}>Close</button> : null}
       </div>
+
+      {teacherAnswers}
 
       {state.status === 'loading' && <p role="status" style={{ color: 'var(--mm-text-muted)' }}>Loading your answers…</p>}
 

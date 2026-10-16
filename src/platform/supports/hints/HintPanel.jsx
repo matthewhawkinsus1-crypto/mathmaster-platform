@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import MathText from '../../../components/common/MathText.jsx';
 import { SupportedTextActions } from '../SupportedText.jsx';
+import { useAskTeacherControl } from '../AskTeacherControl.jsx';
 
 /*
  * THE PLATFORM HINT PANEL — opened from the work bar's Hint control (and the
@@ -40,6 +41,9 @@ export default function HintPanel({
   onSupportEvidence = null,
 }) {
   const shown = hints.slice(0, revealed);
+  // "Ask my teacher": a raised hand in class, a question left for the teacher
+  // outside it (AskTeacherControl.jsx).
+  const ask = useAskTeacherControl(askTeacher, button);
   // On a DOL (no hints) the panel holds only "Ask my teacher", and says
   // nothing about hints (PR #462 review m9).
   const askOnly = !hints.length && !similar;
@@ -97,20 +101,9 @@ export default function HintPanel({
         {similar && !similarOpen && (
           <button type="button" style={button} onClick={onOpenSimilar}>Try a similar one</button>
         )}
-        {askTeacher && (
-          <button
-            type="button"
-            style={{ ...button, background: askTeacher.requested ? 'var(--mm-warning-bg)' : 'var(--mm-surface)', borderColor: askTeacher.requested ? 'var(--mm-warning-border, #f9ab00)' : 'var(--mm-tint-border)' }}
-            aria-pressed={askTeacher.requested}
-            onClick={askTeacher.onToggle}
-          >
-            {askTeacher.requested ? 'Cancel my help request' : '✋ Ask my teacher'}
-          </button>
-        )}
+        {ask.button}
       </div>
-      {askTeacher?.requested && (
-        <p role="status" style={{ margin: 0, color: 'var(--mm-warning-text)', fontWeight: 700 }}>Your hand is raised on your teacher’s live class screen for this question. Keep working while you wait.</p>
-      )}
+      {ask.status}
       {similar && similarOpen && (
         <details open data-similar-example="" style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)' }}>
           <summary style={{ ...summaryStyle, marginBottom: 6 }}>A similar problem, worked out</summary>
