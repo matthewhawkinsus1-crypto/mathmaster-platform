@@ -22,6 +22,25 @@ test('an active systems solver gets the full width; the givens become a strip ab
   assert.doesNotMatch(css, /algebraic-system-layout\.has-active-solver \{\s*grid-template-columns:\s*minmax\(2\d0px/, 'no fixed side column while solving');
 });
 
+// Q-24 (student pass 3): the 3×3 substitution kept a 220–280px column of the
+// originals while Step Algebra was open — at 1366×768 the solver had 722px and
+// each equation side ~250px. The 2×2 fix above, applied to the 3×3 layout.
+test('an active 3×3 substitution solver gets the full width; the originals become a strip above it', () => {
+  const css = read('src/tools/systemsWorkspace/AlgebraicSystemMode.css');
+  const rule = (selector) => {
+    const start = css.indexOf(`\n${selector} {`);
+    assert.ok(start >= 0, selector);
+    return css.slice(start, css.indexOf('}', start));
+  };
+  assert.match(rule('.mathmaster-reduction-layout.has-active-solver'), /grid-template-columns:\s*minmax\(0, 1fr\);/, 'one column while solving');
+  const strip = rule('.mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-reference');
+  assert.match(strip, /position:\s*static;/, 'the strip scrolls with the work instead of sticking over it');
+  assert.match(strip, /grid-template-columns:\s*repeat\(auto-fit,/, 'the equations sit side by side');
+  // The class is set exactly while the embedded solver is open.
+  const source = read('src/tools/systemsWorkspace/SubstitutionReductionMode.jsx');
+  assert.match(source, /className=\{`mathmaster-reduction-layout\$\{embeddedSolverActive \? ' has-active-solver' : ''\}`\}/);
+});
+
 // Live QA, 1536×900: the navigator (top: 8px) sat 30px under the identity bar,
 // hiding the section tabs; the task card's Hide button sat under the navigator
 // (fixed top: 118px); the TEKS/CCMR chips rode in the sticky area over the

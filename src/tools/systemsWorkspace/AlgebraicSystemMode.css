@@ -683,8 +683,34 @@
   align-items: start;
 }
 
+/* While Step Algebra is open, the originals and their derived equations
+   become a compact strip ABOVE the solver — the 2×2 workspace's fix
+   (.mathmaster-algebraic-system-layout.has-active-solver). As a 220–280px
+   column they left the solver ~720px at 1366×768 and each equation side
+   ~250px (Q-24). Stacked, the equations stay directly above the work and the
+   solver gets the full width. */
 .mathmaster-reduction-layout.has-active-solver {
-  grid-template-columns: minmax(min(100%, 220px), 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-reference {
+  position: static;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 6px 10px;
+}
+
+.mathmaster-reduction-layout.has-active-solver :is(.mathmaster-reduction-reference-heading, .mathmaster-reduction-solved-values, .mathmaster-reduction-ordered-triple) {
+  grid-column: 1 / -1;
+}
+
+/* Each equation on one line with its name, as on a phone. */
+.mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-equation-card {
+  grid-template-columns: fit-content(42%) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  padding: 5px 9px;
+  text-align: left;
 }
 
 .mathmaster-reduction-reference,
