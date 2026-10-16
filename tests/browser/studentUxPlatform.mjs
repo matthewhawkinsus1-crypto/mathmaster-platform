@@ -686,6 +686,24 @@ const JOURNEYS = {
       await shot(page, `staged-sideways-${width}x${height}`);
     }
 
+    // Still on its side: the first hint, offered under the step before the
+    // first try (D5), folds into Help, and Help opens the Hint panel with the
+    // same words and button.
+    const offer = await page.evaluate(() => {
+      const element = document.querySelector('.mathmaster-work-view-host[data-open="true"] [data-first-hint-offer]');
+      return { present: Boolean(element), shown: Boolean(element?.getClientRects().length) };
+    });
+    check(offer.present, 'sideways: no first-hint offer to fold (the question should offer its first hint before the first try)');
+    check(!offer.shown, 'sideways: the first-hint offer still takes the step\'s height under it');
+    const helpButton = page.locator('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header button', { hasText: /^Help$/ });
+    await helpButton.tap();
+    await settle(page, 500);
+    const helpDrawer = page.locator('.mathmaster-work-view-host[data-open="true"] section[aria-label="Help and instructions"][data-open="true"]');
+    check(await helpDrawer.getByRole('button', { name: 'Show a hint', exact: true }).isVisible().catch(() => false), 'sideways: Help does not offer "Show a hint"');
+    check(/Hints never lower your score\./.test(await helpDrawer.textContent().catch(() => '')), 'sideways: Help does not say what a hint costs');
+    await helpButton.tap();
+    await settle(page, 400);
+
     // Back upright, still open, and the table still holds the student's work.
     await page.setViewportSize({ width: 390, height: 844 });
     await settle(page, 900);

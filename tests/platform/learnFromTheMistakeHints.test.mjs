@@ -295,6 +295,10 @@ test('on Classwork and Practice the first hint is offered in words before the fi
   const offer = region(engine, '{firstHintOffered && (', '</p>', 'the offer');
   assert.match(offer, /A hint is ready if you want one\. \{hintCostSentence\(hintCostNote\)\}/);
   assert.match(offer, /<button type="button" onClick=\{revealNextHint\}[^>]*>Show a hint<\/button>/);
+  // On a short Work View (a phone on its side, or the keypad up) the offer
+  // folds into Help, which opens the same panel; under the step it took the
+  // step's height (studentUxPlatform "staged" and "keypad-short").
+  assert.match(code('src/components/common/WorkViewShell.css'), /\[data-open="true"\]\[data-height="short"\] \[data-first-hint-offer\] \{ display: none; \}/);
   // Offered: nothing reveals or records a hint when the question opens.
   assert.doesNotMatch(engine, /useEffect\(\(\) => \{[^}]*revealNextHint\(\)/);
   // canRevealNext is false wherever hints are withheld, so a DOL, quiz or

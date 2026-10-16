@@ -155,6 +155,17 @@ Left for the owner (notes, not fixed here):
 - **A projected Teacher Home.** The panel is folded and shows only the count, but one click shows students' names and
   words; it is not hidden while a class is in session or the room view is on.
 
+Found by the full-app gate after the merge (fixed, 4f0496b):
+
+- **"Maximum update depth exceeded" on every page of the real app.** The raised hand moved into `useAskMyTeacher`,
+  whose setter built a new hand object on every call. App.jsx lowers a hand when its question closes from an effect
+  that runs on most renders and returns the same request when nothing changes; React skipped those updates with a
+  plain `useState` setter, but a new object each time meant a new render and the effect again. `nextHand`
+  (helpRequest.js) keeps the same state when the request is the same, and the hook's setter goes through it. The
+  branch's own gate missed it because only the teacherWorkflow journeys mount App.jsx with a signed-in student
+  (`recoveryHold`, `recoveryDraftCrossDevice`, `restoredDraftFocusRace`); after the fix those three run with no page
+  errors, and `tests/platform/askMyTeacherAnswersBack.test.mjs` turns red with the old setter.
+
 ## Open
 
 - One question per question of an assignment: once answered it cannot be followed up in the app (asking again in class
