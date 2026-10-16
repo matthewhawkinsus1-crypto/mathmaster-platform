@@ -500,9 +500,10 @@ releases again.
 - **Job F:** `MathInput` leaves MathLive's keyboard sink unnamed platform-wide
   (the secure field names its own); a `showExamples` switch on the support
   tray. (The pause overlay is now the shared `Dialog` — done at the merge.)
-- An expired-and-abandoned session stays in progress until the student returns
-  or a teacher force-submits (as before); a scheduled finalizer would need a
-  stored deadline.
+- ~~An expired-and-abandoned session stays in progress until the student returns
+  or a teacher force-submits.~~ Done in pass 3, Batch 3:
+  `finalizeAbandonedSecureExams` and a stored `autoFinalizeAt`
+  (`STUDENT_PASS3_B3_ABANDONED_TEST_FINALIZER.md`).
 - The Test Cycle card shows the Test's time and length during the Retest stage
   (the server does not send the Retest's).
 - Two calculators on SAT items (the existing scientific panel and the new
