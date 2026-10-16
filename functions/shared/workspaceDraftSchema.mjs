@@ -512,6 +512,9 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b' } = {}) => {
     else if (inB && !inA && !ta) winner = 'b';
     else if (isCoupledGroup(kind, group) && aFresh !== bFresh && (aFresh ? (inB && tb > 0) : (inA && ta > 0))) winner = aFresh ? 'b' : 'a';
     else if (ta !== tb) winner = ta > tb ? 'a' : 'b';
+    // The same edit time, and one copy lacks the answer: that copy was written
+    // without editing it (a write-back), so the answer is kept.
+    else if (inA !== inB) winner = inA ? 'a' : 'b';
     else if (aFresh !== bFresh) winner = aFresh ? 'b' : 'a';
     else if (aAt !== bAt) winner = aAt > bAt ? 'a' : 'b';
     else winner = prefer === 'a' ? 'a' : 'b';

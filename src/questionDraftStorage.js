@@ -308,7 +308,9 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
       edit: isEdit,
       now,
     });
-    const fieldsFresh = stored === null || stored.fieldsFresh === true;
+    // Fresh means "not yet settled against the server's copy": a draft begun
+    // after this page read that copy (reconcileFieldRecordDrafts) has seen it.
+    const fieldsFresh = stored === null ? !serverCopySeen(key) : stored.fieldsFresh === true;
     fieldMarkers = { fieldEditedAt, ...(fieldsFresh ? { fieldsFresh: true } : {}) };
   }
   pageView.set(key, { savedAt, input: seen ? seen.input : 0, groups: fieldKind ? viewedGroups(key, written) : null });
@@ -481,6 +483,14 @@ export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignme
   return settled;
 };
 
+/*
+ * Which assignments' server copies this page has read (by draft-key prefix).
+ * A draft begun after that read is not fresh: there is nothing left to settle.
+ */
+const serverCopiesSeen = new Set();
+const assignmentDraftPrefix = (studentId, assignmentId) => `${DRAFT_PREFIX}:${normalizeKeyPart(studentId)}:${normalizeKeyPart(assignmentId)}:`;
+const serverCopySeen = (key) => [...serverCopiesSeen].some((prefix) => String(key).startsWith(prefix));
+
 /**
  * Settle every multi-answer, Step Algebra and composed-step draft this device
  * holds against the server's copy of the same draft, answer by answer
@@ -503,8 +513,10 @@ export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignme
  */
 export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0 } = {}) => {
   const keys = new Set();
-  if (!storageAvailable() || !studentId || !assignmentId) return { settled: 0, keys };
-  const prefix = `${DRAFT_PREFIX}:${normalizeKeyPart(studentId)}:${normalizeKeyPart(assignmentId)}:`;
+  if (!studentId || !assignmentId) return { settled: 0, keys };
+  const prefix = assignmentDraftPrefix(studentId, assignmentId);
+  serverCopiesSeen.add(prefix);
+  if (!storageAvailable()) return { settled: 0, keys };
   const server = currentServerEntries(entries, canonicalSavedAt);
   const local = [];
   try {
