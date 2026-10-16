@@ -850,6 +850,26 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
    toolbar WRAPS, and a right margin narrows every row of it — at 344px each
    chip and button took a row of its own. On a phone its first chip cannot share
    a row with the button anyway, so the toolbar starts below the button. */
+/*
+ * The help panel and the "open in another tab" notice open at the top of the
+ * work, centred, a card 860px wide at most. Where one starts the work its
+ * first line ran under the button ("…noted with your attem|p" at 1366x768,
+ * student pass 3 HELP-21), so there it stays centred and stops short of the
+ * button on both sides; on a phone, where that leaves no width, it starts
+ * below the button instead (below).
+ */
+.mathmaster-hint-panel,
+.mathmaster-paused-panel {
+  margin: 0 auto 12px;
+  max-width: 860px;
+}
+
+.mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-hint-panel,
+.mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-paused-panel {
+  box-sizing: border-box;
+  max-width: min(860px, calc(100% - 2 * var(--mm-work-view-opener-space, 176px)));
+}
+
 @media (max-width: 600px) {
   .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-multipart-heading {
     padding-right: var(--mm-work-view-opener-space, 176px);
@@ -860,5 +880,16 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-relation-toolbar {
     margin-right: 0;
     margin-top: var(--mm-work-view-opener-bottom, 52px);
+  }
+
+  /* Padding on the row, not a margin on the panel: a margin would collapse
+     through the work area and the surface, and take the button down with it. */
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child {
+    padding-top: var(--mm-work-view-opener-bottom, 52px);
+  }
+
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-hint-panel,
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-paused-panel {
+    max-width: none;
   }
 }

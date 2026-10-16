@@ -246,9 +246,12 @@ test('QuestionEngine renders a closed question\'s solution review inside its own
   assert.match(contained, /<SolutionReviewPanel\s+question=\{processedQuestion\}\s+isToolQuestion=\{isToolQuestion\}/);
   assert.match(contained, /fallback=\{<p[^>]*>The worked solution for this question could not be shown here\./);
   assert.match(engine, /const isToolQuestion = Boolean\(missingToolDefinition\);/);
-  // The out-of-attempts panel shows it; the way on stays outside it.
-  const closed = region(engine, '{isExpired && showOutcomeFeedback && (\n        <div style={{ margin: \'25px auto 0\'', 'Request New Question', 'the closed question\'s panel');
+  // The out-of-attempts panel shows it; the way on stays outside it. Since
+  // student pass 3 (RUN-6) the panel is the closed question card, which also
+  // carries the verdict and the student's own answer.
+  const closed = region(engine, '<section className="mathmaster-closed-question-card"', '</section>', 'the closed question\'s panel');
   assert.match(closed, /\{closedReview\}/);
+  assert.match(closed, /onClick=\{handleRequestNewQuestion\}/, 'a new problem, where allowed, is offered from the closed card');
   assert.doesNotMatch(contained, /handleRequestNewQuestion/);
   assert.match(engine, /import QuestionSupplementBoundary from '\.\/QuestionSupplementBoundary';/);
 });

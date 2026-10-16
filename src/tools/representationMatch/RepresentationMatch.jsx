@@ -489,7 +489,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                     : mode === 'linearConnections' && linearTask === 'group'
                       ? `${(feedback.metadata?.parts || []).find((part) => part.id === 'pairings')?.response || '0 of 0'} card pairings are correct so far. Convert each card to slope-intercept form and compare.`
                       : 'That card is actually consistent with the others. Recheck each card’s slope and intercept against the others.';
-          return <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{message}</p></div>;
+          return <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect} message={message}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div>;
         })() : null}
         <HintPanel hints={MODE_HINTS[mode] || MODE_HINTS.completeSet} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>

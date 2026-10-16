@@ -31,6 +31,9 @@ import { attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse } from 
 import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
 import { backUpStepFor } from './platform/supports/feedback/backUpStep.js';
 import { partialCreditBreakdown } from './platform/supports/feedback/partialCreditBreakdown.js';
+import { displayGradingSurface } from './platform/grading/displayGradingSurface.js';
+import { ATTEMPT_RESULT_FOCUS_ATTRIBUTE, revealAttemptResult } from './platform/student/attemptResultsReveal.js';
+import { prefersReducedMotion } from './motionPreference.js';
 import { parseFamilyGenerationKey } from './problemGenerator';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
@@ -68,6 +71,8 @@ import Dialog from './ui/Dialog.jsx';
 // floating calculator (2147483400): at 12000 it opened BEHIND Work View and
 // took focus there, invisible (review of #463).
 const UNCHANGED_CONFIRM_Z_INDEX = 2147483450;
+// The element in the results region that carries a submit's result (RUN-1).
+const ATTEMPT_RESULT_FOCUS = Object.freeze({ [ATTEMPT_RESULT_FOCUS_ATTRIBUTE]: '' });
 import QuestionModuleBoundary from './QuestionModuleBoundary';
 import QuestionResolutionBoundary, { QuestionResolutionFailure, questionFailureContext, recordQuestionResolutionDiagnostic } from './QuestionResolutionBoundary';
 import QuestionSupplementBoundary from './QuestionSupplementBoundary';
@@ -531,6 +536,17 @@ function QuestionEngineBody({
   // The graded work behind the feedback on screen, kept beside it for the
   // display-only miss message (missDiagnosis.js). Never sent anywhere.
   const [gradedForDisplay, setGradedForDisplay] = useState(null);
+  // THE LAST MISS STAYS ON SCREEN, DIMMED, UNTIL THE NEXT SUBMIT (student pass
+  // 3, HELP-8). The first keystroke after a miss clears `feedback` (the effect
+  // below), which used to take "Not quite… Focus on: Slope" and the hint offer
+  // with it at the very moment the student started fixing the answer. The
+  // words of the miss on screen are kept here, display only: nothing grades,
+  // records or announces from this copy.
+  const [previousMiss, setPreviousMiss] = useState(null);
+  const lastMissShownRef = useRef(null);
+  // The results region inside the work area (RUN-1), brought into view once
+  // per submit.
+  const attemptResultsRef = useRef(null);
   const [workflowGuidanceState, setWorkflowGuidanceState] = useState(null);
   const [workflowSubmissionReview, setWorkflowSubmissionReview] = useState(null);
   const workflowGuidanceQuestionKey = processedQuestion?.questionId
@@ -650,6 +666,8 @@ function QuestionEngineBody({
     setSimilarOpen(false);
     setGradedForDisplay(null);
     setWorkflowSubmissionReview(null);
+    setPreviousMiss(null);
+    lastMissShownRef.current = null;
   }, [processedQuestion]);
 
   useEffect(() => {
@@ -664,6 +682,9 @@ function QuestionEngineBody({
       feedback?.isCorrect === false &&
       answerState.responseKey !== lastSubmittedResponseKey
     ) {
+      // The miss the student was reading stays, dimmed, as "Your last try"
+      // (HELP-8) — only the live verdict goes.
+      setPreviousMiss(lastMissShownRef.current);
       setFeedback(null);
     }
   }, [answerState.responseKey, feedback, lastSubmittedResponseKey, missingToolDefinition]);
@@ -1085,7 +1106,11 @@ function QuestionEngineBody({
       setFeedback(nextFeedback);
       setGradedForDisplay({
         feedback: nextFeedback,
-        grading: { graded: true, isCorrect: Boolean(answerState.isCorrect), parts: (answerState.parts || []).map((part) => ({ ...part })) },
+        // A structured surface graded here (Graphing Lines, the Relationship
+        // Model…) names its surface and mode as the server does, so the
+        // misconception classifier keyed on them speaks on screen too
+        // (displayGradingSurface.js; student pass 3, HELP-15).
+        grading: { graded: true, isCorrect: Boolean(answerState.isCorrect), parts: (answerState.parts || []).map((part) => ({ ...part })), ...displayGradingSurface(processedQuestion) },
         response: answerState.toolResponse || null,
       });
       if (isComposed) {
@@ -1424,6 +1449,9 @@ function QuestionEngineBody({
       // current workspace over", never "erase an attempt".
       setAnswerState(EMPTY_ANSWER_STATE);
       setFeedback(null);
+      // A fresh start shows no "Your last try" (HELP-8).
+      setPreviousMiss(null);
+      lastMissShownRef.current = null;
       setLastSubmittedResponseKey(record.lastResponseKey || '');
       setWorkflowSubmissionReview(null);
       setWorkflowGuidanceState(null);
@@ -1665,13 +1693,43 @@ function QuestionEngineBody({
     missingToolDefinition && toolOutcomeSlot !== null
       && feedback && !feedback.blocked && showOutcomeFeedback && !locked,
   );
+  // A hint offered after a miss, wherever the outcome is shown (HELP-7).
+  const attemptHintOffered = Boolean(feedback && !feedback.isCorrect && !feedback.blocked
+    && hintOfferedAfterMiss({ attemptNumber: Number(feedback.attemptCount) || record.attemptCount, hintsAvailable: hintState.canRevealNext, open: !locked }));
+  // With the words, what the box offers beside them (student pass 3, HELP-7):
+  // Read aloud and Translate for the student entitled to them, and the hint.
   const toolAttemptOutcome = outcomeInTool ? {
     id: toolOutcomeOwner.id,
     slot: toolOutcomeSlot,
     text: attemptOutcomeText,
     detail: [attemptOutcomeSpecific, attemptOutcomeFocus].filter(Boolean).join(' '),
     tone: feedback.isCorrect ? 'correct' : 'incorrect',
+    readAloud: supportedTextReadAloud,
+    translation: supportedTextTranslation,
+    onEvidence: reportSupportedTextUse,
+    onShowHint: attemptHintOffered ? revealNextHint : null,
   } : null;
+
+  // The words of the miss box as shown, kept for "Your last try" (HELP-8).
+  const missShownNow = Boolean(feedback && feedback.isCorrect === false && !feedback.blocked && showOutcomeFeedback && !isExpired && !outcomeInTool);
+  const missShownAttempt = missShownNow ? (Number(feedback.attemptCount) || record.attemptCount) : null;
+  useEffect(() => {
+    if (!missShownNow) return;
+    lastMissShownRef.current = { attempt: missShownAttempt, text: attemptOutcomeText, specific: attemptOutcomeSpecific, focus: attemptOutcomeFocus };
+  }, [missShownNow, missShownAttempt, attemptOutcomeText, attemptOutcomeSpecific, attemptOutcomeFocus]);
+
+  // ONCE PER SUBMIT THE RESULT IS BROUGHT INTO VIEW (RUN-1). `feedback` is set
+  // only by a submit, so this never fires when a question opens; a tool that
+  // shows the outcome in its own result area brings that into view itself
+  // (ToolShell AttemptOutcome).
+  const resultToReveal = feedback && !outcomeInTool ? feedback : null;
+  useEffect(() => {
+    if (!resultToReveal || typeof window === 'undefined') return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      revealAttemptResult(attemptResultsRef.current, { reducedMotion: prefersReducedMotion() });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [resultToReveal]);
 
   const renderModule = () => {
     if (!processedQuestion) return null;
@@ -2253,6 +2311,229 @@ function QuestionEngineBody({
     </div>
   );
 
+  // What the student wrote, for the closed card (RUN-6): the parts of the
+  // final attempt as graded on this device, when each carries its typed
+  // response. A tool's work is reviewed by its own panel, so it shows none.
+  const closedYourAnswer = isExpired && gradedForDisplay && gradedForDisplay.feedback === feedback
+    ? (gradedForDisplay.grading?.parts || [])
+      .filter((part) => typeof part?.response === 'string' && part.response.trim())
+      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: part.response, isCorrect: typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
+    : [];
+
+  /*
+   * THE RESULTS OF A SUBMIT LIVE IN THE WORK AREA (student pass 3, RUN-1).
+   * Everything a submit produces — the outcome, the dimmed last try, "See why
+   * it works", the closed card with the worked solution, the section
+   * milestone, the way on — used to render after the question container. On a
+   * phone that container is a fixed full-height box that clips, so none of it
+   * could be reached (the outcome sat at y=869 of an 844px screen, the worked
+   * solution at y=1244); on a Chromebook it landed under the sticky action
+   * bar. It renders inside the work area now, which scrolls on a phone, beside
+   * the tool rather than over it (the Correct watermark and the back-up step
+   * still cover only the tool). The element carrying the result is brought
+   * into view once per submit (attemptResultsReveal.js).
+   */
+  const attemptResults = (
+    <div ref={attemptResultsRef} className="mathmaster-attempt-results" data-attempt-results="">
+      {sameIncorrectResponse && !isMultipart && !locked && (
+        <p style={{ marginTop: '10px', color: 'var(--mm-text-muted)', fontWeight: 'bold' }}>You may submit the same response again. No answer change is required.</p>
+      )}
+
+      {/* A question the server cannot grade is not quietly marked wrong: the
+          student is told it was not submitted, which is what happened. */}
+      {feedback?.blocked && (
+        <div role="alert" {...ATTEMPT_RESULT_FOCUS} style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 'bold' }}>
+          {feedback.message}
+        </div>
+      )}
+
+      {/* role="status": the attempt outcome ("Not quite. You have 2 attempts
+          remaining") was the one grading message a screen reader never heard —
+          only the Correct overlay was a live region (platform quirks audit).
+          Rendered only when outcome feedback is allowed, so a DOL stays silent.
+          A registry tool that showed its own verdict shows this outcome beside
+          it instead (`outcomeInTool`, PQ-022): one place, one announcement.
+          A closed question says it once, in the closed card below (RUN-6). */}
+      {feedback && !feedback.blocked && showOutcomeFeedback && !outcomeInTool && !isExpired && (
+        <div role="status" {...(isCorrect && sectionComplete ? {} : ATTEMPT_RESULT_FOCUS)} style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)', color: feedback.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-danger)', fontSize: 'calc(16 * var(--mm-px))', fontWeight: 'bold' }}>
+          {attemptOutcomeText}
+          {!feedback.isCorrect && isComposed && workflowSubmissionReview?.parts?.some((part) => part?.graded !== false && !part?.isCorrect) && (
+            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>
+              The red steps above are the specific responses that need revision. MathMaster moved you to the first one.
+            </div>
+          )}
+          {attemptOutcomeSpecific && (
+            <div data-miss-feedback={missDetail?.source || ''} style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
+              {attemptOutcomeSpecific}
+              <SupportedTextActions text={attemptOutcomeSpecific} readAloud={supportedTextReadAloud} translation={supportedTextTranslation} label="the feedback" onEvidence={reportSupportedTextUse} />
+            </div>
+          )}
+          {attemptOutcomeFocus && (
+            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>{attemptOutcomeFocus}</div>
+          )}
+          {attemptHintOffered && (
+            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
+              A hint is ready if you want one.{' '}
+              <button type="button" onClick={revealNextHint} style={{ marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* "YOUR LAST TRY", DIMMED (HELP-8). The first keystroke after a miss
+          clears the live verdict; the words the student was reading stay
+          until the next submit, so fixing the answer does not erase what to
+          fix. Display only, and not a live region: it was announced when it
+          was new. */}
+      {!feedback && previousMiss && !locked && showOutcomeFeedback && (
+        <div className="mathmaster-previous-miss" data-attempt-feedback="previous" style={{ margin: '25px auto 0', padding: '12px 15px', maxWidth: '700px', boxSizing: 'border-box', borderRadius: '8px', border: '1px dashed var(--mm-border-strong)', background: 'var(--mm-surface-tint)', color: 'var(--mm-text-muted)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700, textAlign: 'left' }}>
+          <span style={{ display: 'block', marginBottom: '4px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Your last try</span>
+          {previousMiss.text}
+          {previousMiss.specific ? <div style={{ marginTop: '6px' }}>{previousMiss.specific}</div> : null}
+          {previousMiss.focus ? <div style={{ marginTop: '6px' }}>{previousMiss.focus}</div> : null}
+          {hintOfferedAfterMiss({ attemptNumber: Number(previousMiss.attempt) || record.attemptCount, hintsAvailable: hintState.canRevealNext, open: !locked }) && (
+            <div style={{ marginTop: '8px' }}>
+              A hint is ready if you want one.{' '}
+              <button type="button" onClick={revealNextHint} style={{ marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {isCorrect && feedbackOpen && reviewAvailable && (
+        <details data-correct-review="" style={{ margin: '14px auto 0', maxWidth: '860px', textAlign: 'left' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 }}>See why it works</summary>
+          {closedReview}
+        </details>
+      )}
+
+      {/* ONE CLOSED CARD (RUN-6). A final miss used to stack five "closed"
+          messages, and the big "Next Question" card came before the worked
+          solution, so Enter skipped the one thing a closed question still
+          teaches. Now: the verdict once, what the student wrote, the worked
+          solution, a new problem where that is allowed — and only then the way
+          on (the card below, and Next in the action bar). A neutral panel, not
+          a red box: the solution is to be read. A CLOSED QUESTION STAYS A
+          QUESTION: the review renders from the question's data, outside the
+          module's boundary (QuestionSupplementBoundary.jsx). */}
+      {isExpired && showOutcomeFeedback && (
+        <section className="mathmaster-closed-question-card" data-closed-question-card="" aria-label="Closed question review" style={{ margin: '25px auto 0', padding: '16px 18px', maxWidth: '760px', boxSizing: 'border-box', borderRadius: '12px', border: '1px solid var(--mm-border-soft)', borderLeft: `6px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`, background: 'var(--mm-surface)', color: 'var(--mm-text)', textAlign: 'left', position: 'relative', zIndex: 45 }}>
+          <div role="status" {...ATTEMPT_RESULT_FOCUS} style={{ color: expiredAlmost ? 'var(--mm-warning-text)' : 'var(--mm-error-text)', fontSize: 'calc(16 * var(--mm-px))', fontWeight: 'bold' }}>
+            {feedback && !feedback.blocked && attemptOutcomeText
+              ? attemptOutcomeText
+              : `This question is closed after ${resolvedMaximumAttempts} ${resolvedMaximumAttempts === 1 ? 'try' : 'tries'}.`}
+            {attemptOutcomeSpecific && (
+              <div data-miss-feedback={missDetail?.source || ''} style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid var(--mm-border-soft)', color: 'var(--mm-text)', fontWeight: 600 }}>
+                {attemptOutcomeSpecific}
+                <SupportedTextActions text={attemptOutcomeSpecific} readAloud={supportedTextReadAloud} translation={supportedTextTranslation} label="the feedback" onEvidence={reportSupportedTextUse} />
+              </div>
+            )}
+          </div>
+          {closedYourAnswer.length > 0 && (
+            <div data-your-answer="" style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px 14px', color: 'var(--mm-text)' }}>
+              <strong>{closedYourAnswer.length === 1 ? 'Your answer:' : 'Your answers:'}</strong>
+              {closedYourAnswer.map((part) => (
+                <span key={part.key} style={{ display: 'inline-flex', alignItems: 'baseline', gap: '6px' }}>
+                  {closedYourAnswer.length > 1 && part.label ? <span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>{part.label}</span> : null}
+                  <MathDisplay value={part.response} format="latex" />
+                  {part.isCorrect === true ? <span aria-label="correct" style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>✓</span> : part.isCorrect === false ? <span aria-label="not correct" style={{ color: 'var(--mm-error-text)', fontWeight: 900 }}>✗</span> : null}
+                </span>
+              ))}
+            </div>
+          )}
+          {closedReview}
+          {resolvedActivityPolicy?.allowReplacement && (
+            <>
+              <p style={{ margin: '8px 0 14px' }}>{reviewAvailable && feedbackOpen ? 'Review the solution, then request' : 'Request'} a new problem at the same difficulty.</p>
+              <button type="button" onClick={handleRequestNewQuestion} disabled={requesting || assignmentLocked} style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', background: requesting || assignmentLocked ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: requesting || assignmentLocked ? 'var(--mm-disabled-text)' : '#fff', fontWeight: 'bold', cursor: requesting || assignmentLocked ? 'not-allowed' : 'pointer' }}>
+                {requesting ? 'Creating New Question…' : 'Request New Question'}
+              </button>
+            </>
+          )}
+        </section>
+      )}
+
+      {isCorrect && showOutcomeFeedback && sectionComplete && (
+        <section
+          {...ATTEMPT_RESULT_FOCUS}
+          className={`mathmaster-section-completion-card${sectionCompletionCelebrating ? ' is-celebrating' : ''}`}
+          role="status"
+          aria-label={`${sectionLabel || 'Section'} complete`}
+        >
+          <div className="mathmaster-section-completion-icon" aria-hidden="true">✓</div>
+          <div className="mathmaster-section-completion-copy">
+            <span>Section milestone</span>
+            <strong>{String(sectionLabel || 'Section').toUpperCase()} COMPLETE</strong>
+            <small>You completed all {sectionQuestionCount || ''} {sectionLabel || 'section'} question{Number(sectionQuestionCount) === 1 ? '' : 's'}.</small>
+          </div>
+          {typeof onContinueSection === 'function' ? (
+            <div className="mathmaster-section-completion-actions">
+              <button type="button" onClick={onContinueSection} aria-keyshortcuts="Enter" className="mathmaster-section-completion-continue">
+                <span>Continue to {continueSectionLabel || 'next section'}</span>
+                <span aria-hidden="true">→</span>
+              </button>
+              <small style={{ display: 'block', marginTop: 6, color: 'var(--mm-text-muted)', fontWeight: 750, textAlign: 'center' }}>{ENTER_TO_CONTINUE_HINT}</small>
+            </div>
+          ) : (
+            <div className="mathmaster-section-completion-done">All currently available sections are complete.</div>
+          )}
+        </section>
+      )}
+
+      {/* While outcome feedback is held (a quiz or test before the teacher
+          releases it), the bar says the question is closed either way: its
+          words must not carry the verdict the rest of the screen withholds. */}
+      {locked && !sectionComplete && typeof onNextQuestion === 'function' && (
+        <div role="navigation" aria-label="Continue to the next question" style={{ margin: '16px auto 6px', maxWidth: '700px', position: 'relative', zIndex: 50 }}>
+          <button
+            type="button"
+            onClick={onNextQuestion}
+            aria-keyshortcuts="Enter"
+            className="mathmaster-success-next-question"
+            style={{
+              width: '100%',
+              minHeight: '72px',
+              padding: '14px 18px',
+              border: '3px solid #0b57d0',
+              borderRadius: '14px',
+              background: '#1a73e8',
+              color: '#fff',
+              cursor: 'pointer',
+              boxShadow: '0 8px 22px rgba(26,115,232,0.30)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '16px',
+              textAlign: 'left',
+            }}
+          >
+            <span>
+              <span style={{ display: 'block', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.88 }}>{isCorrect && !terminalFeedbackHidden ? 'You got it — keep going' : 'This question is closed — keep going'}</span>
+              <span style={{ display: 'block', marginTop: '3px', fontSize: 'calc(21 * var(--mm-px))', fontWeight: 950 }}>Next Question</span>
+              {(nextQuestionLabel || nextQuestionSectionLabel) && (
+                <span style={{ display: 'block', marginTop: '2px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 750, opacity: 0.92 }}>
+                  {nextQuestionSectionLabel ? `${nextQuestionSectionLabel} · ` : ''}{nextQuestionLabel}
+                </span>
+              )}
+              <span style={{ display: 'block', marginTop: '5px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, opacity: 0.9 }}>{ENTER_TO_CONTINUE_HINT}</span>
+            </span>
+            <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 'calc(30 * var(--mm-px))', lineHeight: 1, fontWeight: 950 }}>→</span>
+          </button>
+        </div>
+      )}
+
+      {terminalFeedbackHidden && (
+        <div role="status" {...ATTEMPT_RESULT_FOCUS} style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 'bold' }}>
+          {heldFeedbackMessage}
+        </div>
+      )}
+
+      {assignmentLocked && !isCorrect && !isExpired && !lockReasonInAttemptStrip && (
+        <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: '2px solid #5f6368', background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }}><strong>{assignmentLockedMessage || 'This assignment is permanently closed.'}</strong>{!assignmentLockedMessage && ' The saved response is available for review, but no changes or submissions are allowed.'}</div>
+      )}
+    </div>
+  );
+
   return (
     <DeferredFocusProvider authority={focusAuthority}>
     <QuestionLifecycleProvider terminal={locked}>
@@ -2419,33 +2700,40 @@ function QuestionEngineBody({
         {/* Inside the work area, not after the question container: on a
             phone that container is a fixed full-height box and anything after
             it is clipped (see the Next-question note in the action bar). */}
+        {/* Each in a row of its own, which keeps the Enlarge button clear when
+            it starts the work (WorkViewShell.css, student pass 3 HELP-21). */}
         {hintPanelOpen && hintPanel ? (
-          <div ref={hintPanelRef} className="mathmaster-hint-panel" style={{ margin: '0 auto 12px', maxWidth: 860, padding: '14px 16px', borderRadius: 12, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', boxShadow: '0 4px 14px rgba(26,115,232,0.10)' }}>
-            {hintPanel}
+          <div className="mathmaster-top-panel-row">
+            <div ref={hintPanelRef} className="mathmaster-hint-panel" style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', boxShadow: '0 4px 14px rgba(26,115,232,0.10)' }}>
+              {hintPanel}
+            </div>
           </div>
         ) : null}
         {pausedByAnotherTab ? (
-          <div
-            role="status"
-            data-active-work-paused="true"
-            style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, margin: '0 auto 12px', maxWidth: 860, padding: '12px 16px', borderRadius: 12, border: '1px solid var(--mm-info-border, var(--mm-primary-border))', background: 'var(--mm-info-bg, var(--mm-primary-soft))', color: 'var(--mm-text-strong)' }}
-          >
-            <span style={{ flex: '1 1 260px', lineHeight: 1.5 }}>
-              <strong>This question is open in another tab.</strong> It is paused here so your work stays in one place.
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                // Take the question back, then re-read the latest saved work:
-                // the module remounts and loads its draft from storage.
-                activeWorkTab.continueHere();
-                setAnswerState(EMPTY_ANSWER_STATE);
-                setQuestionResetVersion((current) => current + 1);
-              }}
-              style={{ minHeight: 44, padding: '9px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary, #174ea6)', color: 'var(--mm-on-primary, #ffffff)', fontWeight: 800, cursor: 'pointer' }}
+          <div className="mathmaster-top-panel-row">
+            <div
+              role="status"
+              data-active-work-paused="true"
+              className="mathmaster-paused-panel"
+              style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, border: '1px solid var(--mm-info-border, var(--mm-primary-border))', background: 'var(--mm-info-bg, var(--mm-primary-soft))', color: 'var(--mm-text-strong)' }}
             >
-              Continue here
-            </button>
+              <span style={{ flex: '1 1 260px', lineHeight: 1.5 }}>
+                <strong>This question is open in another tab.</strong> It is paused here so your work stays in one place.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  // Take the question back, then re-read the latest saved work:
+                  // the module remounts and loads its draft from storage.
+                  activeWorkTab.continueHere();
+                  setAnswerState(EMPTY_ANSWER_STATE);
+                  setQuestionResetVersion((current) => current + 1);
+                }}
+                style={{ minHeight: 44, padding: '9px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary, #174ea6)', color: 'var(--mm-on-primary, #ffffff)', fontWeight: 800, cursor: 'pointer' }}
+              >
+                Continue here
+              </button>
+            </div>
           </div>
         ) : null}
         {resolutionFailurePanel || (
@@ -2511,6 +2799,7 @@ function QuestionEngineBody({
         )}
 
       </div>
+      {attemptResults}
       </EnlargeableFigure>
       </WorkViewCapabilityProvider>
         )}
@@ -2549,154 +2838,6 @@ function QuestionEngineBody({
         onOpenChange={setCalculatorOpen}
         showLauncher={false}
       />
-
-      {sameIncorrectResponse && !isMultipart && !locked && (
-        <p style={{ marginTop: '10px', color: 'var(--mm-text-muted)', fontWeight: 'bold' }}>You may submit the same response again. No answer change is required.</p>
-      )}
-
-      {/* A question the server cannot grade is not quietly marked wrong: the
-          student is told it was not submitted, which is what happened. */}
-      {feedback?.blocked && (
-        <div role="alert" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 'bold' }}>
-          {feedback.message}
-        </div>
-      )}
-
-      {/* role="status": the attempt outcome ("Not quite. You have 2 attempts
-          remaining") was the one grading message a screen reader never heard —
-          only the Correct overlay was a live region (platform quirks audit).
-          Rendered only when outcome feedback is allowed, so a DOL stays silent.
-          A registry tool that showed its own verdict shows this outcome beside
-          it instead (`outcomeInTool`, PQ-022): one place, one announcement. */}
-      {feedback && !feedback.blocked && showOutcomeFeedback && !outcomeInTool && (
-        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)', color: feedback.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-danger)', fontSize: 'calc(16 * var(--mm-px))', fontWeight: 'bold' }}>
-          {attemptOutcomeText}
-          {!feedback.isCorrect && isComposed && workflowSubmissionReview?.parts?.some((part) => part?.graded !== false && !part?.isCorrect) && (
-            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>
-              The red steps above are the specific responses that need revision. MathMaster moved you to the first one.
-            </div>
-          )}
-          {attemptOutcomeSpecific && (
-            <div data-miss-feedback={missDetail?.source || ''} style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
-              {attemptOutcomeSpecific}
-              <SupportedTextActions text={attemptOutcomeSpecific} readAloud={supportedTextReadAloud} translation={supportedTextTranslation} label="the feedback" onEvidence={reportSupportedTextUse} />
-            </div>
-          )}
-          {attemptOutcomeFocus && (
-            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>{attemptOutcomeFocus}</div>
-          )}
-          {!feedback.isCorrect && hintOfferedAfterMiss({ attemptNumber: Number(feedback.attemptCount) || record.attemptCount, hintsAvailable: hintState.canRevealNext, open: !locked }) && (
-            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
-              A hint is ready if you want one.{' '}
-              <button type="button" onClick={revealNextHint} style={{ marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {isCorrect && feedbackOpen && reviewAvailable && (
-        <details data-correct-review="" style={{ margin: '14px auto 0', maxWidth: '860px', textAlign: 'left' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 }}>See why it works</summary>
-          {closedReview}
-        </details>
-      )}
-
-      {isCorrect && showOutcomeFeedback && sectionComplete && (
-        <section
-          className={`mathmaster-section-completion-card${sectionCompletionCelebrating ? ' is-celebrating' : ''}`}
-          role="status"
-          aria-label={`${sectionLabel || 'Section'} complete`}
-        >
-          <div className="mathmaster-section-completion-icon" aria-hidden="true">✓</div>
-          <div className="mathmaster-section-completion-copy">
-            <span>Section milestone</span>
-            <strong>{String(sectionLabel || 'Section').toUpperCase()} COMPLETE</strong>
-            <small>You completed all {sectionQuestionCount || ''} {sectionLabel || 'section'} question{Number(sectionQuestionCount) === 1 ? '' : 's'}.</small>
-          </div>
-          {typeof onContinueSection === 'function' ? (
-            <div>
-              <button type="button" onClick={onContinueSection} aria-keyshortcuts="Enter" className="mathmaster-section-completion-continue">
-                <span>Continue to {continueSectionLabel || 'next section'}</span>
-                <span aria-hidden="true">→</span>
-              </button>
-              <small style={{ display: 'block', marginTop: 6, color: 'var(--mm-text-muted)', fontWeight: 750, textAlign: 'center' }}>{ENTER_TO_CONTINUE_HINT}</small>
-            </div>
-          ) : (
-            <div className="mathmaster-section-completion-done">All currently available sections are complete.</div>
-          )}
-        </section>
-      )}
-
-      {/* While outcome feedback is held (a quiz or test before the teacher
-          releases it), the bar says the question is closed either way: its
-          words must not carry the verdict the rest of the screen withholds. */}
-      {locked && !sectionComplete && typeof onNextQuestion === 'function' && (
-        <div role="navigation" aria-label="Continue to the next question" style={{ margin: '16px auto 6px', maxWidth: '700px', position: 'relative', zIndex: 50 }}>
-          <button
-            type="button"
-            onClick={onNextQuestion}
-            aria-keyshortcuts="Enter"
-            className="mathmaster-success-next-question"
-            style={{
-              width: '100%',
-              minHeight: '72px',
-              padding: '14px 18px',
-              border: '3px solid #0b57d0',
-              borderRadius: '14px',
-              background: '#1a73e8',
-              color: '#fff',
-              cursor: 'pointer',
-              boxShadow: '0 8px 22px rgba(26,115,232,0.30)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-              textAlign: 'left',
-            }}
-          >
-            <span>
-              <span style={{ display: 'block', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.88 }}>{isCorrect && !terminalFeedbackHidden ? 'You got it — keep going' : 'This question is closed — keep going'}</span>
-              <span style={{ display: 'block', marginTop: '3px', fontSize: 'calc(21 * var(--mm-px))', fontWeight: 950 }}>Next Question</span>
-              {(nextQuestionLabel || nextQuestionSectionLabel) && (
-                <span style={{ display: 'block', marginTop: '2px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 750, opacity: 0.92 }}>
-                  {nextQuestionSectionLabel ? `${nextQuestionSectionLabel} · ` : ''}{nextQuestionLabel}
-                </span>
-              )}
-              <span style={{ display: 'block', marginTop: '5px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, opacity: 0.9 }}>{ENTER_TO_CONTINUE_HINT}</span>
-            </span>
-            <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 'calc(30 * var(--mm-px))', lineHeight: 1, fontWeight: 950 }}>→</span>
-          </button>
-        </div>
-      )}
-
-      {terminalFeedbackHidden && (
-        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 'bold' }}>
-          {heldFeedbackMessage}
-        </div>
-      )}
-
-      {assignmentLocked && !isCorrect && !isExpired && !lockReasonInAttemptStrip && (
-        <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: '2px solid #5f6368', background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }}><strong>{assignmentLockedMessage || 'This assignment is permanently closed.'}</strong>{!assignmentLockedMessage && ' The saved response is available for review, but no changes or submissions are allowed.'}</div>
-      )}
-
-      {isExpired && showOutcomeFeedback && (
-        <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`, background: expiredAlmost ? 'var(--mm-warning-bg)' : 'var(--mm-error-bg)', color: expiredAlmost ? 'var(--mm-warning-text)' : 'var(--mm-error-text)', position: 'relative', zIndex: 45 }}>
-          <strong>This response is closed after {resolvedMaximumAttempts} {resolvedMaximumAttempts === 1 ? 'attempt' : 'attempts'}.</strong>
-          {/* A CLOSED QUESTION STAYS A QUESTION. The review renders only once
-              the question is closed, from the question's data, outside the
-              module's boundary; lmr-wu-1's review threw there and took the
-              whole question with it (QuestionSupplementBoundary.jsx). */}
-          {closedReview}
-          {resolvedActivityPolicy?.allowReplacement && (
-            <>
-              <p style={{ margin: '8px 0 14px' }}>{reviewAvailable && feedbackOpen ? 'Review the solution, then request' : 'Request'} a new problem at the same difficulty.</p>
-              <button type="button" onClick={handleRequestNewQuestion} disabled={requesting || assignmentLocked} style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', background: requesting || assignmentLocked ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: requesting || assignmentLocked ? 'var(--mm-disabled-text)' : '#fff', fontWeight: 'bold', cursor: requesting || assignmentLocked ? 'not-allowed' : 'pointer' }}>
-                {requesting ? 'Creating New Question…' : 'Request New Question'}
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {unchangedConfirmOpen && (
         <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} data-unchanged-confirm="" style={{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>

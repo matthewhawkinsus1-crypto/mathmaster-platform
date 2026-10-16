@@ -118,7 +118,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
           </p>
         ) : null}
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check selected intervals</button>
-        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
+        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
         <HintPanel
           hints={[
             'The critical points split the number line into intervals. Inside one interval the expression cannot change sign.',
@@ -194,7 +194,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
           <li>Reject any value that squaring introduced.</li>
         </ol>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check candidates</button>
-        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
+        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
         <HintPanel
           hints={[
             'Squaring both sides of an equation can create solutions the original never had. That is why every candidate must be checked.',

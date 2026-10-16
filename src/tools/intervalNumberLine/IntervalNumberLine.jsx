@@ -995,12 +995,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
           {feedback ? (
             <div style={{ marginTop: 14 }}>
-              <ResultPill ok={feedback.isCorrect}>
+              <ResultPill ok={feedback.isCorrect} message={message()}>
                 {feedback.isCorrect ? 'Correct' : 'Not yet'}
               </ResultPill>
-              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>
-                {message()}
-              </p>
             </div>
           ) : null}
 

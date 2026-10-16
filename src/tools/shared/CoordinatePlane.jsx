@@ -9,6 +9,7 @@ import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js'
 import { describeCoordinatePlane } from '../../platform/language/graphDescription.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
+import { describePlot } from './plotAnnouncement.js';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
@@ -106,6 +107,9 @@ export default function CoordinatePlane({
   xTickStep = null, yTickStep = null,
   points = [], lines = [], functions = [], polylines = [], regions = [], verticalLines = [], horizontalLines = [],
   onPlot = null,
+  // The tool's count after a plot, said with it ("2 of 2 points plotted.").
+  // Optional: without it a screen reader hears what the plot did and no count.
+  plotProgress = '',
   // Given, an existing point can be picked up and moved instead of only being
   // replaced by plotting a new one. Optional: a tool that does not own indexed
   // points simply keeps the plot-only behaviour.
@@ -253,6 +257,23 @@ export default function CoordinatePlane({
   const [dragIndex, setDragIndex] = useState(null);
   const [gestureActive, setGestureActive] = useState(false);
 
+  // WHAT A PLOT DID, SAID ONCE (plotAnnouncement.js). The points before a plot
+  // are kept until the tool hands the plane its points after it; the sentence
+  // replaces the crosshair readout in the live region until the crosshair
+  // moves again.
+  const plotCommitRef = useRef(null);
+  const [plotAnnouncement, setPlotAnnouncement] = useState('');
+  const commitPlot = (point) => {
+    plotCommitRef.current = { point, before: points.map(pointXY) };
+    onPlot(point);
+  };
+  useEffect(() => {
+    const commit = plotCommitRef.current;
+    if (!commit) return;
+    plotCommitRef.current = null;
+    setPlotAnnouncement(describePlot({ point: commit.point, before: commit.before, after: points.map(pointXY), progress: plotProgress }));
+  }, [points, plotProgress]);
+
   // The plotting rectangle clips the MATHEMATICS — lines, curves, regions —
   // and nothing else. A line is drawn from xMin to xMax whatever its slope, so
   // y = 2x − 4 on a −6..6 window ran up through the top padding and over the
@@ -392,6 +413,8 @@ export default function CoordinatePlane({
     if (!interactive) return;
     const point = graphPointFromEvent(event);
     if (!point) return;
+    plotCommitRef.current = null;
+    setPlotAnnouncement('');
     setKeyboardActive(false);
     setGestureActive(true);
     setDragIndex(pointIndexNear(point));
@@ -417,7 +440,7 @@ export default function CoordinatePlane({
     try { event.currentTarget.releasePointerCapture?.(event.pointerId); } catch { /* not fatal */ }
     if (!point) return;
     if (movedIndex != null) onMovePoint(movedIndex, point);
-    else onPlot(point);
+    else commitPlot(point);
     // A finger leaves no cursor behind, so the preview goes with it. A mouse
     // keeps hovering, and its next move re-establishes the preview anyway.
     if (event.pointerType === 'touch') setPointerPreview(null);
@@ -436,6 +459,8 @@ export default function CoordinatePlane({
   };
 
   const moveKeyboardCursor = (dx, dy) => {
+    plotCommitRef.current = null;
+    setPlotAnnouncement('');
     setKeyboardActive(true);
     setPointerPreview(null);
     setKeyboardCursor((current) => {
@@ -472,7 +497,7 @@ export default function CoordinatePlane({
         // press on it does with a finger or mouse.
         const onPoint = canMovePoints ? pointIndexNear(target) : null;
         if (onPoint != null) { setKeyboardHeldIndex(onPoint); break; }
-        onPlot(target);
+        commitPlot(target);
         break;
       }
       case 'Escape':
@@ -877,7 +902,7 @@ export default function CoordinatePlane({
 
       {interactive ? (
         <>
-          <p aria-live="polite" className="mm-sr-only">{previewText}</p>
+          <p aria-live="polite" className="mm-sr-only">{plotAnnouncement || previewText}</p>
           {/* ONE LINE, ONCE PER TOOL (plotHelpScope.js). The gesture a student
               needs is one sentence; keyboard and zoom detail folds away, and
               stays folded once put away. A screen reader already has the

@@ -24,6 +24,12 @@
 //   literal   an ordinary question keeps the engine's box — exactly one.
 //   dol, quiz, test  nothing about correctness or attempts appears anywhere,
 //             in the tool or below it, until feedback is released.
+//   offers    (student pass 3, HELP-7 / A11Y-1) the live region also says the
+//             tool's own coaching, and from the second miss offers the hint
+//             the platform has ready, which opens the hint panel.
+//   plotting  on Graphing, Enter on the plane says what it plotted, the count,
+//             and which points a restarted line replaced; Check's coaching
+//             ("…other one is not…") is said with the outcome.
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
@@ -124,7 +130,9 @@ const outcomeState = (page) => page.evaluate((source) => {
   const submitRect = submit?.getBoundingClientRect();
   return {
     count: innermost.length,
-    text: (first?.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 140),
+    text: (first?.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 600),
+    liveText: (live[0]?.textContent || '').trim().replace(/\s+/g, ' '),
+    hintOffer: Boolean(shell?.querySelector('.mathmaster-tool-attempt-outcome .mathmaster-tool-attempt-hint button')),
     inTool: Boolean(first && shell?.contains(first)),
     top: rect ? Math.round(rect.top) : null,
     bottom: rect ? Math.round(rect.bottom) : null,
@@ -155,6 +163,18 @@ for (const device of ['chromebook', 'phone']) {
     // named, and by names a student reads (toolSubmissionParts.js).
     check(/Focus on: [^.]*Domain restriction/.test(state.text) && !/\b(fog|gof)\b|∘/.test(state.text),
       `${device} practice inverse, wrong attempt ${attempt}: "Focus on" names only the asked parts, readably`, state.text);
+    // The tool's own words are said with the outcome (A11Y-1).
+    check(/remaining on this version\. (Neither composition|The arithmetic is right|The inverse value is off|\(g ∘ f\) is right|\(f ∘ g\) is right)/.test(state.liveText),
+      `${device} practice inverse, wrong attempt ${attempt}: the live region says the tool's coaching with the outcome`, state.liveText.slice(0, 220));
+    // From the second miss the hint the platform has ready is offered here (HELP-7).
+    check(state.hintOffer === (attempt >= 2), `${device} practice inverse, wrong attempt ${attempt}: the hint offer ${attempt >= 2 ? 'is' : 'is not yet'} in the tool`, `offer: ${state.hintOffer}`);
+    if (attempt === 2) {
+      await page.locator('.mathmaster-tool-attempt-hint button').click();
+      await page.waitForTimeout(500);
+      const panelOpen = await page.evaluate(() => [...document.querySelectorAll('[data-hint-panel] li[data-hint-source]')]
+        .some((element) => element.getBoundingClientRect().height > 0));
+      check(panelOpen, `${device} practice inverse, wrong attempt 2: "Show a hint" opens the first hint`);
+    }
   }
   await attemptWrong(page, 'inverse');
   await waitForOutcome(page);
@@ -178,6 +198,46 @@ for (const tool of ['investigation', 'regression', 'board']) {
     if (tool === 'board') check(!/Focus on/.test(state.text), `${device} practice board: the parts to revisit are not listed twice`, state.text);
     await context.close();
   }
+}
+
+// ------------------------------------------------------------------ plotting
+for (const device of ['chromebook', 'phone']) {
+  const { context, page } = await open(device, 'practice', 'graphing');
+  const plane = page.locator('svg[role="application"]').first();
+  await plane.scrollIntoViewIfNeeded();
+  await plane.focus();
+  const said = () => page.evaluate(() => (document.querySelector('.mathmaster-tool-shell p[aria-live="polite"].mm-sr-only')?.textContent || '').trim());
+  // The crosshair starts at the origin: Enter plots (0, 0).
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  let words = await said();
+  check(words === 'Plotted (0, 0). 1 of 2 points plotted.', `${device} graphing: Enter says what it plotted`, words);
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(100);
+  words = await said();
+  check(/^Plot \(1, 0\)/.test(words), `${device} graphing: moving the crosshair reads its position again`, words);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  words = await said();
+  check(words === 'Plotted (1, 0). 2 of 2 points plotted.', `${device} graphing: the second point is counted`, words);
+  // y = 0 is not 2x + y = 4: Check, and the coaching is said with the outcome.
+  const checkButton = page.locator('.mathmaster-tool-shell button', { hasText: /^Check/ }).first();
+  await checkButton.scrollIntoViewIfNeeded();
+  await checkButton.click();
+  await waitForOutcome(page);
+  await page.waitForTimeout(300);
+  const state = await outcomeState(page);
+  check(state.inTool && state.liveRegions === 1 && /remaining on this version\. \S/.test(state.liveText) && !/remaining on this version\.\s*$/.test(state.liveText),
+    `${device} graphing, a wrong line: the live region says the tool's coaching with the outcome`, state.liveText.slice(0, 220));
+  // A third plot starts the line again, and says which points went.
+  await plane.focus();
+  for (let step = 0; step < 4; step += 1) await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  words = await said();
+  check(words === 'Plotted (0, 4). It replaced (0, 0) and (1, 0). 1 of 2 points plotted.', `${device} graphing: a restarted line says what it replaced`, words);
+  await context.close();
 }
 
 // ------------------------------------------------------------ a right answer

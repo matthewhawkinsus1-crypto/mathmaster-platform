@@ -204,8 +204,7 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
 
       {feedback ? (
         <div style={{ marginTop: 12 }}>
-          <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-          <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p>
+          <ResultPill ok={feedback.isCorrect} message={feedbackMessage()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
         </div>
       ) : null}
 

@@ -19,10 +19,20 @@ const engine = executableSource(readFileSync(new URL('../../src/QuestionEngine.j
 const shell = executableSource(readFileSync(new URL('../../src/tools/shared/ToolShell.jsx', import.meta.url), 'utf8'));
 
 test('the attempt outcome is announced, and only when outcome feedback is shown', () => {
-  // The engine's box: a live region behind the outcome-feedback gate.
+  // The engine's box: a live region behind the outcome-feedback gate. The
+  // gate is asserted by its parts, not its spelling: since student pass 3
+  // (RUN-6) it also leaves a closed question to the closed card below, and
+  // the box carries the result-focus marker before its style.
   const box = region(engine, '{feedback && !feedback.blocked && showOutcomeFeedback', '</div>\n      )}', 'the engine outcome box');
-  assert.match(box, /^\{feedback && !feedback\.blocked && showOutcomeFeedback && !outcomeInTool && \(\s*<div role="status"/);
+  const gate = box.slice(0, box.indexOf('&& ('));
+  assert.match(gate, /showOutcomeFeedback/, 'the box shows only where outcome feedback is shown');
+  assert.match(gate, /!outcomeInTool/, 'the box steps aside when the tool shows the outcome');
+  assert.match(box, /&& \(\s*<div role="status"/, 'the box is a live region');
   assert.match(box, /\{attemptOutcomeText\}/, 'the box shows the shared outcome words');
+  // A closed question announces its outcome once, in the closed card, behind
+  // the same gate and in the same words.
+  const closed = region(engine, '{isExpired && showOutcomeFeedback && (', '</section>', 'the closed question card');
+  assert.match(closed, /<div role="status"[^>]*>\s*\{feedback && !feedback\.blocked && attemptOutcomeText\s*\?\s*attemptOutcomeText/, 'the closed card announces the shared outcome words');
   // The gate is what keeps DOL / submit-only silent about correctness.
   assert.match(engine, /const showOutcomeFeedback = /);
   // The words exist once, and the box and the tool both read them.

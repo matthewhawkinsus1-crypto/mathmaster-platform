@@ -242,14 +242,16 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
           <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 14, background: '#1a73e8', color: '#fff' }}>Check derivation</button>
           {feedback ? (
             <div style={{ marginTop: 12 }}>
-              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Complete' : 'Keep going'}</ResultPill>
-              <p style={{ color: 'var(--mm-text)', lineHeight: 1.5 }}>
-                {feedback.isCorrect
+              <ResultPill
+                ok={feedback.isCorrect}
+                message={feedback.isCorrect
                   ? 'Your swap and balanced algebra correctly isolate y, so the inverse is complete.'
                   : swapped
                     ? 'The variable swap is complete. Continue applying valid operations to both sides until y is isolated.'
                     : 'Start by swapping x and y before solving the inverse relation.'}
-              </p>
+              >
+                {feedback.isCorrect ? 'Complete' : 'Keep going'}
+              </ResultPill>
             </div>
           ) : null}
           <HintPanel

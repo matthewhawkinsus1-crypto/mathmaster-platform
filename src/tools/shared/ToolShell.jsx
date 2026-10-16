@@ -15,7 +15,9 @@ import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 import { PlotHelpScope } from './plotHelpScope.js';
 import { useHintsAllowed, useToolRuntimeContext } from './ToolRuntimeContext';
-import { VERDICT_CARD_RADIUS, verdictRadius, verdictTextLength, verdictWraps } from './verdictShape.js';
+import { VERDICT_CARD_RADIUS, verdictRadius, verdictTextLength, verdictWords, verdictWraps } from './verdictShape.js';
+import { SupportedTextActions } from '../../platform/supports/SupportedText.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 // A stable key for "this exact block of text", so a student's decision to fold
 // the steps away is remembered per tool without every one of the eighteen tools
@@ -291,19 +293,79 @@ const outcomeStyle = (tone) => ({
   scrollMarginBottom: 12,
 });
 
+/*
+ * WHAT A MISS IN A TOOL SAYS, AND OFFERS (student pass 3, HELP-7 and A11Y-1).
+ *
+ * The box below a question offers three things with a miss that a tool's
+ * result area did not: the hint the platform has ready, Read aloud and
+ * Translate for the feedback, and, to a screen reader, the tool's own words.
+ * On Graphing a blind student heard "Not quite. You have 2 attempts remaining
+ * on this version." and never "Point P1 is on the line, but the other one is
+ * not." The tool's words (`verdict` and `coaching`, what ResultPill shows) are
+ * now said in this region with the outcome, once, as text the eye has already
+ * read above it; the hint offer and the two actions are the box's own, handed
+ * over with the outcome (QuestionEngine `toolAttemptOutcome`).
+ *
+ * A verdict area that is itself a live region already says the tool's words,
+ * so there they are not said again.
+ */
+const LIVE_REGION_SELECTOR = '[role="status"], [role="alert"], [role="log"], [aria-live]:not([aria-live="off"])';
+const HINT_OFFER_BUTTON_STYLE = {
+  marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999,
+  border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)',
+  fontWeight: 800, cursor: 'pointer',
+};
+const OutcomeHintOffer = ({ onShowHint }) => (
+  <span className="mathmaster-tool-attempt-hint" style={{ display: 'block', marginTop: 8, fontWeight: 600 }}>
+    A hint is ready if you want one.{' '}
+    <button type="button" onClick={onShowHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button>
+  </span>
+);
+const OutcomeTextActions = ({ outcome, text }) => (
+  <SupportedTextActions
+    text={text}
+    readAloud={outcome.readAloud || null}
+    translation={outcome.translation || null}
+    label="the feedback"
+    onEvidence={typeof outcome.onEvidence === 'function' ? outcome.onEvidence : null}
+  />
+);
+
+// What the region says and offers once an outcome is handed to it. Apart from
+// the slot that decides whether it is shown, so it can be rendered on its own
+// (tests/platform/toolAttemptOutcomeOffers.test.mjs).
+export const AttemptOutcomeWords = ({ outcome, toolWords = '', detail = '', sayToolWords = true }) => {
+  const readable = [toolWords, detail].filter(Boolean).join(' ');
+  return (
+    <>
+      {outcome.text}
+      {toolWords && sayToolWords ? <span data-attempt-outcome-tool-words="" style={SR_ONLY_STYLE}>{` ${toolWords}`}</span> : null}
+      {detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{detail}</span> : null}
+      {readable ? <OutcomeTextActions outcome={outcome} text={readable} /> : null}
+      {typeof outcome.onShowHint === 'function' ? <OutcomeHintOffer onShowHint={outcome.onShowHint} /> : null}
+    </>
+  );
+};
+
 // `showDetail={false}` for a tool whose verdict already lists the parts to
 // revisit (the representations board), so the "Focus on" line is not said twice.
-export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
+export const AttemptOutcome = ({ inline = false, showDetail = true, verdict = null, coaching = null }) => {
   const { attemptOutcome, attemptOutcomeSlots } = useToolRuntimeContext();
   const [slot, setSlot] = useState(null);
   const regionRef = useRef(null);
+  const [insideLiveRegion, setInsideLiveRegion] = useState(false);
   useLayoutEffect(() => {
     if (!attemptOutcomeSlots) return undefined;
     const token = attemptOutcomeSlots.register();
     setSlot(token);
     return () => attemptOutcomeSlots.unregister(token);
   }, [attemptOutcomeSlots]);
+  useLayoutEffect(() => {
+    setInsideLiveRegion(Boolean(regionRef.current?.parentElement?.closest?.(LIVE_REGION_SELECTOR)));
+  }, []);
   const outcome = attemptOutcomeSlots && attemptOutcome && slot !== null && attemptOutcome.slot === slot ? attemptOutcome : null;
+  const toolWords = verdictWords({ verdict, coaching });
+  const detail = showDetail && outcome?.detail ? outcome.detail : '';
   // Once per attempt, and only as far as needed: Check pressed low on a phone
   // leaves the verdict at the bottom edge, where the sentence below it could
   // land under the action bar. `nearest` does nothing when it is already in
@@ -317,9 +379,12 @@ export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
   // Outside a question (the tools lab) there is no attempt to report.
   if (!attemptOutcomeSlots) return null;
   if (inline) {
+    // Inside the tool's own live region, which already says its words.
     return outcome ? (
       <span ref={regionRef} className="mathmaster-tool-attempt-outcome" data-attempt-outcome="shown" style={{ scrollMarginBottom: 12 }}>
-        {' '}{outcome.text}{showDetail && outcome.detail ? ` ${outcome.detail}` : ''}
+        {' '}{outcome.text}{detail ? ` ${detail}` : ''}
+        {detail ? <OutcomeTextActions outcome={outcome} text={detail} /> : null}
+        {typeof outcome.onShowHint === 'function' ? <OutcomeHintOffer onShowHint={outcome.onShowHint} /> : null}
       </span>
     ) : null;
   }
@@ -331,12 +396,7 @@ export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
       data-attempt-outcome={outcome ? 'shown' : 'waiting'}
       style={outcome ? outcomeStyle(outcome.tone) : OUTCOME_WAITING_STYLE}
     >
-      {outcome ? (
-        <>
-          {outcome.text}
-          {showDetail && outcome.detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{outcome.detail}</span> : null}
-        </>
-      ) : null}
+      {outcome ? <AttemptOutcomeWords outcome={outcome} toolWords={toolWords} detail={detail} sayToolWords={!insideLiveRegion} /> : null}
     </div>
   );
 };
@@ -344,7 +404,12 @@ export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
 // The verdict of a Check. `stageCheck` marks a pill that reports one stage or
 // step of the work rather than the attempt ("General form correct", "y
 // isolated"): it is not where an attempt's outcome belongs.
-export const ResultPill = ({ ok, children, stageCheck = false }) => {
+//
+// `message` is the tool's coaching for this verdict ("Point P1 is on the line,
+// but the other one is not."). Shown under the pill, and said with the
+// attempt's outcome (AttemptOutcome), so a screen reader hears why as well as
+// what it cost (student pass 3, A11Y-1).
+export const ResultPill = ({ ok, children, stageCheck = false, message = null }) => {
   // PQ-032: a verdict that wraps is a 10px card, not a 999px lozenge. Long
   // text is known before layout; whether a shorter one wraps depends on the
   // width it is given, so it is measured, and re-measured when that changes.
@@ -380,7 +445,9 @@ export const ResultPill = ({ ok, children, stageCheck = false }) => {
       >
         {ok ? '✓' : '•'} {children}
       </span>
-      {stageCheck ? null : <AttemptOutcome />}
+      {/* Its own row in the flex rows some tools put their verdict in. */}
+      {message ? <p className="mathmaster-result-message" style={{ flexBasis: '100%', margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{message}</p> : null}
+      {stageCheck ? null : <AttemptOutcome verdict={children} coaching={message} />}
     </>
   );
 };

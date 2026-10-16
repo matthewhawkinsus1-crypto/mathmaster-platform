@@ -1813,6 +1813,16 @@
     width: 100%;
     max-width: none;
   }
+
+  /* The grid item is the wrapper round Continue and its Enter hint, not the
+     button: spanned only on the button, the wrapper sat in the medallion's
+     column and widened it to the button's width, so "CLASSWORK COMPLETE" was
+     squeezed into a 70px column. Invisible until the card could be reached on a
+     phone at all (student pass 3, RUN-1). */
+  .mathmaster-section-completion-actions {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

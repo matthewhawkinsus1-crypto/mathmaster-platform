@@ -111,7 +111,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
             : missed.includes('restriction')
               ? 'The arithmetic is right, but the domain restriction is not. A parabola only becomes one-to-one when you keep a single side of its vertex.'
               : 'The inverse value is off. f⁻¹ undoes f, so f⁻¹(f(x)) has to give you back the x you started with.';
-    return <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{explain}</p></div>;
+    return <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={explain}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div>;
   })() : null;
 
   const modeHints = mode === 'composition' ? [

@@ -521,7 +521,6 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           <HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} />
           {feedback ? (
             <div style={{ marginTop:14 }}>
-              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
               {(() => {
                 const parts = Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : [];
                 const missed = parts.filter((part) => !part.isCorrect).map((part) => part.id);
@@ -529,7 +528,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 const text = feedback.isCorrect
                   ? 'Every part of your modelling reasoning holds up.'
                   : `Still to fix: ${missed.map((part) => label[part] || part).join(', ')}. Everything else is right.`;
-                return <p style={{ margin:'9px 0 0', color:'var(--mm-text)', lineHeight:1.55 }}>{text}</p>;
+                return <ResultPill ok={feedback.isCorrect} message={text}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>;
               })()}
               <div style={{ marginTop:12, padding:12, borderRadius:10, background:'var(--mm-surface-sunken)', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)' }}>
                 <strong>Reference after submit:</strong> linear regression y ≈ {round(regression.m,2)}x {regression.b>=0?'+':'−'} {Math.abs(round(regression.b,2))}; best candidate by {questionData.modelMetric || 'RMSE'}: {bestModel?.label || '—'}.
