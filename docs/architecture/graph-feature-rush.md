@@ -39,7 +39,7 @@ questions, and screens.
 | `graphFeatureCurves.mjs` | graph specs (`kind` + parameters), evaluation, continuous segments, asymptotes, endpoint dots, sampling for drawing | everywhere |
 | `graphFeatureFamilies.mjs` | the nine families: exact builders and independent analyses | server, tests |
 | `graphFeatureCatalog.mjs` | a static summary of the families (names; which features each can ask, from which tier), held to the families by test | everywhere |
-| `graphFeatureGenerator.mjs` | seeded schedules, view selection, visual validation, the question a student gets | server, tests |
+| `graphFeatureGenerator.mjs` | seeded schedules, view selection, visual validation, the question a student gets (its random source, `seededRandom.mjs`, is shared with Graph the Line and re-exported here) | server, tests |
 | `graphFeatureHitTest.mjs` | screen-space tolerance and nearest-target resolution | everywhere |
 | `graphFeatureRushConfig.mjs` | presets, difficulty, round limits, teacher-setting validation | everywhere |
 | `graphFeatureRushRules.mjs` | the constants device and server share: attempt kinds, verdicts, request and record limits, cooldown, auto-skip | everywhere |

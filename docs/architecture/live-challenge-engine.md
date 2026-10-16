@@ -40,6 +40,8 @@ durable match result.
 | `liveChallenge.mjs` | the mature per-response scorer, receipts, leaderboard, tallies (pre-engine; still authoritative for Accuracy First arithmetic) | yes |
 | `liveChallengeParity.mjs` | client clock calibration, round phases, snapshot acceptance | yes |
 | `graphFeature*.mjs` | Graph Feature Rush: exact graph math, the generator, hit testing, attempt rules (see `graph-feature-rush.md`) | yes |
+| `seededRandom.mjs` | the integer-only seeded random source generated questions are rebuilt from (Graph Feature Rush and Graph the Line) | yes |
+| `lineGraph*.mjs` | Graph the Line — built, not yet registered as modes: exact lines, how equations are written and read, the generator, auto-check grading and hints (see `graph-the-line.md`) | yes |
 | `liveChallengePresence.mjs` | the heartbeat a game screen's clock calibration writes: quality, recent sessions (devices), reconnects | yes |
 
 `functions/index.js` loads the pure modules once through `liveChallengeEngine()`.
