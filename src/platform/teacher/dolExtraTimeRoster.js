@@ -44,9 +44,11 @@ export const dolExtraTimeForClass = ({
   const students = (Array.isArray(roster) ? roster : [])
     // Only a student with an extended-time entitlement can have a later close;
     // everyone else is the class's window by definition.
-    .filter((student) => dolExtendedTimeMultiplier(student?.profile || null, { nowValue: nowMs }) > 1)
+    // `timingProfile` is the stored `profile` field (teacherRosterSummary.js,
+    // App.jsx's full roster) — never the normalized copy's fallback.
+    .filter((student) => dolExtendedTimeMultiplier(student?.timingProfile || null, { nowValue: nowMs }) > 1)
     .map((student) => {
-      const state = getDOLState({ assignment, schedule, ...context, nowValue: nowMs, studentProfile: student.profile });
+      const state = getDOLState({ assignment, schedule, ...context, nowValue: nowMs, studentProfile: student.timingProfile });
       if (state.status !== 'active') return null;
       return {
         studentId: String(student.id || student.studentId || ''),

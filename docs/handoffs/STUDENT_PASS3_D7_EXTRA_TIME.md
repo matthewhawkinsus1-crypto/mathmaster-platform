@@ -154,6 +154,12 @@ findings in `dolCloseCopy`), the pack-up guard removed and the profile injection
 | Note: "Close now" | wording corrected (code comment, decision 4) |
 | Notes: Missing label, read-at-finalize, stale pending entry, section-only state entries, `resolveHeldSectionRecovery` | in Decision 6, "Found, not changed" and the deploy list |
 
+Second review item, fixed: on-device Recovery (discovery, scope and the result panel's summary), the checkpoint's
+finalize hint and the teacher's Live view roster also take D7 timing from the stored `profile` field
+(`user.timingProfile`; teacher rows carry `timingProfile` from `teacherRosterSummary.js`, the full roster and a saved
+profile). The Recovery grade projection's reduced-item-count input (App.jsx ~1240) still reads the normalized
+profile: it is not timing, and it is outside D7. Mutation checks: 10, all red.
+
 Found by the gate in this round, fixed: the new `timingProfile` was first inserted at index 4 of the student
 projection's dedupe inputs, which URL arrival reads as the student's controls (`lastPublishedRef.current[4]`), so a
 deep link to a lesson landed on Home (`dolExtraTimeJourneys`, `prerequisiteEarlyJourneys`). It is now appended after

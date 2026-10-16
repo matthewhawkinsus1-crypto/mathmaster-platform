@@ -354,10 +354,16 @@ test('the assignment screen hands the student\'s own window to the DOL copy', ()
 
 test('the teacher\'s live view knows who still has extra time, and never says so on the projector', () => {
   const assignment = lesson();
+  // Rows as the teacher's roster holds them (teacherRosterSummary.js): the
+  // normalized profile, and the stored field as `timingProfile`.
+  const row = (studentId, displayName, stored) => ({ ...normalizeTeacherRosterSummary({ studentId, displayName, profile: stored }), displayName });
   const roster = [
-    { id: 'S1', displayName: 'Ana Ruiz', profile: normalizeStudentProfile(LEGACY_EXTRA_TIME) },
-    { id: 'S2', displayName: 'Ben Ode', profile: normalizeStudentProfile(LEGACY_NO_EXTRA_TIME) },
-    { id: 'S3', displayName: 'Cy Lee', profile: normalizeStudentProfile(versioned({ appliesTo: ['classwork'] })) },
+    row('S1', 'Ana Ruiz', LEGACY_EXTRA_TIME),
+    row('S2', 'Ben Ode', LEGACY_NO_EXTRA_TIME),
+    row('S3', 'Cy Lee', versioned({ appliesTo: ['classwork'] })),
+    // Supports only at the top of the grade document (no `profile` field): the
+    // full roster's normalized copy shows extra time, the server grants none.
+    { id: 'S5', displayName: 'Eli Moss', profile: normalizeStudentProfile({ accommodations: ['extra-time'] }), timingProfile: null },
   ];
   const classContext = { classId: 'class-a', classPeriod: 'Period 1' };
   const during = dolExtraTimeForClass({ assignment, schedule, classContext, roster, nowValue: at(9, 20) });
@@ -369,7 +375,7 @@ test('the teacher\'s live view knows who still has extra time, and never says so
   assert.deepEqual(after.students, [{ studentId: 'S1', name: 'Ana Ruiz', endsAt: at(9, 30) }]);
   assert.equal(dolExtraTimeForClass({ assignment, schedule, classContext, roster, nowValue: at(9, 31) }), null, 'gone when their time is up');
   // Two students, two closes: the chip counts down to the last one.
-  const two = dolExtraTimeForClass({ assignment, schedule, classContext, roster: [...roster, { id: 'S4', displayName: 'Dee Kim', profile: DISTRICT_DOUBLE_TIME }], nowValue: at(9, 27) });
+  const two = dolExtraTimeForClass({ assignment, schedule, classContext, roster: [...roster, { id: 'S4', displayName: 'Dee Kim', profile: {}, timingProfile: DISTRICT_DOUBLE_TIME }], nowValue: at(9, 27) });
   assert.deepEqual(two.students.map((student) => [student.studentId, student.endsAt.getMinutes()]), [['S1', 30], ['S4', 35]]);
   assert.equal(two.endsAt.getTime(), at(9, 35).getTime());
   assert.equal(dolExtraTimeForClass({ assignment, schedule, classContext, roster: roster.slice(1), nowValue: at(9, 27) }), null, 'nobody with extra time: nothing shown');
@@ -486,4 +492,39 @@ test('the live timing profile is compared by content, not key order', () => {
   assert.equal(sameTimingProfile({ accommodations: ['extra-time'] }, { accommodations: [] }), false);
   assert.equal(sameTimingProfile({ accommodations: ['a', 'b'] }, { accommodations: ['b', 'a'] }), false, 'array order is content');
   assert.equal(sameTimingProfile(null, {}), false);
+});
+
+test('on-device Recovery, the finalize hint and the teacher roster take timing from the stored `profile` field', () => {
+  const assignment = lesson();
+  // Recovery (resolveOriginalOpportunity) with what the device now passes —
+  // gradeData.profile || null — agrees with the server's own read.
+  const opportunity = (studentProfile, when) => resolveOriginalOpportunity({
+    assignment, section: 'dol', schedule, classId: 'class-a', classPeriod: 'Period 1', studentId: 'S1', nowValue: when.getTime(), timeZone: null, studentProfile,
+  });
+  const noProfileField = { accommodations: ['extra-time'] };
+  assert.equal(opportunity(noProfileField.profile || null, at(9, 26)).status, ORIGINAL_OPPORTUNITY.CLOSED, 'no profile field: closed with the class, as on the server');
+  assert.equal(opportunity(normalizeStudentProfile(noProfileField), at(9, 26)).status, ORIGINAL_OPPORTUNITY.OPEN, '(the normalized fallback would have held it open)');
+  assert.equal(opportunity(DISTRICT_DOUBLE_TIME, at(9, 33)).status, ORIGINAL_OPPORTUNITY.OPEN, 'a district multiplier keeps it open on the device too');
+
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  const discovery = region(app, 'studentRecoveryMinute * 60000,', 'const studentRecoverySummary = useMemo(', 'Recovery discovery');
+  assert.match(discovery, /user\?\.timingProfile, assignments/);
+  const discoveryCall = app.slice(app.lastIndexOf('schedule: classSchedule,', app.indexOf('studentRecoveryMinute * 60000,')), app.indexOf('studentRecoveryMinute * 60000,'));
+  assert.match(discoveryCall, /studentProfile: user\.timingProfile \|\| null,/);
+  const summary = region(app, 'const studentRecoverySummary = useMemo(', 'useEffect(() => {', 'Recovery summary');
+  assert.match(summary, /studentProfile: user\.timingProfile \|\| null,/);
+  assert.match(summary, /user\?\.timingProfile, classSchedule\]/);
+  const scope = region(app, 'recoveryDiscoveryScope', 'const studentRecoveryByAssignment = useMemo(', 'Recovery discovery scope');
+  assert.match(scope, /studentProfile: user\.timingProfile \|\| null,\s*nowValue: now,/);
+  assert.match(scope, /user\?\.timingProfile, assignments/);
+  // The checkpoint's finalize hint (resolveAuthoritativeClose before enqueueResponseCheckpoint).
+  assert.match(app, /studentId: user\.id,\s*studentProfile: user\.timingProfile \|\| null,\s*\}\);\s*try \{\s*setStudentPersistenceStatus\('capturing'\);/);
+  // No D7 timing reader is left on the normalized copy.
+  assert.doesNotMatch(app, /studentProfile: user\.profile \|\| null/);
+  // The teacher's rows carry the stored field.
+  assert.match(app, /profile: normalizeStudentProfile\(studentDoc\.data\(\)\?\.profile \|\| studentDoc\.data\(\)\), timingProfile: studentDoc\.data\(\)\?\.profile \|\| null \}/);
+  // A saved profile refreshes both teacher rosters' timing field.
+  assert.equal((app.match(/\{ \.\.\.entry, profile: nextProfile, timingProfile \}/g) || []).length, 2);
+  assert.equal(normalizeTeacherRosterSummary({ studentId: 'S1', profile: LEGACY_EXTRA_TIME }).timingProfile, LEGACY_EXTRA_TIME);
+  assert.equal(normalizeTeacherRosterSummary({ studentId: 'S1' }).timingProfile, null);
 });

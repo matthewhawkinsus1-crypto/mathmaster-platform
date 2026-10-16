@@ -1261,10 +1261,11 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      // The grade document's own `profile` field, as the server reads it (D7).
+      studentProfile: user.timingProfile || null,
       nowValue: studentRecoveryMinute * 60000,
     })
-    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.profile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
+    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
   const studentRecoverySummary = useMemo(() => {
     if (!recoveryAssignmentId || !user?.id) return [];
     const assignment = assignments.find((item) => item.id === recoveryAssignmentId);
@@ -1277,9 +1278,9 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      studentProfile: user.timingProfile || null,
     });
-  }, [recoveryAssignmentId, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.profile, classSchedule]);
+  }, [recoveryAssignmentId, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, classSchedule]);
 
   useEffect(() => {
     if (!recoveryAssignmentId) setRecoverySession(null);
@@ -1318,10 +1319,10 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      studentProfile: user.timingProfile || null,
       nowValue: now,
     });
-  }, [recoveryDiscoveryScope, user?.id, user?.classId, user?.classPeriod, user?.profile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
+  }, [recoveryDiscoveryScope, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
   const studentRecoveryByAssignment = useMemo(
     () => groupRecoveryOpportunitiesByAssignment(studentRecoveryDiscovery),
     [studentRecoveryDiscovery],
@@ -2713,7 +2714,7 @@ function App() {
 
   const collectStudentGradeSnapshot = (querySnapshot) => querySnapshot.docs
     .filter((studentDoc) => studentDoc.id !== 'test_connection')
-    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) }))
+    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()), timingProfile: studentDoc.data()?.profile || null }))
     .sort(compareStudentsByName);
 
   const studentGradeSourceForViewer = (viewer) => (
@@ -6684,7 +6685,8 @@ function App() {
       // This student's own final cutoff (attendance extension, individualized
       // extra time), so the finalize hint is not earlier than the server's.
       studentId: user.id,
-      studentProfile: user.profile || null,
+      // The grade document's own `profile` field, as the finalizer reads it (D7).
+      studentProfile: user.timingProfile || null,
     });
     try {
       setStudentPersistenceStatus('capturing');
@@ -8280,8 +8282,10 @@ function App() {
   // the history the evidence report depends on.
   const handleSupportProfileSaved = (studentId, projection) => {
     const nextProfile = normalizeStudentProfile(projection);
-    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
-    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
+    // `timingProfile` is the stored projection itself (the D7 DOL window).
+    const timingProfile = projection && typeof projection === 'object' ? projection : null;
+    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
+    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
   };
 
   const handleSaveClassSchedule = async () => {
