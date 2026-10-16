@@ -19,6 +19,7 @@ import {
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { parseQuestionDraftKey } from '../../questionDraftStorage.js';
 import { reportDraftSyncRejection } from './draftSyncDiagnostics.js';
+import { DRAFT_SAVE_PROBLEM, clearDraftSaveProblem, clearDraftSaveProblems, reportDraftSaveProblem } from './draftSaveHealth.js';
 import { projectDraftForServer } from './serverDraftProjection.js';
 
 export const WORKSPACE_DRAFT_DEBOUNCE_MS = 2500;
@@ -65,7 +66,7 @@ export const createWorkspaceDraftSync = ({
   // `rejected` counts drafts the guard refused, by reason. They are also
   // `skipped`; the separate tally is what tells a refused record (a tool bug
   // that stops server backup) from an out-of-scope key (expected).
-  const stats = { recorded: 0, skipped: 0, flushes: 0, failures: 0, rejected: {}, unedited: 0 };
+  const stats = { recorded: 0, skipped: 0, flushes: 0, failures: 0, rejected: {}, unedited: 0, dropped: 0 };
 
   /*
    * WHAT THE SERVER HOLDS, AS FAR AS THIS DEVICE KNOWS (PQ-044).
@@ -130,7 +131,15 @@ export const createWorkspaceDraftSync = ({
       return null;
     }
     inFlight = Promise.resolve(started)
-      .then(() => {
+      .then((result) => {
+        // What the server's caps left out of the document (the oldest drafts):
+        // on this device only from now on, and the student is told so.
+        const dropped = Array.isArray(result?.droppedKeys) ? result.droppedKeys : null;
+        if (dropped) {
+          clearDraftSaveProblems(DRAFT_SAVE_PROBLEM.BACKUP_FULL);
+          dropped.forEach((key) => reportDraftSaveProblem(DRAFT_SAVE_PROBLEM.BACKUP_FULL, key));
+          stats.dropped = dropped.length;
+        }
         flushedAt.forEach((savedAt, key) => {
           noteServerSavedAt(key, savedAt);
           if ((pending.get(key)?.savedAt ?? -1) === savedAt) pending.delete(key);
@@ -153,7 +162,7 @@ export const createWorkspaceDraftSync = ({
   }
 
   /** Called synchronously from the draft write. Must stay cheap. */
-  const record = ({ key, value, savedAt, edit, savedAtIsEdit } = {}) => {
+  const record = ({ key, value, savedAt, edit, savedAtIsEdit, fieldEditedAt = null, fieldsFresh = false } = {}) => {
     if (stopped) return false;
     const identity = parseQuestionDraftKey(key);
     if (!identity || !['student', 'practice'].includes(identity.sessionBucket)) { stats.skipped += 1; return false; }
@@ -178,7 +187,7 @@ export const createWorkspaceDraftSync = ({
     if (edit === false) {
       if (stamp <= 0) { stats.unedited += 1; return false; }
       if ((pending.get(key)?.savedAt ?? 0) >= stamp) return false;
-      if (!serverKnown) { held.set(key, { key, value, savedAt: stamp, savedAtIsEdit: marked }); return false; }
+      if (!serverKnown) { held.set(key, { key, value, savedAt: stamp, savedAtIsEdit: marked, fieldEditedAt, fieldsFresh }); return false; }
       if (stamp <= (serverSavedAt.get(key) || 0)) return false;
     } else {
       held.delete(key);
@@ -192,14 +201,17 @@ export const createWorkspaceDraftSync = ({
     if (!sanitizeWorkspaceDraftValue(serverValue).ok) {
       // Refused by the guard, which stays exactly as strict. What changes is
       // that someone hears about it: the path and reason go to the console
-      // once (see draftSyncDiagnostics.js). The student is told nothing —
-      // their local draft is still durable.
+      // once (see draftSyncDiagnostics.js), and the student is told, plainly,
+      // that this work is on this device only (draftSaveHealth.js) — never
+      // which field, which they could not act on.
       const explanation = explainWorkspaceDraftRejection(serverValue);
       stats.skipped += 1;
       stats.rejected[explanation.reason] = (stats.rejected[explanation.reason] || 0) + 1;
       reportDraftSyncRejection({ key, explanation, source: 'sync' });
+      reportDraftSaveProblem(DRAFT_SAVE_PROBLEM.BACKUP_REFUSED, key);
       return false;
     }
+    clearDraftSaveProblem(DRAFT_SAVE_PROBLEM.BACKUP_REFUSED, key);
     pending.set(key, {
       key,
       value: serverValue,
@@ -207,6 +219,10 @@ export const createWorkspaceDraftSync = ({
       questionIndex: identity.questionIndex,
       variantIndex: identity.variantIndex,
       ...(marked ? { savedAtIsEdit: true } : {}),
+      // A multi-answer, Step Algebra or composed-step draft's per-answer edit
+      // times, merged answer by answer on the server (workspaceDraftSchema.mjs).
+      ...(fieldEditedAt ? { fieldEditedAt } : {}),
+      ...(fieldsFresh === true ? { fieldsFresh: true } : {}),
     });
     stats.recorded += 1;
     dirtySinceFlush = true;

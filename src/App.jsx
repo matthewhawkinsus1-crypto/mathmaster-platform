@@ -118,6 +118,7 @@ import {
   clearResumeAction,
   questionDraftSavedAt,
   readResumeAction,
+  reconcileFieldRecordDrafts,
   reconcileToolWorkspaceDrafts,
   removeAssignmentDrafts,
   restoreQuestionDrafts,
@@ -3815,22 +3816,29 @@ function App() {
           serverCopyRead = true;
           const entries = readWorkspaceDraftEntries(stored);
           const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
+          // A deadline auto-submit is dated by when its work was captured,
+          // so the backup of that very work is not refused as older than
+          // its own submission (canonicalResponseTime.js).
+          const canonicalSavedAt = (entry) => canonicalResponseSavedAt(normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]));
           const restorable = selectRestorableDraftEntries({
             entries,
             localSavedAt: (key) => questionDraftSavedAt(key),
-            // A deadline auto-submit is dated by when its work was captured,
-            // so the backup of that very work is not refused as older than
-            // its own submission (canonicalResponseTime.js).
-            canonicalSavedAt: (entry) => canonicalResponseSavedAt(normalizeQuestionRecord(assignmentGrades[entry?.questionIndex])),
+            canonicalSavedAt,
           });
           // A tool workspace this device started from nothing — the student
           // touched it before this read landed — is settled against the
           // server's copy first: merged, so a newer copy is not then swapped
           // in over the student's edits, nor their partial copy kept over the
-          // server's whole one (reconcileToolWorkspaceDrafts).
-          const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId });
-          const restored = restoreQuestionDrafts(restorable);
-          if (restored || settled) {
+          // server's whole one (reconcileToolWorkspaceDrafts). Multi-answer,
+          // Step Algebra and composed-step drafts this device holds are
+          // settled answer by answer (reconcileFieldRecordDrafts) and are not
+          // then restored whole. Neither settle reads an entry older than the
+          // question's last submitted attempt: its fields are an older
+          // attempt's (PR #458 review).
+          const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt });
+          const fieldRecords = reconcileFieldRecordDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt });
+          const restored = restoreQuestionDrafts(restorable.filter((entry) => !fieldRecords.keys.has(entry.key)));
+          if (restored || settled || fieldRecords.settled) {
             setDraftRestoreFocus({
               questionIndex: currentQuestionIndexRef.current,
               position: answerFocusPosition(assignmentQuestionStageRef.current),
