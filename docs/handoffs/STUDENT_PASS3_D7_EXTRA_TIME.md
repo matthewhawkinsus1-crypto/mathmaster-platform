@@ -128,7 +128,7 @@ findings in `dolCloseCopy`), the pack-up guard removed and the profile injection
 | Check | Result |
 | --- | --- |
 | `npm ci`, `npm --prefix functions ci` | done |
-| `npm run test:platform` | 11,454 / 11,454 |
+| `npm run test:platform` | 11,455 / 11,455 (on `a7b4a68`) |
 | `node --test tests/tools/*.test.mjs` | 1,644 tests, 1,643 pass, 0 fail, 1 skipped |
 | `npm run test:authoring-v5` | 686 / 686 |
 | `npm run lint` | exit 0 (warnings only; none in lines this branch wrote) |
@@ -158,7 +158,12 @@ Second review item, fixed: on-device Recovery (discovery, scope and the result p
 finalize hint and the teacher's Live view roster also take D7 timing from the stored `profile` field
 (`user.timingProfile`; teacher rows carry `timingProfile` from `teacherRosterSummary.js`, the full roster and a saved
 profile). The Recovery grade projection's reduced-item-count input (App.jsx ~1240) still reads the normalized
-profile: it is not timing, and it is outside D7. Mutation checks: 10, all red.
+profile: it is not timing, and it is outside D7. Mutation checks: 10 + the two rewritten Recovery contracts
+(`sectionRecovery`, `studentRecoveryDiscovery`: "the browser decides with the same support profile as the server" now
+asserts `user.timingProfile`), all red. Browser on `a7b4a68`: `dolCloseCopy`, `dolExtraTimeJourneys`, `journeys`,
+`appUrlJourneys`, `prerequisiteEarlyJourneys`, `privateControlsJourneys`, `warmupReopenJourneys` pass;
+`recoveryHoldJourneys` passes 450/450 with the base's harness favicon link (`8e51f65`) — without it, its only finding
+is that harness 404; `studentNameJourneys` as on the base.
 
 Found by the gate in this round, fixed: the new `timingProfile` was first inserted at index 4 of the student
 projection's dedupe inputs, which URL arrival reads as the student's controls (`lastPublishedRef.current[4]`), so a
