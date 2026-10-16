@@ -176,7 +176,7 @@ test('every field of every real item is read, with every choice it offers', () =
   let fields = 0;
   realQuestions().forEach(({ stored, question }) => {
     const parts = readingOf(question);
-    assert.ok(parts.length > 0 && parts.some((part) => part.kind === 'prompt'), `${stored.questionId}: the prompt is read`);
+    assert.ok(parts.some((part) => part.kind === 'prompt'), `${stored.questionId}: the prompt is read`);
     const text = questionReadingText(parts);
     (question.answerFields || []).filter((field) => field?.id).forEach((field) => {
       fields += 1;
