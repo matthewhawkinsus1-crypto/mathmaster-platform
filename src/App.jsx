@@ -8847,10 +8847,41 @@ function App() {
           ⏰ PACK UP & RETURN TECHNOLOGY
         </div>
         <div style={{ marginTop: 8, fontSize: 'clamp(calc(16 * var(--mm-px)), calc(2.2vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', fontWeight: 900 }}>
-          Save your work, sign out, and return your device now. The bell is in{' '}
+          {/* No "Save your work": work saves as it is entered, and the save
+              line says when it could not be (student pass 3). */}
+          Finish up, sign out, and return your device now. The bell is in{' '}
           <DOLCountdown endsAt={packUp.endsAt} />.
         </div>
       </aside>
+    );
+  };
+
+  /*
+   * THE LIVE CHALLENGE LOBBY, WHEREVER THE STUDENT IS (student pass 3, P3).
+   *
+   * The invite showed only on Home: a student on Grades, Assignments, My
+   * Rewards, My Math Path or a result page saw nothing until the game was
+   * running. One line, the same action as Home's card. Never in a secure
+   * exam, a Test Cycle or the game itself (those screens do not render it).
+   */
+  const renderStudentLiveChallengeInvite = () => {
+    if (user?.role !== 'student' || secureExamActive) return null;
+    if (!liveChallengeInvite || !['invited', 'joined', 'running'].includes(liveChallengeInvite.status)) return null;
+    const running = liveChallengeInvite.status === 'running';
+    return (
+      <section
+        aria-label="Live Challenge"
+        data-live-challenge-invite
+        style={{ maxWidth: 920, margin: '12px auto 0', padding: '10px 14px', boxSizing: 'border-box', borderRadius: 12, background: 'var(--mm-primary-soft)', border: '2px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', textAlign: 'left' }}
+      >
+        <span style={{ fontWeight: 900, minWidth: 0, overflowWrap: 'anywhere' }}>
+          <span aria-hidden="true">⚡ </span>
+          {running ? 'The Live Challenge is running now.' : 'Your teacher opened the Live Challenge lobby.'}
+        </span>
+        <button type="button" onClick={() => setStudentDashboardMode('liveChallenge')} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>
+          {running ? 'Join Challenge Now' : 'Enter Challenge Lobby'}
+        </button>
+      </section>
     );
   };
 
@@ -10981,6 +11012,7 @@ function App() {
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <MyMathPathApp
           studentId={user.id}
           studentName={formatStudentName({ ...studentRecord, ...user }, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}
@@ -11007,6 +11039,7 @@ function App() {
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <StudentAssignmentsCenter
             dashboard={studentDashboard}
             gradeCenter={studentGradeCenter}
@@ -11030,6 +11063,7 @@ function App() {
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <StudentRewardsCenter
             student={{ ...studentRecord, ...user }}
             wallet={studentRewardWallet}
@@ -11053,6 +11087,7 @@ function App() {
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <StudentGradeCenter
             gradeCenter={studentGradeCenter}
             supportPresentation={getStudentSupportPresentation(user.profile)}
@@ -11271,6 +11306,7 @@ function App() {
       <>
         {renderStudentPackUpBanner()}
         {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
         <StudentAssignmentResult
           entry={resultEntry}
           sectionLabel={resultSectionLabel}

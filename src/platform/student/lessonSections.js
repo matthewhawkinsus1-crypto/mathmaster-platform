@@ -270,7 +270,16 @@ export const describeLessonSections = ({
  * "DOL opens at 2:15 PM" / "Classwork — your teacher opens it in class".
  * Student copy for a section that cannot be worked yet.
  */
-export const describeSectionWait = (section, { formatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), formatDay = (date) => date.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }), nowValue = Date.now() } = {}) => {
+// A class day's date key ("2026-10-21") as a student reads it: "Wed, Oct 21"
+// (student pass 3: the wait line printed the raw key).
+const formatClassDayKey = (dateKey) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey || ''));
+  if (!match) return String(dateKey || '');
+  const [, year, month, day] = match.map(Number);
+  return new Date(year, month - 1, day, 12).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+};
+
+export const describeSectionWait = (section, { formatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), formatDay = (date) => date.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }), formatDateKey = formatClassDayKey, nowValue = Date.now() } = {}) => {
   if (!section) return null;
   const label = section.label || sectionLabel(section.role);
   if (section.state === SECTION_STATE.OPENS_LATER) {
@@ -278,7 +287,7 @@ export const describeSectionWait = (section, { formatTime = (date) => date.toLoc
       const sameDay = new Date(nowValue).toDateString() === section.opensAt.toDateString();
       return `${label} opens ${sameDay ? `at ${formatTime(section.opensAt)}` : formatDay(section.opensAt)}`;
     }
-    if (section.opensOn) return `${label} opens in class on ${section.opensOn}`;
+    if (section.opensOn) return `${label} opens in class on ${formatDateKey(section.opensOn)}`;
     return `${label} opens later`;
   }
   if (section.state === SECTION_STATE.LOCKED) {

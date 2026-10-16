@@ -62,3 +62,22 @@ test('NAV-13: Assignments folds the search and period behind one button, and a s
   assert.match(toggle, /aria-controls="assignments-filters"/);
   assert.match(toggle, /if \(search\) return;/);
 });
+
+test('P3: Assignments keeps its search, tab and marking period for Back, per student, in this tab only', async () => {
+  const { readAssignmentsView, writeAssignmentsView, assignmentsViewKey } = await import('../../src/platform/student/assignmentsCenterMemory.js');
+  const data = new Map();
+  const store = { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => data.set(key, String(value)) };
+  writeAssignmentsView('s1', { search: 'domain', category: 'completed', periodId: 'mp1', answer: 'never stored' }, store);
+  assert.deepEqual(readAssignmentsView('s1', store), { search: 'domain', category: 'completed', periodId: 'mp1' });
+  const other = readAssignmentsView('s2', store);
+  assert.ok(!other.search && !other.category && !other.periodId, 'another student on the same Chromebook starts fresh');
+  assert.doesNotMatch(data.get(assignmentsViewKey('s1')), /never stored/);
+  const throwing = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
+  assert.deepEqual(readAssignmentsView('s1', throwing), {});
+  assert.doesNotThrow(() => writeAssignmentsView('s1', {}, throwing));
+
+  const center = executableSource(read('src/components/student/StudentAssignmentsCenter.jsx'));
+  assert.match(center, /const \[remembered\] = useState\(\(\) => readAssignmentsView\(studentId\)\);/);
+  assert.match(center, /useState\(remembered\.search \|\| ''\)/);
+  assert.match(center, /useEffect\(\(\) => \{ writeAssignmentsView\(studentId, \{ search, category, periodId \}\); \}, \[studentId, search, category, periodId\]\);/);
+});

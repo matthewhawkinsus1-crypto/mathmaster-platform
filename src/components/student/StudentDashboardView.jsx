@@ -27,6 +27,7 @@ import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
 import RewardsSummaryCard from './rewards/RewardsSummaryCard.jsx';
 import { questionAddressLabel } from '../../app/routes/questionAddress.js';
 import { whatChangedUpdatesLabel } from '../../platform/student/whatChangedModel.js';
+import { studentPeriodLabel } from '../../platform/student/studentWords.js';
 
 // The student's assignment dashboard, as a component.
 //
@@ -409,7 +410,7 @@ export default function StudentDashboardView({
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: 'clamp(14px, 3vw, 20px) clamp(14px, 3vw, 30px)', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: saveStatus ? '8px' : '20px', gap: '16px', flexWrap: 'wrap' }}>
           {/* Name and class period only. Nothing about a support plan is ever
               shown here: Home is the screen most often read over a shoulder. */}
-          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: 'var(--mm-primary)', fontSize: 'calc(25 * var(--mm-px))' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1><p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)' }}>{student.classPeriod}</p></div>
+          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: 'var(--mm-primary)', fontSize: 'calc(25 * var(--mm-px))' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1>{studentPeriodLabel(student.classPeriod) && <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)' }}>{studentPeriodLabel(student.classPeriod)}</p>}</div>
           {/*
             One navigation, shared with Assignments, Grades and My Math Path.
             These were four independently written buttons, which is how My Math
@@ -498,11 +499,11 @@ export default function StudentDashboardView({
         {secondaryDols.map(({ assignment, state, records = [] }) => (
           <section key={`dol-${assignment.id}`} data-secondary-live="dol" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-accent-soft)', border: '2px solid #9334e6', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>DOL open now</div>
+              <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Exit ticket (DOL) open now</div>
               <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{assignment.title}</div>
               {!hideCountdowns && <div style={{ fontWeight: 900 }}><DOLCountdown endsAt={state.endsAt} /> left</div>}
             </div>
-            <button type="button" onClick={() => onStartAssignment(assignment.id, firstOpenLiveQuestionIndex({ indices: state.questionIndices || [state.questionIndex], records, section: 'dol' }) ?? 0)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #681da8', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Start DOL</button>
+            <button type="button" onClick={() => onStartAssignment(assignment.id, firstOpenLiveQuestionIndex({ indices: state.questionIndices || [state.questionIndex], records, section: 'dol' }) ?? 0)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #681da8', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Start the exit ticket</button>
           </section>
         ))}
 
@@ -538,7 +539,7 @@ export default function StudentDashboardView({
           <EmptyState
             icon="🎉"
             title="Nothing assigned yet"
-            message={`No assignments have been given to ${student.classPeriod} yet. Anything your teacher publishes will show up here automatically.`}
+            message="No assignments have been given to your class yet. Anything your teacher publishes will show up here automatically."
           />
         ) : (
           <>

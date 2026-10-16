@@ -22,6 +22,7 @@
 //   S4  No screen scrolls sideways.
 //   S5  Home → "See results": the result page's Back reads "← Home" and goes
 //       Home (NAV-9), where browser Back would have gone.
+//   S6  Assignments: a search survives View Results → browser Back.
 //
 // Exit code 1 on any finding.
 
@@ -185,6 +186,24 @@ for (const viewport of VIEWPORTS) {
       const home = await settled(page, 'Home');
       checkScreen(`S5 ${tag} ← Home`, home, 'Home');
     }
+  }
+
+  // S6 — Assignments keeps its search across View Results and Back.
+  await pressDestination(page, 'Assignments', phone);
+  await settled(page, 'Assignments');
+  const toggle = page.locator('button.mm-assignments-filters__toggle');
+  if (await toggle.isVisible()) await toggle.click();
+  await page.locator('#assignments-search').fill('Elimination');
+  await page.waitForTimeout(200);
+  const resultsButton = page.getByRole('button', { name: 'View Results' }).filter({ visible: true }).first();
+  if (expect(`S6 ${tag}`, await resultsButton.count(), 'no View Results after searching')) {
+    await resultsButton.click();
+    await settled(page, 'Assignment result');
+    await page.goBack();
+    await settled(page, 'Assignments');
+    const kept = await page.locator('#assignments-search').inputValue().catch(() => null);
+    expect(`S6 ${tag}`, kept === 'Elimination', `the search came back as ${JSON.stringify(kept)}`);
+    await page.locator('#assignments-search').fill('');
   }
 
   expect(`${tag}`, errors.length === 0, `page errors: ${errors.join(' | ')}`);

@@ -52,3 +52,22 @@ test('NAV-12: the card prints the close line instead of the due date for a timed
   assert.ok(lines.indexOf('data-next-action-closes') < lines.indexOf('nextAction.lateLine ? ('));
   assert.ok(lines.indexOf('data-next-action-closes') < lines.indexOf("'Your due date: ' : 'Due '"));
 });
+
+test('P3: a wait line names the class day as a student reads it, never the raw date key', async () => {
+  const { describeSectionWait, SECTION_STATE } = await import('../../src/platform/student/lessonSections.js');
+  const line = describeSectionWait({ role: 'dol', label: 'DOL', state: SECTION_STATE.OPENS_LATER, opensOn: '2026-10-21' }, { nowValue: NOW });
+  assert.doesNotMatch(line, /2026-10-21/);
+  assert.match(line, /^DOL opens in class on \w{3}, Oct 21$/);
+  assert.equal(describeSectionWait({ label: 'DOL', state: SECTION_STATE.OPENS_LATER, opensOn: '2026-10-21' }, { formatDateKey: () => 'Wednesday' }), 'DOL opens in class on Wednesday');
+});
+
+test('P3: Home names the class period as "Period 3", and its empty state never prints a raw period', async () => {
+  const { studentPeriodLabel } = await import('../../src/platform/student/studentWords.js');
+  assert.equal(studentPeriodLabel('3'), 'Period 3');
+  assert.equal(studentPeriodLabel('Period 3'), 'Period 3');
+  assert.equal(studentPeriodLabel('Unassigned'), '');
+  assert.equal(studentPeriodLabel(null), '');
+  const home = executableSource(readFileSync(new URL('../../src/components/student/StudentDashboardView.jsx', import.meta.url), 'utf8'));
+  assert.doesNotMatch(home, /\{student\.classPeriod\}|given to \$\{student\.classPeriod\}/);
+  assert.match(home, /\{studentPeriodLabel\(student\.classPeriod\)\}/);
+});

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState, ProgressBar } from '../../ui/primitives';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
@@ -10,6 +10,7 @@ import {
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
 import { RecoveryInlineNotice } from './RecoveryOpportunities.jsx';
+import { readAssignmentsView, writeAssignmentsView } from '../../platform/student/assignmentsCenterMemory.js';
 
 /*
  * THE ASSIGNMENTS CENTER.
@@ -175,9 +176,14 @@ export default function StudentAssignmentsCenter({
   studentId = null,
   onOpenRecovery = null,
 }) {
-  const [search, setSearch] = useState('');
-  const [periodId, setPeriodId] = useState(null);
-  const [category, setCategory] = useState(ASSIGNMENT_CATEGORY.ACTIVE);
+  // As the student left them, when they come Back (assignmentsCenterMemory.js).
+  const [remembered] = useState(() => readAssignmentsView(studentId));
+  const [search, setSearch] = useState(remembered.search || '');
+  const [periodId, setPeriodId] = useState(remembered.periodId || null);
+  const [category, setCategory] = useState(
+    Object.values(ASSIGNMENT_CATEGORY).includes(remembered.category) ? remembered.category : ASSIGNMENT_CATEGORY.ACTIVE,
+  );
+  useEffect(() => { writeAssignmentsView(studentId, { search, category, periodId }); }, [studentId, search, category, periodId]);
   // On a phone the search and the marking period fold behind one button
   // (NAV-13, index.css); a search in progress keeps them open.
   const [filtersOpen, setFiltersOpen] = useState(false);

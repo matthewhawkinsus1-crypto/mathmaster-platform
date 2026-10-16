@@ -226,3 +226,20 @@ test('NAV-9: Home opens results and starts with origin Home; the Test Cycle card
   const card = executableSource(read('src/components/student/TestCycleCard.jsx'));
   assert.match(card, /<button type="button" data-test-cycle-exit onClick=\{onExit\} style=\{quietButtonStyle\}>\s*\{exitLabel\}/);
 });
+
+// ------------------------------------------------------------ P3: the Live Challenge lobby
+test('P3: the Live Challenge lobby invite shows on Assignments, Grades, Rewards, My Math Path and a result — never in a test', () => {
+  const invite = region(app, 'const renderStudentLiveChallengeInvite = () => {', '\n  };\n');
+  assert.match(invite, /if \(user\?\.role !== 'student' \|\| secureExamActive\) return null;/);
+  assert.match(invite, /\['invited', 'joined', 'running'\]\.includes\(liveChallengeInvite\.status\)/);
+  assert.match(invite, /onClick=\{\(\) => setStudentDashboardMode\('liveChallenge'\)\}/);
+  for (const [mode, screen] of [['assignmentsCenter', '<StudentAssignmentsCenter'], ['rewards', '<StudentRewardsCenter'], ['grades', '<StudentGradeCenter'], ['mathPath', '<MyMathPathApp']]) {
+    const branch = region(app, `if (studentDashboardMode === '${mode}') {`, screen);
+    assert.match(branch, /\{renderStudentLiveChallengeInvite\(\)\}/, mode);
+  }
+  assert.match(region(app, "if (user.role === 'student' && activeView === 'assignmentResult' && assignmentResultRoute) {", '<StudentAssignmentResult\n'), /\{renderStudentLiveChallengeInvite\(\)\}/);
+  for (const mode of ['testCycle', 'secureExams', 'liveChallenge']) {
+    const branch = region(app, `if (studentDashboardMode === '${mode}'`, '\n    }\n');
+    assert.doesNotMatch(branch, /renderStudentLiveChallengeInvite/, mode);
+  }
+});

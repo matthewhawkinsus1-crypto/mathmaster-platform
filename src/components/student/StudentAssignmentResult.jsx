@@ -221,7 +221,9 @@ export default function StudentAssignmentResult({
 
         <div style={{ marginTop: 16, padding: '16px 16px 14px', borderRadius: 12, background: 'var(--mm-primary-soft)' }}>
           <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
-            {entry.frozen ? 'Your grade · frozen' : 'Your grade'}
+            {/* "closed", like the status line above — not the teacher word
+                "frozen" (student pass 3). */}
+            {entry.frozen ? 'Your grade · closed' : 'Your grade'}
           </div>
           <div style={{ marginTop: 4, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(9vw * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)', overflowWrap: 'anywhere' }}>
             {gradeHeadline}
@@ -321,12 +323,12 @@ export default function StudentAssignmentResult({
 
         {entry.frozen && !reviewPanel && (
           <p style={{ margin: '14px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
-            This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade, your evidence, your mastery, or your Google Classroom score.
+            This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade or your Google Classroom score.
           </p>
         )}
         {entry.frozen && reviewPanel && (
           <p style={{ margin: '14px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
-            This assignment is past its final deadline, so the grade above can no longer change. Trying it again changes nothing here — not this grade, your mastery, or your Google Classroom score.
+            This assignment is past its final deadline, so the grade above can no longer change. Trying it again changes nothing here — not this grade or your Google Classroom score.
           </p>
         )}
 
