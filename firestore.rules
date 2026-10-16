@@ -1587,8 +1587,67 @@ service cloud.firestore {
       ];
     }
 
+    /*
+     * WHO MAY OPEN ONE ASSIGNMENT BY ID (D10 Phase 0, P0-3;
+     * docs/handoffs/ANSWER_KEY_SERVER_SIDE_DESIGN.md §3, owner decision O3).
+     *
+     * An assignment carries its answer keys and worked solutions, and any
+     * signed-in account could open any of them by id: a student of another
+     * class, or any account at all. Once the switch below is on, a get is
+     * allowed only to
+     *   - a teacher (the root administrator is one);
+     *   - a student whose roster class is in the assignment's
+     *     `assignedClassIds` (their class's lesson; the class query reads the
+     *     same set);
+     *   - a student with that assignment in their own `gradesByAssignment`
+     *     (O3: past work, Review My Work, work from before a class move) or
+     *     `testCycleGrades` (a Test they were added to on their own, before
+     *     they have answered anything). Both maps are server-owned on the
+     *     roster row: a student cannot add an id to either (the `grades`
+     *     rules), so cannot grant themselves an assignment.
+     * A missing document stays "not found" rather than "refused" for every
+     * signed-in user: an id reveals nothing, and a client that revalidates a
+     * deleted assignment must still see it is gone.
+     *
+     * This REMOVES access, so it waits on
+     * `platformFlags/assignmentReadScope.studentGetScoped`, set only by the
+     * root administrator (`setAssignmentReadScope`, which refuses it while the
+     * class-scoped list is still off — a narrowed get is no protection while
+     * the whole collection can be listed). Off or absent, the get rule is
+     * exactly what it was: any signed-in user.
+     *
+     * Rules' own get()s (the Batch 8 question rule above) are not reads by the
+     * user and are unaffected.
+     */
+    function studentAssignmentGetScoped() {
+      let flag = /databases/$(database)/documents/platformFlags/assignmentReadScope;
+      return exists(flag) && get(flag).data.get('studentGetScoped', false) == true;
+    }
+
+    function studentMayOpenAssignment(assignmentId) {
+      let studentId = request.auth.token.get('studentId', '');
+      return request.auth.token.get('role', '') == 'student'
+        && studentId is string
+        && studentId != ''
+        && exists(/databases/$(database)/documents/grades/$(studentId))
+        && studentRosterGrantsAssignment(rosterRow(studentId), assignmentId);
+    }
+
+    function studentRosterGrantsAssignment(row, assignmentId) {
+      return (row.get('classId', '') is string
+          && row.get('classId', '') != ''
+          && resource.data.get('assignedClassIds', []).hasAny([row.get('classId', '')]))
+        || assignmentId in row.get('gradesByAssignment', {})
+        || assignmentId in row.get('testCycleGrades', {});
+    }
+
     match /assignments/{assignmentId} {
-      allow get: if signedIn();
+      allow get: if signedIn() && (
+        !studentAssignmentGetScoped()
+        || resource == null
+        || teacher()
+        || rootAdmin()
+        || studentMayOpenAssignment(assignmentId));
       allow list: if teacher()
         || studentListsOwnClassAssignments()
         || (signedIn() && !studentAssignmentListScoped());

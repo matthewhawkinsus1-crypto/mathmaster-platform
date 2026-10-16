@@ -41,6 +41,13 @@ export default function ClassesAdmin() {
   const [backfill, setBackfill] = useState(null);
   const [privacy, setPrivacy] = useState(null);
   const [readScope, setReadScope] = useState(null);
+  // D10 Phase 0 (P0-3): who may open one assignment by id. Null until read;
+  // a functions build without the switch answers without the field.
+  const [getScope, setGetScope] = useState(null);
+  const rememberScopes = (result) => {
+    setReadScope(result.studentListScoped);
+    setGetScope(typeof result.studentGetScoped === 'boolean' ? result.studentGetScoped : null);
+  };
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -294,17 +301,34 @@ export default function ClassesAdmin() {
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
             <button type="button" style={quiet} disabled={busy === 'scope-read'} onClick={() => run(
               'scope-read',
-              async () => { const result = await teacherAdmin.setAssignmentReadScope(); setReadScope(result.studentListScoped); return result; },
+              async () => { const result = await teacherAdmin.setAssignmentReadScope(); rememberScopes(result); return result; },
               (result) => `Class-scoped assignment lists are ${result.studentListScoped ? 'on' : 'off'}.`,
             )}>
               {busy === 'scope-read' ? 'Checking…' : 'Check'}
             </button>
             <button type="button" style={readScope ? danger : primary} disabled={busy === 'scope-set'} onClick={() => run(
               'scope-set',
-              async () => { const result = await teacherAdmin.setAssignmentReadScope(!readScope); setReadScope(result.studentListScoped); return result; },
+              async () => { const result = await teacherAdmin.setAssignmentReadScope(!readScope); rememberScopes(result); return result; },
               (result) => `Class-scoped assignment lists are now ${result.studentListScoped ? 'on' : 'off'}.`,
             )}>
               {busy === 'scope-set' ? 'Saving…' : readScope ? 'Turn off' : 'Turn on'}
+            </button>
+          </div>
+        </div>
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)' }}>
+          <p style={{ margin: '0 0 10px', color: 'var(--mm-text)', lineHeight: 1.55 }}>
+            <strong>Class-scoped opening of an assignment</strong> — {getScope === true ? 'on' : getScope === false ? 'off' : 'not checked yet'}.
+            When on, a student may open an assignment only if it is their class&apos;s, or they already have work on it (or were
+            added to that Test). Teachers are not affected. Turn it on only after class-scoped lists have been on for a school day;
+            it cannot be turned on while they are off. Turning it off again needs no deploy.
+          </p>
+          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+            <button type="button" style={getScope ? danger : primary} disabled={busy === 'get-scope-set' || (!getScope && readScope !== true)} onClick={() => run(
+              'get-scope-set',
+              async () => { const result = await teacherAdmin.setAssignmentGetScope(!getScope); rememberScopes(result); return result; },
+              (result) => `Class-scoped opening of an assignment is now ${result.studentGetScoped ? 'on' : 'off'}.`,
+            )}>
+              {busy === 'get-scope-set' ? 'Saving…' : getScope ? 'Turn off' : 'Turn on'}
             </button>
           </div>
         </div>

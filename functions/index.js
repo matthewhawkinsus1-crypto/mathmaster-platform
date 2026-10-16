@@ -6034,36 +6034,64 @@ exports.migrateAssignmentPrivacy = onCall({ timeoutSeconds: 540 }, async (reques
 
 /**
  * Root-admin action: turn class-scoped assignment lists for students on or off
- * (firestore.rules `assignments`; shared/assignmentPrivacy.mjs).
+ * (firestore.rules `assignments`; shared/assignmentPrivacy.mjs), and, as a
+ * second independent switch, class-scoped opening of one assignment by id
+ * (`studentGetScoped`, D10 Phase 0 P0-3).
  *
  * Off is the state a release ships in, so open student tabs from the previous
- * release keep their live assignment updates. Turn it on once this release has
- * been live for a school day; turning it off again is the rollback, and needs
- * no deploy.
+ * release keep their live assignment updates. Turn the list on once this
+ * release has been live for a school day; the by-id switch only after that,
+ * and it is refused while the list is off. Turning either off again is the
+ * rollback, and needs no deploy. A call with neither boolean only reads.
  */
 exports.setAssignmentReadScope = onCall(async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
   const privacy = await import("./shared/assignmentPrivacy.mjs");
   const ref = db.collection(privacy.PLATFORM_FLAGS_COLLECTION).doc(privacy.ASSIGNMENT_READ_SCOPE_FLAG);
-  if (typeof request.data?.studentListScoped !== "boolean") {
-    const snapshot = await ref.get();
-    return { studentListScoped: snapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true, changed: false };
+  const snapshot = await ref.get();
+  const stored = {
+    studentListScoped: snapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true,
+    studentGetScoped: snapshot.data()?.[privacy.STUDENT_GET_SCOPED_FIELD] === true,
+  };
+  const wantsList = typeof request.data?.studentListScoped === "boolean";
+  const wantsGet = typeof request.data?.studentGetScoped === "boolean";
+  if (!wantsList && !wantsGet) return { ...stored, changed: false };
+  const next = {
+    studentListScoped: wantsList ? request.data.studentListScoped : stored.studentListScoped,
+    studentGetScoped: wantsGet ? request.data.studentGetScoped : stored.studentGetScoped,
+  };
+  if (wantsGet && next.studentGetScoped && !next.studentListScoped) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Turn on class-scoped assignment lists first: limiting who opens an assignment protects nothing while every assignment can still be listed.",
+    );
   }
-  const studentListScoped = request.data.studentListScoped;
   await ref.set({
-    [privacy.STUDENT_LIST_SCOPED_FIELD]: studentListScoped,
+    ...(wantsList ? { [privacy.STUDENT_LIST_SCOPED_FIELD]: next.studentListScoped } : {}),
+    ...(wantsGet ? { [privacy.STUDENT_GET_SCOPED_FIELD]: next.studentGetScoped } : {}),
     updatedAt: FieldValue.serverTimestamp(),
     updatedBy: actor.uid,
   }, { merge: true });
-  await writeAdminAudit(
-    db,
-    actor,
-    studentListScoped ? "assignment_read_scope_enforced" : "assignment_read_scope_relaxed",
-    privacy.ASSIGNMENT_READ_SCOPE_FLAG,
-    { studentListScoped },
-  );
-  return { studentListScoped, changed: true };
+  if (wantsList) {
+    await writeAdminAudit(
+      db,
+      actor,
+      next.studentListScoped ? "assignment_read_scope_enforced" : "assignment_read_scope_relaxed",
+      privacy.ASSIGNMENT_READ_SCOPE_FLAG,
+      { studentListScoped: next.studentListScoped },
+    );
+  }
+  if (wantsGet) {
+    await writeAdminAudit(
+      db,
+      actor,
+      next.studentGetScoped ? "assignment_get_scope_enforced" : "assignment_get_scope_relaxed",
+      privacy.ASSIGNMENT_READ_SCOPE_FLAG,
+      { studentGetScoped: next.studentGetScoped },
+    );
+  }
+  return { ...next, changed: true };
 });
 
 /* =========================================================================

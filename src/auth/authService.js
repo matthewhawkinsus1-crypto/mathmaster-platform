@@ -302,6 +302,10 @@ export const teacherAdmin = {
   setAssignmentReadScope: (studentListScoped) =>
     callable('setAssignmentReadScope')(typeof studentListScoped === 'boolean' ? { studentListScoped } : {})
       .then((result) => result.data || {}),
+  /** Sets class-scoped opening of one assignment by id (D10 P0-3); refused while lists are open. */
+  setAssignmentGetScope: (studentGetScoped) =>
+    callable('setAssignmentReadScope')({ studentGetScoped: studentGetScoped === true })
+      .then((result) => result.data || {}),
   /**
    * Where students' private assignment controls stand: the storage switch,
    * the migration's progress and passes, the client cutover record, and the
