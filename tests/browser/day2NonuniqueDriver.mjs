@@ -132,7 +132,7 @@ const divideOut = async (page, divisor, result) => {
 /** Back-substitute the 2×2's first value into R₁ or R₂ by select-then-place. */
 const subsystemBackSubstitute = async (page, value, rIndex, variable) => {
   const sub = subsystem(page);
-  await sub.locator(`button[aria-label="Pick up the solved value ${value}"]`).click();
+  await sub.locator(`button[aria-label^="Pick up the solved value "][data-token-value="${value}"]`).click();
   await settle(page, 200);
   await sub.locator('.mathmaster-systems-backsub-equations > div').nth(rIndex)
     .locator(`button[aria-label="Variable ${variable}. Place the selected value or expression here"]`).click();

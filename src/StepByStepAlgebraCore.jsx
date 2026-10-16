@@ -43,6 +43,7 @@ import {
 import { rewriteMenuEntries, rewriteMenuOptions } from './platform/algebra/simplify/rewriteMenu.js';
 import { normalizeQuestionRecord } from './attemptPolicy';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { spokenMathValue, spokenOperation } from './tools/shared/spokenMathValue.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import { equationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 // What each step earns, and the raw work it is reported with: one definition,
@@ -180,7 +181,7 @@ function CancellationFactorRow({
                   onTokenClick(index);
                 }
               } : undefined}
-              aria-label={cancellable ? `${factor.text}, mark this factor for cancellation` : undefined}
+              aria-label={cancellable ? `${spokenMathValue(factor.text)}, mark this factor for cancellation` : undefined}
               aria-pressed={cancellable ? selected || crossed : undefined}
               style={{
                 position: 'relative',
@@ -1990,7 +1991,7 @@ export default function StepByStepAlgebra({
                 }}
                 disabled={disabled || isDistributionComplete(distributionState)}
                 aria-pressed={distributionState.armed}
-                aria-label={`Pick up the factor ${distributionState.factorText}`}
+                aria-label={`Pick up the factor ${spokenMathValue(distributionState.factorText)}`}
               >
                 <MathDisplay value={distributionState.factorLatex} format="latex" inline />
               </button>
@@ -2014,8 +2015,8 @@ export default function StepByStepAlgebra({
                       disabled={disabled || placed || !distributionState.armed}
                       aria-pressed={placed}
                       aria-label={placed
-                        ? `Factor applied to ${term.text}`
-                        : `Apply the factor to ${term.text}`}
+                        ? `Factor applied to ${spokenMathValue(term.text)}`
+                        : `Apply the factor to ${spokenMathValue(term.text)}`}
                     >
                       <MathDisplay value={term.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
                       {placed ? (
@@ -2424,7 +2425,7 @@ export default function StepByStepAlgebra({
               onClick={armDistributionFactor}
               disabled={disabled || isDistributionComplete(distributionState)}
               aria-pressed={distributionState.armed}
-              aria-label={`Pick up the factor ${distributionState.factorText}`}
+              aria-label={`Pick up the factor ${spokenMathValue(distributionState.factorText)}`}
               style={{
                 minWidth: 52, minHeight: 44, padding: '6px 12px', borderRadius: 10,
                 border: distributionState.armed ? '3px solid #174ea6' : '2px solid var(--mm-primary-border)',
@@ -2452,7 +2453,7 @@ export default function StepByStepAlgebra({
                     }}
                     disabled={disabled || placed || !distributionState.armed}
                     aria-pressed={placed}
-                    aria-label={placed ? `Factor already applied to ${term.text}` : `Apply the factor to ${term.text}`}
+                    aria-label={placed ? `Factor already applied to ${spokenMathValue(term.text)}` : `Apply the factor to ${spokenMathValue(term.text)}`}
                     style={{
                       minWidth: 44, minHeight: 44, padding: '6px 12px', borderRadius: 10, fontSize: 'calc(22 * var(--mm-px))', fontWeight: 800,
                       border: placed ? '2px solid #137333' : distributionState.armed ? '2px dashed #7698cf' : '1px solid var(--mm-tint-border)',
@@ -2581,7 +2582,7 @@ export default function StepByStepAlgebra({
                 className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''} ${mobileInteraction.isMobile && sideTapReady ? 'mathmaster-tap-placement-ready' : ''}`}
                 role={sideTapReady ? 'button' : undefined}
                 tabIndex={sideTapReady ? 0 : undefined}
-                aria-label={sideTapReady ? `Place ${describeOperation(armedTile.operation, operand)} on the ${side} side` : undefined}
+                aria-label={sideTapReady ? `Place ${spokenOperation(armedTile.operation, operandLabel)} on the ${side} side` : undefined}
                 onClick={(event) => tapPlacementOnSide(side, event)}
                 onKeyDown={(event) => {
                   /* Not gated on isMobile any more. A student on a Chromebook
@@ -2762,7 +2763,8 @@ export default function StepByStepAlgebra({
               : 'Drag this operation onto one side of the equation, or press Enter and then choose a side'}
             aria-pressed={tapPlacementArmed}
             aria-label={operandLabel
-              ? `${mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place' : 'Use') : 'Pick up'} ${describeOperationToken(armedTile.operation, operandLabel).text}`
+              // "Pick up divide by negative 3", not the chip's typeset text ("― / -3").
+              ? `${mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place' : 'Use') : 'Pick up'} ${spokenOperation(armedTile.operation, operandLabel)}`
               : undefined}
           >
             {mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place ' : 'Use ') : '⠿ Pick up '}

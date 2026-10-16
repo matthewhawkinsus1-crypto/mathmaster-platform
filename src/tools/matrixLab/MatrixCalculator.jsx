@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
 import { CALCULATOR_ERROR_TEXT, dimensionsOf, formatDecimal, formatRational, parseMatrix, runCalculator } from './matrixLabMath.js';
 import { buttonStyle, choiceStyle } from './matrixLabUi.jsx';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 /*
  * THE "TECHNOLOGY" THE LESSON KEEPS ASKING FOR.
@@ -26,6 +28,10 @@ const OPERATION_LABEL = Object.freeze({
   inverse: (left) => `[${left}]⁻¹`,
   inverseTimes: (left, right) => `[${left}]⁻¹·[${right}]`,
 });
+
+// The keys print the way a TI-84 does ("[A]⁻¹·[B]"); a screen reader spelled
+// that out bracket by bracket. Their names say it: "A inverse times B".
+const spokenOperation = (label) => spokenMathValue(label);
 
 const ERROR_EXPLANATION = Object.freeze({
   singular: 'This matrix has no inverse.',
@@ -60,7 +66,7 @@ export default function MatrixCalculator({ left, right, operations = [], onRun, 
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {operations.filter((operation) => OPERATION_LABEL[operation] && (operation === 'inverse' || right)).map((operation) => (
-          <button key={operation} type="button" onClick={() => run(operation)} style={{ ...buttonStyle, fontFamily: 'ui-monospace, Menlo, monospace' }}>
+          <button key={operation} type="button" onClick={() => run(operation)} aria-label={spokenOperation(OPERATION_LABEL[operation](left.name, right?.name))} style={{ ...buttonStyle, fontFamily: 'ui-monospace, Menlo, monospace' }}>
             {OPERATION_LABEL[operation](left.name, right?.name)}
           </button>
         ))}
@@ -68,14 +74,14 @@ export default function MatrixCalculator({ left, right, operations = [], onRun, 
       <div aria-live="polite" style={{ marginTop: 12, minHeight: 48 }}>
         {result?.error ? (
           <div role="status" style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontWeight: 800, color: 'var(--mm-error-text)', fontSize: 'calc(16 * var(--mm-px))' }}>
-            {result.label}: {CALCULATOR_ERROR_TEXT[result.error]}
+            <span aria-hidden="true">{result.label}</span><span style={SR_ONLY_STYLE}>{spokenOperation(result.label)}</span>: {CALCULATOR_ERROR_TEXT[result.error]}
             <div style={{ fontFamily: 'inherit', fontWeight: 600, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: 4 }}>{ERROR_EXPLANATION[result.error]}</div>
           </div>
         ) : null}
         {result?.value ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontWeight: 800 }}>{result.label} =</span>
-            <MatrixGrid showName={false} rows={result.value.map((row) => row.map(format))} ariaLabel={`Calculator result ${result.label}`} fontSize={18} />
+            <span style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontWeight: 800 }}><span aria-hidden="true">{result.label} =</span><span style={SR_ONLY_STYLE}>{spokenOperation(result.label)} equals</span></span>
+            <MatrixGrid showName={false} rows={result.value.map((row) => row.map(format))} ariaLabel={`Calculator result ${spokenOperation(result.label)}`} fontSize={18} />
             <div role="group" aria-label="Show the result as" style={{ display: 'flex', gap: 6 }}>
               <button type="button" aria-pressed={view === 'fraction'} onClick={() => setView('fraction')} style={{ ...choiceStyle(view === 'fraction'), minHeight: 36, padding: '4px 10px' }}>▸Frac</button>
               <button type="button" aria-pressed={view === 'decimal'} onClick={() => setView('decimal')} style={{ ...choiceStyle(view === 'decimal'), minHeight: 36, padding: '4px 10px' }}>▸Dec</button>

@@ -171,9 +171,13 @@ const assertStepAlgebraOpenedForY = async (page, journey) => {
 };
 
 const assertTokenIsPlainMath = async (page, journey) => {
-  const label = await page.locator('.mathmaster-systems-substitution-token').getAttribute('aria-label');
+  // The label speaks the value in words, so the value itself is checked too.
+  const token = page.locator('.mathmaster-systems-substitution-token');
+  const label = await token.getAttribute('aria-label');
+  const value = await token.getAttribute('data-token-value');
   const chips = await workTrailChips(page);
   if (/~/.test(label || '')) note(journey, `token carries LaTeX spacing: ${label}`);
+  if (/~/.test(value || '')) note(journey, `token value carries LaTeX spacing: ${value}`);
   if (chips.some((chip) => chip.includes('~'))) note(journey, `isolation chip carries LaTeX spacing: ${JSON.stringify(chips)}`);
 };
 

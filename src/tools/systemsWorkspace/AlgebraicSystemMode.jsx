@@ -12,6 +12,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import MathDisplay from '../../MathDisplay';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
 import { expressionsEquivalent, latexToExpression, expressionToLatex, expressionIsSimplified } from '../../algebraAstEngine.js';
@@ -113,7 +114,8 @@ export function MathDragToken({
         if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
         onArm?.();
       }}
-      aria-label={ariaLabel || `Pick up ${expression}`}
+      aria-label={ariaLabel || `Pick up ${spokenMathValue(expression)}`}
+      data-token-value={expression}
       title="Drag this onto the place you think it belongs. On touch or keyboard, select it and then select a destination."
     >
       {label ? <span className="mathmaster-systems-token-label">{label}</span> : null}
@@ -131,7 +133,7 @@ export function SubstitutionToken({ variable, expression, onArm, label = null, a
       expression={expression}
       label={label}
       onArm={onArm}
-      ariaLabel={ariaLabel || `Pick up the expression ${expression} from the isolated equation`}
+      ariaLabel={ariaLabel || `Pick up the expression ${spokenMathValue(expression)} from the isolated equation`}
     />
   );
 }
@@ -191,7 +193,7 @@ export function VariableDropEquation({
               onVariableAttempt(part, payload.slice(payloadPrefix.length));
             }}
             aria-label={hasPlacedValue
-              ? `Variable ${part} currently has value ${placedValues[part]}`
+              ? `Variable ${part} currently has value ${spokenMathValue(String(placedValues[part]))}`
               : `Variable ${part}. Place the selected value or expression here`}
             title="Drop the selected value or expression here if you think it belongs at this variable."
           >
@@ -235,8 +237,9 @@ export function SystemsWorkTrail({ stages = [] }) {
               <span
                 className="mathmaster-systems-completed-math"
                 data-summary-math={stage.summaryMath || ''}
-                aria-label={stage.summaryMath || stage.summaryLatex}
               >
+                {/* No label: a span's aria-label is ignored or read as the raw
+                    program syntax; MathDisplay below speaks the equation. */}
                 <MathDisplay
                   value={stage.summaryLatex || stage.summaryMath}
                   format={stage.summaryLatex ? 'latex' : 'ascii-math'}
@@ -1844,7 +1847,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     variable={survivingVariable}
                     expression={firstSolvedExpression}
                     label="Solved value"
-                    ariaLabel={`Pick up the solved value ${firstSolvedExpression}`}
+                    ariaLabel={`Pick up the solved value ${spokenMathValue(firstSolvedExpression)}`}
                     onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
                   />
                   <div className="mathmaster-systems-backsub-equations">
@@ -1907,7 +1910,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       expression={`${variable} = ${solutionExpressions[variable]}`}
                       label="Solved value"
                       onArm={() => armVerificationValue(variable)}
-                      ariaLabel={`Pick up solved value ${solutionExpressions[variable]} for ${variable}`}
+                      ariaLabel={`Pick up solved value ${spokenMathValue(solutionExpressions[variable])} for ${variable}`}
                     />
                 ))}
               </div>
