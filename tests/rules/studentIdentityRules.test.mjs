@@ -146,11 +146,16 @@ test('ordinary work on the same document still saves, and the name is untouched'
 test('no client can create a roster row that already carries a name or Google identity', async () => {
   const studentNew = () => env.authenticatedContext('uid-new', { role: 'student', studentId: 'S_NEW' }).firestore();
   const base = { ...membership, gradesByAssignment: {} };
+  // A student's own row carries no roster placement (only the Admin SDK places
+  // a student; firestore.rules studentCreateFields), so the student's attempts
+  // use the bare row and fail for the name alone.
+  const ownRow = { status: 'active', gradesByAssignment: {} };
   for (const field of SERVER_OWNED_IDENTITY_FIELDS) {
     const value = field === 'identityBackfill' ? { runId: 'forged' } : 'Rowan Exampleton';
-    await assertFails(setDoc(doc(studentNew(), 'grades/S_NEW'), { ...base, [field]: value }));
+    await assertFails(setDoc(doc(studentNew(), 'grades/S_NEW'), { ...ownRow, [field]: value }));
     await assertFails(setDoc(doc(teacherA(), 'grades/S_NEW_T'), { ...base, [field]: value }));
   }
   // A row with no name fields still creates; the server names it.
-  await assertSucceeds(setDoc(doc(studentNew(), 'grades/S_NEW'), base));
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/S_NEW'), ownRow));
+  await assertSucceeds(setDoc(doc(teacherA(), 'grades/S_NEW_T'), base));
 });

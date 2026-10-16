@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import {
-  GRADING_OUTCOME, REPORT_DIR, assignmentExposure, classifyQuestionExposure, gradingOutcomeFor,
+  ASSIGNMENT_FIELDS, GRADING_OUTCOME, REPORT_DIR, assignmentExposure, classifyQuestionExposure, gradingOutcomeFor,
   parseReportArgs, reportFilePath, runAssignmentKeyExposureReport, sectionVariantMode,
 } from '../../scripts/report-assignment-key-exposure.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
@@ -130,34 +130,61 @@ const readOnlyStore = (documents) => {
       return object[property];
     },
   });
-  const snapshot = (docPath) => {
+  // A field mask is applied as Firestore applies it: only the named paths come back.
+  const masked = (data, fields) => {
+    if (!fields) return structuredClone(data);
+    const out = {};
+    fields.forEach((field) => {
+      const parts = field.split('.');
+      let source = data;
+      for (const part of parts) source = source?.[part];
+      if (source === undefined) return;
+      let target = out;
+      parts.slice(0, -1).forEach((part) => { target[part] ??= {}; target = target[part]; });
+      target[parts.at(-1)] = structuredClone(source);
+    });
+    return out;
+  };
+  const masks = [];
+  const snapshot = (docPath, fields = null) => {
     const data = documents.get(docPath);
-    return { id: docPath.split('/').at(-1), exists: data !== undefined, ref: { path: docPath }, data: () => (data === undefined ? undefined : structuredClone(data)) };
+    return { id: docPath.split('/').at(-1), exists: data !== undefined, ref: { path: docPath }, data: () => (data === undefined ? undefined : masked(data, fields)) };
   };
   const reads = [];
-  const query = (collectionPath, state = { limit: Infinity, after: null, ordered: false }) => guard({
+  const query = (collectionPath, state = { limit: Infinity, after: null, ordered: false, fields: null }) => guard({
     orderBy: () => query(collectionPath, { ...state, ordered: true }),
+    select: (...fields) => { masks.push(fields); return query(collectionPath, { ...state, fields }); },
     limit: (count) => query(collectionPath, { ...state, limit: count }),
     startAfter: (doc) => query(collectionPath, { ...state, after: doc }),
     get: async () => {
       reads.push(collectionPath);
       let rows = [...documents.keys()].filter((key) => key.startsWith(`${collectionPath}/`) && !key.slice(collectionPath.length + 1).includes('/')).sort();
       if (state.after) rows = rows.slice(rows.indexOf(state.after.ref.path) + 1);
-      return { docs: rows.slice(0, state.limit).map(snapshot) };
+      return { docs: rows.slice(0, state.limit).map((key) => snapshot(key, state.fields)) };
     },
   }, `query(${collectionPath})`);
   const docRef = (docPath) => guard({ id: docPath.split('/').at(-1), path: docPath, get: async () => snapshot(docPath) }, `doc(${docPath})`);
   const db = guard({
     collection: (name) => guard({ ...query(name), doc: (id) => docRef(`${name}/${id}`) }, `collection(${name})`),
-    getAll: async (...refs) => { reads.push('getAll'); return refs.map((ref) => snapshot(ref.path)); },
+    getAll: async (...args) => {
+      reads.push('getAll');
+      const options = args.at(-1)?.fieldMask ? args.pop() : {};
+      if (options.fieldMask) masks.push(options.fieldMask);
+      return args.map((ref) => snapshot(ref.path, options.fieldMask || null));
+    },
   }, 'db');
-  return { db, attempts, reads };
+  return { db, attempts, reads, masks };
 };
 
 const seeded = () => {
   const docs = new Map();
   docs.set('assignments/A-dol', {
     title: 'Lesson 3', schemaVersion: 5, assignedClassIds: ['c1', 'c2'],
+    // Per-student fields an assignment can still carry: never read.
+    studentOverrides: { S1: { lateDueAt: 'per-student-secret' } },
+    excusedStudentIds: ['S1-per-student-secret'],
+    dol: { attemptGrantsByStudentId: { S1: 'per-student-secret' } },
+    audienceHistory: [{ studentId: 'S1-per-student-secret' }],
     variantPolicy: { mode: 'shared', sectionModes: { practice: 'adaptive' } },
     sections: [
       { id: 'dol', role: 'dol', title: 'Exit Ticket', questions: [
@@ -184,9 +211,12 @@ test('the store really refuses writes (so the report test below would have caugh
 });
 
 test('the report: per assignment and section role, totals by role and variant mode; reads assignments only; never a write', async () => {
-  const { db, attempts, reads } = seeded();
+  const { db, attempts, reads, masks } = seeded();
   const report = await runAssignmentKeyExposureReport({ db, pageSize: 1, now: () => Date.UTC(2026, 9, 16, 12) });
   assert.deepEqual(attempts, []);
+  assert.ok(masks.length >= 1 && masks.every((mask) => JSON.stringify(mask) === JSON.stringify(ASSIGNMENT_FIELDS)), 'every read is field-masked');
+  for (const field of ['studentOverrides', 'excusedStudentIds', 'dol', 'audienceHistory']) assert.ok(!ASSIGNMENT_FIELDS.includes(field), field);
+  assert.doesNotMatch(JSON.stringify(report), /per-student-secret/);
   assert.ok(reads.every((entry) => entry === 'assignments'), `reads: ${reads.join(', ')}`);
   assert.deepEqual(Object.keys(report), ['tool', 'version', 'readOnly', 'startedAt', 'assignmentFilter', 'missingAssignments', 'fieldLists', 'notes', 'totals', 'assignments']);
   assert.equal(report.readOnly, true);
@@ -222,9 +252,10 @@ test('the report: per assignment and section role, totals by role and variant mo
 });
 
 test('named assignments are read by id, and a missing one is listed, not fatal', async () => {
-  const { db, attempts, reads } = seeded();
+  const { db, attempts, reads, masks } = seeded();
   const report = await runAssignmentKeyExposureReport({ db, assignmentIds: ['B-legacy', 'gone'] });
   assert.deepEqual(attempts, []);
+  assert.deepEqual(masks, [[...ASSIGNMENT_FIELDS]], 'a by-id read is field-masked too');
   assert.deepEqual(reads, ['getAll']);
   assert.deepEqual(report.assignments.map((entry) => entry.assignmentId), ['B-legacy']);
   assert.deepEqual(report.missingAssignments, ['gone']);

@@ -6040,39 +6040,51 @@ exports.migrateAssignmentPrivacy = onCall({ timeoutSeconds: 540 }, async (reques
  *
  * Off is the state a release ships in, so open student tabs from the previous
  * release keep their live assignment updates. Turn the list on once this
- * release has been live for a school day; the by-id switch only after that,
- * and it is refused while the list is off. Turning either off again is the
- * rollback, and needs no deploy. A call with neither boolean only reads.
+ * release has been live for a school day; the by-id switch only after that.
+ * By-id on with lists off is never stored: turning by-id on while lists are
+ * off, or lists off while by-id is on, is refused (both in one call is fine).
+ * Turning either off again is the rollback (by-id first), and needs no deploy.
+ * A call with neither boolean only reads.
  */
 exports.setAssignmentReadScope = onCall(async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
   const privacy = await import("./shared/assignmentPrivacy.mjs");
   const ref = db.collection(privacy.PLATFORM_FLAGS_COLLECTION).doc(privacy.ASSIGNMENT_READ_SCOPE_FLAG);
-  const snapshot = await ref.get();
-  const stored = {
-    studentListScoped: snapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true,
-    studentGetScoped: snapshot.data()?.[privacy.STUDENT_GET_SCOPED_FIELD] === true,
-  };
   const wantsList = typeof request.data?.studentListScoped === "boolean";
   const wantsGet = typeof request.data?.studentGetScoped === "boolean";
-  if (!wantsList && !wantsGet) return { ...stored, changed: false };
-  const next = {
-    studentListScoped: wantsList ? request.data.studentListScoped : stored.studentListScoped,
-    studentGetScoped: wantsGet ? request.data.studentGetScoped : stored.studentGetScoped,
-  };
-  if (wantsGet && next.studentGetScoped && !next.studentListScoped) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Turn on class-scoped assignment lists first: limiting who opens an assignment protects nothing while every assignment can still be listed.",
-    );
-  }
-  await ref.set({
-    ...(wantsList ? { [privacy.STUDENT_LIST_SCOPED_FIELD]: next.studentListScoped } : {}),
-    ...(wantsGet ? { [privacy.STUDENT_GET_SCOPED_FIELD]: next.studentGetScoped } : {}),
-    updatedAt: FieldValue.serverTimestamp(),
-    updatedBy: actor.uid,
-  }, { merge: true });
+  // Read and write in one transaction: two racing calls (one turning lists
+  // off, one turning the by-id switch on) cannot end in "by-id on, lists off",
+  // because each re-checks the state it is about to leave behind.
+  const outcome = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const stored = {
+      studentListScoped: snapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true,
+      studentGetScoped: snapshot.data()?.[privacy.STUDENT_GET_SCOPED_FIELD] === true,
+    };
+    if (!wantsList && !wantsGet) return { ...stored, changed: false };
+    const next = {
+      studentListScoped: wantsList ? request.data.studentListScoped : stored.studentListScoped,
+      studentGetScoped: wantsGet ? request.data.studentGetScoped : stored.studentGetScoped,
+    };
+    if (next.studentGetScoped && !next.studentListScoped) {
+      throw new HttpsError(
+        "failed-precondition",
+        wantsGet && request.data.studentGetScoped
+          ? "Turn on class-scoped assignment lists first: limiting who opens an assignment protects nothing while every assignment can still be listed."
+          : "Turn off class-scoped opening of an assignment first: it protects nothing once every assignment can be listed again.",
+      );
+    }
+    transaction.set(ref, {
+      ...(wantsList ? { [privacy.STUDENT_LIST_SCOPED_FIELD]: next.studentListScoped } : {}),
+      ...(wantsGet ? { [privacy.STUDENT_GET_SCOPED_FIELD]: next.studentGetScoped } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actor.uid,
+    }, { merge: true });
+    return { ...next, changed: true };
+  });
+  if (!outcome.changed) return outcome;
+  const next = outcome;
   if (wantsList) {
     await writeAdminAudit(
       db,
@@ -6091,7 +6103,7 @@ exports.setAssignmentReadScope = onCall(async (request) => {
       { studentGetScoped: next.studentGetScoped },
     );
   }
-  return { ...next, changed: true };
+  return outcome;
 });
 
 /* =========================================================================

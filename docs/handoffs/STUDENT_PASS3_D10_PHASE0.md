@@ -1,6 +1,6 @@
 # Student pass 3 — D10 Phase 0: close the open reads
 
-*Session H. Branch `claude/pass3-d10-phase0`, based on `claude/modest-pasteur-xzagn7` at `a7dddc7`. Design: [`ANSWER_KEY_SERVER_SIDE_DESIGN.md`](ANSWER_KEY_SERVER_SIDE_DESIGN.md) §3 Phase 0. Owner decisions taken as recommended: **O3** (a student may still open an assignment in their own `grades/{studentId}.gradesByAssignment`), **O5** (not needed in Phase 0).*
+*Session H. Branch `claude/pass3-d10-phase0`, based on `claude/modest-pasteur-xzagn7` at `a7dddc7`, with the base merged in again at `c803501` (merge commit `5aa1cb6`; it brought Batch 4's hint ladder and Batch 8's fix for the "Maximum update depth exceeded" loop). An independent review then found one CI blocker, one rule gap and four notes; §8 lists each fix. Design: [`ANSWER_KEY_SERVER_SIDE_DESIGN.md`](ANSWER_KEY_SERVER_SIDE_DESIGN.md) §3 Phase 0. Owner decisions taken as recommended: **O3** (a student may still open an assignment in their own `grades/{studentId}.gradesByAssignment`), **O5** (not needed in Phase 0).*
 
 Phase 0 only: no key split, nothing removed from any document, no data written. Nothing was deployed, no production project was read or written, and the report script was run only against the emulator and fixtures.
 
@@ -36,7 +36,7 @@ With both switches ON. "Client by id" means a Firestore `get` from the student's
 | A deleted assignment | `get` of a missing document | Still "not found", not refused | Emulator case |
 | `getLiveAssignment` (App.jsx) | Defined, never called | — | `grep` |
 
-Teachers, including the root administrator, open every assignment with the switch ON (emulator case over every fixture document). Refused with the switch ON: another class's lesson, a library copy, a document with no `assignedClassIds`, a student account with no roster row, an account with no role, and an anonymous request. A student cannot grant themselves access: client writes to `gradesByAssignment`, `testCycleGrades` and `classId` on their own row are refused (emulator case; existing `grades` rules).
+Teachers, including the root administrator, open every assignment with the switch ON (emulator case over every fixture document). Refused with the switch ON: another class's lesson, a library copy, a document with no `assignedClassIds`, a student account with no roster row, an account with no role, and an anonymous request. A student cannot grant themselves access. Client writes to `gradesByAssignment`, `testCycleGrades` and `classId` on their own row are refused (emulator case; existing `grades` rules). Since the review, a student account whose row does not exist yet **cannot create it with a class** (`classId`, `classPeriod` and `assignedTeacherEmail` were removed from `studentCreateFields`). Before that, it could have placed itself in any class and read that class's assignments, by id and by list (§8, finding 2).
 
 ---
 
@@ -46,11 +46,11 @@ Teachers, including the root administrator, open every assignment with the switc
 
 Ship with `node scripts/release-firebase.mjs` (plan first, then `--execute` by the owner). Its order is functions → rules → Hosting:
 
-1. **Functions:** `setAssignmentReadScope` only (the response now also names `studentGetScoped`). The old admin card reads `studentListScoped` only, so it is unaffected.
-2. **Rules:** `firestore.rules`. With `studentGetScoped` absent the get rule is today's rule exactly. The test "by-id switch OFF or absent" checks this for every kind of account and every fixture assignment, and the list rule is unchanged.
+1. **Functions:** the change is in `setAssignmentReadScope` alone (its response now also names `studentGetScoped`; the old admin card reads only `studentListScoped`). But `release-firebase.mjs` plans **the whole function fleet plus path-admin**, because `functions/index.js` and `functions/shared/` changed (§5). Redeploying the others is harmless, but it takes about an hour; plan the window for it.
+2. **Rules:** `firestore.rules`. With `studentGetScoped` absent the get rule is today's rule exactly. The test "by-id switch OFF or absent" checks this for every kind of account and every fixture assignment, and the list rule is unchanged. The one change that is not gated is that a student's **own** create of their `grades` row may no longer carry `classId`, `classPeriod` or `assignedTeacherEmail`. No client, now or anywhere in this repository's history, makes that write: rows and placement come from `createStudentAccount` / `setStudentClass` (Admin SDK).
 3. **Hosting:** P0-1 (mastery loader) and the admin toggle.
 
-Rollback of the release: redeploy the previous `firestore.rules` from git (`firebase deploy --only firestore:rules` at the old commit) and the previous Hosting through `npm run deploy:hosting`. The callable change is backward compatible and need not be rolled back.
+Rollback of the release: **first turn the by-id switch off** (§2.3 step 4). The old rules ignore `studentGetScoped`, so after a rules rollback the admin card would still say *on* while nothing enforces it. Then redeploy the previous `firestore.rules` from git (`firebase deploy --only firestore:rules` at the old commit) and the previous Hosting through `npm run deploy:hosting`. The callable change is backward compatible and need not be rolled back.
 
 ### 2.2 P0-2 — the owner's exact steps (a data change, not done here)
 
@@ -69,7 +69,9 @@ Precondition: class-scoped lists have been ON for at least one school day with n
 1. Run the exposure report (§3) once, if you want a "before" picture.
 2. Root admin → **Administration → Classes → Student privacy on assignments → Class-scoped opening of an assignment → Turn on**. The callable refuses this while lists are off. It writes `studentGetScoped = true` and audits `assignment_get_scope_enforced`.
 3. Verify with a student test account as in §2.2 step 4. Include a student who moved class (Grades still shows the earlier class's work), and a student added individually to a Test.
-4. **Rollback:** the same toggle → **Turn off**. No deploy needed. Turning lists off also works, but leave the by-id switch off first.
+4. **Rollback:** the same toggle → **Turn off**. No deploy needed. To turn lists off as well, turn the by-id switch off first: the callable now runs in a transaction and refuses any change that would leave by-id on with lists off, so two racing calls cannot end there either.
+
+**What a student loses with the switch on, beyond another class's lessons.** A student who moved class, and has only a saved draft (no recorded work) on an assignment of the old class, can no longer deliver that draft to the old class's assignment. The checkpoint transaction is refused. The durable outbox keeps the draft and retries it (`durableActionOutbox.js`, around line 1133), so nothing is lost, but it is not delivered until a teacher records something for that student on that assignment or the switch is off.
 
 ---
 
@@ -80,7 +82,7 @@ node scripts/report-assignment-key-exposure.mjs --project <id> [--assignment <id
 ```
 
 - Application Default Credentials; a **viewer** role is enough. Under `FIRESTORE_EMULATOR_HOST` it reads the emulator.
-- **Reads:** `assignments` only (paged by document id, or the named ids). Nothing about any student is read.
+- **Reads:** `assignments` only, paged by document id or the named ids, and only the fields in `ASSIGNMENT_FIELDS` (a field mask on every read: title, schemaVersion, assignedClassIds, archived, assessmentPolicy.mode, variantPolicy, sections, questions). The per-student fields an assignment can still carry (`studentOverrides`, `excusedStudentIds`, `dol.attemptGrantsByStudentId`, `audienceHistory`) are never read.
 - **Writes:** one local file, `release-reports/assignment-key-exposure-<startedAt>.json` (gitignored). It has no write mode and no output option, and unknown arguments are refused.
 - **Standard output:** counts only. Assignments read, missing named ids, then one row for all sections and one per role: `questions · stored key · choice label · solution · hints · device-only`, plus device-only reasons.
 
@@ -161,30 +163,22 @@ The integration test (`tests/integration/assignmentKeyExposureReport.test.mjs`) 
 
 ## 5. Gate
 
+On the final head, after the base merge (`c803501`) and the review fixes:
+
 | Check | Result |
 | --- | --- |
-| `npm ci`, `npm --prefix functions ci` | pass (both exit 0) |
-| `npm run test:platform` | 11421/11421 pass (includes the 10 new report tests and 5 new mastery-scope tests) |
-| `node --test tests/tools/*.test.mjs` | 1644 tests: 1643 pass, 0 fail, 1 skipped (pre-existing skip) |
-| `npm run lint` | exit 0 (warnings only; none new in changed code. The `ClassesAdmin.jsx:107` `selectedClass` warning is pre-existing) |
-| `npm run build` | pass |
-| `npm run build:firebase` (no tracked file rewritten) | pass; `git status` clean afterwards |
-| `npm run test:rules` | pass: 243/243 (`tests/firestore-rules.test.mjs`) and 217/217 (`tests/rules/*.test.mjs`, including the 16 in `assignmentPrivacyRules`) |
-| `tests/integration/assignmentPrivacyMigration.test.mjs` (emulator) | 6/6 pass |
-| `tests/integration/assignmentKeyExposureReport.test.mjs` (emulator) | 1/1 pass |
+| `npm ci`, `npm --prefix functions ci` | pass (re-run after the merge) |
+| `npm run test:platform` | F_PLATFORM |
+| `node --test tests/tools/*.test.mjs` | F_TOOLS |
+| `npm run lint` | F_LINT |
+| `npm run build` | F_BUILD |
+| `npm run build:firebase` (no tracked file rewritten) | F_BUILDFB |
+| `npm run test:rules` | F_RULES |
+| `npm run test:challenge-finish` (every `tests/integration/*.test.mjs` in parallel on one emulator, as CI runs them) | F_CF |
 | `node scripts/release-firebase.mjs` (plan only) | plan printed (`--since a7dddc7`), no `--execute`. Targets: functions (the **whole fleet**, 25 groups, about 56 min, because `functions/index.js` changed), path-admin (it shares `functions/shared`), rules, Hosting, in the order functions → verify → path-admin → rules → Hosting |
-| teacherWorkflow journeys that open assignments as a student, one at a time | `appUrl` (12 viewport scenarios), `askMyTeacher` (58 checks), `draftCrossDevice`, `prerequisiteEarly`, `privateControls` (392 checks): **all pass**. `recoveryHold`, `recoveryDraftCrossDevice`, `restoredDraftFocusRace`, `warmupReopen`: **fail on the base commit too**, the same way (below) |
+| teacherWorkflow journeys that open assignments as a student, one at a time (after the merge) | **all 9 pass**, no `Maximum update depth` anywhere: `recoveryHold` (no findings), `recoveryDraftCrossDevice` (no findings), `restoredDraftFocusRace`, `warmupReopen` (all passed), `appUrl` (all checks), `askMyTeacher` (58 checks), `draftCrossDevice`, `prerequisiteEarly`, `privateControls` (392 checks, 0 findings) |
 
-**The four journeys that fail on the base as well.** On `a7dddc7`, run in a separate worktree against its own harness server, each fails only on its "no page errors / no React warnings" checks, with the React error `Maximum update depth exceeded`. On this branch the failures are the same:
-
-| Journey | Base `a7dddc7` | This branch |
-| --- | --- | --- |
-| `restoredDraftFocusRace` | 1 failure (the error) | the same 1 |
-| `recoveryHold` | 24 failures (the error, every scenario × 3 viewports) | the same 24 |
-| `recoveryDraftCrossDevice` | 6 failures (the error) | the same 6 |
-| `warmupReopen` | 25 failures (the error), 114 ok | 26 failures (the error), 113 ok |
-
-In `warmupReopen` the extra failure on the branch is the same error in one more scenario. The error is intermittent: it was logged 238 times on base and 266 times on the branch. Every check that is not about console errors passes on both. My client change does not reach these screens (the mastery fetch runs only on My Math Path, and the admin card only for the root admin). This is a pre-existing render loop, worth a separate investigation; it is not fixed here.
+**Before the merge**, four of these journeys (`recoveryHold`, `recoveryDraftCrossDevice`, `restoredDraftFocusRace`, `warmupReopen`) failed only on their "no page errors" checks, with React's `Maximum update depth exceeded`. They failed the same way on `a7dddc7` itself, run in a separate worktree: 1, 24, 6 and 25 failures on base against 1, 24, 6 and 26 on the branch. The error was intermittent, and every other check passed on both. The base's Batch 8 fix (`useAskMyTeacher`'s setter) removed the error, and all nine now pass.
 
 ---
 
@@ -194,7 +188,8 @@ In `warmupReopen` the extra failure on the branch is the same error in one more 
 2. **Two switches or one.** I kept them separate on the same document, so each can be turned on, watched and rolled back alone. The callable refuses by-id ON while lists are OFF. If you would rather have one switch, the by-id rule can read `studentListScoped` instead, which is a one-line rule change.
 3. **A stale resume target from another class** (the student moved class before recording any work on that assignment) is refused and dropped with the by-id switch ON, as if the assignment were gone. I judged that acceptable: there is no work to resume. Say if you want it kept.
 4. **The 200-id cap.** `fetchStudentAssignments` reads at most 200 prior-work ids (`MAX_PRIOR_WORK_ASSIGNMENTS`), the same cap as sign-in. A student with over 200 graded assignments outside their current class would show less mastery evidence in the scoped fallback than the old whole-collection read. No shipped screen reaches that fallback (§1). Raise the cap if it matters.
-5. **Old cached copies** (`persistentLocalCache`, R8) keep whatever a device already opened until that document syncs again. This is unchanged and accepted in the design.
+5. **Old cached copies** (`persistentLocalCache`, R8). A device keeps whatever it already received. A document it still reads is replaced on its next sync. Other classes' documents that a device received from the old whole-collection listener are never read again, so they **never** sync. They stay in that device's IndexedDB until the SDK's cache garbage collection evicts them or the cache is cleared. The design accepts this (R8). Clearing site data on shared Chromebooks is the only way to remove them sooner.
+6. **A deleted student's token.** After `permanentlyDeleteStudent`, an unexpired student token keeps working for up to an hour. The row is gone, and a student can no longer re-create it with a class, so that token now opens nothing that the by-id rule guards.
 
 ## 7. Not done
 
@@ -202,3 +197,16 @@ In `warmupReopen` the extra failure on the branch is the same error in one more 
 - No Phase 1+ work: no key split, no `assignmentKeys`, no change to any document.
 - Not touched (other sessions' files): `App.jsx`'s open-assignment paths, `urlArrival.js` and the other files listed for sessions A–G. No open path needed a change because of the rule (§1.1), so session C has nothing to pick up from this branch.
 - The report has not been run against production. Running it is the owner's step (`--project mathmaster-aleks` with a viewer role).
+
+## 8. Review findings and what was done
+
+An independent review of `5aa1cb6` found the rules, the switch, P0-1 and the report's read-only behaviour held up. It raised the items below.
+
+| # | Finding | Done | Proof |
+| --- | --- | --- | --- |
+| 1 (CI blocker) | `assignmentKeyExposureReport.test.mjs` compared the **whole** `assignments` / `grades` / `platformFlags` collections before and after. CI runs every integration file in parallel on one emulator, so other suites' documents broke the comparison | It now compares only this suite's `kx-` documents, checks the expected set exactly before, and checks after that no `kx-` document was added or changed | `npm run test:challenge-finish` (the whole parallel suite), §5 |
+| 2 (should-fix) | A student account with no `grades` row could create it with any `classId` and then open or list that class's assignments (the create allow-list carried roster placement) | Searched for a client path that creates its own row: none in `src/` today, and none in the repository's history (`git log -G` over every `setDoc` / `set` on a `grades` document; 404 commits). Accounts and placement come from the Admin SDK. So `classId`, `classPeriod` and `assignedTeacherEmail` were removed from the student's own create (`studentCreateFields` in `firestore.rules`, `STUDENT_CREATE_FIELDS` in `functions/shared/gradeDocumentAuthority.mjs`, kept equal by the parity test). The rule comment now states the guarantee accurately | New emulator case, both ways: with both switches on, a no-row student cannot create its row with any placement field, cannot then open or list class-b, still creates a bare row (which grants nothing), cannot add a class afterwards, and once placed by the Admin SDK reads its class. `gradeAuthorityRules` now asserts each placement field is refused on a student's create. Four existing tests had used a student's own create with roster fields only as setup for a different refusal (`securityRules` ×3, `studentIdentityRules` ×1). They now use a bare row, so each still fails for its own reason, and the teacher's create keeps the full roster. Mutation: putting placement back in the allow-list turns both new assertions red |
+| 3 | The report read whole assignment documents, which can carry per-student fields | Every read now uses a field mask (`ASSIGNMENT_FIELDS`); the script header, the report notes and §3 say so | The platform test seeds per-student fields and asserts every read (paged and by id) is masked. Removing either mask turns it red |
+| 4 | `setAssignmentReadScope` was not transactional; "by-id on, lists off" was reachable | Read and write now happen in one transaction, and any change that would leave by-id on with lists off is refused (turning both on, or both off, in one call still works) | Integration: turning lists off while by-id is on is refused and writes nothing |
+| 5 | Handoff corrections | §2.1 now says the plan redeploys the whole fleet plus path-admin, and that the by-id switch must be turned off **before** a rules rollback. §2.3 covers the moved student's undeliverable draft (kept and retried by the outbox). §6.5 explains that other classes' cached documents never sync and stay until cache eviction (R8). §6.6 covers a deleted student's unexpired token | — |
+

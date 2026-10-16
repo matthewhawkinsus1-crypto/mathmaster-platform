@@ -10,7 +10,7 @@
 //
 // Proven here: the CLI reads the seeded assignments through the Admin SDK,
 // prints counts only, writes exactly one JSON file under release-reports/ with
-// the documented shape, and changes nothing in Firestore. The columns
+// the documented shape, and changes none of this suite's documents. The columns
 // themselves are proven in tests/platform/assignmentKeyExposureReport.test.mjs.
 
 import test, { after } from 'node:test';
@@ -56,12 +56,16 @@ const SEED = {
 };
 const written = [];
 
-const snapshotAll = async () => {
+// Only this suite's own documents: CI runs every integration file in parallel
+// against one emulator project (`npm run test:challenge-finish`), so other
+// suites' documents come and go in the same collections meanwhile. A write by
+// the report would change one of these, or add a new `kx-` document.
+const snapshotOwn = async () => {
   const rows = {};
   for (const name of ['assignments', 'grades', 'platformFlags']) {
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await db.collection(name).get();
-    snapshot.docs.forEach((doc) => { rows[`${name}/${doc.id}`] = doc.data(); });
+    snapshot.docs.filter((doc) => doc.id.startsWith(PREFIX)).forEach((doc) => { rows[`${name}/${doc.id}`] = doc.data(); });
   }
   return rows;
 };
@@ -80,7 +84,8 @@ test('as the CLI on a seeded emulator: counts on stdout, one JSON file in releas
   Object.entries(SEED).forEach(([id, data]) => batch.set(db.collection('assignments').doc(id), data));
   batch.set(db.collection('grades').doc(`${PREFIX}student`), { displayName: 'never read', classId: `${PREFIX}class`, gradesByAssignment: {} });
   await batch.commit();
-  const before = await snapshotAll();
+  const before = await snapshotOwn();
+  assert.deepEqual(Object.keys(before).sort(), [...Object.keys(SEED).map((id) => `assignments/${id}`), `grades/${PREFIX}student`].sort());
 
   const { stdout } = await promisify(execFile)(process.execPath, [
     path.join(repo, 'scripts/report-assignment-key-exposure.mjs'),
@@ -120,5 +125,5 @@ test('as the CLI on a seeded emulator: counts on stdout, one JSON file in releas
   assert.equal(detail.totals.byRole.quiz.sections, 1);
   assert.doesNotMatch(JSON.stringify(detail), /never read/);
 
-  assert.deepEqual(await snapshotAll(), before, 'Firestore is exactly as it was');
+  assert.deepEqual(await snapshotOwn(), before, 'this suite\'s documents are exactly as they were, and no new kx- document appeared');
 });

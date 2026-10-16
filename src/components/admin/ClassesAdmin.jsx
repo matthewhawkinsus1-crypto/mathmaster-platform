@@ -296,7 +296,8 @@ export default function ClassesAdmin() {
           <p style={{ margin: '0 0 10px', color: 'var(--mm-text)', lineHeight: 1.55 }}>
             <strong>Class-scoped assignment lists</strong> — {readScope === true ? 'on' : readScope === false ? 'off' : 'not checked yet'}.
             When on, a student&apos;s device may list only its own class&apos;s assignments. Turn it on after this release has
-            been live for a full school day (older open tabs still list every assignment); turning it off again needs no deploy.
+            been live for a full school day (older open tabs still list every assignment); turning it off again needs no deploy
+            (turn off class-scoped opening, below, first).
           </p>
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
             <button type="button" style={quiet} disabled={busy === 'scope-read'} onClick={() => run(

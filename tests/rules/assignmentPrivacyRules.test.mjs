@@ -257,6 +257,31 @@ test('by-id switch ON: a student cannot grant themselves an assignment through t
   await assertFails(open(studentA(), 'a2'));
 });
 
+test('both switches ON: a student account with no roster row cannot place itself in a class and read it (review finding)', async () => {
+  await setScopes({ list: true, get: true });
+  await env.withSecurityRulesDisabled(async (context) => { await deleteDoc(doc(context.firestore(), 'grades/S_GHOST')); });
+  // Placing itself is refused, in every placement field…
+  await assertFails(setDoc(doc(ghostStudent(), 'grades/S_GHOST'), { status: 'active', gradesByAssignment: {}, classId: 'class-b' }));
+  await assertFails(setDoc(doc(ghostStudent(), 'grades/S_GHOST'), { status: 'active', gradesByAssignment: {}, classId: 'class-b', classPeriod: 'Period 2', assignedTeacherEmail: TEACHER_B }));
+  await assertFails(setDoc(doc(ghostStudent(), 'grades/S_GHOST'), { status: 'active', gradesByAssignment: {}, assignedTeacherEmail: TEACHER_B }));
+  // …so class-b's lesson stays closed to it, by id and by list.
+  await assertFails(open(ghostStudent(), 'a2'));
+  await assertFails(classList(ghostStudent(), 'class-b'));
+  // A bare row (no placement) still creates, and grants nothing.
+  await assertSucceeds(setDoc(doc(ghostStudent(), 'grades/S_GHOST'), { status: 'active', gradesByAssignment: {} }));
+  await assertFails(open(ghostStudent(), 'a2'));
+  await assertFails(classList(ghostStudent(), 'class-b'));
+  // Nor can it add placement afterwards (the update rule pins it).
+  await assertFails(updateDoc(doc(ghostStudent(), 'grades/S_GHOST'), { classId: 'class-b' }));
+  // Placed by the Admin SDK, as createStudentAccount / setStudentClass do, it reads its class.
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'grades/S_GHOST'), { classId: 'class-b', status: 'active', gradesByAssignment: {} });
+  });
+  await assertSucceeds(open(ghostStudent(), 'a2'));
+  await assertSucceeds(classList(ghostStudent(), 'class-b'));
+  await env.withSecurityRulesDisabled(async (context) => { await deleteDoc(doc(context.firestore(), 'grades/S_GHOST')); });
+});
+
 test('both switches ON: the whole-collection list is refused and the class list allowed (P0-2 with P0-3)', async () => {
   await setScopes({ list: true, get: true });
   await assertFails(wholeList(studentA()));

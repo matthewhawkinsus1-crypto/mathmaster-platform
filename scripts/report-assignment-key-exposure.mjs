@@ -32,8 +32,10 @@
  * Stimulus-derived answers (a graph's functionSpec, a system's equations) are
  * NOT counted: no split can hide what the device must draw (design §1.1).
  *
- * READS. `assignments` only (whole documents, paged by id, or the ids named
- * with --assignment). Nothing about any student is read.
+ * READS. `assignments` only, paged by id or the ids named with --assignment,
+ * and only the fields in ASSIGNMENT_FIELDS (a field mask): the per-student
+ * fields an assignment can still carry are never read. No other collection
+ * is read.
  * WRITES. One local file, release-reports/assignment-key-exposure-<time>.json
  * (gitignored). Standard output is counts only.
  */
@@ -50,6 +52,15 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const functionsRequire = createRequire(new URL('../functions/package.json', import.meta.url));
 
 export const REPORT_VERSION = 1;
+/*
+ * The only fields read from an assignment (a field mask on every read). An
+ * assignment can still carry per-student fields — studentOverrides,
+ * excusedStudentIds, dol.attemptGrantsByStudentId, audienceHistory — and the
+ * mask is what keeps them out of this process altogether.
+ */
+export const ASSIGNMENT_FIELDS = Object.freeze([
+  'title', 'schemaVersion', 'assignedClassIds', 'archived', 'assessmentPolicy.mode', 'variantPolicy', 'sections', 'questions',
+]);
 export const REPORT_DIR = 'release-reports';
 export const PAGE_SIZE = 100;
 
@@ -309,7 +320,7 @@ async function* pagedDocuments(collection, pageSize) {
 
 /**
  * Reads and returns the report object. `db` is a Firestore (Admin SDK); only
- * collection/doc/orderBy/limit/startAfter/get and getAll are used.
+ * collection/doc/orderBy/select/limit/startAfter/get and getAll (with a fieldMask) are used.
  */
 export const runAssignmentKeyExposureReport = async ({
   db, assignmentIds = [], pageSize = PAGE_SIZE, now = () => Date.now(), documentIdField = '__name__',
@@ -319,13 +330,13 @@ export const runAssignmentKeyExposureReport = async ({
   const consider = (id, data) => { assignments.push(assignmentExposure(id, data || {})); };
   const missing = [];
   if (assignmentIds.length) {
-    const snapshots = await db.getAll(...assignmentIds.map((id) => db.collection('assignments').doc(id)));
+    const snapshots = await db.getAll(...assignmentIds.map((id) => db.collection('assignments').doc(id)), { fieldMask: [...ASSIGNMENT_FIELDS] });
     snapshots.forEach((snapshot, index) => {
       if (snapshot.exists) consider(snapshot.id, snapshot.data());
       else missing.push(assignmentIds[index]);
     });
   } else {
-    const ordered = db.collection('assignments').orderBy(documentIdField);
+    const ordered = db.collection('assignments').orderBy(documentIdField).select(...ASSIGNMENT_FIELDS);
     for await (const doc of pagedDocuments(ordered, pageSize)) consider(doc.id, doc.data());
   }
   assignments.sort((a, b) => (a.assignmentId < b.assignmentId ? -1 : a.assignmentId > b.assignmentId ? 1 : 0));
@@ -363,7 +374,7 @@ export const runAssignmentKeyExposureReport = async ({
       'withChoiceLabelKey: an answer field whose stored answer equals one of its own options, or a context value equal to one of its choices — readable without doing any mathematics.',
       'deviceOnly: the server cannot grade it as stored (serverResponseGradingSupport after deliveredQuestionForGrading). familySlots are graded by ingestion from the delivery pin and are not device-only, though the device computes their key.',
       'Stimulus-derived answers (the data that draws a graph, a system, a matrix) are not counted: no split can hide them (design §1.1, R9).',
-      'Nothing about any student was read. Titles are the teacher\'s own.',
+      'Only the fields in ASSIGNMENT_FIELDS were read (a field mask), so no per-student field on an assignment was read. Titles are the teacher\'s own.',
     ],
     totals,
     assignments,

@@ -196,6 +196,12 @@ test('the by-id switch (D10 P0-3) is refused while lists are open, then turns on
   assert.equal(stored.studentGetScoped, true);
   const actions = (await db.collection(ADMIN_AUDIT_COLLECTION).where('target', '==', 'assignmentReadScope').get()).docs.map((entry) => entry.data().action);
   assert.ok(actions.includes('assignment_get_scope_enforced') && actions.includes('assignment_get_scope_relaxed'));
+  // Lists off while by-id is on is refused too, so "by-id on, lists off" is never stored.
+  await assert.rejects(
+    call('setAssignmentReadScope', ROOT, { studentListScoped: false }),
+    (error) => error.code === 'failed-precondition',
+  );
+  assert.equal((await db.collection('platformFlags').doc('assignmentReadScope').get()).data().studentListScoped, true, 'nothing was written');
   await assert.rejects(call('setAssignmentReadScope', TEACHER, { studentGetScoped: false }), (error) => error.code === 'permission-denied');
   await assert.rejects(call('setAssignmentReadScope', STUDENT, { studentGetScoped: false }), (error) => error.code === 'permission-denied');
   // Leave the switches as the other cases expect them.

@@ -935,13 +935,16 @@ test('no client can CREATE a grades row with a Test Cycle grade already in it', 
   // so any other student would be refused for the wrong reason and prove nothing.
   const studentNew = () => env.authenticatedContext('uid-new', { role: 'student', studentId: 'STUDENT_NEW' }).firestore();
 
-  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), { ...roster, testCycleGrades: forged }));
+  // A student's own row carries no roster placement (only the Admin SDK
+  // places a student), so the student's attempts use the bare row.
+  const ownRow = { status: 'active', gradesByAssignment: {} };
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), { ...ownRow, testCycleGrades: forged }));
   await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_NEW'), { ...roster, testCycleGrades: forged }));
   await assertFails(setDoc(doc(admin(), 'grades/STUDENT_NEW'), { ...roster, testCycleGrades: forged }));
 
-  // An ordinary roster row still creates, which is what the create rule is for,
-  // and so does one that names the field empty.
-  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), roster));
+  // An ordinary row still creates, which is what the create rule is for, and
+  // so does one that names the field empty.
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), ownRow));
   await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_NEW2'), { ...roster, testCycleGrades: {} }));
 });
 
@@ -997,11 +1000,12 @@ test('no client can CREATE a grades row that already holds a Recovery record or 
   const studentNew = () => env.authenticatedContext('uid-new-recovery', { role: 'student', studentId: 'STUDENT_NEW_R' }).firestore();
   const forgedRecovery = { 'assignment-1': { dol: { status: 'completed', rawScore: 100, cap: 100 } } };
 
-  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...roster, sectionRecoveryByAssignment: forgedRecovery }));
+  const ownRow = { status: 'active', gradesByAssignment: {} };
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...ownRow, sectionRecoveryByAssignment: forgedRecovery }));
   await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_NEW_R'), { ...roster, sectionRecoveryByAssignment: forgedRecovery }));
-  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...roster, warmupChallengeByAssignment: { a: { correct: 5 } } }));
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...ownRow, warmupChallengeByAssignment: { a: { correct: 5 } } }));
 
-  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), roster));
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), ownRow));
   await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_NEW_R2'), { ...roster, sectionRecoveryByAssignment: {} }));
 });
 
@@ -1283,8 +1287,9 @@ test('clients cannot create a grades row that already contains teacher overrides
     },
   };
 
+  const ownRow = { status: 'active', gradesByAssignment: {} };
   await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_OVERRIDE_NEW'), {
-    ...roster,
+    ...ownRow,
     teacherGradeOverridesByAssignment: forgedOverrides,
   }));
   await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_OVERRIDE_TEACHER_CREATE'), {
@@ -1292,7 +1297,7 @@ test('clients cannot create a grades row that already contains teacher overrides
     teacherGradeOverridesByAssignment: forgedOverrides,
   }));
 
-  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_OVERRIDE_NEW'), roster));
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_OVERRIDE_NEW'), ownRow));
 });
 
 test('grade override audit history is server-only and cannot be forged or read directly', async () => {

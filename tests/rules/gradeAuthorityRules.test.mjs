@@ -395,9 +395,14 @@ test('one forged field poisons the whole write, even beside a legitimate one', a
  * ======================================================================== */
 
 test('a student cannot create their own grades row with any grade state already in it', async () => {
-  const roster = {
-    classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {},
-  };
+  // A student's own row carries no roster placement (D10 Phase 0 review): the
+  // class and teacher are authorization and only the Admin SDK sets them.
+  const roster = { status: 'active', gradesByAssignment: {} };
+  for (const placement of [{ classId: 'class-a' }, { classPeriod: 'Period 1' }, { assignedTeacherEmail: TEACHER_A }]) {
+    // eslint-disable-next-line no-await-in-loop
+    await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), { ...roster, ...placement }))
+      .catch((error) => { throw new Error(`create with ${Object.keys(placement)[0]} was ALLOWED: ${error.message}`); });
+  }
   const forgedMaps = {
     gradesByAssignment: { [A]: allCorrect() },
     classworkGradesByAssignment: { [A]: { score: 100 } },

@@ -244,16 +244,24 @@ service cloud.firestore {
      * blank cheque for exactly the fields the update rule protects.
      *
      * Create gets the same allow-list idea as update — there is just no prior
-     * document to diff against. A student's create may carry only the roster
-     * placement it has always carried (pinned from then on by the update
-     * rule), the support-profile slot (empty), the engagement field, and the
-     * grade maps — and those must be empty. Mirrors STUDENT_CREATE_FIELDS and
+     * document to diff against. A student's create may carry only `status`,
+     * the support-profile slot (empty), the engagement field, and the grade
+     * maps — and those must be empty. Mirrors STUDENT_CREATE_FIELDS and
      * GRADE_FIELDS_EMPTY_ON_STUDENT_CREATE (the Test Cycle, override and
      * Recovery maps also have their own create checks below, for every creator).
+     *
+     * NO ROSTER PLACEMENT. `classId`, `classPeriod` and `assignedTeacherEmail`
+     * are authorization: the assignment rules read a student's class from this
+     * row (studentListsOwnClassAssignments, studentMayOpenAssignment) and a
+     * teacher's roster reads assignedTeacherEmail. A student account whose row
+     * did not exist yet could otherwise create it in any class and read that
+     * class's assignments (D10 Phase 0 review). No client creates its own row —
+     * accounts and placement come from the Admin SDK callables
+     * (createStudentAccount, setStudentClass) — so nothing legitimate is lost.
      */
     function studentCreateFields() {
       return [
-        'classId', 'classPeriod', 'assignedTeacherEmail', 'status', 'profile', 'assignmentActivity',
+        'status', 'profile', 'assignmentActivity',
         'gradesByAssignment', 'classworkGradesByAssignment', 'dolGradesByAssignment', 'supportUsageByAssignment',
         'classroomReleaseSignals', 'classroomSyncStatusByAssignment', 'classroomSectionSyncStatusByAssignment',
         'testCycleGrades', 'teacherGradeOverridesByAssignment', 'sectionRecoveryByAssignment', 'warmupChallengeByAssignment'
@@ -1602,9 +1610,11 @@ service cloud.firestore {
      *   - a student with that assignment in their own `gradesByAssignment`
      *     (O3: past work, Review My Work, work from before a class move) or
      *     `testCycleGrades` (a Test they were added to on their own, before
-     *     they have answered anything). Both maps are server-owned on the
-     *     roster row: a student cannot add an id to either (the `grades`
-     *     rules), so cannot grant themselves an assignment.
+     *     they have answered anything). Both maps, and the row's `classId`,
+     *     are server-owned: a student cannot add an id to either map, change
+     *     their class, or create their own row with a class in it (the
+     *     `grades` rules; studentCreateFields carries no placement), so a
+     *     student cannot grant themselves an assignment.
      * A missing document stays "not found" rather than "refused" for every
      * signed-in user: an id reveals nothing, and a client that revalidates a
      * deleted assignment must still see it is gone.
