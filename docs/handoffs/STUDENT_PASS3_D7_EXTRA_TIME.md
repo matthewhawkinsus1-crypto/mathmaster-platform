@@ -128,19 +128,38 @@ findings in `dolCloseCopy`), the pack-up guard removed and the profile injection
 | Check | Result |
 | --- | --- |
 | `npm ci`, `npm --prefix functions ci` | done |
-| `npm run test:platform` | 11,451 / 11,451 |
+| `npm run test:platform` | 11,454 / 11,454 |
 | `node --test tests/tools/*.test.mjs` | 1,644 tests, 1,643 pass, 0 fail, 1 skipped |
 | `npm run test:authoring-v5` | 686 / 686 |
 | `npm run lint` | exit 0 (warnings only; none in lines this branch wrote) |
 | `npm run build` | pass |
 | `npm run build:firebase` (no tracked file rewritten) | pass; `git status` clean afterwards |
 | `npm run test:rules` | not run: no rules change (the new state fields live on server-only documents) |
-| `npm run test:challenge-finish` (every top-level integration suite, incl. the new one) | 449 / 449 |
+| `npm run test:challenge-finish` (every top-level integration suite, incl. the new one) | 451 / 451 |
 | `npm run test:warmup-reopen:emulator` (section deadlines) | 1 / 1 |
 | `npm run test:classroom-regrade-report:emulator` (Classroom) | 5 / 5 |
 | `tests/browser/dolCloseCopy.mjs` (+ `--legacy` must fail) | all checks pass at 1366×768 and 390×844; `--legacy` fails as designed |
 | `tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs` | pass, 1366×768 and 390×844 |
-| Existing drivers for the screens changed, one at a time | teacher `journeys` (A–K, 1440 and 1024), `prerequisiteEarlyJourneys`, `privateControlsJourneys` (392 checks), `warmupReopenJourneys`: pass. `studentNameJourneys`: 6 findings (Attendance History rows labelled "ID 9100xx"), **identical on the base commit** `a7dddc7` (run in a separate worktree), on a screen this branch does not touch. Before the merge, `warmupReopenJourneys` failed with "Maximum update depth exceeded", identically on the base (264 errors each); the base's own fix cleared it |
+| Existing drivers for the screens changed, one at a time | teacher `journeys` (A–K, 1440 and 1024), `appUrlJourneys`, `prerequisiteEarlyJourneys`, `privateControlsJourneys` (392 checks), `warmupReopenJourneys`: pass. `studentNameJourneys`: 6 findings (Attendance History rows labelled "ID 9100xx"), **identical on the base commit** `a7dddc7` (run in a separate worktree), on a screen this branch does not touch. Before the merge, `warmupReopenJourneys` failed with "Maximum update depth exceeded", identically on the base (264 errors each); the base's own fix cleared it |
+
+## Review round (integrator review of `a76e8ed`)
+
+| Finding | Done |
+| --- | --- |
+| 0. Gate placeholders | filled (they were already filled at `b710221`, after the reviewed head) |
+| 1. Device and server read the profile from different places | the device's DOL window now reads `timingProfile` = the grade document's own `profile` field (sign-in, live listener, the three projections); tested both ways (top-level supports with no `profile` field: no extra time on either side) |
+| 2. Extra time not capped at the final cutoff | capped at the student's own final cutoff, never below the class window, on the device and the server; tested (cutoff inside, at, before and after the extra minutes; an extension moves it) |
+| 3. Two H-116 paths unpinned | index.js keeps its own helpers (the lib's differ for Test Cycle and section-reconcile; see "Found, not changed"); pinned with anchored contracts and two emulator cases. The reviewer's M1, M2, M8: all red now (M8 in the emulator only) |
+| Note: one `now` | one clock per student in both triggers |
+| Note: "Close now" | wording corrected (code comment, decision 4) |
+| Notes: Missing label, read-at-finalize, stale pending entry, section-only state entries, `resolveHeldSectionRecovery` | in Decision 6, "Found, not changed" and the deploy list |
+
+Found by the gate in this round, fixed: the new `timingProfile` was first inserted at index 4 of the student
+projection's dedupe inputs, which URL arrival reads as the student's controls (`lastPublishedRef.current[4]`), so a
+deep link to a lesson landed on Home (`dolExtraTimeJourneys`, `prerequisiteEarlyJourneys`). It is now appended after
+the controls (pinned), and the live update leaves `user.profile` exactly as before. Mutation checks this round: 7
+(profile source, cap) + 5 (arrival, live update, sign-out) + the reviewer's 3, all red except one equivalent clamp
+(the cap's `Math.max(0, …)` is already covered by the `extraMs > 0` guard).
 
 ## Deploying (not done)
 
