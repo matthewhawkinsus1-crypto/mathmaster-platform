@@ -153,6 +153,10 @@ import {
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
+import { useAskMyTeacher } from './platform/supports/useAskMyTeacher.js';
+import { questionFor } from './platform/supports/askTeacher.js';
+import TeacherAnswers from './components/student/TeacherAnswers.jsx';
+import { TeacherAnswersList } from './components/student/TeacherAnswersList.jsx';
 import {
   SPOTLIGHT_FRAME_COLLECTION,
   SPOTLIGHT_REQUEST_COLLECTION,
@@ -1790,7 +1794,20 @@ function App() {
   const livePresencePayloadRef = useRef(null);
   // "Ask my teacher" (platform/supports/helpRequest.js): rides in the
   // presence payload; publishPresenceNowRef sends it without waiting a beat.
-  const [helpRequest, setHelpRequest] = useState(null);
+  // useAskMyTeacher (student pass 3, D6): in class the hand (kept across a
+  // reload, lowered on leaving the assignment) and the teacher's "Seen" /
+  // "On my way"; out of class a question left for the teacher instead.
+  const askingStudentId = user?.role === 'student' ? user.id : null;
+  const askMyTeacher = useAskMyTeacher({
+    studentId: askingStudentId,
+    classId: user?.classId || null,
+    classPeriod: user?.classPeriod || null,
+    teacherEmail: askingStudentId ? user.assignedTeacherEmail || null : null,
+    schedule: classSchedule,
+    nowValue: now,
+    assignmentId: activeAssignmentId,
+  });
+  const { helpRequest, setHelpRequest } = askMyTeacher;
   const publishPresenceNowRef = useRef(null);
   const spotlightPublisherRef = useRef(null);
   const [studentSpotlightRequest, setStudentSpotlightRequest] = useState(null);
@@ -4237,8 +4254,8 @@ function App() {
     studentClassPoints.redemptionsByAssignment, helpRequest,
   ]);
 
-  // A help request belongs to the assignment it was made in.
-  useEffect(() => { setHelpRequest(null); }, [activeAssignmentId]);
+  // A help request belongs to the assignment it was made in (useAskMyTeacher
+  // restores it after a reload and lowers it on leaving the assignment)…
   // …and comes down when the question it was raised on closes.
   useEffect(() => {
     setHelpRequest((current) => helpRequestAfterClose(current, activeWorkingTracker, { askingAllowed: !activeLifecycle?.isPracticeOnly }));
@@ -10168,6 +10185,9 @@ function App() {
             {questions[currentQuestionIndex]?.instructionalPhase
               && (preview || assignment.showInstructionalPhaseLabelsToStudents === true)
               && <div aria-label="Instructional phase" style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 950, letterSpacing: '0.08em' }}>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
+            {/* "Ask my teacher" answers, on any question of this assignment —
+                one closed since it was asked keeps its answer here. */}
+            {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}
             <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
@@ -10236,6 +10256,20 @@ function App() {
                 ? null
                 : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }))}
               helpRequested={helpRequest?.assignmentId === activeAssignmentId && helpRequest?.questionIndex === currentQuestionIndex}
+              askTeacherContext={{
+                mode: askMyTeacher.mode,
+                acknowledgement: askMyTeacher.acknowledgement,
+                question: questionFor(askMyTeacher.questions, { assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }),
+                onSendQuestion: askMyTeacher.canLeaveQuestion
+                  ? ({ existing, text }) => askMyTeacher.sendQuestion({
+                    existing,
+                    text,
+                    questionIndex: currentQuestionIndex,
+                    questionLabel: `${currentSectionMeta.label} · Question ${currentSectionQuestionNumber}`,
+                    assignmentTitle: assignment?.title || '',
+                  })
+                  : null,
+              }}
             />
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.
@@ -11013,7 +11047,11 @@ function App() {
       && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
       ? (
         <Suspense fallback={<p role="status" style={{ margin: '14px 0 0' }}>Loading your work…</p>}>
-          <ReviewMyWork assignment={recoveryAssignment} load={loadMyReviewWork} />
+          <ReviewMyWork
+            assignment={recoveryAssignment}
+            load={loadMyReviewWork}
+            teacherAnswers={<TeacherAnswers studentId={user.id} assignmentId={recoveryAssignment.id} />}
+          />
         </Suspense>
       )
       : null;

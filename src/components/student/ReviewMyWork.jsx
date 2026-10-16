@@ -120,7 +120,10 @@ function ReviewQuestion({ item }) {
   );
 }
 
-export default function ReviewMyWork({ assignment, load, onClose = null }) {
+// `teacherAnswers`: the student's questions for their teacher on this
+// assignment and the answers (TeacherAnswers.jsx), shown whatever the
+// solution rows below do.
+export default function ReviewMyWork({ assignment, load, onClose = null, teacherAnswers = null }) {
   const [state, setState] = useState({ status: 'loading', result: null });
   const attempt = useRef(0);
   const assignmentId = assignment?.id || null;
@@ -156,6 +159,8 @@ export default function ReviewMyWork({ assignment, load, onClose = null }) {
         <h2 style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Your answers and solutions</h2>
         {onClose ? <button type="button" style={buttonStyle} onClick={() => onClose()}>Close</button> : null}
       </div>
+
+      {teacherAnswers}
 
       {state.status === 'loading' && <p role="status" style={{ color: 'var(--mm-text-muted)' }}>Loading your answers…</p>}
 

@@ -10,6 +10,7 @@ import NeedsAttentionQueue from './components/teacher/NeedsAttentionQueue';
 import StudentSupportDashboard from './components/teacher/StudentSupportDashboard';
 import StudentPersistenceRecoveryPanel from './components/teacher/StudentPersistenceRecoveryPanel.jsx';
 import ClassLessonControls from './components/teacher/ClassLessonControls.jsx';
+import StudentQuestionsPanel from './components/teacher/StudentQuestionsPanel.jsx';
 import { projectClassLessons } from './platform/teacher/classLessonControls.js';
 import { classIdsForTeacher, studentsInClass } from '../functions/shared/classModel.mjs';
 import { buildStudentIdentityIndex } from './platform/studentName.js';
@@ -219,6 +220,15 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
         them (in the light live roster it holds only non-academic alerts).
       */}
       {!teachingNow && attentionQueue}
+
+      {/* Questions students left outside class time ("Ask my teacher", D6):
+          folded, and answered here. */}
+      <StudentQuestionsPanel
+        teacherEmail={teacherEmail}
+        students={allStudents}
+        assignments={assignments}
+        onOpenStudent={onOpenStudent}
+      />
 
       {currentClass ? (
         <section aria-labelledby="home-class-now" className="tw-card" style={{ marginBottom: 16, padding: '14px 16px' }}>

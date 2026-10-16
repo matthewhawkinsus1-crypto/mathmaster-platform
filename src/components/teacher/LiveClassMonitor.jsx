@@ -10,6 +10,7 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentSpotlightView from './StudentSpotlightView.jsx';
 import ClassPointsAwardDialog from './ClassPointsAwardDialog.jsx';
 import ClassPointsHistoryPanel from './ClassPointsHistoryPanel.jsx';
+import HelpAcknowledgeControls from './HelpAcknowledgeControls.jsx';
 import { classPointsBalanceFor, watchClassPointAccounts } from '../../platform/classPointsClient.js';
 import DOLCountdown from '../student/DOLCountdown.jsx';
 import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, formatStudentName } from '../../platform/studentName';
@@ -175,6 +176,8 @@ function StudentTile({
   onSpotlight = null,
   classPoints = null,
   showStudentId = true,
+  // "Seen" / "On my way" for a raised hand (HelpAcknowledgeControls.jsx).
+  teacherEmail = '',
 }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
   // One line for assistive tech: the name, or "Name unavailable · ID 101410".
@@ -270,6 +273,9 @@ function StudentTile({
           {integritySignal && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--mm-warning-soft)', border: '1px solid #d9a400', color: 'var(--mm-warning-text)' }}>Integrity review</span>}
         </div>
       )}
+      {!roomMode && row.flags.includes(LIVE_FLAGS.HELP_REQUESTED) && (
+        <HelpAcknowledgeControls studentId={row.id} live={live} teacherEmail={teacherEmail} />
+      )}
 
       {onSupportAction && (row.flags.length > 0 || integritySignal) && !roomMode && (
         <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} style={{ marginTop: 9, paddingTop: 8, borderTop: '1px solid rgba(95,99,104,.18)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -311,7 +317,7 @@ function withClassworkStates(roster, selectedAssignment, progressPositions) {
   });
 }
 
-function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) {
+function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null, teacherEmail = '' }) {
   const style = WALKTHROUGH_STYLE[row.status] || WALKTHROUGH_STYLE[WALKTHROUGH_STATUS.ELSEWHERE];
   const attendanceMark = normalizeLiveAttendance(row.attendance).mark;
   return (
@@ -354,6 +360,7 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
           <button type="button" onClick={() => onChecked(row.id)} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>Checked</button>
         )}
       </div>
+      {row.helpRequested && <HelpAcknowledgeControls studentId={row.id} live={row.live} teacherEmail={teacherEmail} />}
     </div>
   );
 }
@@ -1256,7 +1263,7 @@ export default function LiveClassMonitor({
               <div style={{ padding: 18, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Nobody is in this group right now.</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 250px), 1fr))', gap: 10 }}>
-                {walkRows.map((row) => <WalkthroughCard key={row.id} row={row} onChecked={(studentId) => setCheckedStudentIds((ids) => ids.includes(studentId) ? ids : [...ids, studentId])} onOpenStudent={onOpenStudent} classPoints={classPointsForRow(row)} />)}
+                {walkRows.map((row) => <WalkthroughCard key={row.id} row={row} onChecked={(studentId) => setCheckedStudentIds((ids) => ids.includes(studentId) ? ids : [...ids, studentId])} onOpenStudent={onOpenStudent} classPoints={classPointsForRow(row)} teacherEmail={teacherEmail} />)}
               </div>
             )}
           </div>
@@ -1283,6 +1290,7 @@ export default function LiveClassMonitor({
               onAdjustPath={onOpenWeeklyPath ? () => onOpenWeeklyPath(row.id) : null}
               onSpotlight={activeClassId && !activeSpotlight ? requestSpotlight : null}
               classPoints={classPointsForRow(row)}
+              teacherEmail={teacherEmail}
             />
           ))}
         </div>
