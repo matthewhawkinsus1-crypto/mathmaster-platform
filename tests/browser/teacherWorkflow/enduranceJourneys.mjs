@@ -182,7 +182,7 @@ const studentJourney = async () => {
         }
       }
       if (question === 1) {
-        const enlarge = page.getByRole('button', { name: /Enlarge question/ }).first();
+        const enlarge = page.getByRole('button', { name: /Open Work View/ }).first();
         if (await enlarge.isVisible().catch(() => false)) {
           await enlarge.click();
           await settle(page, 500);

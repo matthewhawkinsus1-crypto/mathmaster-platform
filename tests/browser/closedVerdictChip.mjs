@@ -10,7 +10,7 @@
 //   practice  while attempts remain there is no verdict chip; the third miss
 //             closes the question and shows "Incorrect — review below" as a
 //             role="status" chip whose rectangle intersects no visible button
-//             (the "⤢ Enlarge question" opener among them) and no heading
+//             (the "⤢ Open Work View" opener among them) and no heading
 //             ("Complete Each Part" among them).
 //   dol       a submitted DOL item never shows the chip (no outcome feedback).
 //
@@ -114,8 +114,8 @@ for (const device of DEVICES) {
     const { page, context } = await open(device, 'q=multi&role=practice');
     const heading = page.locator('.mathmaster-multipart-heading');
     check(await heading.isVisible() && /Complete Each Part/.test(await heading.textContent()), `${device.name}: the multi-part heading is shown`);
-    const opener = page.getByRole('button', { name: /Enlarge question/ });
-    check(await opener.isVisible(), `${device.name}: the Enlarge question opener is shown`);
+    const opener = page.getByRole('button', { name: /Open Work View/ });
+    check(await opener.isVisible(), `${device.name}: the Open Work View opener is shown`);
 
     await answer(page, '-\\frac{3}{4}');
     await submit(page);
@@ -139,7 +139,7 @@ for (const device of DEVICES) {
     check(hits.length === 0, `${device.name}: the chip intersects no button and no heading`, hits.join('; '));
     // The two named in the QA report, measured directly as well.
     const box = await verdict.boundingBox();
-    for (const [name, other] of [['Enlarge question', opener], ['Complete Each Part', heading]]) {
+    for (const [name, other] of [['Open Work View', opener], ['Complete Each Part', heading]]) {
       const b = await other.boundingBox();
       const overlap = Boolean(box && b)
         && Math.min(box.x + box.width, b.x + b.width) - Math.max(box.x, b.x) > 0.5

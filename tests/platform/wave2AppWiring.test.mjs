@@ -94,7 +94,11 @@ test('I item 4: getSectionAccessState is the signed-in student\'s binding everyw
   assert.ok(code.indexOf('const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState(') < at);
   assert.ok(code.indexOf('const [user, setUser] = useState(') < at);
   const calls = [...code.matchAll(/\bgetSectionAccessState\(/g)].map((match) => match.index);
-  assert.ok(calls.length >= 7, `every section-access call (found ${calls.length})`);
+  // Six since pass 3: the Overview's own lock lookup became the navigator's
+  // shared sectionAccessFor (assignmentNavigator.js), which asks the binding.
+  assert.ok(calls.length >= 6, `every section-access call (found ${calls.length})`);
+  const navigatorAccess = region(code, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'the navigator\'s section access');
+  assert.match(navigatorAccess, /manualState: getSectionAccessState\(\{/);
   assert.ok(calls.every((index) => index > at), 'no call before the binding');
   // Home's dashboard model receives the binding, not the plain function.
   const providers = region(code, 'function buildStudentDashboardNow() {', 'function studentUpNextDashboard() {', 'the dashboard providers');

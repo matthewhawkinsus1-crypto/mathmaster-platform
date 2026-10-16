@@ -426,7 +426,8 @@ const courseJourney = async (context, device) => {
   const endpoint = page.getByPlaceholder('Exact endpoint, e.g. -13/8');
   await endpoint.fill('-3');
   await page.getByRole('button', { name: 'Place endpoint' }).click();
-  await page.getByRole('button', { name: /Open/ }).first().click();
+  // Not "⤢ Open Work View", which also has "Open" in it.
+  await page.getByRole('button', { name: /Open/ }).filter({ hasNotText: 'Work View' }).first().click();
   await endpoint.fill('5');
   await page.getByRole('button', { name: 'Place endpoint' }).click();
   const notation = page.locator('math-field').first();
@@ -448,7 +449,7 @@ const courseJourney = async (context, device) => {
   // A pause must cover an enlarged question too (Work View is a fixed layer
   // above the page): typing there autosaves, the save is refused as paused,
   // and the pause screen is what the student sees.
-  const enlarge = page.getByRole('button', { name: /Enlarge question/ });
+  const enlarge = page.getByRole('button', { name: /Open Work View/ });
   if (await enlarge.count()) {
     await enlarge.first().click();
     await page.waitForSelector('.mathmaster-work-view-host[data-open="true"]', { timeout: 8000 });
