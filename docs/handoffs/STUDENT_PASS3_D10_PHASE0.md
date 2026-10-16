@@ -97,20 +97,32 @@ What the columns mean (declared field lists at the top of the script; design §1
 
 **Checked against the design's independent count.** On the 16 repository lessons the report reproduces design §1.2 exactly for questions (44/108/110/45), stored keys (27/51/55/30 = 163) and server-gradable (42/105/107/44). It finds 8 family slots and 1 generated question. Choice labels come to 102: the design's 98 answer-field labels plus 4 context choice values. Hints come to 72: the design counted `hints` only, and the report also counts `supportHints` (§1.1 lists both), which adds one Practice item. This table is a platform test, so a change to the field lists that moves these numbers fails CI.
 
-Run on the seeded emulator (`tests/integration/assignmentKeyExposureReport.test.mjs`: the District DOL lesson compiled by the real intake and stored as a save stores it, plus a hand-made Quiz):
+A real run on a seeded emulator: two repository lessons compiled by the real intake and stored as a save stores them. The District DOL lesson is a graph-analysis review whose feature answers are stored on 32 of its 35 questions; L3 Slopes stores keys on 26 of 29. The storage repair and a JSON round trip change none of these counts.
 
 ```
 Assignment key exposure (D10 P0-4) — READ ONLY (nothing is written to Firestore)
   project: mathmaster-key-exposure  (Firestore emulator 127.0.0.1:8182)
 
   assignments read                                         2
-  named assignments not found                              1
-  all sections   questions 37 · stored key … · choice label … · solution … · hints … · device-only …
-  …
-Detail (per assignment and section): release-reports/assignment-key-exposure-….json
+  all sections                                             questions 64 · stored key 58 · choice label 9 · solution 0 · hints 21 · device-only 0
+    classwork (2 sections)                                 questions 24 · stored key 22 · choice label 3 · solution 0 · hints 7 · device-only 0
+    dol (2 sections)                                       questions 11 · stored key 10 · choice label 1 · solution 0 · hints 0 · device-only 0
+    practice (2 sections)                                  questions 22 · stored key 20 · choice label 4 · solution 0 · hints 11 · device-only 0
+    warmup (2 sections)                                    questions 7 · stored key 6 · choice label 1 · solution 0 · hints 3 · device-only 0
+
+Detail (per assignment and section): release-reports/assignment-key-exposure-2026-10-16T19-01-54-661Z.json
 ```
 
-The test checks the counts lines, that the file sits directly under `release-reports/`, the JSON shape and values, and that every document in `assignments`, `grades` and `platformFlags` is unchanged afterwards.
+One section from that file:
+
+```json
+{ "sectionId": "section-1", "role": "warmup", "title": "Warm-Up — Recognize the Family and Read One Feature",
+  "variantMode": "personalized", "questions": 4, "withStoredKey": 3, "withChoiceLabelKey": 0, "withWorkedSolution": 0,
+  "withHints": 0, "withAnswerBearingHelp": 1, "serverGradable": 4, "familySlots": 0, "nonGraded": 0,
+  "teacherExcluded": 0, "deviceOnly": 0, "deviceOnlyReasons": {}, "storedKeyFields": { "grading": 3 } }
+```
+
+The integration test (`tests/integration/assignmentKeyExposureReport.test.mjs`) runs the CLI the same way, on the District DOL plus a hand-made Quiz, with one named id that does not exist. It checks the counts lines, that the file sits directly under `release-reports/`, the JSON shape and values, and that every document in `assignments`, `grades` and `platformFlags` is unchanged afterwards.
 
 ---
 
@@ -151,17 +163,28 @@ The test checks the counts lines, that the file sits directly under `release-rep
 
 | Check | Result |
 | --- | --- |
-| `npm ci`, `npm --prefix functions ci` | GATE_NPMCI |
+| `npm ci`, `npm --prefix functions ci` | pass (both exit 0) |
 | `npm run test:platform` | GATE_PLATFORM |
-| `node --test tests/tools/*.test.mjs` | GATE_TOOLS |
-| `npm run lint` | GATE_LINT |
-| `npm run build` | GATE_BUILD |
-| `npm run build:firebase` (no tracked file rewritten) | GATE_BUILDFB |
-| `npm run test:rules` | GATE_RULES |
+| `node --test tests/tools/*.test.mjs` | 1644 tests: 1643 pass, 0 fail, 1 skipped (pre-existing skip) |
+| `npm run lint` | exit 0 (warnings only; none new in changed code. The `ClassesAdmin.jsx:107` `selectedClass` warning is pre-existing) |
+| `npm run build` | pass |
+| `npm run build:firebase` (no tracked file rewritten) | pass; `git status` clean afterwards |
+| `npm run test:rules` | pass: 243/243 (`tests/firestore-rules.test.mjs`) and 217/217 (`tests/rules/*.test.mjs`, including the 16 in `assignmentPrivacyRules`) |
 | `tests/integration/assignmentPrivacyMigration.test.mjs` (emulator) | 6/6 pass |
 | `tests/integration/assignmentKeyExposureReport.test.mjs` (emulator) | 1/1 pass |
-| `node scripts/release-firebase.mjs` (plan only) | GATE_RELEASE |
-| teacherWorkflow journeys that open assignments as a student, one at a time | GATE_JOURNEYS |
+| `node scripts/release-firebase.mjs` (plan only) | plan printed (`--since a7dddc7`), no `--execute`. Targets: functions (the **whole fleet**, 25 groups, about 56 min, because `functions/index.js` changed), path-admin (it shares `functions/shared`), rules, Hosting, in the order functions → verify → path-admin → rules → Hosting |
+| teacherWorkflow journeys that open assignments as a student, one at a time | `appUrl` (12 viewport scenarios), `askMyTeacher` (58 checks), `draftCrossDevice`, `prerequisiteEarly`, `privateControls` (392 checks): **all pass**. `recoveryHold`, `recoveryDraftCrossDevice`, `restoredDraftFocusRace`, `warmupReopen`: **fail on the base commit too**, the same way (below) |
+
+**The four journeys that fail on the base as well.** On `a7dddc7`, run in a separate worktree against its own harness server, each fails only on its "no page errors / no React warnings" checks, with the React error `Maximum update depth exceeded`. On this branch the failures are the same:
+
+| Journey | Base `a7dddc7` | This branch |
+| --- | --- | --- |
+| `restoredDraftFocusRace` | 1 failure (the error) | the same 1 |
+| `recoveryHold` | 24 failures (the error, every scenario × 3 viewports) | the same 24 |
+| `recoveryDraftCrossDevice` | 6 failures (the error) | the same 6 |
+| `warmupReopen` | 25 failures (the error), 114 ok | 26 failures (the error), 113 ok |
+
+In `warmupReopen` the extra failure on the branch is the same error in one more scenario. The error is intermittent: it was logged 238 times on base and 266 times on the branch. Every check that is not about console errors passes on both. My client change does not reach these screens (the mastery fetch runs only on My Math Path, and the admin card only for the root admin). This is a pre-existing render loop, worth a separate investigation; it is not fixed here.
 
 ---
 
