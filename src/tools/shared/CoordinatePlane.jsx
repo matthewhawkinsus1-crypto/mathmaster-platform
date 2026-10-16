@@ -7,6 +7,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { useHasParentWorkView, usePublishWorkViewCapabilities } from '../../platform/workView/workViewCapabilities.js';
 import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js';
 import { describeCoordinatePlane } from '../../platform/language/graphDescription.js';
+import { verticalLineDrawings } from '../../platform/graph/verticalLineStyle.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
@@ -711,7 +712,9 @@ export default function CoordinatePlane({
         ))}
 
         <g clipPath={plotClip}>
-        {verticalLines.map((x, index) => <line key={`v${index}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} stroke="#8a3ffc" strokeDasharray="7 5" strokeWidth="2" />)}
+        {/* A bare number is a guide (dashed); an { x, boundaryStyle | relation } entry is a
+            boundary and is solid or dashed like any other (verticalLineStyle.js). */}
+        {verticalLineDrawings(verticalLines).map((line, index) => <line key={`v${index}`} x1={sx(line.x)} x2={sx(line.x)} y1={pad} y2={height - pad} stroke={line.stroke} strokeDasharray={line.dash} strokeWidth={line.strokeWidth} />)}
         {horizontalLines.map((y, index) => <line key={`h${index}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#8a3ffc" strokeDasharray="7 5" strokeWidth="2" />)}
         {functions.map((fn, index) => (
           <path
