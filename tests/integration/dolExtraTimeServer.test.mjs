@@ -45,6 +45,7 @@ import {
 const require = createRequire(import.meta.url);
 const { rosterLinkDocumentId } = require(path.join(repo, 'functions/lib/publication.js'));
 const queue = require(path.join(repo, 'functions/lib/classroomPushQueue.js'));
+const sectionEntry = require(path.join(repo, 'functions/classroomSectionEntry.js'));
 const { FieldPath, FieldValue } = require(path.join(repo, 'functions/node_modules/firebase-admin')).firestore;
 
 const P = 'd7-';
@@ -160,7 +161,7 @@ const schedulePeriods = () => Object.fromEntries(CLASSES.map((klass) => [klass.p
 }]));
 
 const teardown = async () => {
-  for (const name of ['assignments', 'classes', 'studentResponseCheckpoints', 'studentSubmissionReceipts', 'classroomLinks', 'classroomRosterLinks', 'classroomGradeSyncs', 'classroomGradeCheckpointState', queue.CLASSROOM_PUSH_QUEUE, STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION]) {
+  for (const name of ['assignments', 'classes', 'studentResponseCheckpoints', 'studentSubmissionReceipts', 'classroomLinks', 'classroomRosterLinks', 'classroomGradeSyncs', 'classroomGradeCheckpointState', 'classroomSectionGradeCheckpointState', queue.CLASSROOM_PUSH_QUEUE, STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION]) {
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await db.collection(name).get();
     // eslint-disable-next-line no-await-in-loop
@@ -404,4 +405,104 @@ test('Classroom: the scheduler wakes the student at their own cutoff, and the gr
   assert.equal(final.stage, 'final-deadline');
   assert.equal(final.isFinal, true);
   assert.equal(final.studentVisible, true);
+});
+
+/* ------------------- H-116: the due wake-up, and the split-section path */
+
+const A_DUE = `${P}classroom-due`;
+const A_SECTION = `${P}classroom-section`;
+const auditFor = async (student, assignmentId, publicationId) => (await db.collection('classroomGradeSyncs').where('studentId', '==', student.id).get()).docs
+  .map((doc) => doc.data()).find((data) => data.assignmentId === assignmentId && (!publicationId || data.publicationId === publicationId)) || null;
+const signalAndRun = async (student, assignmentId, signal, run) => {
+  const ref = db.collection('grades').doc(student.id);
+  const beforeData = (await ref.get()).data();
+  await ref.update(new FieldPath('classroomReleaseSignals', assignmentId), signal);
+  resetClassroomCalls();
+  await run.run({ params: { studentId: student.id }, data: { before: { exists: true, data: () => beforeData }, after: await ref.get() } });
+};
+const answeredOne = (assignmentId) => ({ 0: { status: 'correct', attemptCount: 1, totalAttempts: 1, partialCredit: 100, bestPartialCredit: 100, variantIndex: 0 } });
+
+test('Classroom: the class\'s due wake-up and a manual retry wait for an individualized due date (whole assignment)', async () => {
+  const { classroomExtra, classroomPlain } = STUDENTS;
+  await db.collection('assignments').doc(A_DUE).set({
+    ...classroomAssignment(), title: 'D7 due checkpoint',
+    dueAt: new Date(NOW - HOUR).toISOString(), lateDueAt: new Date(NOW + 5 * DAY).toISOString(),
+  });
+  await db.collection('classroomLinks').doc(`${P}publication-due`).set({
+    schemaVersion: 2, publicationId: `${P}publication-due`, assignmentId: A_DUE, courseId: COURSE, courseName: 'D7',
+    courseworkId: `${P}coursework-due`, teacherUid: `uid-${TEACHER}`, status: 'published', maxPoints: 100, sectionKey: 'whole',
+  });
+  for (const student of [classroomExtra, classroomPlain]) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection('grades').doc(student.id).update(new FieldPath('gradesByAssignment', A_DUE), answeredOne(A_DUE));
+  }
+  const dueWake = { reason: 'due-checkpoint', requestedAt: new Date(NOW - HOUR).toISOString() };
+  await signalAndRun(classroomPlain, A_DUE, dueWake, fns.syncGradeToClassroom);
+  const plain = await auditFor(classroomPlain, A_DUE);
+  assert.equal(plain.stage, 'due-checkpoint', 'without an individual due date: due at the class time, as before');
+  assert.equal(plain.studentVisible, true);
+  await signalAndRun(classroomExtra, A_DUE, dueWake, fns.syncGradeToClassroom);
+  const extra = await auditFor(classroomExtra, A_DUE);
+  assert.notEqual(extra.stage, 'due-checkpoint', `their own due is three days away (${extra.stage})`);
+  assert.equal(extra.studentVisible, false, 'nothing is returned to them');
+  const state = (await db.collection('classroomGradeCheckpointState').doc(A_DUE).get()).data() || {};
+  assert.equal(Date.parse(state.pendingStudentDueAt?.[classroomExtra.id]), Date.parse(new Date(NOW - HOUR).toISOString()) + 72 * HOUR);
+  assert.equal(state.pendingStudentDueAt?.[classroomPlain.id], undefined);
+
+  // A manual retry: returned to the classmate (past the class due), not to
+  // the student whose own due has not come (the release policy's own due).
+  await signalAndRun(classroomPlain, A_DUE, { reason: 'manual-retry', requestedAt: new Date().toISOString() }, fns.syncGradeToClassroom);
+  const plainRetry = await auditFor(classroomPlain, A_DUE);
+  assert.equal(plainRetry.stage, 'manual-retry');
+  assert.equal(plainRetry.studentVisible, true);
+  await signalAndRun(classroomExtra, A_DUE, { reason: 'manual-retry', requestedAt: new Date().toISOString() }, fns.syncGradeToClassroom);
+  const extraRetry = await auditFor(classroomExtra, A_DUE);
+  assert.equal(extraRetry.stage, 'manual-retry');
+  assert.equal(extraRetry.studentVisible, false);
+});
+
+test('Classroom (split section): the class\'s final wake-up is deferred for a later cutoff, recorded, and woken by the section scheduler', async () => {
+  const { classroomExtra, classroomPlain } = STUDENTS;
+  const assignment = { ...classroomAssignment(), title: 'D7 section columns' };
+  await db.collection('assignments').doc(A_SECTION).set(assignment);
+  await db.collection('classroomLinks').doc(`${P}publication-section`).set({
+    schemaVersion: 2, publicationId: `${P}publication-section`, assignmentId: A_SECTION, courseId: COURSE, courseName: 'D7',
+    courseworkId: `${P}coursework-section`, teacherUid: `uid-${TEACHER}`, status: 'published', maxPoints: 100,
+    sectionKey: 'classwork', publicationKind: 'section', gradePassbackEnabled: false, sectionGradePassbackEnabled: true,
+  });
+  for (const student of [classroomExtra, classroomPlain]) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection('grades').doc(student.id).update(new FieldPath('gradesByAssignment', A_SECTION), answeredOne(A_SECTION));
+  }
+  // What the section scheduler had already done for the class.
+  const iso = (value) => new Date(Date.parse(value)).toISOString();
+  const stateRef = db.collection('classroomSectionGradeCheckpointState').doc(A_SECTION);
+  await stateRef.set({
+    assignmentId: A_SECTION,
+    finalQueuedAt: new Date(NOW - HOUR).toISOString(), finalDueAt: iso(assignment.lateDueAt),
+    dueQueuedAt: new Date(NOW - 2 * HOUR).toISOString(), dueAt: iso(assignment.dueAt),
+    releaseQueuedAt: new Date(NOW - 3 * DAY).toISOString(), releaseAt: iso(assignment.releaseAt),
+  });
+
+  const classWake = { reason: 'final-deadline', requestedAt: new Date(NOW - HOUR).toISOString() };
+  const trigger = sectionEntry.cloudFunctions.syncSectionGradeToClassroom;
+  await signalAndRun(classroomPlain, A_SECTION, classWake, trigger);
+  const plain = await auditFor(classroomPlain, A_SECTION, `${P}publication-section`);
+  assert.equal(plain?.stage, 'final-deadline', JSON.stringify(plain));
+  assert.equal(plain.isFinal, true);
+  await signalAndRun(classroomExtra, A_SECTION, classWake, trigger);
+  const extra = await auditFor(classroomExtra, A_SECTION, `${P}publication-section`);
+  assert.ok(extra, 'their section column is synced');
+  assert.equal(extra.isFinal, false, `their own cutoff is days away (${extra.stage})`);
+  assert.equal(extra.studentVisible, false);
+  const ownFinal = Date.parse(assignment.dueAt) + 72 * HOUR;
+  assert.equal(Date.parse((await stateRef.get()).data().pendingStudentFinalAt[classroomExtra.id]), ownFinal, 'recorded on the SECTION scheduler\'s state');
+
+  // Their time arrives (moved into the past here); the section scheduler wakes them.
+  await stateRef.update(new FieldPath('pendingStudentFinalAt', classroomExtra.id), new Date(Date.now() - MINUTE).toISOString());
+  await sectionEntry.cloudFunctions.queueClassroomSectionGradeCheckpoints.run({});
+  const entry = (await db.collection(queue.CLASSROOM_PUSH_QUEUE).doc(queue.queueEntryId(A_SECTION, classroomExtra.id, 'final-deadline')).get()).data() || null;
+  assert.ok(entry, 'the section scheduler woke them');
+  assert.equal((await db.collection(queue.CLASSROOM_PUSH_QUEUE).doc(queue.queueEntryId(A_SECTION, classroomPlain.id, 'final-deadline')).get()).exists, false, 'and nobody else');
+  assert.equal((await stateRef.get()).data().pendingStudentFinalAt?.[classroomExtra.id], undefined, 'their entry is retired');
 });

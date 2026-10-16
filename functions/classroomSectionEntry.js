@@ -688,6 +688,8 @@ const syncSectionGradeToClassroom = onDocumentWritten(
 
       const successfulBySection = new Map();
       let ownDeadlines = null;
+      // One clock for this student's stage, deferral and release (H-116).
+      const stageNow = Date.now();
       for (const publicationDoc of publications) {
         const publication = publicationDoc.data() || {};
         if (!sectionPublicationReleased(publication, Date.now())) continue;
@@ -757,7 +759,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           // before their own time is set aside below; record their own time
           // so the section checkpoint scheduler wakes them again then.
           const deferredCheckpoint = deferredClassCheckpoint({
-            assignment, releaseSignal, nowValue: Date.now(),
+            assignment, releaseSignal, nowValue: stageNow,
             studentFinalCutoff: ownDeadlines.studentFinalCutoff, studentDueAt: ownDeadlines.studentDueAt,
           });
           if (deferredCheckpoint) {
@@ -774,12 +776,12 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           assignment,
           progress: gradeResult,
           releaseSignal,
-          nowValue: Date.now(),
+          nowValue: stageNow,
           studentFinalCutoff: ownDeadlines.studentFinalCutoff,
           studentDueAt: ownDeadlines.studentDueAt,
         });
         if (!stage) continue;
-        const releasePolicy = classroomGradeReleasePolicy({ stage, assignment, nowValue: Date.now(), studentDueAt: ownDeadlines.studentDueAt });
+        const releasePolicy = classroomGradeReleasePolicy({ stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines.studentDueAt });
         const courseId = String(publication.courseId || "");
         if (!courseId) continue;
         const maxPoints = classroomMaxPoints(publication.maxPoints);

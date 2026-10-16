@@ -123,9 +123,16 @@ export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = 
  * The difference is added to the end of whichever class window is in force —
  * the regular one, an early unlock, a teacher's reopen or "+5 min" — so extra
  * time never shortens anything and a teacher who gives the class more time
- * gives this student the same more. A teacher's "Close now" still ends the
- * window for everyone (applyTeacherDolClose): it is an explicit decision, and
- * the teacher's live view shows who still had extra time before they press it.
+ * gives this student the same more. A teacher's "Close now" ends the window
+ * for everyone (applyTeacherDolClose). The teacher UI offers it only while the
+ * CLASS's DOL is open, and the live view shows who has extra time before they
+ * press it; once the class's DOL has closed there is no control that ends one
+ * student's extra minutes early (a close record stamped inside them — another
+ * tab, a future control — would end them there).
+ *
+ * NEVER PAST THE STUDENT'S FINAL CUTOFF. Work captured after the assignment's
+ * own final cutoff is refused (ingestion: assignment-closed-at-capture), so the
+ * extra minutes stop there (`capAtMs`) — but never before the class's window.
  *
  * A student without the accommodation gets the class window to the
  * millisecond: multiplier 1 adds nothing.
@@ -163,11 +170,20 @@ export const dolExtendedTimeMultiplier = (studentProfile = null, { nowValue = Da
  */
 export const STUDENT_TIMING_PROFILE_KEY = 'studentTimingProfile';
 
-export const withStudentTimingProfile = (assignment, profile) => (
+export const STUDENT_TIMING_STUDENT_ID_KEY = 'studentTimingStudentId';
+
+// `studentId` rides along so the device caps the window at THIS student's own
+// final cutoff, as resolveAuthoritativeClose does on the server.
+export const withStudentTimingProfile = (assignment, profile, studentId = null) => (
   assignment && profile && typeof profile === 'object' && !Array.isArray(profile)
-    ? { ...assignment, [STUDENT_TIMING_PROFILE_KEY]: profile }
+    ? { ...assignment, [STUDENT_TIMING_PROFILE_KEY]: profile, [STUDENT_TIMING_STUDENT_ID_KEY]: studentId ? String(studentId) : null }
     : assignment
 );
+
+export const studentTimingStudentIdOf = (assignment) => {
+  const id = assignment?.[STUDENT_TIMING_STUDENT_ID_KEY];
+  return id ? String(id) : null;
+};
 
 export const studentTimingProfileOf = (assignment) => {
   const profile = assignment?.[STUDENT_TIMING_PROFILE_KEY];
@@ -354,15 +370,19 @@ const applyTeacherDolClose = ({ resolved, assignment, classId, todayKey }) => {
  * it, so students get a real pack-up window. A teacher close (above) is
  * applied last, to whichever window is in force.
  */
-export const resolveDolWindow = ({ assignment, window, classId = null, todayKey = null, timeMultiplier = 1 } = {}) => {
+export const resolveDolWindow = ({ assignment, window, classId = null, todayKey = null, timeMultiplier = 1, capAtMs = null } = {}) => {
   const resolved = resolveDolWindowBeforeTeacherClose({ assignment, window, classId, todayKey });
   const classWindow = applyTeacherDolClose({ resolved, assignment, classId, todayKey });
   // One student's extra time (header above): added to the class's close, then
   // subject to a teacher close like any window — "Close now" during the class
   // window, or inside the student's extra minutes, ends theirs there too.
-  const extraMs = resolved.endsAtMs === null
+  const fullExtraMs = resolved.endsAtMs === null
     ? 0
     : dolExtraTimeMs({ durationMinutes: resolved.durationMinutes, multiplier: timeMultiplier });
+  const cap = Number.isFinite(Number(capAtMs)) && capAtMs !== null ? Number(capAtMs) : null;
+  const extraMs = cap === null || fullExtraMs === 0
+    ? fullExtraMs
+    : Math.max(0, Math.min(resolved.endsAtMs + fullExtraMs, cap) - resolved.endsAtMs);
   const own = extraMs > 0
     ? applyTeacherDolClose({ resolved: { ...resolved, endsAtMs: resolved.endsAtMs + extraMs }, assignment, classId, todayKey })
     : classWindow;
@@ -553,7 +573,7 @@ export const resolveAuthoritativeClose = ({
       return { closesAtMs: finalCloseAtMs, reason: 'assignment-final-deadline', teacherTimerScheduled: false };
     }
     const timeMultiplier = dolExtendedTimeMultiplier(studentProfile, { nowValue, timeZone });
-    const dol = resolveDolWindow({ assignment, window, classId, todayKey, timeMultiplier });
+    const dol = resolveDolWindow({ assignment, window, classId, todayKey, timeMultiplier, capAtMs: finalCloseAtMs });
     if (dol.endsAtMs) {
       return {
         closesAtMs: dol.endsAtMs,

@@ -29,8 +29,16 @@ checkpoint finalizer and Recovery all closed their exit ticket with everyone els
   force — the regular one, an early unlock, a teacher's reopen or "+5 min" — so extra time never shortens anything
   and a teacher who gives the class more time gives this student the same more. Default timing (10 minutes,
   closing 5 before the bell) × 1.5 ends exactly at the bell; × 2 runs 5 minutes past it, as a secure exam would.
-- **"Close now".** A teacher's close still ends the window for everyone, including inside a student's extra
-  minutes (it is an explicit decision). The live view now shows who still has extra time before they press it.
+- **"Close now".** The teacher UI offers it only while the CLASS's DOL is open; it ends the window for everyone,
+  including students with extra time. The live view shows who has extra time before they press it. Once the class's
+  DOL has closed there is no control that ends one student's extra minutes early (the shared rule would honour a close
+  record stamped inside them; no screen writes one).
+- **Never past the student's own final cutoff.** Work captured after the assignment's final cutoff is refused by
+  ingestion, so the extra minutes stop at the student's own final cutoff (their extension included) — never before
+  the class's window. Same cap on the device (`getDOLState`) and the server (`resolveAuthoritativeClose`).
+- **One source for the profile.** The device reads the grade document's own `profile` field for the window — exactly
+  what every server reader uses (`gradeData.profile || null`) — never the normalized copy that falls back to the whole
+  grade document. (This also carries a district multiplier to the device.)
 - **Without the accommodation: unchanged, to the millisecond** (unit test compares every field).
 
 Where it lives:
@@ -146,7 +154,7 @@ The plan (run in plan mode only) lists `functions` (all 25 groups, because `func
 
 Cloud Functions whose behaviour changes — if the release is narrowed, it must include all of them together:
 `finalizeStudentResponseCheckpoints`, `expediteCheckpointsOnSectionClose`, `sweepStudentResponseCheckpoints`,
-`ingestStudentSubmissions`, `advanceSectionRecovery`, `getStudentPersistenceRecoveryReport`,
+`ingestStudentSubmissions`, `advanceSectionRecovery`, `resolveHeldSectionRecovery`, `getStudentPersistenceRecoveryReport`,
 `applyWorkspaceDraftRecovery`, `syncGradeToClassroom`, `queueClassroomGradeCheckpoints`,
 `syncSectionGradeToClassroom`, `queueClassroomSectionGradeCheckpoints`, and `platformBuildInfo` (provenance).
 
@@ -167,19 +175,26 @@ scheduler deploying, a deferred student is recorded but not yet woken: deploy `s
 3. **Extra time can run past the bell** (2× ends 5 minutes after it; 1.5× ends at it). The class pack-up banner now
    stands aside for that student while their exit ticket is open, as it does for a student mid-Test. Confirm, or
    cap the window at the bell.
-4. **A teacher's "Close now" ends a student's extra time too.** The live view shows who still has it first.
-   Alternative: the close ends the class window and the student keeps their extra minutes after it.
+4. **"Close now" during the class's DOL ends a student's extra time too**, and after the class's DOL has closed there
+   is no control to end one student's extra minutes early. The live view shows who has extra time first.
+   Alternatives: the close ends only the class window and the student keeps their extra minutes; or a per-student
+   close control.
 5. **A versioned plan's "Activities" list is honoured** for the DOL (extra time limited to Classwork/Practice does
    not stretch the DOL). Secure exams ignore it. Confirm.
 6. **H-116 during an attendance extension:** the student is no longer called final at the class cutoff, but in the
    class's late window they still get the class's `late-progress` stage, which Classroom returns (as every student in
    the late window does). An extra-time student's own due date moves that too, so they see nothing returned until
    their own due. Confirm the attendance case, or hold late progress until the student's own final cutoff.
+   Also: deferring the due checkpoint for an extra-time student leaves Google Classroom's own "Missing" label on
+   their item until their own due (up to 72 hours or 5 school days), though the class due checkpoint exists to
+   replace that label. Confirm, or send a draft-only (not returned) grade at the class due for them.
 
 ## Touched outside my area (minimal)
 
 - `src/App.jsx` (session A's region, 3 small edits): the `describeDolClose` call passes `extendedTime`/`endsAt`;
   `studentExtraTimeDolOpen` imported; a two-line guard in `renderStudentPackUpBanner`. No chrome markup changed.
+  Outside session A's region: the student's `timingProfile` (the grade document's `profile` field) is kept on the
+  user and the projection ref and passed to the three `projectStudentAssignments` calls.
 - `functions/classroomSectionEntry.js` and `functions/lib/classroomGradeRuntime.js`: the split-section Classroom path,
   the same H-116 bug. No secure-exam code was touched.
 - `tests/browser/teacherWorkflow/fixture.js`: two opt-in flags (`d7=1`, `p3EndMin`); defaults unchanged.
@@ -195,11 +210,22 @@ under the action bar, so an "extra time" word in the chrome's DOL pill would be 
   so ingestion never reopens a finalized DOL projection, inside a teacher's reopen or not (for anyone; DOL scores are
   computed from the question records, not the projection). `buildIngestedAttempt`'s reopen check now reads the
   student's extra time, so it is right if that is ever changed.
-- A district (structured) profile's multiplier does not survive `normalizeStudentProfile`, which is what the student's
-  device and the teacher's roster hold. The structured shape is never persisted today (its importer is not wired), so
-  device and server agree for every real profile (tested); if the importer is wired, the device must read the raw
-  profile.
+- A district (structured) profile's multiplier does not survive `normalizeStudentProfile`, which the teacher's roster
+  holds (the Live view chip). The student's device now reads the raw `profile` field, so it agrees with the server
+  for that shape too. The structured shape is never persisted today (its importer is not wired).
 - The teacher-workflow harness's `p3StartMin` default is 0, not the documented 40 (`Number(null)` is 0).
+- The profile is read when a server reader runs, not when the student captured the work: a teacher who removes extra
+  time mid-DOL ends those minutes for checkpoints not yet finalized. A revoked or shortened extension leaves the
+  student's pending Classroom entry at the old time, so their final Classroom grade waits until then (it is right
+  then: the trigger recomputes the stage).
+- The whole-assignment trigger records a deferral before it reads the assignment's whole-assignment publications (a
+  student with no progress gets no stage and must still be woken at their own cutoff), so a section-only assignment
+  can get a `classroomGradeCheckpointState` entry no scheduler acts on. Harmless.
+- Teacher full-roster screens normalize `data.profile || data`; the Live view's "DOL extra time" chip is computed from
+  that row (informational only; the student's device and the server use the `profile` field).
+- index.js keeps its own copies of the Classroom stage and release helpers rather than the lib's: the lib's release
+  policy returns Test Cycle stages to the student and treats `section-grade-reconcile` as a manual retry, which would
+  change the whole-assignment path beyond this work. Both copies are pinned (anchored contracts + emulator cases).
 
 ## Not done
 

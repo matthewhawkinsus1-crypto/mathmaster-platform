@@ -1923,7 +1923,11 @@ function App() {
   const studentPriorWorkAssignmentsRef = useRef([]);
   // Whose lessons these are, for the projection: set from the session before
   // the first lesson reaches state, and cleared with the lessons themselves.
-  const studentViewerRef = useRef({ studentId: null, profile: null });
+  // `timingProfile` is the grade document's own `profile` field, exactly as the
+  // server's deadline readers take it (gradeData.profile || null): the
+  // student's DOL window (D7) is computed from it, never from the normalized
+  // copy's fallback to the whole grade document.
+  const studentViewerRef = useRef({ studentId: null, profile: null, timingProfile: null });
   const studentControlsRef = useRef(EMPTY_STUDENT_CONTROLS);
   studentControlsRef.current = studentAssignmentControls;
   /*
@@ -1961,14 +1965,15 @@ function App() {
   // new projects nothing again (every projection makes new lesson objects).
   const lastPublishedRef = useRef(null);
   const publishStudentAssignments = () => {
-    const { studentId, profile } = studentViewerRef.current;
-    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current];
+    const { studentId, profile, timingProfile } = studentViewerRef.current;
+    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, timingProfile, studentControlsRef.current];
     if (lastPublishedRef.current && inputs.every((input, index) => input === lastPublishedRef.current[index])) return;
     lastPublishedRef.current = inputs;
     setAssignments(projectStudentAssignments({
       assignments: mergeStudentAssignments(studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current),
       studentId,
       profile,
+      timingProfile,
       controls: studentControlsRef.current,
     }));
   };
@@ -2032,7 +2037,7 @@ function App() {
   const clearSignedInAssignments = () => {
     studentClassAssignmentsRef.current = [];
     studentPriorWorkAssignmentsRef.current = [];
-    studentViewerRef.current = { studentId: null, profile: null };
+    studentViewerRef.current = { studentId: null, profile: null, timingProfile: null };
     teacherSharedAssignmentsRef.current = [];
     lastPublishedRef.current = null;
     setAssignments([]);
@@ -2042,7 +2047,7 @@ function App() {
   // the lessons already held: no listener is re-opened for it.
   useEffect(() => {
     if (user?.role === 'student' && user.id) {
-      studentViewerRef.current = { studentId: user.id, profile: user.profile || null };
+      studentViewerRef.current = { studentId: user.id, profile: user.profile || null, timingProfile: user.timingProfile || null };
       publishStudentAssignments();
     } else if (user?.role === 'teacher') {
       publishTeacherAssignments();
@@ -3252,11 +3257,12 @@ function App() {
           .filter((assignment) => Array.isArray(assignment.assignedClassIds) && assignment.assignedClassIds.includes(studentData.classId));
         studentPriorWorkAssignmentsRef.current = fetchedAssignments
           .filter((assignment) => !studentClassAssignmentsRef.current.includes(assignment));
-        studentViewerRef.current = { studentId, profile: studentProfile };
+        studentViewerRef.current = { studentId, profile: studentProfile, timingProfile: studentData.profile || null };
         const projectedAssignments = projectStudentAssignments({
           assignments: fetchedAssignments,
           studentId,
           profile: studentProfile,
+          timingProfile: studentData.profile || null,
           controls: studentControlsRef.current,
         });
         setAssignments(projectedAssignments);
@@ -3302,6 +3308,8 @@ function App() {
             course: courseContext.courseId,
             courseLevel: courseContext.courseLevel,
           },
+          // The grade document's own `profile` field, as the server reads it (D7).
+          timingProfile: studentData.profile || null,
         });
         // THE STUDENT SEES THE CANONICAL RECORD, AND NEVER REWRITES IT.
         //
@@ -3350,6 +3358,7 @@ function App() {
                 assignments: fetchedAssignments.filter((entry) => entry.id === serverResume.assignmentId),
                 studentId,
                 profile: studentProfile,
+                timingProfile: studentData.profile || null,
                 controls: studentControlsRef.current,
               });
               if (!assignment) return;
@@ -4914,7 +4923,10 @@ function App() {
         // this student is working reaches their required items now, not at
         // the next sign-in.
         const liveProfile = normalizeStudentProfile(snapshot.data()?.profile || snapshot.data());
-        setUser((current) => (current && !sameStudentProfile(current.profile, liveProfile) ? { ...current, profile: liveProfile } : current));
+        const liveTimingProfile = snapshot.data()?.profile || null;
+        setUser((current) => (current && (!sameStudentProfile(current.profile, liveProfile) || JSON.stringify(current.timingProfile || null) !== JSON.stringify(liveTimingProfile))
+          ? { ...current, profile: liveProfile, timingProfile: liveTimingProfile }
+          : current));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;

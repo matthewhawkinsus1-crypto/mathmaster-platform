@@ -208,7 +208,18 @@ test('both Classroom paths record a deferred student and both schedulers wake th
   const section = executableSource(readFileSync(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8'));
 
   const sync = region(index, 'exports.syncGradeToClassroom = onDocumentWritten(', 'exports.queueReleasedAssessmentGrades', 'syncGradeToClassroom');
-  assert.match(sync, /deferredClassCheckpoint\(\{ assignment, releaseSignal, nowValue: Date\.now\(\), studentFinalCutoff, studentDueAt \}\)/);
+  assert.match(sync, /const stageNow = Date\.now\(\);/);
+  assert.match(sync, /resolveClassroomGradeStage\(\{[^}]*nowValue: stageNow,\s*studentFinalCutoff,\s*studentDueAt,\s*\}\)/);
+  assert.match(sync, /deferredClassCheckpoint\(\{ assignment, releaseSignal, nowValue: stageNow, studentFinalCutoff, studentDueAt \}\)/);
+  // The release policy reads the student's own due (a manual retry before it is not returned).
+  assert.match(sync, /classroomGradeReleasePolicy\(\{\s*stage,\s*assignment,\s*nowValue: stageNow,\s*studentDueAt,\s*\}\)/);
+  // index.js's own stage helper defers BOTH class-wide wake-ups, and its
+  // release policy reads the student's own due — the same rules as the lib.
+  const stageHelper = region(index, 'function resolveClassroomGradeStage(', 'if (progress.complete)', 'index.js stage helper');
+  assert.match(stageHelper, /const dueAt = studentDueDate\(assignment, studentDueAt\);/);
+  assert.match(stageHelper, /if \(reason === "due-checkpoint" && !\(dueAt && now < dueAt\.getTime\(\)\)\) return "due-checkpoint";/);
+  const releaseHelper = region(index, 'function classroomGradeReleasePolicy(', 'const explicitlyStudentVisible', 'index.js release policy');
+  assert.match(releaseHelper, /const dueAt = studentDueDate\(assignment, studentDueAt\);/);
   assert.match(sync, /recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(CLASSROOM_GRADE_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),/);
   assert.match(index, /const \{ deferredClassCheckpoint \} = require\("\.\/lib\/classroomGradeRuntime"\);/);
   const scheduler = region(index, 'exports.queueClassroomGradeCheckpoints = onSchedule', 'let liveChallengeModule = null;', 'queueClassroomGradeCheckpoints');
@@ -217,7 +228,7 @@ test('both Classroom paths record a deferred student and both schedulers wake th
   const sectionSync = region(section, 'const syncSectionGradeToClassroom = onDocumentWritten(', 'const queueClassroomSectionGradeCheckpoints', 'syncSectionGradeToClassroom');
   assert.match(sectionSync, /studentClassroomDeadlinesFor\(\{\s*db, assignmentId, assignment, studentId: event\.params\.studentId, studentProfile: afterData\.profile \|\| null,/);
   assert.match(sectionSync, /resolveClassroomGradeStage\(\{[^}]*studentFinalCutoff: ownDeadlines\.studentFinalCutoff,\s*studentDueAt: ownDeadlines\.studentDueAt,\s*\}\)/);
-  assert.match(sectionSync, /classroomGradeReleasePolicy\(\{ stage, assignment, nowValue: Date\.now\(\), studentDueAt: ownDeadlines\.studentDueAt \}\)/);
+  assert.match(sectionSync, /classroomGradeReleasePolicy\(\{ stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines\.studentDueAt \}\)/);
   assert.match(sectionSync, /recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(SECTION_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),/);
   const sectionScheduler = region(section, 'const queueClassroomSectionGradeCheckpoints', 'const drainClassroomPushQueue', 'section scheduler');
   assert.match(sectionScheduler, /classroomStudentCheckpoints\.wakeArrivedStudentCheckpoints\(\{\s*stateRef,\s*state,\s*now,/);

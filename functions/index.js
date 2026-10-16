@@ -10054,13 +10054,16 @@ exports.syncGradeToClassroom = onDocumentWritten(
         ? { studentDueAt: null, studentFinalCutoff: null }
         // eslint-disable-next-line no-await-in-loop
         : await resolvedStudentClassroomDeadlines(db, assignmentId, assignment, event.params.studentId, afterData.profile || null);
+      // One clock for the stage, the deferral and the release: at a student's
+      // own cutoff they are either called final or recorded, never neither.
+      const stageNow = Date.now();
       const stage = isTestCycleAssignment
         ? (testCycleProjection?.recordedGradeSource === "retest" ? "testcycle-retest" : "testcycle-test")
         : resolveClassroomGradeStage({
           assignment,
           progress,
           releaseSignal,
-          nowValue: Date.now(),
+          nowValue: stageNow,
           studentFinalCutoff,
           studentDueAt,
         });
@@ -10069,7 +10072,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
       // the checkpoint scheduler wakes them again then.
       const deferredCheckpoint = isTestCycleAssignment
         ? null
-        : deferredClassCheckpoint({ assignment, releaseSignal, nowValue: Date.now(), studentFinalCutoff, studentDueAt });
+        : deferredClassCheckpoint({ assignment, releaseSignal, nowValue: stageNow, studentFinalCutoff, studentDueAt });
       if (deferredCheckpoint) {
         // eslint-disable-next-line no-await-in-loop
         await classroomStudentCheckpoints.recordDeferredStudentCheckpoint({
@@ -10114,7 +10117,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
       const releasePolicy = classroomGradeReleasePolicy({
         stage,
         assignment,
-        nowValue: Date.now(),
+        nowValue: stageNow,
         studentDueAt,
       });
       // A push queued again after Google's per-minute limit sends only the

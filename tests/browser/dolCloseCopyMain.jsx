@@ -51,7 +51,7 @@ const studentDolState = () => {
   const profile = extra === 'student'
     ? { inclusionStatus: false, accommodations: ['extra-time'], modifications: [] }
     : { inclusionStatus: false, accommodations: [], modifications: [] };
-  const [own] = projectStudentAssignments({ assignments: [lesson], studentId: 'dol-close-copy-student', profile });
+  const [own] = projectStudentAssignments({ assignments: [lesson], studentId: 'dol-close-copy-student', profile, timingProfile: profile });
   return getDOLState({ assignment: own, schedule, classId: 'dol-class', classPeriod: 'Period 1', nowValue: now });
 };
 const dolState = extra ? studentDolState() : null;

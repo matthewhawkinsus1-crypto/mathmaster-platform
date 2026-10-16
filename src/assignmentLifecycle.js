@@ -22,6 +22,7 @@ import {
   resolveDolInstructionDateKey,
   resolveDolWindow,
   studentTimingProfileOf,
+  studentTimingStudentIdOf,
   resolveWarmupClose,
   resolveWarmupInstructionDateKey,
 } from '../functions/shared/sectionDeadline.mjs';
@@ -681,6 +682,8 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
     classId,
     todayKey,
     timeMultiplier: dolExtendedTimeMultiplier(profile, { nowValue: now.getTime() }),
+    // Never past this student's own final cutoff (the server's cap, too).
+    capAtMs: getAssignmentDate(assignment, 'late', studentTimingStudentIdOf(assignment))?.getTime() ?? null,
   });
   const { durationMinutes, closeMinutesBeforeEnd, earlyUnlocked, teacherRecovery, teacherClosed, teacherClosedAtMs } = sharedDol;
   const regularEndsAt = new Date(sharedDol.regularEndsAtMs);

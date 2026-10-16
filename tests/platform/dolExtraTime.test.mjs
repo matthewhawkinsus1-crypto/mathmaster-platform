@@ -216,7 +216,7 @@ test('the legacy "extra-time" flag: moves no due date (supportDeadline.mjs) but 
 test('the Warm-Up stays class-timed', () => {
   const assignment = lesson();
   const plain = getWarmupState({ assignment, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: at(8, 5) });
-  const projected = projectStudentAssignments({ assignments: [assignment], studentId: 'S1', profile: LEGACY_EXTRA_TIME })[0];
+  const projected = projectStudentAssignments({ assignments: [assignment], studentId: 'S1', profile: LEGACY_EXTRA_TIME, timingProfile: LEGACY_EXTRA_TIME })[0];
   assert.deepEqual(getWarmupState({ assignment: projected, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: at(8, 5) }), plain);
   const warmupClose = (profile) => resolveAuthoritativeClose({ assignment, activityRole: 'warmup', schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: at(8, 5), timeZone: null, studentId: 'S1', studentProfile: profile });
   assert.deepEqual(warmupClose(LEGACY_EXTRA_TIME), warmupClose(null));
@@ -274,7 +274,7 @@ test('the shared window resolver adds nothing at multiplier 1 and only fields at
 
 test('the student\'s own projection carries their profile in memory; a teacher\'s copy does not', () => {
   const assignment = lesson();
-  const [forStudent] = projectStudentAssignments({ assignments: [assignment], studentId: 'S1', profile: LEGACY_EXTRA_TIME });
+  const [forStudent] = projectStudentAssignments({ assignments: [assignment], studentId: 'S1', profile: LEGACY_EXTRA_TIME, timingProfile: LEGACY_EXTRA_TIME });
   assert.deepEqual(forStudent[STUDENT_TIMING_PROFILE_KEY], LEGACY_EXTRA_TIME);
   // No profile passed: the device reads the injected one.
   const onDevice = getDOLState({ assignment: forStudent, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: at(9, 26) });
@@ -283,7 +283,7 @@ test('the student\'s own projection carries their profile in memory; a teacher\'
   // The teacher's (stored) copy: the class window.
   assert.equal(getDOLState({ assignment, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: at(9, 26) }).status, 'ended');
   // A student with no profile gets the assignment exactly as before.
-  const [plain] = projectStudentAssignments({ assignments: [assignment], studentId: 'S2', profile: null });
+  const [plain] = projectStudentAssignments({ assignments: [assignment], studentId: 'S2', profile: null, timingProfile: null });
   assert.equal(Object.hasOwn(plain, STUDENT_TIMING_PROFILE_KEY), false);
   // The shared document is never touched.
   assert.equal(Object.hasOwn(assignment, STUDENT_TIMING_PROFILE_KEY), false);
@@ -384,7 +384,7 @@ test('the teacher\'s live view knows who still has extra time, and never says so
 
 test('the class pack-up banner stands aside while the student is on their exit ticket\'s extra time', () => {
   const lessonForClass = { ...lesson(), assignedClassIds: ['class-a'] };
-  const own = (profile) => projectStudentAssignments({ assignments: [lessonForClass], studentId: 'S1', profile });
+  const own = (profile) => projectStudentAssignments({ assignments: [lessonForClass], studentId: 'S1', profile, timingProfile: profile });
   const open = (assignments, when) => studentExtraTimeDolOpen({ assignments, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: when });
   // 09:27: the class's DOL closed at 09:25, the bell is 09:30 (pack-up from 09:25).
   assert.equal(open(own(LEGACY_EXTRA_TIME), at(9, 27)), true);
@@ -395,7 +395,7 @@ test('the class pack-up banner stands aside while the student is on their exit t
   // whole class during pack-up: only extra time — not an open DOL — sets the
   // banner aside.
   const toTheBell = { ...lessonForClass, dol: { ...lessonForClass.dol, closeMinutesBeforeEnd: 0 } };
-  const ownToTheBell = (profile) => projectStudentAssignments({ assignments: [toTheBell], studentId: 'S1', profile });
+  const ownToTheBell = (profile) => projectStudentAssignments({ assignments: [toTheBell], studentId: 'S1', profile, timingProfile: profile });
   assert.equal(open(ownToTheBell(LEGACY_NO_EXTRA_TIME), at(9, 27)), false);
   assert.equal(open(ownToTheBell(LEGACY_EXTRA_TIME), at(9, 27)), true);
   // Another class's lesson is not theirs.
@@ -406,4 +406,64 @@ test('the class pack-up banner stands aside while the student is on their exit t
   assert.match(banner, /if \(packUp\.status !== 'active'\) return null;\s*if \(studentExtraTimeDolOpen\(\{ assignments, schedule: classSchedule, classId: user\.classId \|\| null, classPeriod: user\.classPeriod, nowValue: now \}\)\) return null;/);
   const lifecycleImport = region(app, "import {\n  CLASS_PERIODS,", "} from './assignmentLifecycle';", 'the assignmentLifecycle import');
   assert.match(lifecycleImport, /\n {2}studentExtraTimeDolOpen,\n/);
+});
+
+test('device and server take the timing profile from the same field: the grade document\'s `profile`, never the whole document', () => {
+  const assignment = lesson();
+  const both = (gradeData) => {
+    // App.jsx: user.profile is normalizeStudentProfile(data.profile || data); the
+    // DOL window reads timingProfile = data.profile || null, as the server does.
+    const [onDevice] = projectStudentAssignments({
+      assignments: [assignment], studentId: 'S1',
+      profile: normalizeStudentProfile(gradeData.profile || gradeData),
+      timingProfile: gradeData.profile || null,
+    });
+    return {
+      device: getDOLState({ assignment: onDevice, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: at(9, 26) }),
+      server: serverCloseFor(assignment, at(9, 26), gradeData.profile || null),
+    };
+  };
+  // A grade document with supports at the top level and no `profile` field.
+  for (const gradeData of [{ accommodations: ['extra-time'] }, { inclusionStatus: true, accommodations: [] }]) {
+    const { device, server } = both(gradeData);
+    assert.equal(device.status, 'ended', `${JSON.stringify(gradeData)}: no profile field, no extra time on the device`);
+    assert.equal(device.endsAt.getTime(), server.closesAtMs, 'the device closes when the server does');
+    assert.equal(server.closesAtMs, at(9, 25).getTime());
+  }
+  // The same supports under `profile`: extra time on both.
+  for (const gradeData of [{ profile: LEGACY_EXTRA_TIME }, { profile: DISTRICT_DOUBLE_TIME }]) {
+    const { device, server } = both(gradeData);
+    assert.equal(device.status, 'active');
+    assert.equal(device.endsAt.getTime(), server.closesAtMs, `${JSON.stringify(gradeData)}: same close on both`);
+  }
+
+  // App.jsx hands the projection exactly that field.
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  const signIn = region(app, "role: 'student',", '});', 'the student sign-in user');
+  assert.match(signIn, /timingProfile: studentData\.profile \|\| null,/);
+  assert.match(app, /studentViewerRef\.current = \{ studentId, profile: studentProfile, timingProfile: studentData\.profile \|\| null \};/);
+  assert.match(app, /studentViewerRef\.current = \{ studentId: user\.id, profile: user\.profile \|\| null, timingProfile: user\.timingProfile \|\| null \};/);
+  assert.match(app, /const liveTimingProfile = snapshot\.data\(\)\?\.profile \|\| null;/);
+  const projections = app.match(/projectStudentAssignments\(\{[^}]*\}\)/g) || [];
+  assert.equal(projections.length, 3);
+  projections.forEach((call) => assert.match(call, /timingProfile[,:]/, call));
+  assert.doesNotMatch(app, /timingProfile: [^,\n]*\|\| studentData[,\s]/, 'never the whole document');
+});
+
+test('extra time never runs past the student\'s own final cutoff, and never cuts into the class window', () => {
+  const dueAt = (when) => ({ ...lesson(), dueAt: when.toISOString(), lateDueAt: when.toISOString() });
+  for (const [cutoff, expected] of [[at(9, 30), at(9, 30)], [at(9, 27), at(9, 27)], [at(9, 20), at(9, 25)], [at(10, 0), at(9, 35)]]) {
+    const assignment = dueAt(cutoff);
+    const [onDevice] = projectStudentAssignments({ assignments: [assignment], studentId: 'S1', profile: null, timingProfile: DISTRICT_DOUBLE_TIME });
+    const device = getDOLState({ assignment: onDevice, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: at(9, 26) });
+    const server = serverCloseFor(assignment, at(9, 26), DISTRICT_DOUBLE_TIME);
+    assert.equal(device.endsAt.getTime(), expected.getTime(), `cutoff ${cutoff.toTimeString().slice(0, 5)}: device`);
+    assert.equal(server.closesAtMs, expected.getTime(), `cutoff ${cutoff.toTimeString().slice(0, 5)}: server`);
+    assert.equal(device.classEndsAt.getTime(), at(9, 25).getTime());
+  }
+  // The student's own extension moves the cap with it.
+  const extended = { ...dueAt(at(9, 30)), studentOverrides: { S1: { lateDueAt: at(12, 0).toISOString() } } };
+  const [own] = projectStudentAssignments({ assignments: [extended], studentId: 'S1', profile: null, timingProfile: DISTRICT_DOUBLE_TIME });
+  assert.equal(getDOLState({ assignment: own, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: at(9, 26) }).endsAt.getTime(), at(9, 35).getTime());
+  assert.equal(serverCloseFor(extended, at(9, 26), DISTRICT_DOUBLE_TIME).closesAtMs, at(9, 35).getTime());
 });
