@@ -185,7 +185,9 @@ test('S1: a redo of a submitted Step Algebra question on another Chromebook is k
 test('S1, the merge itself: copies either side of a submission merge whole, never answer by answer', () => {
   const pre = { value: { a: '1', b: '2' }, savedAt: 100, savedAtIsEdit: true, fieldEditedAt: { a: 90, b: 100 } };
   const post = { value: { a: '5' }, savedAt: 300, savedAtIsEdit: true, fieldEditedAt: { a: 300 } };
-  assert.equal(mergeFieldRecordCopies({ kind: 'multi-answer', a: pre, b: post, canonicalAt: 200 }), null);
+  const across = mergeFieldRecordCopies({ kind: 'multi-answer', a: pre, b: post, canonicalAt: 200 });
+  assert.deepEqual(across.value, { a: '5' }, 'the later copy, whole: nothing of the submitted attempt');
+  assert.equal(across.savedAt, 300);
   assert.deepEqual(mergeFieldRecordCopies({ kind: 'multi-answer', a: pre, b: post, canonicalAt: 50 }).value, { a: '5', b: '2' }, 'same side: answer by answer');
 });
 
@@ -264,7 +266,7 @@ test('S3: answers an older build saved win over an older dated copy once this bu
   const O = await loadDevice(oStorage);
   O.read(MULTI, {}); O.write(MULTI, O.envelope(MULTI).value, { edit: false }); O.appRead();
   tick(1000); O.input(); O.write(MULTI, { a: '2', b: '5' }, { edit: true }); await O.flush();
-  assert.equal(JSON.parse(JSON.stringify(serverEntry(MULTI).fieldEditedAt)).a, t, 'the older build\'s answer is dated at its save');
+  assert.equal(JSON.parse(JSON.stringify(serverEntry(MULTI).fieldEditedAt)).a, -t, 'the older build\'s answer is dated "at or before" its save');
   tick(30_000); Y.appRead();
   assert.equal(Y.envelope(MULTI).value.a, '2', 'Y shows the newer a');
   tick(1000); Y.input(); Y.write(MULTI, { ...Y.envelope(MULTI).value, c: '9' }, { edit: true }); await Y.flush();
@@ -370,4 +372,100 @@ test('S2: Start over dates no answer and records when it happened', async () => 
   D.read(MULTI, {}); D.input(); D.write(MULTI, { b: '2' }, { edit: true });
   assert.equal(D.envelope(MULTI).resetAt, at, 'what is written after it carries the reset');
   assert.deepEqual(Object.keys(D.envelope(MULTI).fieldEditedAt), ['b']);
+});
+
+/* ------------------------------------------------- second review (1efd1e7) */
+
+// The hooks (useUndoHistory, useLocalDraftState) write each change twice: the
+// setter's write as an edit, then the effect's write-back of the same value.
+const hookWriter = (device, key, initial = {}) => {
+  let value;
+  const copy = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+  return {
+    mount() { value = copy(device.read(key, initial)); device.write(key, value, { edit: false }); return value; },
+    set(next) { device.input(); value = copy(next); device.write(key, value, { edit: true }); device.write(key, value, { edit: false }); },
+    get value() { return value; },
+  };
+};
+
+test('S4: answers merged in behind the page stay on screen through the hooks\' second write', async () => {
+  const MULTI = keyFor(10, 'multi-answer');
+  server.doc = null;
+  const B = await loadDevice();
+  const qb = hookWriter(B, MULTI); qb.mount(); B.appRead();
+  tick(1000); qb.set({ a: '12', b: '7', c: 'x+1' }); await B.flush();
+  tick(60_000);
+  const F = await loadDevice();
+  let q = hookWriter(F, MULTI); q.mount();
+  tick(1000); q.set({ b: '9' });
+  F.appRead(); // a, b=9, c merged in behind the mounted question
+  tick(50); q.set({ b: '10' }); // a keystroke before the remount
+  q = hookWriter(F, MULTI); q.mount(); // the remount
+  assert.deepEqual(q.value, { b: '10', a: '12', c: 'x+1' }, 'what the question shows — and Submit sends');
+  await F.flush();
+  assert.deepEqual(serverEntry(MULTI).value, { a: '12', b: '10', c: 'x+1' });
+});
+
+test('note 2: an older build\'s offline answer, upgraded, does not beat a newer one from another Chromebook', async () => {
+  const MULTI = keyFor(11, 'multi-answer');
+  server.doc = null;
+  const t0 = now();
+  // O runs an older bundle, offline: a typed at +100 s, b at +300 s; its copy
+  // says only "saved at +300 s".
+  const oStorage = new MemoryStorage();
+  oStorage.setItem(MULTI, JSON.stringify({ version: 2, savedAt: t0 + 300_000, value: { a: 'old-a', b: 'b2' }, touchedAt: t0 + 300_000, savedAtIsEdit: true }));
+  // Y (this build) types a at +200 s and c at +400 s.
+  const Y = await loadDevice();
+  const qy = hookWriter(Y, MULTI); qy.mount(); Y.appRead();
+  tick(200_000); qy.set({ a: 'new-a' }); await Y.flush();
+  tick(200_000); qy.set({ a: 'new-a', c: 'c' }); await Y.flush();
+  // O reloads on this build, comes online, and types d.
+  tick(100_000);
+  const O = await loadDevice(oStorage);
+  let qo = hookWriter(O, MULTI); qo.mount(); if (O.appRead().fieldSettled) { qo = hookWriter(O, MULTI); qo.mount(); }
+  tick(5000); qo.set({ ...qo.value, d: 'd' }); await O.flush();
+  assert.deepEqual(serverEntry(MULTI).value, { a: 'new-a', b: 'b2', c: 'c', d: 'd' }, 'the newer a, and b only the old build had');
+  assert.deepEqual(qo.value, { a: 'new-a', b: 'b2', c: 'c', d: 'd' }, 'and that is what O shows');
+});
+
+test('note 2, the merge itself: an upper bound loses only to a later edit or a later copy', () => {
+  const bounded = { value: { a: 'old' }, savedAt: 500, savedAtIsEdit: true, fieldEditedAt: { a: -300 } };
+  const merge = (other) => mergeFieldRecordCopies({ kind: 'multi-answer', a: bounded, b: other }).value.a;
+  assert.equal(merge({ value: { a: 'new' }, savedAt: 400, fieldEditedAt: { a: 200 } }), 'new', 'saved after the bound');
+  assert.equal(merge({ value: { a: 'new' }, savedAt: 250, fieldEditedAt: { a: 350 } }), 'new', 'edited after the bound');
+  assert.equal(merge({ value: { a: 'older' }, savedAt: 250, fieldEditedAt: { a: 200 } }), 'old', 'neither: the bounded answer stays');
+  const kept = mergeFieldRecordCopies({ kind: 'multi-answer', a: bounded, b: { value: { a: 'older' }, savedAt: 250, fieldEditedAt: { a: 200 } } });
+  assert.equal(kept.fieldEditedAt.a, -300, 'and stays a bound, not an edit at 300');
+});
+
+test('note 3: "the later copy, whole" across a submission still honours, and remembers, a reset', () => {
+  const K = keyFor(12, 'multi-answer');
+  const save = (doc, entry) => mergeWorkspaceDraftDocument({ existing: doc, patch: patchOf([entry]) });
+  // D: Start over at 1000, a new answer at 2000; the question is submitted at 2500.
+  let doc = save(null, { key: K, value: { a: 'post-reset-a' }, savedAt: 2000, savedAtIsEdit: true, fieldEditedAt: { a: 2000 }, resetAt: 1000, questionIndex: 12 });
+  // A tab that missed both the reset and the submission types c after it.
+  doc = save(doc, { key: K, value: { a: 'pre-reset-a', b: 'pre-reset-b', c: 'c' }, savedAt: 3000, savedAtIsEdit: true, fieldEditedAt: { a: 500, b: 500, c: 3000 }, canonicalAt: 2500, questionIndex: 12 });
+  const entry = readWorkspaceDraftEntries(doc)[0];
+  assert.deepEqual(entry.value, { c: 'c' }, 'neither the submitted attempt nor the pre-reset answers');
+  assert.equal(entry.resetAt, 1000);
+  assert.equal(entry.canonicalAt, 2500);
+});
+
+test('note 4: the device settle also honours the submission the server entry was saved after', async () => {
+  const MULTI = keyFor(13, 'multi-answer');
+  server.doc = null;
+  // B's grade records never hear of the submission (made on another device).
+  const B = await loadDevice(new MemoryStorage(), { canonical: () => 0 });
+  B.appRead();
+  B.read(MULTI, {}); B.write(MULTI, {}, { edit: false });
+  tick(1000); B.input(); B.write(MULTI, { a: '1', b: '2', c: '3' }, { edit: true }); await B.flush();
+  const submittedAt = tick(5_000);
+  tick(10_000);
+  const C = await loadDevice(new MemoryStorage(), { canonical: (index) => (index === 13 ? submittedAt : 0) });
+  C.appRead();
+  C.read(MULTI, {}); C.write(MULTI, {}, { edit: false });
+  tick(1000); C.input(); C.write(MULTI, { a: '5' }, { edit: true }); await C.flush();
+  assert.equal(serverEntry(MULTI).canonicalAt, submittedAt);
+  tick(30_000); B.appRead();
+  assert.deepEqual(B.envelope(MULTI).value, { a: '5' }, 'B\'s attempt-1 boxes do not join attempt 2');
 });

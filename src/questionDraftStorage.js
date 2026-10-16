@@ -325,7 +325,9 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
     const fieldsFresh = stored === null ? !serverCopySeen(key) : stored.fieldsFresh === true;
     fieldMarkers = { fieldEditedAt, ...(fieldsFresh ? { fieldsFresh: true } : {}), ...(resetAt ? { resetAt } : {}) };
   }
-  pageView.set(key, { savedAt, input: seen ? seen.input : 0, groups: fieldKind ? viewedGroups(key, written) : null });
+  // The answers the PAGE holds — not the ones kept for it from behind its back,
+  // which it has still not seen: its next write-back keeps them again.
+  pageView.set(key, { savedAt, input: seen ? seen.input : 0, groups: fieldKind ? viewedGroups(key, value) : null });
   // Development only: name the field that would stop the server backup at the
   // keystroke that introduced it, whether or not a signed-in sync is running.
   // A no-op in production, where the sync reports what it refuses.
@@ -558,8 +560,11 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
       return;
     }
     const kind = fieldRecordDraftKind(key);
-    let canonicalAt = 0;
-    try { canonicalAt = Number(typeof canonicalSavedAt === 'function' ? canonicalSavedAt(entry) : 0) || 0; } catch { canonicalAt = 0; }
+    // The later of this device's grade record and the submission the server
+    // entry was saved after: a submission made on another device may not have
+    // reached this one's records yet.
+    let canonicalAt = Math.max(0, Number(entry?.canonicalAt) || 0);
+    try { canonicalAt = Math.max(canonicalAt, Number(typeof canonicalSavedAt === 'function' ? canonicalSavedAt(entry) : 0) || 0); } catch { /* the entry's own */ }
     const merged = mergeFieldRecordCopies({
       kind,
       // This device's copy, with its answers dated even if an older build wrote it.
