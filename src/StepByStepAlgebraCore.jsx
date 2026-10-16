@@ -41,7 +41,7 @@ import {
   undoSimplify,
 } from './platform/algebra/simplify/simplifyState.js';
 import { rewriteMenuEntries, rewriteMenuOptions } from './platform/algebra/simplify/rewriteMenu.js';
-import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
+import { normalizeQuestionRecord } from './attemptPolicy';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import { equationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
@@ -308,7 +308,6 @@ export default function StepByStepAlgebra({
   onStepGrade,
   onUndoStateChange,
   disabled = false,
-  maximumAttempts = 3,
   attemptsDoNotExpire = false,
   draftKey = null,
   autoOpenDistribution = false,
@@ -830,11 +829,11 @@ export default function StepByStepAlgebra({
     });
   };
 
-  // A balanced move's step: committed (BALANCED_MOVE), reported before it is
-  // committed because it costs an attempt (INEFFICIENT_MOVE), or a rejected
-  // cancellation/simplification of the pending move (REJECTED_MOVE). Credit,
-  // attempt use and the saved state come from the shared definitions; the
-  // raw work travels with them so the server can derive the same credit.
+  // A balanced move's step: committed (BALANCED_MOVE), or a rejected
+  // cancellation/simplification of the pending move (REJECTED_MOVE, a slip).
+  // Credit, attempt use (none, decision D1) and the saved state come from the
+  // shared definitions; the raw work travels with them so the server can
+  // derive the same credit.
   const saveStep = async ({ move, action, equationAfter = equation }) => {
     if (!onStepGrade) return null;
     setSavingStep(true);
@@ -1319,20 +1318,10 @@ export default function StepByStepAlgebra({
     }
 
     // F3. An inefficient move is NOT rejected. It is valid algebra by a longer
-    // road, so it is applied and described; at levels 3 and 4 it also costs an
-    // attempt, which is a pacing decision rather than a verdict on the maths.
-    const verdict = evaluateMove(move, supportLevel);
-    if (verdict.countsAttempt) {
-      const result = await saveStep({ move, action: STEP_ACTIONS.INEFFICIENT_MOVE });
-      if (result?.expired) {
-        setPendingMove(null);
-        setMessage({ tone: 'error', text: 'That used the final attempt on this version.' });
-        return;
-      }
-      // The pacing is real either way; the judgement of the move is shown only
-      // where verdicts are.
-      if (verdictsShown) setMessage({ tone: 'growth', text: attemptsDoNotExpire || embedded ? verdict.message : `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
-    }
+    // road, so it is applied and described, and it never spends a try at any
+    // level (decision D1). The shorter route is coaching: commitMove shows
+    // evaluateMove's message, and the committed step records that the move
+    // was not the efficient one.
 
     if (move.requiredCancellationSides.length === 0) {
       if (move.simplificationTargets?.length) {
@@ -1530,11 +1519,10 @@ export default function StepByStepAlgebra({
     const valid = pendingMove.requiredCancellationSides.includes(side);
     if (!valid) {
       triggerShake();
-      if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
-        const result = await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
-        setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side does not contain the cancellation for this move. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain.` });
-        if (result?.expired) { setPendingMove(null); setSelectedCancellationIndices({}); }
-      } else setMessage({ tone: 'growth', text: 'That side does not contain the cancellation pair. Look at the factors in the other side.' });
+      // A wrong-side tap is a slip, not an answer: feedback, never a try
+      // (decision D1). Levels that record slips keep one for the teacher.
+      if (supportPolicy.recordsSlips && !embedded) await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
+      setMessage({ tone: 'growth', text: 'That side does not contain the cancellation pair. Look at the factors in the other side.' });
       return;
     }
     const next = [...new Set([...crossedSides, side])];
@@ -1565,12 +1553,11 @@ export default function StepByStepAlgebra({
     const incorrect = targets.filter((target) => !expressionsEquivalent(simplificationAnswers[target.side], target.simplifiedExpression, equation.variable));
     if (incorrect.length) {
       triggerShake();
-      if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
-        const result = await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
-        setMessage({ tone: 'error', text: result?.expired ? 'The third incorrect simplification used the final attempt.' : `Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} simplification. Algebraically equivalent forms are accepted.` });
-      } else {
-        setMessage({ tone: 'growth', text: `The balanced move remains available. Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} expression; equivalent algebraic forms are accepted.` });
-      }
+      // An intermediate simplification is checked before it is committed, so a
+      // wrong one is a slip to revise, not an answer: never a try (decision
+      // D1). Levels that record slips keep one for the teacher.
+      if (supportPolicy.recordsSlips && !embedded) await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
+      setMessage({ tone: 'growth', text: `The balanced move remains available. Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} expression; equivalent algebraic forms are accepted.` });
       return;
     }
     const cancellationsComplete = pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side));
@@ -1902,7 +1889,6 @@ export default function StepByStepAlgebra({
     stagePlacement(side, position);
   };
   const suggestedMove = getSuggestedMove(equation);
-  const attemptsRemaining = attemptsDoNotExpire ? null : getAttemptsRemaining(normalizedRecord, maximumAttempts);
   const stepCreditPercent = normalizedRecord.status === 'correct'
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
@@ -2848,9 +2834,8 @@ export default function StepByStepAlgebra({
         {/* The level's own sentence promises "Hints are available on request";
             where the activity withholds hints that is no longer true. */}
         {hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}
-        {supportPolicy.inefficientMoveCostsAttempt
-          ? attemptsDoNotExpire ? ' Live Challenge work does not expire from intermediate moves.' : ` Attempts remaining: ${attemptsRemaining}. A longer route still counts as correct algebra, but it uses an attempt at this level.`
-          : ' A longer route is still correct algebra here and costs nothing.'}
+        {/* Decision D1: no move or slip spends a try, at any level. */}
+        {' A longer route is still correct algebra and never uses a try.'}
       </p>}
 
       {heldToken && (

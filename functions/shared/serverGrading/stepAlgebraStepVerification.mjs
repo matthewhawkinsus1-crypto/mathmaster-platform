@@ -115,11 +115,13 @@ const isObject = (value) => Boolean(value) && typeof value === 'object' && !Arra
 export const STEP_ACTIONS = Object.freeze({
   // A committed balanced operation (StepByStepAlgebraCore commitMove).
   BALANCED_MOVE: 'balanced-move',
-  // A valid but inefficient move at a level where it costs an attempt,
-  // reported before the move is committed (attemptMove).
+  // A valid but inefficient move, reported before it was committed, by
+  // workspaces built before decision D1, when it cost an attempt at levels 3
+  // and 4. The workspace no longer sends it (the committed BALANCED_MOVE
+  // records that the move was not efficient); a queued one is still read.
   INEFFICIENT_MOVE: 'inefficient-move',
   // A cancellation on the wrong side or a wrong simplification of a pending
-  // move (strikeSide, checkSimplifications).
+  // move (strikeSide, checkSimplifications): a slip, recorded, never charged.
   REJECTED_MOVE: 'rejected-move',
   // A side rewritten into an equivalent form: Rewrite / Simplify, combine like
   // terms, one-term rewrite, distribution, cancellation, structure tools.
@@ -131,16 +133,15 @@ export const STEP_ACTIONS = Object.freeze({
 });
 
 /**
- * Does this action spend an attempt? The workspace's rule: a rejected move
- * always does; an inefficient move does unless attempts do not expire on this
- * surface (Live Challenge). A step submission comes only from an assignment,
- * where attempts always expire, so the server asks with the default.
+ * Does this action spend an attempt? No step does (decision D1,
+ * docs/qa/student-experience-pass-3.md): a valid move is never charged however
+ * long the route, and a wrong-side cancellation tap or a wrong intermediate
+ * simplification is a slip, not a submitted answer. A try is spent only when
+ * the student submits the solved equation (recordQuestionAttempt). The
+ * workspace and the server both ask here, so a step queued by an older
+ * workspace that still charged is not charged again when the server records it.
  */
-export const stepActionCountsAttempt = (action, { attemptsDoNotExpire = false } = {}) => {
-  if (action === STEP_ACTIONS.REJECTED_MOVE) return true;
-  if (action === STEP_ACTIONS.INEFFICIENT_MOVE) return !attemptsDoNotExpire;
-  return false;
-};
+export const stepActionCountsAttempt = () => false;
 
 /** The rewrite tools of the equation workspace, by the step kind each reports. */
 export const EQUATION_REWRITE_KINDS = Object.freeze([
@@ -168,8 +169,8 @@ export const INTERCEPT_EXPECTED_STEP_POINTS = 2;
 
 /**
  * A balanced move's credit. Committed: 2 when the move was the helpful one
- * (efficient), 1 when it was merely valid. An inefficient move that costs an
- * attempt is reported once more, uncommitted, at 1 of 2; a rejected
+ * (efficient), 1 when it was merely valid. An inefficient move reported
+ * uncommitted (an older workspace's INEFFICIENT_MOVE) is 1 of 2; a rejected
  * cancellation or simplification earns 0 of 1 and is not accepted.
  */
 export const balancedMoveCredit = (action, verdict) => {
@@ -670,7 +671,7 @@ const verifyEquationStep = ({ work, pristine, question, record, stepNumberBase }
     }
     const move = recomputeMove(before, work.operation);
     if (!move || !move.preservesSolution) return unverified(action, 'step-operation-invalid');
-    if (action === STEP_ACTIONS.INEFFICIENT_MOVE && !evaluateMove(move, supportLevel).countsAttempt) {
+    if (action === STEP_ACTIONS.INEFFICIENT_MOVE && evaluateMove(move, supportLevel).efficient) {
       return unverified(action, 'step-move-not-inefficient');
     }
     let after = before;

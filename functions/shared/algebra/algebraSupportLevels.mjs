@@ -22,8 +22,14 @@
 //                  side themselves.
 //   3 Standard     no silent simplification; hints available on request.
 //   4 Independent  minimal cues.
-//   5 Open         minimal coaching. Inefficient but equivalence-preserving
-//                  work is expected and costs nothing.
+//   5 Open         minimal coaching.
+//
+// TRIES (decision D1, docs/qa/student-experience-pass-3.md). No level spends
+// the question's tries on a valid move, however long the route, or on a tap
+// slip while marking a cancellation. A longer route still gets the coaching
+// message about the shorter one, and its step still records that it was not
+// the efficient move. Levels 3 and 4 also keep a record of each slip
+// (recordsSlips) for the teacher; it never spends a try.
 //
 // THREE THINGS THAT ARE NOT THE SAME. The old code had one flag, `productive`,
 // doing the work of three ideas, which is why an unhelpful-but-legal move was
@@ -47,7 +53,7 @@ export const SUPPORT_LEVELS = Object.freeze([
     description: 'Strongest cues. Routine arithmetic on the opposite side is simplified automatically.',
     autoSimplifyOppositeSide: true,
     showCancellationHints: true,
-    inefficientMoveCostsAttempt: false,
+    recordsSlips: false,
     coaching: 'full',
   },
   {
@@ -57,7 +63,7 @@ export const SUPPORT_LEVELS = Object.freeze([
     description: 'Cancellation cues are shown. The student simplifies the other side.',
     autoSimplifyOppositeSide: false,
     showCancellationHints: true,
-    inefficientMoveCostsAttempt: false,
+    recordsSlips: false,
     coaching: 'full',
   },
   {
@@ -67,7 +73,7 @@ export const SUPPORT_LEVELS = Object.freeze([
     description: 'Nothing is simplified for the student. Hints are available on request.',
     autoSimplifyOppositeSide: false,
     showCancellationHints: true,
-    inefficientMoveCostsAttempt: true,
+    recordsSlips: true,
     coaching: 'onRequest',
   },
   {
@@ -77,17 +83,17 @@ export const SUPPORT_LEVELS = Object.freeze([
     description: 'Minimal cancellation cues.',
     autoSimplifyOppositeSide: false,
     showCancellationHints: false,
-    inefficientMoveCostsAttempt: true,
+    recordsSlips: true,
     coaching: 'onRequest',
   },
   {
     level: 5,
     id: 'open',
     label: 'Open',
-    description: 'Minimal coaching. Longer routes are allowed and cost nothing.',
+    description: 'Minimal coaching.',
     autoSimplifyOppositeSide: false,
     showCancellationHints: false,
-    inefficientMoveCostsAttempt: false,
+    recordsSlips: false,
     coaching: 'minimal',
   },
 ]);
@@ -96,8 +102,8 @@ export const DEFAULT_SUPPORT_LEVEL = 3;
 
 const BY_LEVEL = new Map(SUPPORT_LEVELS.map((entry) => [entry.level, entry]));
 
-// Old saved records and old assignment JSON. `rigorous` spent attempts and
-// showed fewer cues, which is Standard; `exploratory` spent none, which is Open.
+// Old saved records and old assignment JSON. `rigorous` showed fewer cues,
+// which is Standard; `exploratory` coached least, which is Open.
 const LEGACY_MODES = Object.freeze({ rigorous: 3, exploratory: 5 });
 
 /**
@@ -141,9 +147,10 @@ export const evaluateMove = (move, level = DEFAULT_SUPPORT_LEVEL) => {
     efficient,
     progress,
     blocked: !valid,
-    // An inefficient move is never an error. At levels 3 and 4 it costs an
-    // attempt, which is a pacing decision, not a judgment about the mathematics.
-    countsAttempt: valid && !efficient && policy.inefficientMoveCostsAttempt,
+    // An inefficient move is never an error, and since decision D1 it never
+    // spends a try at any level: the shorter route is coaching (`message`),
+    // not a charge. Kept on the verdict so every reader gets a clear `false`.
+    countsAttempt: false,
     tone: !valid ? 'error' : efficient ? 'success' : 'growth',
     message: !valid
       ? 'That move would change the solution set, so the equation would no longer be the same problem.'

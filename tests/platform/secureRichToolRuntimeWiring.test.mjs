@@ -344,7 +344,11 @@ test('Step Algebra judges no committed move where verdicts are withheld', () => 
   assert.doesNotMatch(shown, /solved|longer way|Look for|correct/i);
   // The status box drops correctness colour; a genuine error stays red.
   assert.match(core, /const tone = !verdictsShown && message\.tone !== 'error' \? 'neutral' : message\.tone;/);
-  assert.match(core, /if \(verdictsShown\) setMessage\(\{ tone: 'growth', text: attemptsDoNotExpire/);
+  // Before a move is committed nothing judges it: decision D1 removed the
+  // attempt charge for a longer route, which was the one place attemptMove
+  // showed evaluateMove's verdict (and it was gated on verdictsShown).
+  const attempt = executableSource(region(core, 'const attemptMove = async', 'const localPoint =', 'attemptMove'));
+  assert.doesNotMatch(attempt, /verdict\.message|evaluateMove\(/);
 });
 
 test('no tool invites a "check" beside the action that records a secure item\'s only answer', () => {
