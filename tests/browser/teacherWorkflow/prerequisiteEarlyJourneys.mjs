@@ -178,7 +178,8 @@ const run = async (viewport) => {
   expect(`P3 ${tag}`, /Classwork — opens/i.test(unmetLesson) || /not open/i.test(unmetLesson), `the lesson does not say it opens later: ${unmetLesson.slice(0, 600)}`);
   expect(`P3 ${tag}`, (await page.locator('math-field').filter({ visible: true }).count()) === 0, 'a question is open for a student without the prerequisite');
   await page.goto(`${ORIGIN}/assignments/${LESSON}/classwork/1?${SCENARIO}&as=student&studentId=${UNMET}`);
-  await shown(page, /RESULT SO FAR|Welcome, |[Qq]uestion \d+ of \d+/).waitFor({ timeout: 60_000 });
+  // Since student pass 3 (NAV-10) a blocked start lands on the result page and says why there.
+  await shown(page, /RESULT SO FAR|Welcome, |[Qq]uestion \d+ of \d+|Finish the earlier lesson first/i).waitFor({ timeout: 60_000 });
   await page.waitForTimeout(1500);
   expect(`P3 ${tag}`, pathOf(page) !== `/assignments/${LESSON}/classwork/1`, 'the Classwork address opened Classwork without the prerequisite');
   expect(`P3 ${tag}`, (await page.locator('math-field').filter({ visible: true }).count()) === 0, 'the Classwork address opened a question without the prerequisite');
