@@ -30,6 +30,7 @@ import {
 } from './platform/performance/responseCheckpoint.js';
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
 import { clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
@@ -6926,10 +6927,14 @@ function App() {
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
+      // Nothing was recorded anywhere, so nothing was submitted: no verdict,
+      // no try used, the question stays open with Submit (RUN-3). A `null`
+      // here used to read as "show the device's own verdict" — "Correct!",
+      // locked, and no Submit to press again.
       console.error('Could not durably queue this response:', error);
       setStudentPersistenceStatus('volatile');
-      toastWarning('Response not queued', 'Your answer is still on screen. Keep this tab open and press Submit again.');
-      return null;
+      toastWarning('Not submitted', 'This device could not save your answer. No try was used. Keep this tab open and press Submit again.');
+      return SUBMISSION_NOT_QUEUED;
     }
 
     setTracker(updatedTracker);
@@ -10278,7 +10283,12 @@ function App() {
                           ? 'Recorded by MathMaster.'
                           : studentPersistenceStatus === 'rejected'
                             ? 'This change was not accepted because the assignment is no longer available.'
-                            : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
+                            // The device queue could not be written: the last
+                            // change is on screen only (saveStatusModel.js).
+                            // Never "saved" — nothing was (RUN-3).
+                            : studentPersistenceStatus === 'volatile'
+                              ? 'Not saved · this device could not store your last change. Keep this tab open and try it again.'
+                              : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
               </p>
             )}
             {/* UNFINISHED WORK THAT IS NOT BEING SAVED IS NEVER SILENT.
