@@ -14,6 +14,7 @@
 import {
   buildWorkspaceDraftPatch,
   explainWorkspaceDraftRejection,
+  fieldRecordDraftKind,
   isSyncableDraftKey,
   sanitizeWorkspaceDraftValue,
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
@@ -45,6 +46,11 @@ export const createWorkspaceDraftSync = ({
   debounceMs = WORKSPACE_DRAFT_DEBOUNCE_MS,
   scheduler = null,
   now = () => Date.now(),
+  // When the question at an index was last submitted (App.jsx reads the
+  // canonical record), or 0. Sent with every multi-answer, Step Algebra and
+  // composed-step entry so the server merge never folds a submitted attempt's
+  // draft into the next attempt (workspaceDraftSchema.mjs `canonicalAt`).
+  canonicalSavedAt = () => 0,
 } = {}) => {
   // What THIS device has changed and not yet had acknowledged. A flush sends
   // these as a patch; anything the server already holds for other questions is
@@ -84,11 +90,17 @@ export const createWorkspaceDraftSync = ({
     if (key && at > (serverSavedAt.get(key) || 0)) serverSavedAt.set(key, at);
   };
 
+  const withCanonical = (entry) => {
+    if (!fieldRecordDraftKind(entry.key)) return entry;
+    let canonicalAt = 0;
+    try { canonicalAt = Number(canonicalSavedAt(entry.questionIndex)) || 0; } catch { canonicalAt = 0; }
+    return canonicalAt > 0 ? { ...entry, canonicalAt } : entry;
+  };
   const snapshotPatch = () => buildWorkspaceDraftPatch({
     studentId,
     assignmentId,
     classId,
-    entries: [...pending.values()],
+    entries: [...pending.values()].map(withCanonical),
     resume: resumePatch,
     hasResume: resumeDirty,
     practice: practicePatch,
@@ -162,7 +174,7 @@ export const createWorkspaceDraftSync = ({
   }
 
   /** Called synchronously from the draft write. Must stay cheap. */
-  const record = ({ key, value, savedAt, edit, savedAtIsEdit, fieldEditedAt = null, fieldsFresh = false } = {}) => {
+  const record = ({ key, value, savedAt, edit, savedAtIsEdit, fieldEditedAt = null, fieldsFresh = false, resetAt = 0 } = {}) => {
     if (stopped) return false;
     const identity = parseQuestionDraftKey(key);
     if (!identity || !['student', 'practice'].includes(identity.sessionBucket)) { stats.skipped += 1; return false; }
@@ -187,7 +199,7 @@ export const createWorkspaceDraftSync = ({
     if (edit === false) {
       if (stamp <= 0) { stats.unedited += 1; return false; }
       if ((pending.get(key)?.savedAt ?? 0) >= stamp) return false;
-      if (!serverKnown) { held.set(key, { key, value, savedAt: stamp, savedAtIsEdit: marked, fieldEditedAt, fieldsFresh }); return false; }
+      if (!serverKnown) { held.set(key, { key, value, savedAt: stamp, savedAtIsEdit: marked, fieldEditedAt, fieldsFresh, resetAt }); return false; }
       if (stamp <= (serverSavedAt.get(key) || 0)) return false;
     } else {
       held.delete(key);
@@ -223,6 +235,7 @@ export const createWorkspaceDraftSync = ({
       // times, merged answer by answer on the server (workspaceDraftSchema.mjs).
       ...(fieldEditedAt ? { fieldEditedAt } : {}),
       ...(fieldsFresh === true ? { fieldsFresh: true } : {}),
+      ...(Number(resetAt) > 0 ? { resetAt: Number(resetAt) } : {}),
     });
     stats.recorded += 1;
     dirtySinceFlush = true;

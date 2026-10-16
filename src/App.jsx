@@ -3800,6 +3800,10 @@ function App() {
       studentId: user.id,
       assignmentId: activeAssignmentId,
       classId: user.classId || null,
+      // The question's last submission, as the restore reads it: sent with
+      // answer-by-answer drafts so the server merge keeps a submitted attempt's
+      // draft out of the next attempt (workspaceDraftSchema.mjs `canonicalAt`).
+      canonicalSavedAt: (questionIndex) => canonicalResponseSavedAt(normalizeQuestionRecord(trackerRef.current?.[activeAssignmentId]?.[questionIndex])),
       // A save that gets through while the server's copy has never been read
       // means the connection came back without the page hearing of it (no
       // `online` event). Read it then, so this device shows work done on

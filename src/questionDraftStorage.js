@@ -6,9 +6,10 @@ import {
   freshToolWorkspaceEdits,
   isSyncableDraftKey,
   isToolWorkspaceDraftKey,
+  adoptedFieldEditedAt,
   mergeFieldRecordCopies,
   mergeFreshToolWorkspace,
-  normalizeFieldEditedAt,
+  resetTimeOf,
   stampFieldRecordEdits,
   toolWorkspaceFields,
 } from '../functions/shared/workspaceDraftSchema.mjs';
@@ -293,17 +294,28 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
     if (seen?.groups && value && typeof value === 'object' && !Array.isArray(value)
       && storedValue && typeof storedValue === 'object' && !Array.isArray(storedValue)) {
       const incoming = fieldRecordGroups(fieldKind, value);
-      const unseen = {};
+      const unseen = [];
       fieldRecordGroups(fieldKind, storedValue).forEach((entry, group) => {
         if (incoming.has(group) || seen.groups.has(group)) return;
-        entry.fields.forEach((field) => { unseen[field] = storedValue[field]; });
+        entry.fields.forEach((field) => unseen.push(field));
       });
-      if (Object.keys(unseen).length) written = { ...value, ...unseen };
+      if (unseen.length) {
+        // Own properties only: a field id may be "__proto__" (workspaceDraftSchema.mjs).
+        written = { ...value };
+        unseen.forEach((field) => Object.defineProperty(written, field, { value: storedValue[field], enumerable: true, writable: true, configurable: true }));
+      }
     }
-    const fieldEditedAt = stampFieldRecordEdits({
+    // Start over (a tombstone written as an edit) dates nothing and records
+    // when it happened; anything written later carries that reset forward, so
+    // no merge brings back an answer dated before it.
+    const resetting = written === null && isEdit;
+    const resetAt = resetting ? now : resetTimeOf(stored);
+    const fieldEditedAt = resetting ? {} : stampFieldRecordEdits({
       kind: fieldKind,
       previous: storedValue,
-      previousEditedAt: stored?.fieldEditedAt,
+      // A copy an older build stored has no per-answer times: its answers are
+      // dated at its edit time, not left as never edited.
+      previousEditedAt: stored ? adoptedFieldEditedAt(fieldKind, stored) : null,
       next: written,
       edit: isEdit,
       now,
@@ -311,7 +323,7 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
     // Fresh means "not yet settled against the server's copy": a draft begun
     // after this page read that copy (reconcileFieldRecordDrafts) has seen it.
     const fieldsFresh = stored === null ? !serverCopySeen(key) : stored.fieldsFresh === true;
-    fieldMarkers = { fieldEditedAt, ...(fieldsFresh ? { fieldsFresh: true } : {}) };
+    fieldMarkers = { fieldEditedAt, ...(fieldsFresh ? { fieldsFresh: true } : {}), ...(resetAt ? { resetAt } : {}) };
   }
   pageView.set(key, { savedAt, input: seen ? seen.input : 0, groups: fieldKind ? viewedGroups(key, written) : null });
   // Development only: name the field that would stop the server backup at the
@@ -385,8 +397,12 @@ export const restoreQuestionDrafts = (entries = []) => {
     // A tool workspace restored from the server is the server's copy, and so
     // is never "started from nothing" here, whatever it carried there.
     const value = isToolWorkspaceDraftKey(key) ? toolWorkspaceFields(entry.value) : entry.value;
-    // Nor is a field-record draft, which keeps the server's per-answer times.
-    const fieldEditedAt = fieldRecordDraftKind(key) ? normalizeFieldEditedAt(entry.fieldEditedAt) : null;
+    // Nor is a field-record draft, which keeps the server's per-answer times
+    // (dated at the entry's edit time when an older build saved it) and the
+    // latest reset it knew of.
+    const fieldKind = fieldRecordDraftKind(key);
+    const fieldEditedAt = fieldKind ? adoptedFieldEditedAt(fieldKind, entry) : null;
+    const resetAt = fieldKind ? resetTimeOf(entry) : 0;
     try {
       // The server entry's edit-time marker comes with it (see writeQuestionDraft).
       window.localStorage.setItem(key, JSON.stringify({
@@ -395,6 +411,7 @@ export const restoreQuestionDrafts = (entries = []) => {
         value,
         ...(entry.savedAtIsEdit === true ? { savedAtIsEdit: true } : {}),
         ...(fieldEditedAt ? { fieldEditedAt } : {}),
+        ...(resetAt ? { resetAt } : {}),
       }));
       restored += 1;
     } catch {
@@ -540,11 +557,18 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
       try { window.localStorage.setItem(key, JSON.stringify(seenEnvelope)); } catch { /* stays fresh */ }
       return;
     }
+    const kind = fieldRecordDraftKind(key);
+    let canonicalAt = 0;
+    try { canonicalAt = Number(typeof canonicalSavedAt === 'function' ? canonicalSavedAt(entry) : 0) || 0; } catch { canonicalAt = 0; }
     const merged = mergeFieldRecordCopies({
-      kind: fieldRecordDraftKind(key),
-      a: envelope,
+      kind,
+      // This device's copy, with its answers dated even if an older build wrote it.
+      a: { ...envelope, fieldEditedAt: adoptedFieldEditedAt(kind, envelope) },
       b: entry,
       prefer: 'a',
+      // A copy from before the question's last submission and one from after
+      // it are not merged answer by answer: the restore decides, whole.
+      canonicalAt,
     });
     if (!merged) {
       if (!fresh) return;
@@ -563,6 +587,7 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
       ...(envelope.touchedAt ? { touchedAt: envelope.touchedAt } : {}),
       ...(merged.savedAtIsEdit ? { savedAtIsEdit: true } : {}),
       fieldEditedAt: merged.fieldEditedAt,
+      ...(merged.resetAt ? { resetAt: merged.resetAt } : {}),
     };
     try {
       window.localStorage.setItem(key, JSON.stringify(next));
@@ -613,6 +638,7 @@ export const readQuestionDraftFamily = (prefix) => {
         savedAt: Number(parsed.savedAt) || 0,
         ...(parsed.savedAtIsEdit === true ? { savedAtIsEdit: true } : {}),
         ...(parsed.fieldEditedAt ? { fieldEditedAt: parsed.fieldEditedAt } : {}),
+        ...(parsed.resetAt ? { resetAt: parsed.resetAt } : {}),
       });
     }
   } catch {
