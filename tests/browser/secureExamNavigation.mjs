@@ -448,7 +448,7 @@ const courseJourney = async (context, device) => {
   // A pause must cover an enlarged question too (Work View is a fixed layer
   // above the page): typing there autosaves, the save is refused as paused,
   // and the pause screen is what the student sees.
-  const enlarge = page.getByRole('button', { name: /Enlarge question/ });
+  const enlarge = page.getByRole('button', { name: /Open Work View/ });
   if (await enlarge.count()) {
     await enlarge.first().click();
     await page.waitForSelector('.mathmaster-work-view-host[data-open="true"]', { timeout: 8000 });

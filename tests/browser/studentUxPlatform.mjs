@@ -36,7 +36,7 @@
 //   identity      the signed-in identity bar at 344, 390 and 479px (one line,
 //                 ~38px, pinned, every name kept) and on iPad and Chromebook;
 //                 its star drawn, not typed (PQ-021, PQ-030).
-//   opener        "⤢ Enlarge question" covers no text or control of a
+//   opener        "⤢ Open Work View" covers no text or control of a
 //                 multi-part answer or Step Algebra, phone to Chromebook
 //                 (PQ-025).
 //   staged        a composed question in phone Work View: the header is the

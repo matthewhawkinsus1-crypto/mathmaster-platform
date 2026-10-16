@@ -308,7 +308,7 @@ const rewrite = async () => {
 
 const workview = async () => {
   const page = await open('build');
-  await page.getByRole('button', { name: /Enlarge question/ }).first().click();
+  await page.getByRole('button', { name: /Open Work View/ }).first().click();
   await settle(page, 1000);
   const dialog = page.getByRole('dialog').first();
   check((await dialog.innerText()).includes('Constraint 1: tap the grid to plot two points on the boundary line.'), 'workview: the enlarged view says what the graph is waiting for');

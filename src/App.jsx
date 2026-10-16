@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 // Stylesheets that must link before App.css, in 805b69e2's order
 // (app/shell/leadingStyles.js says why and how).
 import './app/shell/leadingStyles.js';
@@ -103,7 +103,6 @@ import {
 } from './platform/generation/generationSeatReconciler.js';
 import { mergePracticeTrackers } from './platform/student/practiceTrackerMerge.js';
 import {
-  getQuestionCardState,
   normalizeQuestionRecord,
   recordQuestionAttempt,
   recordQuestionStep,
@@ -184,6 +183,16 @@ import { MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle } from '
 import { subscribeToReadingActivity } from './components/common/readingActivity.js';
 
 import DOLCountdown from './components/student/DOLCountdown.jsx';
+import SectionTimeLeft from './components/student/SectionTimeLeft.jsx';
+import {
+  QUESTION_STATUS,
+  SECTION_ACCESS,
+  describeNavigatorQuestion,
+  describeNavigatorSectionProgress,
+  describeSectionAccess,
+  sectionLandingEntry,
+} from './platform/student/assignmentNavigator.js';
+import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
 import { useToast } from './ui/Toast';
 import { prefetchQuestionResources } from './platform/performance/questionPrefetch.js';
@@ -378,7 +387,6 @@ import { RecoveryInlineNotice } from './components/student/RecoveryOpportunities
 import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/stickyHeightRef.js';
-import { shouldCompactAssignmentNavigation } from './platform/layout/assignmentNavigationChrome.js';
 import {
   emptyClassPointAccount,
   subscribeToClassPointAnnouncements,
@@ -851,8 +859,12 @@ function App() {
   const [teacherWorksheetDialog, setTeacherWorksheetDialog] = useState(null);
   const [teacherWorksheetBusy, setTeacherWorksheetBusy] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(false);
+  const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(true);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
+  // The phone's status chip (pass 3, NAV-5) and why a locked section tab
+  // cannot open (RUN-8): both belong to one assignment, and close with it.
+  const [assignmentStatusOpenFor, setAssignmentStatusOpenFor] = useState(null);
+  const [sectionLockNote, setSectionLockNote] = useState(null);
   const assignmentQuestionStageRef = useRef(null);
   // A restore's cursor belongs to the question it was read on (draftRestoreFocus):
   // another question, or another assignment, opens as any question opens.
@@ -861,37 +873,33 @@ function App() {
     setDraftRestoreFocus(null);
   }, [currentQuestionIndex, activeAssignmentId]);
 
-  // Once the student reaches the workspace, the full progress dashboard has
-  // done its job. Keep its section/question/previous/next essentials in one
-  // row and let the existing “Show progress” control restore the full view.
-  // Short landscape phones start in this presentation even before scrolling.
-  useEffect(() => {
-    if (activeView !== 'assignment' || !activeAssignmentId) return undefined;
-    let frame = 0;
-    const updateAssignmentNavigationChrome = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const work = assignmentQuestionStageRef.current?.querySelector('[data-work-view-focus="true"]')
-          || assignmentQuestionStageRef.current?.querySelector('.math-tool-workspace');
-        if (shouldCompactAssignmentNavigation({
-          viewportWidth: window.innerWidth,
-          viewportHeight: window.innerHeight,
-          workTop: work?.getBoundingClientRect?.().top ?? Infinity,
-        })) {
-          setAssignmentNavigationCollapsed(true);
-          setAssignmentOverviewExpanded(false);
-        }
-      });
-    };
-    updateAssignmentNavigationChrome();
-    window.addEventListener('scroll', updateAssignmentNavigationChrome, { passive: true });
-    window.addEventListener('resize', updateAssignmentNavigationChrome);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener('scroll', updateAssignmentNavigationChrome);
-      window.removeEventListener('resize', updateAssignmentNavigationChrome);
-    };
-  }, [activeView, activeAssignmentId]);
+  // THE NAVIGATOR STARTS COMPACT, ON EVERY SIZE (pass 3, RUN-7).
+  // One row — back, where you are, Previous/Next — leaves the work the
+  // screen; "Show progress" opens the section tabs and question numbers, and
+  // "Focus view" folds them again. Every open path resets it to compact. (It
+  // used to start full and compact only once the window scrolled, which a
+  // phone's never does: 179px of navigator stayed above every phone question.)
+  //
+  // Folding or opening it keeps the work where it was on screen: the page is
+  // scrolled by however far the toggle moved the work, so "Focus view" no
+  // longer sends a graph further down the page.
+  const navigationToggleAnchorRef = useRef(null);
+  const assignmentWorkElement = () => assignmentQuestionStageRef.current?.querySelector('[data-work-view-focus="true"]')
+    || assignmentQuestionStageRef.current?.querySelector('.math-tool-workspace')
+    || assignmentQuestionStageRef.current;
+  const toggleAssignmentNavigation = () => {
+    const work = assignmentWorkElement();
+    navigationToggleAnchorRef.current = work ? { element: work, top: work.getBoundingClientRect().top } : null;
+    if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
+    setAssignmentNavigationCollapsed((current) => !current);
+  };
+  useLayoutEffect(() => {
+    const anchor = navigationToggleAnchorRef.current;
+    navigationToggleAnchorRef.current = null;
+    if (!anchor?.element?.isConnected) return;
+    const moved = anchor.element.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(moved) >= 1) window.scrollBy({ top: moved, left: 0, behavior: 'instant' });
+  }, [assignmentNavigationCollapsed]);
 
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -5070,6 +5078,10 @@ function App() {
 
       const key = `${assignment.id}:${user.classId || user.classPeriod}:${warmupState.instructionDateKey || localDateKey(now)}`;
       activeKeys.add(key);
+      // Inside this assignment the Warm-Up's time is already on screen (the
+      // banner, the section pill, the phone's status chip): a toast over the
+      // Submit bar only repeated it (pass 3, RUN-14).
+      if (activeView === 'assignment' && activeAssignmentId === assignment.id) return;
       const lastReminderAt = Number(warmupOpenAnnouncedRef.current[key] || 0);
       if (lastReminderAt && now - lastReminderAt < 120000) return;
 
@@ -5087,7 +5099,7 @@ function App() {
         && now - Number(warmupOpenAnnouncedRef.current[key] || 0) > 15 * 60000
       ) delete warmupOpenAnnouncedRef.current[key];
     });
-  }, [now, user, assignments, classSchedule, tracker, toastWarning]);
+  }, [now, user, assignments, classSchedule, tracker, toastWarning, activeView, activeAssignmentId]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return;
@@ -5812,7 +5824,7 @@ function App() {
     if (!options?.returnToResult) setAssignmentResultRoute(null);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
-    setAssignmentNavigationCollapsed(false);
+    setAssignmentNavigationCollapsed(true);
     setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
@@ -6019,7 +6031,7 @@ function App() {
     setPreviewSessionId((current) => current + 1);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(getCurrentContentQuestionIndices(assignmentData)[0] ?? 0);
-    setAssignmentNavigationCollapsed(false);
+    setAssignmentNavigationCollapsed(true);
     setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
     setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
@@ -6108,7 +6120,7 @@ function App() {
         setLiveTeachingSession(resumed);
         setActiveAssignmentId(assignmentId);
         setCurrentQuestionIndex(Math.max(0, Number(resumed.storageQuestionIndex) || 0));
-        setAssignmentNavigationCollapsed(false);
+        setAssignmentNavigationCollapsed(true);
         setAssignmentOverviewExpanded(false);
         setActiveView('teacherPreview');
         return;
@@ -6129,7 +6141,7 @@ function App() {
     if (!assignmentData) return;
     setActiveAssignmentId(liveTeachingSession.assignmentId);
     setCurrentQuestionIndex(liveTeachingSession.storageQuestionIndex);
-    setAssignmentNavigationCollapsed(false);
+    setAssignmentNavigationCollapsed(true);
     setAssignmentOverviewExpanded(false);
     setActiveView('teacherPreview');
   };
@@ -8757,6 +8769,10 @@ function App() {
       <aside
         role="alert"
         aria-live="polite"
+        // On a phone the assignment screen hides this banner: its countdown
+        // rides in the section pill there, and a Warm-Up elsewhere in the
+        // lesson is a line in the status chip (pass 3, RUN-14).
+        className="mathmaster-warmup-banner"
         style={{
           position: 'sticky',
           top: `var(${STUDENT_IDENTITY_STACK_OFFSET}, 38px)`,
@@ -9513,7 +9529,9 @@ function App() {
         ? { label: 'Late — still open', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }
         : lifecycle.isScheduled
           ? { label: 'Scheduled', background: 'var(--mm-surface-control-strong)', color: 'var(--mm-text)' }
-          : { label: 'On-time access', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' };
+          // On time is the ordinary case: no badge (pass 3, RUN-16 — "ON-TIME
+          // ACCESS" named a program state, not anything the student does).
+          : { label: '', background: 'transparent', color: 'var(--mm-text)' };
 
     // Bundle/V5 activities are flattened for runtime compatibility, but every
     // question keeps its activityRole. Rebuild the visible sections here so a
@@ -9547,7 +9565,6 @@ function App() {
       return { index, visiblePosition, sectionPosition, question, role: entry.logicalRole, isTimedDOLQuestion };
     });
     const sectionQuestionIsComplete = (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[index]).status);
-    const sectionQuestionIsCorrect = (index) => normalizeQuestionRecord(workingTracker?.[index]).status === 'correct';
     const visibleByStorageIndex = new Map(visibleQuestionEntries.map((entry) => [entry.index, entry]));
     const navigationSections = currentContent.logicalSections.map((logicalSection) => ({
       role: logicalSection.role,
@@ -9555,7 +9572,10 @@ function App() {
     })).filter((section) => section.entries.length).map((section) => ({
       ...section,
       complete: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsComplete(entry.index)),
-      allCorrect: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsCorrect(entry.index)),
+      // `progress` and `allCorrect` (the tab's "✓ Complete") are filled in
+      // below from the navigator's question states, held-feedback mask included.
+      progress: null,
+      allCorrect: false,
     }));
     const currentSectionMeta = activitySectionMeta[activeQuestionRole] || {
       label: String(activeQuestionRole || 'Activity').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()),
@@ -9574,38 +9594,99 @@ function App() {
     const currentSectionRemainingCount = Math.max(0, currentSectionQuestionCount - currentSectionCompletedCount);
     const currentSectionGrades = splitGradesBySection({ tracker: workingTracker, assignment, supportProfile: workspaceSupportProfile });
     const currentSectionOfficialGrades = splitGradesBySection({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
-    const currentSectionGrade = currentSectionGrades[activeQuestionRole] || null;
-    const currentSectionOfficialGrade = currentSectionOfficialGrades[activeQuestionRole] || null;
-    const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
-    const entryIsAvailable = (entry) => {
-      if (preview || lifecycle.isPracticeOnly) return true;
-      if (entry?.role === 'warmup' && warmupState.enabled && !warmupCanBeViewed) return false;
-      if (entry?.isTimedDOLQuestion && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status)) return false;
-      const manualState = getSectionAccessState({
-        assignment,
-        activityRole: entry?.role,
-        classId: user?.classId || null,
-        classPeriod: user?.classPeriod,
+    /*
+     * WHAT EACH SECTION AND QUESTION IS DOING NOW, SAID ONE WAY (pass 3,
+     * RUN-5 / RUN-8 / RUN-9; platform/student/assignmentNavigator.js).
+     *
+     * A section can be open, read-only (closed, its work still there to look
+     * over: a Warm-Up closed for the period, an ended DOL, Classwork the
+     * teacher closed) or locked (not open yet) — and a locked one says when or
+     * why. A question is correct, needs another try, closed, submitted (held
+     * feedback: never right or wrong) or not started. The tabs, the number
+     * strip, the dropdown and the Overview all read these.
+     */
+    const sectionHasWork = (role) => projectedEntries.some((entry) => entry.logicalRole === role
+      && normalizeQuestionRecord(workingTracker?.[entry.storageIndex]).totalAttempts > 0);
+    const sectionAccessCache = new Map();
+    const sectionAccessFor = (entry) => {
+      const cacheKey = `${entry?.role}|${entry?.isTimedDOLQuestion ? 'timed' : ''}`;
+      if (sectionAccessCache.has(cacheKey)) return sectionAccessCache.get(cacheKey);
+      const access = describeSectionAccess({
+        role: entry?.role,
+        label: entry?.role === 'dol' ? 'The Exit ticket (DOL)' : `The ${activitySectionMeta[entry?.role]?.label || entry?.role || 'section'}`,
+        timedDol: Boolean(entry?.isTimedDOLQuestion),
+        unrestricted: preview || lifecycle.isPracticeOnly,
+        lifecycle,
+        warmupState,
+        dolState,
+        manualState: getSectionAccessState({
+          assignment,
+          activityRole: entry?.role,
+          classId: user?.classId || null,
+          classPeriod: user?.classPeriod,
+          nowValue: now,
+          studentId: user?.role === 'student' ? user.id : undefined,
+        }),
+        hasWork: sectionHasWork(entry?.role),
         nowValue: now,
-        studentId: user?.role === 'student' ? user.id : undefined,
       });
-      if (manualState.enabled && !manualState.isOpen) return false;
-      return true;
+      sectionAccessCache.set(cacheKey, access);
+      return access;
+    };
+    // Viewable: a closed section stays reachable read-only.
+    const entryIsAvailable = (entry) => sectionAccessFor(entry).viewable;
+    const entryMaximumAttempts = (entry) => {
+      const policy = getEffectiveActivityPolicy(entry.role);
+      return resolveQuestionMaximumAttempts({
+        question: questions[entry.index],
+        maximumAttempts: policy.attempts,
+        activityPolicy: policy,
+        teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
+          assignment,
+          activityRole: entry.role,
+          classId: user?.classId || null,
+          studentId: user?.role === 'student' ? user.id : null,
+        }),
+      });
+    };
+    // The held-feedback mask the Overview grid always had, now for every
+    // place the navigator speaks: a quiz or test the teacher releases later.
+    const entryFeedbackHeld = (entry) => !preview && !lifecycle.isPracticeOnly
+      && getEffectiveActivityPolicy(entry.role).feedback === 'teacherRelease'
+      && !assignmentFeedbackWasReleased(assignment);
+    const navigatorQuestionFor = (entry) => {
+      const access = sectionAccessFor(entry);
+      return describeNavigatorQuestion({
+        record: workingTracker?.[entry.index],
+        maximumAttempts: entryMaximumAttempts(entry),
+        feedbackHeld: entryFeedbackHeld(entry),
+        sectionClosed: access.state === SECTION_ACCESS.READ_ONLY,
+        available: access.viewable,
+        lockedLabel: access.short,
+      });
     };
     const compactSectionLabel = (section) => section?.role === 'dol'
-      ? 'DOL'
+      ? 'Exit ticket (DOL)'
       : (activitySectionMeta[section?.role]?.label || section?.role || 'Section');
-    const sectionNavigationTarget = (section) => {
-      const availableEntries = (section?.entries || []).filter((entry) => entryIsAvailable(entry));
-      if (!availableEntries.length) return null;
-      // A section shortcut resumes at the earliest question that is not yet
-      // correct. This intentionally includes an exhausted variant so the
-      // student can request a replacement rather than silently skipping it.
-      const needsWork = availableEntries.find((entry) => normalizeQuestionRecord(workingTracker?.[entry.index]).status !== 'correct');
-      if (needsWork) return needsWork;
-      const currentEntry = availableEntries.find((entry) => entry.index === currentQuestionIndex);
-      return currentEntry || availableEntries[0];
-    };
+    // A section tab lands on the first question the student can still work,
+    // never on one out of tries while a workable one is left; with nothing
+    // workable, a closed section opens for review.
+    const sectionNavigationTarget = (section) => sectionLandingEntry({
+      entries: (section?.entries || []).map((entry) => ({
+        ...entry,
+        viewable: entryIsAvailable(entry),
+        workable: entryIsWorkableNow(entry),
+        status: navigatorQuestionFor(entry).status,
+      })),
+      currentIndex: currentQuestionIndex,
+    });
+    navigationSections.forEach((section) => {
+      section.progress = describeNavigatorSectionProgress({
+        questions: section.entries.map((entry) => navigatorQuestionFor(entry)),
+        feedbackHeld: section.entries.some((entry) => entryFeedbackHeld(entry)),
+      });
+      section.allCorrect = section.progress.allCorrect;
+    });
     const findNeighbor = (direction) => {
       for (let position = currentVisibleEntryPosition + direction; position >= 0 && position < visibleQuestionEntries.length; position += direction) {
         if (entryIsAvailable(visibleQuestionEntries[position])) return visibleQuestionEntries[position];
@@ -9614,8 +9695,14 @@ function App() {
     };
     const previousQuestionEntry = findNeighbor(-1);
     const nextQuestionEntry = findNeighbor(1);
-    const nextQuestionSectionMeta = nextQuestionEntry ? (activitySectionMeta[nextQuestionEntry.role] || { label: nextQuestionEntry.role }) : null;
-    const nextQuestionDestinationLabel = nextQuestionEntry ? `Question ${nextQuestionEntry.sectionPosition + 1} of ${navigationSections.find((section) => section.role === nextQuestionEntry.role)?.entries.length || 1}` : '';
+    // The question's own "Next" goes to the next question the student can
+    // still answer; a closed section kept viewable for review (RUN-8) is
+    // reached by the arrows and tabs, not walked into after an answer.
+    const engineNextEntry = visibleQuestionEntries
+      .slice(currentVisibleEntryPosition + 1)
+      .find((entry) => entryIsWorkableNow(entry)) || nextQuestionEntry;
+    const nextQuestionSectionMeta = engineNextEntry ? (activitySectionMeta[engineNextEntry.role] || { label: engineNextEntry.role }) : null;
+    const nextQuestionDestinationLabel = engineNextEntry ? `Question ${engineNextEntry.sectionPosition + 1} of ${navigationSections.find((section) => section.role === engineNextEntry.role)?.entries.length || 1}` : '';
     const currentNavigationSectionIndex = navigationSections.findIndex((section) => section.role === currentNavigationSection?.role);
     const laterNavigationSections = currentNavigationSectionIndex >= 0
       ? navigationSections.slice(currentNavigationSectionIndex + 1)
@@ -9626,13 +9713,13 @@ function App() {
     // "Can be viewed" is not "can be worked now": a Warm-Up closed for the
     // period or an ended DOL stays viewable for review, but the continue
     // button must only ever lead to an unfinished question open right now.
-    const entryIsWorkableNow = (entry) => {
-      if (!entryIsAvailable(entry)) return false;
+    function entryIsWorkableNow(entry) {
+      if (!sectionAccessFor(entry).workable) return false;
       if (preview || lifecycle.isPracticeOnly) return true;
       if (entry?.role === 'warmup' && warmupState.enabled) return warmupState.status === 'active';
       if (entry?.isTimedDOLQuestion && dolState.enabled) return dolState.status === 'active';
       return true;
-    };
+    }
     const sectionWorkTarget = (section) => (section?.entries || [])
       .find((entry) => entryIsWorkableNow(entry) && !sectionQuestionIsComplete(entry.index)) || null;
     const nextAvailableIncompleteSection = laterNavigationSections.find((section) => sectionWorkTarget(section));
@@ -9680,6 +9767,68 @@ function App() {
         : studentDashboardMode === 'grades'
           ? 'Back to Grades'
           : 'Back to Home';
+    /*
+     * ONE STATUS CHIP ON A PHONE (pass 3, NAV-5). A phone hides the header and
+     * every banner above the work, so a late deadline, "no credit" and a live
+     * challenge used to vanish there. The chip in the navigator names the most
+     * urgent one; pressing it opens the full lines. (Wider screens keep the
+     * banners and hide the chip.)
+     */
+    const dolSectionIndices = dolState.questionIndices || [dolState.questionIndex];
+    const assignmentStatusLines = preview ? [] : [
+      shouldShowChallengeHandoffBanner({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && {
+        key: 'liveChallenge',
+        tone: 'live',
+        chip: '⚡ Join the challenge',
+        title: 'Live Challenge has started',
+        text: `${liveChallengeInvite?.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.`,
+      },
+      !lifecycle.isPracticeOnly && dolState.status === 'active' && !dolSectionIndices.includes(currentQuestionIndex)
+        && dolSectionIndices.some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && {
+        key: 'dol',
+        tone: 'dol',
+        chip: 'Exit ticket (DOL) open',
+        title: 'The Exit ticket (DOL) is open',
+        text: `Finish all ${dolSectionIndices.length} question${dolSectionIndices.length === 1 ? '' : 's'} before time runs out.`,
+        action: { label: 'Go to the Exit ticket (DOL)', onClick: () => { setAssignmentStatusOpenFor(null); changeQuestion(dolSectionIndices[0]); } },
+      },
+      // Timed windows mean nothing in post-deadline practice.
+      !lifecycle.isPracticeOnly && warmupState.status === 'active' && activeQuestionRole !== 'warmup'
+        && visibleQuestionEntries.some((entry) => entry.role === 'warmup' && !['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[entry.index]).status)) && {
+        key: 'warmup',
+        tone: 'warmup',
+        chip: 'Warm-Up open',
+        title: 'The Warm-Up is open',
+        text: `It closes at ${warmupState.endsAt ? new Date(warmupState.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'the end of its window'}.`,
+        action: { label: 'Go to the Warm-Up', onClick: () => { setAssignmentStatusOpenFor(null); const first = visibleQuestionEntries.find((entry) => entry.role === 'warmup'); if (first) changeQuestion(first.index); } },
+      },
+      lifecycle.isLate && {
+        key: 'late',
+        tone: 'late',
+        chip: `Late · closes ${studentDueDateLines(assignment, lifecycle).finalText}`,
+        title: 'Late, still open',
+        text: `The due date passed. You have ${formatRemainingTime(lifecycle.millisecondsRemaining)} before this assignment closes on ${studentDueDateLines(assignment, lifecycle).finalText}.`,
+      },
+      lifecycle.isPracticeOnly && {
+        key: 'practice',
+        tone: 'practice',
+        chip: 'No credit · practice',
+        title: 'Practice only, no credit',
+        text: 'This assignment has closed and your grade is set. You can keep practising with feedback; it does not change your grade. Your practice is saved, and your teacher can see it.',
+      },
+    ].filter(Boolean);
+    const assignmentStatusOpen = assignmentStatusOpenFor === activeAssignmentId && assignmentStatusLines.length > 0;
+    // The live challenge line's action leaves the assignment, as its banner does.
+    assignmentStatusLines.forEach((line) => {
+      if (line.key === 'liveChallenge') {
+        line.action = { label: 'Join Live Challenge', onClick: () => { setAssignmentStatusOpenFor(null); leaveAssignment(); setStudentDashboardMode('liveChallenge'); } };
+      }
+    });
+    // A locked tab's reason, while that section is still locked.
+    const lockNoteSection = sectionLockNote?.assignmentId === activeAssignmentId
+      ? navigationSections.find((section) => section.role === sectionLockNote.role)
+      : null;
+    const visibleSectionLockNote = lockNoteSection && !sectionNavigationTarget(lockNoteSection) ? sectionLockNote.text : '';
     const isLiveTeachingThisAssignment = preview
       && liveTeachingSession?.active
       && String(liveTeachingSession.assignmentId) === String(assignment.id);
@@ -9872,9 +10021,11 @@ function App() {
               </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 'calc(23 * var(--mm-px))' }}>{assignment.title}</h1>
-                <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
+                {lifecycleBadge.label && <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>}
                 {assignmentHasClasswork && assignment?.guidedNotesBySection?.classwork !== 'off' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>GUIDED NOTES · CLASSWORK</span>}
-                <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>
+                {/* Which version a section hands out is the teacher's setting,
+                    not something a student acts on (pass 3, RUN-16). */}
+                {preview && <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>}
               </div>
               <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '7px', lineHeight: 1.5 }}>
                 {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText}<br />{dates.finalLabel}: {dates.finalText}</>; })()}
@@ -9934,38 +10085,53 @@ function App() {
                 <div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">
                   {navigationSections.map((section) => {
                     const meta = activitySectionMeta[section.role] || { label: section.role, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)' };
-                    const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
                     const targetEntry = sectionNavigationTarget(section);
                     const sectionAvailable = Boolean(targetEntry);
+                    const access = sectionAccessFor(section.entries[0]);
+                    const readOnly = sectionAvailable && access.state === SECTION_ACCESS.READ_ONLY;
                     const active = currentNavigationSection?.role === section.role;
+                    const reasonId = `mathmaster-section-reason-${section.role}`;
+                    // A locked tab stays focusable (aria-disabled, not
+                    // disabled) so a keyboard or screen-reader student reaches
+                    // its reason; pressing it shows the reason on screen.
                     return (
-                      <button
-                        type="button"
-                        key={`section-tab-${section.role}-${section.entries[0]?.index}`}
-                        className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
-                        style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
-                        onClick={() => targetEntry && changeQuestion(targetEntry.index)}
-                        disabled={!sectionAvailable}
-                        aria-current={active ? 'page' : undefined}
-                        title={sectionAvailable
-                          ? `${compactSectionLabel(section)}: ${completedQuestions} of ${section.entries.length} complete. Open the next question that still needs a correct answer.`
-                          : `${compactSectionLabel(section)} is not available yet.`}
-                      >
-                        {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
-                        <span className="mathmaster-section-tab-copy">
-                          <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
-                          <small>{sectionAvailable ? (section.allCorrect ? 'Complete' : `${completedQuestions}/${section.entries.length}`) : '🔒 Locked'}</small>
-                        </span>
-                      </button>
+                      <Fragment key={`section-tab-${section.role}-${section.entries[0]?.index}`}>
+                        <button
+                          type="button"
+                          className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}${readOnly ? ' is-read-only' : ''}`}
+                          style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
+                          onClick={() => (targetEntry
+                            ? changeQuestion(targetEntry.index)
+                            : setSectionLockNote({ assignmentId: activeAssignmentId, role: section.role, text: access.reason }))}
+                          aria-disabled={sectionAvailable ? undefined : 'true'}
+                          aria-current={active ? 'page' : undefined}
+                          aria-describedby={access.reason ? reasonId : undefined}
+                          title={access.reason || `${compactSectionLabel(section)}: ${section.progress.done} of ${section.progress.total} done.`}
+                        >
+                          {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
+                          <span className="mathmaster-section-tab-copy">
+                            <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
+                            <small>{sectionAvailable && !readOnly ? section.progress.label : `${sectionAvailable ? '' : '🔒 '}${access.short}`}</small>
+                          </span>
+                        </button>
+                        {access.reason && <span id={reasonId} style={SR_ONLY_STYLE}>{access.reason}</span>}
+                      </Fragment>
                     );
                   })}
                 </div>
               ) : (
                 <>
                   <div className="mathmaster-collapsed-current-location" role="status">
-                    <strong>{currentSectionMeta.label}</strong>
-                    <span>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
+                    <strong>{compactSectionLabel(currentNavigationSection || { role: activeQuestionRole })}</strong>
+                    <span className="mathmaster-location-long">Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
+                    <span className="mathmaster-location-short" aria-hidden="true">Q{currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
                   </div>
+                  {/* The Warm-Up's time rides in the section pill on every
+                      size (pass 3, RUN-14): on a phone the banner that
+                      carried it covered the task card. */}
+                  {!preview && currentIsWarmup && warmupState.status === 'active' && (
+                    <SectionTimeLeft compact label="Warm-Up" endsAt={warmupState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
+                  )}
                   <div className="mathmaster-unified-question-controls mathmaster-focus-inline-controls">
                     <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
                     <select
@@ -9973,34 +10139,39 @@ function App() {
                       value={currentQuestionIndex}
                       onChange={(event) => changeQuestion(Number(event.target.value))}
                     >
-                      {visibleQuestionEntries.map((entry) => {
-                        const meta = activitySectionMeta[entry.role] || { label: entry.role };
-                        return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
-                      })}
+                      {visibleQuestionEntries.map((entry) => (
+                        <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                      ))}
                     </select>
                     <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
                   </div>
                 </>
               )}
-              {!assignmentNavigationCollapsed && (
+              {assignmentStatusLines.length > 0 && (
                 <button
                   type="button"
-                  className="mathmaster-overview-button"
-                  onClick={() => setAssignmentOverviewExpanded((current) => !current)}
-                  aria-expanded={assignmentOverviewExpanded}
+                  className={`mathmaster-assignment-status-chip is-${assignmentStatusLines[0].tone}`}
+                  aria-expanded={assignmentStatusOpen}
+                  aria-controls={assignmentStatusOpen ? 'mathmaster-assignment-status-panel' : undefined}
+                  onClick={() => setAssignmentStatusOpenFor(assignmentStatusOpen ? null : activeAssignmentId)}
                 >
-                  <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+                  {assignmentStatusLines[0].chip}{assignmentStatusLines.length > 1 ? ` +${assignmentStatusLines.length - 1}` : ''}
                 </button>
               )}
               <button
                 type="button"
+                className="mathmaster-overview-button"
+                onClick={() => setAssignmentOverviewExpanded((current) => !current)}
+                aria-expanded={assignmentOverviewExpanded}
+              >
+                <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+              </button>
+              <button
+                type="button"
                 className="mathmaster-focus-view-button"
-                onClick={() => {
-                  setAssignmentNavigationCollapsed((current) => !current);
-                  if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
-                }}
+                onClick={toggleAssignmentNavigation}
                 aria-expanded={!assignmentNavigationCollapsed}
-                title={assignmentNavigationCollapsed ? 'Show section progress and question numbers' : 'Hide extra navigation to make more room for the problem'}
+                title={assignmentNavigationCollapsed ? 'Show section progress and question numbers' : 'Hide section progress to make more room for the problem'}
               >
                 {assignmentNavigationCollapsed ? 'Show progress' : 'Focus view'}
               </button>
@@ -10009,55 +10180,34 @@ function App() {
             {!assignmentNavigationCollapsed && (
             <div className="mathmaster-assignment-unified-bottom">
               <div className={`mathmaster-current-section-inline${currentNavigationSection?.allCorrect ? ' is-complete' : ''}`}>
+                {/* Where the student is and what is left. The grade lines
+                    live in Overview (pass 3, RUN-7): four lines of grade text
+                    here pushed the work down on every question. */}
                 <div className="mathmaster-current-section-summary">
-                  <strong>{currentSectionMeta.label}</strong>
+                  <strong>{compactSectionLabel(currentNavigationSection || { role: activeQuestionRole })}</strong>
                   <span>
                     {currentNavigationSection?.complete
-                      ? '✓ Section complete'
-                      : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} complete · ${currentSectionRemainingCount} remaining`}
+                      ? '✓ Section done'
+                      : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} done · ${currentSectionRemainingCount} left`}
                   </span>
-                  <small>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount} · {lifecycleBadge.label}</small>
-                  <small style={{ marginTop: 2, fontWeight: 900, color: currentSectionMeta.color }}>
-                    {preview
-                      ? `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`
-                      : assignmentFeedbackHeld
-                        ? `${currentSectionMeta.label} section score available after teacher release`
-                        : lifecycle.isPracticeOnly
-                          ? `${currentSectionMeta.label} section score ${currentSectionOfficialGrade?.score ?? 0}% · official grade frozen · practice score ${currentSectionGrade?.score ?? 0}%`
-                          : `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`}
-                  </small>
-                  <small style={{ marginTop: 2, fontWeight: 850, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>
-                    {preview
-                      ? `Preview progress · ${progress.correct}/${progress.total} correct`
-                      : assignmentFeedbackHeld
-                        ? 'Score available after teacher release'
-                        : lifecycle.isPracticeOnly
-                          ? `Recorded grade ${recordedGrade}% · frozen`
-                          : `Current grade ${recordedGrade}% if submitted now`}
-                    {!preview && !assignmentFeedbackHeld && gradeSplit.attempted > 0
-                      ? ` · ${gradeSplit.attempted}/${gradeSplit.total} answered · ${gradeSplit.creditOnAttempted}% on attempted work`
-                      : ''}
-                  </small>
+                  <small>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</small>
                 </div>
-                <div className="mathmaster-question-number-strip" aria-label={`${currentSectionMeta.label} questions`}>
+                <div className="mathmaster-question-number-strip" role="group" aria-label={`${compactSectionLabel(currentNavigationSection || { role: activeQuestionRole })} questions`}>
                   {(currentNavigationSection?.entries || []).map((entry) => {
-                    const record = normalizeQuestionRecord(workingTracker?.[entry.index]);
-                    const correct = record.status === 'correct';
-                    const attempted = record.totalAttempts > 0 && !correct;
+                    const shown = navigatorQuestionFor(entry);
                     const current = entry.index === currentQuestionIndex;
-                    const available = entryIsAvailable(entry);
-                    const status = correct ? 'correct' : attempted ? 'needs another try' : 'not attempted';
+                    const available = shown.status !== QUESTION_STATUS.LOCKED;
                     return (
                       <button
                         type="button"
                         key={`section-question-${entry.index}`}
-                        className={`mathmaster-question-number${current ? ' is-current' : ''}${correct ? ' is-correct' : ''}${attempted ? ' is-attempted' : ''}${available ? '' : ' is-locked'}`}
+                        className={`mathmaster-question-number is-${shown.status}${current ? ' is-current' : ''}${available ? '' : ' is-locked'}`}
                         style={{ '--section-color': currentSectionMeta.color, '--section-border': currentSectionMeta.border, '--section-bg': currentSectionMeta.background }}
                         onClick={() => available && changeQuestion(entry.index)}
                         disabled={!available}
                         aria-current={current ? 'step' : undefined}
-                        aria-label={`${currentSectionMeta.label} question ${entry.sectionPosition + 1}: ${available ? status : 'locked'}${current ? ', current question' : ''}`}
-                        title={`${currentSectionMeta.label} Question ${entry.sectionPosition + 1} · ${available ? status : 'locked'}`}
+                        aria-label={`${compactSectionLabel(entry)} question ${entry.sectionPosition + 1}: ${shown.spoken}${current ? ', current question' : ''}`}
+                        title={`${compactSectionLabel(entry)} Question ${entry.sectionPosition + 1} · ${shown.label}`}
                       >
                         {entry.sectionPosition + 1}
                       </button>
@@ -10073,14 +10223,19 @@ function App() {
                   value={currentQuestionIndex}
                   onChange={(event) => changeQuestion(Number(event.target.value))}
                 >
-                  {visibleQuestionEntries.map((entry) => {
-                    const meta = activitySectionMeta[entry.role] || { label: entry.role };
-                    return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
-                  })}
+                  {visibleQuestionEntries.map((entry) => (
+                    <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                  ))}
                 </select>
                 <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
               </div>
             </div>
+            )}
+            {visibleSectionLockNote && (
+              <p className="mathmaster-section-lock-note" role="status">
+                <span>{visibleSectionLockNote}</span>
+                <button type="button" onClick={() => setSectionLockNote(null)} aria-label="Close this note">×</button>
+              </p>
             )}
             {!assignmentNavigationCollapsed && !preview && user?.role === 'student' && (
               <StudentSupportTools
@@ -10089,65 +10244,102 @@ function App() {
                 onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
               />
             )}
+            {assignmentStatusOpen && (
+              <div id="mathmaster-assignment-status-panel" className="mathmaster-assignment-status-panel">
+                {assignmentStatusLines.map((line) => (
+                  <div key={line.key} className={`mathmaster-assignment-status-line is-${line.tone}`}>
+                    <strong>{line.title}</strong>
+                    <span>{line.text}</span>
+                    {line.action && <button type="button" onClick={line.action.onClick}>{line.action.label}</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* The DOL's time, seconds in its last minute, with warnings at
+                2:00 and 0:30 (pass 3, RUN-10). Its end is the lifecycle
+                state's (a student's extra time lives there). */}
             {!preview && dolState.status === 'active' && (
-              <div className="mathmaster-unified-nav-alert">DOL open{supportPresentation.hideCountdowns ? '' : ` · ${formatRemainingTime(dolState.millisecondsRemaining)}`}</div>
+              <div className="mathmaster-unified-nav-alert">
+                <SectionTimeLeft label="Exit ticket (DOL)" endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
+              </div>
             )}
           </nav>
 
           {assignmentOverviewExpanded && (
           <div className="mathmaster-question-navigation" style={{ display: 'grid', gap: '14px', marginBottom: '24px' }}>
+            {/* THE GRADE LINES, MOVED HERE FROM THE NAVIGATOR (pass 3, RUN-7).
+                "Grade so far", never "if submitted now": there is no
+                assignment-level submit (RUN-16). */}
+            <section aria-label="Your grade" className="mathmaster-overview-grade" style={{ padding: '11px 13px', borderRadius: '12px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', display: 'grid', gap: 3, textAlign: 'left' }}>
+              <strong style={{ fontSize: 'calc(15 * var(--mm-px))', color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)' }}>
+                {preview
+                  ? `Preview progress · ${progress.correct}/${progress.total} correct`
+                  : assignmentFeedbackHeld
+                    ? 'Your score shows after your teacher releases it'
+                    : lifecycle.isPracticeOnly
+                      ? `Your grade: ${recordedGrade}% · set when the assignment closed`
+                      : `Grade so far: ${recordedGrade}%`}
+              </strong>
+              {!preview && !assignmentFeedbackHeld && gradeSplit.attempted > 0 && (
+                <span style={{ fontSize: 'calc(13 * var(--mm-px))' }}>
+                  {gradeSplit.attempted} of {gradeSplit.total} answered · {gradeSplit.creditOnAttempted}% on what you have answered
+                </span>
+              )}
+            </section>
             {navigationSections.map((section) => {
               const sectionMeta = activitySectionMeta[section.role] || { label: section.role, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)' };
+              const sectionName = compactSectionLabel(section);
+              const sectionGrade = currentSectionGrades[section.role] || null;
+              const sectionOfficialGrade = currentSectionOfficialGrades[section.role] || null;
+              const sectionHeld = section.entries.some((entry) => entryFeedbackHeld(entry));
+              const sectionScoreLine = preview
+                ? `Section score ${sectionGrade?.score ?? 0}% · ${sectionGrade?.attempted ?? 0}/${sectionGrade?.total ?? 0} answered`
+                : sectionHeld
+                  ? 'Score shows after your teacher releases it'
+                  : lifecycle.isPracticeOnly
+                    ? `Section score ${sectionOfficialGrade?.score ?? 0}% (set) · practice ${sectionGrade?.score ?? 0}%`
+                    : `Section score ${sectionGrade?.score ?? 0}% · ${sectionGrade?.attempted ?? 0}/${sectionGrade?.total ?? 0} answered`;
+              const sectionAccess = sectionAccessFor(section.entries[0]);
               return (
-                <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionMeta.label} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${section.complete ? '#188038' : sectionMeta.border}`, background: sectionMeta.background, boxShadow: section.complete ? '0 0 0 3px rgba(24,128,56,0.12)' : 'none' }}>
+                <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionName} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${section.allCorrect ? '#188038' : sectionMeta.border}`, background: sectionMeta.background, boxShadow: section.allCorrect ? '0 0 0 3px rgba(24,128,56,0.12)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', color: sectionMeta.color, flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: 'calc(15 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionMeta.label}</strong>
-                    {section.complete ? (
-                      <span aria-label={`${sectionMeta.label} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionMeta.label.toUpperCase()} COMPLETE</span>
+                    <strong style={{ fontSize: 'calc(15 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionName}</strong>
+                    {section.allCorrect ? (
+                      <span aria-label={`${sectionName} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionName.toUpperCase()} COMPLETE</span>
                     ) : (
-                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.entries.length} question{section.entries.length === 1 ? '' : 's'}</span>
+                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.progress.label === 'All submitted' ? 'All submitted' : `${section.progress.done} of ${section.progress.total} done`}</span>
                     )}
+                    <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{sectionScoreLine}</span>
+                    {sectionAccess.reason && <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>{sectionAccess.reason}</span>}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: '10px' }}>
-                    {section.entries.map(({ index, sectionPosition, role: cardRole, isTimedDOLQuestion }) => {
+                    {section.entries.map((entry) => {
+                      const { index, sectionPosition } = entry;
                       const record = normalizeQuestionRecord(workingTracker?.[index]);
                       const cardAssessment = questionAssessmentFramework(questions[index] || {});
                       const cardAssessmentLabel = cardAssessment.examStyle && cardAssessment.framework
                         ? `${FRAMEWORK_LABELS[cardAssessment.framework] || cardAssessment.framework} practice`
                         : '';
-                      const cardPolicy = getEffectiveActivityPolicy(cardRole);
-                      const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
-                      const cardMaximumAttempts = resolveQuestionMaximumAttempts({
-                        question: questions[index],
-                        maximumAttempts: cardPolicy.attempts,
-                        activityPolicy: cardPolicy,
-                        teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
-                          assignment,
-                          activityRole: cardRole,
-                          classId: user?.classId || null,
-                          studentId: user?.role === 'student' ? user.id : null,
-                        }),
-                      });
-                      const storedCardState = getQuestionCardState(workingTracker?.[index], cardMaximumAttempts);
-                      const cardState = cardFeedbackHeld && ['correct', 'expired'].includes(record.status)
-                        ? { background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', label: 'Submitted · feedback held' }
-                        : storedCardState;
-                      const dolUnavailable = isTimedDOLQuestion && !preview && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status);
-                      const warmupUnavailable = cardRole === 'warmup' && warmupState.enabled && !preview && !lifecycle.isPracticeOnly && !warmupCanBeViewed;
-                      const manualSectionState = getSectionAccessState({ assignment, activityRole: cardRole, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now, studentId: !preview && user?.role === 'student' ? user.id : undefined });
-                      const manualSectionUnavailable = !preview && !lifecycle.isPracticeOnly && manualSectionState.enabled && !manualSectionState.isOpen;
-                      const sectionUnavailable = dolUnavailable || warmupUnavailable || manualSectionUnavailable;
-                      const lockedLabel = warmupUnavailable
-                        ? (warmupState.status === 'waiting' ? `Opens ${warmupState.minutesBeforeStart} min before class` : 'Warm-Up is not open today')
-                        : manualSectionUnavailable
-                          ? (manualSectionState.status === 'scheduled' ? 'Opens with assignment' : 'Waiting for teacher to open')
-                          : 'Locked until DOL window';
+                      const shown = navigatorQuestionFor(entry);
+                      const sectionUnavailable = shown.status === QUESTION_STATUS.LOCKED;
+                      // Colour follows the same state as the words: green only
+                      // for a verdict the student may see.
+                      const cardState = shown.status === QUESTION_STATUS.CORRECT
+                        ? { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }
+                        : shown.status === QUESTION_STATUS.SUBMITTED
+                          ? { background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }
+                          : shown.status === QUESTION_STATUS.CLOSED
+                            ? { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }
+                            : shown.status === QUESTION_STATUS.TRY_AGAIN
+                              ? { background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }
+                              : { background: 'var(--mm-surface)', color: 'var(--mm-text-strong)' };
                       return (
                         <button
                           type="button"
                           key={index}
                           onClick={() => !sectionUnavailable && changeQuestion(index)}
                           disabled={sectionUnavailable}
+                          aria-label={`${sectionName} question ${sectionPosition + 1}: ${shown.label}`}
                           style={{
                             padding: '14px',
                             cursor: sectionUnavailable ? 'not-allowed' : 'pointer',
@@ -10163,10 +10355,10 @@ function App() {
                           }}
                         >
                           <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
-                          <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>{sectionMeta.label}</div>
+                          <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>{sectionName}</div>
                           {cardAssessmentLabel && <div aria-label={`${cardAssessmentLabel} question`} style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
-                          <div style={{ fontSize: 'calc(12 * var(--mm-px))', marginTop: '7px', fontWeight: 'bold' }}>{sectionUnavailable ? lockedLabel : cardState.label}</div>
-                          {record.totalAttempts > 0 && <div style={{ fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}
+                          <div style={{ fontSize: 'calc(12 * var(--mm-px))', marginTop: '7px', fontWeight: 'bold' }}>{shown.label}</div>
+                          {record.totalAttempts > 0 && <div style={{ fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} {record.totalAttempts === 1 ? 'try' : 'tries'} used</div>}
                         </button>
                       );
                     })}
@@ -10245,7 +10437,7 @@ function App() {
               draftKey={buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}
               executionScope={preview ? 'teacherPreview' : lifecycle.isPracticeOnly ? 'postDuePractice' : 'student'}
-              onNextQuestion={nextQuestionEntry ? () => changeQuestion(nextQuestionEntry.index) : null}
+              onNextQuestion={engineNextEntry ? () => changeQuestion(engineNextEntry.index) : null}
               nextQuestionLabel={nextQuestionDestinationLabel}
               nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
               sectionComplete={Boolean(currentNavigationSection?.complete)}

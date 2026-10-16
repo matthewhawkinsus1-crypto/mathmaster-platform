@@ -113,7 +113,7 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
 {
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
   await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=graphing2`, { waitUntil: 'networkidle' });
-  const enlarge = page.locator('button:has-text("Enlarge question")').first();
+  const enlarge = page.locator('button:has-text("Open Work View")').first();
   const modals = () => page.locator('[aria-modal="true"]').count();
   const modalsBefore = await modals();
   if (await enlarge.count()) {
@@ -133,7 +133,7 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await page.waitForFunction((n) => document.querySelectorAll('[aria-modal="true"]').length === n, modalsBefore);
     console.log('calculator over Work View: ok');
   } else {
-    throw new Error('graphing2 has no Enlarge question button');
+    throw new Error('graphing2 has no Open Work View button');
   }
   await page.close();
 }

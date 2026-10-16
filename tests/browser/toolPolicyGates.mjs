@@ -105,7 +105,7 @@ const submitBridge = (page) => page.getByRole('button', { name: 'Submit the brid
   // a time, recorded — not printed all at once and unrecorded.
   check(await helpDrawerShows(page, 'Show a hint'), 'practice bridge: the Work View Help drawer offers the authored hint as a recorded hint', await helpDrawers(page));
   check(!(await helpDrawers(page)).includes(AUTHORED_BRIDGE_HINT), 'practice bridge: the hint is not printed before the student asks for it', await helpDrawers(page));
-  await page.getByRole('button', { name: /Enlarge question/ }).first().click();
+  await page.getByRole('button', { name: /Open Work View/ }).first().click();
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Help', exact: true }).first().click();
   await page.waitForTimeout(200);

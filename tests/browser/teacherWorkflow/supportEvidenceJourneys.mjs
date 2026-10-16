@@ -427,7 +427,7 @@ const journeys = {
     await noSidewaysScroll('S3', page, 'Support tools open');
 
     // The same tools in Work View.
-    const enlarge = page.getByRole('button', { name: /Enlarge question/ }).first();
+    const enlarge = page.getByRole('button', { name: /Open Work View/ }).first();
     if (await enlarge.count()) {
       await enlarge.click();
       await page.locator('[data-work-view-supports]').first().click();

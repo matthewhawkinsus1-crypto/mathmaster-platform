@@ -37,7 +37,7 @@ for (const [width, height, mobile] of [[1366, 768, false], [390, 844, true]]) {
   await page.waitForFunction(() => (window.__mmGrades || []).length === 1);
 
   // Work View.
-  await page.locator('button:visible', { hasText: /Enlarge question/ }).first().click();
+  await page.locator('button:visible', { hasText: /Open Work View/ }).first().click();
   await page.waitForFunction(() => document.documentElement.getAttribute('data-work-view-open') === 'true');
   const workViewSubmit = page.locator('[aria-modal="true"] button:visible', { hasText: /^Submit/ }).first();
   await workViewSubmit.focus();

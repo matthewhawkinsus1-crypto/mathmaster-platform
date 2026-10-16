@@ -2733,7 +2733,7 @@ function QuestionEngineBody({
       }}>
       <EnlargeableFigure
         label="Question Work View"
-        enlargeLabel="Enlarge question"
+        enlargeLabel="Open Work View"
         presentationKey={processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? null}
         forceClosed={locked}
         style={{ width: '100%' }}

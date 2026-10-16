@@ -559,7 +559,7 @@ if (wanted('workview')) {
     await landServerCopy(B.page);
     await showsRestored(B.page);
     check((await gate.held(B.page)).includes('frame'), `${tag}: the restore's focus is pending`);
-    await press(B.page.getByRole('button', { name: /Enlarge question/ }).first(), B.touch);
+    await press(B.page.getByRole('button', { name: /Open Work View/ }).first(), B.touch);
     await B.page.waitForTimeout(400);
     const opened = await B.page.evaluate(() => Boolean(document.querySelector('[aria-modal="true"]')));
     check(opened, `${tag}: Work View opens`);
