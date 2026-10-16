@@ -144,12 +144,22 @@ Translate ×2, pack loading, slot dropped, axis vocabulary, the literal-template
 the platform-family coverage (one template removed), the evidence fields (a `surface` added back), and the
 feedbackTeaches browser case.
 
-## Gate
+## Merge of the moved base
+
+The base `claude/modest-pasteur-xzagn7` moved from `a7dddc7` to `c803501` (Batch 4's hint ladder, Batch 8's render-loop
+fix). It was merged into this branch as a merge commit (`ee90d59`, no conflicts; QuestionEngine.jsx and
+toolAttemptOutcomeOffers.test.mjs merged cleanly, both sides kept). Batch 4's new "What might have gone wrong?" rung
+shows the misconception / generic miss messages through `SupportedTextActions`, so its Read and Translate are covered
+by the Spanish pack with no HintPanel edit. The tool hints that now join the ladder are a tool's own English text
+(H-114): they show the honest "No Spanish translation" line. HintPanel's new chrome (hintCopy.js) is not translated
+(Batch 4's file). **The gate below was rerun on the merged result.**
+
+## Gate (on the merge, `ee90d59`)
 
 | Check | Result |
 | --- | --- |
 | `npm ci`, `npm --prefix functions ci` | ok |
-| `npm run test:platform` | 11428 / 11428 pass (before the final evidence-fields commit; that commit's suites re-run: 94/94) |
+| `npm run test:platform` | 11448 / 11448 pass |
 | `node --test tests/tools/*.test.mjs` | 1643 pass, 1 skipped, 0 fail |
 | `npm run test:authoring-v5` | not run: authoring and the compiler are untouched |
 | `npm run lint` | 0 errors (warnings only, none in changed files) |
@@ -168,7 +178,7 @@ in-memory App (port 5188) was exercised by studentAccessibleNames and certify:ac
 
 ## Deploying (not done)
 
-The diff from `a7dddc7` touches only `src/**`, `tests/**` and one workflow: no `functions/`, no `firestore.rules`, no
+My own diff (excluding the merged base) touches only `src/**`, `tests/**` and one workflow: no `functions/`, no `firestore.rules`, no
 Firebase config. So this is **Hosting only**: `npm run build && npm run build:firebase`, then
 `FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting` (or the release script). No functions, no rules, no
 indexes. I did **not** run `node scripts/release-firebase.mjs` (even in plan mode): the session's permission check
