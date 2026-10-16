@@ -6,6 +6,8 @@ import { getStudentTestCycle } from '../../services/testCycleService.js';
 import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testCycle.js';
 import { studentScheduleBlocks } from '../../platform/student/testCycleScheduleView.js';
 import { formatDateTime } from '../../assignmentLifecycle.js';
+import { describeStudentError } from '../../platform/student/studentErrorText.js';
+import { LEVEL } from '../../platform/student/navigationModel.js';
 import {
   markTestCycleSeen,
   retestPolicyRelevant,
@@ -152,7 +154,10 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // the card, or to the corrections question the student was working on.
   const [testReviewReturn, setTestReviewReturn] = useState('card');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  // What the last failed load said, in a student's words (NAV-11), and how
+  // many loads have failed in a row (Try again stops being offered after two).
+  const [error, setError] = useState(null);
+  const failedLoadsRef = useRef(0);
   const modeRef = useRef(mode);
   useEffect(() => { modeRef.current = mode; }, [mode]);
 
@@ -182,13 +187,15 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
       const next = await getStudentTestCycle({ assignmentId });
       if (seq !== loadSeqRef.current) return;
       setCard(next);
-      setError('');
+      setError(null);
+      failedLoadsRef.current = 0;
       // Opening the card is seeing it: the list's "New" marker for this cycle
       // clears until its stage changes again.
       if (studentId) markTestCycleSeen(studentId, assignmentId);
     } catch (loadError) {
       if (seq !== loadSeqRef.current) return;
-      setError(loadError.message || 'This assessment could not be opened.');
+      failedLoadsRef.current += 1;
+      setError(describeStudentError(loadError, { level: LEVEL.TEST_CYCLE, retryCount: failedLoadsRef.current - 1 }));
     } finally {
       if (seq === loadSeqRef.current) setLoading(false);
     }
@@ -253,10 +260,21 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
 
   if (loading && !card) return <section style={shell}><p role="status" style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Loading your assessment…</p></section>;
   if (error && !card) {
+    // Never a dead end: the server's sentence or "Can't reach MathMaster",
+    // Try again only while it can help, and always a named way out.
     return (
-      <section style={shell}>
-        <p role="alert" style={{ color: 'var(--mm-error-text)', margin: 0 }}>{error}</p>
-        <button type="button" onClick={load} style={{ ...quietButtonStyle, justifySelf: 'start', minHeight: 44 }}>Try again</button>
+      <section style={shell} data-test-cycle-error>
+        <h1 style={{ margin: 0, letterSpacing: '-0.24px', lineHeight: '118%', fontSize: 'calc(20 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>This test could not be opened</h1>
+        <p role="alert" style={{ color: 'var(--mm-error-text)', margin: 0 }}>{error.text}</p>
+        {error.exhaustedMessage && <p style={{ margin: 0, color: 'var(--mm-text)' }}>{error.exhaustedMessage}</p>}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {error.retry && (
+            <button type="button" onClick={load} style={{ ...quietButtonStyle, minHeight: 44 }}>Try again</button>
+          )}
+          {onExit && (
+            <button type="button" data-test-cycle-exit onClick={onExit} style={{ ...quietButtonStyle, minHeight: 44 }}>{exitLabel}</button>
+          )}
+        </div>
       </section>
     );
   }

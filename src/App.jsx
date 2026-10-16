@@ -288,7 +288,7 @@ import {
 } from './platform/student/browserHistory.js';
 import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
 import { parseAppPath } from './app/routes/appUrl.js';
-import { readUrlArrival } from './app/routes/urlArrival.js';
+import { ARRIVAL_MESSAGES, readUrlArrival } from './app/routes/urlArrival.js';
 import { useUrlArrival } from './app/routes/useUrlArrival.js';
 import { describeFeedbackRelease, releaseHoldReport } from './app/teacher/feedbackReleaseHold.js';
 import { readReleaseControls } from './app/teacher/feedbackReleaseControls.js';
@@ -641,6 +641,9 @@ function App() {
   // links still parse as sectionKey="whole" and follow the original behavior.
   const [launchAssignment, setLaunchAssignment] = useState(null);
   const [pendingClassroomLaunch, setPendingClassroomLaunch] = useState(null);
+  // A Classroom link that could not be read: said once a student is signed
+  // in (NAV-11), instead of only in the console.
+  const [classroomLaunchInvalid, setClassroomLaunchInvalid] = useState(false);
   // The address the page was opened at — a reload, a bookmark, a shared link
   // or a deep link waiting through sign-in (app/routes/urlArrival.js). Held
   // until an account has loaded, then opened through the same functions a
@@ -677,6 +680,7 @@ function App() {
       launch = parseClassroomLaunchSearch(window.location.search);
     } catch (error) {
       console.error('Rejected invalid Classroom launch link:', error);
+      setClassroomLaunchInvalid(true);
       return;
     }
     if (!launch) return;
@@ -1986,6 +1990,35 @@ function App() {
   // What was last projected into state, so re-running an effect with nothing
   // new projects nothing again (every projection makes new lesson objects).
   const lastPublishedRef = useRef(null);
+
+  /*
+   * A CLASSROOM LINK THAT CANNOT OPEN SAYS SO (student pass 3, NAV-11).
+   *
+   * The launch waited for its assignment to arrive, forever: a link posted to
+   * the wrong period, or for removed work, left the student on Home in
+   * silence, and a malformed link only reached the console. Once this
+   * student's lessons have settled — the same test an address waits for — a
+   * launch whose assignment is not among them is cleared with the same
+   * message an address gets. No timer: on slow Wi-Fi a wrong "not available"
+   * for a real link would be worse than waiting.
+   */
+  useEffect(() => {
+    if (user?.role !== 'student') return;
+    if (classroomLaunchInvalid) {
+      setClassroomLaunchInvalid(false);
+      toastInfo('That Google Classroom link could not be opened', 'It may be incomplete or out of date. You are on your Home screen.');
+      return;
+    }
+    if (!pendingClassroomLaunch) return;
+    if (assignments.some((assignment) => assignment.id === pendingClassroomLaunch.assignmentId)) return;
+    const settled = [STUDENT_CONTROLS_STATUS.READY, STUDENT_CONTROLS_STATUS.UNAVAILABLE].includes(studentAssignmentControls.status)
+      && lastPublishedRef.current?.[4] === studentAssignmentControls;
+    if (!settled) return;
+    toastInfo(ARRIVAL_MESSAGES.studentStale.title, ARRIVAL_MESSAGES.studentStale.body);
+    setPendingClassroomLaunch(null);
+    // toastInfo is stable for the session (ToastProvider).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, pendingClassroomLaunch, classroomLaunchInvalid, assignments, studentAssignmentControls]);
   const publishStudentAssignments = () => {
     const { studentId, profile } = studentViewerRef.current;
     const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current];

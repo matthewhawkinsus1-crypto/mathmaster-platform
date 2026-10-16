@@ -381,30 +381,4 @@ export function isSetupRequired(error) {
   return error?.details?.reason === 'needs-setup';
 }
 
-const FRIENDLY_ERRORS = {
-  'auth/invalid-email': 'That does not look like a valid email address.',
-  'auth/invalid-credential': 'That email and password do not match an account.',
-  'auth/wrong-password': 'That email and password do not match an account.',
-  'auth/user-not-found': 'That email and password do not match an account.',
-  'auth/user-disabled': 'That account has been disabled. Ask your school administrator.',
-  'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
-  'auth/popup-closed-by-user': 'The Google sign-in window closed before finishing.',
-  'auth/network-request-failed': 'No connection. Check the network and try again.',
-  'auth/unauthorized-domain': 'This web address is not authorized for Google sign-in yet.',
-  'functions/unauthenticated': 'Sign in again to continue.',
-  'functions/permission-denied': 'Those sign-in details are not correct.',
-  'functions/resource-exhausted': 'Too many attempts. Wait a few minutes and try again.',
-  'functions/internal': 'The server could not finish that request. Refresh and try once more; if it repeats, check the Firebase Functions log for the failing action.',
-};
-
-/** Turns any auth failure into something worth showing a student or teacher. */
-export function describeAuthError(error) {
-  if (!error) return 'Something went wrong. Try again.';
-  const code = error.code || '';
-  // Callable errors carry a server-written message that is already specific
-  // ("3 attempts left", "ask your teacher for the current code"). Prefer it.
-  if (code.startsWith('functions/') && error.message && !error.message.startsWith('INTERNAL')) {
-    return error.message;
-  }
-  return FRIENDLY_ERRORS[code] || error.message || 'Something went wrong. Try again.';
-}
+export { describeAuthError } from './authErrorText.js';
