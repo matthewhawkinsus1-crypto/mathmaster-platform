@@ -72,8 +72,8 @@ let instance = 0;
  */
 const loadDevice = async (storage = new MemoryStorage(), { canonical = () => 0 } = {}) => {
   instance += 1;
-  const use = () => { globalThis.window = { localStorage: storage }; };
-  use();
+  const activate = () => { globalThis.window = { localStorage: storage }; };
+  activate();
   const m = await import(`../../src/questionDraftStorage.js?review=${instance}`);
   const listeners = {};
   m.trackStudentInput({ addEventListener: (type, listener) => { listeners[type] = listener; } });
@@ -91,7 +91,7 @@ const loadDevice = async (storage = new MemoryStorage(), { canonical = () => 0 }
   });
   m.subscribeToQuestionDrafts((event) => sync.record(event));
   const canonicalSavedAt = (entry) => canonical(entry?.questionIndex);
-  const wrap = (fn) => (...args) => { use(); return fn(...args); };
+  const wrap = (fn) => (...args) => { activate(); return fn(...args); };
   return {
     sync,
     input: () => listeners.keydown?.({ isTrusted: true }),
@@ -99,9 +99,9 @@ const loadDevice = async (storage = new MemoryStorage(), { canonical = () => 0 }
     write: wrap(m.writeQuestionDraft),
     reset: wrap(m.resetQuestionDraftFamily),
     envelope: (key) => JSON.parse(storage.getItem(key) || 'null'),
-    flush: async () => { use(); await sync.flushNow(); },
+    flush: async () => { activate(); await sync.flushNow(); },
     appRead: () => {
-      use();
+      activate();
       const entries = readWorkspaceDraftEntries(server.doc);
       const restorable = selectRestorableDraftEntries({ entries, localSavedAt: (key) => m.questionDraftSavedAt(key), canonicalSavedAt });
       m.reconcileToolWorkspaceDrafts(entries, { studentId: STUDENT, assignmentId: ASSIGNMENT, canonicalSavedAt });
@@ -256,7 +256,7 @@ test('S3: answers an older build saved win over an older dated copy once this bu
   const oStorage = new MemoryStorage();
   const t = now();
   oStorage.setItem(MULTI, JSON.stringify({ version: 2, savedAt: t, value: { a: '2' }, touchedAt: t, savedAtIsEdit: true }));
-  const stripped = (doc) => ({ ...doc, entries: doc.entries.map(({ fieldEditedAtJson, fieldsFresh, resetAt, canonicalAt, ...entry }) => entry) });
+  const stripped = (doc) => ({ ...doc, entries: doc.entries.map(({ fieldEditedAtJson: _times, fieldsFresh: _fresh, resetAt: _reset, canonicalAt: _canonical, ...entry }) => entry) });
   server.doc = stripped(mergeWorkspaceDraftDocument({ existing: stripped(server.doc), patch: patchOf([{ key: MULTI, value: { a: '2' }, savedAt: t, savedAtIsEdit: true, questionIndex: 2 }]) }));
   assert.equal(serverEntry(MULTI).fieldEditedAt, null);
   // O reloads into this build and types b.
