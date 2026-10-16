@@ -164,7 +164,7 @@ The integration test (`tests/integration/assignmentKeyExposureReport.test.mjs`) 
 | Check | Result |
 | --- | --- |
 | `npm ci`, `npm --prefix functions ci` | pass (both exit 0) |
-| `npm run test:platform` | GATE_PLATFORM |
+| `npm run test:platform` | 11421/11421 pass (includes the 10 new report tests and 5 new mastery-scope tests) |
 | `node --test tests/tools/*.test.mjs` | 1644 tests: 1643 pass, 0 fail, 1 skipped (pre-existing skip) |
 | `npm run lint` | exit 0 (warnings only; none new in changed code. The `ClassesAdmin.jsx:107` `selectedClass` warning is pre-existing) |
 | `npm run build` | pass |
