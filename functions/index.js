@@ -46,6 +46,8 @@ const {
   clearedClassroomErrorFields,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
+const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
+const { deferredClassCheckpoint } = require("./lib/classroomGradeRuntime");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
@@ -3340,10 +3342,11 @@ function progressCheckpointStage(progress, { late = false } = {}) {
 // The per-student final cutoff for Classroom passback. Classroom must never
 // call a student "final" earlier than the deadline the student's own dashboard
 // and the server's own submission finalizer already honor for them.
-// `studentFinalCutoff` is that student's individual cutoff as the one override
-// resolver answers it — their private record (studentAssignmentOverrides.mjs)
-// merged with any copy still on the shared document — resolved by the caller
-// (resolvedStudentFinalCutoff below). The class cutoff is never shortened by it.
+// `studentFinalCutoff` is that student's individual cutoff — their private
+// record (studentAssignmentOverrides.mjs) merged with any copy still on the
+// shared document, and their extra-time final date (supportDeadline.mjs) —
+// resolved by the caller (resolvedStudentClassroomDeadlines below). The class
+// cutoff is never shortened by it.
 function studentLateDueAt(assignment, studentFinalCutoff = null) {
   const classFinal = toDate(
     assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
@@ -3354,28 +3357,38 @@ function studentLateDueAt(assignment, studentFinalCutoff = null) {
   return studentFinal.getTime() > classFinal.getTime() ? studentFinal : classFinal;
 }
 
-/** One student's individual final cutoff on one assignment, read with the server's authority. */
-async function resolvedStudentFinalCutoff(db, assignmentId, assignment, studentId) {
-  if (!studentId) return null;
-  const overrides = await studentOverrides();
-  const ref = await studentOverrideRef(db, studentId, assignmentId);
-  const snapshot = ref ? await ref.get() : null;
-  return overrides.resolveStudentOverride({
-    assignment,
-    studentId,
-    privateOverride: privateOverrideFrom(snapshot),
-  })?.lateDueAt ?? null;
+// The student's own due time: an extra-time accommodation's individualized
+// due date (supportDeadline.mjs) moves it later; nothing moves it earlier.
+function studentDueDate(assignment, studentDueAt = null) {
+  const classDue = toDate(assignment?.dueAt || assignment?.dueDate);
+  const studentDue = toDate(studentDueAt);
+  if (!classDue) return studentDue;
+  if (!studentDue) return classDue;
+  return studentDue.getTime() > classDue.getTime() ? studentDue : classDue;
 }
 
-function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentFinalCutoff = null }) {
-  const reason = releaseSignalReason(releaseSignal);
-  if (reason === "final-deadline") return "final-deadline";
-  if (reason === "due-checkpoint") return "due-checkpoint";
-  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
+/**
+ * One student's individual due time and final cutoff on one assignment, read
+ * with the server's authority: their private record, and their pinned support
+ * profile (`studentProfile`, from the grade document in hand). Each is null
+ * when it is not individual (lib/classroomStudentCheckpoints.js).
+ */
+async function resolvedStudentClassroomDeadlines(db, assignmentId, assignment, studentId, studentProfile = null) {
+  return classroomStudentCheckpoints.studentClassroomDeadlinesFor({ db, assignmentId, assignment, studentId, studentProfile });
+}
 
+function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentFinalCutoff = null, studentDueAt = null }) {
+  const reason = releaseSignalReason(releaseSignal);
   const now = Number(nowValue) || Date.now();
-  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  const dueAt = studentDueDate(assignment, studentDueAt);
   const lateDueAt = studentLateDueAt(assignment, studentFinalCutoff);
+  // H-116: "final-deadline" and "due-checkpoint" are queued for the whole
+  // roster at the CLASS's cutoff and due time. They speak for this student
+  // only once THEIR own has arrived; before it the grade is ordinary progress
+  // (not returned), and the scheduler wakes them again at their own time.
+  if (reason === "final-deadline" && !(lateDueAt && now < lateDueAt.getTime())) return "final-deadline";
+  if (reason === "due-checkpoint" && !(dueAt && now < dueAt.getTime())) return "due-checkpoint";
+  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
 
   if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
@@ -3394,9 +3407,9 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
   return progressCheckpointStage(progress);
 }
 
-function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now() }) {
+function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null }) {
   const now = Number(nowValue) || Date.now();
-  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  const dueAt = studentDueDate(assignment, studentDueAt);
   const explicitlyStudentVisible = [
     "due-checkpoint",
     "final-complete",
@@ -10075,20 +10088,40 @@ exports.syncGradeToClassroom = onDocumentWritten(
           minimumProgressQuestions: 1,
         };
       }
-      // The student's own individual cutoff, from their private record.
-      const studentFinalCutoff = isTestCycleAssignment
-        ? null
+      // The student's own individual due time and final cutoff: their private
+      // record and their extra-time dates (H-116).
+      const { studentDueAt, studentFinalCutoff } = isTestCycleAssignment
+        ? { studentDueAt: null, studentFinalCutoff: null }
         // eslint-disable-next-line no-await-in-loop
-        : await resolvedStudentFinalCutoff(db, assignmentId, assignment, event.params.studentId);
+        : await resolvedStudentClassroomDeadlines(db, assignmentId, assignment, event.params.studentId, afterData.profile || null);
+      // One clock for the stage, the deferral and the release: at a student's
+      // own cutoff they are either called final or recorded, never neither.
+      const stageNow = Date.now();
       const stage = isTestCycleAssignment
         ? (testCycleProjection?.recordedGradeSource === "retest" ? "testcycle-retest" : "testcycle-test")
         : resolveClassroomGradeStage({
           assignment,
           progress,
           releaseSignal,
-          nowValue: Date.now(),
+          nowValue: stageNow,
           studentFinalCutoff,
+          studentDueAt,
         });
+      // H-116: a class-wide "final"/"due" wake-up that reached this student
+      // before their own time is set aside above; record their own time so
+      // the checkpoint scheduler wakes them again then.
+      const deferredCheckpoint = isTestCycleAssignment
+        ? null
+        : deferredClassCheckpoint({ assignment, releaseSignal, nowValue: stageNow, studentFinalCutoff, studentDueAt });
+      if (deferredCheckpoint) {
+        // eslint-disable-next-line no-await-in-loop
+        await classroomStudentCheckpoints.recordDeferredStudentCheckpoint({
+          stateRef: db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId),
+          assignmentId,
+          studentId: event.params.studentId,
+          deferred: deferredCheckpoint,
+        });
+      }
       if (!stage) continue;
 
       const grade = progress.grade;
@@ -10124,7 +10157,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
       const releasePolicy = classroomGradeReleasePolicy({
         stage,
         assignment,
-        nowValue: Date.now(),
+        nowValue: stageNow,
+        studentDueAt,
       });
       // A push queued again after Google's per-minute limit sends only the
       // columns that did not go through; the rest are already current.
@@ -10651,6 +10685,7 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   let finalAssignments = 0;
   let reconcileAssignments = 0;
   let queuedStudents = 0;
+  let studentCheckpointStudents = 0;
 
   for (const assignmentDoc of assignmentSnapshots) {
     if (!assignmentDoc.exists) continue;
@@ -10667,6 +10702,23 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
     // eslint-disable-next-line no-await-in-loop
     const stateSnap = await stateRef.get();
     const state = stateSnap.exists ? stateSnap.data() || {} : {};
+
+    // H-116: a student whose OWN due time or final cutoff is later than the
+    // class's was recorded by the grade trigger when it set the class's
+    // wake-up aside for them (deferredClassCheckpoint); wake them at theirs.
+    // eslint-disable-next-line no-await-in-loop
+    const ownCheckpointsQueued = await classroomStudentCheckpoints.wakeArrivedStudentCheckpoints({
+      stateRef,
+      state,
+      now,
+      enqueue: ({ studentIds, reason }) => classroomPushQueue.enqueueClassroomPushes(db, {
+        assignmentId, studentIds, reason, requestedAt, source: reason,
+      }),
+    });
+    if (ownCheckpointsQueued) {
+      studentCheckpointStudents += ownCheckpointsQueued;
+      queuedStudents += ownCheckpointsQueued;
+    }
 
     // Final cutoff has precedence. On first deploy, do not emit both an old due
     // checkpoint and a final checkpoint for the same assignment.
@@ -10754,11 +10806,12 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
     }
   }
 
-  if (dueAssignments || finalAssignments || reconcileAssignments) {
+  if (dueAssignments || finalAssignments || reconcileAssignments || studentCheckpointStudents) {
     logger.info("Queued Classroom grade checkpoints", {
       dueAssignments,
       finalAssignments,
       reconcileAssignments,
+      studentCheckpointStudents,
       queuedStudents,
     });
   }

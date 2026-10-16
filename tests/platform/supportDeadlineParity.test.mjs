@@ -134,7 +134,8 @@ test('the student client injects its own dates wherever assignments are loaded, 
   assert.match(studentHydrate, /setAssignments\(projectedAssignments\);/);
   assert.doesNotMatch(studentHydrate, /setAssignments\(fetchedAssignments\)/, 'never the lessons as Firestore sent them');
   const reproject = executableSource(region(app, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile', 're-projection'));
-  assert.match(reproject, /studentViewerRef\.current = \{ studentId: user\.id, profile: user\.profile \|\| null \};\s*publishStudentAssignments\(\);/);
+  // The profile re-projects with the student (D7 added the timing profile beside it).
+  assert.match(reproject, /studentViewerRef\.current = \{ studentId: user\.id, profile: user\.profile \|\| null(?:, timingProfile: user\.timingProfile \|\| null)? \};\s*publishStudentAssignments\(\);/);
 });
 
 // --- What the student is SHOWN -----------------------------------------------------------------

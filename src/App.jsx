@@ -86,7 +86,7 @@ import {
   subscribeStudentClassAssignments,
   workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
-import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments } from './platform/assignments/studentAssignmentControls.js';
+import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments, sameTimingProfile } from './platform/assignments/studentAssignmentControls.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 import useStudentAssignmentControls from './platform/assignments/useStudentAssignmentControls.js';
 import {
@@ -148,6 +148,7 @@ import {
   questionIsIncluded,
   studentAssignmentIndicesWithPracticePass,
   studentDueDateLines,
+  studentExtraTimeDolOpen,
   studentRequiredQuestions,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
@@ -1317,10 +1318,11 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      // The grade document's own `profile` field, as the server reads it (D7).
+      studentProfile: user.timingProfile || null,
       nowValue: studentRecoveryMinute * 60000,
     })
-    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.profile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
+    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
   const studentRecoverySummary = useMemo(() => {
     if (!recoveryAssignmentId || !user?.id) return [];
     const assignment = assignments.find((item) => item.id === recoveryAssignmentId);
@@ -1333,9 +1335,9 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      studentProfile: user.timingProfile || null,
     });
-  }, [recoveryAssignmentId, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.profile, classSchedule]);
+  }, [recoveryAssignmentId, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, classSchedule]);
 
   useEffect(() => {
     if (!recoveryAssignmentId) setRecoverySession(null);
@@ -1374,10 +1376,10 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      studentProfile: user.timingProfile || null,
       nowValue: now,
     });
-  }, [recoveryDiscoveryScope, user?.id, user?.classId, user?.classPeriod, user?.profile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
+  }, [recoveryDiscoveryScope, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
   const studentRecoveryByAssignment = useMemo(
     () => groupRecoveryOpportunitiesByAssignment(studentRecoveryDiscovery),
     [studentRecoveryDiscovery],
@@ -1979,7 +1981,11 @@ function App() {
   const studentPriorWorkAssignmentsRef = useRef([]);
   // Whose lessons these are, for the projection: set from the session before
   // the first lesson reaches state, and cleared with the lessons themselves.
-  const studentViewerRef = useRef({ studentId: null, profile: null });
+  // `timingProfile` is the grade document's own `profile` field, exactly as the
+  // server's deadline readers take it (gradeData.profile || null): the
+  // student's DOL window (D7) is computed from it, never from the normalized
+  // copy's fallback to the whole grade document.
+  const studentViewerRef = useRef({ studentId: null, profile: null, timingProfile: null });
   const studentControlsRef = useRef(EMPTY_STUDENT_CONTROLS);
   studentControlsRef.current = studentAssignmentControls;
   /*
@@ -2046,14 +2052,16 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role, pendingClassroomLaunch, classroomLaunchInvalid, assignments, studentAssignmentControls]);
   const publishStudentAssignments = () => {
-    const { studentId, profile } = studentViewerRef.current;
-    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current];
+    const { studentId, profile, timingProfile } = studentViewerRef.current;
+    // The controls stay at index 4: URL arrival reads lastPublishedRef.current[4].
+    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current, timingProfile];
     if (lastPublishedRef.current && inputs.every((input, index) => input === lastPublishedRef.current[index])) return;
     lastPublishedRef.current = inputs;
     setAssignments(projectStudentAssignments({
       assignments: mergeStudentAssignments(studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current),
       studentId,
       profile,
+      timingProfile,
       controls: studentControlsRef.current,
     }));
   };
@@ -2117,7 +2125,7 @@ function App() {
   const clearSignedInAssignments = () => {
     studentClassAssignmentsRef.current = [];
     studentPriorWorkAssignmentsRef.current = [];
-    studentViewerRef.current = { studentId: null, profile: null };
+    studentViewerRef.current = { studentId: null, profile: null, timingProfile: null };
     teacherSharedAssignmentsRef.current = [];
     lastPublishedRef.current = null;
     setAssignments([]);
@@ -2127,14 +2135,14 @@ function App() {
   // the lessons already held: no listener is re-opened for it.
   useEffect(() => {
     if (user?.role === 'student' && user.id) {
-      studentViewerRef.current = { studentId: user.id, profile: user.profile || null };
+      studentViewerRef.current = { studentId: user.id, profile: user.profile || null, timingProfile: user.timingProfile || null };
       publishStudentAssignments();
     } else if (user?.role === 'teacher') {
       publishTeacherAssignments();
     }
     // The publishers read refs; these are what change their answer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.id, user?.profile, studentAssignmentControls, teacherClassControls]);
+  }, [user?.role, user?.id, user?.profile, user?.timingProfile, studentAssignmentControls, teacherClassControls]);
 
   useEffect(() => {
     if (!user?.role || !user.id) return undefined;
@@ -2792,7 +2800,7 @@ function App() {
 
   const collectStudentGradeSnapshot = (querySnapshot) => querySnapshot.docs
     .filter((studentDoc) => studentDoc.id !== 'test_connection')
-    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) }))
+    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()), timingProfile: studentDoc.data()?.profile || null }))
     .sort(compareStudentsByName);
 
   const studentGradeSourceForViewer = (viewer) => (
@@ -3337,11 +3345,12 @@ function App() {
           .filter((assignment) => Array.isArray(assignment.assignedClassIds) && assignment.assignedClassIds.includes(studentData.classId));
         studentPriorWorkAssignmentsRef.current = fetchedAssignments
           .filter((assignment) => !studentClassAssignmentsRef.current.includes(assignment));
-        studentViewerRef.current = { studentId, profile: studentProfile };
+        studentViewerRef.current = { studentId, profile: studentProfile, timingProfile: studentData.profile || null };
         const projectedAssignments = projectStudentAssignments({
           assignments: fetchedAssignments,
           studentId,
           profile: studentProfile,
+          timingProfile: studentData.profile || null,
           controls: studentControlsRef.current,
         });
         setAssignments(projectedAssignments);
@@ -3387,6 +3396,8 @@ function App() {
             course: courseContext.courseId,
             courseLevel: courseContext.courseLevel,
           },
+          // The grade document's own `profile` field, as the server reads it (D7).
+          timingProfile: studentData.profile || null,
         });
         // THE STUDENT SEES THE CANONICAL RECORD, AND NEVER REWRITES IT.
         //
@@ -3435,6 +3446,7 @@ function App() {
                 assignments: fetchedAssignments.filter((entry) => entry.id === serverResume.assignmentId),
                 studentId,
                 profile: studentProfile,
+                timingProfile: studentData.profile || null,
                 controls: studentControlsRef.current,
               });
               if (!assignment) return;
@@ -5000,6 +5012,10 @@ function App() {
         // the next sign-in.
         const liveProfile = normalizeStudentProfile(snapshot.data()?.profile || snapshot.data());
         setUser((current) => (current && !sameStudentProfile(current.profile, liveProfile) ? { ...current, profile: liveProfile } : current));
+        // The DOL window's source (D7): the grade document's own `profile`
+        // field, updated on its own so nothing else about the user changes.
+        const liveTimingProfile = snapshot.data()?.profile || null;
+        setUser((current) => (current && !sameTimingProfile(current.timingProfile, liveTimingProfile) ? { ...current, timingProfile: liveTimingProfile } : current));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
@@ -6847,7 +6863,8 @@ function App() {
       // This student's own final cutoff (attendance extension, individualized
       // extra time), so the finalize hint is not earlier than the server's.
       studentId: user.id,
-      studentProfile: user.profile || null,
+      // The grade document's own `profile` field, as the finalizer reads it (D7).
+      studentProfile: user.timingProfile || null,
     });
     try {
       setStudentPersistenceStatus('capturing');
@@ -8443,8 +8460,10 @@ function App() {
   // the history the evidence report depends on.
   const handleSupportProfileSaved = (studentId, projection) => {
     const nextProfile = normalizeStudentProfile(projection);
-    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
-    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
+    // `timingProfile` is the stored projection itself (the D7 DOL window).
+    const timingProfile = projection && typeof projection === 'object' ? projection : null;
+    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
+    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
   };
 
   const handleSaveClassSchedule = async () => {
@@ -8854,6 +8873,8 @@ function App() {
       minutesBeforeEnd: 5,
     });
     if (packUp.status !== 'active') return null;
+    // Nor is a student still on their exit ticket's extra time (D7).
+    if (studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now })) return null;
 
     return (
       <aside
@@ -9664,7 +9685,7 @@ function App() {
     // The DOL's lock message, open notice and close receipt: a teacher's
     // "Close now" never reads as the timer, and "when time ends" only while it is open.
     const currentDolCopy = currentIsDOL && !preview
-      ? describeDolClose({ status: dolState.status, teacherClosed: dolState.teacherClosed, outcome: currentCheckpointOutcome })
+      ? describeDolClose({ status: dolState.status, teacherClosed: dolState.teacherClosed, outcome: currentCheckpointOutcome, extendedTime: dolState.extendedTime, endsAt: dolState.endsAt })
       : null;
     const currentQuestionBlueprint = questions[currentQuestionIndex];
     const currentReplacementAllowed = resolveQuestionReplacementAllowed({

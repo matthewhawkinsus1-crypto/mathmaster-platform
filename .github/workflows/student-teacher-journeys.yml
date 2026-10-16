@@ -20,6 +20,10 @@ name: Student and Teacher Journeys
 #                          every Grade Export file — update, re-export, new
 #                          lesson — then carries the corrected ID; a second
 #                          student cannot take it; she signs in as before)
+#   extra time on the DOL  tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs
+#                          (D7: a student with extra time keeps working after
+#                          the class's DOL closed and reads their own close;
+#                          a classmate's is closed; Live view lists who)
 #   private controls       tests/browser/teacherWorkflow/privateControlsJourneys.mjs
 #                          (its own job: one own-controls listener per student,
 #                          one class listener per teacher; a shared Chromebook
@@ -162,6 +166,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/prerequisiteEarlyJourneys.mjs
+      - name: Extra time on the exit ticket (D7) — the student's own window, and the teacher's Live view
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs
       - name: Warm-Up close and reopen, throttled Chromebook (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:

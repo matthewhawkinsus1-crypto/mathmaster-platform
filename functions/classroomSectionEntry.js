@@ -37,6 +37,7 @@ const {
   releaseSignalReason,
   resolveClassroomGradeStage,
   classroomGradeReleasePolicy,
+  deferredClassCheckpoint,
   toDate,
 } = require("./lib/classroomGradeRuntime");
 const { assignmentFeedbackIsHeld } = require("./lib/activityFeedback");
@@ -48,6 +49,7 @@ const {
   clearedClassroomErrorFields,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
+const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
 const {
   CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
   sectionGradeEvidenceFingerprint,
@@ -685,6 +687,9 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       if (!publications.length) continue;
 
       const successfulBySection = new Map();
+      let ownDeadlines = null;
+      // One clock for this student's stage, deferral and release (H-116).
+      const stageNow = Date.now();
       for (const publicationDoc of publications) {
         const publication = publicationDoc.data() || {};
         if (!sectionPublicationReleased(publication, Date.now())) continue;
@@ -743,14 +748,40 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           continue;
         }
 
+        // The student's own due time and final cutoff — their private
+        // extension and extra-time dates (H-116) — read once per assignment.
+        if (!ownDeadlines) {
+          // eslint-disable-next-line no-await-in-loop
+          ownDeadlines = await classroomStudentCheckpoints.studentClassroomDeadlinesFor({
+            db, assignmentId, assignment, studentId: event.params.studentId, studentProfile: afterData.profile || null,
+          });
+          // A class-wide "final"/"due" wake-up that reached this student
+          // before their own time is set aside below; record their own time
+          // so the section checkpoint scheduler wakes them again then.
+          const deferredCheckpoint = deferredClassCheckpoint({
+            assignment, releaseSignal, nowValue: stageNow,
+            studentFinalCutoff: ownDeadlines.studentFinalCutoff, studentDueAt: ownDeadlines.studentDueAt,
+          });
+          if (deferredCheckpoint) {
+            // eslint-disable-next-line no-await-in-loop
+            await classroomStudentCheckpoints.recordDeferredStudentCheckpoint({
+              stateRef: db.collection(SECTION_CHECKPOINT_COLLECTION).doc(assignmentId),
+              assignmentId,
+              studentId: event.params.studentId,
+              deferred: deferredCheckpoint,
+            });
+          }
+        }
         const stage = resolveClassroomGradeStage({
           assignment,
           progress: gradeResult,
           releaseSignal,
-          nowValue: Date.now(),
+          nowValue: stageNow,
+          studentFinalCutoff: ownDeadlines.studentFinalCutoff,
+          studentDueAt: ownDeadlines.studentDueAt,
         });
         if (!stage) continue;
-        const releasePolicy = classroomGradeReleasePolicy({ stage, assignment, nowValue: Date.now() });
+        const releasePolicy = classroomGradeReleasePolicy({ stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines.studentDueAt });
         const courseId = String(publication.courseId || "");
         if (!courseId) continue;
         const maxPoints = classroomMaxPoints(publication.maxPoints);
@@ -1073,6 +1104,19 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
     // eslint-disable-next-line no-await-in-loop
     const stateSnapshot = await stateRef.get();
     const state = stateSnapshot.exists ? stateSnapshot.data() || {} : {};
+
+    // H-116: wake each student whose OWN due time or final cutoff has now
+    // arrived — recorded by the section trigger when it set the class's
+    // wake-up aside for them (deferredClassCheckpoint).
+    // eslint-disable-next-line no-await-in-loop
+    await classroomStudentCheckpoints.wakeArrivedStudentCheckpoints({
+      stateRef,
+      state,
+      now,
+      enqueue: ({ studentIds, reason }) => classroomPushQueue.enqueueClassroomPushes(db, {
+        assignmentId, studentIds, reason, source: reason,
+      }),
+    });
 
     let reason = null;
     let statePatch = null;
