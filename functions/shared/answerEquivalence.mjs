@@ -184,6 +184,42 @@ export const sameNumber = (left, right, tolerance = 1e-6) => {
 
 export const sameText = (left, right) => normalizeAnswer(left) === normalizeAnswer(right);
 
+/**
+ * One number written with US thousands separators: `8,050`, `-12,000`,
+ * `$8,050`, `1,234.5`, `12,000%` (and MathLive's `8{,}050`, which
+ * normalizeAnswer already reads as `8,050`). Returns the same text with the
+ * separators removed, or null when the text is not a correctly grouped number.
+ *
+ * The grouping must be exact — a first group of one to three digits with no
+ * leading zero, then groups of exactly three — so `8,05`, `80,50`, `1,2345`
+ * and `0,500` are never read as numbers. Anything with a bracket or a space
+ * between entries is not touched either.
+ *
+ * This is NOT applied inside asNumber or normalizeAnswer. A comma is a
+ * separator in ordered pairs, intervals, sets and lists, and `1,234` in a list
+ * field is two numbers. Callers use it only where one number is expected
+ * (sameNumberWithThousandsSeparators, and the field/literal/table graders
+ * that decide that).
+ */
+const GROUPED_NUMBER = /^-?(?:\\?\$)?[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?(?:\\?%)?$/;
+export const withoutThousandsSeparators = (value) => {
+  const text = normalizeAnswer(value);
+  return GROUPED_NUMBER.test(text) ? text.replace(/,/g, '') : null;
+};
+
+/**
+ * The same number, when at least one side is written with thousands
+ * separators: `8,050` for a key of 8050, `8050` for a key authored `8,050`.
+ * Unit signs keep their meaning (sameNumber): `$8,050` is 8050 but not 8050%.
+ * False when neither side is grouped, so it never changes another verdict.
+ */
+export const sameNumberWithThousandsSeparators = (left, right, tolerance = 1e-6) => {
+  const a = withoutThousandsSeparators(left);
+  const b = withoutThousandsSeparators(right);
+  if (a === null && b === null) return false;
+  return sameNumber(a ?? left, b ?? right, tolerance);
+};
+
 /** Parse interval notation only when a caller has declared interval semantics. */
 export const parseCanonicalIntervalNotation = (value) => {
   const raw = normalizeStructuralMathLive(value)
