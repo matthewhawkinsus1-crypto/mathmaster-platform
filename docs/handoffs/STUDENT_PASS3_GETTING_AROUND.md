@@ -2,7 +2,7 @@
 
 Branch `claude/pass3-b5-getting-around`, on `claude/modest-pasteur-xzagn7` at `a7dddc7`, with the base merged in again at
 `4af446f` (a merge commit, no conflicts: Batch 4's hint ladder and Batch 8's update-loop fix); the gate below ran on the
-merged result. IDs are the summary table's
+merged result. The base was merged once more at `8e51f65` (Work View's first-hint fold, the harness icon link; no conflicts); after that merge lint, build and `test:platform` (11468 pass, 0 fail) were rerun. IDs are the summary table's
 in [the report](../qa/student-experience-pass-3.md) ("Getting around"); the evidence is in
 [01-navigation.md](../qa/student-experience-pass-3/01-navigation.md), which numbers the same findings differently. Nothing
 here re-grades anything, writes to production or deploys. No new Firestore path, no rules change.
