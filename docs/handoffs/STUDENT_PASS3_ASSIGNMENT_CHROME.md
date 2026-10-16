@@ -106,7 +106,15 @@ Next 44×30), the alert never set (`dolTimer`: no 2:00 and 0:30 warnings).
 
 ## Gate
 
-All on the final merge `dbf2a55`, one browser driver at a time, no edits in flight.
+All on the final merge `dbf2a55`, one browser driver at a time, no edits in flight. Re-run after the review fixes
+(`6678c25`): `test:platform` 11,457 / 11,457; tools 1,644 pass, 0 fail; lint, build, build:firebase (clean tree),
+theme audit pass; first load 1,040.2 KB (as below: the base is over budget); browser: assignmentChromeJourneys (all
+journeys, incl. `warmupWarnings`), studentUxPlatform, assessmentLeakGates, feedbackTeaches, toolAttemptOutcome,
+closedVerdictChip, stagedQuestion, workViewTerminalTransition, supportEvidenceJourneys, certify:accessibility,
+studentShellLargeText (both checks), hostAccessibility, certify:dark-mode — all pass. (One dark-mode run at 23:50 UTC
+failed on the base's "PACK UP & RETURN TECHNOLOGY" banner contrast: that driver runs on the real clock, so near midnight
+UTC the fixture clamps the period to end at 23:55 and the pack-up banner shows; re-run at 23:56 UTC, it passes. The
+banner and the driver are untouched here; noted for whoever owns darkModeCertification's scenes.)
 
 | Check | Result |
 | --- | --- |
