@@ -184,6 +184,21 @@ export const sameNumber = (left, right, tolerance = 1e-6) => {
 
 export const sameText = (left, right) => normalizeAnswer(left) === normalizeAnswer(right);
 
+// A number written with thousands separators: 8,050 for 8050, $2,086.25 for
+// 2086.25 (Oct 2026 matrices walkthrough, WU 1: "Total money collected …
+// in dollars" answered 8,050 was graded wrong). Only the strict grouping — one
+// to three digits, then groups of exactly three, nothing between a comma and
+// its digits — and only the STUDENT's side, against a key that is one number.
+// A comma that could start a pair, a list, a set or a decimal (8,05) is never
+// read this way, and a key is read exactly as before.
+const THOUSANDS_GROUPED = /^(-?\\?\$?)(\d{1,3}(?:,\d{3})+)(\.\d+)?(\\?%)?$/;
+const sameThousandsGroupedNumber = (student, key, tolerance) => {
+  if (/,\s/.test(String(student ?? ''))) return false;
+  const match = THOUSANDS_GROUPED.exec(normalizeAnswer(student));
+  if (!match || normalizeAnswer(key).includes(',') || asNumber(key) === null) return false;
+  return sameNumber(`${match[1]}${match[2].replace(/,/g, '')}${match[3] || ''}${match[4] || ''}`, key, tolerance);
+};
+
 /** Parse interval notation only when a caller has declared interval semantics. */
 export const parseCanonicalIntervalNotation = (value) => {
   const raw = normalizeStructuralMathLive(value)
@@ -1044,6 +1059,7 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
     return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
+  if (sameThousandsGroupedNumber(left, right, tolerance)) return true;
   if (sameNumericPair(left, right, tolerance)) return true;
   if (sameNumberWithVariableName(left, right, tolerance)) return true;
   if (sameSimpleInequality(left, right, tolerance)) return true;

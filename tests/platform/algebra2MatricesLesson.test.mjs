@@ -150,6 +150,18 @@ test('Getting Started: the money totals and the least-sold card come from the tw
   assert.equal(grade(sum, { defined: 'yes', dimensions: { rows: '3', cols: '2' }, entries: nov.map(asText) }).isCorrect, false, 'November alone is not the total');
 });
 
+// The walkthrough's P0: the money totals written the way money is written.
+test('Getting Started: a money total written with a thousands comma is accepted', () => {
+  const question = compiled('l3m-wu-1');
+  const answer = (overrides) => gradeMultiAnswerResponse(question, {
+    same: 'Yes — the same numbers, organized in rows and columns', grocery25: '8050', gas50: '44900', least: '$20 grocery cards', ...overrides,
+  });
+  assert.equal(answer({ grocery25: '8,050', gas50: '44,900' }).isCorrect, true);
+  assert.equal(answer({ grocery25: '$8,050', gas50: '$44,900' }).isCorrect, true);
+  assert.equal(answer({ grocery25: '8,05' }).isCorrect, false);
+  assert.equal(answer({ grocery25: '80,50' }).isCorrect, false);
+});
+
 /* ------------------------------------------------- Activity 3.1 */
 
 test('3.1 Q1–2: the shoe matrices — 4 × 5, a₃₄ = 7, b₃₁ for size 10E, and b₄₂ is not b₂₄', () => {
