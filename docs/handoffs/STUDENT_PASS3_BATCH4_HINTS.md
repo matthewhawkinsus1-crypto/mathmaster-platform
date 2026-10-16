@@ -68,6 +68,16 @@ Source contracts rewritten (SOURCE_CONTRACT_PLAYBOOK): in each, the behaviour wa
 - `toolPanelCollapse`: the cost is still stated before use, now in the platform sentence.
 - `tests/tools/graphing2SolutionReview`: the snap rule is read up to its own closing line.
 
+## Found after the merge
+
+- **The first-hint offer took a phone's step height.** On a short Work View (a phone on its side, or a small phone
+  with the keypad up) the offer's two lines sat under the step, inside the two rows of chrome PQ-020 keeps: the step
+  got 186px of the 250px kept for it at 844×390 (156 of 220 at 740×360) and 58px of 140 with the keypad up at
+  390×664, and a quarter of the plane was off screen (`studentUxPlatform` `staged` and `keypad-short`, red on this
+  branch and green on its base). There it now folds into Help (`WorkViewShell.css`), which opens the same Hint panel
+  with the same cost sentence and Show a hint button. The `staged` journey checks the fold and that Help offers the
+  hint; removing the rule turns it red. Taller screens keep the offer under the work.
+
 ## Deploying (not done)
 
 **Hosting only.** No file under `functions/` changed. The browser imports `attemptWasIndependent` from

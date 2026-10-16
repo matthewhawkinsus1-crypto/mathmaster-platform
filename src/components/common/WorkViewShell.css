@@ -821,6 +821,13 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
 
 [data-open="true"][data-height="short"] .workflow-focus__progress-text { display: none; }
 
+/* The first hint, offered in words before the first try (D5), folds into Help.
+   Its two lines under the step took the step's height: 186px of the 250px kept
+   for it at 844x390, and 58px of 140 with the keypad up at 390x664. Help opens
+   the same Hint panel, with the same "Hints never lower your score" line and
+   the same Show a hint button, so the offer is one tap away, not gone. */
+[data-open="true"][data-height="short"] [data-first-hint-offer] { display: none; }
+
 /*
  * WHAT STARTS UNDER THE OPENER LEAVES IT ROOM (PQ-025).
  *
