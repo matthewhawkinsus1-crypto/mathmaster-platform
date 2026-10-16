@@ -67,11 +67,29 @@ const submit = async (page) => {
   await page.waitForTimeout(500);
 };
 const outcome = (page) => page.locator('[role="status"]').filter({ hasText: /Not quite|final allowed attempt|Correct!/ }).first();
+// Scrolled to, it shows: its top is on screen, and at least 40px of it (or
+// all of it, if shorter) shows through the viewport and every scrolling or
+// clipping box around it. A box clipped to a strip still has a position on
+// screen, so the position alone is not enough.
 const reachable = async (page, locator) => {
   await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
   const viewport = page.viewportSize();
-  return Boolean(box) && box.y >= 0 && box.y < viewport.height && box.x >= -1 && box.x + Math.min(box.width, 40) <= viewport.width + 1;
+  if (!box || box.y < 0 || box.y >= viewport.height || box.x < -1 || box.x + Math.min(box.width, 40) > viewport.width + 1) return false;
+  const shown = await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    let top = Math.max(0, rect.top);
+    let bottom = Math.min(window.innerHeight, rect.bottom);
+    for (let node = element.parentElement; node; node = node.parentElement) {
+      if (getComputedStyle(node).overflowY !== 'visible') {
+        const clip = node.getBoundingClientRect();
+        top = Math.max(top, clip.top);
+        bottom = Math.min(bottom, clip.bottom);
+      }
+    }
+    return { visible: Math.max(0, bottom - top), height: rect.height };
+  });
+  return shown.visible >= Math.min(40, shown.height) - 1;
 };
 
 const noSidewaysScroll = async (page, where) => {

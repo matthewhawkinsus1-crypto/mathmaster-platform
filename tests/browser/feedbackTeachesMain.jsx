@@ -15,6 +15,7 @@ import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MathfieldElement } from 'mathlive';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
+import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
 import { emptyQuestionRecord, recordQuestionAttempt } from '../../src/attemptPolicy.js';
 import { getEffectiveActivityPolicy } from '../../src/platform/policies/activityPolicies.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
@@ -109,7 +110,16 @@ function Harness() {
   };
   return (
     <div className="mathmaster-assignment-screen" data-feedback-fixture={which} data-feedback-role={role} style={{ fontFamily: '"Segoe UI", sans-serif', minHeight: '100vh', padding: 12 }}>
-      <main className="mathmaster-question-stage" style={{ maxWidth: 1120, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, padding: 10 }}>
+      {/* The shell App.jsx renders around a question. On a phone it is a
+          two-row grid, the navigator and then the question filling the rest of
+          the screen, and the work area scrolls inside that. Without it the
+          stage took its content's height, the phone work area collapsed to a
+          strip, and what a submit puts inside it (RUN-1) could not be reached. */}
+      <div className="mathmaster-assignment-shell" style={{ maxWidth: 1120, margin: '0 auto' }}>
+        <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className="mathmaster-assignment-unified-nav" aria-label="Assignment questions" style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '4px 0' }}>
+          <span style={{ padding: '6px 10px', borderRadius: 999, background: '#174ea6', color: '#fff', fontWeight: 800, fontSize: 12 }}>Q1</span>
+        </nav>
+      <main className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: 12, padding: 10 }}>
         <QuestionEngine
           question={question}
           questionRecord={record}
@@ -134,6 +144,7 @@ function Harness() {
           helpRequested={help}
         />
       </main>
+      </div>
     </div>
   );
 }
