@@ -26,7 +26,8 @@ const act = region(card, 'const act = () => {', '\n  };', 'WhatShouldIDoNow act(
 /* 1. PRIVACY. */
 
 test('Home shows only the class period under the name — never a support plan', () => {
-  assert.match(header, /<p [^>]*>\{student\.classPeriod\}<\/p>/, 'the header line is the class period alone');
+  // The class period alone, as a student reads it ("Period 3", studentWords.js; student pass 3).
+  assert.match(header, /<p [^>]*>\{studentPeriodLabel\(student\.classPeriod\)\}<\/p>/, 'the header line is the class period alone');
   // Nothing on Home reads or prints a support-plan field; a classmate can read
   // this screen over a shoulder. (Comments may explain the rule.)
   assert.doesNotMatch(code, /inclusionStatus|Inclusion|\bIEP\b|special[ -]?ed|\b504\b/i);

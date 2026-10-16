@@ -154,7 +154,8 @@ test('an arrival opens once, with the calls a click makes (app/routes/useUrlArri
 
 test('App hands the arrival its real actions, each declared before the call (no temporal dead zone)', () => {
   assert.match(app, /^import \{ useUrlArrival \} from '\.\/app\/routes\/useUrlArrival\.js';$/m);
-  assert.match(app, /^import \{ readUrlArrival \} from '\.\/app\/routes\/urlArrival\.js';$/m);
+  // The same module also gives App its arrival messages (a Classroom link that cannot open, NAV-11).
+  assert.match(app, /^import \{[^}\n]*\breadUrlArrival\b[^}\n]*\} from '\.\/app\/routes\/urlArrival\.js';$/m);
   assert.match(app, /import \{ questionAddressFor, studentQuestionEntries \} from '\.\/app\/routes\/questionAddress\.js';/);
   assert.match(app, /import \{ resetAddressToHome, studentUrlFor, teacherUrlFor \} from '\.\/app\/routes\/browserUrl\.js';/);
   const callAt = appCode.indexOf('useUrlArrival({');
