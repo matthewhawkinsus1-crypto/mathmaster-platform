@@ -107,3 +107,17 @@ export const stableShuffleChoices = (options = [], seed = '') => {
 };
 
 export const choiceSeed = (...parts) => parts.map(clean).filter(Boolean).join('::');
+
+/*
+ * THE NAME A SCREEN READER ANNOUNCES FOR A CHOICE.
+ *
+ * A choice written as delimited mathematics ("$\frac{1}{2}$", "\(y \le 4\)")
+ * is named by the mathematics inside. A dollar sign that opens no span is a
+ * price: "$20 grocery cards" stays "$20 grocery cards", never "20 grocery
+ * cards", which names twenty cards instead of the $20 card.
+ */
+export const choiceAccessibleLabel = (value) => {
+  const text = String(value ?? '').trim();
+  const wrapped = text.match(/^\$+([\s\S]*?)\$+$/) || text.match(/^\\\(([\s\S]*)\\\)$/);
+  return (wrapped && text.length > 1 ? wrapped[1] : text).trim();
+};
