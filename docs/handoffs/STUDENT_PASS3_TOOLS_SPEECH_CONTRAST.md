@@ -1,6 +1,8 @@
 # Student pass 3 — Batch 6, session E: every student can use every tool (what the tools say and show)
 
-Branch `claude/pass3-b6-tools-speech-contrast`, from `claude/modest-pasteur-xzagn7` at `a7dddc7`. Scope: the
+Branch `claude/pass3-b6-tools-speech-contrast`, from `claude/modest-pasteur-xzagn7` at `a7dddc7`, with that base
+merged in twice since (merge commits `de8215b` for `4af446f`, Batch 4's hint ladder, and `1fc1506` for `8e51f65`); the
+gate below is on the second merge. Scope: the
 items of [04-tools-and-accessibility.md](../qa/student-experience-pass-3/04-tools-and-accessibility.md) listed
 below, by that file's IDs (the summary tables number them differently). Nothing here re-grades, writes to
 Firebase or deploys. No server code, rules or indexes change.
@@ -16,7 +18,7 @@ Firebase or deploys. No server code, rules or indexes change.
 | A11Y-8 | TableGrader and GraphLine: a red or green border only, while the directions said "Incorrect blanks are outlined" and every box had an outline. The Number Line's typed-endpoint error was neither announced nor tied to the box. | `GradedEntryMark` (new, `src/components/common/`): under each graded entry "✗ Check this" / "✓ Correct", the input `aria-invalid` when wrong and described by the mark. GraphLine's labels now name their inputs. TableGrader's direction: "After you submit, each entry is marked ✓ Correct or ✗ Check this…". Interval Number Line: the box is `aria-invalid` and described by the hint/error line; the error is said in an alert. | `legacyGraderErrorsInWords` (SSR of both graders with real part grades); `toolKeyboardNumberLine` (browser: "13/8x" → invalid, described, alerted; typing again clears both) |
 | TOOL-7 | "Your line: y = 0.66666667x + 2", "y = 1x + 0" (and "Graph y = 1x + 0." as the task). | `src/tools/graphing2/lineReadout.js`: exact fractions (within the 8-place rounding of `lineFromPoints`), no 1 or 0 coefficient, no "+ 0", a true minus. The readout is typeset (MathDisplay); the Work View caption and the task line use the text form. `formatLine` is unchanged: the server stores its text as the response. | `graphingLineReadout` (lines through the student's points: "y = (2/3)x + 2", "y = x", "y = −x − 4", "x = 5/2"…; Graphing no longer writes a student-facing line with `formatLine`) |
 | TOOL-10 | "4 arrows drawn" and one "Clear arrows": no way to learn which arrows, or remove one, without sight. | `arrowDescriptions.js`: each domain node "Domain value -2, maps to 3 and 5", each range node "Range value 3, from -2"; "Arrows you drew" lists "-2 → 3 ×" with "Remove the arrow -2 to 3"; the status line says what a press did ("Arrow drawn from -2 to 3. 2 arrows drawn.", "… removed.", "All arrows cleared."); the SVG is `role="group"`. Removing an arrow puts focus on the arrow now in its place, after the last one on the diagram's first value; Clear arrows keeps focus (`useFocusSafeDisabled`). | `mappingArrowDescriptions` (unit); `toolKeyboardRelationMapping` (browser, both sizes: names, list, removal, focus) |
-| TOOL-11 | At 390px tick numbers rendered ≈ 6–7 px; a press just beside P2 plotted a third point and wiped the line. | `planeTextScale.js`: plane text keeps a 12 px floor on a narrow plane (at most ×2.25; a wide plane keeps its sizes); the cursor chip grows with it. `planeTouch.js`: a finger picks a point up within about 22 CSS px (the keyboard stays exact, 18 units). `placePoint.js`: Graphing replaces the nearest point instead of restarting. Two causes found in the browser and fixed: the phone column scrolled a plane the student had just pressed, moving it between press and lift (`MobileViewportContainer` now skips that reveal for a pressed `.mathmaster-touch-surface`); and the keyboard crosshair chip stayed drawn after focus left the plane. | `planeOnPhone` (unit); `planePhoneReach` (new browser driver: smallest plane text ≥ 12 px at 390, authored at 1366; a press beside P2 dragged to (1, 0) moves P2 — a new point would have replaced P1; a far third point keeps the line) |
+| TOOL-11 | At 390px tick numbers rendered ≈ 6–7 px; a press just beside P2 plotted a third point and wiped the line. | `planeTextScale.js`: plane text keeps a 12 px floor on a narrow plane (at most ×2.25; a wide plane keeps its sizes); the cursor chip grows with it. `planeTouch.js`: a finger's pick-up radius grows toward 22 CSS px but never past 45% of a snap cell, and never below the old 18 units (the keyboard stays exact at 18) — on a dense phone grid it stays 18, because a press in the next cell is a new point there. `placePoint.js`: Graphing replaces the nearest point instead of restarting. Two causes found in the browser and fixed: the phone column scrolled a plane the student had just pressed, moving it between press and lift (`MobileViewportContainer` now skips that reveal for a pressed `.mathmaster-touch-surface`); and the keyboard crosshair chip stayed drawn after focus left the plane. | `planeOnPhone` (unit); `planePhoneReach` (new browser driver: smallest plane text ≥ 12 px at 390, authored at 1366; a missed drag beside P2 keeps the line; a far third point keeps the line); `systemsWorkspaceStudio` (a tap one cell away still plots a new boundary point) |
 | A11Y-2 (these tools) | Graphing 2's and Step Algebra 2's "Start over", the plane's "Reset view", Step Algebra's distribution token and targets disabled themselves on the press and dropped focus to the top of the page. | `useFocusSafeDisabled` on each (Step Algebra's mapped targets through a file-local `FocusSafeButton`); each handler ignores a press while unavailable. | `focusSafeToolControls` (new browser driver, both sizes: focus stays on the control, `aria-disabled="true"`, a second press does nothing) |
 
 ### Found while proving it: a lost press on Check (fixed)
@@ -68,8 +70,7 @@ Every new or rewritten assertion was broken once in the code and seen red, then 
 - Mapping: no focus move after a removal; Clear arrows natively disabled; the old domain name (all browser); list
   wording; the range-order tie-break (needed a fixture drawn out of order to go red).
 - Dark mode (Part 1B, browser): `#24324a` labels (dark red); `#202124` intersection lines (dark red); no square shape.
-- Phone: the reveal guard removed; the pick-up radius back to 18 (needed a drag toward P1 to tell pick-up from
-  replacement); restart instead of nearest; no text growth; the keyboard-sentence blur restored (`toolAttemptOutcome`
+- Phone: the reveal guard removed; the cell cap on the pick-up radius removed (unit red); restart instead of nearest; no text growth; the keyboard-sentence blur restored (`toolAttemptOutcome`
   red on the phone). One change did not survive its mutation and was removed: focusing the plane with
   `preventScroll` on press (the reveal guard alone was the fix).
 - Focus-safe: each of the four controls back on a native `disabled` (browser, all red); the placed-target guard and the
@@ -77,7 +78,25 @@ Every new or rewritten assertion was broken once in the code and seen red, then 
 
 ## Gate
 
-GATE_TABLE
+On the second merge (`1fc1506`), run one at a time with nothing else running.
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,447 / 11,447 |
+| `node --test tests/tools/*.test.mjs` | 1,643 pass, 0 fail (one not counted as a pass, as on the base) |
+| `npm run test:authoring-v5` | 686 / 686 (nothing in authoring or the compiler changed) |
+| `npm run lint` | exit 0 (warnings only; none in lines this branch added) |
+| `npm run build`, `npm run build:firebase` | pass; no tracked file rewritten |
+| `npm run audit:theme-colors` | pass |
+| Browser drivers (41): the student-runtime gate (incl. the new `planePhoneReach`, `focusSafeToolControls`), `mathSpeech`, `graphDescription`, `accessiblePrimitives`, `calculatorKeyboard`, `studentAccessibleNames`, the five `toolKeyboard*`, `closedVerdictChip`, `workBarPrimaryLabel`, `dolCloseCopy`, `unchangedConfirmWorkView`, `algebraicSubstitutionHandoff`, `algebraicSystems3x3`, `workViewMatrix`, `captureToolResponses`, `studentUxPlatform` | all 41 pass |
+| `npm run certify:dark-mode` | pass: Part 1, the new Part 1B (12 plotted-scene runs), Part 2 (192 surfaces, 4 viewports, light and dark) |
+| `npm run certify:accessibility` | no new, increased or reduced violations on any screen; **fails** because `secure-exam/start` (desktop and phone) cannot be reached in 180 s. The same failure on the base `8e51f65` alone (`ONLY=secure-exam`, same servers): not this branch. |
+| `tests/browser/hostAccessibility.mjs` | **fails** at `scene=recovery` (the page never reaches network idle in 60 s); the same failure on the base `4af446f` alone: not this branch. |
+
+On the first merge the gate found one real regression of this branch, fixed in `90720c0`: a finger's wider pick-up
+radius took a tap one cell from a Systems boundary point as a move of that point instead of a second point. Three
+drivers that read the old raw names were updated (`algebraicSubstitutionHandoff`, `algebraicSystems3x3`,
+`captureToolResponses`).
 
 ## Deploying (not done)
 
@@ -87,7 +106,7 @@ Hosting only. No file under `functions/`, `firestore.rules` or the indexes chang
 $ node scripts/release-firebase.mjs --since a7dddc7
 MathMaster release plan for mathmaster-aleks
   live build: unknown
-  diff:       a7dddc7..<head>  (changed files)
+  diff:       a7dddc7..<head>
   hosting                because src/AlgebraWorkSteps.jsx, src/GraphLine.jsx, src/StepByStepAlgebraCore.jsx and more
 
 Steps, in order:
@@ -107,7 +126,12 @@ Ship with the wave's other Hosting changes through `node scripts/release-firebas
 3. **The stored response text of a Graphing line is unchanged** (`formatLine`: "y = 1x + 0" in the record). Only what
    the student reads changed. Changing the stored text is a functions change and would make old and new records
    read differently in reports; not done.
-4. **The ÷ key is named "Divide"** although it builds a stacked fraction (its existing behaviour); the a⁄b key is
+4. **A finger's wider pick-up radius stops short of the next grid cell.** On a dense phone grid (−7…7) that keeps
+   it at the old 18 units, so the gain is on coarser or zoomed planes only; on Graphing a missed drag on a dense
+   grid is caught by nearest-point replacement instead. A press in the next cell must stay a new point (Systems
+   plots boundary points one cell apart). If you want more reach on dense grids, it has to come from a different
+   gesture (for example, a held press), not a bigger radius.
+5. **The ÷ key is named "Divide"** although it builds a stacked fraction (its existing behaviour); the a⁄b key is
    "Insert stacked fraction".
 
 ## Touched outside the files listed for E (kept minimal)
@@ -117,6 +141,7 @@ Ship with the wave's other Hosting changes through `node scripts/release-firebas
 - `src/tools/toolStatePersistence.js`: declarations of the new presentation states.
 - `src/components/common/GradedEntryMark.jsx`, `gradedEntryState.js` (new, used only by the legacy graders).
 - `.github/workflows/student-runtime-browser-gates.yml`: runs the two new drivers.
+- Browser drivers outside my tools that read the old names: `algebraicSystems3x3`, `captureToolResponses`.
 - `tests/browser/workViewCertificationMain.jsx`: the certification harness takes an optional spec and scene name.
 - `spokenMathLabel()` (session F's) is called, not changed.
 
@@ -130,5 +155,7 @@ Ship with the wave's other Hosting changes through `node scripts/release-firebas
 - Point dots stay 6 units on a phone (about 3.5 px radius); only text and pick-up reach scale.
 - The legacy NumberLine's selected point (TOOL-4) and RelationMapping's own plot (its keyboard sentence still hides on
   blur; it sits below its controls, so no press is lost there).
+- The two base failures in the gate (`secure-exam/start` in `certify:accessibility`, `hostAccessibility`'s recovery
+  scene) are left to the base's owners.
 - No real screen-reader pass (NVDA, VoiceOver) — Batch 6 asks for one across the platform; and the VPAT 1.1.1 / 1.4.1 /
   1.4.3 / 2.5.3 / 3.3.1 rows can now be updated from this table.
