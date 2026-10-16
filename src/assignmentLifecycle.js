@@ -735,6 +735,21 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
   };
 };
 
+/**
+ * Is one of this student's exit tickets still open on THEIR extra time
+ * (decision D7) — open for them after the class's closed, or about to be?
+ * The class pack-up banner ("sign out and return your device now") stands
+ * aside for them while it is, as it does for a student mid-Test. `assignments`
+ * are the student's own projected copies (their profile rides along).
+ */
+export const studentExtraTimeDolOpen = ({ assignments = [], schedule, classId = null, classPeriod = null, nowValue = Date.now() } = {}) => (
+  (assignments || []).some((assignment) => {
+    if (!assignmentIsForStudent(assignment, { classId, classPeriod })) return false;
+    const state = getDOLState({ assignment, schedule, classId, classPeriod, nowValue });
+    return state.status === 'active' && state.extendedTime === true;
+  })
+);
+
 export const normalizeAssignmentActivity = (activity) => ({
   totalTimeSeconds: Math.max(0, Number(activity?.totalTimeSeconds) || 0),
   onTimeSeconds: Math.max(0, Number(activity?.onTimeSeconds) || 0),

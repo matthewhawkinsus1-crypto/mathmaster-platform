@@ -20,6 +20,15 @@
 //   - no answer, solution or feedback text renders (assessment safety), and
 //     nothing is graded by loading the page.
 //
+// D7 (extra time on the exit ticket): two more cases at both sizes, whose
+// status and close come from a real getDOLState on the student's projected
+// assignment, at a moment after the class's DOL closed —
+//   - extra-time-student: the DOL is still open for them, and they read
+//     "Your exit ticket closes at H:MM — extra time." with THEIR close time,
+//     fully visible, above the automatic-submission promise;
+//   - extra-time-classmate: the same moment, no accommodation: time is up,
+//     and no extra-time line.
+//
 // Exits non-zero on any failure.
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -49,7 +58,10 @@ const CASES = [
   { id: 'closed-by-teacher', status: 'ended', teacher: true, outcome: 'auto-submitted' },
   { id: 'closed-by-teacher-no-receipt-yet', status: 'ended', teacher: true, outcome: null },
   { id: 'closed-no-completed-response', status: 'ended', teacher: true, outcome: 'incomplete-at-close' },
+  { id: 'extra-time-student', extra: 'student', status: 'active', teacher: false, outcome: null },
+  { id: 'extra-time-classmate', extra: 'classmate', status: 'ended', teacher: false, outcome: null },
 ];
+const EXTRA_TIME_LINE = /Your exit ticket closes at (\d{1,2}):(\d{2}) — extra time\./;
 const VIEWPORTS = [{ width: 1366, height: 768 }, { width: 390, height: 844 }];
 const run = Date.now();
 
@@ -64,6 +76,8 @@ try {
       const query = new URLSearchParams({ status: kase.status, run: `${run}-${kase.id}` });
       if (kase.teacher) query.set('teacher', '1');
       if (kase.outcome) query.set('outcome', kase.outcome);
+      if (kase.extra) query.set('extra', kase.extra);
+      if (LEGACY && kase.extra) { await page.close(); continue; }
       if (LEGACY) query.set('copy', 'legacy');
       await page.goto(`${ORIGIN}/tests/browser/dolCloseCopy.html?${query}`);
       await page.waitForSelector('[data-dol-copy-ready="1"]', { timeout: 30000 });
@@ -93,6 +107,24 @@ try {
             ? /no completed response was available to submit/i
             : /checking whether your latest completed response was recorded/i;
         check(recorded.test(text), `${label}: tells the student what happened to the latest completed response`);
+      }
+      if (kase.extra) {
+        const dol = await page.evaluate(() => window.__mmDol);
+        check(dol?.status === kase.status, `${label}: the student's own DOL window is ${kase.status} after the class's closed`, JSON.stringify(dol));
+        check(Number(dol?.classEndsAt) < Date.now(), `${label}: the class's DOL has closed`);
+        const match = text.match(EXTRA_TIME_LINE);
+        if (kase.extra === 'student') {
+          const ends = new Date(dol.endsAt);
+          const expected = `${ends.getHours() % 12 || 12}:${String(ends.getMinutes()).padStart(2, '0')}`;
+          check(Boolean(match) && `${match[1]}:${match[2]}` === expected, `${label}: reads their own close time`, match?.[0] || 'no extra-time line');
+          const line = page.getByText(EXTRA_TIME_LINE).first();
+          const shown = (await line.count()) > 0 && await line.isVisible();
+          const box = shown ? await line.boundingBox() : null;
+          check(Boolean(shown && box && box.x >= 0 && box.x + box.width <= viewport.width + 1), `${label}: the extra-time line is visible and not clipped sideways`, JSON.stringify(box));
+          check(!/accommodat|IEP|504|1\.5|×/i.test(text), `${label}: names no support and no multiplier`);
+        } else {
+          check(!match, `${label}: a classmate without extra time sees no extra-time line`);
+        }
       }
       check(!LEAKS.test(text), `${label}: no answer, solution or feedback text renders`);
       const graded = await page.evaluate(() => window.__mmGraded.length);

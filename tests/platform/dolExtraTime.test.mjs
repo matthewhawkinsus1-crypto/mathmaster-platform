@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
-import { getDOLState, getWarmupState, localDateKey } from '../../src/assignmentLifecycle.js';
+import { getDOLState, getWarmupState, localDateKey, studentExtraTimeDolOpen } from '../../src/assignmentLifecycle.js';
 import { buildDolClose, buildDolExtension, buildDolWindowOpening } from '../../src/platform/assessment/assessmentRecovery.js';
 import { projectStudentAssignments } from '../../src/platform/assignments/studentAssignmentControls.js';
 import {
@@ -380,4 +380,30 @@ test('the teacher\'s live view knows who still has extra time, and never says so
   const timers = region(monitor, 'const activeSectionTimers = useMemo(', '.sort((left, right)', 'the live view\'s timers');
   assert.match(timers, /const extraTime = projecting \? null : dolExtraTimeForClass\(\{ assignment, schedule: classSchedule, classContext: timerContext, roster: monitoredRoster, nowValue \}\);/);
   assert.match(timers, /if \(extraTime\) \{\s*timers\.push\(\{ kind: 'DOL extra time'[^}]*endsAt: extraTime\.endsAt/);
+});
+
+test('the class pack-up banner stands aside while the student is on their exit ticket\'s extra time', () => {
+  const lessonForClass = { ...lesson(), assignedClassIds: ['class-a'] };
+  const own = (profile) => projectStudentAssignments({ assignments: [lessonForClass], studentId: 'S1', profile });
+  const open = (assignments, when) => studentExtraTimeDolOpen({ assignments, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: when });
+  // 09:27: the class's DOL closed at 09:25, the bell is 09:30 (pack-up from 09:25).
+  assert.equal(open(own(LEGACY_EXTRA_TIME), at(9, 27)), true);
+  assert.equal(open(own(LEGACY_NO_EXTRA_TIME), at(9, 27)), false, 'a classmate is told to pack up as before');
+  assert.equal(open(own(LEGACY_EXTRA_TIME), at(9, 30, 1)), false, 'and so is this student once their own DOL has closed');
+  assert.equal(open(own(LEGACY_EXTRA_TIME), at(9, 20)), true);
+  // A DOL that runs to the bell (closeMinutesBeforeEnd 0) is open for the
+  // whole class during pack-up: only extra time — not an open DOL — sets the
+  // banner aside.
+  const toTheBell = { ...lessonForClass, dol: { ...lessonForClass.dol, closeMinutesBeforeEnd: 0 } };
+  const ownToTheBell = (profile) => projectStudentAssignments({ assignments: [toTheBell], studentId: 'S1', profile });
+  assert.equal(open(ownToTheBell(LEGACY_NO_EXTRA_TIME), at(9, 27)), false);
+  assert.equal(open(ownToTheBell(LEGACY_EXTRA_TIME), at(9, 27)), true);
+  // Another class's lesson is not theirs.
+  assert.equal(studentExtraTimeDolOpen({ assignments: own(LEGACY_EXTRA_TIME), schedule, classId: 'class-b', classPeriod: 'Period 1', nowValue: at(9, 27) }), false);
+
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  const banner = region(app, 'const renderStudentPackUpBanner = () => {', 'const renderStudentWarmupBanner = () => {', 'the pack-up banner');
+  assert.match(banner, /if \(packUp\.status !== 'active'\) return null;\s*if \(studentExtraTimeDolOpen\(\{ assignments, schedule: classSchedule, classId: user\.classId \|\| null, classPeriod: user\.classPeriod, nowValue: now \}\)\) return null;/);
+  const lifecycleImport = region(app, "import {\n  CLASS_PERIODS,", "} from './assignmentLifecycle';", 'the assignmentLifecycle import');
+  assert.match(lifecycleImport, /\n {2}studentExtraTimeDolOpen,\n/);
 });

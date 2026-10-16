@@ -8,12 +8,21 @@
 //   ?copy=legacy                the pre-fix App.jsx copy (the R2-m4 defect),
 //                               so the browser proof can show it fails on it
 //   ?run=<id>                   a fresh draft namespace
+//   ?extra=student|classmate    D7: status and close come from a REAL
+//                               getDOLState on the student's own projected
+//                               assignment (projectStudentAssignments), with a
+//                               bell that put the class's DOL close 3 minutes
+//                               ago; `student` has an extra-time
+//                               accommodation (their close is 2 minutes away),
+//                               `classmate` has none
 import React from 'react';
 import { MathfieldElement } from 'mathlive';
 import { createRoot } from 'react-dom/client';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
 import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
 import { describeDolClose } from '../../src/platform/assessment/dolCloseCopy.js';
+import { getDOLState, localDateKey } from '../../src/assignmentLifecycle.js';
+import { projectStudentAssignments } from '../../src/platform/assignments/studentAssignmentControls.js';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -21,9 +30,34 @@ MathfieldElement.fontsDirectory = '/node_modules/mathlive/fonts';
 MathfieldElement.soundsDirectory = null;
 
 const params = new URLSearchParams(window.location.search);
-const status = params.get('status') || 'ended';
-const teacherClosed = params.get('teacher') === '1';
+const extra = params.get('extra');
 const outcome = params.get('outcome') || null;
+
+// D7: the student's own window, exactly as the assignment screen gets it.
+const studentDolState = () => {
+  const now = Date.now();
+  const pad = (value) => String(value).padStart(2, '0');
+  const clock = (ms) => `${pad(new Date(ms).getHours())}:${pad(new Date(ms).getMinutes())}`;
+  // The period ends in 2 minutes: the class's DOL (10 minutes, closing 5
+  // before the bell) closed 3 minutes ago; 1.5× time closes at the bell.
+  const endMs = Math.floor(now / 60000) * 60000 + 2 * 60000;
+  const schedule = { version: 2, modifiedSchedules: { [localDateKey(now)]: { periods: { 'Period 1': { enabled: true, start: clock(endMs - 60 * 60000), end: clock(endMs) } } } } };
+  const lesson = {
+    id: 'dol-extra-time',
+    schemaVersion: 5,
+    sections: [{ id: 'dol', role: 'dol', title: 'DOL', questions: [{ questionId: 'dol-1', activityRole: 'dol', prompt: 'Find its slope.', type: 'freeResponse', expected: '3/4' }] }],
+    dol: { enabled: true, minutesBeforeEnd: 10, closeMinutesBeforeEnd: 5, instructionDate: localDateKey(now) },
+  };
+  const profile = extra === 'student'
+    ? { inclusionStatus: false, accommodations: ['extra-time'], modifications: [] }
+    : { inclusionStatus: false, accommodations: [], modifications: [] };
+  const [own] = projectStudentAssignments({ assignments: [lesson], studentId: 'dol-close-copy-student', profile });
+  return getDOLState({ assignment: own, schedule, classId: 'dol-class', classPeriod: 'Period 1', nowValue: now });
+};
+const dolState = extra ? studentDolState() : null;
+window.__mmDol = dolState ? { status: dolState.status, endsAt: dolState.endsAt?.getTime() ?? null, classEndsAt: dolState.classEndsAt?.getTime() ?? null, extendedTime: dolState.extendedTime === true } : null;
+const status = dolState ? dolState.status : params.get('status') || 'ended';
+const teacherClosed = dolState ? dolState.teacherClosed === true : params.get('teacher') === '1';
 const legacy = params.get('copy') === 'legacy';
 const run = params.get('run') || 'manual';
 
@@ -44,7 +78,9 @@ const legacyCopy = () => ({
   closeReceipt: outcome && status !== 'active' ? 'Time ended. Your latest completed response was submitted automatically.' : '',
 });
 
-const copy = legacy ? legacyCopy() : describeDolClose({ status, teacherClosed, outcome });
+const copy = legacy
+  ? legacyCopy()
+  : describeDolClose({ status, teacherClosed, outcome, extendedTime: dolState?.extendedTime === true, endsAt: dolState?.endsAt || null });
 const assignmentId = `dol-close-copy-${run}`;
 const draftKey = buildQuestionDraftKey({ studentId: 'dol-close-copy-student', assignmentId, questionIndex: 0, variantIndex: 0, sessionMode: 'graded' });
 window.__mmGraded = [];

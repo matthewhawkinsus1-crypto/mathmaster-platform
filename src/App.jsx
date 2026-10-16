@@ -149,6 +149,7 @@ import {
   questionIsIncluded,
   studentAssignmentIndicesWithPracticePass,
   studentDueDateLines,
+  studentExtraTimeDolOpen,
   studentRequiredQuestions,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
@@ -8676,6 +8677,8 @@ function App() {
       minutesBeforeEnd: 5,
     });
     if (packUp.status !== 'active') return null;
+    // Nor is a student still on their exit ticket's extra time (D7).
+    if (studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now })) return null;
 
     return (
       <aside
