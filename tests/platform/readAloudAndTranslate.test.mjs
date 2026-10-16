@@ -42,6 +42,7 @@ import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExa
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { closedAttemptText } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
+import { normalizeEvidenceDetails } from '../../functions/shared/supportEvidenceModel.mjs';
 import { PLATFORM_FAMILY_IDS, defaultFamilyVersion, getPlatformQuestionFamily } from '../../functions/shared/questionFamilyRegistry.mjs';
 import { resolveFamilyPreviewInstance } from '../../functions/shared/questionFamilyInstance.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -387,7 +388,13 @@ test('every platform question family\'s hints, back-up steps and worked examples
 });
 
 test('when a text cannot be translated, the student is told why — never a dead button', async () => {
-  const { SupportedTextActions, translationUnavailableMessage } = await vite.ssrLoadModule('/src/platform/supports/SupportedText.jsx');
+  const { SupportedTextActions, translationUnavailableMessage, translationUnavailableDetails } = await vite.ssrLoadModule('/src/platform/supports/SupportedText.jsx');
+  // What is recorded: the plan report can say Translate was unavailable, in
+  // fields the evidence model and firestore.rules keep as they are.
+  const details = translationUnavailableDetails({ language: 'es', reason: TRANSLATION_GAP.NO_RESOURCE });
+  assert.deepEqual(normalizeEvidenceDetails(details), details);
+  assert.deepEqual(details, { language: 'es', reason: 'no-translation-resource' });
+  assert.match(code('src/platform/supports/SupportedText.jsx'), /onEvidence\?\.\('translation', 'unavailable', translationUnavailableDetails\(/);
   await (await vite.ssrLoadModule('/src/platform/language/translationProviders.js')).loadLanguagePack('es');
   const render = (text, language, extra = {}) => renderToStaticMarkup(React.createElement(SupportedTextActions, {
     text, readAloud: null, translation: language ? { language } : null, label: 'hint 1', ...extra,

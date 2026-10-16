@@ -44,6 +44,16 @@ export const translationUnavailableMessage = ({ language, reason } = {}) => {
   return `No ${name} translation for this text yet.`;
 };
 
+/*
+ * The evidence a support text records when it cannot be translated: only the
+ * fields firestore.rules evidenceDetailsValid accepts (its `surface` list names
+ * screens, not this text, so none is sent).
+ */
+export const translationUnavailableDetails = ({ language, reason } = {}) => ({
+  language: String(language || '').slice(0, 12),
+  reason: String(reason || TRANSLATION_GAP.NO_RESOURCE).slice(0, 48),
+});
+
 const usableTranslation = (result) => Boolean(result?.text)
   && [TRANSLATION_COVERAGE.FULL, TRANSLATION_COVERAGE.PARTIAL].includes(result.coverage);
 
@@ -75,7 +85,7 @@ export const SupportedTextActions = ({ text, readAloud = null, translation = nul
       if (!alive) return;
       setLookup({ key: lookupKey, result });
       if (!usableTranslation(result) && result?.coverage !== TRANSLATION_COVERAGE.NOT_APPLICABLE) {
-        onEvidence?.('translation', 'unavailable', { surface: 'support-text', language, reason: result?.reason || 'no-translation-resource' });
+        onEvidence?.('translation', 'unavailable', translationUnavailableDetails({ language, reason: result?.reason }));
       }
     };
     const now = resolveTranslationNow({ text, language });
