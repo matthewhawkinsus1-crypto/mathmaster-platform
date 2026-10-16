@@ -6,6 +6,7 @@ import {
 } from '../assessment/testCycle.js';
 import { normalizeQuestionRecord } from '../../../functions/shared/attemptPolicy.mjs';
 import { studentSkillName } from '../assessment/secureExamResultsModel.js';
+import { studentMisconceptionMessage } from '../../../functions/shared/misconceptionStudentMessages.mjs';
 
 /*
  * WHERE IS THIS STUDENT IN THIS TEST CYCLE — AS A LIST CAN SAY IT.
@@ -294,11 +295,29 @@ export const describeCorrectionTargetForStudent = (target = {}) => {
   const what = missed > 0
     ? `You missed ${missed} Test question${missed === 1 ? '' : 's'} on this skill.`
     : 'This skill needs another look before your Retest.';
-  const why = target?.diagnosis === 'misconception'
-    ? ' Your answers showed a specific mistake pattern, and these questions practise exactly that.'
-    : '';
+  const named = correctionTargetMistakePattern(target);
+  const why = named
+    ? ' Your answers showed the mistake named below, and these questions practise exactly that.'
+    : target?.diagnosis === 'misconception'
+      ? ' Your answers showed a specific mistake pattern, and these questions practise exactly that.'
+      : '';
   return `${what}${why} Practise it here on new questions — never the Test questions themselves.`;
 };
+
+/*
+ * THE MISTAKE PATTERN, NAMED (QA pass 3, HELP-13).
+ *
+ * "Your answers showed a specific mistake pattern" used to stop there. The plan
+ * records the canonical code the server proved (`misconception`, through the
+ * registry's trust gate — testCycleCorrections.mjs), and every code has one
+ * student message: fixed text that names the error as a thing to check and
+ * never contains an answer or a value (misconceptionStudentMessages.mjs). Only
+ * a recorded code is named; a `standard` diagnosis, or a code this build has
+ * no message for, names nothing.
+ */
+export const correctionTargetMistakePattern = (target = {}) => (
+  target?.diagnosis === 'misconception' ? studentMisconceptionMessage(target?.misconception) : null
+);
 
 /**
  * The skill a correction target names, as a heading. The plan copies the

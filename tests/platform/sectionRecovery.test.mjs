@@ -925,7 +925,11 @@ test('the Recovery runner requires the pinned question and keeps its drafts apar
   assert.match(assessmentRunner, /resolveQuestionMaximumAttempts\(\{ question: currentQuestion, activityPolicy: policy \}\)/);
   assert.match(assessmentRunner, /onStepGrade=\{handleStepGrade\}/);
   const practiceRunner = region(runner, 'function PracticeRunner(', 'function AssessmentRunner(', 'practice runner');
-  assert.match(practiceRunner, /recordQuestionStep\(\{ record: stepRecords\[fingerprint\], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts \}\)/);
+  // Practice: the step bookkeeping keeps the Practice policy's tries, even
+  // though a question with no step work is shown one answer (HELP-19,
+  // recoveryPracticeAttempts.test.mjs).
+  assert.match(practiceRunner, /recordQuestionStep\(\{ record: stepRecords\[fingerprint\], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts: stepMaximumAttempts \}\)/);
+  assert.match(practiceRunner, /const stepMaximumAttempts = resolveQuestionMaximumAttempts\(\{ question, activityPolicy: PRACTICE_POLICY \}\);/);
   assert.match(practiceRunner, /forfeit: true/);
   assert.doesNotMatch(runner, /onStepGrade=\{async \(\) => null\}/, 'a step tool must never get a no-op step grader');
 });

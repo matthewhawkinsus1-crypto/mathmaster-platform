@@ -458,7 +458,22 @@ try {
 
   // 6. Corrections: a wrong answer keeps the same question with tries left.
   await student.getByRole('button', { name: /Start Corrections|Continue Corrections/ }).click();
+  // Each skill starts with one reflection (HELP-13): pick what went wrong, then
+  // a Help me say it frame for the fix. The question waits behind it.
+  const reflection = student.locator('[data-corrections-reflection]');
+  await reflection.waitFor({ timeout: 30_000 });
+  check((await student.getByRole('button', { name: 'Check my answer' }).count()) === 0, 'corrections: the reflection comes before the first question');
+  const options = reflection.getByRole('radio');
+  const optionCount = await options.count();
+  check(optionCount >= 2 && optionCount <= 3, 'corrections: the reflection offers 2–3 choices', String(optionCount));
+  await options.first().check();
+  await reflection.getByRole('button', { name: /Help me say it/ }).click();
+  const framed = await reflection.getByRole('textbox').inputValue();
+  check(/_____/.test(framed) && !/\d/.test(framed), 'corrections: Help me say it gives a frame with a blank and no number', framed);
+  await reflection.getByRole('textbox').fill(framed.replace('_____', 'checking my work'));
+  await reflection.getByRole('button', { name: 'Start practising' }).click();
   await student.getByRole('button', { name: 'Check my answer' }).waitFor({ timeout: 30_000 });
+  check(/Your plan:/.test(await student.locator('[data-corrections-plan]').innerText()), 'corrections: the student\'s plan stays on screen');
   await fillAnswer(student, fixture.CERT_WRONG_ANSWER);
   await student.getByRole('button', { name: 'Check my answer' }).click();
   await student.getByText(/tries left on this question/).waitFor();
@@ -470,6 +485,12 @@ try {
   for (let guard = 0; guard < 40; guard += 1) {
     // eslint-disable-next-line no-await-in-loop
     if ((await student.locator('[data-test-cycle-stage]').count()) > 0) break;
+    // The next skill's reflection; skipping it is allowed.
+    // eslint-disable-next-line no-await-in-loop
+    if (await student.locator('[data-corrections-reflection]').isVisible().catch(() => false)) {
+      // eslint-disable-next-line no-await-in-loop
+      await student.getByRole('button', { name: 'Skip for now' }).click();
+    }
     // eslint-disable-next-line no-await-in-loop
     const answer = await answerFromPrompt(student);
     // eslint-disable-next-line no-await-in-loop

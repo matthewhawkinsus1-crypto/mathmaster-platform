@@ -19087,6 +19087,10 @@ function studentVisibleCorrectionPlan(plan) {
       label: target.label,
       alignmentKey: target.alignmentKey,
       diagnosis: target.diagnosis,
+      // The canonical code behind a `misconception` diagnosis, so the screen
+      // can show its student message (misconceptionStudentMessages.mjs). A
+      // registry code names an error, never an answer.
+      misconception: target.diagnosis === "misconception" ? (target.misconception || null) : null,
       diagnosisDetail: target.diagnosisDetail,
       missed: target.missed,
       requiredCorrectResponses: target.requiredCorrectResponses,
@@ -19097,6 +19101,19 @@ function studentVisibleCorrectionPlan(plan) {
 }
 
 const CORRECTION_ATTEMPTS_PER_QUESTION = 3;
+
+/** The display-only diagnosis of a corrections miss, or null. Never throws. */
+async function correctionMissDiagnosisFor(storedItem, grading, responsePayload) {
+  try {
+    const privateGrading = secureItems.readStoredItem(storedItem)?.privateGrading || null;
+    if (!privateGrading?.pathToolId) return null;
+    const raw = await secureItems.rawWorkOf(responsePayload || {});
+    const { diagnoseCorrectionMiss } = await import("./shared/correctionMissDiagnosis.mjs");
+    return diagnoseCorrectionMiss({ privateGrading, grading, raw });
+  } catch {
+    return null;
+  }
+}
 
 /*
  * CORRECTIONS CLOSE WHILE THE STUDENT'S OWN TEST OR RETEST IS OPEN.
@@ -19381,6 +19398,10 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
    * parallel item is closed and a fresh one will replace it — its worked
    * review. Never the secure Test item: this is a parallel instance.
    */
+  // A miss the item's own work explains gets the student message for it, not
+  // the generic line (correctionMissDiagnosis.mjs). Display only: it is read
+  // from the same server-held definition the grader used, after grading.
+  const diagnosis = grading.isCorrect === true ? null : await correctionMissDiagnosisFor(openForGrading, grading, request.data?.responsePayload);
   const support = await mathPath.attemptSupport({
     support: await mathPath.buildPrivateSupport(openForGrading),
     attemptNumber: applied.attemptsUsed,
@@ -19388,6 +19409,7 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     isCorrect: grading.isCorrect === true,
     questionFinalized: applied.questionClosed,
     responsePayload: request.data?.responsePayload || null,
+    diagnosis,
   });
 
   return {
